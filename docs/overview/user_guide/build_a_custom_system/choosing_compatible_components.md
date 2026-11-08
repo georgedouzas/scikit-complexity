@@ -4,8 +4,12 @@ Find the parts that fit together before you build a system, and read why a part 
 time and space, then elements, then interactions, then the solver. Each choice narrows the next, and you can ask every
 part what it needs before you build anything.
 
-The [compatibility page](../../compatibility.md) lists every element and interaction of the core, with the kinds and states
-each needs, so start there to find candidates. Then check a candidate in code, as this section shows.
+Every part tells what it is through its tags. `get_tags()` of an element returns the domains of its states, such as
+`real`, `get_tags()` of an interaction returns the kinds of the laws it returns and their time, and `get_tags()` of a
+system joins those of its parts. The Parts pages list the tags of every
+[element](../../../parts/elements.md), [interaction](../../../parts/interactions.md), [law](../../../parts/laws.md),
+[solver](../../../parts/solvers.md), and [backend](../../../parts/backends.md) of the core, each with a compatible and an
+incompatible example, so start there to find candidates. Then check a candidate in code, as this section shows.
 
 ## Time and space
 
@@ -19,7 +23,6 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import MapInteraction, MovementInteraction, RateInteraction
 from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.specs import StateSpec
 from skcomplex.core.types import ElementKind
 
@@ -34,7 +37,11 @@ assert MapInteraction('step', target='rabbits', state='n', function=lambda s: s.
 ```
 
 `RateInteraction` returns rates, so it needs continuous time and accepts any space. `MapInteraction` returns updates
-and rules, so it needs discrete time.
+and rules, so it needs discrete time. The tags say the same for the arguments you passed.
+
+```python continuation
+sorted(growth.get_tags().laws), sorted(growth.get_tags().time)
+```
 
 ## Elements
 
@@ -48,7 +55,7 @@ class PopulationElement(Element):
 
 
 rabbits = PopulationElement('rabbits', n=40)
-list(rabbits.get_states())
+list(rabbits.get_states()), sorted(rabbits.get_tags().domains)
 ```
 
 A `GroupElement` returns the states of its members. Every element is of one kind, and the kind is what a role accepts or
@@ -85,10 +92,14 @@ assert not walk.accepts(ElementKind.ELEMENT)
 
 ## When a part does not fit
 
-Read the validation report before you run. `PassCompiler(...).prepare(system).report_` holds every problem of the
-system, each with a path, a message, and a fix. Here the rate reads the state `n` of a tank that carries `level`.
+`simulate` checks the system before it runs and raises an error that lists every problem, each with its path, its
+message, a fix, and its code in brackets. Here the rate reads the state `n` of a tank that carries `level`.
 
 ```python continuation
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.errors import RoleElementError, ValidationError
+
+
 class TankElement(Element):
     def __init__(self, label, *, level: Annotated[float, StateSpec()] = 1.0):
         super().__init__(label)
@@ -99,65 +110,60 @@ wrong = System(
     elements=[TankElement('tank')],
     interactions=[RateInteraction('growth', target='tank', state='n', rate=1.0)],
 )
-issue = PassCompiler().prepare(wrong).report_.issues[0]
-issue.code, issue.path
-issue.message
-issue.fix
-assert issue.code == 'role-element'
-assert issue.message == (
-    "The role 'target' of growth reads the state 'n', but the element tank bound to it carries level."
-)
+try:
+    simulate(wrong, until=1, dt=0.1)
+except RoleElementError as error:
+    message = str(error)
+assert "reads the state 'n', but the element tank bound to it carries level" in message
+message
 ```
 
-A role filled by an unsuitable element is the issue `role-element`. A role that rejects the kind of its element gets
-the same issue, and a law in the wrong time gets `law-time`.
+A role filled by an unsuitable element raises `RoleElementError` with the code `role-element`. A role that rejects the
+kind of its element gets the same code, and a law in the wrong time gets `law-time`.
 
 ```python continuation
 kinds = System(elements=[TankElement('tank')], interactions=[MovementInteraction('walk', target='tank')])
-PassCompiler().prepare(kinds).report_.issues[0].message
 times = System(
     elements=[TankElement('tank')],
     interactions=[RateInteraction('grow', target='tank', state='level', rate=1.0)],
     time=DiscreteTime(),
 )
-PassCompiler().prepare(times).report_.issues[0].message
+messages = []
+for system in (kinds, times):
+    try:
+        simulate(system, until=1)
+    except ValidationError as error:
+        messages.append(str(error).splitlines()[-1])
+messages
 ```
 
-If you do not read the report first, `prepare` of a `Simulation` raises it as an error that lists every problem.
-
-```python continuation
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.core.errors import RoleElementError
-
-try:
-    Simulation(wrong, dt=0.1).prepare()
-except RoleElementError as error:
-    message = str(error)
-message
-```
-
-An interaction of your own gets the same report.
+An interaction of your own gets the same check.
 
 - A `RoleSpec(states=('n',))` states the read in advance, so `get_requirements()` shows it.
-- An interaction that declares nothing is still reported, when validation builds its laws and a law reads a state that
+- An interaction that declares nothing is still checked, when `simulate` builds its laws and a law reads a state that
   the element does not have.
 - A function you pass, such as the `rate` of `growth`, is covered in the same way.
 - An error of another kind inside a law reaches you unchanged.
 
 ## The solver
 
-You can leave the solver out. The laws of a system decide its mathematical form, and the form decides the default
-solver. To choose one yourself, pass it to the compiler and read the report before you run.
+You can leave the solver out. The laws of a system give its tags, and the tags decide the default solver. Every solver
+class lists the tags it supports in `get_supported_tags()`, and `simulate` rejects a solver that lacks a tag of the
+system with a `TagError` that names it, before it compiles anything.
 
 ```python continuation
 from skcomplex.core.engine.solvers import IterationSolver, RK4Solver
+from skcomplex.core.errors import TagError
 
 system = System(elements=[rabbits], interactions=[growth])
-PassCompiler().prepare(system).run().problem_.form.value
-assert PassCompiler(solver=RK4Solver()).prepare(system).report_.ok
-assert not PassCompiler(solver=IterationSolver()).prepare(system).report_.ok
-Simulation(system, dt=0.1).prepare().run(until=1).trajectory_.values('rabbits.n')[-1].round(1)
+assert system.get_tags().laws <= RK4Solver.get_supported_tags().laws
+try:
+    simulate(system, until=1, solver=IterationSolver())
+except TagError as error:
+    message = str(error)
+message, simulate(system, until=1, dt=0.1, solver=RK4Solver()).values('rabbits.n')[-1].round(1)
 ```
 
 `RK4Solver` integrates the differential equations of `growth`, and `IterationSolver`, which iterates maps, does not.
-The compatibility page lists what every solver supports.
+The [solvers page](../../../parts/solvers.md) lists what every solver supports, and the
+[backends page](../../../parts/backends.md) what every backend supports.

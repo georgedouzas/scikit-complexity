@@ -7,23 +7,23 @@ other secretes, 2-oxoglutarate one way and glutamate the other, and both grow.
 """
 
 # %%
-# The system is created by name from the catalog, which needs the extra `metabolism`. The programs of the members merge
-# through the medium, whose law holds the growth weighted by the abundances. The primary view is the bar chart of the
-# fluxes of the first member.
+# The system is built from its class, which needs the extra `metabolism`. The programs of the members merge through
+# the medium, whose law holds the growth weighted by the abundances. The primary view is the bar chart of the fluxes
+# of the first member.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
-from skcomplex.systems.biology.common.metabolism import CommunityAnalysis
+from skcomplex.systems.biology.common.metabolism import community_growth
+from skcomplex.systems.biology.ecology import CommunityFBASystem
 
 SYSTEM = 'community_fba'
 GROWTH = 'v_Biomass_Ecoli_core'
 
-system = create_system(SYSTEM)
+system = CommunityFBASystem().prepare().system_
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = Simulation(system, observers=[observer]).prepare().run(until=0.0).trajectory_
+trajectory = simulate(system, observers=[observer], until=0.0)
 
 # %%
 # Alone and together
@@ -34,28 +34,25 @@ trajectory = Simulation(system, observers=[observer]).prepare().run(until=0.0).t
 
 alone = [
     float(
-        Simulation(create_system(SYSTEM, knockouts=(name,), abundances=(1.0,)))
-        .prepare()
-        .run(until=0.0)
-        .trajectory_.values('medium.objective_0')[0],
+        simulate(CommunityFBASystem(knockouts=(name,), abundances=(1.0,))).values('medium.objective_0')[0],
     )
     for name in ('ICDHyr', 'NH4t')
 ]
 together = [float(trajectory.values(f'member_{index}.{GROWTH}')[0]) for index in range(2)]
 community = float(trajectory.values('medium.objective_0')[0])
-balanced = Simulation(create_system(SYSTEM, common_rate=True)).prepare().run(until=0.0).trajectory_
+balanced = simulate(CommunityFBASystem(common_rate=True))
 balanced_rate = float(balanced.values('medium.objective_0')[0])
-steadycom = CommunityAnalysis(medium={'EX_akg_e': 0.0, 'EX_glu__L_e': 0.0}).prepare(system).run()
-tradeoff = CommunityAnalysis('tradeoff', fraction=1.0).prepare(create_system(SYSTEM, knockouts=('', ''))).run()
+steadycom = community_growth(system, medium={'EX_akg_e': 0.0, 'EX_glu__L_e': 0.0})
+tradeoff = community_growth(CommunityFBASystem(knockouts=('', '')).prepare().system_, kind='tradeoff', fraction=1.0)
 fig, axes = plt.subplots(1, 2, figsize=(10, 4))
 axes[0].bar(['ΔICDHyr alone', 'ΔNH4t alone', 'ΔICDHyr together', 'ΔNH4t together'], [*alone, *together])
 axes[0].tick_params(axis='x', rotation=20)
 axes[0].set_ylabel('growth (1/h)')
 axes[1].bar(
     ['joint FBA', 'community FBA', 'SteadyCom', 'wild-type trade-off'],
-    [community, balanced_rate, steadycom.growth_, tradeoff.growth_],
+    [community, balanced_rate, steadycom.growth, tradeoff.growth],
 )
 axes[1].set_ylabel('community growth (1/h)')
-fig.suptitle(f'Alone {max(alone):.3f}, together {community:.3f} 1/h; SteadyCom common rate {steadycom.growth_:.3f} 1/h')
+fig.suptitle(f'Alone {max(alone):.3f}, together {community:.3f} 1/h; SteadyCom common rate {steadycom.growth:.3f} 1/h')
 fig.tight_layout()
 plt.show()

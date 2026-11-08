@@ -7,12 +7,12 @@ import pytest
 from skcomplex.core.components.elements import LatticeElement
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.social.opinion_dynamics import (
     ConfidenceCouplingInteraction,
     ConfidentElement,
-    deffuant,
-    hegselmann_krause,
+    DeffuantSystem,
+    HegselmannKrauseSystem,
 )
 
 from ..conftest import _run, _values
@@ -28,8 +28,8 @@ def _clusters(opinions, gap):
 @pytest.mark.parametrize(('confidence', 'clusters'), [(0.3, 1), (0.15, 3), (0.08, 6)])
 def test_hegselmann_krause_freezes_into_clusters_of_the_confidence(confidence, clusters):
     """Test that the opinions settle into about `1 / (2 ε)` clusters that stop moving."""
-    system = hegselmann_krause(300, confidence=confidence)
-    opinions = Simulation(system, random_state=0).prepare().run(until=40).trajectory_.values('people.opinion')
+    system = HegselmannKrauseSystem(300, confidence=confidence).prepare().system_
+    opinions = simulate(system, until=40, random_state=0).values('people.opinion')
     found = np.unique(np.round(opinions[-1], 6))
     assert abs(found.size - clusters) <= 1
     assert np.allclose(opinions[-1], opinions[-2], atol=1e-12)
@@ -39,7 +39,7 @@ def test_hegselmann_krause_freezes_into_clusters_of_the_confidence(confidence, c
 @pytest.mark.parametrize('seed', [0, 1, 2])
 def test_deffuant_bounded_confidence_clusters(seed):
     """Test that Deffuant opinions with confidence 0.2 converge to about `1 / (2 * 0.2)` clusters."""
-    trajectory = _run(deffuant(500, confidence=0.2, random_state=seed), 100)
+    trajectory = _run(DeffuantSystem(500, confidence=0.2, random_state=seed), 100)
     opinions = _values(trajectory, 'people', 'opinion')
     sizes = _clusters(opinions, 0.05)
     major = sizes[sizes >= 0.05 * len(opinions)]
@@ -51,7 +51,7 @@ def test_deffuant_bounded_confidence_clusters(seed):
 
 def test_deffuant_conserves_mean_opinion():
     """Test that compromises keep the mean opinion of the Deffuant system."""
-    trajectory = _run(deffuant(100, random_state=0), 20)
+    trajectory = _run(DeffuantSystem(100, random_state=0), 20)
     first, last = _values(trajectory, 'people', 'opinion', 0), _values(trajectory, 'people', 'opinion')
     assert last.mean() == pytest.approx(first.mean())
 
@@ -70,6 +70,6 @@ def test_confidence_coupling_takes_the_mean_of_the_trusted_neighbours():
         interactions=[ConfidenceCouplingInteraction('compromise', target='people')],
         time=DiscreteTime(),
     )
-    values = Simulation(system).prepare().run(until=1).trajectory_.values('people.opinion')[-1]
+    values = simulate(system, until=1).values('people.opinion')[-1]
     close = np.abs(opinions[None, :] - opinions[:, None]) < 0.2
     np.testing.assert_allclose(values, (close * opinions).sum(1) / close.sum(1), atol=1e-12)

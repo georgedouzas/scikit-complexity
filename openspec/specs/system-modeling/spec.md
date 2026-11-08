@@ -128,7 +128,7 @@ boxes. A frame SHALL never report a state that a boundary law would change.
 
 #### Scenario: Long frames keep particles in the box
 - **WHEN** a particle at 0.5 with velocity 1 in a reflecting box of side 1 runs one frame of duration 5 with `RK4`
-  and with `ScipyODE`
+  and with `ScipyODESolver`
 - **THEN** at time 5 its position is 0.5 and its velocity is -1 within 1e-6, after four reflections
 
 ### Requirement: Laws express conditions and remainders
@@ -724,7 +724,7 @@ SHALL be an argument of the run.
 - **THEN** the trajectory holds `leverage`, and the system has no quantity among its parts
 
 ### Requirement: Runs check invariants
-`Simulation(invariants={name: tolerance})` SHALL check, at every frame, that each named observable stays within its
+`simulate(system, invariants={name: tolerance})` SHALL check, at every frame, that each named observable stays within its
 tolerance of its first value, and SHALL raise `ConservationError` naming the observable and the first frame that
 breaks it.
 
@@ -732,7 +732,7 @@ breaks it.
 - **WHEN** a law creates wealth from nothing in a system whose run declares the observable `total_wealth` invariant
 - **THEN** the run raises `ConservationError` naming `total_wealth` and the first frame that breaks it
 
-### Requirement: Parts share two verbs
+### Requirement: Parts share two main public methods
 Elements, interactions, laws, and systems SHALL derive from `BasePart`, which defines `label`,
 `prepare(namespace)`, and `run(input)`. Elements, interactions, and systems SHALL return `self` from
 `prepare`, and their laws from `run(s)`; a system SHALL return the laws of its children. A law SHALL return a prepared

@@ -19,8 +19,8 @@ from skcomplex.core.components.laws import EquationLaw, RateLaw
 from skcomplex.core.components.laws.utils import log_sum_exp, total
 from skcomplex.core.components.spaces import StaticTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.errors import SolverError
 from skcomplex.core.specs import IssueSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec
 from skcomplex.core.types import FormKind
@@ -195,9 +195,9 @@ class TermInteraction(Interaction):
         return [EquationLaw(0, s.gain, target=s.target.x)]
 
 
-def _simulated(system: System, **settings: object) -> Simulation:
-    """Return the simulation of a static system after its run."""
-    return Simulation(system, **settings).prepare().run(1.0)
+def _simulated(system: System, **settings: object) -> Trajectory:
+    """Return the trajectory of a static system."""
+    return simulate(system, until=1.0, **settings)
 
 
 def _issues(system: System, code: str) -> list[IssueSpec]:
@@ -208,7 +208,7 @@ def _issues(system: System, code: str) -> list[IssueSpec]:
 def test_run_survival_at_dose() -> None:
     """Test that a closed form under static time gives one frame with its value."""
     system = System(elements=[SurvivalElement('a')], time=StaticTime())
-    frames = _simulated(system).trajectory_.values('a.S')
+    frames = _simulated(system).values('a.S')
     assert PassCompiler().prepare(system).run().problem_.form == FormKind.STATIC
     assert frames.shape == (1,)
     assert abs(frames[0] - np.exp(-0.72)) < 1e-12
@@ -220,7 +220,7 @@ def test_run_without_equations() -> None:
     trajectory = _simulated(
         System(elements=[group], time=StaticTime()),
         observables=[ObservableSpec('all', group='g', variable='x', reduce='sum')],
-    ).trajectory_
+    )
     assert trajectory.values('g.x').tolist() == [[1.0, 2.0, 3.0, 4.0]]
     assert trajectory.values('all').tolist() == [10.0]
 
@@ -237,7 +237,7 @@ def test_compiler_exact_linear_solution() -> None:
 
 def test_run_cyclic_equations() -> None:
     """Test that two equations that give each other solve jointly."""
-    trajectory = _simulated(System(elements=[CyclicElement('a')], time=StaticTime())).trajectory_
+    trajectory = _simulated(System(elements=[CyclicElement('a')], time=StaticTime()))
     assert abs(trajectory.values('a.x')[0] - 2) < 1e-12
     assert abs(trajectory.values('a.y')[0] - 2) < 1e-12
 
@@ -249,20 +249,20 @@ def test_run_adds_equations_of_one_target() -> None:
         interactions=[TermInteraction('i', target='a')],
         time=StaticTime(),
     )
-    assert abs(_simulated(system).trajectory_.values('a.x')[0] - 5.0) < 1e-12
+    assert abs(_simulated(system).values('a.x')[0] - 5.0) < 1e-12
 
 
 def test_run_numerical_solution() -> None:
     """Test that an equation without an explicit solution solves numerically."""
     system = System(elements=[FixedPointElement('a')], time=StaticTime())
     assert PassCompiler().prepare(system).run().problem_.unknowns.tolist() == [0]
-    assert abs(_simulated(system).trajectory_.values('a.x')[0] - 0.7390851332151607) < 1e-9
+    assert abs(_simulated(system).values('a.x')[0] - 0.7390851332151607) < 1e-9
 
 
 def test_run_group_coupled_through_total() -> None:
     """Test that a group target gives one unknown per member, coupled through a reduction."""
     group = GroupElement('g', element=MeanFieldElement, size=5, values={'b': np.arange(1.0, 6.0)})
-    frames = _simulated(System(elements=[group], time=StaticTime())).trajectory_.values('g.x')
+    frames = _simulated(System(elements=[group], time=StaticTime())).values('g.x')
     assert frames[0].tolist() == pytest.approx([4.0, 5.0, 6.0, 7.0, 8.0], abs=1e-8)
 
 
@@ -270,15 +270,14 @@ def test_run_group_coupled_through_log_sum_exp() -> None:
     """Test that the Jacobian of a log-sum-exp solves members that read it, from a guess far from the solution."""
     values = {'b': np.arange(1.0, 6.0), 'x': np.full(5, 10.0)}
     group = GroupElement('g', element=SoftmaxFieldElement, size=5, values=values)
-    x = _simulated(System(elements=[group], time=StaticTime())).trajectory_.values('g.x')[0]
+    x = _simulated(System(elements=[group], time=StaticTime())).values('g.x')[0]
     assert x == pytest.approx(np.arange(1.0, 6.0) - logsumexp(x), abs=1e-8)
 
 
 def test_run_no_solution() -> None:
     """Test that a solve that does not converge names the equation and the residual."""
-    simulation = Simulation(System(elements=[NoSolutionElement('a')], time=StaticTime())).prepare()
     with pytest.raises(SolverError, match=r'x.*largest residual'):
-        simulation.run(1.0)
+        simulate(System(elements=[NoSolutionElement('a')], time=StaticTime()), until=1.0)
 
 
 def test_prepare_compiler_target_not_a_state() -> None:

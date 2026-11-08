@@ -13,14 +13,14 @@ ten elements, so an interruption loses only the assembly in hand. Hierarchy wins
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.social.organizations import WatchmakersSystem
 
 SYSTEM = 'watchmakers'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=100)
-simulation = Simulation(create_system(SYSTEM), observers=[observer], random_state=0).prepare().run(until=20000)
+trajectory = simulate(WatchmakersSystem(), until=20000, observers=[observer], random_state=0)
 
 # %%
 # Watches finished
@@ -28,7 +28,6 @@ simulation = Simulation(create_system(SYSTEM), observers=[observer], random_stat
 # A task of `k` actions interrupted with the probability `p` per action takes `((1 - p)^-k - 1) / p` actions on
 # average, so Hora should finish a watch every 1173 actions, while Tempus needs 2.3 million and finishes none.
 
-trajectory = simulation.trajectory_
 times = np.asarray(trajectory.times)
 watches = np.array([trajectory.agents('watchmakers', frame).values['watches'] for frame in range(len(times))])
 progress = np.array([trajectory.agents('watchmakers', frame).values['progress'] for frame in range(len(times))])

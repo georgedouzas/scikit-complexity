@@ -3,15 +3,14 @@
 import numpy as np
 import pytest
 
-from skcomplex.systems import describe
-from skcomplex.systems.economics.resources import fishery_measurement_errors
+from skcomplex.systems.economics.resources import FisheryMeasurementErrorsSystem
 
 from ..conftest import _run
 
 
 def test_fishery_measurement_errors_settles_where_the_quota_meets_the_growth():
     """Test that without noise the quota `x - K / 2` holds the stock at `K / sqrt(2)`, below the harvest peak."""
-    trajectory = _run(fishery_measurement_errors(2, sigma_r=0.0), 2000)
+    trajectory = _run(FisheryMeasurementErrorsSystem(2, sigma_r=0.0), 2000)
     assert trajectory.values('fisheries.x')[-1] == pytest.approx(np.full(2, 2**-0.5), abs=1e-6)
     assert trajectory.values('fisheries.catch')[-1] == pytest.approx(np.full(2, 2**-0.5 - 0.5), abs=1e-6)
     assert float(trajectory.values('fisheries.catch')[-1][0]) < 0.25
@@ -21,8 +20,8 @@ def test_fishery_measurement_errors_extinction_grows_with_the_noise():
     """Test that stocks never die without noise and that a large measurement error drives many extinct."""
 
     def extinct(**settings):
-        system = fishery_measurement_errors(100, **settings)
-        observables = describe('fishery_measurement_errors').observables_of(system)
+        system = FisheryMeasurementErrorsSystem(100, **settings).prepare().system_
+        observables = FisheryMeasurementErrorsSystem().get_run_settings()['observables']
         return float(_run(system, 2000, observables=observables).values('extinct')[-1])
 
     assert extinct(sigma_r=0.0) == 0.0

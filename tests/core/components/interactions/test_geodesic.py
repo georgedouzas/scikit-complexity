@@ -11,7 +11,7 @@ from skcomplex.core.components.interactions import GeodesicInteraction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import ContinuousSpace, PseudoRiemannianSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.errors import SpaceError, ValidationError
 
@@ -25,7 +25,7 @@ def _run(space: PseudoRiemannianSpace, x: list[float], x_d1: list[float], until:
     point = PointElement('point', x=x, x_d1=x_d1)
     geodesic = GeodesicInteraction('geodesic', target='point', space=space)
     system = System(elements=[point], interactions=[geodesic], space=space)
-    trajectory = Simulation(system, dt=until / 50, solver=ACCURATE).prepare().run(until=until).trajectory_
+    trajectory = simulate(system, until=until, dt=until / 50, solver=ACCURATE)
     return np.hstack([trajectory.values('point.x'), trajectory.values('point.x_d1')])
 
 
@@ -86,4 +86,4 @@ def test_geodesic_interaction_rejects_a_position_of_another_dimension():
     geodesic = GeodesicInteraction('geodesic', target='point', space=plane)
     system = System(elements=[point], interactions=[geodesic], space=ContinuousSpace(n_dim=3))
     with pytest.raises(ValidationError, match='3 components for the 2 coordinates'):
-        Simulation(system, dt=0.1).prepare()
+        simulate(system, until=0, dt=0.1)

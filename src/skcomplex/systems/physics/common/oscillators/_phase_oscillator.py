@@ -12,7 +12,9 @@ from .....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class PhaseOscillatorElement(Element):
-    """Phase oscillator, a phase `theta` that turns at its natural frequency, `theta' = omega`.
+    """Phase oscillator, a phase `theta` that turns at its natural frequency.
+
+    The phase follows `theta' = omega`.
 
     Couplings to other oscillators add to the rate of the phase.
 
@@ -35,12 +37,14 @@ class PhaseOscillatorElement(Element):
 
     Examples:
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.systems.physics.common.oscillators import PhaseOscillatorElement
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> system = System(elements=[PhaseOscillatorElement('clock', omega=2.0)])
-        >>> float(Simulation(system, dt=0.5).prepare().run(until=1.0).trajectory_.values('clock.theta')[-1])
+        >>> float(simulate(system, until=1.0, dt=0.5).values('clock.theta')[-1])
         2.0
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,

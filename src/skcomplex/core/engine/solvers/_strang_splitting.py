@@ -1,4 +1,7 @@
-"""Alternate transport and collision steps of a field with second-order accuracy in the time step."""
+"""Alternate transport and collision steps of a field.
+
+The scheme has second-order accuracy in the time step.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,10 +24,11 @@ from ._solver import Solver
 
 
 class StrangSplittingSolver(Solver):
-    """Strang splitting of a half transport step, a full collision step, and a half transport step.
+    """Strang splitting of half transport steps around a full collision step.
 
-    The transport solver advances the flux differences of the finite-volume fields and the collision solver the source
-    rates, which the problem keeps apart.
+    A half transport step, a full collision step, and a half transport step follow each other. The transport solver
+    advances the flux differences of the finite-volume fields and the collision solver the source rates, which the
+    problem keeps apart.
 
     Args:
         transport:
@@ -56,9 +60,9 @@ class StrangSplittingSolver(Solver):
         >>> from skcomplex.core.components.laws.utils import coordinate, maximum_entropy
         >>> from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.core.engine.solvers import RK4Solver, SemiLagrangianSolver, StrangSplittingSolver
         >>> from skcomplex.core.specs import AxisSpec
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> space = PhaseSpace(LatticeSpace((8,)), [AxisSpec('v', 16, -6.0, 6.0)]).prepare()
         >>> start = np.outer(2 + np.sin(2 * np.pi * np.arange(8) / 8), np.exp(-space.coordinates_['v'] ** 2))
         >>> gas = FieldElement(
@@ -70,7 +74,7 @@ class StrangSplittingSolver(Solver):
         ... )
         >>> system = System(elements=[gas], interactions=[stream, relax])
         >>> solver = StrangSplittingSolver(SemiLagrangianSolver(dt=0.1), RK4Solver(dt=0.1), dt=0.1)
-        >>> final = Simulation(system, solver=solver).prepare().run(until=0.2).trajectory_.values('gas.f')[-1]
+        >>> final = simulate(system, until=0.2, solver=solver).values('gas.f')[-1]
         >>> abs(float(final.sum() / start.sum()) - 1.0) < 1e-12
         True
     """
@@ -92,7 +96,10 @@ class StrangSplittingSolver(Solver):
 
     @classmethod
     def _is_implicit(cls) -> bool:
-        """Return whether explicit stability limits do not apply, which the inner solvers answer for."""
+        """Return whether explicit stability limits do not apply.
+
+        The inner solvers answer for it.
+        """
         return True
 
     def __init__(
@@ -111,14 +118,20 @@ class StrangSplittingSolver(Solver):
         self.until = until
 
     def _flux_differences(self, t: float, x: Array, p: Array) -> Array:
-        """Return the rates of the flux differences of the finite-volume fields, zero for the other states."""
+        """Return the rates of the flux differences of the finite-volume fields.
+
+        They are zero for the other states.
+        """
         rates = np.zeros(x.size)
         for volume in self.problem_.volumes:
             rates = rates + np.asarray(volume.run(RunStateSpec(t, x, p)).values_, dtype=float)
         return rates
 
     def _inner(self, solver: Solver | None, law: type, dt: float, problem: ProblemSpec) -> Solver:
-        """Return an inner solver prepared on a part of the problem, raising an error for a law it does not advance."""
+        """Return an inner solver prepared on a part of the problem.
+
+        An error is raised for a law it does not advance.
+        """
         inner = RK4Solver(dt=dt) if solver is None else clone(solver)
         if inner._get_support().missing('laws', {law}):
             error_msg = f'StrangSplittingSolver advances {law.__name__} with {type(inner).__name__}, which lacks it.'
@@ -126,7 +139,9 @@ class StrangSplittingSolver(Solver):
         return inner.prepare(problem)
 
     def _prepare(self, context: ProblemSpec | None) -> None:
-        """Prepare the two inner solvers on the transport and the collision parts of the problem.
+        """Prepare the two inner solvers on the transport and the collision parts.
+
+        The parts are those of the problem.
 
         Args:
             context:

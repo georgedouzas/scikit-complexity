@@ -11,21 +11,14 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
-
-
-def _excess_demand(s: SimpleNamespace) -> Expression:
-    """Return the rate of the price, `k` times the demand `beta - lam P` less the supply `delta + alpha P + g P^2`."""
-    market = s.target
-    demand = market.beta - market.lam * market.P
-    supply = market.delta + market.alpha * market.P + market.gamma * market.P**2
-    return market.k * (demand - supply)
 
 
 class QuadraticSupplyMarketElement(Element):
-    """Market of one good whose price adjusts to the excess of a linear demand over a quadratic supply.
+    """Market of one good whose price adjusts to the excess demand.
+
+    The excess is that of a linear demand over a quadratic supply.
 
     Args:
         label:
@@ -84,27 +77,13 @@ class QuadraticSupplyMarketElement(Element):
         self.gamma = gamma
 
 
-@register_system(
-    field='economics/markets',
-    tags=('market', 'riccati', 'ode'),
-    references=('Forrest 2018',),
-    defaults={'until': 10.0, 'dt': 0.1},
-)
-def riccati_prices(
-    price: float = 1.0,
-    *,
-    k: float = 1.0,
-    beta: float = 10.0,
-    lam: float = 1.0,
-    delta: float = 1.0,
-    alpha: float = 2.0,
-    gamma: float = -0.1,
-) -> System:
-    """Return a price that moves with excess demand under linear demand and saturating quadratic supply.
+class RiccatiPricesSystem(BaseSystem):
+    """A price that moves with excess demand.
 
-    The price follows the Riccati equation `dP/dt = k (D - S)` with demand `D = beta - lam P` and supply
-    `S = delta + alpha P + gamma P^2`. When `(lam + alpha)^2 > 4 gamma (delta - beta)` there are two equilibrium prices,
-    and prices below the larger one converge to the smaller one. Otherwise the price blows up in finite time.
+    Demand is linear and supply is quadratic and saturating. The price follows the Riccati equation `dP/dt = k (D - S)`
+    with demand `D = beta - lam P` and supply `S = delta + alpha P + gamma P^2`. When
+    `(lam + alpha)^2 > 4 gamma (delta - beta)` there are two equilibrium prices, and prices below the larger one
+    converge to the smaller one. Otherwise the price blows up in finite time. The system has the price `market.P`.
 
     Args:
         price:
@@ -128,24 +107,64 @@ def riccati_prices(
         gamma:
             The quadratic intensity of the supply, negative for saturation.
 
-    Returns:
-        system:
-            The system, with the price `market.P`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.markets import riccati_prices
-        >>> riccati_prices(gamma=-0.2).elements[0].gamma
+        >>> from skcomplex.systems.economics.markets import RiccatiPricesSystem
+        >>> RiccatiPricesSystem(gamma=-0.2).prepare().system_.elements[0].gamma
         -0.2
     """
-    market = QuadraticSupplyMarketElement(
-        'market',
-        P=price,
-        k=k,
-        beta=beta,
-        lam=lam,
-        delta=delta,
-        alpha=alpha,
-        gamma=gamma,
-    )
-    adjustment = RateInteraction('adjustment', target='market', state='P', rate=_excess_demand)
-    return System(elements=[market], interactions=[adjustment])
+
+    field = 'economics/markets'
+    topics = ('market', 'riccati', 'ode')
+    references = ('Forrest 2018',)
+    until = 10.0
+    dt = 0.1
+
+    def __init__(
+        self,
+        price: float = 1.0,
+        *,
+        k: float = 1.0,
+        beta: float = 10.0,
+        lam: float = 1.0,
+        delta: float = 1.0,
+        alpha: float = 2.0,
+        gamma: float = -0.1,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.price = price
+        self.k = k
+        self.beta = beta
+        self.lam = lam
+        self.delta = delta
+        self.alpha = alpha
+        self.gamma = gamma
+
+    @staticmethod
+    def _excess_demand(s: SimpleNamespace) -> Expression:
+        """Return the rate of the price.
+
+        It is `k` times the demand `beta - lam P` less supply `delta + alpha P + g P^2`.
+        """
+        market = s.target
+        demand = market.beta - market.lam * market.P
+        supply = market.delta + market.alpha * market.P + market.gamma * market.P**2
+        return market.k * (demand - supply)
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        market = QuadraticSupplyMarketElement(
+            'market',
+            P=self.price,
+            k=self.k,
+            beta=self.beta,
+            lam=self.lam,
+            delta=self.delta,
+            alpha=self.alpha,
+            gamma=self.gamma,
+        )
+        adjustment = RateInteraction('adjustment', target='market', state='P', rate=self._excess_demand)
+        return System(self.label, elements=[market], interactions=[adjustment])

@@ -60,7 +60,7 @@ frame, with the fitted degree exponent where the degree distribution has a heavy
 - **THEN** the assortativity rises over frames and ends above 0.9 when the network fragments
 
 ### Requirement: Networks renormalize across scales
-`RenormalizationAnalysis` SHALL coarse-grain a graph, or the network of a trajectory, by its Laplacian (`'laplacian'`)
+`renormalization` SHALL coarse-grain a graph, or the network of a trajectory, by its Laplacian (`'laplacian'`)
 or by the angles of its nodes (`'geometric'`), and SHALL set the network at every scale with its degree distribution,
 degree exponent, and clustering.
 
@@ -73,7 +73,7 @@ degree exponent, and clustering.
 - **THEN** the network at the next scale has two nodes joined by one edge
 
 ### Requirement: Autocatalytic sets are found
-`AutocatalyticSetAnalysis` SHALL find the largest reflexively autocatalytic and food-generated set of a catalytic
+`autocatalytic_sets` SHALL find the largest reflexively autocatalytic and food-generated set of a catalytic
 reaction network, read from a network snapshot or chosen frames of a trajectory, with every hyperedge a reaction that
 produces its last member and every edge from a catalyst to a product, by the algorithm of Hordijk and Steel. The food
 set SHALL default to the nodes that no reaction produces.

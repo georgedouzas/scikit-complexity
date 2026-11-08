@@ -4,9 +4,8 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.systems import describe
 from skcomplex.systems.mathematics.networks import (
-    network_structure_analysis,
+    NetworkStructureAnalysisSystem,
 )
 
 from ..conftest import _run
@@ -15,9 +14,8 @@ from ..conftest import _run
 def test_network_structure_analysis_of_a_generated_network():
     """Test that a planted partition of 4 blocks of 100 nodes is recorded with its measures and its blocks found."""
     trajectory = _run(
-        built := network_structure_analysis(null_samples=5),
+        NetworkStructureAnalysisSystem(null_samples=5),
         1,
-        observables=describe('network_structure_analysis').observables_of(built),
     )
     assert trajectory.agents('nodes', 0).ids.size == 400
     for name in ('clustering', 'path_length', 'assortativity', 'modularity', 'triangle_zscore'):
@@ -30,9 +28,8 @@ def test_network_structure_analysis_of_a_given_graph():
     """Test that Zachary's karate club gives the NetworkX clustering and path length and at least two communities."""
     graph = nx.karate_club_graph()
     trajectory = _run(
-        built := network_structure_analysis(graph, reference='club', null_samples=0),
+        NetworkStructureAnalysisSystem(graph, reference='club', null_samples=0),
         1,
-        observables=describe('network_structure_analysis').observables_of(built),
     )
     assert trajectory.values('clustering')[-1] == pytest.approx(nx.average_clustering(graph), abs=1e-12)
     assert trajectory.values('path_length')[-1] == pytest.approx(nx.average_shortest_path_length(graph), abs=1e-12)

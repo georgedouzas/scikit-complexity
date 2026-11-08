@@ -1,4 +1,7 @@
-"""Define potential energies of particles, whose forces are minus the gradients of the energy of their positions."""
+"""Define potential energies of particles.
+
+Their forces are minus the gradients of the energy of their positions.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,7 +15,9 @@ from .....core.specs import RoleSpec
 
 
 class PotentialEnergyInteraction(GradientInteraction):
-    """Potential energy of the positions of particles, whose force on every particle changes its velocity.
+    """Potential energy of the positions of particles.
+
+    Its force on every particle changes its velocity.
 
     It is the gradient of the energy with the mass as divisor: the force `-dU/dx` on every particle gives the second
     derivative of its position of order 2, the force divided by its mass. A subclass binds one role per particle and

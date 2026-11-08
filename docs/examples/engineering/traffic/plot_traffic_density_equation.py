@@ -13,16 +13,16 @@ density waves grow at a preferred wavelength and form a train of dense jams sepa
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.engineering.traffic import TrafficDensityEquationSystem
 
 SYSTEM = 'traffic_density_equation'
 
-system = create_system(SYSTEM, perturbation=1e-4)
+system = TrafficDensityEquationSystem(perturbation=1e-4)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(system, dt=4.0, solver=RK4Solver(dt=0.1), observers=[observer]).prepare().run(until=400)
+trajectory = simulate(system, solver=RK4Solver(dt=0.1), observers=[observer])
 
 # %%
 # Growth rates of the density waves
@@ -31,7 +31,7 @@ simulation = Simulation(system, dt=4.0, solver=RK4Solver(dt=0.1), observers=[obs
 # real part of its eigenvalues is the growth rate of the density wave. While the waves are small, the logarithm of each
 # Fourier amplitude of the simulated density should grow at that rate, with the fastest growth near `q = 0.9`.
 
-times, rho = simulation.trajectory_.times, simulation.trajectory_.values('road.rho')
+times, rho = trajectory.times, trajectory.values('road.rho')
 length, D1, gamma, density = 50.0, 0.2, 1.0, 0.5
 speed, slope = 1 - density, 1 - 2 * density
 amplitudes = np.abs(np.fft.rfft(rho - rho.mean(axis=1, keepdims=True), axis=1))

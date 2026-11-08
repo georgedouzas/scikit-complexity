@@ -1,4 +1,7 @@
-"""Read and write molecular structures and trajectories through Biopython and MDTraj."""
+"""Read and write molecular structures and trajectories.
+
+It works through Biopython and MDTraj.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,7 +28,10 @@ SUFFIXES_MMCIF = ('.cif', '.mmcif')
 
 
 def _read_systems(handle: TextIO | str, *, is_pdb: bool) -> StructureSpec:
-    """Return the polymer atoms of a file read by Biopython's parser, the most occupied of alternate locations."""
+    """Return the polymer atoms of a file read by Biopython's parser.
+
+    It keeps the most occupied of alternate locations.
+    """
     pdb = import_extra('Bio.PDB', STRUCTURE_SYSTEMS, 'structures')
     parser = pdb.PDBParser(QUIET=True) if is_pdb else pdb.MMCIFParser(QUIET=True)
     structure = parser.get_structure('structure', handle)
@@ -40,17 +46,21 @@ def _read_systems(handle: TextIO | str, *, is_pdb: bool) -> StructureSpec:
         ]
         coordinates.append([atom.coord for atom, _, _ in selected])
         atoms = selected
-    return StructureSpec(
+    read = StructureSpec(
         np.asarray(coordinates, dtype=float),
         tuple(atom.get_name() for atom, _, _ in atoms),
         tuple(residue.get_resname() for _, residue, _ in atoms),
         tuple(int(residue.id[1]) for _, residue, _ in atoms),
         tuple(str(chain.id) for _, _, chain in atoms),
-    )._validated()
+    )
+    read._check()
+    return read
 
 
 def read_structure(source: str | Path) -> StructureSpec:
-    """Return the polymer atoms of every system of a bundled entry, or of a PDB or an mmCIF file.
+    """Return the polymer atoms of every system of a structure.
+
+    The structure is a bundled entry, or a PDB or an mmCIF file.
 
     Args:
         source:
@@ -182,7 +192,9 @@ def write_structure(structure: StructureSpec, path: str | Path) -> None:
 
 
 def read_trajectory(path: str | Path, topology: str | Path) -> StructureSpec:
-    """Return the frames of a molecular dynamics trajectory as the systems of a structure, through MDTraj.
+    """Return the frames of a molecular dynamics trajectory as the systems of a structure.
+
+    It reads them through MDTraj.
 
     Args:
         path:
@@ -201,10 +213,12 @@ def read_trajectory(path: str | Path, topology: str | Path) -> StructureSpec:
     """
     trajectory = import_extra('mdtraj', STRUCTURE_SYSTEMS, 'trajectories').load(str(path), top=str(topology))
     atoms = list(trajectory.topology.atoms)
-    return StructureSpec(
+    read = StructureSpec(
         np.asarray(trajectory.xyz, dtype=float) * NM_TO_ANGSTROM,
         tuple(atom.name for atom in atoms),
         tuple(atom.residue.name for atom in atoms),
         tuple(int(atom.residue.resSeq) for atom in atoms),
         tuple(str(atom.residue.chain.chain_id or atom.residue.chain.index) for atom in atoms),
-    )._validated()
+    )
+    read._check()
+    return read

@@ -89,17 +89,17 @@ state, and SHALL reject a matrix without that symmetry with a `ValidationError` 
 - **THEN** the state relaxes to that matrix at every site, within 1e-6
 
 ### Requirement: Principal axes and defects are analysed
-`AlignmentAnalysis` SHALL give, with the kind `'principal-axis'`, the principal axis and the scalar order of a
-symmetric tensor field at every site. `DefectAnalysis` SHALL give the point defects of a two-dimensional axis field with
+`alignment` SHALL give, with the kind `'principal-axis'`, the principal axis and the scalar order of a
+symmetric tensor field at every site. `defects` SHALL give the point defects of a two-dimensional axis field with
 their topological charges, for axes with or without head-tail symmetry.
 
 #### Scenario: Defect pair
-- **WHEN** `DefectAnalysis(period=np.pi)` reads a nematic axis field with one `+1/2` and one `-1/2` defect on a periodic
+- **WHEN** `defects(field, period=np.pi)` reads a nematic axis field with one `+1/2` and one `-1/2` defect on a periodic
   lattice
 - **THEN** it finds exactly two defects within one lattice spacing of their sites, with charges `+1/2` and `-1/2`
 
 #### Scenario: Polar vortex
-- **WHEN** `DefectAnalysis(period=2 * np.pi)` reads a vector field with one vortex
+- **WHEN** `defects(field, period=2 * np.pi)` reads a vector field with one vortex
 - **THEN** it finds one defect of charge `+1`
 
 ### Requirement: Axis fields stream to Rerun

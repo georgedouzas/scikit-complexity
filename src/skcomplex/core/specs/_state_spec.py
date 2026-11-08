@@ -11,7 +11,9 @@ from sage.all__sagemath_symbolics import RR
 
 from ..errors import ValidationError
 from ._base_spec import BaseSpec
+from ._entry_spec import EntrySpec
 from ._matrix_group_spec import MatrixGroupSpec
+from ._power_series_spec import PowerSeriesSpec
 from ._tensor_spec import TENSOR_SYMMETRIES
 
 ROLES = ('position', 'site', 'direction', 'phase', 'velocity', None)
@@ -19,10 +21,11 @@ ROLES = ('position', 'site', 'direction', 'phase', 'velocity', None)
 
 @dataclass(frozen=True)
 class StateSpec(BaseSpec):
-    """Spec of a state of an element, in the annotation of an argument of its constructor.
+    """Spec of a state of an element.
 
-    The default of the argument is the initial value of the state. A state of order `k` has its `k`-th time derivative
-    given by its rate laws, and a state with `m` lags keeps its past values for difference equations.
+    It is given in the annotation of an argument of its constructor. The default of the argument is the initial value of
+    the state. A state of order `k` has its `k`-th time derivative given by its rate laws, and a state with `m` lags
+    keeps its past values for difference equations.
 
     Args:
         domain:
@@ -120,7 +123,10 @@ class StateSpec(BaseSpec):
     group: MatrixGroupSpec | None = None
 
     def _check_group(self) -> None:
-        """Raise an error for a matrix group state that is also a vector, a tensor, or of another order or with lags."""
+        """Raise an error for a matrix group state that is not a plain state.
+
+        A matrix group state cannot also be a vector, a tensor, or of another order or with lags.
+        """
         if self.group is not None and (self.vector or self.tensor is not None or self.order != 1 or self.lags):
             error_msg = (
                 f'A state of the group {self.group.name}({self.group.degree}) holds its matrices alone. Remove '
@@ -129,7 +135,9 @@ class StateSpec(BaseSpec):
             raise ValidationError(error_msg)
 
     def _check(self) -> None:
-        """Raise an error for an invalid order, lags, or initial values, or a reference of a state that is not scalar.
+        """Raise an error for invalid order, lags, or initial values, or a bad reference.
+
+        The reference of a state must be scalar.
 
         Raises:
             ValidationError:
@@ -171,3 +179,18 @@ class StateSpec(BaseSpec):
         if len(self.initial) > companions:
             error_msg = f'{len(self.initial)} initial values were given for {companions} derivatives or lags.'
             raise ValidationError(error_msg)
+
+    def _get_domain_tag(self) -> str | None:
+        """Return the domain tag of the state.
+
+        It returns `None` for a structure rewritten as a whole, such as a word.
+        """
+        if self.group is not None:
+            return 'matrix group'
+        if self.vector or self.tensor is not None:
+            return 'vector'
+        if isinstance(self.domain, PowerSeriesSpec):
+            return 'power series'
+        if self.domain is None or self.domain is object:
+            return None
+        return str(EntrySpec._domain_kind(self.domain))

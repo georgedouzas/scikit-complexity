@@ -6,7 +6,7 @@ tightly, displaces it over the next hours: the Vroman effect.
 """
 
 # %%
-# The system is created by name from the catalog with the book's concentrations of nanoparticles and of albumin,
+# The system is built from its class with the book's concentrations of nanoparticles and of albumin,
 # high-density lipoprotein, and fibrinogen, and runs for three hours. Free albumin is a hundred thousand times more
 # concentrated than the corona, so the blueprint shows only the nanoparticles bound to each protein, in one time series
 # view over the whole run.
@@ -15,10 +15,9 @@ import matplotlib.pyplot as plt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.core.engine.solvers import ScipyODESolver
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.chemistry.kinetics import NanoparticleCoronaSystem
 
 SYSTEM = 'nanoparticle_corona'
 PROTEINS = ('albumin', 'lipoprotein', 'fibrinogen')
@@ -37,10 +36,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM)
-solver = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-12)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(system, dt=60.0, solver=solver, observers=[observer]).prepare().run(until=10800)
+trajectory = simulate(NanoparticleCoronaSystem(), observers=[observer])
 
 # %%
 # Composition of the corona and its equilibrium
@@ -49,7 +46,7 @@ simulation = Simulation(system, dt=60.0, solver=solver, observers=[observer]).pr
 # affinity `n_i alpha_i P_i / delta_i`, so it should end up holding nearly all the nanoparticles, after albumin held
 # most of them first. A run of ten hours with a logarithmic time axis shows both phases.
 
-long_run = Simulation(create_system(SYSTEM), dt=10.0, solver=solver).prepare().run(until=36000).trajectory_
+long_run = simulate(NanoparticleCoronaSystem(), until=36000, dt=10.0)
 fig, (shares, balance) = plt.subplots(1, 2, figsize=(10, 4))
 total = 36.0
 hours = long_run.times[1:] / 3600

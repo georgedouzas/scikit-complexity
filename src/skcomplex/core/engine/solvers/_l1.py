@@ -37,7 +37,7 @@ class L1Solver(ConvolutionSolver):
         >>> from skcomplex.core.components.laws import RateLaw
         >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.compile import PassCompiler
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.solvers import L1Solver
         >>> from skcomplex.core.specs import StepSpec
         >>> class RelaxingElement(Element):
@@ -47,7 +47,7 @@ class L1Solver(ConvolutionSolver):
         ...
         ...     def _get_laws(self, s):
         ...         return [RateLaw(s.x, -s.x)]
-        >>> problem = PassCompiler().prepare(System(elements=[RelaxingElement('a')])).run().problem_
+        >>> problem = simulate(System(elements=[RelaxingElement('a')]), until=0).problem
         >>> stepper = L1Solver(dt=0.001, random_state=0).prepare(problem)
         >>> step = StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)
         >>> round(float(stepper.run(step).state_[0]), 2)
@@ -55,11 +55,17 @@ class L1Solver(ConvolutionSolver):
     """
 
     def _weights(self, alpha: Array, count: int) -> Array:
-        """Return the weights `a_0` to `a_count` of the L1 scheme on the displacements, one column per order."""
+        """Return the weights `a_0` to `a_count` of the L1 scheme on the displacements.
+
+        There is one column per order.
+        """
         return self._l1_weights(alpha, count)
 
     def _tail(self, alpha: Array, rates: Array, window: int) -> Array:
-        """Return the coefficients of the exponential modes of the L1 weights past a window."""
+        """Return the coefficients of the exponential modes of the L1 tail weights.
+
+        They are the weights past a window.
+        """
         return self._l1_tail(alpha, rates, window)
 
     def _gain(self, alpha: Array) -> Array:
@@ -68,10 +74,11 @@ class L1Solver(ConvolutionSolver):
 
     @staticmethod
     def _l1_weights(alpha: Array, count: int) -> Array:
-        """Return the weights `a_0` to `a_count` of the L1 scheme on displacements from the start, one column per order.
+        """Return the weights `a_0` to `a_count` of the L1 scheme on displacements.
 
-        The weights are the differences `b_j - b_(j-1)` of the L1 weights `b_j = (j + 1)^(1 - alpha) - j^(1 - alpha)` on
-        the increments, with `b_0 = 1`, so the sums run over the displacements from the initial state.
+        The displacements are from the start, with one column per order. The weights are the differences `b_j - b_(j-1)`
+        of the L1 weights `b_j = (j + 1)^(1 - alpha) - j^(1 - alpha)` on the increments, with `b_0 = 1`, so the sums run
+        over the displacements from the initial state.
         """
         lags = np.arange(count + 1, dtype=float)[:, None]
         exponent = 1 - alpha[None, :]
@@ -81,10 +88,11 @@ class L1Solver(ConvolutionSolver):
 
     @staticmethod
     def _l1_tail(alpha: Array, rates: Array, window: int) -> Array:
-        """Return the coefficients of the exponential modes whose sum gives the L1 weights past a window.
+        """Return the coefficients of the exponential modes of the L1 tail weights.
 
-        The weights have the Laplace representation `a_j = -((1 - alpha) / Gamma(alpha)) int exp(-s j) s^(alpha - 2)
-        (1 - exp(-s))^2 exp(s) ds`, discretised with the trapezoidal rule in `log s`.
+        The sum of the modes gives the L1 weights past a window. The weights have the Laplace representation `a_j = -((1
+        - alpha) / Gamma(alpha)) int exp(-s j) s^(alpha - 2) (1 - exp(-s))^2 exp(s) ds`, discretised with the
+        trapezoidal rule in `log s`.
         """
         s, a = rates[:, None], alpha[None, :]
         density = -(1 - a) / gamma(a) * s ** (a - 2) * np.expm1(-s) ** 2 * np.exp(-s * window)

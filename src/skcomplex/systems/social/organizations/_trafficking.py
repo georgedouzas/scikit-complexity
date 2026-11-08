@@ -1,4 +1,7 @@
-"""Trafficking systems: victims moved between brothels and the traces their movements leave."""
+"""Trafficking systems: victims moved between brothels and the traces they leave.
+
+The traces are left by their movements.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,16 +18,18 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction, MapInteraction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import SpaceError
 from ....core.specs import PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class PremisesView(AgentView):
-    """View of a premises of the trafficking system, with its states and parameters as attributes."""
+    """View of a premises of the trafficking system.
+
+    Its states and parameters are attributes.
+    """
 
     brothel: float
     bills: float
@@ -34,11 +39,11 @@ class PremisesView(AgentView):
 
 
 class PremisesElement(Element):
-    """House or brothel of the brothel movement system, whose energy bills grow with the people inside.
+    """House or brothel of the brothel movement system.
 
-    Every day the bills grow by `1 / (1 + exp(x0 - n))` for the `n` people in the premises' cell, and every quarter
-    they are recorded and reset. In `trafficking`, maps of the bills read the counts of the women by cell every day,
-    and maps in a phase of a period of 90 days record and reset them.
+    Its energy bills grow with the people inside. Every day the bills grow by `1 / (1 + exp(x0 - n))` for the `n` people
+    in the premises' cell, and every quarter they are recorded and reset. In `TraffickingSystem`, maps of the bills read
+    the counts of the women by cell every day, and maps in a phase of a period of 90 days record and reset them.
 
     Args:
         label:
@@ -90,19 +95,27 @@ class PremisesElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[PremisesView]:
-        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        """Return the class of the views of the agents.
+
+        Their attributes are the states and parameters.
+        """
         return PremisesView
 
 
 class TravellerView(AgentView):
-    """View of a woman of the trafficking system, with its states and parameters as attributes."""
+    """View of a woman of the trafficking system.
+
+    Its states and parameters are attributes.
+    """
 
     victim: float
     trips: float
 
 
 class TravellerElement(Element):
-    """Woman of the brothel movement system: a trafficking victim, or a woman who travels freely.
+    """Woman of the brothel movement system.
+
+    She is a trafficking victim, or a woman who travels freely.
 
     Args:
         label:
@@ -139,7 +152,10 @@ class TravellerElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[TravellerView]:
-        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        """Return the class of the views of the agents.
+
+        Their attributes are the states and parameters.
+        """
         return TravellerView
 
 
@@ -174,6 +190,8 @@ class DailyMovementsInteraction(Interaction):
         >>> DailyMovementsInteraction('day', women='women', premises='premises').n_cities
         3
     """
+
+    law_classes = (RuleLaw,)
 
     def __init__(
         self,
@@ -288,45 +306,11 @@ BILLING = 'billing'
 QUARTERLY = 'quarter'
 
 
-def _heat(place: PremisesView, system: SystemViewProtocol) -> float:
-    """Return the growth of the bills of a premises in a day, `1 / (1 + exp(x0 - n))` for the `n` people inside."""
-    people = system.occupancy('sources').get(place.location_key, 0)
-    return float(1 / (1 + np.exp(place.efficiency - people)))
+class TraffickingSystem(BaseSystem):
+    """The brothel movement system.
 
-
-def _count_day(place: PremisesView, system: SystemViewProtocol) -> float:
-    """Return one day."""
-    return 1.0
-
-
-def _record(place: PremisesView, system: SystemViewProtocol) -> float:
-    """Return the bills of the quarter that ends."""
-    return float(place.bills)
-
-
-def _reset(place: PremisesView, system: SystemViewProtocol) -> float:
-    """Return the bills at the start of a quarter."""
-    return 0.0
-
-
-@register_system(
-    field='social/organizations',
-    tags=('trafficking', 'agents', 'grid', 'crime'),
-    references=('Chesney 2021',),
-    defaults={'until': 90},
-)
-def trafficking(
-    width: int = 30,
-    height: int = 30,
-    *,
-    n_cities: int = 3,
-    n_houses: int = 40,
-    n_brothels: int = 3,
-    n_victims: int = 12,
-    n_free: int = 30,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the brothel movement system, where victims moved between brothels leave traces in bills and train trips.
+    Victims moved between brothels leave traces in bills and train trips. The system has the groups `premises` and
+    `women`.
 
     Args:
         width:
@@ -353,84 +337,147 @@ def trafficking(
         random_state:
             The seed or generator of the places, the women, and the efficiencies.
 
-    Returns:
-        system:
-            The system, with the groups `premises` and `women`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.organizations import trafficking
-        >>> [group.size for group in trafficking(n_houses=5, n_brothels=2, n_victims=4, n_free=3).elements]
+        >>> from skcomplex.systems.social.organizations import TraffickingSystem
+        >>> system = TraffickingSystem(n_houses=5, n_brothels=2, n_victims=4, n_free=3).prepare().system_
+        >>> [group.size for group in system.elements]
         [7, 7]
     """
-    rng = np.random.default_rng(random_state)
-    n_places = n_houses + n_brothels
-    cells = rng.permutation(width * height)[:n_places]
-    places = [(int(cell % width), int(cell // width)) for cell in cells]
-    brothel = (np.arange(n_places) >= n_houses).astype(float)
-    premises = GroupElement(
-        'premises',
-        element=PremisesElement,
-        size=n_places,
-        values={'brothel': brothel, 'efficiency': rng.uniform(0, 3, n_places)},
-        location=places,
-    )
-    homes = [places[n_houses + index % n_brothels] for index in range(n_victims)]
-    homes += [(int(rng.integers(width)), int(rng.integers(height))) for _ in range(n_free)]
-    victim = (np.arange(n_victims + n_free) < n_victims).astype(float)
-    women = GroupElement(
-        'women',
-        element=TravellerElement,
-        size=n_victims + n_free,
-        values={'victim': victim},
-        location=homes,
-    )
-    day = DailyMovementsInteraction(
-        'day',
-        women='women',
-        premises='premises',
-        n_cities=n_cities,
-        phase=DAILY,
-        victims_phase=MONTHLY,
-    )
-    bills = [
-        MapInteraction(
-            'days',
-            target='premises',
-            state='day',
-            function=_count_day,
-            mode='increment',
-            form='agent',
-            phase=BILLING,
-        ),
-        MapInteraction(
-            'bills',
-            target='premises',
-            state='bills',
-            function=_heat,
-            sources=['women'],
-            mode='increment',
-            form='agent',
-            phase=BILLING,
-        ),
-        MapInteraction(
-            'record',
-            target='premises',
-            state='last_bills',
-            function=_record,
-            form='agent',
-            phase=QUARTERLY,
-        ),
-        MapInteraction('reset', target='premises', state='bills', function=_reset, form='agent', phase=QUARTERLY),
-    ]
-    phases = [
-        PhaseSpec(DAILY, activation='sequential'),
-        PhaseSpec(MONTHLY, activation='sequential', period=MONTH),
-        PhaseSpec(BILLING, activation='sequential'),
-        PhaseSpec(QUARTERLY, activation='sequential', period=QUARTER),
-    ]
-    return System(
-        elements=[premises, women],
-        interactions=[day, *bills],
-        space=LatticeSpace((width, height), boundary='fixed'),
-        time=DiscreteTime(schedule=PhasesScheduleSpec(phases)),
-    )
+
+    field = 'social/organizations'
+    topics = ('trafficking', 'agents', 'grid', 'crime')
+    references = ('Chesney 2021',)
+    until = 90
+
+    def __init__(
+        self,
+        width: int = 30,
+        height: int = 30,
+        *,
+        n_cities: int = 3,
+        n_houses: int = 40,
+        n_brothels: int = 3,
+        n_victims: int = 12,
+        n_free: int = 30,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.width = width
+        self.height = height
+        self.n_cities = n_cities
+        self.n_houses = n_houses
+        self.n_brothels = n_brothels
+        self.n_victims = n_victims
+        self.n_free = n_free
+        self.random_state = random_state
+
+    @staticmethod
+    def _heat(place: PremisesView, system: SystemViewProtocol) -> float:
+        """Return the growth of the bills of a premises in a day.
+
+        It is `1 / (1 + exp(x0 - n))` for the `n` people inside.
+        """
+        people = system.occupancy('sources').get(place.location_key, 0)
+        return float(1 / (1 + np.exp(place.efficiency - people)))
+
+    @staticmethod
+    def _count_day(place: PremisesView, system: SystemViewProtocol) -> float:
+        """Return one day."""
+        return 1.0
+
+    @staticmethod
+    def _record(place: PremisesView, system: SystemViewProtocol) -> float:
+        """Return the bills of the quarter that ends."""
+        return float(place.bills)
+
+    @staticmethod
+    def _reset(place: PremisesView, system: SystemViewProtocol) -> float:
+        """Return the bills at the start of a quarter."""
+        return 0.0
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        n_places = self.n_houses + self.n_brothels
+        cells = rng.permutation(self.width * self.height)[:n_places]
+        places = [(int(cell % self.width), int(cell // self.width)) for cell in cells]
+        brothel = (np.arange(n_places) >= self.n_houses).astype(float)
+        premises = GroupElement(
+            'premises',
+            element=PremisesElement,
+            size=n_places,
+            values={'brothel': brothel, 'efficiency': rng.uniform(0, 3, n_places)},
+            location=places,
+        )
+        homes = [places[self.n_houses + index % self.n_brothels] for index in range(self.n_victims)]
+        homes += [(int(rng.integers(self.width)), int(rng.integers(self.height))) for _ in range(self.n_free)]
+        victim = (np.arange(self.n_victims + self.n_free) < self.n_victims).astype(float)
+        women = GroupElement(
+            'women',
+            element=TravellerElement,
+            size=self.n_victims + self.n_free,
+            values={'victim': victim},
+            location=homes,
+        )
+        day = DailyMovementsInteraction(
+            'day',
+            women='women',
+            premises='premises',
+            n_cities=self.n_cities,
+            phase=DAILY,
+            victims_phase=MONTHLY,
+        )
+        bills = [
+            MapInteraction(
+                'days',
+                target='premises',
+                state='day',
+                function=self._count_day,
+                mode='increment',
+                form='agent',
+                phase=BILLING,
+            ),
+            MapInteraction(
+                'bills',
+                target='premises',
+                state='bills',
+                function=self._heat,
+                sources=['women'],
+                mode='increment',
+                form='agent',
+                phase=BILLING,
+            ),
+            MapInteraction(
+                'record',
+                target='premises',
+                state='last_bills',
+                function=self._record,
+                form='agent',
+                phase=QUARTERLY,
+            ),
+            MapInteraction(
+                'reset',
+                target='premises',
+                state='bills',
+                function=self._reset,
+                form='agent',
+                phase=QUARTERLY,
+            ),
+        ]
+        phases = [
+            PhaseSpec(DAILY, activation='sequential'),
+            PhaseSpec(MONTHLY, activation='sequential', period=MONTH),
+            PhaseSpec(BILLING, activation='sequential'),
+            PhaseSpec(QUARTERLY, activation='sequential', period=QUARTER),
+        ]
+        return System(
+            self.label,
+            elements=[premises, women],
+            interactions=[day, *bills],
+            space=LatticeSpace((self.width, self.height), boundary='fixed'),
+            time=DiscreteTime(schedule=PhasesScheduleSpec(phases)),
+        )

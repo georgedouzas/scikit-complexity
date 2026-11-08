@@ -1,4 +1,7 @@
-"""Quantum spin chains: the quantum Heisenberg XXZ chain with a field and dephasing."""
+"""Quantum spin chains.
+
+The module holds the quantum Heisenberg XXZ chain with a field and dephasing.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,17 +18,17 @@ from ....core.components.interactions import BaseInteraction, Interaction, Neigh
 from ....core.components.laws import BaseLaw, DissipatorLaw, GeneratorLaw
 from ....core.components.laws.utils import local_operator
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import System
-from ....core.engine.compile import OperatorCompiler
+from ....core.components.system import BaseSystem, RunSettings, System
 from ....core.errors import ValidationError
 from ....core.specs import HilbertSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 MIN_SPIN_DIMENSION = 2
 
 
 def spin_space(j: float = 0.5) -> HilbertSpec:
-    """Return the Hilbert space of a spin of quantum number `j`, with the basis from `m = j` down to `m = -j`.
+    """Return the Hilbert space of a spin of quantum number `j`.
+
+    The basis runs from `m = j` down to `m = -j`.
 
     Its operators are the spin components `x`, `y`, `z` and the ladder operators `plus` and `minus`.
 
@@ -64,7 +67,9 @@ SPIN_HALF = spin_space()
 
 
 class SpinElement(Element):
-    """Spin of the Hilbert space it takes, with the spin components `x`, `y`, `z` and the ladder operators.
+    """Spin of the Hilbert space it takes.
+
+    The spin has the spin components `x`, `y`, `z` and the ladder operators.
 
     The basis is ordered from `m = j` to `m = -j`, so `'up'` is index 0 and `'down'` is the last index. Its laws read
     the operators of its state `psi`, such as `local_operator(namespace.psi, 'z')`.
@@ -102,7 +107,9 @@ class SpinElement(Element):
 
 
 class DephasingInteraction(Interaction):
-    """Dephasing of every spin of a chain, a dissipator with the collapse operator `S^z_i` at the rate `gamma`.
+    """Dephasing of every spin of a chain.
+
+    The dissipator has the collapse operator `S^z_i` at the rate `gamma`.
 
     Args:
         label:
@@ -146,7 +153,9 @@ class DephasingInteraction(Interaction):
 
 
 class XXZExchangeInteraction(NeighborInteraction):
-    """Exchange `J (S^x_i S^x_j + S^y_i S^y_j + Δ S^z_i S^z_j)` between neighbouring spins.
+    """Exchange between neighbouring spins.
+
+    The exchange is `J (S^x_i S^x_j + S^y_i S^y_j + Δ S^z_i S^z_j)`.
 
     Args:
         label:
@@ -166,6 +175,8 @@ class XXZExchangeInteraction(NeighborInteraction):
         >>> XXZExchangeInteraction('exchange', target='chain', delta=0.5).delta
         0.5
     """
+
+    law_classes = (GeneratorLaw,)
 
     def __init__(
         self,
@@ -219,6 +230,8 @@ class ZeemanFieldInteraction(Interaction):
         0.2
     """
 
+    law_classes = (GeneratorLaw,)
+
     def __init__(
         self,
         label: str,
@@ -248,15 +261,6 @@ INITIAL_STATES = ('neel', 'flip', 'domain_wall', 'ground')
 
 
 BOUNDARIES = {'periodic': 'periodic', 'open': 'fixed'}
-
-
-def _initial_labels(n_sites: int, initial: str) -> list[str]:
-    """Return the basis label of every spin of a product initial state."""
-    if initial == 'neel':
-        return ['up' if site % 2 == 0 else 'down' for site in range(n_sites)]
-    if initial == 'flip':
-        return ['down' if site == n_sites // 2 else 'up' for site in range(n_sites)]
-    return ['up' if site < n_sites // 2 else 'down' for site in range(n_sites)]
 
 
 def _sites(values: object) -> object:
@@ -292,34 +296,16 @@ def total_magnetization(s: SimpleNamespace) -> Expression:
     return sum(local_operator(member.psi, 'z') for member in s.chain)
 
 
-@register_system(
-    field='physics/statistical_mechanics',
-    tags=('quantum', 'spins', 'lattice', 'magnetism', 'open system'),
-    references=('Heisenberg 1928', 'Mihailović et al. 2023'),
-    defaults={'until': 8.0, 'dt': 0.05, 'compiler': OperatorCompiler()},
-    initial_state=lambda initial, **_: {'quantum_heisenberg.state': 'ground'} if initial == 'ground' else None,
-    observables=lambda system: [
-        ObservableSpec('sz', local_magnetization, group='chain', reduce=_sites),
-        ObservableSpec('magnetization', total_magnetization),
-    ],
-)
-def quantum_heisenberg(
-    n_sites: int = 12,
-    *,
-    J: float = 1.0,
-    delta: float = 1.0,
-    h: float = 0.0,
-    gamma: float = 0.0,
-    boundary: str = 'periodic',
-    initial: str = 'flip',
-) -> System:
-    """Return a chain of spins one half with the XXZ Hamiltonian, a field, and optional dephasing.
+class QuantumHeisenbergSystem(BaseSystem):
+    """A chain of spins one half with the XXZ Hamiltonian.
 
-    The Hamiltonian is `J Σ (S^x_i S^x_j + S^y_i S^y_j + Δ S^z_i S^z_j) - h Σ S^z_i` over neighbouring pairs, with
-    `ħ = 1`. A dephasing rate `gamma > 0` adds the dissipator `S^z_i` on every site, so the state is a density matrix
-    that loses its coherence. One flipped spin in a ferromagnetic background spreads as a magnon, whose probability at
+    The chain has a field and optional dephasing.
+
+    The Hamiltonian is `J Σ (S^x_i S^x_j + S^y_i S^y_j + Δ S^z_i S^z_j) - h Σ S^z_i` over neighbouring pairs, with `ħ =
+    1`. A dephasing rate `gamma > 0` adds the dissipator `S^z_i` on every site, so the state is a density matrix that
+    loses its coherence. One flipped spin in a ferromagnetic background spreads as a magnon, whose probability at
     distance `d` is `J_d(J t)²` in the XX chain, a light cone in the space-time image of `S^z`. The total magnetisation
-    is conserved.
+    is conserved. The system has the observables `sz` of every site, `magnetization`, and the energy.
 
     Args:
         n_sites:
@@ -342,35 +328,90 @@ def quantum_heisenberg(
 
         initial:
             `'flip'` for one flipped spin at site `n_sites // 2`, `'neel'` for alternating spins, `'domain_wall'` for
-            the left half up and the right half down, or `'ground'` for the ground state, which `run` gives the
-            simulation as `initial_state={'quantum_heisenberg.state': 'ground'}`.
+            the left half up and the right half down, or `'ground'` for the ground state, which the tuned run settings
+            give as `initial_state={'<label>.state': 'ground'}`.
 
-    Returns:
-        system:
-            The system, with the observables `sz` of every site, `magnetization`, and the energy.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValidationError:
             The boundary or the initial state is unknown.
 
     Examples:
-        >>> from skcomplex.systems.physics.statistical_mechanics import quantum_heisenberg
-        >>> quantum_heisenberg(6).elements[0].prepare().size_
+        >>> from skcomplex.systems.physics.statistical_mechanics import QuantumHeisenbergSystem
+        >>> QuantumHeisenbergSystem(6).prepare().system_.elements[0].prepare().size_
         6
     """
-    if boundary not in BOUNDARIES or initial not in INITIAL_STATES:
-        error_msg = (
-            f'Unknown boundary {boundary!r} or initial state {initial!r}. Use a boundary of {", ".join(BOUNDARIES)} '
-            f'and an initial state of {", ".join(INITIAL_STATES)}.'
-        )
-        raise ValidationError(error_msg)
-    space = LatticeSpace(n_sites, boundary=BOUNDARIES[boundary])
-    labels = _initial_labels(n_sites, initial)
-    chain = LatticeElement('chain', element=SpinElement, space=space, values={'psi': labels})
-    interactions: list[BaseInteraction] = [
-        XXZExchangeInteraction('exchange', target='chain', J=J, delta=delta),
-        ZeemanFieldInteraction('field', target='chain', h=h),
-    ]
-    if gamma > 0:
-        interactions.append(DephasingInteraction('dephasing', target='chain', gamma=gamma))
-    return System('quantum_heisenberg', elements=[chain], interactions=interactions)
+
+    field = 'physics/statistical_mechanics'
+    topics = ('quantum', 'spins', 'lattice', 'magnetism', 'open system')
+    references = ('Heisenberg 1928', 'Mihailović et al. 2023')
+    until = 8.0
+    dt = 0.05
+    observables = (
+        ObservableSpec('sz', local_magnetization, group='chain', reduce=_sites),
+        ObservableSpec('magnetization', total_magnetization),
+    )
+
+    def __init__(
+        self,
+        n_sites: int = 12,
+        *,
+        J: float = 1.0,
+        delta: float = 1.0,
+        h: float = 0.0,
+        gamma: float = 0.0,
+        boundary: str = 'periodic',
+        initial: str = 'flip',
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_sites = n_sites
+        self.J = J
+        self.delta = delta
+        self.h = h
+        self.gamma = gamma
+        self.boundary = boundary
+        self.initial = initial
+
+    @staticmethod
+    def _initial_labels(n_sites: int, initial: str) -> list[str]:
+        """Return the basis label of every spin of a product initial state."""
+        if initial == 'neel':
+            return ['up' if site % 2 == 0 else 'down' for site in range(n_sites)]
+        if initial == 'flip':
+            return ['down' if site == n_sites // 2 else 'up' for site in range(n_sites)]
+        return ['up' if site < n_sites // 2 else 'down' for site in range(n_sites)]
+
+    def get_run_settings(self) -> RunSettings:
+        """Return the tuned run settings.
+
+        The initial state `'ground'` starts from the ground state.
+        """
+        settings = super().get_run_settings()
+        if self.initial == 'ground':
+            settings['initial_state'] = {f'{self.label}.state': 'ground'}
+        return settings
+
+    def _build_system(self) -> System:
+        """Return a chain of spins one half with the XXZ Hamiltonian.
+
+        The chain has a field and optional dephasing.
+        """
+        if self.boundary not in BOUNDARIES or self.initial not in INITIAL_STATES:
+            error_msg = (
+                f'Unknown boundary {self.boundary!r} or initial state {self.initial!r}. Use a boundary of '
+                f'{", ".join(BOUNDARIES)} and an initial state of {", ".join(INITIAL_STATES)}.'
+            )
+            raise ValidationError(error_msg)
+        space = LatticeSpace(self.n_sites, boundary=BOUNDARIES[self.boundary])
+        labels = self._initial_labels(self.n_sites, self.initial)
+        chain = LatticeElement('chain', element=SpinElement, space=space, values={'psi': labels})
+        interactions: list[BaseInteraction] = [
+            XXZExchangeInteraction('exchange', target='chain', J=self.J, delta=self.delta),
+            ZeemanFieldInteraction('field', target='chain', h=self.h),
+        ]
+        if self.gamma > 0:
+            interactions.append(DephasingInteraction('dephasing', target='chain', gamma=self.gamma))
+        return System(self.label, elements=[chain], interactions=interactions)

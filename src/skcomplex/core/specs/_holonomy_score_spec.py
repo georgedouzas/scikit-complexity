@@ -13,12 +13,12 @@ from ._matrix_group_spec import MatrixGroupSpec
 
 @dataclass(frozen=True)
 class HolonomyScoreSpec(BaseSpec):
-    """Spec of an objective of a matrix group state on the edges of a cell complex, a sum over the holonomies of faces.
+    """Spec of an objective of a matrix group state on the edges of a cell complex.
 
-    The objective is the sum over the faces of a class function of the holonomy of every face, the path-ordered product
-    of the matrices of the edges around it. A class function, such as the real part of the trace, has the same value on
-    every cyclic order of the product, so the local objective of an edge sums it over the holonomies of the faces around
-    the edge that start at the edge.
+    The objective is a sum over the holonomies of faces. The objective is the sum over the faces of a class function of
+    the holonomy of every face, the path-ordered product of the matrices of the edges around it. A class function, such
+    as the real part of the trace, has the same value on every cyclic order of the product, so the local objective of an
+    edge sums it over the holonomies of the faces around the edge that start at the edge.
 
     Args:
         function:
@@ -48,7 +48,9 @@ class HolonomyScoreSpec(BaseSpec):
     hits: int = 1
 
     def _check(self) -> None:
-        """Raise an error for a function that is not callable, an invalid group, or a number of hits below 1.
+        """Raise an error for a function not callable, a bad group, or a bad hit count.
+
+        The number of hits must be at least 1.
 
         Raises:
             ValidationError:
@@ -60,7 +62,7 @@ class HolonomyScoreSpec(BaseSpec):
         if not isinstance(self.group, MatrixGroupSpec):
             error_msg = f'The group of a holonomy score is a MatrixGroupSpec, but it is {self.group!r}.'
             raise ValidationError(error_msg)
-        self.group._validated()
+        self.group._check()
         if not isinstance(self.hits, int) or self.hits < 1:
             error_msg = f'A holonomy score proposes at least one move per edge, but it has hits={self.hits!r}.'
             raise ValidationError(error_msg)

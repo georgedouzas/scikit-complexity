@@ -3,7 +3,8 @@
 import numpy as np
 import pytest
 
-from skcomplex.systems import create_simulation
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.physics.climate import PopulationPollutionSystem
 
 from ..conftest import _series
 
@@ -13,7 +14,7 @@ def test_population_pollution_follows_the_published_run():
 
     4.33 of Bala et al.: pollution near 9e7, population doubled, food near subsistence.
     """
-    trajectory = create_simulation('population_pollution').prepare().run().trajectory_
+    trajectory = simulate(PopulationPollutionSystem(), random_state=0)
     pollution, population, food = _series(trajectory, 'region.pollution', 'region.population', 'region.food_per_capita')
     assert np.all(np.diff(pollution) > 0)
     assert pollution[-1] == pytest.approx(9e7, rel=0.1)
@@ -24,8 +25,7 @@ def test_population_pollution_follows_the_published_run():
 
 def test_population_pollution_absorbs_pollution_without_emissions():
     """Test that without emissions the pollution decays within its absorption time of under a year."""
-    simulation = create_simulation('population_pollution', pollution_normal=0.0, pollution=5e7)
-    trajectory = simulation.prepare().run(until=20.0).trajectory_
+    trajectory = simulate(PopulationPollutionSystem(pollution_normal=0.0, pollution=5e7), until=20.0, random_state=0)
     pollution = _series(trajectory, 'region.pollution')[0]
     assert np.all(np.diff(pollution) < 0)
     assert pollution[-1] < 1e6

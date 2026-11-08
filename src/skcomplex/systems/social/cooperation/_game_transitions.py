@@ -1,4 +1,7 @@
-"""Game transition systems: donation games on the edges of a graph that change with the actions played."""
+"""Game transition systems: donation games on the edges of a graph.
+
+The games change with the actions played.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,13 +18,12 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.spaces import NetworkSpace
-from ....core.components.system import System
+from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array, IntArray
-from ..._catalog import register_system
 
 
 class DonorView(AgentView):
@@ -36,7 +38,9 @@ MUTUAL_COOPERATION = 2
 
 
 class DonorElement(Element):
-    """Player of donation games on the edges of a graph, a cooperator at 1 and a defector at 0.
+    """Player of donation games on the edges of a graph.
+
+    It is a cooperator at 1 and a defector at 0.
 
     Args:
         label:
@@ -76,17 +80,18 @@ class DonorElement(Element):
 
 
 class GameTransitionsInteraction(Interaction):
-    """Evolutionary dynamics with game transitions, where the game on every edge follows the actions played on it.
+    """Evolutionary dynamics with game transitions.
 
-    Every edge of the graph carries game 1 or game 2, donation games where a cooperator pays `c` to give its partner
-    `b1` or `b2`, and every edge starts with game 1. In every time step every player plays the game of every edge with
-    its neighbour and accumulates the payoff `pi`, of fitness `1 - delta + delta pi`. Under death-birth updating a
-    uniformly drawn player dies and its neighbours compete for the site in proportion to their fitness, and under
-    pairwise comparison a uniformly drawn player copies a random neighbour with the probability
-    `1 / (1 + exp(-delta (pi_j - pi_i)))`. The games then change: an edge goes to game 2 with the probability
-    `after_cooperation` after mutual cooperation, with `after_defection` after one defection, and surely after mutual
-    defection, and to game 1 otherwise. The newcomer of a site plays the games of its prior occupant. Every step of the
-    system has one time step per player, and the share of edges with game 1 is reported as `game_one`.
+    The game on every edge follows the actions played on it. Every edge of the graph carries game 1 or game 2, donation
+    games where a cooperator pays `c` to give its partner `b1` or `b2`, and every edge starts with game 1. In every time
+    step every player plays the game of every edge with its neighbour and accumulates the payoff `pi`, of fitness
+    `1 - delta + delta pi`. Under death-birth updating a uniformly drawn player dies and its neighbours compete for the
+    site in proportion to their fitness, and under pairwise comparison a uniformly drawn player copies a random
+    neighbour with the probability `1 / (1 + exp(-delta (pi_j - pi_i)))`. The games then change: an edge goes to game 2
+    with the probability `after_cooperation` after mutual cooperation, with `after_defection` after one defection, and
+    surely after mutual defection, and to game 1 otherwise. The newcomer of a site plays the games of its prior
+    occupant. Every step of the system has one time step per player, and the share of edges with game 1 is reported as
+    `game_one`.
 
     Args:
         label:
@@ -129,6 +134,10 @@ class GameTransitionsInteraction(Interaction):
         'death-birth'
     """
 
+    draws = True
+
+    law_classes = (RuleLaw,)
+
     reports: ClassVar[tuple[str, ...]] = ('game_one',)
 
     def __init__(
@@ -156,14 +165,18 @@ class GameTransitionsInteraction(Interaction):
         self.transitions = transitions
         self.update = update
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for an unknown update.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The update is unknown.
         """
-        super()._check()
+        super()._prepare(context)
         if self.update not in UPDATES:
             error_msg = f'Unknown update {self.update!r}. Use one of {", ".join(UPDATES)}.'
             raise ValidationError(error_msg)
@@ -203,7 +216,10 @@ class GameTransitionsInteraction(Interaction):
         return np.bincount(first, gains, strategies.size) + np.bincount(second, returns, strategies.size)
 
     def _replace(self, strategies: Array, payoffs: Array, neighbors: list[IntArray], rng: np.random.Generator) -> None:
-        """Replace the strategy of one uniformly drawn player by death-birth or pairwise comparison."""
+        """Replace the strategy of one uniformly drawn player.
+
+        The replacement is by death-birth or pairwise comparison.
+        """
         player = int(rng.integers(strategies.size))
         around = neighbors[player]
         if around.size == 0:
@@ -218,7 +234,9 @@ class GameTransitionsInteraction(Interaction):
         strategies[player] = strategies[around[rng.choice(around.size, p=fitness / fitness.sum())]]
 
     def evolve(self, system: SystemView) -> None:
-        """Run one time step per player: play the games, replace one player, and change the games.
+        """Run one time step per player.
+
+        The step plays the games, replaces one player, and changes the games.
 
         Args:
             system:
@@ -256,40 +274,22 @@ class GameTransitionsInteraction(Interaction):
         system.report('game_one', float(np.mean(games == 1)) if games.size else 1.0)
 
 
-@register_system(
-    field='social/cooperation',
-    tags=('network', 'games', 'cooperation', 'game transitions', 'evolution'),
-    references=('Su, McAvoy, Wang, and Nowak 2019',),
-    defaults={'until': 100},
-)
-def game_transitions(
-    n_players: int = 100,
-    *,
-    degree: int = 4,
-    first_benefit: float = 3.5,
-    second_benefit: float = 2.6,
-    cost: float = 1.0,
-    selection: float = 0.1,
-    after_cooperation: float = 0.0,
-    after_defection: float = 1.0,
-    transitions: bool = True,
-    update: str = 'death-birth',
-    share: float = 0.5,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return evolutionary dynamics with game transitions on a random regular graph, after Su, McAvoy, Wang, and Nowak.
+class GameTransitionsSystem(BaseSystem):
+    """Evolutionary dynamics with game transitions on a random regular graph.
 
-    Every edge carries a donation game, game 1 of benefit `b1` or game 2 of benefit `b2 < b1`, at the same cost `c`.
-    Players accumulate the payoffs of the games with all their neighbours, one player is replaced every time step by
-    death-birth updating or pairwise comparison, and the game of every edge changes with the actions played on it:
-    with the default transitions mutual cooperation leads to game 1 and every other outcome to game 2 (arXiv 1905.10269
-    section 2 and section 3.1). Under weak selection and death-birth updating on a `k`-regular graph, cooperation is
-    favoured if `b1 / c > k - xi (b1 - b2) / c` with `xi = (k - 1) / 2`, lowered from the rule `b1 / c > k` of a
-    single game, and with the probabilities `p` and `q` of game 2 after mutual cooperation and after one defection,
-    `xi = (k - 1) q / 2 - (k + 1) p / 2` (Eq. 1 and Eq. 3). Under pairwise comparison cooperation is favoured if
-    `(b1 - b2) / (2 c) > 1` (Eq. 2), whatever `b1`, and never with a single game. The defaults `b1 = 3.5`,
-    `b2 = b1 - 0.9`, and `k = 4` lie in the range of Fig. 2 where transitions favour cooperation, since
-    `3.5 > 4 - 1.5 * 0.9`, and game 1 alone does not, since `3.5 < 4`.
+    It follows Su, McAvoy, Wang, and Nowak. Every edge carries a donation game, game 1 of benefit `b1` or game 2 of
+    benefit `b2 < b1`, at the same cost `c`. Players accumulate the payoffs of the games with all their neighbours, one
+    player is replaced every time step by death-birth updating or pairwise comparison, and the game of every edge
+    changes with the actions played on it: with the default transitions mutual cooperation leads to game 1 and every
+    other outcome to game 2 (arXiv 1905.10269 section 2 and section 3.1). Under weak selection and death-birth updating
+    on a `k`-regular graph, cooperation is favoured if `b1 / c > k - xi (b1 - b2) / c` with `xi = (k - 1) / 2`, lowered
+    from the rule `b1 / c > k` of a single game, and with the probabilities `p` and `q` of game 2 after mutual
+    cooperation and after one defection, `xi = (k - 1) q / 2 - (k + 1) p / 2` (Eq. 1 and Eq. 3). Under pairwise
+    comparison cooperation is favoured if `(b1 - b2) / (2 c) > 1` (Eq. 2), whatever `b1`, and never with a single game.
+    The defaults `b1 = 3.5`, `b2 = b1 - 0.9`, and `k = 4` lie in the range of Fig. 2 where transitions favour
+    cooperation, since `3.5 > 4 - 1.5 * 0.9`, and game 1 alone does not, since `3.5 < 4`.
+
+    The system has the group `players` on the nodes of the graph, and the reporter `evolution.game_one`.
 
     Args:
         n_players:
@@ -328,33 +328,71 @@ def game_transitions(
         random_state:
             The seed or generator of the graph and of the initial strategies.
 
-    Returns:
-        system:
-            The system, with the group `players` on the nodes of the graph, and the reporter `evolution.game_one`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.cooperation import game_transitions
-        >>> game_transitions(20).elements[0].prepare().size_
+        >>> from skcomplex.systems.social.cooperation import GameTransitionsSystem
+        >>> GameTransitionsSystem(20).prepare().system_.elements[0].prepare().size_
         20
     """
-    rng = np.random.default_rng(random_state)
-    graph = nx.random_regular_graph(degree, n_players, seed=int(rng.integers(2**31)))
-    players = GroupElement(
-        'players',
-        element=DonorElement,
-        size=n_players,
-        values={'strategy': (rng.random(n_players) < share).astype(float)},
-    )
-    evolution = GameTransitionsInteraction(
-        'evolution',
-        target='players',
-        first_benefit=first_benefit,
-        second_benefit=second_benefit,
-        cost=cost,
-        selection=selection,
-        after_cooperation=after_cooperation,
-        after_defection=after_defection,
-        transitions=transitions,
-        update=update,
-    )
-    return System(elements=[players], interactions=[evolution], space=NetworkSpace(graph))
+
+    field = 'social/cooperation'
+    topics = ('network', 'games', 'cooperation', 'game transitions', 'evolution')
+    references = ('Su, McAvoy, Wang, and Nowak 2019',)
+    until = 100
+
+    def __init__(
+        self,
+        n_players: int = 100,
+        *,
+        degree: int = 4,
+        first_benefit: float = 3.5,
+        second_benefit: float = 2.6,
+        cost: float = 1.0,
+        selection: float = 0.1,
+        after_cooperation: float = 0.0,
+        after_defection: float = 1.0,
+        transitions: bool = True,
+        update: str = 'death-birth',
+        share: float = 0.5,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_players = n_players
+        self.degree = degree
+        self.first_benefit = first_benefit
+        self.second_benefit = second_benefit
+        self.cost = cost
+        self.selection = selection
+        self.after_cooperation = after_cooperation
+        self.after_defection = after_defection
+        self.transitions = transitions
+        self.update = update
+        self.share = share
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        graph = nx.random_regular_graph(self.degree, self.n_players, seed=int(rng.integers(2**31)))
+        players = GroupElement(
+            'players',
+            element=DonorElement,
+            size=self.n_players,
+            values={'strategy': (rng.random(self.n_players) < self.share).astype(float)},
+        )
+        evolution = GameTransitionsInteraction(
+            'evolution',
+            target='players',
+            first_benefit=self.first_benefit,
+            second_benefit=self.second_benefit,
+            cost=self.cost,
+            selection=self.selection,
+            after_cooperation=self.after_cooperation,
+            after_defection=self.after_defection,
+            transitions=self.transitions,
+            update=self.update,
+        )
+        return System(self.label, elements=[players], interactions=[evolution], space=NetworkSpace(graph))

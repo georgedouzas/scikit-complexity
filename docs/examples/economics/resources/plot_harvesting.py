@@ -15,16 +15,16 @@ growth rate. The sustained harvest peaks at an intermediate village size, the ma
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.economics.resources import HarvestingSystem
 
 SYSTEM = 'harvesting'
 EFFORT, R, K, UNTIL = 0.05, 1.0, 1000.0, 20
 
-system = create_system(SYSTEM, farmers=10, effort=EFFORT, r=R, K=K)
+system = HarvestingSystem(farmers=10, effort=EFFORT, r=R, K=K)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, observers=[observer]).prepare().run(until=UNTIL)
+trajectory = simulate(system, until=UNTIL, observers=[observer])
 
 # %%
 # Equilibrium stock and sustainable yield
@@ -36,10 +36,7 @@ simulation = Simulation(system, observers=[observer]).prepare().run(until=UNTIL)
 villages = np.arange(1, 26, 2)
 stocks = np.array(
     [
-        Simulation(create_system(SYSTEM, farmers=int(farmers), effort=EFFORT, r=R, K=K))
-        .prepare()
-        .run(until=200)
-        .trajectory_.values('land/stock.n')[-1]
+        simulate(HarvestingSystem(farmers=int(farmers), effort=EFFORT, r=R, K=K), until=200).values('land/stock.n')[-1]
         for farmers in villages
     ],
 )

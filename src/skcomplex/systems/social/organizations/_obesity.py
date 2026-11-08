@@ -1,4 +1,7 @@
-"""Obesity systems: people whose weight follows the meals they buy near home and work."""
+"""Obesity systems: people whose weight follows the meals they buy.
+
+They buy the meals near home and work.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,15 +20,17 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import BaseInteraction, MovementInteraction, TransferInteraction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import ContinuousSpace, DiscreteTime
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, PartnerSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 
 class EaterView(AgentView):
-    """View of a person of the obesity system, with its states and parameters as attributes."""
+    """View of a person of the obesity system.
+
+    Its states and parameters are attributes.
+    """
 
     home: Array
     work: Array
@@ -42,7 +47,10 @@ class EaterView(AgentView):
 
 
 class RestaurantView(AgentView):
-    """View of a restaurant of the obesity system, with its states and parameters as attributes."""
+    """View of a restaurant of the obesity system.
+
+    Its states and parameters are attributes.
+    """
 
     kind: float
     sold: float
@@ -62,7 +70,9 @@ KCAL_PER_KG = 7700.0
 
 
 def basal_metabolic_rate(weight: float, height: float, age: float, male: float) -> float:
-    """Return the daily basal metabolic rate of the revised Harris-Benedict equation, in kilocalories.
+    """Return the daily basal metabolic rate of the revised Harris-Benedict equation.
+
+    It is in kilocalories.
 
     Args:
         weight:
@@ -92,13 +102,13 @@ def basal_metabolic_rate(weight: float, height: float, age: float, male: float) 
 
 
 class EaterElement(Element):
-    """Person of the obesity system, who goes from home to work and back every day and eats near each place.
+    """Person of the obesity system.
 
-    The moves and the meals of the day are movements and transfers of the system, in the phases `home`, `work`, and
-    `evening`. The calories of a meal are drawn from the bottom, middle, or top half of the restaurant's range by the
-    eating habit. In the phase `week`, every seventh step, the weight changes by the calories eaten beyond seven days of
-    the expenditure, the basal metabolic rate times the `activity` factor of the Harris-Benedict equation, at 7700
-    kilocalories per kilogram.
+    The person goes from home to work and back every day and eats near each place. The moves and the meals of the day
+    are movements and transfers of the system, in the phases `home`, `work`, and `evening`. The calories of a meal are
+    drawn from the bottom, middle, or top half of the restaurant's range by the eating habit. In the phase `week`, every
+    seventh step, the weight changes by the calories eaten beyond seven days of the expenditure, the basal metabolic
+    rate times the `activity` factor of the Harris-Benedict equation, at 7700 kilocalories per kilogram.
 
     Args:
         label:
@@ -153,6 +163,8 @@ class EaterElement(Element):
         ('people', 'EaterElement', 5)
     """
 
+    law_classes = (RuleLaw,)
+
     def __init__(
         self,
         label: str,
@@ -187,11 +199,16 @@ class EaterElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[EaterView]:
-        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        """Return the class of the views of the agents.
+
+        Their attributes are the states and parameters.
+        """
         return EaterView
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule that counts the days and the rule that changes the weight once a week.
+        """Return the rule that counts the days and the rule that changes the weight.
+
+        The weight changes once a week.
 
         Args:
             s:
@@ -216,7 +233,9 @@ class EaterElement(Element):
         agent.day += 1
 
     def gain_weight(self, agent: EaterView, system: SystemView) -> None:
-        """Change the weight by the calories of the week beyond the basal needs, and start a new week.
+        """Change the weight by the calories of the week, and start a new week.
+
+        Only the calories beyond the basal needs count.
 
         Args:
             agent:
@@ -267,7 +286,9 @@ class EaterElement(Element):
 
     @staticmethod
     def draw_meal(agent: EaterView, restaurant: RestaurantView, system: SystemView) -> float:
-        """Return the calories of a meal, drawn from the part of the range of a restaurant that a habit eats.
+        """Return the calories of a meal.
+
+        They are drawn from the part of the range of a restaurant that a habit eats.
 
         Args:
             agent:
@@ -289,7 +310,9 @@ class EaterElement(Element):
 
     @staticmethod
     def settle_meal(agent: EaterView, restaurant: RestaurantView, amounts: Sequence[float], system: SystemView) -> None:
-        """Credit a person with the calories of a meal, and count the sale on the restaurant.
+        """Credit a person with the calories of a meal.
+
+        The sale is counted on the restaurant.
 
         Args:
             agent:
@@ -312,7 +335,9 @@ class EaterElement(Element):
 
 
 class RestaurantElement(Element):
-    """Restaurant of the obesity system: a market at 0, a restaurant at 1, or a fast food outlet at 2.
+    """Restaurant of the obesity system.
+
+    It is a market at 0, a restaurant at 1, or a fast food outlet at 2.
 
     Args:
         label:
@@ -354,7 +379,10 @@ class RestaurantElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[RestaurantView]:
-        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        """Return the class of the views of the agents.
+
+        Their attributes are the states and parameters.
+        """
         return RestaurantView
 
 
@@ -364,26 +392,13 @@ OBESE = 30.0
 MALE_SHARE = 0.5
 
 
-@register_system(
-    field='social/organizations',
-    tags=('health', 'agents', 'continuous space', 'obesity'),
-    references=('Lynch et al. 2019', 'Carmichael et al. 2019'),
-    defaults={'until': 70},
-)
-def obesity(
-    n_people: int = 100,
-    *,
-    n_places: int = 20,
-    size: float = 280.0,
-    reach: float = 30.0,
-    activity: float = 1.55,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the obesity system of adults who eat near home and work, one step per day.
+class ObesitySystem(BaseSystem):
+    """The obesity system of adults who eat near home and work, one step per day.
 
     Homes, workplaces, and restaurants of three kinds lie at random, and the eating habits are split equally. At home,
     at work, and at home again a person eats one meal at a random restaurant within `reach`, or at the nearest
-    restaurant when none is within reach, so that access changes what is eaten but never skips a meal.
+    restaurant when none is within reach, so that access changes what is eaten but never skips a meal. The system has
+    the groups `people` and `restaurants`.
 
     Args:
         n_people:
@@ -404,71 +419,101 @@ def obesity(
         random_state:
             The seed or generator of the places and the people.
 
-    Returns:
-        system:
-            The system, with the groups `people` and `restaurants`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.organizations import obesity
-        >>> [group.size for group in obesity(10, n_places=4, random_state=0).elements]
+        >>> from skcomplex.systems.social.organizations import ObesitySystem
+        >>> [group.size for group in ObesitySystem(10, n_places=4, random_state=0).prepare().system_.elements]
         [10, 4]
     """
-    rng = np.random.default_rng(random_state)
-    homes, works = rng.uniform(0, size, (2, n_places, 2))
-    home, work = homes[rng.integers(n_places, size=n_people)], works[rng.integers(n_places, size=n_people)]
-    male = (rng.random(n_people) < MALE_SHARE).astype(float)
-    height = np.where(male > 0, rng.normal(176, 7, n_people), rng.normal(163, 7, n_people))
-    weight = rng.normal(24, 3, n_people) * (height / 100) ** 2
-    people = GroupElement(
-        'people',
-        element=EaterElement,
-        size=n_people,
-        values={
-            'home': home,
-            'work': work,
-            'weight': weight,
-            'height': height,
-            'age': rng.uniform(18, 65, n_people),
-            'male': male,
-            'habit': np.arange(n_people) % 3,
-            'bmi': weight / (height / 100) ** 2,
-            'reach': reach,
-            'activity': activity,
-        },
-        location=home,
-    )
-    restaurants = GroupElement(
-        'restaurants',
-        element=RestaurantElement,
-        size=n_places,
-        values={'kind': rng.integers(0, 3, n_places).astype(float)},
-        location=rng.uniform(0, size, (n_places, 2)),
-    )
-    interactions: list[BaseInteraction] = []
-    for phase, step in (
-        ('home', EaterElement.go_home),
-        ('work', EaterElement.go_to_work),
-        ('evening', EaterElement.go_home),
-    ):
-        interactions += [
-            MovementInteraction(f'go_{phase}', target='people', step=step, phase=phase),
-            TransferInteraction(
-                f'meal_{phase}',
-                source='people',
-                target='restaurants',
-                state='calories',
-                into='sold',
-                amount=EaterElement.draw_meal,
-                pairing=PartnerSpec('reach', fallback='nearest'),
-                form='agent',
-                phase=phase,
-                settlement=EaterElement.settle_meal,
-            ),
-        ]
-    phases = (PhaseSpec('home'), PhaseSpec('work'), PhaseSpec('evening'), PhaseSpec('week', period=DAYS_PER_WEEK))
-    return System(
-        elements=[people, restaurants],
-        interactions=interactions,
-        space=ContinuousSpace(extent=(size, size)),
-        time=DiscreteTime(schedule=PhasesScheduleSpec(phases)),
-    )
+
+    field = 'social/organizations'
+    topics = ('health', 'agents', 'continuous space', 'obesity')
+    references = ('Lynch et al. 2019', 'Carmichael et al. 2019')
+    until = 70
+
+    def __init__(
+        self,
+        n_people: int = 100,
+        *,
+        n_places: int = 20,
+        size: float = 280.0,
+        reach: float = 30.0,
+        activity: float = 1.55,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_people = n_people
+        self.n_places = n_places
+        self.size = size
+        self.reach = reach
+        self.activity = activity
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        homes, works = rng.uniform(0, self.size, (2, self.n_places, 2))
+        home, work = (
+            homes[rng.integers(self.n_places, size=self.n_people)],
+            works[rng.integers(self.n_places, size=self.n_people)],
+        )
+        male = (rng.random(self.n_people) < MALE_SHARE).astype(float)
+        height = np.where(male > 0, rng.normal(176, 7, self.n_people), rng.normal(163, 7, self.n_people))
+        weight = rng.normal(24, 3, self.n_people) * (height / 100) ** 2
+        people = GroupElement(
+            'people',
+            element=EaterElement,
+            size=self.n_people,
+            values={
+                'home': home,
+                'work': work,
+                'weight': weight,
+                'height': height,
+                'age': rng.uniform(18, 65, self.n_people),
+                'male': male,
+                'habit': np.arange(self.n_people) % 3,
+                'bmi': weight / (height / 100) ** 2,
+                'reach': self.reach,
+                'activity': self.activity,
+            },
+            location=home,
+        )
+        restaurants = GroupElement(
+            'restaurants',
+            element=RestaurantElement,
+            size=self.n_places,
+            values={'kind': rng.integers(0, 3, self.n_places).astype(float)},
+            location=rng.uniform(0, self.size, (self.n_places, 2)),
+        )
+        interactions: list[BaseInteraction] = []
+        for phase, step in (
+            ('home', EaterElement.go_home),
+            ('work', EaterElement.go_to_work),
+            ('evening', EaterElement.go_home),
+        ):
+            interactions += [
+                MovementInteraction(f'go_{phase}', target='people', step=step, phase=phase),
+                TransferInteraction(
+                    f'meal_{phase}',
+                    source='people',
+                    target='restaurants',
+                    state='calories',
+                    into='sold',
+                    amount=EaterElement.draw_meal,
+                    pairing=PartnerSpec('reach', fallback='nearest'),
+                    form='agent',
+                    phase=phase,
+                    settlement=EaterElement.settle_meal,
+                ),
+            ]
+        phases = (PhaseSpec('home'), PhaseSpec('work'), PhaseSpec('evening'), PhaseSpec('week', period=DAYS_PER_WEEK))
+        return System(
+            self.label,
+            elements=[people, restaurants],
+            interactions=interactions,
+            space=ContinuousSpace(extent=(self.size, self.size)),
+            time=DiscreteTime(schedule=PhasesScheduleSpec(phases)),
+        )

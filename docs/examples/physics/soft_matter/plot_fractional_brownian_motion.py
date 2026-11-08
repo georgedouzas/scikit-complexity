@@ -6,7 +6,7 @@ more likely, so the cloud spreads slower than Brownian motion and every path loo
 """
 
 # %%
-# The system is created by name from the catalog with 500 walkers in the plane and the Hurst index `H = 0.3`, and
+# The system is built from its class with 500 walkers in the plane and the Hurst index `H = 0.3`, and
 # simulated to time 10. The fractional Euler-Maruyama stepper draws the correlated increments of the whole run on its
 # grid before the first step. The observer saves every frame with the default blueprint, whose primary view shows the
 # walkers.
@@ -14,18 +14,18 @@ more likely, so the cloud spreads slower than Brownian motion and every path loo
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import ScalingAnalysis
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.analysis import scaling
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import FractionalEulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.soft_matter import FractionalBrownianMotionSystem
 
 SYSTEM = 'fractional_brownian_motion'
 
-system = create_system(SYSTEM, n_walkers=500, H=0.3)
+system = FractionalBrownianMotionSystem(n_walkers=500, H=0.3)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 solver = FractionalEulerMaruyamaSolver(dt=0.01)
-simulation = Simulation(system, solver=solver, dt=0.05, observers=[observer], random_state=0).prepare().run(until=10)
+trajectory = simulate(system, solver=solver, observers=[observer], random_state=0)
 
 # %%
 # Scaling and memory
@@ -34,13 +34,12 @@ simulation = Simulation(system, solver=solver, dt=0.05, observers=[observer], ra
 # the plane should follow the dashed line `4 D t^0.6`. Detrended fluctuation analysis of the increments of each walker
 # should give Hurst exponents spread around `H = 0.3`, below the 0.5 of independent increments.
 
-trajectory = simulation.trajectory_
 times = trajectory.times[1:]
 positions = trajectory.values('walkers.x')
 squared = np.mean(np.sum(positions[1:] ** 2, axis=-1), axis=1)
-exponents = ScalingAnalysis().prepare(np.diff(positions[:, :100, 0], axis=0)).run().exponent_
+exponents = scaling(np.diff(positions[:, :100, 0], axis=0)).exponent
 fig, (displacement, memory) = plt.subplots(1, 2, figsize=(10, 4))
-displacement.loglog(times, squared, label='simulation')
+displacement.loglog(times, squared, label='trajectory')
 displacement.loglog(times, 4 * times**0.6, '--', color='black', label='4 D t^(2 H)')
 displacement.set_xlabel('time t')
 displacement.set_ylabel('ensemble mean squared displacement')

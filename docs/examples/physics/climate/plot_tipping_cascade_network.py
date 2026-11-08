@@ -9,7 +9,7 @@ their lower states dark at the far end.
 """
 
 # %%
-# The system is created by name from the catalog on a Watts-Strogatz ring of 40 elements, each linked to its four
+# The system is built from its class on a Watts-Strogatz ring of 40 elements, each linked to its four
 # nearest neighbours, with a few shortcuts. Every control is 0 except the first, at 1.2, past the critical value 1. The
 # coupling `d = 0.2` raises the effective control of an element by `2 d / sqrt(4/27) = 1.04` for each tipped neighbour.
 # The run stops at time 18, midway through the cascade, and the observer saves every step with the default blueprint,
@@ -19,18 +19,18 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.climate import TippingCascadeNetworkSystem
 
 SYSTEM = 'tipping_cascade_network'
 
 graph = nx.connected_watts_strogatz_graph(40, 4, 0.05, seed=3)
 controls = np.zeros(40)
 controls[0] = 1.2
-system = create_system(SYSTEM, graph=graph, c=controls, d=0.2)
+system = TippingCascadeNetworkSystem(graph=graph, c=controls, d=0.2)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=18)
+simulation = simulate(system, until=18, observers=[observer])
 
 # %%
 # Tipping order and the role of the coupling
@@ -40,9 +40,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(unti
 # element once its control passes 1, while the coupled network should tip all forty, already at a control a little
 # below 1, since the neighbours that the first element lifts slightly out of their lower states lift it in return.
 
-trajectory = (
-    Simulation(create_system(SYSTEM, graph=graph, c=controls, d=0.2), dt=0.1).prepare().run(until=40).trajectory_
-)
+trajectory = simulate(TippingCascadeNetworkSystem(graph=graph, c=controls, d=0.2))
 states = trajectory.values('elements.x')
 tipped_at = trajectory.times[np.argmax(states > 0, axis=0)]
 distance = nx.single_source_shortest_path_length(graph, 0)
@@ -54,9 +52,7 @@ for d in (0.0, 0.2):
     counts[d] = []
     for first in sweep:
         controls[0] = first
-        final = (
-            Simulation(create_system(SYSTEM, graph=graph, c=controls, d=d), dt=1.0).prepare().run(until=200).trajectory_
-        )
+        final = simulate(TippingCascadeNetworkSystem(graph=graph, c=controls, d=d), until=200, dt=1.0)
         counts[d].append(int((final.values('elements.x')[-1] > 0).sum()))
 
 fig, (order, cascade) = plt.subplots(1, 2, figsize=(10, 4))

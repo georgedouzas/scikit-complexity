@@ -14,15 +14,14 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.networks import NodeMergingSystem
 
 SYSTEM = 'node_merging'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(create_system(SYSTEM), dt=100.0, observers=[observer], random_state=0).prepare()
-simulation.run(until=10000)
+trajectory = simulate(NodeMergingSystem(), until=10000, dt=100.0, observers=[observer], random_state=0)
 
 # %%
 # Degree distribution
@@ -30,7 +29,7 @@ simulation.run(until=10000)
 # The degrees after 20 steps per node should have a fat tail, with hubs far above the largest degree of a random
 # graph of the same size and number of links, whose degrees are Poisson.
 
-network = simulation.trajectory_.network(-1)
+network = trajectory.network(-1)
 degrees = np.bincount(np.concatenate([network.sources, network.targets]))[network.nodes]
 random = nx.gnm_random_graph(len(network.nodes), len(network.sources), seed=0)
 random_degrees = np.array([degree for _, degree in random.degree()])

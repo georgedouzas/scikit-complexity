@@ -1,4 +1,7 @@
-"""Define fields, groups of elements on the sites of a lattice, the nodes of a network, or the nodes of a mesh."""
+"""Define fields.
+
+A field is a group of elements on the sites of a lattice, the nodes of a network, or the nodes of a mesh.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,7 +24,7 @@ DISCRETIZATIONS = ('finite-difference', 'spectral', 'finite-volume', 'finite-ele
 
 
 class FieldElement(LatticeElement):
-    """Group of members of one element type at the sites of a lattice, the nodes of a network, or a mesh.
+    """Group of members of an element type at the sites of a lattice, network, or mesh.
 
     The states of the members are fields, with one value per site, and the laws of the element type are written for
     one site, with `laplacian`, `gradient`, `divergence`, and `advection` reading the neighbouring sites. Every state
@@ -115,11 +118,16 @@ class FieldElement(LatticeElement):
         self.symmetry = symmetry
 
     def _tensor_of(self, state: str) -> TensorSpec | None:
-        """Return the independent components of a tensor state of the element, or `None` for any other state."""
+        """Return the independent components of a tensor state of the element.
+
+        The result is `None` for any other state.
+        """
         spec = self._get_member_specs().get(state)
         if not isinstance(spec, StateSpec) or spec.tensor is None:
             return None
-        return TensorSpec(spec.tensor, int(cast(BaseSpace, self.space).prepare().n_dim_))._validated()
+        tensor = TensorSpec(spec.tensor, int(cast(BaseSpace, self.space).prepare().n_dim_))
+        tensor._check()
+        return tensor
 
     def _get_boundary(self, state: str, column: int = 0) -> tuple[str, object]:
         """Return the boundary condition of a state and the value read outside fixed edges.
@@ -153,15 +161,23 @@ class FieldElement(LatticeElement):
             return str(condition[0]), condition[1] if callable(condition[1]) else float(condition[1])
         return str(condition), 0.0
 
-    def _check(self) -> None:
-        """Raise an error for an unknown discretization or boundary condition.
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Set `size_`, `values_`, and `default_visual_`.
+
+        It first raises an error for an unknown discretization or boundary condition.
+
+        The default visual is an image on a lattice and a colored mesh on a mesh.
+
+        Args:
+            context:
+                The space the field inherits from its system, unused since a field has a space of its own.
 
         Raises:
             ValidationError:
                 The discretization or a boundary condition is unknown, or the matrix of a tensor state does not have
                 its symmetry.
         """
-        super()._check()
+        super()._prepare(context)
         if self.discretization not in DISCRETIZATIONS:
             error_msg = f'Unknown discretization {self.discretization!r} of {self.label}. Use one of {DISCRETIZATIONS}.'
             raise ValidationError(error_msg)
@@ -177,15 +193,6 @@ class FieldElement(LatticeElement):
                     "('fixed', value)."
                 )
                 raise ValidationError(error_msg)
-
-    def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Set `size_`, `values_`, and `default_visual_`, an image on a lattice and a colored mesh on a mesh.
-
-        Args:
-            context:
-                The space the field inherits from its system, unused since a field has a space of its own.
-        """
-        super()._prepare(context)
         if isinstance(self.space, LatticeSpace):
             self.default_visual_ = VisualSpec('image')
         elif isinstance(self.space, MeshSpace):

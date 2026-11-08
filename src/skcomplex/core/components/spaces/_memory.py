@@ -1,4 +1,7 @@
-"""Define memory neighbourhoods, the ordered memory sets of cellular automata on group spaces."""
+"""Define memory neighbourhoods.
+
+They are the ordered memory sets of cellular automata on group spaces.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -9,11 +12,11 @@ from ._base import BaseNeighborhood
 
 
 class MemoryNeighborhood(BaseNeighborhood):
-    """Ordered memory set of a cellular automaton on a group space: the group elements whose values a rule reads.
+    """Ordered memory set of a cellular automaton on a group space.
 
-    A cell at the element `g` reads the cell at `g s` for every element `s` of the memory set, in its order, so the
-    neighbourhood keeps its orientation. Elements are words in the generators, such as `'a'`, `'a^-1'`, or `'a*b'`, and
-    `'1'` is the identity, the cell itself.
+    It holds the group elements whose values a rule reads. A cell at the element `g` reads the cell at `g s` for every
+    element `s` of the memory set, in its order, so the neighbourhood keeps its orientation. Elements are words in the
+    generators, such as `'a'`, `'a^-1'`, or `'a*b'`, and `'1'` is the identity, the cell itself.
 
     Args:
         elements:
@@ -42,4 +45,5 @@ class MemoryNeighborhood(BaseNeighborhood):
 
     def _prepare(self, context: None = None) -> None:
         """Set `elements_`, the words of the memory set as strings."""
+        super()._prepare(context)
         self.elements_ = self._get_elements()

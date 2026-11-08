@@ -12,14 +12,15 @@ the firms push them into bankruptcy, which tips the economy into a lasting reces
 
 import matplotlib.pyplot as plt
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation
+from skcomplex.systems.economics.macroeconomics import Mark0System
 
 SYSTEM = 'mark0'
 SHOCK = {'shock_length': 9, 'dc': 0.5}
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-create_simulation(SYSTEM, **SHOCK).set_params(observers=[observer]).prepare().run(until=300)
+simulate(Mark0System(**SHOCK), observers=[observer])
 
 # %%
 # Recovery shapes under the policies
@@ -36,7 +37,7 @@ scenarios = {
 }
 fig, (unemployment, bankruptcies) = plt.subplots(1, 2, figsize=(10, 4))
 for name, settings in scenarios.items():
-    trajectory = create_simulation(SYSTEM, **settings).prepare().run(until=300).trajectory_
+    trajectory = simulate(Mark0System(**settings))
     unemployment.plot(trajectory.times, trajectory.values('economy.unemployment'), label=name)
     bankruptcies.plot(trajectory.times, trajectory.values('economy.bankruptcies'), label=name)
 for axis, label in ((unemployment, 'unemployment rate'), (bankruptcies, 'bankruptcies per month')):

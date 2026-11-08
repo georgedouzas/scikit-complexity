@@ -1,4 +1,7 @@
-"""Define choice interactions, which set a discrete state to an option drawn from the utilities of the options."""
+"""Define choice interactions.
+
+A choice interaction sets a discrete state to an option drawn from the utilities of the options.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,11 +17,12 @@ from sage.sets.real_set import RealSet
 from scipy.special import expit, softmax
 
 from ...errors import ValidationError
-from ...specs import BaseSpec, ParameterSpec, RoleSpec
+from ...specs import BaseSpec, ParameterSpec, RoleSpec, Tags
 from ...types import ElementKind
 from ..base import BasePart
 from ..laws import BaseLaw, RuleLaw, UpdateLaw
 from ..laws.utils import categorical, uniform, where
+from ..spaces import BaseSpace
 from ..types import AgentViewProtocol, SystemViewProtocol
 from ._base import SCHEDULES
 from ._interaction import Interaction
@@ -31,16 +35,16 @@ MIN_OPTIONS = 2
 
 
 class ChoiceInteraction(Interaction):
-    """Choice of every member of a group among options, drawn every step from the utilities of the options by a rule.
+    """Choice of every member of a group among options.
 
-    The rule `'logit'`, which is the heat-bath rule, draws option `k` of utility `u_k` with probability
-    `exp(beta u_k) / sum_j exp(beta u_j)`, where `beta` is the intensity of choice. The rules `'metropolis'` and
-    `'fermi'` propose one of the other options uniformly, or with the proposal `'all'` one of all the options
-    including the current one, and accept it with probability `min(1, exp(beta (u_new - u_old)))` or
-    `1 / (1 + exp(-beta (u_new - u_old)))`, so the rule `'fermi'` with the proposal `'all'` is the heat-bath rule of a
-    uniform proposal. The rule `'best'` draws uniformly among the options of largest utility under the ties
-    `'random'`, and takes the first of them under `'first'`. Every step, each member revises its choice with probability
-    `activity` and keeps it otherwise.
+    The option is drawn every step from the utilities of the options by a rule. The rule `'logit'`, which is the
+    heat-bath rule, draws option `k` of utility `u_k` with probability `exp(beta u_k) / sum_j exp(beta u_j)`, where
+    `beta` is the intensity of choice. The rules `'metropolis'` and `'fermi'` propose one of the other options
+    uniformly, or with the proposal `'all'` one of all the options including the current one, and accept it with
+    probability `min(1, exp(beta (u_new - u_old)))` or `1 / (1 + exp(-beta (u_new - u_old)))`, so the rule `'fermi'`
+    with the proposal `'all'` is the heat-bath rule of a uniform proposal. The rule `'best'` draws uniformly among the
+    options of largest utility under the ties `'random'`, and takes the first of them under `'first'`. Every step, each
+    member revises its choice with probability `activity` and keeps it otherwise.
 
     In the `'symbolic'` form, `utility(namespace, option)` returns the utility as a symbolic expression, where
     `namespace.target` holds the states and parameters of the group, and every member draws at once. In the `'agent'`
@@ -122,6 +126,18 @@ class ChoiceInteraction(Interaction):
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw, UpdateLaw)
 
+    def _get_tags(self) -> Tags:
+        """Return the tags of the agent-form rules or of the symbolic choice updates."""
+        return self._get_variant_tags((RuleLaw,) if self._get_argument('form') == 'agent' else (UpdateLaw,))
+
+    def _draws(self) -> bool:
+        """Return whether the choice draws.
+
+        Every rule draws but the best option with the first of ties every step.
+        """
+        fixed = self.rule == 'best' and self.ties == 'first' and self.activity == 1
+        return super()._draws() or not fixed
+
     def __init__(
         self,
         label: str,
@@ -154,7 +170,7 @@ class ChoiceInteraction(Interaction):
         self.ties = ties
 
     def _check_variants(self) -> None:
-        """Raise an error for an unknown variant, or a symbolic choice that is not synchronous."""
+        """Raise an error for an unknown variant or a symbolic choice not synchronous."""
         self._check_variant('rule', self.rule, RULES, (BaseSpec,))
         for name, value, variants in (
             ('schedule', self.schedule, SCHEDULES),
@@ -172,8 +188,12 @@ class ChoiceInteraction(Interaction):
             )
             raise ValidationError(error_msg)
 
-    def _check(self) -> None:
-        """Raise an error for an unknown variant, fewer than two options, or a utility that cannot be called.
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Raise an error for an unknown variant, fewer than two options, or a bad utility.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
@@ -181,7 +201,7 @@ class ChoiceInteraction(Interaction):
                 schedule is not synchronous in the symbolic form, there are fewer than two options, or the utility is
                 not callable.
         """
-        super()._check()
+        super()._prepare(context)
         self._check_variants()
         if len(self.options) < MIN_OPTIONS:
             error_msg = f'{self.label!r} chooses among {list(self.options)}. Give at least {MIN_OPTIONS} options.'
@@ -213,7 +233,10 @@ class ChoiceInteraction(Interaction):
         return self._select(index, [SR(option) for option in self.options])
 
     def _draw_proposal(self, state: Expression, utilities: Sequence[Expression], intensity: Expression) -> Expression:
-        """Return a uniform proposal of an option, accepted by the Metropolis or the Fermi probability."""
+        """Return a uniform proposal of an option.
+
+        The proposal is accepted by the Metropolis or the Fermi probability.
+        """
         weights = [SR(1) if self.proposal == 'all' else where(state == option, 0, 1) for option in self.options]
         index = categorical(f'{state}_proposal', weights)
         proposal = self._select(index, [SR(option) for option in self.options])
@@ -244,7 +267,10 @@ class ChoiceInteraction(Interaction):
         return np.array([float(self.utility(agent, system, option)) for option in self.options])
 
     def _draw_agent_proposal(self, agent: AgentViewProtocol, system: SystemViewProtocol, intensity: float) -> float:
-        """Return a uniform proposal of an option of an agent if accepted, or its current option."""
+        """Return a uniform proposal of an option of an agent if accepted.
+
+        Otherwise it returns its current option.
+        """
         current = float(getattr(agent, self.state))
         others = [option for option in self.options if self.proposal == 'all' or option != current]
         proposal = float(others[int(system.rng.integers(len(others)))])
@@ -274,7 +300,10 @@ class ChoiceInteraction(Interaction):
         return activity >= 1 or bool(system.rng.random() < activity)
 
     def _get_choice(self, agent: AgentViewProtocol, system: SystemViewProtocol) -> float | None:
-        """Return the option an agent draws if it revises in this step, or `None` to keep its own."""
+        """Return the option an agent draws if it revises in this step.
+
+        It returns `None` for the agent to keep its own.
+        """
         if not self._is_active(system, self._get_parameter_value('activity', system)):
             return None
         return self._draw_agent(agent, system, self._get_parameter_value('intensity', system))
@@ -285,12 +314,17 @@ class ChoiceInteraction(Interaction):
             setattr(agent, self.state, option)
 
     def _choose_member(self, agent: AgentViewProtocol, system: SystemViewProtocol) -> None:
-        """Set the state of one agent to the option it draws if it revises, in its own activation."""
+        """Set the state of one agent to the option it draws if it revises.
+
+        This happens in its own activation.
+        """
         if agent.alive:
             self._set_choice(agent, self._get_choice(agent, system))
 
     def choose(self, system: SystemViewProtocol) -> None:
-        """Set the state of every agent that revises in this step to the option it draws, by the schedule.
+        """Set the state of every revising agent to the option it draws, by the schedule.
+
+        An agent revises in this step.
 
         Args:
             system:
@@ -299,7 +333,9 @@ class ChoiceInteraction(Interaction):
         self._update_agents(system, self.schedule, self._get_choice, self._set_choice)
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
-        """Return the update of the state of every member that revises, or the rule of the agent form.
+        """Return the update of the state of every revising member, or the agent-form rule.
+
+        The agent form returns its rule instead.
 
         Args:
             namespace:

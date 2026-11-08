@@ -1,4 +1,7 @@
-"""Euler-Maruyama integrator of stochastic differential equations with a fixed internal step."""
+"""Euler-Maruyama integrator of stochastic differential equations.
+
+It takes a fixed internal step.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,7 +21,9 @@ from ._sde import SDESolver
 
 
 class EulerMaruyamaSolver(SDESolver):
-    """Euler-Maruyama integrator of stochastic differential equations with a fixed internal step.
+    """Euler-Maruyama integrator of stochastic differential equations.
+
+    It takes a fixed internal step.
 
     Args:
         dt:
@@ -26,7 +31,7 @@ class EulerMaruyamaSolver(SDESolver):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.engine.compile import PassCompiler
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.components.system import System
         >>> from skcomplex.systems.economics.finance import AssetElement, GeometricBrownianMotionInteraction
         >>> from skcomplex.core.engine.solvers import EulerMaruyamaSolver
@@ -35,7 +40,7 @@ class EulerMaruyamaSolver(SDESolver):
         ...     elements=[AssetElement('stock', price=100)],
         ...     interactions=[GeometricBrownianMotionInteraction('gbm', target='stock', mu=0.05, sigma=0.2)],
         ... )
-        >>> problem = PassCompiler().prepare(system).run().problem_
+        >>> problem = simulate(system, until=0).problem
         >>> stepper = EulerMaruyamaSolver(dt=1e-3, random_state=0).prepare(problem)
         >>> bool(stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_[0] > 0)
         True
@@ -76,7 +81,9 @@ class EulerMaruyamaSolver(SDESolver):
         noise: Array,
         end: float,
     ) -> Array:
-        """Return the state after one Euler-Maruyama step with given Wiener increments, before the boundary laws.
+        """Return the state after one Euler-Maruyama step with given Wiener increments.
+
+        The state is taken before the boundary laws.
 
         Args:
             time:
@@ -107,7 +114,10 @@ class EulerMaruyamaSolver(SDESolver):
         return following
 
     def _step(self, time: float, state: Array, p: Array, lengths: Array) -> Array:
-        """Return the state after one Euler-Maruyama step and the boundary laws, with one step length per state."""
+        """Return the state after one Euler-Maruyama step and the boundary laws.
+
+        There is one step length per state.
+        """
         noise = self._draw_increments(1.0) * np.sqrt(lengths[self.problem_.noise_rows])
         end = time + float(np.max(lengths))
         return self._bounded(end, self._increment(time, state, p, step=lengths, noise=noise, end=end), p)

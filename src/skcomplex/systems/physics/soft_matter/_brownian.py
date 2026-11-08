@@ -1,4 +1,7 @@
-"""Soft matter systems: Brownian particles and noise-driven transitions."""
+"""Soft matter systems.
+
+The module covers Brownian particles and noise-driven transitions.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,14 +16,15 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import BaseInteraction, GradientInteraction, RateInteraction
 from ....core.components.laws import BaseLaw, BoundaryLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from ..common.particles import DoubleWellElement
 
 
 class WallParticleElement(Element):
-    """Brownian particle at the distance `z` from a wall, which reflects it, and whose diffusion slows near the wall.
+    """Brownian particle at the distance `z` from a wall.
+
+    The wall reflects the particle, and its diffusion slows near the wall.
 
     Args:
         label:
@@ -46,6 +50,8 @@ class WallParticleElement(Element):
         >>> WallParticleElement('bead').a
         1.0
     """
+
+    law_classes = (BoundaryLaw,)
 
     def __init__(
         self,
@@ -82,36 +88,13 @@ def _get_double_well_drive(s: SimpleNamespace) -> Expression:
     return s.target.amplitude * cos(2 * math.pi * s.target.frequency * s.t)
 
 
-def _get_double_well_interactions(target: str) -> list[BaseInteraction]:
-    """Return the interactions of particles in a double well, the gradient of the well and the noisy forcing."""
-    return [
-        GradientInteraction('well', target=target, potential=lambda s: s.target.x**4 / 4 - s.target.x**2 / 2),
-        RateInteraction(
-            'drive',
-            target=target,
-            rate=_get_double_well_drive,
-            noise=lambda s: sqrt(2 * s.target.D),
-        ),
-    ]
+class StochasticResonanceSystem(BaseSystem):
+    """A particle in a double well.
 
-
-@register_system(
-    field='physics/soft_matter',
-    tags=('noise', 'sde', 'forcing', 'resonance'),
-    references=('Benzi, Sutera, and Vulpiani 1981', 'Gammaitoni et al. 1998'),
-    defaults={'until': 500.0, 'dt': 0.5},
-)
-def stochastic_resonance(
-    x: float = -1.0,
-    *,
-    amplitude: float = 0.1,
-    frequency: float = 0.01,
-    D: float = 0.12,
-) -> System:
-    """Return a particle in a double well, `dx = (x - x^3 + A cos(2 pi f t)) dt + sqrt(2 D) dW`.
+    The particle follows `dx = (x - x^3 + A cos(2 pi f t)) dt + sqrt(2 D) dW`.
 
     The forcing alone is too weak to move the particle between the wells, but noise of the right intensity makes the
-    hops follow the forcing.
+    hops follow the forcing. The system has the position `particle.x`.
 
     Args:
         x:
@@ -126,41 +109,75 @@ def stochastic_resonance(
         D:
             The noise intensity.
 
-    Returns:
-        system:
-            The system, with the position `particle.x`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.soft_matter import stochastic_resonance
-        >>> stochastic_resonance(D=0.2).elements[0].D
+        >>> from skcomplex.systems.physics.soft_matter import StochasticResonanceSystem
+        >>> StochasticResonanceSystem(D=0.2).prepare().system_.elements[0].D
         0.2
     """
-    return System(
-        elements=[DoubleWellElement('particle', x=x, amplitude=amplitude, frequency=frequency, D=D)],
-        interactions=_get_double_well_interactions('particle'),
-    )
+
+    field = 'physics/soft_matter'
+    topics = ('noise', 'sde', 'forcing', 'resonance')
+    references = ('Benzi, Sutera, and Vulpiani 1981', 'Gammaitoni et al. 1998')
+    until = 500.0
+    dt = 0.5
+
+    def __init__(
+        self,
+        x: float = -1.0,
+        *,
+        amplitude: float = 0.1,
+        frequency: float = 0.01,
+        D: float = 0.12,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.x = x
+        self.amplitude = amplitude
+        self.frequency = frequency
+        self.D = D
+
+    @staticmethod
+    def _get_double_well_interactions(target: str) -> list[BaseInteraction]:
+        """Return the interactions of particles in a double well.
+
+        They are the gradient of the well and the noisy forcing.
+        """
+        return [
+            GradientInteraction('well', target=target, potential=lambda s: s.target.x**4 / 4 - s.target.x**2 / 2),
+            RateInteraction(
+                'drive',
+                target=target,
+                rate=_get_double_well_drive,
+                noise=lambda s: sqrt(2 * s.target.D),
+            ),
+        ]
+
+    def _build_system(self) -> System:
+        """Return a particle in a double well.
+
+        The particle follows `dx = (x - x^3 + A cos(2 pi f t)) dt + sqrt(2 D) dW`.
+        """
+        return System(
+            self.label,
+            elements=[
+                DoubleWellElement('particle', x=self.x, amplitude=self.amplitude, frequency=self.frequency, D=self.D),
+            ],
+            interactions=self._get_double_well_interactions('particle'),
+        )
 
 
-@register_system(
-    field='physics/soft_matter',
-    tags=('brownian motion', 'sde', 'multiplicative noise', 'hydrodynamics'),
-    references=('Brenner 1961', 'Volpe and Wehr 2016'),
-    defaults={'until': 10.0, 'dt': 0.1},
-)
-def brownian_near_wall(
-    z: float = 1.0,
-    *,
-    D0: float = 1.0,
-    a: float = 1.0,
-    drift: float = 0.2,
-    convention: str = 'anti-ito',
-) -> System:
-    """Return a Brownian particle whose diffusion slows near a wall, `D(z) = D0 z² / (z² + a²)`, as it settles on it.
+class BrownianNearWallSystem(BaseSystem):
+    """A Brownian particle that settles on a wall.
+
+    Its diffusion slows near the wall, `D(z) = D0 z² / (z² + a²)`.
 
     The diffusion is a smooth form of the hydrodynamic hindrance that vanishes at the wall, and the drift is the
     settling velocity scaled by the same mobility. Diffusion that depends on the position makes the noise
     multiplicative, and the anti-Itô convention gives the equilibrium of physical particles. The laws are symmetric
-    about the wall at `z = 0`, which reflects the particle at every frame.
+    about the wall at `z = 0`, which reflects the particle at every frame. The system has the distance `particle.z`.
 
     Args:
         z:
@@ -178,22 +195,47 @@ def brownian_near_wall(
         convention:
             The convention of the noise, `'ito'`, `'stratonovich'`, or `'anti-ito'`.
 
-    Returns:
-        system:
-            The system, with the distance `particle.z`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.soft_matter import brownian_near_wall
-        >>> brownian_near_wall(convention='ito').interactions[0].convention
+        >>> from skcomplex.systems.physics.soft_matter import BrownianNearWallSystem
+        >>> BrownianNearWallSystem(convention='ito').prepare().system_.interactions[0].convention
         'ito'
     """
-    mobility = RateInteraction(
-        'mobility',
-        target='particle',
-        state='z',
-        rate=lambda s: -s.target.drift * s.target.z * abs(s.target.z) / (s.target.z**2 + s.target.a**2),
-        noise=lambda s: sqrt(2 * s.target.D0) * s.target.z / sqrt(s.target.z**2 + s.target.a**2),
-        convention=convention,
-    )
-    particle = WallParticleElement('particle', z=z, D0=D0, a=a, drift=drift)
-    return System(elements=[particle], interactions=[mobility])
+
+    field = 'physics/soft_matter'
+    topics = ('brownian motion', 'sde', 'multiplicative noise', 'hydrodynamics')
+    references = ('Brenner 1961', 'Volpe and Wehr 2016')
+    until = 10.0
+    dt = 0.1
+
+    def __init__(
+        self,
+        z: float = 1.0,
+        *,
+        D0: float = 1.0,
+        a: float = 1.0,
+        drift: float = 0.2,
+        convention: str = 'anti-ito',
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.z = z
+        self.D0 = D0
+        self.a = a
+        self.drift = drift
+        self.convention = convention
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        mobility = RateInteraction(
+            'mobility',
+            target='particle',
+            state='z',
+            rate=lambda s: -s.target.drift * s.target.z * abs(s.target.z) / (s.target.z**2 + s.target.a**2),
+            noise=lambda s: sqrt(2 * s.target.D0) * s.target.z / sqrt(s.target.z**2 + s.target.a**2),
+            convention=self.convention,
+        )
+        particle = WallParticleElement('particle', z=self.z, D0=self.D0, a=self.a, drift=self.drift)
+        return System(self.label, elements=[particle], interactions=[mobility])

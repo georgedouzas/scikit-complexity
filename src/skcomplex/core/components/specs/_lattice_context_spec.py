@@ -14,7 +14,9 @@ from ._lattice_state_spec import LatticeStateSpec
 
 @dataclass(frozen=True)
 class LatticeContextSpec(BaseSpec):
-    """What lattice laws are compiled against: the lattice of every state and the symbols a component reads.
+    """What lattice laws are compiled against.
+
+    It holds the lattice of every state and the symbols a component reads.
 
     Args:
         owner:

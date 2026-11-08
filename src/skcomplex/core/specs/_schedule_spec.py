@@ -8,10 +8,13 @@ from ._base_spec import BaseSpec
 
 
 class ScheduleSpec(BaseSpec):
-    """Base of the specs of schedules of discrete time that a formalism defines, such as the phases of agents.
+    """Base of the specs of schedules of discrete time that a formalism defines.
 
-    A subclass is a frozen dataclass of its own fields that overrides `_check`.
+    An example is the phases of agents. A subclass is a frozen dataclass of its own fields that overrides `_check`.
     """
 
     def _check(self) -> None:
-        """Accept the schedule, which has nothing to check by default."""
+        """Accept the schedule.
+
+        By default it has nothing to check.
+        """

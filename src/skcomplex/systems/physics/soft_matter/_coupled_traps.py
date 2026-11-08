@@ -1,4 +1,7 @@
-"""Hydrodynamically coupled spheres: two Brownian spheres in blinking optical traps that share one fluid."""
+"""Hydrodynamically coupled spheres.
+
+Two Brownian spheres in blinking optical traps share one fluid.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,15 +18,16 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MobilityInteraction
 from ....core.components.laws.utils import pulse_train
 from ....core.components.spaces import ContinuousSpace, DiscreteTime
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 SPHERES = VisualSpec('points', {'position': 'x', 'radius': 1.0})
 
 
 class TrappedSphereElement(Element):
-    """Colloidal sphere at the position `x`, held by an optical trap centred at `center`.
+    """Colloidal sphere at the position `x`, held by an optical trap.
+
+    The trap is centred at `center`.
 
     The sphere has no friction of its own. A mobility interaction moves it through the fluid it shares with the other
     spheres, and its trap is one of the forces the mobility turns into velocities.
@@ -61,7 +65,9 @@ class TrappedSphereElement(Element):
 
 
 class BlinkingTrapsInteraction(MobilityInteraction):
-    """Blinking optical traps on spheres that move through a shared fluid, in steps of Brownian dynamics.
+    """Blinking optical traps on spheres that move through a shared fluid.
+
+    The spheres move in steps of Brownian dynamics.
 
     Every sphere feels the harmonic force `-k (x - center)` of its own trap while the traps are on, for `on_time` of
     every period `on_time + off_time`, and no force while they are off. The mobility turns the forces on all spheres
@@ -141,38 +147,26 @@ class BlinkingTrapsInteraction(MobilityInteraction):
         self.off_time = off_time
 
     def _get_trap_force(self, namespace: SimpleNamespace) -> FreeModuleElement:
-        """Return the force of the trap of a sphere, switched off for `off_time` of every period."""
+        """Return the force of the trap of a sphere.
+
+        The trap is switched off for `off_time` of every period.
+        """
         s = namespace
         on = 1 if self.off_time == 0 else pulse_train(s.t * s.dt, self.on_time + self.off_time, self.on_time)
         return -s.k * on * (s.target.x - s.target.center)
 
 
-@register_system(
-    field='physics/soft_matter',
-    tags=('brownian motion', 'hydrodynamics', 'optical tweezers', 'blinking traps', 'correlated noise'),
-    references=('Argun et al. 2021', 'Batchelor 1976', 'Rotne and Prager 1969', 'Magazzù et al. 2019'),
-    defaults={'until': 20000, 'dt': 1},
-)
-def hydrodynamically_coupled_traps(
-    separation: float = 3.0,
-    *,
-    tensor: str = 'rotne-prager-yamakawa',
-    root: str = 'cholesky',
-    radius: float = 1.0,
-    viscosity: float = 1e-3,
-    kT: float = 4.1e-3,
-    k: float = 0.2,
-    on_time: float = 0.3,
-    off_time: float = 0.1,
-    dt: float = 5e-3,
-) -> System:
-    """Return two Brownian spheres in blinking optical traps, whose free motion is correlated through the fluid.
+class HydrodynamicallyCoupledTrapsSystem(BaseSystem):
+    """Two Brownian spheres in blinking optical traps.
+
+    The free motion of the spheres is correlated through the fluid.
 
     The traps hold the spheres at a distance `separation` along `x`, and switch off for `off_time` after every
-    `on_time`. While they are off the spheres diffuse freely, and the force on one moves the other through the
-    mobility, so their displacements correlate as `M_12 / M_11`. That is about `3 a / (2 r)` along the line of centres
-    and `3 a / (4 r)` across it. The units are micrometres, seconds, and piconewtons, so the defaults are spheres of
-    radius 1 um in water at room temperature, and each step of the system lasts `dt` seconds.
+    `on_time`. While they are off the spheres diffuse freely, and the force on one moves the other through the mobility,
+    so their displacements correlate as `M_12 / M_11`. That is about `3 a / (2 r)` along the line of centres and `3 a /
+    (4 r)` across it. The units are micrometres, seconds, and piconewtons, so the defaults are spheres of radius 1 um in
+    water at room temperature, and each step of the system lasts `step` seconds. The system has the positions
+    `spheres.x`.
 
     Args:
         separation:
@@ -202,36 +196,80 @@ def hydrodynamically_coupled_traps(
         off_time:
             The time the traps stay off in every period.
 
-        dt:
-            The length of a step.
+        step:
+            The length of a step, in seconds.
 
-    Returns:
-        system:
-            The system, with the positions `spheres.x`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.soft_matter import hydrodynamically_coupled_traps
-        >>> hydrodynamically_coupled_traps(4.0).elements[0].values['center']
+        >>> from skcomplex.systems.physics.soft_matter import HydrodynamicallyCoupledTrapsSystem
+        >>> HydrodynamicallyCoupledTrapsSystem(4.0).prepare().system_.elements[0].values['center']
         [[-2.0, 0.0], [2.0, 0.0]]
     """
-    centers = [[-separation / 2, 0.0], [separation / 2, 0.0]]
-    spheres = GroupElement(
-        'spheres',
-        element=TrappedSphereElement,
-        size=2,
-        values={'x': centers, 'center': centers},
-    )
-    traps = BlinkingTrapsInteraction(
-        'tweezers',
-        target='spheres',
-        k=k,
-        on_time=on_time,
-        off_time=off_time,
-        tensor=tensor,
-        root=root,
-        radius=radius,
-        viscosity=viscosity,
-        temperature=kT,
-        dt=dt,
-    )
-    return System(elements=[spheres], interactions=[traps], space=ContinuousSpace(n_dim=2), time=DiscreteTime())
+
+    field = 'physics/soft_matter'
+    topics = ('brownian motion', 'hydrodynamics', 'optical tweezers', 'blinking traps', 'correlated noise')
+    references = ('Argun et al. 2021', 'Batchelor 1976', 'Rotne and Prager 1969', 'Magazzù et al. 2019')
+    until = 20000
+    dt = 1
+
+    def __init__(
+        self,
+        separation: float = 3.0,
+        *,
+        tensor: str = 'rotne-prager-yamakawa',
+        root: str = 'cholesky',
+        radius: float = 1.0,
+        viscosity: float = 1e-3,
+        kT: float = 4.1e-3,
+        k: float = 0.2,
+        on_time: float = 0.3,
+        off_time: float = 0.1,
+        step: float = 5e-3,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.separation = separation
+        self.tensor = tensor
+        self.root = root
+        self.radius = radius
+        self.viscosity = viscosity
+        self.kT = kT
+        self.k = k
+        self.on_time = on_time
+        self.off_time = off_time
+        self.step = step
+
+    def _build_system(self) -> System:
+        """Return two Brownian spheres in blinking optical traps.
+
+        The free motion of the spheres is correlated through the fluid.
+        """
+        centers = [[-self.separation / 2, 0.0], [self.separation / 2, 0.0]]
+        spheres = GroupElement(
+            'spheres',
+            element=TrappedSphereElement,
+            size=2,
+            values={'x': centers, 'center': centers},
+        )
+        traps = BlinkingTrapsInteraction(
+            'tweezers',
+            target='spheres',
+            k=self.k,
+            on_time=self.on_time,
+            off_time=self.off_time,
+            tensor=self.tensor,
+            root=self.root,
+            radius=self.radius,
+            viscosity=self.viscosity,
+            temperature=self.kT,
+            dt=self.step,
+        )
+        return System(
+            self.label,
+            elements=[spheres],
+            interactions=[traps],
+            space=ContinuousSpace(n_dim=2),
+            time=DiscreteTime(),
+        )

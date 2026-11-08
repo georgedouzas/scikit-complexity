@@ -14,7 +14,9 @@ from ._entry_spec import EntrySpec
 
 @dataclass(frozen=True)
 class ReadSpec(BaseSpec):
-    """Values a symbol of a reduction stands for, one per reduced member or one shared value.
+    """Values a symbol of a reduction stands for.
+
+    They are one per reduced member or one shared value.
 
     Args:
         is_state:
@@ -38,6 +40,11 @@ class ReadSpec(BaseSpec):
     entry: EntrySpec | None = None
     column: int = 0
     stride: int = 1
+
+    @property
+    def shape(self) -> tuple[int, ...]:
+        """The shape of the entry the values belong to, or `()` for an element set."""
+        return self.entry.shape if self.entry is not None else ()
 
     @property
     def per_member(self) -> bool:

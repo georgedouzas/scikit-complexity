@@ -1,4 +1,7 @@
-"""Define geodesic interactions, the free fall of a test particle along the geodesics of a pseudo-Riemannian space."""
+"""Define geodesic interactions.
+
+They describe the free fall of a test particle along the geodesics of a pseudo-Riemannian space.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,13 +23,14 @@ from ._interaction import Interaction
 
 
 class GeodesicInteraction(Interaction):
-    """Geodesic equation `x''^mu = -Γ^mu_(alpha beta)(x) x'^alpha x'^beta` of a point of a pseudo-Riemannian space.
+    """Geodesic equation `x''^mu = -Γ^mu_(alpha beta)(x) x'^alpha x'^beta` of a point.
 
-    The state is a vector of order 2 with one component per coordinate of the space, the position `x^mu` of a test
-    particle, and its companion holds the tangent `x'^mu`. The time of the system is the affine parameter of the
-    geodesic, the proper time of a timelike geodesic when the tangent starts with `g_(mu nu) x'^mu x'^nu = -1`. A
-    tangent that starts null, with `g_(mu nu) x'^mu x'^nu = 0`, follows a light ray. Either norm is conserved along the
-    geodesic, so it measures the error of a run. The Christoffel symbols are those the space derives from its metric.
+    The point is a point of a pseudo-Riemannian space. The state is a vector of order 2 with one component per
+    coordinate of the space, the position `x^mu` of a test particle, and its companion holds the tangent `x'^mu`. The
+    time of the system is the affine parameter of the geodesic, the proper time of a timelike geodesic when the tangent
+    starts with `g_(mu nu) x'^mu x'^nu = -1`. A tangent that starts null, with `g_(mu nu) x'^mu x'^nu = 0`, follows a
+    light ray. Either norm is conserved along the geodesic, so it measures the error of a run. The Christoffel symbols
+    are those the space derives from its metric.
 
     Args:
         label:
@@ -58,13 +62,13 @@ class GeodesicInteraction(Interaction):
         >>> from skcomplex.core.components.interactions import GeodesicInteraction
         >>> from skcomplex.core.components.spaces import PseudoRiemannianSpace
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> r, phi = SR.var('r phi')
         >>> plane = PseudoRiemannianSpace(matrix(SR, [[1, 0], [0, r**2]]), (r, phi))
         >>> line = GeodesicInteraction('line', target='particle', space=plane)
         >>> particle = PointElement('particle', x=[1.0, 0.0], x_d1=[0.0, 1.0])
         >>> system = System(elements=[particle], interactions=[line], space=plane)
-        >>> trajectory = Simulation(system, dt=0.001).prepare().run(until=1.0).trajectory_
+        >>> trajectory = simulate(system, until=1.0, dt=0.001)
         >>> [round(float(value), 3) for value in trajectory.values('particle.x')[-1]]
         [1.414, 0.785]
     """
@@ -84,22 +88,10 @@ class GeodesicInteraction(Interaction):
         self.state = state
         self.space = space
 
-    def _check(self) -> None:
-        """Raise an error for a state that is not a name.
-
-        Raises:
-            ValidationError:
-                The type declares states, or the state is not a name.
-        """
-        super()._check()
-        if not isinstance(self.state, str) or not self.state.isidentifier():
-            error_msg = (
-                f'{type(self).__name__} {self.label!r} moves the state {self.state!r}. Give the name of a state.'
-            )
-            raise ValidationError(error_msg)
-
     def _prepare(self, context: BaseSpace | None = None) -> None:
         """Set `space_`, the prepared pseudo-Riemannian space.
+
+        It first raises an error for a state that is not a name.
 
         Args:
             context:
@@ -108,8 +100,15 @@ class GeodesicInteraction(Interaction):
         Raises:
             SpaceError:
                 The space is not a pseudo-Riemannian space.
+            ValidationError:
+                The type declares states, or the state is not a name.
         """
         super()._prepare(context)
+        if not isinstance(self.state, str) or not self.state.isidentifier():
+            error_msg = (
+                f'{type(self).__name__} {self.label!r} moves the state {self.state!r}. Give the name of a state.'
+            )
+            raise ValidationError(error_msg)
         if not isinstance(self.space, PseudoRiemannianSpace):
             error_msg = (
                 f'{type(self).__name__} {self.label!r} moves a point along the geodesics of {self.space!r}. Give a '
@@ -119,7 +118,9 @@ class GeodesicInteraction(Interaction):
         self.space_ = self.space.prepare()
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
-        """Return the rate law of the second derivative of the position, minus the connection on the tangent.
+        """Return the rate law of the second derivative of the position.
+
+        It is minus the connection on the tangent.
 
         Args:
             namespace:

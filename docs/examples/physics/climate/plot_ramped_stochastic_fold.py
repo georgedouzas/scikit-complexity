@@ -8,7 +8,7 @@ jumping up near the middle of the run.
 """
 
 # %%
-# The system is created by name from the catalog with `a = -1`, `b = 1`, the control `phi = -1 + 0.004 t` of Fang et
+# The system is built from its class with `a = -1`, `b = 1`, the control `phi = -1 + 0.004 t` of Fang et
 # al., and noise of amplitude 0.02. The run lasts 500 time units with steps of 0.01, and the observer saves every
 # second time unit. The blueprint shows the state over the whole run.
 
@@ -16,14 +16,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.physics.climate import RampedStochasticFoldSystem
 
 SYSTEM = 'ramped_stochastic_fold'
 FOLD = 2 / (3 * np.sqrt(3))
 
-solver = describe(SYSTEM).defaults['solver']
+solver = RampedStochasticFoldSystem.solver
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
     rrb.TimeSeriesView(origin='/system/x', name='state x', axis_x=rrb.TimeAxis(view_range=whole_run)),
@@ -31,9 +31,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM)
+system = RampedStochasticFoldSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=4)
-simulation = Simulation(system, dt=0.5, solver=solver, observers=[observer], random_state=0).prepare().run(until=500)
+trajectory = simulate(system, solver=solver, observers=[observer], random_state=0)
 
 # %%
 # Critical slowing down and the lag of tipping
@@ -42,26 +42,17 @@ simulation = Simulation(system, dt=0.5, solver=solver, observers=[observer], ran
 # branch, the difference from the noiseless run, should grow in variance as the control approaches 0.385. A ramp faster
 # than the relaxation should carry the control past the fold before the state tips, by a lag that grows with the rate.
 
-times = simulation.trajectory_.times
-quiet = (
-    Simulation(create_system(SYSTEM, sigma=0.0), dt=0.5, solver=solver)
-    .prepare()
-    .run(until=500)
-    .trajectory_.values('system.x')
-)
-residual = simulation.trajectory_.values('system.x') - quiet
+times = trajectory.times
+quiet = simulate(RampedStochasticFoldSystem(sigma=0.0), solver=solver).values('system.x')
+residual = trajectory.values('system.x') - quiet
 windows = [(start, start + 40.0) for start in np.arange(0.0, 320.0, 20.0)]
 variances = [residual[(times >= start) & (times < end)].var() for start, end in windows]
 centres = [-1 + 0.004 * (start + end) / 2 for start, end in windows]
 rates = np.array([0.002, 0.004, 0.01, 0.02, 0.05, 0.1])
 tipped = []
 for rate in rates:
-    run = (
-        Simulation(create_system(SYSTEM, rate=rate), dt=0.1, solver=solver, random_state=0)
-        .prepare()
-        .run(until=2.0 / rate)
-    )
-    tipped.append(-1 + rate * run.trajectory_.times[np.argmax(run.trajectory_.values('system.x') > 0)])
+    run = simulate(RampedStochasticFoldSystem(rate=rate), until=2.0 / rate, dt=0.1, solver=solver, random_state=0)
+    tipped.append(-1 + rate * run.times[np.argmax(run.values('system.x') > 0)])
 fig, (slowing, lags) = plt.subplots(1, 2, figsize=(10, 4))
 slowing.semilogy(centres, variances, 'o-')
 slowing.axvline(FOLD, color='black', linestyle=':', label='static fold')

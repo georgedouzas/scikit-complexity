@@ -13,13 +13,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.mathematics.dynamical_systems import CubicChaoticMapSystem
 
 SYSTEM = 'cubic_chaotic_map'
 
-system = create_system(SYSTEM, n_walkers=200, lam=15.0)
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
     rrb.TimeSeriesView(origin='/walkers/y', name='positions y', axis_x=rrb.TimeAxis(view_range=whole_run)),
@@ -28,18 +27,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = (
-    Simulation(
-        system,
-        dt=1,
-        observers=[observer],
-        observables=describe(SYSTEM).observables_of(system),
-    )
-    .prepare()
-    .run(
-        until=250,
-    )
-)
+trajectory = simulate(CubicChaoticMapSystem(n_walkers=200, lam=15.0), until=250, observers=[observer])
 
 # %%
 # Diffusion of the chaotic walk and the density of the map
@@ -50,7 +38,6 @@ simulation = (
 # makes the slope about a third of the step variance `C_0`.
 # The histogram of `x` should be far from uniform, with peaks near both ends, as in Bertin's Figure 7.5.
 
-trajectory = simulation.trajectory_
 times = np.asarray(trajectory.times)
 steps = 2 * trajectory.values('walkers.x')[50:] - 1
 covariances = [np.mean(steps[: len(steps) - lag] * steps[lag:]) for lag in range(21)]

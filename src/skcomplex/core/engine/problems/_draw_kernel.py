@@ -1,4 +1,7 @@
-"""Random values a stochastic map draws at every step, stored after the parameters of an extended vector."""
+"""Random values a stochastic map draws at every step.
+
+They are stored after the parameters of an extended vector.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,7 +19,9 @@ from ._base import BaseKernel
 
 
 class DrawKernel(BaseKernel):
-    """Random values a stochastic map draws at every step, stored after the parameters of an extended vector.
+    """Random values a stochastic map draws at every step.
+
+    They are stored after the parameters of an extended vector.
 
     Args:
         offset:
@@ -70,10 +75,10 @@ class DrawKernel(BaseKernel):
         return extended
 
     def _run(self, inputs: RunStateSpec | None) -> None:
-        """Draw fresh values into the extended parameter vector of the state, uniform and normal runs as they come.
+        """Draw fresh values into the extended parameter vector of the state.
 
-        The arguments of draws from `scipy.stats` distributions read the time and the state vector of the state. The
-        orders are drawn last, in place.
+        Uniform and normal runs are drawn as they come. The arguments of draws from `scipy.stats` distributions read the
+        time and the state vector of the state. The orders are drawn last, in place.
         """
         self.values_ = None
         state = self._state_of(inputs)
@@ -92,7 +97,9 @@ class DrawKernel(BaseKernel):
 
     @staticmethod
     def _sample_draw(draw: DrawSpec, arguments: Sequence[npt.ArrayLike], size: int, rng: np.random.Generator) -> Array:
-        """Return values of a draw for a number of members, with arguments that hold one value or one per member.
+        """Return values of a draw for a number of members.
+
+        The arguments of the draw hold one value or one per member.
 
         Args:
             draw:

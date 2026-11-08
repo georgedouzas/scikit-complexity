@@ -14,12 +14,13 @@ from skcomplex.core.components.laws.utils import contraction
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumpyBackend
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import GradientDescentSolver
+from skcomplex.core.engine.solvers._defaults import DEFAULT_SOLVERS
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import DatasetSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec
-from skcomplex.systems.computer_science.neural_networks import elman_network
+from skcomplex.core.specs import DatasetSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec, StepSpec
+from skcomplex.systems.computer_science.neural_networks import ElmanNetworkSystem
 
 RATES = {'alpha': 1.1, 'beta': 0.4, 'gamma': 0.4, 'delta': 0.1}
 TIMES = np.linspace(0.4, 20.0, 50)
@@ -113,7 +114,7 @@ def _fitting(learning_rate=0.05, optimizer='adam'):
 
 def _trajectory(system, until, **arguments):
     """Return the trajectory of a system that trains, run with the seed 0."""
-    return Simulation(system, random_state=0, **arguments).prepare().run(until=until).trajectory_
+    return simulate(system, until=until, random_state=0, **arguments)
 
 
 def _gradient(system, rate=1.0):
@@ -125,9 +126,9 @@ def _gradient(system, rate=1.0):
     return {name: (trajectory.values(name)[0] - trajectory.values(name)[1]) / rate for name in names}
 
 
-def _loss(problem, values):
+def _loss(system, values):
     """Return the loss of the whole dataset at given trained values, the reporter of frame 0."""
-    trajectory = Simulation(problem, random_state=0, initial_state=values).prepare().run(until=1).trajectory_
+    trajectory = simulate(system, until=1, random_state=0, initial_state=values)
     return trajectory.values('training/loss')[0]
 
 
@@ -139,14 +140,14 @@ def test_check_unknown_precision():
 
 def test_automatic_solver():
     """Test that a system that trains runs on the learning solver and the JAX backend without being told."""
-    simulation = Simulation(elman_network(n_bits=60)).prepare()
-    assert isinstance(simulation.stepper_, GradientDescentSolver)
-    assert simulation.problem_.inner.backend == 'jax'
+    problem = simulate(ElmanNetworkSystem(n_bits=60).prepare().system_, until=0).problem
+    assert DEFAULT_SOLVERS[problem.form] is GradientDescentSolver
+    assert problem.inner.backend == 'jax'
 
 
 def test_epochs_as_frames():
     """Test that every frame is one epoch and frame 0 holds the initial weights of the inner system."""
-    system = elman_network(n_bits=60)
+    system = ElmanNetworkSystem(n_bits=60).prepare().system_
     weights = system.systems[0].interactions[2].W
     trajectory = _trajectory(system, 5)
     assert trajectory.times.tolist() == [0.0, 1.0, 2.0, 3.0, 4.0, 5.0]
@@ -157,12 +158,12 @@ def test_epochs_as_frames():
 def test_time_between_frames():
     """Test that a fraction of an epoch between frames raises an error naming the value."""
     with pytest.raises(ValidationError, match=r'0\.5.*whole number of epochs'):
-        Simulation(elman_network(n_bits=60), dt=0.5).prepare().run(until=2)
+        simulate(ElmanNetworkSystem(n_bits=60).prepare().system_, until=2, dt=0.5)
 
 
 def test_loss_at_the_start():
     """Test that the loss at frame 0 is the mean of the loss over NumPy runs of the inner system on every sequence."""
-    system = elman_network(n_bits=30)
+    system = ElmanNetworkSystem(n_bits=30).prepare().system_
     data, net = system.interactions[0].data, system.systems[0]
     trajectory = _trajectory(system, 1)
     error = ObservableSpec('error', group='outputs', reduce='sum', expression=_output_error)
@@ -173,14 +174,14 @@ def test_loss_at_the_start():
             'inputs.x': lambda t, values=inputs: values[min(round(t), len(values) - 1)],
             'outputs.target': lambda t, values=targets: values[max(round(t) - 1, 0)],
         }
-        run = Simulation(net, backend=NumpyBackend(), schedule=schedule, observables=[error]).prepare()
-        losses.append(run.run(until=data.steps).trajectory_.values('error')[1:].mean())
+        run = simulate(net, until=data.steps, backend=NumpyBackend(), schedule=schedule, observables=[error])
+        losses.append(run.values('error')[1:].mean())
     assert trajectory.values('training/loss')[0] == pytest.approx(np.mean(losses), abs=1e-10)
 
 
 def test_masked_steps():
     """Test that the loss and its gradient do not depend on the outputs at steps of weight 0."""
-    system, other = elman_network(n_bits=60), elman_network(n_bits=60)
+    system, other = ElmanNetworkSystem(n_bits=60).prepare().system_, ElmanNetworkSystem(n_bits=60).prepare().system_
     data = system.interactions[0].data
     weights = np.ones((data.sequences, data.steps))
     weights[:, :3] = 0.0
@@ -195,20 +196,25 @@ def test_masked_steps():
 
 def test_same_seed():
     """Test that two runs with the same seed record equal trajectories."""
-    first, second = _trajectory(elman_network(n_bits=60), 20), _trajectory(elman_network(n_bits=60), 20)
+    first, second = _trajectory(ElmanNetworkSystem(n_bits=60).prepare().system_, 20), _trajectory(
+        ElmanNetworkSystem(n_bits=60).prepare().system_,
+        20,
+    )
     np.testing.assert_array_equal(first.states, second.states)
     np.testing.assert_array_equal(first.values('training/loss'), second.values('training/loss'))
 
 
 def test_updates_per_epoch():
     """Test that 996 sequences in batches of 16 give 63 updates per epoch."""
-    simulation = Simulation(elman_network(), random_state=0).prepare().run(until=1)
-    assert int(simulation.stepper_.optimizer_state_.inner_state[0].count) == 63
+    problem = simulate(ElmanNetworkSystem().prepare().system_, until=0).problem
+    stepper = GradientDescentSolver(random_state=0, until=1).prepare(problem)
+    stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0))
+    assert int(stepper.optimizer_state_.inner_state[0].count) == 63
 
 
 def test_zero_learning_rate():
     """Test that a learning rate of 0 keeps every trained parameter at its initial value."""
-    system = elman_network(n_bits=60, learning_rate=0.0)
+    system = ElmanNetworkSystem(n_bits=60, learning_rate=0.0).prepare().system_
     states = _trajectory(system, 5).states
     np.testing.assert_array_equal(states[-1], states[0])
 
@@ -216,13 +222,15 @@ def test_zero_learning_rate():
 def test_learning_rate_schedule():
     """Test that a schedule that halves the learning rate every 50 epochs halves the recorded parameter."""
     schedule = {'training.learning_rate': lambda t: 0.05 * 0.5 ** (t // 50)}
-    values = _trajectory(elman_network(n_bits=30), 150, schedule=schedule).values('training.learning_rate')
+    values = _trajectory(ElmanNetworkSystem(n_bits=30).prepare().system_, 150, schedule=schedule).values(
+        'training.learning_rate',
+    )
     assert values[[49, 50, 100, 150]].tolist() == pytest.approx([0.05, 0.025, 0.0125, 0.00625])
 
 
 def test_gradient_against_finite_differences():
     """Test that the gradient of the loss of an Elman network agrees with central finite differences."""
-    system = elman_network(n_bits=30)
+    system = ElmanNetworkSystem(n_bits=30).prepare().system_
     gradient = _gradient(system)
     problem = PassCompiler().prepare(system).run().problem_
     step = 1e-6
@@ -232,13 +240,15 @@ def test_gradient_against_finite_differences():
         up, down = value.copy(), value.copy()
         up[index] += step
         down[index] -= step
-        difference = (_loss(problem, {name: up}) - _loss(problem, {name: down})) / (2 * step)
+        difference = (_loss(system, {name: up}) - _loss(system, {name: down})) / (2 * step)
         assert gradient[name][index] == pytest.approx(difference, rel=1e-6, abs=1e-9)
 
 
 def test_full_and_truncated_gradients():
     """Test that truncation changes the gradient of the input weights but not of the readout weights."""
-    full, truncated = _gradient(elman_network(n_bits=30)), _gradient(elman_network(n_bits=30, truncation=1))
+    full, truncated = _gradient(ElmanNetworkSystem(n_bits=30).prepare().system_), _gradient(
+        ElmanNetworkSystem(n_bits=30, truncation=1).prepare().system_,
+    )
     assert not np.allclose(full['net/input.D'], truncated['net/input.D'])
     np.testing.assert_allclose(full['net/readout.W'], truncated['net/readout.W'], atol=1e-12)
 
@@ -250,9 +260,9 @@ def test_gradient_through_an_ode():
     step = 1e-6
     for name in problem.states.names:
         value = float(problem.states.read(problem.initial_state, name))
-        up = Simulation(problem, random_state=0, initial_state={name: value + step}).prepare().run(until=1)
-        down = Simulation(problem, random_state=0, initial_state={name: value - step}).prepare().run(until=1)
-        loss_up, loss_down = (item.trajectory_.values('fit/loss')[0] for item in (up, down))
+        up = simulate(_fitting(), until=1, random_state=0, initial_state={name: value + step})
+        down = simulate(_fitting(), until=1, random_state=0, initial_state={name: value - step})
+        loss_up, loss_down = (item.values('fit/loss')[0] for item in (up, down))
         assert gradient[name] == pytest.approx((loss_up - loss_down) / (2 * step), rel=1e-5)
 
 
@@ -319,26 +329,25 @@ def test_tensor_trains():
     training = TrainingInteraction('training', system='community', trained=['cubic.T'], loss=loss, data=data)
     system = System('fitting', systems=[inner], interactions=[training], time=DiscreteTime())
     gradient = _gradient(system, rate=1e-6)['community/cubic.T']
-    problem = PassCompiler().prepare(system).run().problem_
     step = 1e-6
     for index in [(0, 0, 0), (1, 2, 3), (3, 1, 0)]:
         up, down = tensor.copy(), tensor.copy()
         up[index] += step
         down[index] -= step
-        difference = _loss(problem, {'community/cubic.T': up}) - _loss(problem, {'community/cubic.T': down})
+        difference = _loss(system, {'community/cubic.T': up}) - _loss(system, {'community/cubic.T': down})
         assert gradient[index] == pytest.approx(difference / (2 * step), rel=1e-6)
 
 
 def test_trained_system_agrees_with_training():
     """Test that the inner system with the trained values of the last frame records the loss the law evaluates."""
-    system = elman_network(n_bits=30)
+    system = ElmanNetworkSystem(n_bits=30).prepare().system_
     data, net = system.interactions[0].data, system.systems[0]
     trajectory = _trajectory(system, 3)
     trained = {name: trajectory.values(name)[-1] for name in trajectory.problem.states.names}
-    single = elman_network(n_bits=30)
+    single = ElmanNetworkSystem(n_bits=30).prepare().system_
     first = DatasetSpec({path: values[:1] for path, values in data.values.items()})
     single.interactions[0].set_params(data=first, metrics=())
-    expected = _loss(PassCompiler().prepare(single).run().problem_, trained)
+    expected = _loss(single, trained)
     for interaction, name in zip(net.interactions, ('D', 'A', 'W'), strict=True):
         interaction.set_params(**{name: trained[f'net/{interaction.label}.{name}']})
     net.elements[1].set_params(values={'b': trained['net/hidden.b']})
@@ -349,5 +358,5 @@ def test_trained_system_agrees_with_training():
         'outputs.target': lambda t: targets[max(round(t) - 1, 0)],
     }
     error = ObservableSpec('error', group='outputs', reduce='sum', expression=_output_error)
-    run = Simulation(net, backend=NumpyBackend(), schedule=schedule, observables=[error]).prepare()
-    assert run.run(until=data.steps).trajectory_.values('error')[1:].mean() == pytest.approx(expected, abs=1e-10)
+    run = simulate(net, until=data.steps, backend=NumpyBackend(), schedule=schedule, observables=[error])
+    assert run.values('error')[1:].mean() == pytest.approx(expected, abs=1e-10)

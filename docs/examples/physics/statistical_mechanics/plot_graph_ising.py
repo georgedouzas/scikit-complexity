@@ -7,7 +7,7 @@ node, after domains have formed from random spins.
 """
 
 # %%
-# The system is created by name from the catalog on the honeycomb graph that NetworkX generates, whose nodes carry
+# The system is built from its class on the honeycomb graph that NetworkX generates, whose nodes carry
 # their positions in the plane, at `T = 1.2 J`, below the critical temperature `2 / ln(2 + sqrt 3) = 1.52 J` of the
 # honeycomb lattice. One unit of time is one sweep of Metropolis updates over the classes of a proper coloring of the
 # graph. The observer saves every frame with the default blueprint, whose primary view is the graph of the spins.
@@ -16,16 +16,16 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.core.experiments import Experiment, GridDesign
-from skcomplex.systems import create_system
+from skcomplex.core.experiments import sweep
+from skcomplex.systems.physics.statistical_mechanics import GraphIsingSystem
 
 SYSTEM = 'graph_ising'
 
-system = create_system(SYSTEM, graph=nx.hexagonal_lattice_graph(14, 14), temperature=1.2)
+system = GraphIsingSystem(graph=nx.hexagonal_lattice_graph(14, 14), temperature=1.2)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=60)
+simulation = simulate(system, until=60, observers=[observer], random_state=0)
 
 
 # %%
@@ -44,21 +44,15 @@ def magnetization(trajectory):
 
 graph = nx.random_regular_graph(4, 1000, seed=0)
 temperatures = [1.0, 1.5, 2.0, 2.4, 2.7, 2.9, 3.1, 3.5, 4.5, 6.0]
-result = (
-    Experiment(
-        lambda temperature: create_system(SYSTEM, graph=graph, temperature=temperature, initial='up'),
-        GridDesign(),
-        {'temperature': temperatures},
-        replicates=4,
-        until=300,
-        dt=10,
-        warmup=100,
-        outputs=[magnetization],
-        random_state=0,
-    )
-    .prepare()
-    .run()
-    .result_
+result = sweep(
+    GraphIsingSystem(graph=graph, initial='up'),
+    {'temperature': temperatures},
+    replicates=4,
+    until=300,
+    dt=10,
+    warmup=100,
+    outputs=[magnetization],
+    random_state=0,
 )
 rows = sorted(result.summary(), key=lambda row: row['temperature'])
 fig, ax = plt.subplots(figsize=(7, 4))

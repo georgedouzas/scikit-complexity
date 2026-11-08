@@ -1,15 +1,15 @@
 """Test the `_minority` module of `skcomplex.systems.economics.econophysics`."""
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.economics.econophysics import (
-    minority_game,
+    MinorityGameSystem,
 )
 
 
 def _volatility(memory, n_agents=51, **options):
     """Return `sigma^2 / N` of the attendance of a minority game after a transient."""
-    system = minority_game(n_agents, memory=memory, random_state=0, **options)
-    attendance = Simulation(system, random_state=0).prepare().run(until=400).trajectory_.values('game.attendance')
+    system = MinorityGameSystem(n_agents, memory=memory, random_state=0, **options).prepare().system_
+    attendance = simulate(system, until=400, random_state=0).values('game.attendance')
     return attendance[100:].var() / n_agents
 
 

@@ -1,4 +1,7 @@
-"""Base of the solvers of the compiler's problem, which run its events, renewals, delays, and boundary laws."""
+"""Base of the solvers of the compiler's problem.
+
+They run its events, renewals, delays, and boundary laws.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,14 +22,17 @@ from ._renewals import RenewalClock
 
 
 class Solver(BaseSolver[ProblemSpec]):
-    """Base of the solvers of the compiler's problem, which run its events, renewals, delays, and boundary laws.
+    """Base of the solvers of the compiler's problem.
 
-    Every call to `run` receives the current parameters, so parameter changes apply at the next call, and applies the
-    boundary laws of the problem after every internal step.
+    They run its events, renewals, delays, and boundary laws. Every call to `run` receives the current parameters, so
+    parameter changes apply at the next call, and applies the boundary laws of the problem after every internal step.
     """
 
     def _check_capabilities(self, problem: ProblemSpec) -> None:
-        """Raise an error for renewal laws or fractional noise of a problem that the stepper lacks."""
+        """Raise an error for features of a problem that the stepper lacks.
+
+        The features are renewal laws or fractional noise.
+        """
         name = type(self).__name__
         if problem.renewals and not self._is_renewing():
             error_msg = (
@@ -43,7 +49,10 @@ class Solver(BaseSolver[ProblemSpec]):
             raise SolverError(error_msg)
 
     def _drift(self) -> VectorFunction:
-        """Return the drift `f(t, x, p)` of the problem, raising an error for a problem without one."""
+        """Return the drift `f(t, x, p)` of the problem.
+
+        An error is raised for a problem without one.
+        """
         drift = self.problem_.drift
         if drift is None:
             error_msg = f'{type(self).__name__} integrates a drift, but the problem has none.'
@@ -51,7 +60,10 @@ class Solver(BaseSolver[ProblemSpec]):
         return drift
 
     def _diffusion(self) -> VectorFunction:
-        """Return the diffusion `g(t, x, p)` of the problem, raising an error for a problem without one."""
+        """Return the diffusion `g(t, x, p)` of the problem.
+
+        An error is raised for a problem without one.
+        """
         diffusion = self.problem_.diffusion
         if diffusion is None:
             error_msg = f'{type(self).__name__} integrates noise, but the problem has no diffusion.'
@@ -59,7 +71,10 @@ class Solver(BaseSolver[ProblemSpec]):
         return diffusion
 
     def _bounded(self, t: float, x: Array, p: Array) -> Array:
-        """Return a state after the boundary laws of the problem, or the state itself without boundary laws."""
+        """Return a state after the boundary laws of the problem.
+
+        Without boundary laws, the state itself is returned.
+        """
         boundary = self.problem_.boundary
         return x if boundary is None else boundary(t, x, p)
 
@@ -73,10 +88,10 @@ class Solver(BaseSolver[ProblemSpec]):
         dt: float,
         step: Callable[[float, Array, Array, Array], Array],
     ) -> Array:
-        """Integrate with fixed steps that stop at the renewals of every member and at the breakpoints of inputs.
+        """Integrate with fixed steps that stop at renewals and breakpoints.
 
-        Members that do not interact take steps on their own clocks, and interacting members split every step at each
-        renewal time inside it.
+        The steps stop at the renewals of every member and at the breakpoints of inputs. Members that do not interact
+        take steps on their own clocks, and interacting members split every step at each renewal time inside it.
         """
         problem, clock = self.problem_, self.renewals_
         if problem.delays or problem.events or clock is None:
@@ -94,7 +109,10 @@ class Solver(BaseSolver[ProblemSpec]):
 
     @staticmethod
     def _warm_loops(accelerated: AcceleratedSpec, x: Array, p: Array, drawn: tuple[np.random.Generator, ...]) -> None:
-        """Call every compiled stepper loop of a problem once, so it finishes compiling before a run."""
+        """Call every compiled stepper loop of a problem once.
+
+        Each loop thus finishes compiling before a run.
+        """
         rng = np.random.default_rng(0)
         empty = np.zeros(0, dtype=np.int64)
         if accelerated.rk4 is not None:
@@ -111,7 +129,10 @@ class Solver(BaseSolver[ProblemSpec]):
             accelerated.iterate(0.0, x, p, 0.0, *drawn)
 
     def _warm(self, problem: ProblemSpec) -> None:
-        """Call every numeric function of the problem once, so compiled backends finish compiling before a run."""
+        """Call every numeric function of the problem once.
+
+        Compiled backends thus finish compiling before a run.
+        """
         x, p = self.initial_state_.copy(), problem.initial_parameters.copy()
         drawn = (np.random.default_rng(0),) if problem.stochastic else ()
         for function in (problem.drift, problem.diffusion, problem.propensities, problem.boundary):
@@ -123,7 +144,9 @@ class Solver(BaseSolver[ProblemSpec]):
             self._warm_loops(problem.accelerated, x, p, drawn)
 
     def _prepare(self, context: ProblemSpec | None) -> None:
-        """Prepare the stepper for a problem and call its numeric functions once, so compiled backends compile.
+        """Prepare the stepper for a problem and call its numeric functions once.
+
+        Compiled backends thus compile.
 
         Args:
             context:
@@ -153,7 +176,10 @@ class Solver(BaseSolver[ProblemSpec]):
         self._warm(problem)
 
     def _collect(self) -> None:
-        """Set the events recorded since the last run, and forget them, and the time of a terminal event."""
+        """Set the events recorded since the last run and the time of a terminal event.
+
+        The recorded events are then forgotten.
+        """
         locator = self.locator_
         self.events_, locator.records = locator.records, []
         self.stopped_at_ = locator.stopped_at

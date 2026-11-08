@@ -1,4 +1,7 @@
-"""Dynamical systems: ensembles of chaotic maps, their invariant densities, and chaotic walks."""
+"""Dynamical systems of chaotic ensembles.
+
+The module covers ensembles of chaotic maps, their invariant densities, and chaotic walks.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,13 +16,14 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import mod, where
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class CubicWalkElement(Element):
-    """Walker driven by Bertin's cubic chaotic map `x' = lam x (x - 1/2)(x - 1) + x`, which steps by `2 x - 1`.
+    """Walker driven by Bertin's cubic chaotic map `x' = lam x (x - 1/2)(x - 1) + x`.
+
+    The walker steps by `2 x - 1`.
 
     Args:
         label:
@@ -42,6 +46,8 @@ class CubicWalkElement(Element):
         >>> CubicWalkElement('walker', lam=8.0).lam
         8.0
     """
+
+    law_classes = (UpdateLaw,)
 
     visual = VisualSpec('points', {'position': 'y', 'states': ()})
 
@@ -101,6 +107,8 @@ class DoublingMapElement(Element):
         1024.0
     """
 
+    law_classes = (UpdateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -149,6 +157,8 @@ class SkewTentMapElement(Element):
         0.5
     """
 
+    law_classes = (UpdateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -190,24 +200,17 @@ def _draw_cloud(
     return np.random.default_rng(random_state).uniform(start, start + spread, size)
 
 
-@register_system(
-    field='mathematics/dynamical_systems',
-    tags=('chaos', 'discrete map', 'random walk', 'diffusion'),
-    references=('Bertin 2021',),
-    defaults={'until': 200, 'dt': 1},
-    observables=lambda system: [
-        ObservableSpec('displacement', group='walkers', variable='y'),
-        ObservableSpec('square_displacement', _square_displacement, group='walkers'),
-    ],
-)
-def cubic_chaotic_map(n_walkers: int = 100, *, lam: float = 15.0) -> System:
-    """Return Bertin's cubic chaotic map and the chaotic walk it drives, which spreads like a random walk.
+class CubicChaoticMapSystem(BaseSystem):
+    """Bertin's cubic chaotic map and the chaotic walk it drives.
 
-    Every walker follows the map `x' = λ x (x - 1/2)(x - 1) + x` on the unit interval and moves by the step
-    `y' = y + 2x - 1`. The fixed point `x = 1/2` is stable for `λ < 8`, a period-two cycle follows, and the map is
-    chaotic at `λ = 15`. The walkers start at `y = 0` with values of `x` spread regularly over the unit interval, so
-    the mean position stays near 0 while the mean square position grows linearly in time, and the invariant density of
-    `x` is not uniform.
+    The walk spreads like a random walk.
+
+    Every walker follows the map `x' = λ x (x - 1/2)(x - 1) + x` on the unit interval and moves by the step `y' = y + 2x
+    - 1`. The fixed point `x = 1/2` is stable for `λ < 8`, a period-two cycle follows, and the map is chaotic at `λ =
+    15`. The walkers start at `y = 0` with values of `x` spread regularly over the unit interval, so the mean position
+    stays near 0 while the mean square position grows linearly in time, and the invariant density of `x` is not uniform.
+    The system has the states `walkers.x` and `walkers.y` and the observables `displacement`, the mean position, and
+    `square_displacement`, the mean square position.
 
     Args:
         n_walkers:
@@ -216,48 +219,64 @@ def cubic_chaotic_map(n_walkers: int = 100, *, lam: float = 15.0) -> System:
         lam:
             The parameter `λ` of the map, between 0 and 16.
 
-    Returns:
-        system:
-            The system, with the states `walkers.x` and `walkers.y` and the observables `displacement`, the mean
-            position, and `square_displacement`, the mean square position.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.dynamical_systems import cubic_chaotic_map
-        >>> cubic_chaotic_map(4, lam=10.0).elements[0].prepare().size_
+        >>> from skcomplex.systems.mathematics.dynamical_systems import CubicChaoticMapSystem
+        >>> CubicChaoticMapSystem(4, lam=10.0).prepare().system_.elements[0].prepare().size_
         4
     """
-    start = (np.arange(n_walkers) + 1 / 4) / n_walkers
-    walkers = GroupElement(
-        'walkers',
-        element=CubicWalkElement,
-        size=n_walkers,
-        values={'x': start, 'y': 0.0, 'lam': lam},
-    )
-    return System(
-        elements=[walkers],
+
+    field = 'mathematics/dynamical_systems'
+    topics = ('chaos', 'discrete map', 'random walk', 'diffusion')
+    references = ('Bertin 2021',)
+    until = 200
+    dt = 1
+    observables = (
+        ObservableSpec('displacement', group='walkers', variable='y'),
+        ObservableSpec('square_displacement', _square_displacement, group='walkers'),
     )
 
+    def __init__(
+        self,
+        n_walkers: int = 100,
+        *,
+        lam: float = 15.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_walkers = n_walkers
+        self.lam = lam
 
-@register_system(
-    field='mathematics/dynamical_systems',
-    tags=('chaos', 'discrete map', 'piecewise linear', 'invariant density'),
-    references=('Bertin 2021',),
-    defaults={'until': 50, 'dt': 1},
-)
-def skew_tent_map(
-    n_points: int = 100,
-    *,
-    a: float = 0.3,
-    x: float = 0.4,
-    spread: float = 0.01,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return an ensemble of the skew tent map, whose density relaxes to the uniform invariant density for any `a`.
+    def _build_system(self) -> System:
+        """Return Bertin's cubic chaotic map and the chaotic walk it drives.
+
+        The walk spreads like a random walk.
+        """
+        start = (np.arange(self.n_walkers) + 1 / 4) / self.n_walkers
+        walkers = GroupElement(
+            'walkers',
+            element=CubicWalkElement,
+            size=self.n_walkers,
+            values={'x': start, 'y': 0.0, 'lam': self.lam},
+        )
+        return System(
+            self.label,
+            elements=[walkers],
+        )
+
+
+class SkewTentMapSystem(BaseSystem):
+    """An ensemble of the skew tent map.
+
+    Its density relaxes to the uniform invariant density for any `a`.
 
     The map is `x' = x / a` for `x < a` and `x' = (1 - x) / (1 - a)` otherwise. Every value has one preimage on each
     branch, with slopes `1 / a` and `1 / (1 - a)`, so the uniform density is invariant. The points start in a narrow
     interval and spread over the unit interval until their histogram is flat. For `a = 1/2` both slopes are 2, and in
-    floating point every orbit reaches 0 within about 55 steps, so `a` should differ from 1/2.
+    floating point every orbit reaches 0 within about 55 steps, so `a` should differ from 1/2. The system has the states
+    `points.x`.
 
     Args:
         n_points:
@@ -275,43 +294,65 @@ def skew_tent_map(
         random_state:
             The seed or generator of the initial points.
 
-    Returns:
-        system:
-            The system, with the states `points.x`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.dynamical_systems import skew_tent_map
-        >>> skew_tent_map(10, a=0.7).elements[0].values['a']
+        >>> from skcomplex.systems.mathematics.dynamical_systems import SkewTentMapSystem
+        >>> SkewTentMapSystem(10, a=0.7).prepare().system_.elements[0].values['a']
         0.7
     """
-    start = _draw_cloud(n_points, x, spread, random_state)
-    return System(
-        elements=[GroupElement('points', element=SkewTentMapElement, size=n_points, values={'x': start, 'a': a})],
-    )
+
+    field = 'mathematics/dynamical_systems'
+    topics = ('chaos', 'discrete map', 'piecewise linear', 'invariant density')
+    references = ('Bertin 2021',)
+    until = 50
+    dt = 1
+
+    def __init__(
+        self,
+        n_points: int = 100,
+        *,
+        a: float = 0.3,
+        x: float = 0.4,
+        spread: float = 0.01,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_points = n_points
+        self.a = a
+        self.x = x
+        self.spread = spread
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        start = _draw_cloud(self.n_points, self.x, self.spread, self.random_state)
+        return System(
+            self.label,
+            elements=[
+                GroupElement(
+                    'points',
+                    element=SkewTentMapElement,
+                    size=self.n_points,
+                    values={'x': start, 'a': self.a},
+                ),
+            ],
+        )
 
 
-@register_system(
-    field='mathematics/dynamical_systems',
-    tags=('chaos', 'discrete map', 'bernoulli shift', 'invariant density'),
-    references=('Bertin 2021',),
-    defaults={'until': 50, 'dt': 1},
-)
-def doubling_map(
-    n_points: int = 100,
-    *,
-    x: float = 0.4,
-    spread: float = 0.01,
-    q: float = DOUBLING_DENOMINATOR,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return an ensemble of the doubling map `x' = 2x (mod 1)`, iterated exactly on fractions with an odd denominator.
+class DoublingMapSystem(BaseSystem):
+    """An ensemble of the doubling map `x' = 2x (mod 1)`.
 
-    In floating point `2x (mod 1)` shifts out one binary digit per step, and every orbit reaches 0 within 53 steps.
-    The system keeps every point on the fractions `k / q` of an odd denominator `q` and applies the map to them exactly,
-    `k' = 2k (mod q)`, through the update `x' = (2 round(q x) mod q) / q`. The orbits are the exact orbits of these
+    The map is iterated exactly on fractions with an odd denominator.
+
+    In floating point `2x (mod 1)` shifts out one binary digit per step, and every orbit reaches 0 within 53 steps. The
+    system keeps every point on the fractions `k / q` of an odd denominator `q` and applies the map to them exactly, `k'
+    = 2k (mod q)`, through the update `x' = (2 round(q x) mod q) / q`. The orbits are the exact orbits of these
     fractions. The default `q` is a prime below `2^50` of which 2 is a primitive root, so every orbit except that of 0
     has the period `q - 1`, about `10^15`. The points start in a narrow interval and spread until their histogram
-    matches the uniform invariant density.
+    matches the uniform invariant density. The system has the states `points.x`.
 
     Args:
         n_points:
@@ -329,16 +370,49 @@ def doubling_map(
         random_state:
             The seed or generator of the initial points.
 
-    Returns:
-        system:
-            The system, with the states `points.x`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.dynamical_systems import doubling_map
-        >>> float(doubling_map(10, q=101.0).elements[0].values['x'][0] * 101)
+        >>> from skcomplex.systems.mathematics.dynamical_systems import DoublingMapSystem
+        >>> float(DoublingMapSystem(10, q=101.0).prepare().system_.elements[0].values['x'][0] * 101)
         41.0
     """
-    start = np.floor(q * _draw_cloud(n_points, x, spread, random_state) + 1 / 2) / q
-    return System(
-        elements=[GroupElement('points', element=DoublingMapElement, size=n_points, values={'x': start, 'q': q})],
-    )
+
+    field = 'mathematics/dynamical_systems'
+    topics = ('chaos', 'discrete map', 'bernoulli shift', 'invariant density')
+    references = ('Bertin 2021',)
+    until = 50
+    dt = 1
+
+    def __init__(
+        self,
+        n_points: int = 100,
+        *,
+        x: float = 0.4,
+        spread: float = 0.01,
+        q: float = DOUBLING_DENOMINATOR,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_points = n_points
+        self.x = x
+        self.spread = spread
+        self.q = q
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        start = np.floor(self.q * _draw_cloud(self.n_points, self.x, self.spread, self.random_state) + 1 / 2) / self.q
+        return System(
+            self.label,
+            elements=[
+                GroupElement(
+                    'points',
+                    element=DoublingMapElement,
+                    size=self.n_points,
+                    values={'x': start, 'q': self.q},
+                ),
+            ],
+        )

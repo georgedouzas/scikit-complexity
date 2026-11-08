@@ -13,7 +13,7 @@ from skcomplex.core.components.interactions import AdvectionInteraction, Conserv
 from skcomplex.core.components.laws.utils import coordinate, gradient, inverse_laplacian, moment
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace, SimplexSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import SemiLagrangianSolver
 from skcomplex.core.errors import SolverError
 from skcomplex.core.specs import AxisSpec
@@ -35,8 +35,8 @@ def test_large_transport_steps_stay_stable_and_conserve_total() -> None:
     stream = AdvectionInteraction('s', target='gas', state='f', drift=lambda _: [coordinate('v'), 0])
     solver = SemiLagrangianSolver(dt=5 * spacing)
     system = System(elements=[gas], interactions=[stream])
-    simulation = Simulation(system, dt=5 * spacing, solver=solver).prepare()
-    final = simulation.run(until=4.0).trajectory_.values('gas.f')[-1].reshape(size, 8)
+    trajectory = simulate(system, until=4.0, dt=5 * spacing, solver=solver)
+    final = trajectory.values('gas.f')[-1].reshape(size, 8)
     assert np.abs(final).max() < 1.01 * start.max()
     assert abs(final.sum() / start.sum() - 1.0) < 1e-12
     exact = np.stack(
@@ -52,12 +52,8 @@ def test_nonlinear_flux_raises_a_named_error() -> None:
     values = {'f': 1.0 + np.sin(2 * np.pi * np.arange(16) / 16)}
     wave = FieldElement('wave', element=DensityElement, space=space, values=values, discretization='finite-volume')
     burgers = ConservationInteraction('b', target='wave', state='f', flux=lambda s: s.target.f**2 / 2)
-    simulation = Simulation(
-        System(elements=[wave], interactions=[burgers]),
-        solver=SemiLagrangianSolver(dt=0.1),
-    )
     with pytest.raises(SolverError, match='not a linear drift'):
-        simulation.prepare().run(until=0.1)
+        simulate(System(elements=[wave], interactions=[burgers]), until=0.1, solver=SemiLagrangianSolver(dt=0.1))
 
 
 def test_partial_cells_raise_a_named_error() -> None:
@@ -66,9 +62,8 @@ def test_partial_cells_raise_a_named_error() -> None:
     values = {'f': 2.0 * (space.prepare().volumes_ > 0)}
     groups = FieldElement('groups', element=DensityElement, space=space, values=values, discretization='finite-volume')
     flow = AdvectionInteraction('flow', target='groups', state='f', drift=lambda _: [0, 1.0, -1.0])
-    simulation = Simulation(System(elements=[groups], interactions=[flow]), solver=SemiLagrangianSolver(dt=0.1))
     with pytest.raises(SolverError, match='partial cells'):
-        simulation.prepare().run(until=0.1)
+        simulate(System(elements=[groups], interactions=[flow]), until=0.1, solver=SemiLagrangianSolver(dt=0.1))
 
 
 def test_landau_damping_with_large_steps() -> None:
@@ -83,7 +78,7 @@ def test_landau_damping_with_large_steps() -> None:
     drift = AdvectionInteraction('vlasov', target='gas', state='f', drift=poisson_drift)
     system = System(elements=[gas], interactions=[drift])
     solver = SemiLagrangianSolver(dt=0.25)
-    trajectory = Simulation(system, dt=0.25, solver=solver).prepare().run(until=30.0).trajectory_
+    trajectory = simulate(system, until=30.0, dt=0.25, solver=solver)
     values = np.asarray(trajectory.values('gas.f')).reshape(-1, positions, velocities)
     density = values.sum(axis=2) * space.spacings_[1]
     field = np.fft.ifft(np.fft.fft(density - density.mean(axis=1, keepdims=True), axis=1), axis=1).real

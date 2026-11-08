@@ -1,4 +1,7 @@
-"""Define reflections, crossings of a wall that reverse the normal velocity of a moving point."""
+"""Define reflections off walls.
+
+A reflection is a crossing of a wall that reverses the normal velocity of a moving point.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,12 +17,15 @@ from sage.sets.real_set import RealSet
 from .....core.components.interactions import CrossingInteraction
 from .....core.components.laws import BaseLaw, CrossingLaw
 from .....core.components.laws.utils import where
+from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
 from .....core.specs import ParameterSpec, RoleSpec
 
 
 class ReflectionInteraction(CrossingInteraction):
-    """Reflection of a moving point off a wall `g(x) = 0`, with a coefficient of restitution `e`.
+    """Reflection of a moving point off a wall `g(x) = 0`.
+
+    The reflection has a coefficient of restitution `e`.
 
     When the guard `g` crosses zero, the velocity `v` of the point becomes `v - (1 + e) (v . n) n / |n|**2`, where `n`
     is the gradient of `g` with respect to the position. The normal velocity is reversed and scaled by `e`, and the
@@ -61,15 +67,17 @@ class ReflectionInteraction(CrossingInteraction):
         >>> from skcomplex.core.components.elements import PointElement
         >>> from skcomplex.core.components.spaces import ContinuousSpace
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.systems.physics.common.mechanics import ReflectionInteraction
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> wall = ReflectionInteraction('wall', target='ball', guard=lambda s: s.target.x[0] - 1, direction=1)
         >>> ball = PointElement('ball', x=[0.0, 0.0], x_d1=[1.0, 1.0])
         >>> system = System(elements=[ball], interactions=[wall], space=ContinuousSpace(n_dim=2))
-        >>> trajectory = Simulation(system, dt=0.5).prepare().run(until=2.0).trajectory_
+        >>> trajectory = simulate(system, until=2.0, dt=0.5)
         >>> trajectory.values('ball.x')[-1].tolist()
         [0.0, 2.0]
     """
+
+    law_classes = (CrossingLaw,)
 
     def __init__(
         self,
@@ -90,21 +98,30 @@ class ReflectionInteraction(CrossingInteraction):
         self.region = region
 
     def _get_components(self, member: SimpleNamespace, names: Sequence[str]) -> list[Expression]:
-        """Return the components of the named states of a member, every component of a vector state."""
+        """Return the components of the named states of a member.
+
+        A vector state gives every component.
+        """
         components: list[Expression] = []
         for name in names:
             value = getattr(member, name)
             components += list(value) if isinstance(value, FreeModuleElement) else [SR(value)]
         return components
 
-    def _check(self) -> None:
-        """Raise an error for positions and velocities of different numbers of names, or a function not callable.
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Raise an error for invalid positions, velocities, or functions.
+
+        The error is raised for positions and velocities of different numbers of names, or a function not callable.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The positions and the velocities have different numbers of names, or a function is not callable.
         """
-        super()._check()
+        super()._prepare(context)
         if self.region is not None and not callable(self.region):
             error_msg = f'The region of reflection {self.label!r} must be a function of the namespace.'
             raise ValidationError(error_msg)
@@ -116,7 +133,9 @@ class ReflectionInteraction(CrossingInteraction):
             raise ValidationError(error_msg)
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the crossing law of the wall, which reflects the velocity about the normal of the wall.
+        """Return the crossing law of the wall.
+
+        The law reflects the velocity about the normal of the wall.
 
         Args:
             namespace:

@@ -16,21 +16,21 @@ report that nudges everyone towards passion sweeps almost the whole population.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.social.opinion_dynamics import InfluentialsSystem
 
 SYSTEM = 'influentials'
 STEPS = 20
 LEVELS = ('not at all', 'less', 'a bit', 'passionately')
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(
-    create_system(SYSTEM, influence=3.0, random_state=0),
+trajectory = simulate(
+    InfluentialsSystem(influence=3.0, random_state=0),
+    until=STEPS,
     observers=[observer],
     random_state=0,
-).prepare()
-simulation.run(until=STEPS)
+)
 
 # %%
 # Locking in, influence, and news
@@ -51,13 +51,12 @@ def passionate(influence, news_report):
     """Return the mean final share of people caring passionately over three runs."""
     finals = []
     for seed in range(3):
-        system = create_system(SYSTEM, influence=influence, news_report=news_report, random_state=seed)
-        trajectory = Simulation(system, random_state=seed).prepare().run(until=STEPS).trajectory_
-        finals.append(shares(trajectory, STEPS)[-1])
+        system = InfluentialsSystem(influence=influence, news_report=news_report, random_state=seed)
+        run = simulate(system, until=STEPS, random_state=seed)
+        finals.append(shares(run, STEPS)[-1])
     return np.mean(finals)
 
 
-trajectory = simulation.trajectory_
 history = np.array([shares(trajectory, frame) for frame in range(STEPS + 1)])
 influences = np.array([1.0, 2.0, 3.0, 5.0, 10.0])
 fig, (levels, sweep) = plt.subplots(1, 2, figsize=(10, 4))

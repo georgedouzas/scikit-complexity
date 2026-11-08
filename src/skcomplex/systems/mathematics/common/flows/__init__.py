@@ -1,4 +1,7 @@
-"""Flows shared by the mathematics packages: the Lorenz and Rössler flows."""
+"""Flows shared by the mathematics packages.
+
+The package holds the Lorenz and Rössler flows.
+"""
 
 from ._lorenz import LorenzElement
 from ._rossler import RosslerElement

@@ -13,8 +13,8 @@ from skcomplex.core.components.elements import Element, GroupElement, PointEleme
 from skcomplex.core.components.interactions import PairCouplingInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -137,7 +137,7 @@ def test_pair_coupling_holds_members_at_the_potential_minimum():
         interactions=[PairCouplingInteraction('morse', 'pair', 'pair', cutoff=3.0, potential=_morse)],
         space=ContinuousSpace(n_dim=2),
     )
-    trajectory = Simulation(system, solver=ScipyODESolver(), dt=0.1).prepare().run(until=1).trajectory_
+    trajectory = simulate(system, until=1, solver=ScipyODESolver(), dt=0.1)
     np.testing.assert_allclose(trajectory.values('pair.x_d1'), 0.0, atol=1e-12)
 
 
@@ -152,7 +152,7 @@ def test_pair_coupling_conserves_the_total_first_derivative():
         space=ContinuousSpace(n_dim=2),
     )
     solver = ScipyODESolver(rtol=1e-9, atol=1e-12)
-    trajectory = Simulation(system, solver=solver, dt=0.05).prepare().run(until=2).trajectory_
+    trajectory = simulate(system, until=2, solver=solver, dt=0.05)
     momentum = trajectory.values('gas.x_d1').sum(axis=1)
     np.testing.assert_allclose(momentum, np.broadcast_to(momentum[0], momentum.shape), atol=1e-8)
 

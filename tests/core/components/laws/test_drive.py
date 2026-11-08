@@ -11,7 +11,7 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import DriveLaw
 from skcomplex.core.components.spaces import CellComplexSpace, DiscreteTime, LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import MatrixGroupSpec, RoleSpec, StateSpec
 
@@ -66,7 +66,7 @@ def test_drive_replays_an_ensemble_by_the_time_of_the_step():
     )
     replay = ReplayInteraction('replay', target='chain', ensemble=ensemble)
     system = System(elements=[chain], interactions=[replay], time=DiscreteTime())
-    frames = Simulation(system, random_state=0).prepare().run(until=40).trajectory_.lattice('chain.x')
+    frames = simulate(system, until=40, random_state=0).lattice('chain.x')
     assert frames[10] == pytest.approx(ensemble[10])
     assert frames[40] == pytest.approx(ensemble[37])
 
@@ -82,7 +82,7 @@ def test_drive_passes_time_only_to_a_function_that_names_it():
     chain = LatticeElement('chain', element=ChainCoordinateElement, space=LatticeSpace((2, 3), boundary='fixed'))
     interaction = _DriveInteraction('drive', target='chain', function=drive)
     system = System(elements=[chain], interactions=[interaction], time=DiscreteTime())
-    Simulation(system, random_state=0).prepare().run(until=1)
+    simulate(system, until=1, random_state=0)
     assert 'time' not in seen
     assert 'random' in seen
 
@@ -131,7 +131,7 @@ def test_drive_of_a_matrix_state_receives_the_components_on_a_last_axis_and_the_
     space = CellComplexSpace(LatticeSpace((3, 3), boundary='fixed'))
     links = GroupElement('links', element=PairElement, space=space, on='edges')
     system = System(elements=[links], interactions=[RotationInteraction('turn', target='links')], time=DiscreteTime())
-    values = Simulation(system, random_state=0).prepare().run(until=1).trajectory_.values('links.U')
+    values = simulate(system, until=1, random_state=0).values('links.U')
     faces = (space.cofaces_[1] < space.boundaries_.shape[0]).sum(axis=1)
     assert values.shape == (2, 12, 2)
     assert np.allclose(values[1, :, 0] + 1j * values[1, :, 1], np.exp(1j * faces))
@@ -155,4 +155,4 @@ def test_drive_of_one_component_of_a_matrix_state_raises_an_error():
     links = GroupElement('links', element=PairElement, space=space, on='edges')
     system = System(elements=[links], interactions=[PartialInteraction('part', target='links')], time=DiscreteTime())
     with pytest.raises(ValidationError, match='Target the whole state'):
-        Simulation(system).prepare()
+        simulate(system, until=0)

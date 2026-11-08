@@ -13,12 +13,15 @@ from skcomplex.core.components.laws.utils import inverse_helmholtz, total
 from skcomplex.core.components.spaces import LatticeSpace, StaticTime
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumpyBackend
-from skcomplex.core.engine.compile import ObservableEvaluator, PassCompiler
+from skcomplex.core.engine.compile._observables import ObservableEvaluator
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
 from skcomplex.core.errors import RoleError
 from skcomplex.core.specs import ObservableSpec, RoleSpec, StateSpec, VisualSpec
-from skcomplex.systems import catalog, create_system, describe
+from skcomplex.systems import all_systems
 from skcomplex.systems.biology.common.populations import PopulationElement
+from skcomplex.systems.engineering.mechatronics import QuarterCarSystem
+from skcomplex.systems.physics.waves import LatticeGaugeFieldsSystem
 
 
 class ObservedValueElement(Element):
@@ -35,11 +38,14 @@ class ObservedValueElement(Element):
         self.y = y
 
 
-def _observed(name):
+def _observed(system_class):
     """Return a system with its observables, and the paths of those that laws read at the current state."""
-    system = create_system(name)
-    observables = describe(name).observables_of(system)
-    compilation = PassCompiler(observables=observables).prepare(system).compilation_
+    system = system_class().prepare().system_
+    observables = list(system_class().get_run_settings()['observables'])
+    compiler = PassCompiler(observables=observables).prepare(system)
+    if compiler.learning_ is not None:
+        pytest.skip('A system that trains a nested system records no observables of its own.')
+    compilation = compiler.compilation_
     nodes = {node.path: node for node in compilation.nodes}
     found, blocked = [], set()
     for observable in observables:
@@ -73,18 +79,15 @@ class ReadInteraction(Interaction):
         return [RateLaw(s.probe.y, abs(s.source.value))]
 
 
-@pytest.mark.parametrize(
-    'name',
-    [listing.name for listing in catalog() if describe(listing.name).observables is not None],
-)
-def test_reductions_agree_with_observables(name):
+@pytest.mark.parametrize('system_class', [system for _, system in all_systems()], ids=lambda system: system.__name__)
+def test_reductions_agree_with_observables(system_class):
     """Test that laws reading a system's observables at a state read the values the observable evaluator records."""
-    observed, observables, paths = _observed(name)
+    observed, observables, paths = _observed(system_class)
     if OperatorCompiler._contains_operator(observed):
         pytest.skip('An operator system cannot share a co-simulation with classical readers.')
     if isinstance(observed.time, StaticTime):
         pytest.skip('A static system has no time axis, so rate laws of a continuous system cannot read its values.')
-    if 'distribution' in describe(name).tags:
+    if 'distribution' in system_class.topics:
         pytest.skip('The observables of a distribution take its moments, which laws read only inside its reductions.')
     if not paths:
         pytest.skip('The system has no observable that laws read at the current state.')
@@ -109,11 +112,11 @@ def test_reductions_agree_with_observables(name):
 
 def test_laws_read_an_observable_of_time():
     """Test that a law reads an observable written with the time of the system, as the evaluator records it."""
-    observed = create_system('quarter_car')
+    observed = QuarterCarSystem().prepare().system_
     observed.label = 'system'
     observables = [
         dataclasses.replace(item, label=f'system/{item.label}')
-        for item in describe('quarter_car').observables_of(observed)
+        for item in QuarterCarSystem().get_run_settings()['observables']
     ]
     reader = ReadInteraction('read', probe='probe', source='system/energy')
     system = System(elements=[ObservedValueElement('probe')], systems=[observed], interactions=[reader])
@@ -128,8 +131,8 @@ def test_laws_read_an_observable_of_time():
 
 def test_function_observable_reads_the_names_of_its_own_system():
     """Test that a function observable of a nested system reads its values by their names within that system."""
-    system = create_system('lattice_gauge_fields', size=4)
-    observables = describe('lattice_gauge_fields').observables_of(system)
+    system = LatticeGaugeFieldsSystem(size=4).prepare().system_
+    observables = LatticeGaugeFieldsSystem(size=4).get_run_settings()['observables']
     alone = PassCompiler(backend=NumpyBackend(), observables=observables).prepare(system).run().problem_
     expected = ObservableEvaluator(alone).prepare().evaluate(0.0, alone.initial_state, alone.initial_parameters)
     system.label = 'system'

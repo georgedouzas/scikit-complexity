@@ -1,4 +1,7 @@
-"""Evolution systems on changing networks: autocatalytic sets and the extinctions of Solé and Manrubia."""
+"""Evolution systems on changing networks.
+
+They cover autocatalytic sets and the extinctions of Solé and Manrubia.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,18 +21,19 @@ from ....core.components.interactions import Interaction, MapInteraction, Topolo
 from ....core.components.laws import BaseLaw, RuleLaw, UpdateLaw
 from ....core.components.laws.utils import both, minimum, mod, neighbors, total, uniform, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, TopologyRequestSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 from ..common.networks import EdgeDrawInteraction, WeightedEdgeElement
 
 HIDDEN = VisualSpec('sites', {'states': []})
 
 
 class ChemicalElement(Element):
-    """Molecular species of a pool whose relative population grows with the populations of its catalysts.
+    """Molecular species of a pool whose population grows with its catalysts.
+
+    The relative population grows with the populations of its catalysts.
 
     The populations follow the catalytic network: every species gains `h` times the populations of the species that
     catalyse it, and the populations are normalised, so they approach the Perron eigenvector of the network. Every
@@ -70,6 +74,10 @@ class ChemicalElement(Element):
         10.0
     """
 
+    draws = True
+
+    law_classes = (UpdateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -93,7 +101,9 @@ class ChemicalElement(Element):
         self.k = k
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the catalytic growth, and the replacement of the least populated species at every graph update.
+        """Return the catalytic growth and the replacement of the least populated species.
+
+        The replacement happens at every graph update.
 
         Args:
             s:
@@ -110,7 +120,10 @@ class ChemicalElement(Element):
         newcomer = where(total(s.fresh) > 1 / 2, 1, 0) * (1 - s.fresh)
 
         def fresh(node: SimpleNamespace) -> object:
-            """Return the weight of a candidate catalysed species, 1 for the new species and 0 otherwise."""
+            """Return the weight of a candidate catalysed species.
+
+            The weight is 1 for the new species and 0 otherwise.
+            """
             return node.fresh
 
         return [
@@ -124,7 +137,9 @@ class ChemicalElement(Element):
 
 
 class TaxonElement(Element):
-    """Species of an ecosystem with its field, the sum of the couplings of the species it depends on, and its age.
+    """Species of an ecosystem with its field and its age.
+
+    The field is the sum of the couplings of the species it depends on.
 
     A species whose field is negative goes extinct, and a new species takes its niche.
 
@@ -171,7 +186,9 @@ class CompetingSpeciesView(AgentView):
 
 
 class CompetingSpeciesElement(Element):
-    """Species of the competitive Jain-Krishna model, a relative population and the signed effects of all species on it.
+    """Species of the competitive Jain-Krishna model.
+
+    It holds a relative population and the signed effects of all species on it.
 
     The links are the row of the interaction matrix of the species, `M_ij` for every species `j`, between -1 and 1, with
     the degradation `M_ii` between -1 and 0 on the diagonal.
@@ -214,7 +231,9 @@ class CompetingSpeciesElement(Element):
 
 
 class CompetitiveSelectionInteraction(Interaction):
-    """Population dynamics of signed catalytic interactions, with the least populated species replaced at every step.
+    """Population dynamics of signed catalytic interactions.
+
+    The least populated species is replaced at every step.
 
     Between replacements the relative populations follow Eq. (5.37) of Thurner et al. (2018), `dx_i/dt = f_i` with
     `f_i = sum_j M_ij x_j - x_i phi`, where `phi = sum_jk M_jk x_k` keeps the total at one, except that a species at
@@ -244,6 +263,10 @@ class CompetitiveSelectionInteraction(Interaction):
         >>> CompetitiveSelectionInteraction('selection', species='species', p=0.1).p
         0.1
     """
+
+    draws = True
+
+    law_classes = (RuleLaw,)
 
     def __init__(
         self,
@@ -312,7 +335,9 @@ class CompetitiveSelectionInteraction(Interaction):
 
 
 class DependencyFieldInteraction(Interaction):
-    """Field of every species, the sum of the couplings `w` of its edges to the species it depends on.
+    """Field of every species.
+
+    The field is the sum of the couplings `w` of its edges to the species it depends on.
 
     Args:
         label:
@@ -329,6 +354,8 @@ class DependencyFieldInteraction(Interaction):
         >>> DependencyFieldInteraction('field', species='species', couplings='couplings').couplings
         'couplings'
     """
+
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
@@ -355,25 +382,17 @@ class DependencyFieldInteraction(Interaction):
         return [UpdateLaw(s.species.h, neighbors(1, weight=s.couplings.w))]
 
 
-@register_system(
-    field='biology/evolution',
-    tags=('adaptive network', 'extinction', 'avalanches', 'coevolution', 'stochastic map'),
-    references=('Solé and Manrubia 1996', 'Thurner et al. 2018'),
-    defaults={'until': 300, 'dt': 1.0},
-)
-def sole_manrubia(
-    n: int = 100,
-    k: int = 5,
-    *,
-    noise: float = 0.05,
-    seed: int | None = 1,
-) -> System:
-    """Return the ecosystem of Solé and Manrubia, whose species go extinct when their dependencies turn against them.
+class SoleManrubiaSystem(BaseSystem):
+    """The ecosystem of Solé and Manrubia.
+
+    Its species go extinct when their dependencies turn against them.
 
     Every species depends on `k` species through couplings drawn from `[-1, 1]`, and its field is the sum of these
-    couplings. The couplings drift at random. A species whose field turns negative goes extinct, the species that
-    depend on it lose a coupling, and their fields may turn negative in turn, so extinctions come in avalanches with a
-    broad distribution of sizes. A new species with `k` random dependencies replaces every extinct one.
+    couplings. The couplings drift at random. A species whose field turns negative goes extinct, the species that depend
+    on it lose a coupling, and their fields may turn negative in turn, so extinctions come in avalanches with a broad
+    distribution of sizes. A new species with `k` random dependencies replaces every extinct one. The system has the
+    fields `species.h` and ages `species.age` of the variable group `species` and the couplings `couplings.w` of the
+    variable group `couplings` on the edges.
 
     Args:
         n:
@@ -388,85 +407,99 @@ def sole_manrubia(
         seed:
             The seed of the network and of the initial couplings.
 
-    Returns:
-        system:
-            The system, with the fields `species.h` and ages `species.age` of the variable group `species` and the
-            couplings `couplings.w` of the variable group `couplings` on the edges.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.evolution import sole_manrubia
-        >>> [component.label for component in sole_manrubia(n=20).elements]
+        >>> from skcomplex.systems.biology.evolution import SoleManrubiaSystem
+        >>> [component.label for component in SoleManrubiaSystem(n=20).prepare().system_.elements]
         ['species', 'couplings']
     """
-    rng = np.random.default_rng(seed)
-    graph = nx.DiGraph()
-    graph.add_nodes_from(range(n))
-    for node in range(n):
-        others = rng.choice(np.delete(np.arange(n), node), size=k, replace=False)
-        graph.add_edges_from((node, int(other)) for other in others)
-    space = NetworkSpace(graph).prepare()
-    edges = graph.number_of_edges()
-    couplings = rng.uniform(-1, 1, edges)
-    sources, _ = space.edges_[None]
-    fields = np.bincount(sources, weights=couplings, minlength=n)
-    species = GroupElement(
-        'species',
-        element=TaxonElement,
-        space=space,
-        on='sites',
-        variable=True,
-        capacity=2 * n,
-        values={'h': fields},
-        visual=VisualSpec('sites', {'states': ['age']}),
-    )
-    edge_group = GroupElement(
-        'couplings',
-        element=WeightedEdgeElement,
-        space=space,
-        on='edges',
-        variable=True,
-        capacity=4 * edges,
-        values={'w': couplings, 'fresh': 0.0},
-        visual=HIDDEN,
-    )
-    return System(
-        elements=[species, edge_group],
-        interactions=[
-            DependencyFieldInteraction('field', species='species', couplings='couplings'),
-            EdgeDrawInteraction('drift', target='species', edges='couplings', noise=noise),
-            MapInteraction('ageing', target='species', state='age', function=lambda s: 1, mode='increment'),
-            TopologyInteraction(
-                'extinction',
-                target='species',
-                action='replace-node',
-                condition=lambda s: s.source.h < 0,
-                edges=k,
-            ),
-        ],
-        time=DiscreteTime(),
-    )
+
+    field = 'biology/evolution'
+    topics = ('adaptive network', 'extinction', 'avalanches', 'coevolution', 'stochastic map')
+    references = ('Solé and Manrubia 1996', 'Thurner et al. 2018')
+    until = 300
+    dt = 1.0
+
+    def __init__(
+        self,
+        n: int = 100,
+        k: int = 5,
+        *,
+        noise: float = 0.05,
+        seed: int | None = 1,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n = n
+        self.k = k
+        self.noise = noise
+        self.seed = seed
+
+    def _build_system(self) -> System:
+        """Return the parts of the ecosystem of Solé and Manrubia."""
+        rng = np.random.default_rng(self.seed)
+        graph = nx.DiGraph()
+        graph.add_nodes_from(range(self.n))
+        for node in range(self.n):
+            others = rng.choice(np.delete(np.arange(self.n), node), size=self.k, replace=False)
+            graph.add_edges_from((node, int(other)) for other in others)
+        space = NetworkSpace(graph).prepare()
+        edges = graph.number_of_edges()
+        couplings = rng.uniform(-1, 1, edges)
+        sources, _ = space.edges_[None]
+        fields = np.bincount(sources, weights=couplings, minlength=self.n)
+        species = GroupElement(
+            'species',
+            element=TaxonElement,
+            space=space,
+            on='sites',
+            variable=True,
+            capacity=2 * self.n,
+            values={'h': fields},
+            visual=VisualSpec('sites', {'states': ['age']}),
+        )
+        edge_group = GroupElement(
+            'couplings',
+            element=WeightedEdgeElement,
+            space=space,
+            on='edges',
+            variable=True,
+            capacity=4 * edges,
+            values={'w': couplings, 'fresh': 0.0},
+            visual=HIDDEN,
+        )
+        return System(
+            self.label,
+            elements=[species, edge_group],
+            interactions=[
+                DependencyFieldInteraction('field', species='species', couplings='couplings'),
+                EdgeDrawInteraction('drift', target='species', edges='couplings', noise=self.noise),
+                MapInteraction('ageing', target='species', state='age', function=lambda s: 1, mode='increment'),
+                TopologyInteraction(
+                    'extinction',
+                    target='species',
+                    action='replace-node',
+                    condition=lambda s: s.source.h < 0,
+                    edges=self.k,
+                ),
+            ],
+            time=DiscreteTime(),
+        )
 
 
-@register_system(
-    field='biology/evolution',
-    tags=('adaptive network', 'autocatalytic set', 'Perron eigenvalue', 'origin of life', 'stochastic map'),
-    references=('Jain and Krishna 1998', 'Jain and Krishna 2001', 'Thurner et al. 2018'),
-    defaults={'until': 1500, 'dt': 5.0},
-)
-def jain_krishna(
-    n: int = 40,
-    *,
-    p: float = 0.02,
-    h: float = 0.5,
-    period: int = 10,
-    seed: int | None = 1,
-) -> System:
-    """Return the system of Jain and Krishna, where selection of the fittest builds autocatalytic sets of molecules.
+class JainKrishnaSystem(BaseSystem):
+    """The system of Jain and Krishna.
+
+    Selection of the fittest builds autocatalytic sets of molecules.
 
     The populations of `n` molecular species approach the Perron eigenvector of their catalytic network between graph
-    updates, every `period` steps. At every graph update the least populated species is replaced by a new one, linked
-    to the others with probability `p`. Once a cycle of catalysts forms by chance, the species it supports win, and the
-    autocatalytic set grows until it spans the network, so the number of links and the populated species jump.
+    updates, every `period` steps. At every graph update the least populated species is replaced by a new one, linked to
+    the others with probability `p`. Once a cycle of catalysts forms by chance, the species it supports win, and the
+    autocatalytic set grows until it spans the network, so the number of links and the populated species jump. The
+    system has the populations `species.x` of the variable group `species` on the nodes and the variable group `links`
+    on the edges, where an edge from `i` to `j` means that `j` catalyses `i`.
 
     Args:
         n:
@@ -484,69 +517,84 @@ def jain_krishna(
         seed:
             The seed of the initial network.
 
-    Returns:
-        system:
-            The system, with the populations `species.x` of the variable group `species` on the nodes and the variable
-            group `links` on the edges, where an edge from `i` to `j` means that `j` catalyses `i`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.evolution import jain_krishna
-        >>> round(float(jain_krishna(n=10).elements[0].values['x'].sum()), 6)
+        >>> from skcomplex.systems.biology.evolution import JainKrishnaSystem
+        >>> round(float(JainKrishnaSystem(n=10).prepare().system_.elements[0].values['x'].sum()), 6)
         1.0
     """
-    rng = np.random.default_rng(seed)
-    graph = nx.gnp_random_graph(n, p, seed=int(rng.integers(2**31)), directed=True)
-    space = NetworkSpace(graph)
-    species = GroupElement(
-        'species',
-        element=ChemicalElement,
-        space=space,
-        on='sites',
-        variable=True,
-        capacity=2 * n,
-        values={
-            'x': np.full(n, 1 / n),
-            'tie': rng.random(n),
-            'fresh': 0.0,
-            'h': h,
-            'p': p,
-            'period': float(period),
-            'k': max(1, round(p * n)),
-        },
-        visual=VisualSpec('sites', {'states': ['x']}),
-    )
-    links = GroupElement(
-        'links',
-        element=Element,
-        space=space,
-        on='edges',
-        variable=True,
-        capacity=n * n,
-        visual=HIDDEN,
-    )
-    return System(elements=[species, links], time=DiscreteTime())
+
+    field = 'biology/evolution'
+    topics = ('adaptive network', 'autocatalytic set', 'Perron eigenvalue', 'origin of life', 'stochastic map')
+    references = ('Jain and Krishna 1998', 'Jain and Krishna 2001', 'Thurner et al. 2018')
+    until = 1500
+    dt = 5.0
+
+    def __init__(
+        self,
+        n: int = 40,
+        *,
+        p: float = 0.02,
+        h: float = 0.5,
+        period: int = 10,
+        seed: int | None = 1,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n = n
+        self.p = p
+        self.h = h
+        self.period = period
+        self.seed = seed
+
+    def _build_system(self) -> System:
+        """Return the parts of the system of Jain and Krishna."""
+        rng = np.random.default_rng(self.seed)
+        graph = nx.gnp_random_graph(self.n, self.p, seed=int(rng.integers(2**31)), directed=True)
+        space = NetworkSpace(graph)
+        species = GroupElement(
+            'species',
+            element=ChemicalElement,
+            space=space,
+            on='sites',
+            variable=True,
+            capacity=2 * self.n,
+            values={
+                'x': np.full(self.n, 1 / self.n),
+                'tie': rng.random(self.n),
+                'fresh': 0.0,
+                'h': self.h,
+                'p': self.p,
+                'period': float(self.period),
+                'k': max(1, round(self.p * self.n)),
+            },
+            visual=VisualSpec('sites', {'states': ['x']}),
+        )
+        links = GroupElement(
+            'links',
+            element=Element,
+            space=space,
+            on='edges',
+            variable=True,
+            capacity=self.n * self.n,
+            visual=HIDDEN,
+        )
+        return System(self.label, elements=[species, links], time=DiscreteTime())
 
 
-@register_system(
-    field='biology/evolution',
-    tags=('autocatalytic set', 'competition', 'cooperation', 'punctuated equilibrium', 'agents'),
-    references=('Jain and Krishna 2002', 'Thurner et al. 2018'),
-    defaults={'until': 400},
-)
-def competitive_jain_krishna(
-    n: int = 50,
-    *,
-    p: float = 0.05,
-    duration: float = 20.0,
-    seed: int | None = 1,
-) -> System:
-    """Return the Jain-Krishna model with signed interactions, whose surviving species come to cooperate.
+class CompetitiveJainKrishnaSystem(BaseSystem):
+    """The Jain-Krishna model with signed interactions.
 
-    Every link of the interaction matrix is present with the probability `p` and drawn from `[-1, 1]`, and every
-    species degrades at a rate drawn from `[-1, 0]`. The populations follow the linear catalytic dynamics with a floor
-    at zero, and at every step the least populated species is replaced by a new random one. Selection keeps the species
-    that catalyse each other, so once an autocatalytic set forms the links among the surviving species turn mostly
-    positive, the emergence of cooperation, and diversity grows until a keystone species is lost.
+    Its surviving species come to cooperate.
+
+    Every link of the interaction matrix is present with the probability `p` and drawn from `[-1, 1]`, and every species
+    degrades at a rate drawn from `[-1, 0]`. The populations follow the linear catalytic dynamics with a floor at zero,
+    and at every step the least populated species is replaced by a new random one. Selection keeps the species that
+    catalyse each other, so once an autocatalytic set forms the links among the surviving species turn mostly positive,
+    the emergence of cooperation, and diversity grows until a keystone species is lost. The system has the populations
+    `x` and the rows `links` of the interaction matrix of the group `species`.
 
     Args:
         n:
@@ -561,23 +609,45 @@ def competitive_jain_krishna(
         seed:
             The seed of the initial matrix.
 
-    Returns:
-        system:
-            The system, with the populations `x` and the rows `links` of the interaction matrix of the group `species`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.evolution import competitive_jain_krishna
-        >>> competitive_jain_krishna(10).elements[0].prepare().size_
+        >>> from skcomplex.systems.biology.evolution import CompetitiveJainKrishnaSystem
+        >>> CompetitiveJainKrishnaSystem(10).prepare().system_.elements[0].prepare().size_
         10
     """
-    rng = np.random.default_rng(seed)
-    matrix = rng.uniform(-1, 1, (n, n)) * (rng.random((n, n)) < p)
-    np.fill_diagonal(matrix, -rng.random(n))
-    species = GroupElement(
-        'species',
-        element=CompetingSpeciesElement,
-        size=n,
-        values={'x': np.full(n, 1 / n), 'links': matrix},
-    )
-    selection = CompetitiveSelectionInteraction('selection', species='species', p=p, duration=duration)
-    return System(elements=[species], interactions=[selection], time=DiscreteTime())
+
+    field = 'biology/evolution'
+    topics = ('autocatalytic set', 'competition', 'cooperation', 'punctuated equilibrium', 'agents')
+    references = ('Jain and Krishna 2002', 'Thurner et al. 2018')
+    until = 400
+
+    def __init__(
+        self,
+        n: int = 50,
+        *,
+        p: float = 0.05,
+        duration: float = 20.0,
+        seed: int | None = 1,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n = n
+        self.p = p
+        self.duration = duration
+        self.seed = seed
+
+    def _build_system(self) -> System:
+        """Return the parts of the Jain-Krishna model with signed interactions."""
+        rng = np.random.default_rng(self.seed)
+        matrix = rng.uniform(-1, 1, (self.n, self.n)) * (rng.random((self.n, self.n)) < self.p)
+        np.fill_diagonal(matrix, -rng.random(self.n))
+        species = GroupElement(
+            'species',
+            element=CompetingSpeciesElement,
+            size=self.n,
+            values={'x': np.full(self.n, 1 / self.n), 'links': matrix},
+        )
+        selection = CompetitiveSelectionInteraction('selection', species='species', p=self.p, duration=self.duration)
+        return System(self.label, elements=[species], interactions=[selection], time=DiscreteTime())

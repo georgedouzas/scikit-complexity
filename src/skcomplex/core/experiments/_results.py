@@ -1,10 +1,14 @@
-"""Hold the results of experiments as tidy rows, kept series, ensembles, and summaries across replicates."""
+"""Hold the results of experiments.
+
+They are tidy rows, kept series, ensembles, and summaries across replicates.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 from collections import defaultdict
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 import numpy as np
 import numpy.typing as npt
@@ -13,27 +17,34 @@ import pandas as pd
 from ..specs._run_result_spec import _RunResultSpec
 
 
+@dataclass(frozen=True)
 class ExperimentResult:
-    """Results of an experiment: one row per run, the kept series, ensembles, and summaries across replicates.
+    """Results of an experiment.
+
+    They hold one row per run, the kept series, ensembles, and summaries across replicates. `sweep`, `ensemble`, and
+    `compare_scenarios` return it. Its rows form a tidy table, one row per run and one column per value of the run,
+    scenario, replicate, seed, and scalar output, which `to_frame` returns as a data frame.
 
     Args:
         runs:
             The results of every run, in the experiment's order.
 
     Examples:
-        >>> from skcomplex.core.experiments import Experiment, GridDesign
-        >>> from skcomplex.systems.biology.epidemiology import sir
-        >>> experiment = Experiment(sir, GridDesign(), {'gamma': [0.1, 0.2]}, until=10).prepare().run()
-        >>> [row['gamma'] for row in experiment.result_.rows]
+        >>> from skcomplex.core.experiments import sweep
+        >>> from skcomplex.systems.biology.epidemiology import SIRSystem
+        >>> result = sweep(SIRSystem(), {'gamma': [0.1, 0.2]}, until=10)
+        >>> [row['gamma'] for row in result.rows]
         [0.1, 0.2]
     """
 
-    def __init__(self, runs: Sequence[_RunResultSpec]) -> None:
-        self.runs = list(runs)
+    runs: tuple[_RunResultSpec, ...]
 
     @property
     def rows(self) -> list[dict[str, object]]:
-        """One row per run with its design values, scenario, replicate, seed, and scalar outputs."""
+        """One row per run with its values and outputs.
+
+        A row holds its design values, scenario, replicate, seed, and scalar outputs.
+        """
         return [
             {**run.row, 'scenario': run.scenario, 'replicate': run.replicate, 'seed': run.seed, **run.scalars}
             for run in self.runs
@@ -53,7 +64,9 @@ class ExperimentResult:
         return np.asarray([row[name] for row in self.rows])
 
     def series(self, name: str) -> npt.NDArray[np.generic]:
-        """Return a kept series of every run, stacked when all runs have the same number of frames.
+        """Return a kept series of every run.
+
+        The series are stacked when all runs have the same number of frames.
 
         Args:
             name:
@@ -74,7 +87,9 @@ class ExperimentResult:
         self,
         name: str,
     ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64], npt.NDArray[np.int64]]:
-        """Return a kept series of every run interpolated on the times of the shortest run, with the seeds of the runs.
+        """Return a kept series of every run on common times, with the seeds of the runs.
+
+        The series are interpolated on the times of the shortest run.
 
         Args:
             name:
@@ -91,9 +106,9 @@ class ExperimentResult:
                 The seed of the run of every row.
 
         Examples:
-            >>> from skcomplex.core.experiments import Experiment
-            >>> from skcomplex.systems.biology.epidemiology import sir
-            >>> result = Experiment(sir, replicates=3, until=10, random_state=0).prepare().run().result_
+            >>> from skcomplex.core.experiments import ensemble
+            >>> from skcomplex.systems.biology.epidemiology import SIRSystem
+            >>> result = ensemble(SIRSystem(stochastic=True), replicates=3, until=10, random_state=0)
             >>> times, values, seeds = result.ensemble('I.n')
             >>> values.shape == (3, times.size), seeds.tolist()
             (True, [0, 1, 2])
@@ -109,7 +124,9 @@ class ExperimentResult:
         return times, values, seeds
 
     def summary(self, quantiles: Sequence[float] = (0.05, 0.5, 0.95)) -> list[dict[str, object]]:
-        """Return the mean, standard deviation, and quantiles of every numeric scalar output per row and scenario.
+        """Return statistics of every numeric scalar output per row and scenario.
+
+        They are the mean, the standard deviation, and the quantiles.
 
         Args:
             quantiles:

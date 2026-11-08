@@ -6,7 +6,7 @@ import pytest
 from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.interactions import RelaxationInteraction
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver, ScipyODESolver
 from skcomplex.core.errors import ValidationError
 
@@ -23,8 +23,9 @@ def test_run_reaches_the_ornstein_uhlenbeck_variance():
         elements=[GroupElement('walkers', element=HoldingElement, size=MEMBERS, values={'n': 0.0})],
         interactions=[process],
     )
-    simulation = Simulation(system, solver=EulerMaruyamaSolver(dt=0.005), dt=0.5, random_state=0)
-    values = simulation.prepare().run(until=6).trajectory_.values('walkers.n')[-4:]
+    values = simulate(system, until=6, solver=EulerMaruyamaSolver(dt=0.005), dt=0.5, random_state=0).values(
+        'walkers.n',
+    )[-4:]
     assert values.var(axis=1).mean() == pytest.approx(sigma**2 / (2 * theta), rel=0.05)
     assert values.mean() == pytest.approx(0.0, abs=0.01)
 
@@ -36,7 +37,7 @@ def test_run_relaxes_towards_a_goal_of_the_namespace():
         interactions=[RelaxationInteraction('adaptation', target='belief', goal=lambda s: s.t, time=2.0)],
     )
     solver = ScipyODESolver(rtol=1e-10, atol=1e-12)
-    trajectory = Simulation(system, solver=solver, dt=0.5).prepare().run(until=3.0).trajectory_
+    trajectory = simulate(system, until=3.0, solver=solver, dt=0.5)
     expected = trajectory.times - 2.0 * (1 - np.exp(-trajectory.times / 2.0))
     np.testing.assert_allclose(trajectory.values('belief.x'), expected, rtol=1e-7, atol=1e-9)
 

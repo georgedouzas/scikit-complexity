@@ -1,4 +1,7 @@
-"""Solver that samples the master equation by jumps of a pure state with QuTiP's `MCSolver`."""
+"""Solver that samples the master equation by jumps of a pure state.
+
+It uses QuTiP's `MCSolver`.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,10 +22,11 @@ _PURITY_TOLERANCE = 1e-8
 
 
 class JumpTrajectoriesSolver(OperatorSolver):
-    """Solver that samples the master equation by jumps of a pure state with QuTiP's `MCSolver`.
+    """Solver that samples the master equation by jumps of a pure state.
 
-    Every run is one trajectory, whose jumps are drawn from the simulation's random number generator, so a seeded run
-    is reproducible. A problem stored as a density matrix records the projector on the pure state of every frame.
+    It uses QuTiP's `MCSolver`. Every run is one trajectory, whose jumps are drawn from the simulation's random number
+    generator, so a seeded run is reproducible. A problem stored as a density matrix records the projector on the pure
+    state of every frame.
 
     Args:
         atol:
@@ -47,7 +51,7 @@ class JumpTrajectoriesSolver(OperatorSolver):
         >>> from skcomplex.core.components.laws.utils import local_operator
         >>> from skcomplex.core.specs import HilbertSpec, ObservableSpec, StateSpec
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.solvers import JumpTrajectoriesSolver
         >>> operators = {'x': (np.array([[0, 1], [1, 0]]), True), 'z': (np.diag([1, -1]), True)}
         >>> operators['minus'] = (np.array([[0, 0], [1, 0]]), False)
@@ -63,11 +67,8 @@ class JumpTrajectoriesSolver(OperatorSolver):
         >>> z = [ObservableSpec('z', element='q', variable='z')]
         >>> system = System(elements=[TwoLevelElement('q')])
         >>> solver = JumpTrajectoriesSolver()
-        >>> from skcomplex.core.engine.compile import OperatorCompiler
-        >>> simulation = Simulation(
-        ...     system, compiler=OperatorCompiler(), solver=solver, dt=1.0, random_state=0, observables=z,
-        ... ).prepare().run(until=20.0)
-        >>> float(simulation.trajectory_.values('q.z')[-1])
+        >>> trajectory = simulate(system, until=20.0, solver=solver, dt=1.0, random_state=0, observables=z)
+        >>> float(trajectory.values('q.z')[-1])
         -1.0
     """
 
@@ -79,7 +80,10 @@ class JumpTrajectoriesSolver(OperatorSolver):
         return qutip.MCSolver(generator, c_ops=collapses, options=self._options)
 
     def _start_state(self, x: Array) -> qutip.Qobj:
-        """Return the pure state a trajectory starts from, the eigenvector of a pure density matrix."""
+        """Return the pure state a trajectory starts from.
+
+        It is the eigenvector of a pure density matrix.
+        """
         problem = self.operator_
         state = problem._state_of(x)
         if problem.pure:
@@ -94,5 +98,8 @@ class JumpTrajectoriesSolver(OperatorSolver):
         return self._ket(vectors[:, -1])
 
     def _start(self, solver: solver_base.Solver, x: Array, t: float) -> None:
-        """Start the Monte Carlo solver from a state at a time with a seed drawn from the random number generator."""
+        """Start the Monte Carlo solver from a state at a time.
+
+        Its seed is drawn from the random number generator.
+        """
         solver.start(self._start_state(x), t, seed=int(self.rng_.integers(MAX_SEED)))

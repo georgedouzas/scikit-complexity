@@ -13,14 +13,16 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class ContenderView(AgentView):
-    """View of an agent of the Bonabeau hierarchy system, with its states and parameters as attributes."""
+    """View of an agent of the Bonabeau hierarchy system.
+
+    Its states and parameters are attributes.
+    """
 
     strength: float
     eta: float
@@ -28,12 +30,13 @@ class ContenderView(AgentView):
 
 
 class ContenderElement(Element):
-    """Agent of the Bonabeau system, who wanders on a grid and fights the agents it runs into.
+    """Agent of the Bonabeau system.
 
-    Every step an agent's strength relaxes by the factor `1 - relaxation`, and the agent tries to step into a random
-    neighbouring cell. An attacker beats the occupant with probability `1 / (1 + exp(eta * (h_occupant - h_attacker)))`,
-    the winner gains 1 and the loser loses 1, and a winning attacker swaps places with the occupant. Agents differ only
-    by their strength, so the swap exchanges their strengths.
+    It wanders on a grid and fights the agents it runs into. Every step an agent's strength relaxes by the factor
+    `1 - relaxation`, and the agent tries to step into a random neighbouring cell. An attacker beats the occupant with
+    probability `1 / (1 + exp(eta * (h_occupant - h_attacker)))`, the winner gains 1 and the loser loses 1, and a
+    winning attacker swaps places with the occupant. Agents differ only by their strength, so the swap exchanges their
+    strengths.
 
     Args:
         label:
@@ -58,6 +61,10 @@ class ContenderElement(Element):
         ('contenders', 'ContenderElement', 10)
     """
 
+    draws = True
+
+    law_classes = (RuleLaw,)
+
     def __init__(
         self,
         label: str,
@@ -74,7 +81,10 @@ class ContenderElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[ContenderView]:
-        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        """Return the class of the views of the agents.
+
+        Their attributes are the states and parameters.
+        """
         return ContenderView
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
@@ -101,7 +111,9 @@ class ContenderElement(Element):
             agent.strength, occupant.strength = agent.strength - 1, occupant.strength + 1
 
     def wander(self, agent: ContenderView, system: SystemView) -> None:
-        """Relax the strength, then step into a random neighbouring cell or fight its occupant.
+        """Relax the strength, then step into a random neighbouring cell.
+
+        An occupied cell makes the agent fight its occupant.
 
         Args:
             agent:
@@ -125,22 +137,10 @@ class ContenderElement(Element):
         agent.move_to(cell)
 
 
-@register_system(
-    field='social/organizations',
-    tags=('hierarchy', 'agents', 'grid', 'phase transition'),
-    references=('Bonabeau, Theraulaz, and Deneubourg 1995', 'Castellano, Fortunato, and Loreto 2009'),
-    defaults={'until': 50},
-)
-def bonabeau_hierarchies(
-    width: int = 20,
-    height: int = 20,
-    *,
-    density: float = 0.5,
-    eta: float = 1.0,
-    relaxation: float = 0.1,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the Bonabeau system, where a hierarchy of strengths emerges above a critical density of agents.
+class BonabeauHierarchiesSystem(BaseSystem):
+    """The Bonabeau system.
+
+    A hierarchy of strengths emerges above a critical density of agents. The system has the group `contenders`.
 
     Args:
         width:
@@ -161,22 +161,52 @@ def bonabeau_hierarchies(
         random_state:
             The seed or generator of the initial cells.
 
-    Returns:
-        system:
-            The system, with the group `contenders`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.organizations import bonabeau_hierarchies
-        >>> bonabeau_hierarchies(10, 10, density=0.2).elements[0].prepare().size_
+        >>> from skcomplex.systems.social.organizations import BonabeauHierarchiesSystem
+        >>> BonabeauHierarchiesSystem(10, 10, density=0.2).prepare().system_.elements[0].prepare().size_
         20
     """
-    size = int(width * height * density)
-    cells = np.random.default_rng(random_state).permutation(width * height)[:size]
-    contenders = GroupElement(
-        'contenders',
-        element=ContenderElement,
-        size=size,
-        values={'eta': eta, 'relaxation': relaxation},
-        location=[(int(cell % width), int(cell // width)) for cell in cells],
-    )
-    return System(elements=[contenders], space=LatticeSpace((width, height), boundary='periodic', capacity=1))
+
+    field = 'social/organizations'
+    topics = ('hierarchy', 'agents', 'grid', 'phase transition')
+    references = ('Bonabeau, Theraulaz, and Deneubourg 1995', 'Castellano, Fortunato, and Loreto 2009')
+    until = 50
+
+    def __init__(
+        self,
+        width: int = 20,
+        height: int = 20,
+        *,
+        density: float = 0.5,
+        eta: float = 1.0,
+        relaxation: float = 0.1,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.width = width
+        self.height = height
+        self.density = density
+        self.eta = eta
+        self.relaxation = relaxation
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        size = int(self.width * self.height * self.density)
+        cells = np.random.default_rng(self.random_state).permutation(self.width * self.height)[:size]
+        contenders = GroupElement(
+            'contenders',
+            element=ContenderElement,
+            size=size,
+            values={'eta': self.eta, 'relaxation': self.relaxation},
+            location=[(int(cell % self.width), int(cell // self.width)) for cell in cells],
+        )
+        return System(
+            self.label,
+            elements=[contenders],
+            space=LatticeSpace((self.width, self.height), boundary='periodic', capacity=1),
+        )

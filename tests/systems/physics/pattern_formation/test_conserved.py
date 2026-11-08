@@ -2,18 +2,16 @@
 
 import numpy as np
 
-from skcomplex.core.analysis import StabilityAnalysis
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.systems.physics.pattern_formation import (
-    nonreciprocal_cahn_hilliard,
-)
+from skcomplex.core.analysis import stability
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.physics.pattern_formation import NonreciprocalCahnHilliardSystem
 
 
 def _domain_speed(**coupling):
     """Return the speed of the domains of the nonreciprocal Cahn-Hilliard system over the second half of a run."""
     length = 40.0
-    system = nonreciprocal_cahn_hilliard((64,), length=length, **coupling)
-    phi = Simulation(system, dt=2.0).prepare().run(until=300).trajectory_.lattice('mixture.phi')
+    system = NonreciprocalCahnHilliardSystem((64,), length=length, **coupling)
+    phi = simulate(system, until=300).lattice('mixture.phi')
     modes = np.fft.rfft(phi, axis=1)
     mode = 1 + np.argmax(np.abs(modes[-1, 1:]))
     phases = np.unwrap(np.angle(modes[75:, mode]))
@@ -31,9 +29,9 @@ def test_nonreciprocal_cahn_hilliard_domains_travel_above_threshold():
 def test_nonreciprocal_cahn_hilliard_dispersion_relation():
     """Test that the unstable band propagates above threshold, on the band edge of Brauns and Marchetti."""
     for alpha, travels in [(0.3, True), (0.05, False)]:
-        system = nonreciprocal_cahn_hilliard((256,), length=200.0, alpha=alpha)
-        relation = StabilityAnalysis('dispersion').prepare(system).run()
-        growing = relation.growth_rates_ > 1e-9
-        assert (np.abs(relation.frequencies_[growing]).max() > 1e-6) == travels
+        system = NonreciprocalCahnHilliardSystem((256,), length=200.0, alpha=alpha).prepare().system_
+        relation = stability(system, kind='dispersion')
+        growing = relation.growth_rates > 1e-9
+        assert (np.abs(relation.frequencies[growing]).max() > 1e-6) == travels
         edge = np.sqrt(1 - 0.1) if travels else np.sqrt(1 - alpha**2 / 0.1)
-        np.testing.assert_allclose(relation.magnitudes_[growing].max(), edge, atol=2 * np.pi / 200.0)
+        np.testing.assert_allclose(relation.magnitudes[growing].max(), edge, atol=2 * np.pi / 200.0)

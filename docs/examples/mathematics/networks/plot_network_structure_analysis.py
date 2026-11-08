@@ -6,7 +6,7 @@ planted blocks, and the edges packed inside the blocks close far more triangles 
 """
 
 # %%
-# The system is created by name from the catalog with its default network, a stochastic block system of four blocks of
+# The system is built from its class with its default network, a stochastic block system of four blocks of
 # 100 nodes with mean in-block degree 16 and out-block degree 2. Every node is an agent that carries its degree,
 # clustering, betweenness, and detected community, and the default blueprint draws the graph with the nodes colored by
 # community.
@@ -14,26 +14,15 @@ planted blocks, and the edges packed inside the blocks close far more triangles 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import DistributionAnalysis, MotifAnalysis, NetworkAnalysis
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.analysis import distribution, motifs, network_measures
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.mathematics.networks import NetworkStructureAnalysisSystem
 
 SYSTEM = 'network_structure_analysis'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-system_system = create_system(SYSTEM, null_samples=0, random_state=0)
-simulation = (
-    Simulation(
-        system_system,
-        dt=1,
-        observers=[observer],
-        observables=describe(SYSTEM).observables_of(system_system),
-    )
-    .prepare()
-    .run(until=1)
-)
-trajectory = simulation.trajectory_
+trajectory = simulate(NetworkStructureAnalysisSystem(null_samples=0, random_state=0), until=1, observers=[observer])
 
 # %%
 # Degrees and motifs
@@ -43,11 +32,11 @@ trajectory = simulation.trajectory_
 # how far the triad counts lie from what the degrees alone give: the blocks pack edges together, so closed triangles
 # should be over-represented with a large positive z-score.
 
-network = NetworkAnalysis('degrees').prepare(trajectory).run()
-graph, degrees = network.graphs_[-1], network.degrees_[-1]
-ccdf = DistributionAnalysis('ccdf').prepare(degrees).run()
-values, survival = ccdf.support_, ccdf.survival_
-scores = MotifAnalysis('z-scores', samples=10, random_state=0).prepare(graph).run().z_scores_[0]
+network = network_measures(trajectory, kind='degrees')
+graph, degrees = network.graphs[-1], network.degrees[-1]
+ccdf = distribution(degrees, kind='ccdf')
+values, survival = ccdf.support, ccdf.survival
+scores = motifs(graph, kind='z-scores', samples=10, random_state=0).z_scores[0]
 fig, (left, right) = plt.subplots(1, 2, figsize=(10, 4))
 left.plot(values, survival, 'o-', markersize=3)
 left.axvline(np.mean(degrees), color='black', linestyle=':', label='mean degree')

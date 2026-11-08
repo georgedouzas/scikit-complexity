@@ -1,4 +1,7 @@
-"""Define Euler-Lagrange interactions, the equations of motion of a Lagrangian with dissipation and forcing."""
+"""Define Euler-Lagrange interactions.
+
+They are the equations of motion of a Lagrangian with dissipation and forcing.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,20 +19,21 @@ from ...types import ElementKind
 from ..base import BasePart
 from ..laws import BaseLaw, EquationLaw
 from ..laws.utils import derivative
+from ..spaces import BaseSpace
 from ._interaction import Interaction
 
 
 class EulerLagrangeInteraction(Interaction):
-    """Equations of motion `d/dt dL/dq' - dL/dq = Q - dR/dq'` of the coordinates `q` of a Lagrangian `L(ns)`.
+    """Equations of motion `d/dt dL/dq' - dL/dq = Q - dR/dq'` of a Lagrangian `L(ns)`.
 
-    The coordinates are states of order 2, and the Lagrangian, the Rayleigh dissipation function `R`, and the
-    generalized forcing `Q` read them and their first derivatives `derivative(q, 1)`. The interaction returns one
-    equation law per coordinate, which the compiler solves jointly for the second derivatives, so a Lagrangian with a
-    mass matrix, such as a double pendulum's, needs no inversion by hand. The equations of one coordinate from several
-    interactions add, so their Lagrangians, dissipations, and forcings sum: a coupling, such as a spring between two
-    pendulums, is an interaction of its own whose Lagrangian holds only the coupling energy. The coordinates are the
-    states of every role that binds one element or group, `target` by default, and every component of a vector state
-    is a coordinate.
+    The coordinates are `q`. The coordinates are states of order 2, and the Lagrangian, the Rayleigh dissipation
+    function `R`, and the generalized forcing `Q` read them and their first derivatives `derivative(q, 1)`. The
+    interaction returns one equation law per coordinate, which the compiler solves jointly for the second derivatives,
+    so a Lagrangian with a mass matrix, such as a double pendulum's, needs no inversion by hand. The equations of one
+    coordinate from several interactions add, so their Lagrangians, dissipations, and forcings sum: a coupling, such as
+    a spring between two pendulums, is an interaction of its own whose Lagrangian holds only the coupling energy. The
+    coordinates are the states of every role that binds one element or group, `target` by default, and every component
+    of a vector state is a coordinate.
 
     A Lagrangian, dissipation, or forcing function takes the namespace of the interaction, with the namespaces of the
     roles, the time `t`, and the symbols of the parameters a subclass declares. The forcing returns one generalized
@@ -65,8 +69,8 @@ class EulerLagrangeInteraction(Interaction):
         >>> from skcomplex.core.components.interactions import EulerLagrangeInteraction
         >>> from skcomplex.core.components.laws.utils import derivative
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> class AngleElement(Element):
         ...     def __init__(self, label, q: Annotated[float, StateSpec(order=2)] = 0.1, q_d1: float = 0.0):
         ...         super().__init__(label)
@@ -79,7 +83,7 @@ class EulerLagrangeInteraction(Interaction):
         ...     lagrangian=lambda s: derivative(s.target.q, 1) ** 2 / 2 + cos(s.target.q),
         ... )
         >>> system = System(elements=[AngleElement('bob')], interactions=[swing])
-        >>> trajectory = Simulation(system, dt=0.01).prepare().run(until=3.2).trajectory_
+        >>> trajectory = simulate(system, until=3.2, dt=0.01)
         >>> round(float(trajectory.values('bob.q')[-1]), 2)
         -0.1
     """
@@ -107,14 +111,18 @@ class EulerLagrangeInteraction(Interaction):
         """Return the names of the states that are coordinates."""
         return (self.states,) if isinstance(self.states, str) else tuple(self.states)
 
-    def _check(self) -> None:
-        """Raise an error for a state that is not a name, or a function that is not callable.
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Raise an error for a state that is not a name, or an uncallable function.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The type declares states, a state is not a name, or a function is not callable.
         """
-        super()._check()
+        super()._prepare(context)
         names = self._get_names()
         if not names or not all(isinstance(name, str) and name.isidentifier() for name in names):
             error_msg = f'{type(self).__name__} {self.label!r} reads the states {self.states!r}. Give names of states.'
@@ -126,14 +134,20 @@ class EulerLagrangeInteraction(Interaction):
                 raise ValidationError(error_msg)
 
     def _get_lagrangian(self, namespace: SimpleNamespace) -> object:
-        """Return the Lagrangian, the hook a subclass overrides to derive it from its parameters."""
+        """Return the Lagrangian.
+
+        This is the hook a subclass overrides to derive it from its parameters.
+        """
         if self.lagrangian is None:
             error_msg = f'{type(self).__name__} {self.label!r} has no Lagrangian. Give a function of the namespace.'
             raise ValidationError(error_msg)
         return self.lagrangian(namespace)
 
     def _get_coordinates(self, namespace: SimpleNamespace) -> list[Expression]:
-        """Return the coordinates, every component of the states of every role that binds one path."""
+        """Return the coordinates.
+
+        They are every component of the states of every role that binds one path.
+        """
         coordinates = []
         for name, spec in self._get_specs().items():
             if not isinstance(spec, RoleSpec) or spec.variadic or spec.noise:

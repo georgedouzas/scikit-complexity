@@ -16,25 +16,16 @@ components are more interdependent.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.economics.innovation import NkTechnologySystem
 
 SYSTEM = 'nk_technology'
 N_COMPONENTS, STEPS, SEEDS = 20, 3000, 8
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-system = create_system(SYSTEM, n_components=N_COMPONENTS, d=2, random_state=0)
-simulation = (
-    Simulation(
-        system,
-        observers=[observer],
-        random_state=0,
-        observables=describe(SYSTEM).observables_of(system),
-    )
-    .prepare()
-    .run(until=250)
-)
+system = NkTechnologySystem(n_components=N_COMPONENTS, d=2, random_state=0)
+trajectory = simulate(system, until=250, observers=[observer], random_state=0)
 
 # %%
 # Wright's law
@@ -49,14 +40,11 @@ measured = []
 for index, d in enumerate((1, 2, 3)):
     costs = np.mean(
         [
-            Simulation(
-                create_system(SYSTEM, n_components=N_COMPONENTS, d=d, random_state=seed),
+            simulate(
+                NkTechnologySystem(n_components=N_COMPONENTS, d=d, random_state=seed),
+                until=STEPS,
                 random_state=seed,
-                observables=describe(SYSTEM).observables_of(system),
-            )
-            .prepare()
-            .run(until=STEPS)
-            .trajectory_.values('total_cost')
+            ).values('total_cost')
             for seed in range(SEEDS)
         ],
         axis=0,

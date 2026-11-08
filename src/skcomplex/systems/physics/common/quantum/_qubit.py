@@ -1,4 +1,7 @@
-"""Two-level system with the Pauli matrices `x`, `y`, `z` and the ladder operators `plus` and `minus`."""
+"""Two-level system.
+
+The system has the Pauli matrices `x`, `y`, `z` and the ladder operators `plus` and `minus`.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,7 +28,9 @@ QUBIT = HilbertSpec(
 
 
 class QubitElement(Element):
-    """Two-level system with the Pauli matrices `x`, `y`, `z` and the ladder operators `plus` and `minus`.
+    """Two-level system.
+
+    The system has the Pauli matrices `x`, `y`, `z` and the ladder operators `plus` and `minus`.
 
     The state `'up'`, also `'excited'`, is index 0 with `z = 1`, and `'down'`, also `'ground'`, is index 1.
 

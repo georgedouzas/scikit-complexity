@@ -1,4 +1,7 @@
-"""Define cone neighbourhoods, the members of a continuous space within a distance and a cone around a direction."""
+"""Define cone neighbourhoods.
+
+They are the members of a continuous space within a distance and a cone around a direction.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -10,11 +13,12 @@ from ._base import BaseNeighborhood
 
 
 class ConeNeighborhood(BaseNeighborhood):
-    """Members of a continuous space within a distance of a member and inside a cone around its direction.
+    """Members of a continuous space within a distance and a cone of a member.
 
-    A neighbour is within the radius of a member and its direction from the member makes an angle of at most `angle`
-    with the member's direction, so `angle = pi` is the whole disk and `angle = pi / 2` the half ahead. The direction is
-    a vector state of the members, or in two dimensions a scalar state that holds the direction angle.
+    The cone is around the direction of the member. A neighbour is within the radius of a member and its direction from
+    the member makes an angle of at most `angle` with the member's direction, so `angle = pi` is the whole disk and
+    `angle = pi / 2` the half ahead. The direction is a vector state of the members, or in two dimensions a scalar state
+    that holds the direction angle.
 
     Args:
         radius:
@@ -55,8 +59,9 @@ class ConeNeighborhood(BaseNeighborhood):
         self.direction = direction
         self.center = center
 
-    def _check(self) -> None:
-        """Raise an error for a radius that is not positive or a half-angle outside `(0, pi]`."""
+    def _prepare(self, context: None = None) -> None:
+        """Raise an error for a radius not positive or a half-angle outside `(0, pi]`."""
+        super()._prepare(context)
         if not float(self.radius) > 0:
             error_msg = f'A cone neighbourhood needs a positive radius, but got {self.radius!r}.'
             raise ValidationError(error_msg)

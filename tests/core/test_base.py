@@ -25,12 +25,10 @@ class ScalingConfig(BaseConfig):
     def __init__(self, factor=2):
         self.factor = factor
 
-    def _check(self):
+    def _prepare(self, context):
         if self.factor == 0:
             msg = 'factor'
             raise ValueError(msg)
-
-    def _prepare(self, context):
         self.offset_ = 0 if context is None else context
 
     def _run(self, inputs):
@@ -48,8 +46,8 @@ def test_verbs_prepare_and_run():
     assert config.scaled_ == 7
 
 
-def test_prepare_runs_the_check_hook():
-    """Test that preparing calls the hook that validates the settings, before it derives anything."""
+def test_prepare_checks_before_it_derives():
+    """Test that preparing checks the settings at the start of `_prepare`, before it derives anything."""
     config = ScalingConfig(0)
     with pytest.raises(ValueError, match='factor'):
         config.prepare()
@@ -64,18 +62,23 @@ def test_prepare_validates_a_setting_changed_after_preparing():
 
 
 def test_no_public_check_remains():
-    """Test that the bases have no public `check`, and the error for an unchecked object is gone."""
+    """Test that the bases have no public `check`, no `_validated`, and the error for an unchecked object is gone."""
     assert not any(hasattr(base, 'check') for base in (BaseConfig, BaseSpec, BasePart))
+    assert not any(hasattr(base, '_validated') for base in (BaseConfig, BaseSpec, BasePart))
+    assert not hasattr(BaseConfig, '_check')
+    assert not hasattr(BasePart, '_check')
+    assert not hasattr(BaseSpec, 'prepare')
+    assert not hasattr(BaseSpec, 'run')
     assert not hasattr(errors, 'NotCheckedError')
 
 
-def test_bad_part_fails_before_any_part_is_prepared():
-    """Test that a system holding a part with a bad label raises from `prepare`, with no part prepared."""
-    element = Element('stock')
-    system = System(elements=[element], interactions=[RateInteraction(1, target='stock', state='n', rate=1.0)])
+def test_bad_part_fails_before_it_is_prepared():
+    """Test that a part with a bad label raises from `prepare` of its system, before it sets any attribute."""
+    interaction = RateInteraction(1, target='stock', state='n', rate=1.0)
+    system = System(elements=[Element('stock')], interactions=[interaction])
     with pytest.raises(ValidationError, match='label'):
         system.prepare()
-    assert not [name for name in vars(element) if name.endswith('_')]
+    assert not [name for name in vars(interaction) if name.endswith('_')]
 
 
 def test_final_run_releases():
@@ -103,7 +106,7 @@ def test_settings_follow_scikit_learn():
 
 
 def test_every_base_derives_from_the_root():
-    """Test that every class named `Base*` outside the systems derives from `BaseConfig`."""
+    """Test that every class named `Base*` outside the systems derives from `BaseConfig` or `BaseSpec`."""
     outside = []
     for module in pkgutil.walk_packages(skcomplex.__path__, 'skcomplex.'):
         if module.name.startswith('skcomplex.systems'):
@@ -117,19 +120,16 @@ def test_every_base_derives_from_the_root():
                 inspect.isclass(value)
                 and value.__module__ == loaded.__name__
                 and name.lstrip('_').startswith('Base')
-                and not issubclass(value, BaseConfig | BaseException)
+                and not issubclass(value, BaseConfig | BaseSpec | BaseException)
             ):
                 outside.append(f'{loaded.__name__}.{name}')
     assert outside == []
 
 
 def test_a_class_without_a_hook_cannot_be_created():
-    """Test that a configurable class that implements `_check` and `_prepare` but not `_run` cannot be created."""
+    """Test that a configurable class that implements `_prepare` but not `_run` cannot be created."""
 
     class IdleConfig(BaseConfig):
-        def _check(self):
-            pass
-
         def _prepare(self, context):
             pass
 
@@ -137,8 +137,8 @@ def test_a_class_without_a_hook_cannot_be_created():
         IdleConfig()
 
 
-def test_a_spec_without_hooks_checks_prepares_and_runs():
-    """Test that a spec, the only configurable object with default hooks, checks, prepares, and runs unchanged."""
+def test_a_spec_without_hooks_is_a_value():
+    """Test that a spec without hooks has neither `prepare` nor `run`, and its owner checks it through `_check`."""
 
     @dataclass(frozen=True)
     class SpanSpec(BaseSpec):
@@ -146,4 +146,7 @@ def test_a_spec_without_hooks_checks_prepares_and_runs():
         end: float
 
     span = SpanSpec(0.0, 1.0)
-    assert span.prepare().run() is span
+    assert not isinstance(span, BaseConfig)
+    assert not hasattr(span, 'prepare')
+    assert not hasattr(span, 'run')
+    assert span._check() is None

@@ -6,12 +6,13 @@ import numpy as np
 import pytest
 import rerun as rr
 
-from skcomplex.core.engine.compile import PassCompiler
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems import FrameSpec
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import LinearProgramVisual, RerunObserver
 from skcomplex.core.errors import ValidationError
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.ecology import CometsSystem, LotkaVolterraSystem
+from skcomplex.systems.biology.systems_biology import DynamicFBASystem, FluxBalanceSystem
 
 TOY_VARIABLES = 10
 TOY_ROWS = 8
@@ -19,7 +20,7 @@ TOY_ROWS = 8
 
 def _prepared(**settings):
     """Return the problem of the toy network and its visual, prepared with a recording."""
-    problem = PassCompiler().prepare(create_system('flux_balance')).run().problem_
+    problem = PassCompiler().prepare(FluxBalanceSystem().prepare().system_).run().problem_
     recording = rr.RecordingStream('linear_program')
     visual = LinearProgramVisual(path='cell', recording=recording, **settings)
     return problem, visual.prepare(problem)
@@ -74,7 +75,7 @@ def test_visual_leaves_the_graph_out_on_request():
 
 def test_visual_rejects_an_element_without_a_program():
     """Test that an element that no program sets raises an error."""
-    problem = PassCompiler().prepare(create_system('lotka_volterra')).run().problem_
+    problem = PassCompiler().prepare(LotkaVolterraSystem().prepare().system_).run().problem_
     with pytest.raises(ValidationError, match='no program sets a state of prey'):
         LinearProgramVisual(path='prey', recording=rr.RecordingStream('none')).prepare(problem)
 
@@ -82,8 +83,7 @@ def test_visual_rejects_an_element_without_a_program():
 def test_observer_streams_a_batch_culture_to_a_file(tmp_path: Path):
     """Test that a dynamic FBA run saves its recording with the variables and the objective series."""
     observer = RerunObserver('culture', save_path=tmp_path / 'run.rrd', blueprint='default', interval=10)
-    simulation = Simulation(create_system('dynamic_fba'), dt=0.05, observers=[observer])
-    trajectory = simulation.prepare().run(until=1.0).trajectory_
+    trajectory = simulate(DynamicFBASystem().prepare().system_, until=1.0, dt=0.05, observers=[observer])
     assert (tmp_path / 'run.rrd').exists()
     assert observer.logged_frames_ == 3
     objective = trajectory.values('fba/cell.objective_0')
@@ -93,7 +93,6 @@ def test_observer_streams_a_batch_culture_to_a_file(tmp_path: Path):
 def test_observer_logs_the_growth_of_every_site_as_an_image(tmp_path: Path):
     """Test that a lattice logs its growth variable through the image visual of its group."""
     observer = RerunObserver('colony', save_path=tmp_path / 'colony.rrd', interval=1)
-    system = create_system('comets', shape=(4, 4))
-    simulation = Simulation(system, dt=0.1, observers=[observer])
-    simulation.prepare().run(until=0.1)
+    system = CometsSystem(shape=(4, 4)).prepare().system_
+    simulate(system, until=0.1, dt=0.1, observers=[observer])
     assert (tmp_path / 'colony.rrd').exists()

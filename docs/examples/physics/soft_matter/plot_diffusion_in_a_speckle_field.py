@@ -8,7 +8,7 @@ gathered in clumps at the hotspots of the field.
 """
 
 # %%
-# The system is created by name from the catalog with 50 hotspots in a square of side 100 and the field strength
+# The system is built from its class with 50 hotspots in a square of side 100 and the field strength
 # 30. The Euler-Maruyama stepper takes steps of 0.01 and the observer saves every frame of 0.25. The blueprint shows
 # the particles over the square of the hotspots, drawn larger than the system's visual does, so they read in the
 # gallery thumbnail.
@@ -18,14 +18,14 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.soft_matter import DiffusionInASpeckleFieldSystem
 
 SYSTEM = 'diffusion_in_a_speckle_field'
 
-system = create_system(SYSTEM, n_particles=300, strength=30.0, random_state=0)
+system = DiffusionInASpeckleFieldSystem(n_particles=300, strength=30.0, random_state=0)
 view = rrb.Spatial2DView(
     origin='/beads',
     name='beads',
@@ -41,7 +41,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 solver = EulerMaruyamaSolver(dt=0.01)
-simulation = Simulation(system, solver=solver, dt=0.25, observers=[observer], random_state=0).prepare().run(until=60)
+trajectory = simulate(system, solver=solver, dt=0.25, observers=[observer], random_state=0)
 
 # %%
 # Trapping slows diffusion
@@ -53,14 +53,15 @@ simulation = Simulation(system, solver=solver, dt=0.25, observers=[observer], ra
 
 fig, ax = plt.subplots(figsize=(7, 4))
 for strength in (0.0, 30.0, 100.0):
-    run = Simulation(
-        create_system(SYSTEM, n_particles=300, strength=strength),
+    run = simulate(
+        DiffusionInASpeckleFieldSystem(n_particles=300, strength=strength).prepare().system_,
+        until=70,
         solver=solver,
         dt=0.25,
         random_state=1,
-    ).prepare()
-    positions = run.run(until=70).trajectory_.values('beads.x')[40:]
-    times = run.trajectory_.times[41:] - 10
+    )
+    positions = run.values('beads.x')[40:]
+    times = run.times[41:] - 10
     squared = np.mean(np.sum((positions[1:] - positions[0]) ** 2, axis=-1), axis=1)
     ax.loglog(times, squared, label=f'strength {strength:.0f}')
 ax.loglog(times, 4 * times, '--', color='black', label='free diffusion, 4 D t')

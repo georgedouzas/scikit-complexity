@@ -22,16 +22,16 @@ _TRAIL_WIDTH = 0.25
 
 
 class PointsVisual(BaseVisual):
-    """Visual that logs a vector state as points, one per member of a group, and other states as time series.
+    """Visual that logs a vector state as points, and other states as time series.
 
-    Each state is logged as one batch, so a group of any size takes one log call per state and frame. Positions in
-    two dimensions are logged with the second coordinate negated, since Rerun's 2D views point their vertical axis
-    down, so the views draw them with the vertical axis up and show the negated value on hover. Without a given
-    radius, the points take a share of the extent of the positions logged so far, smaller for larger groups. The
-    extent and the count include every element drawn by a points visual of the same position state, so single
-    particles that share a space, such as the masses of a chain, take one radius from the whole drawing. A group of
-    at most ten points in two or three dimensions also logs the trail of its recent positions as line strips under
-    `<path>/trail`, a quarter as wide as that share, whatever the radius. With `strip`, the points in two or three
+    There is one point per member of a group. Each state is logged as one batch, so a group of any size takes one log
+    call per state and frame. Positions in two dimensions are logged with the second coordinate negated, since Rerun's
+    2D views point their vertical axis down, so the views draw them with the vertical axis up and show the negated value
+    on hover. Without a given radius, the points take a share of the extent of the positions logged so far, smaller for
+    larger groups. The extent and the count include every element drawn by a points visual of the same position state,
+    so single particles that share a space, such as the masses of a chain, take one radius from the whole drawing. A
+    group of at most ten points in two or three dimensions also logs the trail of its recent positions as line strips
+    under `<path>/trail`, a quarter as wide as that share, whatever the radius. With `strip`, the points in two or three
     dimensions are also joined in member order by one line strip under `<path>/strip`, with the mean color of the
     points.
 
@@ -103,14 +103,20 @@ class PointsVisual(BaseVisual):
         self.recording = recording
 
     def _prepare(self, context: BaseProblemSpec | None) -> None:
-        """Keep the element, forget the trail, the bounds, and the color range of earlier runs, and set the views."""
+        """Keep the element, forget what earlier runs left, and set the views.
+
+        What earlier runs left is the trail, the bounds, and the color range.
+        """
         self.history_: deque[npt.NDArray[np.float64]] = deque(maxlen=max(self.trail, 1))
         self.bounds_: tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]] | None = None
         self.span_: tuple[float, float] | None = None
         super()._prepare(context)
 
     def _point_colors(self, element: CompiledElementSpec, frame: FrameSpec, count: int) -> npt.NDArray[np.uint8] | None:
-        """Return the colors of the points over the given range, or over a range widened to every value so far."""
+        """Return the colors of the points over the given range or a widened one.
+
+        Without a given range, the range widens to every value so far.
+        """
         if self.color_by is None:
             return None
         values = np.asarray(frame.value(element.states[self.color_by]), dtype=float).reshape(count, -1)
@@ -121,7 +127,10 @@ class PointsVisual(BaseVisual):
         return BaseVisual._colors_of(magnitudes, *self.span_)
 
     def _extent_radius(self, points: npt.NDArray[np.float64]) -> float:
-        """Return a share of the extent of every position logged so far, keeping the bounds of the positions."""
+        """Return a share of the extent of every position logged so far.
+
+        It keeps the bounds of the positions.
+        """
         low, high = points.min(axis=0), points.max(axis=0)
         if self.bounds_ is not None:
             low, high = np.minimum(low, self.bounds_[0]), np.maximum(high, self.bounds_[1])
@@ -130,7 +139,10 @@ class PointsVisual(BaseVisual):
         return BaseVisual._radius_of(extent, len(points))
 
     def _crowd(self, frame: FrameSpec, points: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
-        """Return the positions of every element drawn by a points visual of the same position state and dimension."""
+        """Return the positions of every element drawn by a similar points visual.
+
+        The visual is one of the same position state and dimension.
+        """
         positions = [
             np.atleast_2d(np.asarray(frame.value(other.states[self.position]), dtype=float))
             for other in frame.problem.elements
@@ -142,7 +154,10 @@ class PointsVisual(BaseVisual):
         return np.vstack(same) if same else points
 
     def _radius(self, points: npt.NDArray[np.float64]) -> float:
-        """Return the given radius, or a share of the extent of every position logged so far."""
+        """Return the given radius, or a share of the extent of the positions so far.
+
+        The extent is that of every position logged so far.
+        """
         extent_radius = self._extent_radius(points)
         return extent_radius if self.radius is None else float(self.radius)
 
@@ -153,7 +168,10 @@ class PointsVisual(BaseVisual):
         points: npt.NDArray[np.float64],
         colors: npt.NDArray[np.uint8] | None,
     ) -> None:
-        """Log the recent positions of each point as one line strip per point, for small groups only."""
+        """Log the recent positions of each point as one line strip per point.
+
+        It logs them for small groups only.
+        """
         if not self.trail or len(points) > _MAX_TRAIL_POINTS:
             return
         if self.history_ and self.history_[-1].shape != points.shape:
@@ -173,7 +191,10 @@ class PointsVisual(BaseVisual):
         points: npt.NDArray[np.float64],
         colors: npt.NDArray[np.uint8] | None,
     ) -> None:
-        """Log one line strip through the points in member order, with the mean color of the points."""
+        """Log one line strip through the points in member order.
+
+        It has the mean color of the points.
+        """
         if not self.strip:
             return
         color = None if colors is None else colors.mean(axis=0).astype(np.uint8)
@@ -190,7 +211,10 @@ class PointsVisual(BaseVisual):
         return problem.states.locate(element.states[self.position])[0].shape[-1:] or (1,)
 
     def _log(self, recording: rr.RecordingStream, element: CompiledElementSpec, frame: FrameSpec) -> None:
-        """Log the position under `<path>`, the strip and the trail below it, and other states under `<path>/<state>`.
+        """Log the position, its strip and trail, and the other states.
+
+        The position is logged under `<path>`, the strip and the trail below it, and other states under
+        `<path>/<state>`.
 
         Args:
             recording:
@@ -223,7 +247,9 @@ class PointsVisual(BaseVisual):
             BaseVisual._log_scalars(recording, f'{element.path}/{state}', frame.value(element.states[state]))
 
     def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
-        """Return a spatial view of the positions by their dimension, and a time series view of the other states.
+        """Return a spatial view of the positions and a time series view of other states.
+
+        The spatial view is chosen by the dimension of the positions.
 
         Args:
             element:
@@ -241,10 +267,10 @@ class PointsVisual(BaseVisual):
             >>> from skcomplex.core.components.elements import GroupElement, PointElement
             >>> from skcomplex.core.components.spaces import ContinuousSpace
             >>> from skcomplex.core.components.system import System
-            >>> from skcomplex.core.engine.compile import PassCompiler
+            >>> from skcomplex.core.engine.runtime import simulate
             >>> from skcomplex.core.engine.viz import PointsVisual
             >>> gas = GroupElement('gas', element=PointElement, size=10, values={'x': [[0.0, 0.0, 0.0]] * 10})
-            >>> problem = PassCompiler().prepare(System(elements=[gas], space=ContinuousSpace(n_dim=3))).run().problem_
+            >>> problem = simulate(System(elements=[gas], space=ContinuousSpace(n_dim=3)), until=0).problem
             >>> visual = PointsVisual(position='x', states=(), path=problem.elements[0].path)
             >>> views = visual.prepare(problem).views_
             >>> [type(view).__name__ for view in views]

@@ -1,10 +1,14 @@
-"""Define cell complexes, networks of the sites, links, and faces of a lattice or a network with oriented incidence."""
+"""Define cell complexes.
+
+A cell complex is a network of the sites, links, and faces of a lattice or a network with oriented incidence.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 import itertools
 from collections.abc import Sequence
+from typing import ClassVar
 
 import networkx as nx
 import numpy as np
@@ -13,6 +17,7 @@ import scipy.sparse
 import xgi
 
 from ...errors import SpaceError, ValidationError
+from ...specs import Tags
 from ...types import Array, Indices
 from ._lattice import LatticeSpace
 from ._network import NetworkSpace
@@ -26,12 +31,12 @@ CUBE_ROWS = 6
 
 
 class CellComplexSpace(NetworkSpace):
-    """Network of the cells of a lattice or a network, with the oriented incidence between consecutive degrees.
+    """Network of the cells of a lattice or a network, with their oriented incidence.
 
-    Its nodes are the sites or nodes of the space it derives from, its edges the oriented links or edges, and its
-    hyperedges the oriented plaquettes or faces in cyclic node order. Every group, binding, and neighbourhood of a
-    network space applies to it, so groups on its edges and hyperedges hold states on links and plaquettes. It has no
-    layers.
+    The incidence is between consecutive degrees. Its nodes are the sites or nodes of the space it derives from, its
+    edges the oriented links or edges, and its hyperedges the oriented plaquettes or faces in cyclic node order. Every
+    group, binding, and neighbourhood of a network space applies to it, so groups on its edges and hyperedges hold
+    states on links and plaquettes. It has no layers.
 
     The links of a lattice are numbered by direction and then by site, and point along the positive direction of their
     axis. The plaquettes are numbered by plane and then by site, with planes `(0, 1), (0, 2), ...` in increasing order,
@@ -106,6 +111,12 @@ class CellComplexSpace(NetworkSpace):
         ([0, 72, 1, 64], [1.0, 1.0, -1.0, -1.0])
     """
 
+    space_tags: ClassVar[tuple[str, ...]] = ('cell complex',)
+
+    def _get_tags(self) -> Tags:
+        """Return the tags of the cell complex, and no laws."""
+        return Tags(space=frozenset(self.space_tags))
+
     def __init__(
         self,
         space: LatticeSpace | NetworkSpace,
@@ -120,7 +131,10 @@ class CellComplexSpace(NetworkSpace):
         self.dimension = dimension
 
     def _lattice_links(self, place: LatticeSpace) -> tuple[Indices, Indices, Indices]:
-        """Return the source and target of every link of a lattice, and the link of every axis and site, or -1."""
+        """Return the source and target of every link of a lattice, and the link table.
+
+        The table holds the link of every axis and site, or -1.
+        """
         sites = np.arange(place.size_).reshape(place.shape_)
         sources, targets = [], []
         table = np.full((place.n_dim_, place.size_), -1, dtype=np.intp)
@@ -136,12 +150,18 @@ class CellComplexSpace(NetworkSpace):
         return np.concatenate(sources).astype(np.intp), np.concatenate(targets).astype(np.intp), table
 
     def _lattice_steps(self, place: LatticeSpace) -> Indices:
-        """Return the site one step along every axis from every site, with the periodic wrap of the shape."""
+        """Return the site one step along every axis from every site.
+
+        The steps wrap periodically over the shape.
+        """
         sites = np.arange(place.size_).reshape(place.shape_)
         return np.stack([np.roll(sites, -1, axis=axis).ravel() for axis in range(place.n_dim_)])
 
     def _sparse(self, rows: Indices, columns: Indices, signs: Array, shape: tuple[int, int]) -> scipy.sparse.csr_array:
-        """Return the CSR array of the oriented entries, whose entries that repeat add up and may cancel."""
+        """Return the CSR array of the oriented entries.
+
+        Entries that repeat add up and may cancel.
+        """
         matrix = scipy.sparse.coo_array((signs, (rows, columns)), shape=shape).tocsr()
         matrix.sum_duplicates()
         matrix.eliminate_zeros()
@@ -149,7 +169,10 @@ class CellComplexSpace(NetworkSpace):
         return matrix
 
     def _edge_incidence(self, sources: Indices, targets: Indices) -> scipy.sparse.csr_array:
-        """Return the incidence of sites and links, -1 at the source of every link and 1 at its target."""
+        """Return the incidence of sites and links.
+
+        It is -1 at the source of every link and 1 at its target.
+        """
         links = np.arange(sources.size, dtype=np.intp)
         signs = np.concatenate([-np.ones(links.size), np.ones(links.size)])
         rows, columns = np.concatenate([links, links]), np.concatenate([sources, targets])
@@ -160,7 +183,10 @@ class CellComplexSpace(NetworkSpace):
         place: LatticeSpace,
         links: Indices,
     ) -> tuple[Indices, scipy.sparse.csr_array, Indices, Indices]:
-        """Return the node cycle, the incidence, the plaquette of every plane, and the links around every plaquette."""
+        """Return the node cycle, the incidence, and the plaquette tables of a lattice.
+
+        The tables hold the plaquette of every plane and the links around every plaquette.
+        """
         steps = self._lattice_steps(place)
         cycles, rows, columns, signs, boundaries = [], [], [], [], []
         planes = list(itertools.combinations(range(place.n_dim_), 2))
@@ -190,7 +216,10 @@ class CellComplexSpace(NetworkSpace):
         return np.concatenate(cycles).reshape(-1, PLAQUETTE_ROWS), matrix, table, found
 
     def _lattice_cubes(self, place: LatticeSpace, plaquettes: Indices) -> scipy.sparse.csr_array:
-        """Return the incidence of the plaquettes and the cubes of a lattice of at least three dimensions."""
+        """Return the incidence of the plaquettes and the cubes of a lattice.
+
+        The lattice has at least three dimensions.
+        """
         steps = self._lattice_steps(place)
         planes = list(itertools.combinations(range(place.n_dim_), 2))
         rows, columns, signs = [], [], []
@@ -239,14 +268,20 @@ class CellComplexSpace(NetworkSpace):
         self.face_planes_ = self._face_planes(place, plaquettes)
 
     def _link_axes(self, links: Indices) -> Indices:
-        """Return the axis of every link, from the table of the link of every axis and site."""
+        """Return the axis of every link.
+
+        It comes from the table of the link of every axis and site.
+        """
         axes, sites = np.nonzero(links >= 0)
         found = np.empty(axes.size, dtype=np.intp)
         found[links[axes, sites]] = axes
         return found
 
     def _face_planes(self, place: LatticeSpace, plaquettes: Indices) -> Indices:
-        """Return the two axes of every plaquette, from the table of the plaquette of every plane and site."""
+        """Return the two axes of every plaquette.
+
+        They come from the table of the plaquette of every plane and site.
+        """
         planes = np.asarray(list(itertools.combinations(range(place.n_dim_), 2)), dtype=np.intp).reshape(-1, 2)
         numbers, sites = np.nonzero(plaquettes >= 0)
         found = np.empty((numbers.size, 2), dtype=np.intp)
@@ -254,7 +289,10 @@ class CellComplexSpace(NetworkSpace):
         return found
 
     def _lattice_stars(self, place: LatticeSpace, links: Indices, plaquettes: Indices) -> tuple[Array, ...]:
-        """Return the ratio of dual to primal cell volumes of the sites, the links, and the plaquettes of a lattice."""
+        """Return the ratio of dual to primal cell volumes of the cells of a lattice.
+
+        The cells are the sites, the links, and the plaquettes.
+        """
         spacings = np.asarray(place.spacings_)
         total = float(np.prod(spacings))
         stars = [np.full(place.size_, total), np.empty(int((links >= 0).sum()))]
@@ -267,7 +305,10 @@ class CellComplexSpace(NetworkSpace):
         return (*stars, faces)
 
     def _cycle_of(self, nodes: list[object]) -> list[object]:
-        """Return the nodes of a cycle of a minimum cycle basis in cyclic order, from the first node in node order."""
+        """Return the nodes of a cycle of a minimum cycle basis in cyclic order.
+
+        The order starts from the first node in node order.
+        """
         order = {node: number for number, node in enumerate(self.graph.nodes)}
         subgraph = nx.Graph(self.graph).subgraph(nodes)
         start = min(nodes, key=lambda node: order[node])
@@ -279,7 +320,10 @@ class CellComplexSpace(NetworkSpace):
         return cycle
 
     def _network_faces(self, place: NetworkSpace) -> list[tuple[object, ...]]:
-        """Return the node cycle of every face of a network, for cliques the nodes of every triangle in node order."""
+        """Return the node cycle of every face of a network.
+
+        For cliques it is the nodes of every triangle in node order.
+        """
         if self.faces is None:
             bases = nx.minimum_cycle_basis(nx.Graph(self.graph))
             ordered = [self._cycle_of(list(cycle)) for cycle in bases]
@@ -292,7 +336,10 @@ class CellComplexSpace(NetworkSpace):
         return [tuple(cycle) for cycle in self.faces]
 
     def _cliques(self, size: int) -> list[list[object]]:
-        """Return the cliques of a number of nodes, each in node order, in lexicographic order of their nodes."""
+        """Return the cliques of a number of nodes, each in node order.
+
+        The cliques come in lexicographic order of their nodes.
+        """
         order = {node: number for number, node in enumerate(self.graph.nodes)}
         found = [
             sorted(clique, key=lambda node: order[node])
@@ -302,7 +349,10 @@ class CellComplexSpace(NetworkSpace):
         return sorted(found, key=lambda clique: [order[node] for node in clique])
 
     def _check_faces(self, faces: list[tuple[object, ...]]) -> None:
-        """Raise an error for a face of too few nodes, or one that uses a pair the graph does not join."""
+        """Raise an error for a face of too few nodes, or with an unjoined pair.
+
+        The unjoined pair is a pair the graph does not join.
+        """
         for face in faces:
             if len(face) < TRIANGLE_NODES:
                 error_msg = f'The face {face} has {len(face)} nodes. A face has at least {TRIANGLE_NODES} nodes.'
@@ -316,7 +366,10 @@ class CellComplexSpace(NetworkSpace):
                     raise SpaceError(error_msg)
 
     def _is_simplicial(self, faces: list[tuple[object, ...]]) -> bool:
-        """Check whether the faces are the triangles of a simplicial complex, whose incidence XGI builds."""
+        """Check whether the faces are the triangles of a simplicial complex.
+
+        XGI builds the incidence of a simplicial complex.
+        """
         if self.faces == 'cliques':
             return True
         return self.faces == 'hyperedges' and all(len(face) == TRIANGLE_NODES for face in faces)
@@ -327,7 +380,10 @@ class CellComplexSpace(NetworkSpace):
         sources: Indices,
         targets: Indices,
     ) -> scipy.sparse.csr_array:
-        """Return the incidence of the edges and the faces from the sum of the oriented edges around every face."""
+        """Return the incidence of the edges and the faces.
+
+        It comes from the sum of the oriented edges around every face.
+        """
         index = {node: number for number, node in enumerate(self.graph.nodes)}
         ends = zip(sources.tolist(), targets.tolist(), strict=True)
         edges = {(first, second): edge for edge, (first, second) in enumerate(ends)}
@@ -348,7 +404,10 @@ class CellComplexSpace(NetworkSpace):
         )
 
     def _parity(self, nodes: Sequence[int]) -> int:
-        """Return 0 when an order of nodes is an even permutation of their sorted order, and 1 when it is odd."""
+        """Return the parity of an order of nodes relative to their sorted order.
+
+        It is 0 for an even permutation and 1 for an odd one.
+        """
         inversions = sum(first > second for first, second in itertools.combinations(nodes, 2))
         return inversions % 2
 
@@ -358,7 +417,10 @@ class CellComplexSpace(NetworkSpace):
         sources: Indices,
         targets: Indices,
     ) -> tuple[scipy.sparse.csr_array, ...]:
-        """Return the incidence of every order above the sites from the boundary matrices of XGI."""
+        """Return the incidence of every order above the sites.
+
+        It comes from the boundary matrices of XGI.
+        """
         index = {node: number for number, node in enumerate(self.graph.nodes)}
         cells: list[list[tuple[int, ...]]] = [[(node,) for node in range(self.graph.number_of_nodes())]]
         cells.append(list(zip(sources.tolist(), targets.tolist(), strict=True)))
@@ -383,7 +445,10 @@ class CellComplexSpace(NetworkSpace):
         cells: list[list[tuple[int, ...]]],
         order: int,
     ) -> scipy.sparse.csr_array:
-        """Return the incidence of an order of the boundary matrices of XGI, in the numbering of the cells."""
+        """Return the incidence of an order of the boundary matrices of XGI.
+
+        It is in the numbering of the cells.
+        """
         lower = {frozenset(cell): number for number, cell in enumerate(cells[order - 1])}
         upper = {frozenset(cell): number for number, cell in enumerate(cells[order])}
         shape = (len(cells[order]), len(cells[order - 1]))
@@ -429,7 +494,10 @@ class CellComplexSpace(NetworkSpace):
         sources: Indices,
         targets: Indices,
     ) -> tuple[Indices, Array]:
-        """Return the edges around every face of a network in the cyclic order of its nodes and their signs, padded."""
+        """Return the edges around every face of a network and their signs, padded.
+
+        The edges come in the cyclic order of the nodes of the face.
+        """
         index = {node: number for number, node in enumerate(self.graph.nodes)}
         ends = zip(sources.tolist(), targets.tolist(), strict=True)
         edges = {(first, second): edge for edge, (first, second) in enumerate(ends)}
@@ -445,7 +513,10 @@ class CellComplexSpace(NetworkSpace):
         return table, signs
 
     def _coface_tables(self, matrix: scipy.sparse.csr_array) -> tuple[npt.NDArray[np.intp], Array]:
-        """Return the cofaces of every cell of an incidence, padded with their number, and their signs."""
+        """Return the cofaces of every cell of an incidence and their signs.
+
+        The cofaces are padded with their number.
+        """
         columns = matrix.T.tocsr()
         counts = np.diff(columns.indptr)
         table = np.full((columns.shape[0], int(counts.max(initial=0))), columns.shape[1], dtype=np.intp)
@@ -457,17 +528,29 @@ class CellComplexSpace(NetworkSpace):
         return table, signs
 
     def _get_edges(self, graph: nx.Graph) -> tuple[Indices, Indices]:
-        """Return the source and target of every link along its axis on a lattice, or of every edge on a network."""
+        """Return the source and target of every link or edge.
+
+        A link runs along its axis on a lattice, and an edge is that of a network.
+        """
         if isinstance(self.space, LatticeSpace):
             return self._lattice_links(self.space)[:2]
         return super()._get_edges(graph)
 
-    def _check(self) -> None:
-        """Raise an error for a space, faces, or a dimension the complex cannot take.
+    def _prepare(self, context: None = None) -> None:
+        """Set the graph, the hyperedges, and the incidence of the cells, then the network.
+
+        It first raises an error for a space, faces, or a dimension the complex cannot take, and preparing the space
+        checks the space. It then sets the attributes of the network, whose base checks the label and the graph it
+        derived.
+
+        Args:
+            context:
+                Nothing, since a cell complex derives all it holds from its arguments.
 
         Raises:
             SpaceError:
-                The space is neither a square lattice nor a network, or a lattice is given faces.
+                The space is neither a square lattice nor a network, a lattice is given faces, a face uses a pair of
+                nodes that the graph does not join, or the network has a loop.
 
             ValidationError:
                 The dimension is below 2, or the faces are not known.
@@ -475,7 +558,6 @@ class CellComplexSpace(NetworkSpace):
         if not isinstance(self.space, LatticeSpace | NetworkSpace):
             error_msg = f'A cell complex derives from a lattice or a network space, not {self.space!r}.'
             raise SpaceError(error_msg)
-        self.space._validated()
         if isinstance(self.space, LatticeSpace) and (self.space.geometry != 'square' or self.faces is not None):
             error_msg = 'A cell complex of a lattice takes a square lattice and no faces, which the lattice gives.'
             raise SpaceError(error_msg)
@@ -485,18 +567,6 @@ class CellComplexSpace(NetworkSpace):
         if isinstance(self.faces, str) and self.faces not in FACES:
             error_msg = f'Unknown faces {self.faces!r}. Use None, one of {", ".join(FACES)}, or a sequence of cycles.'
             raise ValidationError(error_msg)
-
-    def _prepare(self, context: None = None) -> None:
-        """Set the graph, the hyperedges, and the incidence of the cells, and then the attributes of the network.
-
-        Args:
-            context:
-                Nothing, since a cell complex derives all it holds from its arguments.
-
-        Raises:
-            SpaceError:
-                A face uses a pair of nodes that the graph does not join, or the network has a loop.
-        """
         place = self.space.prepare()
         if isinstance(place, LatticeSpace):
             self._prepare_lattice(place)

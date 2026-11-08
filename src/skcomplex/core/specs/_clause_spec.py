@@ -12,7 +12,9 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class ClauseSpec(BaseSpec):
-    """Disjunction of literals, where a literal is a member index from 1, negative for its negation.
+    """Disjunction of literals.
+
+    A literal is a member index from 1, negative for its negation.
 
     Args:
         literals:
@@ -20,7 +22,7 @@ class ClauseSpec(BaseSpec):
 
     Raises:
         ValidationError:
-            A literal is 0 or the clause holds none, raised by `prepare`.
+            A literal is 0 or the clause holds none, raised when its owner checks it.
 
     Examples:
         >>> from skcomplex.core.specs import ClauseSpec

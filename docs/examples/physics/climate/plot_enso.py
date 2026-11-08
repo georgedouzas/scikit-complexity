@@ -6,22 +6,22 @@ waves turns it around, so it swings regularly between El Niño, a warm anomaly, 
 """
 
 # %%
-# The system is created by name from the catalog with the delayed feedback `alpha = 0.75` and the delay of six time
+# The system is built from its class with the delayed feedback `alpha = 0.75` and the delay of six time
 # units, starting from a small warm anomaly. The default blueprint shows the anomaly in one time series view.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import SpectrumAnalysis
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.analysis import spectrum
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.climate import ENSOSystem
 
 SYSTEM = 'enso'
 
-system = create_system(SYSTEM)
+system = ENSOSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=200)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # A limit cycle with one period
@@ -30,23 +30,22 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(unti
 # its power spectrum should have a sharp peak at the period of the oscillation, nearly three times the delay, with
 # harmonics at its multiples.
 
-trajectory = simulation.trajectory_
 anomaly = trajectory.values('pacific.T')
 shift = int(6.0 / 0.5)
 settled = slice(len(anomaly) // 2, None)
-spectrum = SpectrumAnalysis(dt=0.5).prepare(anomaly[settled]).run()
-frequencies, density = spectrum.frequencies_, spectrum.power_[0]
+power = spectrum(anomaly[settled], dt=0.5)
+frequencies, density = power.frequencies, power.power[0]
 peak = frequencies[1:][np.argmax(density[1:])]
-fig, (loop, spectrum) = plt.subplots(1, 2, figsize=(10, 4))
+fig, (loop, spectrum_axes) = plt.subplots(1, 2, figsize=(10, 4))
 loop.plot(anomaly[settled][shift:], anomaly[settled][:-shift])
 loop.set_xlabel('anomaly T(t)')
 loop.set_ylabel('delayed anomaly T(t - delta)')
 loop.set_title('One closed loop')
-spectrum.semilogy(frequencies[1:], density[1:])
-spectrum.axvline(peak, color='black', linestyle='--', label=f'period {1 / peak:.1f}')
-spectrum.set_xlabel('frequency')
-spectrum.set_ylabel('power spectral density')
-spectrum.set_title('Power spectrum of the anomaly')
-spectrum.legend()
+spectrum_axes.semilogy(frequencies[1:], density[1:])
+spectrum_axes.axvline(peak, color='black', linestyle='--', label=f'period {1 / peak:.1f}')
+spectrum_axes.set_xlabel('frequency')
+spectrum_axes.set_ylabel('power spectral density')
+spectrum_axes.set_title('Power spectrum of the anomaly')
+spectrum_axes.legend()
 fig.tight_layout()
 plt.show()

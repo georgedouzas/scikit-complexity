@@ -8,7 +8,7 @@ colloids of radius 1 in a periodic square of side 50, gathered into a few hexago
 """
 
 # %%
-# The system is created by name from the catalog with swimming speed 3, rotational diffusion 1, and phoretic attraction
+# The system is built from its class with swimming speed 3, rotational diffusion 1, and phoretic attraction
 # of strength 20 within a range of 10. The catalog registers the Euler-Maruyama stepper with steps of 0.002 for the
 # stiff repulsion between colloids, so it is passed explicitly. The observer saves every frame of 0.2 with the default
 # blueprint, whose primary view shows the colloids.
@@ -18,17 +18,17 @@ import numpy as np
 from scipy.sparse.csgraph import connected_components
 from scipy.spatial import cKDTree
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.active_matter import LivingCrystalsSystem
 
 SYSTEM = 'living_crystals'
 
-system = create_system(SYSTEM, random_state=0)
+system = LivingCrystalsSystem(random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 solver = EulerMaruyamaSolver(dt=0.002)
-simulation = Simulation(system, solver=solver, dt=0.2, observers=[observer], random_state=0).prepare().run(until=40)
+trajectory = simulate(system, until=40, solver=solver, dt=0.2, observers=[observer], random_state=0)
 
 # %%
 # Clustering by phoretic attraction
@@ -51,14 +51,10 @@ def clustered_share(positions, side=50.0):
 
 
 fig, ax = plt.subplots(figsize=(7, 4))
-times = simulation.trajectory_.times
-ax.plot(times, clustered_share(simulation.trajectory_.values('swimmers.x')), label='with attraction, v0 = 20')
-passive = (
-    Simulation(create_system(SYSTEM, v0=0.0, random_state=0), solver=solver, dt=0.2, random_state=0)
-    .prepare()
-    .run(until=40)
-)
-ax.plot(times, clustered_share(passive.trajectory_.values('swimmers.x')), label='without attraction, v0 = 0')
+times = trajectory.times
+ax.plot(times, clustered_share(trajectory.values('swimmers.x')), label='with attraction, v0 = 20')
+passive = simulate(LivingCrystalsSystem(v0=0.0, random_state=0), until=40, solver=solver, dt=0.2, random_state=0)
+ax.plot(times, clustered_share(passive.values('swimmers.x')), label='without attraction, v0 = 0')
 ax.set_xlabel('time t')
 ax.set_ylabel('share of colloids in clusters of 3 or more')
 ax.set_title('Phoretic attraction gathers the swimmers into living clusters')

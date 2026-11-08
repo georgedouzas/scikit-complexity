@@ -14,8 +14,8 @@ from skcomplex.core.components.laws.utils import moment
 from skcomplex.core.components.spaces import ContinuousTime, LatticeSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumpyBackend
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
@@ -142,14 +142,14 @@ def test_moment_rejects_bad_orders_and_coordinates(order, coordinates):
 
 def test_normalised_start_holds_the_profile():
     """Test that a distribution starts at its profile and its order-0 moment equals the profile's sum."""
-    simulation = Simulation(_system(), observables=OBSERVABLES, dt=1.0).prepare().run(until=0)
-    np.testing.assert_allclose(simulation.trajectory_.values('wealth.f')[0], PROFILE)
-    assert simulation.trajectory_.values('density')[0] == pytest.approx(PROFILE.sum())
+    trajectory = simulate(_system(), until=0, observables=OBSERVABLES, dt=1.0)
+    np.testing.assert_allclose(trajectory.values('wealth.f')[0], PROFILE)
+    assert trajectory.values('density')[0] == pytest.approx(PROFILE.sum())
 
 
 def test_mean_activity_is_recorded_at_every_frame():
     """Test that the mean activity moment is the activity-weighted sum divided by the density at every frame."""
-    trajectory = Simulation(_system(), observables=OBSERVABLES, dt=0.5).prepare().run(until=5).trajectory_
+    trajectory = simulate(_system(), until=5, observables=OBSERVABLES, dt=0.5)
     states = np.asarray(trajectory.values('wealth.f'))
     expected = states @ ACTIVITIES / states.sum(axis=1)
     np.testing.assert_allclose(trajectory.values('mean_activity'), expected, rtol=1e-12)

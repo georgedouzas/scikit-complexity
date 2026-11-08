@@ -14,9 +14,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.social.organizations import EscalationSystem
 
 SYSTEM = 'escalation'
 
@@ -34,7 +34,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create_system(SYSTEM), dt=0.5, observers=[observer]).prepare().run(100)
+trajectory = simulate(EscalationSystem(), observers=[observer])
 
 # %%
 # The growth rate of the race
@@ -46,7 +46,6 @@ simulation = Simulation(create_system(SYSTEM), dt=0.5, observers=[observer]).pre
 margin, adjustment, perception = 0.1, 2.0, 1.0
 quadratic = (adjustment * perception, adjustment + perception, -margin)
 rate = max(np.roots(quadratic).real)
-trajectory = simulation.trajectory_
 times = np.asarray(trajectory.times)
 fig, (stocks, gap) = plt.subplots(1, 2, figsize=(10, 4))
 stocks.semilogy(times, trajectory.values('race.a'), label='first party')

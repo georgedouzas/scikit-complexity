@@ -1,4 +1,7 @@
-"""Pass that compiles the encounter laws before reductions prune the groups they read, and takes them out."""
+"""Pass that compiles and takes out the encounter laws.
+
+It runs before reductions prune the groups the laws read.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,8 +21,9 @@ from ....specs import TableValuesSpec
 from ....types import Indices
 from ..._utils import symbols_of
 from ...backends import BaseBackend
-from ...problems import DeclarationsSpec, ReferenceSpec
+from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._encounter_kernel import EncounterKernel
+from ...problems._reference_spec import ReferenceSpec
 from ...types import KineticLaw, ReadKind
 from .._base import BaseCompiler, BasePass
 from .._compilation import Compilation, Laws
@@ -28,7 +32,10 @@ _KINETIC_LAWS = (EncounterLaw, BilinearLaw)
 
 
 class CompileEncountersPass(BasePass):
-    """Pass that compiles the encounter laws before reductions prune the groups they read, and takes them out."""
+    """Pass that compiles and takes out the encounter laws.
+
+    It runs before reductions prune the groups the laws read.
+    """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
@@ -70,7 +77,10 @@ class CompileEncountersPass(BasePass):
 
     @staticmethod
     def _nonzero(table: npt.NDArray[np.generic]) -> tuple[Indices, ...]:
-        """Return the indices of the entries of a table that are not zero, numbers or Sage expressions."""
+        """Return the indices of the nonzero entries of a table.
+
+        The entries are numbers or Sage expressions.
+        """
         if table.dtype != object:
             return tuple(np.asarray(item, dtype=np.intp) for item in np.nonzero(table))
         mask = np.vectorize(lambda entry: not (SR(entry).is_numeric() and SR(entry) == 0), otypes=[bool])(table)
@@ -78,7 +88,10 @@ class CompileEncountersPass(BasePass):
 
     @staticmethod
     def _group_indices(item: Expression | None, references: Mapping[Expression, ReferenceSpec], owner: str) -> Indices:
-        """Return the flat state indices of the density a symbol of an encounter stands for, one per activity."""
+        """Return the flat state indices of the density an encounter symbol stands for.
+
+        There is one index per activity.
+        """
         reference = references.get(item) if item is not None else None
         if reference is None or not reference.is_state or reference.source is not ReadKind.MEMBER:
             error_msg = (
@@ -94,7 +107,10 @@ class CompileEncountersPass(BasePass):
         references: Mapping[Expression, ReferenceSpec],
         owner: str,
     ) -> dict[Expression, int]:
-        """Return the flat parameter index of every symbol of a table, after checking that it is a parameter."""
+        """Return the flat parameter index of every symbol of a table.
+
+        It first checks that each symbol is a parameter.
+        """
         if table.dtype != object:
             return {}
         indices = {}
@@ -111,7 +127,10 @@ class CompileEncountersPass(BasePass):
 
     @staticmethod
     def _rate_of_classes(rate: object, space: PhaseSpace | None, sizes: tuple[int, int, int]) -> object:
-        """Return a rate that reads class coordinates as its table `eta[h, k]`, at the classes of the candidate."""
+        """Return a rate that reads class coordinates as its table `eta[h, k]`.
+
+        It is taken at the classes of the candidate.
+        """
         names = [str(item) for item in SR(rate).variables()] if isinstance(rate, Expression) else []
         coordinates = [item for item in names if item.startswith(COORDINATE_PREFIX)]
         if space is None or not coordinates:
@@ -128,7 +147,10 @@ class CompileEncountersPass(BasePass):
         owner: str,
         space: PhaseSpace | None = None,
     ) -> npt.NDArray[np.generic]:
-        """Return the rate table of a law, after checking that it has one row per candidate and one column per field."""
+        """Return the rate table of a law after checking its shape.
+
+        It must have one row per candidate and one column per field.
+        """
         rate = CompileEncountersPass._kinetic_table(CompileEncountersPass._rate_of_classes(law.rate, space, sizes))
         if rate.ndim and rate.shape != sizes[:2]:
             error_msg = (
@@ -140,7 +162,10 @@ class CompileEncountersPass(BasePass):
 
     @staticmethod
     def _outcome_table(law: KineticLaw, sizes: tuple[int, int, int], owner: str) -> npt.NDArray[np.generic]:
-        """Return the outcome table of a law, the identity on the candidate's activity without one."""
+        """Return the outcome table of a law.
+
+        Without one, it is the identity on the activity of the candidate.
+        """
         value = law.transition if isinstance(law, EncounterLaw) else law.outcomes
         if value is None:
             if sizes[0] != sizes[2]:
@@ -172,7 +197,9 @@ class CompileEncountersPass(BasePass):
         fused: bool = False,
         phases: Mapping[str, PhaseSpace] | None = None,
     ) -> EncounterKernel:
-        """Return an encounter law lowered to sparse contractions over the densities its roles bind.
+        """Return an encounter law lowered to sparse contractions over densities.
+
+        The densities are those its roles bind.
 
         Args:
             law:
@@ -275,7 +302,9 @@ class CompileEncountersPass(BasePass):
 
     @staticmethod
     def _kinetic_table(value: object) -> npt.NDArray[np.generic]:
-        """Return a rate or outcome table of an encounter law as an array of floats, or of Sage expressions.
+        """Return a rate or outcome table of an encounter law as an array.
+
+        The array holds floats or Sage expressions.
 
         Args:
             value:

@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Mapping, Sequence
+from typing import ClassVar
 
 import numpy as np
 import numpy.typing as npt
@@ -68,6 +69,8 @@ class ContinuousSpace(BaseSpace):
         [1]
     """
 
+    space_tags: ClassVar[tuple[str, ...]] = ('continuous',)
+
     def __init__(
         self,
         extent: Sequence[float] = (),
@@ -83,8 +86,42 @@ class ContinuousSpace(BaseSpace):
         self.boundary = boundary
         self.regions = regions
 
-    def _check(self) -> None:
-        """Raise an error for an unknown boundary, no dimension, a side that is not positive, or walls in `R^d`."""
+    def _check_region(self, layer: str, index: int, region: object) -> None:
+        """Raise an error for a region that is not a valid polygon in two dimensions."""
+        name = f'The region {index} of the layer {layer!r}'
+        if not isinstance(region, Polygon) or region.has_z:
+            error_msg = f'{name} is {region!r}. Give a Shapely polygon in two dimensions.'
+            raise SpaceError(error_msg)
+        if region.is_empty or not region.is_valid:
+            error_msg = f'{name} is not a valid polygon: {shapely.is_valid_reason(region)}. Repair it.'
+            raise SpaceError(error_msg)
+
+    def _get_regions(self) -> dict[str, STRtree]:
+        """Return the index of every layer of regions.
+
+        It checks the regions and the dimension of the space first.
+        """
+        layers = self.regions or {}
+        if layers and self.n_dim_ != REGION_DIMENSIONS:
+            error_msg = (
+                f'The layers {", ".join(layers)} hold regions of a map, and the space has {self.n_dim_} dimensions. '
+                f'Give the space {REGION_DIMENSIONS} dimensions.'
+            )
+            raise SpaceError(error_msg)
+        for layer, regions in layers.items():
+            for index, region in enumerate(regions):
+                self._check_region(layer, index, region)
+        return {layer: STRtree(list(regions)) for layer, regions in layers.items()}
+
+    def _prepare(self, context: None = None) -> None:
+        """Set the extent, the dimension, the boundary, and the region index of the box.
+
+        It first raises an error for an unknown boundary, no dimension, a bad side, or bad walls. The side must be
+        positive, and there are no walls in `R^d`.
+
+        The box has no sites.
+        """
+        super()._prepare(context)
         extent = tuple(self.extent)
         n_dim = self.n_dim if self.n_dim is not None else len(extent)
         if self.boundary not in BOUNDARIES:
@@ -99,33 +136,6 @@ class ContinuousSpace(BaseSpace):
         if not extent and self.boundary != 'open':
             error_msg = f'An unbounded space has no walls for its boundary {self.boundary!r}. Give the sides of a box.'
             raise ValidationError(error_msg)
-
-    def _check_region(self, layer: str, index: int, region: object) -> None:
-        """Raise an error for a region that is not a valid polygon in two dimensions."""
-        name = f'The region {index} of the layer {layer!r}'
-        if not isinstance(region, Polygon) or region.has_z:
-            error_msg = f'{name} is {region!r}. Give a Shapely polygon in two dimensions.'
-            raise SpaceError(error_msg)
-        if region.is_empty or not region.is_valid:
-            error_msg = f'{name} is not a valid polygon: {shapely.is_valid_reason(region)}. Repair it.'
-            raise SpaceError(error_msg)
-
-    def _get_regions(self) -> dict[str, STRtree]:
-        """Return the index of every layer of regions, after checking the regions and the dimension of the space."""
-        layers = self.regions or {}
-        if layers and self.n_dim_ != REGION_DIMENSIONS:
-            error_msg = (
-                f'The layers {", ".join(layers)} hold regions of a map, and the space has {self.n_dim_} dimensions. '
-                f'Give the space {REGION_DIMENSIONS} dimensions.'
-            )
-            raise SpaceError(error_msg)
-        for layer, regions in layers.items():
-            for index, region in enumerate(regions):
-                self._check_region(layer, index, region)
-        return {layer: STRtree(list(regions)) for layer, regions in layers.items()}
-
-    def _prepare(self, context: None = None) -> None:
-        """Set the extent of the box, its dimension, its boundary, and the index of its regions, with no sites."""
         self.extent_ = tuple(float(side) for side in self.extent)
         self.n_dim_ = int(self.n_dim) if self.n_dim is not None else len(self.extent_)
         self.size_ = None

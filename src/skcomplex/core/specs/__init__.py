@@ -1,9 +1,13 @@
-"""Define the specs: frozen values that declare, record, or hold what the classes of the library read."""
+"""Define the specs.
+
+A spec is a frozen value that declares, records, or holds what the classes of the library read.
+"""
 
 from ._accelerated_spec import AcceleratedSpec
 from ._affine_spec import AffineSpec
 from ._agent_snapshot_spec import AgentSnapshotSpec
 from ._agent_state_spec import AgentStateSpec
+from ._analysis_tags import AnalysisTags
 from ._arguments_spec import ArgumentsSpec
 from ._axis_spec import AxisSpec
 from ._base_record_spec import BaseRecordSpec
@@ -101,6 +105,7 @@ from ._support_spec import SupportSpec
 from ._symmetry_spec import SymmetrySpec
 from ._table_spec import TableSpec
 from ._table_values_spec import TableValuesSpec
+from ._tags import DOMAINS, LAWS, RANDOMNESS, SPACES, STOCHASTIC_LAWS, STRUCTURES, TIMES, Tags
 from ._tensor_spec import TensorSpec
 from ._topology_request_spec import EDGE_KINDS, ENDS, HYPEREDGE_KINDS, TOPOLOGY_KINDS, TopologyRequestSpec
 from ._totalistic_spec import TotalisticSpec
@@ -114,18 +119,26 @@ from ._word_structure_spec import WordStructureSpec
 __all__ = [
     'ACTIVATIONS',
     'DEFAULT_PHASE',
+    'DOMAINS',
     'EDGE_KINDS',
     'ENDS',
     'HYPEREDGE_KINDS',
+    'LAWS',
     'MONTE_CARLO_SCHEDULES',
     'MOVES',
+    'RANDOMNESS',
     'SAMPLERS',
+    'SPACES',
+    'STOCHASTIC_LAWS',
+    'STRUCTURES',
+    'TIMES',
     'TOPOLOGY_KINDS',
     'TURTLE_SYMBOLS',
     'AcceleratedSpec',
     'AffineSpec',
     'AgentSnapshotSpec',
     'AgentStateSpec',
+    'AnalysisTags',
     'ArgumentsSpec',
     'AxisSpec',
     'BaseRecordSpec',
@@ -225,6 +238,7 @@ __all__ = [
     'SymmetrySpec',
     'TableSpec',
     'TableValuesSpec',
+    'Tags',
     'TensorSpec',
     'TopologyRequestSpec',
     'TotalisticSpec',

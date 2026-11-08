@@ -1,4 +1,7 @@
-"""Derivative-free Milstein scheme of Platen for SDEs with diagonal noise, of strong order 1."""
+"""Derivative-free Milstein scheme of Platen for SDEs with diagonal noise.
+
+It is of strong order 1.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,10 +17,10 @@ from ._sde import SDESolver
 
 
 class MilsteinSolver(SDESolver):
-    """Derivative-free Milstein scheme of Platen for SDEs with diagonal noise, of strong order 1.
+    """Derivative-free Milstein scheme of Platen for SDEs with diagonal noise.
 
-    It takes a supporting value `Y = X + f h + g sqrt(h)` and corrects the noise with
-    `(g(Y) - g(X)) (dW^2 - h) / (2 sqrt(h))`, which needs no derivative of the noise.
+    It is of strong order 1. It takes a supporting value `Y = X + f h + g sqrt(h)` and corrects the noise with `(g(Y) -
+    g(X)) (dW^2 - h) / (2 sqrt(h))`, which needs no derivative of the noise.
 
     Args:
         dt:
@@ -25,11 +28,11 @@ class MilsteinSolver(SDESolver):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.engine.compile import PassCompiler
-        >>> from skcomplex.systems.economics.finance import geometric_brownian_motion
+        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.systems.economics.finance import GeometricBrownianMotionSystem
         >>> from skcomplex.core.engine.solvers import MilsteinSolver
         >>> from skcomplex.core.specs import StepSpec
-        >>> problem = PassCompiler().prepare(geometric_brownian_motion()).run().problem_
+        >>> problem = simulate(GeometricBrownianMotionSystem(), until=0).problem
         >>> stepper = MilsteinSolver(dt=0.01, random_state=0).prepare(problem)
         >>> bool(stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_[0] > 0)
         True
@@ -56,7 +59,9 @@ class MilsteinSolver(SDESolver):
         noise: Array,
         end: float,
     ) -> Array:
-        """Return the state after one derivative-free Milstein step with given Wiener increments.
+        """Return the state after one derivative-free Milstein step.
+
+        The step takes given Wiener increments.
 
         Args:
             time:

@@ -14,7 +14,10 @@ from ._reference_spec import ReferenceSpec
 
 @dataclass(frozen=True)
 class _RecordedSpec(BaseSpec):
-    """Expression a trajectory records at every frame, with the references of its symbols."""
+    """Expression a trajectory records at every frame.
+
+    It holds the references of its symbols.
+    """
 
     path: str
     expression: Expression

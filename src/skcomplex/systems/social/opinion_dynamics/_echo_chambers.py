@@ -1,4 +1,7 @@
-"""Echo chamber systems: radicalization of opinions over an activity-driven network with homophily."""
+"""Echo chamber systems: radicalization of opinions over a network.
+
+The network is activity-driven. The network has homophily.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,11 +16,10 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 
 class RadicalView(AgentView):
@@ -31,7 +33,9 @@ PAIR = 2
 
 
 class RadicalElement(Element):
-    """Agent with an unbounded opinion, whose sign is its stance and whose size is its conviction, and an activity.
+    """Agent with an unbounded opinion and an activity.
+
+    The sign of the opinion is its stance and its size is its conviction.
 
     Args:
         label:
@@ -71,13 +75,14 @@ class RadicalElement(Element):
 
 
 class RadicalizationInteraction(Interaction):
-    """Opinion dynamics of Baumann and coauthors, `dx_i/dt = -x_i + K sum_j A_ij(t) tanh(alpha x_j)`.
+    """Opinion dynamics of Baumann and coauthors.
 
-    Every step of the system integrates the opinions with `substeps` Euler steps of length `dt`, and draws a new
-    temporal network for every one of them. In a draw, every agent is active with the probability of its activity and
-    contacts `contacts` distinct others, each chosen with the probability `|x_i - x_j|^-beta` normalized over the
-    others. A contacted agent receives the influence of the agent that contacts it, which receives the influence back
-    when the contact is reciprocated, with the probability `reciprocity`.
+    The opinions follow `dx_i/dt = -x_i + K sum_j A_ij(t) tanh(alpha x_j)`. Every step of the system integrates the
+    opinions with `substeps` Euler steps of length `dt`, and draws a new temporal network for every one of them. In a
+    draw, every agent is active with the probability of its activity and contacts `contacts` distinct others, each
+    chosen with the probability `|x_i - x_j|^-beta` normalized over the others. A contacted agent receives the influence
+    of the agent that contacts it, which receives the influence back when the contact is reciprocated, with the
+    probability `reciprocity`.
 
     Args:
         label:
@@ -112,6 +117,10 @@ class RadicalizationInteraction(Interaction):
         >>> RadicalizationInteraction('influence', target='agents').contacts
         10
     """
+
+    draws = True
+
+    law_classes = (RuleLaw,)
 
     def __init__(
         self,
@@ -150,7 +159,10 @@ class RadicalizationInteraction(Interaction):
         return [RuleLaw(self.influence)]
 
     def _get_inputs(self, opinions: Array, activities: Array, rng: np.random.Generator) -> Array:
-        """Return the summed influence `sum_j A_ij tanh(alpha x_j)` every agent receives from one temporal network."""
+        """Return the summed influence `sum_j A_ij tanh(alpha x_j)` on every agent.
+
+        The influence comes from one temporal network.
+        """
         size = opinions.size
         influence = np.tanh(self.controversy * opinions)
         inputs = np.zeros(size)
@@ -185,36 +197,21 @@ class RadicalizationInteraction(Interaction):
             agent.opinion = opinion
 
 
-@register_system(
-    field='social/opinion_dynamics',
-    tags=('opinion', 'agents', 'temporal network', 'polarization', 'echo chambers'),
-    references=('Baumann, Lorenz-Spreen, Sokolov, and Starnini 2020',),
-    defaults={'until': 100},
-)
-def echo_chamber_radicalization(
-    n_agents: int = 200,
-    *,
-    strength: float = 3.0,
-    controversy: float = 3.0,
-    homophily: float = 3.0,
-    contacts: int = 10,
-    reciprocity: float = 0.5,
-    exponent: float = 2.1,
-    least_activity: float = 0.01,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the radicalization model of echo chambers of Baumann and coauthors on an activity-driven network.
+class EchoChamberRadicalizationSystem(BaseSystem):
+    """The radicalization model of echo chambers of Baumann and coauthors.
 
-    Opinions follow `dx_i/dt = -x_i + K sum_j A_ij(t) tanh(alpha x_j)`, where the controversialness `alpha` shapes
-    the influence and `A_ij(t)` is an activity-driven temporal network redrawn at every integration step `dt = 0.01`:
-    agent `i` is active with the probability `a_i`, drawn from `F(a) ~ a^-gamma` on `[epsilon, 1]`, and contacts `m`
-    others with the homophilic probability `|x_i - x_j|^-beta / sum_j |x_i - x_j|^-beta`, and a contact is
-    reciprocated with the probability `r` (arXiv 1906.12325 Eqs. 1 and 2). Opinions start uniformly spaced on
-    `[-1, 1]`. For small `K alpha` they reach the neutral consensus, above `alpha_c = 1 / ((1 + r) K m <a>)` they
-    radicalize, all to one side without homophily (`beta = 0`), and into two opposite echo chambers with it. The
-    defaults are the polarized case of Fig. 1(c), `K = 3`, `alpha = 3`, `beta = 3`, `r = 0.5`, `m = 10`, and
-    `gamma = 2.1`, with fewer agents than the 1000 of the paper so a step is fast. Every step of the system is ten
-    integration steps.
+    It runs on an activity-driven network. Opinions follow `dx_i/dt = -x_i + K sum_j A_ij(t) tanh(alpha x_j)`, where the
+    controversialness `alpha` shapes the influence and `A_ij(t)` is an activity-driven temporal network redrawn at every
+    integration step `dt = 0.01`: agent `i` is active with the probability `a_i`, drawn from `F(a) ~ a^-gamma` on
+    `[epsilon, 1]`, and contacts `m` others with the homophilic probability
+    `|x_i - x_j|^-beta / sum_j |x_i - x_j|^-beta`, and a contact is reciprocated with the probability `r` (arXiv
+    1906.12325 Eqs. 1 and 2). Opinions start uniformly spaced on `[-1, 1]`. For small `K alpha` they reach the neutral
+    consensus, above `alpha_c = 1 / ((1 + r) K m <a>)` they radicalize, all to one side without homophily (`beta = 0`),
+    and into two opposite echo chambers with it. The defaults are the polarized case of Fig. 1(c), `K = 3`, `alpha = 3`,
+    `beta = 3`, `r = 0.5`, `m = 10`, and `gamma = 2.1`, with fewer agents than the 1000 of the paper so a step is fast.
+    Every step of the system is ten integration steps.
+
+    The system has the group `agents`.
 
     Args:
         n_agents:
@@ -244,31 +241,63 @@ def echo_chamber_radicalization(
         random_state:
             The seed or generator of the activities.
 
-    Returns:
-        system:
-            The system, with the group `agents`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.opinion_dynamics import echo_chamber_radicalization
-        >>> echo_chamber_radicalization(50).elements[0].prepare().size_
+        >>> from skcomplex.systems.social.opinion_dynamics import EchoChamberRadicalizationSystem
+        >>> EchoChamberRadicalizationSystem(50).prepare().system_.elements[0].prepare().size_
         50
     """
-    rng = np.random.default_rng(random_state)
-    low, power = least_activity ** (1 - exponent), 1 - exponent
-    activities = (low + rng.random(n_agents) * (1 - low)) ** (1 / power)
-    agents = GroupElement(
-        'agents',
-        element=RadicalElement,
-        size=n_agents,
-        values={'opinion': np.linspace(-1.0, 1.0, n_agents), 'activity': activities},
-    )
-    influence = RadicalizationInteraction(
-        'influence',
-        target='agents',
-        strength=strength,
-        controversy=controversy,
-        homophily=homophily,
-        contacts=contacts,
-        reciprocity=reciprocity,
-    )
-    return System(elements=[agents], interactions=[influence])
+
+    field = 'social/opinion_dynamics'
+    topics = ('opinion', 'agents', 'temporal network', 'polarization', 'echo chambers')
+    references = ('Baumann, Lorenz-Spreen, Sokolov, and Starnini 2020',)
+    until = 100
+
+    def __init__(
+        self,
+        n_agents: int = 200,
+        *,
+        strength: float = 3.0,
+        controversy: float = 3.0,
+        homophily: float = 3.0,
+        contacts: int = 10,
+        reciprocity: float = 0.5,
+        exponent: float = 2.1,
+        least_activity: float = 0.01,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_agents = n_agents
+        self.strength = strength
+        self.controversy = controversy
+        self.homophily = homophily
+        self.contacts = contacts
+        self.reciprocity = reciprocity
+        self.exponent = exponent
+        self.least_activity = least_activity
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        low, power = self.least_activity ** (1 - self.exponent), 1 - self.exponent
+        activities = (low + rng.random(self.n_agents) * (1 - low)) ** (1 / power)
+        agents = GroupElement(
+            'agents',
+            element=RadicalElement,
+            size=self.n_agents,
+            values={'opinion': np.linspace(-1.0, 1.0, self.n_agents), 'activity': activities},
+        )
+        influence = RadicalizationInteraction(
+            'influence',
+            target='agents',
+            strength=self.strength,
+            controversy=self.controversy,
+            homophily=self.homophily,
+            contacts=self.contacts,
+            reciprocity=self.reciprocity,
+        )
+        return System(self.label, elements=[agents], interactions=[influence])

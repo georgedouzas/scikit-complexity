@@ -1,4 +1,7 @@
-"""Define satisfiability interactions, which reveal constraints on Boolean states and decide them incrementally."""
+"""Define satisfiability interactions.
+
+They reveal constraints on Boolean states and decide them incrementally.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,17 +18,18 @@ from ...errors import ValidationError
 from ...specs import CardinalitySpec, ClauseSpec, RoleSpec
 from ...types import ElementKind
 from ..laws import BaseLaw, RuleLaw
+from ..spaces import BaseSpace
 from ..types import SystemViewProtocol
 from ._interaction import Interaction
 
 
 class SatisfiabilityInteraction(Interaction):
-    """Reveal constraints on the Boolean states of a group step by step, and decide them with one incremental solver.
+    """Reveal constraints on the Boolean states of a group and decide them.
 
-    Every step adds the next `reveal` constraints to one PySAT solver, which keeps what it learned, and sets the states
-    of the members to a satisfying assignment when one exists. The interaction reports `satisfiable`, 1 or 0, and
-    `revealed`, the number of active constraints, every step. A state that is not Boolean is reported by the compiler
-    with the code `law-domain`.
+    The constraints come step by step, and one incremental solver decides them. Every step adds the next `reveal`
+    constraints to one PySAT solver, which keeps what it learned, and sets the states of the members to a satisfying
+    assignment when one exists. The interaction reports `satisfiable`, 1 or 0, and `revealed`, the number of active
+    constraints, every step. A state that is not Boolean is reported by the compiler with the code `law-domain`.
 
     Args:
         label:
@@ -69,7 +73,10 @@ class SatisfiabilityInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec(elements=(ElementKind.GROUP, ElementKind.VARIABLE_GROUP), states=('state',))],
+        target: Annotated[
+            str,
+            RoleSpec(elements=(ElementKind.GROUP, ElementKind.VARIABLE_GROUP), states=('state',), domains=('boolean',)),
+        ],
         state: str,
         constraints: Sequence[ClauseSpec | CardinalitySpec],
         reveal: int = 1,
@@ -84,14 +91,18 @@ class SatisfiabilityInteraction(Interaction):
         self.solver = solver
         self.phase = phase
 
-    def _check(self) -> None:
-        """Raise an error for a constraint that is not a spec, or a number revealed per step that is not positive.
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Raise an error for a constraint not a spec, or a bad number revealed per step.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 A constraint is not a spec or the number revealed per step is not positive.
         """
-        super()._check()
+        super()._prepare(context)
         if self.reveal < 1:
             error_msg = f'The satisfiability {self.label!r} has reveal={self.reveal!r}. Reveal at least 1 per step.'
             raise ValidationError(error_msg)
@@ -99,10 +110,13 @@ class SatisfiabilityInteraction(Interaction):
             if not isinstance(constraint, ClauseSpec | CardinalitySpec):
                 error_msg = f'The constraint {constraint!r} of {self.label!r} is no ClauseSpec or CardinalitySpec.'
                 raise ValidationError(error_msg)
-            constraint._validated()
+            constraint._check()
 
     def _add(self, constraint: ClauseSpec | CardinalitySpec, solver: Solver, pool: IDPool) -> None:
-        """Add one constraint to the solver, encoding a cardinality constraint with variables of the shared pool."""
+        """Add one constraint to the solver.
+
+        A cardinality constraint is encoded with variables of the shared pool.
+        """
         if isinstance(constraint, ClauseSpec):
             solver.add_clause(list(constraint.literals))
             return
@@ -111,7 +125,10 @@ class SatisfiabilityInteraction(Interaction):
             solver.add_clause(clause)
 
     def _decide(self, system: SystemViewProtocol) -> None:
-        """Reveal the next constraints, decide them, and set the members to a satisfying assignment when one exists."""
+        """Reveal the next constraints, decide them, and set the members to a solution.
+
+        The solution is a satisfying assignment, set when one exists.
+        """
         agents = system.agents(self._get_role('target'))
         if 'solver' not in system.storage:
             system.storage.update(

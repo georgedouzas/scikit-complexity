@@ -6,16 +6,18 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
-from skcomplex.systems import create_simulation
 from skcomplex.systems.physics.nonlinear_oscillators import (
+    AdlerEquationSystem,
+    ForcedTodaSystem,
+    ForcedVanDerPolSystem,
+    HenonHeilesSystem,
+    ImpulsiveOscillatorSystem,
+    NuclearQuadrupoleSystem,
+    StuartLandauSystem,
     VanDerPolElement,
-    adler_equation,
-    forced_toda,
-    forced_van_der_pol,
-    impulsive_oscillator,
-    stuart_landau,
+    VanDerPolSystem,
 )
 
 from ..conftest import _run, _series, _upward_crossings
@@ -25,7 +27,7 @@ def _run_van_der_pol(**parameters):
     """Return the trajectory of one Van der Pol oscillator over a long run."""
     system = System(elements=[VanDerPolElement('oscillator', **parameters)])
     solver = ScipyODESolver(rtol=1e-9, atol=1e-11)
-    return Simulation(system, dt=0.05, solver=solver).prepare().run(until=100.0).trajectory_
+    return simulate(system, until=100.0, dt=0.05, solver=solver)
 
 
 def test_unforced_oscillator_reaches_its_limit_cycle():
@@ -43,13 +45,13 @@ def test_undamped_forced_oscillator_follows_the_forcing():
 
 def test_van_der_pol_reaches_limit_cycle():
     """Test that the Van der Pol oscillator settles on a cycle of amplitude near 2."""
-    x = create_simulation('van_der_pol').prepare().run().trajectory_.values('oscillator.x')
+    x = simulate(VanDerPolSystem(), random_state=0).values('oscillator.x')
     assert 1.9 < np.abs(x[-200:]).max() < 2.1
 
 
 def test_henon_heiles_conserves_energy():
     """Test that the Hénon-Heiles star keeps its energy within its invariant tolerance."""
-    trajectory = create_simulation('henon_heiles').prepare().run().trajectory_
+    trajectory = simulate(HenonHeilesSystem(), random_state=0)
     x, y, px, py = (trajectory.values(name) for name in ('star.x', 'star.y', 'star.px', 'star.py'))
     energy = (px**2 + py**2 + x**2 + y**2) / 2 + x**2 * y - y**3 / 3
     assert np.abs(energy - energy[0]).max() < 1e-6
@@ -60,7 +62,7 @@ def test_henon_heiles_stays_bounded_below_the_escape_energy():
     """Test that the star started at the energy 1/12 stays bounded to time 1000 within its energy tolerance."""
     y, py = 0.0, 0.0
     px = math.sqrt(2 / 12)
-    trajectory = create_simulation('henon_heiles', x=0.0, y=y, px=px, py=py).prepare().run(until=1000.0).trajectory_
+    trajectory = simulate(HenonHeilesSystem(x=0.0, y=y, px=px, py=py), until=1000.0, random_state=0)
     x, y = (np.asarray(trajectory.values(name)) for name in ('star.x', 'star.y'))
     energy = np.asarray(trajectory.values('star.energy'))
     assert energy[0] == pytest.approx(1 / 12)
@@ -70,7 +72,7 @@ def test_henon_heiles_stays_bounded_below_the_escape_energy():
 
 def test_stuart_landau_settles_on_its_limit_cycle():
     """Test that the Stuart-Landau oscillator settles on the circle of radius `sqrt(mu)`."""
-    trajectory = _run(stuart_landau(mu=0.5, beta=0.5), 40.0, 0.1)
+    trajectory = _run(StuartLandauSystem(mu=0.5, beta=0.5), 40.0, 0.1)
     x, y = _series(trajectory, 'oscillator.x', 'oscillator.y')
     phase = np.unwrap(np.arctan2(y, x))
     assert np.hypot(x, y)[-1] == pytest.approx(math.sqrt(0.5), rel=1e-6)
@@ -79,7 +81,7 @@ def test_stuart_landau_settles_on_its_limit_cycle():
 
 def test_forced_van_der_pol_locks_to_a_strong_force():
     """Test that a strong force entrains the Van der Pol oscillator to its own frequency."""
-    trajectory = _run(forced_van_der_pol(A=1.0, omega=1.1), 120.0, 0.05, solver=ScipyODESolver(rtol=1e-8))
+    trajectory = _run(ForcedVanDerPolSystem(A=1.0, omega=1.1), 120.0, 0.05, solver=ScipyODESolver(rtol=1e-8))
     crossings = _upward_crossings(trajectory.times, _series(trajectory, 'oscillator.x')[0])
     assert np.diff(crossings[-5:]).mean() == pytest.approx(2 * math.pi / 1.1, rel=1e-3)
 
@@ -87,7 +89,7 @@ def test_forced_van_der_pol_locks_to_a_strong_force():
 @pytest.mark.parametrize('detuning', [0.5, 1.5])
 def test_adler_equation_locks_inside_the_tongue_and_slips_outside(detuning):
     """Test that the phase difference locks for `|Δω| < ε` and slips with period `2π / sqrt(Δω² - ε²)` beyond."""
-    trajectory = _run(adler_equation(detuning=detuning), 60.0, 0.05)
+    trajectory = _run(AdlerEquationSystem(detuning=detuning), 60.0, 0.05)
     phi = _series(trajectory, 'difference.phi')[0]
     if detuning < 1:
         assert math.sin(phi[-1]) == pytest.approx(-detuning, abs=1e-6)
@@ -98,7 +100,7 @@ def test_adler_equation_locks_inside_the_tongue_and_slips_outside(detuning):
 
 def test_nuclear_quadrupole_conserves_energy():
     """Test that the quadrupole Hamiltonian stays within its invariant tolerance along a chaotic orbit."""
-    trajectory = create_simulation('nuclear_quadrupole').prepare().run().trajectory_
+    trajectory = simulate(NuclearQuadrupoleSystem(), random_state=0)
     q1, q2, p1, p2 = (np.asarray(trajectory.values(f'nucleus.{name}')) for name in ('q1', 'q2', 'p1', 'p2'))
     q = q1**2 + q2**2
     energy = (q + p1**2 + p2**2) / 2 + 0.5 * q1 * (3 * q2**2 - q1**2) / math.sqrt(2) + q**2 / 8
@@ -109,7 +111,7 @@ def test_nuclear_quadrupole_conserves_energy():
 
 def test_free_toda_oscillator_conserves_energy_and_swings_further_on_the_soft_side():
     """Test that the free Toda oscillator keeps `v² / 2 + e^x - 1 - x` and reaches the turning points of energy 1."""
-    trajectory = _run(forced_toda(x=0.0, v=math.sqrt(2.0), d=0.0, a=0.0), 30.0, 0.01)
+    trajectory = _run(ForcedTodaSystem(x=0.0, v=math.sqrt(2.0), d=0.0, a=0.0), 30.0, 0.01)
     x, v = _series(trajectory, 'toda.x', 'toda.x_d1')
     energy = v**2 / 2 + np.exp(x) - 1 - x
     assert np.ptp(energy) < 1e-8
@@ -119,7 +121,7 @@ def test_free_toda_oscillator_conserves_energy_and_swings_further_on_the_soft_si
 
 def test_forced_toda_oscillator_shifts_its_mean_to_the_soft_side():
     """Test that the driven Toda oscillator oscillates around a negative mean displacement."""
-    trajectory = _run(forced_toda(omega=0.8), 300.0, 0.05)
+    trajectory = _run(ForcedTodaSystem(omega=0.8), 300.0, 0.05)
     x = _series(trajectory, 'toda.x')[0]
     assert x[len(x) // 2 :].mean() < -0.05
 
@@ -128,7 +130,7 @@ def test_impulsive_oscillator_follows_the_exact_periodic_orbit():
     """Test that the default kicked orbit repeats with the period `4 a` and the amplitude `arcsin(sin A sin(a / q))`."""
     amplitude, a = 1.2, 0.4165
     q = math.cos(amplitude)
-    trajectory = _run(impulsive_oscillator(), 3 * 4 * a, 0.001)
+    trajectory = _run(ImpulsiveOscillatorSystem(), 3 * 4 * a, 0.001)
     x, v = _series(trajectory, 'oscillator.x', 'oscillator.x_d1')
     times = np.asarray(trajectory.times)
     assert x.max() == pytest.approx(math.asin(math.sin(amplitude) * math.sin(a / q)), abs=3e-3)
@@ -140,7 +142,7 @@ def test_impulsive_oscillator_follows_the_exact_periodic_orbit():
 
 def test_impulsive_oscillator_shifts_and_scales_the_dipole_impulses():
     """Test that the shift moves the impulses to `(1 - gamma) a` and `(3 + gamma) a` and scales them by `1 - gamma²`."""
-    trajectory = _run(impulsive_oscillator(a=0.5, gamma=0.5, spring='linear'), 1.8, 0.01)
+    trajectory = _run(ImpulsiveOscillatorSystem(a=0.5, gamma=0.5, spring='linear'), 1.8, 0.01)
     pull, push = trajectory.events[:2]
     assert (pull.label, push.label) == ('pull', 'push')
     assert pull.time == pytest.approx(0.25)

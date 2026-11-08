@@ -5,7 +5,7 @@ import time
 
 from skcomplex.core.base import BaseConfig
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import BaseClock, BaseObserver, Simulation
+from skcomplex.core.engine.runtime import BaseClock, BaseObserver, simulate
 from skcomplex.systems.biology.common.populations import PopulationElement
 
 
@@ -41,7 +41,7 @@ def test_verbs_take_one_input():
 def test_observer_receives_every_frame_and_the_end_of_the_run():
     """Test that a simulation prepares an observer, runs it at every frame, and releases it at the end."""
     observer = _TimesObserver()
-    Simulation(System(elements=[PopulationElement('a')]), dt=1, observers=[observer]).prepare().run(until=3)
+    simulate(System(elements=[PopulationElement('a')]), until=3, dt=1, observers=[observer])
     assert observer.times_ == [0.0, 1.0, 2.0, 3.0]
     assert observer.ended_
 
@@ -49,7 +49,7 @@ def test_observer_receives_every_frame_and_the_end_of_the_run():
 def test_observer_verbs_return_the_observer():
     """Test that preparing and running an observer return it."""
     observer = _TimesObserver()
-    problem = Simulation(System(elements=[PopulationElement('a')])).prepare().problem_
+    problem = simulate(System(elements=[PopulationElement('a')]), until=0).problem
     assert observer.prepare(problem) is observer
     assert observer.run(final=True) is observer
     assert observer.ended_

@@ -1,4 +1,7 @@
-"""Charged particle systems: a charge in the magnetic dipole field of a planet."""
+"""Charged particle systems.
+
+The module holds a charge in the magnetic dipole field of a planet.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,22 +15,14 @@ from sage.all__sagemath_symbolics import Expression, sqrt
 from ....core.components.elements import Element
 from ....core.components.interactions import EulerLagrangeInteraction
 from ....core.components.laws.utils import derivative
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
-
-
-def _get_dipole_lagrangian(s: SimpleNamespace) -> Expression:
-    """Return the Lagrangian `|x'|² / 2 + alpha (x y' - y x') / r³` of a charge in a magnetic dipole field."""
-    charge = s.target
-    velocity = [derivative(item, 1) for item in (charge.x, charge.y, charge.z)]
-    radius = sqrt(charge.x**2 + charge.y**2 + charge.z**2)
-    kinetic = sum(item**2 for item in velocity) / 2
-    return kinetic + charge.alpha * (charge.x * velocity[1] - charge.y * velocity[0]) / radius**3
 
 
 class DipoleChargeElement(Element):
-    """Charge in the magnetic dipole field of a planet, at the position `(x, y, z)` with coordinates of order 2.
+    """Charge in the magnetic dipole field of a planet.
+
+    The charge is at the position `(x, y, z)` with coordinates of order 2.
 
     The parameter `alpha` is the product of the charge and the dipole moment, divided by the mass.
 
@@ -90,31 +85,18 @@ class DipoleChargeElement(Element):
         self.alpha = alpha
 
 
-@register_system(
-    field='physics/celestial_mechanics',
-    tags=('mechanics', 'ode', 'second order', 'magnetism', 'chaos', 'hamiltonian'),
-    references=('Störmer 1955', 'Dilão 2023'),
-    defaults={'until': 20.0, 'dt': 0.02},
-)
-def stormer_problem(
-    x: float = 1.0,
-    y: float = 0.0,
-    z: float = 0.0,
-    *,
-    vx: float = 0.0,
-    vy: float = 0.1,
-    vz: float = 0.1,
-    alpha: float = 1.0,
-) -> System:
-    """Return a charged particle moving in the magnetic dipole field of a planet, the Störmer problem.
+class StormerProblemSystem(BaseSystem):
+    """A charged particle moving in the magnetic dipole field of a planet.
+
+    This is the Störmer problem.
 
     The charge follows the Euler-Lagrange equations of `|x'|² / 2 + alpha (x y' - y x') / r³`, the kinetic energy and
-    the coupling of the velocity to the vector potential of the dipole, whose Lorentz force gives
-    `x'' = 3 alpha z (y' z - z' y) / r⁵ - alpha y' / r³`, `y'' = -3 alpha z (x' z - z' x) / r⁵ + alpha x' / r³`,
-    and `z'' = 3 alpha z (x' y - y' x) / r⁵`, with `alpha = q M / m` for a dipole of moment `M` along the `z` axis.
-    The magnetic force does no work, so the speed is conserved, and the symmetry about the axis conserves
-    `x y' - y x' + alpha (x² + y²) / r³`. Bounded orbits near the planet trace the radiation belts, and many of them are
-    chaotic.
+    the coupling of the velocity to the vector potential of the dipole, whose Lorentz force gives `x'' = 3 alpha z (y' z
+    - z' y) / r⁵ - alpha y' / r³`, `y'' = -3 alpha z (x' z - z' x) / r⁵ + alpha x' / r³`, and `z'' = 3 alpha z (x' y -
+    y' x) / r⁵`, with `alpha = q M / m` for a dipole of moment `M` along the `z` axis. The magnetic force does no work,
+    so the speed is conserved, and the symmetry about the axis conserves `x y' - y x' + alpha (x² + y²) / r³`. Bounded
+    orbits near the planet trace the radiation belts, and many of them are chaotic. The system has the coordinates
+    `charge.x`, `charge.y`, and `charge.z`, all of order 2.
 
     Args:
         x:
@@ -138,23 +120,79 @@ def stormer_problem(
         alpha:
             The product of the charge and the dipole moment, divided by the mass.
 
-    Returns:
-        system:
-            The system, with the coordinates `charge.x`, `charge.y`, and `charge.z`, all of order 2.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.celestial_mechanics import stormer_problem
-        >>> stormer_problem(alpha=2.0).elements[0].alpha
+        >>> from skcomplex.systems.physics.celestial_mechanics import StormerProblemSystem
+        >>> StormerProblemSystem(alpha=2.0).prepare().system_.elements[0].alpha
         2.0
     """
-    return System(
-        elements=[DipoleChargeElement('charge', x=x, y=y, z=z, x_d1=vx, y_d1=vy, z_d1=vz, alpha=alpha)],
-        interactions=[
-            EulerLagrangeInteraction(
-                'lorentz',
-                target='charge',
-                states=('x', 'y', 'z'),
-                lagrangian=_get_dipole_lagrangian,
-            ),
-        ],
-    )
+
+    field = 'physics/celestial_mechanics'
+    topics = ('mechanics', 'ode', 'second order', 'magnetism', 'chaos', 'hamiltonian')
+    references = ('Störmer 1955', 'Dilão 2023')
+    until = 20.0
+    dt = 0.02
+
+    def __init__(
+        self,
+        x: float = 1.0,
+        y: float = 0.0,
+        z: float = 0.0,
+        *,
+        vx: float = 0.0,
+        vy: float = 0.1,
+        vz: float = 0.1,
+        alpha: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.x = x
+        self.y = y
+        self.z = z
+        self.vx = vx
+        self.vy = vy
+        self.vz = vz
+        self.alpha = alpha
+
+    @staticmethod
+    def _get_dipole_lagrangian(s: SimpleNamespace) -> Expression:
+        """Return the Lagrangian of a charge in a magnetic dipole field.
+
+        The Lagrangian is `|x'|² / 2 + alpha (x y' - y x') / r³`.
+        """
+        charge = s.target
+        velocity = [derivative(item, 1) for item in (charge.x, charge.y, charge.z)]
+        radius = sqrt(charge.x**2 + charge.y**2 + charge.z**2)
+        kinetic = sum(item**2 for item in velocity) / 2
+        return kinetic + charge.alpha * (charge.x * velocity[1] - charge.y * velocity[0]) / radius**3
+
+    def _build_system(self) -> System:
+        """Return a charged particle moving in the magnetic dipole field of a planet.
+
+        This is the Störmer problem.
+        """
+        return System(
+            self.label,
+            elements=[
+                DipoleChargeElement(
+                    'charge',
+                    x=self.x,
+                    y=self.y,
+                    z=self.z,
+                    x_d1=self.vx,
+                    y_d1=self.vy,
+                    z_d1=self.vz,
+                    alpha=self.alpha,
+                ),
+            ],
+            interactions=[
+                EulerLagrangeInteraction(
+                    'lorentz',
+                    target='charge',
+                    states=('x', 'y', 'z'),
+                    lagrangian=self._get_dipole_lagrangian,
+                ),
+            ],
+        )

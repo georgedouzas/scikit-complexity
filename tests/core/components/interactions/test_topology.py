@@ -13,7 +13,7 @@ from skcomplex.core.components.laws.utils import neighbors, where
 from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime, NetworkSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.runtime import Simulation, Trajectory
+from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.engine.solvers import MesaSolver
 from skcomplex.core.errors import RoleError, SolverError, ValidationError
 from skcomplex.core.specs import RoleSpec, StateSpec, VisualSpec
@@ -94,7 +94,7 @@ def _run(graph: nx.Graph, change: TopologyInteraction, until: float, dt: float =
     nodes = GroupElement('nodes', element=MarkedElement, on='sites', variable=True, capacity=500, values=values)
     links = GroupElement('links', element=Element, on='edges', variable=True, capacity=500)
     system = System(elements=[nodes, links], interactions=[change], space=NetworkSpace(graph))
-    return Simulation(system, dt=dt, random_state=0).prepare().run(until=until).trajectory_
+    return simulate(system, until=until, dt=dt, random_state=0)
 
 
 def _sizes(trajectory: Trajectory, frame: int) -> tuple[int, int]:
@@ -196,8 +196,7 @@ def test_get_laws_add_node_with_a_hyperedge_attaches_a_triangle_per_step(backend
     """Test that 50 nodes added with triangles to one triangle give 51 triangles, each new node in one of them."""
     growth = TopologyInteraction('growth', action='add-node', hyperedge=3)
     ageing = AgeingInteraction('ageing', nodes='nodes', triangles='triangles')
-    simulation = Simulation(_triangles(growth, ageing), backend=backend, random_state=0).prepare()
-    trajectory = simulation.run(until=50).trajectory_
+    trajectory = simulate(_triangles(growth, ageing), until=50, backend=backend, random_state=0)
     network = trajectory.network(-1)
     graph = network.graph()
     assert network.hyperedges.shape == (51, 3)
@@ -219,7 +218,7 @@ def test_get_laws_remove_node_removes_the_hyperedges_that_hold_it():
     )
     system = _triangles(removal)
     system.elements[0].values = {'mark': [1.0, 0.0, 0.0]}
-    trajectory = Simulation(system, random_state=0).prepare().run(until=1).trajectory_
+    trajectory = simulate(system, until=1, random_state=0)
     assert trajectory.network(0).hyperedges.shape == (1, 3)
     assert trajectory.network(1).hyperedges.shape == (0, 3)
 
@@ -228,12 +227,12 @@ def test_get_laws_add_node_with_a_hyperedge_needs_a_hyperedge_group_of_its_size(
     """Test that growth by hyperedges of another size than the group, or without one, is reported."""
     growth = TopologyInteraction('growth', action='add-node', hyperedge=4)
     with pytest.raises(ValidationError, match='size 3'):
-        Simulation(_triangles(growth), random_state=0).prepare()
+        simulate(_triangles(growth), until=0, random_state=0)
     nodes = GroupElement('nodes', element=MarkedElement, on='sites', variable=True, capacity=8)
     links = GroupElement('links', element=Element, on='edges', variable=True, capacity=24)
     system = System(elements=[nodes, links], interactions=[growth], space=NetworkSpace(nx.complete_graph(3)))
     with pytest.raises(ValidationError, match='variable group on its hyperedges'):
-        Simulation(system, random_state=0).prepare()
+        simulate(system, until=0, random_state=0)
 
 
 def test_check_rejects_an_edge_action_without_target():
@@ -306,18 +305,25 @@ def test_get_laws_refuses_a_callable_value_on_a_growing_hypergraph():
     system = _triangles(growth, marking)
     system.time = ContinuousTime()
     with pytest.raises(ValidationError, match='switches off only a symbolic value'):
-        Simulation(system, random_state=0).prepare()
+        simulate(system, until=0, random_state=0)
 
 
-def _grown(change: TopologyInteraction, seeds: int = 80, capacity: int = 200, **arguments: object) -> Simulation:
-    """Return a simulation of an empty network of nodes with evenly spaced marks that a topology change grows."""
+def _grown(
+    change: TopologyInteraction,
+    seeds: int = 80,
+    capacity: int = 200,
+    *,
+    until: float,
+    **arguments: object,
+) -> Trajectory:
+    """Return the trajectory of an empty network of nodes with evenly spaced marks that a topology change grows."""
     marks = np.linspace(0.0, 2 * np.pi, seeds, endpoint=False)
     nodes = GroupElement('nodes', element=MarkedElement, on='sites', variable=True, capacity=capacity)
     nodes = nodes.set_params(values={'mark': marks.tolist()})
     links = GroupElement('links', element=Element, on='edges', variable=True, capacity=3 * capacity)
     space = NetworkSpace(nx.empty_graph(seeds))
     system = System(elements=[nodes, links], interactions=[change], space=space, time=DiscreteTime())
-    return Simulation(system, random_state=0, **arguments).prepare()
+    return simulate(system, until=until, random_state=0, **arguments)
 
 
 def _mark_gaps(trajectory: Trajectory) -> np.ndarray:
@@ -336,7 +342,7 @@ def test_get_laws_add_node_attaches_by_the_drawn_values_of_the_new_node(backend)
         values={'mark': lambda rng: rng.uniform(0.0, 2 * np.pi - 0.1)},
         toward=lambda node: where(abs(node.mark - node.source.mark) <= 0.1, 1, 0),
     )
-    trajectory = _grown(growth, backend=backend).run(until=100).trajectory_
+    trajectory = _grown(growth, backend=backend, until=100)
     gaps = _mark_gaps(trajectory)
     assert gaps.size == 100
     assert (gaps <= 0.1).all()
@@ -349,7 +355,7 @@ def test_get_laws_add_node_weights_differ_without_the_source():
         action='add-node',
         values={'mark': lambda rng: rng.uniform(0.0, 2 * np.pi - 0.1)},
     )
-    assert (_mark_gaps(_grown(growth).run(until=100).trajectory_) > 0.1).any()
+    assert (_mark_gaps(_grown(growth, until=100)) > 0.1).any()
 
 
 def test_get_laws_add_node_condition_reads_the_drawn_values():
@@ -361,7 +367,7 @@ def test_get_laws_add_node_condition_reads_the_drawn_values():
         values={'mark': lambda rng: rng.uniform(0.0, 1.0)},
         condition=lambda s: s.source.mark < 0.5,
     )
-    trajectory = _grown(growth, seeds=1).run(until=100).trajectory_
+    trajectory = _grown(growth, seeds=1, until=100)
     marks = np.asarray(trajectory.values('nodes.mark')[-1])[1:]
     added = marks[~np.isnan(marks)]
     assert 20 < added.size < 80
@@ -377,7 +383,7 @@ def test_get_laws_add_node_probability_reads_the_drawn_values():
         values={'mark': lambda rng: rng.uniform(0.0, 1.0)},
         probability=lambda s: s.source.mark,
     )
-    marks = np.asarray(_grown(growth, seeds=1, capacity=400).run(until=300).trajectory_.values('nodes.mark')[-1])[1:]
+    marks = np.asarray(_grown(growth, seeds=1, capacity=400, until=300).values('nodes.mark')[-1])[1:]
     added = marks[~np.isnan(marks)]
     assert added.mean() == pytest.approx(2 / 3, abs=0.05)
 
@@ -385,7 +391,7 @@ def test_get_laws_add_node_probability_reads_the_drawn_values():
 def test_get_laws_add_node_condition_reads_the_defaults_of_values_not_given():
     """Test that the source of a condition reads the default of a state the action does not draw."""
     growth = TopologyInteraction('growth', action='add-node', edges=0, condition=lambda s: s.source.mark < 0)
-    assert _sizes(_grown(growth, seeds=1).run(until=5).trajectory_, -1) == (1, 0)
+    assert _sizes(_grown(growth, seeds=1, until=5), -1) == (1, 0)
 
 
 def test_get_laws_add_node_target_keeps_the_acting_node_as_the_source_of_the_condition():
@@ -410,7 +416,7 @@ def test_get_laws_add_edge_weight_reads_the_adding_node_as_the_source():
         probability=0.5,
         toward=lambda node: where(abs(node.mark - node.source.mark) <= 0.2, 1, 0),
     )
-    gaps = _mark_gaps(_grown(close).run(until=1).trajectory_)
+    gaps = _mark_gaps(_grown(close, until=1))
     assert gaps.size > 0
     assert (gaps <= 0.2).all()
 
@@ -452,7 +458,7 @@ def test_get_laws_rate_cannot_read_the_new_node():
     links = GroupElement('links', element=Element, on='edges', variable=True, capacity=20)
     system = System(elements=[nodes, links], interactions=[growth], space=NetworkSpace(nx.empty_graph(2)))
     with pytest.raises(ValidationError, match=r'namespace\.source'):
-        Simulation(system, random_state=0).prepare().run(until=2)
+        simulate(system, until=2, random_state=0)
 
 
 def test_get_laws_reduction_cannot_read_the_new_node():
@@ -467,7 +473,7 @@ def test_get_laws_reduction_cannot_read_the_new_node():
     edges = GroupElement('links', element=Element, on='edges', variable=True, capacity=20)
     system = System(elements=[nodes, edges], interactions=[growth], space=NetworkSpace(links), time=DiscreteTime())
     with pytest.raises(ValidationError, match=r'neighbourhood reduction of nodes reads mark_nodes__source'):
-        Simulation(system, random_state=0).prepare()
+        simulate(system, until=0, random_state=0)
 
 
 def test_get_laws_add_node_runs_on_no_mesa_path():
@@ -477,7 +483,7 @@ def test_get_laws_add_node_runs_on_no_mesa_path():
     links = GroupElement('links', element=Element, on='edges', variable=True, capacity=20)
     system = System(elements=[nodes, links], interactions=[growth], space=NetworkSpace(nx.path_graph(4)))
     with pytest.raises(SolverError, match='does not support the laws UpdateLaw'):
-        Simulation(system, solver=MesaSolver(), random_state=0).prepare()
+        simulate(system, until=0, solver=MesaSolver(), random_state=0)
 
 
 def _ranked(*interactions: BaseInteraction, directed: bool = False, capacity: int = 80) -> System:
@@ -498,7 +504,7 @@ def _ranked(*interactions: BaseInteraction, directed: bool = False, capacity: in
 def test_get_laws_add_node_forms_hyperedges_of_every_size_up_to_the_rank(backend):
     """Test that new nodes of hyperedges of two, three, and four members fill a ranked group, padded with -1."""
     growth = [TopologyInteraction(f'growth_{size}', action='add-node', hyperedge=size, edges=0) for size in (2, 3, 4)]
-    trajectory = Simulation(_ranked(*growth), backend=backend, random_state=0).prepare().run(until=10).trajectory_
+    trajectory = simulate(_ranked(*growth), until=10, backend=backend, random_state=0)
     network = trajectory.network(-1)
     sizes = (network.hyperedges >= 0).sum(axis=1)
     assert network.hyperedges.shape == (30, 4)
@@ -518,7 +524,7 @@ def test_get_laws_add_node_joins_independent_ends_both_ways():
         direction='both',
         toward=lambda node: 0.5,
     )
-    trajectory = Simulation(_ranked(growth, directed=True), random_state=0).prepare().run(until=60).trajectory_
+    trajectory = simulate(_ranked(growth, directed=True), until=60, random_state=0)
     network = trajectory.network(-1)
     edges = set(zip(network.sources.tolist(), network.targets.tolist(), strict=True))
     pairs = 65 * 64 / 2 - 5 * 4 / 2
@@ -532,7 +538,7 @@ def test_get_laws_add_hyperedge_and_remove_hyperedge_change_the_hyperedges():
     form = TopologyInteraction('form', target='nodes', action='add-hyperedge', hyperedge=3, probability=0.2)
     dissolve = TopologyInteraction('dissolve', target='triangles', action='remove-hyperedge', probability=0.25)
     system = _triangles(form, dissolve, capacity=200)
-    trajectory = Simulation(system, random_state=0).prepare().run(until=200).trajectory_
+    trajectory = simulate(system, until=200, random_state=0)
     counts = [trajectory.network(frame).hyperedges.shape[0] for frame in range(100, 201)]
     assert np.mean(counts) == pytest.approx(3 * 0.2 / 0.25, rel=0.3)
     network = trajectory.network(-1)
@@ -545,12 +551,12 @@ def test_get_laws_hyperedges_beyond_the_rank_or_interactions_on_a_ranked_group_a
     """Test that a hyperedge larger than the rank and laws per hyperedge on a ranked group are rejected."""
     growth = TopologyInteraction('growth', action='add-node', hyperedge=5, edges=0)
     with pytest.raises(ValidationError, match='rank'):
-        Simulation(_ranked(growth), random_state=0).prepare()
+        simulate(_ranked(growth), until=0, random_state=0)
     system = _ranked(AgeingInteraction('ageing', nodes='nodes', triangles='groups'))
     system.space = NetworkSpace(nx.complete_graph(5), hyperedges=[[0, 1, 2], [1, 2, 3, 4]])
     system.elements[2].size = None
     with pytest.raises(RoleError, match='rank'):
-        Simulation(system, random_state=0).prepare()
+        simulate(system, until=0, random_state=0)
 
 
 def _edges(trajectory: Trajectory, frame: int) -> set[tuple[int, int]]:
@@ -647,7 +653,7 @@ def test_get_laws_one_drawn_member_rejects_a_rate():
     links = GroupElement('links', element=Element, on='edges', variable=True, capacity=10)
     system = System(elements=[nodes, links], interactions=[change], space=NetworkSpace(nx.cycle_graph(5)))
     with pytest.raises(ValidationError, match='one drawn member'):
-        Simulation(system, random_state=0).prepare()
+        simulate(system, until=0, random_state=0)
 
 
 def test_get_laws_add_edge_chooses_the_candidate_of_the_smallest_score():

@@ -1,4 +1,7 @@
-"""Pass that compiles the topology changes, leaving out the compiled stepper loops when laws request them."""
+"""Pass that compiles the topology changes.
+
+It leaves out the compiled stepper loops when laws request them.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,18 +18,15 @@ from ....specs import CapacityRowsSpec, EntrySpec, LayoutSpec, NetworkRowsSpec, 
 from ....specs._weight_spec import _WeightSpec
 from ....types import Array, VariableKind
 from ..._utils import declarations_of, declared_variables, default_of
-from ...problems import (
-    BlockSpec,
-    CompiledRequestSpec,
-    DeclarationsSpec,
-    KernelSpec,
-    LoweredKernelsSpec,
-    OutputSpec,
-    ReductionScheduleSpec,
-)
-from ...problems._declarations_spec import _ACTIVE, ENDS, MEMBERS
+from ...problems._block_spec import BlockSpec
+from ...problems._compiled_request_spec import CompiledRequestSpec
+from ...problems._declarations_spec import _ACTIVE, ENDS, MEMBERS, DeclarationsSpec
 from ...problems._edge_search import EdgeSearch
+from ...problems._kernel_spec import KernelSpec
 from ...problems._law_kernel import LawKernel
+from ...problems._lowered_kernels_spec import LoweredKernelsSpec
+from ...problems._output_spec import OutputSpec
+from ...problems._reduction_schedule_spec import ReductionScheduleSpec
 from ...problems._topology_kernel import TopologyKernel
 from .._base import BasePass
 from .._compilation import Compilation, Laws
@@ -35,7 +35,10 @@ from ._specs import SpecsPass
 
 
 class TopologyFunctionsPass(BasePass):
-    """Pass that compiles the topology changes, leaving out the compiled stepper loops when laws request them."""
+    """Pass that compiles the topology changes.
+
+    It leaves out the compiled stepper loops when laws request them.
+    """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
@@ -65,7 +68,10 @@ class TopologyFunctionsPass(BasePass):
 
     @staticmethod
     def _request_kernel(spec: KernelSpec, value: object, declarations: DeclarationsSpec) -> LawKernel:
-        """Return the kernel of the probability or the weight of a request for every row of its spec."""
+        """Return the kernel of the probability or the weight of a request.
+
+        It is evaluated for every row of its spec.
+        """
         states, parameters = LayoutSpec(tuple(declarations.states)), LayoutSpec(tuple(declarations.parameters))
         expression = SR(value)
         return LawKernel(
@@ -87,7 +93,10 @@ class TopologyFunctionsPass(BasePass):
         weights: dict[tuple[int, bool], LawKernel],
         declarations: DeclarationsSpec,
     ) -> CompiledRequestSpec:
-        """Return a request of a spec with its network, its rows, and the kernels of its weights and its score."""
+        """Return a request of a spec with its network, rows, and kernels.
+
+        The kernels are those of its weights and its score.
+        """
         space, rows = TopologyFunctionsPass._request_network(spec, declarations)
         network = networks.get(id(space))
         if network is None:
@@ -142,10 +151,11 @@ class TopologyFunctionsPass(BasePass):
         hyperedges: CapacityRowsSpec,
         declarations: DeclarationsSpec,
     ) -> None:
-        """Raise an error for a request that forms hyperedges of another size than the rows of the network hold.
+        """Raise an error for a request that forms hyperedges of the wrong size.
 
-        A variable group on hyperedges with a rank holds hyperedges of every size up to it, and one without a rank
-        holds hyperedges of the size of its initial hyperedges.
+        The rows of the network hold hyperedges of another size. A variable group on hyperedges with a rank holds
+        hyperedges of every size up to it, and one without a rank holds hyperedges of the size of its initial
+        hyperedges.
 
         Args:
             spec:
@@ -189,7 +199,10 @@ class TopologyFunctionsPass(BasePass):
         reductions: ReductionScheduleSpec,
         jumps: dict[int, tuple[KernelSpec, TopologyRequestSpec]],
     ) -> TopologyKernel | None:
-        """Return the topology pass of the variable groups of networks and the requests of laws, or `None` if none."""
+        """Return the topology pass of the network groups and law requests, or `None`.
+
+        The groups are the variable groups of networks, and the result is `None` if there are none.
+        """
         networks = TopologyFunctionsPass._networks(declarations)
         if not networks:
             return None
@@ -263,7 +276,10 @@ class TopologyFunctionsPass(BasePass):
 
     @staticmethod
     def _networks(declarations: DeclarationsSpec) -> dict[int, NetworkRowsSpec]:
-        """Return the variable groups of every network whose groups are variable, by the identity of the space."""
+        """Return the variable groups of every network whose groups are variable.
+
+        They are keyed by the identity of the space.
+        """
         spaces = {id(block.node.space): block.node.space for block in declarations.capacity.values()}
         networks = {}
         for key, space in spaces.items():
@@ -304,7 +320,7 @@ class TopologyFunctionsPass(BasePass):
     def _request_network(spec: KernelSpec, declarations: DeclarationsSpec) -> tuple[object, str]:
         """Return the network a request of a spec changes and the rows the spec runs on."""
         if isinstance(spec.pairs, EdgeSearch):
-            source = spec.roles[declarations.blocks[spec.owner].node.component._get_role('source')]
+            source = spec.roles[declarations.blocks[spec.owner].node.as_interaction._get_role('source')]
             if not isinstance(source, str):
                 error_msg = f'The source role of {spec.owner} binds several groups, not the nodes of one network.'
                 raise ValidationError(error_msg)

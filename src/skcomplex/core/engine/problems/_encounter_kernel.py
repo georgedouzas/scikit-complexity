@@ -1,4 +1,7 @@
-"""Encounter law lowered to sparse contractions of the candidate, field, and test densities on activity grids."""
+"""Encounter law lowered to sparse contractions of densities on activity grids.
+
+The densities are the candidate, field, and test densities.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,7 +20,10 @@ from ._expression_printer import ExpressionPrinter
 
 @numba.njit(cache=True)
 def _fused_gain(entries: Indices, weights: Array, f: Array, g: Array, size: int) -> Array:  # pragma: no cover
-    """Return the gain of every outcome activity in one fused loop over the nonzero entries, one column each."""
+    """Return the gain of every outcome activity in one fused loop.
+
+    The loop runs over the nonzero entries, with one column each.
+    """
     gain = np.zeros(size)
     for entry in range(weights.size):
         gain[entries[2, entry]] += weights[entry] * f[entries[0, entry]] * g[entries[1, entry]]
@@ -25,7 +31,9 @@ def _fused_gain(entries: Indices, weights: Array, f: Array, g: Array, size: int)
 
 
 class EncounterKernel(BaseKernel):
-    """Encounter law lowered to sparse contractions of the candidate, field, and test densities on activity grids.
+    """Encounter law lowered to sparse contractions of densities on activity grids.
+
+    The densities are the candidate, field, and test densities.
 
     Args:
         owner:
@@ -92,7 +100,10 @@ class EncounterKernel(BaseKernel):
 
     @functools.cached_property
     def _functions(self) -> dict[int, Callable[..., object]]:
-        """NumPy functions of the selected entries of the tables of expressions, compiled once, by table identity."""
+        """NumPy functions of the selected entries of the tables of expressions.
+
+        They are compiled once, by table identity.
+        """
         return {}
 
     def _values(self, table: TableValuesSpec, p: Array) -> Array:
@@ -110,11 +121,17 @@ class EncounterKernel(BaseKernel):
         return np.asarray(ExpressionPrinter._values_of(computed), dtype=float)
 
     def _field_shape(self) -> tuple[int, int]:
-        """Return the number of candidate classes and of field classes, one class for a redistribution."""
+        """Return the number of candidate classes and of field classes.
+
+        A redistribution has one class.
+        """
         return self.candidate.size // self.positions, max(self.field.size // self.positions, 1)
 
     def _densities(self, x: Array) -> tuple[Array, Array]:
-        """Return the candidate and the field density with one row per position, a field of ones without a field."""
+        """Return the candidate and the field density with one row per position.
+
+        Without a field, the field density is ones.
+        """
         candidates, fields = self._field_shape()
         f = np.reshape(x[self.candidate], (self.positions, candidates))
         return f, (
@@ -135,7 +152,9 @@ class EncounterKernel(BaseKernel):
         return self._values(self.rate, p).reshape(*self._field_shape())
 
     def weights(self, p: Array) -> Array:
-        """Return the rate times the outcome probability of every nonzero entry, `eta[h, k] A[h, k, i]`.
+        """Return the rate times the outcome probability of every nonzero entry.
+
+        The value is `eta[h, k] A[h, k, i]`.
 
         Args:
             p:
@@ -173,7 +192,9 @@ class EncounterKernel(BaseKernel):
         return np.bincount(places.ravel(), gained.ravel(), minlength=self.test.size)
 
     def _loss(self, x: Array, p: Array) -> Array:
-        """Return the rate at which every candidate activity loses particles, `f_h sum_k eta[h, k] g_k`.
+        """Return the rate at which every candidate activity loses particles.
+
+        The rate is `f_h sum_k eta[h, k] g_k`.
 
         Args:
             x:
@@ -190,7 +211,10 @@ class EncounterKernel(BaseKernel):
         return (f * (g @ self.rate_matrix(p).T)).ravel()
 
     def _run(self, inputs: RunStateSpec | None) -> None:
-        """Set the contribution of the encounter to the rate of every state, zero outside its densities."""
+        """Set the contribution of the encounter to the rate of every state.
+
+        It is zero outside its densities.
+        """
         state = self._state_of(inputs)
         x, p = state.x, state.p
         rates = np.zeros(x.size)

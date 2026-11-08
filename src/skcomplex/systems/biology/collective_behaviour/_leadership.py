@@ -1,4 +1,7 @@
-"""Leadership in animal groups: a Couzin shoal in which a few informed individuals steer the group."""
+"""Leadership in animal groups.
+
+A few informed individuals steer a Couzin shoal.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,7 +16,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction, MapInteraction, MovementInteraction
 from ....core.components.spaces import ContinuousSpace, DiscreteTime
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import (
@@ -27,7 +30,6 @@ from ....core.specs import (
     VisualSpec,
 )
 from ....core.types import Array
-from ..._catalog import register_system
 
 
 class ShoalMemberView(AgentView):
@@ -50,7 +52,9 @@ class ShoalMemberView(AgentView):
 
 
 class ShoalMemberElement(Element):
-    """Fish of a Couzin shoal that avoids close neighbours, follows farther ones, and may know a preferred direction.
+    """Fish of a Couzin shoal that avoids close neighbours and follows farther ones.
+
+    It may know a preferred direction.
 
     Every step `SchoolingInteraction` turns a fish toward its desired direction by at most `max_turn`. When neighbours
     lie within the zone of repulsion `alpha`, it points away from them. Otherwise it points toward the neighbours
@@ -142,7 +146,9 @@ class ShoalMemberElement(Element):
 
 
 class SchoolingInteraction(CouplingInteraction):
-    """Couzin's turn of every fish toward a desired direction set by zones around it, by at most `max_turn`.
+    """Couzin's turn of every fish toward a desired direction, by at most `max_turn`.
+
+    Zones around the fish set the desired direction.
 
     When neighbours lie within the zone of repulsion `alpha`, the desired direction points away from them, and
     repulsion overrides the other zones. Otherwise it points toward the neighbours within the zone of interaction `rho`
@@ -189,7 +195,10 @@ class SchoolingInteraction(CouplingInteraction):
         return vector / norm if norm > 0 else vector
 
     def _get_direction(self, agent: ShoalMemberView, other: ShoalMemberView) -> Array:
-        """Return the unit direction from a fish to another along the shortest offset on the torus."""
+        """Return the unit direction from a fish to another.
+
+        It lies along the shortest offset on the torus.
+        """
         size = agent.size
         offset = np.asarray(other.location, dtype=float) - np.asarray(agent.location, dtype=float)
         return self._unit((offset + size / 2) % size - size / 2)
@@ -214,7 +223,10 @@ class SchoolingInteraction(CouplingInteraction):
         reduction: Array | None,
         priority: int | None,
     ) -> Array:
-        """Return the desired direction from repulsion, or from attraction, alignment, and the preferred direction."""
+        """Return the desired direction of a fish.
+
+        It comes from repulsion, or from attraction, alignment, and the preferred direction.
+        """
         fish = cast(ShoalMemberView, agent)
         heading = np.array([fish.vx, fish.vy])
         if reduction is None:
@@ -228,7 +240,9 @@ class SchoolingInteraction(CouplingInteraction):
 
 
 class SwimmingInteraction(MovementInteraction):
-    """Swim of every fish by `speed` along its heading, turned first by its angular noise `deviation`.
+    """Swim of every fish by `speed` along its heading.
+
+    The heading is turned first by its angular noise `deviation`.
 
     The heading `(vx, vy)` stays a unit vector, and the fish moves on the torus of side `size`.
 
@@ -270,7 +284,10 @@ class SwimmingInteraction(MovementInteraction):
 
     @staticmethod
     def _swim(agent: AgentViewProtocol, system: SystemViewProtocol) -> tuple[float, ...]:
-        """Turn the heading of a fish by its angular noise and return its position after one swim."""
+        """Turn the heading of a fish by its angular noise and return its new position.
+
+        The position is the one after one swim.
+        """
         fish = cast(ShoalMemberView, agent)
         angle = math.atan2(fish.vy, fish.vx) + fish.deviation
         fish.vx, fish.vy = math.cos(angle), math.sin(angle)
@@ -278,33 +295,17 @@ class SwimmingInteraction(MovementInteraction):
         return tuple(float(item) for item in np.mod(position, fish.size))
 
 
-def _draw_deviation(agent: ShoalMemberView, system: SystemView) -> float:
-    """Return a Gaussian angular noise of the turn of a fish, of standard deviation `noise`."""
-    return float(system.rng.normal(0.0, agent.noise))
+class CouzinLeadershipSystem(BaseSystem):
+    """The Couzin shoal, in which a small informed minority leads a group.
 
-
-@register_system(
-    field='biology/collective_behaviour',
-    tags=('agents', 'schooling', 'leadership', 'collective decision', 'continuous space'),
-    references=('Couzin et al. 2005', 'Mihailović et al. 2023'),
-    defaults={'until': 300, 'dt': 1},
-)
-def couzin_leadership(
-    n_fish: int = 50,
-    *,
-    informed: float = 0.1,
-    omega: float = 0.5,
-    preferred: float = 0.0,
-    size: float = 100.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the Couzin shoal, in which a small informed minority leads a group that does not know who is informed.
+    The group does not know who is informed.
 
     The fish start in a disk of radius 5 at the center of a torus with random headings, and a fraction `informed` of
     them prefers the direction at the angle `preferred` with the weight `omega`. Repulsion, attraction, and alignment
     keep the shoal together, and the informed fish pull its mean heading toward their direction. The accuracy, the
-    closeness of the group's heading to the preferred direction, grows with the size of the minority, and a minority
-    of about 10% already steers a group of 50.
+    closeness of the group's heading to the preferred direction, grows with the size of the minority, and a minority of
+    about 10% already steers a group of 50. The system has the group `shoal`, the unit headings `vx` and `vy` of its
+    fish, and the weight `omega` of each, positive for the informed ones.
 
     Args:
         n_fish:
@@ -325,47 +326,88 @@ def couzin_leadership(
         random_state:
             The seed or generator of the initial positions and headings.
 
-    Returns:
-        system:
-            The system, with the group `shoal`, the unit headings `vx` and `vy` of its fish, and the weight `omega` of
-            each, positive for the informed ones.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.collective_behaviour import couzin_leadership
-        >>> int((couzin_leadership(20, informed=0.2).elements[0].values['omega'] > 0).sum())
+        >>> from skcomplex.systems.biology.collective_behaviour import CouzinLeadershipSystem
+        >>> int((CouzinLeadershipSystem(20, informed=0.2).prepare().system_.elements[0].values['omega'] > 0).sum())
         4
     """
-    rng = np.random.default_rng(random_state)
-    radius = 5.0 * np.sqrt(rng.uniform(0.0, 1.0, n_fish))
-    place = rng.uniform(0.0, 2 * math.pi, n_fish)
-    headings = rng.uniform(0.0, 2 * math.pi, n_fish)
-    weights = np.zeros(n_fish)
-    weights[: round(informed * n_fish)] = omega
-    locations = size / 2 + np.column_stack([radius * np.cos(place), radius * np.sin(place)])
-    shoal = GroupElement(
-        'shoal',
-        element=ShoalMemberElement,
-        size=n_fish,
-        values={'vx': np.cos(headings), 'vy': np.sin(headings), 'omega': weights, 'preferred': preferred, 'size': size},
-        location=[tuple(point) for point in locations],
-    )
-    return System(
-        elements=[shoal],
-        interactions=[
-            SchoolingInteraction('schooling', target='shoal', phase='turn'),
-            MapInteraction(
-                'deviation',
-                target='shoal',
-                state='deviation',
-                function=_draw_deviation,
-                form='agent',
-                schedule='member',
-                phase='turn',
+
+    field = 'biology/collective_behaviour'
+    topics = ('agents', 'schooling', 'leadership', 'collective decision', 'continuous space')
+    references = ('Couzin et al. 2005', 'Mihailović et al. 2023')
+    until = 300
+    dt = 1
+
+    def __init__(
+        self,
+        n_fish: int = 50,
+        *,
+        informed: float = 0.1,
+        omega: float = 0.5,
+        preferred: float = 0.0,
+        size: float = 100.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_fish = n_fish
+        self.informed = informed
+        self.omega = omega
+        self.preferred = preferred
+        self.size = size
+        self.random_state = random_state
+
+    @staticmethod
+    def _draw_deviation(agent: ShoalMemberView, system: SystemView) -> float:
+        """Return a Gaussian angular noise of the turn of a fish.
+
+        The noise has the standard deviation `noise`.
+        """
+        return float(system.rng.normal(0.0, agent.noise))
+
+    def _build_system(self) -> System:
+        """Return the parts of the Couzin shoal."""
+        rng = np.random.default_rng(self.random_state)
+        radius = 5.0 * np.sqrt(rng.uniform(0.0, 1.0, self.n_fish))
+        place = rng.uniform(0.0, 2 * math.pi, self.n_fish)
+        headings = rng.uniform(0.0, 2 * math.pi, self.n_fish)
+        weights = np.zeros(self.n_fish)
+        weights[: round(self.informed * self.n_fish)] = self.omega
+        locations = self.size / 2 + np.column_stack([radius * np.cos(place), radius * np.sin(place)])
+        shoal = GroupElement(
+            'shoal',
+            element=ShoalMemberElement,
+            size=self.n_fish,
+            values={
+                'vx': np.cos(headings),
+                'vy': np.sin(headings),
+                'omega': weights,
+                'preferred': self.preferred,
+                'size': self.size,
+            },
+            location=[tuple(point) for point in locations],
+        )
+        return System(
+            self.label,
+            elements=[shoal],
+            interactions=[
+                SchoolingInteraction('schooling', target='shoal', phase='turn'),
+                MapInteraction(
+                    'deviation',
+                    target='shoal',
+                    state='deviation',
+                    function=self._draw_deviation,
+                    form='agent',
+                    schedule='member',
+                    phase='turn',
+                ),
+                SwimmingInteraction('swimming', target='shoal', phase='swim'),
+            ],
+            space=ContinuousSpace(extent=(self.size, self.size), boundary='periodic'),
+            time=DiscreteTime(
+                schedule=PhasesScheduleSpec([PhaseSpec('turn', activation='simultaneous'), PhaseSpec('swim')]),
             ),
-            SwimmingInteraction('swimming', target='shoal', phase='swim'),
-        ],
-        space=ContinuousSpace(extent=(size, size), boundary='periodic'),
-        time=DiscreteTime(
-            schedule=PhasesScheduleSpec([PhaseSpec('turn', activation='simultaneous'), PhaseSpec('swim')]),
-        ),
-    )
+        )

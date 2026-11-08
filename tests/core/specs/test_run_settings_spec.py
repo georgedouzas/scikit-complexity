@@ -17,7 +17,7 @@ def test_check_rejects_a_setting_that_is_not_positive(name):
     """Test that a run length, a time step, or a saving interval that is not positive raises an error."""
     values = {'start': 0.0, 'until': 10.0, 'dt': 0.25, 'save_every': 1.0, name: 0.0}
     with pytest.raises(ValidationError, match=name):
-        RunSettingsSpec(**values).prepare()
+        RunSettingsSpec(**values)._check()
 
 
 def test_settings_are_frozen_values():

@@ -1,13 +1,11 @@
-"""Run compiled systems frame by frame, offline, in real time, or in the background."""
+"""Run compiled systems frame by frame, as fast as possible or paced by a clock."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 import math
-import queue
-import threading
 from collections.abc import Callable, Mapping, Sequence
-from typing import Self
+from typing import Self, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -21,9 +19,13 @@ from ...errors import ParameterError, SimulationError, ValidationError
 from ...specs import AgentStateSpec, EntrySpec, ObservableSpec, RunStateSpec, StepSpec, StructureStateSpec
 from ...types import Array, FormKind
 from ..backends import BaseBackend
-from ..compile import BaseCompiler, ObservableEvaluator, PassCompiler
+from ..compile import BaseCompiler
+from ..compile._observables import ObservableEvaluator
+from ..compile._pass_compiler import PassCompiler
+from ..compile._rewriting_compiler import RewritingCompiler
+from ..compile.passes._operator_compiler import OperatorCompiler
 from ..problems import BaseProblemSpec, FrameSpec, ProblemSpec
-from ..solvers import BaseSolver, CoSimulationSolver
+from ..solvers import BaseSolver, CoSimulationSolver, FractionalEulerMaruyamaSolver
 from ..solvers._defaults import DEFAULT_SOLVERS
 from ._as_fast_as_possible import AsFastAsPossibleClock
 from ._base import BaseClock, BaseObserver
@@ -43,10 +45,9 @@ _STEPWISE_FORMS = frozenset(
 class Simulation(BaseConfig[None, float]):
     """Simulation of a system with the solver of its form.
 
-    Each frame advances simulated time by `dt` and is handed to every observer. Parameters can change between
-    frames through `update_parameters`, also while a background run started with `start` is going. Values set
-    between runs stay in force for the later runs of the simulation, and `extend` continues a run from its last
-    frame.
+    Each frame advances simulated time by `dt` and is handed to every observer. Parameters change between frames
+    only through the schedule, whose values are checked against the domains of their parameters, and `extend`
+    continues a run from its last frame.
 
     A simulation composes the pipeline of the engine and follows its common API: `prepare()` validates the system,
     compiles it and chooses the solver, and `run(until)` prepares and runs from time 0 until a time. A run
@@ -59,13 +60,15 @@ class Simulation(BaseConfig[None, float]):
             that change only parameters or initial values.
 
         compiler:
-            The compiler of the system, whose backend, solver, and observables the simulation sets, or `None` for
-            `PassCompiler`. An operator system takes `OperatorCompiler()`, and a system package can bring the compiler
-            of a form of its own, which names the solver of its problems.
+            The compiler of the system, whose backend, solver, and observables the simulation sets, or `None` for the
+            compiler of the library's form that the system holds: the operator compiler for a system of operator
+            elements, the rewriting compiler for a system of words or patches, and the pass compiler otherwise. A
+            system package can bring the compiler of a form of its own, which names the solver of its problems.
 
         solver:
             The solver, or `None` for the solver the compiler names, or else the default solver of the system's form,
-            `CoSimulationSolver` for a system that runs as partitions. The default ODE solver is `ScipyODESolver` with
+            `CoSimulationSolver` for a system that runs as partitions, and `FractionalEulerMaruyamaSolver` for a
+            stochastic system driven by fractional noise. The default ODE solver is `ScipyODESolver` with
             `LSODA`, which switches to BDF methods while the system is stiff.
 
         backend:
@@ -98,8 +101,9 @@ class Simulation(BaseConfig[None, float]):
         schedule:
             A mapping from dotted parameter name to a function of time, such as a ramp of a control parameter. At every
             frame the parameter takes the value of its function at the frame's time and keeps it until the next frame.
-            An adaptive parameter, such as a bounded control input, can be scheduled too, and the trajectory records
-            its scheduled values.
+            A value outside the domain of its parameter, or one that would break a transition or emission matrix,
+            raises an error that names the parameter and the time. An adaptive parameter, such as a bounded control
+            input, can be scheduled too, and the trajectory records its scheduled values.
 
         observables:
             The observables to compute and record at every frame, labelled by their path from the root, such as
@@ -137,7 +141,7 @@ class Simulation(BaseConfig[None, float]):
     Examples:
         >>> from skcomplex.core.components.system import System
         >>> from skcomplex.systems.biology.common.populations import LogisticGrowthInteraction, PopulationElement
-        >>> from skcomplex.core.engine.runtime import Simulation
+        >>> from skcomplex.core.engine.runtime._simulations import Simulation
         >>> system = System(
         ...     elements=[PopulationElement('rabbits', n=10)],
         ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
@@ -183,7 +187,10 @@ class Simulation(BaseConfig[None, float]):
         self.until = until
 
     def _check_dt(self, problem: BaseProblemSpec, until: float) -> float:
-        """Return the time between frames of a run until a time, after validating it for the problem's form."""
+        """Return the time between frames of a run until a time.
+
+        It is validated for the problem's form first.
+        """
         partitions = [item for item in self._partition_problems(problem) if not getattr(item, 'programs', ())]
         forms = {problem.form, *(item.form for item in partitions)}
         stepwise = bool(forms & _STEPWISE_FORMS) or self.stepper_._is_stepwise()
@@ -203,33 +210,13 @@ class Simulation(BaseConfig[None, float]):
             raise ValidationError(error_msg)
         return float(dt)
 
-    def _previous_parameters(self) -> tuple[list[str], Array] | None:
-        """Return the parameter names and values of the previous run of the same system, or `None` without one."""
-        if getattr(self, '_prepared_system', None) is not self.system or not hasattr(self, 'parameters_'):
-            return None
-        problem: BaseProblemSpec = self.problem_
-        return problem.parameters.names, self.parameters_.copy()
-
-    def _check(self) -> None:
-        """Validate the system against the solver, the backend, and the observables, unless it is a compiled problem.
-
-        Raises:
-            ValidationError:
-                The system is not a system or a compiled problem, such as a system name, or it cannot be compiled or
-                run, with every problem found.
-        """
-        if not isinstance(self.system, System | BaseProblemSpec):
-            error_msg = (
-                f'A simulation takes a system or a compiled problem, not {self.system!r}. Create a system of the '
-                'library with `skcomplex.systems.create_system`, or a simulation of it with '
-                '`skcomplex.systems.create_simulation`.'
-            )
-            raise ValidationError(error_msg)
-        if not isinstance(self.system, BaseProblemSpec):
-            self._compiler().prepare(self.system).report_._validated()
-
     def _prepare(self, context: None) -> None:
-        """Compile the system, choose the solver, and gather the clock and the observers of a run.
+        """Compile the system and choose the solver.
+
+        It first validates the system against the solver, the backend, and the observables. A compiled problem is not
+        validated.
+
+        It also gathers the clock and the observers of a run.
 
         Args:
             context:
@@ -238,8 +225,18 @@ class Simulation(BaseConfig[None, float]):
         Raises:
             TypeError:
                 The compiler names an object that is not a solver.
+            ValidationError:
+                The system is not a system or a compiled problem, such as a system name, or it cannot be compiled or
+                run, with every problem found.
         """
-        previous = self._previous_parameters()
+        if not isinstance(self.system, System | BaseProblemSpec):
+            error_msg = (
+                f'A simulation takes a system or a compiled problem, not {self.system!r}. Create a system of the '
+                'library from its class, such as `SIRSystem()`.'
+            )
+            raise ValidationError(error_msg)
+        if not isinstance(self.system, BaseProblemSpec):
+            self._compiler().prepare(self.system).report_._check()
         initial = dict(self.initial_state or {})
         named: object = None
         if isinstance(self.system, BaseProblemSpec):
@@ -251,26 +248,17 @@ class Simulation(BaseConfig[None, float]):
         if named is not None and not isinstance(named, BaseSolver):
             error_msg = f'A compiler names a solver, not a {type(named).__name__}.'
             raise TypeError(error_msg)
-        self._prepared_system = self.system
         self._adaptive = self.problem_.adaptive_parameters
         if self.solver is not None:
             self.stepper_ = self.solver
         else:
-            self.stepper_ = named if named is not None else self._default_solver(self.problem_.form)
+            self.stepper_ = named if named is not None else self._default_solver(self.problem_)
         self.observables_ = ObservableEvaluator(self.problem_).prepare()
         self.clock_ = self.clock if self.clock is not None else AsFastAsPossibleClock()
         self.recorder_ = RecorderObserver() if self.record else None
         monitors = [InvariantObserver(self.invariants)] if self.invariants else []
         self.observers_ = [*monitors, *self.observers, *([self.recorder_] if self.recorder_ is not None else [])]
         self.parameters_ = self.problem_.initial_parameters.copy()
-        if previous is not None and previous[0] == self.problem_.parameters.names:
-            self.parameters_ = previous[1] if previous[1].shape == self.parameters_.shape else self.parameters_
-        self._pending: queue.Queue[tuple[slice, Array]] = queue.Queue()
-        self._stop_requested = threading.Event()
-        self._running = threading.Event()
-        self._running.set()
-        self._thread: threading.Thread | None = None
-        self._error: BaseException | None = None
 
     def _start(self, until: float) -> None:
         """Prepare the solver and the observers for a run from time 0 until a time.
@@ -289,24 +277,36 @@ class Simulation(BaseConfig[None, float]):
             observer.prepare(self.problem_)
 
     def _get_frame_parameters(self) -> npt.NDArray[np.float64]:
-        """Return a copy of the parameters for a frame, shared with the previous frame while they stay the same."""
+        """Return a copy of the parameters for a frame.
+
+        The copy is shared with the previous frame while they stay the same.
+        """
         if self._frame_parameters is None or not np.array_equal(self._frame_parameters, self.parameters_):
             self._frame_parameters = self.parameters_.copy()
         return self._frame_parameters
 
     def _get_frame_state(self) -> Array:
-        """Return the state of a frame, the current state with its algebraic states solved at the current time."""
+        """Return the state of a frame.
+
+        It is the current state with its algebraic states solved at the current time.
+        """
         algebraic = self.problem_.algebraic if isinstance(self.problem_, ProblemSpec) else None
         return self.state_ if algebraic is None else algebraic(self.time_, self.state_, self.parameters_)
 
     def _emit(self, step: int) -> None:
-        """Hand the current frame, with the events since the previous one, to every observer."""
+        """Hand the current frame to every observer.
+
+        The events since the previous frame go with it.
+        """
         external = self.stepper_.snapshot_
         agents, reporters = (external.groups, external.reporters) if isinstance(external, AgentStateSpec) else ({}, {})
         structures = external.structures if isinstance(external, StructureStateSpec) else {}
         reporters = external.reporters if isinstance(external, StructureStateSpec) else reporters
         state = self._get_frame_state()
-        observables = self.observables_.evaluate(self.time_, state, self.parameters_, self.stepper_.agents_.get)
+        observables = cast(
+            dict[str, npt.ArrayLike],
+            self.observables_.evaluate(self.time_, state, self.parameters_, self.stepper_.agents_.get),
+        )
         frame = FrameSpec(
             step,
             self.time_,
@@ -322,17 +322,11 @@ class Simulation(BaseConfig[None, float]):
         for observer in self.observers_:
             observer.run(frame)
 
-    def _apply_pending(self) -> None:
-        """Apply the parameter changes queued since the last frame."""
-        while not self._pending.empty():
-            indices, values = self._pending.get_nowait()
-            self.parameters_[indices] = values
-
     def _loop(self, until: float) -> None:
-        """Advance frame by frame from the current time until `until` or until a stop is requested.
+        """Advance frame by frame from the current time until `until`.
 
-        The stepper runs once per frame, and its last run, at the last frame or after a stop, releases what it acquired,
-        such as an external process.
+        A terminal event stops it earlier. The stepper runs once per frame, and its last run, at the last frame or after
+        a stop, releases what it acquired, such as an external process.
         """
         origin, first = self.time_, self._step
         self.clock_.prepare()
@@ -341,11 +335,7 @@ class Simulation(BaseConfig[None, float]):
             self._emit(0)
         released = False
         try:
-            while self.time_ < until - TIME_TOLERANCE and not self._stop_requested.is_set():
-                self._running.wait()
-                if self._stop_requested.is_set():
-                    break
-                self._apply_pending()
+            while self.time_ < until - TIME_TOLERANCE:
                 self._step += 1
                 target = min(self._step * self.dt_, until)
                 released = target >= until - TIME_TOLERANCE
@@ -369,7 +359,19 @@ class Simulation(BaseConfig[None, float]):
                 observer.run(final=True)
 
     def _apply_schedule(self) -> None:
-        """Set every scheduled parameter and adaptive parameter to the value of its function at the current time."""
+        """Set every scheduled and adaptive parameter to its value at the current time.
+
+        The value is that of its function.
+
+        Raises:
+            ParameterError:
+                A scheduled name is not a parameter of the problem, or the scheduled values would make a transition or
+                emission matrix negative or its rows not sum to 1.
+
+            ValidationError:
+                A scheduled value has the wrong shape or is outside the domain of its parameter.
+        """
+        changes = []
         for name, function in (self.schedule or {}).items():
             if name in self._adaptive:
                 entry, indices = self.problem_.states.locate(name)
@@ -382,14 +384,10 @@ class Simulation(BaseConfig[None, float]):
                 names = ', '.join([*layout.names, *self._adaptive])
                 error_msg = f'No parameter named {name!r} to schedule. Available names are: {names}.'
                 raise ParameterError(error_msg) from error
-            self.parameters_[indices] = self._check_value(name, entry, function(self.time_))
-
-    def _run_in_background(self, until: float) -> None:
-        """Run the loop and keep any error for `wait` to raise."""
-        try:
-            self._loop(until)
-        except Exception as error:
-            self._error = error
+            changes.append((name, indices, self._check_value(name, entry, function(self.time_))))
+        self._check_matrices(changes)
+        for _, indices, value in changes:
+            self.parameters_[indices] = value
 
     def _check_domains(self) -> None:
         """Raise an error when a state has left its domain."""
@@ -403,10 +401,14 @@ class Simulation(BaseConfig[None, float]):
                 raise ValidationError(error_msg)
 
     def _check_value(self, name: str, entry: EntrySpec, value: float | npt.ArrayLike) -> Array:
-        """Return a parameter value broadcast to its entry after checking its domain and shape."""
+        """Return a scheduled value broadcast to its entry.
+
+        Its domain and shape are checked first.
+        """
         error_msg = (
-            f'{name} = {value!r} is not a value of shape {entry.shape}, or of a shape that broadcasts to it, in the '
-            f'domain {entry.domain}. The given value has shape {np.shape(value)}.'
+            f'At t = {self.time_}, the schedule sets {name} = {value!r}, which is not a value of shape {entry.shape}, '
+            f'or of a shape that broadcasts to it, in the domain {entry.domain}. The given value has shape '
+            f'{np.shape(value)}.'
         )
         if not entry.contains(value):
             raise ValidationError(error_msg)
@@ -416,7 +418,7 @@ class Simulation(BaseConfig[None, float]):
             raise ValidationError(error_msg) from error
 
     def _check_matrices(self, changes: list[tuple[str, slice, Array]]) -> None:
-        """Raise an error when parameter changes would break a transition or emission matrix."""
+        """Raise an error for scheduled values that break a transition or emission matrix."""
         problems = (self.problem_, *self._partition_problems(self.problem_))
         matrices = [matrix for problem in problems for matrix in problem.matrices]
         if not matrices:
@@ -432,28 +434,79 @@ class Simulation(BaseConfig[None, float]):
             violation = matrix.run(RunStateSpec(self.time_, self.state_, candidate)).values_ if names else None
             if violation is not None:
                 error_msg = (
-                    f'Setting {", ".join(names)} would make {violation}, so the change is rejected and the parameters '
-                    'keep their values. Choose values that keep every entry nonnegative and every row summing to 1.'
+                    f'At t = {self.time_}, the schedule sets {", ".join(names)}, which would make {violation}. '
+                    'Schedule values that keep every entry nonnegative and every row summing to 1.'
                 )
                 raise ParameterError(error_msg)
 
     def _check_prepared(self) -> None:
-        """Raise an error when the simulation has not been run or started."""
+        """Raise an error when the simulation has not been run."""
         if not hasattr(self, 'problem_'):
-            error_msg = 'The simulation has not been run or started. Call `run` or `start` first.'
+            error_msg = 'The simulation has not been run. Call `run` first.'
             raise SimulationError(error_msg)
 
     def _compiler(self) -> BaseCompiler:
-        """Return a copy of the compiler with the backend, the solver, and the observables of the simulation."""
-        compiler = PassCompiler() if self.compiler is None else clone(self.compiler)
+        """Return a copy of the compiler with the settings of the simulation.
+
+        The settings are the backend, the solver, and the observables.
+        """
+        if self.compiler is not None:
+            compiler = clone(self.compiler)
+        elif isinstance(self.system, System):
+            compiler = self._default_compiler(self.system) or PassCompiler()
+        else:
+            compiler = PassCompiler()
         return compiler.set_params(backend=self.backend, solver=self.solver, observables=self.observables)
 
-    def _default_solver(self, form: FormKind | str) -> BaseSolver:
-        """Return the default solver of a form, `CoSimulationSolver` for a problem that runs as partitions."""
+    @staticmethod
+    def _default_compiler(system: System) -> BaseCompiler | None:
+        """Return the compiler of the library's form that a system holds.
+
+        It returns `None` for the pass compiler.
+
+        Args:
+            system:
+                The system.
+
+        Returns:
+            compiler:
+                The operator compiler for a system of operator elements, the rewriting compiler for a system of words
+                or patches, or `None` for any other system.
+        """
+        if OperatorCompiler._contains_operator(system):
+            return OperatorCompiler()
+        if RewritingCompiler._is_rewriting(system):
+            return RewritingCompiler()
+        return None
+
+    def _default_solver(self, problem: BaseProblemSpec) -> BaseSolver:
+        """Return the default solver of the form of a problem.
+
+        A problem that runs as partitions takes `CoSimulationSolver`, and a stochastic problem driven by fractional
+        noise takes `FractionalEulerMaruyamaSolver`, which draws the correlated increments that the default
+        `EulerMaruyamaSolver` does not.
+
+        Args:
+            problem:
+                The compiled problem.
+
+        Returns:
+            solver:
+                The default solver.
+
+        Raises:
+            ValidationError:
+                The form of the problem has no default solver.
+        """
+        form = problem.form
         if not isinstance(form, FormKind):
             error_msg = f'The {form} form has no default solver. Give a solver, or a compiler that names one.'
             raise ValidationError(error_msg)
-        return CoSimulationSolver() if form == FormKind.COUPLED else DEFAULT_SOLVERS[form]()
+        if form == FormKind.COUPLED:
+            return CoSimulationSolver()
+        if form == FormKind.SDE and isinstance(problem, ProblemSpec) and problem.fractional:
+            return FractionalEulerMaruyamaSolver()
+        return DEFAULT_SOLVERS[form]()
 
     def prepare(self, context: None = None) -> Self:
         """Compile the system of the checked simulation and choose the solver.
@@ -469,7 +522,7 @@ class Simulation(BaseConfig[None, float]):
         return super().prepare(context)
 
     def run(self, until: float | None = None, final: bool = False) -> Self:
-        """Run the prepared simulation from time 0 to `until` in the calling thread.
+        """Run the prepared simulation from time 0 to `until`.
 
         Args:
             until:
@@ -492,11 +545,9 @@ class Simulation(BaseConfig[None, float]):
         return self
 
     def _run(self, inputs: float | None) -> None:
-        """Run the prepared simulation from time 0 to `until` in the calling thread.
+        """Run the prepared simulation from time 0 to `until`.
 
-        The run starts from the initial state and keeps the parameter values of the previous run of the same system,
-        such as values set with `update_parameters` between runs, and `clone(simulation).prepare().run(until)` starts
-        afresh.
+        The run starts from the initial state and the initial parameter values.
 
         Args:
             inputs:
@@ -515,10 +566,10 @@ class Simulation(BaseConfig[None, float]):
         self._loop(until)
 
     def extend(self, until: float) -> Self:
-        """Continue a finished run from its last frame to `until` in the calling thread.
+        """Continue a finished run from its last frame to `until`.
 
-        The run keeps its state, parameters, stepper, clock, observers, and frame duration, applies pending parameter
-        changes, and appends its frames to the trajectory. A solver that closes an external process at the end of a
+        The run keeps its state, parameters, stepper, clock, observers, schedule, and frame duration, and appends its
+        frames to the trajectory. A solver that closes an external process at the end of a
         run, such as `LammpsSolver`, cannot continue it.
 
         Args:
@@ -531,19 +582,18 @@ class Simulation(BaseConfig[None, float]):
 
         Raises:
             SimulationError:
-                The simulation has not run, is running in the background, ended at a terminal event, or `until` is not
-                later than its time.
+                The simulation has not run, ended at a terminal event, or `until` is not later than its time.
 
         Examples:
             >>> from skcomplex.core.components.system import System
             >>> from skcomplex.systems.biology.common.populations import LogisticGrowthInteraction, PopulationElement
-            >>> from skcomplex.core.engine.runtime import Simulation
+            >>> from skcomplex.core.engine.runtime._simulations import Simulation
             >>> system = System(
             ...     elements=[PopulationElement('rabbits', n=10)],
             ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
             ... )
-            >>> simulation = Simulation(system, dt=1.0).prepare().run(until=5)
-            >>> simulation.update_parameters({'growth.r': 0.0})
+            >>> schedule = {'growth.r': lambda t: 1.0 if t < 5 else 0.0}
+            >>> simulation = Simulation(system, dt=1.0, schedule=schedule).prepare().run(until=5)
             >>> trajectory = simulation.extend(until=10).trajectory_
             >>> trajectory.times.tolist()
             [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]
@@ -554,103 +604,14 @@ class Simulation(BaseConfig[None, float]):
         if not hasattr(self, 'time_'):
             error_msg = 'The simulation has been prepared but not run. Call `run` before `extend`.'
             raise SimulationError(error_msg)
-        if self._thread is not None and self._thread.is_alive():
-            error_msg = 'The simulation is running in the background. Call `wait` or `stop` before `extend`.'
-            raise SimulationError(error_msg)
         if not until > self.time_ + TIME_TOLERANCE:
             error_msg = f'Cannot extend the run to t = {until}, which is not later than its current time {self.time_}.'
             raise SimulationError(error_msg)
         if self.stepper_.stopped_at_ is not None:
             error_msg = f'A terminal event ended the run at t = {self.time_}, so it cannot be extended.'
             raise SimulationError(error_msg)
-        self._stop_requested.clear()
-        self._running.set()
         self._loop(until)
         return self
-
-    def start(self, until: float = math.inf) -> Self:
-        """Start the simulation from time 0 in a background thread.
-
-        Args:
-            until:
-                The simulated time to stop at. The default runs until `stop` is called.
-
-        Returns:
-            simulation:
-                The simulation itself.
-        """
-        self.prepare()
-        self._start(until)
-        self._thread = threading.Thread(target=self._run_in_background, args=(until,), daemon=True)
-        self._thread.start()
-        return self
-
-    def pause(self) -> None:
-        """Pause a background run before its next frame."""
-        self._check_prepared()
-        self._running.clear()
-
-    def resume(self) -> None:
-        """Resume a paused background run."""
-        self._check_prepared()
-        self._running.set()
-
-    def wait(self, timeout: float | None = None) -> None:
-        """Wait for a background run to finish and raise any error it met.
-
-        Args:
-            timeout:
-                The longest time in seconds to wait, or `None` to wait until the run ends.
-
-        Raises:
-            BaseException:
-                The error that ended the background run, if any.
-        """
-        self._check_prepared()
-        if self._thread is not None:
-            self._thread.join(timeout)
-        if self._error is not None:
-            error, self._error = self._error, None
-            raise error
-
-    def stop(self) -> None:
-        """Stop a background run after its current frame and wait for its thread to end."""
-        self._check_prepared()
-        self._stop_requested.set()
-        self._running.set()
-        self.wait()
-
-    def update_parameters(self, values: Mapping[str, float | npt.ArrayLike]) -> None:
-        """Set parameter values by dotted name, applied before the next frame.
-
-        Args:
-            values:
-                A mapping from dotted parameter name, such as `growth.r`, or name of one component, such as
-                `regulation.weights[1]`, to its new value.
-
-        Raises:
-            ParameterError:
-                A name is not a parameter or a parameter component of the problem, or a value would make a
-                transition or emission matrix negative or its rows not sum to 1.
-
-            ValidationError:
-                A value has the wrong shape or is outside the domain of its parameter.
-        """
-        self._check_prepared()
-        layout = self.problem_.parameters
-        changes = []
-        for name, value in values.items():
-            try:
-                entry, indices = layout.locate(name)
-            except KeyError as error:
-                error_msg = f'No parameter named {name!r}. Available names are: {", ".join(layout.names)}.'
-                raise ParameterError(error_msg) from error
-            changes.append((name, indices, self._check_value(name, entry, value)))
-        self._check_matrices(changes)
-        for _, indices, value in changes:
-            self._pending.put((indices, value))
-        if self._thread is None or not self._thread.is_alive():
-            self._apply_pending()
 
     @property
     def trajectory_(self) -> Trajectory:
@@ -663,12 +624,18 @@ class Simulation(BaseConfig[None, float]):
 
     @staticmethod
     def _partition_problems(problem: BaseProblemSpec) -> tuple[BaseProblemSpec, ...]:
-        """Return the problems of the partitions of a compiled problem, none for a problem without partitions."""
+        """Return the problems of the partitions of a compiled problem.
+
+        A problem without partitions gives none.
+        """
         return problem.partition_problems
 
     @staticmethod
     def _default_dt(until: float) -> float:
-        """Return the smallest of 0.01, 0.02, 0.05, 0.1, and so on, that keeps a run until a time within 1000 frames."""
+        """Return the smallest round time step that keeps a run within 1000 frames.
+
+        The candidates are 0.01, 0.02, 0.05, 0.1, and so on, for a run until a time.
+        """
         if not math.isfinite(until):
             return _DEFAULT_DT
         exponent = round(math.log10(_DEFAULT_DT))

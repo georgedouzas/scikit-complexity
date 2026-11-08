@@ -17,7 +17,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import delayed
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
 
@@ -49,7 +49,7 @@ class MackeyGlassElement(Element):
 
 
 cells = System(elements=[MackeyGlassElement('cells')])
-round(float(Simulation(cells, dt=0.5).prepare().run(until=300).trajectory_.values('cells.x')[-1]), 3)
+round(float(simulate(cells, until=300, dt=0.5).values('cells.x')[-1]), 3)
 ```
 
 - The delay is a constant or depends on the state.
@@ -69,7 +69,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import CrossingLaw, RateLaw
 from skcomplex.core.components.laws.utils import derivative
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
 
@@ -92,7 +92,7 @@ class BallElement(Element):
         return [RateLaw(s.h, -s.g), CrossingLaw(s.h, bounce, direction=-1, label='impact')]
 
 
-trajectory = Simulation(System(elements=[BallElement('ball')]), dt=0.01).prepare().run(until=3).trajectory_
+trajectory = simulate(System(elements=[BallElement('ball')]), until=3, dt=0.01)
 [round(event.time, 6) for event in trajectory.events]
 ```
 
@@ -116,7 +116,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import step
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
 
@@ -136,7 +136,7 @@ class FilterElement(Element):
         return [RateLaw(s.y, -s.k * s.y + step(s.t, 5.0))]
 
 
-filtered = Simulation(System(elements=[FilterElement('filter')]), dt=0.5).prepare().run(until=10).trajectory_
+filtered = simulate(System(elements=[FilterElement('filter')]), until=10, dt=0.5)
 round(float(filtered.values('filter.y')[-1]), 4)
 ```
 
@@ -155,7 +155,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import NoiseLaw, RateLaw
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import MilsteinSolver
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
@@ -179,7 +179,7 @@ class GrowthElement(Element):
 
 
 growth = System(elements=[GrowthElement('asset')])
-round(float(Simulation(growth, solver=MilsteinSolver(dt=0.01), random_state=0).prepare().run(until=1).state_[0]), 3)
+round(float(simulate(growth, until=1, solver=MilsteinSolver(dt=0.01), random_state=0).states[-1][0]), 3)
 ```
 
 The compiler adds the drift correction `α g ∂g/∂x`, with `α = 1/2` for Stratonovich and `1` for anti-Itô. So every SDE
@@ -203,7 +203,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import NoiseLaw
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.specs import RoleSpec, StateSpec, WienerProcessSpec
 
@@ -238,7 +238,7 @@ market = System(
     interactions=[CorrelatedNoiseInteraction('drive', first='a', second='b', noise=processes)],
 )
 solver = EulerMaruyamaSolver(dt=1.0)
-trajectory = Simulation(market, solver=solver, dt=1.0, random_state=0).prepare().run(until=2000).trajectory_
+trajectory = simulate(market, until=2000, solver=solver, dt=1.0, random_state=0)
 round(float(np.corrcoef(np.diff(trajectory.values('a.n')), np.diff(trajectory.values('b.n')))[0, 1]), 1)
 ```
 
@@ -280,7 +280,7 @@ from skcomplex.core.components.laws import NoiseLaw, RateLaw
 from skcomplex.core.components.laws.utils import laplacian
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
@@ -305,7 +305,7 @@ class DensityElement(Element):
 
 gas = System(elements=[FieldElement('gas', element=DensityElement, space=LatticeSpace((16, 16)))])
 solver = EulerMaruyamaSolver(dt=0.01)
-density = Simulation(gas, solver=solver, random_state=0).prepare().run(until=5).trajectory_.values('gas.rho')
+density = simulate(gas, until=5, solver=solver, random_state=0).values('gas.rho')
 round(float(density[-1].sum()), 6), bool(density[-1].std() > 0)
 ```
 
@@ -331,19 +331,30 @@ Solvers and backends declare the noise structures they draw.
 
 `EulerMaruyamaSolver`, `HeunSolver`, and the NumPy and Numba backends support all four. `MilsteinSolver`, whose
 derivative-free correction holds for diagonal noise only, and `LammpsSolver` support diagonal noise. Validation
-reports a system with shared, correlated, or conserved noise for them before compiling it. The compatibility page lists
-the declarations.
+reports a system with shared, correlated, or conserved noise for them before compiling it. The [solvers page](../../../parts/solvers.md)
+lists their supported tags.
 
 SciPy, RK4, Euler-Maruyama, Milstein, and Heun handle delays, events, and drivers. Velocity Verlet, Gillespie, and map
 iteration reject delays and events, with an error that names the solvers to use.
 
 ## Ready-made systems with delays and events
 
-The catalog has these systems ready.
+These ready-made systems use delays, events, drivers, or noise. Each is a class of the subfield of
+`skcomplex.systems` in brackets.
 
-- Delays, events, and drivers: `mackey_glass` in physiology, `hutchinson` in ecology, `integrate_and_fire` and
-  `izhikevich` in neuroscience, `delayed_kuramoto` in synchronization, `stochastic_resonance` and `brownian_near_wall`
-  in soft matter, and `bouncing_ball`, `newtons_cradle`, and `circular_billiard` in mechanics.
+- Delays, events, and drivers: `MackeyGlassSystem` (`biology.physiology`), `HutchinsonSystem` (`biology.ecology`),
+  `IntegrateAndFireSystem` and `IzhikevichSystem` (`biology.neuroscience`), `DelayedKuramotoSystem`
+  (`physics.synchronization`), `StochasticResonanceSystem` and `BrownianNearWallSystem` (`physics.soft_matter`), and
+  `BouncingBallSystem`, `NewtonsCradleSystem`, and `CircularBilliardSystem` (`physics.mechanics`).
 - Noise: `BindingInteraction` and `DissociationInteraction` take `langevin=True` for chemical Langevin equations, as in
-  `chemical_langevin_network`. `correlated_geometric_brownian_motion` drives two assets with correlated processes, and
-  `active_system_b` and `cahn_hilliard` with a `temperature` take conserved noise.
+  `ChemicalLangevinNetworkSystem` (`chemistry.kinetics`). `CorrelatedGeometricBrownianMotionSystem`
+  (`economics.finance`) drives two assets with correlated processes, and `ActiveSystemBSystem`
+  (`physics.active_matter`) and `CahnHilliardSystem` (`physics.pattern_formation`) with a `temperature` take conserved
+  noise.
+
+```python
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.physics.mechanics import BouncingBallSystem
+
+len(simulate(BouncingBallSystem()).events) > 0
+```

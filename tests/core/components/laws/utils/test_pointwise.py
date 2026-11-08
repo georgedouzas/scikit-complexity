@@ -11,7 +11,7 @@ from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import clip, hill, logistic, sign
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import PassCompiler
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.specs import StateSpec, VisualSpec
 
 BACKENDS = (NumpyBackend(), NumbaBackend())

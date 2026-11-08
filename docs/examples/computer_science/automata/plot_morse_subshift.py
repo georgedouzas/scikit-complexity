@@ -13,15 +13,14 @@ not sofic, whose words are the factors of the generations.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.compile import RewritingCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.computer_science.automata import MorseSubshiftSystem
 
 SYSTEM = 'morse_subshift'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(create_system(SYSTEM), observers=[observer], compiler=RewritingCompiler()).prepare().run(12)
+trajectory = simulate(MorseSubshiftSystem(), until=12, observers=[observer])
 
 # %%
 # Factor complexity
@@ -30,7 +29,7 @@ simulation = Simulation(create_system(SYSTEM), observers=[observer], compiler=Re
 # factors: the number of distinct words of length `m` in the Thue-Morse sequence stays below `10 m / 3`, far below the
 # `2^m` of the full shift, so the entropy `log p(m) / m` falls to 0.
 
-word = ''.join(str(code) for code in simulation.trajectory_.structure('morse', 12).codes)
+word = ''.join(str(code) for code in trajectory.structure('morse', 12).codes)
 parities = ''.join(str(bin(k).count('1') % 2) for k in range(len(word)))
 lengths = np.arange(1, 40)
 factors = np.array([len({word[start : start + m] for start in range(len(word) - m + 1)}) for m in lengths])

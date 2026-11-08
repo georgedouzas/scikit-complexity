@@ -7,7 +7,7 @@ to one color with a few short-lived flips of single spins.
 """
 
 # %%
-# The system is created by name from the catalog with 200 spins at `T = 0.5 J`, starting from random spins. One unit
+# The system is built from its class with 200 spins at `T = 0.5 J`, starting from random spins. One unit
 # of time is one attempted flip per spin. The observer saves every frame with the default blueprint, whose primary
 # view is the space-time image of the spins.
 
@@ -15,25 +15,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import brentq
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.physics.statistical_mechanics import CurieWeissSystem
 
 SYSTEM = 'curie_weiss'
 
-system = create_system(SYSTEM, n_spins=200, temperature=0.5)
+system = CurieWeissSystem(n_spins=200, temperature=0.5)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = (
-    Simulation(
-        system,
-        dt=0.2,
-        observers=[observer],
-        random_state=0,
-        observables=describe(SYSTEM).observables_of(system),
-    )
-    .prepare()
-    .run(until=30)
-)
+trajectory = simulate(system, dt=0.2, observers=[observer], random_state=0)
 
 # %%
 # Magnetization against temperature
@@ -54,16 +44,12 @@ def mean_field_magnetization(temperature):
 temperatures = np.linspace(0.4, 1.6, 9)
 measured = []
 for temperature in temperatures:
-    ordered = create_system(SYSTEM, n_spins=1000, temperature=temperature, initial='up')
-    run = (
-        Simulation(ordered, dt=1.0, random_state=0, observables=describe(SYSTEM).observables_of(ordered))
-        .prepare()
-        .run(until=40)
-    )
-    measured.append(np.abs(run.trajectory_.values('magnetization')[10:]).mean())
+    ordered = CurieWeissSystem(n_spins=1000, temperature=temperature, initial='up')
+    run = simulate(ordered, until=40, dt=1.0, random_state=0)
+    measured.append(np.abs(run.values('magnetization')[10:]).mean())
 grid = np.linspace(0.3, 1.7, 200)
 fig, (series, curve) = plt.subplots(1, 2, figsize=(10, 4))
-series.plot(simulation.trajectory_.times, simulation.trajectory_.values('magnetization'))
+series.plot(trajectory.times, trajectory.values('magnetization'))
 series.axhline(mean_field_magnetization(0.5), color='black', linestyle='--', label='root of m = tanh(2 m)')
 series.set_xlabel('time')
 series.set_ylabel('magnetization')

@@ -18,7 +18,9 @@ from .....core.specs import ParameterSpec, RoleSpec
 
 
 class KuramotoCouplingInteraction(CouplingInteraction):
-    """Kuramoto coupling `theta_i' += K sum_j sin(theta_j - theta_i - alpha)` of the phases of a group.
+    """Kuramoto coupling `theta_i' += K sum_j sin(theta_j - theta_i - alpha)`.
+
+    The coupling acts on the phases of a group.
 
     The sum, or the mean, runs over the members `j` that the mode selects: the neighbours along the edges of a lattice
     or network, or within a neighbourhood such as `RadiusNeighborhood(r)`, every other member of the group, every member
@@ -70,15 +72,15 @@ class KuramotoCouplingInteraction(CouplingInteraction):
         >>> import numpy as np
         >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.systems.physics.common.oscillators import (
         ...     KuramotoCouplingInteraction,
         ...     PhaseOscillatorElement,
         ... )
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> phases = GroupElement('phases', element=PhaseOscillatorElement, size=4, values={'theta': [0, 1, 2, 3]})
         >>> coupling = KuramotoCouplingInteraction('coupling', target='phases', K=2.0, mode='group', reduce='mean')
         >>> system = System(elements=[phases], interactions=[coupling])
-        >>> theta = Simulation(system, dt=1.0).prepare().run(until=20.0).trajectory_.values('phases.theta')
+        >>> theta = simulate(system, until=20.0, dt=1.0).values('phases.theta')
         >>> round(float(np.ptp(theta[-1])), 6)
         0.0
     """
@@ -125,7 +127,10 @@ class KuramotoCouplingInteraction(CouplingInteraction):
         return namespace.K * sin(other - member - namespace.alpha)
 
     def _get_group_reduction(self, namespace: SimpleNamespace) -> Target:
-        """Return the reduction over the group, from the group sums of `sin theta` and `cos theta` when it can."""
+        """Return the reduction over the group.
+
+        The reduction uses the group sums of `sin theta` and `cos theta` when it can.
+        """
         if self.weights is not None or self.delay != 0:
             return super()._get_group_reduction(namespace)
         source, target = namespace.source, namespace.target

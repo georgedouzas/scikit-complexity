@@ -15,13 +15,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.social.opinion_dynamics import JoinAClubSystem
 
 SYSTEM = 'join_a_club'
 
-system = create_system(SYSTEM)
+system = JoinAClubSystem()
 # The graph view lays out the nodes of a changing network by forces, which these settings keep compact and centred.
 blueprint = rrb.Blueprint(
     rrb.GraphView(
@@ -38,7 +38,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=150)
+trajectory = simulate(system, observers=[observer], random_state=0)
 
 # %%
 # Order against coupling
@@ -50,7 +50,7 @@ simulation = Simulation(system, observers=[observer], random_state=0).prepare().
 betas = np.linspace(0.0, 0.6, 7)
 order, crossing, mixed = [], [], []
 for beta in betas:
-    run = Simulation(create_system(SYSTEM, beta=beta), dt=10.0, random_state=2).prepare().run(until=150).trajectory_
+    run = simulate(JoinAClubSystem(beta=beta), dt=10.0, random_state=2)
     members = run.values('voters.opinion')[-1]
     snapshot = run.network(-1)
     order.append(abs(2 * members.mean() - 1))

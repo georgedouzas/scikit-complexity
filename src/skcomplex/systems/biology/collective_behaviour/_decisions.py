@@ -1,4 +1,4 @@
-"""Collective behaviour systems: collective decisions through stigmergy and contagion."""
+"""Collective decisions through stigmergy and contagion."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,16 +12,17 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import CompartmentElement
 from ....core.components.interactions import ReactionInteraction
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Stoichiometry
-from ..._catalog import register_system
 
 MODES = {False: 'rate', True: 'jump'}
 
 
 class BranchElement(CompartmentElement):
-    """Branch of a path that ants can take, holding the number `n` of pheromone marks left by the ants that took it.
+    """Branch of a path that ants can take, holding its number `n` of pheromone marks.
+
+    The marks are the ones left by the ants that took the branch.
 
     Args:
         label:
@@ -79,7 +80,9 @@ class RatsElement(CompartmentElement):
 
 
 class TrailChoiceInteraction(ReactionInteraction):
-    """Choice of a branch by arriving ants, with Deneubourg's probability `(k + n)^h / ((k + n)^h + (k + n')^h)`.
+    """Choice of a branch by arriving ants, with Deneubourg's probability.
+
+    The probability is `(k + n)^h / ((k + n)^h + (k + n')^h)`.
 
     Ants arrive at the fork at rate `flux`, and each takes the chosen branch with a probability that grows with its
     marks `n` against the marks `n'` of the other branch, and marks it. It is a `ReactionInteraction` that produces one
@@ -110,11 +113,11 @@ class TrailChoiceInteraction(ReactionInteraction):
 
     Examples:
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.systems.biology.collective_behaviour import BranchElement, TrailChoiceInteraction
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> choice = TrailChoiceInteraction('choice', chosen='left', other='right', stochastic=False)
         >>> system = System(elements=[BranchElement('left'), BranchElement('right')], interactions=[choice])
-        >>> trajectory = Simulation(system, dt=0.1).prepare().run(until=2.0).trajectory_
+        >>> trajectory = simulate(system, until=2.0, dt=0.1)
         >>> round(float(trajectory.values('left.n')[-1]), 3)
         1.025
     """
@@ -139,19 +142,30 @@ class TrailChoiceInteraction(ReactionInteraction):
         self.stochastic = stochastic
 
     def _get_products(self) -> Stoichiometry:
-        """Return the marks `n` of the chosen branch, which every choice adds one to."""
+        """Return the marks `n` of the chosen branch.
+
+        Every choice adds one to them.
+        """
         return {(self.chosen, 'n'): 1}
 
     def _get_modifiers(self) -> Stoichiometry:
-        """Return the marks `n` of the other branch, which the choice reads."""
+        """Return the marks `n` of the other branch.
+
+        The choice reads them.
+        """
         return {(self.other, 'n'): 1}
 
     def _get_mode(self) -> str:
-        """Return the mode of the reaction, random events when stochastic and a rate equation otherwise."""
+        """Return the mode of the reaction.
+
+        The mode is random events when stochastic and a rate equation otherwise.
+        """
         return MODES[self.stochastic]
 
     def _get_rate(self, namespace: SimpleNamespace) -> Expression:
-        """Return the rate of ants that choose the branch, `flux` times Deneubourg's probability.
+        """Return the rate of ants that choose the branch.
+
+        The rate is `flux` times Deneubourg's probability.
 
         Args:
             namespace:
@@ -168,7 +182,9 @@ class TrailChoiceInteraction(ReactionInteraction):
 
 
 class AlarmInteraction(ReactionInteraction):
-    """Calm rats that turn nervous on their own or by meeting nervous rats, at the alarm propensity.
+    """Calm rats that turn nervous on their own or by meeting nervous rats.
+
+    They turn nervous at the alarm propensity.
 
     A calm rat turns nervous at rate `spontaneous + contagion * nervous / N`, where `N` is the total number of rats, so
     the propensity of the reaction calm to nervous is that rate times the calm rats. It is a `ReactionInteraction` that
@@ -195,12 +211,12 @@ class AlarmInteraction(ReactionInteraction):
 
     Examples:
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.systems.biology.collective_behaviour import AlarmInteraction, RatsElement
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> alarm = AlarmInteraction('alarm', calm='calm', nervous='nervous', stochastic=False)
         >>> rats = [RatsElement('calm', n=90.0), RatsElement('nervous', n=10.0)]
         >>> system = System(elements=rats, interactions=[alarm])
-        >>> trajectory = Simulation(system, dt=0.1).prepare().run(until=5.0).trajectory_
+        >>> trajectory = simulate(system, until=5.0, dt=0.1)
         >>> round(float(trajectory.values('calm.n')[-1] + trajectory.values('nervous.n')[-1]), 6)
         100.0
     """
@@ -223,19 +239,30 @@ class AlarmInteraction(ReactionInteraction):
         self.stochastic = stochastic
 
     def _get_reactants(self) -> Stoichiometry:
-        """Return the calm rats `n`, which every alarm takes one from."""
+        """Return the calm rats `n`.
+
+        Every alarm takes one from them.
+        """
         return {(self.calm, 'n'): 1}
 
     def _get_products(self) -> Stoichiometry:
-        """Return the nervous rats `n`, which every alarm adds one to."""
+        """Return the nervous rats `n`.
+
+        Every alarm adds one to them.
+        """
         return {(self.nervous, 'n'): 1}
 
     def _get_mode(self) -> str:
-        """Return the mode of the reaction, random events when stochastic and a rate equation otherwise."""
+        """Return the mode of the reaction.
+
+        The mode is random events when stochastic and a rate equation otherwise.
+        """
         return MODES[self.stochastic]
 
     def _get_rate(self, namespace: SimpleNamespace) -> Expression:
-        """Return the alarm propensity, the rate at which a calm rat turns nervous times the calm rats.
+        """Return the alarm propensity.
+
+        The propensity is the rate at which a calm rat turns nervous times the calm rats.
 
         Args:
             namespace:
@@ -251,24 +278,14 @@ class AlarmInteraction(ReactionInteraction):
         return propensity
 
 
-@register_system(
-    field='biology/collective_behaviour',
-    tags=('stigmergy', 'collective decision', 'symmetry breaking', 'jump process'),
-    references=('Deneubourg et al. 1990', 'Gros 2015'),
-    defaults={'until': 200.0, 'dt': 1.0},
-)
-def binary_ant_decision(
-    *,
-    flux: float = 1.0,
-    k: float = 20.0,
-    h: float = 2.0,
-    evaporation: float = 0.0,
-    stochastic: bool = True,
-) -> System:
-    """Return ants that choose between two equal branches to a food source, following the marks of earlier ants.
+class BinaryAntDecisionSystem(BaseSystem):
+    """Ants that choose between two equal branches to a food source.
 
-    Every ant reinforces the branch it takes, so the first random fluctuations grow and most ants end up on one
-    branch, the symmetry breaking of the double bridge experiment. The deterministic mode stays symmetric.
+    The ants follow the marks of earlier ants.
+
+    Every ant reinforces the branch it takes, so the first random fluctuations grow and most ants end up on one branch,
+    the symmetry breaking of the double bridge experiment. The deterministic mode stays symmetric. The system has the
+    marks `left.n` and `right.n`.
 
     Args:
         flux:
@@ -286,59 +303,76 @@ def binary_ant_decision(
         stochastic:
             Whether ants and evaporation are random events.
 
-    Returns:
-        system:
-            The system, with the marks `left.n` and `right.n`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.collective_behaviour import binary_ant_decision
-        >>> [branch.label for branch in binary_ant_decision().elements]
+        >>> from skcomplex.systems.biology.collective_behaviour import BinaryAntDecisionSystem
+        >>> [branch.label for branch in BinaryAntDecisionSystem().prepare().system_.elements]
         ['left', 'right']
     """
-    branches = [BranchElement(label) for label in ('left', 'right')]
-    evaporations = [
-        ReactionInteraction(
-            f'evaporation_{label}',
-            reactants={(label, 'n'): 1},
-            k=evaporation,
-            mode=MODES[stochastic],
-        )
-        for label in ('left', 'right')
-    ]
-    choices = [
-        TrailChoiceInteraction(
-            f'choice_{chosen}',
-            chosen=chosen,
-            other=other,
-            flux=flux,
-            k=k,
-            h=h,
-            stochastic=stochastic,
-        )
-        for chosen, other in (('left', 'right'), ('right', 'left'))
-    ]
-    return System(elements=branches, interactions=[*evaporations, *choices])
+
+    field = 'biology/collective_behaviour'
+    topics = ('stigmergy', 'collective decision', 'symmetry breaking', 'jump process')
+    references = ('Deneubourg et al. 1990', 'Gros 2015')
+    until = 200.0
+    dt = 1.0
+
+    def __init__(
+        self,
+        *,
+        flux: float = 1.0,
+        k: float = 20.0,
+        h: float = 2.0,
+        evaporation: float = 0.0,
+        stochastic: bool = True,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.flux = flux
+        self.k = k
+        self.h = h
+        self.evaporation = evaporation
+        self.stochastic = stochastic
+
+    def _build_system(self) -> System:
+        """Return the parts of ants that choose between two equal branches to food.
+
+        The branches lead to a food source.
+        """
+        branches = [BranchElement(label) for label in ('left', 'right')]
+        evaporations = [
+            ReactionInteraction(
+                f'evaporation_{label}',
+                reactants={(label, 'n'): 1},
+                k=self.evaporation,
+                mode=MODES[self.stochastic],
+            )
+            for label in ('left', 'right')
+        ]
+        choices = [
+            TrailChoiceInteraction(
+                f'choice_{chosen}',
+                chosen=chosen,
+                other=other,
+                flux=self.flux,
+                k=self.k,
+                h=self.h,
+                stochastic=self.stochastic,
+            )
+            for chosen, other in (('left', 'right'), ('right', 'left'))
+        ]
+        return System(self.label, elements=branches, interactions=[*evaporations, *choices])
 
 
-@register_system(
-    field='biology/collective_behaviour',
-    tags=('contagion', 'phase transition', 'jump process'),
-    references=('Gros 2015',),
-    defaults={'until': 20.0, 'dt': 0.1},
-)
-def rats(
-    n_rats: int = 100,
-    *,
-    nervous: int = 5,
-    spontaneous: float = 0.01,
-    contagion: float = 2.0,
-    calming: float = 1.0,
-    stochastic: bool = True,
-) -> System:
-    """Return a colony of calm and nervous rats, in which nervousness spreads by contact and fades on its own.
+class RatsSystem(BaseSystem):
+    """A colony of calm and nervous rats.
 
-    Without spontaneous alarm the colony has a phase transition at `contagion = calming`: below it every rat calms
-    down, and above it a share `1 - calming / contagion` of the rats stays nervous.
+    Nervousness spreads by contact and fades on its own.
+
+    Without spontaneous alarm the colony has a phase transition at `contagion = calming`: below it every rat calms down,
+    and above it a share `1 - calming / contagion` of the rats stays nervous. The system has the numbers `calm.n` and
+    `nervous.n`.
 
     Args:
         n_rats:
@@ -359,29 +393,59 @@ def rats(
         stochastic:
             Whether changes are random events.
 
-    Returns:
-        system:
-            The system, with the numbers `calm.n` and `nervous.n`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.collective_behaviour import rats
-        >>> [group.n for group in rats().elements]
+        >>> from skcomplex.systems.biology.collective_behaviour import RatsSystem
+        >>> [group.n for group in RatsSystem().prepare().system_.elements]
         [95.0, 5.0]
     """
-    groups = [RatsElement('calm', n=float(n_rats - nervous)), RatsElement('nervous', n=float(nervous))]
-    alarm = AlarmInteraction(
-        'alarm',
-        calm='calm',
-        nervous='nervous',
-        spontaneous=spontaneous,
-        contagion=contagion,
-        stochastic=stochastic,
-    )
-    calming_reaction = ReactionInteraction(
-        'calming',
-        reactants={('nervous', 'n'): 1},
-        products={('calm', 'n'): 1},
-        k=calming,
-        mode=MODES[stochastic],
-    )
-    return System(elements=groups, interactions=[alarm, calming_reaction])
+
+    field = 'biology/collective_behaviour'
+    topics = ('contagion', 'phase transition', 'jump process')
+    references = ('Gros 2015',)
+    until = 20.0
+    dt = 0.1
+
+    def __init__(
+        self,
+        n_rats: int = 100,
+        *,
+        nervous: int = 5,
+        spontaneous: float = 0.01,
+        contagion: float = 2.0,
+        calming: float = 1.0,
+        stochastic: bool = True,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_rats = n_rats
+        self.nervous = nervous
+        self.spontaneous = spontaneous
+        self.contagion = contagion
+        self.calming = calming
+        self.stochastic = stochastic
+
+    def _build_system(self) -> System:
+        """Return the parts of a colony of calm and nervous rats."""
+        groups = [
+            RatsElement('calm', n=float(self.n_rats - self.nervous)),
+            RatsElement('nervous', n=float(self.nervous)),
+        ]
+        alarm = AlarmInteraction(
+            'alarm',
+            calm='calm',
+            nervous='nervous',
+            spontaneous=self.spontaneous,
+            contagion=self.contagion,
+            stochastic=self.stochastic,
+        )
+        calming_reaction = ReactionInteraction(
+            'calming',
+            reactants={('nervous', 'n'): 1},
+            products={('calm', 'n'): 1},
+            k=self.calming,
+            mode=MODES[self.stochastic],
+        )
+        return System(self.label, elements=groups, interactions=[alarm, calming_reaction])

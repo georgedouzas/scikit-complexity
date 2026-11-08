@@ -12,14 +12,16 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class CarView(AgentView):
-    """Car as the rules see it: its `stage`, the `work` left on it, and the size of its `crew`."""
+    """Car as the rules see it.
+
+    It holds its `stage`, the `work` left on it, and the size of its `crew`.
+    """
 
     stage: float
     work: float
@@ -54,6 +56,8 @@ class CarElement(Element):
         >>> GroupElement('cars', element=CarElement, size=1).size
         1
     """
+
+    law_classes = ()
 
     def __init__(
         self,
@@ -95,10 +99,10 @@ CREW_SIZE = 2
 
 
 class WasherElement(Element):
-    """Worker who joins the front car of the wash or of the valet while it has fewer than two workers.
+    """Worker who joins the front car of the wash or of the valet.
 
-    A worker who finds both areas staffed helps at a random one of them. One second of work removes one
-    person-second from the car.
+    It joins while the car has fewer than two workers. A worker who finds both areas staffed helps at a random one of
+    them. One second of work removes one person-second from the car.
 
     Args:
         label:
@@ -110,6 +114,8 @@ class WasherElement(Element):
         >>> GroupElement('workers', element=WasherElement, size=4).size
         4
     """
+
+    law_classes = (RuleLaw,)
 
     cars: ClassVar[str] = 'cars'
 
@@ -149,13 +155,19 @@ class WasherElement(Element):
 
     @staticmethod
     def _front(cars: list[CarView], stage: int) -> CarView | None:
-        """Return the car that came first among the cars at a stage, or `None` if there is none."""
+        """Return the car that came first among the cars at a stage.
+
+        It is `None` if there is none.
+        """
         waiting = [car for car in cars if car.stage == stage]
         return min(waiting, key=lambda car: car.id) if waiting else None
 
 
 class TillView(AgentView):
-    """Till as the operation sees it: its `revenue` and its counts of `washes`, `valets`, and cars `turned_away`."""
+    """Till as the operation sees it.
+
+    It holds its `revenue` and its counts of `washes`, `valets`, and cars `turned_away`.
+    """
 
     revenue: float
     washes: float
@@ -164,7 +176,9 @@ class TillView(AgentView):
 
 
 class TillElement(Element):
-    """Till of the car wash, which counts the revenue and the cars served and turned away.
+    """Till of the car wash.
+
+    It counts the revenue and the cars served and turned away.
 
     Args:
         label:
@@ -191,6 +205,8 @@ class TillElement(Element):
         >>> GroupElement('till', element=TillElement, size=1).size
         1
     """
+
+    law_classes = ()
 
     def __init__(
         self,
@@ -231,10 +247,10 @@ _PARAMETERS = ('p_pass', 'p_enter', 'p_valet', 'wash_work', 'valet_work', 'wash_
 
 
 class CarWashOperationInteraction(Interaction):
-    """Arrival of passing cars, completion of washes and valets, and payment, once every second.
+    """Arrival of passing cars, completion of washes and valets, and payment.
 
-    A passing car turns in with a probability, unless the wash queue holds `balk` cars or more. A washed car stays for
-    a valet with a probability, and pays the wash price or the valet price when it leaves.
+    They happen once every second. A passing car turns in with a probability, unless the wash queue holds `balk` cars or
+    more. A washed car stays for a valet with a probability, and pays the wash price or the valet price when it leaves.
 
     Args:
         label:
@@ -276,6 +292,8 @@ class CarWashOperationInteraction(Interaction):
         0.01
     """
 
+    law_classes = (RuleLaw,)
+
     def __init__(
         self,
         label: str,
@@ -304,7 +322,10 @@ class CarWashOperationInteraction(Interaction):
         self.balk = balk
 
     def _finish(self, car: CarView, till: TillView, system: SystemView, values: dict[str, float]) -> None:
-        """Move a car whose work is done to the valet, or take its payment and let it leave."""
+        """Move a car whose work is done to the valet.
+
+        Otherwise, take its payment and let it leave.
+        """
         if car.stage == WASH and system.rng.random() < values['p_valet']:
             car.stage, car.work = VALET, values['valet_work']
             return
@@ -330,7 +351,9 @@ class CarWashOperationInteraction(Interaction):
         return [RuleLaw(self.operate)]
 
     def operate(self, system: SystemView) -> None:
-        """Finish the cars whose work is done, reset the crews, and let a passing car turn in or drive on.
+        """Finish the cars whose work is done and reset the crews.
+
+        Then a passing car turns in or drives on.
 
         Args:
             system:
@@ -350,30 +373,13 @@ class CarWashOperationInteraction(Interaction):
         system.create('cars', stage=WASH, work=values['wash_work'])
 
 
-@register_system(
-    field='economics/markets',
-    tags=('queue', 'agents', 'labour'),
-    references=('Chesney 2021',),
-    defaults={'until': 600},
-)
-def car_wash(
-    n_workers: int = 4,
-    n_cars: int = 1,
-    *,
-    p_pass: float = 0.33,
-    p_enter: float = 0.005,
-    p_valet: float = 0.5,
-    wash_work: float = 525.0,
-    valet_work: float = 1750.0,
-    wash_price: float = 4.0,
-    valet_price: float = 10.0,
-    balk: int = 3,
-) -> System:
-    """Return Chesney's Clean and Wax hand car wash, a shadow account of the revenue of its workers' labour.
+class CarWashSystem(BaseSystem):
+    """Chesney's Clean and Wax hand car wash.
 
-    Every step is one second. Passing cars turn in with a probability and queue for the wash, washed cars may queue
-    for a valet, and the workers serve the front car of each area, two at a time if they can. The wash opens with
-    cars already queuing.
+    It is a shadow account of the revenue of its workers' labour. Every step is one second. Passing cars turn in with a
+    probability and queue for the wash, washed cars may queue for a valet, and the workers serve the front car of each
+    area, two at a time if they can. The wash opens with cars already queuing. The system has the groups `workers`,
+    `cars`, and `till`.
 
     Args:
         n_workers:
@@ -406,33 +412,74 @@ def car_wash(
         balk:
             The length of the wash queue at which drivers no longer turn in.
 
-    Returns:
-        system:
-            The system, with the groups `workers`, `cars`, and `till`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.markets import car_wash
-        >>> car_wash(5).elements[0].prepare().size_
+        >>> from skcomplex.systems.economics.markets import CarWashSystem
+        >>> CarWashSystem(5).prepare().system_.elements[0].prepare().size_
         5
     """
-    operation = CarWashOperationInteraction(
-        'wash',
-        cars='cars',
-        till='till',
-        p_pass=p_pass,
-        p_enter=p_enter,
-        p_valet=p_valet,
-        wash_work=wash_work,
-        valet_work=valet_work,
-        wash_price=wash_price,
-        valet_price=valet_price,
-        balk=float(balk),
-    )
-    return System(
-        elements=[
-            GroupElement('workers', element=WasherElement, size=n_workers, variable=True),
-            GroupElement('cars', element=CarElement, size=n_cars, values={'work': wash_work}, variable=True),
-            GroupElement('till', element=TillElement, size=1, variable=True),
-        ],
-        interactions=[operation],
-    )
+
+    field = 'economics/markets'
+    topics = ('queue', 'agents', 'labour')
+    references = ('Chesney 2021',)
+    until = 600
+
+    def __init__(
+        self,
+        n_workers: int = 4,
+        n_cars: int = 1,
+        *,
+        p_pass: float = 0.33,
+        p_enter: float = 0.005,
+        p_valet: float = 0.5,
+        wash_work: float = 525.0,
+        valet_work: float = 1750.0,
+        wash_price: float = 4.0,
+        valet_price: float = 10.0,
+        balk: int = 3,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_workers = n_workers
+        self.n_cars = n_cars
+        self.p_pass = p_pass
+        self.p_enter = p_enter
+        self.p_valet = p_valet
+        self.wash_work = wash_work
+        self.valet_work = valet_work
+        self.wash_price = wash_price
+        self.valet_price = valet_price
+        self.balk = balk
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        operation = CarWashOperationInteraction(
+            'wash',
+            cars='cars',
+            till='till',
+            p_pass=self.p_pass,
+            p_enter=self.p_enter,
+            p_valet=self.p_valet,
+            wash_work=self.wash_work,
+            valet_work=self.valet_work,
+            wash_price=self.wash_price,
+            valet_price=self.valet_price,
+            balk=float(self.balk),
+        )
+        return System(
+            self.label,
+            elements=[
+                GroupElement('workers', element=WasherElement, size=self.n_workers, variable=True),
+                GroupElement(
+                    'cars',
+                    element=CarElement,
+                    size=self.n_cars,
+                    values={'work': self.wash_work},
+                    variable=True,
+                ),
+                GroupElement('till', element=TillElement, size=1, variable=True),
+            ],
+            interactions=[operation],
+        )

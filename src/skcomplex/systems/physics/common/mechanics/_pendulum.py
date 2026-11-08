@@ -1,4 +1,7 @@
-"""Pendulum, a bob of mass `m` on a rigid rod of length `l` that swings by the angle `theta` under gravity `g`."""
+"""Pendulum, a bob of mass `m` on a rigid rod of length `l`.
+
+The bob swings by the angle `theta` under gravity `g`.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,7 +22,9 @@ def _pendulum_bob(theta: float, l: float, **_: float) -> list[list[float]]:
 
 
 class PendulumElement(Element):
-    """Pendulum, a bob of mass `m` on a rigid rod of length `l` that swings by the angle `theta` under gravity `g`.
+    """Pendulum, a bob of mass `m` on a rigid rod of length `l`.
+
+    The bob swings by the angle `theta` under gravity `g`.
 
     The angle has order 2 and its first derivative `theta_d1` is the angular velocity. The motion comes from an
     interaction such as `PendulumInteraction`.

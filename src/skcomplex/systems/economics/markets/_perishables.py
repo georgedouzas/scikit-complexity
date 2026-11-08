@@ -1,4 +1,7 @@
-"""Markets systems: customers who choose between two shops of perishable goods by their past satisfaction."""
+"""Markets systems: customers who choose between two shops of perishable goods.
+
+They choose by their past satisfaction.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,15 +23,17 @@ from ....core.components.interactions import (
 )
 from ....core.components.laws import Sink, Source
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class CustomerView(AgentView):
-    """Customer as its rules see it: its satisfactions `s1` and `s2`, its `shop`, `freshness`, and temperature `T`."""
+    """Customer as its rules see it.
+
+    It holds its satisfactions `s1` and `s2`, its `shop`, `freshness`, and temperature `T`.
+    """
 
     s1: float
     s2: float
@@ -38,10 +43,10 @@ class CustomerView(AgentView):
 
 
 class CustomerElement(Element):
-    """Customer who remembers how satisfied it was with the products of each of two shops.
+    """Customer who remembers how satisfied it was with each of two shops.
 
-    The customer visits the shop `k` of larger satisfaction `S_k` more often, with the logit utility `S_k / T`, and
-    holds the freshness of the product it bought last.
+    The satisfaction is with the products of the shops. The customer visits the shop `k` of larger satisfaction `S_k`
+    more often, with the logit utility `S_k / T`, and holds the freshness of the product it bought last.
 
     Args:
         label:
@@ -92,7 +97,10 @@ class CustomerElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[CustomerView]:
-        """Return the view of a customer, with its satisfactions, shop, freshness, and temperature."""
+        """Return the view of a customer.
+
+        It holds its satisfactions, shop, freshness, and temperature.
+        """
         return CustomerView
 
     @staticmethod
@@ -134,7 +142,9 @@ class CustomerElement(Element):
 
     @staticmethod
     def payoff(agent: CustomerView, system: SystemView, option: int) -> float:
-        """Return the freshness of the product the customer bought last, the payoff of the shop it visited.
+        """Return the freshness of the product the customer bought last.
+
+        It is the payoff of the shop it visited.
 
         Args:
             agent:
@@ -154,7 +164,9 @@ class CustomerElement(Element):
 
     @staticmethod
     def preference(agent: CustomerView) -> float:
-        """Return `p_1 - p_2 = tanh((S_1 - S_2) / 2T)`, how much more likely the customer visits the first shop.
+        """Return `p_1 - p_2 = tanh((S_1 - S_2) / 2T)`.
+
+        It is how much more likely the customer visits the first shop.
 
         Args:
             agent:
@@ -168,14 +180,19 @@ class CustomerElement(Element):
 
 
 class ProductView(AgentView):
-    """Product as the purchase sees it: the time it was `shelved` and the time `tau_a` over which it ages."""
+    """Product as the purchase sees it.
+
+    It holds the time it was `shelved` and the time `tau_a` over which it ages.
+    """
 
     shelved: float
     tau_a: float
 
 
 class ProductElement(Element):
-    """Product on the shelf of a shop, which ages from the time it was shelved, its freshness `exp(-age / tau_a)`.
+    """Product on the shelf of a shop, which ages from the time it was shelved.
+
+    Its freshness is `exp(-age / tau_a)`.
 
     Args:
         label:
@@ -216,7 +233,9 @@ class ProductElement(Element):
 
     @staticmethod
     def restock(product: ProductView, customer: CustomerView, system: SystemView) -> float:
-        """Return the amount `shelved - t` that resets the shelving time of a sold product to the time of the sale.
+        """Return the amount `shelved - t` that resets the shelving time of a sold product.
+
+        The shelving time is reset to the time of the sale.
 
         Args:
             product:
@@ -236,7 +255,9 @@ class ProductElement(Element):
 
     @staticmethod
     def sell(product: ProductView, customer: CustomerView, system: SystemView) -> float:
-        """Return the amount that sets the freshness the customer holds to `exp(-(t - shelved) / tau_a)`.
+        """Return the amount that sets the freshness the customer holds.
+
+        The freshness becomes `exp(-(t - shelved) / tau_a)`.
 
         Args:
             product:
@@ -261,33 +282,21 @@ N_SHOPS = 2
 PHASE = 'visit'
 
 
-@register_system(
-    field='economics/markets',
-    tags=('agents', 'discrete choice', 'symmetry breaking', 'phase transition', 'retail'),
-    references=('Bertin 2021', 'Bouchaud 2013'),
-    defaults={'until': 300},
-    observables=lambda system: [ObservableSpec('m', group='customers', expression=CustomerElement.preference)],
-)
-def perishable_goods_duopoly(
-    customers: int = 200,
-    *,
-    stock: float = 0.5,
-    T: float = 0.1,
-    alpha: float = 0.9,
-    tau_a: float = 1.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return customers who choose between two shops of perishable goods, preferring the one that sold fresher goods.
+class PerishableGoodsDuopolySystem(BaseSystem):
+    """Customers who choose between two shops of perishable goods.
 
-    Each shop holds `stock` products per customer, and every sale replaces a product with a fresh one, so the shop
-    with more customers sells fresher goods and attracts more customers. With the control parameter
-    `R = 2 stock / tau_a`, the symmetric state `m = p_1 - p_2 = 0` loses its stability below the temperature
-    `T_c = R / (1 + R)^2`, and one shop takes most customers. The transition is continuous for `R > sqrt(3) - 1` and
-    discontinuous below. One unit of time is `N` visits by customers drawn with replacement. A visited customer
-    chooses a shop with the probability `1 / (1 + exp(-(S_1 - S_2) / T))` for the first one, moves to it, buys a random
-    product of age `tau`, of freshness `h = exp(-tau / tau_a)`, which the shop replaces with a fresh one, and updates
-    its satisfaction with that shop alone to `alpha S + (1 - alpha) h`. The shops are the two nodes of a network on
-    which their products stand.
+    They prefer the one that sold fresher goods. Each shop holds `stock` products per customer, and every sale replaces
+    a product with a fresh one, so the shop with more customers sells fresher goods and attracts more customers. With
+    the control parameter `R = 2 stock / tau_a`, the symmetric state `m = p_1 - p_2 = 0` loses its stability below the
+    temperature `T_c = R / (1 + R)^2`, and one shop takes most customers. The transition is continuous for
+    `R > sqrt(3) - 1` and discontinuous below. One unit of time is `N` visits by customers drawn with replacement. A
+    visited customer chooses a shop with the probability `1 / (1 + exp(-(S_1 - S_2) / T))` for the first one, moves to
+    it, buys a random product of age `tau`, of freshness `h = exp(-tau / tau_a)`, which the shop replaces with a fresh
+    one, and updates its satisfaction with that shop alone to `alpha S + (1 - alpha) h`. The shops are the two nodes of
+    a network on which their products stand.
+
+    The system has the groups `customers` and `products`, and the asymmetry `m` of the probabilities of visiting the two
+    shops.
 
     Args:
         customers:
@@ -308,81 +317,108 @@ def perishable_goods_duopoly(
         random_state:
             The seed or generator of the initial satisfactions, which scatter by 0.01 around 0.5.
 
-    Returns:
-        system:
-            The system, with the groups `customers` and `products`, and the asymmetry `m` of the probabilities of
-            visiting the two shops.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.markets import perishable_goods_duopoly
-        >>> perishable_goods_duopoly(20).elements[0].prepare().size_
+        >>> from skcomplex.systems.economics.markets import PerishableGoodsDuopolySystem
+        >>> PerishableGoodsDuopolySystem(20).prepare().system_.elements[0].prepare().size_
         20
     """
-    rng = np.random.default_rng(random_state)
-    shelf = max(round(stock * customers), 1)
-    satisfaction = 0.5 + 0.01 * rng.standard_normal((N_SHOPS, customers))
-    choice = ChoiceInteraction(
-        'choice',
-        target='customers',
-        state='shop',
-        options=tuple(float(shop) for shop in range(N_SHOPS)),
-        utility=CustomerElement.utility,
-        schedule='member',
-        form='agent',
-        phase=PHASE,
-    )
-    movement = MovementInteraction(
-        'movement',
-        target='customers',
-        step=CustomerElement.destination,
-        schedule='member',
-        phase=PHASE,
-    )
-    purchase = TransferInteraction(
-        'purchase',
-        source='products',
-        target='customers',
-        state='shelved',
-        into=Sink(),
-        amount=ProductElement.restock,
-        legs=[(Source(), 'freshness', ProductElement.sell)],
-        pairing='cell',
-        form='agent',
-        schedule='member',
-        actor='target',
-        partners=1,
-        phase=PHASE,
-    )
-    satisfaction_update = ReinforcementInteraction(
-        'satisfaction',
-        target='customers',
-        scores=('s1', 's2'),
-        payoff=CustomerElement.payoff,
-        rate=1 - alpha,
-        chosen='shop',
-        schedule='member',
-        form='agent',
-        phase=PHASE,
-    )
-    return System(
-        elements=[
-            GroupElement(
-                'customers',
-                element=CustomerElement,
-                size=customers,
-                values={'s1': satisfaction[0], 's2': satisfaction[1], 'T': T},
+
+    field = 'economics/markets'
+    topics = ('agents', 'discrete choice', 'symmetry breaking', 'phase transition', 'retail')
+    references = ('Bertin 2021', 'Bouchaud 2013')
+    until = 300
+    observables = (ObservableSpec('m', group='customers', expression=CustomerElement.preference),)
+
+    def __init__(
+        self,
+        customers: int = 200,
+        *,
+        stock: float = 0.5,
+        T: float = 0.1,
+        alpha: float = 0.9,
+        tau_a: float = 1.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.customers = customers
+        self.stock = stock
+        self.T = T
+        self.alpha = alpha
+        self.tau_a = tau_a
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        shelf = max(round(self.stock * self.customers), 1)
+        satisfaction = 0.5 + 0.01 * rng.standard_normal((N_SHOPS, self.customers))
+        choice = ChoiceInteraction(
+            'choice',
+            target='customers',
+            state='shop',
+            options=tuple(float(shop) for shop in range(N_SHOPS)),
+            utility=CustomerElement.utility,
+            schedule='member',
+            form='agent',
+            phase=PHASE,
+        )
+        movement = MovementInteraction(
+            'movement',
+            target='customers',
+            step=CustomerElement.destination,
+            schedule='member',
+            phase=PHASE,
+        )
+        purchase = TransferInteraction(
+            'purchase',
+            source='products',
+            target='customers',
+            state='shelved',
+            into=Sink(),
+            amount=ProductElement.restock,
+            legs=[(Source(), 'freshness', ProductElement.sell)],
+            pairing='cell',
+            form='agent',
+            schedule='member',
+            actor='target',
+            partners=1,
+            phase=PHASE,
+        )
+        satisfaction_update = ReinforcementInteraction(
+            'satisfaction',
+            target='customers',
+            scores=('s1', 's2'),
+            payoff=CustomerElement.payoff,
+            rate=1 - self.alpha,
+            chosen='shop',
+            schedule='member',
+            form='agent',
+            phase=PHASE,
+        )
+        return System(
+            self.label,
+            elements=[
+                GroupElement(
+                    'customers',
+                    element=CustomerElement,
+                    size=self.customers,
+                    values={'s1': satisfaction[0], 's2': satisfaction[1], 'T': self.T},
+                ),
+                GroupElement(
+                    'products',
+                    element=ProductElement,
+                    size=N_SHOPS * shelf,
+                    values={'tau_a': self.tau_a},
+                    location=np.repeat(np.arange(N_SHOPS), shelf).tolist(),
+                ),
+            ],
+            interactions=[choice, movement, purchase, satisfaction_update],
+            space=NetworkSpace(nx.empty_graph(N_SHOPS)),
+            time=DiscreteTime(
+                schedule=PhasesScheduleSpec([PhaseSpec(PHASE, activation='visits', groups=('customers',))]),
             ),
-            GroupElement(
-                'products',
-                element=ProductElement,
-                size=N_SHOPS * shelf,
-                values={'tau_a': tau_a},
-                location=np.repeat(np.arange(N_SHOPS), shelf).tolist(),
-            ),
-        ],
-        interactions=[choice, movement, purchase, satisfaction_update],
-        space=NetworkSpace(nx.empty_graph(N_SHOPS)),
-        time=DiscreteTime(
-            schedule=PhasesScheduleSpec([PhaseSpec(PHASE, activation='visits', groups=('customers',))]),
-        ),
-    )
+        )

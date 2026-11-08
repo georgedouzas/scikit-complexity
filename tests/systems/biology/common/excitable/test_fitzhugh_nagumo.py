@@ -7,7 +7,7 @@ import pytest
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.systems.biology.common.excitable import FitzHughNagumoInteraction
@@ -33,7 +33,7 @@ def _run(current: float) -> np.ndarray:
     """Return the potential of a membrane under a current."""
     kinetics = FitzHughNagumoInteraction('kinetics', target='membrane', fast='u', slow='r', I=current)
     system = System(elements=[MembraneElement('membrane')], interactions=[kinetics])
-    trajectory = Simulation(system, dt=0.1).prepare().run(until=200.0).trajectory_
+    trajectory = simulate(system, dt=0.1, until=200.0)
     return trajectory.values('membrane.u')[trajectory.times > 100.0]
 
 

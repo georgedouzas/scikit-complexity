@@ -1,72 +1,94 @@
-"""Neuroscience: spiking and conductance-based neurons, populations, networks, excitable networks, and synapses."""
+"""Neuroscience systems.
+
+They cover spiking and conductance-based neurons, populations, networks, excitable networks, and synapses.
+"""
 
 from ..common.excitable import SpikeResetInteraction, ThetaNeuronElement
-from ._associative import AssociativeSiteElement, CliqueCompetitionInteraction, associative_thought_process
-from ._conductances import FitzHughNagumoNeuronElement, HodgkinHuxleyElement, fitzhugh_nagumo_ode, hodgkin_huxley
-from ._excitable import ExcitableElement, kinouchi_copelli
+from ._associative import AssociativeSiteElement, AssociativeThoughtProcessSystem, CliqueCompetitionInteraction
+from ._conductances import (
+    FitzHughNagumoNeuronElement,
+    FitzhughNagumoODESystem,
+    HodgkinHuxleyElement,
+    HodgkinHuxleySystem,
+)
+from ._excitable import ExcitableElement, KinouchiCopelliSystem
 from ._networks import (
+    DelayedLIFNetworkSystem,
     DelayedSynapseInteraction,
     GlobalInhibitionInteraction,
     InhibitorDriveInteraction,
     InhibitorElement,
+    LegionSystem,
     SpikingNeuronElement,
     TermanWangElement,
-    delayed_lif_network,
-    legion,
 )
-from ._neural_fields import NeuralFieldSiteElement, amari_neural_field
+from ._neural_fields import AmariNeuralFieldSystem, NeuralFieldSiteElement
 from ._neural_masses import (
     NeuralMassElement,
+    NextGenerationNeuralMassSystem,
     SynapticDriveInteraction,
     ThetaForcingInteraction,
-    next_generation_neural_mass,
 )
-from ._neurons import IzhikevichElement, LeakyIntegrateAndFireElement, integrate_and_fire, izhikevich
+from ._neurons import IntegrateAndFireSystem, IzhikevichElement, IzhikevichSystem, LeakyIntegrateAndFireElement
 from ._plastic_networks import (
+    AdaptiveDelayNetworkSystem,
     AxonElement,
     DelayAdaptationInteraction,
     PhaseUnitElement,
     SpikeTimingPlasticityInteraction,
+    STDPNetworkSystem,
     SynapseElement,
     TracedThetaNeuronElement,
-    adaptive_delay_network,
-    stdp_network,
 )
 from ._populations import (
     MutualInhibitionInteraction,
     PolyhomeostaticNeuronElement,
+    PolyhomeostaticNeuronSystem,
     PulseCouplingInteraction,
     RateUnitElement,
+    ThetaNeuronsSystem,
     WilsonCowanElement,
-    polyhomeostatic_neuron,
-    theta_neurons,
-    wilson_cowan,
-    winners_take_all,
+    WilsonCowanSystem,
+    WinnersTakeAllSystem,
 )
-from ._synapses import AdaptrodeElement, adaptrode
+from ._synapses import AdaptrodeElement, AdaptrodeSystem
 
 __all__: list[str] = [
+    'AdaptiveDelayNetworkSystem',
     'AdaptrodeElement',
+    'AdaptrodeSystem',
+    'AmariNeuralFieldSystem',
     'AssociativeSiteElement',
+    'AssociativeThoughtProcessSystem',
     'AxonElement',
     'CliqueCompetitionInteraction',
     'DelayAdaptationInteraction',
+    'DelayedLIFNetworkSystem',
     'DelayedSynapseInteraction',
     'ExcitableElement',
     'FitzHughNagumoNeuronElement',
+    'FitzhughNagumoODESystem',
     'GlobalInhibitionInteraction',
     'HodgkinHuxleyElement',
+    'HodgkinHuxleySystem',
     'InhibitorDriveInteraction',
     'InhibitorElement',
+    'IntegrateAndFireSystem',
     'IzhikevichElement',
+    'IzhikevichSystem',
+    'KinouchiCopelliSystem',
     'LeakyIntegrateAndFireElement',
+    'LegionSystem',
     'MutualInhibitionInteraction',
     'NeuralFieldSiteElement',
     'NeuralMassElement',
+    'NextGenerationNeuralMassSystem',
     'PhaseUnitElement',
     'PolyhomeostaticNeuronElement',
+    'PolyhomeostaticNeuronSystem',
     'PulseCouplingInteraction',
     'RateUnitElement',
+    'STDPNetworkSystem',
     'SpikeResetInteraction',
     'SpikeTimingPlasticityInteraction',
     'SpikingNeuronElement',
@@ -75,23 +97,9 @@ __all__: list[str] = [
     'TermanWangElement',
     'ThetaForcingInteraction',
     'ThetaNeuronElement',
+    'ThetaNeuronsSystem',
     'TracedThetaNeuronElement',
     'WilsonCowanElement',
-    'adaptive_delay_network',
-    'adaptrode',
-    'amari_neural_field',
-    'associative_thought_process',
-    'delayed_lif_network',
-    'fitzhugh_nagumo_ode',
-    'hodgkin_huxley',
-    'integrate_and_fire',
-    'izhikevich',
-    'kinouchi_copelli',
-    'legion',
-    'next_generation_neural_mass',
-    'polyhomeostatic_neuron',
-    'stdp_network',
-    'theta_neurons',
-    'wilson_cowan',
-    'winners_take_all',
+    'WilsonCowanSystem',
+    'WinnersTakeAllSystem',
 ]

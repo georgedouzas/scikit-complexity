@@ -1,4 +1,7 @@
-"""Define the reactor of the Brusselator, the two intermediates and the supplies of its two buffered reactants."""
+"""Define the reactor of the Brusselator.
+
+It holds the two intermediates and the supplies of its two buffered reactants.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,11 +16,12 @@ from .....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class BrusselatorReactionElement(Element):
-    """Reactor of the Brusselator, the concentrations `u` and `v` of its two intermediates.
+    """Reactor of the Brusselator, the concentrations `u` and `v` of its intermediates.
 
     The reactions `A -> U`, `B + U -> V + D`, `2U + V -> 3U`, and `U -> E` change the concentrations, with the buffered
     reactants `A` and `B` held at the supplies `a` and `b`, which the reactions read as modifiers. The well-mixed
-    `brusselator_ode` runs them in one reactor and the reaction-diffusion `brusselator` at every site of a field.
+    `BrusselatorODESystem` runs them in one reactor and the reaction-diffusion `BrusselatorSystem` at every site of a
+    field.
 
     Args:
         label:

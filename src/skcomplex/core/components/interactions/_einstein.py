@@ -1,4 +1,7 @@
-"""Define Einstein interactions, the field equations of a metric reduced by an ansatz to equations of its unknowns."""
+"""Define Einstein interactions.
+
+They are the field equations of a metric reduced by an ansatz to equations of its unknowns.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -26,13 +29,14 @@ MAX_ORDER = 2
 
 
 class EinsteinInteraction(Interaction):
-    """Einstein equations `G^mu_nu + Λ δ^mu_nu = κ T^mu_nu` of a metric ansatz, reduced to rate laws of its unknowns.
+    """Einstein equations `G^mu_nu + Λ δ^mu_nu = κ T^mu_nu` of a metric ansatz.
 
-    The metric of the space is an ansatz: a symmetric matrix whose unknowns are symbolic functions of the coordinates,
-    each named after a state or a parameter of the target, such as the scale factor `a(t)` of a homogeneous universe or
-    the areal radius `R(t, r)` of the shells of a spherical dust ball. The interaction takes the mixed Einstein tensor
-    `G^mu_nu = g^(mu lambda) G_(lambda nu)` the space derives, keeps one component `(mu, nu)` per state, and solves
-    these equations, linear in the second time derivatives, for them, which gives one rate law per state of order 2.
+    The equations are reduced to rate laws of the unknowns of the ansatz. The metric of the space is an ansatz: a
+    symmetric matrix whose unknowns are symbolic functions of the coordinates, each named after a state or a parameter
+    of the target, such as the scale factor `a(t)` of a homogeneous universe or the areal radius `R(t, r)` of the shells
+    of a spherical dust ball. The interaction takes the mixed Einstein tensor `G^mu_nu = g^(mu lambda) G_(lambda nu)`
+    the space derives, keeps one component `(mu, nu)` per state, and solves these equations, linear in the second time
+    derivatives, for them, which gives one rate law per state of order 2.
 
     The time coordinate becomes the time of the system, a derivative of an unknown along it the time derivative of its
     state, and a derivative along a coordinate that `axes` maps to an axis of the lattice of a field the derivative
@@ -100,8 +104,8 @@ class EinsteinInteraction(Interaction):
         >>> from skcomplex.core.components.interactions import EinsteinInteraction
         >>> from skcomplex.core.components.spaces import PseudoRiemannianSpace
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> class UniverseElement(Element):
         ...     def __init__(self, label, a: Annotated[float, StateSpec(order=2)] = 1.0, a_d1: float = 0.0):
         ...         super().__init__(label)
@@ -115,7 +119,7 @@ class EinsteinInteraction(Interaction):
         ...     'vacuum', target='universe', states='a', space=flat, components=[(1, 1)], cosmological_constant=3.0
         ... )
         >>> system = System(elements=[UniverseElement('universe', a_d1=1.0)], interactions=[vacuum])
-        >>> trajectory = Simulation(system, dt=0.001).prepare().run(until=1.0).trajectory_
+        >>> trajectory = simulate(system, until=1.0, dt=0.001)
         >>> round(float(trajectory.values('universe.a')[-1]), 4)
         2.7183
     """
@@ -151,15 +155,23 @@ class EinsteinInteraction(Interaction):
         """Return the names of the states the equations determine."""
         return (self.states,) if isinstance(self.states, str) else tuple(self.states)
 
-    def _check(self) -> None:
-        """Raise an error for states that are not names, components that do not match them, or a source.
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Set the prepared space and the mixed Einstein tensor of its metric.
+
+        It first raises an error for states not names, mismatched components, or a source.
+
+        Args:
+            context:
+                The space the interaction inherits from its system, which the equations do not read.
 
         Raises:
+            SpaceError:
+                The space is not a pseudo-Riemannian space with curvature.
             ValidationError:
                 The type declares states, a state is not a name, the components do not give one index pair per state,
                 or the source is not callable.
         """
-        super()._check()
+        super()._prepare(context)
         names = self._get_names()
         if not names or not all(isinstance(name, str) and name.isidentifier() for name in names):
             error_msg = f'{type(self).__name__} {self.label!r} solves for the states {self.states!r}. Give names.'
@@ -174,19 +186,6 @@ class EinsteinInteraction(Interaction):
         if self.source is not None and not callable(self.source):
             error_msg = f'The source of {self.label!r} is {self.source!r}. Give a function of the namespace.'
             raise ValidationError(error_msg)
-
-    def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Set the prepared space and the mixed Einstein tensor of its metric.
-
-        Args:
-            context:
-                The space the interaction inherits from its system, which the equations do not read.
-
-        Raises:
-            SpaceError:
-                The space is not a pseudo-Riemannian space with curvature.
-        """
-        super()._prepare(context)
         if not isinstance(self.space, PseudoRiemannianSpace) or not self.space.curvature:
             error_msg = (
                 f'{type(self).__name__} {self.label!r} reads the curvature of {self.space!r}. Give a '
@@ -218,7 +217,7 @@ class EinsteinInteraction(Interaction):
         member: SimpleNamespace,
         accelerations: Mapping[int, Mapping[str, Expression]],
     ) -> Expression:
-        """Return the state derivative that a derivative of a function of the ansatz stands for.
+        """Return the state derivative a derivative of a function of the ansatz stands for.
 
         Args:
             item:
@@ -276,7 +275,9 @@ class EinsteinInteraction(Interaction):
         namespace: SimpleNamespace,
         accelerations: Mapping[int, Mapping[str, Expression]],
     ) -> Expression:
-        """Return an entry of the Einstein tensor in the symbols of the namespace, checking that it reduces.
+        """Return an entry of the Einstein tensor in the symbols of the namespace.
+
+        It checks that the entry reduces.
 
         Args:
             expression:
@@ -329,7 +330,9 @@ class EinsteinInteraction(Interaction):
         return matrix(SR, self.source(namespace))
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
-        """Return the rate law of the second derivative of every state, solved from the chosen equations.
+        """Return the rate law of the second derivative of every state.
+
+        It is solved from the chosen equations.
 
         Args:
             namespace:

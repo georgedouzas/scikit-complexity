@@ -11,13 +11,15 @@ from sage.all__sagemath_symbolics import Expression
 
 from ...specs._base_spec import BaseSpec
 from ...specs._entry_spec import EntrySpec
-from ..problems import KernelSpec
+from ..problems._kernel_spec import KernelSpec
 from ._renewal_law import RenewalLaw
 
 
 @dataclass(frozen=True)
 class BoundRenewalSpec(BaseSpec):
-    """RenewalLaw of a component with its label, the group it renews, and the hidden state that counts it.
+    """RenewalLaw of a component with its label, group, and hidden state.
+
+    The group is the one the law renews, and the hidden state is the one that counts it.
 
     Args:
         spec:

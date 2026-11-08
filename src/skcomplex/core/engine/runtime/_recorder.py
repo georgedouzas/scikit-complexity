@@ -25,10 +25,9 @@ class RecorderObserver(BaseObserver):
     Examples:
         >>> from skcomplex.core.components.system import System
         >>> from skcomplex.systems.biology.common.populations import PopulationElement
-        >>> from skcomplex.core.engine.runtime import RecorderObserver, Simulation
+        >>> from skcomplex.core.engine.runtime import RecorderObserver, simulate
         >>> recorder = RecorderObserver()
-        >>> simulation = Simulation(System(elements=[PopulationElement('a')]), dt=1, observers=[recorder])
-        >>> _ = simulation.prepare().run(until=2)
+        >>> _ = simulate(System(elements=[PopulationElement('a')]), until=2, dt=1, observers=[recorder])
         >>> len(recorder.trajectory_.times)
         3
     """
@@ -56,7 +55,10 @@ class RecorderObserver(BaseObserver):
             self.frames_.append(frame)
 
     def _get_parameters(self, frames: list[FrameSpec]) -> npt.NDArray[np.float64]:
-        """Return the parameters of the frames, a read-only view of one row when every frame shares the same array."""
+        """Return the parameters of the frames.
+
+        They are a read-only view of one row when every frame shares the same array.
+        """
         shape = (len(frames), self.problem_.parameters.size)
         if frames and all(frame.parameters is frames[0].parameters for frame in frames):
             return np.broadcast_to(np.asarray(frames[0].parameters, dtype=float), shape)

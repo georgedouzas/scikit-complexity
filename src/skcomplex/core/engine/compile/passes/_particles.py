@@ -1,4 +1,7 @@
-"""Compile particles: pair interactions within a cutoff and the boundaries of the continuous space they move in."""
+"""Compile particles.
+
+They have pair interactions within a cutoff and move inside the boundaries of a continuous space.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,13 +14,17 @@ from ....components.laws.utils import either, mod, where
 from ....components.spaces import ContinuousSpace
 from ....types import VariableKind
 from ..._utils import components_of, declarations_of
-from ...problems import BlockSpec, KernelSpec
+from ...problems._block_spec import BlockSpec
+from ...problems._kernel_spec import KernelSpec
 from .._base import BasePass
 from .._compilation import Compilation
 
 
 class BoundaryLawsPass(BasePass):
-    """Pass that adds the laws by which the boundary of a continuous space acts on the positions of components."""
+    """Pass that adds the laws of the boundary of a continuous space.
+
+    By these laws the boundary acts on the positions of components.
+    """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
@@ -37,11 +44,11 @@ class BoundaryLawsPass(BasePass):
 
     @staticmethod
     def _space_boundary_laws(block: BlockSpec, spec: KernelSpec) -> list[BaseLaw]:
-        """Return the laws by which the boundary of a continuous space acts on the position states of a component.
+        """Return the laws by which a continuous space boundary acts on a component.
 
-        A periodic boundary wraps every position component into the box. A reflecting boundary mirrors a position that
-        crossed a wall back into the box and reverses the velocity component across the wall, where the velocity is the
-        first derivative of a position of order 2.
+        It acts on the position states of the component. A periodic boundary wraps every position component into the
+        box. A reflecting boundary mirrors a position that crossed a wall back into the box and reverses the velocity
+        component across the wall, where the velocity is the first derivative of a position of order 2.
         """
         space = block.node.space
         if block.node.interaction or not isinstance(space, ContinuousSpace) or space.boundary == 'open':

@@ -1,4 +1,7 @@
-"""Neighbours that do not change during a run, the edges of a network or the offsets of a lattice."""
+"""Neighbours that do not change during a run.
+
+They are the edges of a network or the offsets of a lattice.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,7 +14,9 @@ from ._base import BaseSearch
 
 
 class StaticSearch(BaseSearch):
-    """Neighbours that do not change during a run, the edges of a network or the offsets of a lattice.
+    """Neighbours that do not change during a run.
+
+    They are the edges of a network or the offsets of a lattice.
 
     Args:
         indptr:

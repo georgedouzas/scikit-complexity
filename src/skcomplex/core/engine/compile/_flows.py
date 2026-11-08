@@ -1,4 +1,7 @@
-"""Expand flows and delays into laws, and check that conserved quantities change only through flows."""
+"""Expand flows and delays into laws and check conserved quantities.
+
+A conserved quantity changes only through flows.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -30,20 +33,18 @@ from ...specs import EntrySpec
 from ...specs._compiled_flow_spec import _CompiledFlowSpec
 from ...types import Array, VariableKind
 from .._utils import declarations_of, symbol, symbols_of
-from ..problems import (
-    BlockSpec,
-    DeclarationsSpec,
-    KernelSpec,
-    LoopTermSpec,
-    ReferenceSpec,
-    TransferNetworkSpec,
-    TransferStateSpec,
-)
+from ..problems._block_spec import BlockSpec
 from ..problems._born_spec import _BornSpec
 from ..problems._compiled_delay_spec import _CompiledDelaySpec
+from ..problems._declarations_spec import DeclarationsSpec
 from ..problems._flow_term_spec import _FlowTermSpec
+from ..problems._kernel_spec import KernelSpec
+from ..problems._loop_term_spec import LoopTermSpec
 from ..problems._record_spec import _RecordSpec
 from ..problems._recorded_spec import _RecordedSpec
+from ..problems._reference_spec import ReferenceSpec
+from ..problems._transfer_network_spec import TransferNetworkSpec
+from ..problems._transfer_state_spec import TransferStateSpec
 from ..types import ReadKind
 from ._base import BaseLowering, BasePass
 from ._compilation import Compilation
@@ -53,15 +54,15 @@ _BOUNDARY_PREFIX = '__boundary'
 _SHIFT = 'shift_member'
 
 
-class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
-    """Lowering of flows and delays, which checks that conserved quantities change only through flows.
+class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tuple[KernelSpec, list[BaseLaw]]]]):
+    """Lowering of flows and delays.
 
-    `prepare(compilation)` reads the quantity of every tagged state, and `run(laws)` takes the laws of every kernel spec
-    and sets them in `lowered_` with their flows expanded into laws of other kinds. A later pass finishes the lowering
-    on the laws of every spec after their complex states and Markov laws are lowered: it checks the conserved quantities
-    and lowers the flows and the delays into the transfer network of the system. The flows of a system that declares
-    discrete time, or that holds update laws, move their amounts once per step. A flow that draws records its expected
-    amount at the state of every frame.
+    It checks that conserved quantities change only through flows. `prepare(compilation)` reads the quantity of every
+    tagged state, and `run(laws)` takes the laws of every kernel spec and sets them in `lowered_` with their flows
+    expanded into laws of other kinds. A later pass finishes the lowering on the laws of every spec after their complex
+    states and Markov laws are lowered: it checks the conserved quantities and lowers the flows and the delays into the
+    transfer network of the system. The flows of a system that declares discrete time, or that holds update laws, move
+    their amounts once per step. A flow that draws records its expected amount at the state of every frame.
 
     Attributes:
         quantities_:
@@ -95,7 +96,9 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
     claimed_: set[tuple[str, int]]
 
     def _prepare(self, context: Compilation | None) -> None:
-        """Read the quantity of every tagged state of the compilation, with no flow expanded yet.
+        """Read the quantity of every tagged state of the compilation.
+
+        No flow is expanded yet.
 
         Args:
             context:
@@ -112,7 +115,9 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         self.terms_ = list(state.terms)
 
     def _run(self, inputs: list[tuple[KernelSpec, list[BaseLaw]]] | None) -> None:
-        """Set the laws of every kernel spec with flows expanded into laws of the other kinds.
+        """Set the laws of every kernel spec with flows expanded into other laws.
+
+        The flows are expanded into laws of the other kinds.
 
         Args:
             inputs:
@@ -129,7 +134,9 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         self.lowered_ = [(spec, self._expand(spec, list(laws))) for spec, laws in inputs or []]
 
     def _declarations(self) -> DeclarationsSpec:
-        """Return the layout of the compilation, raising an error before the layout pass has run.
+        """Return the layout of the compilation.
+
+        An error is raised before the layout pass has run.
 
         Returns:
             declarations:
@@ -146,7 +153,10 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         return layout
 
     def _state(self) -> TransferStateSpec:
-        """Return the state of the lowering, which the compilation keeps for the pass that lowers the flows."""
+        """Return the state of the lowering.
+
+        The compilation keeps it for the pass that lowers the flows.
+        """
         return TransferStateSpec(
             self.quantities_,
             self.born_,
@@ -157,7 +167,9 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         )
 
     def _replace_specs(self, specs: Mapping[int, KernelSpec]) -> None:
-        """Replace the kernel specs the lowering holds by new ones, such as specs whose rows are settled.
+        """Replace the kernel specs the lowering holds by new ones.
+
+        An example is specs whose rows are settled.
 
         Args:
             specs:
@@ -187,14 +199,20 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
 
     @staticmethod
     def _offset_of(holder: object) -> tuple[Expression, int, str, float] | None:
-        """Return the state symbol, the offset, the boundary, and the fill of a holder read at a member offset."""
+        """Return the symbol, offset, boundary, and fill of a holder read at an offset.
+
+        The symbol is that of the state of the holder. The offset is a member offset.
+        """
         if not isinstance(holder, Expression) or getattr(holder.operator(), 'name', lambda: '')() != _SHIFT:
             return None
         return MemberLowering._shift_arguments(holder)
 
     @staticmethod
     def _presence(offset: tuple[Expression, int, str, float] | None) -> Expression:
-        """Return 1 where the member at the offset of a holder exists, and 0 past the ends of a fixed boundary."""
+        """Return 1 where the member at the offset of a holder exists, and 0 otherwise.
+
+        The member is missing past the ends of a fixed boundary.
+        """
         if offset is None or offset[2] != 'fixed':
             return SR(1)
         state, step = offset[0], offset[1]
@@ -202,7 +220,9 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
 
     @staticmethod
     def _expected(amount: Expression) -> Expression:
-        """Return an amount with every draw replaced by its mean, the amount a flow that draws records.
+        """Return an amount with every draw replaced by its mean.
+
+        It is the amount that a flow that draws records.
 
         Args:
             amount:
@@ -232,7 +252,10 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         return amount
 
     def _rate_law(self, holder: Expression, change: Expression, presence: Expression) -> RateLaw:
-        """Return the rate law of a holder, which a holder read at an offset takes from the member behind it."""
+        """Return the rate law of a holder.
+
+        A holder read at an offset takes the rate law from the member behind it.
+        """
         offset = self._offset_of(holder)
         if offset is None:
             return RateLaw(holder, change * presence)
@@ -319,7 +342,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         return expanded
 
     def _check_conserved(self, spec: KernelSpec, law: BaseLaw) -> None:
-        """Raise an error for a law outside flows that changes a state tagged with a quantity."""
+        """Raise an error for a law outside flows that changes a quantity-tagged state."""
         if id(law) in self.born_:
             return
         targets: list[tuple[object, object]] = []
@@ -343,7 +366,10 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
                 raise ConservationError(error_msg)
 
     def _to_updates(self, specs: list[tuple[KernelSpec, list[BaseLaw]]]) -> None:
-        """Rewrite the rate laws of flows of a discrete system as increments of the update laws of their states."""
+        """Rewrite the rate laws of flows of a discrete system as update increments.
+
+        The increments are those of the update laws of their states.
+        """
         increments: dict[tuple[object, ...], list[tuple[KernelSpec, Expression, Expression]]] = defaultdict(list)
         for spec, laws in specs:
             for law in [law for law in laws if id(law) in self.born_ and isinstance(law, RateLaw)]:
@@ -381,9 +407,10 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         declarations: DeclarationsSpec,
         discrete: bool,
     ) -> tuple[DeclarationsSpec, dict[str, str]]:
-        """Add a hidden state per quantity that accumulates the net inflow from the environment.
+        """Add a hidden state per quantity that accumulates its net inflow.
 
-        Returns the declarations with the hidden states, and the name of the hidden state of every quantity.
+        The inflow comes from the environment. Returns the declarations with the hidden states, and the name of the
+        hidden state of every quantity.
         """
         boundary: dict[str, list[_BornSpec]] = defaultdict(list)
         for born in self.flows_:
@@ -411,7 +438,10 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         return declarations, names
 
     def _add_boundary(self, laws: list[BaseLaw], born: _BornSpec, accumulator: Expression) -> None:
-        """Add the inflow of a boundary flow to the accumulator of its quantity, as a rate or a jump increment."""
+        """Add the inflow of a boundary flow to the accumulator of its quantity.
+
+        The inflow is a rate or a jump increment.
+        """
         for index, law in enumerate(laws):
             if isinstance(law, JumpLaw) and self.born_.get(id(law)) is born:
                 laws[index] = JumpLaw(law.rate, {**(law.changes or {}), accumulator: born.sign * born.amount})
@@ -425,9 +455,10 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         declarations: DeclarationsSpec,
         discrete: bool,
     ) -> DeclarationsSpec:
-        """Replace the delays and smoothings in a spec's rate laws and records by hidden states with their own laws.
+        """Replace the delays and smoothings in a spec's laws by hidden states.
 
-        Returns the declarations with the hidden states.
+        The delays and smoothings of its rate laws and records become hidden states with their own laws. Returns the
+        declarations with the hidden states.
         """
         records = [record for record in self.records_ if record.spec is spec]
         counter = 0
@@ -474,10 +505,10 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
             counter += 1
 
     def _lower_flows(self, specs: list[tuple[KernelSpec, list[BaseLaw]]]) -> TransferNetworkSpec:
-        """Check the conserved quantities and lower flows and delays into the laws of every spec, in place.
+        """Check the conserved quantities and lower flows and delays in place.
 
-        Every spec that reads a hidden state, or a symbol of a flow it updates, is replaced by a copy with its reference
-        in the compilation.
+        The flows and delays are lowered into the laws of every spec. Every spec that reads a hidden state, or a symbol
+        of a flow it updates, is replaced by a copy with its reference in the compilation.
 
         Args:
             specs:
@@ -535,7 +566,10 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         initial: Array,
         shape: tuple[int, ...],
     ) -> tuple[DeclarationsSpec, EntrySpec]:
-        """Return the declarations with a real hidden state added after every state declared so far, and its entry."""
+        """Return the declarations with a real hidden state added, and its entry.
+
+        The state is added after every state declared so far.
+        """
         entry = EntrySpec(name, declarations.ends[True], shape, RR)
         states, initial_states = (*declarations.states, entry), (*declarations.initial_states, initial)
         return replace(declarations, states=states, initial_states=initial_states), entry
@@ -549,7 +583,10 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
 
     @staticmethod
     def _substituted_law(law: BaseLaw, mapping: Mapping[Expression, Expression]) -> BaseLaw:
-        """Return a law with symbols replaced by expressions, such as the calls of delays by their hidden states."""
+        """Return a law with symbols replaced by expressions.
+
+        An example is the calls of delays replaced by their hidden states.
+        """
         if not mapping:
             return law
         if isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
@@ -567,7 +604,10 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
 
     @staticmethod
     def _delay_parts(kind: str) -> tuple[bool, int]:
-        """Return whether a delay function conserves its input, and its order, for a name known to be a delay."""
+        """Return whether a delay function conserves its input, and its order.
+
+        The name must be known to be a delay.
+        """
         parts = delay_parts(kind)
         if parts is None:
             error_msg = f'{kind} is not a delay function.'
@@ -590,7 +630,10 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         references: Mapping[Expression, ReferenceSpec],
         owner: str,
     ) -> tuple[str | None, str]:
-        """Return the state name of a holder, or `None` for the environment, and its name in flow matrices."""
+        """Return the state name of a holder and its name in flow matrices.
+
+        The state name is `None` for the environment.
+        """
         if isinstance(holder, Source | Sink):
             return None, holder.label
         offset = TransferLowering._offset_of(holder)
@@ -607,7 +650,10 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         key: tuple[object, ...],
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
     ) -> tuple[list[BaseLaw] | None, int]:
-        """Return the laws holding the update law of a state component and its index, or `None`."""
+        """Return the laws holding the update law of a state component, and its index.
+
+        Both are `None` when there is no such law.
+        """
         for spec, laws in specs:
             for index, law in enumerate(laws):
                 if not isinstance(law, UpdateLaw) or not isinstance(law._get_targets()[0], Expression):
@@ -623,7 +669,10 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         return None, 0
 
     def _merge_references(self, host: KernelSpec, spec: KernelSpec, value: Expression) -> None:
-        """Add the references of an expression's symbols from one spec to another, which lowers it."""
+        """Add the references of an expression's symbols from one spec to another.
+
+        The other spec lowers the expression.
+        """
         for item in symbols_of([value]):
             reference = self._reference_of(item, spec)
             if reference is None:
@@ -639,21 +688,30 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
 
     @staticmethod
     def _owner_of(flow: TransferLaw, spec: KernelSpec) -> str:
-        """Return the path a flow is reported under, its owner in the system of the declaring part, or that part."""
+        """Return the path a flow is reported under.
+
+        It is its owner in the system of the declaring part, or that part.
+        """
         if not flow.owner:
             return spec.owner
         scope = spec.owner.rpartition('/')[0]
         return f'{scope}/{flow.owner}' if scope else flow.owner
 
     def _claim_label(self, owner: str, label: str, set_index: int) -> None:
-        """Add the label of a flow reported under a part, raising an error for a label the part already reports."""
+        """Add the label of a flow reported under a part.
+
+        A label the part already reports raises an error.
+        """
         if (f'{owner}.{label}', set_index) in self.claimed_:
             error_msg = f'{owner} reports two flows labelled {label!r}. Rename one.'
             raise LabelError(error_msg)
         self.claimed_.add((f'{owner}.{label}', set_index))
 
     def _initial(self, item: Expression, spec: KernelSpec, declarations: DeclarationsSpec) -> float:
-        """Return the value of an expression of a spec's single symbols at the initial state and time zero."""
+        """Return the value of an expression of a spec's single symbols initially.
+
+        The value is taken at the initial state and time zero.
+        """
         states = np.concatenate([np.zeros(0), *declarations.initial_states])
         parameters = np.concatenate([np.zeros(0), *declarations.initial_parameters])
         values: dict[Expression, float] = {declarations.time: 0.0}
@@ -676,7 +734,10 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
 
     @staticmethod
     def _delay_calls(expression: object) -> list[Expression]:
-        """Return the calls of delay functions in an expression whose inputs hold no other delay."""
+        """Return the calls of delay functions in an expression.
+
+        The inputs of the calls hold no other delay.
+        """
         if not isinstance(expression, Expression):
             return []
         found, stack = [], [expression]

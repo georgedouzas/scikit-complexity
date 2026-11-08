@@ -20,7 +20,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import MovementInteraction, RateInteraction
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
@@ -40,7 +40,7 @@ class InflowInteraction(RateInteraction):
 
 
 inflow = System(elements=[StockElement('tank')], interactions=[InflowInteraction('fill', stock='tank')])
-round(float(Simulation(inflow, dt=0.1).prepare().run(until=1).trajectory_.values('tank.level')[-1]), 3)
+round(float(simulate(inflow, until=1, dt=0.1).values('tank.level')[-1]), 3)
 ```
 
 `_get_role` renames a role, here `target` to `stock`, in the symbolic form and the agent form alike. `_get_parameter`
@@ -69,7 +69,7 @@ walk = System(
     space=LatticeSpace((5, 5)),
     time=DiscreteTime(),
 )
-len(Simulation(walk, random_state=0).prepare().run(until=2).trajectory_.agent_locations('walkers'))
+len(simulate(walk, until=2, random_state=0).agent_locations('walkers'))
 ```
 
 Here the movement probability of `MovementInteraction` becomes the `boldness` of a walker.
@@ -101,7 +101,7 @@ from skcomplex.core.components.interactions import TransferInteraction
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import ContinuousSpace, DiscreteTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import PartnerSpec, StateSpec
 
 
@@ -142,7 +142,7 @@ meal = TransferInteraction(
     settlement=settle,
 )
 system = System(elements=[eaters, providers], interactions=[meal], time=DiscreteTime())
-trajectory = Simulation(system, random_state=0).prepare().run(until=1).trajectory_
+trajectory = simulate(system, until=1, random_state=0)
 trajectory.agents('eaters', 1).values['level'].tolist()
 ```
 
@@ -167,7 +167,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
 
@@ -185,7 +185,7 @@ class QueueElement(Element):
 
 group = GroupElement('queues', element=QueueElement, size=2, values={'orders': [(), (7,)]})
 queues = System(elements=[group], time=DiscreteTime())
-trajectory = Simulation(queues, random_state=0).prepare().run(until=1).trajectory_
+trajectory = simulate(queues, until=1, random_state=0)
 trajectory.agents('queues', 1).values['orders'].tolist()
 ```
 
@@ -214,6 +214,47 @@ velocities from these roles, not from the names of the states. So a state named 
 - `StateSpec(role='site')` does the same for a place that does not make a member a particle, such as the fixed sites of
   oscillators on a ring.
 
+### Checking arguments
+
+Check the arguments of a new part at the start of its `_prepare`. The constructor only stores its arguments, so a part
+with a bad argument is built without error, and preparing it, alone or within its system, raises the error. Start
+`_prepare` with `super()._prepare(context)`: the base of the parts checks the label and the declared specs first, then
+the part checks its own arguments before it sets any attribute that ends in `_`.
+
+```python
+from typing import Annotated
+
+from skcomplex.core.components.elements import Element
+from skcomplex.core.errors import ValidationError
+from skcomplex.core.specs import StateSpec
+
+
+class TankElement(Element):
+    def __init__(self, label, visual=None, *, level: Annotated[float, StateSpec()] = 1.0, capacity=10.0):
+        super().__init__(label, visual=visual)
+        self.level = level
+        self.capacity = capacity
+
+    def _prepare(self, context=None):
+        super()._prepare(context)
+        if self.capacity <= 0:
+            error_msg = f'The capacity of {self.label!r} is {self.capacity}. Give a positive capacity.'
+            raise ValidationError(error_msg)
+        self.free_ = self.capacity - self.level
+
+
+tank = TankElement('tank', capacity=-1.0)
+try:
+    tank.prepare()
+except ValidationError as error:
+    message = str(error)
+message, hasattr(tank, 'free_'), TankElement('tank').prepare().free_
+```
+
+A spec, such as `StateSpec`, is a frozen value, not an estimator: it has neither `prepare` nor `run`. The part that holds
+a spec checks it through its private hook `_check` when it reads it, as the base of the parts does for the specs of the
+annotated arguments.
+
 ## Package layout
 
 Find where every class lives, so you know what to import and where a part of your own belongs. The package has two
@@ -223,19 +264,19 @@ parts:
 - `skcomplex.systems` is the catalog of ready-made systems, built from the core.
 
 ```python
-from skcomplex.core.analysis import SymbolicAnalysis
 from skcomplex.core.base import BaseConfig
-from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.core.experiments import Experiment
-from skcomplex.systems import describe
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.system import BaseSystem, System
+from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
-[issubclass(cls, BaseConfig) for cls in (System, Simulation, SymbolicAnalysis, Experiment)]
-describe('lotka_volterra').field
+[issubclass(cls, BaseConfig) for cls in (Element, System, LotkaVolterraSystem)]
+issubclass(LotkaVolterraSystem, BaseSystem), LotkaVolterraSystem.field
 ```
 
-A system, a simulation, an analysis, and an experiment all derive from one root class, `BaseConfig`, and every
-ready-made system belongs to a field and a subfield of the catalog.
+Every estimator, an element, an interaction, a law, a system, and the engine that runs them, derives from one root
+class, `BaseConfig`. `simulate`, the analyses, and the experiments, calibration among them, are functions of these
+estimators. Every ready-made system
+belongs to a field and a subfield of the catalog.
 
 The parts of the core are layered, so that each imports only the parts below it. From top to bottom:
 
@@ -256,7 +297,7 @@ Every package of the core shares the root modules:
 
 - `skcomplex.core.base` holds `BaseConfig`, the root of every configurable class. It stores the settings of a class
   under their own names, as scikit-learn does, so `get_params`, `set_params`, and `clone` work on every class. It gives
-  every class the verbs `prepare` and `run`.
+  every class the main public methods `prepare` and `run`, and `get_tags` gives the capability tags of every part.
 - `skcomplex.core.errors` holds the errors and warnings, such as `ValidationError`, `RoleError`, `SolverError`, and
   `RewritingError`.
 - `skcomplex.core.types` holds the types that every layer reads, such as arrays, functions, keys, and kinds.
@@ -278,7 +319,8 @@ import order, so a module imports only the modules above it:
 - `elements` and `interactions`: `Element`, `GroupElement`, `FieldElement`, and the other elements, and the binding
   bases `Interaction`, `NeighborInteraction`, `PairInteraction`, and `HyperedgeInteraction`, with the general
   interactions built on them.
-- `system`: `System`.
+- `system`: `BaseSystem` and `System`.
+- `mass_action`: `MassActionSystem`, the first general system of the core.
 - `specs`: the specs that name classes of the components, as a compilation reads them, such as `ScenarioSpec`.
 
 ### The engine
@@ -288,23 +330,26 @@ import order, so a module imports only the modules above it:
 - `types`: the types that only the engine reads.
 - `problems`: the compiled problems, their layouts of states and parameters, and their numeric functions.
 - `backends`: the NumPy, Numba, and JAX backends, which lower expressions to numeric functions.
-- `compile`: the compilers and the passes that turn a system into a problem.
+- `compile`: the compilers and the passes that turn a system into a problem. They are private, except `BaseCompiler`,
+  `BasePass`, and `BaseLowering`, through which a system package brings a form of its own with the `compiler` run
+  setting.
 - `solvers`: the solver contract, `step_count`, and every solver.
-- `runtime`: `Simulation`, clocks, observers, and trajectories.
+- `runtime`: `simulate`, clocks, observers, and trajectories.
 - `viz`: the visuals and the Rerun observer.
 - `translators`: the translators of system files of other tools, such as `SystemDynamicsTranslator`.
 
 ### Analysis and experiments
 
-`skcomplex.core.analysis` holds the analyses of systems, trajectories, and data, with the types that only they read in
-`skcomplex.core.analysis.types`. `skcomplex.core.experiments` holds the experiments over designs of parameters,
-scenarios, and replicates, the designs, sensitivity analysis, and calibration. Its `types` and `specs` hold the rows of
-a design and the runs of an experiment.
+`skcomplex.core.analysis` holds the analysis functions of systems, trajectories, and data, their frozen results, and
+`bind_analysis`, with the types that only they read in `skcomplex.core.analysis.types`. `skcomplex.core.experiments`
+holds the experiment functions over designs of parameters, scenarios, and replicates, sensitivity, basin stability, and
+orbit diagrams, and calibration. Its `types` and `specs` hold the rows of a design and the runs of an
+experiment.
 
 ### The systems
 
-`skcomplex.systems` is the catalog. You use it through four functions: `catalog`, `describe`, `create_system`, and
-`create_simulation`. Behind them, the systems are organised by field, `biology`, `chemistry`, `computer_science`,
+`skcomplex.systems` is the catalog. `all_systems` lists its classes, and each class is importable from its subfield
+package. The systems are organised by field, `biology`, `chemistry`, `computer_science`,
 `economics`, `engineering`, `mathematics`, `physics`, and `social`, and by subfield inside each field, such as
 `physics.mechanics` or `biology.ecology`.
 

@@ -1,4 +1,7 @@
-"""Pass that turns the jumps that request topology changes into jumps of no state change, noting the requests."""
+"""Pass that turns the topology request jumps into jumps of no state change.
+
+They are the jumps that request topology changes, and the requests are noted.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -6,14 +9,17 @@
 
 from ....components.laws import BaseLaw, JumpLaw
 from ....specs import TopologyRequestSpec
-from ...problems import KernelSpec
+from ...problems._kernel_spec import KernelSpec
 from ...problems._topology_kernel import TopologyKernel
 from .._base import BasePass
 from .._compilation import Compilation, Laws
 
 
 class RequestJumpsPass(BasePass):
-    """Pass that turns the jumps that request topology changes into jumps of no state change, noting the requests."""
+    """Pass that turns the topology request jumps into jumps of no state change.
+
+    They are the jumps that request topology changes, and the requests are noted.
+    """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
@@ -34,7 +40,10 @@ class RequestJumpsPass(BasePass):
     def _set_request_jumps_apart(
         specs: Laws,
     ) -> tuple[Laws, dict[int, tuple[KernelSpec, TopologyRequestSpec]]]:
-        """Return laws whose jumps that request topology changes change no state, with the request of each such jump."""
+        """Return laws whose topology request jumps change no state, with the requests.
+
+        Each such jump requests topology changes, and its request is returned.
+        """
         requests: dict[int, tuple[KernelSpec, TopologyRequestSpec]] = {}
         result: Laws = []
         for spec, laws in specs:

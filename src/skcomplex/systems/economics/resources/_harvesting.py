@@ -14,11 +14,10 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws import BaseLaw, RateLaw, RuleLaw
 from ....core.components.laws.utils import count
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class StockElement(Element):
@@ -45,6 +44,8 @@ class StockElement(Element):
         >>> StockElement('stock', n=500.0).n
         500.0
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
@@ -81,7 +82,9 @@ class FarmerView(AgentView):
 
 
 class FarmerElement(Element):
-    """Farmer who adds the catch of every step to its wealth, reading the resource from the other partition.
+    """Farmer who adds the catch of every step to its wealth.
+
+    It reads the resource from the other partition.
 
     Args:
         label:
@@ -105,6 +108,8 @@ class FarmerElement(Element):
         >>> GroupElement('farmers', element=FarmerElement, size=10).size
         10
     """
+
+    law_classes = (RuleLaw,)
 
     def __init__(
         self,
@@ -139,7 +144,9 @@ class FarmerElement(Element):
         return [RuleLaw(self.catch)]
 
     def catch(self, agent: FarmerView, system: SystemView) -> None:
-        """Add the effort times the resource stock at the last synchronisation point to the wealth.
+        """Add the effort times the resource stock to the wealth.
+
+        The stock is read at the last synchronisation point.
 
         Args:
             agent:
@@ -156,10 +163,10 @@ class FarmerElement(Element):
 
 
 class HarvestInteraction(RateInteraction):
-    """Harvest of a stock proportional to the stock and to the number of harvesters, the rate `-effort * N * n`.
+    """Harvest of a stock proportional to the stock and to the number of harvesters.
 
-    A rate on the state `n` of the target whose coefficient counts the members of the group of harvesters, which may
-    live in another subsystem.
+    The rate is `-effort * N * n`. A rate on the state `n` of the target whose coefficient counts the members of the
+    group of harvesters, which may live in another subsystem.
 
     Args:
         label:
@@ -210,16 +217,12 @@ class HarvestInteraction(RateInteraction):
         return -namespace.effort * count(namespace.harvesters) * getattr(namespace.target, self.state)
 
 
-@register_system(
-    field='economics/resources',
-    tags=('socio-ecological', 'agents', 'ode', 'co-simulation'),
-    references=('Hamill and Gilbert 2016 ch. 10',),
-    defaults={'until': 50},
-)
-def harvesting(farmers: int = 10, *, effort: float = 0.05, r: float = 1.0, K: float = 1000.0) -> System:
-    """Return a socio-ecological system of farmer agents harvesting a logistically regrowing resource.
+class HarvestingSystem(BaseSystem):
+    """A socio-ecological system of farmer agents harvesting a resource.
 
-    The resource settles at `K * (1 - effort * farmers / r)` when `effort * farmers < r`, and collapses otherwise.
+    The resource regrows logistically. The resource settles at `K * (1 - effort * farmers / r)` when
+    `effort * farmers < r`, and collapses otherwise. The system has the ODE subsystem `land` and the agent subsystem
+    `village`.
 
     Args:
         farmers:
@@ -234,16 +237,38 @@ def harvesting(farmers: int = 10, *, effort: float = 0.05, r: float = 1.0, K: fl
         K:
             The carrying capacity of the resource.
 
-    Returns:
-        system:
-            The system, with the ODE subsystem `land` and the agent subsystem `village`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.resources import harvesting
-        >>> [subsystem.label for subsystem in harvesting().systems]
+        >>> from skcomplex.systems.economics.resources import HarvestingSystem
+        >>> [subsystem.label for subsystem in HarvestingSystem().prepare().system_.systems]
         ['land', 'village']
     """
-    land = System('land', elements=[StockElement('stock', n=K, r=r, K=K)])
-    village = System('village', elements=[GroupElement('farmers', element=FarmerElement, size=farmers)])
-    harvest = HarvestInteraction('harvest', target='land/stock', harvesters='village/farmers', effort=effort)
-    return System(interactions=[harvest], systems=[land, village])
+
+    field = 'economics/resources'
+    topics = ('socio-ecological', 'agents', 'ode', 'co-simulation')
+    references = ('Hamill and Gilbert 2016 ch. 10',)
+    until = 50
+
+    def __init__(
+        self,
+        farmers: int = 10,
+        *,
+        effort: float = 0.05,
+        r: float = 1.0,
+        K: float = 1000.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.farmers = farmers
+        self.effort = effort
+        self.r = r
+        self.K = K
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        land = System('land', elements=[StockElement('stock', n=self.K, r=self.r, K=self.K)])
+        village = System('village', elements=[GroupElement('farmers', element=FarmerElement, size=self.farmers)])
+        harvest = HarvestInteraction('harvest', target='land/stock', harvesters='village/farmers', effort=self.effort)
+        return System(self.label, interactions=[harvest], systems=[land, village])

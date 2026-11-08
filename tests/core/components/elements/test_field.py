@@ -7,14 +7,14 @@ import numpy as np
 import pytest
 import skfem
 
-from skcomplex.core.analysis import SpectrumAnalysis
+from skcomplex.core.analysis import spectrum
 from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.laws import NoiseLaw, RateLaw
 from skcomplex.core.components.laws.utils import laplacian
 from skcomplex.core.components.spaces import LatticeSpace, MeshSpace, NetworkSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver, HeunSolver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
@@ -113,11 +113,13 @@ def test_conserved_noise_keeps_total(backend, stepper, boundary):
         values={'rho': values},
         boundary={'rho': boundary},
     )
-    trajectory = (
-        Simulation(System(elements=[field]), backend=backend, solver=stepper(dt=0.01), random_state=0, dt=1.0)
-        .prepare()
-        .run(until=10)
-        .trajectory_
+    trajectory = simulate(
+        System(elements=[field]),
+        until=10,
+        backend=backend,
+        solver=stepper(dt=0.01),
+        random_state=0,
+        dt=1.0,
     )
     sites = trajectory.values('f.rho').reshape(len(trajectory.times), -1)
     np.testing.assert_allclose(sites.sum(axis=1), values.sum(), rtol=1e-9)
@@ -127,13 +129,14 @@ def test_conserved_noise_keeps_total(backend, stepper, boundary):
 def test_conserved_noise_has_site_variance_of_links():
     """Test that every site of a periodic lattice gains the variance `2 d (a / h)^2` per unit time."""
     field = FieldElement('f', element=ConservedElement, space=LatticeSpace((16, 16), spacing=0.5))
-    trajectory = Simulation(
+    trajectory = simulate(
         System(elements=[field]),
+        until=4,
         solver=EulerMaruyamaSolver(dt=0.05),
         random_state=0,
         dt=4.0,
-    ).prepare()
-    sites = trajectory.run(until=4).trajectory_.values('f.rho')[-1]
+    )
+    sites = trajectory.values('f.rho')[-1]
     assert sites.var() == pytest.approx(4 * (0.5 / 0.5) ** 2 * 4, rel=0.15)
 
 
@@ -141,15 +144,16 @@ def test_conserved_noise_has_site_variance_of_links():
 def test_conserved_noise_gives_flat_structure_factor():
     """Test that diffusion with conserved noise has the flat structure factor `T / D` and a fixed mean."""
     field = FieldElement('f', element=DiffusingElement, space=LatticeSpace((16, 16)))
-    trajectory = (
-        Simulation(System(elements=[field]), solver=EulerMaruyamaSolver(dt=0.01), random_state=0, dt=1.0)
-        .prepare()
-        .run(until=1000)
-        .trajectory_
+    trajectory = simulate(
+        System(elements=[field]),
+        until=1000,
+        solver=EulerMaruyamaSolver(dt=0.01),
+        random_state=0,
+        dt=1.0,
     )
     frames = trajectory.values('f.rho')[50:].reshape(-1, 16, 16)
-    factor = SpectrumAnalysis('structure-factor', frames=True).prepare(frames).run()
-    np.testing.assert_allclose(factor.power_, 0.5, rtol=0.1)
+    factor = spectrum(frames, kind='structure-factor', frames=True)
+    np.testing.assert_allclose(factor.power, 0.5, rtol=0.1)
     np.testing.assert_allclose(np.abs(np.fft.fftn(frames, axes=(1, 2))[:, 0, 0]) ** 2, 0.0, atol=1e-18)
 
 
@@ -186,8 +190,8 @@ def test_rate_law_relaxes_a_tensor_state(backend):
         space=LatticeSpace((3, 3)),
         values={'Q': np.tile([1.0, 0.5], (9, 1))},
     )
-    simulation = Simulation(System(elements=[field]), dt=0.01, backend=backend()).prepare().run(until=1.0)
-    final = simulation.trajectory_.values('film.Q')[-1]
+    trajectory = simulate(System(elements=[field]), until=1.0, dt=0.01, backend=backend())
+    final = trajectory.values('film.Q')[-1]
     assert np.allclose(final, np.tile([1.0, 0.5], (9, 1)) * np.exp(-1.0), rtol=1e-4)
 
 
@@ -203,8 +207,8 @@ def test_boundary_relaxes_a_tensor_to_its_fixed_matrix():
     field.prepare()
     assert field._get_boundary('Q', 0) == ('fixed', 0.4)
     assert field._get_boundary('Q', 1) == ('fixed', 0.3)
-    simulation = Simulation(System(elements=[field]), dt=0.05).prepare().run(until=60.0)
-    final = simulation.trajectory_.values('film.Q')[-1]
+    trajectory = simulate(System(elements=[field]), until=60.0, dt=0.05)
+    final = trajectory.values('film.Q')[-1]
     assert np.allclose(final, np.tile([0.4, 0.3], (25, 1)), atol=1e-6)
 
 

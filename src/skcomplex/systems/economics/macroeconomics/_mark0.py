@@ -1,4 +1,7 @@
-"""Macroeconomics systems: the Mark-0 economy of firms, a household, and a bank, under a Covid shock and policies."""
+"""Macroeconomics systems: the Mark-0 economy of firms, a household, and a bank.
+
+It runs under a Covid shock and policies.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,16 +16,19 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import FeedbackInteraction
 from ....core.components.laws import BaseLaw
-from ....core.components.system import System
+from ....core.components.spaces import BaseSpace
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 
 class Mark0FirmView(AgentView):
-    """Firm as the economy sees it: its workforce, demand, price, wage, cash, profit, and whether it is active."""
+    """Firm as the economy sees it.
+
+    It holds its workforce, demand, price, wage, cash, profit, and whether it is active.
+    """
 
     workforce: float
     demand: float
@@ -34,10 +40,10 @@ class Mark0FirmView(AgentView):
 
 
 class Mark0FirmElement(Element):
-    """Firm of the Mark-0 economy, with its workforce, demand, price, wage, cash balance, and profit.
+    """Firm of the Mark-0 economy.
 
-    The production is the productivity times the workforce, a negative cash balance is a debt, and the economy of the
-    system updates every firm at once.
+    It holds its workforce, demand, price, wage, cash balance, and profit. The production is the productivity times the
+    workforce, a negative cash balance is a debt, and the economy of the system updates every firm at once.
 
     Args:
         label:
@@ -73,6 +79,8 @@ class Mark0FirmElement(Element):
         >>> GroupElement('firms', element=Mark0FirmElement, size=3).size
         3
     """
+
+    law_classes = ()
 
     def __init__(
         self,
@@ -119,17 +127,18 @@ CREDIT_POLICIES = ('none', 'naive', 'adaptive')
 
 
 class Mark0EconomyInteraction(FeedbackInteraction[SystemView]):
-    """Representative household and bank of the Mark-0 economy, which run the firms through one month every step.
+    """Representative household and bank of the Mark-0 economy.
 
-    Every step the firms adjust their workforce, prices, and wages by the rules of thumb of Mark-0 (Eqs. 11 to 17 of
-    Sharma et al. 2020) from the demand and the profit of the last month, pay their wages, and sell to the household,
-    whose consumption budget `c (S + W + rho_d S)` (Eq. 5) splits among the firms by the logit demand of their prices
-    relative to the mean price (Eq. 9). Firms pay interest and, when profitable with positive cash, a share `delta` of
-    their cash as dividends (Eqs. 18 and 19). A firm whose debt to payroll `Phi = -E / (W N)` reaches the bankruptcy
-    threshold `Theta` defaults, its debt falls on the bank, which moves the loan and deposit rates (Eqs. 21 and 22), and
-    a bankrupt firm is revived with probability `phi` per month at the mean price and wage. Following the
-    simplifications of the source, inflation expectations, the feedback of inflation on consumption, the effect of
-    fragility on hiring, and the central bank are switched off, so the base rate is zero.
+    They run the firms through one month every step. Every step the firms adjust their workforce, prices, and wages by
+    the rules of thumb of Mark-0 (Eqs. 11 to 17 of Sharma et al. 2020) from the demand and the profit of the last month,
+    pay their wages, and sell to the household, whose consumption budget `c (S + W + rho_d S)` (Eq. 5) splits among the
+    firms by the logit demand of their prices relative to the mean price (Eq. 9). Firms pay interest and, when
+    profitable with positive cash, a share `delta` of their cash as dividends (Eqs. 18 and 19). A firm whose debt to
+    payroll `Phi = -E / (W N)` reaches the bankruptcy threshold `Theta` defaults, its debt falls on the bank, which
+    moves the loan and deposit rates (Eqs. 21 and 22), and a bankrupt firm is revived with probability `phi` per month
+    at the mean price and wage. Following the simplifications of the source, inflation expectations, the feedback of
+    inflation on consumption, the effect of fragility on hiring, and the central bank are switched off, so the base rate
+    is zero.
 
     During the shock, from `shock_time` for `shock_length` months, the productivity falls by the share `dzeta` and the
     consumption propensity by the share `dc`. The credit policy `'naive'` lifts the threshold during the shock and
@@ -214,6 +223,8 @@ class Mark0EconomyInteraction(FeedbackInteraction[SystemView]):
         ('unemployment', 'inflation')
     """
 
+    draws = True
+
     reports: ClassVar[tuple[str, ...]] = (
         'unemployment',
         'inflation',
@@ -273,14 +284,18 @@ class Mark0EconomyInteraction(FeedbackInteraction[SystemView]):
         self.offset = offset
         self.credit = credit
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for an unknown credit policy.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The credit policy is unknown.
         """
-        super()._check()
+        super()._prepare(context)
         if self.credit not in CREDIT_POLICIES:
             error_msg = f'The credit policy of {self.label!r} is {self.credit!r}. Use one of {CREDIT_POLICIES}.'
             raise ValidationError(error_msg)
@@ -299,18 +314,27 @@ class Mark0EconomyInteraction(FeedbackInteraction[SystemView]):
 
     @staticmethod
     def _stored(system: SystemView, name: str, default: float) -> float:
-        """Return a number the economy stored in an earlier step, or the default before it is stored."""
+        """Return a number the economy stored in an earlier step.
+
+        Before it is stored, it is the default.
+        """
         value = system.storage.get(name, default)
         return float(value) if isinstance(value, int | float | np.number) else default
 
     @staticmethod
     def _weighted(values: Array, weights: Array) -> float:
-        """Return the mean of values weighted by nonnegative weights, the plain mean when they sum to zero."""
+        """Return the mean of values weighted by nonnegative weights.
+
+        It is the plain mean when they sum to zero.
+        """
         total = weights.sum()
         return float(values @ weights / total) if total > 0 else float(values.mean())
 
     def _adjust(self, system: SystemView, state: dict[str, Array], zeta: float, unemployment: float) -> None:
-        """Adjust the workforce, prices, and wages of the active firms by last month's demand and profit."""
+        """Adjust the workforce, prices, and wages of the active firms.
+
+        The adjustment follows last month's demand and profit.
+        """
         rng, gamma = system.rng, system.parameter('gamma')
         active = state['active'] > 0
         workforce, demand, price, wage, profit = (state[name] for name in ('n', 'd', 'p', 'w', 'profit'))
@@ -344,7 +368,9 @@ class Mark0EconomyInteraction(FeedbackInteraction[SystemView]):
         state['n'], state['p'], state['w'] = np.maximum(workforce, 0.0), price, wage
 
     def act(self, system: SystemView) -> None:
-        """Run one month of the economy: adjust, pay, sell, distribute, default, revive, and set the rates.
+        """Run one month of the economy.
+
+        It adjusts, pays, sells, distributes, defaults, revives, and sets the rates.
 
         Args:
             system:
@@ -436,43 +462,24 @@ class Mark0EconomyInteraction(FeedbackInteraction[SystemView]):
             system.report(name, value)
 
 
-@register_system(
-    field='economics/macroeconomics',
-    tags=('agents', 'macroeconomics', 'unemployment', 'crises', 'covid', 'policy', 'firms', 'stock-flow consistent'),
-    references=('Sharma et al. 2020', 'Gualdi et al. 2015'),
-    defaults={'until': 300},
-)
-def mark0(
-    n_firms: int = 500,
-    *,
-    c0: float = 0.5,
-    beta: float = 2.0,
-    gamma: float = 0.01,
-    eta_minus: float = 0.2,
-    ratio: float = 2.0,
-    delta: float = 0.02,
-    theta: float = 3.0,
-    phi: float = 0.1,
-    shock_time: float = 100.0,
-    shock_length: float = 0.0,
-    dc: float = 0.0,
-    dzeta: float = 0.0,
-    kappa: float = 1.0,
-    credit: str = 'none',
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the Mark-0 economy of Sharma, Bouchaud, and co-authors, with a Covid shock to supply and demand.
+class Mark0System(BaseSystem):
+    """The Mark-0 economy of Sharma, Bouchaud, and co-authors.
 
-    Firms produce perishable goods with a linear technology, sell them to a representative household at prices they
-    adjust by rules of thumb, hire and fire by the gap between production and demand, and borrow from a representative
-    bank, defaulting when their debt to payroll exceeds the threshold `Theta` (Sharma et al. 2020, Section 2). A month
-    is a step, the money starts at zero, and the economy is stock-flow consistent apart from the written-off debts and
-    the helicopter money. With the defaults of Table 1 the economy sits in the full employment phase. A lockdown lowers
-    the productivity and the consumption propensity for `shock_length` months, after which a mild shock recovers in a
-    V shape and a strong one tips the economy into an L-shaped recession of high unemployment, which easy credit and
-    helicopter money can prevent. The source summarizes the model of earlier papers, so the initial firms (a workforce
-    between 0.9 and 1, prices around 1, unit wages, no cash) and revived firms (the mean price and wage and a random
-    share of the unemployed) follow Gualdi et al. (2015), and the demand reads prices relative to the mean price.
+    It has a Covid shock to supply and demand. Firms produce perishable goods with a linear technology, sell them to a
+    representative household at prices they adjust by rules of thumb, hire and fire by the gap between production and
+    demand, and borrow from a representative bank, defaulting when their debt to payroll exceeds the threshold `Theta`
+    (Sharma et al. 2020, Section 2). A month is a step, the money starts at zero, and the economy is stock-flow
+    consistent apart from the written-off debts and the helicopter money. With the defaults of Table 1 the economy sits
+    in the full employment phase. A lockdown lowers the productivity and the consumption propensity for `shock_length`
+    months, after which a mild shock recovers in a V shape and a strong one tips the economy into an L-shaped recession
+    of high unemployment, which easy credit and helicopter money can prevent. The source summarizes the model of earlier
+    papers, so the initial firms (a workforce between 0.9 and 1, prices around 1, unit wages, no cash) and revived firms
+    (the mean price and wage and a random share of the unemployed) follow Gualdi et al. (2015), and the demand reads
+    prices relative to the mean price.
+
+    The system has the group `firms` and the economy `economy`, whose reporters are `economy.unemployment`,
+    `economy.inflation`, `economy.output`, `economy.savings`, `economy.fragility`, `economy.bankruptcies`,
+    `economy.threshold`, `economy.price`, and `economy.wage`.
 
     Args:
         n_firms:
@@ -523,44 +530,88 @@ def mark0(
         random_state:
             The seed or generator of the initial firms.
 
-    Returns:
-        system:
-            The system, with the group `firms` and the economy `economy`, whose reporters are `economy.unemployment`,
-            `economy.inflation`, `economy.output`, `economy.savings`, `economy.fragility`, `economy.bankruptcies`,
-            `economy.threshold`, `economy.price`, and `economy.wage`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.macroeconomics import mark0
-        >>> mark0(10).elements[0].prepare().size_
+        >>> from skcomplex.systems.economics.macroeconomics import Mark0System
+        >>> Mark0System(10).prepare().system_.elements[0].prepare().size_
         10
     """
-    rng = np.random.default_rng(random_state)
-    firms = GroupElement(
-        'firms',
-        element=Mark0FirmElement,
-        size=n_firms,
-        values={
-            'workforce': rng.uniform(0.9, 1.0, n_firms),
-            'price': 1 + 0.1 * (rng.random(n_firms) - 0.5),
-            'wage': 1.0,
-        },
-    )
-    economy = Mark0EconomyInteraction(
-        'economy',
-        firms='firms',
-        c0=c0,
-        beta=beta,
-        gamma=gamma,
-        eta_minus=eta_minus,
-        ratio=ratio,
-        delta=delta,
-        theta=theta,
-        phi=phi,
-        shock_time=shock_time,
-        shock_length=shock_length,
-        dc=dc,
-        dzeta=dzeta,
-        kappa=kappa,
-        credit=credit,
-    )
-    return System(elements=[firms], interactions=[economy])
+
+    field = 'economics/macroeconomics'
+    topics = ('agents', 'macroeconomics', 'unemployment', 'crises', 'covid', 'policy', 'firms', 'stock-flow consistent')
+    references = ('Sharma et al. 2020', 'Gualdi et al. 2015')
+    until = 300
+
+    def __init__(
+        self,
+        n_firms: int = 500,
+        *,
+        c0: float = 0.5,
+        beta: float = 2.0,
+        gamma: float = 0.01,
+        eta_minus: float = 0.2,
+        ratio: float = 2.0,
+        delta: float = 0.02,
+        theta: float = 3.0,
+        phi: float = 0.1,
+        shock_time: float = 100.0,
+        shock_length: float = 0.0,
+        dc: float = 0.0,
+        dzeta: float = 0.0,
+        kappa: float = 1.0,
+        credit: str = 'none',
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_firms = n_firms
+        self.c0 = c0
+        self.beta = beta
+        self.gamma = gamma
+        self.eta_minus = eta_minus
+        self.ratio = ratio
+        self.delta = delta
+        self.theta = theta
+        self.phi = phi
+        self.shock_time = shock_time
+        self.shock_length = shock_length
+        self.dc = dc
+        self.dzeta = dzeta
+        self.kappa = kappa
+        self.credit = credit
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        firms = GroupElement(
+            'firms',
+            element=Mark0FirmElement,
+            size=self.n_firms,
+            values={
+                'workforce': rng.uniform(0.9, 1.0, self.n_firms),
+                'price': 1 + 0.1 * (rng.random(self.n_firms) - 0.5),
+                'wage': 1.0,
+            },
+        )
+        economy = Mark0EconomyInteraction(
+            'economy',
+            firms='firms',
+            c0=self.c0,
+            beta=self.beta,
+            gamma=self.gamma,
+            eta_minus=self.eta_minus,
+            ratio=self.ratio,
+            delta=self.delta,
+            theta=self.theta,
+            phi=self.phi,
+            shock_time=self.shock_time,
+            shock_length=self.shock_length,
+            dc=self.dc,
+            dzeta=self.dzeta,
+            kappa=self.kappa,
+            credit=self.credit,
+        )
+        return System(self.label, elements=[firms], interactions=[economy])

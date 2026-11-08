@@ -1,127 +1,130 @@
-"""Markets: prices, competition, retail, inventories, queues, and barter of Cobb-Douglas traders on trade networks."""
+"""Markets: prices, competition, retail, inventories, queues, and barter.
+
+The barter is of Cobb-Douglas traders on trade networks.
+"""
 
 from ..common import ExchangeInteraction, cobb_douglas, marginal_rate, trade_goods
-from ._adaptive_auction import AdaptiveAuctionInteraction, AdaptiveTraderElement, gooding_double_auction
-from ._barter import BartererElement, barter, contract_curve
-from ._barter_networks import BarterTraderElement, BilateralBarterInteraction, wilhite_trade_networks
-from ._brock_hommes import HeuristicPricingInteraction, HeuristicTraderElement, brock_hommes
-from ._cobweb import CobwebInteraction, MarketElement, cobweb
-from ._commodities import CommodityMarketElement, commodity_cycle
+from ._adaptive_auction import AdaptiveAuctionInteraction, AdaptiveTraderElement, GoodingDoubleAuctionSystem
+from ._barter import BartererElement, BarterSystem, contract_curve
+from ._barter_networks import BarterTraderElement, BilateralBarterInteraction, WilhiteTradeNetworksSystem
+from ._brock_hommes import BrockHommesSystem, HeuristicPricingInteraction, HeuristicTraderElement
+from ._cobweb import CobwebInteraction, CobwebSystem, MarketElement
+from ._commodities import CommodityCycleSystem, CommodityMarketElement
 from ._double_auction import (
     AuctionLedgerInteraction,
+    DoubleAuctionSystem,
     ZeroIntelligenceBuyerElement,
     ZeroIntelligenceSellerElement,
-    double_auction,
     maximum_surplus,
 )
-from ._duopoly import CournotAdjustmentInteraction, DuopolistElement, cournot_duopoly
-from ._fair_food import ConsumerElement, fair_food
-from ._fair_food_program import FairFoodMarketInteraction, ProgramMemberElement, fair_food_program
-from ._goods_traders import GoodsTraderElement, goods_traders
-from ._household_demand import BudgetHouseholdElement, household_demand
-from ._inventory import CarDealershipElement, car_dealer
-from ._labour import EmployerElement, JobseekerElement, hire, labour_market
+from ._duopoly import CournotAdjustmentInteraction, CournotDuopolySystem, DuopolistElement
+from ._fair_food import ConsumerElement, FairFoodSystem
+from ._fair_food_program import FairFoodMarketInteraction, FairFoodProgramSystem, ProgramMemberElement
+from ._goods_traders import GoodsTraderElement, GoodsTradersSystem
+from ._household_demand import BudgetHouseholdElement, HouseholdDemandSystem
+from ._inventory import CarDealershipElement, CarDealerSystem
+from ._labour import EmployerElement, JobseekerElement, LabourMarketSystem, hire
 from ._oligopoly import (
     CournotBestResponseElement,
+    OligopolyEquilibriaSystem,
     PricePointElement,
     PricingFirmElement,
     PricingGameSpec,
-    oligopoly_equilibria,
 )
-from ._perishables import CustomerElement, ProductElement, perishable_goods_duopoly
-from ._prices import QuadraticSupplyMarketElement, riccati_prices
-from ._produce import ShopperElement, StallElement, produce_market
-from ._queues import CarElement, CarWashOperationInteraction, TillElement, WasherElement, car_wash
-from ._shops import ResidentElement, StoreElement, shops
-from ._sugarscape import ForagerElement, SugarPatchElement, sugarscape
+from ._perishables import CustomerElement, PerishableGoodsDuopolySystem, ProductElement
+from ._prices import QuadraticSupplyMarketElement, RiccatiPricesSystem
+from ._produce import ProduceMarketSystem, ShopperElement, StallElement
+from ._queues import CarElement, CarWashOperationInteraction, CarWashSystem, TillElement, WasherElement
+from ._shops import ResidentElement, ShopsSystem, StoreElement
+from ._sugarscape import ForagerElement, SugarPatchElement, SugarscapeSystem
 from ._supply_chains import (
+    BeerGameSystem,
     BreweryInteraction,
     EchelonElement,
     FactoryElement,
     RetailDemandInteraction,
     RetailerElement,
     SupplyLinkInteraction,
-    beer_game,
 )
-from ._toy_trader import ToyMarketInteraction, ToyTraderElement, toy_trader
+from ._toy_trader import ToyMarketInteraction, ToyTraderElement, ToyTraderSystem
 
 __all__: list[str] = [
     'AdaptiveAuctionInteraction',
     'AdaptiveTraderElement',
     'AuctionLedgerInteraction',
+    'BarterSystem',
     'BarterTraderElement',
     'BartererElement',
+    'BeerGameSystem',
     'BilateralBarterInteraction',
     'BreweryInteraction',
+    'BrockHommesSystem',
     'BudgetHouseholdElement',
+    'CarDealerSystem',
     'CarDealershipElement',
     'CarElement',
     'CarWashOperationInteraction',
+    'CarWashSystem',
     'CobwebInteraction',
+    'CobwebSystem',
+    'CommodityCycleSystem',
     'CommodityMarketElement',
     'ConsumerElement',
     'CournotAdjustmentInteraction',
     'CournotBestResponseElement',
+    'CournotDuopolySystem',
     'CustomerElement',
+    'DoubleAuctionSystem',
     'DuopolistElement',
     'EchelonElement',
     'EmployerElement',
     'ExchangeInteraction',
     'FactoryElement',
     'FairFoodMarketInteraction',
+    'FairFoodProgramSystem',
+    'FairFoodSystem',
     'ForagerElement',
+    'GoodingDoubleAuctionSystem',
     'GoodsTraderElement',
+    'GoodsTradersSystem',
     'HeuristicPricingInteraction',
     'HeuristicTraderElement',
+    'HouseholdDemandSystem',
     'JobseekerElement',
+    'LabourMarketSystem',
     'MarketElement',
+    'OligopolyEquilibriaSystem',
+    'PerishableGoodsDuopolySystem',
     'PricePointElement',
     'PricingFirmElement',
     'PricingGameSpec',
+    'ProduceMarketSystem',
     'ProductElement',
     'ProgramMemberElement',
     'QuadraticSupplyMarketElement',
     'ResidentElement',
     'RetailDemandInteraction',
     'RetailerElement',
+    'RiccatiPricesSystem',
     'ShopperElement',
+    'ShopsSystem',
     'StallElement',
     'StoreElement',
     'SugarPatchElement',
+    'SugarscapeSystem',
     'SupplyLinkInteraction',
     'TillElement',
     'ToyMarketInteraction',
     'ToyTraderElement',
+    'ToyTraderSystem',
     'WasherElement',
+    'WilhiteTradeNetworksSystem',
     'ZeroIntelligenceBuyerElement',
     'ZeroIntelligenceSellerElement',
-    'barter',
-    'beer_game',
-    'brock_hommes',
-    'car_dealer',
-    'car_wash',
     'cobb_douglas',
-    'cobweb',
-    'commodity_cycle',
     'contract_curve',
-    'cournot_duopoly',
-    'double_auction',
-    'fair_food',
-    'fair_food_program',
-    'gooding_double_auction',
-    'goods_traders',
     'hire',
-    'household_demand',
-    'labour_market',
     'marginal_rate',
     'maximum_surplus',
-    'oligopoly_equilibria',
-    'perishable_goods_duopoly',
-    'produce_market',
-    'riccati_prices',
-    'shops',
-    'sugarscape',
-    'toy_trader',
     'trade_goods',
-    'wilhite_trade_networks',
 ]

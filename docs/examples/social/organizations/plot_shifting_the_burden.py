@@ -14,9 +14,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.analysis import LoopAnalysis
+from skcomplex.core.analysis import loops
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation, create_system
+from skcomplex.systems.social.organizations import ShiftingTheBurdenSystem
 
 SYSTEM = 'shifting_the_burden'
 
@@ -30,7 +31,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = create_simulation(SYSTEM).set_params(dt=0.5, observers=[observer]).prepare().run(until=60)
+trajectory = simulate(ShiftingTheBurdenSystem(), observers=[observer])
 
 # %%
 # With and without the quick fix
@@ -40,11 +41,10 @@ simulation = create_simulation(SYSTEM).set_params(dt=0.5, observers=[observer]).
 # symptom.
 # Without the fix, `fix_rate = 0`, the capability grows to the goal on its own.
 
-polarities = LoopAnalysis().prepare(create_system(SYSTEM)).run().polarities_
+polarities = loops(ShiftingTheBurdenSystem()).polarities
 summary = ', '.join(f'{polarities.count(kind)} {kind}' for kind in ('reinforcing', 'balancing'))
 
-trajectory = simulation.trajectory_
-unaided = create_simulation(SYSTEM, fix_rate=0.0).set_params(dt=0.5).prepare().run(until=60).trajectory_
+unaided = simulate(ShiftingTheBurdenSystem(fix_rate=0.0))
 times = np.asarray(trajectory.times)
 fig, (fixed, alone) = plt.subplots(1, 2, figsize=(10, 4), sharey=True)
 for axis, scenario, title in ((fixed, trajectory, 'With the quick fix'), (alone, unaided, 'Without the quick fix')):

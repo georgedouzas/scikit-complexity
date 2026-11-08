@@ -1,4 +1,7 @@
-"""Node of a network that is susceptible at `i = 0` or infected at `i = 1`, in continuous time."""
+"""Node of a network that is susceptible or infected, in continuous time.
+
+It is susceptible at `i = 0` and infected at `i = 1`.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,7 +16,9 @@ from .....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class HostElement(Element):
-    """Node of a network that is susceptible at `i = 0` or infected at `i = 1`, in continuous time.
+    """Node of a network that is susceptible or infected, in continuous time.
+
+    It is susceptible at `i = 0` and infected at `i = 1`.
 
     A `SpreadingInteraction` infects and recovers it, and a `TopologyInteraction` rewires its edges at its rate `w`.
 

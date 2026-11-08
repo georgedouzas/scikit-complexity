@@ -14,7 +14,7 @@ from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import gradient, laplacian
 from skcomplex.core.components.spaces import ContinuousSpace, LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
@@ -122,8 +122,9 @@ def _field(element, until, *interactions):
     space = LatticeSpace((16, 16), spacing=1.0, boundary='periodic')
     values = {'phi': 0.1 * rng.uniform(-1.0, 1.0, (16, 16))}
     field = FieldElement('mixture', element=element, space=space, values=values)
-    simulation = Simulation(System(elements=[field], interactions=list(interactions)), dt=0.05)
-    return simulation.prepare().run(until=until).trajectory_.values('mixture.phi')
+    return simulate(System(elements=[field], interactions=list(interactions)), until=until, dt=0.05).values(
+        'mixture.phi',
+    )
 
 
 def test_run_gives_the_gradient_flow_and_the_newtonian_motion():
@@ -134,7 +135,7 @@ def test_run_gives_the_gradient_flow_and_the_newtonian_motion():
         space=ContinuousSpace(n_dim=1),
     )
     solver = ScipyODESolver(rtol=1e-10, atol=1e-12)
-    trajectory = Simulation(system, solver=solver, dt=0.1).prepare().run(until=2 * np.pi).trajectory_
+    trajectory = simulate(system, until=2 * np.pi, solver=solver, dt=0.1)
     times = trajectory.times
     np.testing.assert_allclose(trajectory.values('slow.x')[:, 0], np.exp(-2.0 * times), atol=1e-8)
     np.testing.assert_allclose(trajectory.values('fast.x')[:, 0], np.cos(np.sqrt(2.0) * times), atol=1e-7)
@@ -148,7 +149,7 @@ def test_run_moves_every_role_of_a_subclass():
         space=ContinuousSpace(n_dim=1),
     )
     solver = ScipyODESolver(rtol=1e-10, atol=1e-12)
-    trajectory = Simulation(system, solver=solver, dt=0.1).prepare().run(until=np.pi).trajectory_
+    trajectory = simulate(system, until=np.pi, solver=solver, dt=0.1)
     a, b = trajectory.values('a.x')[:, 0], trajectory.values('b.x')[:, 0]
     np.testing.assert_allclose(a + b, 0.0, atol=1e-9)
     np.testing.assert_allclose(b - a, 2.0 * np.cos(trajectory.times), atol=1e-6)
@@ -241,7 +242,7 @@ def test_run_divides_every_state_by_its_own_divisor():
         divisor={'a': 'ma', 'b': 'mb'},
     )
     system = System(elements=[CoordinatesElement('body')], interactions=[spring])
-    trajectory = Simulation(system, dt=0.1).prepare().run(until=2.0).trajectory_
+    trajectory = simulate(system, until=2.0, dt=0.1)
     momentum = trajectory.values('body.a_d1') + 3.0 * trajectory.values('body.b_d1')
     np.testing.assert_allclose(momentum, 0.0, atol=1e-9)
 
@@ -250,8 +251,7 @@ def test_run_divides_by_a_divisor_expression():
     """Test that a harmonic well divided by `4 m` oscillates at the frequency `1 / sqrt(4 m)`."""
     well = _harmonic('body', 1.0, lambda member: 4 * member.m)
     system = System(elements=[BodyElement('body', x=[1.0], m=1.0)], interactions=[well], space=ContinuousSpace(n_dim=1))
-    simulation = Simulation(system, solver=ScipyODESolver(rtol=1e-10, atol=1e-12), dt=np.pi).prepare()
-    trajectory = simulation.run(until=np.pi).trajectory_
+    trajectory = simulate(system, until=np.pi, solver=ScipyODESolver(rtol=1e-10, atol=1e-12), dt=np.pi)
     assert float(trajectory.values('body.x')[-1][0]) == pytest.approx(0.0, abs=1e-6)
 
 

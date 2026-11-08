@@ -12,30 +12,20 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import mod, where
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
-
-
-def _input(s: SimpleNamespace) -> Expression:
-    """Return the input pulse train of the Adaptrode, `amplitude` for `width` steps every `period` until `stop`."""
-    synapse = s.target
-    pulse: Expression = where(
-        mod(s.t, synapse.period) < synapse.width,
-        where(s.t < synapse.stop, synapse.amplitude, 0),
-        0,
-    )
-    return pulse
 
 
 class AdaptrodeElement(Element):
-    """Adaptrode of Mobus, a synaptic weight with three levels of memory that learn on increasing time scales.
+    """Adaptrode of Mobus, a synaptic weight with three levels of memory.
 
-    At every step the fast weight `w0` rises toward `w_max` in proportion to the input `x` and decays toward the
-    slower weight `w1`, which rises toward `w0` and decays toward the slowest weight `w2`, which rises toward `w1` and
-    decays toward zero. The input is a train of pulses of height `amplitude`, `width` steps long, every `period`
-    steps, until the step `stop`, so the weights record recent, medium-term, and long-term activity. The element holds
-    the states and parameters and has no laws of its own: the maps of `adaptrode`, one per level, read its parameters.
+    The levels learn on increasing time scales.
+
+    At every step the fast weight `w0` rises toward `w_max` in proportion to the input `x` and decays toward the slower
+    weight `w1`, which rises toward `w0` and decays toward the slowest weight `w2`, which rises toward `w1` and decays
+    toward zero. The input is a train of pulses of height `amplitude`, `width` steps long, every `period` steps, until
+    the step `stop`, so the weights record recent, medium-term, and long-term activity. The element holds the states and
+    parameters and has no laws of its own: the maps of `AdaptrodeSystem`, one per level, read its parameters.
 
     Args:
         label:
@@ -129,28 +119,13 @@ class AdaptrodeElement(Element):
         self.stop = stop
 
 
-@register_system(
-    field='biology/neuroscience',
-    tags=('synapse', 'learning', 'memory', 'discrete map'),
-    references=('Mobus 1994', 'Mobus 2022'),
-    defaults={'until': 400, 'dt': 1},
-)
-def adaptrode(
-    *,
-    alpha0: float = 0.25,
-    alpha1: float = 0.05,
-    alpha2: float = 0.01,
-    delta0: float = 0.1,
-    delta1: float = 0.02,
-    delta2: float = 0.002,
-    period: float = 10.0,
-    stop: float = 150.0,
-) -> System:
-    """Return an Adaptrode synapse driven by a train of input pulses that stops after a while.
+class AdaptrodeSystem(BaseSystem):
+    """An Adaptrode synapse driven by a train of input pulses that stops after a while.
 
-    While the pulses arrive the fast weight follows each pulse, the medium weight builds up, and the slow weight
-    builds up further. After the input stops the fast weight falls back quickly to the medium one, which keeps a
-    trace of the activity far longer, while the slow weight retains a long-term memory.
+    While the pulses arrive the fast weight follows each pulse, the medium weight builds up, and the slow weight builds
+    up further. After the input stops the fast weight falls back quickly to the medium one, which keeps a trace of the
+    activity far longer, while the slow weight retains a long-term memory. The system has the weights `synapse.w0`,
+    `synapse.w1`, and `synapse.w2`.
 
     Args:
         alpha0:
@@ -177,50 +152,98 @@ def adaptrode(
         stop:
             The step after which the input stays off.
 
-    Returns:
-        system:
-            The system, with the weights `synapse.w0`, `synapse.w1`, and `synapse.w2`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.neuroscience import adaptrode
-        >>> adaptrode(stop=50.0).elements[0].stop
+        >>> from skcomplex.systems.biology.neuroscience import AdaptrodeSystem
+        >>> AdaptrodeSystem(stop=50.0).prepare().system_.elements[0].stop
         50.0
     """
-    synapse = AdaptrodeElement(
-        'synapse',
-        alpha0=alpha0,
-        alpha1=alpha1,
-        alpha2=alpha2,
-        delta0=delta0,
-        delta1=delta1,
-        delta2=delta2,
-        period=period,
-        stop=stop,
-    )
-    levels = [
-        MapInteraction(
-            'fast_level',
-            target='synapse',
-            state='w0',
-            function=lambda s: s.target.w0
-            + s.target.alpha0 * _input(s) * (s.target.w_max - s.target.w0)
-            - s.target.delta0 * (s.target.w0 - s.target.w1),
-        ),
-        MapInteraction(
-            'medium_level',
-            target='synapse',
-            state='w1',
-            function=lambda s: s.target.w1
-            + s.target.alpha1 * (s.target.w0 - s.target.w1)
-            - s.target.delta1 * (s.target.w1 - s.target.w2),
-        ),
-        MapInteraction(
-            'slow_level',
-            target='synapse',
-            state='w2',
-            function=lambda s: s.target.w2
-            + s.target.alpha2 * (s.target.w1 - s.target.w2)
-            - s.target.delta2 * s.target.w2,
-        ),
-    ]
-    return System(elements=[synapse], interactions=levels)
+
+    field = 'biology/neuroscience'
+    topics = ('synapse', 'learning', 'memory', 'discrete map')
+    references = ('Mobus 1994', 'Mobus 2022')
+    until = 400
+    dt = 1
+
+    def __init__(
+        self,
+        *,
+        alpha0: float = 0.25,
+        alpha1: float = 0.05,
+        alpha2: float = 0.01,
+        delta0: float = 0.1,
+        delta1: float = 0.02,
+        delta2: float = 0.002,
+        period: float = 10.0,
+        stop: float = 150.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.alpha0 = alpha0
+        self.alpha1 = alpha1
+        self.alpha2 = alpha2
+        self.delta0 = delta0
+        self.delta1 = delta1
+        self.delta2 = delta2
+        self.period = period
+        self.stop = stop
+
+    @staticmethod
+    def _input(s: SimpleNamespace) -> Expression:
+        """Return the input pulse train of the Adaptrode.
+
+        The train is `amplitude` for `width` steps every `period` until `stop`.
+        """
+        synapse = s.target
+        pulse: Expression = where(
+            mod(s.t, synapse.period) < synapse.width,
+            where(s.t < synapse.stop, synapse.amplitude, 0),
+            0,
+        )
+        return pulse
+
+    def _build_system(self) -> System:
+        """Return the parts of an Adaptrode synapse driven by a train of input pulses.
+
+        The train stops after a while.
+        """
+        synapse = AdaptrodeElement(
+            'synapse',
+            alpha0=self.alpha0,
+            alpha1=self.alpha1,
+            alpha2=self.alpha2,
+            delta0=self.delta0,
+            delta1=self.delta1,
+            delta2=self.delta2,
+            period=self.period,
+            stop=self.stop,
+        )
+        levels = [
+            MapInteraction(
+                'fast_level',
+                target='synapse',
+                state='w0',
+                function=lambda s: s.target.w0
+                + s.target.alpha0 * self._input(s) * (s.target.w_max - s.target.w0)
+                - s.target.delta0 * (s.target.w0 - s.target.w1),
+            ),
+            MapInteraction(
+                'medium_level',
+                target='synapse',
+                state='w1',
+                function=lambda s: s.target.w1
+                + s.target.alpha1 * (s.target.w0 - s.target.w1)
+                - s.target.delta1 * (s.target.w1 - s.target.w2),
+            ),
+            MapInteraction(
+                'slow_level',
+                target='synapse',
+                state='w2',
+                function=lambda s: s.target.w2
+                + s.target.alpha2 * (s.target.w1 - s.target.w2)
+                - s.target.delta2 * s.target.w2,
+            ),
+        ]
+        return System(self.label, elements=[synapse], interactions=levels)

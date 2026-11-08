@@ -8,24 +8,24 @@ direction. The view shows 50 particles started at the origin, flying apart along
 """
 
 # %%
-# The system is created by name from the catalog with friction `gamma = 20`, intake `q = 10`, internal loss `c = 1`,
+# The system is built from its class with friction `gamma = 20`, intake `q = 10`, internal loss `c = 1`,
 # conversion `d = 10`, and velocity noise `D = 0.01`. The Euler-Maruyama stepper takes steps of 0.01 and the observer
 # saves every frame of 0.1 with the default blueprint, whose primary view shows the particles.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.active_matter import DepotBrownianParticlesSystem
 
 SYSTEM = 'depot_brownian_particles'
 
-system = create_system(SYSTEM, random_state=0)
+system = DepotBrownianParticlesSystem(random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 solver = EulerMaruyamaSolver(dt=0.01)
-simulation = Simulation(system, solver=solver, dt=0.1, observers=[observer], random_state=0).prepare().run(until=20)
+trajectory = simulate(system, until=20, solver=solver, observers=[observer], random_state=0)
 
 # %%
 # Bifurcation to active motion
@@ -38,12 +38,14 @@ simulation = Simulation(system, solver=solver, dt=0.1, observers=[observer], ran
 intakes = np.linspace(0.5, 12, 12)
 speeds = []
 for intake in intakes:
-    run = (
-        Simulation(create_system(SYSTEM, q=intake, random_state=1), solver=solver, dt=0.5, random_state=1)
-        .prepare()
-        .run(until=40)
+    run = simulate(
+        DepotBrownianParticlesSystem(q=intake, random_state=1),
+        until=40,
+        solver=solver,
+        dt=0.5,
+        random_state=1,
     )
-    speeds.append(np.linalg.norm(run.trajectory_.values('walkers.v')[-20:], axis=-1).mean())
+    speeds.append(np.linalg.norm(run.values('walkers.v')[-20:], axis=-1).mean())
 grid = np.linspace(0.5, 12, 300)
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(intakes, speeds, 'o', label='simulation, 50 particles')

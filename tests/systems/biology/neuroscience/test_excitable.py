@@ -4,10 +4,8 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.systems.biology.neuroscience import (
-    kinouchi_copelli,
-)
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.biology.neuroscience import KinouchiCopelliSystem
 
 
 def _dynamic_range(rates, response):
@@ -22,9 +20,7 @@ def test_kinouchi_copelli_activity_dies_out_below_and_persists_above_the_critica
     """Test that without stimulus the activity dies out below a branching ratio of 1 and sustains itself above."""
     graph = nx.gnp_random_graph(2000, 10 / 1999, seed=0)
     for sigma, persists in ((0.8, False), (1.5, True)):
-        trajectory = (
-            Simulation(kinouchi_copelli(graph, sigma=sigma), dt=1, random_state=0).prepare().run(300).trajectory_
-        )
+        trajectory = simulate(KinouchiCopelliSystem(graph, sigma=sigma), dt=1, random_state=0, until=300)
         assert (trajectory.values('neurons.phase')[-50:] == 1).any() == persists
 
 
@@ -38,8 +34,8 @@ def test_kinouchi_copelli_dynamic_range_peaks_at_the_critical_point():
     for sigma in sigmas:
         response = []
         for rate in rates:
-            system = kinouchi_copelli(graph, sigma=sigma, stimulus=rate)
-            trajectory = Simulation(system, dt=1, random_state=0).prepare().run(1000).trajectory_
+            system = KinouchiCopelliSystem(graph, sigma=sigma, stimulus=rate).prepare().system_
+            trajectory = simulate(system, dt=1, random_state=0, until=1000)
             response.append((trajectory.values('neurons.phase')[200:] == 1).mean())
         ranges.append(_dynamic_range(rates, np.array(response)))
     assert sigmas[int(np.argmax(ranges))] == 1.0

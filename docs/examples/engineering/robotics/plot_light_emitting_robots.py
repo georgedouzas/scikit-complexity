@@ -8,7 +8,7 @@ before it arrives and speeds up before it leaves, so the robots avoid each other
 """
 
 # %%
-# The system is created by name from the catalog with the values of Argun et al.: 50 robots in a periodic square of
+# The system is built from its class with the values of Argun et al.: 50 robots in a periodic square of
 # side 10, the intensity `I0 = 5`, the width `r0 = 1`, the speeds 1 in the dark and 0.1 in strong light, the time scale
 # `tau = 2` of rotational diffusion, and a delay of 10 s. Every step lasts 0.5 s. The default blueprint shows the
 # robots in the arena, colored by the light they measure.
@@ -16,13 +16,14 @@ before it arrives and speeds up before it leaves, so the robots avoid each other
 import matplotlib.pyplot as plt
 import numpy as np
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation
+from skcomplex.systems.engineering.robotics import LightEmittingRobotsSystem
 
 SYSTEM = 'light_emitting_robots'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare().run()
+trajectory = simulate(LightEmittingRobotsSystem(), observers=[observer])
 
 # %%
 # Delay against prediction
@@ -33,7 +34,7 @@ simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare(
 
 fig, axes = plt.subplots(1, 3, figsize=(12, 4))
 for ax, delay in zip(axes, (10.0, 0.0, -10.0), strict=True):
-    trajectory = create_simulation(SYSTEM, n_robots=20, delay=delay).prepare().run(until=600).trajectory_
+    trajectory = simulate(LightEmittingRobotsSystem(n_robots=20, delay=delay), until=600)
     snapshot = trajectory.agents('robots', 600)
     positions = np.asarray(snapshot.locations)
     ax.scatter(positions[:, 0], positions[:, 1], c=snapshot.values['light'], vmin=0, vmax=10)

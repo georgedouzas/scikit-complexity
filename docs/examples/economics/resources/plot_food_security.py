@@ -15,8 +15,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation
+from skcomplex.systems.economics.resources import FoodSecuritySystem
 
 SYSTEM = 'food_security'
 
@@ -34,7 +35,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = create_simulation(SYSTEM).set_params(dt=0.25, observers=[observer]).prepare().run(until=50)
+trajectory = simulate(FoodSecuritySystem(), observers=[observer])
 
 # %%
 # Policies against a growing requirement
@@ -58,14 +59,10 @@ policies = {
     },
 }
 for name, changes in policies.items():
-    scenario = (
-        simulation.trajectory_
-        if not changes
-        else create_simulation(SYSTEM, **changes).set_params(dt=0.25).prepare().run(until=50).trajectory_
-    )
+    scenario = trajectory if not changes else simulate(FoodSecuritySystem(**changes))
     ax.plot(np.asarray(scenario.times), scenario.values('rice.self_sufficiency'), label=name)
-times = np.asarray(simulation.trajectory_.times)
-start = simulation.trajectory_.values('rice.self_sufficiency')[0]
+times = np.asarray(trajectory.times)
+start = trajectory.values('rice.self_sufficiency')[0]
 ax.plot(times, start * np.exp(-0.03 * times), 'k:', label='exp(-0.03 t)')
 ax.axhline(1.0, color='grey', lw=0.8)
 ax.set_xlabel('years')

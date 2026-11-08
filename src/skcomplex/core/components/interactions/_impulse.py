@@ -14,11 +14,12 @@ from ...specs import RoleSpec
 from ...types import ElementKind
 from ..laws import BaseLaw, CrossingLaw
 from ..laws.utils import where
+from ..spaces import BaseSpace
 from ._interaction import Interaction
 
 
 class ImpulseInteraction(Interaction):
-    """Impulses that set states of the target to new values at given times, or at periodic times.
+    """Impulses that set states of the target to new values at given or periodic times.
 
     The impulses fall at every time of `times` and, with a `period`, at `start + j * period` for `j` from 0, `count`
     times or without end. An impulse at the initial time of a run does not fire. The new values are functions of the
@@ -82,15 +83,19 @@ class ImpulseInteraction(Interaction):
         self.start = start
         self.count = count
 
-    def _check(self) -> None:
-        """Raise an error for impulses without states or times, or with a period or a count they cannot take.
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Raise an error for impulses without states or times, or a bad period or count.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The impulses set no state, a new value is not a function, the impulses have no time, the period is not
                 positive, or the count is not a positive integer.
         """
-        super()._check()
+        super()._prepare(context)
         if not self.reset or not all(callable(function) for function in self.reset.values()):
             error_msg = (
                 f'The impulses {self.label!r} set {self.reset!r}. Map state names to functions of the namespace.'
@@ -109,7 +114,10 @@ class ImpulseInteraction(Interaction):
             raise ValidationError(error_msg)
 
     def _get_periodic_guard(self, time: Expression, period: float) -> Expression:
-        """Return a guard that crosses zero at every periodic impulse and stays away from zero outside them."""
+        """Return a guard that crosses zero at every periodic impulse.
+
+        It stays away from zero outside them.
+        """
         guard = where(time < self.start - period / 2, -1, sin(pi * (time - self.start) / period))
         if self.count is None:
             return guard

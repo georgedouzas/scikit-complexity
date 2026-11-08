@@ -13,17 +13,15 @@ along a diagonal: the highway, which it builds forever.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.computer_science.automata import LangtonsAntSystem
 
 SYSTEM = 'langtons_ant'
 CENTER = 60
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = (
-    Simulation(create_system(SYSTEM, shape=(120, 120)), dt=100, observers=[observer]).prepare().run(until=12000)
-)
+trajectory = simulate(LangtonsAntSystem(shape=(120, 120)), until=12000, observers=[observer])
 
 # %%
 # From the blob to the highway
@@ -32,7 +30,6 @@ simulation = (
 # Once on the highway its distance should grow linearly, by `2√2` cells every 104 steps, and the number of black cells
 # by 12 every 104 steps.
 
-trajectory = simulation.trajectory_
 colors, ant = trajectory.lattice('cells.color'), trajectory.lattice('cells.ant')
 positions = np.array([np.argwhere(frame >= 0)[0] for frame in ant])
 distance = np.hypot(*(positions - CENTER).T)

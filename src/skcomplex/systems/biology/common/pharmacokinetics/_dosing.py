@@ -1,4 +1,7 @@
-"""Define dosing, the input of a drug into a compartment at a constant rate or in a schedule of infusions."""
+"""Define dosing, the input of a drug into a compartment.
+
+The drug enters at a constant rate or in a schedule of infusions.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,12 +14,15 @@ from sage.all__sagemath_symbolics import Expression
 
 from .....core.components.interactions import RateInteraction
 from .....core.components.laws.utils import pulse_train
+from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
 from .....core.specs import RoleSpec
 
 
 class DosingInteraction(RateInteraction):
-    """Input of a drug into a state of a target at the rate `dose`, constantly or in a schedule of infusions.
+    """Input of a drug into a state of a target at the rate `dose`.
+
+    The drug enters constantly or in a schedule of infusions.
 
     Without a period the drug enters at the constant rate `dose`. With a period it enters at the rate `dose` for `width`
     time units every `period` from `start`, `count` times or without end. The dose is a function of the namespace,
@@ -54,11 +60,11 @@ class DosingInteraction(RateInteraction):
     Examples:
         >>> from skcomplex.core.components.elements import CompartmentElement
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.systems.biology.common.pharmacokinetics import DosingInteraction
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> dosing = DosingInteraction('dosing', target='patient', state='n', dose=2.0, period=10.0, count=3)
         >>> system = System(elements=[CompartmentElement('patient', n=0.0)], interactions=[dosing])
-        >>> trajectory = Simulation(system, dt=0.5).prepare().run(until=40.0).trajectory_
+        >>> trajectory = simulate(system, until=40.0, dt=0.5)
         >>> round(float(trajectory.values('patient.n')[-1]), 3)
         6.0
     """
@@ -82,14 +88,18 @@ class DosingInteraction(RateInteraction):
         self.start = start
         self.count = count
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for a state, a dose, or a schedule the input cannot take.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The state is not a name, the dose is neither a function nor a number, or the schedule is not positive.
         """
-        super()._check()
+        super()._prepare(context)
         if not (callable(self.dose) or isinstance(self.dose, int | float)):
             error_msg = f'The dose of {self.label!r} is {self.dose!r}. Give a function of the namespace or a number.'
             raise ValidationError(error_msg)

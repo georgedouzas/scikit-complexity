@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import KramersMoyalAnalysis
+from skcomplex.core.analysis import kramers_moyal
 from skcomplex.core.errors import AnalysisError
 
 
@@ -132,10 +132,10 @@ def _logistic_series(size: int) -> np.ndarray:
 )
 def test_kramers_moyal_keeps_its_reference_values(bandwidth, positions, drift, diffusion):
     """Test that the positions and the coefficients keep values recorded from the previous library."""
-    analysis = KramersMoyalAnalysis(dt=0.01, bins=9, bandwidth=bandwidth).prepare(_logistic_series(400)).run()
-    assert analysis.positions_ == pytest.approx(positions, rel=1e-6)
-    assert analysis.drift_ == pytest.approx(drift, rel=1e-6)
-    assert analysis.diffusion_ == pytest.approx(diffusion, rel=1e-6)
+    analysis = kramers_moyal(_logistic_series(400), dt=0.01, bins=9, bandwidth=bandwidth)
+    assert analysis.positions == pytest.approx(positions, rel=1e-6)
+    assert analysis.drift == pytest.approx(drift, rel=1e-6)
+    assert analysis.diffusion == pytest.approx(diffusion, rel=1e-6)
 
 
 def test_kramers_moyal_ornstein_uhlenbeck_coefficients():
@@ -147,15 +147,15 @@ def test_kramers_moyal_ornstein_uhlenbeck_coefficients():
     values[0] = 0.0
     for t in range(1, values.size):
         values[t] = values[t - 1] - values[t - 1] * dt + noise[t]
-    coefficients = KramersMoyalAnalysis(dt=dt, bins=41).prepare(values).run()
-    inside = np.abs(coefficients.positions_) < 1.5
-    assert np.max(np.abs(coefficients.drift_[inside] + coefficients.positions_[inside])) < 0.1
-    assert np.max(np.abs(coefficients.diffusion_[inside] - 1)) < 0.05
+    coefficients = kramers_moyal(values, dt=dt, bins=41)
+    inside = np.abs(coefficients.positions) < 1.5
+    assert np.max(np.abs(coefficients.drift[inside] + coefficients.positions[inside])) < 0.1
+    assert np.max(np.abs(coefficients.diffusion[inside] - 1)) < 0.05
 
 
 def test_kramers_moyal_reads_one_series():
     """Test that two series and a negative step raise errors."""
     with pytest.raises(AnalysisError, match='reads one series'):
-        KramersMoyalAnalysis().prepare(np.zeros((10, 2)))
+        kramers_moyal(np.zeros((10, 2)))
     with pytest.raises(AnalysisError, match='dt'):
-        KramersMoyalAnalysis(dt=-1.0).prepare()
+        kramers_moyal([0, 1, 0, 1], dt=-1.0)

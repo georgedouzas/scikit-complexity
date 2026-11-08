@@ -1,9 +1,13 @@
-"""Finance systems: an order book of noise traders who follow gurus on a network that rewires towards wealth."""
+"""Finance systems: an order book of noise traders who follow gurus.
+
+The gurus are on a network that rewires towards wealth.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 import math
+from collections.abc import Mapping
 from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
@@ -14,15 +18,17 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import FeedbackInteraction
 from ....core.components.laws import BaseLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 
 class GuruTraderView(AgentView):
-    """Trader as the market sees it: its holdings, wealth, expectation, link, volatility, and followers."""
+    """Trader as the market sees it.
+
+    It holds its holdings, wealth, expectation, link, volatility, and followers.
+    """
 
     cash: float
     stocks: float
@@ -34,10 +40,11 @@ class GuruTraderView(AgentView):
 
 
 class GuruTraderElement(Element):
-    """Noise trader of an order-driven market, who follows the expectation of the trader it is linked to.
+    """Noise trader of an order-driven market.
 
-    The trader holds cash and stocks, has one outgoing link to the trader whose expected return it adopts, and expects
-    returns of its own volatility `sigma`. The market of the system rewires its link and runs its orders.
+    It follows the expectation of the trader it is linked to. The trader holds cash and stocks, has one outgoing link to
+    the trader whose expected return it adopts, and expects returns of its own volatility `sigma`. The market of the
+    system rewires its link and runs its orders.
 
     Args:
         label:
@@ -73,6 +80,8 @@ class GuruTraderElement(Element):
         >>> GroupElement('traders', element=GuruTraderElement, size=3).size
         3
     """
+
+    law_classes = ()
 
     def __init__(
         self,
@@ -122,14 +131,14 @@ TINY = 1e-12
 
 
 class GuruMarketInteraction(FeedbackInteraction[SystemView]):
-    """Order-driven market of noise traders who imitate the expectation of a guru, on a network rewired every day.
+    """Order-driven market of noise traders who imitate the expectation of a guru.
 
-    Every step is a trading day. First every trader picks a random trader `j` and moves its link from the trader `k`
-    it follows to `j` with probability `1 / (1 + exp(-beta (f_j - f_k)))`, where the fitness `f` is the wealth relative
-    to the richest trader (Eqs. 3.4 and 3.5 of Caiani et al. 2016). The guru is the trader of the largest in-degree of
-    the day before, and the intensity of choice `beta` grows by `beta_step` every day the guru survives and returns to
-    1 when it is replaced. Every trader draws its expected return `sigma_i eps` (Eq. 3.3) and adopts the one of the
-    trader it follows, except the guru.
+    The network is rewired every day. Every step is a trading day. First every trader picks a random trader `j` and
+    moves its link from the trader `k` it follows to `j` with probability `1 / (1 + exp(-beta (f_j - f_k)))`, where the
+    fitness `f` is the wealth relative to the richest trader (Eqs. 3.4 and 3.5 of Caiani et al. 2016). The guru is the
+    trader of the largest in-degree of the day before, and the intensity of choice `beta` grows by `beta_step` every day
+    the guru survives and returns to 1 when it is replaced. Every trader draws its expected return `sigma_i eps` (Eq.
+    3.3) and adopts the one of the trader it follows, except the guru.
 
     Then `tau` intraday operations run, each by a trader drawn at random. With the expected price
     `p_ref exp(sqrt(tau) r)` (Eq. 3.1), a trader expecting a rise bids `U(p (1 - gamma1), p_hat)` for a random share of
@@ -167,6 +176,8 @@ class GuruMarketInteraction(FeedbackInteraction[SystemView]):
         ('price', 'log_return')
     """
 
+    draws = True
+
     reports: ClassVar[tuple[str, ...]] = ('price', 'log_return', 'volume', 'guru', 'beta', 'guru_followers')
 
     def __init__(
@@ -188,7 +199,10 @@ class GuruMarketInteraction(FeedbackInteraction[SystemView]):
 
     @staticmethod
     def _stored(system: SystemView, name: str, default: float) -> float:
-        """Return a number the market stored in an earlier step, or the default before it is stored."""
+        """Return a number the market stored in an earlier step.
+
+        Before it is stored, it is the default.
+        """
         value = system.storage.get(name, default)
         return float(value) if isinstance(value, int | float | np.number) else default
 
@@ -199,7 +213,10 @@ class GuruMarketInteraction(FeedbackInteraction[SystemView]):
         beta: float,
         rng: np.random.Generator,
     ) -> Array:
-        """Return the links after every trader considers a random other trader by the logit of their fitnesses."""
+        """Return the links after every trader considers a random other trader.
+
+        The choice follows the logit of their fitnesses.
+        """
         size = len(follows)
         candidates = rng.integers(size - 1, size=size)
         candidates += candidates >= np.arange(size)
@@ -217,7 +234,10 @@ class GuruMarketInteraction(FeedbackInteraction[SystemView]):
         buying: bool,
         holdings: dict[str, Array],
     ) -> tuple[float, float, float]:
-        """Trade an incoming order against the opposite side of the book, and return what is left and the last price."""
+        """Trade an incoming order against the opposite side of the book.
+
+        It returns what is left and the last price.
+        """
         volume, last = 0.0, math.nan
         while size > 0 and book and ((limit >= book[0][PRICE]) if buying else (limit <= book[0][PRICE])):
             quote = book[0]
@@ -252,7 +272,10 @@ class GuruMarketInteraction(FeedbackInteraction[SystemView]):
         expectation: Array,
         price: float,
     ) -> tuple[float, float]:
-        """Run the intraday operations of a day, and return the closing price and the volume."""
+        """Run the intraday operations of a day.
+
+        It returns the closing price and the volume.
+        """
         rng, tau = system.rng, int(system.parameter('tau'))
         reference, volume = price, 0.0
         bids: list[list[float]] = []
@@ -348,38 +371,23 @@ class GuruMarketInteraction(FeedbackInteraction[SystemView]):
 HOLDINGS = ('cash', 'stocks')
 
 
-@register_system(
-    field='economics/finance',
-    tags=('stock market', 'agents', 'order book', 'imitation', 'network', 'gurus', 'noise traders'),
-    references=('Caiani et al. 2016 §3.2',),
-    defaults={'until': 300, 'invariants': {f'total_{name}': 1e-6 for name in HOLDINGS}},
-    observables=lambda system: [
-        ObservableSpec(f'total_{name}', group='traders', variable=name, reduce='sum') for name in HOLDINGS
-    ],
-)
-def guru_order_book(
-    n_traders: int = 100,
-    *,
-    tau: int = 100,
-    beta_step: float = 1.5,
-    sigma: float = 0.01,
-    cash: float = 1000.0,
-    stocks: float = 100.0,
-    opening: float = 10.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the order-driven market of Grilli and Tedeschi, whose noise traders imitate gurus they choose by wealth.
+class GuruOrderBookSystem(BaseSystem):
+    """The order-driven market of Grilli and Tedeschi.
 
-    Noise traders expect random returns of their own volatility, but every day each adopts the expectation of the
-    trader it follows on a directed communication network. Every day each trader moves its link to a random trader with
-    a logit probability of the difference of their wealths, whose intensity grows every day the guru, the most followed
-    trader, keeps its place, so followers concentrate on successful traders and their expectations synchronize. The
-    traders then place market and limit orders around a geometric Brownian forecast in an order book with price and
-    time priority, within the day. This is the model of Caiani et al. (2016, Chapter 3, Sections 3.2 and 3.4). Imitation
-    produces coordination periods in which most traders follow one guru, and the returns get fat tails and volatility
-    clusters. The source leaves two choices open: the volatilities are uniform on `(0, sigma)`, and the intensity of
-    choice grows by `beta_step` every day the guru survives. The cash and the stocks of the traders are conserved,
-    which the default run checks as invariants.
+    Its noise traders imitate gurus they choose by wealth. Noise traders expect random returns of their own volatility,
+    but every day each adopts the expectation of the trader it follows on a directed communication network. Every day
+    each trader moves its link to a random trader with a logit probability of the difference of their wealths, whose
+    intensity grows every day the guru, the most followed trader, keeps its place, so followers concentrate on
+    successful traders and their expectations synchronize. The traders then place market and limit orders around a
+    geometric Brownian forecast in an order book with price and time priority, within the day. This is the model of
+    Caiani et al. (2016, Chapter 3, Sections 3.2 and 3.4). Imitation produces coordination periods in which most traders
+    follow one guru, and the returns get fat tails and volatility clusters. The source leaves two choices open: the
+    volatilities are uniform on `(0, sigma)`, and the intensity of choice grows by `beta_step` every day the guru
+    survives. The cash and the stocks of the traders are conserved, which the default run checks as invariants.
+
+    The system has the group `traders` and the market `market`, whose reporters are `market.price`, `market.log_return`,
+    `market.volume`, `market.guru`, `market.beta`, and `market.guru_followers`. The observables of the system are the
+    totals `total_cash` and `total_stocks`.
 
     Args:
         n_traders:
@@ -406,31 +414,69 @@ def guru_order_book(
         random_state:
             The seed or generator of the volatilities and the initial links.
 
-    Returns:
-        system:
-            The system, with the group `traders` and the market `market`, whose reporters are `market.price`,
-            `market.log_return`, `market.volume`, `market.guru`, `market.beta`, and `market.guru_followers`. The
-            observables of the system are the totals `total_cash` and `total_stocks`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.finance import guru_order_book
-        >>> guru_order_book(10).elements[0].prepare().size_
+        >>> from skcomplex.systems.economics.finance import GuruOrderBookSystem
+        >>> GuruOrderBookSystem(10).prepare().system_.elements[0].prepare().size_
         10
     """
-    rng = np.random.default_rng(random_state)
-    links = rng.integers(n_traders - 1, size=n_traders)
-    links += links >= np.arange(n_traders)
-    traders = GroupElement(
-        'traders',
-        element=GuruTraderElement,
-        size=n_traders,
-        values={
-            'cash': cash,
-            'stocks': stocks,
-            'wealth': cash + opening * stocks,
-            'follows': links.astype(float),
-            'sigma': rng.uniform(0.0, sigma, n_traders),
-        },
+
+    field = 'economics/finance'
+    topics = ('stock market', 'agents', 'order book', 'imitation', 'network', 'gurus', 'noise traders')
+    references = ('Caiani et al. 2016 §3.2',)
+    until = 300
+    invariants: ClassVar[Mapping[str, float]] = {f'total_{name}': 1e-6 for name in HOLDINGS}
+    observables = tuple(
+        [ObservableSpec(f'total_{name}', group='traders', variable=name, reduce='sum') for name in HOLDINGS],
     )
-    market = GuruMarketInteraction('market', traders='traders', tau=tau, beta_step=beta_step, opening=opening)
-    return System(elements=[traders], interactions=[market])
+
+    def __init__(
+        self,
+        n_traders: int = 100,
+        *,
+        tau: int = 100,
+        beta_step: float = 1.5,
+        sigma: float = 0.01,
+        cash: float = 1000.0,
+        stocks: float = 100.0,
+        opening: float = 10.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_traders = n_traders
+        self.tau = tau
+        self.beta_step = beta_step
+        self.sigma = sigma
+        self.cash = cash
+        self.stocks = stocks
+        self.opening = opening
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        links = rng.integers(self.n_traders - 1, size=self.n_traders)
+        links += links >= np.arange(self.n_traders)
+        traders = GroupElement(
+            'traders',
+            element=GuruTraderElement,
+            size=self.n_traders,
+            values={
+                'cash': self.cash,
+                'stocks': self.stocks,
+                'wealth': self.cash + self.opening * self.stocks,
+                'follows': links.astype(float),
+                'sigma': rng.uniform(0.0, self.sigma, self.n_traders),
+            },
+        )
+        market = GuruMarketInteraction(
+            'market',
+            traders='traders',
+            tau=self.tau,
+            beta_step=self.beta_step,
+            opening=self.opening,
+        )
+        return System(self.label, elements=[traders], interactions=[market])

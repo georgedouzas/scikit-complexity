@@ -1,4 +1,7 @@
-"""Draw lattice groups on group spaces as Cayley graphs, with sites on rings by word length colored by state."""
+"""Draw lattice groups on group spaces as Cayley graphs.
+
+The sites sit on rings by word length and are colored by state.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,11 +21,12 @@ _NODE_SHARE = 0.15
 
 
 class CayleyVisual(BaseVisual):
-    """Visual that logs every state of a lattice group on a group space as the nodes of its Cayley graph.
+    """Visual that logs every state of a lattice group on a group space as a graph.
 
-    Sites sit on rings by word length, with one ring per radius and the identity at the centre, colored by state.
-    Every chosen state is logged under `<path>/<state>` as `GraphNodes` at every frame, with the edges from every site
-    `g` to `g s` for every generator `s` logged once as static `GraphEdges`.
+    The states are logged as the nodes of its Cayley graph. Sites sit on rings by word length, with one ring per radius
+    and the identity at the centre, colored by state. Every chosen state is logged under `<path>/<state>` as
+    `GraphNodes` at every frame, with the edges from every site `g` to `g s` for every generator `s` logged once as
+    static `GraphEdges`.
 
     Args:
         states:
@@ -77,7 +81,9 @@ class CayleyVisual(BaseVisual):
         self.edges_.add(path)
 
     def _log(self, recording: rr.RecordingStream, element: CompiledElementSpec, frame: FrameSpec) -> None:
-        """Log every chosen state of a lattice group on a group space as colored graph nodes.
+        """Log every chosen state of a lattice group on a group space as graph nodes.
+
+        The nodes are colored.
 
         Args:
             recording:

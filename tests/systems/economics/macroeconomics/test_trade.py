@@ -2,25 +2,29 @@
 
 import pytest
 
-from skcomplex.systems import describe
-from skcomplex.systems.economics.macroeconomics import exchange_rates
+from skcomplex.systems.economics.macroeconomics import ExchangeRatesSystem
 
 from ..conftest import _run
 
 
 def test_exchange_rates_reproduce_the_floating_and_fixed_stories():
     """Test the stages of a 10 percent rise of home prices under a floating and a fixed exchange rate."""
-    floating = _run(built := exchange_rates(), 2, dt=1, observables=describe('exchange_rates').observables_of(built))
+    floating = _run(
+        ExchangeRatesSystem().prepare().system_,
+        2,
+        dt=1,
+        observables=ExchangeRatesSystem().get_run_settings()['observables'],
+    )
     assert floating.values('home.E')[-1] == pytest.approx(0.805, abs=1e-3)
     assert floating.values('home.M')[-1] == pytest.approx(30.6)
     assert floating.values('balance')[-1] == pytest.approx(4.2, abs=0.05)
     assert floating.values('real_rate')[-1] == pytest.approx(floating.values('real_rate')[0])
     assert floating.values('output')[-1] == pytest.approx(103.4)
     fixed = _run(
-        built := exchange_rates(floating=False),
+        ExchangeRatesSystem(floating=False).prepare().system_,
         2,
         dt=1,
-        observables=describe('exchange_rates').observables_of(built),
+        observables=ExchangeRatesSystem().get_run_settings()['observables'],
     )
     assert set(fixed.values('home.E').round(9)) == {round(34 / (32 * 1.2), 9)}
     assert fixed.values('home.X')[-1] == pytest.approx(0.9 * 32)

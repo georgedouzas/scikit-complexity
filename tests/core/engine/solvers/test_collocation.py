@@ -5,7 +5,7 @@ import pytest
 from scipy.optimize import brentq
 
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import CollocationSolver
 from skcomplex.core.errors import ValidationError
 
@@ -21,12 +21,7 @@ def _singular_level(cost, discount):
 
 def test_collocation_matches_riccati_solution(linear_quadratic, quadratic_cost, riccati_control):
     """Test that the collocation control of the scalar linear-quadratic problem matches the Riccati solution."""
-    trajectory = (
-        Simulation(linear_quadratic, solver=CollocationSolver(quadratic_cost, nodes=51), dt=0.05)
-        .prepare()
-        .run(until=1.0)
-        .trajectory_
-    )
+    trajectory = simulate(linear_quadratic, until=1.0, solver=CollocationSolver(quadratic_cost, nodes=51), dt=0.05)
     np.testing.assert_allclose(trajectory.values('plant.u'), riccati_control(trajectory.times), atol=1e-3)
 
 
@@ -37,7 +32,7 @@ def test_collocation_trapezoidal_matches_riccati_solution_inside_the_run(
 ):
     """Test that the trapezoidal control matches the Riccati solution between the end nodes, where it is least exact."""
     solver = CollocationSolver(quadratic_cost, nodes=101, scheme='trapezoidal')
-    trajectory = Simulation(linear_quadratic, solver=solver, dt=0.05).prepare().run(until=1.0).trajectory_
+    trajectory = simulate(linear_quadratic, until=1.0, solver=solver, dt=0.05)
     inside = slice(1, -1)
     np.testing.assert_allclose(
         trajectory.values('plant.u')[inside],
@@ -49,14 +44,14 @@ def test_collocation_trapezoidal_matches_riccati_solution_inside_the_run(
 def test_collocation_with_trust_region_method(linear_quadratic, quadratic_cost, riccati_control):
     """Test that the trust-region method of SciPy solves the transcription too."""
     solver = CollocationSolver(quadratic_cost, nodes=11, method='trust-constr', tolerance=1e-8)
-    trajectory = Simulation(linear_quadratic, solver=solver, dt=0.1).prepare().run(until=1.0).trajectory_
+    trajectory = simulate(linear_quadratic, until=1.0, solver=solver, dt=0.1)
     np.testing.assert_allclose(trajectory.values('plant.u'), riccati_control(trajectory.times), atol=1e-2)
 
 
 def test_collocation_harvests_bang_bang(harvesting, profit):
     """Test that the optimal effort switches between its bounds and holds the resource at the singular level."""
     solver = CollocationSolver(profit, sense='max', nodes=101, scheme='trapezoidal')
-    trajectory = Simulation(harvesting, solver=solver, dt=0.5).prepare().run(until=20.0).trajectory_
+    trajectory = simulate(harvesting, until=20.0, solver=solver, dt=0.5)
     effort, resource = trajectory.values('fishery.effort'), trajectory.values('fishery.x')
     level = _singular_level(cost=0.2, discount=0.1)
     assert effort[0] == pytest.approx(1.0, abs=1e-6)
@@ -69,9 +64,7 @@ def test_collocation_harvests_bang_bang(harvesting, profit):
 def test_collocation_rejects_unknown_scheme(linear_quadratic, quadratic_cost):
     """Test that an unknown scheme is rejected when the solver is prepared."""
     with pytest.raises(ValidationError, match='Unknown collocation scheme'):
-        Simulation(linear_quadratic, solver=CollocationSolver(quadratic_cost, scheme='euler')).prepare().run(
-            until=1.0,
-        )
+        simulate(linear_quadratic, until=1.0, solver=CollocationSolver(quadratic_cost, scheme='euler'))
 
 
 def test_collocation_declares_rate_laws():

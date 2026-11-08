@@ -1,4 +1,7 @@
-"""Solver of lattice dynamics that applies every local rule, drive, cascade, and extremal law once per step."""
+"""Solver of lattice dynamics that applies every lattice law once per step.
+
+The laws are local rules, drives, cascades, and extremal laws.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,18 +16,19 @@ from ._solver import Solver
 
 
 class LatticeSolver(Solver):
-    """Solver of lattice dynamics that applies every local rule, drive, cascade, and extremal law once per step.
+    """Solver of lattice dynamics that applies every lattice law once per step.
 
-    Steps apply in the order the laws are declared, and the boundary laws apply after every step. Cascades record
-    their size, duration, and area as events, and extremal laws record the site and the value of every application.
+    The laws are local rules, drives, cascades, and extremal laws. Steps apply in the order the laws are declared, and
+    the boundary laws apply after every step. Cascades record their size, duration, and area as events, and extremal
+    laws record the site and the value of every application.
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.engine.compile import PassCompiler
-        >>> from skcomplex.systems.computer_science.automata import elementary_automaton
+        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.systems.computer_science.automata import ElementaryAutomatonSystem
         >>> from skcomplex.core.engine.solvers import LatticeSolver
         >>> from skcomplex.core.specs import StepSpec
-        >>> problem = PassCompiler().prepare(elementary_automaton(30, size=11)).run().problem_
+        >>> problem = simulate(ElementaryAutomatonSystem(30, size=11), until=0).problem
         >>> stepper = LatticeSolver(random_state=0).prepare(problem)
         >>> step = StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)
         >>> stepper.run(step).state_.astype(int).tolist()

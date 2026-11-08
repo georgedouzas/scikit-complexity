@@ -3,24 +3,19 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.systems import describe
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.engineering.circuits import (
-    vibration_energy_harvester,
+    VibrationEnergyHarvesterSystem,
 )
 
 
 def test_vibration_energy_harvester_steady_response():
     """Test that the sprung mass settles on the amplitude of the linear response, and the voltage follows the stroke."""
-    trajectory = (
-        Simulation(
-            built := vibration_energy_harvester(),
-            dt=0.01,
-            observables=describe('vibration_energy_harvester').observables_of(built),
-        )
-        .prepare()
-        .run(until=30)
-        .trajectory_
+    trajectory = simulate(
+        VibrationEnergyHarvesterSystem().prepare().system_,
+        until=30,
+        dt=0.01,
+        observables=VibrationEnergyHarvesterSystem().get_run_settings()['observables'],
     )
     m1, m2, k1, k2, b, A, omega = 40.0, 400.0, 2.0e5, 2.0e4, 1500.0, 0.01, 9.42
     stiffness = np.array(

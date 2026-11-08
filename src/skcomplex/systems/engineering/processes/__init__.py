@@ -1,16 +1,16 @@
 """Processes: stocks of material in engineered flows."""
 
-from ._grain_storage import GrainStoreElement, grain_storage
-from ._processes import bathtub, cascade_classifier
-from ._systems import food_relief, irrigation, rice_milling, solid_waste
+from ._grain_storage import GrainStorageSystem, GrainStoreElement
+from ._processes import BathtubSystem, CascadeClassifierSystem
+from ._systems import FoodReliefSystem, IrrigationSystem, RiceMillingSystem, SolidWasteSystem
 
 __all__: list[str] = [
+    'BathtubSystem',
+    'CascadeClassifierSystem',
+    'FoodReliefSystem',
+    'GrainStorageSystem',
     'GrainStoreElement',
-    'bathtub',
-    'cascade_classifier',
-    'food_relief',
-    'grain_storage',
-    'irrigation',
-    'rice_milling',
-    'solid_waste',
+    'IrrigationSystem',
+    'RiceMillingSystem',
+    'SolidWasteSystem',
 ]

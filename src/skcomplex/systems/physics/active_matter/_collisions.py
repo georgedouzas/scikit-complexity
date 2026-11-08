@@ -1,4 +1,7 @@
-"""Flocking by binary collisions: self-propelled particles that align their headings when they meet."""
+"""Flocking by binary collisions.
+
+Self-propelled particles align their headings when they meet.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,11 +19,10 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 
 class FlockerView(AgentView):
@@ -73,7 +75,9 @@ class FlockerElement(Element):
 
 
 class BinaryCollisionsInteraction(Interaction):
-    """Motion, self-diffusion, and aligning binary collisions of self-propelled particles, in steps of `1 / substeps`.
+    """Motion, self-diffusion, and aligning collisions of self-propelled particles.
+
+    The collisions are binary, and the particles move in steps of `1 / substeps`.
 
     In every substep of length `tau` each particle moves `speed * tau` along its heading, and with probability
     `1 - exp(-lam * tau)` its heading jumps by a Gaussian angle of standard deviation `sigma`. Two particles collide
@@ -108,6 +112,10 @@ class BinaryCollisionsInteraction(Interaction):
         0.5
     """
 
+    draws = True
+
+    law_classes = (RuleLaw,)
+
     def __init__(
         self,
         label: str,
@@ -141,7 +149,9 @@ class BinaryCollisionsInteraction(Interaction):
         return [RuleLaw(self.fly)]
 
     def fly(self, system: SystemView) -> None:
-        """Move the particles for one unit of time, with self-diffusion and collisions in every substep.
+        """Move the particles for one unit of time.
+
+        Every substep has self-diffusion and collisions.
 
         Args:
             system:
@@ -168,7 +178,10 @@ class BinaryCollisionsInteraction(Interaction):
 
     @staticmethod
     def _collide(headings: Array, pairs: list[tuple[int, int]], sigma: float, rng: np.random.Generator) -> None:
-        """Set both headings of every pair, in random order, to their mean heading plus independent Gaussian noise."""
+        """Set both headings of every pair to their mean plus independent Gaussian noise.
+
+        The pairs come in random order.
+        """
         for index in rng.permutation(len(pairs)):
             first, second = pairs[index]
             mean = math.atan2(
@@ -193,40 +206,17 @@ def _polarization(s: SimpleNamespace) -> Expression:
     return (s.mean_cos**2 + s.mean_sin**2) ** 0.5
 
 
-def _flocking_observables(system: System) -> list[ObservableSpec]:
-    """Return the mean heading components and the polarization of the birds."""
-    return [
-        ObservableSpec('mean_cos', _cosine, group='birds'),
-        ObservableSpec('mean_sin', _sine, group='birds'),
-        ObservableSpec('polarization', _polarization),
-    ]
+class BinaryCollisionFlockingSystem(BaseSystem):
+    """Self-propelled particles that flock through aligning binary collisions.
 
-
-@register_system(
-    field='physics/active_matter',
-    tags=('active matter', 'agents', 'flocking', 'collisions', 'boltzmann equation'),
-    references=('Bertin, Droz, and Grégoire 2006', 'Bertin, Droz, and Grégoire 2009', 'Bertin 2021'),
-    defaults={'until': 200, 'dt': 1},
-    observables=_flocking_observables,
-)
-def binary_collision_flocking(
-    n_particles: int = 400,
-    *,
-    size: float = 20.0,
-    speed: float = 1.0,
-    lam: float = 1.0,
-    sigma: float = 0.3,
-    d0: float = 0.5,
-    substeps: int = 10,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return self-propelled particles that flock through aligning binary collisions, the Bertin-Droz-Grégoire system.
+    This is the Bertin-Droz-Grégoire system.
 
     Particles fly straight at a constant speed. Their headings jump by Gaussian angles in self-diffusion events at the
     rate `lam`, and two particles that come closer than `d0` both take their mean heading plus Gaussian noise. The
-    hydrodynamic equations derived from the Boltzmann equation predict collective motion above the density
-    `rho_t = pi lam (1 - exp(-sigma^2 / 2)) / (4 (exp(-sigma^2 / 2) - 2/3))`, for `speed = 1` and `d0 = 1/2`, so
-    collective motion needs `sigma < sqrt(2 ln(3/2))`, about 0.90, at any density.
+    hydrodynamic equations derived from the Boltzmann equation predict collective motion above the density `rho_t = pi
+    lam (1 - exp(-sigma^2 / 2)) / (4 (exp(-sigma^2 / 2) - 2/3))`, for `speed = 1` and `d0 = 1/2`, so collective motion
+    needs `sigma < sqrt(2 ln(3/2))`, about 0.90, at any density. The system has the agent group `birds` and the
+    observables `mean_cos`, `mean_sin`, and `polarization`.
 
     Args:
         n_particles:
@@ -253,34 +243,71 @@ def binary_collision_flocking(
         random_state:
             The seed or generator of the uniform initial positions and headings.
 
-    Returns:
-        system:
-            The system, with the agent group `birds` and the observables `mean_cos`, `mean_sin`, and `polarization`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.active_matter import binary_collision_flocking
-        >>> binary_collision_flocking(10).interactions[0].sigma
+        >>> from skcomplex.systems.physics.active_matter import BinaryCollisionFlockingSystem
+        >>> BinaryCollisionFlockingSystem(10).prepare().system_.interactions[0].sigma
         0.3
     """
-    rng = np.random.default_rng(random_state)
-    birds = GroupElement(
-        'birds',
-        element=FlockerElement,
-        size=n_particles,
-        values={'theta': rng.uniform(0.0, 2 * math.pi, n_particles)},
-        location=rng.uniform(0.0, size, (n_particles, 2)),
+
+    field = 'physics/active_matter'
+    topics = ('active matter', 'agents', 'flocking', 'collisions', 'boltzmann equation')
+    references = ('Bertin, Droz, and Grégoire 2006', 'Bertin, Droz, and Grégoire 2009', 'Bertin 2021')
+    until = 200
+    dt = 1
+    observables = (
+        ObservableSpec('mean_cos', _cosine, group='birds'),
+        ObservableSpec('mean_sin', _sine, group='birds'),
+        ObservableSpec('polarization', _polarization),
     )
-    collisions = BinaryCollisionsInteraction(
-        'collisions',
-        target='birds',
-        speed=speed,
-        lam=lam,
-        sigma=sigma,
-        d0=d0,
-        substeps=float(substeps),
-    )
-    return System(
-        elements=[birds],
-        interactions=[collisions],
-        space=ContinuousSpace(extent=(size, size), boundary='periodic'),
-    )
+
+    def __init__(
+        self,
+        n_particles: int = 400,
+        *,
+        size: float = 20.0,
+        speed: float = 1.0,
+        lam: float = 1.0,
+        sigma: float = 0.3,
+        d0: float = 0.5,
+        substeps: int = 10,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_particles = n_particles
+        self.size = size
+        self.speed = speed
+        self.lam = lam
+        self.sigma = sigma
+        self.d0 = d0
+        self.substeps = substeps
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        birds = GroupElement(
+            'birds',
+            element=FlockerElement,
+            size=self.n_particles,
+            values={'theta': rng.uniform(0.0, 2 * math.pi, self.n_particles)},
+            location=rng.uniform(0.0, self.size, (self.n_particles, 2)),
+        )
+        collisions = BinaryCollisionsInteraction(
+            'collisions',
+            target='birds',
+            speed=self.speed,
+            lam=self.lam,
+            sigma=self.sigma,
+            d0=self.d0,
+            substeps=float(self.substeps),
+        )
+        return System(
+            self.label,
+            elements=[birds],
+            interactions=[collisions],
+            space=ContinuousSpace(extent=(self.size, self.size), boundary='periodic'),
+        )

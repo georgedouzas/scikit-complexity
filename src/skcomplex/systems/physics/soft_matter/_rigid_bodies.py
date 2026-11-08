@@ -1,4 +1,7 @@
-"""Rigid Brownian bodies: axisymmetric particles in three dimensions and dimers of two spheres on a rod."""
+"""Rigid Brownian bodies.
+
+The module covers axisymmetric particles in three dimensions and dimers of two spheres on a rod.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,11 +17,10 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.errors import ParameterError
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 AXES = ('x', 'y', 'z')
 """The names of the coordinates of the position."""
@@ -28,7 +30,9 @@ DIRECTIONS = ('ux', 'uy', 'uz')
 
 
 class AnisotropicParticleElement(Element):
-    """Axisymmetric Brownian particle in three dimensions, whose diffusion tensor turns with its axis.
+    """Axisymmetric Brownian particle in three dimensions.
+
+    Its diffusion tensor turns with its axis.
 
     The position `r = (x, y, z)` diffuses with `D_par` along the unit axis `u = (ux, uy, uz)` and with `D_perp` across
     it, `dr = (sqrt(2 D_par) u u + sqrt(2 D_perp) (I - u u)) dW`. The axis diffuses on the unit sphere,
@@ -90,6 +94,12 @@ class AnisotropicParticleElement(Element):
         1.0
     """
 
+    law_classes = (
+        BoundaryLaw,
+        NoiseLaw,
+        RateLaw,
+    )
+
     def __init__(
         self,
         label: str,
@@ -123,7 +133,9 @@ class AnisotropicParticleElement(Element):
         self.D_c = D_c
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the translation and the rotation with their correlated noises, and the boundary of the axis.
+        """Return the translation and the rotation with their correlated noises.
+
+        The laws also hold the boundary of the axis.
 
         Args:
             s:
@@ -153,7 +165,9 @@ class AnisotropicParticleElement(Element):
 
 
 class DimerElement(Element):
-    """Two Brownian or active spheres joined by a rigid rod, described by the centre and the angle of the rod.
+    """Two Brownian or active spheres joined by a rigid rod.
+
+    The dimer is described by the centre and the angle of the rod.
 
     Each sphere diffuses with `D_t` and swims at the speed `v0` along its own orientation, `theta1` or `theta2`, which
     diffuse with `D_r`, and the rod keeps them at the distance `L`. Moving both spheres freely and then restoring
@@ -202,6 +216,11 @@ class DimerElement(Element):
         1.0
     """
 
+    law_classes = (
+        NoiseLaw,
+        RateLaw,
+    )
+
     def __init__(
         self,
         label: str,
@@ -227,7 +246,9 @@ class DimerElement(Element):
         self.D_r = D_r
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the motion of the centre and the turning of the rod, and the diffusion of the orientations.
+        """Return the motion of the centre, the turning of the rod, and the diffusion.
+
+        The diffusion is that of the orientations.
 
         Args:
             s:
@@ -250,23 +271,10 @@ class DimerElement(Element):
         ]
 
 
-@register_system(
-    field='physics/soft_matter',
-    tags=('brownian motion', 'sde', 'rotational diffusion', 'three dimensions', 'anisotropy', 'chirality'),
-    references=('Perrin 1934', 'Han et al. 2006', 'Argun et al. 2021'),
-    defaults={'until': 10.0, 'dt': 0.05, 'solver': EulerMaruyamaSolver(dt=0.001)},
-)
-def anisotropic_brownian_particles(
-    n_particles: int = 200,
-    *,
-    D_par: float = 1.0,
-    D_perp: float = 1.0,
-    D_r: float = 0.75,
-    D_spin: float = 0.75,
-    D_c: float = 0.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return overdamped axisymmetric Brownian particles in three dimensions that translate and rotate.
+class AnisotropicBrownianParticlesSystem(BaseSystem):
+    """Overdamped axisymmetric Brownian particles in three dimensions.
+
+    The particles translate and rotate.
 
     Every particle diffuses with `D_par` along its axis `u` and with `D_perp` across it, its axis diffuses on the unit
     sphere with `D_r`, so that `<u(t) . u(0)> = exp(-2 D_r t)`, and it spins about its axis with `D_spin`. The defaults
@@ -275,7 +283,9 @@ def anisotropic_brownian_particles(
     displacement over times shorter than `1 / D_r` is elongated along its axis. A chiral body, such as a spiral, has a
     coupling `D_c` of the translation along its axis and the rotation about it, `<dr_par dpsi> = 2 D_c dt`. These are
     Challenges 5.1 to 5.3 of Argun et al. The axis is held as a unit vector and rescaled to unit length after every
-    step, and the particles start at the origin with axes drawn uniformly on the sphere.
+    step, and the particles start at the origin with axes drawn uniformly on the sphere. The system has the positions
+    `particles.x`, `particles.y`, `particles.z`, the axes `particles.ux`, `particles.uy`, `particles.uz`, and the spins
+    `particles.psi`.
 
     Args:
         n_particles:
@@ -299,64 +309,87 @@ def anisotropic_brownian_particles(
         random_state:
             The seed or generator of the initial axes.
 
-    Returns:
-        system:
-            The system, with the positions `particles.x`, `particles.y`, `particles.z`, the axes `particles.ux`,
-            `particles.uy`, `particles.uz`, and the spins `particles.psi`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ParameterError:
             The coupling exceeds `sqrt(D_par D_spin)`.
 
     Examples:
-        >>> from skcomplex.systems.physics.soft_matter import anisotropic_brownian_particles
-        >>> anisotropic_brownian_particles(5, D_par=1.5, D_perp=0.8).elements[0].values['D_perp']
+        >>> from skcomplex.systems.physics.soft_matter import AnisotropicBrownianParticlesSystem
+        >>> AnisotropicBrownianParticlesSystem(5, D_par=1.5, D_perp=0.8).prepare().system_.elements[0].values['D_perp']
         0.8
     """
-    if D_c**2 > D_par * D_spin:
-        error_msg = f'The coupling {D_c!r} exceeds sqrt(D_par D_spin), so the diffusion tensor is not positive.'
-        raise ParameterError(error_msg)
-    axes = np.random.default_rng(random_state).normal(size=(n_particles, 3))
-    axes /= np.linalg.norm(axes, axis=1, keepdims=True)
-    values = {
-        'ux': axes[:, 0],
-        'uy': axes[:, 1],
-        'uz': axes[:, 2],
-        'D_par': D_par,
-        'D_perp': D_perp,
-        'D_r': D_r,
-        'D_spin': D_spin,
-        'D_c': D_c,
-    }
-    particles = GroupElement('particles', element=AnisotropicParticleElement, size=n_particles, values=values)
-    return System(elements=[particles])
+
+    field = 'physics/soft_matter'
+    topics = ('brownian motion', 'sde', 'rotational diffusion', 'three dimensions', 'anisotropy', 'chirality')
+    references = ('Perrin 1934', 'Han et al. 2006', 'Argun et al. 2021')
+    until = 10.0
+    dt = 0.05
+    solver = EulerMaruyamaSolver(dt=0.001)
+
+    def __init__(
+        self,
+        n_particles: int = 200,
+        *,
+        D_par: float = 1.0,
+        D_perp: float = 1.0,
+        D_r: float = 0.75,
+        D_spin: float = 0.75,
+        D_c: float = 0.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_particles = n_particles
+        self.D_par = D_par
+        self.D_perp = D_perp
+        self.D_r = D_r
+        self.D_spin = D_spin
+        self.D_c = D_c
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return overdamped axisymmetric Brownian particles in three dimensions.
+
+        The particles translate and rotate.
+        """
+        if self.D_c**2 > self.D_par * self.D_spin:
+            error_msg = (
+                f'The coupling {self.D_c!r} exceeds sqrt(D_par D_spin), so the diffusion tensor is not positive.'
+            )
+            raise ParameterError(error_msg)
+        axes = np.random.default_rng(self.random_state).normal(size=(self.n_particles, 3))
+        axes /= np.linalg.norm(axes, axis=1, keepdims=True)
+        values = {
+            'ux': axes[:, 0],
+            'uy': axes[:, 1],
+            'uz': axes[:, 2],
+            'D_par': self.D_par,
+            'D_perp': self.D_perp,
+            'D_r': self.D_r,
+            'D_spin': self.D_spin,
+            'D_c': self.D_c,
+        }
+        particles = GroupElement('particles', element=AnisotropicParticleElement, size=self.n_particles, values=values)
+        return System(self.label, elements=[particles])
 
 
-@register_system(
-    field='physics/soft_matter',
-    tags=('brownian motion', 'sde', 'colloidal molecule', 'rotational diffusion', 'active matter'),
-    references=('Argun et al. 2021',),
-    defaults={'until': 20.0, 'dt': 0.1, 'solver': EulerMaruyamaSolver(dt=0.005)},
-)
-def rigid_dimers(
-    n_dimers: int = 100,
-    *,
-    L: float = 1.0,
-    v0: float = 0.0,
-    D_t: float = 0.1,
-    D_r: float = 1.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return colloidal molecules: pairs of Brownian or active spheres joined by rigid rods, free in the plane.
+class RigidDimersSystem(BaseSystem):
+    """Colloidal molecules.
 
-    Each sphere diffuses with `D_t`, and an active sphere also swims at the speed `v0` along its own orientation,
-    which diffuses with `D_r`. The rod keeps the spheres at the distance `L`. Diffusing both spheres freely and then
-    restoring their distance, the scheme of Problem 5.1 of Argun et al., gives in the limit of small steps a centre
-    that diffuses with `D_t / 2` and a rod angle that diffuses with `2 D_t / L²`, so the rotational diffusion of the
-    molecule falls as `L^-2` in this free-draining model. Active spheres, Problem 9.3, swim together along the mean of
-    their orientations and turn the rod with the part of their difference across it, which raises the long-time
-    diffusion of the centre to `D_t / 2 + v0² / (4 D_r)`. The dimers start at the origin with random rod angles and
-    orientations.
+    Pairs of Brownian or active spheres are joined by rigid rods, free in the plane.
+
+    Each sphere diffuses with `D_t`, and an active sphere also swims at the speed `v0` along its own orientation, which
+    diffuses with `D_r`. The rod keeps the spheres at the distance `L`. Diffusing both spheres freely and then restoring
+    their distance, the scheme of Problem 5.1 of Argun et al., gives in the limit of small steps a centre that diffuses
+    with `D_t / 2` and a rod angle that diffuses with `2 D_t / L²`, so the rotational diffusion of the molecule falls as
+    `L^-2` in this free-draining model. Active spheres, Problem 9.3, swim together along the mean of their orientations
+    and turn the rod with the part of their difference across it, which raises the long-time diffusion of the centre to
+    `D_t / 2 + v0² / (4 D_r)`. The dimers start at the origin with random rod angles and orientations. The system has
+    the centres `dimers.c`, the rod angles `dimers.phi`, and the orientations `dimers.theta1` and `dimers.theta2`. The
+    spheres sit at `c ± (L / 2) (cos phi, sin phi)`.
 
     Args:
         n_dimers:
@@ -377,27 +410,57 @@ def rigid_dimers(
         random_state:
             The seed or generator of the initial angles and orientations.
 
-    Returns:
-        system:
-            The system, with the centres `dimers.c`, the rod angles `dimers.phi`, and the orientations `dimers.theta1`
-            and `dimers.theta2`. The spheres sit at `c ± (L / 2) (cos phi, sin phi)`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.soft_matter import rigid_dimers
-        >>> rigid_dimers(5, L=2.0).elements[0].values['L']
+        >>> from skcomplex.systems.physics.soft_matter import RigidDimersSystem
+        >>> RigidDimersSystem(5, L=2.0).prepare().system_.elements[0].values['L']
         2.0
     """
-    rng = np.random.default_rng(random_state)
-    angles = rng.uniform(0.0, 2 * np.pi, (3, n_dimers))
-    values = {
-        'c': np.zeros((n_dimers, 2)),
-        'phi': angles[0],
-        'theta1': angles[1],
-        'theta2': angles[2],
-        'L': L,
-        'v0': v0,
-        'D_t': D_t,
-        'D_r': D_r,
-    }
-    dimers = GroupElement('dimers', element=DimerElement, size=n_dimers, values=values)
-    return System(elements=[dimers], space=ContinuousSpace(n_dim=2))
+
+    field = 'physics/soft_matter'
+    topics = ('brownian motion', 'sde', 'colloidal molecule', 'rotational diffusion', 'active matter')
+    references = ('Argun et al. 2021',)
+    until = 20.0
+    dt = 0.1
+    solver = EulerMaruyamaSolver(dt=0.005)
+
+    def __init__(
+        self,
+        n_dimers: int = 100,
+        *,
+        L: float = 1.0,
+        v0: float = 0.0,
+        D_t: float = 0.1,
+        D_r: float = 1.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_dimers = n_dimers
+        self.L = L
+        self.v0 = v0
+        self.D_t = D_t
+        self.D_r = D_r
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return colloidal molecules.
+
+        Pairs of Brownian or active spheres are joined by rigid rods, free in the plane.
+        """
+        rng = np.random.default_rng(self.random_state)
+        angles = rng.uniform(0.0, 2 * np.pi, (3, self.n_dimers))
+        values = {
+            'c': np.zeros((self.n_dimers, 2)),
+            'phi': angles[0],
+            'theta1': angles[1],
+            'theta2': angles[2],
+            'L': self.L,
+            'v0': self.v0,
+            'D_t': self.D_t,
+            'D_r': self.D_r,
+        }
+        dimers = GroupElement('dimers', element=DimerElement, size=self.n_dimers, values=values)
+        return System(self.label, elements=[dimers], space=ContinuousSpace(n_dim=2))

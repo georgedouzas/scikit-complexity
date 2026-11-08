@@ -27,17 +27,17 @@ from skcomplex.core.components.laws.utils import (
 from skcomplex.core.components.spaces import ContinuousSpace, LatticeSpace, MeshSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumpyBackend
-from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.compile._field_lowering import FieldLowering
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import IMEXEulerSolver, ScipyODESolver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, RunStateSpec, StateSpec, VisualSpec
 from skcomplex.systems.biology.ecology import FisherKPPElement
-from skcomplex.systems.chemistry.pattern_formation import gray_scott
+from skcomplex.systems.chemistry.pattern_formation import GrayScottSystem
 from skcomplex.systems.physics.common.oscillators import SitedOscillatorElement
-from skcomplex.systems.physics.fluids import kuramoto_sivashinsky
-from skcomplex.systems.physics.heat import heat_diffusion, heat_l_shape
+from skcomplex.systems.physics.fluids import KuramotoSivashinskySystem
+from skcomplex.systems.physics.heat import HeatDiffusionSystem, HeatLShapeSystem
 
 RNG = np.random.default_rng(1)
 PAYOFF = RNG.normal(size=(20, 20))
@@ -224,7 +224,11 @@ def test_mesh_pattern():
     np.testing.assert_array_equal(pattern[free], expected[free])
 
 
-@pytest.mark.parametrize('system', [heat_diffusion((12, 12)), heat_l_shape(2)], ids=['lattice', 'mesh'])
+@pytest.mark.parametrize(
+    'system',
+    [HeatDiffusionSystem((12, 12)).prepare().system_, HeatLShapeSystem(2).prepare().system_],
+    ids=['lattice', 'mesh'],
+)
 def test_pattern_agrees_with_split_solver(system):
     """Test that the pattern holds every entry of the sparse linear part of linear lattice and mesh fields."""
     problem = PassCompiler().prepare(system).run().problem_
@@ -237,7 +241,7 @@ def test_pattern_agrees_with_split_solver(system):
 
 @pytest.mark.parametrize(
     ('system', 'block'),
-    [(_pair_ring(12), 12), (kuramoto_sivashinsky(16), 16)],
+    [(_pair_ring(12), 12), (KuramotoSivashinskySystem(16).prepare().system_, 16)],
     ids=['pairs', 'spectral'],
 )
 def test_run_time_couplings_are_dense(system, block):
@@ -257,7 +261,7 @@ def _relative_error(problem, rng):
 
 def test_exact_jacobian_of_gray_scott():
     """Test that the exact Jacobian of Gray-Scott on a 64 by 64 lattice agrees with central finite differences."""
-    problem = PassCompiler(backend=NumpyBackend()).prepare(gray_scott((64, 64))).run().problem_
+    problem = PassCompiler(backend=NumpyBackend()).prepare(GrayScottSystem((64, 64)).prepare().system_).run().problem_
     assert _relative_error(problem, np.random.default_rng(0)) < 1e-6
 
 
@@ -359,10 +363,13 @@ def test_implicit_solver_agrees_with_explicit_on_screened_diffusion():
         values={'u': np.sin(np.pi * positions) + 0.3 * np.sin(4 * np.pi * positions)},
     )
     finals = [
-        Simulation(system, dt=0.5, solver=ScipyODESolver(method, rtol=1e-10, atol=1e-12), backend=NumpyBackend())
-        .prepare()
-        .run(until=0.5)
-        .state_
+        simulate(
+            system,
+            until=0.5,
+            dt=0.5,
+            solver=ScipyODESolver(method, rtol=1e-10, atol=1e-12),
+            backend=NumpyBackend(),
+        ).states[-1]
         for method in ('BDF', 'RK45')
     ]
     assert np.abs(finals[0] - finals[1]).max() < 1e-6

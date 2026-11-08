@@ -9,7 +9,9 @@ import inspect
 import numbers
 from abc import abstractmethod
 from collections.abc import Collection, Mapping
+from dataclasses import replace
 from types import SimpleNamespace
+from typing import ClassVar
 
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
@@ -17,17 +19,18 @@ from sage.modules.free_module_element import FreeModuleElement
 from sage.structure.element import Matrix
 
 from ...errors import ValidationError
-from ...specs import CallSpec, RequirementSpec
+from ...specs import CallSpec, RequirementSpec, Tags
 from ..base import BasePart
 
 
 class BaseLaw(BasePart[str, object]):
-    """Base of every law, a rule by which states change, which an element, an interaction, or a system returns.
+    """Base of every law.
 
-    A law takes the states it changes and the expressions it reads as arguments of its own `__init__`, which stores each
-    under its own name, as in scikit-learn. It returns the states it changes from `_get_targets`, what it requires of a
-    system, such as continuous or discrete time, from `_get_requirements`, and its value at given values of the symbols
-    it reads from `_run`, which sets it as `value_`.
+    A law is a rule by which states change, which an element, an interaction, or a system returns. A law takes the
+    states it changes and the expressions it reads as arguments of its own `__init__`, which stores each under its own
+    name, as in scikit-learn. It returns the states it changes from `_get_targets`, what it requires of a system, such
+    as continuous or discrete time, from `_get_requirements`, and its value at given values of the symbols it reads from
+    `_run`, which sets it as `value_`.
 
     Args:
         label:
@@ -57,6 +60,8 @@ class BaseLaw(BasePart[str, object]):
         -1.0
     """
 
+    law_tag: ClassVar[str] = ''
+
     value_: object
 
     @abstractmethod
@@ -66,15 +71,29 @@ class BaseLaw(BasePart[str, object]):
     @classmethod
     @abstractmethod
     def _get_requirements(cls) -> RequirementSpec:
-        """Return what the laws of the class require of a system, such as continuous or discrete time."""
+        """Return what the laws of the class require of a system.
+
+        An example is continuous or discrete time.
+        """
 
     def _get_law_requirements(self) -> RequirementSpec:
-        """Return what this law requires of a system, which its arguments may narrow."""
+        """Return what this law requires of a system.
+
+        Its arguments may narrow it.
+        """
         return self._get_requirements()
+
+    def _get_tags(self) -> Tags:
+        """Return the tags of the law.
+
+        They are its kind, its randomness, and the times its arguments let it run in.
+        """
+        times = frozenset(getattr(time, 'time_tag', '') for time in self._get_law_requirements().time) - {''}
+        return replace(self._get_law_tags([type(self)]), time=times)
 
     @classmethod
     def get_requirements(cls) -> RequirementSpec:
-        """Return what the laws of the class require of a system, before any of them exists.
+        """Return what the laws of the class require of a system before any law exists.
 
         Returns:
             requirements:
@@ -89,9 +108,10 @@ class BaseLaw(BasePart[str, object]):
         return cls._get_requirements()
 
     def _run(self, inputs: object) -> None:
-        """Set `value_` to the values of the arguments of the law at given values of the symbols it reads.
+        """Set `value_` to the values of the arguments of the law at given symbol values.
 
-        A law with a value of its own, such as the rate of a `RateLaw`, overrides this hook.
+        The values are those of the symbols the law reads. A law with a value of its own, such as the rate of a
+        `RateLaw`, overrides this hook.
 
         Args:
             inputs:
@@ -104,10 +124,10 @@ class BaseLaw(BasePart[str, object]):
         return [self]
 
     def _get_values(self, include: Collection[str] | None = None, exclude: Collection[str] = ()) -> list[object]:
-        """Return the values of the arguments of the law besides its label, flattened in the order of its constructor.
+        """Return the values of the arguments of the law besides its label.
 
-        A call gives its arguments, a mapping its keys and values in pairs, and a vector, a list, or a tuple its items,
-        at any depth. Every other value is returned as it is.
+        They are flattened in the order of its constructor. A call gives its arguments, a mapping its keys and values in
+        pairs, and a vector, a list, or a tuple its items, at any depth. Every other value is returned as it is.
 
         Args:
             include:
@@ -141,13 +161,19 @@ class BaseLaw(BasePart[str, object]):
 
     @staticmethod
     def _is_function(value: object) -> bool:
-        """Check whether a law value is a function or a call, not a symbolic expression, which is also callable."""
+        """Check whether a law value is a function or a call, not a symbolic expression.
+
+        A symbolic expression is also callable.
+        """
         return isinstance(value, CallSpec) or (
             callable(value) and not isinstance(value, Expression | FreeModuleElement | Matrix | numbers.Number)
         )
 
     def _evaluate(self, value: object, inputs: object) -> object:
-        """Return a value with every symbol substituted by its input, a number when nothing symbolic is left."""
+        """Return a value with every symbol substituted by its input.
+
+        It is a number when nothing symbolic is left.
+        """
         values = inputs if isinstance(inputs, Mapping) else {}
         if isinstance(value, tuple | list):
             return type(value)(self._evaluate(item, values) for item in value)
@@ -159,7 +185,10 @@ class BaseLaw(BasePart[str, object]):
         return float(result) if not result.variables() and result.is_real() else result
 
     def _check_array(self, name: str) -> None:
-        """Raise an error for an argument that is a NumPy array, which NumPy builds from a scalar times a vector."""
+        """Raise an error for an argument that is a NumPy array.
+
+        NumPy builds one from a scalar times a vector.
+        """
         if isinstance(getattr(self, name), np.ndarray):
             error_msg = (
                 f'The {name} of {type(self).__name__} is a NumPy array, which NumPy builds when a NumPy scalar '
@@ -168,7 +197,10 @@ class BaseLaw(BasePart[str, object]):
             raise ValidationError(error_msg)
 
     def _check_matrix(self, name: str) -> None:
-        """Raise an error for an argument that is not a nonempty matrix, a sequence of rows of equal length."""
+        """Raise an error for an argument that is not a nonempty matrix.
+
+        A matrix is a sequence of rows of equal length.
+        """
         matrix = getattr(self, name)
         rows = [list(row) for row in matrix] if isinstance(matrix, list | tuple | np.ndarray) else []
         widths = {len(row) for row in rows}
@@ -180,7 +212,10 @@ class BaseLaw(BasePart[str, object]):
             raise ValidationError(error_msg)
 
     def _check_table(self, name: str, dimensions: tuple[int, ...]) -> None:
-        """Raise an error for an argument that is not an array of numbers or expressions of one of some dimensions."""
+        """Raise an error for an argument that is not an array of numbers or expressions.
+
+        The array must have one of some dimensions.
+        """
         table = np.asarray(getattr(self, name), dtype=object)
         if table.ndim not in dimensions:
             expected = ' or '.join(str(item) for item in dimensions)
@@ -191,7 +226,10 @@ class BaseLaw(BasePart[str, object]):
             raise ValidationError(error_msg)
 
     def _check_outcomes(self, rate_name: str, name: str) -> None:
-        """Raise an error for an outcome table whose first two dimensions are not the shape of the rate table."""
+        """Raise an error for an outcome table whose leading shape is not the rate table's.
+
+        Its first two dimensions must be the shape of the rate table.
+        """
         rate, outcomes = np.asarray(getattr(self, rate_name), dtype=object), getattr(self, name)
         if outcomes is None or rate.ndim == 0 or rate.shape == np.shape(outcomes)[:2]:
             return
@@ -202,12 +240,15 @@ class BaseLaw(BasePart[str, object]):
         raise ValidationError(error_msg)
 
     def _prepare(self, context: str | None = None) -> None:
-        """Set `targets_`, the states the law changes, `reads_`, the symbols it reads, and `owner_`.
+        """Set `targets_`, `reads_`, and `owner_`.
+
+        They are the states the law changes, the symbols it reads, and its owner.
 
         Args:
             context:
                 The path of the element or interaction that returns the law, or `None`.
         """
+        super()._prepare(context)
         self.targets_ = self._get_targets()
         self.reads_ = frozenset(
             item for value in self._get_values() if isinstance(value, Expression) for item in value.variables()

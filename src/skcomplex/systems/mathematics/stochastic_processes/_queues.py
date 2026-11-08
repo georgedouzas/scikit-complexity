@@ -1,4 +1,7 @@
-"""Queues: birth-death processes of the number of customers waiting at a desk."""
+"""Queues.
+
+Birth-death processes give the number of customers waiting at a desk.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,13 +14,14 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import JumpInteraction
 from ....core.components.laws.utils import where
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class QueueElement(Element):
-    """Queue at a desk, the number of customers waiting, with the rates of their arrivals and departures.
+    """Queue at a desk, the number of customers waiting.
+
+    The queue has the rates of their arrivals and departures.
 
     The jumps of the system read the rates: customers arrive at rate `arrival_rate` and leave at rate `service_rate`
     while the queue is not empty.
@@ -59,25 +63,15 @@ class QueueElement(Element):
         self.service_rate = service_rate
 
 
-@register_system(
-    field='mathematics/stochastic_processes',
-    tags=('jump process', 'birth-death process', 'queueing'),
-    references=('Bertin 2021', 'Kendall 1953', 'Feller 1968'),
-    defaults={'until': 200.0, 'dt': 0.5},
-)
-def birth_death_queue(
-    n_queues: int = 100,
-    *,
-    arrival_rate: float = 0.5,
-    service_rate: float = 1.0,
-    n: float = 0.0,
-) -> System:
-    """Return independent M/M/1 queues, birth-death processes with constant arrival and service rates.
+class BirthDeathQueueSystem(BaseSystem):
+    """Independent M/M/1 queues.
 
-    Customers arrive as a Poisson process of rate `lambda` and are served one at a time in exponential times of
-    rate `mu`. For the load `rho = lambda / mu < 1` the length of an unbounded queue reaches the stationary
-    geometric distribution `(1 - rho) rho^n`, of mean `rho / (1 - rho)` and variance `rho / (1 - rho)^2`, and for
-    `rho > 1` it grows without bound.
+    The queues are birth-death processes with constant arrival and service rates.
+
+    Customers arrive as a Poisson process of rate `lambda` and are served one at a time in exponential times of rate
+    `mu`. For the load `rho = lambda / mu < 1` the length of an unbounded queue reaches the stationary geometric
+    distribution `(1 - rho) rho^n`, of mean `rho / (1 - rho)` and variance `rho / (1 - rho)^2`, and for `rho > 1` it
+    grows without bound. The system has the lengths `queues.n`.
 
     Args:
         n_queues:
@@ -92,26 +86,52 @@ def birth_death_queue(
         n:
             The initial number of customers of every queue.
 
-    Returns:
-        system:
-            The system, with the lengths `queues.n`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.stochastic_processes import birth_death_queue
-        >>> birth_death_queue(5).elements[0].prepare().size_
+        >>> from skcomplex.systems.mathematics.stochastic_processes import BirthDeathQueueSystem
+        >>> BirthDeathQueueSystem(5).prepare().system_.elements[0].prepare().size_
         5
     """
-    queue = GroupElement(
-        'queues',
-        element=QueueElement,
-        size=n_queues,
-        values={'n': n, 'arrival_rate': arrival_rate, 'service_rate': service_rate},
-    )
-    arrivals = JumpInteraction('arrivals', target='queues', changes={'n': 1}, rate=lambda s: s.target.arrival_rate)
-    departures = JumpInteraction(
-        'departures',
-        target='queues',
-        changes={'n': -1},
-        rate=lambda s: where(s.target.n > 0, s.target.service_rate, 0),
-    )
-    return System(elements=[queue], interactions=[arrivals, departures])
+
+    field = 'mathematics/stochastic_processes'
+    topics = ('jump process', 'birth-death process', 'queueing')
+    references = ('Bertin 2021', 'Kendall 1953', 'Feller 1968')
+    until = 200.0
+    dt = 0.5
+
+    def __init__(
+        self,
+        n_queues: int = 100,
+        *,
+        arrival_rate: float = 0.5,
+        service_rate: float = 1.0,
+        n: float = 0.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_queues = n_queues
+        self.arrival_rate = arrival_rate
+        self.service_rate = service_rate
+        self.n = n
+
+    def _build_system(self) -> System:
+        """Return independent M/M/1 queues.
+
+        The queues are birth-death processes with constant arrival and service rates.
+        """
+        queue = GroupElement(
+            'queues',
+            element=QueueElement,
+            size=self.n_queues,
+            values={'n': self.n, 'arrival_rate': self.arrival_rate, 'service_rate': self.service_rate},
+        )
+        arrivals = JumpInteraction('arrivals', target='queues', changes={'n': 1}, rate=lambda s: s.target.arrival_rate)
+        departures = JumpInteraction(
+            'departures',
+            target='queues',
+            changes={'n': -1},
+            rate=lambda s: where(s.target.n > 0, s.target.service_rate, 0),
+        )
+        return System(self.label, elements=[queue], interactions=[arrivals, departures])

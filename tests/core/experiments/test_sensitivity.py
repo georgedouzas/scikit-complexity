@@ -9,9 +9,9 @@ from sage.all__sagemath_symbolics import sin
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.system import System
 from skcomplex.core.errors import AnalysisError
-from skcomplex.core.experiments import Experiment, MorrisDesign, OneAtATimeDesign, SaltelliDesign, SensitivityAnalysis
+from skcomplex.core.experiments import sensitivity
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, VisualSpec
-from skcomplex.systems.biology.ecology import logistic_growth
+from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 
 
 class PointElement(Element):
@@ -43,34 +43,40 @@ def test_sobol_indices_of_ishigami():
     system = System(elements=[PointElement('p')])
     bounds = {f'p.x{index}': (-math.pi, math.pi) for index in (1, 2, 3)}
     observables = [ObservableSpec('y', _ishigami)]
-    design = SaltelliDesign(n=2048, random_state=0)
-    experiment = Experiment(system, design, bounds, until=0, outputs=['y'], observables=observables, random_state=0)
-    result = experiment.prepare().run().result_
-    analysis = SensitivityAnalysis('sobol', 'y', random_state=0).prepare(result).run()
+    analysis = sensitivity(system, bounds, output='y', n=2048, until=0, observables=observables, random_state=0)
     expected = {'p.x1': 0.3139, 'p.x2': 0.4424, 'p.x3': 0.0}
     for name, value in expected.items():
-        assert analysis.first_order_[name] == pytest.approx(value, abs=0.05)
-    assert analysis.total_order_['p.x1'] == pytest.approx(0.5576, abs=0.05)
-    assert analysis.ranking_[0] == 'p.x1'
+        assert analysis.first_order[name] == pytest.approx(value, abs=0.05)
+    assert analysis.total_order['p.x1'] == pytest.approx(0.5576, abs=0.05)
+    assert analysis.ranking[0] == 'p.x1'
 
 
-@pytest.mark.parametrize(
-    ('design', 'method'),
-    [(MorrisDesign(n=10, random_state=0), 'morris'), (OneAtATimeDesign(), 'oat')],
-    ids=['morris', 'oat'],
-)
-def test_morris_and_one_at_a_time_rank_parameters(design, method):
+@pytest.mark.parametrize('method', ['morris', 'oat'])
+def test_morris_and_one_at_a_time_rank_parameters(method):
     """Test that Morris screening and one-at-a-time effects rank the carrying capacity first for the final size."""
     bounds = {'growth.r': (0.5, 1.0), 'growth.K': (50.0, 150.0)}
-    experiment = Experiment(logistic_growth, design, bounds, until=20, outputs=['population.n'], random_state=0)
-    result = experiment.prepare().run().result_
-    analysis = SensitivityAnalysis(method, 'population.n', random_state=0).prepare(result).run()
-    assert analysis.ranking_[0] == 'growth.K'
+    analysis = sensitivity(
+        LogisticGrowthSystem(),
+        bounds,
+        output='population.n',
+        method=method,
+        until=20,
+        random_state=0,
+    )
+    assert analysis.ranking[0] == 'growth.K'
+    assert analysis.inputs.shape == (len(analysis.outputs), 2)
+
+
+def test_model_parameters_are_inputs():
+    """Test that model parameters rank like the dotted paths of the parameters they set."""
+    bounds = {'r': (0.5, 1.0), 'K': (50.0, 150.0)}
+    analysis = sensitivity(LogisticGrowthSystem(), bounds, output='population.n', method='oat', until=20)
+    assert analysis.ranking == ['K', 'r']
 
 
 def test_sensitivity_check_rejects_an_unknown_method_and_a_missing_output():
-    """Test that an unknown method or a missing output build and fail the check with a named error."""
+    """Test that an unknown method or a missing output fail with a named error."""
     with pytest.raises(AnalysisError, match='Unknown sensitivity method'):
-        SensitivityAnalysis('fast', 'y').prepare()
+        sensitivity(LogisticGrowthSystem(), {'r': (0.5, 1.0)}, method='fast', output='y')
     with pytest.raises(AnalysisError, match='output = None'):
-        SensitivityAnalysis('sobol').prepare()
+        sensitivity(LogisticGrowthSystem(), {'r': (0.5, 1.0)}, output=None)

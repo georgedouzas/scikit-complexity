@@ -7,22 +7,22 @@ its predators.
 """
 
 # %%
-# The system is created by name from the catalog with its default web. The observer saves every frame with the default
-# blueprint, whose primary view is the time series of the four populations.
+# The system is built from its class with its default web. The observer saves every frame with the default blueprint,
+# whose primary view is the time series of the four populations.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import StabilityAnalysis
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.analysis import stability
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.ecology import FoodWebsSystem
 
 SYSTEM = 'food_webs'
 
-system = create_system(SYSTEM)
+system = FoodWebsSystem().prepare().system_
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=100)
+trajectory = simulate(system, dt=0.5, observers=[observer], until=100)
 
 # %%
 # Stability of the equilibrium
@@ -31,11 +31,10 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(unti
 # Jacobian at the final state, all four eigenvalues should lie in the left half-plane, and their imaginary parts give
 # the damped oscillations of the approach.
 
-trajectory = simulation.trajectory_
 species = ['frogs', 'mice', 'snakes', 'hawks']
 final = {f'{name}.n': trajectory.values(f'{name}.n')[-1] for name in species}
-result = StabilityAnalysis(points=[final]).prepare(system).run()
-eigenvalues = np.asarray(result.eigenvalues_[0], dtype=complex)
+result = stability(system, points=[final])
+eigenvalues = np.asarray(result.eigenvalues[0], dtype=complex)
 fig, (series, spectrum) = plt.subplots(1, 2, figsize=(11, 4))
 for name in species:
     series.plot(trajectory.times, trajectory.values(f'{name}.n'), label=name)
@@ -47,6 +46,6 @@ spectrum.plot(eigenvalues.real, eigenvalues.imag, 'o', markersize=8)
 spectrum.axvline(0, color='black', linestyle='--')
 spectrum.set_xlabel('real part')
 spectrum.set_ylabel('imaginary part')
-spectrum.set_title(f'Largest real part {eigenvalues.real.max():.3f}: {result.classifications_[0]}')
+spectrum.set_title(f'Largest real part {eigenvalues.real.max():.3f}: {result.classifications[0]}')
 fig.tight_layout()
 plt.show()

@@ -22,7 +22,7 @@ SHALL choose a method whose storage fits the size of the state.
 - **THEN** running it raises a named error that names the form and the solver
 
 #### Scenario: Stiff system built directly
-- **WHEN** `Simulation(create('nanoparticle_corona')).run(until=10800)` runs with the solver left to its default
+- **WHEN** `simulate(NanoparticleCoronaSystem(), until=10800)` runs with the solver left to its default
 - **THEN** it finishes within 5 seconds, and its final state matches the run of its registered solver within a
   relative tolerance of 1e-4
 
@@ -37,13 +37,13 @@ SHALL choose a method whose storage fits the size of the state.
 #### Scenario: Many coupled states
 - **WHEN** 10 000 states coupled through their mean run with the default solver
 - **THEN** the run uses a method other than `LSODA` and matches the analytic solution within 1e-5, and
-  `ScipyODE(method='LSODA')` for the same system raises a named error that names the size of its dense matrix
+  `ScipyODESolver(method='LSODA')` for the same system raises a named error that names the size of its dense matrix
 
 #### Scenario: State resting on a discontinuity
 - **WHEN** `bathtub` with 20 gallons runs until 6 with the default solver, so the empty tub rests on its drain switch
   once the faucet opens
 - **THEN** the run warns that LSODA stalled, finishes with `RK45`, and the water drains to 0 by time 4, and
-  `ScipyODE(method='LSODA')` for the same run raises a named error that says it stalled
+  `ScipyODESolver(method='LSODA')` for the same run raises a named error that says it stalled
 
 ### Requirement: Simulations advance frame by frame
 A simulation SHALL advance in frames of a fixed simulated duration, and SHALL hand each frame, with its time, state,
@@ -73,35 +73,6 @@ speed relative to wall time, and SHALL record how far the run fell behind.
 #### Scenario: Real-time pacing
 - **WHEN** a simulation with a real-time clock of speed 1 runs from time 0 to 0.5
 - **THEN** the run takes at least 0.5 seconds of wall time
-
-### Requirement: Parameters change while running
-A running simulation SHALL accept new parameter values by dotted name, and SHALL apply them before the next frame.
-Values set between runs SHALL stay in force for the later runs of the same simulation.
-
-#### Scenario: Live change
-- **WHEN** a user sets the growth rate of a population to zero while its simulation runs in the background
-- **THEN** the population stays constant in the frames after the change
-
-#### Scenario: Unknown parameter
-- **WHEN** a user sets a parameter name the problem does not have
-- **THEN** a named error is raised that names the parameter
-
-#### Scenario: Change between runs
-- **WHEN** a user runs a logistic population until time 5, sets its growth rate to zero, and runs it again until 10
-- **THEN** the second run uses the growth rate zero, and its parameters in every frame are the ones the user set
-
-#### Scenario: Agent group parameter between runs
-- **WHEN** a user runs an agent group whose rule adds the group parameter `rate` to a state until time 0, sets `rate`
-  to 5, and runs it until time 2
-- **THEN** the state of every agent is 10 at time 2
-
-### Requirement: Simulations run in the background
-A simulation SHALL start in a background thread, and SHALL support pausing, resuming, stopping, and waiting for the
-run to finish.
-
-#### Scenario: Stop a background run
-- **WHEN** a user starts an unbounded background simulation and then stops it
-- **THEN** the thread ends and the recorded trajectory holds the frames produced so far
 
 ### Requirement: Runs are recorded as trajectories
 A simulation SHALL record its frames as a trajectory that returns the time points and the values of any state by its
@@ -133,14 +104,6 @@ shape.
 - **WHEN** a user asks the trajectory of a 100-frame run for `gas.x` of a group of 500 molecules in two dimensions
 - **THEN** it returns an array of shape `(100, 500, 2)`
 
-### Requirement: Group parameters change while running
-A running simulation SHALL accept a new value for a group parameter, either one value for every member or one value
-per member.
-
-#### Scenario: Heat one species
-- **WHEN** a user sets the mass of every member of a group to 2 while the simulation runs
-- **THEN** the frames after the change use mass 2 for every member
-
 ### Requirement: Groups run large in real time
 A simulation SHALL advance a group of 10000 non-interacting members fast enough to keep a real-time clock of
 speed 1 with frames every 0.01 time units.
@@ -158,11 +121,11 @@ Runge-Kutta stepper for ODE systems and a velocity Verlet stepper for systems of
 - **THEN** the result matches `e` within 1e-10 relative error
 
 #### Scenario: Velocity Verlet conserves energy
-- **WHEN** a harmonic oscillator is integrated with `VelocityVerlet` and step 0.01 for 1000 time units
+- **WHEN** a harmonic oscillator is integrated with `VelocityVerletSolver` and step 0.01 for 1000 time units
 - **THEN** its energy stays within 1e-3 relative error of the initial energy
 
 #### Scenario: Velocity Verlet needs position and velocity pairs
-- **WHEN** a population system is given to `VelocityVerlet`
+- **WHEN** a population system is given to `VelocityVerletSolver`
 - **THEN** a named solver error names the states that are not positions or velocities
 
 #### Scenario: Same stochastic results as before
@@ -174,7 +137,7 @@ A simulation SHALL advance a group of 100000 members with a short-range pair int
 real-time clock of speed 1 with frames every 0.01 time units.
 
 #### Scenario: Interacting gas in real time
-- **WHEN** a gas of 100000 soft spheres with cutoff pair forces runs with `VelocityVerlet` and step 0.01 for 2 seconds
+- **WHEN** a gas of 100000 soft spheres with cutoff pair forces runs with `VelocityVerletSolver` and step 0.01 for 2 seconds
   with a real-time clock
 - **THEN** the run falls behind by no more than 0.2 seconds
 
@@ -186,26 +149,12 @@ alongside the states.
 - **WHEN** a user asks a trajectory for `market/volume`, an observable of the subsystem `market`
 - **THEN** it returns one value per frame
 
-### Requirement: Runs extend from their last frame
-A simulation that has run SHALL extend its run to a later time from its last frame, with its current state, parameters,
-stepper, clock, and observers, and SHALL append the new frames to its trajectory. Extending a simulation that has not
-run, or to a time not after its current time, SHALL raise a named simulation error.
-
-#### Scenario: Run in two parts
-- **WHEN** a user runs a logistic population until time 5 with frame duration 1, sets its growth rate to zero, and
-  extends the run until time 10
-- **THEN** the trajectory has 11 frames at times 0 to 10, follows the logistic curve until 5, and stays constant after
-
-#### Scenario: Extend backwards
-- **WHEN** a user extends a simulation that ran until time 5 to time 3
-- **THEN** a named simulation error is raised that names the current time
-
 ### Requirement: SciPy integrators persist across frames
 The SciPy ODE solver SHALL keep one integrator across the frames of a run, and SHALL restart it only when the
 parameters change, when the state handed to it is not the state it returned, or at a breakpoint, event, or boundary.
 
 #### Scenario: Many frames
-- **WHEN** exponential decay runs with `ScipyODE` until time 10 with 1000 frames
+- **WHEN** exponential decay runs with `ScipyODESolver` until time 10 with 1000 frames
 - **THEN** the drift is evaluated at most twice as often as by one SciPy integration over the same interval, and the
   final state is the same within the solver tolerance
 
@@ -228,22 +177,10 @@ change.
 - **WHEN** the user asks a trajectory for the structure of a path that is not a rewriting element
 - **THEN** it raises a key error that lists the rewriting elements of the system
 
-### Requirement: Simulations take observables
-A simulation SHALL take the observables to record as an argument. A catalog entry SHALL declare the standard observables
-of its system, which `create_simulation` passes to the simulation. Trajectories SHALL record observables as before.
-
-#### Scenario: Observables given to a simulation
-- **WHEN** a user simulates a system with `Simulation(system, observables=[total_population])`
-- **THEN** the trajectory records `total_population` at every frame
-
-#### Scenario: Catalog observables
-- **WHEN** a user runs a catalog system with `create_simulation(name).prepare().run()`
-- **THEN** the trajectory records the observables declared by its catalog entry
-
 ### Requirement: Simulations take initial states
 A simulation SHALL take initial values that replace those of the components, by dotted state name. The whole state of
 a quantum system SHALL be named `<system label>.state` and take a vector, a density matrix, or `'ground'`. A catalog
-entry SHALL be able to declare the initial values its runs use, as a function of the factory's arguments. Limits of a
+entry SHALL be able to declare the initial values its runs use, as a function of the model parameters of its class. Limits of a
 solver, such as the largest dimension of a Hilbert space, SHALL be arguments of the solver, not of the system.
 
 #### Scenario: Ground state of a chain
@@ -258,14 +195,6 @@ solver, such as the largest dimension of a Hilbert space, SHALL be arguments of 
 - **WHEN** a quantum system above the `max_dimension` of its solver is compiled for that solver
 - **THEN** it raises an error that names the subsystems, the dimension, and the limit
 
-### Requirement: Solvers and backends are chosen separately from the system
-A simulation SHALL take an optional solver and backend. With `'auto'`, it SHALL choose among those whose declared support
-covers the validated system. The system SHALL carry no execution choice.
-
-#### Scenario: Automatic backend for agents
-- **WHEN** an agent system is simulated with the default solver and backend
-- **THEN** the Mesa backend is chosen because its declared support covers rule laws with variable groups
-
 ### Requirement: SDE steppers draw shared and correlated increments
 The SDE steppers SHALL draw the increments of shared and correlated Wiener processes from the run's random stream, in
 Python and in compiled code. Two runs with the same random state SHALL be equal, and a system that names no process
@@ -277,7 +206,7 @@ SHALL not declare support for it, so validation rejects the combination before c
 - **THEN** the two trajectories are equal
 
 #### Scenario: Unchanged seeded runs
-- **WHEN** geometric Brownian motion runs with random state 0 and `EulerMaruyama`
+- **WHEN** geometric Brownian motion runs with random state 0 and `EulerMaruyamaSolver`
 - **THEN** its trajectory equals the one stored before this change
 
 #### Scenario: Shared process on both backends
@@ -289,18 +218,19 @@ SHALL not declare support for it, so validation rejects the combination before c
 - **THEN** the report holds an error that names the process's first law and lists the backends that support shared noise
 
 ### Requirement: A system package plugs in its own compiler
-A compiler defined outside the engine, on `BaseCompiler`, SHALL compile a system passed to `Simulation` with
-`compiler=`, and the simulation SHALL run the solver that compiler names, without the engine
-importing the package.
+A compiler defined outside the engine, on the public `BaseCompiler`, SHALL compile a system whose `compiler` run setting
+names it, or a system passed to `simulate` with `compiler=`, and the run SHALL use the solver that compiler names,
+without the engine importing the package. The compilers of the library's own forms SHALL stay private, and `simulate`
+SHALL choose them from the form the system holds.
 
 #### Scenario: Rewriting from the systems library
-- **WHEN** `Simulation(create_system('koch_curve'), compiler=RewritingCompiler())` runs, with `RewritingCompiler` imported
-  from `skcomplex.core.engine.compile`
-- **THEN** the run rewrites the word once per frame, and `skcomplex.core.engine` imports nothing from `skcomplex.systems`
+- **WHEN** `simulate(KochCurveSystem(), until=3)` runs without a compiler
+- **THEN** the compiler of the rewriting form is chosen automatically, the run rewrites the word once per frame, and
+  `skcomplex.core.engine` imports nothing from `skcomplex.systems`
 
 #### Scenario: Quantum system without its compiler
-- **WHEN** a quantum system runs with the default compiler
-- **THEN** checking it raises a validation error that names `compiler=QuantumCompiler()`
+- **WHEN** a quantum system runs through `simulate` without a compiler
+- **THEN** the compiler of the operator form is chosen automatically and the run succeeds
 
 ### Requirement: A symplectic solver of fourth order
 `Yoshida4Solver` SHALL integrate continuous-time systems by three velocity Verlet steps with the Yoshida coefficients,
@@ -318,17 +248,55 @@ SHALL raise `SolverError` naming the state that prevents it and a solver that ne
 - **THEN** `SolverError` is raised that names a momentum whose rate reads a momentum and suggests `RK4Solver`
 
 ### Requirement: A simulation holds a default end time
-A simulation SHALL take an optional end time `until` as an argument. `run()` without an end time SHALL run to it, an
-end time passed to `run` SHALL take precedence, and a run with neither SHALL raise a validation error that asks for one.
+`simulate(system)` SHALL run to the tuned `until` of the run settings of the system. An `until` passed to `simulate`
+SHALL take precedence, and a system with neither SHALL raise a `ValidationError` that asks for one.
 
 #### Scenario: Stored end time
-- **WHEN** a user calls `Simulation(system, until=20).prepare().run()`
+- **WHEN** a user calls `simulate(system)` for a system class whose tuned `until` is 20
 - **THEN** the run ends at time 20
 
 #### Scenario: Passed end time wins
-- **WHEN** a user calls `Simulation(system, until=20).prepare().run(until=5)`
+- **WHEN** a user calls `simulate(system, until=5)` for a system class whose tuned `until` is 20
 - **THEN** the run ends at time 5
 
 #### Scenario: No end time
-- **WHEN** a user calls `Simulation(system).prepare().run()`
-- **THEN** it raises a validation error that shows how to pass an end time
+- **WHEN** a user calls `simulate(system)` for a system with no tuned `until`
+- **THEN** it raises a `ValidationError` that shows how to pass an end time
+
+### Requirement: Simulating is a function
+`simulate(system, *, until, dt=None, initial_state=None, solver=None, backend=None, observables=(), observers=(),
+random_state=None, ...)` SHALL prepare the system if needed, compile it, run it until `until` with frames every `dt`,
+and return a `Trajectory`. A solver SHALL take the role of a splitter, a backend the role of `n_jobs`, observables the
+role of `scoring`, and observers, such as a Rerun recording, the role of callbacks. The defaults SHALL come from the
+tags of the system.
+
+#### Scenario: Simulating a ready-made system
+- **WHEN** a user calls `simulate(SIRSystem(), until=10)`
+- **THEN** it returns a trajectory of the system up to time 10, with the default solver of its tags
+
+#### Scenario: Tuned settings of a system class
+- **WHEN** a user calls `simulate(SIRSystem())` without run settings
+- **THEN** the run uses the end time, solver, observables, and initial state the class tunes
+
+### Requirement: Simulating is paced by a clock
+`simulate(..., clock=None)` SHALL pace the frames against wall time with `clock`, as fast as possible by default, and in
+real time with `RealTimeClock()`, to watch a run in Rerun as it goes.
+
+#### Scenario: Real-time pacing through a clock
+- **WHEN** a user calls `simulate(system, until=0.5, dt=0.1, clock=RealTimeClock(speed=1.0))`
+- **THEN** the run takes at least 0.5 seconds of wall time, and the clock records how far the run fell behind
+
+### Requirement: Simulating checks states and scheduled values
+With `checked=True`, `simulate` SHALL raise a `ValidationError` naming the state and the time when a state leaves its
+domain, and `checked` SHALL default to `False`. A value a schedule sets SHALL be checked against the domain of its
+parameter, as an initial value is, and against the transition and emission matrices it enters, and a failure SHALL
+raise a `ValidationError`, or a `ParameterError`, which derives from it, naming the parameter and the time.
+
+#### Scenario: Checked run
+- **WHEN** a law moves a state of an alphabet of labels outside the alphabet in a run with `checked=True`
+- **THEN** a `ValidationError` names the state, its values, and the time
+
+#### Scenario: Scheduled probability above one
+- **WHEN** a schedule sets the probability of staying in a two-state chain to 1.5 at time 3
+- **THEN** a `ParameterError`, caught by `except ValidationError`, names the parameter, the time 3, and the negative
+  entry of the transition matrix

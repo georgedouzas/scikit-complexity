@@ -1,4 +1,7 @@
-"""Supply chain systems: Namrata's Family, the diffusion of good working conditions from buyers to suppliers."""
+"""Supply chain systems: Namrata's Family.
+
+It is the diffusion of good working conditions from buyers to suppliers.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,15 +17,17 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import NetworkSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class SupplierView(AgentView):
-    """View of a firm of the supply chain diffusion system, with its states as attributes."""
+    """View of a firm of the supply chain diffusion system.
+
+    Its states are attributes.
+    """
 
     adopted: float
     inflow: float
@@ -30,7 +35,9 @@ class SupplierView(AgentView):
 
 
 class SupplierElement(Element):
-    """Firm of a supply chain, a buyer or a factory, with the value of the goods that flow into and out of it.
+    """Firm of a supply chain, a buyer or a factory.
+
+    It holds the value of the goods that flow into and out of it.
 
     Args:
         label:
@@ -74,55 +81,21 @@ class SupplierElement(Element):
         return SupplierView
 
 
-def _adopt(firm: SupplierView, system: SystemViewProtocol) -> float:
-    """Return 1 for a firm that has adopted or that an adopting buyer has the power to force, and 0 otherwise.
+class SupplyChainDiffusionSystem(BaseSystem):
+    """Chesney's Namrata's Family.
 
-    A buyer `i` forces its supplier `j` when `V_ij = w_ji / w_->i` is below `V_ji = w_ji / w_j->`, that is when
-    the inflow of the buyer exceeds the outflow of the supplier.
-    """
-    del system
-    if firm.adopted:
-        return 1.0
-    buyers = [item for item in firm.neighbors() if isinstance(item, SupplierView)]
-    return float(any(buyer.adopted and buyer.inflow > firm.outflow for buyer in buyers))
+    Buyers push good working conditions down their supply network. Goods flow from suppliers to buyers along the
+    weighted edges of a directed network, `w_ji` from `j` to `i`. A buyer `i` that has adopted forces a supplier `j` to
+    adopt when it is less beholden to the supplier than the supplier is to it,
+    `V_ij = w_ji / w_->i < V_ji = w_ji / w_j->`, where `w_->i` is the total value that flows into `i` and `w_j->` the
+    total value that flows out of `j`, with a strict inequality since factories resist by default (Chesney 2021 sections
+    4.9 and 4.10). A seed group of buyers adopts at the start, and in every time period the firms that adopted in the
+    previous one push their suppliers. Since the condition reads `w_->i > w_j->`, a buyer with a single supplier never
+    forces it, so diffusion needs buyers with two or more suppliers (section 4.11). The default network has `buyers`
+    buyers and `factories` factories, every factory supplying one to three random firms listed before it with values
+    from 1 to 10.
 
-
-def _supply_network(buyers: int, factories: int, rng: np.random.Generator) -> nx.DiGraph:
-    """Return a random supply network, edges from supplier to buyer weighted by the value of the goods."""
-    graph = nx.DiGraph()
-    graph.add_nodes_from(range(buyers + factories))
-    for factory in range(buyers, buyers + factories):
-        clients = rng.choice(factory, min(factory, int(rng.integers(1, 4))), replace=False)
-        for client in clients.tolist():
-            graph.add_edge(factory, client, weight=float(rng.integers(1, 11)))
-    return graph
-
-
-@register_system(
-    field='social/organizations',
-    tags=('agents', 'network', 'supply chains', 'diffusion', 'labour standards'),
-    references=('Chesney 2021', 'Gold, Chesney, Gruchmann, and Trautrims 2020'),
-    defaults={'until': 10},
-)
-def supply_chain_diffusion(
-    graph: object = None,
-    *,
-    buyers: int = 3,
-    factories: int = 40,
-    seeds: int = 2,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return Chesney's Namrata's Family, buyers who push good working conditions down their supply network.
-
-    Goods flow from suppliers to buyers along the weighted edges of a directed network, `w_ji` from `j` to `i`. A buyer
-    `i` that has adopted forces a supplier `j` to adopt when it is less beholden to the supplier than the supplier is
-    to it, `V_ij = w_ji / w_->i < V_ji = w_ji / w_j->`, where `w_->i` is the total value that flows into `i` and
-    `w_j->` the total value that flows out of `j`, with a strict inequality since factories resist by default
-    (Chesney 2021 sections 4.9 and 4.10). A seed group of buyers adopts at the start, and in every time period the
-    firms that adopted in the previous one push their suppliers. Since the condition reads `w_->i > w_j->`, a buyer
-    with a single supplier never forces it, so diffusion needs buyers with two or more suppliers (section 4.11). The
-    default network has `buyers` buyers and `factories` factories, every factory supplying one to three random firms
-    listed before it with values from 1 to 10.
+    The system has the group `firms` on the nodes of the network.
 
     Args:
         graph:
@@ -141,31 +114,83 @@ def supply_chain_diffusion(
         random_state:
             The seed or generator of the default network.
 
-    Returns:
-        system:
-            The system, with the group `firms` on the nodes of the network.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.organizations import supply_chain_diffusion
-        >>> supply_chain_diffusion(factories=10).elements[0].prepare().size_
+        >>> from skcomplex.systems.social.organizations import SupplyChainDiffusionSystem
+        >>> SupplyChainDiffusionSystem(factories=10).prepare().system_.elements[0].prepare().size_
         13
     """
-    rng = np.random.default_rng(random_state)
-    network = _supply_network(buyers, factories, rng) if graph is None else graph
-    if not isinstance(network, nx.DiGraph):
-        network = nx.DiGraph(network)
-    nodes = list(network.nodes)
-    adopted = np.zeros(len(nodes))
-    adopted[:seeds] = 1.0
-    firms = GroupElement(
-        'firms',
-        element=SupplierElement,
-        size=len(nodes),
-        values={
-            'adopted': adopted,
-            'inflow': [float(network.in_degree(node, weight='weight')) for node in nodes],
-            'outflow': [float(network.out_degree(node, weight='weight')) for node in nodes],
-        },
-    )
-    adoption = MapInteraction('adoption', target='firms', state='adopted', function=_adopt, form='agent')
-    return System(elements=[firms], interactions=[adoption], space=NetworkSpace(network))
+
+    field = 'social/organizations'
+    topics = ('agents', 'network', 'supply chains', 'diffusion', 'labour standards')
+    references = ('Chesney 2021', 'Gold, Chesney, Gruchmann, and Trautrims 2020')
+    until = 10
+
+    def __init__(
+        self,
+        graph: object = None,
+        *,
+        buyers: int = 3,
+        factories: int = 40,
+        seeds: int = 2,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.graph = graph
+        self.buyers = buyers
+        self.factories = factories
+        self.seeds = seeds
+        self.random_state = random_state
+
+    @staticmethod
+    def _adopt(firm: SupplierView, system: SystemViewProtocol) -> float:
+        """Return 1 for a firm that has adopted or can be forced, and 0 otherwise.
+
+        A firm can be forced when an adopting buyer has the power to force it. A buyer `i` forces its supplier `j` when
+        `V_ij = w_ji / w_->i` is below `V_ji = w_ji / w_j->`, that is when the inflow of the buyer exceeds the outflow
+        of the supplier.
+        """
+        del system
+        if firm.adopted:
+            return 1.0
+        buyers = [item for item in firm.neighbors() if isinstance(item, SupplierView)]
+        return float(any(buyer.adopted and buyer.inflow > firm.outflow for buyer in buyers))
+
+    @staticmethod
+    def _supply_network(buyers: int, factories: int, rng: np.random.Generator) -> nx.DiGraph:
+        """Return a random supply network.
+
+        Its edges go from supplier to buyer, weighted by the value of the goods.
+        """
+        graph = nx.DiGraph()
+        graph.add_nodes_from(range(buyers + factories))
+        for factory in range(buyers, buyers + factories):
+            clients = rng.choice(factory, min(factory, int(rng.integers(1, 4))), replace=False)
+            for client in clients.tolist():
+                graph.add_edge(factory, client, weight=float(rng.integers(1, 11)))
+        return graph
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        network = self._supply_network(self.buyers, self.factories, rng) if self.graph is None else self.graph
+        if not isinstance(network, nx.DiGraph):
+            network = nx.DiGraph(network)
+        nodes = list(network.nodes)
+        adopted = np.zeros(len(nodes))
+        adopted[: self.seeds] = 1.0
+        firms = GroupElement(
+            'firms',
+            element=SupplierElement,
+            size=len(nodes),
+            values={
+                'adopted': adopted,
+                'inflow': [float(network.in_degree(node, weight='weight')) for node in nodes],
+                'outflow': [float(network.out_degree(node, weight='weight')) for node in nodes],
+            },
+        )
+        adoption = MapInteraction('adoption', target='firms', state='adopted', function=self._adopt, form='agent')
+        return System(self.label, elements=[firms], interactions=[adoption], space=NetworkSpace(network))

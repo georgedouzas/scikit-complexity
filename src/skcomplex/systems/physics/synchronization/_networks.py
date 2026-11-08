@@ -1,4 +1,7 @@
-"""Synchronization on complex networks: Kuramoto oscillators and coupled logistic maps on the edges of a graph."""
+"""Synchronization on complex networks.
+
+Kuramoto oscillators and coupled logistic maps sit on the edges of a graph.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,15 +18,16 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement, LatticeElement
 from ....core.components.interactions import CouplingInteraction
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.components.types import Target
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from ..common.oscillators import KuramotoCouplingInteraction, LinkElement, PhaseOscillatorElement, order_parameter
 
 
 class LogisticNodeElement(Element):
-    """Logistic map on a node of a network, with its value, growth rate, and weight of the neighbours.
+    """Logistic map on a node of a network.
+
+    The map has its value, growth rate, and weight of the neighbours.
 
     `LogisticCouplingInteraction` iterates `x_i(t + 1) = (1 - epsilon) f(x_i) + epsilon mean_j f(x_j)`, where the map
     `f(x) = r x (1 - x)` of the node mixes with the mean of the maps of its neighbours `j` on the network.
@@ -70,7 +74,9 @@ class LogisticNodeElement(Element):
 
 
 class EdgeCouplingInteraction(KuramotoCouplingInteraction):
-    """Kuramoto coupling along the weighted edges of a network, `theta_i' += K w_ij sin(theta_j - theta_i)`.
+    """Kuramoto coupling along the weighted edges of a network.
+
+    The coupling is `theta_i' += K w_ij sin(theta_j - theta_i)`.
 
     The coupling runs once per edge of the network of its oscillators and reads the weight `w` of the edge from the
     group on the edges.
@@ -111,7 +117,9 @@ class EdgeCouplingInteraction(KuramotoCouplingInteraction):
 
 
 class LogisticCouplingInteraction(CouplingInteraction):
-    """Coupled logistic maps, `x_i(t + 1) = (1 - epsilon) f(x_i) + epsilon mean_j f(x_j)` with `f(x) = r x (1 - x)`.
+    """Coupled logistic maps.
+
+    The maps follow `x_i(t + 1) = (1 - epsilon) f(x_i) + epsilon mean_j f(x_j)` with `f(x) = r x (1 - x)`.
 
     The map of every node mixes with the mean of the maps of its neighbours `j` on its lattice or network, with the
     parameters `r` and `epsilon` of the node. A node with no neighbours keeps `(1 - epsilon) f(x_i)`. It is the map
@@ -132,8 +140,8 @@ class LogisticCouplingInteraction(CouplingInteraction):
         >>> from skcomplex.core.components.elements import LatticeElement
         >>> from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.systems.physics.synchronization import LogisticCouplingInteraction, LogisticNodeElement
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> maps = LatticeElement(
         ...     'maps',
         ...     element=LogisticNodeElement,
@@ -142,7 +150,7 @@ class LogisticCouplingInteraction(CouplingInteraction):
         ... )
         >>> coupling = LogisticCouplingInteraction('coupling', target='maps')
         >>> system = System(elements=[maps], interactions=[coupling], time=DiscreteTime())
-        >>> Simulation(system).prepare().run(until=1).trajectory_.values('maps.x')[-1].tolist()
+        >>> simulate(system, until=1).values('maps.x')[-1].tolist()
         [0.875, 0.875]
     """
 
@@ -191,30 +199,17 @@ def _network(name: str, n_nodes: int, degree: int, rewiring: float, seed: int) -
     raise ValueError(error_msg)
 
 
-@register_system(
-    field='physics/synchronization',
-    tags=('synchronization', 'oscillators', 'phase', 'network'),
-    references=('Arenas et al. 2008', 'Jensen 2023'),
-    defaults={'until': 40.0, 'dt': 0.2},
-    observables=lambda system: order_parameter('order', 'oscillators'),
-)
-def kuramoto_on_networks(
-    n_oscillators: int = 200,
-    *,
-    network: str = 'watts_strogatz',
-    degree: int = 6,
-    rewiring: float = 0.1,
-    K: float = 1.0,
-    sigma: float = 0.5,
-    seed: int = 0,
-) -> System:
-    """Return Kuramoto oscillators coupled along the edges of a network, `theta_i' = omega_i + K sum_j A_ij sin(...)`.
+class KuramotoOnNetworksSystem(BaseSystem):
+    """Kuramoto oscillators coupled along the edges of a network.
+
+    The oscillators follow `theta_i' = omega_i + K sum_j A_ij sin(...)`.
 
     Oscillator `i` follows `theta_i' = omega_i + (K / <k>) sum_j w_ij sin(theta_j - theta_i)` over its neighbours `j`,
     where the weights `w_ij = 1` live on a group on the edges and `<k>` is the mean degree. The coupling runs once per
     edge. The natural frequencies are drawn from a normal distribution of width `sigma`, and the phases uniformly from
     the circle. Above a critical coupling of the order of the all-to-all value `2 sigma sqrt(2 / pi)`, the order
-    parameter `r = |<exp(i theta)>|` grows from about `1 / sqrt(N)` towards 1, and small-world shortcuts lower it.
+    parameter `r = |<exp(i theta)>|` grows from about `1 / sqrt(N)` towards 1, and small-world shortcuts lower it. The
+    system has the phases `oscillators.theta`, the weights `links.w`, and the order parameter `order`.
 
     Args:
         n_oscillators:
@@ -238,58 +233,78 @@ def kuramoto_on_networks(
         seed:
             The seed of the network, the frequencies, and the phases.
 
-    Returns:
-        system:
-            The system, with the phases `oscillators.theta`, the weights `links.w`, and the order parameter `order`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValueError:
             The network is unknown.
 
     Examples:
-        >>> from skcomplex.systems.physics.synchronization import kuramoto_on_networks
-        >>> system = kuramoto_on_networks(20, degree=4)
+        >>> from skcomplex.systems.physics.synchronization import KuramotoOnNetworksSystem
+        >>> system = KuramotoOnNetworksSystem(20, degree=4).prepare().system_
         >>> system.elements[1].prepare().size_
         40
     """
-    space = _network(network, n_oscillators, degree, rewiring, seed)
-    rng = np.random.default_rng(seed + 1)
-    mean_degree = 2 * space.graph.number_of_edges() / n_oscillators
-    oscillators = LatticeElement(
-        'oscillators',
-        element=PhaseOscillatorElement,
-        space=space,
-        values={'theta': rng.uniform(0, 2 * math.pi, n_oscillators), 'omega': rng.normal(0.0, sigma, n_oscillators)},
-        visual=VisualSpec('sites', {'states': ['theta'], 'low': 0.0, 'high': 2 * math.pi}),
-    )
-    links = GroupElement('links', element=LinkElement, space=space, on='edges')
-    coupling = EdgeCouplingInteraction('coupling', target='oscillators', links='links', K=K / mean_degree)
-    return System(elements=[oscillators, links], interactions=[coupling])
+
+    field = 'physics/synchronization'
+    topics = ('synchronization', 'oscillators', 'phase', 'network')
+    references = ('Arenas et al. 2008', 'Jensen 2023')
+    until = 40.0
+    dt = 0.2
+    observables = tuple(order_parameter('order', 'oscillators'))
+
+    def __init__(
+        self,
+        n_oscillators: int = 200,
+        *,
+        network: str = 'watts_strogatz',
+        degree: int = 6,
+        rewiring: float = 0.1,
+        K: float = 1.0,
+        sigma: float = 0.5,
+        seed: int = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_oscillators = n_oscillators
+        self.network = network
+        self.degree = degree
+        self.rewiring = rewiring
+        self.K = K
+        self.sigma = sigma
+        self.seed = seed
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        space = _network(self.network, self.n_oscillators, self.degree, self.rewiring, self.seed)
+        rng = np.random.default_rng(self.seed + 1)
+        mean_degree = 2 * space.graph.number_of_edges() / self.n_oscillators
+        oscillators = LatticeElement(
+            'oscillators',
+            element=PhaseOscillatorElement,
+            space=space,
+            values={
+                'theta': rng.uniform(0, 2 * math.pi, self.n_oscillators),
+                'omega': rng.normal(0.0, self.sigma, self.n_oscillators),
+            },
+            visual=VisualSpec('sites', {'states': ['theta'], 'low': 0.0, 'high': 2 * math.pi}),
+        )
+        links = GroupElement('links', element=LinkElement, space=space, on='edges')
+        coupling = EdgeCouplingInteraction('coupling', target='oscillators', links='links', K=self.K / mean_degree)
+        return System(self.label, elements=[oscillators, links], interactions=[coupling])
 
 
-@register_system(
-    field='physics/synchronization',
-    tags=('synchronization', 'map', 'chaos', 'network'),
-    references=('Arenas et al. 2008', 'Kaneko 1989'),
-    defaults={'until': 100.0, 'dt': 1.0},
-    observables=lambda system: [ObservableSpec('spread', group='maps', variable='x', reduce='var')],
-)
-def coupled_map_lattices_on_networks(
-    n_nodes: int = 100,
-    *,
-    network: str = 'erdos_renyi',
-    degree: int = 20,
-    rewiring: float = 0.1,
-    r: float = 4.0,
-    epsilon: float = 0.9,
-    seed: int = 0,
-) -> System:
-    """Return chaotic logistic maps on the nodes of a network, each pulled towards the mean of its neighbours.
+class CoupledMapLatticesOnNetworksSystem(BaseSystem):
+    """Chaotic logistic maps on the nodes of a network.
 
-    Node `i` follows `x_i(t + 1) = (1 - epsilon) f(x_i) + (epsilon / k_i) sum_j A_ij f(x_j)` with the logistic map
-    `f(x) = r x (1 - x)`, a mean over the neighbours of the network. For a coupling `epsilon` large enough against the
-    Lyapunov exponent of the map and the spectral gap of the network, the maps synchronize on one chaotic orbit, and
-    the variance of the states over the nodes falls to zero. Below it they stay incoherent.
+    Each map is pulled towards the mean of its neighbours.
+
+    Node `i` follows `x_i(t + 1) = (1 - epsilon) f(x_i) + (epsilon / k_i) sum_j A_ij f(x_j)` with the logistic map `f(x)
+    = r x (1 - x)`, a mean over the neighbours of the network. For a coupling `epsilon` large enough against the
+    Lyapunov exponent of the map and the spectral gap of the network, the maps synchronize on one chaotic orbit, and the
+    variance of the states over the nodes falls to zero. Below it they stay incoherent. The system has the states
+    `maps.x` and their variance over the nodes, `spread`.
 
     Args:
         n_nodes:
@@ -313,27 +328,60 @@ def coupled_map_lattices_on_networks(
         seed:
             The seed of the network and the initial states.
 
-    Returns:
-        system:
-            The system, with the states `maps.x` and their variance over the nodes, `spread`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValueError:
             The network is unknown.
 
     Examples:
-        >>> from skcomplex.systems.physics.synchronization import coupled_map_lattices_on_networks
-        >>> coupled_map_lattices_on_networks(20).elements[0].prepare().size_
+        >>> from skcomplex.systems.physics.synchronization import CoupledMapLatticesOnNetworksSystem
+        >>> CoupledMapLatticesOnNetworksSystem(20).prepare().system_.elements[0].prepare().size_
         20
     """
-    space = _network(network, n_nodes, degree, rewiring, seed)
-    rng = np.random.default_rng(seed + 1)
-    maps = LatticeElement(
-        'maps',
-        element=LogisticNodeElement,
-        space=space,
-        values={'x': rng.uniform(0.0, 1.0, n_nodes), 'r': r, 'epsilon': epsilon},
-        visual=VisualSpec('sites', {'states': ['x'], 'low': 0.0, 'high': 1.0}),
-    )
-    coupling = LogisticCouplingInteraction('coupling', target='maps')
-    return System(elements=[maps], interactions=[coupling], time=DiscreteTime())
+
+    field = 'physics/synchronization'
+    topics = ('synchronization', 'map', 'chaos', 'network')
+    references = ('Arenas et al. 2008', 'Kaneko 1989')
+    until = 100.0
+    dt = 1.0
+    observables = (ObservableSpec('spread', group='maps', variable='x', reduce='var'),)
+
+    def __init__(
+        self,
+        n_nodes: int = 100,
+        *,
+        network: str = 'erdos_renyi',
+        degree: int = 20,
+        rewiring: float = 0.1,
+        r: float = 4.0,
+        epsilon: float = 0.9,
+        seed: int = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_nodes = n_nodes
+        self.network = network
+        self.degree = degree
+        self.rewiring = rewiring
+        self.r = r
+        self.epsilon = epsilon
+        self.seed = seed
+
+    def _build_system(self) -> System:
+        """Return chaotic logistic maps on the nodes of a network.
+
+        Each map is pulled towards the mean of its neighbours.
+        """
+        space = _network(self.network, self.n_nodes, self.degree, self.rewiring, self.seed)
+        rng = np.random.default_rng(self.seed + 1)
+        maps = LatticeElement(
+            'maps',
+            element=LogisticNodeElement,
+            space=space,
+            values={'x': rng.uniform(0.0, 1.0, self.n_nodes), 'r': self.r, 'epsilon': self.epsilon},
+            visual=VisualSpec('sites', {'states': ['x'], 'low': 0.0, 'high': 1.0}),
+        )
+        coupling = LogisticCouplingInteraction('coupling', target='maps')
+        return System(self.label, elements=[maps], interactions=[coupling], time=DiscreteTime())

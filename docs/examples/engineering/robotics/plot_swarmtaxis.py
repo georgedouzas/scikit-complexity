@@ -6,7 +6,7 @@ robots on its side can see: the illuminated robots keep a wider berth, which pus
 """
 
 # %%
-# The system is created by name from the catalog with 20 robots starting in a cluster near the left edge of an arena of
+# The system is built from its class with 20 robots starting in a cluster near the left edge of an arena of
 # size 100, with the beacon at the middle of the right edge, and runs for 3000 steps. The blueprint shows the robots in
 # the left half of the arena, drawn larger than the system's visual so they read in the thumbnail.
 
@@ -15,9 +15,9 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.engineering.robotics import SwarmtaxisSystem
 
 SYSTEM = 'swarmtaxis'
 
@@ -33,9 +33,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM, random_state=0)
+system = SwarmtaxisSystem(random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-simulation = Simulation(system, dt=15, observers=[observer]).prepare().run(until=3000)
+trajectory = simulate(system, until=3000, dt=15, observers=[observer])
 
 # %%
 # Drift towards the beacon
@@ -43,7 +43,6 @@ simulation = Simulation(system, dt=15, observers=[observer]).prepare().run(until
 # The centre of the swarm should move steadily towards the beacon at `x = 100`, while its spread stays bounded because
 # the robots keep radio contact, and at any time only part of the swarm should see the beacon.
 
-trajectory = simulation.trajectory_
 frames = range(len(trajectory.times))
 centres = np.array([trajectory.agents('robots', frame).locations.mean(axis=0) for frame in frames])
 spreads = [trajectory.agents('robots', frame).locations.std(axis=0).mean() for frame in frames]

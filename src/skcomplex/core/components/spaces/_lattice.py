@@ -1,4 +1,7 @@
-"""Define lattice spaces, boxes of Z^d or of the triangular lattice whose sites hold lattice group members."""
+"""Define lattice spaces.
+
+They are boxes of Z^d or of the triangular lattice whose sites hold lattice group members.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -6,6 +9,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import ClassVar
 
 import numpy as np
 import numpy.typing as npt
@@ -25,11 +29,11 @@ TRIANGULAR_DIMENSIONS = 2
 
 
 class LatticeSpace(BaseSpace):
-    """Box of the integer lattice `Z^d`, or of the triangular lattice in 2D, whose sites hold lattice group members.
+    """Box of `Z^d`, or of the triangular lattice in 2D, holding lattice group members.
 
-    Sites are numbered in row-major order, so site `(i, j)` of a lattice of shape `(n, m)` is member `i * m + j`. A
-    triangular site `(i, j)` keeps its integer coordinates on a skewed grid and sits at `(j + i / 2, i sqrt(3) / 2)` in
-    the plane, so it has six neighbours at unit distance.
+    `Z^d` is the integer lattice, and the sites hold the members. Sites are numbered in row-major order, so site `(i,
+    j)` of a lattice of shape `(n, m)` is member `i * m + j`. A triangular site `(i, j)` keeps its integer coordinates
+    on a skewed grid and sits at `(j + i / 2, i sqrt(3) / 2)` in the plane, so it has six neighbours at unit distance.
 
     Args:
         shape:
@@ -71,6 +75,8 @@ class LatticeSpace(BaseSpace):
         [[0.0, 0.0], [1.0, 0.0], [0.5, 0.866], [1.5, 0.866]]
     """
 
+    space_tags: ClassVar[tuple[str, ...]] = ('lattice',)
+
     def __init__(
         self,
         shape: Sequence[int] | int,
@@ -92,8 +98,12 @@ class LatticeSpace(BaseSpace):
         self.neighborhood = neighborhood
         self.capacity = capacity
 
-    def _check(self) -> None:
-        """Raise an error when the shape, the geometry, or the boundary is not valid."""
+    def _prepare(self, context: None = None) -> None:
+        """Set the shape, the size, the spacings, and the position of every site.
+
+        It first raises an error when the shape, the geometry, or the boundary is not valid.
+        """
+        super()._prepare(context)
         shape = tuple(np.ravel(self.shape).tolist())
         if not shape or any(int(size) != size or size < 1 for size in shape):
             error_msg = (
@@ -109,9 +119,6 @@ class LatticeSpace(BaseSpace):
         if self.geometry == 'triangular' and len(shape) != TRIANGULAR_DIMENSIONS:
             error_msg = f'A triangular lattice has two dimensions, but its shape is {self.shape}.'
             raise ValidationError(error_msg)
-
-    def _prepare(self, context: None = None) -> None:
-        """Set the shape, the size, the spacings, and the position of every site."""
         self.shape_ = tuple(int(size) for size in np.ravel(self.shape).tolist())
         self.n_dim_ = len(self.shape_)
         self.size_ = int(np.prod(self.shape_))
@@ -132,11 +139,17 @@ class LatticeSpace(BaseSpace):
         return self.boundary
 
     def _with_edges(self, boundary: str, fill: float) -> LatticeSpace:
-        """Return the sites of the lattice with other edges, which the reads of a state with its own boundary use."""
+        """Return the sites of the lattice with other edges.
+
+        The reads of a state with its own boundary use them.
+        """
         return LatticeSpace(self.shape_, boundary=boundary, fill=fill).prepare()
 
     def _default_neighborhood(self) -> LatticeNeighborhood:
-        """Return the neighbourhood agents query, the triangular, von Neumann, or Moore neighbourhood of radius 1."""
+        """Return the neighbourhood agents query.
+
+        It is the triangular, von Neumann, or Moore neighbourhood of radius 1.
+        """
         if self.geometry == 'triangular':
             return TriangularNeighborhood()
         if self.neighborhood == 'von_neumann':
@@ -144,7 +157,10 @@ class LatticeSpace(BaseSpace):
         return MooreNeighborhood(n_dim=self.n_dim_)
 
     def _index_table(self, neighborhood: BaseNeighborhood) -> npt.NDArray[np.intp]:
-        """Return the member index of every neighbour of every site, with `size_` for sites outside fixed edges."""
+        """Return the member index of every neighbour of every site.
+
+        Sites outside fixed edges get `size_`.
+        """
         if not isinstance(neighborhood, LatticeNeighborhood):
             error_msg = f'A lattice reads a lattice neighbourhood of offsets, but it was given {neighborhood!r}.'
             raise ValidationError(error_msg)
@@ -175,11 +191,17 @@ class LatticeSpace(BaseSpace):
         return table
 
     def _ball(self, radius: int) -> LatticeNeighborhood:
-        """Return the box of offsets within a radius along every dimension, the site itself included."""
+        """Return the box of offsets within a radius along every dimension.
+
+        The site itself is included.
+        """
         return BoxNeighborhood(radius, n_dim=self.n_dim_)
 
     def _neighbor_pairs(self, layer: str | None = None) -> list[tuple[int, int]]:
-        """Return the pairs of distinct sites one step apart along a dimension, each pair once."""
+        """Return the pairs of distinct sites one step apart along a dimension.
+
+        Each pair comes once.
+        """
         sites = np.arange(self.size_).reshape(self.shape_)
         found: dict[frozenset[int], tuple[int, int]] = {}
         for axis, length in enumerate(self.shape_):

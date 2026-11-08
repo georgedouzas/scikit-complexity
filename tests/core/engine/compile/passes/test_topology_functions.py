@@ -6,7 +6,7 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import FitAnalysis
+from skcomplex.core.analysis import fit_law
 from skcomplex.core.components.elements import Element, GroupElement, LatticeElement
 from skcomplex.core.components.interactions import Interaction, NeighborInteraction
 from skcomplex.core.components.laws import JumpLaw, UpdateLaw
@@ -14,8 +14,8 @@ from skcomplex.core.components.laws.utils import neighbors, total
 from skcomplex.core.components.spaces import AdjacencyNeighborhood, DiscreteTime, NetworkSpace, RadiusNeighborhood
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import CapacityError
 from skcomplex.core.specs import LayerSpec, ParameterSpec, RoleSpec, StateSpec, TopologyRequestSpec, VisualSpec
 
@@ -140,18 +140,18 @@ def _growing(size, capacity, *, edges=2):
 @pytest.mark.slow
 def test_preferential_attachment_gives_a_tail_exponent_near_three():
     """Test that Barabási-Albert growth to 10,000 nodes with two edges each gives a degree tail exponent near 3."""
-    simulation = Simulation(_growing(3, 10_003), dt=1000.0, random_state=3).prepare().run(until=10_000)
-    snapshot = simulation.trajectory_.network(-1)
+    trajectory = simulate(_growing(3, 10_003), until=10_000, dt=1000.0, random_state=3)
+    snapshot = trajectory.network(-1)
     degrees = np.bincount(np.concatenate([snapshot.sources, snapshot.targets]))
     assert snapshot.nodes.size == 10_003
-    fit = FitAnalysis(minimum=10, discrete=True, bootstrap=0).prepare(degrees[degrees > 0]).run()
-    assert abs(fit.exponent_ - 3) < 0.3
+    fit = fit_law(degrees[degrees > 0], minimum=10, discrete=True, bootstrap=0)
+    assert abs(fit.exponent - 3) < 0.3
 
 
 def test_growth_runs_on_numba_and_agrees_with_numpy():
     """Test that a network growing from 10 to 1,000 nodes runs on Numba with its present nodes, as on NumPy."""
     numpy, numba = (
-        Simulation(_growing(10, 1000), backend=backend, dt=99.0, random_state=5).prepare().run(until=990).trajectory_
+        simulate(_growing(10, 1000), until=990, backend=backend, dt=99.0, random_state=5)
         for backend in (NumpyBackend(), NumbaBackend())
     )
     assert np.allclose(numpy.parameters, numba.parameters, atol=1e-12, equal_nan=True)
@@ -166,7 +166,7 @@ def test_growth_runs_on_numba_and_agrees_with_numpy():
 
 def test_snapshot_by_frame_holds_the_network_of_that_frame():
     """Test that the snapshot of a frame of a growing network holds the nodes and edges present at that frame."""
-    trajectory = Simulation(_growing(3, 40), dt=1.0, random_state=0).prepare().run(until=30).trajectory_
+    trajectory = simulate(_growing(3, 40), until=30, dt=1.0, random_state=0)
     snapshot = trajectory.network(10)
     assert snapshot.nodes.tolist() == list(range(13))
     assert snapshot.sources.size == 3 + 2 * 10
@@ -178,7 +178,7 @@ def test_snapshot_by_frame_holds_the_network_of_that_frame():
 def test_a_full_capacity_raises_a_capacity_error():
     """Test that a request beyond the capacity of a variable group names the group and the fix."""
     with pytest.raises(CapacityError, match='capacity'):
-        Simulation(_growing(3, 5), dt=1.0, random_state=0).prepare().run(until=5)
+        simulate(_growing(3, 5), until=5, dt=1.0, random_state=0)
 
 
 def test_requests_remove_and_add_edges_and_nodes():
@@ -237,7 +237,7 @@ def test_requests_remove_and_add_edges_and_nodes():
         interactions=[PruningInteraction('pruning', nodes='nodes', links='links')],
         time=DiscreteTime(),
     )
-    trajectory = Simulation(system, dt=1.0, random_state=0).prepare().run(until=1).trajectory_
+    trajectory = simulate(system, until=1, dt=1.0, random_state=0)
     snapshot = trajectory.network(1)
     assert snapshot.nodes.tolist() == [2, 3, 4]
     assert sorted(zip(snapshot.sources.tolist(), snapshot.targets.tolist(), strict=True)) == [(2, 3), (3, 4)]
@@ -274,7 +274,7 @@ def test_requests_remove_and_add_edges_and_nodes():
         ],
         time=DiscreteTime(),
     )
-    trajectory = Simulation(system, dt=1.0, random_state=0).prepare().run(until=3).trajectory_
+    trajectory = simulate(system, until=3, dt=1.0, random_state=0)
     snapshot = trajectory.network(-1)
     assert np.all(snapshot.sources == 0)
     assert sorted(snapshot.targets.tolist()) == [1, 2, 3]
@@ -322,7 +322,7 @@ def _prevalence(w, seed):
             RewiringInteraction('rewiring', nodes='nodes', links='links', w=w),
         ],
     )
-    trajectory = Simulation(system, dt=1.0, random_state=seed).prepare().run(until=30).trajectory_
+    trajectory = simulate(system, until=30, dt=1.0, random_state=seed)
     return float(np.nanmean(trajectory.values('nodes.i')[15:]))
 
 
@@ -378,7 +378,7 @@ def test_reductions_over_capacity_groups_count_present_members():
         interactions=[CountingInteraction('counting', counter='counter', nodes='nodes')],
         time=DiscreteTime(),
     )
-    trajectory = Simulation(system, dt=1.0, random_state=0).prepare().run(until=4).trajectory_
+    trajectory = simulate(system, until=4, dt=1.0, random_state=0)
     assert trajectory.values('counter.size').tolist() == [0.0, 3.0, 4.0, 5.0, 6.0]
     problem = PassCompiler().prepare(system).run().problem_
     assert problem.topology is not None

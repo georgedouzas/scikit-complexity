@@ -6,27 +6,31 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import SR, cos, diff, function, sin, sqrt
 
-from skcomplex.core.analysis import SymbolicAnalysis
+from skcomplex.core.analysis import symbolic
 from skcomplex.core.components.elements import CompartmentElement, Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import derivative, lag
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import OperatorCompiler, PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from skcomplex.systems import create_system
 from skcomplex.systems.biology.common.populations import LogisticGrowthInteraction, PopulationElement
+from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 from skcomplex.systems.biology.epidemiology import RecoveryInteraction
 from skcomplex.systems.economics.finance import AssetElement, GeometricBrownianMotionInteraction
 from skcomplex.systems.economics.markets import CobwebInteraction, MarketElement
+from skcomplex.systems.mathematics.fractals import KochCurveSystem
+from skcomplex.systems.physics.active_matter import CuckerSmaleFlockingSystem
 from skcomplex.systems.physics.common.particles import (
     ConstantForceInteraction,
     HarmonicPotentialInteraction,
     MassPointElement,
 )
+from skcomplex.systems.physics.statistical_mechanics import QuantumHeisenbergSystem
 
 from ...conftest import CallableGrowthInteraction
 
@@ -40,7 +44,7 @@ def test_equations_of_logistic_growth():
     problem = PassCompiler().prepare(system).run().problem_
     n = function('n_p')(problem.time)
     r, K = problem.symbols['g.r'], problem.symbols['g.K']
-    equation = SymbolicAnalysis().prepare(system).run().equations_['p.n']
+    equation = symbolic(system).equations['p.n']
     assert equation.is_relational()
     assert bool(equation.lhs() == n.diff(problem.time))
     assert (equation.rhs() - r * n * (1 - n / K)).simplify_full() == 0
@@ -49,7 +53,7 @@ def test_equations_of_logistic_growth():
 def test_equations_of_discrete_map_gives_next_value():
     """Test that a discrete map gives the value at `t + 1`."""
     system = System(elements=[MarketElement('m')], interactions=[CobwebInteraction('c', target='m')])
-    equation = SymbolicAnalysis().prepare(system).run().equations_['m.price']
+    equation = symbolic(system).equations['m.price']
     t = PassCompiler().prepare(system).run().problem_.time
     assert bool(equation.lhs() == function('price_m')(t + 1))
 
@@ -57,7 +61,7 @@ def test_equations_of_discrete_map_gives_next_value():
 def test_equations_of_group_with_numeric_derivatives_raises_error():
     """A group of order two whose forces are computed numerically has no symbolic equations."""
     with pytest.raises(AnalysisError, match='computed numerically'):
-        SymbolicAnalysis().prepare(create_system('cucker_smale_flocking')).run()
+        symbolic(CuckerSmaleFlockingSystem().prepare().system_)
 
 
 def test_equations_of_jump_process_raises_error():
@@ -67,13 +71,13 @@ def test_equations_of_jump_process_raises_error():
         interactions=[RecoveryInteraction('r', infected='I', recovered='R', stochastic=True)],
     )
     with pytest.raises(AnalysisError, match='jump process'):
-        SymbolicAnalysis().prepare(system).run()
+        symbolic(system)
 
 
 def test_solve_symbolically_free_particle():
     """Test that a free particle moves linearly with two integration constants."""
     system = System(elements=[MassPointElement('p')], space=ContinuousSpace(n_dim=1))
-    solution = SymbolicAnalysis('solve').prepare(system).run().solutions_['p.x[0]']
+    solution = symbolic(system, kind='solve').solutions['p.x[0]']
     t = PassCompiler().prepare(system).run().problem_.time
     slope, start = solution.rhs().diff(t), solution.rhs().subs({t: 0})
     assert solution.rhs().diff(t, 2) == 0
@@ -92,7 +96,7 @@ def test_solve_symbolically_constant_acceleration():
     problem = PassCompiler().prepare(system).run().problem_
     (F,) = problem.symbols['push.F']
     m = problem.symbols['p.m']
-    solution = SymbolicAnalysis('solve', use_initial_state=True).prepare(system).run().solutions_['p.x[0]']
+    solution = symbolic(system, kind='solve', use_initial_state=True).solutions['p.x[0]']
     assert (solution.rhs() - F * problem.time**2 / (2 * m)).simplify_full() == 0
 
 
@@ -106,14 +110,7 @@ def test_solve_symbolically_harmonic_oscillator():
     problem = PassCompiler().prepare(system).run().problem_
     k, m, t = problem.symbols['trap.k'], problem.symbols['p.m'], problem.time
     (center,) = problem.symbols['trap.center']
-    solution = (
-        SymbolicAnalysis('solve', use_initial_state=True)
-        .prepare(system)
-        .run()
-        .solutions_['p.x[0]']
-        .rhs()
-        .subs({center: 0})
-    )
+    solution = symbolic(system, kind='solve', use_initial_state=True).solutions['p.x[0]'].rhs().subs({center: 0})
     expected = cos(sqrt(k / m) * t)
     values = {k: 2.0, m: 0.5}
     for time in np.linspace(0, 5, 6):
@@ -129,7 +126,7 @@ def test_solve_symbolically_not_ode_raises_error():
         interactions=[GeometricBrownianMotionInteraction('g', target='s')],
     )
     with pytest.raises(AnalysisError, match='stochastic differential equations'):
-        SymbolicAnalysis('solve').prepare(system).run()
+        symbolic(system, kind='solve')
 
 
 def test_solve_symbolically_callable_raises_error():
@@ -139,7 +136,7 @@ def test_solve_symbolically_callable_raises_error():
         interactions=[CallableGrowthInteraction('g', target='rabbits')],
     )
     with pytest.raises(AnalysisError, match='callable'):
-        SymbolicAnalysis('solve').prepare(system).run()
+        symbolic(system, kind='solve')
 
 
 def test_sage_expression_compiles_like_number():
@@ -172,8 +169,8 @@ def test_sage_expression_compiles_like_number():
         interactions=[SageForceInteraction('push', target='p')],
         space=ContinuousSpace(n_dim=1),
     )
-    expected = Simulation(system).prepare().run(until=1).trajectory_.values('p.x')
-    result = Simulation(sage_system).prepare().run(until=1).trajectory_.values('p.x')
+    expected = simulate(system, until=1).values('p.x')
+    result = simulate(sage_system, until=1).values('p.x')
     assert np.allclose(expected, result)
 
 
@@ -293,7 +290,7 @@ class FibonacciElement(Element):
 
 def test_pendulum_equation_keeps_its_order():
     """Test that a pendulum of order 2 gives one second-order equation and no separate velocity equation."""
-    equations = SymbolicAnalysis().prepare(System(elements=[PendulumElement('bob')])).run().equations_
+    equations = symbolic(System(elements=[PendulumElement('bob')])).equations
     assert list(equations) == ['bob.theta']
     theta = function('theta_bob')(SR.var('t'))
     g, l = SR.var('g_bob'), SR.var('l_bob')
@@ -304,7 +301,7 @@ def test_pendulum_equation_keeps_its_order():
 
 def test_lagged_equation_reads_past_values():
     """Test that a difference equation with a lag reads the value one step back."""
-    equation = SymbolicAnalysis().prepare(System(elements=[FibonacciElement('f')])).run().equations_['f.x']
+    equation = symbolic(System(elements=[FibonacciElement('f')])).equations['f.x']
     t = SR.var('t')
     x = function('x_f')
     assert bool(equation.lhs() == x(t + 1))
@@ -313,12 +310,9 @@ def test_lagged_equation_reads_past_values():
 
 def test_small_angle_pendulum_solved_with_plain_numbers():
     """Test that `θ'' = -(g / l) θ` with plain positive numbers solves to `0.1 cos(sqrt(g / l) t)`."""
-    solution = (
-        SymbolicAnalysis('solve', use_initial_state=True)
-        .prepare(System(elements=[SmallAngleElement('bob')]))
-        .run()
-        .solutions_['bob.theta']
-    )
+    solution = symbolic(System(elements=[SmallAngleElement('bob')]), kind='solve', use_initial_state=True).solutions[
+        'bob.theta'
+    ]
     values = {SR.var('g_bob'): 9.81, SR.var('l_bob'): 2.0}
     for time in (0.3, 1.0, 2.5):
         expected = 0.1 * float(cos(sqrt(9.81 / 2.0) * time))
@@ -327,12 +321,9 @@ def test_small_angle_pendulum_solved_with_plain_numbers():
 
 def test_third_order_equation_solved():
     """Test that `x''' = -x'` from `x = 0`, `x' = 1`, `x'' = 0` solves to `sin(t)`."""
-    solution = (
-        SymbolicAnalysis('solve', use_initial_state=True)
-        .prepare(System(elements=[ThirdOrderElement('a')]))
-        .run()
-        .solutions_['a.x']
-    )
+    solution = symbolic(System(elements=[ThirdOrderElement('a')]), kind='solve', use_initial_state=True).solutions[
+        'a.x'
+    ]
     t = SR.var('t')
     for time in (0.3, 1.0, 2.5):
         assert float(solution.rhs().subs({t: time})) == pytest.approx(float(sin(time)))
@@ -346,7 +337,7 @@ def test_third_order_equation_solved():
 def test_nonlinear_pendulum_has_no_false_solution(element):
     """Test that the nonlinear pendulum raises the no-closed-form error instead of returning unevaluated transforms."""
     with pytest.raises(AnalysisError, match='No closed form was found'):
-        SymbolicAnalysis('solve', use_initial_state=True).prepare(System(elements=[element])).run()
+        symbolic(System(elements=[element]), kind='solve', use_initial_state=True)
 
 
 def test_remaining_sign_question_names_parameter():
@@ -374,21 +365,27 @@ def test_remaining_sign_question_names_parameter():
             return [RateLaw(s.x, -s.k * s.x)]
 
     with pytest.raises(AnalysisError, match=r'sign of k_a.*domain=RealSet'):
-        SymbolicAnalysis('solve', use_initial_state=True).prepare(System(elements=[SpringElement('a')])).run()
+        symbolic(System(elements=[SpringElement('a')]), kind='solve', use_initial_state=True)
+
+
+def test_symbolic_refuses_rewriting_systems_with_an_analysis_error():
+    """Test that a system of words raises the analysis error of a form without equations, not a compiling error."""
+    with pytest.raises(AnalysisError, match='rewrites words or patches'):
+        symbolic(KochCurveSystem())
 
 
 def test_hamiltonian_prints_operators_and_equations_refuse():
     """Test that an operator system prints its Hamiltonian and has no state equations."""
-    system = create_system('quantum_heisenberg', n_sites=2, boundary='open')
+    system = QuantumHeisenbergSystem(n_sites=2, boundary='open').prepare().system_
     problem = OperatorCompiler().prepare(system).run().problem_
-    hamiltonian = SymbolicAnalysis('hamiltonian').prepare(problem).run().hamiltonian_
+    hamiltonian = symbolic(problem, kind='hamiltonian').hamiltonian
     assert {'J_exchange', 'delta_exchange', 'h_field'} <= {str(variable) for variable in hamiltonian.variables()}
     assert 'local_operator(psi_chain_0, x)*local_operator(psi_chain_1, x)' in str(hamiltonian)
     with pytest.raises(AnalysisError, match='hamiltonian'):
-        SymbolicAnalysis().prepare(problem)
+        symbolic(problem)
 
 
 def test_settings_the_kind_ignores_are_rejected():
-    """Test that the initial state, which only solving reads, is rejected at check for the equations."""
+    """Test that the initial state, which only solving reads, is rejected for the equations."""
     with pytest.raises(AnalysisError, match='does not read use_initial_state'):
-        SymbolicAnalysis(use_initial_state=True).prepare()
+        symbolic(LogisticGrowthSystem().prepare().system_, use_initial_state=True)

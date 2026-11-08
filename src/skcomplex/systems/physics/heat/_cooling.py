@@ -1,4 +1,7 @@
-"""Cooling systems: a cup of coffee that relaxes to the temperature of the room."""
+"""Cooling systems.
+
+A cup of coffee relaxes to the temperature of the room.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -10,13 +13,14 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.interactions import RelaxationInteraction
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class CoffeeCupElement(Element):
-    """Cup of coffee at the temperature `T` in a room at the temperature `room`, exchanging heat at the rate `k`.
+    """Cup of coffee at the temperature `T` in a room at the temperature `room`.
+
+    The cup exchanges heat at the rate `k`.
 
     Args:
         label:
@@ -55,17 +59,14 @@ class CoffeeCupElement(Element):
         self.k = k
 
 
-@register_system(
-    field='physics/heat',
-    tags=('heat', 'ode', 'balancing feedback', 'stocks and flows'),
-    references=('Newton 1701', 'Meadows 2008'),
-    defaults={'until': 60.0, 'dt': 0.5},
-)
-def cooling_coffee(T: float = 90.0, *, room: float = 20.0, k: float = 0.1) -> System:
-    """Return a cup of coffee whose temperature relaxes to that of the room, `T' = -k (T - T_room)`.
+class CoolingCoffeeSystem(BaseSystem):
+    """A cup of coffee whose temperature relaxes to that of the room.
 
-    The heat flow is proportional to the discrepancy between the coffee and the room, a balancing feedback loop, so
-    hot coffee cools and iced coffee warms, both exponentially with the time constant `1 / k`.
+    The temperature follows `T' = -k (T - T_room)`.
+
+    The heat flow is proportional to the discrepancy between the coffee and the room, a balancing feedback loop, so hot
+    coffee cools and iced coffee warms, both exponentially with the time constant `1 / k`. The system has the
+    temperature `coffee.T`.
 
     Args:
         T:
@@ -77,20 +78,48 @@ def cooling_coffee(T: float = 90.0, *, room: float = 20.0, k: float = 0.1) -> Sy
         k:
             The rate of heat exchange.
 
-    Returns:
-        system:
-            The system, with the temperature `coffee.T`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.heat import cooling_coffee
-        >>> cooling_coffee(T=5.0).elements[0].T
+        >>> from skcomplex.systems.physics.heat import CoolingCoffeeSystem
+        >>> CoolingCoffeeSystem(T=5.0).prepare().system_.elements[0].T
         5.0
     """
-    cooling = RelaxationInteraction(
-        'cooling',
-        target='coffee',
-        state='T',
-        goal=lambda s: s.target.room,
-        time=lambda s: 1 / s.target.k,
-    )
-    return System(elements=[CoffeeCupElement('coffee', T=T, room=room, k=k)], interactions=[cooling])
+
+    field = 'physics/heat'
+    topics = ('heat', 'ode', 'balancing feedback', 'stocks and flows')
+    references = ('Newton 1701', 'Meadows 2008')
+    until = 60.0
+    dt = 0.5
+
+    def __init__(
+        self,
+        T: float = 90.0,
+        *,
+        room: float = 20.0,
+        k: float = 0.1,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.T = T
+        self.room = room
+        self.k = k
+
+    def _build_system(self) -> System:
+        """Return a cup of coffee whose temperature relaxes to that of the room.
+
+        The temperature follows `T' = -k (T - T_room)`.
+        """
+        cooling = RelaxationInteraction(
+            'cooling',
+            target='coffee',
+            state='T',
+            goal=lambda s: s.target.room,
+            time=lambda s: 1 / s.target.k,
+        )
+        return System(
+            self.label,
+            elements=[CoffeeCupElement('coffee', T=self.T, room=self.room, k=self.k)],
+            interactions=[cooling],
+        )

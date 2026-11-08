@@ -1,4 +1,7 @@
-"""Innovation systems: discovery processes of explorers whose urns grow and share their adjacent possible."""
+"""Innovation systems: discovery processes of explorers whose urns grow.
+
+The urns share their adjacent possible.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,14 +16,16 @@ from sage.all__sagemath_symbolics import NN
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class BallView(AgentView):
-    """Balls of one colour as the urn sees them: their `color`, their `count`, and whether the node `drawn` it."""
+    """Balls of one colour as the urn sees them.
+
+    They hold their `color`, their `count`, and whether the node `drawn` it.
+    """
 
     color: float
     count: float
@@ -28,7 +33,9 @@ class BallView(AgentView):
 
 
 class BallElement(Element):
-    """Balls of one colour in the urn of a node, with how many there are and whether the node has drawn the colour.
+    """Balls of one colour in the urn of a node.
+
+    The element holds how many there are and whether the node has drawn the colour.
 
     A ball agent stands for every ball of its colour in the urn of the node it sits on, so the set of ball agents on a
     node is the set of colours of its urn, and their multiplicities make the urn a multiset.
@@ -76,7 +83,10 @@ class BallElement(Element):
 
 
 class UrnView(AgentView):
-    """Urn as its rules see it: its `novelties`, the `color` of its last draw, and whether that draw was `novel`."""
+    """Urn as its rules see it.
+
+    It holds its `novelties`, the `color` of its last draw, and whether that draw was `novel`.
+    """
 
     novelties: float
     color: float
@@ -89,13 +99,14 @@ BALLS = 'balls'
 
 
 class UrnElement(Element):
-    """Urn with triggering on a node of a network, which draws from its own balls and those of its neighbours.
+    """Urn with triggering on a node of a network.
 
-    The urn of the interacting discovery processes of Iacopini et al. (2020). The urn of a node is the set of ball
-    agents on its node. Every step the node draws one ball from its social urn, its own balls with their multiplicities
-    and one ball of every colour in the urns of its neighbours, in the phase `'draw'`. In the phase `'grow'` it adds
-    `rho` balls of the drawn colour to its own urn, and when it draws the colour for the first time, a novelty, it adds
-    one ball of each of `nu + 1` colours that no urn held before, the adjacent possible.
+    It draws from its own balls and those of its neighbours. The urn of the interacting discovery processes of Iacopini
+    et al. (2020). The urn of a node is the set of ball agents on its node. Every step the node draws one ball from its
+    social urn, its own balls with their multiplicities and one ball of every colour in the urns of its neighbours, in
+    the phase `'draw'`. In the phase `'grow'` it adds `rho` balls of the drawn colour to its own urn, and when it draws
+    the colour for the first time, a novelty, it adds one ball of each of `nu + 1` colours that no urn held before, the
+    adjacent possible.
 
     Args:
         label:
@@ -125,6 +136,10 @@ class UrnElement(Element):
         2
     """
 
+    draws = True
+
+    law_classes = (RuleLaw,)
+
     def __init__(
         self,
         label: str,
@@ -149,7 +164,9 @@ class UrnElement(Element):
         return UrnView
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the draw from the social urn and the growth of the own urn, in their phases.
+        """Return the draw from the social urn and the growth of the own urn.
+
+        They run in their phases.
 
         Args:
             namespace:
@@ -163,7 +180,9 @@ class UrnElement(Element):
 
     @staticmethod
     def draw(agent: UrnView, system: SystemView) -> None:
-        """Draw a ball from the social urn of the node, and record its colour and whether it is a novelty.
+        """Draw a ball from the social urn of the node.
+
+        It records its colour and whether it is a novelty.
 
         Args:
             agent:
@@ -184,7 +203,9 @@ class UrnElement(Element):
 
     @staticmethod
     def grow(agent: UrnView, system: SystemView) -> None:
-        """Reinforce the drawn colour in the own urn and, after a novelty, add the colours of the adjacent possible.
+        """Reinforce the drawn colour in the own urn.
+
+        After a novelty, it adds the colours of the adjacent possible.
 
         Args:
             agent:
@@ -215,30 +236,20 @@ class UrnElement(Element):
         system.storage['colors'] = first + int(nu) + 1
 
 
-@register_system(
-    field='economics/innovation',
-    tags=('innovation', 'adjacent possible', 'urn', 'network', 'agents', 'heaps law'),
-    references=('Iacopini et al. 2020',),
-    defaults={'until': 100},
-)
-def interacting_urns_network(
-    graph: nx.Graph | None = None,
-    *,
-    rho: int = 4,
-    nu: int = 1,
-    m0: int | None = None,
-) -> System:
-    """Return one urn with triggering per node of a network, which draws from its own urn and those of its neighbours.
+class InteractingUrnsNetworkSystem(BaseSystem):
+    """One urn with triggering per node of a network.
 
-    The discovery process of Iacopini et al. (2020, Eqs. 1 and 2). Every node holds an urn of `m0` balls of colours
-    that no other urn holds. Every step every node draws one ball from its social urn, its own urn and one ball of every
-    colour of the urns of its neighbours, all from the urns at the start of the step. It then adds `rho` balls of the
-    drawn colour to its own urn, and when it draws a colour for the first time, a novelty, `nu + 1` balls of colours
-    that no urn held before. The number of novelties of a node grows as Heaps' law `D_i(t) ~ t^beta_i`, with
-    `beta = nu / rho` for an isolated urn and higher exponents for nodes whose neighbours enlarge their social urns.
+    Every node draws from its own urn and those of its neighbours. The discovery process of Iacopini et al. (2020, Eqs.
+    1 and 2). Every node holds an urn of `m0` balls of colours that no other urn holds. Every step every node draws one
+    ball from its social urn, its own urn and one ball of every colour of the urns of its neighbours, all from the urns
+    at the start of the step. It then adds `rho` balls of the drawn colour to its own urn, and when it draws a colour
+    for the first time, a novelty, `nu + 1` balls of colours that no urn held before. The number of novelties of a node
+    grows as Heaps' law `D_i(t) ~ t^beta_i`, with `beta = nu / rho` for an isolated urn and higher exponents for nodes
+    whose neighbours enlarge their social urns.
 
-    The urn of a node is the set of ball agents of the variable group `balls` on its node, one agent per colour with
-    its multiplicity, which the node reads with `agents_here` and its neighbours with `neighbors(group='balls')`.
+    The urn of a node is the set of ball agents of the variable group `balls` on its node, one agent per colour with its
+    multiplicity, which the node reads with `agents_here` and its neighbours with `neighbors(group='balls')`. The system
+    has the urns `urns` and their novelties `urns.novelties`, and the balls `balls`.
 
     Args:
         graph:
@@ -253,36 +264,66 @@ def interacting_urns_network(
         m0:
             The initial number of balls of every urn, or `None` for `nu + 1`.
 
-    Returns:
-        system:
-            The system, with the urns `urns` and their novelties `urns.novelties`, and the balls `balls`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.systems.economics.innovation import interacting_urns_network
-        >>> system = interacting_urns_network(nx.path_graph(3), rho=2, nu=1)
+        >>> from skcomplex.systems.economics.innovation import InteractingUrnsNetworkSystem
+        >>> system = InteractingUrnsNetworkSystem(nx.path_graph(3), rho=2, nu=1).prepare().system_
         >>> [element.prepare().size_ for element in system.elements]
         [3, 6]
     """
-    graph = nx.karate_club_graph() if graph is None else graph
-    nodes = list(graph.nodes)
-    initial = nu + 1 if m0 is None else m0
-    places = [node for node in nodes for _ in range(initial)]
-    colors = list(range(len(places)))
-    return System(
-        elements=[
-            GroupElement('urns', element=UrnElement, size=len(nodes), location=nodes, values={'rho': rho, 'nu': nu}),
-            GroupElement(
-                'balls',
-                element=BallElement,
-                size=len(places),
-                variable=True,
-                location=places,
-                values={'color': colors},
+
+    field = 'economics/innovation'
+    topics = ('innovation', 'adjacent possible', 'urn', 'network', 'agents', 'heaps law')
+    references = ('Iacopini et al. 2020',)
+    until = 100
+
+    def __init__(
+        self,
+        graph: nx.Graph | None = None,
+        *,
+        rho: int = 4,
+        nu: int = 1,
+        m0: int | None = None,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.graph = graph
+        self.rho = rho
+        self.nu = nu
+        self.m0 = m0
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        graph = self.graph
+        graph = nx.karate_club_graph() if graph is None else graph
+        nodes = list(graph.nodes)
+        initial = self.nu + 1 if self.m0 is None else self.m0
+        places = [node for node in nodes for _ in range(initial)]
+        colors = list(range(len(places)))
+        return System(
+            self.label,
+            elements=[
+                GroupElement(
+                    'urns',
+                    element=UrnElement,
+                    size=len(nodes),
+                    location=nodes,
+                    values={'rho': self.rho, 'nu': self.nu},
+                ),
+                GroupElement(
+                    'balls',
+                    element=BallElement,
+                    size=len(places),
+                    variable=True,
+                    location=places,
+                    values={'color': colors},
+                ),
+            ],
+            space=NetworkSpace(graph),
+            time=DiscreteTime(
+                schedule=PhasesScheduleSpec((PhaseSpec(DRAW, activation='simultaneous'), PhaseSpec(GROW))),
             ),
-        ],
-        space=NetworkSpace(graph),
-        time=DiscreteTime(
-            schedule=PhasesScheduleSpec((PhaseSpec(DRAW, activation='simultaneous'), PhaseSpec(GROW))),
-        ),
-    )
+        )

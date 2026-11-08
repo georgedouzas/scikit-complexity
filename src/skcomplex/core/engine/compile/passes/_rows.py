@@ -1,4 +1,7 @@
-"""Settle the rows every kernel spec is evaluated over, after checking where its laws draw random values."""
+"""Settle the rows every kernel spec is evaluated over.
+
+It first checks where its laws draw random values.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,7 +16,7 @@ from ....components.spaces import DiscreteTime
 from ....errors import IncompatibleLawsError, RoleError
 from ....specs._matrix_law_spec import _RANDOM_FIELDS
 from ..._utils import components_of
-from ...problems import KernelSpec
+from ...problems._kernel_spec import KernelSpec
 from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import Compilation
@@ -22,7 +25,10 @@ from .._renewal_law import RenewalLaw
 
 
 class RowsPass(BasePass):
-    """Pass that checks the draws of the laws and settles the rows of every kernel spec, with its laws set apart."""
+    """Pass that checks the draws of the laws and settles the rows of every spec.
+
+    The specs are kernel specs, with their laws set apart.
+    """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
@@ -52,9 +58,10 @@ class RowsPass(BasePass):
 
     @staticmethod
     def _stepped_flows(compilation: Compilation, laws: list[list[BaseLaw]]) -> set[int]:
-        """Return the identities of the rate laws of flows that move their amounts once per step, which may draw.
+        """Return the identities of the rate laws of flows that move once per step.
 
-        The flows of a system that declares discrete time, or that holds update laws, become updates.
+        They move their amounts once per step and may draw. The flows of a system that declares discrete time, or that
+        holds update laws, become updates.
         """
         born = compilation.transfer.born if compilation.transfer is not None else {}
         declared = isinstance(compilation.system.time, DiscreteTime)
@@ -66,7 +73,10 @@ class RowsPass(BasePass):
 
     @staticmethod
     def _check_aligned(spec: KernelSpec, groups: list[str]) -> None:
-        """Raise an error when the groups an interaction reads member by member differ in size."""
+        """Raise an error for groups of unequal size an interaction reads member-wise.
+
+        The groups an interaction reads member by member must have one size.
+        """
         sizes = {group: spec.groups[group] for group in groups}
         if len(set(sizes.values())) <= 1:
             return
@@ -98,9 +108,9 @@ class RowsPass(BasePass):
 
     @staticmethod
     def _settled(spec: KernelSpec, laws: list[BaseLaw]) -> KernelSpec:
-        """Return a spec with the groups it is evaluated over, set from the member symbols its laws read.
+        """Return a spec with the groups it is evaluated over.
 
-        Only the symbols outside reductions count.
+        They are set from the member symbols its laws read. Only the symbols outside reductions count.
 
         Laws without reductions keep the group their one group role binds to, so a single element bound next to it
         receives the sum over the members. Groups of one size that laws read outside reductions are read member by
@@ -126,7 +136,9 @@ class RowsPass(BasePass):
 
     @staticmethod
     def _check_draw_placement(owner: str, laws: list[BaseLaw]) -> None:
-        """Raise an error when a law other than an update or a renewal law holds a random draw, or a draw is unknown.
+        """Raise an error for a misplaced or unknown random draw.
+
+        A draw is misplaced in a law other than an update or a renewal law.
 
         Args:
             owner:

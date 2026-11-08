@@ -1,4 +1,7 @@
-"""Compile the observables of a system tree into one evaluator called at every frame."""
+"""Compile the observables of a system tree into one evaluator.
+
+The evaluator is called at every frame.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,20 +24,17 @@ from ...specs import EntrySpec, NeighborReadSpec, ObservableSpec, ReadSpec, RunS
 from ...specs._held_reduction_spec import _HeldReductionSpec
 from ...types import Array, FormKind, Indices, VariableKind
 from .._utils import bound_labels, declarations_of, symbol, symbols_of
-from ..problems import (
-    BaseProblemSpec,
-    ExpressionPrinter,
-    OperatorProblemSpec,
-    ProblemSpec,
-    ReductionScheduleSpec,
-    ReferenceSpec,
-)
+from ..problems import BaseProblemSpec, ProblemSpec
 from ..problems._drive_kernel import DriveKernel
+from ..problems._expression_printer import ExpressionPrinter
 from ..problems._law_kernel import LawKernel
 from ..problems._operator_kernel import OperatorKernel
 from ..problems._operator_lowering import OperatorLowering
+from ..problems._operator_problem_spec import OperatorProblemSpec
 from ..problems._recorded_spec import _RecordedSpec
 from ..problems._reduction_kernel import ReductionKernel
+from ..problems._reduction_schedule_spec import ReductionScheduleSpec
+from ..problems._reference_spec import ReferenceSpec
 from ..types import AgentsFunction, Declared, ObservableFunction, ReadKind
 from ._base import BaseCompiler, BasePass
 from ._complex import _is_zero, _split_complex
@@ -44,7 +44,7 @@ from ._members import MemberLowering
 
 
 def _role_paths(system: System, scope: str = '') -> set[str]:
-    """Return the paths from the root of everything that roles of a system tree bind to."""
+    """Return the paths from the root of everything roles of a system tree bind to."""
     paths = set()
     for interaction in system.interactions:
         for name in declarations_of(interaction, VariableKind.ROLE):
@@ -56,7 +56,10 @@ def _role_paths(system: System, scope: str = '') -> set[str]:
 
 
 def _readers_of(problem: ProblemSpec, path: str) -> set[str]:
-    """Return the paths of the elements and groups that interactions reading an observable bind their other roles to."""
+    """Return the paths that interactions reading an observable bind other roles to.
+
+    The paths are those of elements and groups.
+    """
     readers: set[str] = set()
     for interaction in problem.interactions:
         bound = [
@@ -68,7 +71,10 @@ def _readers_of(problem: ProblemSpec, path: str) -> set[str]:
 
 
 def _held_label(reduction: '_HeldReductionSpec', labels: set[str]) -> str:
-    """Return a label for the element that holds a reduction of a group, unique among the labels of its system."""
+    """Return a label for the element that holds a reduction of a group.
+
+    The label is unique among the labels of its system.
+    """
     base = f'{reduction.group.rpartition("/")[2]}_{reduction.reduce}'
     label, index = base, 1
     while label in labels:
@@ -77,7 +83,9 @@ def _held_label(reduction: '_HeldReductionSpec', labels: set[str]) -> str:
 
 
 def _with_held_reductions(system: System, reductions: Sequence['_HeldReductionSpec'], scope: str = '') -> System:
-    """Return a system tree that holds every reduction of agents in an element of the system of its group.
+    """Return a system tree that holds every reduction of agents in an element.
+
+    The element is in the system of the group.
 
     Args:
         system:
@@ -113,7 +121,10 @@ def _with_held_reductions(system: System, reductions: Sequence['_HeldReductionSp
 
 
 def _with_held_observables(system: System, read: set[str], scope: str = '') -> tuple[System, list[str]]:
-    """Return a system tree in which every observable in `read` is also held in an element, and their paths."""
+    """Return a system tree that also holds every observable in `read` in an element.
+
+    It also returns their paths.
+    """
     held: list[str] = []
     elements = []
     for observable in getattr(system, 'observables', ()):
@@ -145,7 +156,9 @@ def _with_held_observables(system: System, read: set[str], scope: str = '') -> t
 
 
 def _held_observables(system: System, nodes: list[NodeSpec]) -> set[str]:
-    """Return the paths of the observables that roles bind to and laws read only at synchronisation points.
+    """Return the paths of the observables read only at synchronisation points.
+
+    They are the observables that roles bind to and laws read only at those points.
 
     Args:
         system:
@@ -166,7 +179,10 @@ def _held_observables(system: System, nodes: list[NodeSpec]) -> set[str]:
 
 
 def _check_held_reads(problem: ProblemSpec, held: list[str]) -> None:
-    """Raise an error when a law reads an observable that cannot be lowered from the partition that computes it."""
+    """Raise an error for a law that reads an observable that cannot be lowered.
+
+    The observable cannot be lowered from the partition that computes it.
+    """
     if problem.system is None:
         return
     groups = {
@@ -188,7 +204,10 @@ def _check_held_reads(problem: ProblemSpec, held: list[str]) -> None:
 
 
 class _HeldElement(Element):
-    """Element that holds the value of a held reduction in its state `value`, which laws of other partitions read."""
+    """Element that holds the value of a held reduction in its state `value`.
+
+    Laws of other partitions read this state.
+    """
 
     def __init__(
         self,
@@ -203,9 +222,10 @@ class _HeldElement(Element):
 
 
 class ObservableEvaluator:
-    """Evaluator of every observable of a problem from a state vector, a parameter vector, and the agents.
+    """Evaluator of every observable of a problem.
 
-    Preparing compiles every observable into a getter, in declaration order, the prepared `getters_`.
+    It evaluates them from a state vector, a parameter vector, and the agents. Preparing compiles every observable into
+    a getter, in declaration order, the prepared `getters_`.
 
     Args:
         problem:
@@ -213,7 +233,8 @@ class ObservableEvaluator:
 
     Examples:
         >>> from skcomplex.core.components.elements import GroupElement
-        >>> from skcomplex.core.engine.compile import ObservableEvaluator, PassCompiler
+        >>> from skcomplex.core.engine.compile._observables import ObservableEvaluator
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
         >>> from skcomplex.core.specs import ObservableSpec
         >>> from skcomplex.core.components.system import System
         >>> from skcomplex.systems.biology.common.populations import PopulationElement
@@ -271,7 +292,10 @@ class ObservableEvaluator:
         return self
 
     def _add_law_records(self) -> None:
-        """Add the getters of what laws record: the renewals, the flows and objectives, and the scores of drives."""
+        """Add the getters of what laws record.
+
+        They record the renewals, the flows and objectives, and the scores of drives.
+        """
         problems = (self.problem, *self.problem.partition_problems)
         for renewal in (renewal for problem in problems for renewal in problem.renewals):
             self.getters_[f'{renewal.label}.renewals'] = self._renewal_counter(renewal.counts)
@@ -298,7 +322,10 @@ class ObservableEvaluator:
         path: str,
         function: Callable[[float, Mapping[str, object]], object],
     ) -> ObservableFunction:
-        """Return a getter that calls a function of time and the values of its system's states and parameters."""
+        """Return a getter that calls a function of time and the system values.
+
+        The values are those of the states and parameters of its system.
+        """
         problem = self.problem
         if not isinstance(problem, ProblemSpec) or problem.agents:
             error_msg = (
@@ -319,7 +346,7 @@ class ObservableEvaluator:
         return get
 
     def _scalar_sources(self) -> dict[Expression, tuple[str, int]]:
-        """Return the vector and flat index of every symbol of a single element or interaction."""
+        """Return the vector and flat index of every single element or interaction symbol."""
         sources: dict[Expression, tuple[str, int]] = {}
         for name, layout in (('x', self.problem.states), ('p', self.problem.parameters)):
             for entry in layout.entries:
@@ -336,7 +363,10 @@ class ObservableEvaluator:
         observables: Mapping[Expression, str],
         members: Mapping[Expression, Callable[[Array, Array], Array]],
     ) -> ObservableFunction:
-        """Return a getter that evaluates an expression from scalars, observables, and member arrays."""
+        """Return a getter that evaluates an expression.
+
+        The expression is evaluated from scalars, observables, and member arrays.
+        """
         expression = self._joined_complex(expression, f'observable {path}')
         arguments = sorted(symbols_of([expression]) - {self.problem.time}, key=str)
         readers: list[Callable[[Array, Array, Mapping[str, object]], object]] = []
@@ -370,9 +400,10 @@ class ObservableEvaluator:
         return get
 
     def _recorded_getter(self, recorded: _RecordedSpec) -> ObservableFunction:
-        """Return the getter of a flow or an objective, one value for a single component and one per group member.
+        """Return the getter of a flow or an objective.
 
-        A flow along the edges of a group reads members at an offset, which the getter reads from the member columns.
+        It gives one value for a single component and one per group member. A flow along the edges of a group reads
+        members at an offset, which the getter reads from the member columns.
         """
         expression, members = self._read_offsets(recorded)
         for item in symbols_of([expression]) - {self.problem.time} - set(members):
@@ -394,7 +425,10 @@ class ObservableEvaluator:
         self,
         recorded: _RecordedSpec,
     ) -> tuple[object, dict[Expression, Callable[[Array, Array], Array]]]:
-        """Return a recorded expression with every member offset read replaced by a symbol, and its reader."""
+        """Return a recorded expression with member offset reads replaced by symbols.
+
+        It also returns its reader.
+        """
         expression = recorded.expression
         if not isinstance(expression, Expression):
             return expression, {}
@@ -432,7 +466,10 @@ class ObservableEvaluator:
         path: str,
         expression: object,
     ) -> tuple[object, dict[Expression, Callable[[Array, Array], Array]]]:
-        """Return an expression with the delays of the laws read from their hidden states, and their readers."""
+        """Return an expression with the delays read from their hidden states.
+
+        The delays are those of the laws, and their readers are also returned.
+        """
         transfer_network = self.problem.transfer_network
         if transfer_network is None or not isinstance(expression, Expression):
             return expression, {}
@@ -540,7 +577,10 @@ class ObservableEvaluator:
 
     @staticmethod
     def _observed_getter(kernel: LawKernel, observable: ObservableSpec) -> ObservableFunction:
-        """Return the getter of a reduction of an expression of a field with field operators, from its kernel."""
+        """Return the getter of a reduction of a field expression with field operators.
+
+        The getter reads from its kernel.
+        """
 
         def read_field(t: float, x: Array, p: Array, done: Mapping[str, object]) -> object:
             del done
@@ -550,7 +590,10 @@ class ObservableEvaluator:
         return read_field
 
     def _agent_getter(self, group: str, path: str, observable: ObservableSpec) -> ObservableFunction:
-        """Return the getter of a reduction over an agent group, which the evaluation's agents give."""
+        """Return the getter of a reduction over an agent group.
+
+        The agents of the evaluation give the values.
+        """
         if not any(spec.path == group for spec in self.problem.agents) and not self.problem.partition_problems:
             error_msg = f'ObservableSpec {path} reduces {group}, which is neither an element group nor an agent group.'
             raise ValidationError(error_msg)
@@ -582,12 +625,13 @@ class ObservableEvaluator:
 
     @staticmethod
     def _operator_getters(problem: OperatorProblemSpec) -> dict[str, ObservableFunction]:
-        """Return the getters of the observables of an operator problem, with the energy, and the purity when open.
+        """Return the getters of the observables of an operator problem.
 
-        An observable gives an operator, a Sage expression of local operators, as a function of the namespace of its
-        system, of its element, or of every member of its group, or names a local operator of its element or of every
-        member of its group with `variable`, such as `ObservableSpec('z', element='q', variable='z')`. Its value is the
-        expectation of the operator, reduced over the members of a group.
+        The energy is included, and the purity when the problem is open. An observable gives an operator, a Sage
+        expression of local operators, as a function of the namespace of its system, of its element, or of every member
+        of its group, or names a local operator of its element or of every member of its group with `variable`, such as
+        `ObservableSpec('z', element='q', variable='z')`. Its value is the expectation of the operator, reduced over the
+        members of a group.
 
         Args:
             problem:
@@ -628,7 +672,10 @@ class ObservableEvaluator:
 
     @staticmethod
     def _local_terms(problem: OperatorProblemSpec, path: str, name: str) -> list[tuple[OperatorKernel, ...]]:
-        """Return the terms of the local operator of a name of every member of an operator element or group."""
+        """Return the terms of the local operator of a name of every member.
+
+        The members are those of an operator element or group.
+        """
         lowering = ObservableEvaluator._lowering_of(problem)
         subsystems = [item for key, item in lowering.subsystems.items() if key == path or key.startswith(f'{path}[')]
         if not subsystems:
@@ -641,7 +688,9 @@ class ObservableEvaluator:
 
     @staticmethod
     def _lowering_of(problem: OperatorProblemSpec) -> OperatorLowering:
-        """Return the lowering of the operators of an operator problem, raising an error for a problem without one.
+        """Return the lowering of the operators of an operator problem.
+
+        A problem without one raises an error.
 
         Args:
             problem:
@@ -687,10 +736,10 @@ class ObservableEvaluator:
         observable: ObservableSpec,
         group: str,
     ) -> ObservableFunction:
-        """Return the getter of an operator observable evaluated member by member and reduced.
+        """Return the getter of an operator observable evaluated member by member.
 
-        The observable gives the operator of a member as a function of its namespace, or names a local operator of every
-        member with `variable`.
+        The values are reduced. The observable gives the operator of a member as a function of its namespace, or names a
+        local operator of every member with `variable`.
         """
         if group not in problem.members:
             error_msg = f'Observable {path} reduces {group}, which is not an operator group of the system.'
@@ -716,7 +765,10 @@ class ObservableEvaluator:
 
     @staticmethod
     def _operator_of(path: str, value: object) -> Expression:
-        """Return the operator an observable expression of an operator system gives, after checking that it is one."""
+        """Return the operator an observable expression of an operator system gives.
+
+        It first checks that it is an operator.
+        """
         if not isinstance(value, Expression) or not has_operator(value):
             error_msg = f'Observable {path} of an operator system gives {value!r}, but it must give an operator.'
             raise ValidationError(error_msg)
@@ -724,7 +776,10 @@ class ObservableEvaluator:
 
     @staticmethod
     def _expectation_getter(problem: OperatorProblemSpec, terms: Sequence[OperatorKernel]) -> ObservableFunction:
-        """Return the getter of the expectation value of an operator at the state of an operator problem."""
+        """Return the getter of the expectation value of an operator.
+
+        It is taken at the state of an operator problem.
+        """
 
         def get(t: float, x: Array, p: Array, done: Mapping[str, object]) -> object:
             del done
@@ -781,7 +836,10 @@ class ObservableEvaluator:
 
     @staticmethod
     def _read_of(read: ReadSpec) -> Callable[[Array, Array], Array]:
-        """Return a reader of the values a reduction read stands for, from the state or the extended parameters."""
+        """Return a reader of the values a reduction read stands for.
+
+        It reads them from the state or the extended parameters.
+        """
         return ObservableEvaluator._from_vector(read.is_state, read.index)
 
     @staticmethod
@@ -789,7 +847,7 @@ class ObservableEvaluator:
         column: Callable[[Array, Array], Array],
         read: NeighborReadSpec,
     ) -> Callable[[Array, Array], Array]:
-        """Return a reader of the values of a member column at the member an offset away from every member."""
+        """Return a reader of a member column at an offset from every member."""
         return lambda x, p: read.read(column(x, p), p)
 
     @staticmethod
@@ -799,7 +857,10 @@ class ObservableEvaluator:
 
     @staticmethod
     def _renewal_counter(counts: npt.NDArray[np.intp]) -> ObservableFunction:
-        """Return the getter of the number of renewals of a renewal law over all its members."""
+        """Return the getter of the number of renewals of a renewal law.
+
+        It counts over all members.
+        """
 
         def count_renewals(t: float, x: Array, p: Array, done: Mapping[str, object]) -> float:
             del t, p, done
@@ -809,7 +870,9 @@ class ObservableEvaluator:
 
     @staticmethod
     def _joined_complex(expression: object, owner: str) -> Expression:
-        """Return an expression as its real part plus the imaginary unit times its imaginary part, both real.
+        """Return an expression as its real part plus `i` times its imaginary part.
+
+        Both parts are real.
 
         Args:
             expression:
@@ -839,7 +902,9 @@ class ObservableEvaluator:
 
     @staticmethod
     def _tree(items: Mapping[str, object], **root: object) -> SimpleNamespace:
-        """Return nested namespaces from paths such as `forest/foxes.n` mapped to values, extra values at the root.
+        """Return nested namespaces from paths such as `forest/foxes.n` mapped to values.
+
+        Extra values go at the root.
 
         Args:
             items:
@@ -867,10 +932,11 @@ class ObservableEvaluator:
 
     @staticmethod
     def _namespace_of(problem: BaseProblemSpec, scope: str = '') -> SimpleNamespace:
-        """Return the namespace of the states and parameters of the single elements and interactions of a system.
+        """Return the namespace of the states and parameters of a system.
 
-        The namespace nests the symbols by their dotted names, so `s.plant.x` is the state `plant.x`, and
-        `s.forest.foxes.n` the state `forest/foxes.n`. It also holds the time `s.t`.
+        They are those of its single elements and interactions. The namespace nests the symbols by their dotted names,
+        so `s.plant.x` is the state `plant.x`, and `s.forest.foxes.n` the state `forest/foxes.n`. It also holds the time
+        `s.t`.
 
         Args:
             problem:
@@ -884,8 +950,8 @@ class ObservableEvaluator:
                 The namespace.
 
         Examples:
-            >>> from skcomplex.core.engine.compile import PassCompiler
-            >>> from skcomplex.core.engine.compile import ObservableEvaluator
+            >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+            >>> from skcomplex.core.engine.compile._observables import ObservableEvaluator
             >>> from skcomplex.core.components.system import System
             >>> from skcomplex.systems.biology.common.populations import PopulationElement
             >>> problem = PassCompiler().prepare(System(elements=[PopulationElement('rabbits')])).run().problem_
@@ -909,7 +975,10 @@ class ObservableEvaluator:
 
     @staticmethod
     def _is_lowerable(scope: str, observable: ObservableSpec, nodes: dict[str, NodeSpec]) -> bool:
-        """Check whether laws can read an observable at the current state, as an expression or a symbolic reduction."""
+        """Check whether laws can read an observable at the current state.
+
+        They read it as an expression or a symbolic reduction.
+        """
         if observable.group is None:
             return True
         node = nodes.get(ObservableEvaluator._join(scope, observable.group))
@@ -917,9 +986,10 @@ class ObservableEvaluator:
 
     @staticmethod
     def _lowerable_observables(system: System, nodes: list[NodeSpec]) -> Declared:
-        """Return every observable of a system tree that laws can read at the current state, by path.
+        """Return every observable of a system tree that laws can read, by path.
 
-        An expression of a system's symbols is lowerable when every observable declared before it in its system is.
+        Laws read them at the current state. An expression of a system's symbols is lowerable when every observable
+        declared before it in its system is.
         """
         by_path = {node.path: node for node in nodes}
         lowerable: Declared = {}
@@ -933,10 +1003,11 @@ class ObservableEvaluator:
 
     @staticmethod
     def _held_reductions_of(problem: BaseProblemSpec) -> list[tuple[str, '_HeldReductionSpec']]:
-        """Return the reductions that a co-simulation computes at every synchronisation point, with where it holds them.
+        """Return the reductions a co-simulation computes at synchronisation points.
 
-        A law of one partition reads a reduction of the agents of another, such as `count(s.farmers)`, through an
-        element that holds its value in the state `value` between synchronisation points.
+        They come with where it holds them, and they are computed at every such point. A law of one partition reads a
+        reduction of the agents of another, such as `count(s.farmers)`, through an element that holds its value in the
+        state `value` between synchronisation points.
 
         Args:
             problem:
@@ -947,10 +1018,10 @@ class ObservableEvaluator:
                 The path of every element that holds a reduction, with the reduction.
 
         Examples:
-            >>> from skcomplex.core.engine.compile import PassCompiler
-            >>> from skcomplex.core.engine.compile import ObservableEvaluator
-            >>> from skcomplex.systems import create_system
-            >>> problem = PassCompiler().prepare(create_system('harvesting')).run().problem_
+            >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+            >>> from skcomplex.core.engine.compile._observables import ObservableEvaluator
+            >>> from skcomplex.systems.economics.resources import HarvestingSystem
+            >>> problem = PassCompiler().prepare(HarvestingSystem().prepare().system_).run().problem_
             >>> [path for path, _ in ObservableEvaluator._held_reductions_of(problem)]
             ['village/farmers_count']
         """

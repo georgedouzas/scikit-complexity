@@ -13,7 +13,7 @@ from skcomplex.core.components.interactions import EulerLagrangeInteraction
 from skcomplex.core.components.laws import EquationLaw
 from skcomplex.core.components.laws.utils import derivative
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import RoleSpec, StateSpec
@@ -60,7 +60,7 @@ class PairElement(Element):
 def _run(system, until):
     """Return the trajectory of a system solved to a tight tolerance."""
     solver = ScipyODESolver(rtol=1e-10, atol=1e-12)
-    return Simulation(system, solver=solver, dt=0.1).prepare().run(until=until).trajectory_
+    return simulate(system, until=until, solver=solver, dt=0.1)
 
 
 def test_run_matches_the_equation_of_a_damped_driven_pendulum():
@@ -147,7 +147,6 @@ def test_run_adds_the_equations_of_one_coordinate_from_several_interactions():
         elements=[AngleElement('left', q=1.0), AngleElement('right', q=1.0)],
         interactions=[*free, SpringInteraction('spring', first='left', second='right')],
     )
-    simulation = Simulation(system, solver=ScipyODESolver(rtol=1e-10, atol=1e-12), dt=1.0).prepare()
-    trajectory = simulation.run(until=1.0).trajectory_
+    trajectory = simulate(system, until=1.0, solver=ScipyODESolver(rtol=1e-10, atol=1e-12), dt=1.0)
     np.testing.assert_allclose(trajectory.values('left.q')[-1], np.cos(1.0), atol=1e-7)
     np.testing.assert_allclose(trajectory.values('right.q')[-1], np.cos(1.0), atol=1e-7)

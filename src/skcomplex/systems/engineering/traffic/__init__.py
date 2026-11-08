@@ -1,34 +1,51 @@
 """Traffic: cars on roads."""
 
-from ._car_following import delayed_car_following, intelligent_driver_system, optimal_velocity
-from ._continuum import GasKineticTrafficElement, gkt_traffic, kerner_konhauser, lighthill_whitham_richards, payne
-from ._drivers import CarelessBrakingInteraction, DriverElement, MotoristElement, charbonneau_traffic, ring_road_drivers
-from ._langevin import LangevinDrivingInteraction, TrafficMomentsElement, langevin_traffic, traffic_density_equation
-from ._ridesharing import ArrivalInteraction, CabElement, RiderElement, ridesharing
-from ._traffic import RoadElement, nagel_schreckenberg
+from ._car_following import DelayedCarFollowingSystem, IntelligentDriverSystem, OptimalVelocitySystem
+from ._continuum import (
+    GasKineticTrafficElement,
+    GktTrafficSystem,
+    KernerKonhauserSystem,
+    LighthillWhithamRichardsSystem,
+    PayneSystem,
+)
+from ._drivers import (
+    CarelessBrakingInteraction,
+    CharbonneauTrafficSystem,
+    DriverElement,
+    MotoristElement,
+    RingRoadDriversSystem,
+)
+from ._langevin import (
+    LangevinDrivingInteraction,
+    LangevinTrafficSystem,
+    TrafficDensityEquationSystem,
+    TrafficMomentsElement,
+)
+from ._ridesharing import ArrivalInteraction, CabElement, RiderElement, RidesharingSystem
+from ._traffic import NagelSchreckenbergSystem, RoadElement
 
 __all__: list[str] = [
     'ArrivalInteraction',
     'CabElement',
     'CarelessBrakingInteraction',
+    'CharbonneauTrafficSystem',
+    'DelayedCarFollowingSystem',
     'DriverElement',
     'GasKineticTrafficElement',
+    'GktTrafficSystem',
+    'IntelligentDriverSystem',
+    'KernerKonhauserSystem',
     'LangevinDrivingInteraction',
+    'LangevinTrafficSystem',
+    'LighthillWhithamRichardsSystem',
     'MotoristElement',
+    'NagelSchreckenbergSystem',
+    'OptimalVelocitySystem',
+    'PayneSystem',
     'RiderElement',
+    'RidesharingSystem',
+    'RingRoadDriversSystem',
     'RoadElement',
+    'TrafficDensityEquationSystem',
     'TrafficMomentsElement',
-    'charbonneau_traffic',
-    'delayed_car_following',
-    'gkt_traffic',
-    'intelligent_driver_system',
-    'kerner_konhauser',
-    'langevin_traffic',
-    'lighthill_whitham_richards',
-    'nagel_schreckenberg',
-    'optimal_velocity',
-    'payne',
-    'ridesharing',
-    'ring_road_drivers',
-    'traffic_density_equation',
 ]

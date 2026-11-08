@@ -1,4 +1,7 @@
-"""Strong-stability-preserving Runge-Kutta of order 2 or 3, with steps from the CFL condition of conservation laws."""
+"""Strong-stability-preserving Runge-Kutta of order 2 or 3.
+
+Its steps come from the CFL condition of conservation laws.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,12 +22,12 @@ _SECOND_ORDER = 2
 
 
 class SSPRKSolver(Solver):
-    """Strong-stability-preserving Runge-Kutta of order 2 or 3, with steps from the CFL condition of conservation laws.
+    """Strong-stability-preserving Runge-Kutta of order 2 or 3.
 
-    The schemes of Shu and Osher are convex combinations of Euler steps, so they keep the total variation bound of a
-    limited finite-volume scheme. With finite-volume fields the step is the smaller of `cfl * h / s`, for the cell size
-    `h` and the largest wave speed `s`, and the stability limit of the Laplacian rates at the current parameters, and
-    otherwise `dt`.
+    Its steps come from the CFL condition of conservation laws. The schemes of Shu and Osher are convex combinations of
+    Euler steps, so they keep the total variation bound of a limited finite-volume scheme. With finite-volume fields the
+    step is the smaller of `cfl * h / s`, for the cell size `h` and the largest wave speed `s`, and the stability limit
+    of the Laplacian rates at the current parameters, and otherwise `dt`.
 
     Args:
         order:
@@ -44,11 +47,11 @@ class SSPRKSolver(Solver):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.engine.compile import PassCompiler
-        >>> from skcomplex.systems.physics.fluids import burgers
+        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.systems.physics.fluids import BurgersSystem
         >>> from skcomplex.core.engine.solvers import SSPRKSolver
         >>> from skcomplex.core.specs import StepSpec
-        >>> problem = PassCompiler().prepare(burgers(64)).run().problem_
+        >>> problem = simulate(BurgersSystem(64), until=0).problem
         >>> stepper = SSPRKSolver(random_state=0).prepare(problem)
         >>> state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_
         >>> bool(np.isclose(state.sum(), problem.initial_state.sum()))
@@ -104,7 +107,10 @@ class SSPRKSolver(Solver):
         self.spacing_ = min((min(volume.spacings) for volume in problem.volumes), default=None)
 
     def _step_size(self, x: Array, p: Array) -> float:
-        """Return the step allowed by the CFL condition and the diffusion of finite-volume fields, at most `dt`."""
+        """Return the step allowed by the CFL condition and the diffusion, at most `dt`.
+
+        The diffusion is that of finite-volume fields.
+        """
         problem = self.problem_
         step = min([self.dt, *(limit.step(p) for limit in problem.diffusive_limits)])
         speed = max((volume.max_speed(x, p) for volume in problem.volumes), default=None)

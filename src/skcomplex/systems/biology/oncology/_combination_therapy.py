@@ -1,4 +1,7 @@
-"""Oncology systems: chemotherapy combined with immunotherapy, viruses, antibodies, and antiangiogenic drugs."""
+"""Chemotherapy combined with other therapies.
+
+The other therapies are immunotherapy, viruses, antibodies, and antiangiogenic drugs.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,11 +16,11 @@ from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction, ReactionInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import where
-from ....core.components.system import System
+from ....core.components.spaces import BaseSpace
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import ScipyODESolver
 from ....core.errors import ParameterError
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from ..common.kinetics import MichaelisMentenInteraction
 from ..common.pharmacokinetics import DosingInteraction
 
@@ -27,7 +30,9 @@ BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 
 
 class AngiogenesisImmunotherapyTumourElement(Element):
-    """Tumour with its vasculature and effector cells under bevacizumab and atezolizumab, with resistance.
+    """Tumour, vasculature, and effector cells under bevacizumab and atezolizumab.
+
+    The tumour develops resistance.
 
     The tumour `A` grows by the Hahnfeldt law toward its vascular capacity `Vb` and effector cells `E` kill it. The
     capacity is stimulated and inhibited by the tumour and destroyed by the antiangiogenic effect `UAn`, and the
@@ -37,7 +42,7 @@ class AngiogenesisImmunotherapyTumourElement(Element):
     potency while its concentration stays low. Volumes are in mm³, and time is in days.
 
     The element holds the states and parameters and has no laws of its own: the interactions of
-    `angiogenesis_immunotherapy` read its parameters.
+    `AngiogenesisImmunotherapySystem` read its parameters.
 
     Args:
         label:
@@ -262,7 +267,9 @@ class AngiogenesisImmunotherapyTumourElement(Element):
 
 
 class ChemoimmunotherapyTumourElement(Element):
-    """Tumour with NK cells, CD8 T cells, and circulating lymphocytes under chemotherapy, IL-2, and TIL injection.
+    """Tumour with NK cells, CD8 T cells, and circulating lymphocytes under therapy.
+
+    The therapy is chemotherapy, IL-2, and TIL injection.
 
     The tumour `A` grows logistically and NK cells `N` and CD8 T cells `E` kill it. CD8 T cells kill at the rate
     `D = a1 (E / A)^l / (g1 + (E / A)^l)`. The circulating lymphocytes `C` feed the NK cells. The chemotherapy `M`
@@ -271,7 +278,7 @@ class ChemoimmunotherapyTumourElement(Element):
     `u_chemo`. Cells are counted, and time is in days.
 
     The element holds the states and parameters and has no laws of its own: the interactions of
-    `chemoimmunotherapy` read its parameters.
+    `ChemoimmunotherapySystem` read its parameters.
 
     Args:
         label:
@@ -501,7 +508,9 @@ class ChemoimmunotherapyTumourElement(Element):
 
 
 class ChemovirotherapyTumourElement(Element):
-    """Uninfected and infected tumour cells, an oncolytic virus, and a chemotherapeutic drug.
+    """Uninfected and infected tumour cells, an oncolytic virus, and a drug.
+
+    The drug is chemotherapeutic.
 
     The uninfected cells `AU` grow logistically, the virus `V` infects them, and infected cells `AV` burst at the rate
     `a2`, releasing `beta_v` virions each. The drug `U` kills both kinds of cells and is infused at the rate `u1`,
@@ -509,7 +518,7 @@ class ChemovirotherapyTumourElement(Element):
     is two days.
 
     The element holds the states and parameters and has no laws of its own: the interactions of
-    `chemovirotherapy` read its parameters.
+    `ChemovirotherapySystem` read its parameters.
 
     Args:
         label:
@@ -611,28 +620,34 @@ class ChemovirotherapyTumourElement(Element):
         self.u1 = u1
         self.infusion = infusion
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for an unknown infusion.
+
+        Args:
+            context:
+                The space the element inherits from its system, which an element does not read.
 
         Raises:
             ParameterError:
                 The infusion is not one of the known forms.
         """
-        super()._check()
+        super()._prepare(context)
         if self.infusion not in INFUSIONS:
             error_msg = f'The infusion must be one of {INFUSIONS}, got {self.infusion!r}.'
             raise ParameterError(error_msg)
 
 
 class ClonalTumourElement(Element):
-    """Two competing tumour clones and an immune response under chemotherapy and a dendritic-cell vaccine.
+    """Two competing tumour clones and an immune response under therapy.
+
+    The therapy is chemotherapy and a dendritic-cell vaccine.
 
     Each clone grows logistically, competes with the other clone and with the immune cells `E`, and dies at the
     chemotherapy rate `u_chemo1` or `u_chemo2` and at the rate `b UIm E` of the vaccine-recruited immune cells. The
     immune cells grow logistically to `theta` and are recruited by both clones. Cells are counted, and time is in days.
 
     The element holds the states and parameters and has no laws of its own: the interactions of
-    `clonal_chemoimmunotherapy` read its parameters.
+    `ClonalChemoimmunotherapySystem` read its parameters.
 
     Args:
         label:
@@ -755,7 +770,7 @@ class GliomaBrainElement(Element):
     time is in days.
 
     The element holds the states and parameters and has no laws of its own: the interactions of
-    `glioma_chemovirotherapy` read its parameters.
+    `GliomaChemovirotherapySystem` read its parameters.
 
     Args:
         label:
@@ -900,7 +915,9 @@ class GliomaBrainElement(Element):
 
 
 class Her2TumourElement(Element):
-    """HER2+ breast cancer cells under trastuzumab and paclitaxel, with antibody binding and drug uptake.
+    """HER2+ breast cancer cells under trastuzumab and paclitaxel.
+
+    The model includes antibody binding and drug uptake.
 
     The tumour grows logistically, `dA/dt = r (1 - DIm) (1 - A / (kc - DCh)) A`. The bound antibody `Ab` lowers the
     proliferation by `DIm = a1 Ab` from the time `t_a` on, and the internalized paclitaxel `Pin` lowers the carrying
@@ -974,6 +991,8 @@ class Her2TumourElement(Element):
         0.67
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -1017,7 +1036,7 @@ class Her2TumourElement(Element):
         self.t_p = t_p
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the growth of the tumour, the binding of the antibody, and the uptake of paclitaxel.
+        """Return the tumour growth, the antibody binding, and the paclitaxel uptake.
 
         Args:
             s:
@@ -1041,7 +1060,10 @@ class Her2TumourElement(Element):
 
 
 def _toxicity(concentration: Expression, scale: Expression) -> Expression:
-    """Return a toxicity linear in a low concentration and exponential in a high one, `exp(c / scale) - 1`."""
+    """Return a toxicity linear in a low concentration and exponential in a high one.
+
+    The toxicity is `exp(c / scale) - 1`.
+    """
     return exp(concentration / scale) - 1
 
 
@@ -1051,71 +1073,17 @@ def _total_toxicity(s: SimpleNamespace) -> Expression:
     return (_toxicity(tumour.c_an, tumour.tox_an) + _toxicity(tumour.c_im, tumour.tox_im)) / 2
 
 
-def _effector_kill(target: SimpleNamespace) -> Expression:
-    """Return the ratio-dependent kill rate `D = a1 (E^l) / (g1 A^l + E^l)` of tumour cells by effector cells."""
-    ratio = abs(target.E) ** target.l
-    kill: Expression = target.a1 * ratio / (target.g1 * abs(target.A) ** target.l + ratio)
-    return kill
+class ChemoimmunotherapySystem(BaseSystem):
+    """A tumour with NK cells, CD8 T cells, and lymphocytes under therapy.
 
+    The therapy is chemotherapy, IL-2, and TIL injection.
 
-def _infusion_shape(s: SimpleNamespace, infusion: str) -> Expression:
-    """Return the shape in time of a constant, exponentially decaying, or periodic infusion."""
-    shapes = {'constant': 1, 'exponential': exp(-s.target.d_u * s.t), 'periodic': sin(s.target.d_u * s.t) ** 2}
-    shape: Expression = shapes[infusion]
-    return shape
-
-
-def _glia_rate(target: SimpleNamespace) -> Expression:
-    """Return the net rate of the glia, whose decline kills neurons."""
-    G = target.G
-    rate: Expression = (
-        target.r1 * G * (1 - target.b * G) - target.c1 * G * target.AU - target.a1 * G * target.U / (target.g1 + G)
-    )
-    return rate
-
-
-def _elimination(target: SimpleNamespace, drug: str) -> Expression:
-    """Return the elimination rate `k10 = alpha beta / k21` of a drug from its central compartment."""
-    alpha, beta, k21 = (getattr(target, f'{name}_{drug}') for name in ('alpha', 'beta', 'k21'))
-    elimination: Expression = alpha * beta / k21
-    return elimination
-
-
-def _drug_effect(target: SimpleNamespace, drug: str) -> Expression:
-    """Return the Emax effect of a drug, whose half-effect concentration the resistance shifts."""
-    c, R, u50 = (getattr(target, f'{name}_{drug}') for name in ('c', 'R', 'u50'))
-    effect: Expression = c**target.g / (((1 + target.delta_r * R) * u50) ** target.g + c**target.g)
-    return effect
-
-
-@register_system(
-    field='biology/oncology',
-    tags=('chemotherapy', 'immunotherapy', 'combination therapy', 'ode', 'dosing'),
-    references=(BOOK, 'de Pillis, Gu, and Radunskaya 2006'),
-    defaults={'until': 60.0, 'dt': 0.2, 'solver': ScipyODESolver(method='LSODA', rtol=1e-6, atol=1e-6)},
-)
-def chemoimmunotherapy(
-    A: float = 1e6,
-    N: float = 5e4,
-    E: float = 100.0,
-    C: float = 1.1e7,
-    *,
-    u_til: float = 1e7,
-    u_il2: float = 1e7,
-    u_chemo: float = 2.0,
-    start: float = 7.0,
-    period: float = 7.0,
-    width: float = 1.0,
-    doses: int = 3,
-) -> System:
-    """Return a tumour with NK cells, CD8 T cells, and lymphocytes under chemotherapy, IL-2, and TIL injection.
-
-    The tumour, implanted in a mouse, grows toward a high equilibrium that the immune cells cannot hold back. The
-    doses of chemotherapy shrink it, and the injected tumour-infiltrating lymphocytes clear what the drug leaves. The
+    The tumour, implanted in a mouse, grows toward a high equilibrium that the immune cells cannot hold back. The doses
+    of chemotherapy shrink it, and the injected tumour-infiltrating lymphocytes clear what the drug leaves. The
     parameters are the table of the book, except the decay rates of the drugs, which the book's table swaps. The
     chemotherapeutic drug decays at 0.9 per day and IL-2 at 10 per day, as in de Pillis et al. 2006. The schedule of
     three weekly one-day doses from day 7 is a choice, since the book gives none. Cells are counted, and time is in
-    days.
+    days. The system has the states `tumour.A`, `tumour.N`, `tumour.E`, `tumour.C`, `tumour.I`, and `tumour.M`.
 
     Args:
         A:
@@ -1151,213 +1119,248 @@ def chemoimmunotherapy(
         doses:
             The number of doses.
 
-    Returns:
-        system:
-            The system, with the states `tumour.A`, `tumour.N`, `tumour.E`, `tumour.C`, `tumour.I`, and `tumour.M`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.oncology import chemoimmunotherapy
-        >>> chemoimmunotherapy(u_til=0.0).elements[0].u_til
+        >>> from skcomplex.systems.biology.oncology import ChemoimmunotherapySystem
+        >>> ChemoimmunotherapySystem(u_til=0.0).prepare().system_.elements[0].u_til
         0.0
     """
-    tumour = ChemoimmunotherapyTumourElement(
-        'tumour',
-        A=A,
-        N=N,
-        E=E,
-        C=C,
-        u_til=u_til,
-        u_il2=u_il2,
-        u_chemo=u_chemo,
-        start=start,
-        period=period,
-        width=width,
-        doses=doses,
-    )
-    interactions = [
-        RateInteraction(
-            'tumour_growth',
-            target='tumour',
-            state='A',
-            rate=lambda s: s.target.r1 * s.target.A * (1 - s.target.b1 * s.target.A),
-        ),
-        ReactionInteraction(
-            'nk_kill',
-            target='tumour',
-            reactants={'A': 1},
-            modifiers={'N': 1},
-            propensity=lambda s: s.target.c1 * s.target.N * s.target.A,
-        ),
-        ReactionInteraction(
-            'effector_kill',
-            target='tumour',
-            reactants={'A': 1},
-            propensity=lambda s: _effector_kill(s.target) * s.target.A,
-        ),
-        ReactionInteraction(
-            'chemo_tumour_kill',
-            target='tumour',
-            reactants={'A': 1},
-            propensity=lambda s: s.target.a2 * (1 - exp(-s.target.M)) * s.target.A,
-        ),
-        RateInteraction('nk_production', target='tumour', state='N', rate=lambda s: s.target.m1 * s.target.C),
-        ReactionInteraction(
-            'nk_death',
-            target='tumour',
-            reactants={'N': 1},
-            propensity=lambda s: s.target.d1 * s.target.N,
-        ),
-        RateInteraction(
-            'nk_recruitment',
-            target='tumour',
-            state='N',
-            rate=lambda s: s.target.r2 * s.target.A**2 / (s.target.g2 + s.target.A**2) * s.target.N,
-        ),
-        ReactionInteraction(
-            'nk_inactivation',
-            target='tumour',
-            reactants={'N': 1},
-            modifiers={'A': 1},
-            propensity=lambda s: s.target.psi1 * s.target.N * s.target.A,
-        ),
-        ReactionInteraction(
-            'chemo_nk_kill',
-            target='tumour',
-            reactants={'N': 1},
-            propensity=lambda s: s.target.a3 * (1 - exp(-s.target.M)) * s.target.N,
-        ),
-        RateInteraction(
-            'effector_recruitment',
-            target='tumour',
-            state='E',
-            rate=lambda s: s.target.r3
-            * (_effector_kill(s.target) * s.target.A) ** 2
-            / (s.target.g3 + (_effector_kill(s.target) * s.target.A) ** 2)
-            * s.target.E,
-        ),
-        ReactionInteraction(
-            'effector_death',
-            target='tumour',
-            reactants={'E': 1},
-            propensity=lambda s: s.target.d2 * s.target.E,
-        ),
-        ReactionInteraction(
-            'effector_inactivation',
-            target='tumour',
-            reactants={'E': 1},
-            modifiers={'A': 1},
-            propensity=lambda s: s.target.psi2 * s.target.E * s.target.A,
-        ),
-        ReactionInteraction(
-            'nk_regulation',
-            target='tumour',
-            reactants={'E': 1},
-            propensity=lambda s: s.target.psi3 * s.target.N * s.target.E**2,
-        ),
-        ReactionInteraction(
-            'chemo_effector_kill',
-            target='tumour',
-            reactants={'E': 1},
-            propensity=lambda s: s.target.a4 * (1 - exp(-s.target.M)) * s.target.E,
-        ),
-        RateInteraction(
-            'effector_activation',
-            target='tumour',
-            state='E',
-            rate=lambda s: (s.target.r4 * s.target.N + s.target.r5 * s.target.C) * s.target.A,
-        ),
-        MichaelisMentenInteraction(
-            'il2_proliferation',
-            target='tumour',
-            products={'E': 1},
-            substrate='I',
-            vmax=lambda s: s.target.r6,
-            km=lambda s: s.target.g4,
-            modifiers={'E': 1},
-        ),
-        DosingInteraction(
-            'til_infusion',
-            target='tumour',
-            state='E',
-            dose=lambda s: s.target.u_til,
-            period=tumour.period,
-            width=tumour.width,
-            start=tumour.start,
-            count=tumour.doses,
-        ),
-        RateInteraction('lymphocyte_production', target='tumour', state='C', rate=lambda s: s.target.s1),
-        ReactionInteraction(
-            'lymphocyte_death',
-            target='tumour',
-            reactants={'C': 1},
-            propensity=lambda s: s.target.d3 * s.target.C,
-        ),
-        ReactionInteraction(
-            'chemo_lymphocyte_kill',
-            target='tumour',
-            reactants={'C': 1},
-            propensity=lambda s: s.target.a5 * (1 - exp(-s.target.M)) * s.target.C,
-        ),
-        ReactionInteraction(
-            'il2_clearance',
-            target='tumour',
-            reactants={'I': 1},
-            propensity=lambda s: s.target.d_u1 * s.target.I,
-        ),
-        DosingInteraction(
-            'il2_infusion',
-            target='tumour',
-            state='I',
-            dose=lambda s: s.target.u_il2,
-            period=tumour.period,
-            width=tumour.width,
-            start=tumour.start,
-            count=tumour.doses,
-        ),
-        ReactionInteraction(
-            'chemo_clearance',
-            target='tumour',
-            reactants={'M': 1},
-            propensity=lambda s: s.target.d_u2 * s.target.M,
-        ),
-        DosingInteraction(
-            'chemo_infusion',
-            target='tumour',
-            state='M',
-            dose=lambda s: s.target.u_chemo,
-            period=tumour.period,
-            width=tumour.width,
-            start=tumour.start,
-            count=tumour.doses,
-        ),
-    ]
-    return System(elements=[tumour], interactions=interactions)
+
+    field = 'biology/oncology'
+    topics = ('chemotherapy', 'immunotherapy', 'combination therapy', 'ode', 'dosing')
+    references = (BOOK, 'de Pillis, Gu, and Radunskaya 2006')
+    until = 60.0
+    dt = 0.2
+    solver = ScipyODESolver(method='LSODA', rtol=1e-6, atol=1e-6)
+
+    def __init__(
+        self,
+        A: float = 1e6,
+        N: float = 5e4,
+        E: float = 100.0,
+        C: float = 1.1e7,
+        *,
+        u_til: float = 1e7,
+        u_il2: float = 1e7,
+        u_chemo: float = 2.0,
+        start: float = 7.0,
+        period: float = 7.0,
+        width: float = 1.0,
+        doses: int = 3,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.A = A
+        self.N = N
+        self.E = E
+        self.C = C
+        self.u_til = u_til
+        self.u_il2 = u_il2
+        self.u_chemo = u_chemo
+        self.start = start
+        self.period = period
+        self.width = width
+        self.doses = doses
+
+    @staticmethod
+    def _effector_kill(target: SimpleNamespace) -> Expression:
+        """Return the ratio-dependent kill rate of tumour cells by effector cells.
+
+        The rate is `D = a1 (E^l) / (g1 A^l + E^l)`.
+        """
+        ratio = abs(target.E) ** target.l
+        kill: Expression = target.a1 * ratio / (target.g1 * abs(target.A) ** target.l + ratio)
+        return kill
+
+    def _build_system(self) -> System:
+        """Return the parts of a tumour with NK cells."""
+        tumour = ChemoimmunotherapyTumourElement(
+            'tumour',
+            A=self.A,
+            N=self.N,
+            E=self.E,
+            C=self.C,
+            u_til=self.u_til,
+            u_il2=self.u_il2,
+            u_chemo=self.u_chemo,
+            start=self.start,
+            period=self.period,
+            width=self.width,
+            doses=self.doses,
+        )
+        interactions = [
+            RateInteraction(
+                'tumour_growth',
+                target='tumour',
+                state='A',
+                rate=lambda s: s.target.r1 * s.target.A * (1 - s.target.b1 * s.target.A),
+            ),
+            ReactionInteraction(
+                'nk_kill',
+                target='tumour',
+                reactants={'A': 1},
+                modifiers={'N': 1},
+                propensity=lambda s: s.target.c1 * s.target.N * s.target.A,
+            ),
+            ReactionInteraction(
+                'effector_kill',
+                target='tumour',
+                reactants={'A': 1},
+                propensity=lambda s: self._effector_kill(s.target) * s.target.A,
+            ),
+            ReactionInteraction(
+                'chemo_tumour_kill',
+                target='tumour',
+                reactants={'A': 1},
+                propensity=lambda s: s.target.a2 * (1 - exp(-s.target.M)) * s.target.A,
+            ),
+            RateInteraction('nk_production', target='tumour', state='N', rate=lambda s: s.target.m1 * s.target.C),
+            ReactionInteraction(
+                'nk_death',
+                target='tumour',
+                reactants={'N': 1},
+                propensity=lambda s: s.target.d1 * s.target.N,
+            ),
+            RateInteraction(
+                'nk_recruitment',
+                target='tumour',
+                state='N',
+                rate=lambda s: s.target.r2 * s.target.A**2 / (s.target.g2 + s.target.A**2) * s.target.N,
+            ),
+            ReactionInteraction(
+                'nk_inactivation',
+                target='tumour',
+                reactants={'N': 1},
+                modifiers={'A': 1},
+                propensity=lambda s: s.target.psi1 * s.target.N * s.target.A,
+            ),
+            ReactionInteraction(
+                'chemo_nk_kill',
+                target='tumour',
+                reactants={'N': 1},
+                propensity=lambda s: s.target.a3 * (1 - exp(-s.target.M)) * s.target.N,
+            ),
+            RateInteraction(
+                'effector_recruitment',
+                target='tumour',
+                state='E',
+                rate=lambda s: s.target.r3
+                * (self._effector_kill(s.target) * s.target.A) ** 2
+                / (s.target.g3 + (self._effector_kill(s.target) * s.target.A) ** 2)
+                * s.target.E,
+            ),
+            ReactionInteraction(
+                'effector_death',
+                target='tumour',
+                reactants={'E': 1},
+                propensity=lambda s: s.target.d2 * s.target.E,
+            ),
+            ReactionInteraction(
+                'effector_inactivation',
+                target='tumour',
+                reactants={'E': 1},
+                modifiers={'A': 1},
+                propensity=lambda s: s.target.psi2 * s.target.E * s.target.A,
+            ),
+            ReactionInteraction(
+                'nk_regulation',
+                target='tumour',
+                reactants={'E': 1},
+                propensity=lambda s: s.target.psi3 * s.target.N * s.target.E**2,
+            ),
+            ReactionInteraction(
+                'chemo_effector_kill',
+                target='tumour',
+                reactants={'E': 1},
+                propensity=lambda s: s.target.a4 * (1 - exp(-s.target.M)) * s.target.E,
+            ),
+            RateInteraction(
+                'effector_activation',
+                target='tumour',
+                state='E',
+                rate=lambda s: (s.target.r4 * s.target.N + s.target.r5 * s.target.C) * s.target.A,
+            ),
+            MichaelisMentenInteraction(
+                'il2_proliferation',
+                target='tumour',
+                products={'E': 1},
+                substrate='I',
+                vmax=lambda s: s.target.r6,
+                km=lambda s: s.target.g4,
+                modifiers={'E': 1},
+            ),
+            DosingInteraction(
+                'til_infusion',
+                target='tumour',
+                state='E',
+                dose=lambda s: s.target.u_til,
+                period=tumour.period,
+                width=tumour.width,
+                start=tumour.start,
+                count=tumour.doses,
+            ),
+            RateInteraction('lymphocyte_production', target='tumour', state='C', rate=lambda s: s.target.s1),
+            ReactionInteraction(
+                'lymphocyte_death',
+                target='tumour',
+                reactants={'C': 1},
+                propensity=lambda s: s.target.d3 * s.target.C,
+            ),
+            ReactionInteraction(
+                'chemo_lymphocyte_kill',
+                target='tumour',
+                reactants={'C': 1},
+                propensity=lambda s: s.target.a5 * (1 - exp(-s.target.M)) * s.target.C,
+            ),
+            ReactionInteraction(
+                'il2_clearance',
+                target='tumour',
+                reactants={'I': 1},
+                propensity=lambda s: s.target.d_u1 * s.target.I,
+            ),
+            DosingInteraction(
+                'il2_infusion',
+                target='tumour',
+                state='I',
+                dose=lambda s: s.target.u_il2,
+                period=tumour.period,
+                width=tumour.width,
+                start=tumour.start,
+                count=tumour.doses,
+            ),
+            ReactionInteraction(
+                'chemo_clearance',
+                target='tumour',
+                reactants={'M': 1},
+                propensity=lambda s: s.target.d_u2 * s.target.M,
+            ),
+            DosingInteraction(
+                'chemo_infusion',
+                target='tumour',
+                state='M',
+                dose=lambda s: s.target.u_chemo,
+                period=tumour.period,
+                width=tumour.width,
+                start=tumour.start,
+                count=tumour.doses,
+            ),
+        ]
+        return System(self.label, elements=[tumour], interactions=interactions)
 
 
-@register_system(
-    field='biology/oncology',
-    tags=('chemotherapy', 'immunotherapy', 'combination therapy', 'heterogeneity', 'resistance', 'ode'),
-    references=(BOOK, 'Piretto, Delitala, and Ferraro 2018'),
-    defaults={'until': 300.0, 'dt': 1.0},
-)
-def clonal_chemoimmunotherapy(
-    A1: float = 9e4,
-    A2: float = 4e4,
-    E: float = 500.0,
-    *,
-    c1: float = 0.1,
-    c3: float = 0.1,
-    u_chemo1: float = 0.2,
-    u_chemo2: float = 0.02,
-    u_vaccine: float = 20.0,
-) -> System:
-    """Return two competing tumour clones, sensitive and resistant to chemotherapy, under a drug and a vaccine.
+class ClonalChemoimmunotherapySystem(BaseSystem):
+    """Two competing tumour clones under a drug and a vaccine.
 
-    The chemotherapy kills the sensitive first clone ten times faster than the resistant second clone. Alone, it
-    removes the sensitive clone and frees the resistant clone from competition, so the tumour relapses resistant. With
-    the dendritic-cell vaccine, the recruited immune cells clear both clones. The book does not system the drugs, so
-    their effects are constant rates, and their values are a choice. The competition rates take a value in the book's
-    range of 0.01 to 1. Cells are counted, and time is in days.
+    One clone is sensitive and the other resistant to chemotherapy.
+
+    The chemotherapy kills the sensitive first clone ten times faster than the resistant second clone. Alone, it removes
+    the sensitive clone and frees the resistant clone from competition, so the tumour relapses resistant. With the
+    dendritic-cell vaccine, the recruited immune cells clear both clones. The book does not system the drugs, so their
+    effects are constant rates, and their values are a choice. The competition rates take a value in the book's range of
+    0.01 to 1. Cells are counted, and time is in days. The system has the clones `tumour.A1` and `tumour.A2` and the
+    immune cells `tumour.E`.
 
     Args:
         A1:
@@ -1384,130 +1387,150 @@ def clonal_chemoimmunotherapy(
         u_vaccine:
             The level of the immunotherapeutic agent.
 
-    Returns:
-        system:
-            The system, with the clones `tumour.A1` and `tumour.A2` and the immune cells `tumour.E`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.oncology import clonal_chemoimmunotherapy
-        >>> clonal_chemoimmunotherapy(u_vaccine=0.0).elements[0].u_vaccine
+        >>> from skcomplex.systems.biology.oncology import ClonalChemoimmunotherapySystem
+        >>> ClonalChemoimmunotherapySystem(u_vaccine=0.0).prepare().system_.elements[0].u_vaccine
         0.0
     """
-    tumour = ClonalTumourElement(
-        'tumour',
-        A1=A1,
-        A2=A2,
-        E=E,
-        c1=c1,
-        c3=c3,
-        u_chemo1=u_chemo1,
-        u_chemo2=u_chemo2,
-        u_vaccine=u_vaccine,
-    )
-    interactions = [
-        RateInteraction(
-            'first_growth',
-            target='tumour',
-            state='A1',
-            rate=lambda s: s.target.r1 * s.target.A1 * (1 - s.target.b1 * s.target.A1),
-        ),
-        ReactionInteraction(
-            'first_competition',
-            target='tumour',
-            reactants={'A1': 1},
-            modifiers={'A2': 1},
-            propensity=lambda s: s.target.c1 * s.target.A2 * s.target.b1 * s.target.A1,
-        ),
-        ReactionInteraction(
-            'first_immune_kill',
-            target='tumour',
-            reactants={'A1': 1},
-            modifiers={'E': 1},
-            propensity=lambda s: s.target.c2 * s.target.E * s.target.b1 * s.target.A1,
-        ),
-        ReactionInteraction(
-            'first_chemotherapy',
-            target='tumour',
-            reactants={'A1': 1},
-            propensity=lambda s: s.target.u_chemo1 * s.target.A1,
-        ),
-        ReactionInteraction(
-            'first_vaccine_kill',
-            target='tumour',
-            reactants={'A1': 1},
-            modifiers={'E': 1},
-            propensity=lambda s: s.target.b1 * s.target.u_vaccine * s.target.A1 * s.target.E,
-        ),
-        RateInteraction(
-            'second_growth',
-            target='tumour',
-            state='A2',
-            rate=lambda s: s.target.r2 * s.target.A2 * (1 - s.target.b2 * s.target.A2),
-        ),
-        ReactionInteraction(
-            'second_competition',
-            target='tumour',
-            reactants={'A2': 1},
-            modifiers={'A1': 1},
-            propensity=lambda s: s.target.c3 * s.target.A1 * s.target.b2 * s.target.A2,
-        ),
-        ReactionInteraction(
-            'second_immune_kill',
-            target='tumour',
-            reactants={'A2': 1},
-            modifiers={'E': 1},
-            propensity=lambda s: s.target.c4 * s.target.E * s.target.b2 * s.target.A2,
-        ),
-        ReactionInteraction(
-            'second_chemotherapy',
-            target='tumour',
-            reactants={'A2': 1},
-            propensity=lambda s: s.target.u_chemo2 * s.target.A2,
-        ),
-        ReactionInteraction(
-            'second_vaccine_kill',
-            target='tumour',
-            reactants={'A2': 1},
-            modifiers={'E': 1},
-            propensity=lambda s: s.target.b2 * s.target.u_vaccine * s.target.A2 * s.target.E,
-        ),
-        RateInteraction(
-            'immune_growth',
-            target='tumour',
-            state='E',
-            rate=lambda s: s.target.r3 * s.target.E * (1 - s.target.E / s.target.theta),
-        ),
-        RateInteraction(
-            'immune_stimulation',
-            target='tumour',
-            state='E',
-            rate=lambda s: (s.target.s1 * s.target.A1 + s.target.s2 * s.target.A2) * s.target.E / s.target.theta,
-        ),
-    ]
-    return System(elements=[tumour], interactions=interactions)
+
+    field = 'biology/oncology'
+    topics = ('chemotherapy', 'immunotherapy', 'combination therapy', 'heterogeneity', 'resistance', 'ode')
+    references = (BOOK, 'Piretto, Delitala, and Ferraro 2018')
+    until = 300.0
+    dt = 1.0
+
+    def __init__(
+        self,
+        A1: float = 9e4,
+        A2: float = 4e4,
+        E: float = 500.0,
+        *,
+        c1: float = 0.1,
+        c3: float = 0.1,
+        u_chemo1: float = 0.2,
+        u_chemo2: float = 0.02,
+        u_vaccine: float = 20.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.A1 = A1
+        self.A2 = A2
+        self.E = E
+        self.c1 = c1
+        self.c3 = c3
+        self.u_chemo1 = u_chemo1
+        self.u_chemo2 = u_chemo2
+        self.u_vaccine = u_vaccine
+
+    def _build_system(self) -> System:
+        """Return the parts of two competing tumour clones."""
+        tumour = ClonalTumourElement(
+            'tumour',
+            A1=self.A1,
+            A2=self.A2,
+            E=self.E,
+            c1=self.c1,
+            c3=self.c3,
+            u_chemo1=self.u_chemo1,
+            u_chemo2=self.u_chemo2,
+            u_vaccine=self.u_vaccine,
+        )
+        interactions = [
+            RateInteraction(
+                'first_growth',
+                target='tumour',
+                state='A1',
+                rate=lambda s: s.target.r1 * s.target.A1 * (1 - s.target.b1 * s.target.A1),
+            ),
+            ReactionInteraction(
+                'first_competition',
+                target='tumour',
+                reactants={'A1': 1},
+                modifiers={'A2': 1},
+                propensity=lambda s: s.target.c1 * s.target.A2 * s.target.b1 * s.target.A1,
+            ),
+            ReactionInteraction(
+                'first_immune_kill',
+                target='tumour',
+                reactants={'A1': 1},
+                modifiers={'E': 1},
+                propensity=lambda s: s.target.c2 * s.target.E * s.target.b1 * s.target.A1,
+            ),
+            ReactionInteraction(
+                'first_chemotherapy',
+                target='tumour',
+                reactants={'A1': 1},
+                propensity=lambda s: s.target.u_chemo1 * s.target.A1,
+            ),
+            ReactionInteraction(
+                'first_vaccine_kill',
+                target='tumour',
+                reactants={'A1': 1},
+                modifiers={'E': 1},
+                propensity=lambda s: s.target.b1 * s.target.u_vaccine * s.target.A1 * s.target.E,
+            ),
+            RateInteraction(
+                'second_growth',
+                target='tumour',
+                state='A2',
+                rate=lambda s: s.target.r2 * s.target.A2 * (1 - s.target.b2 * s.target.A2),
+            ),
+            ReactionInteraction(
+                'second_competition',
+                target='tumour',
+                reactants={'A2': 1},
+                modifiers={'A1': 1},
+                propensity=lambda s: s.target.c3 * s.target.A1 * s.target.b2 * s.target.A2,
+            ),
+            ReactionInteraction(
+                'second_immune_kill',
+                target='tumour',
+                reactants={'A2': 1},
+                modifiers={'E': 1},
+                propensity=lambda s: s.target.c4 * s.target.E * s.target.b2 * s.target.A2,
+            ),
+            ReactionInteraction(
+                'second_chemotherapy',
+                target='tumour',
+                reactants={'A2': 1},
+                propensity=lambda s: s.target.u_chemo2 * s.target.A2,
+            ),
+            ReactionInteraction(
+                'second_vaccine_kill',
+                target='tumour',
+                reactants={'A2': 1},
+                modifiers={'E': 1},
+                propensity=lambda s: s.target.b2 * s.target.u_vaccine * s.target.A2 * s.target.E,
+            ),
+            RateInteraction(
+                'immune_growth',
+                target='tumour',
+                state='E',
+                rate=lambda s: s.target.r3 * s.target.E * (1 - s.target.E / s.target.theta),
+            ),
+            RateInteraction(
+                'immune_stimulation',
+                target='tumour',
+                state='E',
+                rate=lambda s: (s.target.s1 * s.target.A1 + s.target.s2 * s.target.A2) * s.target.E / s.target.theta,
+            ),
+        ]
+        return System(self.label, elements=[tumour], interactions=interactions)
 
 
-@register_system(
-    field='biology/oncology',
-    tags=('chemotherapy', 'virotherapy', 'combination therapy', 'oncolytic virus', 'ode'),
-    references=(BOOK, 'Malinzi 2019'),
-    defaults={'until': 32.0, 'dt': 0.1},
-)
-def chemovirotherapy(
-    AU: float = 1.0,
-    V: float = 0.1,
-    U: float = 0.1,
-    *,
-    u1: float = 10.0,
-    infusion: str = 'constant',
-) -> System:
-    """Return uninfected and infected tumour cells, an oncolytic virus, and a chemotherapeutic drug.
+class ChemovirotherapySystem(BaseSystem):
+    """Uninfected and infected tumour cells, an oncolytic virus, and a drug.
 
-    The virus infects the growing tumour, and the drug kills both uninfected and infected cells. Over the default run
-    of 64 days, before the virus bursts through the tumour, the combination leaves the smallest tumour. Later the virus
+    The drug is chemotherapeutic.
+
+    The virus infects the growing tumour, and the drug kills both uninfected and infected cells. Over the default run of
+    64 days, before the virus bursts through the tumour, the combination leaves the smallest tumour. Later the virus
     alone clears the tumour slightly faster, because the drug also kills the infected cells that make the virus. The
     infusion rate is a choice, since the book gives none. One unit of cells is a million cells, and one unit of time is
-    two days.
+    two days. The system has the cells `tumour.AU` and `tumour.AV`, the virus `tumour.V`, and the drug `tumour.U`.
 
     Args:
         AU:
@@ -1525,96 +1548,133 @@ def chemovirotherapy(
         infusion:
             The form of the infusion, `'constant'`, `'exponential'`, or `'periodic'`.
 
-    Returns:
-        system:
-            The system, with the cells `tumour.AU` and `tumour.AV`, the virus `tumour.V`, and the drug `tumour.U`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.oncology import chemovirotherapy
-        >>> chemovirotherapy(infusion='exponential').elements[0].infusion
+        >>> from skcomplex.systems.biology.oncology import ChemovirotherapySystem
+        >>> ChemovirotherapySystem(infusion='exponential').prepare().system_.elements[0].infusion
         'exponential'
     """
-    tumour = ChemovirotherapyTumourElement('tumour', AU=AU, V=V, U=U, u1=u1, infusion=infusion)
-    interactions = [
-        RateInteraction(
-            'tumour_growth',
-            target='tumour',
-            state='AU',
-            rate=lambda s: s.target.r1 * s.target.AU * (1 - s.target.b * (s.target.AU + s.target.AV)),
-        ),
-        ReactionInteraction(
-            'infection',
-            target='tumour',
-            reactants={'AU': 1, 'V': 1},
-            products={'AV': 1},
-            propensity=lambda s: s.target.alpha * s.target.AU * s.target.V,
-        ),
-        ReactionInteraction(
-            'drug_kill',
-            target='tumour',
-            reactants={'AU': 1},
-            modifiers={'U': 1},
-            propensity=lambda s: s.target.a1 * s.target.AU * s.target.U,
-        ),
-        ReactionInteraction(
-            'lysis',
-            target='tumour',
-            reactants={'AV': 1},
-            propensity=lambda s: s.target.a2 * s.target.AV,
-        ),
-        ReactionInteraction(
-            'infected_drug_kill',
-            target='tumour',
-            reactants={'AV': 1},
-            modifiers={'U': 1},
-            propensity=lambda s: s.target.a3 * s.target.AV * s.target.U,
-        ),
-        RateInteraction(
-            'burst',
-            target='tumour',
-            state='V',
-            rate=lambda s: s.target.beta_v * s.target.a2 * s.target.AV,
-        ),
-        ReactionInteraction(
-            'virus_clearance',
-            target='tumour',
-            reactants={'V': 1},
-            propensity=lambda s: s.target.d1 * s.target.V,
-        ),
-        ReactionInteraction(
-            'drug_clearance',
-            target='tumour',
-            reactants={'U': 1},
-            propensity=lambda s: s.target.d_u * s.target.U,
-        ),
-        RateInteraction(
-            'infusion',
-            target='tumour',
-            state='U',
-            rate=lambda s: s.target.u1 * _infusion_shape(s, infusion),
-        ),
-    ]
-    return System(elements=[tumour], interactions=interactions)
+
+    field = 'biology/oncology'
+    topics = ('chemotherapy', 'virotherapy', 'combination therapy', 'oncolytic virus', 'ode')
+    references = (BOOK, 'Malinzi 2019')
+    until = 32.0
+    dt = 0.1
+
+    def __init__(
+        self,
+        AU: float = 1.0,
+        V: float = 0.1,
+        U: float = 0.1,
+        *,
+        u1: float = 10.0,
+        infusion: str = 'constant',
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.AU = AU
+        self.V = V
+        self.U = U
+        self.u1 = u1
+        self.infusion = infusion
+
+    @staticmethod
+    def _infusion_shape(s: SimpleNamespace, infusion: str) -> Expression:
+        """Return the shape in time of an infusion.
+
+        The infusion is constant, exponentially decaying, or periodic.
+        """
+        shapes = {'constant': 1, 'exponential': exp(-s.target.d_u * s.t), 'periodic': sin(s.target.d_u * s.t) ** 2}
+        shape: Expression = shapes[infusion]
+        return shape
+
+    def _build_system(self) -> System:
+        """Return the parts of tumour cells, an oncolytic virus, and a drug.
+
+        The tumour cells are uninfected and infected, and the drug is chemotherapeutic.
+        """
+        tumour = ChemovirotherapyTumourElement(
+            'tumour',
+            AU=self.AU,
+            V=self.V,
+            U=self.U,
+            u1=self.u1,
+            infusion=self.infusion,
+        )
+        interactions = [
+            RateInteraction(
+                'tumour_growth',
+                target='tumour',
+                state='AU',
+                rate=lambda s: s.target.r1 * s.target.AU * (1 - s.target.b * (s.target.AU + s.target.AV)),
+            ),
+            ReactionInteraction(
+                'infection',
+                target='tumour',
+                reactants={'AU': 1, 'V': 1},
+                products={'AV': 1},
+                propensity=lambda s: s.target.alpha * s.target.AU * s.target.V,
+            ),
+            ReactionInteraction(
+                'drug_kill',
+                target='tumour',
+                reactants={'AU': 1},
+                modifiers={'U': 1},
+                propensity=lambda s: s.target.a1 * s.target.AU * s.target.U,
+            ),
+            ReactionInteraction(
+                'lysis',
+                target='tumour',
+                reactants={'AV': 1},
+                propensity=lambda s: s.target.a2 * s.target.AV,
+            ),
+            ReactionInteraction(
+                'infected_drug_kill',
+                target='tumour',
+                reactants={'AV': 1},
+                modifiers={'U': 1},
+                propensity=lambda s: s.target.a3 * s.target.AV * s.target.U,
+            ),
+            RateInteraction(
+                'burst',
+                target='tumour',
+                state='V',
+                rate=lambda s: s.target.beta_v * s.target.a2 * s.target.AV,
+            ),
+            ReactionInteraction(
+                'virus_clearance',
+                target='tumour',
+                reactants={'V': 1},
+                propensity=lambda s: s.target.d1 * s.target.V,
+            ),
+            ReactionInteraction(
+                'drug_clearance',
+                target='tumour',
+                reactants={'U': 1},
+                propensity=lambda s: s.target.d_u * s.target.U,
+            ),
+            RateInteraction(
+                'infusion',
+                target='tumour',
+                state='U',
+                rate=lambda s: s.target.u1 * self._infusion_shape(s, self.infusion),
+            ),
+        ]
+        return System(self.label, elements=[tumour], interactions=interactions)
 
 
-@register_system(
-    field='biology/oncology',
-    tags=('chemotherapy', 'virotherapy', 'combination therapy', 'glioma', 'neurons', 'ode'),
-    references=(BOOK, 'Urenda-Cázares, Gallegos, and Macías-Díaz 2020', 'Iarosz et al. 2015'),
-    defaults={'until': 300.0, 'dt': 1.0},
-)
-def glioma_chemovirotherapy(
-    AU: float = 6e10,
-    V: float = 1e9,
-    *,
-    u1: float = 400.0,
-) -> System:
-    """Return glia, neurons, and a glioma under a constant temozolomide infusion and an oncolytic virus.
+class GliomaChemovirotherapySystem(BaseSystem):
+    """Glia, neurons, and a glioma under temozolomide and an oncolytic virus.
+
+    The temozolomide infusion is constant.
 
     Untreated, the glioma grows and crowds out the glia, and the neurons die with the glia. The virus or the drug clears
     the glioma, and the neurons survive. The drug also kills some neurons. The book gives no initial virus or drug, so
     the run starts with no drug and with a billion virions. Cells and virions are counted, the drug is in mg per m², and
-    time is in days.
+    time is in days. The system has the glia `brain.G`, the neurons `brain.N`, the glioma `brain.AU` and `brain.AV`, the
+    virus `brain.V`, and the drug `brain.U`.
 
     Args:
         AU:
@@ -1626,132 +1686,156 @@ def glioma_chemovirotherapy(
         u1:
             The infusion rate of temozolomide, in mg per m² per day, 0 for virotherapy alone.
 
-    Returns:
-        system:
-            The system, with the glia `brain.G`, the neurons `brain.N`, the glioma `brain.AU` and `brain.AV`, the virus
-            `brain.V`, and the drug `brain.U`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.oncology import glioma_chemovirotherapy
-        >>> glioma_chemovirotherapy(u1=0.0).elements[0].u1
+        >>> from skcomplex.systems.biology.oncology import GliomaChemovirotherapySystem
+        >>> GliomaChemovirotherapySystem(u1=0.0).prepare().system_.elements[0].u1
         0.0
     """
-    brain = GliomaBrainElement('brain', AU=AU, V=V, u1=u1)
-    interactions = [
-        RateInteraction(
-            'glia_growth',
-            target='brain',
-            state='G',
-            rate=lambda s: s.target.r1 * s.target.G * (1 - s.target.b * s.target.G),
-        ),
-        ReactionInteraction(
-            'glia_competition',
-            target='brain',
-            reactants={'G': 1},
-            modifiers={'AU': 1},
-            propensity=lambda s: s.target.c1 * s.target.G * s.target.AU,
-        ),
-        MichaelisMentenInteraction(
-            'glia_drug_kill',
-            target='brain',
-            reactants={'G': 1},
-            substrate='G',
-            vmax=lambda s: s.target.a1,
-            km=lambda s: s.target.g1,
-            modifiers={'U': 1},
-        ),
-        ReactionInteraction(
-            'neuron_loss',
-            target='brain',
-            reactants={'N': 1},
-            propensity=lambda s: -s.target.psi * where(_glia_rate(s.target) < 0, _glia_rate(s.target), 0) * s.target.N,
-        ),
-        MichaelisMentenInteraction(
-            'neuron_drug_kill',
-            target='brain',
-            reactants={'N': 1},
-            substrate='N',
-            vmax=lambda s: s.target.a2,
-            km=lambda s: s.target.g2,
-            modifiers={'U': 1},
-        ),
-        RateInteraction(
-            'glioma_growth',
-            target='brain',
-            state='AU',
-            rate=lambda s: s.target.r2 * s.target.AU * (1 - s.target.b * (s.target.AU + s.target.AV)),
-        ),
-        ReactionInteraction(
-            'glioma_competition',
-            target='brain',
-            reactants={'AU': 1},
-            modifiers={'G': 1},
-            propensity=lambda s: s.target.c2 * s.target.G * s.target.AU,
-        ),
-        MichaelisMentenInteraction(
-            'glioma_drug_kill',
-            target='brain',
-            reactants={'AU': 1},
-            substrate='AU',
-            vmax=lambda s: s.target.a3,
-            km=lambda s: s.target.g3,
-            modifiers={'U': 1},
-        ),
-        ReactionInteraction(
-            'infection',
-            target='brain',
-            reactants={'AU': 1, 'V': 1},
-            products={'AV': 1},
-            propensity=lambda s: s.target.alpha * s.target.AU * s.target.V,
-        ),
-        ReactionInteraction(
-            'lysis',
-            target='brain',
-            reactants={'AV': 1},
-            propensity=lambda s: s.target.a4 * s.target.AV,
-        ),
-        RateInteraction('burst', target='brain', state='V', rate=lambda s: s.target.beta_v * s.target.a4 * s.target.AV),
-        ReactionInteraction(
-            'virus_clearance',
-            target='brain',
-            reactants={'V': 1},
-            propensity=lambda s: s.target.d_u1 * s.target.V,
-        ),
-        ReactionInteraction(
-            'drug_clearance',
-            target='brain',
-            reactants={'U': 1},
-            propensity=lambda s: s.target.d_u2 * s.target.U,
-        ),
-        DosingInteraction('infusion', target='brain', state='U', dose=lambda s: s.target.u1),
-    ]
-    return System(elements=[brain], interactions=interactions)
+
+    field = 'biology/oncology'
+    topics = ('chemotherapy', 'virotherapy', 'combination therapy', 'glioma', 'neurons', 'ode')
+    references = (BOOK, 'Urenda-Cázares, Gallegos, and Macías-Díaz 2020', 'Iarosz et al. 2015')
+    until = 300.0
+    dt = 1.0
+
+    def __init__(
+        self,
+        AU: float = 6e10,
+        V: float = 1e9,
+        *,
+        u1: float = 400.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.AU = AU
+        self.V = V
+        self.u1 = u1
+
+    @staticmethod
+    def _glia_rate(target: SimpleNamespace) -> Expression:
+        """Return the net rate of the glia, whose decline kills neurons."""
+        G = target.G
+        rate: Expression = (
+            target.r1 * G * (1 - target.b * G) - target.c1 * G * target.AU - target.a1 * G * target.U / (target.g1 + G)
+        )
+        return rate
+
+    def _build_system(self) -> System:
+        """Return the parts of the system."""
+        brain = GliomaBrainElement('brain', AU=self.AU, V=self.V, u1=self.u1)
+        interactions = [
+            RateInteraction(
+                'glia_growth',
+                target='brain',
+                state='G',
+                rate=lambda s: s.target.r1 * s.target.G * (1 - s.target.b * s.target.G),
+            ),
+            ReactionInteraction(
+                'glia_competition',
+                target='brain',
+                reactants={'G': 1},
+                modifiers={'AU': 1},
+                propensity=lambda s: s.target.c1 * s.target.G * s.target.AU,
+            ),
+            MichaelisMentenInteraction(
+                'glia_drug_kill',
+                target='brain',
+                reactants={'G': 1},
+                substrate='G',
+                vmax=lambda s: s.target.a1,
+                km=lambda s: s.target.g1,
+                modifiers={'U': 1},
+            ),
+            ReactionInteraction(
+                'neuron_loss',
+                target='brain',
+                reactants={'N': 1},
+                propensity=lambda s: -s.target.psi
+                * where(self._glia_rate(s.target) < 0, self._glia_rate(s.target), 0)
+                * s.target.N,
+            ),
+            MichaelisMentenInteraction(
+                'neuron_drug_kill',
+                target='brain',
+                reactants={'N': 1},
+                substrate='N',
+                vmax=lambda s: s.target.a2,
+                km=lambda s: s.target.g2,
+                modifiers={'U': 1},
+            ),
+            RateInteraction(
+                'glioma_growth',
+                target='brain',
+                state='AU',
+                rate=lambda s: s.target.r2 * s.target.AU * (1 - s.target.b * (s.target.AU + s.target.AV)),
+            ),
+            ReactionInteraction(
+                'glioma_competition',
+                target='brain',
+                reactants={'AU': 1},
+                modifiers={'G': 1},
+                propensity=lambda s: s.target.c2 * s.target.G * s.target.AU,
+            ),
+            MichaelisMentenInteraction(
+                'glioma_drug_kill',
+                target='brain',
+                reactants={'AU': 1},
+                substrate='AU',
+                vmax=lambda s: s.target.a3,
+                km=lambda s: s.target.g3,
+                modifiers={'U': 1},
+            ),
+            ReactionInteraction(
+                'infection',
+                target='brain',
+                reactants={'AU': 1, 'V': 1},
+                products={'AV': 1},
+                propensity=lambda s: s.target.alpha * s.target.AU * s.target.V,
+            ),
+            ReactionInteraction(
+                'lysis',
+                target='brain',
+                reactants={'AV': 1},
+                propensity=lambda s: s.target.a4 * s.target.AV,
+            ),
+            RateInteraction(
+                'burst',
+                target='brain',
+                state='V',
+                rate=lambda s: s.target.beta_v * s.target.a4 * s.target.AV,
+            ),
+            ReactionInteraction(
+                'virus_clearance',
+                target='brain',
+                reactants={'V': 1},
+                propensity=lambda s: s.target.d_u1 * s.target.V,
+            ),
+            ReactionInteraction(
+                'drug_clearance',
+                target='brain',
+                reactants={'U': 1},
+                propensity=lambda s: s.target.d_u2 * s.target.U,
+            ),
+            DosingInteraction('infusion', target='brain', state='U', dose=lambda s: s.target.u1),
+        ]
+        return System(self.label, elements=[brain], interactions=interactions)
 
 
-@register_system(
-    field='biology/oncology',
-    tags=('chemotherapy', 'targeted therapy', 'combination therapy', 'HER2', 'antibody', 'ode'),
-    references=(BOOK, 'Jarrett et al. 2019'),
-    defaults={'until': 10.0, 'dt': 0.02, 'solver': ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)},
-)
-def her2_targeted_therapy(
-    A: float = 0.035,
-    *,
-    antibody: float = 0.2,
-    paclitaxel: float = 2.0,
-    t_antibody: float = 1.0,
-    t_a: float = 2.0,
-    t_p: float = 1.0,
-    sigma: float = 1.0,
-) -> System:
-    """Return HER2+ breast cancer cells under trastuzumab and paclitaxel, with antibody binding and drug uptake.
+class HER2TargetedTherapySystem(BaseSystem):
+    """HER2+ breast cancer cells under trastuzumab and paclitaxel.
+
+    The model includes antibody binding and drug uptake.
 
     The free antibody and the free paclitaxel are drivers held at their levels from their doses on. The antibody binds
     the receptors, which are in excess, so the bound antibody rises to the free antibody, and from the time `t_a` on it
     lowers the growth rate to `r (1 - a1 Ab)`. The paclitaxel enters the cells and briefly lowers the carrying capacity.
     The cytotoxicity falls from one at the dose, so `t_p` is the dose time. The book's units cannot hold 35,000 cells
     with a capacity of 0.67, so cells are counted in millions and the antibody in millions of molecules. The dose levels
-    and times are a choice. Time is in days.
+    and times are a choice. Time is in days. The system has the cells `tumour.A`, the bound antibody `tumour.Ab`, and
+    the internalized paclitaxel `tumour.Pin`.
 
     Args:
         A:
@@ -1775,58 +1859,72 @@ def her2_targeted_therapy(
         sigma:
             The synergy of the two drugs, 1 for none.
 
-    Returns:
-        system:
-            The system, with the cells `tumour.A`, the bound antibody `tumour.Ab`, and the internalized paclitaxel
-            `tumour.Pin`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.oncology import her2_targeted_therapy
-        >>> her2_targeted_therapy(sigma=1.5).elements[0].sigma
+        >>> from skcomplex.systems.biology.oncology import HER2TargetedTherapySystem
+        >>> HER2TargetedTherapySystem(sigma=1.5).prepare().system_.elements[0].sigma
         1.5
     """
-    tumour = Her2TumourElement(
-        'tumour',
-        A=A,
-        antibody=antibody,
-        paclitaxel=paclitaxel,
-        t_antibody=t_antibody,
-        t_a=t_a,
-        t_p=t_p,
-        sigma=sigma,
-    )
-    return System(elements=[tumour])
+
+    field = 'biology/oncology'
+    topics = ('chemotherapy', 'targeted therapy', 'combination therapy', 'HER2', 'antibody', 'ode')
+    references = (BOOK, 'Jarrett et al. 2019')
+    until = 10.0
+    dt = 0.02
+    solver = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
+
+    def __init__(
+        self,
+        A: float = 0.035,
+        *,
+        antibody: float = 0.2,
+        paclitaxel: float = 2.0,
+        t_antibody: float = 1.0,
+        t_a: float = 2.0,
+        t_p: float = 1.0,
+        sigma: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.A = A
+        self.antibody = antibody
+        self.paclitaxel = paclitaxel
+        self.t_antibody = t_antibody
+        self.t_a = t_a
+        self.t_p = t_p
+        self.sigma = sigma
+
+    def _build_system(self) -> System:
+        """Return the parts of HER2+ breast cancer cells under trastuzumab and paclitaxel."""
+        tumour = Her2TumourElement(
+            'tumour',
+            A=self.A,
+            antibody=self.antibody,
+            paclitaxel=self.paclitaxel,
+            t_antibody=self.t_antibody,
+            t_a=self.t_a,
+            t_p=self.t_p,
+            sigma=self.sigma,
+        )
+        return System(self.label, elements=[tumour])
 
 
-@register_system(
-    field='biology/oncology',
-    tags=('antiangiogenic therapy', 'immunotherapy', 'combination therapy', 'pharmacokinetics', 'resistance', 'ode'),
-    references=(BOOK, 'Teles and Lemos 2019', 'Hahnfeldt et al. 1999'),
-    defaults={'until': 150.0, 'dt': 0.25},
-    observables=lambda system: [ObservableSpec('toxicity', _total_toxicity)],
-)
-def angiogenesis_immunotherapy(
-    A: float = 5000.0,
-    Vb: float = 625.0,
-    E: float = 0.1,
-    *,
-    dose_an: float = 15.0,
-    dose_im: float = 20.0,
-    a2: float = 1.35,
-    a3: float = 0.1,
-    period: float = 21.0,
-    doses: int = 6,
-) -> System:
-    """Return the Hahnfeldt tumour with effector cells under bevacizumab and atezolizumab every three weeks.
+class AngiogenesisImmunotherapySystem(BaseSystem):
+    """The Hahnfeldt tumour with effector cells under bevacizumab and atezolizumab.
+
+    The drugs are given every three weeks.
 
     Each drug alone holds the tumour or slows it, and together they shrink it. The drug amounts follow the
-    two-compartment system whose bolus solution is the book's closed form, with the elimination rate
-    `k10 = alpha beta / k21`. The effector cells grow as `r1 (A - c1 A^2) E`, so `1 / c1` is the volume above which the
-    tumour suppresses them. The drug effects in the vasculature and effector balances are the saturating effects of
-    the book's pharmacodynamics. The resistance capacity `delta_r = 0.01` and its threshold `u_theta = 5` mg per kg
-    are a choice, since the book gives none. The toxicity of each drug is `exp(c / tox) - 1`, linear for a low amount
-    and exponential for a high one, and the observable `toxicity` is the mean of both. Volumes are in mm³, drug amounts
-    in mg per kg, and time is in days.
+    two-compartment system whose bolus solution is the book's closed form, with the elimination rate `k10 = alpha beta /
+    k21`. The effector cells grow as `r1 (A - c1 A^2) E`, so `1 / c1` is the volume above which the tumour suppresses
+    them. The drug effects in the vasculature and effector balances are the saturating effects of the book's
+    pharmacodynamics. The resistance capacity `delta_r = 0.01` and its threshold `u_theta = 5` mg per kg are a choice,
+    since the book gives none. The toxicity of each drug is `exp(c / tox) - 1`, linear for a low amount and exponential
+    for a high one, and the observable `toxicity` is the mean of both. Volumes are in mm³, drug amounts in mg per kg,
+    and time is in days. The system has the tumour `tumour.A`, the capacity `tumour.Vb`, the effector cells `tumour.E`,
+    the drug amounts `tumour.c_an` and `tumour.c_im`, and the observable `toxicity`.
 
     Args:
         A:
@@ -1856,149 +1954,202 @@ def angiogenesis_immunotherapy(
         doses:
             The number of doses.
 
-    Returns:
-        system:
-            The system, with the tumour `tumour.A`, the capacity `tumour.Vb`, the effector cells `tumour.E`, the drug
-            amounts `tumour.c_an` and `tumour.c_im`, and the observable `toxicity`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.oncology import angiogenesis_immunotherapy
-        >>> angiogenesis_immunotherapy(dose_an=0.0).elements[0].dose_an
+        >>> from skcomplex.systems.biology.oncology import AngiogenesisImmunotherapySystem
+        >>> AngiogenesisImmunotherapySystem(dose_an=0.0).prepare().system_.elements[0].dose_an
         0.0
     """
-    tumour = AngiogenesisImmunotherapyTumourElement(
-        'tumour',
-        A=A,
-        Vb=Vb,
-        E=E,
-        dose_an=dose_an,
-        dose_im=dose_im,
-        a2=a2,
-        a3=a3,
-        period=period,
-        doses=doses,
-    )
-    interactions = [
-        RateInteraction(
-            'tumour_growth',
-            target='tumour',
-            state='A',
-            rate=lambda s: -s.target.v1 * s.target.A * log(s.target.A / s.target.Vb),
-        ),
-        ReactionInteraction(
-            'immune_kill',
-            target='tumour',
-            reactants={'A': 1},
-            modifiers={'E': 1},
-            propensity=lambda s: s.target.a1 * s.target.A * s.target.E,
-        ),
-        ReactionInteraction(
-            'vessel_loss',
-            target='tumour',
-            reactants={'Vb': 1},
-            propensity=lambda s: s.target.v2 * s.target.Vb,
-        ),
-        RateInteraction('stimulation', target='tumour', state='Vb', rate=lambda s: s.target.xi_s * s.target.A),
-        ReactionInteraction(
-            'inhibition',
-            target='tumour',
-            reactants={'Vb': 1},
-            propensity=lambda s: s.target.xi_i * s.target.Vb * s.target.A ** (2 / 3),
-        ),
-        ReactionInteraction(
-            'pruning',
-            target='tumour',
-            reactants={'Vb': 1},
-            propensity=lambda s: s.target.a2 * s.target.Vb * _drug_effect(s.target, 'an'),
-        ),
-        RateInteraction(
-            'immune_growth',
-            target='tumour',
-            state='E',
-            rate=lambda s: s.target.r1 * (s.target.A - s.target.c1 * s.target.A**2) * s.target.E,
-        ),
-        ReactionInteraction(
-            'immune_death',
-            target='tumour',
-            reactants={'E': 1},
-            propensity=lambda s: s.target.d1 * s.target.E,
-        ),
-        RateInteraction('immune_source', target='tumour', state='E', rate=lambda s: s.target.s_e),
-        RateInteraction(
-            'immune_boost',
-            target='tumour',
-            state='E',
-            rate=lambda s: s.target.a3 * s.target.E * _drug_effect(s.target, 'im'),
-        ),
-        DosingInteraction(
-            'dosing_an',
-            target='tumour',
-            state='c_an',
-            dose=lambda s: s.target.dose_an / tumour.width,
-            period=tumour.period,
-            width=tumour.width,
-            count=tumour.doses,
-        ),
-        ReactionInteraction(
-            'elimination_an',
-            target='tumour',
-            reactants={'c_an': 1},
-            propensity=lambda s: _elimination(s.target, 'an') * s.target.c_an,
-        ),
-        ReactionInteraction(
-            'distribution_an',
-            target='tumour',
-            reactants={'c_an': 1},
-            products={'q_an': 1},
-            propensity=lambda s: s.target.k12_an * s.target.c_an,
-        ),
-        ReactionInteraction(
-            'redistribution_an',
-            target='tumour',
-            reactants={'q_an': 1},
-            products={'c_an': 1},
-            propensity=lambda s: s.target.k21_an * s.target.q_an,
-        ),
-        RateInteraction(
-            'resistance_an',
-            target='tumour',
-            state='R_an',
-            rate=lambda s: where(s.target.c_an < s.target.u_theta, s.target.u_theta - s.target.c_an, 0),
-        ),
-        DosingInteraction(
-            'dosing_im',
-            target='tumour',
-            state='c_im',
-            dose=lambda s: s.target.dose_im / tumour.width,
-            period=tumour.period,
-            width=tumour.width,
-            count=tumour.doses,
-        ),
-        ReactionInteraction(
-            'elimination_im',
-            target='tumour',
-            reactants={'c_im': 1},
-            propensity=lambda s: _elimination(s.target, 'im') * s.target.c_im,
-        ),
-        ReactionInteraction(
-            'distribution_im',
-            target='tumour',
-            reactants={'c_im': 1},
-            products={'q_im': 1},
-            propensity=lambda s: s.target.k12_im * s.target.c_im,
-        ),
-        ReactionInteraction(
-            'redistribution_im',
-            target='tumour',
-            reactants={'q_im': 1},
-            products={'c_im': 1},
-            propensity=lambda s: s.target.k21_im * s.target.q_im,
-        ),
-        RateInteraction(
-            'resistance_im',
-            target='tumour',
-            state='R_im',
-            rate=lambda s: where(s.target.c_im < s.target.u_theta, s.target.u_theta - s.target.c_im, 0),
-        ),
-    ]
-    return System(elements=[tumour], interactions=interactions)
+
+    field = 'biology/oncology'
+    topics = ('antiangiogenic therapy', 'immunotherapy', 'combination therapy', 'pharmacokinetics', 'resistance', 'ode')
+    references = (BOOK, 'Teles and Lemos 2019', 'Hahnfeldt et al. 1999')
+    until = 150.0
+    dt = 0.25
+    observables = (ObservableSpec('toxicity', _total_toxicity),)
+
+    def __init__(
+        self,
+        A: float = 5000.0,
+        Vb: float = 625.0,
+        E: float = 0.1,
+        *,
+        dose_an: float = 15.0,
+        dose_im: float = 20.0,
+        a2: float = 1.35,
+        a3: float = 0.1,
+        period: float = 21.0,
+        doses: int = 6,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.A = A
+        self.Vb = Vb
+        self.E = E
+        self.dose_an = dose_an
+        self.dose_im = dose_im
+        self.a2 = a2
+        self.a3 = a3
+        self.period = period
+        self.doses = doses
+
+    @staticmethod
+    def _elimination(target: SimpleNamespace, drug: str) -> Expression:
+        """Return the elimination rate `k10 = alpha beta / k21` of a drug.
+
+        The drug is eliminated from its central compartment.
+        """
+        alpha, beta, k21 = (getattr(target, f'{name}_{drug}') for name in ('alpha', 'beta', 'k21'))
+        elimination: Expression = alpha * beta / k21
+        return elimination
+
+    @staticmethod
+    def _drug_effect(target: SimpleNamespace, drug: str) -> Expression:
+        """Return the Emax effect of a drug.
+
+        The resistance shifts its half-effect concentration.
+        """
+        c, R, u50 = (getattr(target, f'{name}_{drug}') for name in ('c', 'R', 'u50'))
+        effect: Expression = c**target.g / (((1 + target.delta_r * R) * u50) ** target.g + c**target.g)
+        return effect
+
+    def _build_system(self) -> System:
+        """Return the parts of the Hahnfeldt tumour."""
+        tumour = AngiogenesisImmunotherapyTumourElement(
+            'tumour',
+            A=self.A,
+            Vb=self.Vb,
+            E=self.E,
+            dose_an=self.dose_an,
+            dose_im=self.dose_im,
+            a2=self.a2,
+            a3=self.a3,
+            period=self.period,
+            doses=self.doses,
+        )
+        interactions = [
+            RateInteraction(
+                'tumour_growth',
+                target='tumour',
+                state='A',
+                rate=lambda s: -s.target.v1 * s.target.A * log(s.target.A / s.target.Vb),
+            ),
+            ReactionInteraction(
+                'immune_kill',
+                target='tumour',
+                reactants={'A': 1},
+                modifiers={'E': 1},
+                propensity=lambda s: s.target.a1 * s.target.A * s.target.E,
+            ),
+            ReactionInteraction(
+                'vessel_loss',
+                target='tumour',
+                reactants={'Vb': 1},
+                propensity=lambda s: s.target.v2 * s.target.Vb,
+            ),
+            RateInteraction('stimulation', target='tumour', state='Vb', rate=lambda s: s.target.xi_s * s.target.A),
+            ReactionInteraction(
+                'inhibition',
+                target='tumour',
+                reactants={'Vb': 1},
+                propensity=lambda s: s.target.xi_i * s.target.Vb * s.target.A ** (2 / 3),
+            ),
+            ReactionInteraction(
+                'pruning',
+                target='tumour',
+                reactants={'Vb': 1},
+                propensity=lambda s: s.target.a2 * s.target.Vb * self._drug_effect(s.target, 'an'),
+            ),
+            RateInteraction(
+                'immune_growth',
+                target='tumour',
+                state='E',
+                rate=lambda s: s.target.r1 * (s.target.A - s.target.c1 * s.target.A**2) * s.target.E,
+            ),
+            ReactionInteraction(
+                'immune_death',
+                target='tumour',
+                reactants={'E': 1},
+                propensity=lambda s: s.target.d1 * s.target.E,
+            ),
+            RateInteraction('immune_source', target='tumour', state='E', rate=lambda s: s.target.s_e),
+            RateInteraction(
+                'immune_boost',
+                target='tumour',
+                state='E',
+                rate=lambda s: s.target.a3 * s.target.E * self._drug_effect(s.target, 'im'),
+            ),
+            DosingInteraction(
+                'dosing_an',
+                target='tumour',
+                state='c_an',
+                dose=lambda s: s.target.dose_an / tumour.width,
+                period=tumour.period,
+                width=tumour.width,
+                count=tumour.doses,
+            ),
+            ReactionInteraction(
+                'elimination_an',
+                target='tumour',
+                reactants={'c_an': 1},
+                propensity=lambda s: self._elimination(s.target, 'an') * s.target.c_an,
+            ),
+            ReactionInteraction(
+                'distribution_an',
+                target='tumour',
+                reactants={'c_an': 1},
+                products={'q_an': 1},
+                propensity=lambda s: s.target.k12_an * s.target.c_an,
+            ),
+            ReactionInteraction(
+                'redistribution_an',
+                target='tumour',
+                reactants={'q_an': 1},
+                products={'c_an': 1},
+                propensity=lambda s: s.target.k21_an * s.target.q_an,
+            ),
+            RateInteraction(
+                'resistance_an',
+                target='tumour',
+                state='R_an',
+                rate=lambda s: where(s.target.c_an < s.target.u_theta, s.target.u_theta - s.target.c_an, 0),
+            ),
+            DosingInteraction(
+                'dosing_im',
+                target='tumour',
+                state='c_im',
+                dose=lambda s: s.target.dose_im / tumour.width,
+                period=tumour.period,
+                width=tumour.width,
+                count=tumour.doses,
+            ),
+            ReactionInteraction(
+                'elimination_im',
+                target='tumour',
+                reactants={'c_im': 1},
+                propensity=lambda s: self._elimination(s.target, 'im') * s.target.c_im,
+            ),
+            ReactionInteraction(
+                'distribution_im',
+                target='tumour',
+                reactants={'c_im': 1},
+                products={'q_im': 1},
+                propensity=lambda s: s.target.k12_im * s.target.c_im,
+            ),
+            ReactionInteraction(
+                'redistribution_im',
+                target='tumour',
+                reactants={'q_im': 1},
+                products={'c_im': 1},
+                propensity=lambda s: s.target.k21_im * s.target.q_im,
+            ),
+            RateInteraction(
+                'resistance_im',
+                target='tumour',
+                state='R_im',
+                rate=lambda s: where(s.target.c_im < s.target.u_theta, s.target.u_theta - s.target.c_im, 0),
+            ),
+        ]
+        return System(self.label, elements=[tumour], interactions=interactions)

@@ -8,24 +8,24 @@ The view shows 50 birds, which end up crossing the plane together.
 """
 
 # %%
-# The system is created by name from the catalog with coupling `K = 1` and decay exponent `beta = 0.25`. The
+# The system is built from its class with coupling `K = 1` and decay exponent `beta = 0.25`. The
 # fourth-order Runge-Kutta stepper takes steps of 0.05 and the observer saves every frame of 0.1 with the default
 # blueprint, whose primary view shows the birds.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.active_matter import CuckerSmaleFlockingSystem
 
 SYSTEM = 'cucker_smale_flocking'
 
-system = create_system(SYSTEM, random_state=0)
+system = CuckerSmaleFlockingSystem(random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 solver = RK4Solver(dt=0.05)
-simulation = Simulation(system, solver=solver, dt=0.1, observers=[observer], random_state=0).prepare().run(until=20)
+trajectory = simulate(system, solver=solver, dt=0.1, observers=[observer], random_state=0)
 
 # %%
 # Unconditional flocking
@@ -37,14 +37,10 @@ simulation = Simulation(system, solver=solver, dt=0.1, observers=[observer], ran
 
 fig, ax = plt.subplots(figsize=(7, 4))
 for beta, color in ((0.25, 'tab:blue'), (1.5, 'tab:orange')):
-    run = (
-        Simulation(create_system(SYSTEM, beta=beta, random_state=1), solver=solver, dt=0.5, random_state=1)
-        .prepare()
-        .run(until=60)
-    )
-    velocities = run.trajectory_.values('birds.x_d1')
+    run = simulate(CuckerSmaleFlockingSystem(beta=beta, random_state=1), until=60, solver=solver, random_state=1)
+    velocities = run.values('birds.x_d1')
     spread = np.sqrt(np.mean(np.sum((velocities - velocities.mean(axis=1, keepdims=True)) ** 2, axis=-1), axis=1))
-    ax.semilogy(run.trajectory_.times, spread, color=color, label=f'beta = {beta}')
+    ax.semilogy(run.times, spread, color=color, label=f'beta = {beta}')
 ax.set_xlabel('time t')
 ax.set_ylabel('velocity spread about the mean')
 ax.set_title('Velocities align for beta < 1/2')

@@ -1,4 +1,7 @@
-"""Realizations shared by several mathematics systems: flows and the nodes of networks."""
+"""Realizations shared by several mathematics systems.
+
+The package holds flows and the nodes of networks.
+"""
 
 from ._network_node import NetworkNodeElement
 from ._regulated_node import RegulatedNodeElement

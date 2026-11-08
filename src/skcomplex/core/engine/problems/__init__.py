@@ -1,79 +1,20 @@
-"""Define what a system compiles to: the problem, its kernels, and the values the runtime reads."""
+"""Define what a system compiles to.
+
+A system compiles to the problem, its kernels, and the frames the runtime hands to observers. The problems of the
+library's forms and their kernels are private. The bases, the problem of the shared pass core, and the frames of a run
+stay public for the observers and the analyses that read them, and for a system package that brings a form of its own.
+"""
 
 from ._base import BaseKernel, BasePrinter, BaseSearch
 from ._base_problem_spec import BaseProblemSpec
-from ._block_spec import BlockSpec
-from ._collision_kernel import CollisionKernel
-from ._compiled_request_spec import CompiledRequestSpec
-from ._declarations_spec import DeclarationsSpec
-from ._diffusive_limit_spec import DiffusiveLimitSpec
-from ._expression_printer import ExpressionPrinter
 from ._frame_spec import FrameSpec
-from ._kernel_spec import KernelSpec
-from ._kinetic_problem_spec import KineticProblemSpec
-from ._learning_problem_spec import LearningProblemSpec
-from ._linear_program_kernel import LinearProgramKernel
-from ._linear_program_spec import (
-    LinearProgramDualSpec,
-    LinearProgramEntrySpec,
-    LinearProgramSideSpec,
-    LinearProgramSpec,
-)
-from ._linear_term_spec import LinearTermSpec
-from ._loop_term_spec import LoopTermSpec
-from ._lowered_kernels_spec import LoweredKernelsSpec
-from ._observed_spec import ObservedSpec
-from ._operator_problem_spec import OperatorProblemSpec
-from ._output_spec import OutputSpec
-from ._partition_spec import PartitionSpec
-from ._patch_kernel import PatchKernel
 from ._problem_spec import ProblemSpec
-from ._reduction_schedule_spec import ReductionScheduleSpec
-from ._reference_spec import ReferenceSpec
-from ._rewriting_problem_spec import RewritingProblemSpec
-from ._set_symbol_spec import SetSymbolSpec
-from ._source_loader import SourceLoader
-from ._symmetry_spec import SymmetrySpec
-from ._transfer_network_spec import TransferNetworkSpec
-from ._transfer_state_spec import TransferStateSpec
-from ._word_kernel import WordKernel
 
 __all__: list[str] = [
     'BaseKernel',
     'BasePrinter',
     'BaseProblemSpec',
     'BaseSearch',
-    'BlockSpec',
-    'CollisionKernel',
-    'CompiledRequestSpec',
-    'DeclarationsSpec',
-    'DiffusiveLimitSpec',
-    'ExpressionPrinter',
     'FrameSpec',
-    'KernelSpec',
-    'KineticProblemSpec',
-    'LearningProblemSpec',
-    'LinearProgramDualSpec',
-    'LinearProgramEntrySpec',
-    'LinearProgramKernel',
-    'LinearProgramSideSpec',
-    'LinearProgramSpec',
-    'LinearTermSpec',
-    'LoopTermSpec',
-    'LoweredKernelsSpec',
-    'ObservedSpec',
-    'OperatorProblemSpec',
-    'OutputSpec',
-    'PartitionSpec',
-    'PatchKernel',
     'ProblemSpec',
-    'ReductionScheduleSpec',
-    'ReferenceSpec',
-    'RewritingProblemSpec',
-    'SetSymbolSpec',
-    'SourceLoader',
-    'SymmetrySpec',
-    'TransferNetworkSpec',
-    'TransferStateSpec',
-    'WordKernel',
 ]

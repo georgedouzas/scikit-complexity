@@ -1,4 +1,7 @@
-"""Define diffusion, the conservation law whose flux is minus a coefficient times the gradient of the state."""
+"""Define diffusion.
+
+Diffusion is the conservation law whose flux is minus a coefficient times the gradient of the state.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -8,20 +11,23 @@ from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
 from ...errors import ValidationError
-from ...specs import RoleSpec
+from ...specs import RoleSpec, Tags
 from ...types import ElementKind
 from ..base import BasePart
 from ..laws import BaseLaw, FluxLaw, RateLaw
 from ..laws.utils import laplacian
+from ..spaces import BaseSpace
+from ._base import RATE_DOMAINS
 from ._conservation import ConservationInteraction
 
 
 class DiffusionInteraction(ConservationInteraction):
-    """Diffusion `du/dt = D laplacian(u)` of a state `u` of a field, the conservation law of the flux `-D gradient(u)`.
+    """Diffusion `du/dt = D laplacian(u)` of a state `u` of a field.
 
-    The coefficient `D` is uniform in space, a number or a function of the namespace that returns an expression of
-    parameters and time. The interaction lowers to the Laplacian of the field, which its discretization evaluates, so
-    the total of the state on a periodic field stays constant and a point mass spreads as the heat kernel.
+    It is the conservation law of the flux `-D gradient(u)`. The coefficient `D` is uniform in space, a number or a
+    function of the namespace that returns an expression of parameters and time. The interaction lowers to the Laplacian
+    of the field, which its discretization evaluates, so the total of the state on a periodic field stays constant and a
+    point mass spreads as the heat kernel.
 
     Args:
         label:
@@ -47,7 +53,7 @@ class DiffusionInteraction(ConservationInteraction):
         >>> from skcomplex.core.components.interactions import DiffusionInteraction
         >>> from skcomplex.core.components.spaces import LatticeSpace
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.specs import StateSpec
         >>> class CellElement(Element):
         ...     def __init__(self, label, u: Annotated[float, StateSpec()] = 0.0):
@@ -56,38 +62,48 @@ class DiffusionInteraction(ConservationInteraction):
         >>> space = LatticeSpace((40,), spacing=0.1, boundary='periodic')
         >>> field = FieldElement('rod', element=CellElement, space=space, values={'u': np.eye(40)[20]})
         >>> heat = DiffusionInteraction('heat', target='rod', state='u', coefficient=0.1)
-        >>> trajectory = Simulation(System(elements=[field], interactions=[heat]), dt=0.01).prepare()
-        >>> round(float(trajectory.run(until=1.0).trajectory_.values('rod.u')[-1].sum()), 6)
+        >>> trajectory = simulate(System(elements=[field], interactions=[heat]), until=1.0, dt=0.01)
+        >>> round(float(trajectory.values('rod.u')[-1].sum()), 6)
         1.0
     """
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (FluxLaw, RateLaw)
 
+    def _get_tags(self) -> Tags:
+        """Return the tags of the rate of diffusion."""
+        return self._get_variant_tags((RateLaw,))
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('state',))],
+        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('state',), domains=RATE_DOMAINS)],
         state: str = 'u',
         coefficient: Callable[[SimpleNamespace], object] | float = 1.0,
     ) -> None:
         super().__init__(label, target=target, state=state)
         self.coefficient = coefficient
 
-    def _check(self) -> None:
-        """Raise an error for a state that is not a name, or a coefficient that is neither callable nor a number.
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Raise an error for a state that is not a name, or an invalid coefficient.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The type declares states, the state is not a name, or the coefficient is neither callable nor a number.
         """
-        super()._check()
+        super()._prepare(context)
         if not (callable(self.coefficient) or isinstance(self.coefficient, int | float)):
             error_msg = f'The coefficient of {self.label!r} is {self.coefficient!r}. Give a function or a number.'
             raise ValidationError(error_msg)
 
     def _get_transport_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
-        """Return the rate `D laplacian(u)` of the state, the divergence of the diffusive flux.
+        """Return the rate `D laplacian(u)` of the state.
+
+        It is the divergence of the diffusive flux.
 
         Args:
             namespace:

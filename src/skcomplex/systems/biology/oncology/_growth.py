@@ -14,9 +14,8 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction, RateInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import minimum, pulse_train
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from ..common.populations import (
     ExponentialGrowthInteraction,
     GrowthInteraction,
@@ -28,7 +27,9 @@ GROWTH_REFERENCES = ('Padmanabhan, Meskin, and Al Moustafa 2021', 'Benzekry et a
 
 
 class VasculatureElement(Element):
-    """Vasculature of a tumour, which sets its carrying capacity.
+    """Vasculature of a tumour.
+
+    It sets the carrying capacity of the tumour.
 
     Args:
         label:
@@ -58,7 +59,9 @@ class VasculatureElement(Element):
 
 
 class ExponentialLinearGrowthInteraction(RateInteraction):
-    """Growth that is exponential, `dn/dt = r0 n`, until it reaches the linear rate `r`, and linear after.
+    """Growth that is exponential until it reaches a linear rate, and linear after.
+
+    The exponential growth is `dn/dt = r0 n`, and the linear rate is `r`.
 
     The switch happens at `tau = log(r / (r0 n0)) / r0`, where the two rates meet, so the solution is continuously
     differentiable.
@@ -110,7 +113,9 @@ class ExponentialLinearGrowthInteraction(RateInteraction):
 
 
 class LogKillInteraction(RateInteraction):
-    """Cell kill proportional to the tumour and to a drug exposure given in a train of rectangular doses.
+    """Cell kill proportional to the tumour and to a drug exposure.
+
+    The exposure is given in a train of rectangular doses.
 
     The kill is `dn/dt = -a n U(t)`, where the exposure `U` is `dose` for `width` time units every `period`, from
     `start` on. Without growth, every dose lowers `log n` by `a dose width`.
@@ -177,7 +182,9 @@ class LogKillInteraction(RateInteraction):
 
 
 class VascularSupportInteraction(Interaction):
-    """Gompertz growth under a carrying capacity that the vessels on the tumour surface raise.
+    """Gompertz growth under a carrying capacity that grows with the tumour.
+
+    The vessels on the tumour surface raise the capacity.
 
     The tumour follows `dn/dt = r n log(K / n)` and the capacity `dK/dt = d n^(2/3)`.
 
@@ -202,6 +209,8 @@ class VascularSupportInteraction(Interaction):
         >>> VascularSupportInteraction('support', tumour='tumour', vasculature='vessels').d
         0.829
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
@@ -234,7 +243,9 @@ class VascularSupportInteraction(Interaction):
 
 
 class GompertzGrowthInteraction(GrowthInteraction):
-    """Gompertz growth towards a capacity, `dn/dt = r n log(K / n(t - tau))`, without harvest.
+    """Gompertz growth towards a capacity, without harvest.
+
+    The growth is `dn/dt = r n log(K / n(t - tau))`.
 
     Args:
         label:
@@ -258,13 +269,13 @@ class GompertzGrowthInteraction(GrowthInteraction):
     Examples:
         >>> from skcomplex.core.components.elements import CompartmentElement
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.systems.biology.oncology import GompertzGrowthInteraction
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> system = System(
         ...     elements=[CompartmentElement('tumour', n=1.0)],
         ...     interactions=[GompertzGrowthInteraction('growth', target='tumour', r=1.0, K=20.0)],
         ... )
-        >>> trajectory = Simulation(system, dt=0.1).prepare().run(until=30.0).trajectory_
+        >>> trajectory = simulate(system, until=30.0, dt=0.1)
         >>> round(float(trajectory.values('tumour.n')[-1]), 3)
         20.0
     """
@@ -317,13 +328,13 @@ class PowerLawGrowthInteraction(GrowthInteraction):
     Examples:
         >>> from skcomplex.core.components.elements import CompartmentElement
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.systems.biology.oncology import PowerLawGrowthInteraction
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> system = System(
         ...     elements=[CompartmentElement('tumour', n=1.0)],
         ...     interactions=[PowerLawGrowthInteraction('growth', target='tumour', r=1.0, p=0.5)],
         ... )
-        >>> trajectory = Simulation(system, dt=0.01).prepare().run(until=2.0).trajectory_
+        >>> trajectory = simulate(system, until=2.0, dt=0.01)
         >>> round(float(trajectory.values('tumour.n')[-1]), 3)
         4.0
     """
@@ -353,16 +364,13 @@ class PowerLawGrowthInteraction(GrowthInteraction):
         return self._get_growth(namespace)
 
 
-@register_system(
-    field='biology/oncology',
-    tags=('tumour growth', 'ode', 'piecewise'),
-    references=GROWTH_REFERENCES,
-    defaults={'until': 40.0, 'dt': 0.2},
-)
-def exponential_linear_growth(n: float = 2.0, *, r0: float = 0.31, r: float = 67.8) -> System:
-    """Return a tumour that grows exponentially while small and linearly once its growth reaches a limiting rate.
+class ExponentialLinearGrowthSystem(BaseSystem):
+    """A tumour that grows exponentially while small and linearly later.
 
-    The defaults are the fit to breast cancer volumes in mm³ and days, which switches near day 15.
+    The growth turns linear once it reaches a limiting rate.
+
+    The defaults are the fit to breast cancer volumes in mm³ and days, which switches near day 15. The system has the
+    volume `tumour.n`.
 
     Args:
         n:
@@ -374,32 +382,50 @@ def exponential_linear_growth(n: float = 2.0, *, r0: float = 0.31, r: float = 67
         r:
             The linear growth rate.
 
-    Returns:
-        system:
-            The system, with the volume `tumour.n`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.oncology import exponential_linear_growth
-        >>> exponential_linear_growth().interactions[0].r0
+        >>> from skcomplex.systems.biology.oncology import ExponentialLinearGrowthSystem
+        >>> ExponentialLinearGrowthSystem().prepare().system_.interactions[0].r0
         0.31
     """
-    return System(
-        elements=[PopulationElement('tumour', n=n)],
-        interactions=[ExponentialLinearGrowthInteraction('growth', target='tumour', r0=r0, r=r)],
-    )
+
+    field = 'biology/oncology'
+    topics = ('tumour growth', 'ode', 'piecewise')
+    references = GROWTH_REFERENCES
+    until = 40.0
+    dt = 0.2
+
+    def __init__(
+        self,
+        n: float = 2.0,
+        *,
+        r0: float = 0.31,
+        r: float = 67.8,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n = n
+        self.r0 = r0
+        self.r = r
+
+    def _build_system(self) -> System:
+        """Return the parts of a tumour."""
+        return System(
+            self.label,
+            elements=[PopulationElement('tumour', n=self.n)],
+            interactions=[ExponentialLinearGrowthInteraction('growth', target='tumour', r0=self.r0, r=self.r)],
+        )
 
 
-@register_system(
-    field='biology/oncology',
-    tags=('tumour growth', 'ode', 'power law'),
-    references=GROWTH_REFERENCES,
-    defaults={'until': 40.0, 'dt': 0.2},
-)
-def power_law_growth(n: float = 10.0, *, r: float = 1.32, p: float = 0.58) -> System:
-    """Return a tumour whose proliferating part scales as a power of its size, `dn/dt = r n^p`.
+class PowerLawGrowthSystem(BaseSystem):
+    """A tumour whose proliferating part scales as a power of its size.
+
+    The growth is `dn/dt = r n^p`.
 
     For `p < 1` the volume follows `(n0^(1-p) + (1-p) r t)^(1/(1-p))`, a growth slower than exponential. The defaults
-    are the fit to breast cancer volumes in mm³ and days.
+    are the fit to breast cancer volumes in mm³ and days. The system has the volume `tumour.n`.
 
     Args:
         n:
@@ -411,31 +437,53 @@ def power_law_growth(n: float = 10.0, *, r: float = 1.32, p: float = 0.58) -> Sy
         p:
             The exponent.
 
-    Returns:
-        system:
-            The system, with the volume `tumour.n`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.oncology import power_law_growth
-        >>> power_law_growth(p=2 / 3).interactions[0].p
+        >>> from skcomplex.systems.biology.oncology import PowerLawGrowthSystem
+        >>> PowerLawGrowthSystem(p=2 / 3).prepare().system_.interactions[0].p
         0.6666666666666666
     """
-    return System(
-        elements=[PopulationElement('tumour', n=n)],
-        interactions=[PowerLawGrowthInteraction('growth', target='tumour', r=r, p=p)],
-    )
+
+    field = 'biology/oncology'
+    topics = ('tumour growth', 'ode', 'power law')
+    references = GROWTH_REFERENCES
+    until = 40.0
+    dt = 0.2
+
+    def __init__(
+        self,
+        n: float = 10.0,
+        *,
+        r: float = 1.32,
+        p: float = 0.58,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n = n
+        self.r = r
+        self.p = p
+
+    def _build_system(self) -> System:
+        """Return the parts of a tumour whose proliferating part scales as a power of its size.
+
+        The growth is `dn/dt = r n^p`.
+        """
+        return System(
+            self.label,
+            elements=[PopulationElement('tumour', n=self.n)],
+            interactions=[PowerLawGrowthInteraction('growth', target='tumour', r=self.r, p=self.p)],
+        )
 
 
-@register_system(
-    field='biology/oncology',
-    tags=('tumour growth', 'ode', 'allometry'),
-    references=(*GROWTH_REFERENCES, 'von Bertalanffy 1957'),
-    defaults={'until': 80.0, 'dt': 0.4},
-)
-def von_bertalanffy(n: float = 1.0, *, r: float = 2.32, p: float = 0.918, d: float = 0.808) -> System:
-    """Return a tumour that grows by the balance of anabolism and catabolism, `dn/dt = r n^p - d n`.
+class VonBertalanffySystem(BaseSystem):
+    """A tumour that grows by the balance of anabolism and catabolism.
 
-    The volume tends to `(r / d)^(1/(1-p))`. The defaults are the fit to breast cancer volumes in mm³ and days.
+    The growth is `dn/dt = r n^p - d n`.
+
+    The volume tends to `(r / d)^(1/(1-p))`. The defaults are the fit to breast cancer volumes in mm³ and days. The
+    system has the volume `tumour.n`.
 
     Args:
         n:
@@ -450,35 +498,58 @@ def von_bertalanffy(n: float = 1.0, *, r: float = 2.32, p: float = 0.918, d: flo
         d:
             The loss rate.
 
-    Returns:
-        system:
-            The system, with the volume `tumour.n`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.oncology import von_bertalanffy
-        >>> von_bertalanffy().interactions[1].d
+        >>> from skcomplex.systems.biology.oncology import VonBertalanffySystem
+        >>> VonBertalanffySystem().prepare().system_.interactions[1].d
         0.808
     """
-    return System(
-        elements=[PopulationElement('tumour', n=n)],
-        interactions=[
-            PowerLawGrowthInteraction('growth', target='tumour', r=r, p=p),
-            MortalityInteraction('loss', target='tumour', d=d),
-        ],
-    )
+
+    field = 'biology/oncology'
+    topics = ('tumour growth', 'ode', 'allometry')
+    references = (*GROWTH_REFERENCES, 'von Bertalanffy 1957')
+    until = 80.0
+    dt = 0.4
+
+    def __init__(
+        self,
+        n: float = 1.0,
+        *,
+        r: float = 2.32,
+        p: float = 0.918,
+        d: float = 0.808,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n = n
+        self.r = r
+        self.p = p
+        self.d = d
+
+    def _build_system(self) -> System:
+        """Return the parts of a tumour that grows by the balance of anabolism and catabolism.
+
+        The growth is `dn/dt = r n^p - d n`.
+        """
+        return System(
+            self.label,
+            elements=[PopulationElement('tumour', n=self.n)],
+            interactions=[
+                PowerLawGrowthInteraction('growth', target='tumour', r=self.r, p=self.p),
+                MortalityInteraction('loss', target='tumour', d=self.d),
+            ],
+        )
 
 
-@register_system(
-    field='biology/oncology',
-    tags=('tumour growth', 'ode', 'logistic', 'Richards'),
-    references=(*GROWTH_REFERENCES, 'Richards 1959'),
-    defaults={'until': 40.0, 'dt': 0.2},
-)
-def generalized_logistic(n: float = 10.0, *, r: float = 0.305, K: float = 1221.0, p: float = 1.0) -> System:
-    """Return a tumour that saturates at a carrying capacity, `dn/dt = r n (1 - (n / K)^p)`, logistic for `p = 1`.
+class GeneralizedLogisticSystem(BaseSystem):
+    """A tumour that saturates at a carrying capacity.
+
+    The growth is `dn/dt = r n (1 - (n / K)^p)`, logistic for `p = 1`.
 
     The volume follows `n0 K / (n0^p + (K^p - n0^p) exp(-r p t))^(1/p)`. The defaults are the logistic fit to breast
-    cancer volumes in mm³ and days.
+    cancer volumes in mm³ and days. The system has the volume `tumour.n`.
 
     Args:
         n:
@@ -493,32 +564,52 @@ def generalized_logistic(n: float = 10.0, *, r: float = 0.305, K: float = 1221.0
         p:
             The exponent of the saturation.
 
-    Returns:
-        system:
-            The system, with the volume `tumour.n`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.oncology import generalized_logistic
-        >>> generalized_logistic(p=0.5).interactions[0].p
+        >>> from skcomplex.systems.biology.oncology import GeneralizedLogisticSystem
+        >>> GeneralizedLogisticSystem(p=0.5).prepare().system_.interactions[0].p
         0.5
     """
-    return System(
-        elements=[PopulationElement('tumour', n=n)],
-        interactions=[GrowthInteraction('growth', target='tumour', r=r, K=K, p=p, form='logistic')],
-    )
+
+    field = 'biology/oncology'
+    topics = ('tumour growth', 'ode', 'logistic', 'Richards')
+    references = (*GROWTH_REFERENCES, 'Richards 1959')
+    until = 40.0
+    dt = 0.2
+
+    def __init__(
+        self,
+        n: float = 10.0,
+        *,
+        r: float = 0.305,
+        K: float = 1221.0,
+        p: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n = n
+        self.r = r
+        self.K = K
+        self.p = p
+
+    def _build_system(self) -> System:
+        """Return the parts of a tumour that saturates at a carrying capacity."""
+        return System(
+            self.label,
+            elements=[PopulationElement('tumour', n=self.n)],
+            interactions=[GrowthInteraction('growth', target='tumour', r=self.r, K=self.K, p=self.p, form='logistic')],
+        )
 
 
-@register_system(
-    field='biology/oncology',
-    tags=('tumour growth', 'ode', 'sigmoid'),
-    references=(*GROWTH_REFERENCES, 'Gompertz 1825'),
-    defaults={'until': 100.0, 'dt': 0.5},
-)
-def gompertz(n: float = 10.0, *, r: float = 0.0719, K: float = 1964.0) -> System:
-    """Return a tumour whose growth slows as the logarithm of the room left, `dn/dt = r n log(K / n)`.
+class GompertzSystem(BaseSystem):
+    """A tumour whose growth slows as the logarithm of the room left.
+
+    The growth is `dn/dt = r n log(K / n)`.
 
     The volume follows `K exp(log(n0 / K) exp(-r t))` and tends to `K`. The rate is the fitted decay of the
-    proliferation of breast cancer, per day, and the capacity is in mm³.
+    proliferation of breast cancer, per day, and the capacity is in mm³. The system has the volume `tumour.n`.
 
     Args:
         n:
@@ -530,33 +621,54 @@ def gompertz(n: float = 10.0, *, r: float = 0.0719, K: float = 1964.0) -> System
         K:
             The carrying capacity.
 
-    Returns:
-        system:
-            The system, with the volume `tumour.n`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.oncology import gompertz
-        >>> gompertz(K=1000.0).interactions[0].K
+        >>> from skcomplex.systems.biology.oncology import GompertzSystem
+        >>> GompertzSystem(K=1000.0).prepare().system_.interactions[0].K
         1000.0
     """
-    return System(
-        elements=[PopulationElement('tumour', n=n)],
-        interactions=[GompertzGrowthInteraction('growth', target='tumour', r=r, K=K)],
-    )
+
+    field = 'biology/oncology'
+    topics = ('tumour growth', 'ode', 'sigmoid')
+    references = (*GROWTH_REFERENCES, 'Gompertz 1825')
+    until = 100.0
+    dt = 0.5
+
+    def __init__(
+        self,
+        n: float = 10.0,
+        *,
+        r: float = 0.0719,
+        K: float = 1964.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n = n
+        self.r = r
+        self.K = K
+
+    def _build_system(self) -> System:
+        """Return the parts of a tumour whose growth slows as the room left shrinks.
+
+        The growth slows as the logarithm of the room left.
+        """
+        return System(
+            self.label,
+            elements=[PopulationElement('tumour', n=self.n)],
+            interactions=[GompertzGrowthInteraction('growth', target='tumour', r=self.r, K=self.K)],
+        )
 
 
-@register_system(
-    field='biology/oncology',
-    tags=('tumour growth', 'ode', 'angiogenesis', 'sigmoid'),
-    references=(*GROWTH_REFERENCES, 'Hahnfeldt et al. 1999'),
-    defaults={'until': 20.0, 'dt': 0.05},
-)
-def dynamic_carrying_capacity(n: float = 1.0, K: float = 12.7, *, r: float = 2.63, d: float = 0.829) -> System:
-    """Return Gompertz growth under a carrying capacity that the vessels on the tumour surface keep raising.
+class DynamicCarryingCapacitySystem(BaseSystem):
+    """Gompertz growth under a carrying capacity that keeps rising.
+
+    The vessels on the tumour surface keep raising the capacity.
 
     The tumour follows `dn/dt = r n log(K / n)` and the capacity `dK/dt = d n^(2/3)`, so the tumour first fills its
     initial capacity and then grows as fast as its vasculature, roughly as `t^3`. The defaults are the fit to breast
-    cancer volumes in mm³ and days.
+    cancer volumes in mm³ and days. The system has the volume `tumour.n` and the capacity `vessels.K`.
 
     Args:
         n:
@@ -571,41 +683,55 @@ def dynamic_carrying_capacity(n: float = 1.0, K: float = 12.7, *, r: float = 2.6
         d:
             The rate at which the surface of the tumour raises the capacity.
 
-    Returns:
-        system:
-            The system, with the volume `tumour.n` and the capacity `vessels.K`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.oncology import dynamic_carrying_capacity
-        >>> dynamic_carrying_capacity().elements[1].K
+        >>> from skcomplex.systems.biology.oncology import DynamicCarryingCapacitySystem
+        >>> DynamicCarryingCapacitySystem().prepare().system_.elements[1].K
         12.7
     """
-    return System(
-        elements=[PopulationElement('tumour', n=n), VasculatureElement('vessels', K=K)],
-        interactions=[VascularSupportInteraction('support', tumour='tumour', vasculature='vessels', r=r, d=d)],
-    )
+
+    field = 'biology/oncology'
+    topics = ('tumour growth', 'ode', 'angiogenesis', 'sigmoid')
+    references = (*GROWTH_REFERENCES, 'Hahnfeldt et al. 1999')
+    until = 20.0
+    dt = 0.05
+
+    def __init__(
+        self,
+        n: float = 1.0,
+        K: float = 12.7,
+        *,
+        r: float = 2.63,
+        d: float = 0.829,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n = n
+        self.K = K
+        self.r = r
+        self.d = d
+
+    def _build_system(self) -> System:
+        """Return the parts of Gompertz growth under a carrying capacity."""
+        return System(
+            self.label,
+            elements=[PopulationElement('tumour', n=self.n), VasculatureElement('vessels', K=self.K)],
+            interactions=[
+                VascularSupportInteraction('support', tumour='tumour', vasculature='vessels', r=self.r, d=self.d),
+            ],
+        )
 
 
-@register_system(
-    field='biology/oncology',
-    tags=('chemotherapy', 'ode', 'log kill', 'dosing'),
-    references=('Padmanabhan, Meskin, and Al Moustafa 2021', 'Skipper, Schabel, and Wilcox 1964'),
-    defaults={'until': 42.0, 'dt': 0.1},
-)
-def skipper_log_kill(
-    n: float = 1e6,
-    *,
-    r: float = 0.223,
-    a: float = 2.0,
-    dose: float = 1.0,
-    period: float = 7.0,
-    width: float = 1.0,
-) -> System:
-    """Return the log-kill system, an exponentially growing tumour of which every dose kills a fixed fraction.
+class SkipperLogKillSystem(BaseSystem):
+    """The log-kill system of an exponentially growing tumour.
 
-    The tumour follows `dn/dt = r n - a n U(t)`, where the exposure `U` is `dose` for `width` days every `period`
-    days. Every dose lowers `log n` by `a dose width`, whatever the size, and the tumour regrows between doses. The
-    growth rate is the exponential fit to breast cancer, per day.
+    Every dose kills a fixed fraction of the tumour.
+
+    The tumour follows `dn/dt = r n - a n U(t)`, where the exposure `U` is `dose` for `width` days every `period` days.
+    Every dose lowers `log n` by `a dose width`, whatever the size, and the tumour regrows between doses. The growth
+    rate is the exponential fit to breast cancer, per day. The system has the cells `tumour.n`.
 
     Args:
         n:
@@ -626,45 +752,67 @@ def skipper_log_kill(
         width:
             The duration of a dose.
 
-    Returns:
-        system:
-            The system, with the cells `tumour.n`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.oncology import skipper_log_kill
-        >>> skipper_log_kill(period=21.0).interactions[1].period
+        >>> from skcomplex.systems.biology.oncology import SkipperLogKillSystem
+        >>> SkipperLogKillSystem(period=21.0).prepare().system_.interactions[1].period
         21.0
     """
-    return System(
-        elements=[PopulationElement('tumour', n=n)],
-        interactions=[
-            ExponentialGrowthInteraction('growth', target='tumour', r=r),
-            LogKillInteraction('kill', target='tumour', a=a, dose=dose, period=period, width=width),
-        ],
-    )
+
+    field = 'biology/oncology'
+    topics = ('chemotherapy', 'ode', 'log kill', 'dosing')
+    references = ('Padmanabhan, Meskin, and Al Moustafa 2021', 'Skipper, Schabel, and Wilcox 1964')
+    until = 42.0
+    dt = 0.1
+
+    def __init__(
+        self,
+        n: float = 1e6,
+        *,
+        r: float = 0.223,
+        a: float = 2.0,
+        dose: float = 1.0,
+        period: float = 7.0,
+        width: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n = n
+        self.r = r
+        self.a = a
+        self.dose = dose
+        self.period = period
+        self.width = width
+
+    def _build_system(self) -> System:
+        """Return the parts of the log-kill system."""
+        return System(
+            self.label,
+            elements=[PopulationElement('tumour', n=self.n)],
+            interactions=[
+                ExponentialGrowthInteraction('growth', target='tumour', r=self.r),
+                LogKillInteraction(
+                    'kill',
+                    target='tumour',
+                    a=self.a,
+                    dose=self.dose,
+                    period=self.period,
+                    width=self.width,
+                ),
+            ],
+        )
 
 
-@register_system(
-    field='biology/oncology',
-    tags=('chemotherapy', 'ode', 'log kill', 'Gompertz', 'dosing'),
-    references=('Padmanabhan, Meskin, and Al Moustafa 2021', 'Norton and Simon 1977'),
-    defaults={'until': 150.0, 'dt': 0.5},
-)
-def norton_simon(
-    n: float = 100.0,
-    *,
-    r: float = 0.0719,
-    K: float = 1964.0,
-    a: float = 1.0,
-    dose: float = 1.0,
-    period: float = 21.0,
-    width: float = 1.0,
-    start: float = 42.0,
-) -> System:
-    """Return the Norton-Simon system, a Gompertzian tumour killed in proportion to its size by a dose schedule.
+class NortonSimonSystem(BaseSystem):
+    """The Norton-Simon system of a Gompertzian tumour under a dose schedule.
 
-    The tumour follows `dn/dt = r n log(K / n) - a n U(t)`. A Gompertzian tumour regrows faster the smaller it is, so
-    a dose that shrinks it is followed by fast regrowth, and the schedule settles on a cycle below the capacity.
+    The schedule kills the tumour in proportion to its size.
+
+    The tumour follows `dn/dt = r n log(K / n) - a n U(t)`. A Gompertzian tumour regrows faster the smaller it is, so a
+    dose that shrinks it is followed by fast regrowth, and the schedule settles on a cycle below the capacity. The
+    system has the volume `tumour.n`.
 
     Args:
         n:
@@ -691,19 +839,59 @@ def norton_simon(
         start:
             The time of the first dose.
 
-    Returns:
-        system:
-            The system, with the volume `tumour.n`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.oncology import norton_simon
-        >>> norton_simon().interactions[1].start
+        >>> from skcomplex.systems.biology.oncology import NortonSimonSystem
+        >>> NortonSimonSystem().prepare().system_.interactions[1].start
         42.0
     """
-    return System(
-        elements=[PopulationElement('tumour', n=n)],
-        interactions=[
-            GompertzGrowthInteraction('growth', target='tumour', r=r, K=K),
-            LogKillInteraction('kill', target='tumour', a=a, dose=dose, period=period, width=width, start=start),
-        ],
-    )
+
+    field = 'biology/oncology'
+    topics = ('chemotherapy', 'ode', 'log kill', 'Gompertz', 'dosing')
+    references = ('Padmanabhan, Meskin, and Al Moustafa 2021', 'Norton and Simon 1977')
+    until = 150.0
+    dt = 0.5
+
+    def __init__(
+        self,
+        n: float = 100.0,
+        *,
+        r: float = 0.0719,
+        K: float = 1964.0,
+        a: float = 1.0,
+        dose: float = 1.0,
+        period: float = 21.0,
+        width: float = 1.0,
+        start: float = 42.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n = n
+        self.r = r
+        self.K = K
+        self.a = a
+        self.dose = dose
+        self.period = period
+        self.width = width
+        self.start = start
+
+    def _build_system(self) -> System:
+        """Return the parts of the Norton-Simon system."""
+        return System(
+            self.label,
+            elements=[PopulationElement('tumour', n=self.n)],
+            interactions=[
+                GompertzGrowthInteraction('growth', target='tumour', r=self.r, K=self.K),
+                LogKillInteraction(
+                    'kill',
+                    target='tumour',
+                    a=self.a,
+                    dose=self.dose,
+                    period=self.period,
+                    width=self.width,
+                    start=self.start,
+                ),
+            ],
+        )

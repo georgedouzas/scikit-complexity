@@ -7,22 +7,22 @@ value: the battery discharges slowly through the disk.
 """
 
 # %%
-# The system is created by name from the catalog with the field `B = 1.5` and the motor torque `M = 4.8`, starting at
+# The system is built from its class with the field `B = 1.5` and the motor torque `M = 4.8`, starting at
 # rest, and runs for 50 time units. The default blueprint shows the current, the polarization voltage of the battery,
 # and the angular speed in one time series view.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.engineering.power_systems import FaradayDiskSystem
 
 SYSTEM = 'faraday_disk'
 
-system = create_system(SYSTEM)
+system = FaradayDiskSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=50)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # Steady states against the torque
@@ -33,11 +33,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(unti
 # the current oscillate instead, which the sweep stops short of.
 
 torques = np.linspace(3.0, 9.0, 13)
-speeds = [
-    Simulation(create_system(SYSTEM, M=torque), dt=0.1).prepare().run(until=50).trajectory_.values('charger.omega')[-1]
-    for torque in torques
-]
-trajectory = simulation.trajectory_
+speeds = [simulate(FaradayDiskSystem(M=torque)).values('charger.omega')[-1] for torque in torques]
 fig, (settling, speed) = plt.subplots(1, 2, figsize=(10, 4))
 settling.plot(trajectory.values('charger.omega'), trajectory.values('charger.I'))
 settling.plot(

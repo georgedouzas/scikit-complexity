@@ -16,33 +16,21 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.core.experiments import OrbitDiagramExperiment
-from skcomplex.systems import create_system
+from skcomplex.core.experiments import orbit_diagram
+from skcomplex.systems.mathematics.dynamical_systems import CircleMapSystem
 
 SYSTEM = 'circle_map'
 
 
 def winding_numbers(rotations, K):
     """Return the mean rotation per step of the lifted map after a transient, for every bare rotation."""
-    diagram = (
-        OrbitDiagramExperiment(
-            create_system(SYSTEM, K=K),
-            'map.Omega',
-            rotations,
-            'map.theta',
-            transient=100,
-            keep=500,
-            dt=1,
-        )
-        .prepare()
-        .run()
-    )
+    diagram = orbit_diagram(CircleMapSystem(K=K), 'map.Omega', rotations, 'map.theta', transient=100, keep=500, dt=1)
     return np.array(
         [
             np.mean(Omega - K / (2 * np.pi) * np.sin(2 * np.pi * theta))
-            for Omega, theta in zip(rotations, diagram.points_, strict=True)
+            for Omega, theta in zip(rotations, diagram.points, strict=True)
         ],
     )
 
@@ -66,7 +54,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create_system(SYSTEM), dt=1, observers=[observer]).prepare().run(until=100)
+trajectory = simulate(CircleMapSystem(), until=100, observers=[observer])
 rotations = np.linspace(0.0, 1.0, 201)
 critical = winding_numbers(rotations, K=1.0)
 points = np.column_stack([100 * rotations, -100 * critical])

@@ -6,7 +6,7 @@ kicks the response repeats exactly from one impulse to the next: a periodic, non
 """
 
 # %%
-# The system is created by name from the catalog with `L = C = 1`, `R = 0.1`, and impulses of strength 1 every
+# The system is built from its class with `L = C = 1`, `R = 0.1`, and impulses of strength 1 every
 # `T = 2`, and runs for 150 time units, long enough for the weak damping to remove the transient. The blueprint
 # shows only the response `x`, leaving out its rate and the clock of the impulses.
 
@@ -14,9 +14,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.engineering.circuits import ImpulsiveCircuitsSystem
 
 SYSTEM = 'impulsive_circuits'
 
@@ -34,9 +34,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM)
+system = ImpulsiveCircuitsSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=6)
-simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=150)
+trajectory = simulate(system, until=150, dt=0.1, observers=[observer])
 
 # %%
 # The periodic response
@@ -44,7 +44,6 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(unti
 # Just before every impulse the state should converge to the fixed point of the map over one period, so the values of
 # `x` and `x'` sampled once per period should settle, and the last periods of the response should lie on each other.
 
-trajectory = simulation.trajectory_
 x, rate = trajectory.values('circuit.x'), trajectory.values('circuit.x_d1')
 per_period = round(2.0 / 0.1)
 starts = np.arange(1, len(x) // per_period) * per_period - 1

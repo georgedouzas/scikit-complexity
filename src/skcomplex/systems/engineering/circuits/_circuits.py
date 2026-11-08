@@ -13,15 +13,16 @@ from ....core.components.elements import Element
 from ....core.components.interactions import ImpulseInteraction
 from ....core.components.laws import BaseLaw, EquationLaw, RateLaw
 from ....core.components.laws.utils import derivative, where
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import ScipyODESolver
 from ....core.errors import ParameterError
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class ChuaCircuitElement(Element):
     """Chua circuit with the piecewise-linear current of its diode."""
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
@@ -57,6 +58,8 @@ class ChuaCircuitElement(Element):
 class CircuitElement(Element):
     """RLC circuit whose charge follows `L q'' + R q' + q / C = V cos(ω t)`."""
 
+    law_classes = (EquationLaw,)
+
     def __init__(
         self,
         label: str,
@@ -87,7 +90,12 @@ class CircuitElement(Element):
 
 
 class KickedCircuitElement(Element):
-    """RLC circuit ringing down freely between the impulses of strength `A` that kick its rate."""
+    """RLC circuit ringing down freely between impulses.
+
+    The impulses of strength `A` kick its rate.
+    """
+
+    law_classes = (EquationLaw,)
 
     def __init__(
         self,
@@ -116,6 +124,8 @@ class KickedCircuitElement(Element):
 
 class MemristorCircuitElement(Element):
     """Oscillator built from a memristor, whose current depends on the flux through it."""
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
@@ -150,6 +160,8 @@ class MemristorCircuitElement(Element):
 
 class MixedModeChuaCircuitElement(Element):
     """Slow-fast Chua circuit whose oscillations mix small and large amplitudes."""
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
@@ -225,7 +237,10 @@ class MultiscrollChuaCircuitElement(Element):
 
     @staticmethod
     def _scroll_nonlinearity(x: Expression, a: Expression, b: Expression, c: Expression) -> Expression:
-        """Return the sine characteristic of the multiscroll Chua circuit, continued linearly beyond `|x| = 2 a c`."""
+        """Return the sine characteristic of the multiscroll Chua circuit.
+
+        It is continued linearly beyond `|x| = 2 a c`.
+        """
         edge = 2 * a * c
         slope = b * pi / (2 * a)
         return where(x >= edge, slope * (x - edge), where(x <= -edge, slope * (x + edge), -b * sin(pi * x / (2 * a))))
@@ -233,6 +248,8 @@ class MultiscrollChuaCircuitElement(Element):
 
 class TunnelDiodeCircuitElement(Element):
     """Oscillator of a tunnel diode with a cubic current, of the van der Pol type."""
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
@@ -265,23 +282,11 @@ class TunnelDiodeCircuitElement(Element):
 CHUA_NONLINEARITIES = ('piecewise-linear', 'sine')
 
 
-@register_system(
-    field='engineering/circuits',
-    tags=('electromagnetism', 'circuit', 'ode', 'second order'),
-    references=('Kirchhoff 1845',),
-    defaults={'until': 50.0, 'dt': 0.05},
-)
-def rlc_circuit(
-    q: float = 1.0,
-    current: float = 0.0,
-    *,
-    L: float = 1.0,
-    R: float = 0.1,
-    C: float = 1.0,
-    V: float = 0.0,
-    omega: float = 1.0,
-) -> System:
-    """Return a series RLC circuit written as Kirchhoff's voltage law, `L q'' + R q' + q / C = V cos(ω t)`.
+class RlcCircuitSystem(BaseSystem):
+    """A series RLC circuit written as Kirchhoff's voltage law.
+
+    The law is `L q'' + R q' + q / C = V cos(ω t)`. The system has the circuit `circuit`, whose charge has order 2 and
+    current `circuit.q_d1`.
 
     Args:
         q:
@@ -305,39 +310,69 @@ def rlc_circuit(
         omega:
             The angular frequency of the source.
 
-    Returns:
-        system:
-            The system, with the circuit `circuit`, whose charge has order 2 and current `circuit.q_d1`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.engineering.circuits import rlc_circuit
-        >>> rlc_circuit(R=0.5).elements[0].R
+        >>> from skcomplex.systems.engineering.circuits import RlcCircuitSystem
+        >>> RlcCircuitSystem(R=0.5).prepare().system_.elements[0].R
         0.5
     """
-    return System(elements=[CircuitElement('circuit', q=q, q_d1=current, L=L, R=R, C=C, V=V, omega=omega)])
+
+    field = 'engineering/circuits'
+    topics = ('electromagnetism', 'circuit', 'ode', 'second order')
+    references = ('Kirchhoff 1845',)
+    until = 50.0
+    dt = 0.05
+
+    def __init__(
+        self,
+        q: float = 1.0,
+        current: float = 0.0,
+        *,
+        L: float = 1.0,
+        R: float = 0.1,
+        C: float = 1.0,
+        V: float = 0.0,
+        omega: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.q = q
+        self.current = current
+        self.L = L
+        self.R = R
+        self.C = C
+        self.V = V
+        self.omega = omega
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        return System(
+            self.label,
+            elements=[
+                CircuitElement(
+                    'circuit',
+                    q=self.q,
+                    q_d1=self.current,
+                    L=self.L,
+                    R=self.R,
+                    C=self.C,
+                    V=self.V,
+                    omega=self.omega,
+                ),
+            ],
+        )
 
 
-@register_system(
-    field='engineering/circuits',
-    tags=('circuit', 'chaos', 'ode', 'attractor'),
-    references=('Chua, Komuro, and Matsumoto 1986', 'Tang et al. 2001', 'Trzaska 2023'),
-    defaults={'until': 100.0, 'dt': 0.05},
-)
-def chua(
-    x: float | None = None,
-    y: float | None = None,
-    z: float = 0.0,
-    *,
-    nonlinearity: str = 'piecewise-linear',
-    alpha: float | None = None,
-    beta: float | None = None,
-) -> System:
-    """Return Chua's circuit, whose double-scroll or multiscroll attractor is chaotic.
+class ChuaSystem(BaseSystem):
+    """Chua's circuit, whose double-scroll or multiscroll attractor is chaotic.
 
-    The voltages of the two capacitors and the current of the inductor, in dimensionless form, follow
-    `x' = alpha (y - f(x))`, `y' = x - y + z`, and `z' = -β y`. The piecewise-linear diode has
-    `f(x) = x + m1 x + (m0 - m1) (|x + 1| - |x - 1|) / 2`, which gives the double scroll. The sine diode has
-    `f(x) = -b sin(π x / (2 a))`, continued linearly beyond `|x| = 2 a c`, which gives several scrolls side by side.
+    The voltages of the two capacitors and the current of the inductor, in dimensionless form, follow `x' = alpha (y -
+    f(x))`, `y' = x - y + z`, and `z' = -β y`. The piecewise-linear diode has `f(x) = x + m1 x + (m0 - m1) (|x + 1| - |x
+    - 1|) / 2`, which gives the double scroll. The sine diode has `f(x) = -b sin(π x / (2 a))`, continued linearly
+    beyond `|x| = 2 a c`, which gives several scrolls side by side. The system has the states `circuit.x`, `circuit.y`,
+    and `circuit.z`.
 
     Args:
         x:
@@ -363,52 +398,62 @@ def chua(
             The ratio of the inductance to the second capacitance, or `None` for 28 with the piecewise-linear diode and
             14.286 with the sine diode.
 
-    Returns:
-        system:
-            The system, with the states `circuit.x`, `circuit.y`, and `circuit.z`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ParameterError:
             The nonlinearity is neither `'piecewise-linear'` nor `'sine'`.
 
     Examples:
-        >>> from skcomplex.systems.engineering.circuits import chua
-        >>> chua(nonlinearity='sine').elements[0].alpha
+        >>> from skcomplex.systems.engineering.circuits import ChuaSystem
+        >>> ChuaSystem(nonlinearity='sine').prepare().system_.elements[0].alpha
         10.82
     """
-    if nonlinearity not in CHUA_NONLINEARITIES:
-        error_msg = f"Unknown nonlinearity {nonlinearity!r}. Use 'piecewise-linear' or 'sine'."
-        raise ParameterError(error_msg)
-    element = ChuaCircuitElement if nonlinearity == 'piecewise-linear' else MultiscrollChuaCircuitElement
-    initial = {'x': x, 'y': y, 'alpha': alpha, 'beta': beta}
-    values: dict[str, float] = {name: value for name, value in initial.items() if value is not None}
-    return System(elements=[element('circuit', z=z).set_params(**values)])
+
+    field = 'engineering/circuits'
+    topics = ('circuit', 'chaos', 'ode', 'attractor')
+    references = ('Chua, Komuro, and Matsumoto 1986', 'Tang et al. 2001', 'Trzaska 2023')
+    until = 100.0
+    dt = 0.05
+
+    def __init__(
+        self,
+        x: float | None = None,
+        y: float | None = None,
+        z: float = 0.0,
+        *,
+        nonlinearity: str = 'piecewise-linear',
+        alpha: float | None = None,
+        beta: float | None = None,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.x = x
+        self.y = y
+        self.z = z
+        self.nonlinearity = nonlinearity
+        self.alpha = alpha
+        self.beta = beta
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        if self.nonlinearity not in CHUA_NONLINEARITIES:
+            error_msg = f"Unknown nonlinearity {self.nonlinearity!r}. Use 'piecewise-linear' or 'sine'."
+            raise ParameterError(error_msg)
+        element = ChuaCircuitElement if self.nonlinearity == 'piecewise-linear' else MultiscrollChuaCircuitElement
+        initial = {'x': self.x, 'y': self.y, 'alpha': self.alpha, 'beta': self.beta}
+        values: dict[str, float] = {name: value for name, value in initial.items() if value is not None}
+        return System(self.label, elements=[element('circuit', z=self.z).set_params(**values)])
 
 
-@register_system(
-    field='engineering/circuits',
-    tags=('circuit', 'mixed-mode oscillations', 'canards', 'slow-fast', 'ode'),
-    references=('Krupa, Popović, and Kopell 2008', 'Trzaska 2023'),
-    defaults={'until': 200.0, 'dt': 0.5, 'solver': ScipyODESolver(method='Radau')},
-)
-def mixed_mode_chua(
-    x: float = 0.01,
-    y: float = 0.0,
-    z: float = 0.0,
-    *,
-    epsilon: float = 0.01,
-    a: float = 1.5,
-    b: float = -1.0,
-    alpha: float = 1.0,
-    R: float = 0.0,
-    beta: float = 0.005,
-    c: float = 0.00053,
-) -> System:
-    """Return a modified Chua circuit on three time scales, whose oscillations mix small and large amplitudes.
+class MixedModeChuaSystem(BaseSystem):
+    """A modified Chua circuit on three time scales.
 
-    The circuit follows `ε x' = -y + (a + b x) x^2`, `y' = alpha (x - R y - z)`, and `z' = c - β y`. For `ε = 0.01`,
-    `a = 1.5`, `b = -1`, and `β = 0.005`, the circuit has small oscillations only for `c = 0`, large ones only for
-    `c = 0.00105`, and mixed-mode oscillations for `c = 0.00053`.
+    Its oscillations mix small and large amplitudes. The circuit follows `ε x' = -y + (a + b x) x^2`,
+    `y' = alpha (x - R y - z)`, and `z' = c - β y`. For `ε = 0.01`, `a = 1.5`, `b = -1`, and `β = 0.005`, the circuit
+    has small oscillations only for `c = 0`, large ones only for `c = 0.00105`, and mixed-mode oscillations for
+    `c = 0.00053`. The system has the states `circuit.x`, `circuit.y`, and `circuit.z`.
 
     Args:
         x:
@@ -441,52 +486,74 @@ def mixed_mode_chua(
         c:
             The offset of the controlled source.
 
-    Returns:
-        system:
-            The system, with the states `circuit.x`, `circuit.y`, and `circuit.z`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.engineering.circuits import mixed_mode_chua
-        >>> mixed_mode_chua(c=0.0).elements[0].c
+        >>> from skcomplex.systems.engineering.circuits import MixedModeChuaSystem
+        >>> MixedModeChuaSystem(c=0.0).prepare().system_.elements[0].c
         0.0
     """
-    circuit = MixedModeChuaCircuitElement(
-        'circuit',
-        x=x,
-        y=y,
-        z=z,
-        epsilon=epsilon,
-        a=a,
-        b=b,
-        alpha=alpha,
-        R=R,
-        beta=beta,
-        c=c,
-    )
-    return System(elements=[circuit])
+
+    field = 'engineering/circuits'
+    topics = ('circuit', 'mixed-mode oscillations', 'canards', 'slow-fast', 'ode')
+    references = ('Krupa, Popović, and Kopell 2008', 'Trzaska 2023')
+    until = 200.0
+    dt = 0.5
+    solver = ScipyODESolver(method='Radau')
+
+    def __init__(
+        self,
+        x: float = 0.01,
+        y: float = 0.0,
+        z: float = 0.0,
+        *,
+        epsilon: float = 0.01,
+        a: float = 1.5,
+        b: float = -1.0,
+        alpha: float = 1.0,
+        R: float = 0.0,
+        beta: float = 0.005,
+        c: float = 0.00053,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.x = x
+        self.y = y
+        self.z = z
+        self.epsilon = epsilon
+        self.a = a
+        self.b = b
+        self.alpha = alpha
+        self.R = R
+        self.beta = beta
+        self.c = c
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        circuit = MixedModeChuaCircuitElement(
+            'circuit',
+            x=self.x,
+            y=self.y,
+            z=self.z,
+            epsilon=self.epsilon,
+            a=self.a,
+            b=self.b,
+            alpha=self.alpha,
+            R=self.R,
+            beta=self.beta,
+            c=self.c,
+        )
+        return System(self.label, elements=[circuit])
 
 
-@register_system(
-    field='engineering/circuits',
-    tags=('circuit', 'memristor', 'chaos', 'ode'),
-    references=('Muthuswamy and Chua 2010', 'Trzaska 2023'),
-    defaults={'until': 200.0, 'dt': 0.1},
-)
-def memristor_oscillator(
-    v: float = 0.1,
-    i: float = 0.0,
-    w: float = 0.1,
-    *,
-    C: float = 1.0,
-    L: float = 3.0,
-    alpha: float = 0.6,
-    beta: float = 1.5,
-) -> System:
-    """Return the simplest memristor oscillator: a capacitor, an inductor, and a memristor in series.
+class MemristorOscillatorSystem(BaseSystem):
+    """The simplest memristor oscillator.
 
-    The capacitor voltage, the inductor current, and the internal state of the memristor follow `C v' = i`,
-    `L i' = -v - β (w^2 - 1) i`, and `w' = -i - alpha w + w i`. The memristor has the memristance `β (w^2 - 1)`, and the
-    circuit oscillates chaotically for the default values.
+    It is a capacitor, an inductor, and a memristor in series. The capacitor voltage, the inductor current, and the
+    internal state of the memristor follow `C v' = i`, `L i' = -v - β (w^2 - 1) i`, and `w' = -i - alpha w + w i`. The
+    memristor has the memristance `β (w^2 - 1)`, and the circuit oscillates chaotically for the default values. The
+    system has the states `circuit.v`, `circuit.i`, and `circuit.w`.
 
     Args:
         v:
@@ -510,38 +577,68 @@ def memristor_oscillator(
         beta:
             The scale of the memristance.
 
-    Returns:
-        system:
-            The system, with the states `circuit.v`, `circuit.i`, and `circuit.w`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.engineering.circuits import memristor_oscillator
-        >>> memristor_oscillator(L=2.0).elements[0].L
+        >>> from skcomplex.systems.engineering.circuits import MemristorOscillatorSystem
+        >>> MemristorOscillatorSystem(L=2.0).prepare().system_.elements[0].L
         2.0
     """
-    return System(elements=[MemristorCircuitElement('circuit', v=v, i=i, w=w, C=C, L=L, alpha=alpha, beta=beta)])
+
+    field = 'engineering/circuits'
+    topics = ('circuit', 'memristor', 'chaos', 'ode')
+    references = ('Muthuswamy and Chua 2010', 'Trzaska 2023')
+    until = 200.0
+    dt = 0.1
+
+    def __init__(
+        self,
+        v: float = 0.1,
+        i: float = 0.0,
+        w: float = 0.1,
+        *,
+        C: float = 1.0,
+        L: float = 3.0,
+        alpha: float = 0.6,
+        beta: float = 1.5,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.v = v
+        self.i = i
+        self.w = w
+        self.C = C
+        self.L = L
+        self.alpha = alpha
+        self.beta = beta
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        return System(
+            self.label,
+            elements=[
+                MemristorCircuitElement(
+                    'circuit',
+                    v=self.v,
+                    i=self.i,
+                    w=self.w,
+                    C=self.C,
+                    L=self.L,
+                    alpha=self.alpha,
+                    beta=self.beta,
+                ),
+            ],
+        )
 
 
-@register_system(
-    field='engineering/circuits',
-    tags=('circuit', 'oscillation', 'limit cycle', 'ode'),
-    references=('van der Pol 1926', 'Trzaska 2023'),
-    defaults={'until': 50.0, 'dt': 0.05},
-)
-def tunnel_diode_oscillator(
-    V: float = 0.1,
-    i: float = 0.0,
-    *,
-    L: float = 1.0,
-    C: float = 1.0,
-    alpha: float = 1.0,
-    gamma: float = 1.0,
-) -> System:
-    """Return a tunnel-diode oscillator: an inductor and a capacitor in parallel with a negative-resistance diode.
+class TunnelDiodeOscillatorSystem(BaseSystem):
+    """A tunnel-diode oscillator.
 
-    The diode current is `h(V) = gamma V^3 - alpha V`, so Kirchhoff's laws give `C V' = -h(V) - i` and `L i' = V`,
-    which is the van der Pol oscillator with `ε = alpha sqrt(L / C)`. The voltage settles on a limit cycle of
-    amplitude near `2 sqrt(alpha / (3 gamma))`.
+    It is an inductor and a capacitor in parallel with a negative-resistance diode. The diode current is
+    `h(V) = gamma V^3 - alpha V`, so Kirchhoff's laws give `C V' = -h(V) - i` and `L i' = V`, which is the van der Pol
+    oscillator with `ε = alpha sqrt(L / C)`. The voltage settles on a limit cycle of amplitude near
+    `2 sqrt(alpha / (3 gamma))`. The system has the voltage `circuit.V` and the inductor current `circuit.i`.
 
     Args:
         V:
@@ -562,38 +659,65 @@ def tunnel_diode_oscillator(
         gamma:
             The cubic coefficient of the diode.
 
-    Returns:
-        system:
-            The system, with the voltage `circuit.V` and the inductor current `circuit.i`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.engineering.circuits import tunnel_diode_oscillator
-        >>> tunnel_diode_oscillator(alpha=2.0).elements[0].alpha
+        >>> from skcomplex.systems.engineering.circuits import TunnelDiodeOscillatorSystem
+        >>> TunnelDiodeOscillatorSystem(alpha=2.0).prepare().system_.elements[0].alpha
         2.0
     """
-    return System(elements=[TunnelDiodeCircuitElement('circuit', V=V, i=i, L=L, C=C, alpha=alpha, gamma=gamma)])
+
+    field = 'engineering/circuits'
+    topics = ('circuit', 'oscillation', 'limit cycle', 'ode')
+    references = ('van der Pol 1926', 'Trzaska 2023')
+    until = 50.0
+    dt = 0.05
+
+    def __init__(
+        self,
+        V: float = 0.1,
+        i: float = 0.0,
+        *,
+        L: float = 1.0,
+        C: float = 1.0,
+        alpha: float = 1.0,
+        gamma: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.V = V
+        self.i = i
+        self.L = L
+        self.C = C
+        self.alpha = alpha
+        self.gamma = gamma
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        return System(
+            self.label,
+            elements=[
+                TunnelDiodeCircuitElement(
+                    'circuit',
+                    V=self.V,
+                    i=self.i,
+                    L=self.L,
+                    C=self.C,
+                    alpha=self.alpha,
+                    gamma=self.gamma,
+                ),
+            ],
+        )
 
 
-@register_system(
-    field='engineering/circuits',
-    tags=('circuit', 'impulses', 'events', 'hybrid'),
-    references=('Trzaska 2023',),
-    defaults={'until': 40.0, 'dt': 0.05},
-)
-def impulsive_circuits(
-    x: float = 0.0,
-    current: float = 0.0,
-    *,
-    L: float = 1.0,
-    R: float = 0.1,
-    C: float = 1.0,
-    A: float = 1.0,
-    T: float = 2.0,
-) -> System:
-    """Return an RLC circuit driven by a periodic train of current impulses, `L C x'' + R C x' + x = A Σ δ(t - k T)`.
+class ImpulsiveCircuitsSystem(BaseSystem):
+    """An RLC circuit driven by a periodic train of current impulses.
 
-    Every impulse is an event that raises the rate of change `x'` by `A / (L C)`, and between impulses the circuit
-    rings down freely. The response settles on a periodic, non-sinusoidal waveform of period `T`.
+    It follows `L C x'' + R C x' + x = A Σ δ(t - k T)`. Every impulse is an event that raises the rate of change `x'` by
+    `A / (L C)`, and between impulses the circuit rings down freely. The response settles on a periodic, non-sinusoidal
+    waveform of period `T`. The system has the response `circuit.x` and its rate `circuit.x_d1`, kicked by the impulses
+    `impulse`.
 
     Args:
         x:
@@ -617,16 +741,45 @@ def impulsive_circuits(
         T:
             The period of the impulses.
 
-    Returns:
-        system:
-            The system, with the response `circuit.x` and its rate `circuit.x_d1`, kicked by the impulses `impulse`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.engineering.circuits import impulsive_circuits
-        >>> impulsive_circuits(T=3.0).interactions[0].period
+        >>> from skcomplex.systems.engineering.circuits import ImpulsiveCircuitsSystem
+        >>> ImpulsiveCircuitsSystem(T=3.0).prepare().system_.interactions[0].period
         3.0
     """
-    circuit = KickedCircuitElement('circuit', x=x, x_d1=current, L=L, R=R, C=C, A=A)
-    kick = {'x_d1': lambda s: s.target.x_d1 + s.target.A / (s.target.L * s.target.C)}
-    impulse = ImpulseInteraction('impulse', target='circuit', reset=kick, period=T)
-    return System(elements=[circuit], interactions=[impulse])
+
+    field = 'engineering/circuits'
+    topics = ('circuit', 'impulses', 'events', 'hybrid')
+    references = ('Trzaska 2023',)
+    until = 40.0
+    dt = 0.05
+
+    def __init__(
+        self,
+        x: float = 0.0,
+        current: float = 0.0,
+        *,
+        L: float = 1.0,
+        R: float = 0.1,
+        C: float = 1.0,
+        A: float = 1.0,
+        T: float = 2.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.x = x
+        self.current = current
+        self.L = L
+        self.R = R
+        self.C = C
+        self.A = A
+        self.T = T
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        circuit = KickedCircuitElement('circuit', x=self.x, x_d1=self.current, L=self.L, R=self.R, C=self.C, A=self.A)
+        kick = {'x_d1': lambda s: s.target.x_d1 + s.target.A / (s.target.L * s.target.C)}
+        impulse = ImpulseInteraction('impulse', target='circuit', reset=kick, period=self.T)
+        return System(self.label, elements=[circuit], interactions=[impulse])

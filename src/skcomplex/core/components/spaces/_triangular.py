@@ -1,4 +1,7 @@
-"""Define triangular neighbourhoods, the six neighbours of a site of a triangular lattice."""
+"""Define triangular neighbourhoods.
+
+They are the six neighbours of a site of a triangular lattice.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,9 +14,10 @@ TRIANGULAR_OFFSETS = ((0, 1), (1, 0), (1, -1), (0, -1), (-1, 0), (-1, 1))
 
 
 class TriangularNeighborhood(LatticeNeighborhood):
-    """Six neighbours of a site of a triangular lattice, counterclockwise from the direction of the second axis.
+    """Six neighbours of a site of a triangular lattice, counterclockwise.
 
-    Direction `k` points at `60 k` degrees in the plane, so direction `k + 3` modulo 6 is opposite to direction `k`.
+    They start from the direction of the second axis. Direction `k` points at `60 k` degrees in the plane, so direction
+    `k + 3` modulo 6 is opposite to direction `k`.
 
     Args:
         center:

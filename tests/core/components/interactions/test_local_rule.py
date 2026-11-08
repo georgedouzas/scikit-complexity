@@ -9,7 +9,7 @@ from skcomplex.core.components.elements import Element, LatticeElement
 from skcomplex.core.components.interactions import LocalRuleInteraction
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace, VonNeumannNeighborhood
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import StateSpec, TableSpec, TotalisticSpec, VisualSpec
 
@@ -38,7 +38,7 @@ def _run(rule, until, values=None):
     initial[SIZE // 2] = 1.0
     cells = LatticeElement('cells', element=CellElement, space=LatticeSpace(SIZE), values=values or {'c': initial})
     system = System(elements=[cells], interactions=[rule], time=DiscreteTime())
-    return Simulation(system, random_state=0).prepare().run(until=until).trajectory_
+    return simulate(system, until=until, random_state=0)
 
 
 def test_totalistic_rule_of_the_neighbours_draws_rule_90():

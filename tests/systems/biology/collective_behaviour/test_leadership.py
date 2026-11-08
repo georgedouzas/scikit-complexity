@@ -7,13 +7,13 @@ import numpy as np
 from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import ContinuousSpace, DiscreteTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import PhaseSpec, PhasesScheduleSpec
 from skcomplex.systems.biology.collective_behaviour import (
+    CouzinLeadershipSystem,
     SchoolingInteraction,
     ShoalMemberElement,
     SwimmingInteraction,
-    couzin_leadership,
 )
 
 
@@ -21,12 +21,12 @@ def _accuracy(informed):
     """Return the mean cosine between the shoal's late heading and the preferred direction, over four shoals."""
     cosines = []
     for seed in range(4):
-        trajectory = Simulation(
-            couzin_leadership(30, informed=informed, random_state=seed),
+        trajectory = simulate(
+            CouzinLeadershipSystem(30, informed=informed, random_state=seed).prepare().system_,
+            until=150,
             dt=1,
             random_state=seed,
-        ).prepare()
-        trajectory = trajectory.run(150).trajectory_
+        )
         for frame in range(100, 151):
             snapshot = trajectory.agents('shoal', frame)
             heading = np.arctan2(np.mean(snapshot.values['vy']), np.mean(snapshot.values['vx']))
@@ -51,7 +51,7 @@ def test_swimming_interaction_turns_by_deviation_and_swims():
         interactions=[SwimmingInteraction('swimming', target='shoal')],
         space=ContinuousSpace(extent=(100.0, 100.0), boundary='periodic'),
     )
-    snapshot = Simulation(system, random_state=0).prepare().run(until=1).trajectory_.agents('shoal', 1)
+    snapshot = simulate(system, random_state=0, until=1).agents('shoal', 1)
     heading = [math.cos(0.5), math.sin(0.5)]
     np.testing.assert_allclose([snapshot.values['vx'][0], snapshot.values['vy'][0]], heading)
     np.testing.assert_allclose(snapshot.locations[0], np.mod([99.0 + 2 * heading[0], 1.0 + 2 * heading[1]], 100.0))
@@ -72,7 +72,7 @@ def _headings(locations):
         space=ContinuousSpace(extent=(100.0, 100.0), boundary='periodic'),
         time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('turn', activation='simultaneous')])),
     )
-    snapshot = Simulation(system, random_state=0).prepare().run(until=1).trajectory_.agents('shoal', 1)
+    snapshot = simulate(system, random_state=0, until=1).agents('shoal', 1)
     return np.stack([snapshot.values['vx'], snapshot.values['vy']], axis=1)
 
 

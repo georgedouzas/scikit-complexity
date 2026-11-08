@@ -5,11 +5,7 @@ import pytest
 
 from skcomplex.core.components.interactions import PairInteraction
 from skcomplex.core.engine.solvers import ScipyODESolver
-from skcomplex.systems import describe
-from skcomplex.systems.physics.synchronization import (
-    mirollo_strogatz,
-    winfree,
-)
+from skcomplex.systems.physics.synchronization import MirolloStrogatzSystem, WinfreeSystem
 
 from ..conftest import _run, _series
 from .conftest import _random_drift
@@ -17,7 +13,7 @@ from .conftest import _random_drift
 
 def test_winfree_mean_influence():
     """Test that the Winfree drift is the response to the mean influence, with no pair or self-influence term."""
-    system = winfree(50)
+    system = WinfreeSystem(50).prepare().system_
     assert len(system.interactions) == 1
     assert not isinstance(system.interactions[0], PairInteraction)
     problem, theta, rates = _random_drift(system)
@@ -29,11 +25,10 @@ def test_winfree_mean_influence():
 def test_winfree_oscillators_die_under_strong_coupling(K, dead):
     """Test that strong Winfree coupling stops the oscillators and weak coupling lets them turn."""
     trajectory = _run(
-        built := winfree(20, K=K),
+        WinfreeSystem(20, K=K),
         60.0,
         1.0,
         solver=ScipyODESolver(),
-        observables=describe('winfree').observables_of(built),
     )
     theta = _series(trajectory, 'oscillators.theta')[0]
     speed = np.abs(theta[-1] - theta[-2]).mean()
@@ -43,7 +38,7 @@ def test_winfree_oscillators_die_under_strong_coupling(K, dead):
 
 def test_mirollo_strogatz_oscillators_fire_in_unison():
     """Test that the integrate-and-fire oscillators, members of one group, end up firing in unison."""
-    system = mirollo_strogatz(6)
+    system = MirolloStrogatzSystem(6).prepare().system_
     assert system.elements[0].size == 6
     trajectory = _run(system, 30.0, 0.1, solver=ScipyODESolver())
     charges = _series(trajectory, 'oscillators.x')[0]

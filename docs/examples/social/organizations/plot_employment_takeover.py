@@ -7,21 +7,21 @@ whose border creeps for a while, then freezes after about forty steps.
 """
 
 # %%
-# The system is created by name from the catalog on a periodic 32 by 32 checkerboard, with half of the employers and
+# The system is built from its class on a periodic 32 by 32 checkerboard, with half of the employers and
 # half of the workers coloured at random, and runs for 50 steps. Naming the colour field as primary puts its view first.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.social.organizations import EmploymentTakeoverSystem
 
 SYSTEM = 'employment_takeover'
 
-system = create_system(SYSTEM, random_state=0)
+system = EmploymentTakeoverSystem(random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='cells/colour')
-simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=50)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # A frozen state
@@ -29,7 +29,6 @@ simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=
 # The rules are deterministic, so the run should reach a fixed point or a short cycle: the number of cells that change
 # colour should drop quickly and then reach zero, and the shares of coloured employers and workers should freeze.
 
-trajectory = simulation.trajectory_
 colours = trajectory.lattice('cells.colour')
 employers = trajectory.lattice('cells.employer')[0] > 0
 changes = np.sum(colours[1:] != colours[:-1], axis=(1, 2))

@@ -7,21 +7,20 @@ forever, rugged ones freeze it once every species sits on a peak at the same tim
 """
 
 # %%
-# The system is created by name from the catalog with ten species coupled to two partners each. The observer saves
-# every frame with the default blueprint, whose primary view is the count of species.
+# The system is built from its class with ten species coupled to two partners each. The observer saves every frame
+# with the default blueprint, whose primary view is the count of species.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.evolution import NKCSSystem
 
 SYSTEM = 'nkcs'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=200)
+trajectory = simulate(NKCSSystem(), observers=[observer], random_state=0)
 
 # %%
 # Frozen and chaotic regimes
@@ -30,7 +29,7 @@ simulation = Simulation(system, observers=[observer], random_state=0).prepare().
 
 fig, ax = plt.subplots(figsize=(8, 4.5))
 for k in (0, 2, 8):
-    run = Simulation(create_system(SYSTEM, k=k), random_state=0).prepare().run(until=200).trajectory_
+    run = simulate(NKCSSystem(k=k), random_state=0)
     moves = [run.agents('species', frame).values['moves'].sum() for frame in range(201)]
     ax.plot(np.convolve(moves, np.ones(10) / 10, mode='same'), label=f'k = {k}')
 ax.set_xlabel('step')

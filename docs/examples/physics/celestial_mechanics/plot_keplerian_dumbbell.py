@@ -13,15 +13,15 @@ body, like an elongated asteroid.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation, create_system
+from skcomplex.systems.physics.celestial_mechanics import KeplerianDumbbellSystem
 
 SYSTEM = 'keplerian_dumbbell'
 
-system = create_system(SYSTEM)
+system = KeplerianDumbbellSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=8)
-simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=60)
+simulation = simulate(system, observers=[observer])
 
 # %%
 # Exchange of angular momentum
@@ -29,8 +29,8 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(unt
 # The orbital angular momentum `u² theta'` and the spin `I phi'` should oscillate in opposite phase, while their sum,
 # the total angular momentum, stays constant to the accuracy of the solver.
 
-run = create_simulation(SYSTEM, epsilon=0.3, spin=1.5).prepare().run(until=60)
-trajectory = run.trajectory_
+run = simulate(KeplerianDumbbellSystem(epsilon=0.3, spin=1.5), until=60, random_state=0)
+trajectory = run
 times = np.asarray(trajectory.times)
 u, theta_rate, phi_rate = (np.ravel(trajectory.values(f'dumbbell.{name}')) for name in ('u', 'theta_d1', 'phi_d1'))
 inertia = 0.25 / 0.9 * 0.3**2

@@ -6,7 +6,8 @@ Record the quantities you care about at every frame, check that conserved ones s
 
 Record the quantities you care about at every frame, such as the order of a group of oscillators, beside the states of
 a run. An `ObservableSpec` is a label with an expression or a group reduction, which a run computes at every frame,
-records in trajectories under the path of the system, and logs to Rerun.
+records in the trajectory under the path of the system, and logs to Rerun. Pass observables to `simulate` with
+`observables`.
 
 ```python
 from typing import Annotated
@@ -17,7 +18,7 @@ from sage.all__sagemath_symbolics import I, exp, pi
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, StateSpec
 
 
@@ -48,7 +49,7 @@ def order_parameter(s):
 values = {'theta': np.linspace(0, 1, 100), 'omega': np.linspace(0.9, 1.1, 100)}
 oscillators = System(elements=[GroupElement('phases', element=OscillatorElement, size=100, values=values)])
 observables = [ObservableSpec('z', phase_vector, group='phases'), ObservableSpec('order', order_parameter)]
-order = Simulation(oscillators, dt=1.0, observables=observables).prepare().run(until=50).trajectory_.values('order')
+order = simulate(oscillators, until=50, dt=1.0, observables=observables).values('order')
 round(float(order[0]), 3), round(float(order[-1]), 3)
 ```
 
@@ -109,7 +110,7 @@ coupled = System(
     interactions=[MeanFieldInteraction('coupling', target='phases', X='X', Y='Y', K=2.0)],
 )
 observables = [ObservableSpec('X', cosine, group='phases'), ObservableSpec('Y', sine, group='phases')]
-synchronised = Simulation(coupled, dt=1.0, observables=observables).prepare().run(until=20).trajectory_
+synchronised = simulate(coupled, until=20, dt=1.0, observables=observables)
 round(float(synchronised.values('X')[-1]), 2)
 ```
 
@@ -126,7 +127,7 @@ When the law reads the value depends on where the observable and the law live:
 ## Visualizing with Rerun
 
 Watch a run live in the [Rerun](https://rerun.io) viewer, or save it to a file to open later. `RerunObserver` streams
-frames to a spawned viewer, a running viewer, or a `.rrd` file.
+frames to a spawned viewer, a running viewer, or a `.rrd` file. Pass it to `simulate` with `observers`.
 
 ```python
 import tempfile
@@ -136,7 +137,7 @@ from skcomplex.core.components.elements import PointElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 
 molecule = System(
@@ -148,7 +149,8 @@ molecule = System(
     space=ContinuousSpace(n_dim=3),
 )
 path = Path(tempfile.mkdtemp()) / 'molecule.rrd'
-Simulation(molecule, dt=0.02, observers=[RerunObserver('molecule', save_path=path)]).prepare().run(until=5)
+trajectory = simulate(molecule, until=5, dt=0.02, observers=[RerunObserver('molecule', save_path=path)])
+path.exists()
 ```
 
 Entity paths follow the system tree, each element type chooses its visual, and parameters appear under `parameters/`.
@@ -183,16 +185,16 @@ views that show what it logs, as its fitted attribute `views_`.
 ```python continuation
 import rerun.blueprint as rrb
 
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
-predation = create_system('lotka_volterra')
+predation = LotkaVolterraSystem()
 observer = RerunObserver('lotka_volterra', save_path=path.with_name('lotka_volterra.rrd'), blueprint='default')
-Simulation(predation, dt=0.1, observers=[observer]).prepare().run(until=20)
+simulate(predation, until=20, observers=[observer])
 type(observer.views_[0]).__name__
 sorted(file.name for file in path.parent.glob('lotka_volterra.*'))
 custom = rrb.Blueprint(rrb.TimeSeriesView(origin='/prey', name='prey'), collapse_panels=True)
 observer = RerunObserver('lotka_volterra', save_path=path.with_name('prey.rrd'), blueprint=custom)
-Simulation(predation, dt=0.1, observers=[observer]).prepare().run(until=20)
+simulate(predation, until=20, observers=[observer])
 path.with_name('prey.rbl').exists()
 ```
 

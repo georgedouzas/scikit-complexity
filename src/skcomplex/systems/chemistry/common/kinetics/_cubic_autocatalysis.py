@@ -1,4 +1,7 @@
-"""Define cubic autocatalysis, the reaction `A + 2B -> 3B` between two states of one reactor or of every site."""
+"""Define cubic autocatalysis, the reaction `A + 2B -> 3B`.
+
+It runs between two states of one reactor or of every site.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,7 +17,9 @@ from .....core.types import Stoichiometry
 
 
 class CubicAutocatalysisInteraction(ReactionInteraction):
-    """Cubic autocatalysis `A + 2B -> 3B` at the mass-action rate `k a b^2`, between two states of the target.
+    """Cubic autocatalysis `A + 2B -> 3B` at the mass-action rate `k a b^2`.
+
+    It runs between two states of the target.
 
     The autocatalyst `B` converts the substrate `A` into itself. The reaction is the autocatalytic step of the
     Gray-Scott system, with the substrate `u` and the autocatalyst `v`, and of the Brusselator and the Schnakenberg
@@ -46,13 +51,12 @@ class CubicAutocatalysisInteraction(ReactionInteraction):
 
     Examples:
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.chemistry.common.kinetics import CubicAutocatalysisInteraction
         >>> from skcomplex.systems.chemistry.kinetics import CubicAutocatalysisElement
         >>> reaction = CubicAutocatalysisInteraction('autocatalysis', target='reactor', substrate='a', autocatalyst='b')
         >>> reactor = CubicAutocatalysisElement('reactor', a=1.0, b=0.5)
-        >>> trajectory = Simulation(System(elements=[reactor], interactions=[reaction]), dt=1.0).prepare()
-        >>> states = trajectory.run(until=10).trajectory_.states
+        >>> states = simulate(System(elements=[reactor], interactions=[reaction]), until=10, dt=1.0).states
         >>> round(float(states[-1].sum()), 6)
         1.5
     """

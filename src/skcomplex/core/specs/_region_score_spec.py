@@ -12,15 +12,15 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class RegionScoreSpec(BaseSpec):
-    """Spec of an objective of a state of integer labels, whose sites of one label form a region.
+    """Spec of an objective of a state of integer labels.
 
-    The objective is `sum_<i,j> w_ij c(l_i, l_j) [l_i != l_j] + sum_l a_l (V_l - A_l)^2 + b_l (S_l - B_l)^2`, the
-    contact energy across the boundaries between regions and an elastic constraint on the volume and the surface of
-    every region. The first sum runs over the pairs of neighbouring sites `i` and `j` with the weight `w_ij` of their
-    contact, `l_i` is the label of site `i`, `V_l` the volume of region `l`, the sum of the volumes of its sites, and
-    `S_l` its surface, the sum of the weights of the contacts of its sites with sites of other labels. A label copy
-    changes the volumes and the surfaces of only the two regions it moves a site between, so a sampler keeps them as
-    totals per label that every accepted move updates.
+    The sites of one label form a region. The objective is `sum_<i,j> w_ij c(l_i, l_j) [l_i != l_j] + sum_l a_l (V_l -
+    A_l)^2 + b_l (S_l - B_l)^2`, the contact energy across the boundaries between regions and an elastic constraint on
+    the volume and the surface of every region. The first sum runs over the pairs of neighbouring sites `i` and `j` with
+    the weight `w_ij` of their contact, `l_i` is the label of site `i`, `V_l` the volume of region `l`, the sum of the
+    volumes of its sites, and `S_l` its surface, the sum of the weights of the contacts of its sites with sites of other
+    labels. A label copy changes the volumes and the surfaces of only the two regions it moves a site between, so a
+    sampler keeps them as totals per label that every accepted move updates.
 
     Args:
         contact:
@@ -58,7 +58,9 @@ class RegionScoreSpec(BaseSpec):
     hits: int = 1
 
     def _check(self) -> None:
-        """Raise an error for a contact or a constraint that is not callable, or a number of hits below 1.
+        """Raise an error for a contact or a constraint not callable, or a bad hit count.
+
+        The number of hits must be at least 1.
 
         Raises:
             ValidationError:

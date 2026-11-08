@@ -6,22 +6,21 @@ amplitude, because their equilibrium is unstable: the populations spiral away fr
 """
 
 # %%
-# The system is created by name from the catalog and started close to its equilibrium of about 27.7 hosts and 13.9
-# parasitoids. The observer saves every generation with the default blueprint, whose primary view is the time series
-# of both populations.
+# The system is built from its class and started close to its equilibrium of about 27.7 hosts and 13.9 parasitoids.
+# The observer saves every generation with the default blueprint, whose primary view is the time series of both
+# populations.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.ecology import NicholsonBaileySystem
 
 SYSTEM = 'nicholson_bailey'
 
-system = create_system(SYSTEM, hosts=25.0, parasitoids=12.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=30)
+trajectory = simulate(NicholsonBaileySystem(hosts=25.0, parasitoids=12.0), observers=[observer])
 
 # %%
 # An unstable spiral
@@ -29,7 +28,7 @@ simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=
 # The equilibrium is `H = k ln k / ((k - 1) a c)` and `P = ln k / a`. In the phase plane the generations should
 # spiral outwards from it, until a crash leaves almost no hosts and the parasitoids starve.
 
-hosts, parasitoids = simulation.trajectory_.values('hosts.n'), simulation.trajectory_.values('parasitoids.n')
+hosts, parasitoids = trajectory.values('hosts.n'), trajectory.values('parasitoids.n')
 before_crash = np.cumprod((hosts > 1) & (parasitoids > 1)).astype(bool)
 hosts, parasitoids = hosts[before_crash], parasitoids[before_crash]
 k, a, c = 2.0, 0.05, 1.0

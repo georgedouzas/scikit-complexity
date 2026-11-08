@@ -1,4 +1,7 @@
-"""Merge the linear program laws over shared variables, lower them, and make the functions of the problem solve them."""
+"""Merge, lower, and solve the linear program laws.
+
+The laws are merged over shared variables, and the functions of the problem solve them.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,17 +21,17 @@ from ....specs import IssueSpec, LayoutSpec, LinearObjectiveSpec, RunStateSpec
 from ....specs._base_spec import BaseSpec
 from ....types import Array, Indices
 from ..._utils import symbol, symbols_of
-from ...problems import (
-    ExpressionPrinter,
-    KernelSpec,
+from ...problems import ProblemSpec
+from ...problems._expression_printer import ExpressionPrinter
+from ...problems._kernel_spec import KernelSpec
+from ...problems._linear_program_kernel import LinearProgramKernel
+from ...problems._linear_program_spec import (
     LinearProgramDualSpec,
     LinearProgramEntrySpec,
-    LinearProgramKernel,
     LinearProgramSideSpec,
     LinearProgramSpec,
-    ProblemSpec,
-    ReferenceSpec,
 )
+from ...problems._reference_spec import ReferenceSpec
 from ...types import LinearProgramBound
 from .._base import BasePass
 from .._compilation import Compilation, Laws
@@ -41,7 +44,10 @@ ABSOLUTE = 'abs'
 
 @dataclass(frozen=True)
 class _BoundLawSpec(BaseSpec):
-    """Linear program law with the owner it belongs to and the kernel spec of the component that returns it."""
+    """Linear program law with its owner and the kernel spec that returns it.
+
+    The kernel spec is that of the component that returns the law.
+    """
 
     spec: KernelSpec
     law: LinearProgramLaw
@@ -57,7 +63,10 @@ class _LinearPartsSpec(BaseSpec):
 
 
 class LinearProgramsPass(BasePass):
-    """Pass that lowers the linear program laws of the owners of a compilation and solves them in its functions."""
+    """Pass that lowers the linear program laws of the owners of a compilation.
+
+    It solves them in its functions.
+    """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
@@ -89,7 +98,10 @@ class LinearProgramsPass(BasePass):
 
     @staticmethod
     def _value_offsets(compilation: Compilation) -> dict[int, tuple[int, int]]:
-        """Return the position of the first objective value and first dual of every law, by the identity of the law."""
+        """Return the position of the first objective value and dual of every law.
+
+        The positions are keyed by the identity of the law.
+        """
         counts: dict[tuple[str, str], int] = {}
         offsets = {}
         for bound in LinearProgramsPass._bound_laws(compilation, owned=False):
@@ -99,7 +111,10 @@ class LinearProgramsPass(BasePass):
 
     @staticmethod
     def _bound_laws(compilation: Compilation, *, owned: bool = True) -> list[_BoundLawSpec]:
-        """Return the linear program laws of the owners of a compilation, or of the whole system, with their owners."""
+        """Return the linear program laws with their owners.
+
+        They are the laws of the owners of a compilation, or of the whole system.
+        """
         laws: Laws = Compilation._required(compilation.programs, 'programs')
         found = [
             _BoundLawSpec(spec, law, CensusPass._law_owner(spec, law, set())) for spec, items in laws for law in items
@@ -109,7 +124,10 @@ class LinearProgramsPass(BasePass):
 
     @staticmethod
     def _key_of(spec: KernelSpec, item: Expression) -> _Key | None:
-        """Return what a symbol reads, the name of its state and its column, or `None` for no state."""
+        """Return what a symbol reads.
+
+        It is the name of its state and its column, or `None` for no state.
+        """
         reference = spec.references.get(item)
         return None if reference is None or not reference.is_state else (reference.entry.name, reference.column)
 
@@ -121,7 +139,10 @@ class LinearProgramsPass(BasePass):
 
     @staticmethod
     def _merged(bounds: Sequence[_BoundLawSpec]) -> list[list[_BoundLawSpec]]:
-        """Return the laws of every program: those whose variables overlap, directly or through another law."""
+        """Return the laws of every program.
+
+        A program holds the laws whose variables overlap, directly or through another law.
+        """
         graph = nx.Graph()
         for position, bound in enumerate(bounds):
             graph.add_node(('law', position))
@@ -133,13 +154,19 @@ class LinearProgramsPass(BasePass):
 
     @staticmethod
     def _columns_of(group: Sequence[_BoundLawSpec]) -> dict[_Key, int]:
-        """Return the column of every variable of a program, in the order the laws declare them."""
+        """Return the column of every variable of a program.
+
+        The columns follow the order the laws declare them.
+        """
         keys = [key for bound in group for key in LinearProgramsPass._variable_keys(bound)]
         return {key: position for position, key in enumerate(dict.fromkeys(keys))}
 
     @staticmethod
     def _symbols_in(spec: KernelSpec, expression: Expression, columns: Mapping[_Key, int]) -> dict[Expression, int]:
-        """Return the column of every symbol of an expression that reads a variable of a program."""
+        """Return the column of every symbol of an expression that reads a variable.
+
+        The variables are those of a program.
+        """
         found = {}
         for item in expression.variables():
             key = LinearProgramsPass._key_of(spec, item)
@@ -149,9 +176,10 @@ class LinearProgramsPass(BasePass):
 
     @staticmethod
     def _linear_parts(spec: KernelSpec, expression: Expression, columns: Mapping[_Key, int]) -> _LinearPartsSpec:
-        """Return the coefficient of every column of an expression and what is left when the variables are zero.
+        """Return the coefficients of an expression and what is left at zero variables.
 
-        The coefficients come from substitutions, since a condition in a bound has no derivative.
+        There is a coefficient for every column. The coefficients come from substitutions, since a condition in a bound
+        has no derivative.
         """
         symbols = LinearProgramsPass._symbols_in(spec, expression, columns)
         zero = dict.fromkeys(symbols, 0)
@@ -161,7 +189,10 @@ class LinearProgramsPass(BasePass):
 
     @staticmethod
     def _form_problem(spec: KernelSpec, expression: Expression, columns: Mapping[_Key, int]) -> str | None:
-        """Return what makes an expression not linear in the variables with coefficients free of states, or `None`."""
+        """Return what makes an expression not linear in the variables, or `None`.
+
+        The coefficients must be free of states.
+        """
         parts = LinearProgramsPass._linear_parts(spec, expression, columns)
         symbols = LinearProgramsPass._symbols_in(spec, expression, columns)
         names = {column: str(item) for item, column in symbols.items()}
@@ -191,7 +222,7 @@ class LinearProgramsPass(BasePass):
 
     @staticmethod
     def _form_issues(group: Sequence[_BoundLawSpec]) -> list[IssueSpec]:
-        """Return the relations and objectives of a program that are not linear in its variables."""
+        """Return the relations and objectives of a program not linear in its variables."""
         columns = LinearProgramsPass._columns_of(group)
         fix = 'Move the term to the right side or to a bound, and keep every coefficient of a variable free of states.'
         issues = []
@@ -263,7 +294,10 @@ class LinearProgramsPass(BasePass):
         objective: LinearObjectiveSpec,
         columns: Mapping[_Key, int],
     ) -> str | None:
-        """Return what keeps the absolute values of an objective from a split into parts, or `None`."""
+        """Return what keeps the absolute values of an objective from a split.
+
+        The absolute values split into parts, and the result is `None` when nothing keeps them.
+        """
         expression = SR(objective.expression)
         linear = LinearProgramsPass._without_absolutes(objective)
         for position, call in enumerate(BasePass._calls_of(expression, ABSOLUTE)):
@@ -284,7 +318,10 @@ class LinearProgramsPass(BasePass):
         references: Mapping[Expression, ReferenceSpec],
         time: Expression,
     ) -> tuple[Callable[..., list[npt.ArrayLike]] | None, tuple[ReferenceSpec, ...]]:
-        """Return the compiled function of the values of a program and the references it reads."""
+        """Return the compiled function of the values of a program and its references.
+
+        They are the references it reads.
+        """
         if not expressions:
             return None, ()
         arguments = sorted(symbols_of(list(expressions)) - {time}, key=str)
@@ -301,12 +338,18 @@ class LinearProgramsPass(BasePass):
         time: Expression,
         offsets: Mapping[int, tuple[int, int]],
     ) -> LinearProgramSpec:
-        """Return the program of laws that share variables, with its constant matrix and its compiled values."""
+        """Return the program of laws that share variables.
+
+        It holds its constant matrix and its compiled values.
+        """
         return _Lowering(group, states, time, offsets).lowered_program()
 
     @staticmethod
     def _solving_problem(problem: ProblemSpec, kernels: tuple[LinearProgramKernel, ...]) -> ProblemSpec:
-        """Return a problem whose functions solve the programs first, without a compiled shortcut around them."""
+        """Return a problem whose functions solve the programs first.
+
+        There is no compiled shortcut around them.
+        """
 
         def solved(t: float, x: Array, p: Array) -> Array:
             state = x
@@ -342,7 +385,10 @@ class LinearProgramsPass(BasePass):
 
 
 class _Lowering:
-    """Lowering of one program: a row per relation in several variables, a bound per relation in one."""
+    """Lowering of one program.
+
+    It makes a row per relation in several variables and a bound per relation in one.
+    """
 
     def __init__(
         self,
@@ -367,7 +413,10 @@ class _Lowering:
         return len(self._expressions) - 1
 
     def _set_bound(self, column: int, sense: object, coefficient: float, side: Expression) -> tuple[int, ...]:
-        """Add a relation in one variable with a number as its coefficient to the bounds, and return their kinds."""
+        """Add a relation in one variable with a number coefficient to the bounds.
+
+        It returns the kinds of the bounds.
+        """
         kinds: dict[object, tuple[int, ...]] = {
             operator.eq: (LinearProgramBound.COLUMN_LOWER, LinearProgramBound.COLUMN_UPPER),
             operator.le: (LinearProgramBound.COLUMN_UPPER,) if coefficient > 0 else (LinearProgramBound.COLUMN_LOWER,),
@@ -385,7 +434,10 @@ class _Lowering:
         return kinds[sense]
 
     def _add_row(self, coefficients: Mapping[int, Expression], sense: object, side: Expression, text: str) -> int:
-        """Add a row of a relation in several variables, or with a coefficient that reads parameters."""
+        """Add a row of a relation in several variables or a parametric coefficient.
+
+        A parametric coefficient reads parameters.
+        """
         row = len(self._row_lower)
         self._constraints.append(text)
         kinds: dict[object, tuple[int, ...]] = {
@@ -408,7 +460,10 @@ class _Lowering:
         return row
 
     def _add_relation(self, bound: _BoundLawSpec, relation: Expression, position: int) -> None:
-        """Add a relation of a law as a bound or a row, and the place of its dual when the law records it."""
+        """Add a relation of a law as a bound or a row, and the place of its dual.
+
+        The dual has a place when the law records it.
+        """
         spec = bound.spec
         parts = LinearProgramsPass._linear_parts(spec, relation.lhs() - relation.rhs(), self._columns)
         side = -parts.rest
@@ -439,7 +494,10 @@ class _Lowering:
             )
 
     def _objective_row(self, bound: _BoundLawSpec, objective: LinearObjectiveSpec, position: int) -> None:
-        """Add the costs of an objective, with parts for the absolute values of its variables."""
+        """Add the costs of an objective.
+
+        The absolute values of its variables get parts.
+        """
         spec = bound.spec
         expression = SR(objective.expression)
         linear = LinearProgramsPass._without_absolutes(objective)
@@ -547,7 +605,10 @@ class _Lowering:
         )
 
     def _names_and_indices(self) -> tuple[tuple[str, ...], tuple[Indices, ...]]:
-        """Return the name and the flat indices of every variable, the component in the name of a vector."""
+        """Return the name and the flat indices of every variable.
+
+        The name of a vector holds the component.
+        """
         names, indices = [], []
         for name, column in self._columns:
             entry = self.states.entry(name)

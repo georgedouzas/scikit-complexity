@@ -1,9 +1,13 @@
-"""Define local rule laws, the next values of lattice cells from the ordered values of their neighbourhoods."""
+"""Define local rule laws.
+
+They give the next values of lattice cells from the ordered values of their neighbourhoods.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 from collections.abc import Mapping
+from typing import ClassVar
 
 import numpy as np
 import numpy.typing as npt
@@ -31,7 +35,7 @@ TABLE_AXES = 2
 
 
 class LocalRuleLaw(BaseLaw):
-    """Next value of lattice cells computed from the ordered values of their neighbourhoods.
+    """Next value of lattice cells from the ordered values of their neighbourhoods.
 
     A function rule receives one array per neighbour of every read state, in neighbourhood order, with one value per
     site, and keyword arguments for the parameters of the element that it names, plus `random`, an array of uniform
@@ -92,6 +96,8 @@ class LocalRuleLaw(BaseLaw):
         [0, 1, 0, 1, 0, 0]
     """
 
+    law_tag: ClassVar[str] = 'update'
+
     def __init__(
         self,
         targets: Expression | tuple[Expression, ...],
@@ -117,24 +123,39 @@ class LocalRuleLaw(BaseLaw):
 
     @classmethod
     def _get_requirements(cls) -> RequirementSpec:
-        """Return what the rule requires of a system: discrete time on a lattice, a network, or a Cayley graph."""
+        """Return what the rule requires of a system.
+
+        It requires discrete time on a lattice, a network, or a Cayley graph.
+        """
         return RequirementSpec(time=(DiscreteTime,), space=(LatticeSpace, NetworkSpace, CayleySpace))
 
-    def _check(self) -> None:
-        """Raise an error for an unknown schedule or an invalid rule spec."""
+    def _prepare(self, context: str | None = None) -> None:
+        """Raise an error for an unknown schedule or an invalid rule spec.
+
+        Args:
+            context:
+                The path of the element or interaction that returns the law, or `None`.
+        """
+        super()._prepare(context)
         if self.schedule not in SCHEDULES:
             error_msg = f'Unknown schedule {self.schedule!r}. Use one of {", ".join(SCHEDULES)}.'
             raise ValidationError(error_msg)
         if isinstance(self.rule, BaseSpec):
-            self.rule._validated()
+            self.rule._check()
 
     def _get_rule(self) -> object:
-        """Return a rule code as its table, through its `table()` method, and any other rule unchanged."""
+        """Return a rule code as its table, and any other rule unchanged.
+
+        The table comes from its `table()` method.
+        """
         convert = getattr(self.rule, 'table', None)
         return convert() if not callable(self.rule) and callable(convert) else self.rule
 
     def _get_neighborhood(self) -> BaseNeighborhood:
-        """Return the neighbourhood the rule reads, with the site itself first for an outer totalistic rule."""
+        """Return the neighbourhood the rule reads.
+
+        For an outer totalistic rule, the site itself comes first.
+        """
         if not isinstance(self._get_rule(), OuterTotalisticSpec):
             return self.over
         if isinstance(self.over, MemoryNeighborhood):
@@ -146,7 +167,9 @@ class LocalRuleLaw(BaseLaw):
         return LatticeNeighborhood(((0,) * len(offsets[0]), *offsets))
 
     def _get_table(self, space: BaseSpace, values: npt.NDArray[np.generic]) -> IntArray:
-        """Return the neighbour table, or for a translated memory the table of every configuration at its values.
+        """Return the neighbour table.
+
+        For a translated memory, it is the table of every configuration at its values.
 
         Args:
             space:
@@ -170,7 +193,10 @@ class LocalRuleLaw(BaseLaw):
         return np.where(named[..., None], table, size)
 
     def _get_linear_values(self, *columns: npt.ArrayLike) -> npt.NDArray[np.generic]:
-        """Return the linear combination of one column of values per neighbour, reduced modulo the field size."""
+        """Return the linear combination of one column of values per neighbour.
+
+        It is reduced modulo the field size.
+        """
         rule = self._get_rule()
         if not isinstance(rule, LinearRuleSpec) or len(columns) != len(rule.coefficients):
             error_msg = f'The rule {rule!r} is not a linear rule of {len(columns)} neighbours.'
@@ -181,7 +207,7 @@ class LocalRuleLaw(BaseLaw):
 
     @staticmethod
     def _get_totalistic_values(rule: TotalisticSpec, patterns: IntArray) -> npt.NDArray[np.generic]:
-        """Return the next value of every row of neighbourhood values from the sum of the row."""
+        """Return the next value of every row of neighbourhood values from its sum."""
         sums = patterns.sum(axis=1)
         if callable(rule.rule):
             return np.broadcast_to(np.asarray(rule.rule(sums)), sums.shape)
@@ -189,7 +215,10 @@ class LocalRuleLaw(BaseLaw):
 
     @staticmethod
     def _get_outer_values(rule: OuterTotalisticSpec, patterns: IntArray) -> npt.NDArray[np.generic]:
-        """Return the next value of every row of neighbourhood values from its first cell and the sum of the others."""
+        """Return the next value of every row of neighbourhood values.
+
+        It comes from its first cell and the sum of the others.
+        """
         centers, sums = patterns[:, 0], patterns[:, 1:].sum(axis=1)
         if callable(rule.rule):
             return np.broadcast_to(np.asarray(rule.rule(centers, sums)), sums.shape)
@@ -197,7 +226,10 @@ class LocalRuleLaw(BaseLaw):
         return np.asarray([rule.rule.get(pair, rule.default) for pair in pairs])
 
     def _get_next_values(self, patterns: IntArray, **keywords: object) -> object:
-        """Return the next value of every row of neighbourhood values, in the order the rule reads its cells."""
+        """Return the next value of every row of neighbourhood values.
+
+        The cells are in the order the rule reads them.
+        """
         rule = self._get_rule()
         if isinstance(rule, LinearRuleSpec):
             return self._get_linear_values(*patterns.T)
@@ -217,13 +249,18 @@ class LocalRuleLaw(BaseLaw):
 
     @staticmethod
     def _get_cells(values: object, shape: tuple[int, ...]) -> npt.NDArray[np.generic]:
-        """Return next values in the shape of the cells, as integers when every one of them is an integer."""
+        """Return next values in the shape of the cells.
+
+        They are integers when every one of them is an integer.
+        """
         size = int(np.prod(shape))
         cells = np.broadcast_to(np.asarray(values, dtype=float), (size,)).reshape(shape)
         return cells.astype(np.int64) if np.all(cells == np.rint(cells)) else cells
 
     def _run(self, inputs: object) -> None:
-        """Set `value_` to the next values of the cells, a tuple of them for a law of several targets.
+        """Set `value_` to the next values of the cells.
+
+        A law of several targets sets a tuple of them.
 
         Args:
             inputs:

@@ -1,43 +1,46 @@
-"""Celestial mechanics: orbits under gravity and relativity, spin-orbit coupling, and charges in magnetic fields."""
+"""Celestial mechanics systems.
 
-from ._dipoles import DipoleChargeElement, stormer_problem
+The package covers orbits under gravity and relativity, spin-orbit coupling, and charges in magnetic fields.
+"""
+
+from ._dipoles import DipoleChargeElement, StormerProblemSystem
 from ._geodesics import (
     GeodesicParticleElement,
+    KerrFrameDraggingSystem,
     KerrSpace,
+    LightBendingSystem,
+    SchwarzschildPrecessionSystem,
     SchwarzschildSpace,
-    kerr_frame_dragging,
-    light_bending,
-    schwarzschild_precession,
 )
 from ._orbits import (
     KeplerBodyElement,
+    NBodySystem,
+    RestrictedThreeBodySystem,
     RotatingFrameBodyElement,
     SitnikovBodyElement,
-    n_body,
-    restricted_three_body,
-    sitnikov,
-    two_body_orbit,
+    SitnikovSystem,
+    TwoBodyOrbitSystem,
 )
-from ._spin_orbit import DumbbellElement, RelativisticOrbitElement, keplerian_dumbbell, relativistic_orbit
+from ._spin_orbit import DumbbellElement, KeplerianDumbbellSystem, RelativisticOrbitElement, RelativisticOrbitSystem
 
 __all__: list[str] = [
     'DipoleChargeElement',
     'DumbbellElement',
     'GeodesicParticleElement',
     'KeplerBodyElement',
+    'KeplerianDumbbellSystem',
+    'KerrFrameDraggingSystem',
     'KerrSpace',
+    'LightBendingSystem',
+    'NBodySystem',
     'RelativisticOrbitElement',
+    'RelativisticOrbitSystem',
+    'RestrictedThreeBodySystem',
     'RotatingFrameBodyElement',
+    'SchwarzschildPrecessionSystem',
     'SchwarzschildSpace',
     'SitnikovBodyElement',
-    'keplerian_dumbbell',
-    'kerr_frame_dragging',
-    'light_bending',
-    'n_body',
-    'relativistic_orbit',
-    'restricted_three_body',
-    'schwarzschild_precession',
-    'sitnikov',
-    'stormer_problem',
-    'two_body_orbit',
+    'SitnikovSystem',
+    'StormerProblemSystem',
+    'TwoBodyOrbitSystem',
 ]

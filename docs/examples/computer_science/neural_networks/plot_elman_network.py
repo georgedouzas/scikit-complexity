@@ -16,17 +16,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.engine.backends import NumpyBackend
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.specs import ObservableSpec
-from skcomplex.systems import create_system
+from skcomplex.systems.computer_science.neural_networks import ElmanNetworkSystem
 
 SYSTEM = 'elman_network'
 EPOCHS = 200
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-system = create_system(SYSTEM)
-trajectory = Simulation(system, observers=[observer], random_state=0).prepare().run(until=EPOCHS).trajectory_
+system = ElmanNetworkSystem()
+trajectory = simulate(system, until=EPOCHS, observers=[observer], random_state=0)
 
 # %%
 # Error at each position of the bit triple
@@ -43,15 +43,15 @@ def squared_error(member):
 
 def errors_by_position(frame, bits):
     """Return the mean squared error of the predictions at each position of the triple, with the weights of a frame."""
-    net = create_system(SYSTEM).systems[0]
+    net = ElmanNetworkSystem().prepare().system_.systems[0]
     for interaction, name in zip(net.interactions, ('D', 'A', 'W'), strict=True):
         interaction.set_params(**{name: trajectory.values(f'net/{interaction.label}.{name}')[frame]})
     net.elements[1].set_params(values={'b': trajectory.values('net/hidden.b')[frame]})
     net.elements[2].set_params(values={'c': trajectory.values('net/outputs.c')[frame]})
     schedule = {'inputs.x': lambda t: bits[round(t)], 'outputs.target': lambda t: bits[round(t)]}
     error = ObservableSpec('error', group='outputs', reduce='sum', expression=squared_error)
-    simulation = Simulation(net, backend=NumpyBackend(), schedule=schedule, observables=[error])
-    values = simulation.prepare().run(until=len(bits) - 1).trajectory_.values('error')
+    run = simulate(net, until=len(bits) - 1, backend=NumpyBackend(), schedule=schedule, observables=[error])
+    values = run.values('error')
     steps = np.arange(len(bits))
     return [values[(steps % 3 == position) & (steps > 3)].mean() for position in range(3)]
 

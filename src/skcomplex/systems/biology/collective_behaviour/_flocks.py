@@ -1,4 +1,4 @@
-"""Collective behaviour systems: flocks and swarms that move together."""
+"""Flocks and swarms that move together."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,12 +21,11 @@ from ....core.components.interactions import (
     RateInteraction,
 )
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ClampSpec, ParameterSpec, RadiusSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 
 class BoidView(AgentView):
@@ -49,7 +48,9 @@ class BoidView(AgentView):
 
 
 class BoidElement(Element):
-    """Boid of Reynolds, a bird that steers by three rules toward, away from, and along its neighbours.
+    """Boid of Reynolds, a bird that steers by three rules.
+
+    The rules steer it toward, away from, and along its neighbours.
 
     Every step a boid sees the boids within `radius`. `FlockingInteraction` steers it by cohesion toward their center,
     by separation away from those closer than `separation_radius`, and by alignment toward their mean velocity, with
@@ -140,7 +141,9 @@ class BoidElement(Element):
 
 
 class SpatialBoidView(AgentView):
-    """View of a boid in three dimensions, with its states and parameters as attributes.
+    """View of a boid in three dimensions.
+
+    The view has the states and parameters of the boid as attributes.
 
     `SpatialBoidElement` names this class with `_get_view`, so its rules read them with checked types.
     """
@@ -156,7 +159,9 @@ class SpatialBoidView(AgentView):
 
 
 class SpatialBoidElement(Element):
-    """Boid in three dimensions, a bird that steers by the velocity and the position of the boids it sees.
+    """Boid in three dimensions, a bird that steers by the boids it sees.
+
+    It steers by the velocity and the position of those boids.
 
     Every step `HeadingInteraction` steers a boid by cohesion, separation, and alignment with the boids within `radius`,
     with its speed between `min_speed` and `max_speed`, and `SpatialFlightInteraction` moves it along its velocity.
@@ -230,7 +235,9 @@ class SpatialBoidElement(Element):
 
 
 class FlightInteraction(MovementInteraction):
-    """Flight of every boid by its velocity `(vx, vy)` in one step, on the torus of side `width` by `height`.
+    """Flight of every boid by its velocity `(vx, vy)` in one step.
+
+    The boids fly on the torus of side `width` by `height`.
 
     Every boid moves in its own activation, after the rules and member interactions listed before it.
 
@@ -268,7 +275,9 @@ class FlightInteraction(MovementInteraction):
 
 
 class FlockingInteraction(CouplingInteraction):
-    """Reynolds' steering of every boid toward, away from, and along the boids it sees, with a bounded speed.
+    """Reynolds' steering of every boid by the boids it sees, with a bounded speed.
+
+    It steers a boid toward, away from, and along those boids.
 
     The velocity of a boid gains the mean offset to the boids within `radius` weighted by `cohesion`, loses the summed
     offset to the boids within `separation_radius` weighted by `separation`, and gains the mean difference of their
@@ -329,7 +338,9 @@ class FlockingInteraction(CouplingInteraction):
 
 
 class HeadingInteraction(MapInteraction):
-    """Steering of the velocity of every boid by cohesion, separation, and alignment, with a bounded speed.
+    """Steering of the velocity of every boid by cohesion, separation, and alignment.
+
+    The speed stays bounded.
 
     The velocity of a boid gains the mean offset to the boids within `radius` weighted by `cohesion`, loses the summed
     offset to the boids within `separation_radius` weighted by `separation`, and gains the mean difference of their
@@ -378,7 +389,10 @@ class HeadingInteraction(MapInteraction):
 
     @staticmethod
     def _steer(agent: AgentViewProtocol, system: SystemViewProtocol) -> Array:
-        """Return the velocity of a boid after one step of steering, with its speed clipped."""
+        """Return the velocity of a boid after one step of steering.
+
+        Its speed is clipped.
+        """
         boid = cast(SpatialBoidView, agent)
         others = [cast(SpatialBoidView, other) for other in boid.neighbors(boid.radius)]
         velocity = np.asarray(boid.velocity, dtype=float)
@@ -389,7 +403,9 @@ class HeadingInteraction(MapInteraction):
 
 
 class MorsePotentialInteraction(PairCouplingInteraction):
-    """Attraction at long range and repulsion at short range, `C_r exp(-r / l_r) - C_a exp(-r / l_a)`.
+    """Attraction at long range and repulsion at short range.
+
+    The potential is `C_r exp(-r / l_r) - C_a exp(-r / l_a)`.
 
     Args:
         label:
@@ -463,7 +479,9 @@ class MorsePotentialInteraction(PairCouplingInteraction):
 
 
 class SelfPropulsionInteraction(RateInteraction):
-    """Rayleigh self-propulsion, `v' = (alpha - beta |v|²) v`, which drives points to the speed `sqrt(alpha / beta)`.
+    """Rayleigh self-propulsion, `v' = (alpha - beta |v|²) v`.
+
+    It drives points to the speed `sqrt(alpha / beta)`.
 
     It is a rate on the position `x`, a state of order 2, whose velocity `v` is the first derivative `x_d1`.
 
@@ -514,7 +532,9 @@ class SelfPropulsionInteraction(RateInteraction):
 
 
 class SpatialFlightInteraction(MovementInteraction):
-    """Flight of every boid by its velocity in one step, with the boundary of its space acting on the new position.
+    """Flight of every boid by its velocity in one step.
+
+    The boundary of its space acts on the new position.
 
     Every boid moves in its own activation, after the rules and member interactions listed before it.
 
@@ -550,26 +570,14 @@ class SpatialFlightInteraction(MovementInteraction):
         return np.asarray(boid.location, dtype=float) + np.asarray(boid.velocity, dtype=float)
 
 
-@register_system(
-    field='biology/collective_behaviour',
-    tags=('agents', 'flocking', 'self-organization', 'continuous space'),
-    references=('Reynolds 1987', 'Downey 2018'),
-    defaults={'until': 100, 'dt': 1},
-)
-def boids(
-    n_boids: int = 40,
-    *,
-    size: float = 30.0,
-    radius: float = 5.0,
-    cohesion: float = 0.01,
-    separation: float = 0.1,
-    alignment: float = 0.1,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return Reynolds' boids in two dimensions, birds that flock by local rules without a leader.
+class BoidsSystem(BaseSystem):
+    """Reynolds' boids in two dimensions.
+
+    They are birds that flock by local rules without a leader.
 
     The boids start at random positions with random headings on a torus. Alignment makes neighbours fly in the same
     direction and cohesion pulls them together, so the flock becomes polarized while separation keeps the birds apart.
+    The system has the group `flock` and the velocities `vx` and `vy` of its boids.
 
     Args:
         n_boids:
@@ -593,61 +601,80 @@ def boids(
         random_state:
             The seed or generator of the initial positions and headings.
 
-    Returns:
-        system:
-            The system, with the group `flock` and the velocities `vx` and `vy` of its boids.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.collective_behaviour import boids
-        >>> boids(10).elements[0].prepare().size_
+        >>> from skcomplex.systems.biology.collective_behaviour import BoidsSystem
+        >>> BoidsSystem(10).prepare().system_.elements[0].prepare().size_
         10
     """
-    rng = np.random.default_rng(random_state)
-    headings = rng.uniform(0.0, 2 * math.pi, n_boids)
-    flock = GroupElement(
-        'flock',
-        element=BoidElement,
-        size=n_boids,
-        values={
-            'vx': np.cos(headings),
-            'vy': np.sin(headings),
-            'radius': radius,
-            'cohesion': cohesion,
-            'separation': separation,
-            'alignment': alignment,
-            'width': size,
-            'height': size,
-        },
-        location=[tuple(point) for point in rng.uniform(0.0, size, (n_boids, 2))],
-    )
-    interactions = [FlockingInteraction('flocking', target='flock'), FlightInteraction('flight', target='flock')]
-    return System(
-        elements=[flock],
-        interactions=interactions,
-        space=ContinuousSpace(extent=(size, size), boundary='periodic'),
-    )
+
+    field = 'biology/collective_behaviour'
+    topics = ('agents', 'flocking', 'self-organization', 'continuous space')
+    references = ('Reynolds 1987', 'Downey 2018')
+    until = 100
+    dt = 1
+
+    def __init__(
+        self,
+        n_boids: int = 40,
+        *,
+        size: float = 30.0,
+        radius: float = 5.0,
+        cohesion: float = 0.01,
+        separation: float = 0.1,
+        alignment: float = 0.1,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_boids = n_boids
+        self.size = size
+        self.radius = radius
+        self.cohesion = cohesion
+        self.separation = separation
+        self.alignment = alignment
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of Reynolds' boids in two dimensions.
+
+        The boids are birds that flock by local rules without a leader.
+        """
+        rng = np.random.default_rng(self.random_state)
+        headings = rng.uniform(0.0, 2 * math.pi, self.n_boids)
+        flock = GroupElement(
+            'flock',
+            element=BoidElement,
+            size=self.n_boids,
+            values={
+                'vx': np.cos(headings),
+                'vy': np.sin(headings),
+                'radius': self.radius,
+                'cohesion': self.cohesion,
+                'separation': self.separation,
+                'alignment': self.alignment,
+                'width': self.size,
+                'height': self.size,
+            },
+            location=[tuple(point) for point in rng.uniform(0.0, self.size, (self.n_boids, 2))],
+        )
+        interactions = [FlockingInteraction('flocking', target='flock'), FlightInteraction('flight', target='flock')]
+        return System(
+            self.label,
+            elements=[flock],
+            interactions=interactions,
+            space=ContinuousSpace(extent=(self.size, self.size), boundary='periodic'),
+        )
 
 
-@register_system(
-    field='biology/collective_behaviour',
-    tags=('agents', 'flocking', 'self-organization', 'continuous space', 'three dimensions'),
-    references=('Reynolds 1987', 'Downey 2018'),
-    defaults={'until': 100, 'dt': 1},
-)
-def boids_3d(
-    n_boids: int = 50,
-    *,
-    size: float = 20.0,
-    radius: float = 6.0,
-    cohesion: float = 0.01,
-    separation: float = 0.1,
-    alignment: float = 0.1,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return boids in three dimensions, birds that flock by local rules in a periodic cube.
+class Boids3dSystem(BaseSystem):
+    """Boids in three dimensions, birds that flock by local rules in a periodic cube.
 
     The boids start at random positions with random headings. Every step a boid steers by the boids within `radius` and
     then flies along its velocity, so with alignment alone the flock turns to one heading and keeps its spread in depth.
+    The system has the group `flock` and the vector state `velocity` of its boids.
 
     Args:
         n_boids:
@@ -671,62 +698,82 @@ def boids_3d(
         random_state:
             The seed or generator of the initial positions and headings.
 
-    Returns:
-        system:
-            The system, with the group `flock` and the vector state `velocity` of its boids.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.collective_behaviour import boids_3d
-        >>> boids_3d(10).space.extent
+        >>> from skcomplex.systems.biology.collective_behaviour import Boids3dSystem
+        >>> Boids3dSystem(10).prepare().system_.space.extent
         (20.0, 20.0, 20.0)
     """
-    rng = np.random.default_rng(random_state)
-    headings = rng.normal(size=(n_boids, 3))
-    flock = GroupElement(
-        'flock',
-        element=SpatialBoidElement,
-        size=n_boids,
-        values={
-            'velocity': headings / np.linalg.norm(headings, axis=1, keepdims=True),
-            'radius': radius,
-            'cohesion': cohesion,
-            'separation': separation,
-            'alignment': alignment,
-        },
-        location=[tuple(point) for point in rng.uniform(0.0, size, (n_boids, 3))],
-    )
-    interactions = [
-        HeadingInteraction('heading', target='flock'),
-        SpatialFlightInteraction('flight', target='flock'),
-    ]
-    return System(
-        elements=[flock],
-        interactions=interactions,
-        space=ContinuousSpace(extent=(size, size, size), boundary='periodic'),
-    )
+
+    field = 'biology/collective_behaviour'
+    topics = ('agents', 'flocking', 'self-organization', 'continuous space', 'three dimensions')
+    references = ('Reynolds 1987', 'Downey 2018')
+    until = 100
+    dt = 1
+
+    def __init__(
+        self,
+        n_boids: int = 50,
+        *,
+        size: float = 20.0,
+        radius: float = 6.0,
+        cohesion: float = 0.01,
+        separation: float = 0.1,
+        alignment: float = 0.1,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_boids = n_boids
+        self.size = size
+        self.radius = radius
+        self.cohesion = cohesion
+        self.separation = separation
+        self.alignment = alignment
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of Boids in three dimensions.
+
+        The boids are birds that flock by local rules in a periodic cube.
+        """
+        rng = np.random.default_rng(self.random_state)
+        headings = rng.normal(size=(self.n_boids, 3))
+        flock = GroupElement(
+            'flock',
+            element=SpatialBoidElement,
+            size=self.n_boids,
+            values={
+                'velocity': headings / np.linalg.norm(headings, axis=1, keepdims=True),
+                'radius': self.radius,
+                'cohesion': self.cohesion,
+                'separation': self.separation,
+                'alignment': self.alignment,
+            },
+            location=[tuple(point) for point in rng.uniform(0.0, self.size, (self.n_boids, 3))],
+        )
+        interactions = [
+            HeadingInteraction('heading', target='flock'),
+            SpatialFlightInteraction('flight', target='flock'),
+        ]
+        return System(
+            self.label,
+            elements=[flock],
+            interactions=interactions,
+            space=ContinuousSpace(extent=(self.size, self.size, self.size), boundary='periodic'),
+        )
 
 
-@register_system(
-    field='biology/collective_behaviour',
-    tags=('swarms', 'particles', 'active matter', 'self-propulsion'),
-    references=("D'Orsogna et al. 2006", 'Gros 2015'),
-    defaults={'until': 50.0, 'dt': 0.5},
-)
-def bird_swarm(
-    n_birds: int = 30,
-    *,
-    alpha: float = 1.0,
-    beta: float = 0.5,
-    C_a: float = 1.0,
-    l_a: float = 2.0,
-    C_r: float = 2.0,
-    l_r: float = 0.5,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return a swarm of self-propelled birds held together by a pair potential that attracts far and repels near.
+class BirdSwarmSystem(BaseSystem):
+    """A swarm of self-propelled birds held together by a pair potential.
+
+    The potential attracts far and repels near.
 
     Every bird is driven to the speed `sqrt(alpha / beta)` and feels the Morse-type potential of every other bird, so
-    the swarm stays together and organizes into a flock or a rotating mill.
+    the swarm stays together and organizes into a flock or a rotating mill. The system has the positions `birds.x` and
+    the velocities `birds.x_d1`.
 
     Args:
         n_birds:
@@ -753,27 +800,66 @@ def bird_swarm(
         random_state:
             The seed or generator of the initial positions and velocities.
 
-    Returns:
-        system:
-            The system, with the positions `birds.x` and the velocities `birds.x_d1`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.collective_behaviour import bird_swarm
-        >>> bird_swarm(5).elements[0].prepare().size_
+        >>> from skcomplex.systems.biology.collective_behaviour import BirdSwarmSystem
+        >>> BirdSwarmSystem(5).prepare().system_.elements[0].prepare().size_
         5
     """
-    rng = np.random.default_rng(random_state)
-    positions, velocities = rng.uniform(-3.0, 3.0, (n_birds, 2)), rng.normal(0.0, 1.0, (n_birds, 2))
-    birds = GroupElement('birds', element=PointElement, size=n_birds, values={'x': positions, 'x_d1': velocities})
-    potential = MorsePotentialInteraction(
-        'flocking',
-        first='birds',
-        second='birds',
-        cutoff=10 * l_a,
-        C_a=C_a,
-        l_a=l_a,
-        C_r=C_r,
-        l_r=l_r,
-    )
-    flight = SelfPropulsionInteraction('flight', target='birds', alpha=alpha, beta=beta)
-    return System(elements=[birds], interactions=[potential, flight], space=ContinuousSpace(n_dim=2))
+
+    field = 'biology/collective_behaviour'
+    topics = ('swarms', 'particles', 'active matter', 'self-propulsion')
+    references = ("D'Orsogna et al. 2006", 'Gros 2015')
+    until = 50.0
+    dt = 0.5
+
+    def __init__(
+        self,
+        n_birds: int = 30,
+        *,
+        alpha: float = 1.0,
+        beta: float = 0.5,
+        C_a: float = 1.0,
+        l_a: float = 2.0,
+        C_r: float = 2.0,
+        l_r: float = 0.5,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_birds = n_birds
+        self.alpha = alpha
+        self.beta = beta
+        self.C_a = C_a
+        self.l_a = l_a
+        self.C_r = C_r
+        self.l_r = l_r
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of a swarm of self-propelled birds.
+
+        A pair potential holds the birds together.
+        """
+        rng = np.random.default_rng(self.random_state)
+        positions, velocities = rng.uniform(-3.0, 3.0, (self.n_birds, 2)), rng.normal(0.0, 1.0, (self.n_birds, 2))
+        birds = GroupElement(
+            'birds',
+            element=PointElement,
+            size=self.n_birds,
+            values={'x': positions, 'x_d1': velocities},
+        )
+        potential = MorsePotentialInteraction(
+            'flocking',
+            first='birds',
+            second='birds',
+            cutoff=10 * self.l_a,
+            C_a=self.C_a,
+            l_a=self.l_a,
+            C_r=self.C_r,
+            l_r=self.l_r,
+        )
+        flight = SelfPropulsionInteraction('flight', target='birds', alpha=self.alpha, beta=self.beta)
+        return System(self.label, elements=[birds], interactions=[potential, flight], space=ContinuousSpace(n_dim=2))

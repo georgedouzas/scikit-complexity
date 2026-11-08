@@ -16,11 +16,11 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.analysis import LyapunovAnalysis
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.analysis import lyapunov
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.core.experiments import OrbitDiagramExperiment
-from skcomplex.systems import create_system, describe
+from skcomplex.core.experiments import orbit_diagram
+from skcomplex.systems.mathematics.dynamical_systems import TentMapSystem
 
 SYSTEM = 'tent_map'
 
@@ -43,23 +43,11 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create_system(SYSTEM), dt=1, observers=[observer]).prepare().run(until=200)
+trajectory = simulate(TentMapSystem(), observers=[observer])
 slopes = np.linspace(1.0, 2.0, 400)
-diagram = (
-    OrbitDiagramExperiment(
-        describe(SYSTEM).factory,
-        'map.mu',
-        slopes,
-        'map.x',
-        transient=500,
-        keep=100,
-        dt=1,
-    )
-    .prepare()
-    .run()
-)
+diagram = orbit_diagram(TentMapSystem(), 'map.mu', slopes, 'map.x', transient=500, keep=100, dt=1)
 points = np.array(
-    [(100 * mu, -100 * x) for mu, values in zip(diagram.values, diagram.points_, strict=True) for x in values],
+    [(100 * mu, -100 * x) for mu, values in zip(slopes, diagram.points, strict=True) for x in values],
 )
 observer.recording_.log('orbit_diagram', rr.Points2D(points, radii=0.12, colors=[90, 170, 255]), static=True)
 observer.recording_.flush()
@@ -71,18 +59,15 @@ observer.recording_.flush()
 # positive for all `mu > 1`, unlike the logistic map, whose exponent dips below 0 in periodic windows.
 
 sample = np.linspace(1.05, 1.99, 20)
-exponents = [
-    LyapunovAnalysis(until=2000, parameters={'map.mu': mu}).prepare(simulation.system).run().exponents_[0]
-    for mu in sample
-]
-fig, (orbits, lyapunov) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
+exponents = [lyapunov(TentMapSystem(), until=2000, parameters={'map.mu': mu}).exponents[0] for mu in sample]
+fig, (orbits, exponent_axes) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
 orbits.plot(points[:, 0] / 100, -points[:, 1] / 100, ',', color='C0')
 orbits.set_ylabel('long-run x')
 orbits.set_title('Orbit diagram and Lyapunov exponent of the tent map')
-lyapunov.plot(slopes, np.log(slopes), color='black', label='ln mu')
-lyapunov.plot(sample, exponents, 'o', color='C3', label='Benettin estimate')
-lyapunov.set_xlabel('slope mu')
-lyapunov.set_ylabel('Lyapunov exponent')
-lyapunov.legend()
+exponent_axes.plot(slopes, np.log(slopes), color='black', label='ln mu')
+exponent_axes.plot(sample, exponents, 'o', color='C3', label='Benettin estimate')
+exponent_axes.set_xlabel('slope mu')
+exponent_axes.set_ylabel('Lyapunov exponent')
+exponent_axes.legend()
 fig.tight_layout()
 plt.show()

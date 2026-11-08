@@ -15,7 +15,10 @@ from ._kernel_spec import KernelSpec
 
 @dataclass(frozen=True)
 class _RecordSpec(BaseSpec):
-    """Recorded expression of a spec, rewritten as later passes substitute hidden states."""
+    """Recorded expression of a spec.
+
+    It is rewritten as later passes substitute hidden states.
+    """
 
     path: str
     expression: Expression

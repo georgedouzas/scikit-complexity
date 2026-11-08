@@ -1,4 +1,7 @@
-"""Undecided systems: opinions against, undecided, and for, on a network and in the mean-field flows between them."""
+"""Undecided systems: opinions against, undecided, and for.
+
+They live on a network and in the mean-field flows between them.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,22 +18,26 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, TransferInteraction
 from ....core.components.spaces import NetworkSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class UndecidedView(AgentView):
-    """View of a voter of the three-state opinion system, with its states and parameters as attributes."""
+    """View of a voter of the three-state opinion system.
+
+    Its states and parameters are attributes.
+    """
 
     opinion: float
     sensitivity: float
 
 
 class UndecidedElement(Element):
-    """Voter who is against, undecided, or for, at -1, 0, or 1, and redraws its opinion from its neighbours.
+    """Voter who is against, undecided, or for, at -1, 0, or 1.
+
+    It redraws its opinion from its neighbours.
 
     Args:
         label:
@@ -65,7 +72,10 @@ class UndecidedElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[UndecidedView]:
-        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        """Return the class of the views of the agents.
+
+        Their attributes are the states and parameters.
+        """
         return UndecidedView
 
 
@@ -131,67 +141,32 @@ class UndecidedFlowsElement(Element):
 
 
 def _logistic_half(argument: float) -> float:
-    """Return `f(t) = 1 / (2 (1 + exp(-t)))`, the probability of one side, with values in (0, 1/2)."""
+    """Return `f(t) = 1 / (2 (1 + exp(-t)))`, the probability of one side.
+
+    Its values lie in (0, 1/2).
+    """
     return float(0.5 / (1.0 + np.exp(-np.clip(argument, -500.0, 500.0))))
 
 
-def _redraw(voter: UndecidedView, system: SystemViewProtocol) -> float:
-    """Return the opinion a voter draws from the sum of the opinions of its neighbours."""
-    total = sum(neighbor.opinion for neighbor in voter.neighbors() if isinstance(neighbor, UndecidedView))
-    against = _logistic_half(-voter.sensitivity * total)
-    support = _logistic_half(voter.sensitivity * total)
-    draw = float(system.rng.random())
-    if draw < against:
-        return -1.0
-    return 1.0 if draw < against + support else 0.0
-
-
-def _joining_against(s: SimpleNamespace) -> Expression:
-    """Return the flow of undecided agents against, `omega C`."""
-    return s.source.omega * s.source.undecided
-
-
-def _joining_support(s: SimpleNamespace) -> Expression:
-    """Return the flow of undecided agents for, `omega C`."""
-    return s.source.omega * s.source.undecided
-
-
-def _doubting_against(s: SimpleNamespace) -> Expression:
-    """Return the flow of agents against into the undecided, `gamma A C^drive`."""
-    return s.source.gamma * s.source.against * s.source.undecided**s.source.drive
-
-
-def _doubting_support(s: SimpleNamespace) -> Expression:
-    """Return the flow of agents for into the undecided, `eta B C^drive`."""
-    return s.source.eta * s.source.support * s.source.undecided**s.source.drive
-
-
 def _critical_size(s: SimpleNamespace) -> Expression:
-    """Return the critical size `N_c = omega (1 / gamma + 1 / eta)` of the flows driven by the undecided."""
+    """Return the critical size `N_c = omega (1 / gamma + 1 / eta)`.
+
+    It is the critical size of the flows driven by the undecided.
+    """
     return s.omega * (1 / s.gamma + 1 / s.eta)
 
 
-@register_system(
-    field='social/opinion_dynamics',
-    tags=('opinion', 'agents', 'network', 'undecided'),
-    references=('Jensen 2023',),
-    defaults={'until': 50},
-)
-def three_state_opinion(
-    n_agents: int = 200,
-    *,
-    degree: int = 4,
-    sensitivity: float = 2.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the three-state opinion system of agents against, undecided, and for, on a random regular network.
+class ThreeStateOpinionSystem(BaseSystem):
+    """The three-state opinion system on a random regular network.
 
-    Every step the agents redraw their opinions one after the other in random order, each from the sum `x` of the
-    opinions of its neighbours: against with the probability `f(-beta x)`, for with `f(beta x)`, and undecided
-    otherwise, where `f(t) = 1 / (2 (1 + exp(-t)))` (Jensen 2023 section 11.5, Project 1). Since
-    `f(t) + f(-t) = 1 / 2`, half of the draws are undecided. In mean field, with every agent seeing `q <x>`, the mean
-    opinion solves `<x> = tanh(beta q <x> / 2) / 2`, which has a non-zero solution only above `beta_c = 4 / q`. On the
-    sparse network, domains of both signs and the undecided half keep the order weaker than in mean field.
+    The agents are against, undecided, or for. Every step the agents redraw their opinions one after the other in random
+    order, each from the sum `x` of the opinions of its neighbours: against with the probability `f(-beta x)`, for with
+    `f(beta x)`, and undecided otherwise, where `f(t) = 1 / (2 (1 + exp(-t)))` (Jensen 2023 section 11.5, Project 1).
+    Since `f(t) + f(-t) = 1 / 2`, half of the draws are undecided. In mean field, with every agent seeing `q <x>`, the
+    mean opinion solves `<x> = tanh(beta q <x> / 2) / 2`, which has a non-zero solution only above `beta_c = 4 / q`. On
+    the sparse network, domains of both signs and the undecided half keep the order weaker than in mean field.
+
+    The system has the group `voters`.
 
     Args:
         n_agents:
@@ -206,50 +181,69 @@ def three_state_opinion(
         random_state:
             The seed or generator of the network and of the initial opinions.
 
-    Returns:
-        system:
-            The system, with the group `voters`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.opinion_dynamics import three_state_opinion
-        >>> three_state_opinion(20).elements[0].prepare().size_
+        >>> from skcomplex.systems.social.opinion_dynamics import ThreeStateOpinionSystem
+        >>> ThreeStateOpinionSystem(20).prepare().system_.elements[0].prepare().size_
         20
     """
-    rng = np.random.default_rng(random_state)
-    graph = nx.random_regular_graph(degree, n_agents, seed=int(rng.integers(2**31)))
-    voters = GroupElement(
-        'voters',
-        element=UndecidedElement,
-        size=n_agents,
-        values={'opinion': rng.choice([-1.0, 0.0, 1.0], n_agents), 'sensitivity': sensitivity},
-    )
-    redraw = MapInteraction(
-        'redraw',
-        target='voters',
-        state='opinion',
-        function=_redraw,
-        schedule='random-sequential',
-        form='agent',
-    )
-    return System(elements=[voters], interactions=[redraw], space=NetworkSpace(graph))
+
+    field = 'social/opinion_dynamics'
+    topics = ('opinion', 'agents', 'network', 'undecided')
+    references = ('Jensen 2023',)
+    until = 50
+
+    def __init__(
+        self,
+        n_agents: int = 200,
+        *,
+        degree: int = 4,
+        sensitivity: float = 2.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_agents = n_agents
+        self.degree = degree
+        self.sensitivity = sensitivity
+        self.random_state = random_state
+
+    @staticmethod
+    def _redraw(voter: UndecidedView, system: SystemViewProtocol) -> float:
+        """Return the opinion a voter draws from the sum of the opinions of its neighbours."""
+        total = sum(neighbor.opinion for neighbor in voter.neighbors() if isinstance(neighbor, UndecidedView))
+        against = _logistic_half(-voter.sensitivity * total)
+        support = _logistic_half(voter.sensitivity * total)
+        draw = float(system.rng.random())
+        if draw < against:
+            return -1.0
+        return 1.0 if draw < against + support else 0.0
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        graph = nx.random_regular_graph(self.degree, self.n_agents, seed=int(rng.integers(2**31)))
+        voters = GroupElement(
+            'voters',
+            element=UndecidedElement,
+            size=self.n_agents,
+            values={'opinion': rng.choice([-1.0, 0.0, 1.0], self.n_agents), 'sensitivity': self.sensitivity},
+        )
+        redraw = MapInteraction(
+            'redraw',
+            target='voters',
+            state='opinion',
+            function=self._redraw,
+            schedule='random-sequential',
+            form='agent',
+        )
+        return System(self.label, elements=[voters], interactions=[redraw], space=NetworkSpace(graph))
 
 
-@register_system(
-    field='social/opinion_dynamics',
-    tags=('opinion', 'undecided', 'mean field', 'stocks and flows', 'ode'),
-    references=('Jensen 2023',),
-    defaults={'until': 20.0, 'dt': 0.1},
-    observables=lambda system: [ObservableSpec('critical_size', _critical_size, element='population')],
-)
-def undecided_flows(
-    n_agents: float = 100.0,
-    *,
-    omega: float = 1.0,
-    gamma: float = 0.05,
-    eta: float = 0.02,
-    driven: bool = True,
-) -> System:
-    """Return the mean-field flows between agents against, `A`, undecided, `C`, and for, `B`.
+class UndecidedFlowsSystem(BaseSystem):
+    """The mean-field flows between agents against, `A`, undecided, `C`, and for, `B`.
 
     Undecided agents join either side at the rate `omega`, and agents against and for become undecided at the rates
     `gamma` and `eta`, with no direct flow between the sides, so `N = A + B + C` is conserved (Jensen 2023 section
@@ -258,6 +252,10 @@ def undecided_flows(
     `driven=True`, the flows into the undecided grow with their number, `dA/dt = omega C - gamma A C`, and the
     dynamics change at `N_c = omega (1 / gamma + 1 / eta)`: above it `A = omega / gamma`, `B = omega / eta`, and
     `N - N_c` agents never make up their mind, and below it every agent ends on one side.
+
+    The system has the numbers `population.against`, `population.undecided`, and `population.support`, and the flows
+    `population.joining_against`, `population.joining_support`, `population.doubting_against`, and
+    `population.doubting_support`. The observable of the system is `population.critical_size`.
 
     Args:
         n_agents:
@@ -275,37 +273,81 @@ def undecided_flows(
         driven:
             Whether the flows into the undecided are in proportion to their number.
 
-    Returns:
-        system:
-            The system, with the numbers `population.against`, `population.undecided`, and `population.support`, and
-            the flows `population.joining_against`, `population.joining_support`, `population.doubting_against`, and
-            `population.doubting_support`. The observable of the system is `population.critical_size`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.opinion_dynamics import undecided_flows
-        >>> undecided_flows(driven=False).elements[0].drive
+        >>> from skcomplex.systems.social.opinion_dynamics import UndecidedFlowsSystem
+        >>> UndecidedFlowsSystem(driven=False).prepare().system_.elements[0].drive
         0.0
     """
-    population = UndecidedFlowsElement(
-        'population',
-        undecided=n_agents,
-        omega=omega,
-        gamma=gamma,
-        eta=eta,
-        drive=1.0 if driven else 0.0,
-    )
-    flows = TransferInteraction(
-        'flows',
-        source='population',
-        target='population',
-        state='undecided',
-        into='against',
-        amount=_joining_against,
-        flow='joining_against',
-        legs=[
-            ('undecided', 'support', _joining_support, 'joining_support'),
-            ('against', 'undecided', _doubting_against, 'doubting_against'),
-            ('support', 'undecided', _doubting_support, 'doubting_support'),
-        ],
-    )
-    return System(elements=[population], interactions=[flows])
+
+    field = 'social/opinion_dynamics'
+    topics = ('opinion', 'undecided', 'mean field', 'stocks and flows', 'ode')
+    references = ('Jensen 2023',)
+    until = 20.0
+    dt = 0.1
+    observables = (ObservableSpec('critical_size', _critical_size, element='population'),)
+
+    def __init__(
+        self,
+        n_agents: float = 100.0,
+        *,
+        omega: float = 1.0,
+        gamma: float = 0.05,
+        eta: float = 0.02,
+        driven: bool = True,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_agents = n_agents
+        self.omega = omega
+        self.gamma = gamma
+        self.eta = eta
+        self.driven = driven
+
+    @staticmethod
+    def _joining_against(s: SimpleNamespace) -> Expression:
+        """Return the flow of undecided agents against, `omega C`."""
+        return s.source.omega * s.source.undecided
+
+    @staticmethod
+    def _joining_support(s: SimpleNamespace) -> Expression:
+        """Return the flow of undecided agents for, `omega C`."""
+        return s.source.omega * s.source.undecided
+
+    @staticmethod
+    def _doubting_against(s: SimpleNamespace) -> Expression:
+        """Return the flow of agents against into the undecided, `gamma A C^drive`."""
+        return s.source.gamma * s.source.against * s.source.undecided**s.source.drive
+
+    @staticmethod
+    def _doubting_support(s: SimpleNamespace) -> Expression:
+        """Return the flow of agents for into the undecided, `eta B C^drive`."""
+        return s.source.eta * s.source.support * s.source.undecided**s.source.drive
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        population = UndecidedFlowsElement(
+            'population',
+            undecided=self.n_agents,
+            omega=self.omega,
+            gamma=self.gamma,
+            eta=self.eta,
+            drive=1.0 if self.driven else 0.0,
+        )
+        flows = TransferInteraction(
+            'flows',
+            source='population',
+            target='population',
+            state='undecided',
+            into='against',
+            amount=self._joining_against,
+            flow='joining_against',
+            legs=[
+                ('undecided', 'support', self._joining_support, 'joining_support'),
+                ('against', 'undecided', self._doubting_against, 'doubting_against'),
+                ('support', 'undecided', self._doubting_support, 'doubting_support'),
+            ],
+        )
+        return System(self.label, elements=[population], interactions=[flows])

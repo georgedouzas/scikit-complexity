@@ -1,8 +1,12 @@
-"""Define mesh spaces, unstructured triangular and tetrahedral meshes that finite element fields live on."""
+"""Define mesh spaces.
+
+They are unstructured triangular and tetrahedral meshes that finite element fields live on.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import ClassVar
 
 import numpy as np
 import numpy.typing as npt
@@ -14,10 +18,10 @@ TRIANGLE_DIMENSIONS = 2
 
 
 class MeshSpace(BaseSpace):
-    """Unstructured mesh of triangles or tetrahedra, whose nodes hold the members of finite element fields.
+    """Unstructured mesh of triangles or tetrahedra.
 
-    Build the nodes and cells with scikit-fem, such as `skfem.MeshTri.init_lshaped().refined(3)`, and pass its `p` and
-    `t` arrays.
+    Its nodes hold the members of finite element fields. Build the nodes and cells with scikit-fem, such as
+    `skfem.MeshTri.init_lshaped().refined(3)`, and pass its `p` and `t` arrays.
 
     Args:
         points:
@@ -46,6 +50,8 @@ class MeshSpace(BaseSpace):
         (20, 2, (20, 2))
     """
 
+    space_tags: ClassVar[tuple[str, ...]] = ('continuous',)
+
     def __init__(self, points: npt.ArrayLike, cells: npt.ArrayLike, *, label: str = 'space') -> None:
         super().__init__(label)
         self.points = points
@@ -53,6 +59,7 @@ class MeshSpace(BaseSpace):
 
     def _prepare(self, context: None = None) -> None:
         """Set the nodes, the scikit-fem mesh, and the boundary nodes."""
+        super()._prepare(context)
         points = np.asarray(self.points, dtype=float)
         kind = skfem.MeshTri if points.shape[0] == TRIANGLE_DIMENSIONS else skfem.MeshTet
         self.mesh_ = kind(points, np.asarray(self.cells, dtype=np.int64))

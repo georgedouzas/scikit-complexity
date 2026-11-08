@@ -1,4 +1,7 @@
-"""Define local rules, which set the next values of cells from the ordered values of their neighbourhoods."""
+"""Define local rules.
+
+A local rule sets the next values of cells from the ordered values of their neighbourhoods.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,21 +14,22 @@ from ...errors import ValidationError
 from ...specs import RoleSpec
 from ...types import ElementKind
 from ..laws import BaseLaw, LocalRuleLaw
-from ..spaces import BaseNeighborhood
+from ..spaces import BaseNeighborhood, BaseSpace
 from ._interaction import Interaction
 
 
 class LocalRuleInteraction(Interaction):
-    """Local rule of a cellular automaton, which sets the next value of every cell from its ordered neighbourhood.
+    """Local rule of a cellular automaton.
 
-    The rule is a table of the next value of every configuration of the neighbourhood, `TableSpec`, a rule of the sum
-    of the neighbourhood, `TotalisticSpec`, a rule of the cell and the sum of its neighbours, `OuterTotalisticSpec`, an
-    object whose `table()` returns a `TableSpec`, or a function. A function receives one array per neighbour of every
-    read state, in neighbourhood order, with one value per cell, the uniform array `random` when the rule is stochastic,
-    and the parameters of the bound group it names, and returns the next values of the states, one array per state. A
-    state of several components per cell, such as a truncated power series of `PowerSeriesSpec`, reaches a function as
-    one row of components per cell. A `StateTranslationNeighborhood` reads a group space at the product of every site
-    and the group element that the first read state holds there.
+    The rule sets the next value of every cell from its ordered neighbourhood. The rule is a table of the next value of
+    every configuration of the neighbourhood, `TableSpec`, a rule of the sum of the neighbourhood, `TotalisticSpec`, a
+    rule of the cell and the sum of its neighbours, `OuterTotalisticSpec`, an object whose `table()` returns a
+    `TableSpec`, or a function. A function receives one array per neighbour of every read state, in neighbourhood order,
+    with one value per cell, the uniform array `random` when the rule is stochastic, and the parameters of the bound
+    group it names, and returns the next values of the states, one array per state. A state of several components per
+    cell, such as a truncated power series of `PowerSeriesSpec`, reaches a function as one row of components per cell. A
+    `StateTranslationNeighborhood` reads a group space at the product of every site and the group element that the first
+    read state holds there.
 
     Args:
         label:
@@ -69,6 +73,13 @@ class LocalRuleInteraction(Interaction):
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (LocalRuleLaw,)
 
+    def _draws(self) -> bool:
+        """Return whether the rule draws.
+
+        It draws when it is stochastic or updates sites in a random order or at random.
+        """
+        return super()._draws() or self.stochastic or self.schedule == 'random-site'
+
     def __init__(
         self,
         label: str,
@@ -94,14 +105,18 @@ class LocalRuleInteraction(Interaction):
         """Return the names of the states the rule sets."""
         return (self.state,) if isinstance(self.state, str) else tuple(self.state)
 
-    def _check(self) -> None:
-        """Raise an error for states that are not names, or a neighbourhood that is not one.
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Raise an error for states that are not names, or a bad neighbourhood.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The state or the read states are not names, or the neighbourhood is not a neighbourhood.
         """
-        super()._check()
+        super()._prepare(context)
         names = [*self._get_names(), *(self.reads or ())]
         if not names or not all(isinstance(name, str) and name.isidentifier() for name in names):
             error_msg = f'The local rule {self.label!r} sets {self.state!r} and reads {self.reads!r}. Give state names.'

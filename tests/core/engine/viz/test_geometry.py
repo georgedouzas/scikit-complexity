@@ -5,8 +5,8 @@ import rerun.blueprint as rrb
 from skcomplex.core.components.elements import WordElement
 from skcomplex.core.components.laws import ProductionLaw
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import RewritingCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._rewriting_compiler import RewritingCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import GeometryVisual, RerunObserver
 from skcomplex.core.specs import GeometrySpec
 
@@ -33,5 +33,5 @@ def test_views_and_logs_of_word_geometries(tmp_path):
     assert _views(plain) == [rrb.Spatial2DView, rrb.TimeSeriesView]
     for name, system in [('tree', tree), ('plain', plain)]:
         observer = RerunObserver(name, save_path=tmp_path / f'{name}.rrd', blueprint='default')
-        Simulation(system, observers=[observer], compiler=RewritingCompiler()).prepare().run(until=2)
+        simulate(system, until=2, observers=[observer])
         assert observer.logged_frames_ == 3

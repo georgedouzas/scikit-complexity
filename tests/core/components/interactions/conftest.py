@@ -10,7 +10,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import MatchingInteraction
 from skcomplex.core.components.system import System
 from skcomplex.core.components.types import MatchingRule, SystemViewProtocol
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import AgentView
 from skcomplex.core.specs import MatchSpec, StateSpec, VisualSpec
 
@@ -93,7 +93,7 @@ def _clear(
             ),
         ],
     )
-    Simulation(system, random_state=0).prepare().run(until=steps)
+    simulate(system, until=steps, random_state=0)
     return records
 
 

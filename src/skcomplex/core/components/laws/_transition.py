@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Callable, Sequence
+from typing import ClassVar
 
 from sage.all__sagemath_symbolics import Expression
 
@@ -13,10 +14,11 @@ from ._base import BaseLaw
 
 
 class TransitionLaw(BaseLaw):
-    """Step of a discrete-time Markov chain, a state over a finite alphabet drawn from a row of a transition matrix.
+    """Step of a discrete-time Markov chain.
 
-    The state's current value selects the row, and the next value is drawn from it. The state takes a categorical
-    domain or the integers from 0 to `n - 1`. A transition is a kind of update, so it combines with update laws.
+    The state is over a finite alphabet and drawn from a row of a transition matrix. The state's current value selects
+    the row, and the next value is drawn from it. The state takes a categorical domain or the integers from 0 to `n -
+    1`. A transition is a kind of update, so it combines with update laws.
 
     Args:
         target:
@@ -39,6 +41,8 @@ class TransitionLaw(BaseLaw):
         [0.1, 0.9]
     """
 
+    law_tag: ClassVar[str] = 'jump'
+
     def __init__(
         self,
         target: Expression,
@@ -59,8 +63,16 @@ class TransitionLaw(BaseLaw):
         """Return what the law requires of a system: discrete time."""
         return RequirementSpec(time=(DiscreteTime,))
 
-    def _check(self) -> None:
-        """Raise an error for a matrix that is neither a function nor a nonempty sequence of rows of equal length."""
+    def _prepare(self, context: str | None = None) -> None:
+        """Raise an error for a matrix that is not a function or a nonempty matrix.
+
+        A nonempty matrix is a sequence of rows of equal length.
+
+        Args:
+            context:
+                The path of the element or interaction that returns the law, or `None`.
+        """
+        super()._prepare(context)
         if not self._is_function(self.matrix):
             self._check_matrix('matrix')
 

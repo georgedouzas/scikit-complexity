@@ -9,26 +9,28 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 from ._random_pairs import RandomPairsInteraction
 
 
 class NamerView(AgentView):
-    """View of an agent of the naming game, with its states and parameters as attributes."""
+    """View of an agent of the naming game.
+
+    Its states and parameters are attributes.
+    """
 
     words: Array
 
 
 class NamerElement(Element):
-    """Agent of the naming game, with an inventory of the words it knows for one object.
+    """Agent of the naming game, with an inventory of the words it knows.
 
-    The inventory is an indicator vector over the lexicon, with one slot per agent for the word that agent invents
-    when it first speaks with an empty inventory.
+    The words name one object. The inventory is an indicator vector over the lexicon, with one slot per agent for the
+    word that agent invents when it first speaks with an empty inventory.
 
     Args:
         label:
@@ -61,7 +63,10 @@ class NamerElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[NamerView]:
-        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        """Return the class of the views of the agents.
+
+        Their attributes are the states and parameters.
+        """
         return NamerView
 
 
@@ -89,7 +94,10 @@ class NamingGamesInteraction(RandomPairsInteraction):
     """
 
     def _invent(self, words: Array, system: SystemViewProtocol) -> None:
-        """Mark in an inventory a new word, the first slot of the lexicon that no agent knows."""
+        """Mark a new word in an inventory.
+
+        The new word is the first slot of the lexicon that no agent knows.
+        """
         known = np.zeros_like(words)
         for agent in system.agents('target'):
             if isinstance(agent, NamerView):
@@ -97,7 +105,9 @@ class NamingGamesInteraction(RandomPairsInteraction):
         words[int(np.flatnonzero(known == 0)[0])] = 1.0
 
     def act_on(self, members: list[AgentViewProtocol], system: SystemViewProtocol) -> None:
-        """Play one naming game between the first member, the speaker, and the second, the hearer.
+        """Play one naming game between the first member and the second.
+
+        The first member is the speaker, and the second the hearer.
 
         Args:
             members:
@@ -121,32 +131,44 @@ class NamingGamesInteraction(RandomPairsInteraction):
         speaker.words, hearer.words = spoken, heard
 
 
-@register_system(
-    field='social/opinion_dynamics',
-    tags=('opinion', 'agents', 'language', 'consensus'),
-    references=('Baronchelli et al. 2006', 'Castellano, Fortunato, and Loreto 2009'),
-    defaults={'until': 50},
-)
-def naming_game(n_agents: int = 50) -> System:
-    """Return the minimal naming game, where agents with empty inventories agree on one word.
+class NamingGameSystem(BaseSystem):
+    """The minimal naming game, where agents with empty inventories agree on one word.
+
+    The system has the group `namers`.
 
     Args:
         n_agents:
             The number of agents.
 
-    Returns:
-        system:
-            The system, with the group `namers`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.opinion_dynamics import naming_game
-        >>> naming_game(10).elements[0].prepare().size_
+        >>> from skcomplex.systems.social.opinion_dynamics import NamingGameSystem
+        >>> NamingGameSystem(10).prepare().system_.elements[0].prepare().size_
         10
     """
-    namers = GroupElement(
-        'namers',
-        element=NamerElement,
-        size=n_agents,
-        values={'words': np.zeros((n_agents, n_agents))},
-    )
-    return System(elements=[namers], interactions=[NamingGamesInteraction('games', target='namers')])
+
+    field = 'social/opinion_dynamics'
+    topics = ('opinion', 'agents', 'language', 'consensus')
+    references = ('Baronchelli et al. 2006', 'Castellano, Fortunato, and Loreto 2009')
+    until = 50
+
+    def __init__(
+        self,
+        n_agents: int = 50,
+        *,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_agents = n_agents
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        namers = GroupElement(
+            'namers',
+            element=NamerElement,
+            size=self.n_agents,
+            values={'words': np.zeros((self.n_agents, self.n_agents))},
+        )
+        return System(self.label, elements=[namers], interactions=[NamingGamesInteraction('games', target='namers')])

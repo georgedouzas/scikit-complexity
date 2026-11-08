@@ -1,4 +1,7 @@
-"""Define maps, which set the next value of a state after one discrete time step."""
+"""Define maps.
+
+A map sets the next value of a state after one discrete time step.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,11 +16,12 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
 from ...errors import ValidationError
-from ...specs import BaseSpec, RoleSpec
+from ...specs import BaseSpec, RoleSpec, Tags
 from ...types import ElementKind
 from ..base import BasePart
 from ..laws import BaseLaw, RuleLaw, UpdateLaw
 from ..laws.utils import uniform
+from ..spaces import BaseSpace
 from ..types import AgentViewProtocol, SystemViewProtocol
 from ._base import SCHEDULES
 from ._interaction import Interaction
@@ -29,14 +33,15 @@ type Value = float | npt.NDArray[np.float64]
 
 
 class MapInteraction(Interaction):
-    """Map of a state of discrete time, whose next value is a function, or the state plus it.
+    """Map of a state of discrete time.
 
-    In the mode `'replace'` the next value of the state is `f`, and in the mode `'increment'` it is the state plus `f`.
-    Under the `'synchronous'` schedule every member of a bound group updates at once, from the states at the start of
-    the step. Under the `'sequential'` schedule the members update one after the other, in their order, and under the
-    `'random-sequential'` schedule in a new random order every step, each member reading the values the members before
-    it set. Under the `'member'` schedule of the agent form, every member updates in its own activation, together with
-    the rules of its element and the other member interactions, in the order the system lists them.
+    Its next value is a function, or the state plus it. In the mode `'replace'` the next value of the state is `f`, and
+    in the mode `'increment'` it is the state plus `f`. Under the `'synchronous'` schedule every member of a bound group
+    updates at once, from the states at the start of the step. Under the `'sequential'` schedule the members update one
+    after the other, in their order, and under the `'random-sequential'` schedule in a new random order every step, each
+    member reading the values the members before it set. Under the `'member'` schedule of the agent form, every member
+    updates in its own activation, together with the rules of its element and the other member interactions, in the
+    order the system lists them.
 
     In the `'symbolic'` form, `function(namespace)` returns a symbolic expression, or a vector of them for a vector
     state, where `namespace.target` holds the states and parameters of the target, `namespace.sources` the namespaces
@@ -83,9 +88,10 @@ class MapInteraction(Interaction):
         >>> from skcomplex.core.components.interactions import MapInteraction
         >>> from skcomplex.core.components.spaces import DiscreteTime
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.specs import StateSpec
         >>> from typing import Annotated, SupportsFloat
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> class ValueElement(Element):
         ...     def __init__(self, label, x: Annotated[float, StateSpec()] = 0.5):
         ...         super().__init__(label)
@@ -94,7 +100,7 @@ class MapInteraction(Interaction):
         ...     'map', target='value', state='x', function=lambda s: 3 * s.target.x * (1 - s.target.x)
         ... )
         >>> system = System(elements=[ValueElement('value')], interactions=[logistic], time=DiscreteTime())
-        >>> Simulation(system).prepare().run(until=2).trajectory_.values('value.x').tolist()
+        >>> simulate(system, until=2).values('value.x').tolist()
         [0.5, 0.75, 0.5625]
         >>> agents = MapInteraction('map', target='walkers', state='x', function=lambda a, m: a.x + 1, form='agent')
         >>> type(agents.prepare().run(SimpleNamespace()).laws_[0]).__name__
@@ -108,12 +114,16 @@ class MapInteraction(Interaction):
         >>> doubling = MapInteraction(
         ...     'double', target='weights', state='w', function=lambda a, m: [2 * x for x in a.w], form='agent'
         ... )
-        >>> trajectory = Simulation(System(elements=[group], interactions=[doubling])).prepare().run(until=2)
-        >>> trajectory.trajectory_.agents('weights', 2).values['w'].tolist()
+        >>> trajectory = simulate(System(elements=[group], interactions=[doubling]), until=2)
+        >>> trajectory.agents('weights', 2).values['w'].tolist()
         [[4.0, 8.0]]
     """
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw, UpdateLaw)
+
+    def _get_tags(self) -> Tags:
+        """Return the tags of the agent-form rules or of the symbolic map updates."""
+        return self._get_variant_tags((RuleLaw,) if self._get_argument('form') == 'agent' else (UpdateLaw,))
 
     def __init__(
         self,
@@ -138,15 +148,19 @@ class MapInteraction(Interaction):
         self.form = form
         self.phase = phase
 
-    def _check(self) -> None:
-        """Raise an error for an unknown mode, schedule, or form, or a function that cannot be called.
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Raise an error for an unknown mode, schedule, or form, or a bad function.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The mode, the schedule, or the form is unknown, the symbolic form has the schedule `'member'`, or the
                 function is not callable.
         """
-        super()._check()
+        super()._prepare(context)
         self._check_variant('mode', self.mode, MODES, (BaseSpec,))
         for name, value, variants in (
             ('schedule', self.schedule, SCHEDULES),
@@ -165,7 +179,10 @@ class MapInteraction(Interaction):
             raise ValidationError(error_msg)
 
     def _apply_mode(self, current: Value, value: Value) -> Value:
-        """Return the next value of a state from its current value and the value of the function, by the mode."""
+        """Return the next value of a state by the mode.
+
+        It comes from its current value and the value of the function.
+        """
         if self.mode == 'increment':
             return current + value
         if self.mode == 'replace':
@@ -185,7 +202,10 @@ class MapInteraction(Interaction):
         return self._apply_mode(current, value)
 
     def _get_value(self, agent: AgentViewProtocol, system: SystemViewProtocol) -> Value:
-        """Return the next value of the state of an agent, a number or the array of a vector state."""
+        """Return the next value of the state of an agent.
+
+        It is a number or the array of a vector state.
+        """
         if np.ndim(getattr(agent, self.state)) > 0:
             return self._get_vector(agent, system)
         found = self.function(agent, system)
@@ -214,7 +234,10 @@ class MapInteraction(Interaction):
         self._update_agents(system, self.schedule, self._get_value, self._set_value)
 
     def _get_order(self) -> object:
-        """Return the order of the members of the symbolic form: none, their own order, or a uniform draw."""
+        """Return the order of the members of the symbolic form.
+
+        It is none, their own order, or a uniform draw.
+        """
         if self.schedule == 'synchronous':
             return None
         if self.schedule == 'sequential':

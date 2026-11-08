@@ -13,13 +13,14 @@ from sage.all__sagemath_symbolics import SR, vector
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class GeodynamoElement(Element):
-    """Dynamo of Gissinger's geodynamo, its quadrupolar and dipolar fields and the velocity of the flow.
+    """Dynamo of Gissinger's geodynamo.
+
+    The dynamo holds its quadrupolar and dipolar fields and the velocity of the flow.
 
     The quadrupolar field `Q`, the dipolar field `D`, and the velocity `V` follow `dQ/dt = mu Q - V D`,
     `dD/dt = -nu D + V Q`, and `dV/dt = Gamma - V + Q D`.
@@ -54,6 +55,8 @@ class GeodynamoElement(Element):
         >>> GeodynamoElement('dynamo').Gamma
         0.9
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
@@ -94,7 +97,9 @@ class GeodynamoElement(Element):
 
 
 class Lorenz84Element(Element):
-    """Atmosphere of Lorenz-84, the general circulation reduced to a westerly jet and a travelling wave of eddies.
+    """Atmosphere of Lorenz-84.
+
+    The general circulation is reduced to a westerly jet and a travelling wave of eddies.
 
     The jet `x` and the cosine and sine phases `y` and `z` of the eddies follow `dx/dt = -y^2 - z^2 - a x + a F`,
     `dy/dt = x y - b x z - y + G`, and `dz/dt = b x y + x z - z`.
@@ -132,6 +137,8 @@ class Lorenz84Element(Element):
         >>> Lorenz84Element('atmosphere').F
         8.0
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
@@ -174,7 +181,9 @@ class Lorenz84Element(Element):
 
 
 class Lorenz96Element(Element):
-    """Ring of Lorenz-96 sites around a latitude circle, advected by their neighbours, damped, and forced.
+    """Ring of Lorenz-96 sites around a latitude circle.
+
+    The sites are advected by their neighbours, damped, and forced.
 
     Every site follows `dx_i/dt = (x_{i+1} - x_{i-2}) x_{i-1} - x_i + F`, with the indices taken around the ring.
 
@@ -196,6 +205,8 @@ class Lorenz96Element(Element):
         >>> Lorenz96Element('ring').F
         8.0
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
@@ -226,26 +237,14 @@ class Lorenz96Element(Element):
         return [RateLaw(s.x, vector(SR, rates))]
 
 
-@register_system(
-    field='physics/climate',
-    tags=('chaos', 'ode', 'atmosphere', 'general circulation'),
-    references=('Lorenz 1984', 'Datseris and Parlitz 2022'),
-    defaults={'until': 100.0, 'dt': 0.05},
-)
-def lorenz_84(
-    x: float = 1.0,
-    y: float = 1.0,
-    z: float = 1.0,
-    *,
-    a: float = 0.25,
-    b: float = 4.0,
-    F: float = 8.0,
-    G: float = 1.0,
-) -> System:
-    """Return Lorenz-84, the general circulation reduced to a westerly jet and a travelling wave, chaotic for `F = 8`.
+class Lorenz84System(BaseSystem):
+    """Lorenz-84, the general circulation as a westerly jet and a travelling wave.
 
-    The jet `x` and the cosine and sine phases `y` and `z` of the eddies follow `dx/dt = -y^2 - z^2 - a x + a F`,
-    `dy/dt = x y - b x z - y + G`, and `dz/dt = b x y + x z - z`.
+    The system is chaotic for `F = 8`.
+
+    The jet `x` and the cosine and sine phases `y` and `z` of the eddies follow `dx/dt = -y^2 - z^2 - a x + a F`, `dy/dt
+    = x y - b x z - y + G`, and `dz/dt = b x y + x z - z`. The system has the states `atmosphere.x`, `atmosphere.y`, and
+    `atmosphere.z`.
 
     Args:
         x:
@@ -269,34 +268,59 @@ def lorenz_84(
         G:
             The forcing of the eddies by the land-sea contrast.
 
-    Returns:
-        system:
-            The system, with the states `atmosphere.x`, `atmosphere.y`, and `atmosphere.z`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.climate import lorenz_84
-        >>> lorenz_84(G=1.25).elements[0].G
+        >>> from skcomplex.systems.physics.climate import Lorenz84System
+        >>> Lorenz84System(G=1.25).prepare().system_.elements[0].G
         1.25
     """
-    return System(elements=[Lorenz84Element('atmosphere', x=x, y=y, z=z, a=a, b=b, F=F, G=G)])
+
+    field = 'physics/climate'
+    topics = ('chaos', 'ode', 'atmosphere', 'general circulation')
+    references = ('Lorenz 1984', 'Datseris and Parlitz 2022')
+    until = 100.0
+    dt = 0.05
+
+    def __init__(
+        self,
+        x: float = 1.0,
+        y: float = 1.0,
+        z: float = 1.0,
+        *,
+        a: float = 0.25,
+        b: float = 4.0,
+        F: float = 8.0,
+        G: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.x = x
+        self.y = y
+        self.z = z
+        self.a = a
+        self.b = b
+        self.F = F
+        self.G = G
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        return System(
+            self.label,
+            elements=[
+                Lorenz84Element('atmosphere', x=self.x, y=self.y, z=self.z, a=self.a, b=self.b, F=self.F, G=self.G),
+            ],
+        )
 
 
-@register_system(
-    field='physics/climate',
-    tags=('chaos', 'ode', 'atmosphere', 'spatiotemporal chaos', 'data assimilation'),
-    references=('Lorenz 1996', 'Datseris and Parlitz 2022'),
-    defaults={'until': 20.0, 'dt': 0.05},
-)
-def lorenz_96(
-    n_sites: int = 20,
-    *,
-    F: float = 8.0,
-    perturbation: float = 0.01,
-) -> System:
-    """Return Lorenz-96, `dx_i/dt = (x_{i+1} - x_{i-2}) x_{i-1} - x_i + F` on a ring of sites around a latitude circle.
+class Lorenz96System(BaseSystem):
+    """Lorenz-96 on a ring of sites around a latitude circle.
 
-    The sites start at the steady state `F`, and the first one is displaced by `perturbation`. For `F = 8` the
-    steady state is unstable and the ring is chaotic.
+    Every site follows `dx_i/dt = (x_{i+1} - x_{i-2}) x_{i-1} - x_i + F`.
+
+    The sites start at the steady state `F`, and the first one is displaced by `perturbation`. For `F = 8` the steady
+    state is unstable and the ring is chaotic. The system has the values `ring.x` of all sites.
 
     Args:
         n_sites:
@@ -308,40 +332,51 @@ def lorenz_96(
         perturbation:
             The displacement of the first site from the steady state.
 
-    Returns:
-        system:
-            The system, with the values `ring.x` of all sites.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.climate import lorenz_96
-        >>> lorenz_96(6).space.n_dim
+        >>> from skcomplex.systems.physics.climate import Lorenz96System
+        >>> Lorenz96System(6).prepare().system_.space.n_dim
         6
     """
-    values = np.full(n_sites, float(F))
-    values[0] += perturbation
-    return System(elements=[Lorenz96Element('ring', x=values, F=F)], space=ContinuousSpace(n_dim=n_sites))
+
+    field = 'physics/climate'
+    topics = ('chaos', 'ode', 'atmosphere', 'spatiotemporal chaos', 'data assimilation')
+    references = ('Lorenz 1996', 'Datseris and Parlitz 2022')
+    until = 20.0
+    dt = 0.05
+
+    def __init__(
+        self,
+        n_sites: int = 20,
+        *,
+        F: float = 8.0,
+        perturbation: float = 0.01,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_sites = n_sites
+        self.F = F
+        self.perturbation = perturbation
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        values = np.full(self.n_sites, float(self.F))
+        values[0] += self.perturbation
+        return System(
+            self.label,
+            elements=[Lorenz96Element('ring', x=values, F=self.F)],
+            space=ContinuousSpace(n_dim=self.n_sites),
+        )
 
 
-@register_system(
-    field='physics/climate',
-    tags=('chaos', 'ode', 'geomagnetism', 'reversals'),
-    references=('Gissinger 2012', 'Datseris and Parlitz 2022'),
-    defaults={'until': 500.0, 'dt': 0.5},
-)
-def geodynamo(
-    Q: float = 0.1,
-    D: float = 0.1,
-    V: float = 0.1,
-    *,
-    mu: float = 0.119,
-    nu: float = 0.1,
-    Gamma: float = 0.9,
-) -> System:
-    """Return Gissinger's geodynamo, whose dipole field reverses at irregular times.
+class GeodynamoSystem(BaseSystem):
+    """Gissinger's geodynamo, whose dipole field reverses at irregular times.
 
-    The quadrupolar field `Q`, the dipolar field `D`, and the velocity `V` follow `dQ/dt = mu Q - V D`,
-    `dD/dt = -nu D + V Q`, and `dV/dt = Gamma - V + Q D`. The equations are symmetric under `(Q, D) -> (-Q, -D)`, so
-    the chaotic flow visits both polarities of the dipole.
+    The quadrupolar field `Q`, the dipolar field `D`, and the velocity `V` follow `dQ/dt = mu Q - V D`, `dD/dt = -nu D +
+    V Q`, and `dV/dt = Gamma - V + Q D`. The equations are symmetric under `(Q, D) -> (-Q, -D)`, so the chaotic flow
+    visits both polarities of the dipole. The system has the states `dynamo.Q`, `dynamo.D`, and `dynamo.V`.
 
     Args:
         Q:
@@ -362,13 +397,45 @@ def geodynamo(
         Gamma:
             The forcing of the flow.
 
-    Returns:
-        system:
-            The system, with the states `dynamo.Q`, `dynamo.D`, and `dynamo.V`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.climate import geodynamo
-        >>> geodynamo(mu=0.12).elements[0].mu
+        >>> from skcomplex.systems.physics.climate import GeodynamoSystem
+        >>> GeodynamoSystem(mu=0.12).prepare().system_.elements[0].mu
         0.12
     """
-    return System(elements=[GeodynamoElement('dynamo', Q=Q, D=D, V=V, mu=mu, nu=nu, Gamma=Gamma)])
+
+    field = 'physics/climate'
+    topics = ('chaos', 'ode', 'geomagnetism', 'reversals')
+    references = ('Gissinger 2012', 'Datseris and Parlitz 2022')
+    until = 500.0
+    dt = 0.5
+
+    def __init__(
+        self,
+        Q: float = 0.1,
+        D: float = 0.1,
+        V: float = 0.1,
+        *,
+        mu: float = 0.119,
+        nu: float = 0.1,
+        Gamma: float = 0.9,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.Q = Q
+        self.D = D
+        self.V = V
+        self.mu = mu
+        self.nu = nu
+        self.Gamma = Gamma
+
+    def _build_system(self) -> System:
+        """Return Gissinger's geodynamo, whose dipole field reverses at irregular times."""
+        return System(
+            self.label,
+            elements=[
+                GeodynamoElement('dynamo', Q=self.Q, D=self.D, V=self.V, mu=self.mu, nu=self.nu, Gamma=self.Gamma),
+            ],
+        )

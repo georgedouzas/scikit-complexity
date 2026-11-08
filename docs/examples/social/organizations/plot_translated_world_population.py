@@ -22,8 +22,8 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import LoopAnalysis
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.analysis import loops
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.translators import SystemDynamicsTranslator
 from skcomplex.core.engine.viz import RerunObserver
 
@@ -49,30 +49,29 @@ module = importlib.import_module('translated_world')
 # %%
 # The run
 # -------
-# The module holds the settings of the file. Time in the module starts at zero, so a year is `module.START` plus the
-# time of a frame. The view shows the population of every frame.
+# The module holds the system class `WorldSystem`, whose run settings are those of the file. Time in the module starts
+# at zero, so a year is `module.START` plus the time of a frame. The view shows the population of every frame.
 
-system = module.create_system()
+system = module.WorldSystem()
 observer = RerunObserver('translated_world_population', save_path='translated_world_population.rrd', interval=1)
-simulation = Simulation(system, dt=module.DT, observers=[observer], observables=module.observables(system))
-trajectory = simulation.prepare().run(until=module.UNTIL).trajectory_
+trajectory = simulate(system, dt=module.DT, observers=[observer])
 
 # %%
 # Shifting dominance
 # ------------------
-# `LoopAnalysis` finds the reinforcing loop through births and the balancing loop through deaths. The gain of each loop
+# `loops` finds the reinforcing loop through births and the balancing loop through deaths. The gain of each loop
 # is its fertility or its mortality. The reinforcing loop dominates while fertility is above mortality, and the two
 # gains meet in 2035, when births balance deaths and the population stays near 7.8 billion.
 
-dominance = LoopAnalysis('dominance').prepare(trajectory).run()
-years = module.START + dominance.times_
+dominance = loops(trajectory, kind='dominance')
+years = module.START + dominance.times
 fig, (stocks, gains) = plt.subplots(1, 2, figsize=(10, 4))
 stocks.plot(years, trajectory.values('world.population'))
 stocks.set_xlabel('year')
 stocks.set_ylabel('billion people')
 stocks.set_title('The population levels off')
-for index, nodes in enumerate(dominance.loops_):
-    gains.plot(years, np.abs(dominance.gains_[:, index]), label=f'{dominance.polarities_[index]}: {nodes[1]}')
+for index, nodes in enumerate(dominance.loops):
+    gains.plot(years, np.abs(dominance.gains[:, index]), label=f'{dominance.polarities[index]}: {nodes[1]}')
 gains.set_xlabel('year')
 gains.set_ylabel('absolute gain per year')
 gains.set_title('The gains of the two loops meet in 2035')

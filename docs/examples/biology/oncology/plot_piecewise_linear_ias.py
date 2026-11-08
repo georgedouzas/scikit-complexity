@@ -6,21 +6,20 @@ without relapse.
 """
 
 # %%
-# The system is created by name from the catalog for patient type 1, whose PSA of 19 ng/mL starts the therapy at once.
-# The observer saves every second frame with the default blueprint, whose primary view is the time series of the three
+# The system is built from its class for patient type 1, whose PSA of 19 ng/mL starts the therapy at once. The
+# observer saves every second frame with the default blueprint, whose primary view is the time series of the three
 # cell populations and the therapy.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.oncology import PiecewiseLinearIASSystem
 
 SYSTEM = 'piecewise_linear_ias'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=5.0, observers=[observer]).prepare().run(until=1500)
+trajectory = simulate(PiecewiseLinearIASSystem(), observers=[observer])
 
 # %%
 # Three patient types
@@ -31,15 +30,10 @@ simulation = Simulation(system, dt=5.0, observers=[observer]).prepare().run(unti
 
 fig, axes = plt.subplots(1, 3, figsize=(12, 4), sharey=True)
 for patient, axis in zip((1, 2, 3), axes, strict=True):
-    run = (
-        simulation
-        if patient == 1
-        else Simulation(create_system(SYSTEM, patient=patient), dt=5.0).prepare().run(until=1500)
-    )
-    trajectory = run.trajectory_
-    psa = trajectory.values('tumour.AD') + trajectory.values('tumour.AIR') + trajectory.values('tumour.AII')
-    axis.plot(trajectory.times, psa)
-    axis.fill_between(trajectory.times, 0, 25, where=trajectory.values('tumour.u') > 0.5, color='red', alpha=0.15)
+    run = trajectory if patient == 1 else simulate(PiecewiseLinearIASSystem(patient=patient))
+    psa = run.values('tumour.AD') + run.values('tumour.AIR') + run.values('tumour.AII')
+    axis.plot(run.times, psa)
+    axis.fill_between(run.times, 0, 25, where=run.values('tumour.u') > 0.5, color='red', alpha=0.15)
     axis.axhline(10.0, color='black', linestyle='--')
     axis.axhline(4.0, color='grey', linestyle='--')
     axis.set_xlabel('time (days)')

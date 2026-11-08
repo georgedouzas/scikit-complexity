@@ -7,12 +7,11 @@ import pytest
 from sklearn.preprocessing import PolynomialFeatures
 
 from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.solvers import CoSimulationSolver
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.types import FormKind
-from skcomplex.systems import create_simulation, describe
-from skcomplex.systems.engineering.control import koopman_model_predictive_control
+from skcomplex.systems.engineering.control import KoopmanModelPredictiveControlSystem
 
 
 def _tracking_error(trajectory):
@@ -23,21 +22,14 @@ def _tracking_error(trajectory):
 @pytest.mark.parametrize(('plant', 'until'), [('duffing', 100.0), ('van_der_pol', 100.0), ('motor', 300.0)])
 def test_koopman_model_predictive_control_tracks_reference(plant, until):
     """Test that the controlled output tracks the reference with a smaller error than the uncontrolled plant."""
-    controlled = (
-        create_simulation('koopman_model_predictive_control', plant=plant, n_runs=20, duration=200)
-        .prepare()
-        .run(until=until)
-        .trajectory_
-    )
-    free = (
-        create_simulation('koopman_model_predictive_control', plant=plant, controlled=False).prepare().run(until=until)
-    )
-    assert _tracking_error(controlled) < _tracking_error(free.trajectory_)
+    controlled = simulate(KoopmanModelPredictiveControlSystem(plant=plant, n_runs=20, duration=200), until=until)
+    free = simulate(KoopmanModelPredictiveControlSystem(plant=plant, controlled=False), until=until)
+    assert _tracking_error(controlled) < _tracking_error(free)
 
 
 def test_koopman_model_predictive_control_duffing_reads_the_input_through_its_gain():
     """Test that the input of the forced Duffing oscillator enters through `(3 + cos(x)) u`, as the review writes it."""
-    plant_rate = koopman_model_predictive_control(controlled=False).interactions[2].rate
+    plant_rate = KoopmanModelPredictiveControlSystem(controlled=False).prepare().system_.interactions[2].rate
     x, y, control = 0.7, -0.2, 0.5
     s = SimpleNamespace(target=SimpleNamespace(x=x, y=y), sources=[SimpleNamespace(u=control)], t=0.0)
     expected = x - x**3 - 0.3 * y + 0.5 + (3 + np.cos(x)) * 0.5 * control
@@ -46,25 +38,21 @@ def test_koopman_model_predictive_control_duffing_reads_the_input_through_its_ga
 
 def test_koopman_model_predictive_control_keeps_input_in_bounds():
     """Test that the controller sets the input inside its bounds and that it changes over the run."""
-    found = create_simulation('koopman_model_predictive_control', n_runs=20, duration=200).prepare().run(until=60.0)
-    inputs = found.trajectory_.values('controller/input.u')
+    found = simulate(KoopmanModelPredictiveControlSystem(n_runs=20, duration=200), until=60.0)
+    inputs = found.values('controller/input.u')
     assert np.all(np.abs(inputs) <= 1.0)
     assert np.ptp(inputs) > 0.5
 
 
 def test_koopman_model_predictive_control_holds_input_at_zero_without_control():
     """Test that the uncontrolled system holds the input at 0 and needs no fit."""
-    system = koopman_model_predictive_control('motor', controlled=False)
-    trajectory = (
-        create_simulation('koopman_model_predictive_control', plant='motor', controlled=False).prepare().run(until=5.0)
-    )
-    assert system.label == 'motor'
-    assert np.all(trajectory.trajectory_.values('controller/input.u') == 0.0)
+    trajectory = simulate(KoopmanModelPredictiveControlSystem(plant='motor', controlled=False), until=5.0)
+    assert np.all(trajectory.values('controller/input.u') == 0.0)
 
 
 def test_koopman_model_predictive_control_is_a_co_simulation():
     """Test that the controller runs under discrete time and the plant under continuous time, in two partitions."""
-    system = koopman_model_predictive_control(controlled=False)
+    system = KoopmanModelPredictiveControlSystem(controlled=False).prepare().system_
     controller, plant = system.systems
     assert isinstance(controller.time, DiscreteTime)
     assert isinstance(plant.time, ContinuousTime)
@@ -78,28 +66,31 @@ def test_koopman_model_predictive_control_is_a_co_simulation():
 
 def test_koopman_model_predictive_control_reads_reference_of_time():
     """Test that the reference observable follows the review's reference of the plant, in samples of the controller."""
-    trajectory = (
-        create_simulation('koopman_model_predictive_control', plant='motor', controlled=False).prepare().run(until=30.0)
-    )
-    times = trajectory.trajectory_.times
+    trajectory = simulate(KoopmanModelPredictiveControlSystem(plant='motor', controlled=False), until=30.0)
+    times = trajectory.times
     expected = 0.5 * np.cos(2 * np.pi * 0.01 * times / 3)
-    assert np.allclose(trajectory.trajectory_.values('reference'), expected)
+    assert np.allclose(trajectory.values('reference'), expected)
 
 
 def test_koopman_model_predictive_control_takes_a_dictionary():
     """Test that a dictionary that holds the variables replaces the monomials of degree 3."""
-    system = koopman_model_predictive_control(dictionary=PolynomialFeatures(2, include_bias=False), n_runs=4)
+    system = (
+        KoopmanModelPredictiveControlSystem(dictionary=PolynomialFeatures(2, include_bias=False), n_runs=4)
+        .prepare()
+        .system_
+    )
     assert PassCompiler().prepare(system).run().problem_.form == FormKind.COUPLED
 
 
 def test_koopman_model_predictive_control_rejects_unknown_plant():
     """Test that an unknown plant raises an error naming it."""
     with pytest.raises(ValidationError, match='boiler'):
-        koopman_model_predictive_control('boiler')
+        KoopmanModelPredictiveControlSystem('boiler').prepare()
 
 
 def test_koopman_model_predictive_control_default_solver_is_co_simulation():
     """Test that a default run schedules the plant and the controller with the co-simulation solver."""
-    simulation = create_simulation('koopman_model_predictive_control', controlled=False).prepare().run(until=2.0)
-    assert isinstance(simulation.stepper_, CoSimulationSolver)
-    assert describe('koopman_model_predictive_control').field == 'engineering/control'
+    system = KoopmanModelPredictiveControlSystem(controlled=False).prepare().system_
+    trajectory = simulate(system, until=2.0, dt=1.0)
+    assert trajectory.problem.form == FormKind.COUPLED
+    assert KoopmanModelPredictiveControlSystem.field == 'engineering/control'

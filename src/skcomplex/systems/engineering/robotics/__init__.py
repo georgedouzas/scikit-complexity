@@ -2,17 +2,17 @@
 
 from ._light_emitting_robots import (
     LightEmittingRobotElement,
+    LightEmittingRobotsSystem,
     SensoryDelayInteraction,
-    light_emitting_robots,
 )
-from ._robots import LightSensitiveRobotElement, SwarmRobotElement, light_seeking_robots, swarmtaxis
+from ._robots import LightSeekingRobotsSystem, LightSensitiveRobotElement, SwarmRobotElement, SwarmtaxisSystem
 
 __all__: list[str] = [
     'LightEmittingRobotElement',
+    'LightEmittingRobotsSystem',
+    'LightSeekingRobotsSystem',
     'LightSensitiveRobotElement',
     'SensoryDelayInteraction',
     'SwarmRobotElement',
-    'light_emitting_robots',
-    'light_seeking_robots',
-    'swarmtaxis',
+    'SwarmtaxisSystem',
 ]

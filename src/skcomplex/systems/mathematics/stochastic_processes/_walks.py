@@ -1,4 +1,7 @@
-"""Stochastic process systems: random walks, persistent and autoregressive walks, and diffusions."""
+"""Stochastic process systems of walks.
+
+The module covers random walks, persistent and autoregressive walks, and diffusions.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,14 +15,15 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import JumpInteraction, MapInteraction, RateInteraction
 from ....core.components.laws.utils import bernoulli, normal
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class MemoryWalkerElement(Element):
-    """Walker on the real line whose velocity is an autoregressive process of memory `alpha` and noise `sigma`.
+    """Walker on the real line whose velocity is an autoregressive process.
+
+    The process has the memory `alpha` and the noise `sigma`.
 
     Args:
         label:
@@ -64,7 +68,9 @@ class MemoryWalkerElement(Element):
 
 
 class PersistentWalkerElement(Element):
-    """Walker on the integers with a direction `d = ±1`, which it keeps with the probability `persistence`.
+    """Walker on the integers with a direction `d = ±1`.
+
+    The walker keeps the direction with the probability `persistence`.
 
     Args:
         label:
@@ -104,7 +110,9 @@ class PersistentWalkerElement(Element):
 
 
 class RandomWalkerElement(Element):
-    """Walker on the integers that steps at the rate `rate`, up with the probability `bias`.
+    """Walker on the integers that steps at the rate `rate`.
+
+    The walker steps up with the probability `bias`.
 
     Args:
         label:
@@ -144,7 +152,9 @@ class RandomWalkerElement(Element):
 
 
 class WeakeningParticleElement(Element):
-    """Brownian particle on the real line held by a restoring force of stiffness `k` that weakens beyond `ell`.
+    """Brownian particle on the real line held by a restoring force of stiffness `k`.
+
+    The force weakens beyond `ell`.
 
     Args:
         label:
@@ -198,7 +208,7 @@ class AgeingWalkerView(AgentView):
 
 
 class AgeingWalkerElement(Element):
-    """Walker that steps up with a probability that decays with the number of its earlier up steps.
+    """Walker whose probability to step up decays with its number of earlier up steps.
 
     After `k` up steps, the next step is up with probability `p / (1 + k)^nu` and down otherwise. The walker remembers
     its number of up steps at the end of the last step, from which its step follows.
@@ -248,21 +258,20 @@ class AgeingWalkerElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[AgeingWalkerView]:
-        """Return the view of the agents, which types their states and parameters."""
+        """Return the view of the agents.
+
+        The view types their states and parameters.
+        """
         return AgeingWalkerView
 
 
-@register_system(
-    field='mathematics/stochastic_processes',
-    tags=('random walk', 'jump process', 'diffusion'),
-    references=('Pearson 1905', 'Argun et al. 2021', 'Charbonneau 2017', 'Jensen 2023'),
-    defaults={'until': 100.0, 'dt': 1.0},
-)
-def random_walk(n_walkers: int = 100, *, rate: float = 1.0, bias: float = 0.5) -> System:
-    """Return independent walkers on the integers that step at random times, a continuous-time random walk.
+class RandomWalkSystem(BaseSystem):
+    """Independent walkers on the integers that step at random times.
+
+    This is a continuous-time random walk.
 
     Every walker steps up at rate `rate * bias` and down at rate `rate * (1 - bias)`, so its mean moves with velocity
-    `rate (2 bias - 1)` and its variance grows as `4 rate bias (1 - bias) t`.
+    `rate (2 bias - 1)` and its variance grows as `4 rate bias (1 - bias) t`. The system has the positions `walkers.x`.
 
     Args:
         n_walkers:
@@ -274,44 +283,61 @@ def random_walk(n_walkers: int = 100, *, rate: float = 1.0, bias: float = 0.5) -
         bias:
             The probability that a step goes up.
 
-    Returns:
-        system:
-            The system, with the positions `walkers.x`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.stochastic_processes import random_walk
-        >>> random_walk(20).elements[0].prepare().size_
+        >>> from skcomplex.systems.mathematics.stochastic_processes import RandomWalkSystem
+        >>> RandomWalkSystem(20).prepare().system_.elements[0].prepare().size_
         20
     """
-    walkers = GroupElement('walkers', element=RandomWalkerElement, size=n_walkers, values={'rate': rate, 'bias': bias})
-    up = JumpInteraction('up', target='walkers', changes={'x': 1}, rate=lambda s: s.target.rate * s.target.bias)
-    down = JumpInteraction(
-        'down',
-        target='walkers',
-        changes={'x': -1},
-        rate=lambda s: s.target.rate * (1 - s.target.bias),
-    )
-    return System(elements=[walkers], interactions=[up, down])
+
+    field = 'mathematics/stochastic_processes'
+    topics = ('random walk', 'jump process', 'diffusion')
+    references = ('Pearson 1905', 'Argun et al. 2021', 'Charbonneau 2017', 'Jensen 2023')
+    until = 100.0
+    dt = 1.0
+
+    def __init__(
+        self,
+        n_walkers: int = 100,
+        *,
+        rate: float = 1.0,
+        bias: float = 0.5,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_walkers = n_walkers
+        self.rate = rate
+        self.bias = bias
+
+    def _build_system(self) -> System:
+        """Return independent walkers on the integers that step at random times.
+
+        This is a continuous-time random walk.
+        """
+        walkers = GroupElement(
+            'walkers',
+            element=RandomWalkerElement,
+            size=self.n_walkers,
+            values={'rate': self.rate, 'bias': self.bias},
+        )
+        up = JumpInteraction('up', target='walkers', changes={'x': 1}, rate=lambda s: s.target.rate * s.target.bias)
+        down = JumpInteraction(
+            'down',
+            target='walkers',
+            changes={'x': -1},
+            rate=lambda s: s.target.rate * (1 - s.target.bias),
+        )
+        return System(self.label, elements=[walkers], interactions=[up, down])
 
 
-@register_system(
-    field='mathematics/stochastic_processes',
-    tags=('random walk', 'sde', 'heavy tails', 'power law'),
-    references=('Jensen 2023',),
-    defaults={'until': 50.0, 'dt': 0.05},
-)
-def weakening_ornstein_uhlenbeck(
-    n_particles: int = 200,
-    *,
-    k: float = 1.0,
-    ell: float = 1.0,
-    D: float = 0.25,
-) -> System:
-    """Return Brownian particles held by a restoring force that weakens with distance.
+class WeakeningOrnsteinUhlenbeckSystem(BaseSystem):
+    """Brownian particles held by a restoring force that weakens with distance.
 
     The particles follow `dx = -k x / (1 + x²/ℓ²) dt + √(2D) dW`. Near the origin the force is that of an
-    Ornstein-Uhlenbeck process, and far from it the force decays as `1 / x`, so the stationary density
-    `(1 + x²/ℓ²)^(-k ℓ² / 2D)` has power-law tails.
+    Ornstein-Uhlenbeck process, and far from it the force decays as `1 / x`, so the stationary density `(1 + x²/ℓ²)^(-k
+    ℓ² / 2D)` has power-law tails. The system has the positions `particles.x`.
 
     Args:
         n_particles:
@@ -326,42 +352,61 @@ def weakening_ornstein_uhlenbeck(
         D:
             The diffusion coefficient.
 
-    Returns:
-        system:
-            The system, with the positions `particles.x`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.stochastic_processes import weakening_ornstein_uhlenbeck
-        >>> weakening_ornstein_uhlenbeck(10).elements[0].prepare().size_
+        >>> from skcomplex.systems.mathematics.stochastic_processes import WeakeningOrnsteinUhlenbeckSystem
+        >>> WeakeningOrnsteinUhlenbeckSystem(10).prepare().system_.elements[0].prepare().size_
         10
     """
-    particles = GroupElement(
-        'particles',
-        element=WeakeningParticleElement,
-        size=n_particles,
-        values={'k': k, 'ell': ell, 'D': D},
-    )
-    restoring = RateInteraction(
-        'restoring',
-        target='particles',
-        state='x',
-        rate=lambda s: -s.target.k * s.target.x / (1 + (s.target.x / s.target.ell) ** 2),
-        noise=lambda s: sqrt(2 * s.target.D),
-    )
-    return System(elements=[particles], interactions=[restoring])
+
+    field = 'mathematics/stochastic_processes'
+    topics = ('random walk', 'sde', 'heavy tails', 'power law')
+    references = ('Jensen 2023',)
+    until = 50.0
+    dt = 0.05
+
+    def __init__(
+        self,
+        n_particles: int = 200,
+        *,
+        k: float = 1.0,
+        ell: float = 1.0,
+        D: float = 0.25,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_particles = n_particles
+        self.k = k
+        self.ell = ell
+        self.D = D
+
+    def _build_system(self) -> System:
+        """Return Brownian particles held by a restoring force that weakens with distance."""
+        particles = GroupElement(
+            'particles',
+            element=WeakeningParticleElement,
+            size=self.n_particles,
+            values={'k': self.k, 'ell': self.ell, 'D': self.D},
+        )
+        restoring = RateInteraction(
+            'restoring',
+            target='particles',
+            state='x',
+            rate=lambda s: -s.target.k * s.target.x / (1 + (s.target.x / s.target.ell) ** 2),
+            noise=lambda s: sqrt(2 * s.target.D),
+        )
+        return System(self.label, elements=[particles], interactions=[restoring])
 
 
-@register_system(
-    field='mathematics/stochastic_processes',
-    tags=('random walk', 'agents', 'history dependence', 'ageing'),
-    references=('Hanel, Thurner, and Gell-Mann 2014', 'Thurner et al. 2018'),
-    defaults={'until': 100},
-)
-def ageing_random_walk(n_walkers: int = 50, *, p: float = 0.5, nu: float = 1.0) -> System:
-    """Return ageing random walks, whose up steps become rarer the more of them a walker has taken.
+class AgeingRandomWalkSystem(BaseSystem):
+    """Ageing random walks.
 
-    After `k` up steps a walker steps up with probability `p / (1 + k)^nu`, so the walk is history dependent and,
-    for `nu > 0`, its number of up steps grows as `n^(1 / (1 + nu))` after `n` steps.
+    The up steps become rarer the more of them a walker has taken.
+
+    After `k` up steps a walker steps up with probability `p / (1 + k)^nu`, so the walk is history dependent and, for
+    `nu > 0`, its number of up steps grows as `n^(1 / (1 + nu))` after `n` steps. The system has the group `walkers`.
 
     Args:
         n_walkers:
@@ -373,54 +418,79 @@ def ageing_random_walk(n_walkers: int = 50, *, p: float = 0.5, nu: float = 1.0) 
         nu:
             The exponent of the decay of the up probability.
 
-    Returns:
-        system:
-            The system, with the group `walkers`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.stochastic_processes import ageing_random_walk
-        >>> ageing_random_walk(5).elements[0].prepare().size_
+        >>> from skcomplex.systems.mathematics.stochastic_processes import AgeingRandomWalkSystem
+        >>> AgeingRandomWalkSystem(5).prepare().system_.elements[0].prepare().size_
         5
     """
-    ageing = MapInteraction(
-        'ageing',
-        target='walkers',
-        state='ups',
-        function=lambda agent, system: float(system.rng.random() < agent.p / (1 + agent.ups) ** agent.nu),
-        mode='increment',
-        form='agent',
-    )
-    step = MapInteraction(
-        'step',
-        target='walkers',
-        state='x',
-        function=lambda agent, system: 2 * (agent.ups - agent.lags('ups')[-1]) - 1,
-        mode='increment',
-        form='agent',
-    )
-    return System(
-        elements=[GroupElement('walkers', element=AgeingWalkerElement, size=n_walkers, values={'p': p, 'nu': nu})],
-        interactions=[ageing, step],
-    )
+
+    draws = True
+
+    field = 'mathematics/stochastic_processes'
+    topics = ('random walk', 'agents', 'history dependence', 'ageing')
+    references = ('Hanel, Thurner, and Gell-Mann 2014', 'Thurner et al. 2018')
+    until = 100
+
+    def __init__(
+        self,
+        n_walkers: int = 50,
+        *,
+        p: float = 0.5,
+        nu: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_walkers = n_walkers
+        self.p = p
+        self.nu = nu
+
+    def _build_system(self) -> System:
+        """Return ageing random walks.
+
+        The up steps become rarer the more of them a walker has taken.
+        """
+        ageing = MapInteraction(
+            'ageing',
+            target='walkers',
+            state='ups',
+            function=lambda agent, system: float(system.rng.random() < agent.p / (1 + agent.ups) ** agent.nu),
+            mode='increment',
+            form='agent',
+        )
+        step = MapInteraction(
+            'step',
+            target='walkers',
+            state='x',
+            function=lambda agent, system: 2 * (agent.ups - agent.lags('ups')[-1]) - 1,
+            mode='increment',
+            form='agent',
+        )
+        return System(
+            self.label,
+            elements=[
+                GroupElement(
+                    'walkers',
+                    element=AgeingWalkerElement,
+                    size=self.n_walkers,
+                    values={'p': self.p, 'nu': self.nu},
+                ),
+            ],
+            interactions=[ageing, step],
+        )
 
 
-@register_system(
-    field='mathematics/stochastic_processes',
-    tags=('random walk', 'discrete map', 'persistence', 'diffusion'),
-    references=('Jensen 2023',),
-    defaults={'until': 200, 'dt': 1},
-)
-def persistent_random_walk(
-    n_walkers: int = 2000,
-    *,
-    persistence: float = 0.8,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return walkers on the integers that keep the direction of their last step with a probability.
+class PersistentRandomWalkSystem(BaseSystem):
+    """Walkers on the integers that keep the direction of their last step.
 
-    At every step a walker moves by its direction `d = ±1`, and keeps the direction with probability `q` and reverses
-    it otherwise. Successive steps are correlated with `rho = 2 q - 1`, so the walk diffuses faster than a simple
-    random walk for `q > 1/2`, with a mean squared displacement that grows as `t (1 + rho) / (1 - rho)` at long times.
+    A walker keeps the direction with a probability.
+
+    At every step a walker moves by its direction `d = ±1`, and keeps the direction with probability `q` and reverses it
+    otherwise. Successive steps are correlated with `rho = 2 q - 1`, so the walk diffuses faster than a simple random
+    walk for `q > 1/2`, with a mean squared displacement that grows as `t (1 + rho) / (1 - rho)` at long times. The
+    system has the directions `walkers.d` and the positions `walkers.x`.
 
     Args:
         n_walkers:
@@ -432,51 +502,73 @@ def persistent_random_walk(
         random_state:
             The seed or generator of the initial directions.
 
-    Returns:
-        system:
-            The system, with the directions `walkers.d` and the positions `walkers.x`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.stochastic_processes import persistent_random_walk
-        >>> persistent_random_walk(10).elements[0].prepare().size_
+        >>> from skcomplex.systems.mathematics.stochastic_processes import PersistentRandomWalkSystem
+        >>> PersistentRandomWalkSystem(10).prepare().system_.elements[0].prepare().size_
         10
     """
-    directions = np.random.default_rng(random_state).choice([-1.0, 1.0], size=n_walkers)
-    walkers = GroupElement(
-        'walkers',
-        element=PersistentWalkerElement,
-        size=n_walkers,
-        values={'d': directions, 'persistence': persistence},
-    )
-    turn = MapInteraction(
-        'turn',
-        target='walkers',
-        state='d',
-        function=lambda s: s.target.d * (1 - 2 * bernoulli('turn', 1 - s.target.persistence)),
-    )
-    step = MapInteraction(
-        'step',
-        target='walkers',
-        state='x',
-        function=lambda s: s.target.d,
-        mode='increment',
-    )
-    return System(elements=[walkers], interactions=[turn, step])
+
+    draws = True
+
+    field = 'mathematics/stochastic_processes'
+    topics = ('random walk', 'discrete map', 'persistence', 'diffusion')
+    references = ('Jensen 2023',)
+    until = 200
+    dt = 1
+
+    def __init__(
+        self,
+        n_walkers: int = 2000,
+        *,
+        persistence: float = 0.8,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_walkers = n_walkers
+        self.persistence = persistence
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return walkers on the integers that keep the direction of their last step.
+
+        A walker keeps the direction with a probability.
+        """
+        directions = np.random.default_rng(self.random_state).choice([-1.0, 1.0], size=self.n_walkers)
+        walkers = GroupElement(
+            'walkers',
+            element=PersistentWalkerElement,
+            size=self.n_walkers,
+            values={'d': directions, 'persistence': self.persistence},
+        )
+        turn = MapInteraction(
+            'turn',
+            target='walkers',
+            state='d',
+            function=lambda s: s.target.d * (1 - 2 * bernoulli('turn', 1 - s.target.persistence)),
+        )
+        step = MapInteraction(
+            'step',
+            target='walkers',
+            state='x',
+            function=lambda s: s.target.d,
+            mode='increment',
+        )
+        return System(self.label, elements=[walkers], interactions=[turn, step])
 
 
-@register_system(
-    field='mathematics/stochastic_processes',
-    tags=('random walk', 'discrete map', 'memory', 'autoregressive'),
-    references=('Bertin 2021',),
-    defaults={'until': 200, 'dt': 1},
-)
-def random_walk_with_memory(n_walkers: int = 2000, *, alpha: float = 0.5, sigma: float = 1.0) -> System:
-    """Return random walks whose velocity is an autoregressive process, `x ← x + v` and `v ← alpha v + xi`.
+class RandomWalkWithMemorySystem(BaseSystem):
+    """Random walks whose velocity is an autoregressive process.
 
-    The noise `xi` is normal with mean 0 and deviation `sigma`, and the walks start from `x = v = 0`. The pair
-    `(x, v)` is Markovian while the displacements are correlated, so the mean squared displacement grows as
-    `sigma² t / (1 - alpha)²` at long times instead of `sigma² t / (1 - alpha²)` for uncorrelated steps of the same
-    variance.
+    The walks follow `x ← x + v` and `v ← alpha v + xi`.
+
+    The noise `xi` is normal with mean 0 and deviation `sigma`, and the walks start from `x = v = 0`. The pair `(x, v)`
+    is Markovian while the displacements are correlated, so the mean squared displacement grows as `sigma² t / (1 -
+    alpha)²` at long times instead of `sigma² t / (1 - alpha²)` for uncorrelated steps of the same variance. The system
+    has the positions `walkers.x` and the velocities `walkers.v`.
 
     Args:
         n_walkers:
@@ -488,26 +580,52 @@ def random_walk_with_memory(n_walkers: int = 2000, *, alpha: float = 0.5, sigma:
         sigma:
             The deviation `sigma` of the noise.
 
-    Returns:
-        system:
-            The system, with the positions `walkers.x` and the velocities `walkers.v`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.stochastic_processes import random_walk_with_memory
-        >>> random_walk_with_memory(10).elements[0].prepare().size_
+        >>> from skcomplex.systems.mathematics.stochastic_processes import RandomWalkWithMemorySystem
+        >>> RandomWalkWithMemorySystem(10).prepare().system_.elements[0].prepare().size_
         10
     """
-    walkers = GroupElement(
-        'walkers',
-        element=MemoryWalkerElement,
-        size=n_walkers,
-        values={'alpha': alpha, 'sigma': sigma},
-    )
-    step = MapInteraction('step', target='walkers', state='x', function=lambda s: s.target.v, mode='increment')
-    velocity = MapInteraction(
-        'velocity',
-        target='walkers',
-        state='v',
-        function=lambda s: s.target.alpha * s.target.v + normal('xi', 0, s.target.sigma),
-    )
-    return System(elements=[walkers], interactions=[step, velocity])
+
+    draws = True
+
+    field = 'mathematics/stochastic_processes'
+    topics = ('random walk', 'discrete map', 'memory', 'autoregressive')
+    references = ('Bertin 2021',)
+    until = 200
+    dt = 1
+
+    def __init__(
+        self,
+        n_walkers: int = 2000,
+        *,
+        alpha: float = 0.5,
+        sigma: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_walkers = n_walkers
+        self.alpha = alpha
+        self.sigma = sigma
+
+    def _build_system(self) -> System:
+        """Return random walks whose velocity is an autoregressive process.
+
+        The walks follow `x ← x + v` and `v ← alpha v + xi`.
+        """
+        walkers = GroupElement(
+            'walkers',
+            element=MemoryWalkerElement,
+            size=self.n_walkers,
+            values={'alpha': self.alpha, 'sigma': self.sigma},
+        )
+        step = MapInteraction('step', target='walkers', state='x', function=lambda s: s.target.v, mode='increment')
+        velocity = MapInteraction(
+            'velocity',
+            target='walkers',
+            state='v',
+            function=lambda s: s.target.alpha * s.target.v + normal('xi', 0, s.target.sigma),
+        )
+        return System(self.label, elements=[walkers], interactions=[step, velocity])

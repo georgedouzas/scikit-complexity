@@ -7,22 +7,22 @@ and join their back.
 """
 
 # %%
-# The system is created by name from the catalog on a ring of 1000 cells at the density 0.2, with the speed limit 5 and
+# The system is built from its class on a ring of 1000 cells at the density 0.2, with the speed limit 5 and
 # the braking probability 0.3, and runs for 200 steps. The default blueprint shows the road over time, where the jams
 # appear as dense stripes that lean backwards.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.engineering.traffic import NagelSchreckenbergSystem
 
 SYSTEM = 'nagel_schreckenberg'
 
-system = create_system(SYSTEM, random_state=0)
+system = NagelSchreckenbergSystem(random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=200)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # The fundamental diagram
@@ -34,12 +34,7 @@ simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=
 densities = np.linspace(0.02, 0.8, 27)
 flows = []
 for density in densities:
-    run = (
-        Simulation(create_system(SYSTEM, density=float(density), random_state=1), dt=1)
-        .prepare()
-        .run(until=200)
-        .trajectory_
-    )
+    run = simulate(NagelSchreckenbergSystem(density=float(density), random_state=1))
     speeds = run.lattice('road.velocity')[100:]
     flows.append(density * speeds[speeds >= 0].mean())
 fig, ax = plt.subplots(figsize=(6, 4.5))

@@ -1,9 +1,13 @@
-"""Define drive laws, which change a whole lattice state at once."""
+"""Define drive laws.
+
+A drive law changes a whole lattice state at once.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 from collections.abc import Callable
+from typing import ClassVar
 
 from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
@@ -15,13 +19,13 @@ from ._base import BaseLaw
 
 
 class DriveLaw(BaseLaw):
-    """Change of a whole lattice state at once by a function of its array, such as adding 1 at a random site.
+    """Change of a whole lattice state at once by a function of its array.
 
-    The function receives the state as an array of the lattice shape, or of one row per member of a group on the edges
-    or hyperedges of a network, with the components of a state of several components per member, such as a matrix
-    group state, on a last axis. It also receives keyword arguments for the parameters of the element that it names,
-    and, when it names them, `random`, the random generator of the simulation, `time`, the time of the step, and
-    `space`, the space of the group, and returns the new array.
+    An example is adding 1 at a random site. The function receives the state as an array of the lattice shape, or of one
+    row per member of a group on the edges or hyperedges of a network, with the components of a state of several
+    components per member, such as a matrix group state, on a last axis. It also receives keyword arguments for the
+    parameters of the element that it names, and, when it names them, `random`, the random generator of the simulation,
+    `time`, the time of the step, and `space`, the space of the group, and returns the new array.
 
     Args:
         target:
@@ -43,6 +47,8 @@ class DriveLaw(BaseLaw):
         >>> DriveLaw(var('height'), lambda values, *, random: values + 1).prepare().targets_
         (height,)
     """
+
+    law_tag: ClassVar[str] = 'update'
 
     def __init__(
         self,
@@ -72,8 +78,14 @@ class DriveLaw(BaseLaw):
             return self._get_requirements()
         return RequirementSpec(time=(DiscreteTime,), space=(LatticeSpace,))
 
-    def _check(self) -> None:
-        """Raise an error for a function that cannot be called."""
+    def _prepare(self, context: str | None = None) -> None:
+        """Raise an error for a function that cannot be called.
+
+        Args:
+            context:
+                The path of the element or interaction that returns the law, or `None`.
+        """
+        super()._prepare(context)
         if not callable(self.function):
             error_msg = f'The function of a drive must be callable, but it is {self.function!r}.'
             raise ValidationError(error_msg)

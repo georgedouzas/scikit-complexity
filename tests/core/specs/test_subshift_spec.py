@@ -17,6 +17,6 @@ def test_alphabet_holds_the_values_of_a_cell():
 def test_check_rejects_invalid_patterns():
     """Test that forbidden patterns of different lengths or with values outside the states are rejected."""
     with pytest.raises(ValidationError, match='differ in length'):
-        SubshiftSpec(PAIR, ((1, 1), (1,))).prepare()
+        SubshiftSpec(PAIR, ((1, 1), (1,)))._check()
     with pytest.raises(ValidationError, match='outside 0 to 1'):
-        SubshiftSpec(PAIR, ((2, 1),)).prepare()
+        SubshiftSpec(PAIR, ((2, 1),))._check()

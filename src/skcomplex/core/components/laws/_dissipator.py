@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import ClassVar
 
 from sage.all__sagemath_symbolics import SR, Expression
 
@@ -14,9 +15,10 @@ from .utils import has_operator
 
 
 class DissipatorLaw(BaseLaw):
-    """Lindblad term of a Markovian master equation, with a collapse operator and a rate.
+    """Lindblad term of a Markovian master equation.
 
-    The master equation gains `rate * (L rho L^† - (L^† L rho + rho L^† L) / 2)`.
+    The term has a collapse operator and a rate. The master equation gains `rate * (L rho L^† - (L^† L rho + rho L^† L)
+    / 2)`.
 
     Args:
         operator:
@@ -37,13 +39,18 @@ class DissipatorLaw(BaseLaw):
         (local_operator(q, minus), 0.1)
     """
 
+    law_tag: ClassVar[str] = 'rate'
+
     def __init__(self, operator: object, rate: object = 1.0, *, label: str = '') -> None:
         super().__init__(label)
         self.operator = operator
         self.rate = rate
 
     def _get_targets(self) -> tuple[object, ...]:
-        """Return no states, since the dissipator changes the operator state of the whole system."""
+        """Return no states.
+
+        The dissipator changes the operator state of the whole system.
+        """
         return ()
 
     @classmethod
@@ -51,8 +58,16 @@ class DissipatorLaw(BaseLaw):
         """Return what the law requires of a system: continuous time."""
         return RequirementSpec(time=(ContinuousTime,))
 
-    def _check(self) -> None:
-        """Raise an error for a function as the operator or rate, no local operators, or a rate of another type."""
+    def _prepare(self, context: str | None = None) -> None:
+        """Raise an error for a function as operator or rate, or a bad operator or rate.
+
+        It raises it for no local operators, or a rate of another type.
+
+        Args:
+            context:
+                The path of the element or interaction that returns the law, or `None`.
+        """
+        super()._prepare(context)
         if any(callable(item) and not isinstance(item, Expression) for item in (self.operator, self.rate)):
             error_msg = (
                 'Dissipators need symbolic operators and rates, so neither can be a function. Give the rate as '
@@ -71,7 +86,9 @@ class DissipatorLaw(BaseLaw):
             raise ValidationError(error_msg)
 
     def _run(self, inputs: object) -> None:
-        """Set `value_` to the operator and the rate at given values of the symbols they read.
+        """Set `value_` to the operator and the rate at given symbol values.
+
+        The symbols are those they read.
 
         Args:
             inputs:

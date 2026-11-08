@@ -7,22 +7,22 @@ a power law, like the Gutenberg-Richter law of real faults.
 """
 
 # %%
-# The system is created by name from the catalog on a 50 by 50 grid with open edges and `alpha = 0.2`, so that every
+# The system is built from its class on a 50 by 50 grid with open edges and `alpha = 0.2`, so that every
 # slip loses a fifth of its force, and runs for 50,000 earthquakes. The default blueprint shows the forces on the grid.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import DistributionAnalysis, FitAnalysis
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.analysis import distribution, fit_law
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.seismology import EarthquakesSystem
 
 SYSTEM = 'earthquakes'
 
-system = create_system(SYSTEM, random_state=0)
+system = EarthquakesSystem(random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(system, dt=250, observers=[observer]).prepare().run(until=50000)
+trajectory = simulate(system, until=50000, dt=250, observers=[observer])
 
 # %%
 # Gutenberg-Richter law
@@ -31,18 +31,18 @@ simulation = Simulation(system, dt=250, observers=[observer]).prepare().run(unti
 # decades, so their complementary cumulative distribution should follow a straight line on logarithmic axes up to
 # sizes of a few hundred slips, and fall off beyond them, where earthquakes reach the size of the grid.
 
-sizes = np.array([event.size for event in simulation.trajectory_.events if event.time > 20000], dtype=float)
-fit = FitAnalysis(maximum=300, discrete=True, bootstrap=0, random_state=0).prepare(sizes).run()
-ccdf = DistributionAnalysis('ccdf').prepare(sizes).run()
-values, survival = ccdf.support_, ccdf.survival_
-tail = (values >= fit.minimum_) & (values <= 300)
+sizes = np.array([event.size for event in trajectory.events if event.time > 20000], dtype=float)
+fit = fit_law(sizes, maximum=300, discrete=True, bootstrap=0, random_state=0)
+ccdf = distribution(sizes, kind='ccdf')
+values, survival = ccdf.support, ccdf.survival
+tail = (values >= fit.minimum) & (values <= 300)
 fig, ax = plt.subplots(figsize=(6, 4.5))
 ax.loglog(values, survival, '.', markersize=3, label=f'{len(sizes)} earthquakes')
 ax.loglog(
     values[tail],
-    survival[tail][0] * (values[tail] / fit.minimum_) ** (1 - fit.exponent_),
+    survival[tail][0] * (values[tail] / fit.minimum) ** (1 - fit.exponent),
     color='black',
-    label=f'power law, exponent {fit.exponent_:.2f}',
+    label=f'power law, exponent {fit.exponent:.2f}',
 )
 ax.set_xlabel('earthquake size (slips)')
 ax.set_ylabel('P(size >= s)')

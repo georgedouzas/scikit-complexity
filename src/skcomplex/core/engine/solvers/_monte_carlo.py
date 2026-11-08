@@ -4,7 +4,7 @@
 # License: MIT
 
 
-from ...components.laws import BoundaryLaw, SampleLaw
+from ...components.laws import SampleLaw
 from ...components.spaces import DiscreteTime, LatticeSpace, NetworkSpace
 from ...specs import SupportSpec
 from ...types import FormKind, OrderKind
@@ -16,11 +16,11 @@ class MonteCarloSolver(LatticeSolver):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.engine.compile import PassCompiler
-        >>> from skcomplex.systems.physics.statistical_mechanics import ising
+        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.systems.physics.statistical_mechanics import IsingSystem
         >>> from skcomplex.core.engine.solvers import MonteCarloSolver
         >>> from skcomplex.core.specs import StepSpec
-        >>> problem = PassCompiler().prepare(ising(size=8, temperature=1.0)).run().problem_
+        >>> problem = simulate(IsingSystem(size=8, temperature=1.0), until=0).problem
         >>> stepper = MonteCarloSolver(random_state=0).prepare(problem)
         >>> state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 50.0)).state_
         >>> bool(abs(state.mean()) > 0.9)
@@ -33,7 +33,7 @@ class MonteCarloSolver(LatticeSolver):
         return SupportSpec(
             time={DiscreteTime},
             space={LatticeSpace, NetworkSpace},
-            laws={SampleLaw, BoundaryLaw},
+            laws={SampleLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 

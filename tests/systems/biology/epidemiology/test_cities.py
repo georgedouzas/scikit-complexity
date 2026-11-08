@@ -2,14 +2,18 @@
 
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.systems.biology.epidemiology import episims_city
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.biology.epidemiology import EpisimsCitySystem
 
 
 def _final_size(closed: bool, seed: int) -> float:
     """Return the share of recovered people after 200 half days."""
-    trajectory = Simulation(episims_city(500, closed=closed, seed=seed), random_state=seed).prepare().run(until=200)
-    return float((trajectory.trajectory_.agents('people', 200).values['health'] == 2).mean())
+    trajectory = simulate(
+        EpisimsCitySystem(500, closed=closed, seed=seed).prepare().system_,
+        until=200,
+        random_state=seed,
+    )
+    return float((trajectory.agents('people', 200).values['health'] == 2).mean())
 
 
 def test_workplaces_spread_the_disease_between_households():
@@ -22,7 +26,7 @@ def test_workplaces_spread_the_disease_between_households():
 
 def test_people_alternate_between_home_and_work():
     """Test that people are at home in even half days and at the workplace in odd ones."""
-    trajectory = Simulation(episims_city(50), random_state=0).prepare().run(until=4).trajectory_
+    trajectory = simulate(EpisimsCitySystem(50), random_state=0, until=4)
     agents = trajectory.agents('people', 3)
     np.testing.assert_array_equal(np.asarray(agents.locations).ravel(), agents.values['work'])
     agents = trajectory.agents('people', 4)

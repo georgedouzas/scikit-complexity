@@ -16,7 +16,9 @@ from ..laws import BaseLaw
 
 @dataclass(frozen=True)
 class CompiledAgentsSpec(BaseSpec):
-    """Agent element or agent group of an agent-based problem, whose states live in the Mesa system.
+    """Agent element or agent group of an agent-based problem.
+
+    Its states live in the Mesa system.
 
     Args:
         path:

@@ -16,9 +16,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.economics.markets import LabourMarketSystem
 
 SYSTEM = 'labour_market'
 SEPARATION = 0.05
@@ -39,17 +39,8 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-system = create_system(SYSTEM, n_workers=200, n_firms=40, separation=SEPARATION, random_state=0)
-simulation = (
-    Simulation(
-        system,
-        observers=[observer],
-        random_state=0,
-        observables=describe(SYSTEM).observables_of(system),
-    )
-    .prepare()
-    .run(until=200)
-)
+system = LabourMarketSystem(n_workers=200, n_firms=40, separation=SEPARATION, random_state=0)
+trajectory = simulate(system, observers=[observer], random_state=0)
 
 # %%
 # Transfer balance
@@ -59,7 +50,6 @@ simulation = (
 # measured from the hires and the searching workers after the transient, and the wages accepted fall below the
 # initial reservation wage of 1 as long searches wear it down.
 
-trajectory = simulation.trajectory_
 times, unemployment = trajectory.times, trajectory.values('unemployment')
 hires, searching = trajectory.values('labour.volume'), trajectory.values('searching')
 window = slice(50, None)

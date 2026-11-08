@@ -1,4 +1,7 @@
-"""Define optimization interactions, which move a population of candidates one generation per step with pymoo."""
+"""Define optimization interactions.
+
+They move a population of candidates one generation per step with pymoo.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -27,6 +30,7 @@ from ...specs import (
 )
 from ...types import Array, ElementKind
 from ..laws import BaseLaw, RuleLaw
+from ..spaces import BaseSpace
 from ..types import SystemViewProtocol
 from ._interaction import Interaction
 
@@ -37,12 +41,12 @@ SEEDS = 2**31
 
 
 class OptimizationInteraction(Interaction):
-    """Move a group of candidates on an objective, one generation of a pymoo algorithm per step of discrete time.
+    """Move a group of candidates on an objective.
 
-    Every candidate holds a vector state in a box, from which the first generation starts. Every step asks the algorithm
-    for candidates, evaluates the objective on their array, tells the algorithm the values, and writes the candidates of
-    the generation into the members. The interaction reports `best`, the lowest value so far, and `mean`, the mean value
-    of the generation, every step.
+    It runs one generation of a pymoo algorithm per step of discrete time. Every candidate holds a vector state in a
+    box, from which the first generation starts. Every step asks the algorithm for candidates, evaluates the objective
+    on their array, tells the algorithm the values, and writes the candidates of the generation into the members. The
+    interaction reports `best`, the lowest value so far, and `mean`, the mean value of the generation, every step.
 
     Args:
         label:
@@ -82,6 +86,8 @@ class OptimizationInteraction(Interaction):
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw,)
 
+    draws = True
+
     def __init__(
         self,
         label: str,
@@ -101,14 +107,18 @@ class OptimizationInteraction(Interaction):
         self.algorithm = algorithm
         self.phase = phase
 
-    def _check(self) -> None:
-        """Raise an error for an algorithm that is not a spec, or an objective that is not callable.
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Raise an error for an algorithm that is not a spec, or an uncallable objective.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The algorithm is not an algorithm spec, or the objective is not callable.
         """
-        super()._check()
+        super()._prepare(context)
         if not isinstance(self.algorithm, ALGORITHMS):
             names = ', '.join(item.__name__ for item in ALGORITHMS)
             error_msg = f'The algorithm {self.algorithm!r} of {self.label!r} is no algorithm spec. Use one of {names}.'
@@ -147,7 +157,10 @@ class OptimizationInteraction(Interaction):
         return CMAES(x0=candidates.mean(axis=0), sigma=spec.sigma, pop_size=len(candidates))
 
     def _get_algorithm(self, candidates: Array, seed: int) -> Algorithm:
-        """Return the algorithm of the spec, set up on the box of the candidates with a seed."""
+        """Return the algorithm of the spec.
+
+        It is set up on the box of the candidates with a seed.
+        """
         makers: dict[type, Callable[..., Algorithm]] = {
             DifferentialEvolutionSpec: self._differential_evolution,
             ParticleSwarmSpec: self._particle_swarm,
@@ -163,7 +176,10 @@ class OptimizationInteraction(Interaction):
 
     @staticmethod
     def _members_of(generation: Array, size: int) -> Array:
-        """Return one row per member from the candidates of a generation, repeating them when they are fewer."""
+        """Return one row per member from the candidates of a generation.
+
+        It repeats them when they are fewer.
+        """
         return generation[np.arange(size) % len(generation)]
 
     def _write(self, agents: Sequence[object], candidates: Array) -> None:
@@ -172,7 +188,10 @@ class OptimizationInteraction(Interaction):
             setattr(agent, self.state, row)
 
     def _advance(self, system: SystemViewProtocol) -> None:
-        """Advance the population by one generation, unless the algorithm has converged, and report its values."""
+        """Advance the population by one generation and report its values.
+
+        It does not advance once the algorithm has converged.
+        """
         agents = system.agents(self._get_role('target'))
         if 'algorithm' not in system.storage:
             candidates = np.array([getattr(agent, self.state) for agent in agents], dtype=float)

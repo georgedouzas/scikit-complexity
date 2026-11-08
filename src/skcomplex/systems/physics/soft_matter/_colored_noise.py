@@ -1,4 +1,7 @@
-"""Colored noise: a linear Langevin equation driven by Ornstein-Uhlenbeck noise of finite correlation time."""
+"""Colored noise.
+
+A linear Langevin equation is driven by Ornstein-Uhlenbeck noise of finite correlation time.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,14 +15,15 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import RateInteraction, RelaxationInteraction
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class ColoredNoiseParticleElement(Element):
-    """Particle with the velocity `v`, driven by the noise `xi` of correlation time `tau`.
+    """Particle with the velocity `v`, driven by the noise `xi`.
+
+    The noise has the correlation time `tau`.
 
     Args:
         label:
@@ -68,26 +72,16 @@ class ColoredNoiseParticleElement(Element):
         self.tau = tau
 
 
-@register_system(
-    field='physics/soft_matter',
-    tags=('noise', 'sde', 'colored noise', 'langevin equation'),
-    references=('Bertin 2021', 'Hänggi and Jung 1995'),
-    defaults={'until': 50.0, 'dt': 0.1, 'solver': EulerMaruyamaSolver(dt=0.01)},
-)
-def colored_noise_langevin(
-    n_particles: int = 500,
-    *,
-    gamma: float = 1.0,
-    D: float = 1.0,
-    tau: float = 1.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return particles whose velocity `dv/dt = -gamma v + xi` is driven by Ornstein-Uhlenbeck noise `xi`.
+class ColoredNoiseLangevinSystem(BaseSystem):
+    """Particles whose velocity is driven by Ornstein-Uhlenbeck noise `xi`.
 
-    The noise follows `tau dxi = -xi dt + sqrt(2 D) dW`, so its correlation is `<xi(t) xi(t')> = D / tau
-    exp(-|t - t'| / tau)`, and it tends to the white noise of intensity `2 D` as `tau` goes to 0. The stationary
-    velocity variance is `<v^2> = D / (gamma (1 + gamma tau))`, which is `D / gamma` in the white noise limit. The
-    velocities start at 0 and the noise starts in its stationary state. Solver steps must be short against `tau`.
+    The velocity follows `dv/dt = -gamma v + xi`.
+
+    The noise follows `tau dxi = -xi dt + sqrt(2 D) dW`, so its correlation is `<xi(t) xi(t')> = D / tau exp(-|t - t'| /
+    tau)`, and it tends to the white noise of intensity `2 D` as `tau` goes to 0. The stationary velocity variance is
+    `<v^2> = D / (gamma (1 + gamma tau))`, which is `D / gamma` in the white noise limit. The velocities start at 0 and
+    the noise starts in its stationary state. Solver steps must be short against `tau`. The system has the velocities
+    `particles.v` and the noise `particles.xi`.
 
     Args:
         n_particles:
@@ -105,33 +99,62 @@ def colored_noise_langevin(
         random_state:
             The seed or generator of the initial noise values.
 
-    Returns:
-        system:
-            The system, with the velocities `particles.v` and the noise `particles.xi`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.soft_matter import colored_noise_langevin
-        >>> colored_noise_langevin(10, tau=0.5).elements[0].values['tau']
+        >>> from skcomplex.systems.physics.soft_matter import ColoredNoiseLangevinSystem
+        >>> ColoredNoiseLangevinSystem(10, tau=0.5).prepare().system_.elements[0].values['tau']
         0.5
     """
-    noise = np.random.default_rng(random_state).normal(0.0, math.sqrt(D / tau), n_particles)
-    particles = GroupElement(
-        'particles',
-        element=ColoredNoiseParticleElement,
-        size=n_particles,
-        values={'xi': noise, 'gamma': gamma, 'D': D, 'tau': tau},
-    )
-    drag = RateInteraction(
-        'drag',
-        target='particles',
-        state='v',
-        rate=lambda s: -s.target.gamma * s.target.v + s.target.xi,
-    )
-    noise = RelaxationInteraction(
-        'noise',
-        target='particles',
-        state='xi',
-        time=lambda s: s.target.tau,
-        noise=lambda s: sqrt(2 * s.target.D) / s.target.tau,
-    )
-    return System(elements=[particles], interactions=[drag, noise])
+
+    field = 'physics/soft_matter'
+    topics = ('noise', 'sde', 'colored noise', 'langevin equation')
+    references = ('Bertin 2021', 'Hänggi and Jung 1995')
+    until = 50.0
+    dt = 0.1
+    solver = EulerMaruyamaSolver(dt=0.01)
+
+    def __init__(
+        self,
+        n_particles: int = 500,
+        *,
+        gamma: float = 1.0,
+        D: float = 1.0,
+        tau: float = 1.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_particles = n_particles
+        self.gamma = gamma
+        self.D = D
+        self.tau = tau
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return particles whose velocity is driven by Ornstein-Uhlenbeck noise `xi`.
+
+        The velocity follows `dv/dt = -gamma v + xi`.
+        """
+        noise = np.random.default_rng(self.random_state).normal(0.0, math.sqrt(self.D / self.tau), self.n_particles)
+        particles = GroupElement(
+            'particles',
+            element=ColoredNoiseParticleElement,
+            size=self.n_particles,
+            values={'xi': noise, 'gamma': self.gamma, 'D': self.D, 'tau': self.tau},
+        )
+        drag = RateInteraction(
+            'drag',
+            target='particles',
+            state='v',
+            rate=lambda s: -s.target.gamma * s.target.v + s.target.xi,
+        )
+        noise = RelaxationInteraction(
+            'noise',
+            target='particles',
+            state='xi',
+            time=lambda s: s.target.tau,
+            noise=lambda s: sqrt(2 * s.target.D) / s.target.tau,
+        )
+        return System(self.label, elements=[particles], interactions=[drag, noise])

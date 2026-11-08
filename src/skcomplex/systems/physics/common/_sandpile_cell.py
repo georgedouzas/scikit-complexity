@@ -1,4 +1,7 @@
-"""Site of a sandpile, which holds a number of grains."""
+"""Site of a sandpile.
+
+The site holds a number of grains.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,7 +15,9 @@ from ....core.specs import StateSpec, VisualSpec
 
 
 class SandpileCellElement(Element):
-    """Site of a sandpile, which holds a number of grains.
+    """Site of a sandpile.
+
+    The site holds a number of grains.
 
     An `AvalancheInteraction` drops the grains and topples the sites that hold too many.
 

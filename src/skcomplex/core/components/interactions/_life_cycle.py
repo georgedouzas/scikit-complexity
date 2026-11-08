@@ -1,4 +1,7 @@
-"""Define life cycles, which create offspring of the agents of a group and remove agents."""
+"""Define life cycles.
+
+A life cycle creates offspring of the agents of a group and removes agents.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -8,7 +11,7 @@ from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
 from ...errors import ValidationError
-from ...specs import RoleSpec
+from ...specs import RoleSpec, Tags
 from ...types import ElementKind
 from ..laws import BaseLaw, RuleLaw
 from ..spaces import BaseSpace
@@ -29,19 +32,19 @@ type Kinship = Callable[..., object]
 
 
 class LifeCycleInteraction(Interaction):
-    """Life cycle of the agents of a group, which give birth to offspring and die, every step of discrete time.
+    """Life cycle of the agents of a group, which give birth to offspring and die.
 
-    Every step the agents act once each, in their order under the schedule `'sequential'`, in a new random order under
-    `'random-sequential'`, or each in its own activation under `'member'`, together with the rules of its element and
-    the other member interactions, in the order the system lists them, without the reports of the step and without
-    arrivals. An agent dies with the probability `death`, and an agent that survives gives birth with the probability
-    `birth`, or as many times as a Poisson number of the mean `rate`. A probability is a number or a function of the
-    agent and the system view, and a function that returns a condition gives probability one where it holds. Every birth
-    creates `offspring` new agents, a number or a function of the parent and the system view, such as a Poisson draw, of
-    the group `group`, or of the parent's group without one. A new agent stands in the cell of its parent, with the
-    placement `'here'`, in a neighbouring cell that no agent of the group holds, with the placement `'neighbor'`, or at
-    the location a function of the parent and the system view returns, where `None` means no place, and a birth without
-    a place creates fewer agents.
+    The cycle runs every step of discrete time. Every step the agents act once each, in their order under the schedule
+    `'sequential'`, in a new random order under `'random-sequential'`, or each in its own activation under `'member'`,
+    together with the rules of its element and the other member interactions, in the order the system lists them,
+    without the reports of the step and without arrivals. An agent dies with the probability `death`, and an agent that
+    survives gives birth with the probability `birth`, or as many times as a Poisson number of the mean `rate`. A
+    probability is a number or a function of the agent and the system view, and a function that returns a condition
+    gives probability one where it holds. Every birth creates `offspring` new agents, a number or a function of the
+    parent and the system view, such as a Poisson draw, of the group `group`, or of the parent's group without one. A
+    new agent stands in the cell of its parent, with the placement `'here'`, in a neighbouring cell that no agent of the
+    group holds, with the placement `'neighbor'`, or at the location a function of the parent and the system view
+    returns, where `None` means no place, and a birth without a place creates fewer agents.
 
     A new agent copies the states `inherit` of its parent and takes the values that `values(parent, system)` returns,
     such as a generation one higher or drawn states. The parent splits each state of `split` with its offspring,
@@ -141,8 +144,8 @@ class LifeCycleInteraction(Interaction):
         >>> from skcomplex.core.components.interactions import LifeCycleInteraction
         >>> from skcomplex.core.components.spaces import LatticeSpace
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> class CellElement(Element):
         ...     def __init__(self, label, visual=None, *, size: Annotated[float, StateSpec()] = 0.0):
         ...         super().__init__(label, visual=visual)
@@ -150,7 +153,7 @@ class LifeCycleInteraction(Interaction):
         >>> cells = GroupElement('cells', element=CellElement, size=1, values={'size': 8.0}, variable=True)
         >>> division = LifeCycleInteraction('division', target='cells', birth=1.0, split=('size',))
         >>> system = System(elements=[cells], interactions=[division], space=LatticeSpace((3, 3)))
-        >>> trajectory = Simulation(system, random_state=0).prepare().run(until=2).trajectory_
+        >>> trajectory = simulate(system, until=2, random_state=0)
         >>> trajectory.agents('cells', 2).values['size'].tolist()
         [2.0, 2.0, 2.0, 2.0]
     """
@@ -158,6 +161,27 @@ class LifeCycleInteraction(Interaction):
     reports: ClassVar[tuple[str, ...]] = ('births', 'deaths', 'arrivals')
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw,)
+
+    def _get_tags(self) -> Tags:
+        """Return the tags of the rules of births and deaths.
+
+        These rules change the membership of groups.
+        """
+        return self._get_variant_tags((RuleLaw,), structure=frozenset({'variable membership'}))
+
+    def _draws(self) -> bool:
+        """Return whether the cycle draws.
+
+        It draws by its order or pick, events of a chance below 1, rates, or free cells.
+        """
+        chances = (self.birth, self.death, self.cull)
+        return (
+            super()._draws()
+            or any(callable(chance) or (chance is not None and 0 < chance < 1) for chance in chances)
+            or self.rate is not None
+            or self.arrival is not None
+            or self.placement == 'neighbor'
+        )
 
     def __init__(
         self,
@@ -212,7 +236,10 @@ class LifeCycleInteraction(Interaction):
         self.pick = pick
 
     def _check_variants(self) -> None:
-        """Raise an error for an unknown placement, schedule, or pick, or arrivals of a member schedule."""
+        """Raise an error for an unknown placement, schedule, pick, or arrival schedule.
+
+        The arrivals may not have a member schedule.
+        """
         self._check_variant('placement', self.placement, PLACEMENTS, functions=True)
         self._check_variant('schedule', self.schedule, SCHEDULES)
         self._check_variant('pick', self.pick, PICKS)
@@ -221,19 +248,26 @@ class LifeCycleInteraction(Interaction):
             raise ValidationError(error_msg)
 
     def _check_space(self, space: BaseSpace | None) -> None:
-        """Raise an error for a placement in a neighbouring cell or node in a continuous space."""
+        """Raise an error for a placement in a neighbouring cell or node.
+
+        The error is for a continuous space.
+        """
         if self.placement == 'neighbor':
             self._check_grid('placement', self.placement, space, "placement='here', or a placement function")
 
-    def _check(self) -> None:
-        """Raise an error for an unknown placement, a birth by both probability and rate, or a bad function.
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Raise an error for an unknown placement, a doubled birth, or a bad function.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The placement, the schedule, or the pick is unknown, both a birth probability and a rate are given,
                 a value is neither a number nor a function, or the schedule `'member'` has arrivals.
         """
-        super()._check()
+        super()._prepare(context)
         self._check_variants()
         if self.birth is not None and self.rate is not None:
             error_msg = f'{self.label!r} gives births by a probability and by a rate. Give one of them.'
@@ -251,7 +285,10 @@ class LifeCycleInteraction(Interaction):
 
     @staticmethod
     def _evaluate(value: Chance | Count, agent: AgentViewProtocol, system: SystemViewProtocol) -> float:
-        """Return a number, or the value of a function of an agent and the system view, as a float."""
+        """Return a number, or the value of a function of an agent and the view.
+
+        The view is the system view, and the value is returned as a float.
+        """
         return float(value(agent, system) if callable(value) else value)
 
     def _happens(self, chance: Chance | None, agent: AgentViewProtocol, system: SystemViewProtocol) -> bool:
@@ -286,7 +323,10 @@ class LifeCycleInteraction(Interaction):
         return chosen
 
     def _get_values(self, agent: AgentViewProtocol | None, system: SystemViewProtocol) -> dict[str, object]:
-        """Return the inherited and given values of a new agent of a parent, or of an arrival."""
+        """Return the inherited and given values of a new agent.
+
+        The agent is the agent of a parent, or an arrival.
+        """
         values: dict[str, object] = {} if agent is None else {name: getattr(agent, name) for name in self.inherit}
         if self.values is not None:
             values.update(self.values(agent, system))
@@ -299,7 +339,10 @@ class LifeCycleInteraction(Interaction):
         values: dict[str, object],
         system: SystemViewProtocol,
     ) -> None:
-        """Create a new agent with mutated values at a place, `None` for a random one, in the group of the cycle."""
+        """Create a new agent with mutated values at a place in the group of the cycle.
+
+        The place is `None` for a random one.
+        """
         if self.mutate is not None:
             values = self.mutate(values, system)
         if self.group is not None:
@@ -310,7 +353,10 @@ class LifeCycleInteraction(Interaction):
             system.create(self._get_role('target'), place, **values)
 
     def _bear(self, agent: AgentViewProtocol, places: list[object], system: SystemViewProtocol) -> None:
-        """Create the new agents of a parent at their places, with inherited, given, split, and mutated values."""
+        """Create the new agents of a parent at their places.
+
+        Their values are inherited, given, split, and mutated.
+        """
         kept = 1 / (len(places) + 1) if self.keep is None else self._evaluate(self.keep, agent, system)
         totals = {name: float(getattr(agent, name)) for name in self.split}
         for name, amount in totals.items():
@@ -330,7 +376,10 @@ class LifeCycleInteraction(Interaction):
             setattr(agent, name, value)
 
     def _remove_kin(self, agent: AgentViewProtocol, system: SystemViewProtocol) -> None:
-        """Remove the first or a random member of the group of the cycle that is kin of an agent, if there is one."""
+        """Remove the first or a random kin of an agent from the group of the cycle.
+
+        It removes a member of the group that is kin of the agent, if there is one.
+        """
         kin = self.kin
         group = self._get_role('target' if self.group is None else 'group')
         members = (item for item in system.agents(group) if item.alive and (kin is None or kin(agent, item)))
@@ -352,7 +401,10 @@ class LifeCycleInteraction(Interaction):
         agent.remove()
 
     def _act(self, agent: AgentViewProtocol, occupied: set[object], system: SystemViewProtocol) -> tuple[int, int]:
-        """Let an agent die, or give birth and remove kin, and return its numbers of new agents and deaths."""
+        """Let an agent die, or give birth and remove kin.
+
+        It returns its numbers of new agents and deaths.
+        """
         if self._happens(self.death, agent, system):
             self._die(agent, occupied, system)
             return 0, 1
@@ -367,7 +419,10 @@ class LifeCycleInteraction(Interaction):
         occupied: set[object],
         system: SystemViewProtocol,
     ) -> tuple[int, int]:
-        """Let an agent give birth, and return its number of new agents and whether it was replaced."""
+        """Let an agent give birth.
+
+        It returns its number of new agents and whether it was replaced.
+        """
         born = 0
         events = self._count_births(agent, system)
         if events > 0:
@@ -385,7 +440,10 @@ class LifeCycleInteraction(Interaction):
         return born, 0
 
     def _arrive(self, system: SystemViewProtocol) -> int:
-        """Create the agents that arrive without a parent in this step, and return their number."""
+        """Create the agents that arrive without a parent in this step.
+
+        It returns their number.
+        """
         if self.arrival is None:
             return 0
         mean = self.arrival(system) if callable(self.arrival) else self.arrival
@@ -404,7 +462,10 @@ class LifeCycleInteraction(Interaction):
         self._act(agent, occupied, system)
 
     def _live(self, system: SystemViewProtocol) -> None:
-        """Remove or renew the agents that die and create the offspring of those that give birth, by the schedule."""
+        """Remove or renew the dying agents and create the offspring of the bearing ones.
+
+        It follows the schedule, and creates the offspring of those that give birth.
+        """
         agents = system.agents(self._get_role('target'))
         occupied = {agent.location_key for agent in agents} if self.placement == 'neighbor' else set()
         births = deaths = 0

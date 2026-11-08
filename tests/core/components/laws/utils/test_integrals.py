@@ -20,7 +20,7 @@ from skcomplex.core.components.laws.utils import (
 )
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import AxisSpec, ObservableSpec
@@ -51,8 +51,8 @@ def _observed(values: np.ndarray, axis: AxisSpec, function: Callable[[SimpleName
     space = PhaseSpace(LatticeSpace((1,)), [axis]).prepare()
     field = FieldElement('g', element=DensityElement, space=space, values={'f': values})
     observables = [ObservableSpec('value', function, group='g', reduce=np.asarray)]
-    simulation = Simulation(System(elements=[field]), dt=0.1, observables=observables).prepare()
-    return np.asarray(simulation.run(until=0.1).trajectory_.values('value'), dtype=float)[-1].ravel()
+    trajectory = simulate(System(elements=[field]), until=0.1, dt=0.1, observables=observables)
+    return np.asarray(trajectory.values('value'), dtype=float)[-1].ravel()
 
 
 def test_integration_variable_rejects_a_name_that_is_no_identifier() -> None:
@@ -90,7 +90,7 @@ def test_integral_transform_with_an_antisymmetric_kernel_conserves_the_total() -
     start = 1.0 + np.sin(3 * space.coordinates_['z'])[None, :]
     field = FieldElement('g', element=DensityElement, space=space, values={'f': start})
     system = System(elements=[field], interactions=[RateInteraction('r', target='g', state='f', rate=rate)])
-    final = Simulation(system, dt=1.0, solver=RK4Solver(dt=0.05)).prepare().run(until=5.0).trajectory_
+    final = simulate(system, until=5.0, dt=1.0, solver=RK4Solver(dt=0.05))
     values = final.values('g.f')
     assert abs(values[-1].sum() / values[0].sum() - 1.0) < 1e-10
     assert not np.allclose(values[-1], values[0])

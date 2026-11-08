@@ -13,42 +13,27 @@ play, each best responding to the prices of its rival so far, charge prices dist
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.core.experiments import Experiment, GridDesign
-from skcomplex.systems import create_system, describe
-from skcomplex.systems.economics.markets import oligopoly_equilibria
+from skcomplex.core.experiments import sweep
+from skcomplex.systems.economics.markets import OligopolyEquilibriaSystem
 
 SYSTEM = 'oligopoly_equilibria'
 
-system = create_system(SYSTEM)
+system = OligopolyEquilibriaSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-observables = describe(SYSTEM).observables_of(system)
-simulation = Simulation(system, observers=[observer], observables=observables).prepare().run(until=1.0)
+trajectory = simulate(system, until=1.0, observers=[observer])
 
 # %%
 # The distribution of prices
 # --------------------------
-# An `Experiment` sweeps the number of firms, whose rivals drive prices up, and a run of 2000 rounds of fictitious play
+# A `sweep` varies the number of firms, whose rivals drive prices up, and a run of 2000 rounds of fictitious play
 # gives the empirical distribution of the duopoly.
 
 bounds = {'n_firms': [2, 3], 'alpha': [0.2]}
-experiment = Experiment(
-    oligopoly_equilibria,
-    GridDesign(),
-    bounds,
-    until=1.0,
-    outputs=['prices.price', 'prices.distribution'],
-)
-result = experiment.prepare().run().result_
+result = sweep(OligopolyEquilibriaSystem(), bounds, until=1.0, outputs=['prices.price', 'prices.distribution'])
 prices, distributions = result.series('prices.price')[:, 0], result.series('prices.distribution')[:, 0]
-learning = oligopoly_equilibria(dynamics='fictitious-play')
-played = (
-    Simulation(learning, random_state=0, observables=describe(SYSTEM).observables_of(learning))
-    .prepare()
-    .run(until=2000)
-    .trajectory_
-)
+played = simulate(OligopolyEquilibriaSystem(dynamics='fictitious-play'), until=2000, random_state=0)
 charged = np.sort(np.concatenate([played.values('lower_price')[1:], played.values('higher_price')[1:]]))
 grid = np.linspace(1 / 3, 1.0, 100)
 fig, (static, learned) = plt.subplots(1, 2, figsize=(10, 4))

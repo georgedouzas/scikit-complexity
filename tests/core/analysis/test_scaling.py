@@ -8,15 +8,15 @@ from scipy import optimize
 from scipy.integrate import solve_ivp
 from scipy.spatial import cKDTree
 
-from skcomplex.core.analysis import CoarseGrainAnalysis, ScalingAnalysis
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.analysis import ScalingResult, coarse_grain, scaling
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.synchronization import OttAntonsenSystem
 
 
-def _scaling(kind: str, source: object, **settings: object) -> ScalingAnalysis:
+def _scaling(kind: str, source: object, **settings: object) -> ScalingResult:
     """Return the scaling analysis of a source for one kind, run."""
-    return ScalingAnalysis(kind, **settings).prepare(source).run()
+    return scaling(source, kind=kind, **settings)
 
 
 def _fractional_gaussian_noise(size: int, hurst: float, rng: np.random.Generator) -> np.ndarray:
@@ -62,23 +62,23 @@ def _henon(size: int) -> np.ndarray:
 def test_hurst_exponent_white_noise_memory():
     """Test that white noise has a Hurst exponent within 0.05 of 0.5 by both estimators."""
     noise = np.random.default_rng(4).standard_normal(20_000)
-    assert _scaling('detrended-fluctuation', noise).exponent_[0] == pytest.approx(0.5, abs=0.05)
-    assert _scaling('rescaled-range', noise).exponent_[0] == pytest.approx(0.5, abs=0.05)
+    assert _scaling('detrended-fluctuation', noise).exponent[0] == pytest.approx(0.5, abs=0.05)
+    assert _scaling('rescaled-range', noise).exponent[0] == pytest.approx(0.5, abs=0.05)
 
 
 @pytest.mark.slow
 def test_white_noise_has_no_memory():
     """Test that white noise has a Hurst exponent within 0.05 of 0.5 and integrated noise near 1.5."""
     noise = np.random.default_rng(6).standard_normal(50_000)
-    assert _scaling('detrended-fluctuation', noise).exponent_[0] == pytest.approx(0.5, abs=0.05)
-    assert _scaling('detrended-fluctuation', np.cumsum(noise)).exponent_[0] == pytest.approx(1.5, abs=0.1)
+    assert _scaling('detrended-fluctuation', noise).exponent[0] == pytest.approx(0.5, abs=0.05)
+    assert _scaling('detrended-fluctuation', np.cumsum(noise)).exponent[0] == pytest.approx(1.5, abs=0.1)
 
 
 def test_detrended_fluctuation_persistent_and_integrated_noise():
     """Test that fractional Gaussian noise with H = 0.7 gives 0.7 and a random walk 1.5, within 0.05."""
     persistent = _fractional_gaussian_noise(20_000, 0.7, np.random.default_rng(11))
     walk = np.cumsum(np.random.default_rng(5).standard_normal(20_000))
-    exponents = _scaling('detrended-fluctuation', np.column_stack([persistent, walk])).exponent_
+    exponents = _scaling('detrended-fluctuation', np.column_stack([persistent, walk])).exponent
     assert exponents == pytest.approx([0.7, 1.5], abs=0.05)
 
 
@@ -90,23 +90,23 @@ def test_detrended_fluctuation_rejects_short_series():
 
 def test_sierpinski_dimension():
     """Test that the box-counting dimension of a Sierpinski triangle is within 0.05 of log 3 / log 2."""
-    assert _scaling('box-counting', _sierpinski(1024)).exponent_ == pytest.approx(np.log(3) / np.log(2), abs=0.05)
+    assert _scaling('box-counting', _sierpinski(1024)).exponent == pytest.approx(np.log(3) / np.log(2), abs=0.05)
 
 
 def test_correlation_dimension_of_attractors_and_agents():
     """Test the correlation dimensions of the Lorenz and Hénon attractors and of uniform agents in a square."""
     lorenz = _lorenz_states(28.0, 0.05, 1000.0)[:20_000]
-    assert _scaling('correlation-dimension', lorenz).exponent_ == pytest.approx(2.05, abs=0.1)
-    assert _scaling('correlation-dimension', _henon(20_000)).exponent_ == pytest.approx(1.21, abs=0.05)
+    assert _scaling('correlation-dimension', lorenz).exponent == pytest.approx(2.05, abs=0.1)
+    assert _scaling('correlation-dimension', _henon(20_000)).exponent == pytest.approx(1.21, abs=0.05)
     agents = np.random.default_rng(1).random((5000, 2))
-    assert _scaling('correlation-dimension', agents).exponent_ == pytest.approx(2, abs=0.05)
+    assert _scaling('correlation-dimension', agents).exponent == pytest.approx(2, abs=0.05)
     with pytest.raises(AnalysisError, match='Fewer than 2 radii'):
         _scaling('correlation-dimension', agents, scales=[10.0, 20.0])
 
 
 def _density(positions: np.ndarray, side: float) -> np.ndarray:
     """Return the agents of a square of a side coarse-grained on a 64 by 64 grid."""
-    return CoarseGrainAnalysis([64, 64], box=[side, side]).prepare(positions).run().field_
+    return coarse_grain(positions, shape=[64, 64], box=[side, side]).field
 
 
 def _vicsek_densities(rng: np.random.Generator, agents: int, side: float, noise: float, steps: int) -> np.ndarray:
@@ -132,8 +132,8 @@ def test_variance_mean_of_box_counts_giant_in_ordered_flocks():
     """Test that an ideal gas has normal number fluctuations and ordered Vicsek agents giant ones."""
     rng = np.random.default_rng(2)
     gas = np.asarray([_density(rng.random((4000, 2)) * 32, 32) for _ in range(40)])
-    assert _scaling('variance-mean', gas).exponent_ == pytest.approx(0.5, abs=0.05)
-    assert _scaling('variance-mean', _vicsek_densities(rng, 2000, 22.6, 0.3, 2000)).exponent_ > 0.6
+    assert _scaling('variance-mean', gas).exponent == pytest.approx(0.5, abs=0.05)
+    assert _scaling('variance-mean', _vicsek_densities(rng, 2000, 22.6, 0.3, 2000)).exponent > 0.6
 
 
 def test_variance_mean_against_size_of_an_ideal_lattice_gas():
@@ -141,9 +141,9 @@ def test_variance_mean_against_size_of_an_ideal_lattice_gas():
     occupied = np.random.default_rng(3).random((200, 256, 256)) < 0.3
     samples = {side**2: occupied[:, :side, :side].sum(axis=(1, 2)) for side in (4, 8, 16, 32, 64)}
     relative = _scaling('variance-mean', samples, against='size')
-    assert relative.exponent_ == pytest.approx(-0.5, abs=0.05)
-    assert relative.scales_.tolist() == [16.0, 64.0, 256.0, 1024.0, 4096.0]
-    assert _scaling('variance-mean', samples).exponent_ == pytest.approx(0.5, abs=0.05)
+    assert relative.exponent == pytest.approx(-0.5, abs=0.05)
+    assert relative.scales.tolist() == [16.0, 64.0, 256.0, 1024.0, 4096.0]
+    assert _scaling('variance-mean', samples).exponent == pytest.approx(0.5, abs=0.05)
 
 
 def test_power_exponent_of_two_mean_field_transitions():
@@ -151,19 +151,16 @@ def test_power_exponent_of_two_mean_field_transitions():
     temperatures = np.linspace(0.95, 0.995, 10)
     magnetizations = [optimize.brentq(lambda m, t=t: m - math.tanh(m / t), 1e-6, 1.0) for t in temperatures]
     power = _scaling('power', magnetizations, parameters=temperatures, critical=1.0)
-    assert power.exponent_[0] == pytest.approx(0.5, abs=0.05)
+    assert power.exponent[0] == pytest.approx(0.5, abs=0.05)
     couplings = np.linspace(1.02, 1.2, 10)
     orders = [
-        Simulation(create_system('ott_antonsen', r=0.5, K=coupling, Delta=0.5), dt=1.0)
-        .prepare()
-        .run(until=400.0)
-        .trajectory_
+        simulate(OttAntonsenSystem(r=0.5, K=coupling, Delta=0.5).prepare().system_, until=400.0, dt=1.0)
         for coupling in couplings
     ]
     names = orders[0].problem.states.names
     final = [float(np.abs(trajectory.values(names[0])[-1])) for trajectory in orders]
     power = _scaling('power', final, parameters=couplings, critical=1.0, above=True)
-    assert power.exponent_[0] == pytest.approx(0.5, abs=0.05)
+    assert power.exponent[0] == pytest.approx(0.5, abs=0.05)
     with pytest.raises(AnalysisError, match='chosen side'):
         _scaling('power', [0.1, 0.2], parameters=[1.5, 2.0], critical=1.0)
 
@@ -171,13 +168,13 @@ def test_power_exponent_of_two_mean_field_transitions():
 def test_unknown_kind_and_ignored_setting():
     """Test that an unknown kind and a setting the kind ignores raise errors."""
     with pytest.raises(AnalysisError, match='detrended-fluctuation, rescaled-range'):
-        ScalingAnalysis('wavelet').prepare()
+        scaling(np.zeros(10), kind='wavelet')
     with pytest.raises(AnalysisError, match='does not read order'):
-        ScalingAnalysis('box-counting', order=2).prepare()
+        scaling(np.zeros(10), kind='box-counting', order=2)
     with pytest.raises(AnalysisError, match="against='variance'"):
-        ScalingAnalysis('variance-mean', against='variance').prepare()
+        scaling(np.zeros(10), kind='variance-mean', against='variance')
     with pytest.raises(AnalysisError, match='critical value'):
-        ScalingAnalysis('power', parameters=[1.0, 2.0]).prepare()
+        scaling(np.zeros(10), kind='power', parameters=[1.0, 2.0])
 
 
 def _allometric_samples(seed: int, sigma: float = 0.3) -> dict[float, np.ndarray]:
@@ -189,17 +186,16 @@ def _allometric_samples(seed: int, sigma: float = 0.3) -> dict[float, np.ndarray
 def test_run_allometric_interval_contains_a_known_exponent():
     """Test that the 95% confidence interval of a quantity generated as `N^1.15` contains 1.15."""
     analysis = _scaling('allometric', _allometric_samples(0))
-    assert analysis.exponent_ == pytest.approx(1.15, abs=0.05)
-    assert analysis.interval_[0] < 1.15 < analysis.interval_[1]
-    assert analysis.scales_.size == 50
+    assert analysis.exponent == pytest.approx(1.15, abs=0.05)
+    assert analysis.interval[0] < 1.15 < analysis.interval[1]
+    assert analysis.scales.size == 50
 
 
 def test_run_allometric_interval_covers_the_exponent_at_about_its_level():
     """Test that the 95% interval contains the exponent in about 95 of 100 data sets, and a 50% one in about half."""
-    wide = [_scaling('allometric', _allometric_samples(seed), resamples=300).interval_ for seed in range(100)]
+    wide = [_scaling('allometric', _allometric_samples(seed), resamples=300).interval for seed in range(100)]
     narrow = [
-        _scaling('allometric', _allometric_samples(seed), resamples=300, confidence=0.5).interval_
-        for seed in range(100)
+        _scaling('allometric', _allometric_samples(seed), resamples=300, confidence=0.5).interval for seed in range(100)
     ]
     assert sum(low < 1.15 < high for low, high in wide) >= 88
     assert 30 <= sum(low < 1.15 < high for low, high in narrow) <= 70
@@ -209,13 +205,13 @@ def test_run_allometric_reads_two_columns():
     """Test that two columns of sizes and samples give the exponent of the mapping."""
     pairs = np.array([(size, sample) for size, samples in _allometric_samples(1).items() for sample in samples])
     from_columns = _scaling('allometric', pairs)
-    assert from_columns.exponent_ == pytest.approx(_scaling('allometric', _allometric_samples(1)).exponent_)
+    assert from_columns.exponent == pytest.approx(_scaling('allometric', _allometric_samples(1)).exponent)
 
 
 def test_run_allometric_is_reproducible_with_its_seed():
     """Test that one seed gives one interval."""
     samples = _allometric_samples(2)
-    first, second = (_scaling('allometric', samples, resamples=100, random_state=3).interval_ for _ in range(2))
+    first, second = (_scaling('allometric', samples, resamples=100, random_state=3).interval for _ in range(2))
     assert first == second
 
 
@@ -230,17 +226,17 @@ def test_run_allometric_is_reproducible_with_its_seed():
 def test_prepare_allometric_rejects_bad_samples(source: object, message: str):
     """Test that samples that are not positive, a single size, and other shapes raise an error."""
     with pytest.raises(AnalysisError, match=message):
-        ScalingAnalysis('allometric').prepare(source)
+        scaling(source, kind='allometric')
 
 
 @pytest.mark.parametrize('settings', [{'confidence': 1.5}, {'resamples': 0}])
 def test_check_allometric_rejects_bad_settings(settings: dict[str, float]):
     """Test that a confidence level outside the unit interval and no resamples raise an error."""
     with pytest.raises(AnalysisError, match=next(iter(settings))):
-        ScalingAnalysis('allometric', **settings).prepare()
+        scaling(np.zeros(10), kind='allometric', **settings)
 
 
 def test_check_other_kinds_reject_the_allometric_settings():
     """Test that a kind other than allometric does not read a confidence level."""
     with pytest.raises(AnalysisError, match='does not read confidence'):
-        ScalingAnalysis('rescaled-range', confidence=0.9).prepare()
+        scaling(np.zeros(10), kind='rescaled-range', confidence=0.9)

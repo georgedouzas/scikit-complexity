@@ -15,16 +15,16 @@ traders drift towards the profitable direction faster and faster.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.economics.finance import ArbitrageTradersSystem
 
 SYSTEM = 'arbitrage_traders'
 N_SITES, LENGTH, D, E, UNTIL = 200, 20.0, 0.5, 0.5, 3.5
 
-system = create_system(SYSTEM, n_sites=N_SITES, length=LENGTH, D=D, E=E)
+system = ArbitrageTradersSystem(n_sites=N_SITES, length=LENGTH, D=D, E=E)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='rho history', interval=1)
-simulation = Simulation(system, dt=0.02, observers=[observer]).prepare().run(until=UNTIL)
+trajectory = simulate(system, until=UNTIL, dt=0.02, observers=[observer])
 
 # %%
 # Drift, spreading, and growth
@@ -35,7 +35,6 @@ simulation = Simulation(system, dt=0.02, observers=[observer]).prepare().run(unt
 # with upwind differences, whose numerical diffusion `v dx / 2` adds `dx` times the distance travelled to the variance,
 # the dashed correction.
 
-trajectory = simulation.trajectory_
 times = trajectory.times
 spacing = LENGTH / N_SITES
 positions = (np.arange(N_SITES) + 0.5) * spacing - LENGTH / 2

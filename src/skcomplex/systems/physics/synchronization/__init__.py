@@ -1,77 +1,85 @@
-"""Synchronization: coupled phase oscillators, pulse-coupled oscillators, swarmalators, chaos, and Kuramoto order."""
+"""Synchronization systems.
+
+The package covers coupled phase oscillators, pulse-coupled oscillators, swarmalators, chaos, and Kuramoto order.
+"""
 
 from ..common.oscillators import LinkElement
-from ._adaptive import AdaptiveCouplingInteraction, AdaptiveLinkElement, adaptive_kuramoto
+from ._adaptive import AdaptiveCouplingInteraction, AdaptiveKuramotoSystem, AdaptiveLinkElement
 from ._amplitude_death import (
     GlobalCouplingInteraction,
-    heterogeneous_global_coupling,
-    oscillator_death,
+    HeterogeneousGlobalCouplingSystem,
+    OscillatorDeathSystem,
 )
 from ._chaos import (
     AggregateAveragingInteraction,
+    AggregateAveragingSynchronizationSystem,
+    CoupledRosslerSystem,
     DelayedUnitElement,
     DiffusiveCouplingInteraction,
     LogisticUnitElement,
+    RosslerDrivenLorenzSystem,
     RosslerOscillatorElement,
-    aggregate_averaging_synchronization,
-    coupled_rossler,
-    rossler_driven_lorenz,
 )
-from ._hypergraphs import SimplexCouplingInteraction, hypergraph_kuramoto
+from ._hypergraphs import HypergraphKuramotoSystem, SimplexCouplingInteraction
 from ._kuramoto import (
     DelayedCouplingInteraction,
-    delayed_kuramoto,
-    kuramoto,
-    kuramoto_sakaguchi_chimera,
-    nonlocal_ring_chimera,
-    ott_antonsen,
+    DelayedKuramotoSystem,
+    KuramotoSakaguchiChimeraSystem,
+    KuramotoSystem,
+    NonlocalRingChimeraSystem,
+    OttAntonsenSystem,
 )
 from ._networks import (
+    CoupledMapLatticesOnNetworksSystem,
     EdgeCouplingInteraction,
+    KuramotoOnNetworksSystem,
     LogisticCouplingInteraction,
     LogisticNodeElement,
-    coupled_map_lattices_on_networks,
-    kuramoto_on_networks,
 )
-from ._pulses import IntegrateAndFireOscillatorElement, WinfreeMeanFieldInteraction, mirollo_strogatz, winfree
-from ._swarmalators import SwarmalatorCouplingInteraction, SwarmalatorElement, swarmalators
-from ._topological import topological_kuramoto
+from ._pulses import (
+    IntegrateAndFireOscillatorElement,
+    MirolloStrogatzSystem,
+    WinfreeMeanFieldInteraction,
+    WinfreeSystem,
+)
+from ._swarmalators import SwarmalatorCouplingInteraction, SwarmalatorElement, SwarmalatorsSystem
+from ._topological import TopologicalKuramotoSystem
 
 __all__: list[str] = [
     'AdaptiveCouplingInteraction',
+    'AdaptiveKuramotoSystem',
     'AdaptiveLinkElement',
     'AggregateAveragingInteraction',
+    'AggregateAveragingSynchronizationSystem',
+    'CoupledMapLatticesOnNetworksSystem',
+    'CoupledRosslerSystem',
     'DelayedCouplingInteraction',
+    'DelayedKuramotoSystem',
     'DelayedUnitElement',
     'DiffusiveCouplingInteraction',
     'EdgeCouplingInteraction',
     'GlobalCouplingInteraction',
+    'HeterogeneousGlobalCouplingSystem',
+    'HypergraphKuramotoSystem',
     'IntegrateAndFireOscillatorElement',
+    'KuramotoOnNetworksSystem',
+    'KuramotoSakaguchiChimeraSystem',
+    'KuramotoSystem',
     'LinkElement',
     'LogisticCouplingInteraction',
     'LogisticNodeElement',
     'LogisticUnitElement',
+    'MirolloStrogatzSystem',
+    'NonlocalRingChimeraSystem',
+    'OscillatorDeathSystem',
+    'OttAntonsenSystem',
+    'RosslerDrivenLorenzSystem',
     'RosslerOscillatorElement',
     'SimplexCouplingInteraction',
     'SwarmalatorCouplingInteraction',
     'SwarmalatorElement',
+    'SwarmalatorsSystem',
+    'TopologicalKuramotoSystem',
     'WinfreeMeanFieldInteraction',
-    'adaptive_kuramoto',
-    'aggregate_averaging_synchronization',
-    'coupled_map_lattices_on_networks',
-    'coupled_rossler',
-    'delayed_kuramoto',
-    'heterogeneous_global_coupling',
-    'hypergraph_kuramoto',
-    'kuramoto',
-    'kuramoto_on_networks',
-    'kuramoto_sakaguchi_chimera',
-    'mirollo_strogatz',
-    'nonlocal_ring_chimera',
-    'oscillator_death',
-    'ott_antonsen',
-    'rossler_driven_lorenz',
-    'swarmalators',
-    'topological_kuramoto',
-    'winfree',
+    'WinfreeSystem',
 ]

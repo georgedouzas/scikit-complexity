@@ -1,4 +1,7 @@
-"""Turn the finished Rerun observer of an example into a checked and cached thumbnail."""
+"""Turn the finished Rerun observer of an example into a thumbnail.
+
+The thumbnail is checked and cached.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,7 +15,6 @@ import rerun as rr
 import rerun.blueprint as rrb
 from rerun.chunk import RrdReader
 
-from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 
 from ._cache import ScreenshotCache, cache_key
@@ -24,9 +26,9 @@ from ._settings import Budget, CaptureSettings
 
 
 def finished_observers(variables: Mapping[str, object]) -> list[RerunObserver]:
-    """Return the Rerun observers of an example's variables that saved a recording with a blueprint.
+    """Return the Rerun observers of an example that saved a recording.
 
-    Observers are found as variables and as observers of simulations.
+    Each saved its recording with a blueprint. They are found among the variables of the example.
 
     Args:
         variables:
@@ -43,9 +45,6 @@ def finished_observers(variables: Mapping[str, object]) -> list[RerunObserver]:
         []
     """
     candidates = [value for value in variables.values() if isinstance(value, RerunObserver)]
-    for value in variables.values():
-        if isinstance(value, Simulation):
-            candidates += [item for item in value.observers if isinstance(item, RerunObserver)]
     found: list[RerunObserver] = []
     for observer in candidates:
         if observer in found or observer.save_path is None or getattr(observer, 'logged_frames_', 0) == 0:
@@ -60,7 +59,10 @@ def finished_observers(variables: Mapping[str, object]) -> list[RerunObserver]:
 
 
 def _warn_missing_series(example: Path, recording: Path, blueprint: rrb.Blueprint) -> None:
-    """Warn about every series the caption of an example names that the primary view of its recording does not show."""
+    """Warn about every series of a caption that the primary view does not show.
+
+    The caption is that of an example, and the primary view that of its recording.
+    """
     names = caption_series(example.read_text())
     if not names:
         return
@@ -83,10 +85,11 @@ def thumbnail_of(
     budget: Budget,
     seconds: float | None = None,
 ) -> tuple[Path, bool]:
-    """Return the thumbnail of an example from the cache, or capture, check, and cache it.
+    """Return the thumbnail of an example from the cache.
 
-    A `GalleryWarning` names every series that the comments of the example quote as a series of the primary view, and
-    that the primary view does not show, as `caption_series` and `missing_series` find them.
+    Without a cached one, it captures, checks, and caches it. A `GalleryWarning` names every series that the comments of
+    the example quote as a series of the primary view, and that the primary view does not show, as `caption_series` and
+    `missing_series` find them.
 
     Args:
         example:

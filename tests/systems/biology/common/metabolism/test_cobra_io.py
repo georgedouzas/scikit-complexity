@@ -6,7 +6,7 @@ import pytest
 
 from skcomplex.core.components.spaces import StaticTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.biology.common.metabolism import (
     from_cobra,
@@ -36,7 +36,7 @@ def _core_system(**values):
 
 def _objective(system):
     """Return the objective of the only program of a static system."""
-    trajectory = Simulation(system).prepare().run(0.0).trajectory_
+    trajectory = simulate(system, until=0.0)
     return float(trajectory.values('cell.objective_0')[0])
 
 
@@ -85,19 +85,19 @@ def test_load_network_downloads_a_bigg_system():
 
 
 def test_default_install_stays_importable():
-    """Test that the catalog imports without the extra, lists its systems, and the toy network runs."""
+    """Test that the systems import and list without the extra, and that the toy network runs."""
     code = HIDE_EXTRA + (
-        'from skcomplex.core.engine.runtime import Simulation\n'
-        'from skcomplex.systems import catalog, create_system\n'
-        'names = {item.name for item in catalog()}\n'
-        "assert {'dynamic_fba', 'comets', 'community_fba'} <= names\n"
-        "system = create_system('flux_balance')\n"
-        "trajectory = Simulation(system).prepare().run(0.0).trajectory_\n"
+        'from skcomplex.core.engine.runtime import simulate\n'
+        'from skcomplex.systems import all_systems\n'
+        'from skcomplex.systems.biology.systems_biology import DynamicFBASystem, FluxBalanceSystem\n'
+        "names = {name for field in ('biology/systems_biology', 'biology/ecology') for name, _ in all_systems(field)}\n"
+        "assert {'DynamicFBASystem', 'CometsSystem', 'CommunityFBASystem'} <= names\n"
+        "trajectory = simulate(FluxBalanceSystem(), until=0.0)\n"
         "assert abs(float(trajectory.values('cell.v_vbio')[0]) - 50) < 1e-9\n"
         "assert not {'cobra', 'straindesign', 'micom'} & set(sys.modules)\n"
         'from skcomplex.core.errors import MissingExtraError\n'
         'try:\n'
-        "    create_system('dynamic_fba')\n"
+        "    DynamicFBASystem().prepare()\n"
         'except MissingExtraError as error:\n'
         "    assert 'dynamic_fba' in str(error) and 'metabolism' in str(error)\n"
         'else:\n'

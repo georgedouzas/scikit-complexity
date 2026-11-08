@@ -45,12 +45,12 @@ from skcomplex.core.components.spaces import (
 )
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import PassCompiler
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems._reduction_kernel import ReductionKernel
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.experiments import Experiment, GridDesign
+from skcomplex.core.experiments import sweep
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
@@ -614,18 +614,10 @@ def _order(phases):
 @pytest.mark.slow
 def test_kuramoto_synchronizes_above_the_critical_coupling():
     """Test that 1000 oscillators on a complete graph stay incoherent below `2 gamma` and synchronize above it."""
-    below = (
-        Simulation(_kuramoto(0.5 * CRITICAL), dt=0.5, solver=RK4Solver(dt=0.1), backend=NumbaBackend())
-        .prepare()
-        .run(10.0)
-    )
-    above = (
-        Simulation(_kuramoto(3 * CRITICAL), dt=0.5, solver=RK4Solver(dt=0.1), backend=NumbaBackend())
-        .prepare()
-        .run(10.0)
-    )
-    weak, strong = _order(below.trajectory_.values('oscillators.theta')), _order(
-        above.trajectory_.values('oscillators.theta'),
+    below = simulate(_kuramoto(0.5 * CRITICAL), until=10.0, dt=0.5, solver=RK4Solver(dt=0.1), backend=NumbaBackend())
+    above = simulate(_kuramoto(3 * CRITICAL), until=10.0, dt=0.5, solver=RK4Solver(dt=0.1), backend=NumbaBackend())
+    weak, strong = _order(below.values('oscillators.theta')), _order(
+        above.values('oscillators.theta'),
     )
     assert weak[-5:].max() < 0.1
     assert strong[-5:].min() > 0.7
@@ -635,12 +627,7 @@ def test_kuramoto_synchronizes_above_the_critical_coupling():
 def test_kuramoto_agrees_across_backends():
     """Test that the Kuramoto run on a complete graph gives the same phases on NumPy and Numba."""
     runs = [
-        (
-            Simulation(_kuramoto(3 * CRITICAL), dt=0.5, solver=RK4Solver(dt=0.1), backend=backend)
-            .prepare()
-            .run(2.0)
-            .trajectory_
-        )
+        simulate(_kuramoto(3 * CRITICAL), until=2.0, dt=0.5, solver=RK4Solver(dt=0.1), backend=backend)
         for backend in BACKENDS
     ]
     assert np.allclose(runs[0].values('oscillators.theta'), runs[1].values('oscillators.theta'), rtol=0, atol=1e-12)
@@ -701,7 +688,7 @@ def _vicsek(size=400, side=5.0):
 
 def test_vicsek_flocks_at_low_noise_and_high_density():
     """Test that the polar order parameter of the Vicsek system exceeds 0.9 at low noise and high density."""
-    trajectory = Simulation(_vicsek(), dt=1.0, random_state=0, backend=NumbaBackend()).prepare().run(100).trajectory_
+    trajectory = simulate(_vicsek(), until=100, dt=1.0, random_state=0, backend=NumbaBackend())
     order = _order(trajectory.values('movers.theta'))
     assert order[0] < 0.2
     assert order[-1] > 0.9
@@ -709,18 +696,7 @@ def test_vicsek_flocks_at_low_noise_and_high_density():
 
 def test_vicsek_agrees_across_backends():
     """Test that the Vicsek system gives the same headings and positions on NumPy and Numba for one seed."""
-    runs = [
-        Simulation(
-            _vicsek(),
-            dt=1.0,
-            random_state=0,
-            backend=backend,
-        )
-        .prepare()
-        .run(50)
-        .trajectory_
-        for backend in BACKENDS
-    ]
+    runs = [simulate(_vicsek(), until=50, dt=1.0, random_state=0, backend=backend) for backend in BACKENDS]
     turns = np.angle(np.exp(1j * (runs[0].values('movers.theta') - runs[1].values('movers.theta'))))
     assert np.abs(turns).max() < 1e-12
     assert np.allclose(runs[0].values('movers.x'), runs[1].values('movers.x'), rtol=0, atol=1e-12)
@@ -1151,7 +1127,7 @@ def test_log_sum_exp_large_values(backend: type) -> None:
     group = GroupElement('energies', element=QuenchedEnergyElement, size=1000, values={'energy': values})
     reader = LogPartitionInteraction('reader', target='reduced', energies='energies')
     system = System(elements=[group, LogPartitionElement('reduced')], interactions=[reader], time=StaticTime())
-    trajectory = Simulation(system, backend=backend()).prepare().run(1.0).trajectory_
+    trajectory = simulate(system, until=1.0, backend=backend())
     result = trajectory.values('reduced.value')[0]
     assert np.isfinite(result)
     assert values.max() <= result <= values.max() + math.log(1000)
@@ -1218,8 +1194,7 @@ def _random_levels(temperature: float = 1.0, random_state: int = 0) -> System:
 def test_log_sum_exp_random_energy_system_entropy() -> None:
     """Test that the entropy of random levels over 10 seeds follows the theory above the glass temperature."""
     bounds = {'temperature': [1.0, 2.0, 0.3], 'random_state': list(range(10))}
-    experiment = Experiment(_random_levels, GridDesign(), bounds, until=1.0, outputs=['sums.entropy'])
-    result = experiment.prepare().run().result_
+    result = sweep(_random_levels, bounds, until=1.0, outputs=['sums.entropy'])
     entropies = result.series('sums.entropy')[:, 0].reshape(3, 10).mean(axis=1)
     assert entropies[0] == pytest.approx(math.log(2) - 1 / 4, abs=0.02)
     assert entropies[1] == pytest.approx(math.log(2) - 1 / 16, abs=0.02)

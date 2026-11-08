@@ -1,4 +1,7 @@
-"""Define the base of the backends, which turn kernels into the numeric functions of a form."""
+"""Define the base of the backends.
+
+A backend turns kernels into the numeric functions of a form.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -8,23 +11,25 @@ import numpy as np
 
 from ...base import BaseConfig
 from ...errors import ValidationError
-from ...specs import LoweredFunctionsSpec, RunStateSpec, SupportSpec
+from ...specs import LoweredFunctionsSpec, RunStateSpec, SupportSpec, Tags
 from ...types import Array, Indices, VectorFunction
-from ..problems import LoweredKernelsSpec, OutputSpec, ReferenceSpec
 from ..problems._law_kernel import LawKernel
+from ..problems._lowered_kernels_spec import LoweredKernelsSpec
+from ..problems._output_spec import OutputSpec
+from ..problems._reference_spec import ReferenceSpec
 from ..types import OptionalPairs, ReadKind
 
 _AUTO_MEMBERS = 1000
 
 
 class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
-    """Base of the backends, which turn the kernels of a problem into the numeric functions of its form.
+    """Base of the backends.
 
-    A backend stores its settings in its constructor, `prepare()` takes nothing, and `run(kernels)` takes the
-    `LoweredKernelsSpec` of a problem, with its form, the size of its state vector, its reductions, and its draws, and
-    keeps the `LoweredFunctionsSpec` of the form in `functions_`. Subclasses implement the hooks `_run`, `_get_name`,
-    the name a problem records, and `_get_support`, the times, spaces, laws, noise, and orders the backend writes
-    functions of.
+    A backend turns the kernels of a problem into the numeric functions of its form. A backend stores its settings in
+    its constructor, `prepare()` takes nothing, and `run(kernels)` takes the `LoweredKernelsSpec` of a problem, with its
+    form, the size of its state vector, its reductions, and its draws, and keeps the `LoweredFunctionsSpec` of the form
+    in `functions_`. Subclasses implement the hooks `_run`, `_get_name`, the name a problem records, and `_get_support`,
+    the times, spaces, laws, noise, and orders the backend writes functions of.
 
     Attributes:
         functions_:
@@ -33,11 +38,11 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
 
     functions_: LoweredFunctionsSpec
 
-    def _check(self) -> None:
-        """Accept every setting, since a backend has none to validate. A backend with settings validates them."""
-
     def _prepare(self, context: None) -> None:
-        """Derive nothing from the context, since a backend prepares nothing. A backend that derives facts sets them."""
+        """Derive nothing from the context.
+
+        A backend prepares nothing. A backend that derives facts sets them.
+        """
 
     def _run(self, inputs: LoweredKernelsSpec | None) -> None:
         """Set the numeric functions of the form of the kernels.
@@ -68,7 +73,9 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
 
     @classmethod
     def _get_support(cls) -> SupportSpec:
-        """Return the times, spaces, laws, noise, and orders the backend writes functions of.
+        """Return what the backend writes functions of.
+
+        It is the times, spaces, laws, noise, and orders.
 
         Returns:
             support:
@@ -79,6 +86,23 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
                 The subclass does not implement the hook.
         """
         raise NotImplementedError
+
+    @classmethod
+    def get_supported_tags(cls) -> Tags:
+        """Return the capability tags the backend supports.
+
+        They come from the classes of time, space, and laws it supports.
+
+        Returns:
+            tags:
+                The supported times, spaces, and law kinds, where an empty field supports any value.
+
+        Examples:
+            >>> from skcomplex.core.engine.backends import JaxBackend
+            >>> sorted(JaxBackend.get_supported_tags().space)
+            ['none']
+        """
+        return cls._get_support().get_tags()
 
     @staticmethod
     def _outputs_of(kernel: LawKernel, state: RunStateSpec) -> tuple[OptionalPairs, list[Array]]:
@@ -127,10 +151,11 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
 
     @staticmethod
     def _assigning_function(kernels: list[LawKernel]) -> VectorFunction:
-        """Return the function that sets the outputs of kernels on a copy of the state vector.
+        """Return the function that sets the outputs of kernels on a copy of the state.
 
-        An output that combines with an earlier output of its target adds its change from the state to the value set
-        before it, and an output that reduces over rows adds the share of every row to the member it writes.
+        The state is the state vector. An output that combines with an earlier output of its target adds its change from
+        the state to the value set before it, and an output that reduces over rows adds the share of every row to the
+        member it writes.
 
         Args:
             kernels:
@@ -142,7 +167,10 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
         """
 
         def evaluate(t: float, x: Array, p: Array) -> Array:
-            """Set every kernel's outputs on a copy of the state, adding the changes of combined outputs."""
+            """Set every kernel's outputs on a copy of the state.
+
+            The changes of combined outputs are added.
+            """
             output = x.copy()
             for kernel in kernels:
                 _, values = BaseBackend._outputs_of(kernel, RunStateSpec(t, x, p))
@@ -159,7 +187,9 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
 
     @staticmethod
     def _concatenating_function(kernels: list[LawKernel]) -> VectorFunction:
-        """Return the function that concatenates the outputs of kernels, one value per evaluation index.
+        """Return the function that concatenates the outputs of kernels.
+
+        It gives one value per evaluation index.
 
         Args:
             kernels:
@@ -257,7 +287,9 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
 
     @staticmethod
     def _assign_change_into(output: Array, x: Array, target: ReferenceSpec | None, values: Array, p: Array) -> None:
-        """Add the change of one output from the state to the target component of a flat vector.
+        """Add the change of one output from the state to its target in a flat vector.
+
+        The change goes to the target component of the vector.
 
         Args:
             output:
@@ -293,7 +325,7 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
 
     @staticmethod
     def _reduce_into(output: Array, x: Array, item: OutputSpec, values: Array, p: Array) -> None:
-        """Add the share of every row of an output that reduces over rows to the member it writes.
+        """Add the share of every row of an output that reduces over rows to its member.
 
         A member written by `m` rows over every kernel takes `x + sum_r (v_r - x / m)`, the sum of its rows, or
         `x + sum_r (v_r - x) / m`, their mean, and a member written by no row keeps its value.

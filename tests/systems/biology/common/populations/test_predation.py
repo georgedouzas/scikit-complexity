@@ -1,7 +1,7 @@
 """Test the `_predation` module of `skcomplex.systems.biology.common.populations`."""
 
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.common.populations import (
     LogisticGrowthInteraction,
     MortalityInteraction,
@@ -20,7 +20,7 @@ def test_lotka_volterra_oscillates():
             MortalityInteraction('death', target='foxes', d=0.4),
         ],
     )
-    trajectory = Simulation(system, dt=0.1).prepare().run(until=50).trajectory_
+    trajectory = simulate(system, dt=0.1, until=50)
     rabbits = trajectory.values('rabbits.n')
     assert rabbits.min() > 0
     assert rabbits.max() > 2 * rabbits.min()

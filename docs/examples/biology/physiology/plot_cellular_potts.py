@@ -18,14 +18,15 @@ tessellation of irregular points, whose contacts are weighted by the length of t
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.systems import create_simulation
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.biology.physiology import CellularPottsSystem
 
 SYSTEM = 'cellular_potts'
 SHAPE = (40, 40)
 
-simulation = create_simulation(SYSTEM, shape=SHAPE).prepare()
-series = simulation.run(until=3000).trajectory_
-kinds = np.asarray(simulation.system.interactions[0].kinds)
+system = CellularPottsSystem(shape=SHAPE)
+series = simulate(system, until=3000)
+kinds = np.asarray(system.system_.interactions[0].kinds)
 cells = np.rint(series.values('tissue.cell')).astype(int).reshape(-1, *SHAPE)
 
 fig, axes = plt.subplots(1, 2, figsize=(8, 4))
@@ -45,8 +46,8 @@ plt.show()
 
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.plot(series.values('homotypic_contacts'), label='differential adhesion')
-mixed = create_simulation(SYSTEM, shape=SHAPE, adhesion=((1.5, 1.5), (1.5, 1.5))).prepare().run(until=3000)
-ax.plot(mixed.trajectory_.values('homotypic_contacts'), label='equal adhesion')
+mixed = simulate(CellularPottsSystem(shape=SHAPE, adhesion=((1.5, 1.5), (1.5, 1.5))), until=3000)
+ax.plot(mixed.values('homotypic_contacts'), label='equal adhesion')
 ax.set_xlabel('sweep')
 ax.set_ylabel('share of homotypic contacts')
 deviation = series.values('area_deviation')[100:].mean()
@@ -60,10 +61,10 @@ plt.show()
 # On the Voronoi lattice the sites have their own areas and contacts, so the cell boundaries carry no preferred
 # direction of the square lattice.
 
-simulation = create_simulation(SYSTEM, shape=SHAPE, lattice='disordered').prepare()
-series = simulation.run(until=3000).trajectory_
-space = simulation.system.elements[0].space
-kinds = np.asarray(simulation.system.interactions[0].kinds)
+system = CellularPottsSystem(shape=SHAPE, lattice='disordered')
+series = simulate(system, until=3000)
+space = system.system_.elements[0].space
+kinds = np.asarray(system.system_.interactions[0].kinds)
 final = np.rint(series.values('tissue.cell')[-1]).astype(int).ravel()
 x, y = space.positions_.T
 

@@ -8,23 +8,23 @@ the whole lattice. The view shows the heights of a 48 x 48 pile, from zero (dark
 """
 
 # %%
-# The system is created by name from the catalog from random stable heights. One unit of time is one dropped grain
+# The system is built from its class from random stable heights. One unit of time is one dropped grain
 # followed by the full avalanche it triggers. The observer saves every 50th grain with the default blueprint, whose
 # primary view is the image of the heights.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import DistributionAnalysis, EventAnalysis
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.analysis import distribution, events
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.criticality import SandpileSystem
 
 SYSTEM = 'sandpile'
 
-system = create_system(SYSTEM, shape=(48, 48), random_state=0)
+system = SandpileSystem(shape=(48, 48), random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=50, observers=[observer], random_state=0).prepare().run(until=14950)
+trajectory = simulate(system, until=14950, dt=50, observers=[observer], random_state=0)
 
 # %%
 # Self-organized criticality
@@ -34,14 +34,13 @@ simulation = Simulation(system, dt=50, observers=[observer], random_state=0).pre
 # sizes should follow a power law `P(s) ~ s^-tau` with `tau` near `1.2` on the square lattice over two decades, up
 # to a cutoff set by the size of the lattice where it falls off steeply.
 
-heights = simulation.trajectory_.values('pile.height').mean(axis=1)
-found = (
-    EventAnalysis('excursions')
-    .prepare([record for record in simulation.trajectory_.events if record.time > 5000 and record.size > 0])
-    .run()
+heights = trajectory.values('pile.height').mean(axis=1)
+found = events(
+    [record for record in trajectory.events if record.time > 5000 and record.size > 0],
+    kind='excursions',
 )
-histogram = DistributionAnalysis('histogram', bins=20, log=True).prepare(found.sizes_).run()
-edges, density = histogram.edges_, histogram.density_
+histogram = distribution(found.sizes, kind='histogram', bins=20, log=True)
+edges, density = histogram.edges, histogram.density
 centers = np.sqrt(edges[1:] * edges[:-1])
 shown = density > 0
 
@@ -50,7 +49,7 @@ pile.plot(np.arange(len(heights)) * 50, heights)
 pile.set_xlabel('grains dropped')
 pile.set_ylabel('mean height')
 pile.set_title('The pile drives itself to the critical state')
-laws.loglog(centers[shown], density[shown], 'o', label=f'{len(found.sizes_)} avalanches')
+laws.loglog(centers[shown], density[shown], 'o', label=f'{len(found.sizes)} avalanches')
 guide = np.logspace(0, 2.5, 50)
 reference = density[shown][0] * (centers[shown][0] / guide) ** 1.2
 laws.loglog(guide, reference, color='black', label='s^-1.2')

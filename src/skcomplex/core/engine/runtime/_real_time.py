@@ -28,8 +28,9 @@ class RealTimeClock(BaseClock):
     def __init__(self, speed: float = 1.0) -> None:
         self.speed = speed
 
-    def _check(self) -> None:
+    def _prepare(self, context: None) -> None:
         """Raise an error unless the speed is a positive number."""
+        super()._prepare(context)
         if not isinstance(self.speed, int | float) or isinstance(self.speed, bool) or not self.speed > 0:
             error_msg = f'speed = {self.speed!r} must be a positive number.'
             raise ValidationError(error_msg)

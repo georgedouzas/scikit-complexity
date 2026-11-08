@@ -1,4 +1,7 @@
-"""Organization systems: Meadows' system traps, from success to the successful to drift to low performance."""
+"""Organization systems: Meadows' system traps.
+
+They run from success to the successful to drift to low performance.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,9 +16,8 @@ from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.laws.utils import distributed_delay, lookup, where
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class ArmsRaceElement(Element):
@@ -163,119 +165,46 @@ def _allocation(s: SimpleNamespace) -> Expression:
     return lookup(_success(s), ALLOCATION_TABLE)
 
 
-def _allocation_a(s: SimpleNamespace) -> Expression:
-    """Return the share of the budget that flows to the first competitor."""
-    return s.source.budget * _allocation(s.source)
-
-
-def _allocation_b(s: SimpleNamespace) -> Expression:
-    """Return the share of the budget that flows to the second competitor."""
-    return s.source.budget * (1 - _allocation(s.source))
-
-
-def _depreciation_a(s: SimpleNamespace) -> Expression:
-    """Return the depreciation of the resources of the first competitor over their lifetime."""
-    return s.source.a / s.source.lifetime
-
-
-def _depreciation_b(s: SimpleNamespace) -> Expression:
-    """Return the depreciation of the resources of the second competitor over their lifetime."""
-    return s.source.b / s.source.lifetime
-
-
 def _symptom(s: SimpleNamespace) -> Expression:
-    """Return the symptom, the gap between the desired and the current state of the problem."""
+    """Return the symptom.
+
+    It is the gap between the desired and the current state of the problem.
+    """
     return s.desired - s.capability - s.intervention
 
 
-def _fixing(s: SimpleNamespace) -> Expression:
-    """Return the quick fix, in proportion to the symptom."""
-    return s.source.fix_rate * _symptom(s.source)
-
-
-def _building(s: SimpleNamespace) -> Expression:
-    """Return the building of capability, the delayed symptom over the build time."""
-    burden = s.source
-    return distributed_delay(_symptom(burden), conserved=False, time=burden.solution_delay) / burden.build_time
-
-
-def _erosion(s: SimpleNamespace) -> Expression:
-    """Return the erosion of capability by the intervention."""
-    return s.source.erosion * s.source.intervention * s.source.capability
-
-
 def _desired_a(s: SimpleNamespace) -> Expression:
-    """Return the stock the first party desires, a margin above its delayed view of the second's."""
+    """Return the stock the first party desires.
+
+    It is a margin above its delayed view of the second's.
+    """
     return (1 + s.margin) * distributed_delay(s.b, conserved=False, time=s.perception_delay)
 
 
 def _desired_b(s: SimpleNamespace) -> Expression:
-    """Return the stock the second party desires, a margin above its delayed view of the first's."""
+    """Return the stock the second party desires.
+
+    It is a margin above its delayed view of the first's.
+    """
     return (1 + s.margin) * distributed_delay(s.a, conserved=False, time=s.perception_delay)
 
 
-def _build_a(s: SimpleNamespace) -> Expression:
-    """Return the build-up of the first party toward its desired stock."""
-    race = s.source
-    desired = _desired_a(race)
-    return where(desired > race.a, desired - race.a, 0) / race.adjustment_time
-
-
-def _build_b(s: SimpleNamespace) -> Expression:
-    """Return the build-up of the second party toward its desired stock."""
-    race = s.source
-    desired = _desired_b(race)
-    return where(desired > race.b, desired - race.b, 0) / race.adjustment_time
-
-
 def _pull(s: SimpleNamespace, actor: str) -> Expression:
-    """Return the corrective pull of an actor, its strength times the gap from its goal to the stock."""
+    """Return the corrective pull of an actor.
+
+    It is its strength times the gap from its goal to the stock.
+    """
     return getattr(s, f'strength_{actor}') * (getattr(s, f'goal_{actor}') - s.stock)
 
 
-def _push(s: SimpleNamespace) -> Expression:
-    """Return the change of the stock, the corrective pulls and the efforts of all three actors."""
-    standoff = s.source
-    return sum(_pull(standoff, actor) + getattr(standoff, f'effort_{actor}') for actor in ACTORS)
-
-
-def _intensify_a(s: SimpleNamespace) -> Expression:
-    """Return the intensification of the effort of the first actor while the stock misses its goal."""
-    return _pull(s.source, 'a') / s.source.intensification_time
-
-
-def _intensify_b(s: SimpleNamespace) -> Expression:
-    """Return the intensification of the effort of the second actor while the stock misses its goal."""
-    return _pull(s.source, 'b') / s.source.intensification_time
-
-
-def _intensify_c(s: SimpleNamespace) -> Expression:
-    """Return the intensification of the effort of the third actor while the stock misses its goal."""
-    return _pull(s.source, 'c') / s.source.intensification_time
-
-
 def _compromise(s: SimpleNamespace) -> Expression:
-    """Return the goal the stock settles at, the mean of the goals weighted by the strengths of the actors."""
+    """Return the goal the stock settles at.
+
+    It is the mean of the goals weighted by the strengths of the actors.
+    """
     strengths = [getattr(s, f'strength_{actor}') for actor in ACTORS]
     goals = [getattr(s, f'goal_{actor}') for actor in ACTORS]
     return sum(strength * goal for strength, goal in zip(strengths, goals, strict=True)) / sum(strengths)
-
-
-def _correction(s: SimpleNamespace) -> Expression:
-    """Return the corrective action, the gap from the performance to the desired state over the correction time."""
-    return (s.source.desired - s.source.performance) / s.source.correction_time
-
-
-def _perception(s: SimpleNamespace) -> Expression:
-    """Return the update of the perceived state toward the performance lowered by the negative bias."""
-    performance = s.source
-    return ((1 - performance.bias) * performance.performance - performance.perceived) / performance.perception_time
-
-
-def _goal_erosion(s: SimpleNamespace) -> Expression:
-    """Return the slip of the desired state toward the perceived state, zero for absolute standards."""
-    performance = s.source
-    return performance.erosion * (performance.perceived - performance.desired) / performance.goal_time
 
 
 def _discrepancy(s: SimpleNamespace) -> Expression:
@@ -283,30 +212,19 @@ def _discrepancy(s: SimpleNamespace) -> Expression:
     return s.desired - s.perceived
 
 
-@register_system(
-    field='social/organizations',
-    tags=('system traps', 'competitive exclusion', 'stocks and flows', 'system dynamics', 'ode'),
-    references=('Meadows 2008',),
-    defaults={'until': 100.0, 'dt': 0.5},
-    observables=lambda system: [
-        ObservableSpec('success', _success, element='contest'),
-        ObservableSpec('allocation', _allocation, element='contest'),
-    ],
-)
-def success_to_the_successful(
-    a: float = 55.0,
-    b: float = 45.0,
-    *,
-    budget: float = 10.0,
-    lifetime: float = 10.0,
-) -> System:
-    """Return Meadows' success to the successful trap, two competitors that share a budget by their past success.
+class SuccessToTheSuccessfulSystem(BaseSystem):
+    """Meadows' success to the successful trap.
 
-    Each competitor holds a stock of resources that its share of the budget fills and that depreciates over its
-    lifetime. The share of the first competitor is a table function of its success, its fraction of all resources,
-    that gives more than a proportional share to the more successful one. The two reinforcing loops make the symmetric
-    state unstable, so the competitor that starts larger ends with the whole budget and the other one disappears. The
-    book gives the structure only, so the table and the parameters are a documented choice.
+    Two competitors share a budget by their past success. Each competitor holds a stock of resources that its share of
+    the budget fills and that depreciates over its lifetime. The share of the first competitor is a table function of
+    its success, its fraction of all resources, that gives more than a proportional share to the more successful one.
+    The two reinforcing loops make the symmetric state unstable, so the competitor that starts larger ends with the
+    whole budget and the other one disappears. The book gives the structure only, so the table and the parameters are a
+    documented choice.
+
+    The system has the resources `contest.a` and `contest.b` in years, the flows `contest.allocation_a`,
+    `contest.allocation_b`, `contest.depreciation_a`, and `contest.depreciation_b`. The observables of the system are
+    `contest.success` and `contest.allocation`.
 
     Args:
         a:
@@ -321,62 +239,101 @@ def success_to_the_successful(
         lifetime:
             The average lifetime of resources, in years.
 
-    Returns:
-        system:
-            The system, with the resources `contest.a` and `contest.b` in years, the flows `contest.allocation_a`,
-            `contest.allocation_b`, `contest.depreciation_a`, and `contest.depreciation_b`. The observables of the
-            system are `contest.success` and `contest.allocation`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.organizations import success_to_the_successful
-        >>> success_to_the_successful(a=60.0).elements[0].a
+        >>> from skcomplex.systems.social.organizations import SuccessToTheSuccessfulSystem
+        >>> SuccessToTheSuccessfulSystem(a=60.0).prepare().system_.elements[0].a
         60.0
     """
-    allocation = TransferInteraction(
-        'allocation',
-        source='contest',
-        target='contest',
-        state=Source('budget'),
-        into='a',
-        amount=_allocation_a,
-        flow='allocation_a',
-        legs=[
-            (Source('budget'), 'b', _allocation_b, 'allocation_b'),
-            ('a', Sink('depreciation'), _depreciation_a, 'depreciation_a'),
-            ('b', Sink('depreciation'), _depreciation_b, 'depreciation_b'),
-        ],
-    )
-    return System(
-        elements=[ContestElement('contest', a=a, b=b, budget=budget, lifetime=lifetime)],
-        interactions=[allocation],
+
+    field = 'social/organizations'
+    topics = ('system traps', 'competitive exclusion', 'stocks and flows', 'system dynamics', 'ode')
+    references = ('Meadows 2008',)
+    until = 100.0
+    dt = 0.5
+    observables = (
+        ObservableSpec('success', _success, element='contest'),
+        ObservableSpec('allocation', _allocation, element='contest'),
     )
 
+    def __init__(
+        self,
+        a: float = 55.0,
+        b: float = 45.0,
+        *,
+        budget: float = 10.0,
+        lifetime: float = 10.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.a = a
+        self.b = b
+        self.budget = budget
+        self.lifetime = lifetime
 
-@register_system(
-    field='social/organizations',
-    tags=('system traps', 'addiction', 'stocks and flows', 'system dynamics', 'ode'),
-    references=('Meadows 2008',),
-    defaults={'until': 60.0, 'dt': 0.5},
-    observables=lambda system: [ObservableSpec('symptom', _symptom, element='burden')],
-)
-def shifting_the_burden(
-    capability: float = 0.5,
-    intervention: float = 0.0,
-    *,
-    desired: float = 1.0,
-    fix_rate: float = 1.0,
-    build_time: float = 5.0,
-    solution_delay: float = 2.0,
-    erosion: float = 0.5,
-) -> System:
-    """Return Meadows' shifting the burden trap, a quick fix that relieves a symptom and erodes the system's capability.
+    @staticmethod
+    def _allocation_a(s: SimpleNamespace) -> Expression:
+        """Return the share of the budget that flows to the first competitor."""
+        return s.source.budget * _allocation(s.source)
 
-    The symptom is the gap between the desired state and the state that the capability of the system and an outside
-    intervention deliver together. The intervention grows quickly with the symptom. The capability grows slowly with
-    the symptom, perceived over the solution delay, and the intervention erodes it as a side effect. With a quick fix
-    the intervention takes over and the capability withers away, an addiction. Without one, `fix_rate = 0`, the
-    capability grows to the desired state. The book gives the structure only, so the parameters are a documented
-    choice.
+    @staticmethod
+    def _allocation_b(s: SimpleNamespace) -> Expression:
+        """Return the share of the budget that flows to the second competitor."""
+        return s.source.budget * (1 - _allocation(s.source))
+
+    @staticmethod
+    def _depreciation_a(s: SimpleNamespace) -> Expression:
+        """Return the depreciation of the resources of the first competitor.
+
+        The resources depreciate over their lifetime.
+        """
+        return s.source.a / s.source.lifetime
+
+    @staticmethod
+    def _depreciation_b(s: SimpleNamespace) -> Expression:
+        """Return the depreciation of the resources of the second competitor.
+
+        The resources depreciate over their lifetime.
+        """
+        return s.source.b / s.source.lifetime
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        allocation = TransferInteraction(
+            'allocation',
+            source='contest',
+            target='contest',
+            state=Source('budget'),
+            into='a',
+            amount=self._allocation_a,
+            flow='allocation_a',
+            legs=[
+                (Source('budget'), 'b', self._allocation_b, 'allocation_b'),
+                ('a', Sink('depreciation'), self._depreciation_a, 'depreciation_a'),
+                ('b', Sink('depreciation'), self._depreciation_b, 'depreciation_b'),
+            ],
+        )
+        return System(
+            self.label,
+            elements=[ContestElement('contest', a=self.a, b=self.b, budget=self.budget, lifetime=self.lifetime)],
+            interactions=[allocation],
+        )
+
+
+class ShiftingTheBurdenSystem(BaseSystem):
+    """Meadows' shifting the burden trap.
+
+    A quick fix relieves a symptom and erodes the system's capability. The symptom is the gap between the desired state
+    and the state that the capability of the system and an outside intervention deliver together. The intervention grows
+    quickly with the symptom. The capability grows slowly with the symptom, perceived over the solution delay, and the
+    intervention erodes it as a side effect. With a quick fix the intervention takes over and the capability withers
+    away, an addiction. Without one, `fix_rate = 0`, the capability grows to the desired state. The book gives the
+    structure only, so the parameters are a documented choice.
+
+    The system has the capability `burden.capability` and the intervention `burden.intervention` in years, the flows
+    `burden.fixing`, `burden.building`, and `burden.erosion`. The observable of the system is `burden.symptom`.
 
     Args:
         capability:
@@ -400,68 +357,98 @@ def shifting_the_burden(
         erosion:
             The rate at which a unit of intervention erodes the capability.
 
-    Returns:
-        system:
-            The system, with the capability `burden.capability` and the intervention `burden.intervention` in years,
-            the flows `burden.fixing`, `burden.building`, and `burden.erosion`. The observable of the system is
-            `burden.symptom`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.organizations import shifting_the_burden
-        >>> shifting_the_burden(fix_rate=0.0).elements[0].fix_rate
+        >>> from skcomplex.systems.social.organizations import ShiftingTheBurdenSystem
+        >>> ShiftingTheBurdenSystem(fix_rate=0.0).prepare().system_.elements[0].fix_rate
         0.0
     """
-    burden = BurdenElement(
-        'burden',
-        capability=capability,
-        intervention=intervention,
-        desired=desired,
-        fix_rate=fix_rate,
-        build_time=build_time,
-        solution_delay=solution_delay,
-        erosion=erosion,
-    )
-    flows = TransferInteraction(
-        'flows',
-        source='burden',
-        target='burden',
-        state=Source('intervener'),
-        into='intervention',
-        amount=_fixing,
-        flow='fixing',
-        legs=[
-            (Source('learning'), 'capability', _building, 'building'),
-            ('capability', Sink('atrophy'), _erosion, 'erosion'),
-        ],
-    )
-    return System(elements=[burden], interactions=[flows])
+
+    field = 'social/organizations'
+    topics = ('system traps', 'addiction', 'stocks and flows', 'system dynamics', 'ode')
+    references = ('Meadows 2008',)
+    until = 60.0
+    dt = 0.5
+    observables = (ObservableSpec('symptom', _symptom, element='burden'),)
+
+    def __init__(
+        self,
+        capability: float = 0.5,
+        intervention: float = 0.0,
+        *,
+        desired: float = 1.0,
+        fix_rate: float = 1.0,
+        build_time: float = 5.0,
+        solution_delay: float = 2.0,
+        erosion: float = 0.5,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.capability = capability
+        self.intervention = intervention
+        self.desired = desired
+        self.fix_rate = fix_rate
+        self.build_time = build_time
+        self.solution_delay = solution_delay
+        self.erosion = erosion
+
+    @staticmethod
+    def _fixing(s: SimpleNamespace) -> Expression:
+        """Return the quick fix, in proportion to the symptom."""
+        return s.source.fix_rate * _symptom(s.source)
+
+    @staticmethod
+    def _building(s: SimpleNamespace) -> Expression:
+        """Return the building of capability, the delayed symptom over the build time."""
+        burden = s.source
+        return distributed_delay(_symptom(burden), conserved=False, time=burden.solution_delay) / burden.build_time
+
+    @staticmethod
+    def _erosion(s: SimpleNamespace) -> Expression:
+        """Return the erosion of capability by the intervention."""
+        return s.source.erosion * s.source.intervention * s.source.capability
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        burden = BurdenElement(
+            'burden',
+            capability=self.capability,
+            intervention=self.intervention,
+            desired=self.desired,
+            fix_rate=self.fix_rate,
+            build_time=self.build_time,
+            solution_delay=self.solution_delay,
+            erosion=self.erosion,
+        )
+        flows = TransferInteraction(
+            'flows',
+            source='burden',
+            target='burden',
+            state=Source('intervener'),
+            into='intervention',
+            amount=self._fixing,
+            flow='fixing',
+            legs=[
+                (Source('learning'), 'capability', self._building, 'building'),
+                ('capability', Sink('atrophy'), self._erosion, 'erosion'),
+            ],
+        )
+        return System(self.label, elements=[burden], interactions=[flows])
 
 
-@register_system(
-    field='social/organizations',
-    tags=('system traps', 'arms race', 'stocks and flows', 'system dynamics', 'ode'),
-    references=('Meadows 2008',),
-    defaults={'until': 100.0, 'dt': 0.5},
-    observables=lambda system: [
-        ObservableSpec('desired_a', _desired_a, element='race'),
-        ObservableSpec('desired_b', _desired_b, element='race'),
-    ],
-)
-def escalation(
-    a: float = 10.0,
-    b: float = 10.5,
-    *,
-    margin: float = 0.1,
-    adjustment_time: float = 2.0,
-    perception_delay: float = 1.0,
-) -> System:
-    """Return Meadows' escalation trap, two parties that each want to exceed the other's stock by a margin.
+class EscalationSystem(BaseSystem):
+    """Meadows' escalation trap.
 
-    Each party sees the stock of the other through an information smoothing over the perception delay, wants to hold
-    `1 + margin` times that stock, and builds up the gap over the adjustment time. The loop through both stocks is
-    reinforcing, so both stocks grow exponentially at the rate `r` that solves
-    `r * adjustment_time = (1 + margin) / (1 + r * perception_delay) - 1`. The book gives the structure only, so the
-    parameters are a documented choice.
+    Two parties each want to exceed the other's stock by a margin. Each party sees the stock of the other through an
+    information smoothing over the perception delay, wants to hold `1 + margin` times that stock, and builds up the gap
+    over the adjustment time. The loop through both stocks is reinforcing, so both stocks grow exponentially at the rate
+    `r` that solves `r * adjustment_time = (1 + margin) / (1 + r * perception_delay) - 1`. The book gives the structure
+    only, so the parameters are a documented choice.
+
+    The system has the stocks `race.a` and `race.b` in years, and the flows `race.build_a` and `race.build_b`. The
+    observables of the system are `race.desired_a` and `race.desired_b`.
 
     Args:
         a:
@@ -479,60 +466,94 @@ def escalation(
         perception_delay:
             The time over which a party perceives the stock of the other.
 
-    Returns:
-        system:
-            The system, with the stocks `race.a` and `race.b` in years, and the flows `race.build_a` and
-            `race.build_b`. The observables of the system are `race.desired_a` and `race.desired_b`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.organizations import escalation
-        >>> escalation(margin=0.2).elements[0].margin
+        >>> from skcomplex.systems.social.organizations import EscalationSystem
+        >>> EscalationSystem(margin=0.2).prepare().system_.elements[0].margin
         0.2
     """
-    race = ArmsRaceElement(
-        'race',
-        a=a,
-        b=b,
-        margin=margin,
-        adjustment_time=adjustment_time,
-        perception_delay=perception_delay,
+
+    field = 'social/organizations'
+    topics = ('system traps', 'arms race', 'stocks and flows', 'system dynamics', 'ode')
+    references = ('Meadows 2008',)
+    until = 100.0
+    dt = 0.5
+    observables = (
+        ObservableSpec('desired_a', _desired_a, element='race'),
+        ObservableSpec('desired_b', _desired_b, element='race'),
     )
-    build = TransferInteraction(
-        'build',
-        source='race',
-        target='race',
-        state=Source('production'),
-        into='a',
-        amount=_build_a,
-        flow='build_a',
-        legs=[(Source('production'), 'b', _build_b, 'build_b')],
-    )
-    return System(elements=[race], interactions=[build])
+
+    def __init__(
+        self,
+        a: float = 10.0,
+        b: float = 10.5,
+        *,
+        margin: float = 0.1,
+        adjustment_time: float = 2.0,
+        perception_delay: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.a = a
+        self.b = b
+        self.margin = margin
+        self.adjustment_time = adjustment_time
+        self.perception_delay = perception_delay
+
+    @staticmethod
+    def _build_a(s: SimpleNamespace) -> Expression:
+        """Return the build-up of the first party toward its desired stock."""
+        race = s.source
+        desired = _desired_a(race)
+        return where(desired > race.a, desired - race.a, 0) / race.adjustment_time
+
+    @staticmethod
+    def _build_b(s: SimpleNamespace) -> Expression:
+        """Return the build-up of the second party toward its desired stock."""
+        race = s.source
+        desired = _desired_b(race)
+        return where(desired > race.b, desired - race.b, 0) / race.adjustment_time
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        race = ArmsRaceElement(
+            'race',
+            a=self.a,
+            b=self.b,
+            margin=self.margin,
+            adjustment_time=self.adjustment_time,
+            perception_delay=self.perception_delay,
+        )
+        build = TransferInteraction(
+            'build',
+            source='race',
+            target='race',
+            state=Source('production'),
+            into='a',
+            amount=self._build_a,
+            flow='build_a',
+            legs=[(Source('production'), 'b', self._build_b, 'build_b')],
+        )
+        return System(self.label, elements=[race], interactions=[build])
 
 
-@register_system(
-    field='social/organizations',
-    tags=('system traps', 'policy resistance', 'stocks and flows', 'system dynamics', 'ode'),
-    references=('Meadows 2008',),
-    defaults={'until': 100.0, 'dt': 0.5},
-    observables=lambda system: [ObservableSpec('compromise', _compromise, element='standoff')],
-)
-def policy_resistance(
-    stock: float = 50.0,
-    *,
-    goals: tuple[float, float, float] = (80.0, 20.0, 50.0),
-    strengths: tuple[float, float, float] = (0.1, 0.1, 0.1),
-    intensification_time: float = 10.0,
-) -> System:
-    """Return Meadows' policy resistance trap, one stock pulled by three actors toward inconsistent goals.
+class PolicyResistanceSystem(BaseSystem):
+    """Meadows' policy resistance trap.
 
-    Every actor compares the stock with its own goal and pulls the stock toward it, in proportion to the discrepancy
-    and to its strength, and intensifies its effort while the discrepancy persists, the ratchet of the book. The book's
-    example is the drug supply on the streets, which addicts want high, enforcement agencies want low, and pushers want
-    in the middle. The countermoves produce a standoff: the stock settles at the mean of the goals weighted by the
-    strengths, which none of the actors wants, while the efforts of the actors above and below it grow without bound.
-    When one actor lets up, its strength set to zero, the others drag the stock toward their own goals. The book gives
-    the structure only, as a narrative, so the corrective rules and the parameters are a documented choice.
+    Three actors pull one stock toward inconsistent goals. Every actor compares the stock with its own goal and pulls
+    the stock toward it, in proportion to the discrepancy and to its strength, and intensifies its effort while the
+    discrepancy persists, the ratchet of the book. The book's example is the drug supply on the streets, which addicts
+    want high, enforcement agencies want low, and pushers want in the middle. The countermoves produce a standoff: the
+    stock settles at the mean of the goals weighted by the strengths, which none of the actors wants, while the efforts
+    of the actors above and below it grow without bound. When one actor lets up, its strength set to zero, the others
+    drag the stock toward their own goals. The book gives the structure only, as a narrative, so the corrective rules
+    and the parameters are a documented choice.
+
+    The system has the stock `standoff.stock` and the efforts `standoff.effort_a`, `standoff.effort_b`, and
+    `standoff.effort_c`, and the flows `standoff.push`, `standoff.intensify_a`, `standoff.intensify_b`, and
+    `standoff.intensify_c`. The observable of the system is `standoff.compromise`.
 
     Args:
         stock:
@@ -547,71 +568,115 @@ def policy_resistance(
         intensification_time:
             The time over which an actor doubles its effort against a persistent discrepancy.
 
-    Returns:
-        system:
-            The system, with the stock `standoff.stock` and the efforts `standoff.effort_a`, `standoff.effort_b`, and
-            `standoff.effort_c`, and the flows `standoff.push`, `standoff.intensify_a`, `standoff.intensify_b`, and
-            `standoff.intensify_c`. The observable of the system is `standoff.compromise`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.organizations import policy_resistance
-        >>> policy_resistance(strengths=(0.1, 0.0, 0.1)).elements[0].strength_b
+        >>> from skcomplex.systems.social.organizations import PolicyResistanceSystem
+        >>> PolicyResistanceSystem(strengths=(0.1, 0.0, 0.1)).prepare().system_.elements[0].strength_b
         0.0
     """
-    standoff = StandoffElement(
-        'standoff',
-        stock=stock,
-        goal_a=goals[0],
-        goal_b=goals[1],
-        goal_c=goals[2],
-        strength_a=strengths[0],
-        strength_b=strengths[1],
-        strength_c=strengths[2],
-        intensification_time=intensification_time,
-    )
-    actions = TransferInteraction(
-        'actions',
-        source='standoff',
-        target='standoff',
-        state=Source('actors'),
-        into='stock',
-        amount=_push,
-        flow='push',
-        legs=[
-            (Source('actors'), 'effort_a', _intensify_a, 'intensify_a'),
-            (Source('actors'), 'effort_b', _intensify_b, 'intensify_b'),
-            (Source('actors'), 'effort_c', _intensify_c, 'intensify_c'),
-        ],
-    )
-    return System(elements=[standoff], interactions=[actions])
+
+    field = 'social/organizations'
+    topics = ('system traps', 'policy resistance', 'stocks and flows', 'system dynamics', 'ode')
+    references = ('Meadows 2008',)
+    until = 100.0
+    dt = 0.5
+    observables = (ObservableSpec('compromise', _compromise, element='standoff'),)
+
+    def __init__(
+        self,
+        stock: float = 50.0,
+        *,
+        goals: tuple[float, float, float] = (80.0, 20.0, 50.0),
+        strengths: tuple[float, float, float] = (0.1, 0.1, 0.1),
+        intensification_time: float = 10.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.stock = stock
+        self.goals = goals
+        self.strengths = strengths
+        self.intensification_time = intensification_time
+
+    @staticmethod
+    def _push(s: SimpleNamespace) -> Expression:
+        """Return the change of the stock.
+
+        It is the corrective pulls and the efforts of all three actors.
+        """
+        standoff = s.source
+        return sum(_pull(standoff, actor) + getattr(standoff, f'effort_{actor}') for actor in ACTORS)
+
+    @staticmethod
+    def _intensify_a(s: SimpleNamespace) -> Expression:
+        """Return the intensification of the effort of the first actor.
+
+        The effort intensifies while the stock misses its goal.
+        """
+        return _pull(s.source, 'a') / s.source.intensification_time
+
+    @staticmethod
+    def _intensify_b(s: SimpleNamespace) -> Expression:
+        """Return the intensification of the effort of the second actor.
+
+        The effort intensifies while the stock misses its goal.
+        """
+        return _pull(s.source, 'b') / s.source.intensification_time
+
+    @staticmethod
+    def _intensify_c(s: SimpleNamespace) -> Expression:
+        """Return the intensification of the effort of the third actor.
+
+        The effort intensifies while the stock misses its goal.
+        """
+        return _pull(s.source, 'c') / s.source.intensification_time
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        standoff = StandoffElement(
+            'standoff',
+            stock=self.stock,
+            goal_a=self.goals[0],
+            goal_b=self.goals[1],
+            goal_c=self.goals[2],
+            strength_a=self.strengths[0],
+            strength_b=self.strengths[1],
+            strength_c=self.strengths[2],
+            intensification_time=self.intensification_time,
+        )
+        actions = TransferInteraction(
+            'actions',
+            source='standoff',
+            target='standoff',
+            state=Source('actors'),
+            into='stock',
+            amount=self._push,
+            flow='push',
+            legs=[
+                (Source('actors'), 'effort_a', self._intensify_a, 'intensify_a'),
+                (Source('actors'), 'effort_b', self._intensify_b, 'intensify_b'),
+                (Source('actors'), 'effort_c', self._intensify_c, 'intensify_c'),
+            ],
+        )
+        return System(self.label, elements=[standoff], interactions=[actions])
 
 
-@register_system(
-    field='social/organizations',
-    tags=('system traps', 'eroding goals', 'stocks and flows', 'system dynamics', 'ode'),
-    references=('Meadows 2008',),
-    defaults={'until': 100.0, 'dt': 0.5},
-    observables=lambda system: [ObservableSpec('discrepancy', _discrepancy, element='performance')],
-)
-def drift_to_low_performance(
-    performance: float = 1.0,
-    *,
-    bias: float = 0.1,
-    perception_time: float = 2.0,
-    correction_time: float = 2.0,
-    goal_time: float = 5.0,
-    absolute: bool = False,
-) -> System:
-    """Return Meadows' drift to low performance trap, eroding goals that follow a pessimistic view of the performance.
+class DriftToLowPerformanceSystem(BaseSystem):
+    """Meadows' drift to low performance trap.
 
-    The actor compares the desired state with the actual performance and corrects the gap over the correction time,
-    an ordinary balancing loop. The actor perceives the performance worse than it is, smoothed over the perception
-    time and lowered by the negative bias, and the desired state slips toward the perceived state over the goal time.
-    The lower the perceived state, the lower the goal, the less corrective action, and the lower the performance, a
-    reinforcing loop that drags the performance down exponentially. With absolute standards, `absolute=True`, the
-    desired state does not slip and the performance holds, and with an upbeat bias, a negative `bias`, the same
-    structure drifts toward high performance, the two ways out of the book. The book gives the structure only, as a
-    narrative, so the parameters are a documented choice.
+    The goals erode, following a pessimistic view of the performance. The actor compares the desired state with the
+    actual performance and corrects the gap over the correction time, an ordinary balancing loop. The actor perceives
+    the performance worse than it is, smoothed over the perception time and lowered by the negative bias, and the
+    desired state slips toward the perceived state over the goal time. The lower the perceived state, the lower the
+    goal, the less corrective action, and the lower the performance, a reinforcing loop that drags the performance down
+    exponentially. With absolute standards, `absolute=True`, the desired state does not slip and the performance holds,
+    and with an upbeat bias, a negative `bias`, the same structure drifts toward high performance, the two ways out of
+    the book. The book gives the structure only, as a narrative, so the parameters are a documented choice.
+
+    The system has the performance `performance.performance`, the perceived state `performance.perceived`, and the
+    desired state `performance.desired`, and the flows `performance.correction`, `performance.perception`, and
+    `performance.goal_erosion`. The observable of the system is `performance.discrepancy`.
 
     Args:
         performance:
@@ -632,40 +697,91 @@ def drift_to_low_performance(
         absolute:
             Whether the desired state is kept absolute, regardless of the performance.
 
-    Returns:
-        system:
-            The system, with the performance `performance.performance`, the perceived state `performance.perceived`,
-            and the desired state `performance.desired`, and the flows `performance.correction`,
-            `performance.perception`, and `performance.goal_erosion`. The observable of the system is
-            `performance.discrepancy`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.organizations import drift_to_low_performance
-        >>> drift_to_low_performance(absolute=True).elements[0].erosion
+        >>> from skcomplex.systems.social.organizations import DriftToLowPerformanceSystem
+        >>> DriftToLowPerformanceSystem(absolute=True).prepare().system_.elements[0].erosion
         0.0
     """
-    element = PerformanceElement(
-        'performance',
-        performance=performance,
-        perceived=performance,
-        desired=performance,
-        bias=bias,
-        perception_time=perception_time,
-        correction_time=correction_time,
-        goal_time=goal_time,
-        erosion=0.0 if absolute else 1.0,
-    )
-    flows = TransferInteraction(
-        'flows',
-        source='performance',
-        target='performance',
-        state=Source('effort'),
-        into='performance',
-        amount=_correction,
-        flow='correction',
-        legs=[
-            (Source('information'), 'perceived', _perception, 'perception'),
-            (Source('standards'), 'desired', _goal_erosion, 'goal_erosion'),
-        ],
-    )
-    return System(elements=[element], interactions=[flows])
+
+    field = 'social/organizations'
+    topics = ('system traps', 'eroding goals', 'stocks and flows', 'system dynamics', 'ode')
+    references = ('Meadows 2008',)
+    until = 100.0
+    dt = 0.5
+    observables = (ObservableSpec('discrepancy', _discrepancy, element='performance'),)
+
+    def __init__(
+        self,
+        performance: float = 1.0,
+        *,
+        bias: float = 0.1,
+        perception_time: float = 2.0,
+        correction_time: float = 2.0,
+        goal_time: float = 5.0,
+        absolute: bool = False,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.performance = performance
+        self.bias = bias
+        self.perception_time = perception_time
+        self.correction_time = correction_time
+        self.goal_time = goal_time
+        self.absolute = absolute
+
+    @staticmethod
+    def _correction(s: SimpleNamespace) -> Expression:
+        """Return the corrective action.
+
+        It is the gap from the performance to the desired state over the correction time.
+        """
+        return (s.source.desired - s.source.performance) / s.source.correction_time
+
+    @staticmethod
+    def _perception(s: SimpleNamespace) -> Expression:
+        """Return the update of the perceived state toward the biased performance.
+
+        The performance is lowered by the negative bias.
+        """
+        performance = s.source
+        return ((1 - performance.bias) * performance.performance - performance.perceived) / performance.perception_time
+
+    @staticmethod
+    def _goal_erosion(s: SimpleNamespace) -> Expression:
+        """Return the slip of the desired state toward the perceived state.
+
+        It is zero for absolute standards.
+        """
+        performance = s.source
+        return performance.erosion * (performance.perceived - performance.desired) / performance.goal_time
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        element = PerformanceElement(
+            'performance',
+            performance=self.performance,
+            perceived=self.performance,
+            desired=self.performance,
+            bias=self.bias,
+            perception_time=self.perception_time,
+            correction_time=self.correction_time,
+            goal_time=self.goal_time,
+            erosion=0.0 if self.absolute else 1.0,
+        )
+        flows = TransferInteraction(
+            'flows',
+            source='performance',
+            target='performance',
+            state=Source('effort'),
+            into='performance',
+            amount=self._correction,
+            flow='correction',
+            legs=[
+                (Source('information'), 'perceived', self._perception, 'perception'),
+                (Source('standards'), 'desired', self._goal_erosion, 'goal_erosion'),
+            ],
+        )
+        return System(self.label, elements=[element], interactions=[flows])

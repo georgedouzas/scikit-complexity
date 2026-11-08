@@ -11,11 +11,12 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class ClampSpec(BaseSpec):
-    """Clamp of the change of a vector, by the largest angle it turns and the bounds of its norm.
+    """Clamp of the change of a vector.
 
-    Every bound is a number, the name of a parameter of the agent, or `None` for no bound. The vector turns from its
-    current direction toward its new one by at most `max_angle`, keeping the new norm, and its norm is then clipped
-    between `min_norm` and `max_norm`. A zero vector stays zero.
+    It bounds the largest angle the vector turns and its norm. Every bound is a number, the name of a parameter of the
+    agent, or `None` for no bound. The vector turns from its current direction toward its new one by at most
+    `max_angle`, keeping the new norm, and its norm is then clipped between `min_norm` and `max_norm`. A zero vector
+    stays zero.
 
     Args:
         max_angle:
@@ -29,7 +30,7 @@ class ClampSpec(BaseSpec):
 
     Raises:
         ValidationError:
-            A bound is negative, raised by `prepare`.
+            A bound is negative, raised when its owner checks it.
 
     Examples:
         >>> from skcomplex.core.specs import ClampSpec

@@ -1,11 +1,14 @@
-"""Seismology: earthquakes on loaded faults."""
+"""Seismology systems.
 
-from ._faults import FaultElement, earthquakes
-from ._spring_blocks import SpringBlockElement, burridge_knopoff
+The package covers earthquakes on loaded faults.
+"""
+
+from ._faults import EarthquakesSystem, FaultElement
+from ._spring_blocks import BurridgeKnopoffSystem, SpringBlockElement
 
 __all__: list[str] = [
+    'BurridgeKnopoffSystem',
+    'EarthquakesSystem',
     'FaultElement',
     'SpringBlockElement',
-    'burridge_knopoff',
-    'earthquakes',
 ]

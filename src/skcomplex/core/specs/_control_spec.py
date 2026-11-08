@@ -12,7 +12,10 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class _ControlSpec(BaseSpec):
-    """Control of an optimal control problem: its dotted name, state index, symbol, and bounds."""
+    """Control of an optimal control problem.
+
+    It holds its dotted name, state index, symbol, and bounds.
+    """
 
     name: str
     index: int

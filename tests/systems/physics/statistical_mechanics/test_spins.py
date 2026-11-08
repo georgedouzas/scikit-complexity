@@ -4,10 +4,10 @@ import numpy as np
 import pytest
 
 from skcomplex.core.engine.problems import FrameSpec
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import ImageVisual, RerunObserver
-from skcomplex.core.experiments import Experiment, GridDesign
-from skcomplex.systems.physics.statistical_mechanics import ising, potts, xy
+from skcomplex.core.experiments import sweep
+from skcomplex.systems.physics.statistical_mechanics import IsingSystem, PottsSystem, XYSystem
 from skcomplex.systems.physics.statistical_mechanics._spins import PottsSamplingInteraction, XYSamplingInteraction
 
 from ..common.spins.conftest import _run
@@ -47,21 +47,15 @@ class Images:
 def test_ising_transition():
     """Test that the ensemble magnetisation of a 64 x 64 Ising lattice drops below one half between 2.2 and 2.4."""
     temperatures = [1.5, 2.0, 2.2, 2.4, 3.0, 3.5]
-    result = (
-        Experiment(
-            lambda temperature: ising(64, temperature=temperature, initial='up'),
-            GridDesign(),
-            {'temperature': temperatures},
-            replicates=4,
-            until=1000,
-            dt=50,
-            warmup=200,
-            outputs=[magnetization],
-            random_state=0,
-        )
-        .prepare()
-        .run()
-        .result_
+    result = sweep(
+        lambda temperature: IsingSystem(64, temperature=temperature, initial='up').prepare().system_,
+        {'temperature': temperatures},
+        replicates=4,
+        until=1000,
+        dt=50,
+        warmup=200,
+        outputs=[magnetization],
+        random_state=0,
     )
     means = {row['temperature']: row['magnetization.mean'] for row in result.summary()}
     assert means[2.2] > 0.5 > means[2.4]
@@ -70,12 +64,12 @@ def test_ising_transition():
     assert 2.2 < CRITICAL_TEMPERATURE < 2.4
 
 
-@pytest.mark.parametrize('factory', [potts, xy])
+@pytest.mark.parametrize('factory', [PottsSystem, XYSystem])
 def test_cold_spin_systems_order(factory):
     """Test that the Potts and XY systems order at low temperature."""
-    simulation = Simulation(factory(16, temperature=0.2), dt=100, random_state=0).prepare().run(until=300)
-    values = simulation.state_
-    if factory is potts:
+    trajectory = simulate(factory(16, temperature=0.2).prepare().system_, until=300, dt=100, random_state=0)
+    values = trajectory.states[-1]
+    if factory is PottsSystem:
         assert np.bincount(values.astype(int)).max() > 0.8 * values.size
     else:
         assert np.abs(np.exp(1j * values).mean()) > 0.8
@@ -84,11 +78,11 @@ def test_cold_spin_systems_order(factory):
 def test_lattices_log_images():
     """Test that a lattice state is logged as an image of the lattice shape."""
     recording = Images()
-    simulation = Simulation(ising(8, initial='up'), dt=1).prepare().run(until=1)
-    frame = FrameSpec(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
+    trajectory = simulate(IsingSystem(8, initial='up').prepare().system_, until=1, dt=1)
+    frame = FrameSpec(0, 0.0, trajectory.states[-1], trajectory.parameters[-1], trajectory.problem)
     (
-        ImageVisual(low=-1, high=1, path=simulation.problem_.elements[0].path, recording=recording)
-        .prepare(simulation.problem_)
+        ImageVisual(low=-1, high=1, path=trajectory.problem.elements[0].path, recording=recording)
+        .prepare(trajectory.problem)
         .run(frame)
     )
     ((path, image),) = recording.images
@@ -99,6 +93,6 @@ def test_lattices_log_images():
 def test_lattice_recording_is_saved(tmp_path):
     """Test that a lattice system streams to a recording with one image per frame."""
     observer = RerunObserver('ising', save_path=tmp_path / 'ising.rrd')
-    Simulation(ising(16), dt=1, observers=[observer]).prepare().run(until=5)
+    simulate(IsingSystem(16), until=5, observers=[observer])
     assert observer.logged_frames_ == 6
     assert (tmp_path / 'ising.rrd').stat().st_size > 0

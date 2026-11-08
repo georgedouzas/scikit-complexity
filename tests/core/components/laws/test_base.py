@@ -7,7 +7,7 @@ import pytest
 from sage.all__sagemath_symbolics import var, vector
 
 from skcomplex.core.components import laws
-from skcomplex.core.components.laws import BaseLaw, CrossingLaw, JumpLaw, LocalRuleLaw, RateLaw
+from skcomplex.core.components.laws import BaseLaw, CrossingLaw, EquationLaw, JumpLaw, LocalRuleLaw, NoiseLaw, RateLaw
 from skcomplex.core.components.spaces import BoxNeighborhood
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import CallSpec, RequirementSpec, TotalisticSpec
@@ -92,3 +92,19 @@ def test_get_requirements_reads_every_law_class_without_an_instance():
     ]:
         assert isinstance(law.get_requirements(), RequirementSpec)
     assert JumpLaw.get_requirements().time == RateLaw.get_requirements().time
+
+
+def test_laws_give_their_kind_times_and_randomness():
+    """Test that a law gives its kind, the times it runs in, and a randomness that follows from its kind."""
+    x = var('x')
+    rate = RateLaw(x, -x).get_tags()
+    assert (rate.laws, rate.time, rate.randomness) == ({'rate'}, {'continuous'}, 'deterministic')
+    assert NoiseLaw(x, 1.0).get_tags().randomness == 'stochastic'
+    assert EquationLaw(x).get_tags().time == {'continuous', 'static'}
+
+
+def test_every_core_law_names_a_known_kind():
+    """Test that every law of the core names one of the law kinds of the tags."""
+    for law in [item for item in vars(laws).values() if inspect.isclass(item) and issubclass(item, BaseLaw)]:
+        if law is not BaseLaw:
+            assert law.law_tag in {'rate', 'noise', 'jump', 'update', 'equation', 'sampling'}, law.__name__

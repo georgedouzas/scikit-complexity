@@ -15,11 +15,10 @@ from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import EquationLaw
 from ....core.components.laws.utils import where
-from ....core.components.spaces import LatticeSpace, StaticTime
-from ....core.components.system import System
+from ....core.components.spaces import BaseSpace, LatticeSpace, StaticTime
+from ....core.components.system import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import RoleSpec, StateSpec
-from ..._catalog import register_system
 
 
 class LandCellElement(Element):
@@ -53,9 +52,10 @@ class LandCellElement(Element):
 
 
 class BidRentInteraction(Interaction):
-    """Land use of highest bid rent, where crop `i` bids `Y_i (p_i - c_i) - Y_i f_i d` at the distance `d` of a market.
+    """Land use of highest bid rent.
 
-    A cell grows the crop of the highest positive bid, and lies idle as crop 0 when no bid is positive.
+    Crop `i` bids `Y_i (p_i - c_i) - Y_i f_i d` at the distance `d` of a market. A cell grows the crop of the highest
+    positive bid, and lies idle as crop 0 when no bid is positive.
 
     Args:
         label:
@@ -87,6 +87,8 @@ class BidRentInteraction(Interaction):
         (0.1,)
     """
 
+    law_classes = (EquationLaw,)
+
     def __init__(
         self,
         label: str,
@@ -104,14 +106,18 @@ class BidRentInteraction(Interaction):
         self.costs = costs
         self.rates = rates
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for sequences without one value per crop.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The sequences have different lengths.
         """
-        super()._check()
+        super()._prepare(context)
         lengths = {len(self.yields), len(self.prices), len(self.costs), len(self.rates)}
         if len(lengths) != 1:
             error_msg = (
@@ -139,23 +145,12 @@ class BidRentInteraction(Interaction):
         return [EquationLaw(s.target.crop == crop, target=s.target.crop)]
 
 
-@register_system(
-    field='economics/resources',
-    tags=('land use', 'bid rent', 'static', 'lattice'),
-    references=('Giordano 2024, arXiv 2407.02181', 'von Thünen 1826'),
-)
-def von_thunen(
-    size: int = 41,
-    *,
-    yields: Sequence[float] = (4.0, 2.0, 1.0),
-    prices: Sequence[float] = (3.0, 3.0, 3.5),
-    costs: Sequence[float] = (1.0, 0.5, 0.5),
-    rates: Sequence[float] = (0.2, 0.2, 0.2),
-) -> System:
-    """Return a square plain around one market at its centre, whose every cell grows the crop of highest bid rent.
+class VonThunenSystem(BaseSystem):
+    """A square plain around one market at its centre.
 
-    A crop of a high yield per cell bids most near the market, and its bid falls fastest with distance, so the land use
-    forms concentric rings whose boundaries lie where the bids of neighbouring crops are equal (Giordano 2024 §7).
+    Every cell grows the crop of highest bid rent. A crop of a high yield per cell bids most near the market, and its
+    bid falls fastest with distance, so the land use forms concentric rings whose boundaries lie where the bids of
+    neighbouring crops are equal (Giordano 2024 §7). The system has the states `plain.crop` and `plain.distance`.
 
     Args:
         size:
@@ -173,25 +168,55 @@ def von_thunen(
         rates:
             The transport rate of every crop per unit of yield and of distance.
 
-    Returns:
-        system:
-            The system, with the states `plain.crop` and `plain.distance`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.core.engine.runtime import Simulation
-        >>> from skcomplex.systems.economics.resources import von_thunen
-        >>> trajectory = Simulation(von_thunen()).prepare().run(1.0).trajectory_
+        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.systems.economics.resources import VonThunenSystem
+        >>> trajectory = simulate(VonThunenSystem(), until=1.0)
         >>> sorted(set(trajectory.values('plain.crop')[0].ravel().tolist()))
         [0.0, 1.0, 2.0, 3.0]
     """
-    centre = (size - 1) / 2
-    rows, columns = np.indices((size, size))
-    distance = np.hypot(rows - centre, columns - centre)
-    plain = FieldElement(
-        'plain',
-        element=LandCellElement,
-        space=LatticeSpace((size, size)),
-        values={'distance': distance},
-    )
-    bid = BidRentInteraction('bid', target='plain', yields=yields, prices=prices, costs=costs, rates=rates)
-    return System(elements=[plain], interactions=[bid], time=StaticTime())
+
+    field = 'economics/resources'
+    topics = ('land use', 'bid rent', 'static', 'lattice')
+    references = ('Giordano 2024, arXiv 2407.02181', 'von Thünen 1826')
+
+    def __init__(
+        self,
+        size: int = 41,
+        *,
+        yields: Sequence[float] = (4.0, 2.0, 1.0),
+        prices: Sequence[float] = (3.0, 3.0, 3.5),
+        costs: Sequence[float] = (1.0, 0.5, 0.5),
+        rates: Sequence[float] = (0.2, 0.2, 0.2),
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.size = size
+        self.yields = yields
+        self.prices = prices
+        self.costs = costs
+        self.rates = rates
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        centre = (self.size - 1) / 2
+        rows, columns = np.indices((self.size, self.size))
+        distance = np.hypot(rows - centre, columns - centre)
+        plain = FieldElement(
+            'plain',
+            element=LandCellElement,
+            space=LatticeSpace((self.size, self.size)),
+            values={'distance': distance},
+        )
+        bid = BidRentInteraction(
+            'bid',
+            target='plain',
+            yields=self.yields,
+            prices=self.prices,
+            costs=self.costs,
+            rates=self.rates,
+        )
+        return System(self.label, elements=[plain], interactions=[bid], time=StaticTime())

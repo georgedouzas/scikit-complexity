@@ -1,4 +1,7 @@
-"""Define spike resets, crossings that reset the potential of a neuron when it reaches a threshold."""
+"""Define spike resets of the potential of a neuron.
+
+A spike reset is a crossing that resets the potential of a neuron when it reaches a threshold.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,7 +17,7 @@ from .....core.specs import ParameterSpec, RoleSpec
 
 
 class SpikeResetInteraction(CrossingInteraction):
-    """Spike of a neuron, which resets its potential when it crosses a threshold upwards and kicks a second state.
+    """Spike of a neuron that resets its potential when it crosses a threshold upwards.
 
     When the potential `v` rises through `threshold`, it is set to `after`, and the state `kicked`, such as a recovery
     variable or a synaptic trace, grows by `kick`. Every spike is an event labelled by the interaction.
@@ -49,12 +52,12 @@ class SpikeResetInteraction(CrossingInteraction):
         >>> from skcomplex.core.components.elements import CompartmentElement
         >>> from skcomplex.core.components.interactions import RateInteraction
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.systems.biology.neuroscience import SpikeResetInteraction
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> drive = RateInteraction('drive', target='neuron', state='n', rate=1.0)
         >>> spike = SpikeResetInteraction('spike', target='neuron', state='n', threshold=1.0, after=0.0)
         >>> system = System(elements=[CompartmentElement('neuron')], interactions=[drive, spike])
-        >>> trajectory = Simulation(system, dt=0.25).prepare().run(until=2.1).trajectory_
+        >>> trajectory = simulate(system, until=2.1, dt=0.25)
         >>> [round(event.time, 6) for event in trajectory.events]
         [1.0, 2.0]
     """

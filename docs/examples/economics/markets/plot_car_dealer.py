@@ -14,8 +14,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation
+from skcomplex.systems.economics.markets import CarDealerSystem
 
 SYSTEM = 'car_dealer'
 
@@ -27,7 +28,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = create_simulation(SYSTEM).set_params(dt=1.0, observers=[observer]).prepare().run(until=100)
+trajectory = simulate(CarDealerSystem(), observers=[observer])
 
 # %%
 # The flows and the delays
@@ -36,7 +37,6 @@ simulation = create_simulation(SYSTEM).set_params(dt=1.0, observers=[observer]).
 # sales, so the inventory oscillates. A longer response delay damps the oscillation, while a shorter perception delay
 # hardly changes it, the lesson of Meadows' experiments.
 
-trajectory = simulation.trajectory_
 times = np.asarray(trajectory.times)
 fig, (flows, delays) = plt.subplots(1, 2, figsize=(10, 4))
 flows.plot(times, trajectory.values('dealer.sales'), label='sales')
@@ -51,8 +51,8 @@ for label, settings in {
     'perception 2, response 3': {'perception_delay': 2.0},
     'perception 5, response 6': {'response_delay': 6.0},
 }.items():
-    scenario = create_simulation(SYSTEM, **settings).set_params(dt=1.0).prepare().run(until=100)
-    delays.plot(times, scenario.trajectory_.values('dealer.inventory'), label=label)
+    scenario = simulate(CarDealerSystem(**settings))
+    delays.plot(times, scenario.values('dealer.inventory'), label=label)
 delays.set_xlabel('days')
 delays.set_ylabel('cars')
 delays.set_title('The inventory under other delays')

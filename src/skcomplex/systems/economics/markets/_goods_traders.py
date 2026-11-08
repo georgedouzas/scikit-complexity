@@ -1,9 +1,13 @@
-"""Markets systems: traders who wander a grid and barter two or three goods with their neighbours."""
+"""Markets systems: traders who wander a grid and barter goods.
+
+They barter two or three goods with their neighbours.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Annotated
+from collections.abc import Mapping
+from typing import Annotated, ClassVar
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
@@ -12,10 +16,9 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MovementInteraction
 from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 from ..common._exchange import cobb_douglas
 from ..common._exchange_interaction import GOODS, ExchangeInteraction
 
@@ -84,35 +87,8 @@ def _utility(agent: object) -> float:
     return cobb_douglas(agent, GOODS, WEIGHTS)
 
 
-def _goods_observables(system: System) -> list[ObservableSpec]:
-    """Return the mean utility of the traders and the total of every good."""
-    del system
-    return [
-        ObservableSpec('utility', _utility, group='traders', reduce='mean'),
-        *(ObservableSpec(good, group='traders', variable=good, reduce='sum') for good in GOODS),
-    ]
-
-
-@register_system(
-    field='economics/markets',
-    tags=('market', 'agents', 'barter', 'price convergence', 'grid'),
-    references=('Epstein and Axtell 1996',),
-    defaults={'until': 50, 'invariants': dict.fromkeys(GOODS, 1e-6)},
-    observables=_goods_observables,
-)
-def goods_traders(
-    n_traders: int = 200,
-    *,
-    goods: int = 3,
-    width: int = 20,
-    height: int = 20,
-    quantity: float = 0.1,
-    mobility: float = 0.5,
-    low: float = 1.0,
-    high: float = 20.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return traders who wander a grid and barter two or three goods with their neighbours.
+class GoodsTradersSystem(BaseSystem):
+    """Traders who wander a grid and barter two or three goods with their neighbours.
 
     Every trader holds random amounts of the goods and values them with random Cobb-Douglas weights. Every step the
     traders wander to a random neighbouring cell, then every trader is paired with a neighbour, and the pairs barter
@@ -122,7 +98,8 @@ def goods_traders(
 
     The trade rule is the bilateral barter of sugar and spice of Epstein and Axtell (1996), and salt extends it to a
     third good. The Toy Trader of Gooding (2019), with money, posted prices, and imitation of price rules, is a
-    different model.
+    different model. The system has the group `traders`, their random walk `wander`, and the exchange `exchange`, whose
+    reporters are `exchange.price`, `exchange.dispersion`, and `exchange.volume`.
 
     Args:
         n_traders:
@@ -152,51 +129,88 @@ def goods_traders(
         random_state:
             The seed or generator of the cells, holdings, and weights.
 
-    Returns:
-        system:
-            The system, with the group `traders`, their random walk `wander`, and the exchange `exchange`, whose
-            reporters are `exchange.price`, `exchange.dispersion`, and `exchange.volume`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValueError:
             The number of goods is not 2 or 3.
 
     Examples:
-        >>> from skcomplex.systems.economics.markets import goods_traders
-        >>> goods_traders(20, goods=2).elements[0].prepare().size_
+        >>> from skcomplex.systems.economics.markets import GoodsTradersSystem
+        >>> GoodsTradersSystem(20, goods=2).prepare().system_.elements[0].prepare().size_
         20
     """
-    if goods not in (2, 3):
-        error_msg = f'The traders barter 2 or 3 goods, but got {goods}.'
-        raise ValueError(error_msg)
-    rng = np.random.default_rng(random_state)
-    cells = [(x, y) for x in range(width) for y in range(height)]
-    locations = [cells[index] for index in rng.integers(len(cells), size=n_traders)]
-    weights = rng.dirichlet(np.ones(goods), size=n_traders)
-    holdings = rng.uniform(low, high, (n_traders, goods))
-    values: dict[str, Array] = {GOODS[index]: holdings[:, index] for index in range(goods)}
-    values |= {WEIGHTS[index]: weights[:, index] for index in range(goods)}
-    traders = GroupElement(
-        'traders',
-        element=GoodsTraderElement,
-        size=n_traders,
-        values=values,
-        variable=True,
-        location=locations,
+
+    field = 'economics/markets'
+    topics = ('market', 'agents', 'barter', 'price convergence', 'grid')
+    references = ('Epstein and Axtell 1996',)
+    until = 50
+    invariants: ClassVar[Mapping[str, float]] = dict.fromkeys(GOODS, 1e-6)
+    observables = (
+        ObservableSpec('utility', _utility, group='traders', reduce='mean'),
+        *(ObservableSpec(good, group='traders', variable=good, reduce='sum') for good in GOODS),
     )
-    return System(
-        elements=[traders],
-        interactions=[
-            MovementInteraction('wander', target='traders', probability=mobility, phase='move'),
-            ExchangeInteraction(
-                'exchange',
-                source='traders',
-                target='traders',
-                goods=GOODS[:goods],
-                pairing='neighbor-pairs',
-                quantity=quantity,
-            ),
-        ],
-        space=LatticeSpace((width, height), boundary='periodic', neighborhood='moore'),
-        time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('move'), PhaseSpec('trade')])),
-    )
+
+    def __init__(
+        self,
+        n_traders: int = 200,
+        *,
+        goods: int = 3,
+        width: int = 20,
+        height: int = 20,
+        quantity: float = 0.1,
+        mobility: float = 0.5,
+        low: float = 1.0,
+        high: float = 20.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_traders = n_traders
+        self.goods = goods
+        self.width = width
+        self.height = height
+        self.quantity = quantity
+        self.mobility = mobility
+        self.low = low
+        self.high = high
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        if self.goods not in (2, 3):
+            error_msg = f'The traders barter 2 or 3 goods, but got {self.goods}.'
+            raise ValueError(error_msg)
+        rng = np.random.default_rng(self.random_state)
+        cells = [(x, y) for x in range(self.width) for y in range(self.height)]
+        locations = [cells[index] for index in rng.integers(len(cells), size=self.n_traders)]
+        weights = rng.dirichlet(np.ones(self.goods), size=self.n_traders)
+        holdings = rng.uniform(self.low, self.high, (self.n_traders, self.goods))
+        values: dict[str, Array] = {GOODS[index]: holdings[:, index] for index in range(self.goods)}
+        values |= {WEIGHTS[index]: weights[:, index] for index in range(self.goods)}
+        traders = GroupElement(
+            'traders',
+            element=GoodsTraderElement,
+            size=self.n_traders,
+            values=values,
+            variable=True,
+            location=locations,
+        )
+        return System(
+            self.label,
+            elements=[traders],
+            interactions=[
+                MovementInteraction('wander', target='traders', probability=self.mobility, phase='move'),
+                ExchangeInteraction(
+                    'exchange',
+                    source='traders',
+                    target='traders',
+                    goods=GOODS[: self.goods],
+                    pairing='neighbor-pairs',
+                    quantity=self.quantity,
+                ),
+            ],
+            space=LatticeSpace((self.width, self.height), boundary='periodic', neighborhood='moore'),
+            time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('move'), PhaseSpec('trade')])),
+        )

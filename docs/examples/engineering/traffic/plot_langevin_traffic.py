@@ -14,10 +14,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.engineering.traffic import LangevinTrafficSystem
 
 SYSTEM = 'langevin_traffic'
 
@@ -36,21 +36,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM)
+system = LangevinTrafficSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-simulation = (
-    Simulation(
-        system,
-        dt=1.0,
-        solver=EulerMaruyamaSolver(dt=0.01),
-        observers=[observer],
-        random_state=0,
-    )
-    .prepare()
-    .run(
-        until=200,
-    )
-)
+trajectory = simulate(system, solver=EulerMaruyamaSolver(dt=0.01), observers=[observer], random_state=0)
 
 # %%
 # The fundamental diagram and the speed fluctuations
@@ -65,9 +53,9 @@ gamma, D1, length = 3.0, 0.05, 100.0
 densities = np.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8])
 flows, variances = [], []
 for density in densities:
-    cars = create_system(SYSTEM, n_cars=round(density * length), length=length, gamma=gamma, D1=D1)
-    run = Simulation(cars, dt=1.0, solver=EulerMaruyamaSolver(dt=0.01), random_state=1).prepare().run(until=100)
-    speeds = run.trajectory_.values('cars.v')
+    cars = LangevinTrafficSystem(n_cars=round(density * length), length=length, gamma=gamma, D1=D1)
+    run = simulate(cars, until=100, solver=EulerMaruyamaSolver(dt=0.01), random_state=1)
+    speeds = run.values('cars.v')
     flows.append(density * speeds[25:].mean())
     variances.append(speeds[25:].var())
 grid = np.linspace(0.0, 1.0, 100)

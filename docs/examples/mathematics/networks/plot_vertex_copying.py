@@ -14,14 +14,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.analysis import DistributionAnalysis
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.analysis import distribution
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.networks import VertexCopyingSystem
 
 SYSTEM = 'vertex_copying'
 
-system = create_system(SYSTEM)
 # The graph view lays out the nodes of a changing network by forces, which these settings keep compact and centred.
 blueprint = rrb.Blueprint(
     rrb.GraphView(
@@ -38,7 +37,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).prepare().run(until=300)
+trajectory = simulate(VertexCopyingSystem(), dt=2.0, observers=[observer], random_state=0)
 
 # %%
 # Degree tails
@@ -48,14 +47,10 @@ simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).pr
 
 fig, axis = plt.subplots(figsize=(6, 4))
 for randomness in (1.0, 0.5, 0.1):
-    run = (
-        Simulation(create_system(SYSTEM, n_nodes=3004, randomness=randomness), dt=1000.0, random_state=0)
-        .prepare()
-        .run(until=3000)
-    )
-    snapshot = run.trajectory_.network(-1)
-    ccdf = DistributionAnalysis('ccdf').prepare(np.bincount(np.concatenate([snapshot.sources, snapshot.targets]))).run()
-    values, shares = ccdf.support_, ccdf.survival_
+    run = simulate(VertexCopyingSystem(n_nodes=3004, randomness=randomness), until=3000, dt=1000.0, random_state=0)
+    snapshot = run.network(-1)
+    ccdf = distribution(np.bincount(np.concatenate([snapshot.sources, snapshot.targets])), kind='ccdf')
+    values, shares = ccdf.support, ccdf.survival
     axis.loglog(values, shares, 'o', markersize=3, label=f'randomness {randomness}')
 axis.set_xlabel('degree k')
 axis.set_ylabel('P(K >= k)')

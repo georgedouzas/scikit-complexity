@@ -14,14 +14,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.analysis import DistributionAnalysis
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.analysis import distribution
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.networks import GrowingSimplicialComplexSystem
 
 SYSTEM = 'growing_simplicial_complex'
 
-system = create_system(SYSTEM)
 # The graph view lays out the nodes of a changing network by forces, which these settings keep compact and centred.
 blueprint = rrb.Blueprint(
     rrb.GraphView(
@@ -38,18 +37,18 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).prepare().run(until=300)
+trajectory = simulate(GrowingSimplicialComplexSystem(), dt=2.0, observers=[observer], random_state=0)
 
 # %%
 # Degree tail
 # -----------
 # The degrees should follow `P(k) ~ k^-3`, so the share of nodes of degree at least `k` should fall as `k^-2`.
 
-run = Simulation(create_system(SYSTEM, n_nodes=3003), dt=3000.0, random_state=0).prepare().run(until=3000)
-snapshot = run.trajectory_.network(-1)
+run = simulate(GrowingSimplicialComplexSystem(n_nodes=3003), until=3000, dt=3000.0, random_state=0)
+snapshot = run.network(-1)
 degrees = np.bincount(np.concatenate([snapshot.sources, snapshot.targets]))
-ccdf = DistributionAnalysis('ccdf').prepare(degrees).run()
-values, shares = ccdf.support_, ccdf.survival_
+ccdf = distribution(degrees, kind='ccdf')
+values, shares = ccdf.support, ccdf.survival
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.loglog(values, shares, 'o', markersize=3, label='simulation')
 ax.loglog(values, shares[0] * (values / values[0]) ** -2.0, '--', color='black', label='k^-2')

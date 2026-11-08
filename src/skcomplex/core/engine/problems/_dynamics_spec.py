@@ -13,7 +13,10 @@ from ._problem_spec import ProblemSpec
 
 @dataclass(frozen=True)
 class _DynamicsSpec(BaseSpec):
-    """First-order equations of a system: its state symbols, their right sides, and its parameter values."""
+    """First-order equations of a system.
+
+    They hold its state symbols, their right sides, and its parameter values.
+    """
 
     problem: ProblemSpec
     names: list[str]

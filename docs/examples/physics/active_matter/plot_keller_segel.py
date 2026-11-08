@@ -8,7 +8,7 @@ dark uniform background with a few bright, compact aggregates.
 """
 
 # %%
-# The system is created by name from the catalog on a periodic square of side 32 with 32 sites per side, with the
+# The system is built from its class on a periodic square of side 32 with 32 sites per side, with the
 # chemotactic sensitivity `chi = 5`, five times the threshold, and the cells at density 1 with 1% noise. In two
 # dimensions the aggregates collapse in finite time, so the run stops at `t = 10.5`, shortly before the density blows
 # up. The default blueprint shows the cell density as an image.
@@ -16,15 +16,15 @@ dark uniform background with a few bright, compact aggregates.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.active_matter import KellerSegelSystem
 
 SYSTEM = 'keller_segel'
 
-system = create_system(SYSTEM)
+system = KellerSegelSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.25, observers=[observer], random_state=0).prepare().run(until=10.5)
+trajectory = simulate(system, observers=[observer], random_state=0)
 
 # %%
 # Linear instability and conservation
@@ -36,8 +36,8 @@ simulation = Simulation(system, dt=0.25, observers=[observer], random_state=0).p
 # fluctuations of the density should rise towards the largest of these rates over the modes of the lattice, and then
 # grow faster than exponentially as the aggregates collapse. The total number of cells should stay constant.
 
-rho = simulation.trajectory_.lattice('colony.rho')
-times = simulation.trajectory_.times
+rho = trajectory.lattice('colony.rho')
+times = trajectory.times
 axis = 2 * np.pi * np.fft.fftfreq(32)
 qx, qy = np.meshgrid(axis, axis)
 laplacian = -(2 - 2 * np.cos(qx)) - (2 - 2 * np.cos(qy))

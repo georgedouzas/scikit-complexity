@@ -1,4 +1,7 @@
-"""Define groupings, which draw groups of the members of a group every step and act on each group."""
+"""Define groupings.
+
+A grouping draws groups of the members of a group every step and acts on each group.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -10,7 +13,7 @@ from typing import Annotated, ClassVar, cast
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ...errors import ValidationError
-from ...specs import BaseSpec, PartnerSpec, ReductionSpec, RoleSpec
+from ...specs import BaseSpec, PartnerSpec, ReductionSpec, RoleSpec, Tags
 from ...types import ElementKind
 from ..laws import BaseLaw, MatchLaw, RuleLaw, UpdateLaw
 from ..laws.utils import both, count, maximum, mean, minimum, reductions_in, total, variance
@@ -35,7 +38,9 @@ type GroupFunction = Callable[[SimpleNamespace], object]
 
 
 class GroupingInteraction(Interaction):
-    """Grouping of the members of a group into groups drawn every step, with an action on every group.
+    """Grouping of the members of a group into groups drawn every step.
+
+    An action applies to every group.
 
     The groups are one of four kinds:
 
@@ -111,7 +116,7 @@ class GroupingInteraction(Interaction):
         >>> from skcomplex.core.components.elements import Element, GroupElement
         >>> from skcomplex.core.components.interactions import GroupingInteraction
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.specs import StateSpec
         >>> class VoterElement(Element):
         ...     def __init__(self, label, visual=None, *, s: Annotated[float, StateSpec()] = 0.0):
@@ -123,8 +128,8 @@ class GroupingInteraction(Interaction):
         ...         member.s = majority
         >>> voters = GroupElement('voters', element=VoterElement, size=3, values={'s': [1.0, 1.0, 0.0]})
         >>> galam = GroupingInteraction('galam', target='voters', groups='partition', size=3, act=adopt_majority)
-        >>> trajectory = Simulation(System(elements=[voters], interactions=[galam])).prepare().run(until=1)
-        >>> trajectory.trajectory_.agents('voters', 1).values['s'].tolist()
+        >>> trajectory = simulate(System(elements=[voters], interactions=[galam]), until=1)
+        >>> trajectory.agents('voters', 1).values['s'].tolist()
         [1.0, 1.0, 1.0]
 
         In the symbolic form every group of the partition takes the opinion of its majority:
@@ -139,12 +144,23 @@ class GroupingInteraction(Interaction):
         ...     write='s',
         ...     function=lambda g: where(mean(g.members.s, over=g.members) > 1 / 2, 1, 0),
         ... )
-        >>> simulation = Simulation(System(elements=[voters], interactions=[galam]), random_state=0)
-        >>> simulation.prepare().run(until=1).trajectory_.values('voters.s')[-1].tolist()
+        >>> trajectory = simulate(System(elements=[voters], interactions=[galam]), until=1, random_state=0)
+        >>> trajectory.values('voters.s')[-1].tolist()
         [1.0, 1.0, 1.0]
     """
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (MatchLaw, RuleLaw, UpdateLaw)
+
+    def _get_tags(self) -> Tags:
+        """Return the tags of the agent-form rules or of the symbolic grouping updates."""
+        return self._get_variant_tags((RuleLaw,) if self._get_argument('form') == 'agent' else (UpdateLaw,))
+
+    def _draws(self) -> bool:
+        """Return whether the grouping draws.
+
+        It draws by random groups or by acting on its groups in random order.
+        """
+        return super()._draws() or self._get_argument('form') == 'agent' or self.groups != 'neighborhood'
 
     def __init__(
         self,
@@ -176,7 +192,7 @@ class GroupingInteraction(Interaction):
         self.reduce = reduce
 
     def _check_symbolic(self) -> None:
-        """Raise an error for a symbolic form without its state or function, or with a setting of the agent form.
+        """Raise an error for a symbolic form without its parts or with agent settings.
 
         Raises:
             ValidationError:
@@ -205,8 +221,12 @@ class GroupingInteraction(Interaction):
             self._check_grid('groups', self.groups, space, "groups='pairs', 'partition', 'state', or a radius")
         self._check_partners(self.groups, space)
 
-    def _check(self) -> None:
-        """Raise an error for an unknown kind of groups, a size below two, a missing state, or a capacity below one.
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Raise an error for an unknown kind, a small size, no state, or a small capacity.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
@@ -214,13 +234,13 @@ class GroupingInteraction(Interaction):
                 have no state, the capacity is not positive, the symbolic form has no state or function, or a setting
                 of one form is given to the other.
         """
-        super()._check()
+        super()._prepare(context)
         if self.form not in FORMS:
             error_msg = f'Unknown form {self.form!r} of {self.label!r}. Use one of {", ".join(FORMS)}.'
             raise ValidationError(error_msg)
         self._check_variant('groups', self.groups, GROUPS, (BaseSpec,), functions=True)
         if isinstance(self.groups, PartnerSpec):
-            self.groups._validated()
+            self.groups._check()
         if isinstance(self.size, bool) or not isinstance(self.size, int) or self.size < PAIR:
             error_msg = f'The size of the groups of {self.label!r} is {self.size!r}. Give a whole number of at least 2.'
             raise ValidationError(error_msg)
@@ -255,7 +275,10 @@ class GroupingInteraction(Interaction):
         size: int,
         system: SystemViewProtocol,
     ) -> list[list[AgentViewProtocol]]:
-        """Return a random partition of agents into groups of a size, with the remainder in the last group."""
+        """Return a random partition of agents into groups of a size.
+
+        The remainder goes in the last group.
+        """
         order = [agents[int(index)] for index in system.rng.permutation(len(agents))]
         return [order[start : start + size] for start in range(0, len(order), size)]
 
@@ -273,7 +296,10 @@ class GroupingInteraction(Interaction):
         agents: Sequence[AgentViewProtocol],
         system: SystemViewProtocol,
     ) -> list[list[AgentViewProtocol]]:
-        """Return the groups of agents that share a value of the state `by`, each cut at random to the capacity."""
+        """Return the groups of agents that share a value of the state `by`.
+
+        Each group is cut at random to the capacity.
+        """
         shared: dict[float, list[AgentViewProtocol]] = {}
         for agent in agents:
             shared.setdefault(float(getattr(agent, str(self.by))), []).append(agent)
@@ -290,7 +316,10 @@ class GroupingInteraction(Interaction):
         agents: Sequence[AgentViewProtocol],
         system: SystemViewProtocol,
     ) -> list[list[AgentViewProtocol]]:
-        """Return the groups of every agent with the partners a selection of partners or a function gives it."""
+        """Return the groups of every agent with the partners it gets.
+
+        A selection of partners or a function gives the partners.
+        """
         law = MatchLaw(self.target, pairing=pairing, capacity=self.capacity or 1)
         groups: dict[int, list[AgentViewProtocol]] = {}
         for first, second in law.get_pairs(agents, agents, system.rng):
@@ -320,7 +349,9 @@ class GroupingInteraction(Interaction):
             self.act_on(groups[int(index)], system)
 
     def _keyed(self, reduction: ReductionSpec, member: SimpleNamespace, members: SimpleNamespace) -> Expression:
-        """Return a reduction over the members of a group restricted to the members that share the value of `by`.
+        """Return a reduction over the members of a group that share the value of `by`.
+
+        The reduction is restricted to these members.
 
         Args:
             reduction:
@@ -350,7 +381,10 @@ class GroupingInteraction(Interaction):
         return KEYED[reduction.kind](reduction.argument, over=reduction.over, where=condition)
 
     def _get_keyed_group(self, namespace: SimpleNamespace) -> tuple[SimpleNamespace, Expression]:
-        """Return the namespace of the group by state of a member and the value of the group, its reductions keyed."""
+        """Return the namespace of the group by state of a member and its value.
+
+        The reductions of the group are keyed.
+        """
         target = self._get_member(namespace, 'target')
         names = {name: value for name, value in vars(namespace).items() if name != self._get_role('target')}
         group = SimpleNamespace(**names, member=target, members=target.other, others=())
@@ -363,7 +397,7 @@ class GroupingInteraction(Interaction):
         return group, value.subs(keyed) if keyed else value
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule of the agent form, or the update of the state of the member of a group.
+        """Return the rule of the agent form, or the update of the state of group members.
 
         Args:
             namespace:

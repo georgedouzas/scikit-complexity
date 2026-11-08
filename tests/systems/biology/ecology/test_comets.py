@@ -5,12 +5,11 @@ import inspect
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation, Trajectory
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.engine.solvers import IMEXEulerSolver
 from skcomplex.core.specs import RunStateSpec
-from skcomplex.systems import create_simulation, create_system, describe
-from skcomplex.systems.biology.ecology import comets
+from skcomplex.systems.biology.ecology import CometsSystem
 
 STEP = 0.1
 INOCULUM_PER_LEVEL = 3.0
@@ -50,19 +49,19 @@ def _taken_up(trajectory: Trajectory) -> float:
 
 def _run_small(shape: tuple[int, int], until: float, **parameters: float) -> Trajectory:
     """Return a run of the published scheme and step on another lattice."""
-    system = create_system('comets', shape=shape, **parameters)
-    return Simulation(system, solver=IMEXEulerSolver(dt=STEP), dt=STEP).prepare().run(until=until).trajectory_
+    system = CometsSystem(shape=shape, **parameters).prepare().system_
+    return simulate(system, solver=IMEXEulerSolver(dt=STEP), dt=STEP, until=until)
 
 
 @pytest.fixture(scope='module')
 def published() -> Trajectory:
     """Return the default run of the system."""
-    return create_simulation('comets').prepare().run().trajectory_
+    return simulate(CometsSystem())
 
 
 def test_comets_defaults_are_the_published_values():
     """Test the defaults against Table 1 and the Experimental Procedures of Harcombe et al. (2014)."""
-    parameters = inspect.signature(comets).parameters
+    parameters = inspect.signature(CometsSystem).parameters
     published_values = {
         'shape': (50, 50),
         'box': 0.02,
@@ -77,24 +76,29 @@ def test_comets_defaults_are_the_published_values():
     }
     assert {name: parameters[name].default for name in published_values} == published_values
     assert 'threshold' not in parameters
-    assert describe('comets').defaults['dt'] == 0.1
-    assert describe('comets').defaults['solver'].dt == 0.1
+    assert CometsSystem.dt == 0.1
+    assert CometsSystem.solver.dt == 0.1
 
 
 def test_comets_steps_are_the_published_diffusion_numbers():
     """Test that the coefficients come to about 45 and 0.0027 boxes^2/h, and that only diffusion is the linear part."""
     terms = {
-        term.target.entry.name: term for term in PassCompiler().prepare(comets(shape=(3, 3))).run().problem_.linear
+        term.target.entry.name: term
+        for term in PassCompiler().prepare(CometsSystem(shape=(3, 3)).prepare().system_).run().problem_.linear
     }
-    assert len(PassCompiler().prepare(comets(shape=(3, 3))).run().problem_.linear) == 2
+    assert len(PassCompiler().prepare(CometsSystem(shape=(3, 3)).prepare().system_).run().problem_.linear) == 2
     assert float(terms['glucose.c'].coefficient) / 0.02**2 == pytest.approx(45.0)
     assert float(terms['biomass.x'].coefficient) / 0.02**2 == pytest.approx(0.0027)
 
 
 def test_comets_inoculum_is_the_published_mass_at_the_centre():
     """Test that the central box holds 3e-7 g, with the volume under a box from the glucose of the medium."""
-    biomass = next(item for item in comets(shape=(5, 5)).elements if item.label == 'biomass').values['x']
-    glucose = next(item for item in comets(shape=(5, 5)).elements if item.label == 'glucose').values['c']
+    biomass = next(
+        item for item in CometsSystem(shape=(5, 5)).prepare().system_.elements if item.label == 'biomass'
+    ).values['x']
+    glucose = next(
+        item for item in CometsSystem(shape=(5, 5)).prepare().system_.elements if item.label == 'glucose'
+    ).values['c']
     volume = 0.0088 * 0.02**2 / glucose[0, 0]
     assert glucose[0, 0] == pytest.approx(27.753, abs=1e-3)
     assert biomass[2, 2] * volume == pytest.approx(3e-7)
@@ -151,7 +155,7 @@ def test_comets_gives_zero_fluxes_to_the_sites_without_biomass():
 
 def test_comets_program_solves_only_the_sites_with_biomass():
     """Test that one evaluation solves the one inoculated site."""
-    problem = PassCompiler().prepare(create_system('comets', shape=(5, 5))).run().problem_
+    problem = PassCompiler().prepare(CometsSystem(shape=(5, 5)).prepare().system_).run().problem_
     kernel = problem.programs[0]
     kernel.run(RunStateSpec(0.0, problem.initial_state, problem.initial_parameters))
     assert kernel.solves_ == 1
@@ -197,7 +201,8 @@ def test_comets_default_run_holds_its_budget_and_its_caption(published: Trajecto
     assert slope > 0
     assert abs(np.mean(speeds[len(speeds) // 2 :]) - slope) < 0.3 * slope
     terms = {
-        term.target.entry.name: term for term in PassCompiler().prepare(comets(shape=(3, 3))).run().problem_.linear
+        term.target.entry.name: term
+        for term in PassCompiler().prepare(CometsSystem(shape=(3, 3)).prepare().system_).run().problem_.linear
     }
     assert float(terms['glucose.c'].coefficient) / float(terms['biomass.x'].coefficient) == pytest.approx(
         17000,

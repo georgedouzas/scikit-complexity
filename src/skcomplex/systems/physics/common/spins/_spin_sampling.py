@@ -1,4 +1,7 @@
-"""Define spin sampling, Monte Carlo sweeps of spins at the temperature the spins hold."""
+"""Define spin sampling.
+
+Monte Carlo sweeps sample spins at the temperature the spins hold.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -7,14 +10,16 @@ from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
-from .....core.components.laws import BaseLaw
+from .....core.components.laws import BaseLaw, DriveLaw, SampleLaw
 from .....core.components.spaces import BaseNeighborhood
 from .....core.specs import RoleSpec
 from ._thermal_sampling import ThermalSamplingInteraction
 
 
 class SpinSamplingInteraction(ThermalSamplingInteraction):
-    """Monte Carlo sweeps of the spins of a lattice or network group at the temperature of the spins.
+    """Monte Carlo sweeps of the spins of a lattice or network group.
+
+    The sweeps run at the temperature of the spins.
 
     The temperature is the parameter `temperature` of the spins, so it lives with the couplings and fields of the
     spins, and a schedule of `<group>.temperature` changes it during a run. The local energy reads the states and
@@ -58,6 +63,8 @@ class SpinSamplingInteraction(ThermalSamplingInteraction):
         >>> SpinSamplingInteraction('ising', target='spins', state='spin', energy=energy).rule
         'metropolis'
     """
+
+    law_classes = (DriveLaw, SampleLaw)
 
     def __init__(
         self,

@@ -1,4 +1,7 @@
-"""Langevin traffic: cars that relax with noise to a speed set by the local density, and their density equations."""
+"""Langevin traffic: cars that relax with noise to a speed, and density equations.
+
+The equations are those of the density of the cars. The speed is set by the local density.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,16 +18,20 @@ from ....core.components.interactions import RelaxationInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import divergence, laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import EulerMaruyamaSolver, RK4Solver
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from ..common._car import CarElement
 from ..common._optimal_velocity import OptimalVelocityInteraction
 
 
 class TrafficMomentsElement(Element):
-    """Density `rho` and flow `w` of Langevin traffic on a road, the first two moments of its speeds."""
+    """Density `rho` and flow `w` of Langevin traffic on a road.
+
+    They are the first two moments of its speeds.
+    """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
@@ -65,11 +72,12 @@ class TrafficMomentsElement(Element):
 
 
 class LangevinDrivingInteraction(RelaxationInteraction):
-    """Relaxation of the speed of every car of a ring road towards the speed of its local density, with noise.
+    """Relaxation of the speed of every car of a ring road, with noise.
 
-    The speed follows `dv = -gamma (v - u(rho)) dt + sqrt(2 D1 rho) dW`, with the desired speed
-    `u(rho) = u0 (1 - rho / rho_max)` of the density `rho`, the inverse of the headway to the next car, an
-    Ornstein-Uhlenbeck relaxation over the time `1 / gamma` with a noise that grows with the density.
+    The speed relaxes towards the speed of the local density. The speed follows
+    `dv = -gamma (v - u(rho)) dt + sqrt(2 D1 rho) dW`, with the desired speed `u(rho) = u0 (1 - rho / rho_max)` of the
+    density `rho`, the inverse of the headway to the next car, an Ornstein-Uhlenbeck relaxation over the time
+    `1 / gamma` with a noise that grows with the density.
 
     Args:
         label:
@@ -145,30 +153,18 @@ class LangevinDrivingInteraction(RelaxationInteraction):
         return 1 / OptimalVelocityInteraction._headway(x, road_length)
 
 
-@register_system(
-    field='engineering/traffic',
-    tags=('traffic', 'sde', 'langevin', 'car following'),
-    references=('Bertin 2021',),
-    defaults={'until': 200.0, 'dt': 1.0, 'solver': EulerMaruyamaSolver(dt=0.01)},
-)
-def langevin_traffic(
-    n_cars: int = 50,
-    length: float = 100.0,
-    *,
-    gamma: float = 3.0,
-    u0: float = 1.0,
-    rho_max: float = 1.0,
-    D1: float = 0.05,
-) -> System:
-    """Return cars on a ring road whose speeds relax with noise towards a desired speed set by the local density.
+class LangevinTrafficSystem(BaseSystem):
+    """Cars on a ring road whose speeds relax with noise towards a desired speed.
 
-    Car `i` follows `dv_i = -gamma (v_i - u(rho_i)) dt + sqrt(2 D(rho_i)) dW` with the desired speed
-    `u(rho) = u0 (1 - rho / rho_max)` and the noise intensity `D(rho) = D1 rho`, where the local density `rho_i` is the
-    inverse of the headway to the car ahead. Cars start evenly spaced at the speed `u(rho)` of the mean density
-    `rho = n_cars / length`. The mean speed stays at `u(rho)`, so the mean flow follows the fundamental diagram
-    `rho u(rho)`, and the speeds fluctuate with the variance `D1 rho / gamma`. The uniform flow is linearly stable while
-    `u0 rho^2 / rho_max < gamma / 2`, as for the optimal velocity system. Strong noise lets cars pass each other, and
-    the headway of a car that has passed the car ahead wraps around the ring.
+    The local density sets the desired speed. Car `i` follows `dv_i = -gamma (v_i - u(rho_i)) dt + sqrt(2 D(rho_i)) dW`
+    with the desired speed `u(rho) = u0 (1 - rho / rho_max)` and the noise intensity `D(rho) = D1 rho`, where the local
+    density `rho_i` is the inverse of the headway to the car ahead. Cars start evenly spaced at the speed `u(rho)` of
+    the mean density `rho = n_cars / length`. The mean speed stays at `u(rho)`, so the mean flow follows the fundamental
+    diagram `rho u(rho)`, and the speeds fluctuate with the variance `D1 rho / gamma`. The uniform flow is linearly
+    stable while `u0 rho^2 / rho_max < gamma / 2`, as for the optimal velocity system. Strong noise lets cars pass each
+    other, and the headway of a car that has passed the car ahead wraps around the ring.
+
+    The system has the group `cars` of positions `cars.x` and speeds `cars.v`, car `i + 1` ahead of car `i`.
 
     Args:
         n_cars:
@@ -189,63 +185,76 @@ def langevin_traffic(
         D1:
             The noise intensity per unit density.
 
-    Returns:
-        system:
-            The system, with the group `cars` of positions `cars.x` and speeds `cars.v`, car `i + 1` ahead of car `i`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.engineering.traffic import langevin_traffic
-        >>> float(langevin_traffic(n_cars=10, length=20.0).elements[0].values['v'][0])
+        >>> from skcomplex.systems.engineering.traffic import LangevinTrafficSystem
+        >>> float(LangevinTrafficSystem(n_cars=10, length=20.0).prepare().system_.elements[0].values['v'][0])
         0.5
     """
-    density = n_cars / length
-    positions = np.arange(n_cars) * length / n_cars
-    cars = GroupElement(
-        'cars',
-        element=CarElement,
-        size=n_cars,
-        values={'x': positions, 'v': np.full(n_cars, u0 * (1 - density / rho_max))},
-    )
-    driving = LangevinDrivingInteraction(
-        'drive',
-        target='cars',
-        gamma=gamma,
-        u0=u0,
-        rho_max=rho_max,
-        D1=D1,
-        road_length=length,
-    )
-    return System(elements=[cars], interactions=[driving])
+
+    field = 'engineering/traffic'
+    topics = ('traffic', 'sde', 'langevin', 'car following')
+    references = ('Bertin 2021',)
+    until = 200.0
+    dt = 1.0
+    solver = EulerMaruyamaSolver(dt=0.01)
+
+    def __init__(
+        self,
+        n_cars: int = 50,
+        length: float = 100.0,
+        *,
+        gamma: float = 3.0,
+        u0: float = 1.0,
+        rho_max: float = 1.0,
+        D1: float = 0.05,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_cars = n_cars
+        self.length = length
+        self.gamma = gamma
+        self.u0 = u0
+        self.rho_max = rho_max
+        self.D1 = D1
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        density = self.n_cars / self.length
+        positions = np.arange(self.n_cars) * self.length / self.n_cars
+        cars = GroupElement(
+            'cars',
+            element=CarElement,
+            size=self.n_cars,
+            values={'x': positions, 'v': np.full(self.n_cars, self.u0 * (1 - density / self.rho_max))},
+        )
+        driving = LangevinDrivingInteraction(
+            'drive',
+            target='cars',
+            gamma=self.gamma,
+            u0=self.u0,
+            rho_max=self.rho_max,
+            D1=self.D1,
+            road_length=self.length,
+        )
+        return System(self.label, elements=[cars], interactions=[driving])
 
 
-@register_system(
-    field='engineering/traffic',
-    tags=('traffic', 'field', 'jams', 'instability', 'pde'),
-    references=('Bertin 2021',),
-    defaults={'until': 400.0, 'dt': 4.0, 'solver': RK4Solver(dt=0.1)},
-)
-def traffic_density_equation(
-    n: int = 100,
-    *,
-    length: float = 50.0,
-    density: float = 0.5,
-    gamma: float = 1.0,
-    u0: float = 1.0,
-    rho_max: float = 1.0,
-    D1: float = 0.2,
-    perturbation: float = 0.01,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the density and flux equations of Langevin traffic on a ring road, whose uniform flow breaks into jams.
+class TrafficDensityEquationSystem(BaseSystem):
+    """The density and flux equations of Langevin traffic on a ring road.
 
-    The density `rho` and the flux `w` of cars that relax to the desired speed `u(rho) = u0 (1 - rho / rho_max)` at
-    the rate `gamma`, with the diffusion coefficient `D(rho) = D1 rho`, follow the moment equations
-    `rho_t + w_x = (D rho_x)_x` and `w_t + (2 u w - rho u^2)_x = -gamma (w - rho u) + (D w_x)_x`, closed by expanding
-    the velocity distribution around `u(rho)`. A long density wave of the uniform flow grows when the effective
-    diffusion coefficient `D(rho) + ((rho u^2)' - (rho u)'^2) / gamma = D(rho) - rho^2 u'(rho)^2 / gamma` is negative,
-    so the flow is unstable above the density `D1 gamma rho_max^2 / u0^2`, and the perturbation grows into dense jams.
-    The uniform density starts with independent Gaussian perturbations of relative size
-    `perturbation` in every cell, at the flux `rho u(rho)`.
+    Their uniform flow breaks into jams. The density `rho` and the flux `w` of cars that relax to the desired speed
+    `u(rho) = u0 (1 - rho / rho_max)` at the rate `gamma`, with the diffusion coefficient `D(rho) = D1 rho`, follow the
+    moment equations `rho_t + w_x = (D rho_x)_x` and `w_t + (2 u w - rho u^2)_x = -gamma (w - rho u) + (D w_x)_x`,
+    closed by expanding the velocity distribution around `u(rho)`. A long density wave of the uniform flow grows when
+    the effective diffusion coefficient `D(rho) + ((rho u^2)' - (rho u)'^2) / gamma = D(rho) - rho^2 u'(rho)^2 / gamma`
+    is negative, so the flow is unstable above the density `D1 gamma rho_max^2 / u0^2`, and the perturbation grows into
+    dense jams. The uniform density starts with independent Gaussian perturbations of relative size `perturbation` in
+    every cell, at the flux `rho u(rho)`.
+
+    The system has the density `road.rho` and the flux `road.w`.
 
     Args:
         n:
@@ -275,25 +284,59 @@ def traffic_density_equation(
         random_state:
             The seed or generator of the initial perturbations.
 
-    Returns:
-        system:
-            The system, with the density `road.rho` and the flux `road.w`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.engineering.traffic import traffic_density_equation
-        >>> traffic_density_equation(10).elements[0].values['D1']
+        >>> from skcomplex.systems.engineering.traffic import TrafficDensityEquationSystem
+        >>> TrafficDensityEquationSystem(10).prepare().system_.elements[0].values['D1']
         0.2
     """
-    rng = np.random.default_rng(random_state)
-    rho = density * (1 + perturbation * rng.standard_normal(n))
-    values = {
-        'rho': rho,
-        'w': rho * u0 * (1 - rho / rho_max),
-        'gamma': gamma,
-        'u0': u0,
-        'rho_max': rho_max,
-        'D1': D1,
-    }
-    space = LatticeSpace(n, spacing=length / n)
-    road = FieldElement('road', element=TrafficMomentsElement, space=space, values=values)
-    return System(elements=[road])
+
+    field = 'engineering/traffic'
+    topics = ('traffic', 'field', 'jams', 'instability', 'pde')
+    references = ('Bertin 2021',)
+    until = 400.0
+    dt = 4.0
+    solver = RK4Solver(dt=0.1)
+
+    def __init__(
+        self,
+        n: int = 100,
+        *,
+        length: float = 50.0,
+        density: float = 0.5,
+        gamma: float = 1.0,
+        u0: float = 1.0,
+        rho_max: float = 1.0,
+        D1: float = 0.2,
+        perturbation: float = 0.01,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n = n
+        self.length = length
+        self.density = density
+        self.gamma = gamma
+        self.u0 = u0
+        self.rho_max = rho_max
+        self.D1 = D1
+        self.perturbation = perturbation
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        rho = self.density * (1 + self.perturbation * rng.standard_normal(self.n))
+        values = {
+            'rho': rho,
+            'w': rho * self.u0 * (1 - rho / self.rho_max),
+            'gamma': self.gamma,
+            'u0': self.u0,
+            'rho_max': self.rho_max,
+            'D1': self.D1,
+        }
+        space = LatticeSpace(self.n, spacing=self.length / self.n)
+        road = FieldElement('road', element=TrafficMomentsElement, space=space, values=values)
+        return System(self.label, elements=[road])

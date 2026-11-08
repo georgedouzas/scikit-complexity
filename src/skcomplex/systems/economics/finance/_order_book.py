@@ -1,10 +1,13 @@
-"""Finance systems: a stock market whose fundamentalists and chartists trade in a limit order book and imitate."""
+"""Finance systems: a stock market of fundamentalists and chartists.
+
+They trade in a limit order book and imitate.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 import math
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
@@ -16,7 +19,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import ImitationInteraction, MapInteraction, MatchingInteraction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.components.types import MatchingRule
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import (
@@ -31,14 +34,14 @@ from ....core.specs import (
     StateSpec,
     VisualSpec,
 )
-from ..._catalog import register_system
 from ..common.forecasting import heuristics
 
 
 class StockTraderView(AgentView):
-    """Stock trader as the rules see it, with its strategy, holdings, order, wealth, gain, and fundamental value.
+    """Stock trader as the rules see it.
 
-    The order is the limit prices `bid` and `ask` and the quantities `demand` and `supply`.
+    It holds its strategy, holdings, order, wealth, gain, and fundamental value. The order is the limit prices `bid` and
+    `ask` and the quantities `demand` and `supply`.
     """
 
     strategy: float
@@ -57,13 +60,14 @@ LOWEST_PRICE = 0.01
 
 
 class StockTraderElement(Element):
-    """Trader who forecasts the price as a fundamentalist or a chartist, quotes a limit order, and imitates.
+    """Trader who forecasts the price, quotes a limit order, and imitates.
 
-    A fundamentalist expects the price `p` to revert to the fundamental value `F`, `p + reversion (F - p)`, and a
-    chartist expects the last change to go on, `p + extrapolation (p - p')`, both with a relative noise. The trader
-    bids its expectation for one share when it is above the price and it can pay, and asks its expectation for one
-    share when it is below and it holds one. After trading, an `ImitationInteraction` of rule `'better'` lets a trader
-    whose wealth grew less than that of a random neighbour copy the neighbour's strategy.
+    It forecasts as a fundamentalist or a chartist. A fundamentalist expects the price `p` to revert to the fundamental
+    value `F`, `p + reversion (F - p)`, and a chartist expects the last change to go on, `p + extrapolation (p - p')`,
+    both with a relative noise. The trader bids its expectation for one share when it is above the price and it can pay,
+    and asks its expectation for one share when it is below and it holds one. After trading, an `ImitationInteraction`
+    of rule `'better'` lets a trader whose wealth grew less than that of a random neighbour copy the neighbour's
+    strategy.
 
     Args:
         label:
@@ -117,6 +121,8 @@ class StockTraderElement(Element):
         >>> GroupElement('traders', element=StockTraderElement, size=4, values={'strategy': 1.0}).size
         4
     """
+
+    law_classes = (RuleLaw,)
 
     def __init__(
         self,
@@ -203,7 +209,9 @@ class StockTraderElement(Element):
 
     @staticmethod
     def get_gain(agent: StockTraderView, system: SystemView) -> float:
-        """Return the change of the wealth valued at the last price, zero before the first valuation.
+        """Return the change of the wealth valued at the last price.
+
+        It is zero before the first valuation.
 
         Args:
             agent:
@@ -238,12 +246,13 @@ class StockTraderElement(Element):
 
 
 class BookInteraction(MatchingInteraction[SystemView]):
-    """Limit order book that matches the orders of the traders and reports the last traded price.
+    """Limit order book that matches the orders of the traders.
 
-    The book is a matching of the traders with themselves, which binds the requesters' limit to their `bid` and the
-    providers' to their `ask`, and every trade is two transfers, money from buyer to seller and shares from seller to
-    buyer, so the total money and the total shares stay the same, which the default run checks as invariants. The book
-    reports the last traded `price`, the previous price when nothing trades, and the traded `volume`.
+    It reports the last traded price. The book is a matching of the traders with themselves, which binds the requesters'
+    limit to their `bid` and the providers' to their `ask`, and every trade is two transfers, money from buyer to seller
+    and shares from seller to buyer, so the total money and the total shares stay the same, which the default run checks
+    as invariants. The book reports the last traded `price`, the previous price when nothing trades, and the traded
+    `volume`.
 
     Args:
         label:
@@ -317,7 +326,9 @@ class BookInteraction(MatchingInteraction[SystemView]):
         self.opening = opening
 
     def _report_matches(self, matches: list[MatchSpec], unmatched: float, system: SystemView) -> None:
-        """Report the last traded price, the previous price when nothing trades, and the traded volume.
+        """Report the last traded price and the traded volume.
+
+        When nothing trades, it reports the previous price.
 
         Args:
             matches:
@@ -339,48 +350,21 @@ class BookInteraction(MatchingInteraction[SystemView]):
 HOLDINGS = ('money', 'shares')
 
 
-def _order_book_observables(system: System) -> list[ObservableSpec]:
-    """Return the share of chartists, the mean wealth of the traders, and their total money and shares."""
-    del system
-    return [
-        ObservableSpec('chartists', group='traders', variable='strategy', reduce='mean'),
-        ObservableSpec('mean_wealth', group='traders', variable='wealth', reduce='mean'),
-        *(ObservableSpec(f'total_{name}', group='traders', variable=name, reduce='sum') for name in HOLDINGS),
-    ]
+class OrderBookSystem(BaseSystem):
+    """A stock market of fundamentalists and chartists on a grid.
 
-
-@register_system(
-    field='economics/finance',
-    tags=('stock market', 'agents', 'order book', 'imitation', 'fundamentalists', 'chartists'),
-    references=('Lux and Marchesi 1999', 'Caiani et al. 2016 §3.2.1'),
-    defaults={'until': 200, 'invariants': {f'total_{name}': 1e-6 for name in HOLDINGS}},
-    observables=_order_book_observables,
-)
-def order_book(
-    width: int = 20,
-    height: int = 20,
-    *,
-    chartists: float = 0.3,
-    fundamental: float = 100.0,
-    reversion: float = 0.2,
-    extrapolation: float = 1.0,
-    noise: float = 0.02,
-    imitation: float = 0.1,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return a stock market of fundamentalists and chartists on a grid who trade in a limit order book and imitate.
-
-    Every step every trader forecasts the price, as a fundamentalist who expects it to revert to the fundamental value
-    or as a chartist who expects the last change to go on, and quotes a limit order for one share at its forecast. The
-    order book matches the orders with price-time priority, and every trade moves money and a share between the two
-    traders. Then traders copy the strategy of a neighbour whose wealth grew more. Fundamentalists hold the price near
-    the fundamental value, chartists amplify its swings, and imitation lets the share of chartists wander, so the
-    returns come in bursts with fat tails.
+    They trade in a limit order book and imitate. Every step every trader forecasts the price, as a fundamentalist who
+    expects it to revert to the fundamental value or as a chartist who expects the last change to go on, and quotes a
+    limit order for one share at its forecast. The order book matches the orders with price-time priority, and every
+    trade moves money and a share between the two traders. Then traders copy the strategy of a neighbour whose wealth
+    grew more. Fundamentalists hold the price near the fundamental value, chartists amplify its swings, and imitation
+    lets the share of chartists wander, so the returns come in bursts with fat tails.
 
     The two strategies are the fundamentalists and chartists of Lux and Marchesi (1999), and imitating a wealthier
-    neighbour on the grid stands in for their switching between strategies. The order book is the order-driven market
-    of Caiani et al. (2016, section 3.2.1). The traders of Caiani's chapter 3, noise traders who follow gurus of an
-    evolving network, are a different model.
+    neighbour on the grid stands in for their switching between strategies. The order book is the order-driven market of
+    Caiani et al. (2016, section 3.2.1). The traders of Caiani's chapter 3, noise traders who follow gurus of an
+    evolving network, are a different model. The system has the group `traders` and the book `book`, whose reporters are
+    `book.price` and `book.volume`, and the imitation `imitation` of the strategies of more successful neighbours.
 
     Args:
         width:
@@ -410,76 +394,114 @@ def order_book(
         random_state:
             The seed or generator of the initial strategies.
 
-    Returns:
-        system:
-            The system, with the group `traders` and the book `book`, whose reporters are `book.price` and
-            `book.volume`, and the imitation `imitation` of the strategies of more successful neighbours.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.finance import order_book
-        >>> order_book(5, 5).elements[0].prepare().size_
+        >>> from skcomplex.systems.economics.finance import OrderBookSystem
+        >>> OrderBookSystem(5, 5).prepare().system_.elements[0].prepare().size_
         25
     """
-    rng = np.random.default_rng(random_state)
-    cells = [(x, y) for x in range(width) for y in range(height)]
-    traders = GroupElement(
-        'traders',
-        element=StockTraderElement,
-        size=len(cells),
-        values={
-            'strategy': (rng.random(len(cells)) < chartists).astype(float),
-            'money': 10 * fundamental,
-            'shares': 10.0,
-            'wealth': 20 * fundamental,
-            'fundamental': fundamental,
-            'reversion': reversion,
-            'extrapolation': extrapolation,
-            'noise': noise,
-        },
-        location=cells,
+
+    field = 'economics/finance'
+    topics = ('stock market', 'agents', 'order book', 'imitation', 'fundamentalists', 'chartists')
+    references = ('Lux and Marchesi 1999', 'Caiani et al. 2016 §3.2.1')
+    until = 200
+    invariants: ClassVar[Mapping[str, float]] = {f'total_{name}': 1e-6 for name in HOLDINGS}
+    observables = (
+        ObservableSpec('chartists', group='traders', variable='strategy', reduce='mean'),
+        ObservableSpec('mean_wealth', group='traders', variable='wealth', reduce='mean'),
+        *(ObservableSpec(f'total_{name}', group='traders', variable=name, reduce='sum') for name in HOLDINGS),
     )
-    accounts = [
-        MapInteraction(
-            f'{name}_account',
-            target='traders',
-            state=name,
-            function=function,
-            form='agent',
-            phase='account',
+
+    def __init__(
+        self,
+        width: int = 20,
+        height: int = 20,
+        *,
+        chartists: float = 0.3,
+        fundamental: float = 100.0,
+        reversion: float = 0.2,
+        extrapolation: float = 1.0,
+        noise: float = 0.02,
+        imitation: float = 0.1,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.width = width
+        self.height = height
+        self.chartists = chartists
+        self.fundamental = fundamental
+        self.reversion = reversion
+        self.extrapolation = extrapolation
+        self.noise = noise
+        self.imitation = imitation
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        cells = [(x, y) for x in range(self.width) for y in range(self.height)]
+        traders = GroupElement(
+            'traders',
+            element=StockTraderElement,
+            size=len(cells),
+            values={
+                'strategy': (rng.random(len(cells)) < self.chartists).astype(float),
+                'money': 10 * self.fundamental,
+                'shares': 10.0,
+                'wealth': 20 * self.fundamental,
+                'fundamental': self.fundamental,
+                'reversion': self.reversion,
+                'extrapolation': self.extrapolation,
+                'noise': self.noise,
+            },
+            location=cells,
         )
-        for name, function in (('gain', StockTraderElement.get_gain), ('wealth', StockTraderElement.get_wealth))
-    ]
-    return System(
-        elements=[traders],
-        interactions=[
-            BookInteraction(
-                'book',
-                requesters='traders',
-                providers='traders',
-                rule=ContinuousMatchingSpec(),
-                opening=fundamental,
-            ),
-            *accounts,
-            ImitationInteraction(
-                'imitation',
+        accounts = [
+            MapInteraction(
+                f'{name}_account',
                 target='traders',
-                state='strategy',
-                payoff='gain',
-                rule='better',
+                state=name,
+                function=function,
                 form='agent',
-                probability=imitation,
-                phase='imitation',
+                phase='account',
+            )
+            for name, function in (('gain', StockTraderElement.get_gain), ('wealth', StockTraderElement.get_wealth))
+        ]
+        return System(
+            self.label,
+            elements=[traders],
+            interactions=[
+                BookInteraction(
+                    'book',
+                    requesters='traders',
+                    providers='traders',
+                    rule=ContinuousMatchingSpec(),
+                    opening=self.fundamental,
+                ),
+                *accounts,
+                ImitationInteraction(
+                    'imitation',
+                    target='traders',
+                    state='strategy',
+                    payoff='gain',
+                    rule='better',
+                    form='agent',
+                    probability=self.imitation,
+                    phase='imitation',
+                ),
+            ],
+            space=LatticeSpace((self.width, self.height), boundary='periodic', neighborhood='von_neumann'),
+            time=DiscreteTime(
+                schedule=PhasesScheduleSpec(
+                    [
+                        PhaseSpec('quote'),
+                        PhaseSpec('trade'),
+                        PhaseSpec('account'),
+                        PhaseSpec('imitation', activation='simultaneous'),
+                    ],
+                ),
             ),
-        ],
-        space=LatticeSpace((width, height), boundary='periodic', neighborhood='von_neumann'),
-        time=DiscreteTime(
-            schedule=PhasesScheduleSpec(
-                [
-                    PhaseSpec('quote'),
-                    PhaseSpec('trade'),
-                    PhaseSpec('account'),
-                    PhaseSpec('imitation', activation='simultaneous'),
-                ],
-            ),
-        ),
-    )
+        )

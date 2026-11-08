@@ -1,4 +1,7 @@
-"""Optimal therapy: the dosing of chemotherapy and immunotherapy that balances tumour burden against drug cost."""
+"""Optimal therapy of chemotherapy and immunotherapy.
+
+The dosing balances tumour burden against drug cost.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,10 +14,9 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction, ReactionInteraction
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import PontryaginSolver
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from ..common.kinetics import MichaelisMentenInteraction
 from ..common.pharmacokinetics import DosingInteraction
 from ._tumour_immune_chemotherapy import TumourImmuneChemotherapyElement
@@ -25,7 +27,9 @@ MAX_DOSE = 1.0
 
 
 class OptimalChemotherapyElement(TumourImmuneChemotherapyElement):
-    """Immune, tumour, and normal cells under a chemotherapy whose infusion rate is a bounded control input.
+    """Immune, tumour, and normal cells under a chemotherapy.
+
+    The infusion rate of the chemotherapy is a bounded control input.
 
     The cells and the drug follow the system of de Pillis and Radunskaya, `TumourImmuneChemotherapyElement`, with the
     infusion rate `u` between 0 and its largest dose. The oncologist minimises the tumour burden and the toxicity of
@@ -168,7 +172,9 @@ class OptimalChemotherapyElement(TumourImmuneChemotherapyElement):
 
 
 class OptimalImmunotherapyElement(Element):
-    """Effector cells, tumour cells, and IL-2 under adoptive therapy and IL-2 injection at bounded rates.
+    """Effector and tumour cells and IL-2 under adoptive therapy and IL-2 injection.
+
+    The rates of both therapies are bounded.
 
     The Kirschner-Panetta system in scaled units, with the effector and tumour cells in units of `10^5` and IL-2 in
     units of `2 10^7`, follows `x' = alpha_a y - d1 x + a1 u1 + rho1 x z / (1 + z)` for the effector cells,
@@ -176,8 +182,8 @@ class OptimalImmunotherapyElement(Element):
     IL-2. The adoptive therapy `u1` and the IL-2 injection `u2` are control inputs between 0 and 1, and the oncologist
     minimises `∫ (y + w1 u1^2 / 2 + w2 u2^2 / 2) dt + y(T)`.
 
-    The element holds the states and parameters and has no laws of its own: the interactions of `optimal_immunotherapy`
-    read its parameters.
+    The element holds the states and parameters and has no laws of its own: the interactions of
+    `OptimalImmunotherapySystem` read its parameters.
 
     Args:
         label:
@@ -292,7 +298,10 @@ class OptimalImmunotherapyElement(Element):
 
 
 def _tumour_share(s: SimpleNamespace) -> Expression:
-    """Return the tumour cells as a share of the tumour and normal cells, `A / (A + N)`."""
+    """Return the tumour cells as a share of the tumour and normal cells.
+
+    The share is `A / (A + N)`.
+    """
     patient = s.patient
     share: Expression = patient.A / (patient.A + patient.N)
     return share
@@ -306,7 +315,10 @@ def _immune_ratio(s: SimpleNamespace) -> Expression:
 
 
 def _chemotherapy_cost(s: SimpleNamespace) -> Expression:
-    """Return the running cost of the chemotherapy, the tumour and the squared dose, `A + w u^2 / 2`."""
+    """Return the running cost of the chemotherapy, `A + w u^2 / 2`.
+
+    It sums the tumour and the squared dose.
+    """
     patient = s.patient
     cost: Expression = patient.A + patient.w * patient.u**2 / 2
     return cost
@@ -319,7 +331,10 @@ def _tumour(s: SimpleNamespace) -> Expression:
 
 
 def _immunotherapy_cost(s: SimpleNamespace) -> Expression:
-    """Return the running cost of the immunotherapy, the tumour and the squared doses of both therapies."""
+    """Return the running cost of the immunotherapy.
+
+    It sums the tumour and the squared doses of both therapies.
+    """
     site = s.site
     cost: Expression = site.y + site.w1 * site.u1**2 / 2 + site.w2 * site.u2**2 / 2
     return cost
@@ -331,24 +346,15 @@ def _tumour_site(s: SimpleNamespace) -> Expression:
     return tumour
 
 
-@register_system(
-    field='biology/oncology',
-    tags=('optimal control', 'chemotherapy', 'pontryagin', 'ode'),
-    references=(BOOK, 'de Pillis and Radunskaya 2001'),
-    defaults={'until': 30.0, 'dt': 0.25, 'solver': PontryaginSolver(objective=_chemotherapy_cost, terminal=_tumour)},
-    observables=lambda system: [ObservableSpec('tumour_share', _tumour_share)],
-)
-def optimal_chemotherapy(
-    E: float = 0.15,
-    A: float = 0.25,
-    N: float = 1.0,
-    *,
-    w: float = 0.1,
-) -> System:
-    """Return a patient under the chemotherapy that minimises the tumour burden and the toxicity of the drug.
+class OptimalChemotherapySystem(BaseSystem):
+    """A patient under the chemotherapy that minimises tumour and toxicity.
+
+    The chemotherapy minimises the tumour burden and the toxicity of the drug.
 
     Run with an optimal control solver, the infusion is largest at the start, when the tumour is largest, and falls as
-    the tumour shrinks, so the tumour ends far below its untreated level.
+    the tumour shrinks, so the tumour ends far below its untreated level. The system has the cells `patient.E`,
+    `patient.A`, and `patient.N`, the drug `patient.U`, the infusion rate `patient.u`, and the observable
+    `tumour_share`.
 
     Args:
         E:
@@ -363,42 +369,54 @@ def optimal_chemotherapy(
         w:
             The weight of the squared infusion rate in the cost.
 
-    Returns:
-        system:
-            The system, with the cells `patient.E`, `patient.A`, and `patient.N`, the drug `patient.U`, the infusion
-            rate `patient.u`, and the observable `tumour_share`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.oncology import optimal_chemotherapy
-        >>> optimal_chemotherapy(w=1.0).elements[0].w
+        >>> from skcomplex.systems.biology.oncology import OptimalChemotherapySystem
+        >>> OptimalChemotherapySystem(w=1.0).prepare().system_.elements[0].w
         1.0
     """
-    return System(elements=[OptimalChemotherapyElement('patient', E=E, A=A, N=N, w=w)])
+
+    field = 'biology/oncology'
+    topics = ('optimal control', 'chemotherapy', 'pontryagin', 'ode')
+    references = (BOOK, 'de Pillis and Radunskaya 2001')
+    until = 30.0
+    dt = 0.25
+    solver = PontryaginSolver(objective=_chemotherapy_cost, terminal=_tumour)
+    observables = (ObservableSpec('tumour_share', _tumour_share),)
+
+    def __init__(
+        self,
+        E: float = 0.15,
+        A: float = 0.25,
+        N: float = 1.0,
+        *,
+        w: float = 0.1,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.E = E
+        self.A = A
+        self.N = N
+        self.w = w
+
+    def _build_system(self) -> System:
+        """Return the parts of a patient under the chemotherapy."""
+        return System(
+            self.label,
+            elements=[OptimalChemotherapyElement('patient', E=self.E, A=self.A, N=self.N, w=self.w)],
+        )
 
 
-@register_system(
-    field='biology/oncology',
-    tags=('optimal control', 'immunotherapy', 'adoptive therapy', 'IL-2', 'pontryagin', 'ode'),
-    references=(BOOK, 'Kirschner and Panetta 1998'),
-    defaults={
-        'until': 50.0,
-        'dt': 0.5,
-        'solver': PontryaginSolver(objective=_immunotherapy_cost, terminal=_tumour_site, nodes=1001),
-    },
-    observables=lambda system: [ObservableSpec('immune_ratio', _immune_ratio)],
-)
-def optimal_immunotherapy(
-    x: float = 0.1,
-    y: float = 1.0,
-    *,
-    alpha_a: float = 0.005,
-    w1: float = 1.0,
-    w2: float = 1.0,
-) -> System:
-    """Return a tumour under the adoptive therapy and IL-2 injection that minimise its burden and their cost.
+class OptimalImmunotherapySystem(BaseSystem):
+    """A tumour under the adoptive therapy and IL-2 injection that minimise it.
+
+    The therapies minimise its burden and their cost.
 
     Run with an optimal control solver, the therapies are strongest while the tumour is large, the effector cells
-    expand, and the tumour shrinks.
+    expand, and the tumour shrinks. The system has the effector cells `site.x`, the tumour `site.y`, IL-2 `site.z`, the
+    therapies `site.u1` and `site.u2`, and the observable `immune_ratio`.
 
     Args:
         x:
@@ -416,65 +434,91 @@ def optimal_immunotherapy(
         w2:
             The weight of the squared IL-2 injection rate in the cost.
 
-    Returns:
-        system:
-            The system, with the effector cells `site.x`, the tumour `site.y`, IL-2 `site.z`, the therapies `site.u1`
-            and `site.u2`, and the observable `immune_ratio`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.oncology import optimal_immunotherapy
-        >>> optimal_immunotherapy(w1=0.5).elements[0].w1
+        >>> from skcomplex.systems.biology.oncology import OptimalImmunotherapySystem
+        >>> OptimalImmunotherapySystem(w1=0.5).prepare().system_.elements[0].w1
         0.5
     """
-    site = OptimalImmunotherapyElement('site', x=x, y=y, alpha_a=alpha_a, w1=w1, w2=w2)
-    interactions = [
-        RateInteraction('stimulation', target='site', state='x', rate=lambda s: s.target.alpha_a * s.target.y),
-        ReactionInteraction(
-            'effector_death',
-            target='site',
-            reactants={'x': 1},
-            propensity=lambda s: s.target.d1 * s.target.x,
-        ),
-        DosingInteraction('adoptive_therapy', target='site', state='x', dose=lambda s: s.target.a1 * s.target.u1),
-        MichaelisMentenInteraction(
-            'effector_proliferation',
-            target='site',
-            products={'x': 1},
-            substrate='z',
-            vmax=lambda s: s.target.rho1,
-            km=1.0,
-            modifiers={'x': 1},
-        ),
-        RateInteraction(
-            'tumour_growth',
-            target='site',
-            state='y',
-            rate=lambda s: s.target.r1 * s.target.y * (1 - s.target.b * s.target.y),
-        ),
-        MichaelisMentenInteraction(
-            'kill',
-            target='site',
-            reactants={'y': 1},
-            substrate='y',
-            vmax=lambda s: s.target.c1,
-            km=1.0,
-            modifiers={'x': 1},
-        ),
-        DosingInteraction('il2_injection', target='site', state='z', dose=lambda s: s.target.a2 * s.target.u2),
-        MichaelisMentenInteraction(
-            'il2_production',
-            target='site',
-            products={'z': 1},
-            substrate='y',
-            vmax=lambda s: s.target.rho2,
-            km=lambda s: s.target.alpha3,
-            modifiers={'x': 1},
-        ),
-        ReactionInteraction(
-            'il2_loss',
-            target='site',
-            reactants={'z': 1},
-            propensity=lambda s: s.target.du * s.target.z,
-        ),
-    ]
-    return System(elements=[site], interactions=interactions)
+
+    field = 'biology/oncology'
+    topics = ('optimal control', 'immunotherapy', 'adoptive therapy', 'IL-2', 'pontryagin', 'ode')
+    references = (BOOK, 'Kirschner and Panetta 1998')
+    until = 50.0
+    dt = 0.5
+    solver = PontryaginSolver(objective=_immunotherapy_cost, terminal=_tumour_site, nodes=1001)
+    observables = (ObservableSpec('immune_ratio', _immune_ratio),)
+
+    def __init__(
+        self,
+        x: float = 0.1,
+        y: float = 1.0,
+        *,
+        alpha_a: float = 0.005,
+        w1: float = 1.0,
+        w2: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.x = x
+        self.y = y
+        self.alpha_a = alpha_a
+        self.w1 = w1
+        self.w2 = w2
+
+    def _build_system(self) -> System:
+        """Return the parts of a tumour under the adoptive therapy and IL-2 injection."""
+        site = OptimalImmunotherapyElement('site', x=self.x, y=self.y, alpha_a=self.alpha_a, w1=self.w1, w2=self.w2)
+        interactions = [
+            RateInteraction('stimulation', target='site', state='x', rate=lambda s: s.target.alpha_a * s.target.y),
+            ReactionInteraction(
+                'effector_death',
+                target='site',
+                reactants={'x': 1},
+                propensity=lambda s: s.target.d1 * s.target.x,
+            ),
+            DosingInteraction('adoptive_therapy', target='site', state='x', dose=lambda s: s.target.a1 * s.target.u1),
+            MichaelisMentenInteraction(
+                'effector_proliferation',
+                target='site',
+                products={'x': 1},
+                substrate='z',
+                vmax=lambda s: s.target.rho1,
+                km=1.0,
+                modifiers={'x': 1},
+            ),
+            RateInteraction(
+                'tumour_growth',
+                target='site',
+                state='y',
+                rate=lambda s: s.target.r1 * s.target.y * (1 - s.target.b * s.target.y),
+            ),
+            MichaelisMentenInteraction(
+                'kill',
+                target='site',
+                reactants={'y': 1},
+                substrate='y',
+                vmax=lambda s: s.target.c1,
+                km=1.0,
+                modifiers={'x': 1},
+            ),
+            DosingInteraction('il2_injection', target='site', state='z', dose=lambda s: s.target.a2 * s.target.u2),
+            MichaelisMentenInteraction(
+                'il2_production',
+                target='site',
+                products={'z': 1},
+                substrate='y',
+                vmax=lambda s: s.target.rho2,
+                km=lambda s: s.target.alpha3,
+                modifiers={'x': 1},
+            ),
+            ReactionInteraction(
+                'il2_loss',
+                target='site',
+                reactants={'z': 1},
+                propensity=lambda s: s.target.du * s.target.z,
+            ),
+        ]
+        return System(self.label, elements=[site], interactions=interactions)

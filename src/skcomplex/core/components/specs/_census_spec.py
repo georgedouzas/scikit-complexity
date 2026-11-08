@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 from sage.all__sagemath_symbolics import Expression
@@ -17,7 +18,9 @@ from ._census_record_spec import CensusRecordSpec
 
 @dataclass(frozen=True)
 class CensusSpec(BaseSpec):
-    """Laws of every component of a system, and the errors of the components that fail to declare or collect.
+    """Laws of every component of a system, and the errors of failing components.
+
+    The errors are those of the components that fail to declare or collect.
 
     Args:
         system:
@@ -37,4 +40,4 @@ class CensusSpec(BaseSpec):
     system: System
     records: list[CensusRecordSpec]
     errors: list[tuple[str, SkcomplexError]]
-    agents: dict[Expression, tuple[str, str]] = field(default_factory=dict)
+    agents: Mapping[Expression, tuple[str, str]] = field(default_factory=dict)

@@ -1,4 +1,7 @@
-"""Renewal law compiled into the draws, resets, and waiting times of every member of its component."""
+"""Renewal law compiled into the draws, resets, and waiting times of members.
+
+Every member of its component has them.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -27,10 +30,11 @@ _READ_SOURCES = frozenset({ReadKind.SINGLE, ReadKind.MEMBER})
 
 
 class RenewalKernel(BaseKernel):
-    """Renewal law compiled into the draws, resets, and waiting times of every member of its component.
+    """Renewal law compiled into the draws, resets, and waiting times of members.
 
-    `run(state)` keeps in `values_` the next renewal time of every member, drawn from the state at its time, and the
-    solver that keeps the renewal times renews the members that are due, at their own times.
+    Every member of its component has them. `run(state)` keeps in `values_` the next renewal time of every member, drawn
+    from the state at its time, and the solver that keeps the renewal times renews the members that are due, at their
+    own times.
 
     Args:
         label:
@@ -116,7 +120,10 @@ class RenewalKernel(BaseKernel):
         *,
         drawn: Drawn,
     ) -> list[Array]:
-        """Return the value of every expression of a member function for every renewing member."""
+        """Return the value of every expression of a member function.
+
+        There is a value for every renewing member.
+        """
         compiled, readers = function
         arguments = []
         for reader in readers:
@@ -139,7 +146,10 @@ class RenewalKernel(BaseKernel):
         drawn: Drawn,
         rng: np.random.Generator,
     ) -> None:
-        """DrawSpec a value of every sampler for every renewing member into the drawn values, in order."""
+        """Draw a value of every sampler for every renewing member.
+
+        The values go into the drawn values, in order.
+        """
         for draw, arguments in samplers:
             values = self._evaluate(arguments, times, x, p, fired, drawn=drawn) if draw.arguments else []
             drawn[draw.name] = DrawKernel._sample_draw(draw, values, fired.size, rng)
@@ -166,7 +176,10 @@ class RenewalKernel(BaseKernel):
         drawn: Drawn,
         rng: np.random.Generator,
     ) -> Array:
-        """Return the next renewal times of members from their states, after drawing the waiting time's draws."""
+        """Return the next renewal times of members from their states.
+
+        The draws of the waiting time are drawn first.
+        """
         self._sample(self.after, times, x, p, fired, drawn=drawn, rng=rng)
         waiting = (
             self._evaluate(self.waiting, times, x, p, fired, drawn=drawn)[0]
@@ -182,7 +195,10 @@ class RenewalKernel(BaseKernel):
         return times + waiting
 
     def _run(self, inputs: RunStateSpec | None) -> None:
-        """Set the next renewal time of every member, drawn from the state as if every member renewed at its time."""
+        """Set the next renewal time of every member, drawn from the state.
+
+        It is drawn as if every member renewed at its time.
+        """
         state = self._state_of(inputs)
         x, p, rng = state.x, state.p, self._generator_of(state)
         fired = np.arange(self.members, dtype=np.intp)
@@ -199,7 +215,9 @@ class RenewalKernel(BaseKernel):
         p: Array,
         rng: np.random.Generator,
     ) -> tuple[Array, Array, RenewalRecordSpec]:
-        """Renew members at their times: draw, reset their states, count the renewal, and draw the next times.
+        """Renew members at their times.
+
+        Renewing draws, resets their states, counts the renewal, and draws the next times.
 
         Args:
             times:

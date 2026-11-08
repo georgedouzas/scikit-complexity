@@ -15,15 +15,15 @@ enough the production functions form an autocatalytic set, a RAF, that tends to 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import AutocatalyticSetAnalysis
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.analysis import autocatalytic_sets
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.economics.innovation import TapCatalysisSystem
 
 SYSTEM = 'tap_catalysis'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(create_system(SYSTEM), observers=[observer], random_state=0).prepare().run(until=400)
+trajectory = simulate(TapCatalysisSystem(), observers=[observer], random_state=0)
 
 # %%
 # Hockey stick and the probability of a RAF
@@ -33,16 +33,12 @@ simulation = Simulation(create_system(SYSTEM), observers=[observer], random_stat
 # or tiny at a low catalysis probability and present and close to the whole network at a high one, with about even
 # chances near `pc = 0.0044` (Hordijk and Kauffman 2022, Fig. 2).
 
-trajectory = simulation.trajectory_
 goods = [len(trajectory.network(frame).nodes) for frame in range(len(trajectory.times))]
 probabilities = [0.002, 0.003, 0.0044, 0.006, 0.008]
 shares = []
 for pc in probabilities:
-    runs = [
-        Simulation(create_system(SYSTEM, pc=pc), random_state=seed).prepare().run(until=400).trajectory_
-        for seed in range(8)
-    ]
-    found = [AutocatalyticSetAnalysis(frames=[-1]).prepare(run).run().fractions_[0] for run in runs]
+    runs = [simulate(TapCatalysisSystem(pc=pc), random_state=seed) for seed in range(8)]
+    found = [autocatalytic_sets(run, frames=[-1]).fractions[0] for run in runs]
     shares.append(found)
 fig, (growth, rafs) = plt.subplots(1, 2, figsize=(10, 4))
 growth.plot(trajectory.times, goods)

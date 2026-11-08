@@ -1,8 +1,11 @@
-"""Test that the public names of the compile package are its bases, its compilers, and its values."""
+"""Test that the public names of the compile package are its bases, the hook of a system package's own form."""
 
 import inspect
 
 from skcomplex.core.engine import compile as package
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.compile._rewriting_compiler import RewritingCompiler
+from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
 
 
 def test_public_names_are_classes():
@@ -11,14 +14,14 @@ def test_public_names_are_classes():
         assert inspect.isclass(getattr(package, name)), name
 
 
-def test_compilers_are_public():
-    """The bases and the compilers are public, and every compiler derives from the compiler base."""
-    for name in ('BaseCompiler', 'BasePass', 'BaseLowering', 'PassCompiler', 'OperatorCompiler'):
-        assert name in package.__all__
-    for name in ('FlattenPass', 'LayoutPass', 'ProblemPass'):
-        assert issubclass(getattr(package, name), package.BasePass)
-    for compiler in (package.PassCompiler, package.OperatorCompiler):
+def test_bases_are_public_and_compilers_private():
+    """The bases are public, and the compilers and passes of the library's forms are private."""
+    assert set(package.__all__) == {'BaseCompiler', 'BasePass', 'BaseLowering', 'HilbertSpaceError'}
+    for compiler in (PassCompiler, OperatorCompiler, RewritingCompiler):
         assert issubclass(compiler, package.BaseCompiler)
+        assert not hasattr(package, compiler.__name__)
+    for name in ('FlattenPass', 'LayoutPass', 'ProblemPass', 'Compilation', 'ObservableEvaluator'):
+        assert not hasattr(package, name)
 
 
 def test_removed_functions_are_not_public():

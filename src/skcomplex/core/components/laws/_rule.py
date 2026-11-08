@@ -1,9 +1,13 @@
-"""Define rule laws, behaviour written as code that agents and systems run every step."""
+"""Define rule laws.
+
+They are behaviour written as code that agents and systems run every step.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 from collections.abc import Callable, Sequence
+from typing import ClassVar
 
 from ...errors import ValidationError
 from ...specs import RequirementSpec
@@ -12,13 +16,14 @@ from ._base import BaseLaw
 
 
 class RuleLaw(BaseLaw):
-    """Behaviour written as code, run once per step for every member of an agent group, or once per step for a system.
+    """Behaviour written as code, run once per step.
 
-    An element whose laws include rules is an agent, alone or in a group. A rule of an element receives the agent and
-    the system, `function(agent, system)`. A rule of an interaction receives the system alone, `function(system)`,
-    unless it names the role whose `members` run it: every member of the groups of that role then runs it in its own
-    activation, after the rules of its element and the member rules of the interactions before it, as `function(agent,
-    system)` with the system view of the interaction. A system with rules is agent-based and needs discrete time.
+    It runs for every member of an agent group, or for a system. An element whose laws include rules is an agent, alone
+    or in a group. A rule of an element receives the agent and the system, `function(agent, system)`. A rule of an
+    interaction receives the system alone, `function(system)`, unless it names the role whose `members` run it: every
+    member of the groups of that role then runs it in its own activation, after the rules of its element and the member
+    rules of the interactions before it, as `function(agent, system)` with the system view of the interaction. A system
+    with rules is agent-based and needs discrete time.
 
     Args:
         function:
@@ -40,6 +45,8 @@ class RuleLaw(BaseLaw):
         >>> moved
         ['walker']
     """
+
+    law_tag: ClassVar[str] = 'update'
 
     def __init__(
         self,
@@ -63,8 +70,14 @@ class RuleLaw(BaseLaw):
         """Return what the rule requires of a system: discrete time."""
         return RequirementSpec(time=(DiscreteTime,))
 
-    def _check(self) -> None:
-        """Raise an error for a function that cannot be called, or members that name no role."""
+    def _prepare(self, context: str | None = None) -> None:
+        """Raise an error for an uncallable function, or members that name no role.
+
+        Args:
+            context:
+                The path of the element or interaction that returns the law, or `None`.
+        """
+        super()._prepare(context)
         if not callable(self.function):
             error_msg = f'The function of a rule must be callable, but it is {self.function!r}.'
             raise ValidationError(error_msg)

@@ -117,7 +117,10 @@ def _inner(box: Box, title: int) -> Box:
 
 
 def _colorful_share(pixels: npt.NDArray[np.uint8]) -> float:
-    """Return the share of pixels with a saturated, visible colour, which the viewer chrome never has."""
+    """Return the share of pixels with a saturated, visible colour.
+
+    The viewer chrome never has such a colour.
+    """
     values = pixels.astype(float)
     high, low = values.max(axis=-1), values.min(axis=-1)
     saturation = np.where(high > 0, (high - low) / np.maximum(high, 1.0), 0.0)
@@ -125,10 +128,10 @@ def _colorful_share(pixels: npt.NDArray[np.uint8]) -> float:
 
 
 def _area_share(pixels: npt.NDArray[np.uint8]) -> float:
-    """Return the share of blocks of pixels whose brightness all differ from the commonest brightness.
+    """Return the share of blocks of pixels unlike the commonest brightness.
 
-    The lines and the labels of the viewer chrome are thinner than a block, while the cells of a greyscale image fill
-    whole blocks.
+    In such a block, the brightness of every pixel differs from the commonest brightness. The lines and the labels of
+    the viewer chrome are thinner than a block, while the cells of a greyscale image fill whole blocks.
     """
     brightness = pixels.astype(int).mean(axis=-1).astype(int)
     differs = np.abs(brightness - np.bincount(brightness.ravel()).argmax()) > MIN_CONTRAST
@@ -140,10 +143,11 @@ def _area_share(pixels: npt.NDArray[np.uint8]) -> float:
 
 
 def is_blank(pixels: npt.NDArray[np.uint8]) -> bool:
-    """Return whether a view shows nothing: a single colour, or only the grey of the viewer chrome.
+    """Return whether a view shows nothing.
 
-    A view shows content when a share of its pixels has a saturated colour, or when areas of it differ in brightness
-    from the commonest brightness, as the cells of a single-channel image do.
+    A view shows nothing with a single colour, or only the grey of the viewer chrome. A view shows content when a share
+    of its pixels has a saturated colour, or when areas of it differ in brightness from the commonest brightness, as the
+    cells of a single-channel image do.
 
     Args:
         pixels:
@@ -165,10 +169,11 @@ def is_blank(pixels: npt.NDArray[np.uint8]) -> bool:
 
 
 def has_notification(pixels: npt.NDArray[np.uint8]) -> bool:
-    """Return whether a viewer notification covers the top right of an image, by its background colour.
+    """Return whether a viewer notification covers the top right of an image.
 
-    A notification is a filled panel of its background colour, at least a quarter as wide as the top right quarter of
-    the image. Content of the same grey, such as a thin strip or scattered pixels, fills no such panel.
+    It is found by its background colour. A notification is a filled panel of its background colour, at least a quarter
+    as wide as the top right quarter of the image. Content of the same grey, such as a thin strip or scattered pixels,
+    fills no such panel.
 
     Args:
         pixels:
@@ -200,7 +205,10 @@ def has_notification(pixels: npt.NDArray[np.uint8]) -> bool:
 
 
 def _content_box(pixels: npt.NDArray[np.uint8]) -> Box | None:
-    """Return the box of the pixels that differ from the top left corner, or `None` when none does."""
+    """Return the box of the pixels that differ from the top left corner.
+
+    It returns `None` when none does.
+    """
     differs = np.any(np.abs(pixels.astype(int) - pixels[0, 0].astype(int)) > BORDER_TOLERANCE, axis=-1)
     rows, columns = np.flatnonzero(differs.any(axis=1)), np.flatnonzero(differs.any(axis=0))
     if not rows.size:
@@ -209,11 +217,12 @@ def _content_box(pixels: npt.NDArray[np.uint8]) -> Box | None:
 
 
 def _letterbox(pixels: npt.NDArray[np.uint8]) -> Box | None:
-    """Return the box of an image a view draws inside bands of its background, or `None` for other content.
+    """Return the box of an image a view draws inside bands of its background.
 
-    The content is such an image when the corner has the grey of the view background, its box spans the width or the
-    height of the view, as a view fits an image, and the edges of its box are mostly not of the background colour.
-    Sparse content, such as points or a network, leaves background along the edges of its box, and is not letterboxed.
+    It returns `None` for other content. The content is such an image when the corner has the grey of the view
+    background, its box spans the width or the height of the view, as a view fits an image, and the edges of its box are
+    mostly not of the background colour. Sparse content, such as points or a network, leaves background along the edges
+    of its box, and is not letterboxed.
     """
     box = _content_box(pixels)
     if box is None or _colorful_share(pixels[:1, :1]) > 0:
@@ -231,10 +240,11 @@ def _letterbox(pixels: npt.NDArray[np.uint8]) -> Box | None:
 
 
 def trim_border(image: Image.Image) -> Image.Image:
-    """Return an image without the bands of background a view leaves around an image of a fixed aspect.
+    """Return an image without the bands of background around a fixed-aspect image.
 
-    A view with a fixed aspect, such as a square lattice, leaves bands of background on two sides of a wider view.
-    Sparse content, such as points or a network, is left as it is, since its empty margins belong to the view.
+    A view leaves such bands around an image of a fixed aspect. A view with a fixed aspect, such as a square lattice,
+    leaves bands of background on two sides of a wider view. Sparse content, such as points or a network, is left as it
+    is, since its empty margins belong to the view.
 
     Args:
         image:
@@ -263,7 +273,9 @@ def trim_border(image: Image.Image) -> Image.Image:
 
 
 def has_bands(pixels: npt.NDArray[np.uint8]) -> bool:
-    """Return whether an image is letterboxed by bands wider than a tenth of its side, as a view with a fixed aspect is.
+    """Return whether an image is letterboxed by bands wider than a tenth of its side.
+
+    A view with a fixed aspect is letterboxed so.
 
     Args:
         pixels:
@@ -295,9 +307,10 @@ def has_bands(pixels: npt.NDArray[np.uint8]) -> bool:
 
 
 def has_light_chrome(pixels: npt.NDArray[np.uint8]) -> bool:
-    """Return whether an image shows the light theme of the viewer, whose panels are near-white grey.
+    """Return whether an image shows the light theme of the viewer.
 
-    The captures use the dark theme, so a large share of near-white grey shows panels or a persisted light theme.
+    Its panels are near-white grey. The captures use the dark theme, so a large share of near-white grey shows panels or
+    a persisted light theme.
 
     Args:
         pixels:
@@ -324,7 +337,9 @@ def find_problems(
     boxes: Sequence[tuple[str, Box]],
     title: int = 0,
 ) -> list[str]:
-    """Return what is wrong with a screenshot: its size, blank views, notifications, and the viewer chrome.
+    """Return what is wrong with a screenshot.
+
+    It checks its size, blank views, notifications, and the viewer chrome.
 
     Args:
         image:
@@ -367,7 +382,9 @@ def find_problems(
 
 
 def encode_png(image: Image.Image, path: Path, max_bytes: int) -> Path:
-    """Write an image as an optimised PNG, reduced to smaller adaptive palettes while it is larger than the limit.
+    """Write an image as an optimised PNG.
+
+    It is reduced to smaller adaptive palettes while it is larger than the limit.
 
     Args:
         image:
@@ -444,10 +461,11 @@ def is_placeholder(path: Path, placeholder: Path) -> bool:
 
 
 def caption_series(source: str) -> list[str]:
-    """Return the names an example's comments quote where they describe the series of its primary view.
+    """Return the names an example's comments quote for the series of its primary view.
 
-    A sentence of the comments that names the primary view and series is read, and every identifier or entity path it
-    quotes in backticks is taken as a series the primary view shows.
+    They are quoted where the comments describe these series. A sentence of the comments that names the primary view and
+    series is read, and every identifier or entity path it quotes in backticks is taken as a series the primary view
+    shows.
 
     Args:
         source:
@@ -472,7 +490,10 @@ def caption_series(source: str) -> list[str]:
 
 
 def _expressions(view: rrb.View) -> list[tuple[bool, str]]:
-    """Return the entity path expressions of a view's contents, whether each includes, and its path pattern."""
+    """Return the entity path expressions of a view's contents.
+
+    Each comes with whether it includes and its path pattern.
+    """
     contents = view.contents if view.contents is not None else '$origin/**'
     if isinstance(contents, str):
         lines = contents.splitlines()
@@ -489,7 +510,10 @@ def _expressions(view: rrb.View) -> list[tuple[bool, str]]:
 
 
 def _matches(path: str, pattern: str) -> bool:
-    """Return whether an entity path matches a pattern, a path or a path followed by `/**`."""
+    """Return whether an entity path matches a pattern.
+
+    A pattern is a path or a path followed by `/**`.
+    """
     if pattern.endswith('/**'):
         base = pattern[:-3].rstrip('/')
         return path == base or path.startswith(f'{base}/')

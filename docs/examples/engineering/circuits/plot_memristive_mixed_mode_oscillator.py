@@ -7,28 +7,28 @@ next pair of spikes, the pattern `2^11` that Trzaska reports.
 """
 
 # %%
-# The system is created by name from the catalog with Trzaska's parameters, `epsilon = 0.01`, `R = 2`,
+# The system is built from its class with Trzaska's parameters, `epsilon = 0.01`, `R = 2`,
 # `alpha = 1.55`, `beta = 0.15`, `e = -0.04`, `a = -0.34`, and `b = 0.05`, and starts at rest. The default blueprint
 # shows the four states in one time series view.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation
+from skcomplex.systems.engineering.circuits import MemristiveMixedModeOscillatorSystem
 
 SYSTEM = 'memristive_mixed_mode_oscillator'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=10)
-simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare().run()
+trajectory = simulate(MemristiveMixedModeOscillatorSystem(), observers=[observer])
 
 # %%
 # Large and small oscillations
 # ----------------------------
-# After a transient the voltage of the memristor should repeat with a period near 7.8: two spikes far above the rest,
-# followed by eleven small peaks.
+# After a transient the voltage of the memristor should repeat with a period near 7.9, close to the 7.816 Trzaska
+# reports: two spikes far above the rest, followed by eleven small peaks.
 
-trajectory = simulation.trajectory_
 settled = trajectory.times > 100
 x = np.ravel(trajectory.values('circuit.x'))[settled]
 fig, ax = plt.subplots(figsize=(7, 4))

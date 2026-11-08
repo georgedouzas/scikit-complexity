@@ -21,7 +21,9 @@ NORM_TOLERANCE = 1e-8
 
 @dataclass(frozen=True)
 class OperatorViewSpec(BaseSpec):
-    """View of an element with a state in a Hilbert space, as the operator compiler reads it.
+    """View of an element with a state in a Hilbert space.
+
+    The operator compiler reads this view.
 
     Args:
         element:
@@ -66,7 +68,10 @@ class OperatorViewSpec(BaseSpec):
 
     @property
     def display(self) -> str | None:
-        """Operator whose expectation visuals show for a group, or `None` for the probabilities of the basis."""
+        """Operator whose expectation visuals show for a group.
+
+        It is `None` for the probabilities of the basis.
+        """
         return self.space.display
 
     def local_operators(self) -> dict[str, LocalOperatorSpec]:

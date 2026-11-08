@@ -14,8 +14,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation
+from skcomplex.systems.economics.markets import BeerGameSystem
 
 SYSTEM = 'beer_game'
 ECHELONS = ('retailer', 'wholesaler', 'distributor', 'factory')
@@ -33,7 +34,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = create_simulation(SYSTEM).set_params(dt=0.5, observers=[observer]).prepare().run(until=36)
+trajectory = simulate(BeerGameSystem(), observers=[observer])
 
 # %%
 # The bullwhip effect
@@ -41,7 +42,6 @@ simulation = create_simulation(SYSTEM).set_params(dt=0.5, observers=[observer]).
 # The orders of each echelon peak later and higher than the orders it receives. The peak orders grow from the
 # retailer to the factory, although customer demand only doubles.
 
-trajectory = simulation.trajectory_
 times = np.asarray(trajectory.times)
 fig, (orders, peaks) = plt.subplots(1, 2, figsize=(10, 4))
 orders.plot(times, trajectory.values('customers.orders'), color='black', linestyle=':', label='customer demand')

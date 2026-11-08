@@ -1,4 +1,7 @@
-"""Classical fourth-order Runge-Kutta integrator of ordinary differential equations with a fixed internal step."""
+"""Classical fourth-order Runge-Kutta integrator of ODEs.
+
+ODEs are ordinary differential equations. It takes a fixed internal step.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -32,9 +35,10 @@ from ._solver import Solver
 
 
 class RK4Solver(Solver):
-    """Classical fourth-order Runge-Kutta integrator of ordinary differential equations with a fixed internal step.
+    """Classical fourth-order Runge-Kutta integrator of ODEs.
 
-    With the Numba backend every internal step of a frame runs in compiled code.
+    ODEs are ordinary differential equations. It takes a fixed internal step. With the Numba backend every internal step
+    of a frame runs in compiled code.
 
     Args:
         dt:
@@ -48,7 +52,7 @@ class RK4Solver(Solver):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.engine.compile import PassCompiler
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.components.system import System
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> from skcomplex.core.engine.solvers import RK4Solver
@@ -57,7 +61,7 @@ class RK4Solver(Solver):
         ...     elements=[PopulationElement('a', n=1)],
         ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
         ... )
-        >>> problem = PassCompiler().prepare(system).run().problem_
+        >>> problem = simulate(system, until=0).problem
         >>> stepper = RK4Solver(dt=0.001, random_state=0).prepare(problem)
         >>> step = StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)
         >>> round(float(stepper.run(step).state_[0]), 10)
@@ -107,7 +111,10 @@ class RK4Solver(Solver):
         self.until = until
 
     def _step(self, time: float, state: Array, p: Array, lengths: float | Array) -> Array:
-        """Return the state after one Runge-Kutta step and the boundary laws, with one step length or one per state."""
+        """Return the state after one Runge-Kutta step and the boundary laws.
+
+        There is one step length, or one per state.
+        """
         drift = self._drift()
 
         def field(time: float, state: Array) -> Array:
@@ -116,7 +123,10 @@ class RK4Solver(Solver):
         return self._bounded(time + float(np.max(lengths)), self._rk4_step(field, time, state, lengths), p)
 
     def _advance_hybrid(self, t: float, x: Array, p: Array, until: float) -> Array:
-        """Integrate with fixed RK4 steps, interpolating every step for delays and locating events in it."""
+        """Integrate with fixed RK4 steps.
+
+        Every step is interpolated for delays, and events are located in it.
+        """
         problem = self.problem_
         drift = self._drift()
         history = self.history_ = History._open_history(problem, self.history_, t, x)
@@ -150,7 +160,9 @@ class RK4Solver(Solver):
         )
 
     def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
-        """Integrate the drift from time `t` to time `until` in equal steps no longer than `dt`.
+        """Integrate the drift from time `t` to time `until` in equal steps.
+
+        The steps are no longer than `dt`.
 
         Args:
             t:
@@ -195,9 +207,9 @@ class RK4Solver(Solver):
 
     @staticmethod
     def _rk4_step(field: Callable[[float, Array], Array], time: float, state: Array, step: float | Array) -> Array:
-        """Return the state after one classical Runge-Kutta step, with one step length or one per state component.
+        """Return the state after one classical Runge-Kutta step.
 
-        The step spans the longest of the step lengths in time.
+        There is one step length, or one per state component. The step spans the longest of the step lengths in time.
 
         Args:
             field:

@@ -11,7 +11,7 @@ from skcomplex.core.components.elements import Element, GroupElement, LatticeEle
 from skcomplex.core.components.interactions import ImitationInteraction
 from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime, LatticeSpace, NetworkSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import LayerSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
@@ -79,8 +79,7 @@ def _final(space, values, rule, until, seed=0, **arguments):
         interactions=[ImitationInteraction('imitation', target='players', rule=rule, **arguments)],
         time=DiscreteTime() if discrete else ContinuousTime(),
     )
-    simulation = Simulation(system, dt=1.0 if discrete else until, random_state=seed)
-    return simulation.prepare().run(until=until).trajectory_.values('players.state')[-1]
+    return simulate(system, until=until, dt=1.0 if discrete else until, random_state=seed).values('players.state')[-1]
 
 
 def _alternating(size):
@@ -172,7 +171,7 @@ def test_fermi_copies_a_random_neighbour_with_the_fermi_probability_from_either_
         interactions=[ImitationInteraction('imitation', target='players', rule='fermi', form='probability')],
         time=DiscreteTime(),
     )
-    trajectory = Simulation(system, dt=1.0, random_state=SEED).prepare().run(until=1.0).trajectory_
+    trajectory = simulate(system, until=1.0, dt=1.0, random_state=SEED)
     final = trajectory.values('players.state')[-1].reshape(strategies.shape)
     for switched, exact in _fermi_switching(strategies, final):
         assert switched == pytest.approx(exact, abs=0.01)
@@ -196,7 +195,7 @@ def test_agents_copy_a_random_neighbour_with_the_fermi_probability_from_either_s
         space=LatticeSpace((size, size), boundary='periodic', neighborhood='von_neumann'),
         time=DiscreteTime(),
     )
-    trajectory = Simulation(system, random_state=SEED).prepare().run(until=1).trajectory_
+    trajectory = simulate(system, until=1, random_state=SEED)
     final = np.asarray(trajectory.agents('players', 1).values['state'], dtype=float).reshape(strategies.shape)
     for switched, exact in _fermi_switching(strategies, final):
         assert switched == pytest.approx(exact, abs=0.03)
@@ -245,7 +244,7 @@ def test_agents_copy_the_neighbour_of_larger_payoff_in_the_agent_form(rule):
         space=LatticeSpace((3, 3), boundary='periodic', neighborhood='von_neumann'),
         time=DiscreteTime(),
     )
-    trajectory = Simulation(system, random_state=0).prepare().run(until=30).trajectory_
+    trajectory = simulate(system, until=30, random_state=0)
     final = dict(zip(cells, trajectory.agents('players', 30).values['state'], strict=True))
     assert {cell for cell, state in final.items() if state} == {(1, 1), (0, 1), (2, 1), (1, 0), (1, 2)}
 
@@ -285,8 +284,8 @@ def test_get_laws_reads_a_renamed_target_and_probability(rule, form):
             interactions=[imitation],
             time=DiscreteTime() if discrete else ContinuousTime(),
         )
-        simulation = Simulation(system, dt=1.0, random_state=SEED).prepare().run(until=5)
-        finals.append(simulation.trajectory_.values('players.state'))
+        trajectory = simulate(system, until=5, dt=1.0, random_state=SEED)
+        finals.append(trajectory.values('players.state'))
     np.testing.assert_array_equal(finals[1], finals[0])
 
 
@@ -300,7 +299,7 @@ def test_imitate_reads_a_renamed_target_and_probability_in_the_agent_form(rule):
         PeerImitationInteraction('imitation', peers='players', rule=rule, form='agent', openness=0.5),
     ):
         system = System(elements=[_grid_players()], interactions=[imitation], space=space, time=DiscreteTime())
-        trajectory = Simulation(system, random_state=SEED).prepare().run(until=10).trajectory_
+        trajectory = simulate(system, until=10, random_state=SEED)
         finals.append(trajectory.agents('players', 10).values['state'])
     np.testing.assert_array_equal(finals[1], finals[0])
 
@@ -324,7 +323,7 @@ def _chain(schedule: str, seed: int, ties: str = 'first', payoffs: tuple[float, 
     )
     space = LatticeSpace((len(payoffs),), boundary='fixed')
     system = System(elements=[group], interactions=[imitation], space=space, time=DiscreteTime())
-    trajectory = Simulation(system, random_state=seed).prepare().run(until=1).trajectory_
+    trajectory = simulate(system, until=1, random_state=seed)
     return trajectory.agents('players', 1).values['state'].tolist()
 
 
@@ -358,5 +357,5 @@ def test_agent_imitation_reads_the_neighbours_of_its_layer():
     imitation = ImitationInteraction('imitation', target='players', form='agent', layer='work')
     space = NetworkSpace(nx.path_graph(3), layers=[LayerSpec('work', work)])
     system = System(elements=[group], interactions=[imitation], space=space, time=DiscreteTime())
-    trajectory = Simulation(system, random_state=0).prepare().run(until=1).trajectory_
+    trajectory = simulate(system, until=1, random_state=0)
     assert trajectory.agents('players', 1).values['state'].tolist() == [0.0, 0.0, 1.0]

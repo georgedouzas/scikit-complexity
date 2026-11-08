@@ -1,4 +1,7 @@
-"""Geometric Brownian motion, `dS = mu * S * dt + sigma * S * dW`, of the price of an asset."""
+"""Geometric Brownian motion of the price of an asset.
+
+It follows `dS = mu * S * dt + sigma * S * dW`.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,10 +17,10 @@ from ....core.specs import ParameterSpec, RoleSpec, WienerProcessSpec
 
 
 class GeometricBrownianMotionInteraction(RateInteraction):
-    """Geometric Brownian motion, `dS = mu * S * dt + sigma * S * dW`, of the price of an asset.
+    """Geometric Brownian motion of the price of an asset.
 
-    The Wiener process `dW` is independent by default, or process `index` of a `WienerProcessSpec` that correlates it
-    with the motions of other assets.
+    It follows `dS = mu * S * dt + sigma * S * dW`. The Wiener process `dW` is independent by default, or process
+    `index` of a `WienerProcessSpec` that correlates it with the motions of other assets.
 
     Args:
         label:

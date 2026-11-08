@@ -4,16 +4,15 @@ import numpy as np
 import pytest
 from scipy import stats
 
-from skcomplex.systems import create_simulation
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.economics.finance import OrderBookSystem
 
 
 def test_order_book_chartists_raise_volatility_and_conserve_holdings():
     """Test that chartists make returns more volatile and that trades keep the total money and shares."""
     returns = {}
     for chartists in (0.0, 0.5):
-        trajectory = (
-            create_simulation('order_book', chartists=chartists, imitation=0.0).prepare().run(until=150).trajectory_
-        )
+        trajectory = simulate(OrderBookSystem(chartists=chartists, imitation=0.0), until=150)
         prices = trajectory.values('book.price')[1:]
         returns[chartists] = np.diff(np.log(prices))
         traders = trajectory.agents('traders', 150).values
@@ -25,5 +24,5 @@ def test_order_book_chartists_raise_volatility_and_conserve_holdings():
 
 def test_order_book_imitation_drives_out_chartists():
     """Test that traders copy the more successful fundamentalists, so the share of chartists falls."""
-    trajectory = create_simulation('order_book', chartists=0.5).prepare().run(until=150).trajectory_
+    trajectory = simulate(OrderBookSystem(chartists=0.5), until=150)
     assert trajectory.values('chartists')[-1] < 0.6 * trajectory.values('chartists')[0]

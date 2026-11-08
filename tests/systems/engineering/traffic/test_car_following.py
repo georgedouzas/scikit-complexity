@@ -11,13 +11,13 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.systems.engineering.traffic import (
-    delayed_car_following,
-    intelligent_driver_system,
-    optimal_velocity,
+    DelayedCarFollowingSystem,
+    IntelligentDriverSystem,
+    OptimalVelocitySystem,
 )
 
 
@@ -158,7 +158,7 @@ def _per_car(system, interaction):
 def test_optimal_velocity_jams_move_backwards():
     """Test that uniform flow above the critical density breaks into a stop-and-go wave that moves backwards."""
     n_cars, length = 12, 24.0
-    trajectory = Simulation(optimal_velocity(n_cars, length), dt=1.0).prepare().run(until=150).trajectory_
+    trajectory = simulate(OptimalVelocitySystem(n_cars, length).prepare().system_, until=150, dt=1.0)
     positions, speeds = trajectory.values('cars.x'), trajectory.values('cars.v')
     assert np.ptp(speeds[0]) < 0.01
     assert speeds[-1].min() < 0.2
@@ -172,14 +172,14 @@ def test_optimal_velocity_jams_move_backwards():
 def test_optimal_velocity_below_critical_density_stays_uniform():
     """Test that a perturbed uniform flow with large headways relaxes back to uniform flow."""
     n_cars, length = 8, 32.0
-    trajectory = Simulation(optimal_velocity(n_cars, length), dt=1.0).prepare().run(until=80).trajectory_
+    trajectory = simulate(OptimalVelocitySystem(n_cars, length).prepare().system_, until=80, dt=1.0)
     speeds = trajectory.values('cars.v')
     assert np.ptp(speeds[-1]) < 0.01
 
 
 def test_intelligent_drivers_reach_equilibrium_speed():
     """Test that cars at low density reach the equilibrium speed of their gap, `s = s*(v) / sqrt(1 - (v / v0)^4)`."""
-    trajectory = Simulation(intelligent_driver_system(10, 250.0), dt=1.0).prepare().run(until=100).trajectory_
+    trajectory = simulate(IntelligentDriverSystem(10, 250.0).prepare().system_, until=100, dt=1.0)
     speed = trajectory.values('cars.v')[-1].mean()
     gap = 250.0 / 10 - 5.0
     assert gap == pytest.approx((2.0 + speed * 1.5) / math.sqrt(1 - (speed / 30.0) ** 4), rel=1e-3)
@@ -187,27 +187,25 @@ def test_intelligent_drivers_reach_equilibrium_speed():
 
 def test_ring_roads_hold_one_group_of_cars():
     """Test that a ring road holds one group and one interaction whatever the number of cars."""
-    system = optimal_velocity(n_cars=50)
+    system = OptimalVelocitySystem(n_cars=50).prepare().system_
     assert [element.size for element in system.elements] == [50]
     assert len(system.interactions) == 1
-    trajectory = Simulation(system, dt=1.0).prepare().run(until=2).trajectory_
+    trajectory = simulate(system, until=2, dt=1.0)
     assert trajectory.values('cars.x').shape == trajectory.values('cars.v').shape == (3, 50)
 
 
 @pytest.mark.parametrize(
     ('factory', 'interaction', 'until'),
-    [(optimal_velocity, PerCarVelocityInteraction, 200.0), (intelligent_driver_system, PerCarDriverInteraction, 100.0)],
+    [
+        (OptimalVelocitySystem, PerCarVelocityInteraction, 200.0),
+        (IntelligentDriverSystem, PerCarDriverInteraction, 100.0),
+    ],
 )
 def test_ring_roads_match_one_interaction_per_car(factory, interaction, until):
     """Test that the ring road of one group runs as the ring of one element and one interaction per car under RK45."""
-    system = factory(n_cars=20)
-    group = Simulation(system, dt=1.0, solver=ScipyODESolver(method='RK45')).prepare().run(until=until).trajectory_
-    per_car = (
-        Simulation(_per_car(system, interaction), dt=1.0, solver=ScipyODESolver(method='RK45'))
-        .prepare()
-        .run(until=until)
-    )
-    per_car = per_car.trajectory_
+    system = factory(n_cars=20).prepare().system_
+    group = simulate(system, until=until, dt=1.0, solver=ScipyODESolver(method='RK45'))
+    per_car = simulate(_per_car(system, interaction), until=until, dt=1.0, solver=ScipyODESolver(method='RK45'))
     for variable in ('x', 'v'):
         np.testing.assert_allclose(
             group.values(f'cars.{variable}'),
@@ -220,6 +218,6 @@ def test_ring_roads_match_one_interaction_per_car(factory, interaction, until):
 @pytest.mark.parametrize(('reaction', 'grows'), [(1.0, True), (0.3, False)])
 def test_delayed_car_following_instability(reaction, grows):
     """Test that oscillations grow along the chain when `omega < 2 reaction sin(omega T)` and decay otherwise."""
-    trajectory = Simulation(delayed_car_following(5, reaction=reaction), dt=0.5).prepare().run(until=60).trajectory_
+    trajectory = simulate(DelayedCarFollowingSystem(5, reaction=reaction).prepare().system_, until=60, dt=0.5)
     amplitudes = np.ptp(_cars(trajectory, 5, 'v')[60:], axis=0)
     assert (amplitudes[-1] > amplitudes[0]) == grows

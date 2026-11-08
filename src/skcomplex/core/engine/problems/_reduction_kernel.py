@@ -116,18 +116,21 @@ class ReductionKernel(BaseKernel):
 
     @property
     def symbols(self) -> list[Expression]:
-        """Symbols the argument and the condition read, in the order the compiled function takes them after time."""
+        """Symbols the argument and the condition read.
+
+        They come in the order the compiled function takes them after time.
+        """
         return list(self._symbols)
 
     @property
     def readers(self) -> int:
         """Number of reading members of a weighted reduction, 1 without weights."""
-        if isinstance(self.weights, ReadSpec) and self.weights.entry is not None:
-            return self.weights.entry.shape[0]
         return 1 if self.weights is None else int(self.weights.shape[0])
 
     def weight_matrix(self, x: Array, q: Array) -> scipy.sparse.csr_array | Array:
-        """Return the weight matrix, read from the vectors for the weights of a shaped parameter.
+        """Return the weight matrix.
+
+        It is read from the vectors for the weights of a shaped parameter.
 
         Args:
             x:
@@ -192,7 +195,10 @@ class ReductionKernel(BaseKernel):
         )
 
     def _run(self, inputs: RunStateSpec | None) -> None:
-        """Write the value of the reduction into the extended parameter vector of the state, the `p` of `inputs`."""
+        """Write the value of the reduction into the extended parameter vector.
+
+        The vector is the `p` of `inputs`.
+        """
         self.values_ = None
         state = self._state_of(inputs)
         q = state.p

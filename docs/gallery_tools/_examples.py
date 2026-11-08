@@ -1,12 +1,17 @@
-"""Scaffold, find, and check the gallery examples: one script per registered system, within a budget."""
+"""Scaffold, find, and check the gallery examples.
+
+There is one script per ready-made system, within a budget.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 import ast
+import functools
 import importlib
 import inspect
 import math
+import re
 import textwrap
 import tomllib
 from collections import Counter
@@ -14,14 +19,15 @@ from dataclasses import dataclass, field
 from importlib.resources import files
 from pathlib import Path
 
-from skcomplex.systems import SystemEntry, SystemListing, catalog, describe
+from skcomplex.core.components.system import BaseSystem
+from skcomplex.systems import all_systems
 
 from ._errors import GalleryError
 from ._settings import Budget
 
 SCAFFOLD_MARK = 'This example is scaffolded from the catalog and awaits curation.'
 EXAMPLE_PREFIX = 'plot_'
-STEPWISE_FORMS = {'discrete map', 'agent-based system', 'lattice dynamics', 'Monte Carlo sampling'}
+CLASS_WORDS = re.compile(r'(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])')
 STEPWISE_DT = 1.0
 CONTINUOUS_DT = 0.01
 DEFAULT_UNTIL = 10.0
@@ -34,14 +40,14 @@ SCAFFOLD = '''"""
 {caption}
 """
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation
-from importlib.resources import files
+from {module} import {class_name}
 
 SYSTEM = '{name}'
 
 observer = RerunObserver(SYSTEM, save_path=f'{{SYSTEM}}.rrd', blueprint='default', interval={interval})
-simulation = create_simulation(SYSTEM{parameters}).set_params(observers=[observer]).prepare().run()
+trajectory = simulate({class_name}({parameters}), observers=[observer])
 '''
 
 
@@ -67,14 +73,14 @@ class Example:
 
 @dataclass(frozen=True)
 class Coverage:
-    """Comparison of the examples with the registered systems.
+    """Comparison of the examples with the ready-made systems.
 
     Args:
         missing:
-            The registered systems without an example.
+            The ready-made systems without an example.
 
         orphans:
-            The examples that name no registered system, name a system already named by another example, or sit outside
+            The examples that name no ready-made system, name a system already named by another example, or sit outside
             the folder of their system's field.
     """
 
@@ -101,19 +107,22 @@ class Coverage:
             >>> from gallery_tools import Coverage
             >>> for problem in Coverage(missing=['lorenz']).problems(['plot_sir']):
             ...     print(problem)
-            These registered systems have no gallery example: lorenz.
+            These ready-made systems have no gallery example: lorenz.
             These gallery examples have no screenshot: plot_sir.
         """
         problems = []
         if self.missing:
-            problems.append(f'These registered systems have no gallery example: {", ".join(self.missing)}.')
+            problems.append(f'These ready-made systems have no gallery example: {", ".join(self.missing)}.')
         if without_screenshot:
             problems.append(f'These gallery examples have no screenshot: {", ".join(without_screenshot)}.')
         return problems
 
 
 def _system_of(path: Path) -> str | None:
-    """Return the value of the `SYSTEM` constant of a script, or `None` when it sets none."""
+    """Return the value of the `SYSTEM` constant of a script.
+
+    It returns `None` when the script sets none.
+    """
     for node in ast.parse(path.read_text()).body:
         if not isinstance(node, ast.Assign) or not isinstance(node.value, ast.Constant):
             continue
@@ -122,19 +131,23 @@ def _system_of(path: Path) -> str | None:
     return None
 
 
-def library_systems() -> list[SystemListing]:
-    """Return the registered systems of the library, without systems registered by other code such as tests.
+@functools.cache
+def library_systems() -> dict[str, type[BaseSystem]]:
+    """Return the class of every ready-made system of the library by its gallery name.
+
+    The gallery name of a class is its name without `System` in snake case, with an acronym kept as one word, so
+    `GrayScottSystem` is `gray_scott` and `BrusselatorODESystem` is `brusselator_ode`.
 
     Returns:
-        entries:
-            The registered systems whose factory lives in `skcomplex.systems`.
+        systems:
+            The class of every ready-made system, by gallery name.
 
     Examples:
         >>> from gallery_tools import library_systems
-        >>> 'lotka_volterra' in [entry.name for entry in library_systems()]
-        True
+        >>> library_systems()['lotka_volterra'].__name__
+        'LotkaVolterraSystem'
     """
-    return [entry for entry in catalog() if entry.module.startswith('skcomplex.systems.')]
+    return {CLASS_WORDS.sub('_', name.removesuffix('System')).lower(): cls for name, cls in all_systems()}
 
 
 def find_examples(folder: Path) -> list[Example]:
@@ -163,15 +176,15 @@ def find_examples(folder: Path) -> list[Example]:
     return examples
 
 
-def check_coverage(folder: Path, entries: list[SystemListing] | None = None) -> Coverage:
-    """Compare the examples under a folder with the registered systems.
+def check_coverage(folder: Path, systems: dict[str, type[BaseSystem]] | None = None) -> Coverage:
+    """Compare the examples under a folder with the ready-made systems.
 
     Args:
         folder:
             The root of the examples.
 
-        entries:
-            The registered systems, or `None` for the systems of the library.
+        systems:
+            The class of every ready-made system by gallery name, or `None` for the systems of the library.
 
     Returns:
         coverage:
@@ -183,8 +196,8 @@ def check_coverage(folder: Path, entries: list[SystemListing] | None = None) -> 
         >>> check_coverage(Path('docs/examples')).complete
         True
     """
-    entries = library_systems() if entries is None else entries
-    fields = {entry.name: entry.field for entry in entries}
+    systems = library_systems() if systems is None else systems
+    fields = {name: system.field for name, system in systems.items()}
     examples = find_examples(folder)
     counts = Counter(example.system for example in examples)
     orphans = []
@@ -211,7 +224,9 @@ def _titles(inventory: Path) -> dict[str, str]:
 
 
 def gallery_interval(until: float, dt: float, max_frames: int) -> int:
-    """Return the logging interval that keeps a run within a number of frames and logs its last frame.
+    """Return the logging interval that keeps a run within a number of frames.
+
+    The interval also logs the last frame of the run.
 
     Args:
         until:
@@ -241,24 +256,39 @@ def gallery_interval(until: float, dt: float, max_frames: int) -> int:
     return smallest
 
 
-def _settings_of(entry: SystemEntry) -> tuple[float, float]:
-    """Return the simulated time and the time between frames of a system's default run."""
-    until = entry.defaults.get('until', DEFAULT_UNTIL)
-    dt = entry.defaults.get('dt')
+def _settings_of(system: type[BaseSystem]) -> tuple[float, float]:
+    """Return the simulated time and the time between frames of a system class.
+
+    They are those of the tuned run of the class.
+    """
+    built = system()
+    settings = built.get_run_settings()
+    until = DEFAULT_UNTIL if settings['until'] is None else settings['until']
+    dt = settings['dt']
     if dt is None:
-        dt = STEPWISE_DT if entry.formalism in STEPWISE_FORMS else CONTINUOUS_DT
+        dt = STEPWISE_DT if 'discrete' in built.get_tags().time else CONTINUOUS_DT
     if not isinstance(until, int | float) or not isinstance(dt, int | float):
-        error_msg = f'The default run of {entry.name} takes numbers as `until` and `dt`, not {until!r} and {dt!r}.'
+        error_msg = f'The tuned run of {system.__name__} takes numbers as `until` and `dt`, not {until!r} and {dt!r}.'
         raise GalleryError(error_msg)
     return float(until), float(dt)
 
 
-def scaffold_example(entry: SystemEntry, title: str, budget: Budget | None = None) -> str:
-    """Return the scaffold of the example of a system: its title, its caption, its run, and its blueprint.
+def _description_of(system: type[BaseSystem]) -> str:
+    """Return the description of a system class, the first line of its docstring."""
+    return (inspect.getdoc(system) or '').split('\n', maxsplit=1)[0]
+
+
+def scaffold_example(name: str, system: type[BaseSystem], title: str, budget: Budget | None = None) -> str:
+    """Return the scaffold of the example of a system.
+
+    It holds its title, its caption, its run, and its blueprint.
 
     Args:
-        entry:
-            The registered system.
+        name:
+            The gallery name of the system.
+
+        system:
+            The class of the system.
 
         title:
             The title of the example.
@@ -272,20 +302,22 @@ def scaffold_example(entry: SystemEntry, title: str, budget: Budget | None = Non
 
     Examples:
         >>> from gallery_tools import scaffold_example
-        >>> from skcomplex.systems import describe
-        >>> print(scaffold_example(describe('lorenz'), 'LorenzElement').splitlines()[-1])
-        simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare().run()
+        >>> from skcomplex.systems.mathematics.dynamical_systems import LorenzSystem
+        >>> print(scaffold_example('lorenz', LorenzSystem, 'Lorenz').splitlines()[-1])
+        trajectory = simulate(LorenzSystem(), observers=[observer])
     """
     budget = budget or Budget()
-    interval = gallery_interval(*_settings_of(entry), budget.max_frames)
-    seeded = 'random_state' in inspect.signature(entry.factory).parameters
-    caption = f'{textwrap.fill(entry.description.rstrip(".") + ".", LINE_LENGTH)}\n\n{SCAFFOLD_MARK}'
+    interval = gallery_interval(*_settings_of(system), budget.max_frames)
+    seeded = 'random_state' in inspect.signature(system).parameters
+    caption = f'{textwrap.fill(_description_of(system).rstrip(".") + ".", LINE_LENGTH)}\n\n{SCAFFOLD_MARK}'
     return SCAFFOLD.format(
         title=title,
         caption=caption,
-        name=entry.name,
+        module=system.__module__.rpartition('.')[0],
+        class_name=system.__name__,
+        name=name,
         interval=interval,
-        parameters=', random_state=0' if seeded else '',
+        parameters='random_state=0' if seeded else '',
     )
 
 
@@ -310,7 +342,9 @@ def _write_readmes(folder: Path, field_path: str) -> None:
 
 
 def scaffold_examples(folder: Path, inventory: Path, *, overwrite: bool = False) -> list[Path]:
-    """Write the scaffold of the example of every registered system that has none, with the gallery headers.
+    """Write the scaffold of the example of every ready-made system that has none.
+
+    The scaffolds come with the gallery headers.
 
     Args:
         folder:
@@ -329,14 +363,14 @@ def scaffold_examples(folder: Path, inventory: Path, *, overwrite: bool = False)
     titles = _titles(inventory)
     existing = {example.system: example for example in find_examples(folder)}
     written = []
-    for entry in library_systems():
-        example = existing.get(entry.name)
+    for name, system in library_systems().items():
+        example = existing.get(name)
         if example is not None and not (overwrite and example.scaffolded):
             continue
-        _write_readmes(folder, entry.field)
-        path = folder / entry.field / f'{EXAMPLE_PREFIX}{entry.name}.py'
-        title = titles.get(entry.name, _title(entry.name))
-        path.write_text(scaffold_example(describe(entry.name), title))
+        _write_readmes(folder, system.field)
+        path = folder / system.field / f'{EXAMPLE_PREFIX}{name}.py'
+        title = titles.get(name, _title(name))
+        path.write_text(scaffold_example(name, system, title))
         written.append(path)
     return written
 
@@ -384,14 +418,14 @@ def check_budget(name: str, frames: int, size: int, seconds: float | None, budge
 
 
 def system_sources(system: str) -> list[Path]:
-    """Return the source files whose change can change the screenshots of a registered system's example.
+    """Return the source files that can change the screenshots of a system's example.
 
-    These are the files of the subfield package of the system, then the files of the core package, which compiles,
-    runs, and logs every system.
+    The system is a ready-made system. These are the files of the subfield package of the system, then the files of the
+    core package, which compiles, runs, and logs every system.
 
     Args:
         system:
-            The name of the system.
+            The gallery name of the system.
 
     Returns:
         paths:
@@ -403,7 +437,7 @@ def system_sources(system: str) -> list[Path]:
         >>> sources[0].parent.name, sources[-1].parent.name
         ('ecology', 'core')
     """
-    package = importlib.import_module('skcomplex.systems.' + describe(system).field.replace('/', '.'))
+    package = importlib.import_module('skcomplex.systems.' + library_systems()[system].field.replace('/', '.'))
     return [
         *sorted(Path(str(files(package.__name__))).rglob('*.py')),
         *sorted(Path(str(files('skcomplex.core'))).rglob('*.py')),

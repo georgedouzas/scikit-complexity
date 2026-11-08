@@ -72,7 +72,7 @@ second as ready-made examples. Every inventory entry SHALL record the core primi
 vocabulary the inventory defines, and the inventory check SHALL reject a primitive outside that vocabulary.
 
 #### Scenario: Primitives of an entry
-- **WHEN** a contributor reads the inventory entry of `bak_sneppen`
+- **WHEN** a contributor reads the inventory entry of `BakSneppenSystem`
 - **THEN** it lists the lattice and extremal-update primitives it exercises
 
 #### Scenario: Unknown primitive

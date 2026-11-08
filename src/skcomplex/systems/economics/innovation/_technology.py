@@ -1,4 +1,7 @@
-"""Innovation systems: technologies that improve by redesigning their components or combining logic circuits."""
+"""Innovation systems: technologies that improve by redesign or combination.
+
+They redesign their components or combine logic circuits.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,15 +18,17 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 
 class TechnologyView(AgentView):
-    """Technology as the invention sees it: its `arity`, its truth `table`, and its `cost` in NAND gates."""
+    """Technology as the invention sees it.
+
+    It holds its `arity`, its truth `table`, and its `cost` in NAND gates.
+    """
 
     arity: float
     table: float
@@ -56,6 +61,8 @@ class PartElement(Element):
         5
     """
 
+    law_classes = ()
+
     def __init__(
         self,
         label: str,
@@ -86,7 +93,10 @@ class PartElement(Element):
 
 
 def _truth_table(arity: int, function: Callable[..., bool]) -> int:
-    """Return the truth table of a Boolean function, bit `r` holding its value on the input bits of row `r`."""
+    """Return the truth table of a Boolean function.
+
+    Bit `r` holds its value on the input bits of row `r`.
+    """
     rows = range(2**arity)
     return sum(int(function(*(bool(row >> pin & 1) for pin in range(arity)))) << row for row in rows)
 
@@ -110,12 +120,12 @@ GOALS = frozenset(
 
 
 class InventionInteraction(Interaction):
-    """Random wiring of technologies of the pool into a circuit, kept if it computes a wanted function more cheaply.
+    """Random wiring of technologies of the pool into a circuit.
 
-    A circuit has between one and `max_inputs` inputs and wires between two and `max_components` technologies in a
-    row, each pin to an input or to the output of an earlier technology. The output of the last one is the circuit's
-    output. A circuit that computes a wanted function joins the pool, or replaces the technology of that function when
-    it uses fewer NAND gates.
+    The circuit is kept if it computes a wanted function more cheaply. A circuit has between one and `max_inputs` inputs
+    and wires between two and `max_components` technologies in a row, each pin to an input or to the output of an
+    earlier technology. The output of the last one is the circuit's output. A circuit that computes a wanted function
+    joins the pool, or replaces the technology of that function when it uses fewer NAND gates.
 
     Args:
         label:
@@ -136,6 +146,8 @@ class InventionInteraction(Interaction):
         6
     """
 
+    law_classes = (RuleLaw,)
+
     def __init__(
         self,
         label: str,
@@ -150,7 +162,10 @@ class InventionInteraction(Interaction):
         self.max_inputs = max_inputs
 
     def _wire(self, pool: list[TechnologyView], system: SystemView) -> tuple[int, int, int]:
-        """Return the arity, the truth table, and the cost of a random circuit of technologies of the pool."""
+        """Return the arity, the truth table, and the cost of a random circuit.
+
+        The circuit wires technologies of the pool.
+        """
         rng = system.rng
         n_inputs = int(rng.integers(1, int(system.parameter('max_inputs')) + 1))
         n_parts = int(rng.integers(2, int(system.parameter('max_components')) + 1))
@@ -176,7 +191,9 @@ class InventionInteraction(Interaction):
         return [RuleLaw(self.invent)]
 
     def invent(self, system: SystemView) -> None:
-        """Wire a random circuit and add it to the pool if it computes a wanted function better.
+        """Wire a random circuit and add it to the pool if it is better.
+
+        It is better when it computes a wanted function better.
 
         Args:
             system:
@@ -200,7 +217,10 @@ class InventionInteraction(Interaction):
 
     @staticmethod
     def _apply(table: int, arity: int, signals: Sequence[int], n_inputs: int) -> int:
-        """Return the truth table of a gate with a table and an arity, wired to the signals of a circuit."""
+        """Return the truth table of a gate with a table and an arity.
+
+        The gate is wired to the signals of a circuit.
+        """
         output = 0
         for row in range(2**n_inputs):
             index = sum((signal >> row & 1) << pin for pin, signal in enumerate(signals[:arity]))
@@ -209,10 +229,11 @@ class InventionInteraction(Interaction):
 
 
 class RedesignInteraction(Interaction):
-    """Attempt to cut the cost of a technology by redesigning a random component and the components that depend on it.
+    """Attempt to cut the cost of a technology by redesigning its components.
 
-    The redesigned components get new costs drawn uniformly from `[0, 1]`, and the redesign is kept only if the total
-    cost falls. `dependencies[i][j]` is 1 when a change of component `j` requires a change of component `i`.
+    It redesigns a random component and the components that depend on it. The redesigned components get new costs drawn
+    uniformly from `[0, 1]`, and the redesign is kept only if the total cost falls. `dependencies[i][j]` is 1 when a
+    change of component `j` requires a change of component `i`.
 
     Args:
         label:
@@ -229,6 +250,10 @@ class RedesignInteraction(Interaction):
         >>> RedesignInteraction('redesign', components='components', dependencies=[[1.0]]).dependencies
         [[1.0]]
     """
+
+    draws = True
+
+    law_classes = (RuleLaw,)
 
     def __init__(
         self,
@@ -255,7 +280,9 @@ class RedesignInteraction(Interaction):
         return [RuleLaw(self.redesign)]
 
     def redesign(self, system: SystemView) -> None:
-        """Propose new costs for a random component and its dependents and keep them if the total cost falls.
+        """Propose new costs for a random component and its dependents.
+
+        They are kept if the total cost falls.
 
         Args:
             system:
@@ -275,7 +302,10 @@ class RedesignInteraction(Interaction):
 
     @staticmethod
     def _components(cost: Array, dependencies: Array, rng: np.random.Generator) -> tuple[Array, npt.NDArray[np.intp]]:
-        """Return the proposed costs of a redesign of a random component and of the components that depend on it."""
+        """Return the proposed costs of a redesign of a random component.
+
+        They include the components that depend on it.
+        """
         changed = np.flatnonzero(dependencies[:, int(rng.integers(len(cost)))])
         proposal = cost.copy()
         proposal[changed] = rng.random(len(changed))
@@ -291,19 +321,11 @@ FALSE = (0, 0)
 TRUE = (0, 1)
 
 
-def _design_structure(n_components: int, d: int, rng: np.random.Generator) -> Array:
-    """Return a design structure matrix where a change of every component changes it and `d - 1` other components."""
-    matrix = np.eye(n_components)
-    for column in range(n_components):
-        others = rng.choice([row for row in range(n_components) if row != column], d - 1, replace=False)
-        matrix[others, column] = 1.0
-    return matrix
-
-
 class TechnologyElement(Element):
-    """Logic circuit in the pool of technologies, described by the truth table of the function it computes.
+    """Logic circuit in the pool of technologies.
 
-    Bit `r` of the table is the output on the inputs whose bits form `r`, with the first input as the lowest bit.
+    It is described by the truth table of the function it computes. Bit `r` of the table is the output on the inputs
+    whose bits form `r`, with the first input as the lowest bit.
 
     Args:
         label:
@@ -328,6 +350,8 @@ class TechnologyElement(Element):
         ... ).size
         3
     """
+
+    law_classes = ()
 
     def __init__(
         self,
@@ -362,24 +386,13 @@ class TechnologyElement(Element):
         return []
 
 
-@register_system(
-    field='economics/innovation',
-    tags=('innovation', 'technology', 'learning curve', 'agents'),
-    references=('Thurner et al. 2018', 'McNerney et al. 2011'),
-    defaults={'until': 200},
-    observables=lambda system: [ObservableSpec('total_cost', group='components', reduce='sum', variable='cost')],
-)
-def nk_technology(
-    n_components: int = 10,
-    d: int = 2,
-    *,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return McNerney's system of technological improvement, whose cost falls as a power of the cumulative production.
+class NkTechnologySystem(BaseSystem):
+    """McNerney's system of technological improvement.
 
-    Every step is one unit of production and one attempt to redesign a random component together with the components
-    that depend on it. Redesigns are kept only when they cut the total cost, which falls like Wright's law, more slowly
-    for designs whose components depend on more others.
+    Its cost falls as a power of the cumulative production. Every step is one unit of production and one attempt to
+    redesign a random component together with the components that depend on it. Redesigns are kept only when they cut
+    the total cost, which falls like Wright's law, more slowly for designs whose components depend on more others. The
+    system has the group `components` and the total cost `total_cost`.
 
     Args:
         n_components:
@@ -391,42 +404,71 @@ def nk_technology(
         random_state:
             The seed or generator of the design structure matrix and the initial costs.
 
-    Returns:
-        system:
-            The system, with the group `components` and the total cost `total_cost`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.innovation import nk_technology
-        >>> nk_technology(5, 1).interactions[0].dependencies[0]
+        >>> from skcomplex.systems.economics.innovation import NkTechnologySystem
+        >>> NkTechnologySystem(5, 1).prepare().system_.interactions[0].dependencies[0]
         [1.0, 0.0, 0.0, 0.0, 0.0]
     """
-    rng = np.random.default_rng(random_state)
-    dependencies = _design_structure(n_components, d, rng)
-    components = GroupElement(
-        'components',
-        element=PartElement,
-        size=n_components,
-        values={'cost': rng.random(n_components)},
-    )
-    return System(
-        elements=[components],
-        interactions=[RedesignInteraction('redesign', components='components', dependencies=dependencies.tolist())],
-    )
+
+    field = 'economics/innovation'
+    topics = ('innovation', 'technology', 'learning curve', 'agents')
+    references = ('Thurner et al. 2018', 'McNerney et al. 2011')
+    until = 200
+    observables = (ObservableSpec('total_cost', group='components', reduce='sum', variable='cost'),)
+
+    def __init__(
+        self,
+        n_components: int = 10,
+        d: int = 2,
+        *,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_components = n_components
+        self.d = d
+        self.random_state = random_state
+
+    @staticmethod
+    def _design_structure(n_components: int, d: int, rng: np.random.Generator) -> Array:
+        """Return a design structure matrix.
+
+        A change of a component changes it and `d - 1` other ones.
+        """
+        matrix = np.eye(n_components)
+        for column in range(n_components):
+            others = rng.choice([row for row in range(n_components) if row != column], d - 1, replace=False)
+            matrix[others, column] = 1.0
+        return matrix
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        dependencies = self._design_structure(self.n_components, self.d, rng)
+        components = GroupElement(
+            'components',
+            element=PartElement,
+            size=self.n_components,
+            values={'cost': rng.random(self.n_components)},
+        )
+        return System(
+            self.label,
+            elements=[components],
+            interactions=[RedesignInteraction('redesign', components='components', dependencies=dependencies.tolist())],
+        )
 
 
-@register_system(
-    field='economics/innovation',
-    tags=('innovation', 'technology', 'combinatorial evolution', 'agents'),
-    references=('Thurner et al. 2018', 'Arthur and Polak 2006'),
-    defaults={'until': 200},
-)
-def arthur_polak(*, max_components: int = 12, max_inputs: int = 3) -> System:
-    """Return Arthur and Polak's evolution of technology, which builds logic functions from NAND gates.
+class ArthurPolakSystem(BaseSystem):
+    """Arthur and Polak's evolution of technology.
 
-    The pool starts with the NAND gate and the constants 0 and 1. Every step wires a random circuit from the pool and
-    keeps it when it computes a wanted function, negation, two-input and, or, exclusive or, nor, equivalence, and
-    implication, or three-input and, or, parity, and majority, so simple inventions become the building blocks of
-    complex ones.
+    It builds logic functions from NAND gates. The pool starts with the NAND gate and the constants 0 and 1. Every step
+    wires a random circuit from the pool and keeps it when it computes a wanted function, negation, two-input and, or,
+    exclusive or, nor, equivalence, and implication, or three-input and, or, parity, and majority, so simple inventions
+    become the building blocks of complex ones. The system has the pool `technologies`, whose size is the reporter
+    `technologies.count`.
 
     Args:
         max_components:
@@ -435,31 +477,49 @@ def arthur_polak(*, max_components: int = 12, max_inputs: int = 3) -> System:
         max_inputs:
             The largest number of inputs of a circuit.
 
-    Returns:
-        system:
-            The system, with the pool `technologies`, whose size is the reporter `technologies.count`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.innovation import arthur_polak
-        >>> arthur_polak().elements[0].prepare().size_
+        >>> from skcomplex.systems.economics.innovation import ArthurPolakSystem
+        >>> ArthurPolakSystem().prepare().system_.elements[0].prepare().size_
         3
     """
-    primitives = (NAND, FALSE, TRUE)
-    technologies = GroupElement(
-        'technologies',
-        element=TechnologyElement,
-        size=len(primitives),
-        values={
-            'arity': [float(arity) for arity, _ in primitives],
-            'table': [float(table) for _, table in primitives],
-            'cost': [1.0, 0.0, 0.0],
-        },
-        variable=True,
-    )
-    invention = InventionInteraction(
-        'invention',
-        technologies='technologies',
-        max_components=float(max_components),
-        max_inputs=float(max_inputs),
-    )
-    return System(elements=[technologies], interactions=[invention])
+
+    field = 'economics/innovation'
+    topics = ('innovation', 'technology', 'combinatorial evolution', 'agents')
+    references = ('Thurner et al. 2018', 'Arthur and Polak 2006')
+    until = 200
+
+    def __init__(
+        self,
+        *,
+        max_components: int = 12,
+        max_inputs: int = 3,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.max_components = max_components
+        self.max_inputs = max_inputs
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        primitives = (NAND, FALSE, TRUE)
+        technologies = GroupElement(
+            'technologies',
+            element=TechnologyElement,
+            size=len(primitives),
+            values={
+                'arity': [float(arity) for arity, _ in primitives],
+                'table': [float(table) for _, table in primitives],
+                'cost': [1.0, 0.0, 0.0],
+            },
+            variable=True,
+        )
+        invention = InventionInteraction(
+            'invention',
+            technologies='technologies',
+            max_components=float(self.max_components),
+            max_inputs=float(self.max_inputs),
+        )
+        return System(self.label, elements=[technologies], interactions=[invention])

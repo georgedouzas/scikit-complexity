@@ -13,7 +13,7 @@ from skcomplex.core.components.interactions import AdvectionInteraction
 from skcomplex.core.components.laws.utils import coordinate, moment
 from skcomplex.core.components.spaces import LatticeSpace, SimplexSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver, SSPRKSolver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import AxisSpec, ObservableSpec
@@ -83,8 +83,8 @@ def test_moment_over_a_simplex_weights_every_cell_by_its_volume() -> None:
     start = 2.0 * (space.volumes_ > 0)
     groups = FieldElement('groups', element=DensityElement, space=space, values={'f': start})
     observables = [ObservableSpec('total', total, group='groups')]
-    simulation = Simulation(System(elements=[groups]), dt=0.1, observables=observables).prepare()
-    values = np.asarray(simulation.run(until=0.1).trajectory_.values('total'), dtype=float)
+    trajectory = simulate(System(elements=[groups]), until=0.1, dt=0.1, observables=observables)
+    values = np.asarray(trajectory.values('total'), dtype=float)
     assert np.abs(values - 1.0).max() < 1e-12
 
 
@@ -101,8 +101,8 @@ def test_replicator_flow_on_a_simplex_conserves_the_density(solver: object) -> N
         discretization='finite-volume',
     )
     flow = AdvectionInteraction('flow', target='groups', state='f', drift=replicator_drift, limiter=None)
-    simulation = Simulation(System(elements=[groups], interactions=[flow]), dt=0.5, solver=solver).prepare()
-    final = simulation.run(until=2.0).trajectory_.values('groups.f')[-1].reshape(space.shape_)
+    trajectory = simulate(System(elements=[groups], interactions=[flow]), until=2.0, dt=0.5, solver=solver)
+    final = trajectory.values('groups.f')[-1].reshape(space.shape_)
     weights = space.volumes_ / SIZE**2
     assert abs((final * weights).sum() - 1.0) < 1e-10
     assert np.all(final[space.volumes_ == 0] == 0.0)

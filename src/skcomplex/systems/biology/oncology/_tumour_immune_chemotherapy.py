@@ -1,4 +1,7 @@
-"""Immune, tumour, and normal cells that compete and that a drug kills, after de Pillis and Radunskaya."""
+"""Immune, tumour, and normal cells that compete and that a drug kills.
+
+The model follows de Pillis and Radunskaya.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,7 +18,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class TumourImmuneChemotherapyElement(Element):
-    """Immune, tumour, and normal cells that compete and that a drug kills, after de Pillis and Radunskaya.
+    """Immune, tumour, and normal cells that compete and that a drug kills.
+
+    The model follows de Pillis and Radunskaya.
 
     The immune cells follow `dE/dt = s + rho E A / (alpha + A) - d1 E - c1 E A - a1 (1 - exp(-U)) E`, the tumour
     `dA/dt = r1 A (1 - b1 A) - c2 E A - c3 N A - a2 (1 - exp(-U)) A`, the normal cells
@@ -97,6 +102,8 @@ class TumourImmuneChemotherapyElement(Element):
         >>> TumourImmuneChemotherapyElement('patient', u=1.0).u
         1.0
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,

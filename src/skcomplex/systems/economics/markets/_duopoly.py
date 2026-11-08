@@ -1,4 +1,7 @@
-"""Markets systems: duopolists that set their output from beliefs about their rival."""
+"""Markets systems: duopolists that set their output from beliefs.
+
+The beliefs are about their rival.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,10 +16,9 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import DiscreteTime
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class DuopolistView(AgentView):
@@ -27,7 +29,9 @@ class DuopolistView(AgentView):
 
 
 class DuopolistElement(Element):
-    """Firm of a Cournot duopoly, described by its output and its constant marginal cost.
+    """Firm of a Cournot duopoly.
+
+    It is described by its output and its constant marginal cost.
 
     Args:
         label:
@@ -68,11 +72,12 @@ class DuopolistElement(Element):
 
 
 class CournotAdjustmentInteraction(MapInteraction):
-    """Simultaneous best responses of two firms to their beliefs about the rival's last output.
+    """Simultaneous best responses of two firms to their beliefs.
 
-    Under the inverse demand `P = a - b Q`, each firm sets `q_i = (a - c_i) / (2 b) - belief_j / 2`, where the
-    belief is the rival's last output scaled by a factor drawn uniformly from `[1 - error, 1 + error]`. It is a
-    synchronous map of the agent form of the outputs, so both firms respond to the outputs of the step before.
+    The beliefs are about the rival's last output. Under the inverse demand `P = a - b Q`, each firm sets
+    `q_i = (a - c_i) / (2 b) - belief_j / 2`, where the belief is the rival's last output scaled by a factor drawn
+    uniformly from `[1 - error, 1 + error]`. It is a synchronous map of the agent form of the outputs, so both firms
+    respond to the outputs of the step before.
 
     Args:
         label:
@@ -111,7 +116,10 @@ class CournotAdjustmentInteraction(MapInteraction):
         self.error = error
 
     def _get_response(self, agent: DuopolistView, system: SystemView) -> float:
-        """Return the best response of a firm to its belief about the last output of its rival."""
+        """Return the best response of a firm to its belief.
+
+        The belief is about the last output of its rival.
+        """
         a, b, error = (system.parameter(name) for name in ('a', 'b', 'error'))
         rival = next(firm for firm in system.agents('target', DuopolistView) if firm.id != agent.id)
         belief = rival.output * (1 + error * float(system.rng.uniform(-1.0, 1.0)))
@@ -122,32 +130,19 @@ N_FIRMS = 2
 
 
 def _price(s: SimpleNamespace) -> Expression:
-    """Return the market price of the total output under the inverse demand of the interaction `market`."""
+    """Return the market price of the total output.
+
+    It follows the inverse demand of the interaction `market`.
+    """
     return s.market.a - s.market.b * s.total
 
 
-@register_system(
-    field='economics/markets',
-    tags=('market', 'oligopoly', 'agents'),
-    references=('Hamill and Gilbert 2016', 'Cournot 1838'),
-    defaults={'until': 30},
-    observables=lambda system: [
-        ObservableSpec('total', group='firms', reduce='sum', variable='output'),
-        ObservableSpec('price', _price),
-    ],
-)
-def cournot_duopoly(
-    outputs: Sequence[float] = (100.0, 100.0),
-    costs: Sequence[float] = (0.0, 0.0),
-    *,
-    a: float = 1500.0,
-    b: float = 10.0,
-    error: float = 0.0,
-) -> System:
-    """Return two Cournot duopolists that adjust their output to their beliefs about each other.
+class CournotDuopolySystem(BaseSystem):
+    """Two Cournot duopolists that adjust their output to their beliefs.
 
-    Without errors the outputs converge to the Nash equilibrium, `q_i = (a - 2 c_i + c_j) / (3 b)`, which is 50 units
-    each for the defaults. Errors in the beliefs keep the total output fluctuating around it.
+    The beliefs are about each other. Without errors the outputs converge to the Nash equilibrium,
+    `q_i = (a - 2 c_i + c_j) / (3 b)`, which is 50 units each for the defaults. Errors in the beliefs keep the total
+    output fluctuating around it. The system has the group `firms`, the total output `total`, and the price `price`.
 
     Args:
         outputs:
@@ -165,23 +160,52 @@ def cournot_duopoly(
         error:
             The largest relative error of a firm's belief about the rival's output.
 
-    Returns:
-        system:
-            The system, with the group `firms`, the total output `total`, and the price `price`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.markets import cournot_duopoly
-        >>> cournot_duopoly(error=0.01).interactions[0].error
+        >>> from skcomplex.systems.economics.markets import CournotDuopolySystem
+        >>> CournotDuopolySystem(error=0.01).prepare().system_.interactions[0].error
         0.01
     """
-    firms = GroupElement(
-        'firms',
-        element=DuopolistElement,
-        size=N_FIRMS,
-        values={'output': list(outputs), 'cost': list(costs)},
+
+    field = 'economics/markets'
+    topics = ('market', 'oligopoly', 'agents')
+    references = ('Hamill and Gilbert 2016', 'Cournot 1838')
+    until = 30
+    observables = (
+        ObservableSpec('total', group='firms', reduce='sum', variable='output'),
+        ObservableSpec('price', _price),
     )
-    return System(
-        elements=[firms],
-        interactions=[CournotAdjustmentInteraction('market', target='firms', a=a, b=b, error=error)],
-        time=DiscreteTime(),
-    )
+
+    def __init__(
+        self,
+        outputs: Sequence[float] = (100.0, 100.0),
+        costs: Sequence[float] = (0.0, 0.0),
+        *,
+        a: float = 1500.0,
+        b: float = 10.0,
+        error: float = 0.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.outputs = outputs
+        self.costs = costs
+        self.a = a
+        self.b = b
+        self.error = error
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        firms = GroupElement(
+            'firms',
+            element=DuopolistElement,
+            size=N_FIRMS,
+            values={'output': list(self.outputs), 'cost': list(self.costs)},
+        )
+        return System(
+            self.label,
+            elements=[firms],
+            interactions=[CournotAdjustmentInteraction('market', target='firms', a=self.a, b=self.b, error=self.error)],
+            time=DiscreteTime(),
+        )

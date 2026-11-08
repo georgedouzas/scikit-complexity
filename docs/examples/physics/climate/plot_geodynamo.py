@@ -6,22 +6,22 @@ an irregular time, as the magnetic field of the Earth has reversed throughout it
 """
 
 # %%
-# The system is created by name from the catalog with Gissinger's parameters `mu = 0.119`, `nu = 0.1`, and
+# The system is built from its class with Gissinger's parameters `mu = 0.119`, `nu = 0.1`, and
 # `Gamma = 0.9`. The run covers 600 time units, and the default blueprint shows the quadrupolar field `Q`, the dipolar
 # field `D`, and the velocity `V` in one time series view.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.climate import GeodynamoSystem
 
 SYSTEM = 'geodynamo'
 
-system = create_system(SYSTEM)
+system = GeodynamoSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=5)
-simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=600)
+trajectory = simulate(system, until=600, observers=[observer])
 
 # %%
 # Two polarities and irregular reversals
@@ -30,7 +30,7 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(unti
 # polarity. In a long run, counting a reversal when `|D|` exceeds 0.5 with the opposite sign, the times spent in one
 # polarity should be irregular, with a broad distribution of durations.
 
-run = Simulation(create_system(SYSTEM), dt=0.5).prepare().run(until=20000).trajectory_
+run = simulate(GeodynamoSystem(), until=20000)
 settled = run.times > 500
 times, Q, D = run.times[settled], run.values('dynamo.Q')[settled], run.values('dynamo.D')[settled]
 strong = np.abs(D) > 0.5

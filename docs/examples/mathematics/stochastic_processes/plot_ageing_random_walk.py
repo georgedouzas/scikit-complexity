@@ -16,9 +16,9 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.stochastic_processes import AgeingRandomWalkSystem
 
 SYSTEM = 'ageing_random_walk'
 
@@ -36,14 +36,12 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = (
-    Simulation(create_system(SYSTEM, n_walkers=6), dt=1, observers=[observer], random_state=0).prepare().run(until=299)
-)
-positions = states(simulation.trajectory_, 'x')
+trajectory = simulate(AgeingRandomWalkSystem(n_walkers=6), until=299, dt=1, observers=[observer], random_state=0)
+positions = states(trajectory, 'x')
 for walker in range(6):
     observer.recording_.send_columns(
         f'positions/walker_{walker}',
-        indexes=[rr.TimeColumn('sim_time', duration=simulation.trajectory_.times)],
+        indexes=[rr.TimeColumn('sim_time', duration=trajectory.times)],
         columns=rr.Scalars.columns(scalars=positions[:, walker]),
     )
 observer.recording_.flush()
@@ -57,12 +55,7 @@ observer.recording_.flush()
 
 fig, ax = plt.subplots(figsize=(6.5, 4.5))
 for nu in (0.5, 1.0, 2.0):
-    run = (
-        Simulation(create_system(SYSTEM, n_walkers=500, nu=nu), dt=1, random_state=1)
-        .prepare()
-        .run(until=1000)
-        .trajectory_
-    )
+    run = simulate(AgeingRandomWalkSystem(n_walkers=500, nu=nu), until=1000, dt=1, random_state=1)
     ups = states(run, 'ups').mean(axis=1)
     (line,) = ax.loglog(run.times[1:], ups[1:], label=f'nu = {nu}')
     ax.loglog(

@@ -16,9 +16,9 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.computer_science.neural_networks import HopfieldSystem
 
 SYSTEM = 'hopfield'
 N = 100
@@ -42,9 +42,14 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-system = create_system(SYSTEM, patterns=patterns, noise=0.3, random_state=0)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=4)
-frames = [spins(simulation.trajectory_, frame).reshape(10, 10) for frame in range(5)] + [patterns[0].reshape(10, 10)]
+trajectory = simulate(
+    HopfieldSystem(patterns=patterns, noise=0.3, random_state=0),
+    until=4,
+    dt=1,
+    observers=[observer],
+    random_state=0,
+)
+frames = [spins(trajectory, frame).reshape(10, 10) for frame in range(5)] + [patterns[0].reshape(10, 10)]
 tiles = [np.pad(frame, 1) for frame in frames]
 strip = np.block([tiles[:3], tiles[3:]])
 palette = np.array([[70, 70, 80], [68, 1, 84], [253, 231, 37]], dtype=np.uint8)
@@ -59,20 +64,18 @@ observer.recording_.flush()
 # neurons in ten flipped, to 1 within a sweep. Recall should stay near perfect while the number of patterns is well
 # below the capacity of about `0.14 n = 14`, and the final overlap should fall as the network is loaded beyond it.
 
-overlap = [spins(simulation.trajectory_, frame) @ patterns[0] / N for frame in range(5)]
+overlap = [spins(trajectory, frame) @ patterns[0] / N for frame in range(5)]
 loads = [2, 5, 8, 11, 14, 17, 20, 25]
 final = [
     np.mean(
         [
             spins(
-                Simulation(
-                    create_system(SYSTEM, n_neurons=N, n_patterns=p, noise=0.1, random_state=seed),
+                simulate(
+                    HopfieldSystem(n_neurons=N, n_patterns=p, noise=0.1, random_state=seed),
+                    until=4,
                     dt=1,
                     random_state=seed,
-                )
-                .prepare()
-                .run(until=4)
-                .trajectory_,
+                ),
                 -1,
             )
             @ np.random.default_rng(seed).choice([-1.0, 1.0], size=(p, N))[0]

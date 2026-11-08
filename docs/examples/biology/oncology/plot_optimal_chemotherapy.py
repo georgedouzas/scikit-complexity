@@ -7,34 +7,21 @@ the tumour shrinks to well below its untreated size.
 """
 
 # %%
-# The system is created by name from the catalog with the de Pillis-Radunskaya cells of the book and the weight 0.1 of
-# the squared infusion. The Pontryagin solver of its catalog entry solves the problem over 30 days. The default
-# blueprint shows the cells, the drug, and the infusion rate in one time series view.
+# The system is built from its class with the de Pillis-Radunskaya cells of the book and the weight 0.1 of the squared
+# infusion. Its tuned Pontryagin solver solves the problem over 30 days. The default blueprint shows
+# the cells, the drug, and the infusion rate in one time series view.
 
 import matplotlib.pyplot as plt
 
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
-from skcomplex.systems.biology.oncology import TumourImmuneChemotherapyElement
+from skcomplex.systems.biology.oncology import OptimalChemotherapySystem, TumourImmuneChemotherapyElement
 
 SYSTEM = 'optimal_chemotherapy'
 
-system = create_system(SYSTEM)
-entry = describe(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = (
-    Simulation(
-        system,
-        dt=0.25,
-        solver=entry.defaults['solver'],
-        observers=[observer],
-        observables=entry.observables_of(system),
-    )
-    .prepare()
-    .run(until=30)
-)
+trajectory = simulate(OptimalChemotherapySystem(), observers=[observer])
 
 # %%
 # Treated against untreated
@@ -43,13 +30,7 @@ simulation = (
 # first days, the tumour should end at less than half its untreated size, while the normal cells recover once the
 # infusion tapers off.
 
-untreated = (
-    Simulation(System(elements=[TumourImmuneChemotherapyElement('patient')]), dt=0.25)
-    .prepare()
-    .run(until=30)
-    .trajectory_
-)
-trajectory = simulation.trajectory_
+untreated = simulate(System(elements=[TumourImmuneChemotherapyElement('patient')]), dt=0.25, until=30)
 fig, (tumour, dose) = plt.subplots(1, 2, figsize=(10, 4))
 tumour.plot(untreated.times, untreated.values('patient.A'), label='untreated')
 tumour.plot(trajectory.times, trajectory.values('patient.A'), label='optimal infusion')

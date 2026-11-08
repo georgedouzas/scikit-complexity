@@ -8,36 +8,23 @@ run: an interpenetrating labyrinth of yellow and purple domains of equal area.
 """
 
 # %%
-# The system is created by name from the catalog on a periodic square of 64 sites with unit spacing, from noise of
+# The system is built from its class on a periodic square of 64 sites with unit spacing, from noise of
 # amplitude 0.05 around the critical composition 0. The catalog defaults integrate it with exponential time
 # differencing, and the default blueprint shows the order parameter as an image, one frame every 10 time units.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import SpectrumAnalysis
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.core.engine.solvers import ETDRK4Solver
+from skcomplex.core.analysis import spectrum
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.pattern_formation import CahnHilliardSystem
 
 SYSTEM = 'cahn_hilliard'
 
-system = create_system(SYSTEM)
+system = CahnHilliardSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = (
-    Simulation(
-        system,
-        dt=10.0,
-        solver=ETDRK4Solver(dt=0.25),
-        observers=[observer],
-        random_state=0,
-    )
-    .prepare()
-    .run(
-        until=1000,
-    )
-)
+trajectory = simulate(system, observers=[observer], random_state=0)
 
 # %%
 # Coarsening by diffusion
@@ -46,12 +33,12 @@ simulation = (
 # the bulk, the Lifshitz-Slyozov law, makes it grow as `t^(1/3)`, so it should follow a line of slope 1/3 on log-log
 # axes. The mean of the order parameter is conserved by the dynamics and should stay at its initial value.
 
-phi = simulation.trajectory_.lattice('mixture.phi')
-times = simulation.trajectory_.times
+phi = trajectory.lattice('mixture.phi')
+times = trajectory.times
 sizes = []
 for field in phi[1:]:
-    factor = SpectrumAnalysis('structure-factor').prepare(field - field.mean()).run()
-    sizes.append(2 * np.pi * factor.power_.sum() / (factor.wavenumbers_ * factor.power_).sum())
+    factor = spectrum(field - field.mean(), kind='structure-factor')
+    sizes.append(2 * np.pi * factor.power.sum() / (factor.wavenumbers * factor.power).sum())
 late = times[1:] >= 100
 slope = np.polyfit(np.log(times[1:][late]), np.log(np.array(sizes)[late]), 1)[0]
 

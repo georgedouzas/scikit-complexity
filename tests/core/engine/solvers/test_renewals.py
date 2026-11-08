@@ -11,12 +11,13 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import JumpLaw, RateLaw
 from skcomplex.core.components.laws.utils import bernoulli, draw, mean, normal
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RenewalSolver, RK4Solver, ScipyODESolver
+from skcomplex.core.engine.solvers._defaults import DEFAULT_SOLVERS
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.errors import SolverError
-from skcomplex.core.specs import ParameterSpec, RenewalRecordSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RenewalRecordSpec, StateSpec, StepSpec, VisualSpec
 from skcomplex.core.types import FormKind
 
 
@@ -144,7 +145,7 @@ class FollowingElement(Element):
 
 def _trajectory(system, until, dt, **settings):
     """Return the trajectory of a system run with a seed."""
-    return Simulation(system, dt=dt, random_state=0, **settings).prepare().run(until).trajectory_
+    return simulate(system, until=until, dt=dt, random_state=0, **settings)
 
 
 def _member_times(trajectory, label, member):
@@ -188,8 +189,11 @@ def test_renewal_stepper_reproduces_runs_with_one_seed():
 def test_renewal_stepper_counts_exponential_renewals():
     """Test that exponential waits of mean 1 give 1000 renewals by time 1000 within 2 standard errors over 100 runs."""
     problem = PassCompiler().prepare(System(elements=[CounterElement('c')])).run().problem_
+    step = StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1000.0)
     counts = [
-        (Simulation(problem, dt=1000, random_state=seed).prepare().run(1000).trajectory_.values('c.n')[-1])
+        float(
+            problem.states.read(RenewalSolver(random_state=seed, until=1000).prepare(problem).run(step).state_, 'c.n'),
+        )
         for seed in range(100)
     ]
     assert abs(np.mean(counts) - 1000) < 2 * np.std(counts) / np.sqrt(len(counts))
@@ -231,12 +235,13 @@ def test_renewal_stepper_streams_renewals_to_rerun(monkeypatch, tmp_path):
 
     monkeypatch.setattr(rr.RecordingStream, 'log', log)
     observer = RerunObserver('renewals', save_path=tmp_path / 'run.rrd')
-    Simulation(
+    simulate(
         System(elements=[GroupElement('c', element=CounterElement, size=5)]),
+        until=5,
         dt=1,
         observers=[observer],
         random_state=0,
-    ).prepare().run(5)
+    )
     assert logged.count(('ticks.renewals', 'Scalars')) == 6
     assert ('renewals/ticks', 'TextLog') in logged
 
@@ -301,6 +306,6 @@ def test_stepper_rejects_renewals_it_does_not_fire():
 
 def test_renewal_stepper_solves_the_renewal_form():
     """Test that the renewal stepper is the default solver of the renewal form."""
-    simulation = Simulation(System(elements=[CounterElement('c')]), random_state=0).prepare().run(1)
-    assert simulation.problem_.form == FormKind.RENEWAL
-    assert isinstance(simulation.stepper_, RenewalSolver)
+    trajectory = simulate(System(elements=[CounterElement('c')]), until=1, random_state=0)
+    assert trajectory.problem.form == FormKind.RENEWAL
+    assert DEFAULT_SOLVERS[FormKind.RENEWAL] is RenewalSolver

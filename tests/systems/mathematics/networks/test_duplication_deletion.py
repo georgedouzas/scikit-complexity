@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.systems.mathematics.networks import duplication_deletion
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.mathematics.networks import DuplicationDeletionSystem
 
 
 def test_duplication_deletion_settles_at_the_connectance_of_jensen():
@@ -13,8 +13,8 @@ def test_duplication_deletion_settles_at_the_connectance_of_jensen():
     8.84 of Jensen and that the size stays fixed.
     """
     n_nodes, inherit, parent, new = 100, 0.5, 0.5, 0.01
-    system = duplication_deletion(n_nodes, inherit=inherit, parent=parent, new=new)
-    trajectory = Simulation(system, random_state=0).prepare().run(until=4000).trajectory_
+    system = DuplicationDeletionSystem(n_nodes, inherit=inherit, parent=parent, new=new)
+    trajectory = simulate(system, until=4000, random_state=0)
     frames = range(2000, 4001, 10)
     connectance = [len(trajectory.network(frame).sources) / (n_nodes * (n_nodes - 1) / 2) for frame in frames]
     expected = (new * (n_nodes - 2) + parent) / (n_nodes - 1 + (new - inherit) * (n_nodes - 2))

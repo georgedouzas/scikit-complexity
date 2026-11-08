@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import ClassVar
 
 from ...specs import RequirementSpec
 from ..types import Target
@@ -10,9 +11,10 @@ from ._base import BaseLaw
 
 
 class BoundaryLaw(BaseLaw):
-    """Value a state takes after every solver step, such as a reflection at a wall or a wrap around a periodic box.
+    """Value a state takes after every solver step.
 
-    Boundaries leave the form of a system as is, so they combine with every other law in any time.
+    Examples are a reflection at a wall or a wrap around a periodic box. Boundaries leave the form of a system as is, so
+    they combine with every other law in any time.
 
     Args:
         target:
@@ -32,6 +34,8 @@ class BoundaryLaw(BaseLaw):
         0.25
     """
 
+    law_tag: ClassVar[str] = 'update'
+
     def __init__(self, target: Target, value: object, *, label: str = '') -> None:
         super().__init__(label)
         self.target = target
@@ -43,11 +47,20 @@ class BoundaryLaw(BaseLaw):
 
     @classmethod
     def _get_requirements(cls) -> RequirementSpec:
-        """Return what the law requires of a system: nothing, since it holds in any time."""
+        """Return what the law requires of a system: nothing.
+
+        It holds in any time.
+        """
         return RequirementSpec()
 
-    def _check(self) -> None:
-        """Raise an error for a value that is a NumPy array."""
+    def _prepare(self, context: str | None = None) -> None:
+        """Raise an error for a value that is a NumPy array.
+
+        Args:
+            context:
+                The path of the element or interaction that returns the law, or `None`.
+        """
+        super()._prepare(context)
         self._check_array('value')
 
     def _run(self, inputs: object) -> None:

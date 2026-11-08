@@ -7,8 +7,8 @@ stops in one of two stable states.
 """
 
 # %%
-# The system is created by name from the catalog with the negative circuit, and the observer saves every frame with the
-# default blueprint, whose primary view is the time series of the levels.
+# The system is built from its class with the negative circuit, and the observer saves every frame with the default
+# blueprint, whose primary view is the time series of the levels.
 
 import collections
 import itertools
@@ -16,22 +16,20 @@ import itertools
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.systems_biology import GeneralizedLogicalNetworkSystem
 
 SYSTEM = 'generalized_logical_network'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.25, observers=[observer], random_state=0).prepare().run(until=50)
+trajectory = simulate(GeneralizedLogicalNetworkSystem(), observers=[observer], random_state=0)
 
 # %%
 # The asynchronous state graph
 # ----------------------------
 # The transitions between consecutive frames should trace a cycle through the states of `x` and `y`.
 
-trajectory = simulation.trajectory_
 states = list(zip(trajectory.values('x.level').astype(int), trajectory.values('y.level').astype(int), strict=True))
 moves = collections.Counter((a, b) for a, b in itertools.pairwise(states) if a != b)
 fig, ax = plt.subplots(figsize=(6, 4.5))

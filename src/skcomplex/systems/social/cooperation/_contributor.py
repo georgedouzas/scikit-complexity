@@ -1,4 +1,7 @@
-"""Player of the spatial public goods game, a cooperator at 1 and a defector at 0, with its payoff."""
+"""Player of the spatial public goods game.
+
+It is a cooperator at 1 and a defector at 0, with its payoff.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,11 +17,11 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class ContributorElement(Element):
-    """Player of the spatial public goods game, a cooperator at 1 and a defector at 0, with its payoff.
+    """Player of the spatial public goods game, with its payoff.
 
-    The play is a `PublicGoodsInteraction` of the lattice or a `HyperedgeGoodsInteraction` of a hypergraph, and the
-    imitation an `ImitationInteraction` that reads the payoffs of the same step, which `public_goods_game` and
-    `hypergraph_public_goods` add.
+    It is a cooperator at 1 and a defector at 0. The play is a `PublicGoodsInteraction` of the lattice or a
+    `HyperedgeGoodsInteraction` of a hypergraph, and the imitation an `ImitationInteraction` that reads the payoffs of
+    the same step, which `PublicGoodsGameSystem` and `HypergraphPublicGoodsSystem` add.
 
     Args:
         label:

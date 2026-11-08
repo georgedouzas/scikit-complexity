@@ -1,4 +1,7 @@
-"""Define word elements, words of modules rewritten in parallel by string productions."""
+"""Define word elements.
+
+A word element holds a word of modules rewritten in parallel by string productions.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -8,14 +11,16 @@ from typing import Annotated
 
 from ...errors import RewritingError
 from ...specs import GeometrySpec, Letters, StateSpec, VisualSpec
+from ..spaces import BaseSpace
 from ._element import Element
 
 
 class WordElement(Element):
-    """Element that holds a word of modules rewritten in parallel by string productions.
+    """Element that holds a word of modules rewritten in parallel by productions.
 
-    A subclass returns the `ProductionLaw`s of the word from `_get_laws`. Its states are the count of every symbol
-    whose name is a word of letters, digits, and underscores, and the length `size` of the word.
+    The productions are string productions. A subclass returns the `ProductionLaw`s of the word from `_get_laws`. Its
+    states are the count of every symbol whose name is a word of letters, digits, and underscores, and the length `size`
+    of the word.
 
     Args:
         label:
@@ -73,19 +78,20 @@ class WordElement(Element):
         self.max_size = max_size
         self.bounds = bounds
 
-    def _check(self) -> None:
-        """Raise an error for an invalid geometry or a maximum size that is not a positive integer."""
-        if self.geometry is not None:
-            self.geometry._validated()
-        if isinstance(self.max_size, bool) or not isinstance(self.max_size, int) or self.max_size < 1:
-            error_msg = f'The maximum size of {self.label} must be a positive integer, but it is {self.max_size!r}.'
-            raise RewritingError(error_msg)
-
-    def _prepare(self, context: object = None) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Set `default_visual_`, the geometry of the word.
+
+        It first raises an error for an invalid geometry or a maximum size that is not positive. The maximum size must
+        be a positive integer.
 
         Args:
             context:
                 The space the element inherits from its system, which the element does not read.
         """
+        super()._prepare(context)
+        if self.geometry is not None:
+            self.geometry._check()
+        if isinstance(self.max_size, bool) or not isinstance(self.max_size, int) or self.max_size < 1:
+            error_msg = f'The maximum size of {self.label} must be a positive integer, but it is {self.max_size!r}.'
+            raise RewritingError(error_msg)
         self.default_visual_ = VisualSpec('geometry')

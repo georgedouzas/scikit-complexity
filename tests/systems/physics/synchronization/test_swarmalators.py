@@ -2,18 +2,13 @@
 
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.core.engine.solvers import RK4Solver
-from skcomplex.systems.physics.synchronization import (
-    swarmalators,
-)
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.physics.synchronization import SwarmalatorsSystem
 
 
 def _swarm_order(J, K):
     """Return the order parameters `S+`, `S-`, and the phase coherence of swarmalators at the end of a run."""
-    trajectory = (
-        Simulation(swarmalators(60, J=J, K=K), dt=1.0, solver=RK4Solver(dt=0.1)).prepare().run(until=60).trajectory_
-    )
+    trajectory = simulate(SwarmalatorsSystem(60, J=J, K=K), until=60)
     positions = np.asarray(trajectory.values('units.x'))[-1]
     phases = np.asarray(trajectory.values('units.theta'))[-1]
     centred = positions - positions.mean(axis=0)

@@ -1,4 +1,7 @@
-"""Gauge theory of agents on a network: phases on nodes, connections on edges, and frustrated loops."""
+"""Gauge theory of agents on a network.
+
+It has phases on nodes, connections on edges, and frustrated loops.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,17 +20,17 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import CellComplexSpace, NetworkSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, RunSettings, System
 from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 
 class TransportedCouplingInteraction(CouplingInteraction):
-    """Relaxation of agent phases towards the phases of their neighbours, `theta_i' += K sin(theta_j - theta_i - A_ij)`.
+    """Relaxation of agent phases towards the phases of their neighbours.
 
-    The connection `A_ij` lives on the edge of the network from `i` to `j`, and `A_ji = -A_ij`.
+    It adds `theta_i' += K sin(theta_j - theta_i - A_ij)`. The connection `A_ij` lives on the edge of the network from
+    `i` to `j`, and `A_ji = -A_ij`.
 
     Args:
         label:
@@ -61,7 +64,10 @@ class TransportedCouplingInteraction(CouplingInteraction):
         self.K = K
 
     def _get_edge_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rates of both ends of an edge, with the connection read along and against its direction."""
+        """Return the rates of both ends of an edge.
+
+        The connection is read along and against its direction.
+        """
         source, target = namespace.source, namespace.target
         flow = namespace.K * sin(target.theta - source.theta - namespace.edge.A)
         return [RateLaw(source.theta, flow), RateLaw(target.theta, -flow)]
@@ -136,14 +142,20 @@ class ConnectionElement(Element):
 
 
 def _differences(edges: scipy.sparse.csr_array, values: Mapping[str, object]) -> Array:
-    """Return the differences of the phases along the edges minus the connection, wrapped into one period around 0."""
+    """Return the differences of the phases along the edges minus the connection.
+
+    They are wrapped into one period around 0.
+    """
     phases = np.ravel(np.asarray(values['agents.theta'], dtype=float))
     connection = np.ravel(np.asarray(values['links.A'], dtype=float))
     return np.angle(np.exp(1j * (edges @ phases - connection)))
 
 
 def _energy(edges: scipy.sparse.csr_array, t: float, values: Mapping[str, object]) -> float:
-    """Return the sum over the edges of one minus the cosine of the transported difference."""
+    """Return the sum over the edges of one minus the cosine of the difference.
+
+    The difference is the transported one.
+    """
     del t
     return float((1.0 - np.cos(_differences(edges, values))).sum())
 
@@ -154,13 +166,19 @@ def _twist(
     t: float,
     values: Mapping[str, object],
 ) -> float:
-    """Return the largest absolute oriented sum of the transported differences around a face."""
+    """Return the largest absolute oriented sum of the transported differences.
+
+    The sums run around the faces.
+    """
     del t
     return float(np.abs(faces @ _differences(edges, values)).max(initial=0.0))
 
 
 def _agent_observables(system: System) -> list[ObservableSpec]:
-    """Return the energy of the transported differences and their twist around the faces."""
+    """Return the energy of the transported differences and their twist.
+
+    The twist is around the faces.
+    """
     space = system.elements[0].space.prepare()
     return [
         ObservableSpec('energy', function=partial(_energy, space.incidences_[0])),
@@ -168,28 +186,13 @@ def _agent_observables(system: System) -> list[ObservableSpec]:
     ]
 
 
-@register_system(
-    field='social/opinion_dynamics',
-    tags=('gauge', 'opinions', 'frustration', 'network', 'cell complex'),
-    references=('Mihaylov and Cacciatori 2025',),
-    defaults={'until': 100.0, 'dt': 0.5},
-    observables=_agent_observables,
-)
-def gauge_network_agents(
-    n_agents: int = 12,
-    *,
-    flux: float = 0.0,
-    K: float = 1.0,
-    spread: float = 1.0,
-    connections: Sequence[float] | None = None,
-    graph: nx.Graph | None = None,
-    seed: int = 0,
-) -> System:
-    """Return agent phases on the nodes of a network that relax towards the transported phases of their neighbours.
+class GaugeNetworkAgentsSystem(BaseSystem):
+    """Agent phases on the nodes of a network.
 
-    Agent `i` follows `theta_i' = K sum_j sin(theta_j - theta_i - A_ij)` over its neighbours. A connection whose
-    oriented sum around a loop is not a multiple of `2 pi` frustrates the loop: the transported differences cannot all
-    vanish, so the agents keep a residual energy `sum (1 - cos(theta_j - theta_i - A_ij))` and a twist around the loop.
+    They relax towards the transported phases of their neighbours. Agent `i` follows
+    `theta_i' = K sum_j sin(theta_j - theta_i - A_ij)` over its neighbours. A connection whose oriented sum around a
+    loop is not a multiple of `2 pi` frustrates the loop: the transported differences cannot all vanish, so the agents
+    keep a residual energy `sum (1 - cos(theta_j - theta_i - A_ij))` and a twist around the loop.
 
     Args:
         n_agents:
@@ -214,40 +217,80 @@ def gauge_network_agents(
         seed:
             The seed of the initial phases.
 
-    Returns:
-        system:
-            The system.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValidationError:
             A flux is given on a network without faces.
 
     Examples:
-        >>> from skcomplex.systems.social.opinion_dynamics import gauge_network_agents
-        >>> [element.label for element in gauge_network_agents(4).elements]
+        >>> from skcomplex.systems.social.opinion_dynamics import GaugeNetworkAgentsSystem
+        >>> [element.label for element in GaugeNetworkAgentsSystem(4).prepare().system_.elements]
         ['agents', 'links']
     """
-    network = nx.cycle_graph(n_agents) if graph is None else graph
-    space = CellComplexSpace(NetworkSpace(network)).prepare()
-    faces = space.incidences_[1]
-    if flux and not faces.shape[0] and connections is None:
-        error_msg = f'A flux of {flux} needs a loop, but the network has no faces. Give a network with a cycle.'
-        raise ValidationError(error_msg)
-    if connections is not None:
-        connection = np.asarray(connections, dtype=float)
-    elif flux:
-        first = faces[[0], :].toarray().ravel()
-        connection = flux * first / np.abs(first).sum()
-    else:
-        connection = np.zeros(faces.shape[1])
-    phases = np.random.default_rng(seed).uniform(-spread, spread, space.size_)
-    agents = GroupElement('agents', element=PhaseAgentElement, space=space, on='sites', values={'theta': phases})
-    links = GroupElement(
-        'links',
-        element=ConnectionElement,
-        space=space,
-        on='edges',
-        values={'A': connection},
-    )
-    coupling = TransportedCouplingInteraction('coupling', target='agents', links='links', K=K)
-    return System(elements=[agents, links], interactions=[coupling])
+
+    field = 'social/opinion_dynamics'
+    topics = ('gauge', 'opinions', 'frustration', 'network', 'cell complex')
+    references = ('Mihaylov and Cacciatori 2025',)
+    until = 100.0
+    dt = 0.5
+
+    def __init__(
+        self,
+        n_agents: int = 12,
+        *,
+        flux: float = 0.0,
+        K: float = 1.0,
+        spread: float = 1.0,
+        connections: Sequence[float] | None = None,
+        graph: nx.Graph | None = None,
+        seed: int = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_agents = n_agents
+        self.flux = flux
+        self.K = K
+        self.spread = spread
+        self.connections = connections
+        self.graph = graph
+        self.seed = seed
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        network = nx.cycle_graph(self.n_agents) if self.graph is None else self.graph
+        space = CellComplexSpace(NetworkSpace(network)).prepare()
+        faces = space.incidences_[1]
+        if self.flux and not faces.shape[0] and self.connections is None:
+            error_msg = (
+                f'A flux of {self.flux} needs a loop, but the network has no faces. Give a network with a cycle.'
+            )
+            raise ValidationError(error_msg)
+        if self.connections is not None:
+            connection = np.asarray(self.connections, dtype=float)
+        elif self.flux:
+            first = faces[[0], :].toarray().ravel()
+            connection = self.flux * first / np.abs(first).sum()
+        else:
+            connection = np.zeros(faces.shape[1])
+        phases = np.random.default_rng(self.seed).uniform(-self.spread, self.spread, space.size_)
+        agents = GroupElement('agents', element=PhaseAgentElement, space=space, on='sites', values={'theta': phases})
+        links = GroupElement(
+            'links',
+            element=ConnectionElement,
+            space=space,
+            on='edges',
+            values={'A': connection},
+        )
+        coupling = TransportedCouplingInteraction('coupling', target='agents', links='links', K=self.K)
+        return System(self.label, elements=[agents, links], interactions=[coupling])
+
+    def get_run_settings(self) -> RunSettings:
+        """Return the tuned run settings.
+
+        The observables of the parts are built from the model parameters.
+        """
+        settings = super().get_run_settings()
+        settings['observables'] = _agent_observables(self._pass_parameters())
+        return settings

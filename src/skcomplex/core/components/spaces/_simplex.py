@@ -1,4 +1,7 @@
-"""Define simplex spaces, phase spaces whose class axes are the free frequencies of a simplex."""
+"""Define simplex spaces.
+
+They are phase spaces whose class axes are the free frequencies of a simplex.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,14 +15,14 @@ from ._phase import PhaseSpace
 
 
 class SimplexSpace(PhaseSpace):
-    """Phase space whose class axes are the free frequencies of a simplex, whose frequencies sum to at most one.
+    """Phase space whose class axes are the free frequencies of a simplex.
 
-    The class axes run over `[0, 1]` with the same number of cells `n`, and the last frequency is one minus the sum of
-    the others, so two class axes hold the 2-simplex of three frequencies. The cells whose corner farthest from the
-    origin lies inside the simplex are whole, the cells cut by the slanted face are partial, and the cells beyond it
-    are empty. Every cell has the fraction of its volume inside the simplex, and every face between two cells the
-    fraction of its area inside. Finite-volume fluxes pass only through the open part of every face, and reductions over
-    the class axes weight every cell by its volume.
+    The frequencies sum to at most one. The class axes run over `[0, 1]` with the same number of cells `n`, and the last
+    frequency is one minus the sum of the others, so two class axes hold the 2-simplex of three frequencies. The cells
+    whose corner farthest from the origin lies inside the simplex are whole, the cells cut by the slanted face are
+    partial, and the cells beyond it are empty. Every cell has the fraction of its volume inside the simplex, and every
+    face between two cells the fraction of its area inside. Finite-volume fluxes pass only through the open part of
+    every face, and reductions over the class axes weight every cell by its volume.
 
     Args:
         position:
@@ -57,9 +60,13 @@ class SimplexSpace(PhaseSpace):
         [0.0, 0.5, 1.0]
     """
 
-    def _check(self) -> None:
-        """Raise an error for class axes that are not intervals on `[0, 1]` with the same number of cells."""
-        super()._check()
+    def _prepare(self, context: None = None) -> None:
+        """Set the sites of the phase space and the cell volumes and face apertures.
+
+        It first raises an error for class axes that are not intervals on `[0, 1]` of equal cells. They must have the
+        same number of cells.
+        """
+        super()._prepare(context)
         sizes = {int(axis.size) for axis in self.axes}
         unit = all(axis.low == 0.0 and axis.high == 1.0 and not axis.periodic for axis in self.axes)
         if len(sizes) != 1 or not unit:
@@ -68,10 +75,6 @@ class SimplexSpace(PhaseSpace):
                 f"`AxisSpec('x', 30, 0.0, 1.0)`, but they are {list(self.axes)!r}."
             )
             raise ValidationError(error_msg)
-
-    def _prepare(self, context: None = None) -> None:
-        """Set the sites of the phase space and the volumes of the cells and the apertures of the faces."""
-        super()._prepare(context)
         dimensions = len(self.axes)
         cells = int(self.axes[0].size)
         positions = (1,) * len(self.position_axes_)
@@ -89,7 +92,10 @@ class SimplexSpace(PhaseSpace):
 
     @staticmethod
     def _fraction(room: npt.NDArray[np.int_], dimensions: int) -> npt.NDArray[np.float64]:
-        """Return the fraction of a unit cube of a dimension whose coordinates sum to at most the room of every cell."""
+        """Return the fraction of a unit cube whose coordinates sum to at most the room.
+
+        The cube has a dimension, and the room is that of every cell.
+        """
         if dimensions == 0:
             return (room > 0).astype(float)
         return np.asarray(irwinhall(dimensions).cdf(room), dtype=float)

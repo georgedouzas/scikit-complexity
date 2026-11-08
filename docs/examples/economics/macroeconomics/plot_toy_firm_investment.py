@@ -17,11 +17,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.analysis import DistributionAnalysis, FitAnalysis
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.analysis import distribution, fit_law
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.specs import ObservableSpec
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.economics.macroeconomics import ToyFirmInvestmentSystem
 
 SYSTEM = 'toy_firm_investment'
 N_FIRMS, STEPS = 1000, 250
@@ -32,9 +32,9 @@ def top_share(capital):
     return float(np.sort(capital)[-len(capital) // 100 :].sum() / capital.sum())
 
 
-system = create_system(SYSTEM, n_firms=N_FIRMS, random_state=0)
+system = ToyFirmInvestmentSystem(n_firms=N_FIRMS, random_state=0)
 top = ObservableSpec('top_share', group='firms', variable='K', reduce=top_share)
-observables = [*describe(SYSTEM).observables_of(system), top]
+observables = [*system.get_run_settings()['observables'], top]
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
     rrb.TimeSeriesView(
@@ -47,9 +47,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = (
-    Simulation(system, observers=[observer], random_state=0, observables=observables).prepare().run(until=STEPS)
-)
+trajectory = simulate(system, until=STEPS, observables=observables, observers=[observer], random_state=0)
 
 # %%
 # Firm sizes and concentration
@@ -59,21 +57,20 @@ simulation = (
 # capital should have a power-law tail, which a maximum-likelihood fit locates, and the share of the capital held by
 # the largest 1 percent of firms should keep growing while aggregate production rises.
 
-trajectory = simulation.trajectory_
 capital = trajectory.agents('firms', STEPS).values['K']
-fit = FitAnalysis().prepare(capital).run()
-ccdf = DistributionAnalysis('ccdf').prepare(capital).run()
-values, probabilities = ccdf.support_, ccdf.survival_
-tail = values >= fit.minimum_
+fit = fit_law(capital)
+ccdf = distribution(capital, kind='ccdf')
+values, probabilities = ccdf.support, ccdf.survival
+tail = values >= fit.minimum
 anchor = probabilities[tail][0]
 fig, (sizes, concentration) = plt.subplots(1, 2, figsize=(10, 4))
 sizes.loglog(values, probabilities, label='simulation')
 sizes.loglog(
     values[tail],
-    anchor * (values[tail] / fit.minimum_) ** (1 - fit.exponent_),
+    anchor * (values[tail] / fit.minimum) ** (1 - fit.exponent),
     'k--',
     lw=0.8,
-    label=f'power law, alpha = {fit.exponent_:.2f}',
+    label=f'power law, alpha = {fit.exponent:.2f}',
 )
 sizes.set_xlabel('capital K')
 sizes.set_ylabel('P(K > k)')

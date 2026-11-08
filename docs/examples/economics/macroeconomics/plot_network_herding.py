@@ -13,13 +13,14 @@ out-degrees of the network, so direct interaction makes the aggregate persistent
 import matplotlib.pyplot as plt
 import numpy as np
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation
+from skcomplex.systems.economics.macroeconomics import NetworkHerdingSystem
 
 SYSTEM = 'network_herding'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare().run(until=50)
+trajectory = simulate(NetworkHerdingSystem(), observers=[observer])
 
 # %%
 # Persistence and herding
@@ -30,14 +31,10 @@ simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare(
 strengths = [0.0, 0.2, 0.4, 0.6, 0.8]
 correlations = []
 for herding in strengths:
-    mean = (
-        create_simulation(SYSTEM, sigma=1.0, herding=herding, density=0.3)
-        .prepare()
-        .run(until=2000)
-        .trajectory_.values('mean_choice')[100:]
-    )
+    mean = simulate(NetworkHerdingSystem(sigma=1.0, herding=herding, density=0.3), until=2000).values('mean_choice')[
+        100:
+    ]
     correlations.append(np.corrcoef(mean[:-1], mean[1:])[0, 1])
-trajectory = simulation.trajectory_
 fig, (paths, persistence) = plt.subplots(1, 2, figsize=(10, 4))
 paths.plot(trajectory.times, trajectory.values('agents.c')[:, :10], lw=0.8)
 paths.plot(trajectory.times, trajectory.values('mean_choice'), 'k', lw=2, label='mean')

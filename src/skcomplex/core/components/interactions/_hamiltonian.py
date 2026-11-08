@@ -1,4 +1,7 @@
-"""Define Hamiltonian interactions, Hamilton's equations of canonical coordinates and momenta."""
+"""Define Hamiltonian interactions.
+
+They are Hamilton's equations of canonical coordinates and momenta.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,19 +18,20 @@ from ...specs import RoleSpec
 from ...types import ElementKind
 from ..base import BasePart
 from ..laws import BaseLaw, RateLaw
+from ..spaces import BaseSpace
 from ..types import Target
 from ._interaction import Interaction
 
 
 class HamiltonianInteraction(Interaction):
-    """Hamilton's equations `q' = dH/dp` and `p' = -dH/dq` of the canonical pairs `(q, p)` of a Hamiltonian `H(ns)`.
+    """Hamilton's equations `q' = dH/dp` and `p' = -dH/dq` of a Hamiltonian `H(ns)`.
 
-    The coordinates and the momenta are states of order 1, which may be angles, of every role that binds one element or
-    group, `target` by default, and the coordinates pair with the momenta in order. Every component of a vector state
-    is a coordinate or a momentum. The interaction returns one rate law per coordinate and per momentum, and the rates
-    of one state add, so the Hamiltonians of separate interactions sum: a coupling between two oscillators is an
-    interaction of its own whose Hamiltonian holds only the coupling energy. Dissipation or forcing is a rate
-    interaction on the momenta.
+    They hold for the canonical pairs `(q, p)`. The coordinates and the momenta are states of order 1, which may be
+    angles, of every role that binds one element or group, `target` by default, and the coordinates pair with the
+    momenta in order. Every component of a vector state is a coordinate or a momentum. The interaction returns one rate
+    law per coordinate and per momentum, and the rates of one state add, so the Hamiltonians of separate interactions
+    sum: a coupling between two oscillators is an interaction of its own whose Hamiltonian holds only the coupling
+    energy. Dissipation or forcing is a rate interaction on the momenta.
 
     A Hamiltonian function takes the namespace of the interaction, with the namespaces of the roles, the time `t`, and
     the symbols of the parameters a subclass declares.
@@ -59,8 +63,8 @@ class HamiltonianInteraction(Interaction):
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.interactions import HamiltonianInteraction
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> class OscillatorElement(Element):
         ...     def __init__(self, label, q: Annotated[float, StateSpec()] = 1.0, p: Annotated[float, StateSpec()] = 0):
         ...         super().__init__(label)
@@ -69,7 +73,7 @@ class HamiltonianInteraction(Interaction):
         >>> energy = lambda s: (s.target.p**2 + s.target.q**2) / 2
         >>> spring = HamiltonianInteraction('spring', target='mass', hamiltonian=energy)
         >>> system = System(elements=[OscillatorElement('mass')], interactions=[spring])
-        >>> trajectory = Simulation(system, dt=0.01).prepare().run(until=3.14159).trajectory_
+        >>> trajectory = simulate(system, until=3.14159, dt=0.01)
         >>> round(float(trajectory.values('mass.q')[-1]), 3)
         -1.0
     """
@@ -95,15 +99,19 @@ class HamiltonianInteraction(Interaction):
         """Return the names of the states of one side of the canonical pairs."""
         return (names,) if isinstance(names, str) else tuple(names)
 
-    def _check(self) -> None:
-        """Raise an error for a state that is not a name, an unpaired state, or a Hamiltonian that is not callable.
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Raise an error for a state not a name, an unpaired state, or a bad Hamiltonian.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The type declares states, a state is not a name, the coordinates and the momenta differ in count, or
                 the Hamiltonian is not callable.
         """
-        super()._check()
+        super()._prepare(context)
         for side in ('coordinates', 'momenta'):
             names = self._get_names(getattr(self, side))
             if not names or not all(isinstance(name, str) and name.isidentifier() for name in names):
@@ -122,14 +130,20 @@ class HamiltonianInteraction(Interaction):
             raise ValidationError(error_msg)
 
     def _get_hamiltonian(self, namespace: SimpleNamespace) -> object:
-        """Return the Hamiltonian, the hook a subclass overrides to derive it from its parameters."""
+        """Return the Hamiltonian.
+
+        This is the hook a subclass overrides to derive it from its parameters.
+        """
         if self.hamiltonian is None:
             error_msg = f'{type(self).__name__} {self.label!r} has no Hamiltonian. Give a function of the namespace.'
             raise ValidationError(error_msg)
         return self.hamiltonian(namespace)
 
     def _get_members(self, namespace: SimpleNamespace) -> list[SimpleNamespace]:
-        """Return the namespaces of the members whose states are canonical pairs, those of every role of one path."""
+        """Return the namespaces of the members whose states are canonical pairs.
+
+        These are the members of every role of one path.
+        """
         return [
             getattr(namespace, name)
             for name, spec in self._get_specs().items()
@@ -149,7 +163,10 @@ class HamiltonianInteraction(Interaction):
         return state
 
     def _get_pairs(self, namespace: SimpleNamespace) -> list[tuple[Target, Target]]:
-        """Return the canonical pairs of every member, after checking that each coordinate matches its momentum."""
+        """Return the canonical pairs of every member.
+
+        It checks that each coordinate matches its momentum.
+        """
         pairs = []
         names = list(zip(self._get_names(self.coordinates), self._get_names(self.momenta), strict=True))
         for member in self._get_members(namespace):
@@ -169,7 +186,10 @@ class HamiltonianInteraction(Interaction):
         return list(state) if isinstance(state, FreeModuleElement) else [state]
 
     def _get_derivative(self, hamiltonian: Expression, state: Target) -> Target:
-        """Return the derivative of the Hamiltonian with respect to a state, every component of a vector state."""
+        """Return the derivative of the Hamiltonian with respect to a state.
+
+        For a vector state, it returns that of every component.
+        """
         if isinstance(state, FreeModuleElement):
             return vector(SR, [hamiltonian.diff(component) for component in state])
         return hamiltonian.diff(state)

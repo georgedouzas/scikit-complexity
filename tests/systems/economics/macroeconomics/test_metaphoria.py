@@ -3,16 +3,15 @@
 import numpy as np
 import pytest
 
-from skcomplex.systems import describe
-from skcomplex.systems.economics.macroeconomics import metaphoria
+from skcomplex.systems.economics.macroeconomics import MetaphoriaSystem
 
 from ..conftest import _run_observed
 
 
 def _metaphoria(until, invariants=None, **arguments):
     """Return the trajectory of Metaphoria with its standard observables."""
-    system = metaphoria(100, random_state=0, **arguments)
-    return _run_observed(system, until, describe('metaphoria').observables_of(system), invariants)
+    system = MetaphoriaSystem(100, random_state=0, **arguments)
+    return _run_observed(system.prepare().system_, until, system.get_run_settings()['observables'], invariants)
 
 
 def test_metaphoria_hunter_gatherers_thrive_where_money_dies_out():
@@ -40,4 +39,4 @@ def test_metaphoria_monetary_money_is_stock_flow_consistent():
 def test_metaphoria_rejects_unknown_mode():
     """An unknown mode raises an error."""
     with pytest.raises(ValueError, match='mode'):
-        metaphoria(mode='barter')
+        MetaphoriaSystem(mode='barter').prepare()

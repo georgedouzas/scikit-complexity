@@ -1,4 +1,7 @@
-"""Select the examples a documentation build runs, mark stale ones, and check the thumbnails it made."""
+"""Select the examples a documentation build runs.
+
+It also marks stale ones and checks the thumbnails the build made.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -119,7 +122,9 @@ class GalleryBuild:
         return ScreenshotCache(self.gallery / '_cache')
 
     def selected(self) -> list[Example]:
-        """Return the examples the build runs: the sample, or all of them.
+        """Return the examples the build runs.
+
+        They are the sample, or all of them.
 
         Returns:
             examples:
@@ -138,7 +143,9 @@ class GalleryBuild:
         return f'/({"|".join(names)})$' if names else NOTHING
 
     def ignore_pattern(self) -> str:
-        """Return the `mkdocs-gallery` pattern of the scripts to leave out, so a sample build renders only its pages.
+        """Return the `mkdocs-gallery` pattern of the scripts to leave out.
+
+        A sample build thus renders only its pages.
 
         Returns:
             pattern:
@@ -173,7 +180,9 @@ class GalleryBuild:
         return self.generated_dir(example) / 'images' / 'thumb' / f'mkd_glr_{example.path.stem}_thumb.png'
 
     def screenshot(self, example: Example) -> Path:
-        """Return the screenshot of the primary view of an example, the first image of its page.
+        """Return the screenshot of the primary view of an example.
+
+        It is the first image of its page.
 
         Args:
             example:
@@ -186,7 +195,9 @@ class GalleryBuild:
         return self.generated_dir(example) / 'images' / f'mkd_glr_{example.path.stem}_001.png'
 
     def stamp(self, example: Example) -> Path:
-        """Return the file that holds the cache key of the screenshots on an example's gallery page.
+        """Return the file that holds the cache key of the screenshots of an example page.
+
+        The page is the example's gallery page.
 
         Args:
             example:
@@ -199,7 +210,9 @@ class GalleryBuild:
         return self.generated_dir(example) / f'{example.path.name}.key'
 
     def checksum(self, example: Example) -> Path:
-        """Return the checksum file `mkdocs-gallery` writes after running an example, which makes later builds skip it.
+        """Return the checksum file `mkdocs-gallery` writes after running an example.
+
+        The file makes later builds skip it.
 
         Args:
             example:
@@ -212,10 +225,10 @@ class GalleryBuild:
         return self.generated_dir(example) / f'{example.path.name}.md5'
 
     def forget(self, examples: list[Example]) -> None:
-        """Remove the checksum files of examples, so the next build runs them again.
+        """Remove the checksum files of examples.
 
-        `mkdocs-gallery` writes the checksum even when an example fails, so a later build would skip the unchanged
-        script and keep its error page.
+        The next build then runs them again. `mkdocs-gallery` writes the checksum even when an example fails, so a later
+        build would skip the unchanged script and keep its error page.
 
         Args:
             examples:
@@ -225,11 +238,12 @@ class GalleryBuild:
             self.checksum(example).unlink(missing_ok=True)
 
     def mark_stale(self) -> list[Example]:
-        """Make `mkdocs-gallery` run again the selected examples whose page does not show the current screenshots.
+        """Make `mkdocs-gallery` run again the selected examples with stale screenshots.
 
-        `mkdocs-gallery` skips a script whose source has not changed since its last run. A change of the system's code,
-        of Rerun, of the backend, or of the capture settings changes the cache key without changing the script, so the
-        checksum file of an example is removed when its screenshots are not cached or its page holds another key.
+        They are those whose page does not show the current screenshots. `mkdocs-gallery` skips a script whose source
+        has not changed since its last run. A change of the system's code, of Rerun, of the backend, or of the capture
+        settings changes the cache key without changing the script, so the checksum file of an example is removed when
+        its screenshots are not cached or its page holds another key.
 
         Returns:
             examples:
@@ -282,7 +296,9 @@ class GalleryBuild:
 
 
 def build_from_environment(docs: Path) -> GalleryBuild:
-    """Return the gallery build of a documentation folder, as the environment selects it.
+    """Return the gallery build of a documentation folder.
+
+    The environment selects it.
 
     Args:
         docs:

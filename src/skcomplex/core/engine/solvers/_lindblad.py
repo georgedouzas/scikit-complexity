@@ -1,4 +1,7 @@
-"""Solver of the Lindblad master equation with QuTiP's `MESolver`, and of pure closed systems with `SESolver`."""
+"""Solver of the Lindblad master equation with QuTiP's `MESolver`.
+
+Pure closed systems are solved with `SESolver`.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,10 +15,11 @@ from ._operator import OperatorSolver
 
 
 class LindbladSolver(OperatorSolver):
-    """Solver of the Lindblad master equation with QuTiP's `MESolver`, and of pure closed systems with `SESolver`.
+    """Solver of the Lindblad master equation with QuTiP's `MESolver`.
 
-    It is the default solver of the operator form. A system without dissipators that starts in a pure state follows the
-    linear evolution `dx/dt = -i H x`, which is the master equation without dissipators.
+    Pure closed systems are solved with `SESolver`. It is the default solver of the operator form. A system without
+    dissipators that starts in a pure state follows the linear evolution `dx/dt = -i H x`, which is the master equation
+    without dissipators.
 
     Args:
         atol:
@@ -36,7 +40,7 @@ class LindbladSolver(OperatorSolver):
         >>> from skcomplex.core.components.laws.utils import local_operator
         >>> from skcomplex.core.specs import HilbertSpec, ObservableSpec, StateSpec
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.solvers import LindbladSolver
         >>> operators = {'x': (np.array([[0, 1], [1, 0]]), True), 'z': (np.diag([1, -1]), True)}
         >>> operators['minus'] = (np.array([[0, 0], [1, 0]]), False)
@@ -51,17 +55,16 @@ class LindbladSolver(OperatorSolver):
         ...         return [DissipatorLaw(local_operator(s.psi, SR.symbol('minus')), 0.5)]
         >>> z = [ObservableSpec('z', element='q', variable='z')]
         >>> system = System(elements=[TwoLevelElement('q')])
-        >>> from skcomplex.core.engine.compile import OperatorCompiler
-        >>> compiler = OperatorCompiler()
-        >>> simulation = Simulation(system, compiler=compiler, solver=LindbladSolver(), dt=1.0, observables=z)
-        >>> simulation = simulation.prepare()
-        >>> values = simulation.run(until=2.0).trajectory_.values('q.z')
+        >>> values = simulate(system, until=2.0, solver=LindbladSolver(), dt=1.0, observables=z).values('q.z')
         >>> bool(abs((1 + values[-1]) / 2 - np.exp(-1.0)) < 1e-6)
         True
     """
 
     def _create(self, p: Array) -> solver_base.Solver:
-        """Return QuTiP's master equation solver, or its Schrödinger solver for a pure closed problem."""
+        """Return QuTiP's master equation solver.
+
+        A pure closed problem gets its Schrödinger solver.
+        """
         problem = self.operator_
         generator = self._operator(problem.generator, p)
         if problem.pure:

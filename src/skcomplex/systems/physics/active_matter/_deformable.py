@@ -1,4 +1,7 @@
-"""Deformable active particles: self-propelled particles whose shape and velocity drive each other."""
+"""Deformable active particles.
+
+The shape and velocity of self-propelled particles drive each other.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,15 +17,16 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from ..common.particles import POINTS
 
 
 class DeformableParticleElement(Element):
-    """Deformable self-propelled particle, whose velocity and traceless deformation tensor drive each other.
+    """Deformable self-propelled particle.
+
+    Its velocity and traceless deformation tensor drive each other.
 
     The particle moves with its velocity `v`, which follows `v' = gamma v - |v|² v - a S v`, and its deformation, the
     traceless symmetric tensor `S`, follows `S' = -kappa S + b (v v - |v|² I / 2)`, the model of Ohta and Ohkuma. The
@@ -65,6 +69,11 @@ class DeformableParticleElement(Element):
         >>> DeformableParticleElement('cell').kappa
         0.5
     """
+
+    law_classes = (
+        NoiseLaw,
+        RateLaw,
+    )
 
     def __init__(
         self,
@@ -111,23 +120,10 @@ class DeformableParticleElement(Element):
         ]
 
 
-@register_system(
-    field='physics/active_matter',
-    tags=('active matter', 'deformable particles', 'tensor', 'circular motion', 'bifurcation'),
-    references=('Ohta and Ohkuma 2009', 'Ohta 2017', 'Tarama 2017'),
-    defaults={'until': 100.0, 'dt': 0.25, 'solver': EulerMaruyamaSolver(dt=0.01)},
-)
-def deformable_active_particles(
-    n_particles: int = 20,
-    *,
-    gamma: float = 1.0,
-    a: float = 1.0,
-    b: float = 1.0,
-    kappa: float = 0.5,
-    noise: float = 0.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return deformable self-propelled particles of Ohta and Ohkuma, which move straight or along circles.
+class DeformableActiveParticlesSystem(BaseSystem):
+    """Deformable self-propelled particles of Ohta and Ohkuma.
+
+    The particles move straight or along circles.
 
     Every particle follows `x' = v`, `v' = gamma v - |v|² v - a S v`, and `S' = -kappa S + b (v v - |v|² I / 2)`, with
     the traceless symmetric deformation tensor `S`. A fast relaxing shape, large `kappa`, gives straight motion at the
@@ -135,7 +131,8 @@ def deformable_active_particles(
     speed `sqrt(gamma - kappa / 2)` with the angular velocity `sqrt(a b (gamma - kappa / 2) - kappa²) / 2`, its
     elongation turning with its velocity. For the defaults it exists below `kappa ≈ 0.78`, and particles started from
     small velocities reach it for `kappa <= 0.5`, while closer to the threshold straight motion stays stable too. The
-    particles do not interact, and they start at random positions, small random velocities, and no deformation.
+    particles do not interact, and they start at random positions, small random velocities, and no deformation. The
+    system has the positions `cells.x`, the velocities `cells.v`, and the deformations `cells.S`.
 
     Args:
         n_particles:
@@ -159,25 +156,58 @@ def deformable_active_particles(
         random_state:
             The seed or generator of the initial positions and velocities.
 
-    Returns:
-        system:
-            The system, with the positions `cells.x`, the velocities `cells.v`, and the deformations `cells.S`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.active_matter import deformable_active_particles
-        >>> deformable_active_particles(5).elements[0].prepare().size_
+        >>> from skcomplex.systems.physics.active_matter import DeformableActiveParticlesSystem
+        >>> DeformableActiveParticlesSystem(5).prepare().system_.elements[0].prepare().size_
         5
     """
-    rng = np.random.default_rng(random_state)
-    values = {
-        'x': rng.uniform(0.0, 20.0, (n_particles, 2)),
-        'v': rng.normal(0.0, 0.1, (n_particles, 2)),
-        'S': np.zeros((n_particles, 2)),
-        'gamma': gamma,
-        'a': a,
-        'b': b,
-        'kappa': kappa,
-        'noise': noise,
-    }
-    cells = GroupElement('cells', element=DeformableParticleElement, size=n_particles, values=values)
-    return System(elements=[cells], space=ContinuousSpace(n_dim=2))
+
+    field = 'physics/active_matter'
+    topics = ('active matter', 'deformable particles', 'tensor', 'circular motion', 'bifurcation')
+    references = ('Ohta and Ohkuma 2009', 'Ohta 2017', 'Tarama 2017')
+    until = 100.0
+    dt = 0.25
+    solver = EulerMaruyamaSolver(dt=0.01)
+
+    def __init__(
+        self,
+        n_particles: int = 20,
+        *,
+        gamma: float = 1.0,
+        a: float = 1.0,
+        b: float = 1.0,
+        kappa: float = 0.5,
+        noise: float = 0.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_particles = n_particles
+        self.gamma = gamma
+        self.a = a
+        self.b = b
+        self.kappa = kappa
+        self.noise = noise
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return deformable self-propelled particles of Ohta and Ohkuma.
+
+        The particles move straight or along circles.
+        """
+        rng = np.random.default_rng(self.random_state)
+        values = {
+            'x': rng.uniform(0.0, 20.0, (self.n_particles, 2)),
+            'v': rng.normal(0.0, 0.1, (self.n_particles, 2)),
+            'S': np.zeros((self.n_particles, 2)),
+            'gamma': self.gamma,
+            'a': self.a,
+            'b': self.b,
+            'kappa': self.kappa,
+            'noise': self.noise,
+        }
+        cells = GroupElement('cells', element=DeformableParticleElement, size=self.n_particles, values=values)
+        return System(self.label, elements=[cells], space=ContinuousSpace(n_dim=2))

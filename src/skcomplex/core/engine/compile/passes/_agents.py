@@ -1,4 +1,7 @@
-"""Compile agent-based systems: the rules of agents and matchings, which the agent stepper runs on Mesa."""
+"""Compile agent-based systems.
+
+They are the rules of agents and matchings, which the agent stepper runs on Mesa.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,13 +23,13 @@ _MEMBER_SUFFIX = re.compile(r'\[-?\d+\]$')
 
 
 class AgentsPass(BasePass):
-    """Pass that marks the nodes of the elements and groups that run on the agent stepper.
+    """Pass that marks the nodes of the elements and groups of the agent stepper.
 
-    An agent is a member of a variable group, or of an element or group whose own laws include a `RuleLaw`. When the
-    tree holds rules, of components or of interactions, the groups whose element type has no laws of its own are agents
-    too, as passive agents that rules read and change, unless an interaction whose laws are not all rules or matchings
-    binds them through a role. Single elements, such as the holders of reductions, and groups on the sites, edges, or
-    hyperedges of a space are never passive agents.
+    They are the elements and groups that run on the agent stepper. An agent is a member of a variable group, or of an
+    element or group whose own laws include a `RuleLaw`. When the tree holds rules, of components or of interactions,
+    the groups whose element type has no laws of its own are agents too, as passive agents that rules read and change,
+    unless an interaction whose laws are not all rules or matchings binds them through a role. Single elements, such as
+    the holders of reductions, and groups on the sites, edges, or hyperedges of a space are never passive agents.
     """
 
     def _get_reads(self) -> tuple[str, ...]:
@@ -46,12 +49,18 @@ class AgentsPass(BasePass):
 
     @staticmethod
     def _is_passive(component: object) -> bool:
-        """Check whether a component is a group off the parts of the space whose element type has no laws of its own."""
+        """Check whether a component is a passive group off the parts of the space.
+
+        Its element type has no laws of its own.
+        """
         return isinstance(component, GroupElement) and component.on is None and probe_laws(component) == []
 
     @staticmethod
     def _bound_paths(node: NodeSpec) -> set[str]:
-        """Return the paths of the components the roles of an interaction bind, without member indices."""
+        """Return the paths of the components the roles of an interaction bind.
+
+        The paths have no member indices.
+        """
         paths = set()
         for name in declarations_of(type(node.component), VariableKind.ROLE):
             for item in bound_labels(getattr(node.component, name)):
@@ -60,7 +69,10 @@ class AgentsPass(BasePass):
 
     @staticmethod
     def _agent_paths(nodes: list[NodeSpec]) -> set[str]:
-        """Return the paths of the rule-running elements and groups, and of the passive groups that rules read."""
+        """Return the paths of the rule-running components and the passive groups read.
+
+        The components are elements and groups, and rules read the passive groups.
+        """
         agents = {node.path for node in nodes if AgentsPass._runs_rules(node.component) and node.active is None}
         passive = [node for node in nodes if node.path not in agents and AgentsPass._is_passive(node.component)]
         if not passive:
@@ -81,10 +93,11 @@ class AgentsPass(BasePass):
 
     @staticmethod
     def _runs_rules(component: object) -> bool:
-        """Check whether a component runs rules of its own: a variable group, or an element or group with rule laws.
+        """Check whether a component runs rules of its own.
 
-        Such a component is an agent. The compiler also makes agents of the groups whose element type has no laws of its
-        own in a system with rules, unless an interaction whose laws are not rules binds them.
+        It is a variable group, or an element or group with rule laws. Such a component is an agent. The compiler also
+        makes agents of the groups whose element type has no laws of its own in a system with rules, unless an
+        interaction whose laws are not rules binds them.
 
         Args:
             component:

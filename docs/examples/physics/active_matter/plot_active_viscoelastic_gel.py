@@ -7,20 +7,21 @@ peaks. The gel has no inertia, so its velocity solves a force balance at every s
 """
 
 # %%
-# The system is created by name from the catalog on a periodic line of length 10 in 128 sites, around the density 1,
+# The system is built from its class on a periodic line of length 10 in 128 sites, around the density 1,
 # with `c Ta'(c) = 1` above `gamma D = 0.1`. The catalog entry solves the force balance with `inverse_helmholtz` and
 # streams the velocity as an observable, and the default blueprint shows the history of the density.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation
+from skcomplex.systems.physics.active_matter import ActiveViscoelasticGelSystem
 
 SYSTEM = 'active_viscoelastic_gel'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare().run()
+trajectory = simulate(ActiveViscoelasticGelSystem(), observers=[observer], random_state=0)
 
 # %%
 # Concentration and force balance
@@ -28,7 +29,6 @@ simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare(
 # The largest density should rise far above 1 while the total stays fixed, and the cells should flow toward the peak.
 # Applying `gamma - eta d_xx` to the streamed velocity should return the gradient of the stress to rounding.
 
-trajectory = simulation.trajectory_
 density = trajectory.lattice('gel.c')
 displacement = trajectory.lattice('gel.u')
 velocity = np.asarray(trajectory.values('v'))

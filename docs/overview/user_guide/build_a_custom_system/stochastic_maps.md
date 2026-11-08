@@ -1,7 +1,7 @@
 # Stochastic maps
 
 Write a discrete-time stochastic process, such as a random walk or a Markov chain, with update laws that draw random
-numbers. The draws come from the simulation's random generator, so two runs with the same `random_state` give the same
+numbers. The draws come from the random generator of the run, so two runs with the same `random_state` give the same
 trajectory.
 
 ## Random draws
@@ -16,7 +16,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.laws.utils import bernoulli, normal, where
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
 
@@ -40,7 +40,7 @@ class PersistentElement(Element):
 
 
 walkers = System(elements=[GroupElement('walkers', element=PersistentElement, size=500)])
-final = Simulation(walkers, dt=1.0, random_state=0).prepare().run(until=200).trajectory_.values('walkers.x')[-1]
+final = simulate(walkers, until=200, dt=1.0, random_state=0).values('walkers.x')[-1]
 round(float(final.var() / 200), 1)
 ```
 
@@ -73,7 +73,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import EmissionLaw, TransitionLaw
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
 
@@ -98,10 +98,8 @@ class SourceElement(Element):
         ]
 
 
-simulation = Simulation(System(elements=[SourceElement('source')]), dt=1.0, random_state=0)
-simulation.prepare().run(until=10000)
-round(float((simulation.trajectory_.values('source.hidden') == 'calm').mean()), 1)
-simulation.update_parameters({'source.stay': 0.5})
+trajectory = simulate(System(elements=[SourceElement('source')]), until=10000, dt=1.0, random_state=0)
+round(float((trajectory.values('source.hidden') == 'calm').mean()), 1)
 ```
 
 - The target of a `TransitionLaw` is a state over a finite alphabet, a `FiniteEnumeratedSet` of labels or the integers
@@ -109,13 +107,30 @@ simulation.update_parameters({'source.stay': 0.5})
 - An `EmissionLaw` draws the observed state from the row of an emission matrix that the hidden state `source` selects.
   It reads the hidden state after the same step, so the two sequences align frame by frame.
 - Both are update laws, so they combine with other update laws.
-- Matrix entries are numbers or expressions of parameters. Compiling checks that the entries are nonnegative and that
-  every row sums to 1.
-- `update_parameters` checks again every matrix a changed parameter enters. It rejects a change that breaks a matrix
-  with a `ParameterError`, before the change applies.
+- Matrix entries are numbers or expressions of parameters. `simulate` checks that the entries are nonnegative and that
+  every row sums to 1 at the initial parameter values, and raises an error that names the entry otherwise.
+
+```python continuation
+from skcomplex.core.errors import ValidationError
+
+try:
+    simulate(System(elements=[SourceElement('source', stay=1.5)]), until=10)
+except ValidationError as error:
+    message = str(error)
+assert 'below 0' in message
+message
+```
 
 ## Ready-made stochastic maps
 
-The catalog has these systems ready: `persistent_random_walk`, `markov_source`, `hidden_markov_source`, and
-`random_walk_with_memory` in stochastic processes, `chaos_game` in fractals, `probabilistic_boolean_network` and
-`intrinsic_instability` in biology, and `diluted_hopfield` in neural networks.
+These ready-made systems are stochastic maps: `PersistentRandomWalkSystem`, `MarkovSourceSystem`,
+`HiddenMarkovSourceSystem`, and `RandomWalkWithMemorySystem` of `skcomplex.systems.mathematics.stochastic_processes`,
+`ChaosGameSystem` of `skcomplex.systems.mathematics.fractals`, `ProbabilisticBooleanNetworkSystem` of
+`skcomplex.systems.biology.systems_biology`, `IntrinsicInstabilitySystem` of `skcomplex.systems.biology.ecology`, and
+`DilutedHopfieldSystem` of `skcomplex.systems.computer_science.neural_networks`.
+
+```python continuation
+from skcomplex.systems.mathematics.stochastic_processes import MarkovSourceSystem
+
+MarkovSourceSystem().get_tags().randomness
+```

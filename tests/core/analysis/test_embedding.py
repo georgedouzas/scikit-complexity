@@ -4,13 +4,13 @@ import numpy as np
 import pytest
 from scipy.integrate import solve_ivp
 
-from skcomplex.core.analysis import EmbeddingAnalysis
+from skcomplex.core.analysis import EmbeddingResult, embedding
 from skcomplex.core.errors import AnalysisError
 
 
-def _embedding(kind: str, source: object, **settings: object) -> EmbeddingAnalysis:
+def _embedding(kind: str, source: object, **settings: object) -> EmbeddingResult:
     """Return the embedding analysis of a source for one kind, run."""
-    return EmbeddingAnalysis(kind, **settings).prepare(source).run()
+    return embedding(source, kind=kind, **settings)
 
 
 def _lorenz_states(rho: float, step: float, duration: float) -> np.ndarray:
@@ -38,21 +38,21 @@ def _henon(size: int) -> np.ndarray:
 def test_embed_lorenz():
     """Test that 20,000 samples of the Lorenz x every 0.01 give a delay between 0.10 and 0.25 and dimension 3."""
     embedding = _embedding('delay', _lorenz_states(28.0, 0.01, 200.0)[:20_000, 0], max_delay=60)
-    assert 0.10 <= embedding.delay_ * 0.01 <= 0.25
-    assert embedding.dimension_ == 3
-    assert embedding.points_.shape[1] == 3
-    assert embedding.mutual_information_.size == 61
+    assert 0.10 <= embedding.delay * 0.01 <= 0.25
+    assert embedding.dimension == 3
+    assert embedding.points.shape[1] == 3
+    assert embedding.mutual_information.size == 61
 
 
 def test_embed_map():
     """Test that 10,000 iterates of the Hénon x give dimension 2."""
-    assert _embedding('delay', _henon(10_000)[:, 0], delay=1).dimension_ == 2
+    assert _embedding('delay', _henon(10_000)[:, 0], delay=1).dimension == 2
 
 
 def test_false_nearest_neighbors_of_a_sine():
     """Test that a sine has no false neighbours from dimension 2."""
     fractions = _embedding('false-nearest-neighbors', np.sin(np.arange(3000) * 0.05), delay=30, max_dimension=3)
-    assert fractions.false_neighbors_.round(2).tolist()[1:] == [0.0, 0.0]
+    assert fractions.false_neighbors.round(2).tolist()[1:] == [0.0, 0.0]
 
 
 def test_delay_embedding_rejects_short_series_and_several_series():
@@ -68,6 +68,6 @@ def test_delay_embedding_rejects_short_series_and_several_series():
 def test_unknown_kind_and_ignored_setting():
     """Test that an unknown kind and a setting the kind ignores raise errors."""
     with pytest.raises(AnalysisError, match='delay, false-nearest-neighbors'):
-        EmbeddingAnalysis('unknown').prepare()
+        embedding([0, 1, 0, 1], kind='unknown')
     with pytest.raises(AnalysisError, match='does not read ratio'):
-        EmbeddingAnalysis('delay', ratio=5.0).prepare()
+        embedding([0, 1, 0, 1], kind='delay', ratio=5.0)

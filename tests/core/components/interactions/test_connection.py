@@ -9,7 +9,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import ConnectionInteraction
 from skcomplex.core.components.laws import EquationLaw
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ConnectorSpec, ParameterSpec, StateSpec
 
@@ -68,7 +68,7 @@ class ReservoirElement(Element):
 
 def _run(system):
     """Return the trajectory of a system over one time unit."""
-    return Simulation(system, dt=0.5).prepare().run(until=1.0).trajectory_
+    return simulate(system, until=1.0, dt=0.5)
 
 
 def test_connection_balances_the_currents_of_three_resistors():

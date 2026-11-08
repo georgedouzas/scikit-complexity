@@ -1,4 +1,7 @@
-"""Rebuild a protein chain from its backbone dihedral angles through the internal coordinates of Biopython."""
+"""Rebuild a protein chain from its backbone dihedral angles.
+
+The rebuild goes through the internal coordinates of Biopython.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,7 +21,9 @@ VECTOR_MODULE = r'Bio\.PDB\.vectors'
 
 
 class BackboneGeometry(BaseConfig[None, Array]):
-    """Chain of a structure rebuilt from the angles `phi` and `psi` of its backbone, with all other geometry kept.
+    """Chain of a structure rebuilt from the angles `phi` and `psi` of its backbone.
+
+    All other geometry of the chain is kept.
 
     The angles of a chain of `n` residues are one array of `2 (n - 1)` values in degrees: `phi` of the residues from the
     second to the last, then `psi` of the residues from the first to the one before the last. The bond lengths, the
@@ -57,21 +62,24 @@ class BackboneGeometry(BaseConfig[None, Array]):
         self.structure = structure
         self.system = system
 
-    def _check(self) -> None:
-        """Raise an error for a structure of more than one chain."""
-        chains = set(self.structure.chain_names)
-        if len(chains) != 1:
-            error_msg = f'A backbone is rebuilt for one chain, but the structure holds the chains {sorted(chains)}.'
-            raise ValidationError(error_msg)
-
     def _rebuild(self) -> None:
-        """Rebuild the atoms from the internal coordinates, filtering the one warning of Biopython's vectors."""
+        """Rebuild the atoms from the internal coordinates.
+
+        The rebuild filters the one warning of Biopython's vectors.
+        """
         with warnings.catch_warnings():
             warnings.filterwarnings('ignore', message=VECTOR_WARNING, category=UserWarning, module=VECTOR_MODULE)
             self._chain.internal_to_atom_coordinates()
 
     def _prepare(self, context: None = None) -> None:
-        """Read the internal coordinates of the chain, and set the angles of the system."""
+        """Read the internal coordinates of the chain, and set the angles of the system.
+
+        It first raises an error for a structure of more than one chain.
+        """
+        chains = set(self.structure.chain_names)
+        if len(chains) != 1:
+            error_msg = f'A backbone is rebuilt for one chain, but the structure holds the chains {sorted(chains)}.'
+            raise ValidationError(error_msg)
         self._chain = next(read_biopython_structure(self.structure, (self.system,)).get_chains())
         with warnings.catch_warnings():
             warnings.filterwarnings('ignore', message=VECTOR_WARNING, category=UserWarning, module=VECTOR_MODULE)

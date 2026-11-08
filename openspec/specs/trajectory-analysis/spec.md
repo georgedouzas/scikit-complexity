@@ -139,12 +139,12 @@ replicated system, with the same results as the sweep of separate runs.
 `lyapunov_spectrum` SHALL differentiate `abs(x)` as `sign(x)`, so laws with absolute values have a spectrum.
 
 #### Scenario: Sprott jerk system
-- **WHEN** a user computes the spectrum of `sprott_jerk` until 200
+- **WHEN** a user computes the spectrum of `SprottJerkSystem` until 200
 - **THEN** it returns three finite exponents whose sum is negative
 
 ### Requirement: Scaling laws across sizes
-`ScalingAnalysis(kind='allometric')` SHALL fit the exponent of a quantity against system size across a set of runs,
-read as a mapping from size to samples, and SHALL set the exponent with a bootstrap confidence interval.
+`scaling(runs, kind='allometric')` SHALL fit the exponent of a quantity against system size across a set of runs,
+read as a mapping from size to samples, and SHALL return the exponent with a bootstrap confidence interval.
 
 #### Scenario: Known exponent
 - **WHEN** a quantity generated as `N^1.15` times lognormal noise across 50 sizes is fitted

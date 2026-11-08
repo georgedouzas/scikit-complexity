@@ -1,4 +1,7 @@
-"""Exact stepper of renewal processes, which jumps from renewal to renewal without a time grid."""
+"""Exact stepper of renewal processes.
+
+It jumps from renewal to renewal without a time grid.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,16 +15,17 @@ from ._solver import Solver
 
 
 class RenewalSolver(Solver):
-    """Exact stepper of renewal processes, which jumps from renewal to renewal without a time grid.
+    """Exact stepper of renewal processes.
 
-    Every member renews on its own clock, and a frame holds the states the last renewal at or before its time set.
+    It jumps from renewal to renewal without a time grid. Every member renews on its own clock, and a frame holds the
+    states the last renewal at or before its time set.
 
     Examples:
         >>> from typing import Annotated
         >>> import numpy as np
         >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.core.engine.compile import PassCompiler
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.laws import JumpLaw
         >>> from skcomplex.core.components.laws.utils import draw
@@ -36,7 +40,7 @@ class RenewalSolver(Solver):
         ...     def _get_laws(self, s):
         ...         return [JumpLaw(waiting=draw('wait', 'expon'), reset={s.n: s.n + 1})]
         >>> system = System(elements=[GroupElement('counters', element=CounterElement, size=3)])
-        >>> problem = PassCompiler().prepare(system).run().problem_
+        >>> problem = simulate(system, until=0).problem
         >>> stepper = RenewalSolver(random_state=0).prepare(problem)
         >>> state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 100.0)).state_
         >>> bool(np.all(state[:3] > 50))

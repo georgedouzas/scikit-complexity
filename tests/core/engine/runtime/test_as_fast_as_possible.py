@@ -6,7 +6,7 @@ from skcomplex.core.engine.runtime import AsFastAsPossibleClock
 
 
 def test_as_fast_as_possible_clock_never_waits():
-    """Test that the default clock returns at once and has only the estimator verbs."""
+    """Test that the default clock returns at once and has only the estimator methods."""
     clock = AsFastAsPossibleClock().prepare()
     start = time.perf_counter()
     clock.run(1e6)

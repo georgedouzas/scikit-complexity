@@ -20,12 +20,14 @@ a custom system from the core.
 
 ### Requirement: Custom systems are built from the core
 
-Examples in the README and the user guide SHALL build custom systems from `skcomplex.core`, and SHALL reach ready-made
-systems only through `catalog`, `describe`, `create_system`, and `create_simulation` of `skcomplex.systems`.
+Examples in the README and the user guide SHALL build custom systems from `skcomplex.core`, and SHALL import ready-made
+systems as classes from their subfield package `skcomplex.systems.<field>.<subfield>`, and nothing else from field
+packages.
 
 #### Scenario: Import from a field module
 
-- **WHEN** a Python block of the README or the user guide imports from `skcomplex.systems.<field>`
+- **WHEN** a Python block of the README or the user guide imports anything but a system class from a package of
+  `skcomplex.systems.<field>`
 - **THEN** the documentation test fails and names the file and the line
 
 #### Scenario: A field module in the prose
@@ -80,8 +82,8 @@ below its block, with no `print` in the source. Strings SHALL show plain, and `N
 nothing. A block that raises SHALL stop the build and name the block.
 
 #### Scenario: Shown value
-- **WHEN** a guide block ends with the expression `describe('sir').formalism`
-- **THEN** the built page shows the formalism below the block
+- **WHEN** a guide block ends with the expression `SIRSystem().get_tags()`
+- **THEN** the built page shows the tags below the block
 
 #### Scenario: Failing block
 - **WHEN** a guide block raises an error during the documentation build
@@ -94,3 +96,31 @@ hard-coded count of the catalog's systems, which goes stale. It SHALL say "in an
 #### Scenario: Count in the prose
 - **WHEN** a reviewer reads the README and the guide
 - **THEN** no sentence states how many systems the catalog holds, except where generated from the catalog at build time
+
+### Requirement: The documentation follows the scikit-learn split
+The README, the user guide, every docstring example, and every gallery example SHALL use `simulate`, the analysis
+functions, and the experiment functions. A migration page SHALL list every removed name with its replacement.
+
+#### Scenario: A gallery example
+- **WHEN** a gallery example runs a system
+- **THEN** it calls `simulate` and the analysis functions, and no `Simulation` or `*Analysis` class
+
+### Requirement: Compatibility is documented per kind of part from tags
+The documentation SHALL hold one page per kind of part, which are elements, interactions, laws, solvers, backends,
+analyses, and experiments. Each page SHALL be generated from the tags, with a table of what each class declares or
+accepts and worked, executed examples of a compatible and an incompatible combination with the error it raises. The
+single compatibility page SHALL be removed.
+
+#### Scenario: Choosing a solver
+- **WHEN** a reader opens the solvers page
+- **THEN** it shows, for each solver, the tags it supports, and an example where a mismatched solver raises an error
+  naming the tag
+
+### Requirement: The documentation explains the system hierarchy
+The documentation SHALL hold a systems page that explains `BaseSystem`, the composite `System`, general systems of the
+core, and field realizations, with an executed example of a subclass that changes a ready-made system. The catalog
+pages SHALL show, for each system, its class, its import path, its model parameters, and its capability tags.
+
+#### Scenario: A catalog page
+- **WHEN** a reader opens the page of `SIRSystem`
+- **THEN** it shows `from skcomplex.systems.biology.epidemiology import SIRSystem`, the parameters, and the tags

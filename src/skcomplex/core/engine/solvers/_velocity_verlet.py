@@ -1,4 +1,7 @@
-"""Velocity Verlet integrator of particle systems, whose positions move with their velocities."""
+"""Velocity Verlet integrator of particle systems.
+
+The positions of the particles move with their velocities.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,12 +25,12 @@ from ._solver import Solver
 
 
 class VelocityVerletSolver(Solver):
-    """Velocity Verlet integrator of particle systems, whose positions move with their velocities.
+    """Velocity Verlet integrator of particle systems.
 
-    Every step kicks the velocities by half a step, moves the positions, applies the boundary laws, and kicks the
-    velocities again with the accelerations at the new positions, so a step costs one drift evaluation. It conserves
-    energy over long runs of conservative forces. With the Numba backend every internal step of a frame runs in
-    compiled code.
+    The positions of the particles move with their velocities. Every step kicks the velocities by half a step, moves the
+    positions, applies the boundary laws, and kicks the velocities again with the accelerations at the new positions, so
+    a step costs one drift evaluation. It conserves energy over long runs of conservative forces. With the Numba backend
+    every internal step of a frame runs in compiled code.
 
     Args:
         dt:
@@ -41,14 +44,14 @@ class VelocityVerletSolver(Solver):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.engine.compile import PassCompiler
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.components.spaces import ContinuousSpace
         >>> from skcomplex.core.components.system import System
         >>> from skcomplex.core.components.elements import PointElement
         >>> from skcomplex.core.engine.solvers import VelocityVerletSolver
         >>> from skcomplex.core.specs import StepSpec
         >>> system = System(elements=[PointElement('ball', x_d1=2.0)], space=ContinuousSpace(n_dim=1))
-        >>> problem = PassCompiler().prepare(system).run().problem_
+        >>> problem = simulate(system, until=0).problem
         >>> stepper = VelocityVerletSolver(dt=0.1, random_state=0).prepare(problem)
         >>> stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_.round(10).tolist()
         [2.0, 2.0]
@@ -81,7 +84,9 @@ class VelocityVerletSolver(Solver):
         self.until = until
 
     def _prepare(self, context: ProblemSpec | None) -> None:
-        """Prepare the stepper and find the position and velocity components of the problem.
+        """Prepare the stepper and find the position and velocity components.
+
+        The components are those of the problem.
 
         Args:
             context:
@@ -97,7 +102,9 @@ class VelocityVerletSolver(Solver):
         self.positions_, self.velocities_ = self._position_pairs(problem)
 
     def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
-        """Integrate positions and velocities from time `t` to time `until` in equal steps no longer than `dt`.
+        """Integrate positions and velocities from time `t` to time `until`.
+
+        Integration takes equal steps no longer than `dt`.
 
         Args:
             t:
@@ -144,7 +151,10 @@ class VelocityVerletSolver(Solver):
 
     @staticmethod
     def _position_pairs(problem: ProblemSpec) -> tuple[npt.NDArray[np.int64], npt.NDArray[np.int64]]:
-        """Return the flat indices of the position components and of their velocities, in matching order."""
+        """Return the flat indices of the position components and of their velocities.
+
+        They come in matching order.
+        """
         indices: dict[Expression, npt.NDArray[np.int64]] = {}
         for entry in problem.states.entries:
             for column, item in enumerate(components_of(problem.symbols[entry.name])):

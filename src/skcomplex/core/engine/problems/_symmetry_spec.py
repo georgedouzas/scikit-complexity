@@ -11,7 +11,9 @@ from ...types import Indices
 
 @dataclass(frozen=True, eq=False)
 class SymmetrySpec(BaseSpec):
-    """Mirror symmetry of a field state on a periodic lattice, whose rates are projected onto odd or even parts.
+    """Mirror symmetry of a field state on a periodic lattice.
+
+    The rates of the state are projected onto odd or even parts.
 
     Args:
         indices:

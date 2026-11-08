@@ -1,4 +1,7 @@
-"""Toy metabolic network of Raman, which grows on A alone."""
+"""Toy metabolic network of Raman.
+
+It grows on A alone.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -27,7 +30,9 @@ TOY_OBJECTIVE = {'vbio': 1.0}
 
 
 class ToyNetworkElement(MetabolicNetworkElement):
-    """The toy network of Table 8.2 of Raman (2021), which grows on A alone.
+    """The toy network of Table 8.2 of Raman (2021).
+
+    It grows on A alone.
 
     Args:
         label:

@@ -15,7 +15,9 @@ from .....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class StuartLandauElement(Element):
-    """Stuart-Landau oscillator `z' = tau ((mu + i omega) z - kappa (1 + i beta) |z|^2 z)` of `z = x + i y`.
+    """Stuart-Landau oscillator of `z = x + i y`.
+
+    The oscillator follows `z' = tau ((mu + i omega) z - kappa (1 + i beta) |z|^2 z)`.
 
     It is the normal form of a supercritical Hopf bifurcation. For `mu > 0` the oscillator settles on the limit cycle
     of radius `sqrt(mu / kappa)`, which it turns at the frequency `tau (omega - beta mu)`, and for `mu < 0` it decays to
@@ -57,13 +59,15 @@ class StuartLandauElement(Element):
     Examples:
         >>> import math
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.systems.physics.common.oscillators import StuartLandauElement
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> system = System(elements=[StuartLandauElement('oscillator', x=0.1, mu=4.0)])
-        >>> trajectory = Simulation(system, dt=0.5).prepare().run(until=10.0).trajectory_
+        >>> trajectory = simulate(system, until=10.0, dt=0.5)
         >>> round(math.hypot(trajectory.values('oscillator.x')[-1], trajectory.values('oscillator.y')[-1]), 4)
         2.0
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,

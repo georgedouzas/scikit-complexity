@@ -6,22 +6,22 @@ damps the ringing so the oscillation decays exponentially.
 """
 
 # %%
-# The system is created by name from the catalog with `L = 1`, `R = 0.1`, `C = 1`, no source, and the capacitor charged
+# The system is built from its class with `L = 1`, `R = 0.1`, `C = 1`, no source, and the capacitor charged
 # to `q = 1`, and runs for 50 time units. The default blueprint shows the charge and its rate, the current, in one time
 # series view.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.engineering.circuits import RlcCircuitSystem
 
 SYSTEM = 'rlc_circuit'
 
-system = create_system(SYSTEM)
+system = RlcCircuitSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=50)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # Damped ringing and resonance
@@ -31,14 +31,13 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(unt
 # `V / sqrt((1 / C - L omega^2)^2 + (R omega)^2)`, peaked at the natural frequency.
 
 L, R, C = 1.0, 0.1, 1.0
-trajectory = simulation.trajectory_
 times = trajectory.times
 omega_d = np.sqrt(1 / (L * C) - R**2 / (4 * L**2))
 exact = np.exp(-R * times / (2 * L)) * (np.cos(omega_d * times) + R / (2 * L * omega_d) * np.sin(omega_d * times))
 frequencies = np.linspace(0.5, 1.5, 21)
 amplitudes = []
 for omega in frequencies:
-    driven = Simulation(create_system(SYSTEM, q=0.0, V=0.1, omega=omega), dt=0.1).prepare().run(until=150).trajectory_
+    driven = simulate(RlcCircuitSystem(q=0.0, V=0.1, omega=omega), until=150, dt=0.1)
     amplitudes.append(np.abs(driven.values('circuit.q')[-300:]).max())
 grid = np.linspace(0.5, 1.5, 300)
 fig, (ringing, resonance) = plt.subplots(1, 2, figsize=(10, 4))

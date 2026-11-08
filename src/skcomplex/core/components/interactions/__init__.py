@@ -1,4 +1,7 @@
-"""Define interactions, the parts of a system whose laws couple elements to each other or to the environment."""
+"""Define interactions.
+
+Interactions are the parts of a system whose laws couple elements to each other or to the environment.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

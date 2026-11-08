@@ -1,20 +1,23 @@
-"""Diagnose ergodicity: time averages of ensembles of runs, and invariant densities of maps and flows."""
+"""Diagnose ergodicity.
+
+The diagnostics are time averages of ensembles of runs, and invariant densities of maps and flows.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 
 import numpy as np
 import numpy.typing as npt
 
 from ..errors import AnalysisError
+from ..specs import AnalysisTags
 from ..types import Array, DataKind
-from ._base import BaseAnalysis
-from ._markov import MarkovAnalysis
+from ._base import _check_choice, _check_settings, _read_series
+from ._markov import _stationary_distribution
 from .types import Source
-
-ENSEMBLE_DIMENSIONS = 2
 
 MIN_RUNS = 2
 FIT_POINTS = 50
@@ -32,9 +35,82 @@ SETTINGS = {
 BINS = {'distance': 20, 'invariant-density': 100}
 """The number of bins of every kind without `bins`."""
 
+ENSEMBLE_DIMENSIONS = 2
 
-class ErgodicityAnalysis(BaseAnalysis):
-    """Ergodicity of an ensemble of runs, or invariant density of a map or a flow, of one kind.
+TAGS = AnalysisTags(DataKind.SERIES)
+KIND_TAGS = {
+    'breaking': AnalysisTags(DataKind.ENSEMBLE),
+    'metric': AnalysisTags(DataKind.ENSEMBLE),
+    'distance': AnalysisTags(DataKind.ENSEMBLE),
+}
+
+
+@dataclass(frozen=True)
+class ErgodicityResult:
+    """Diagnostic of the ergodicity of an ensemble of runs, of one run, or of a map.
+
+    The diagnostic is of one kind.
+
+    Args:
+        values:
+            The runs, one row per run, or the values of the run.
+
+        mapping:
+            The map of `'ulam'`.
+
+        ergodicity_breaking:
+            The ergodicity-breaking parameter, of `'breaking'`.
+
+        times:
+            The times of the columns, of `'metric'`.
+
+        metric:
+            The fluctuation metric at every time, of `'metric'`.
+
+        exponent:
+            The slope of `log metric` against `log time` at log-spaced later times, -1 for ergodic runs and 0 for
+            frozen ones, of `'metric'`.
+
+        ergodicity_distance:
+            The median distance between the law of every run and that of the ensemble, of `'distance'`.
+
+        edges:
+            The edges of the bins or of the cells, of the density kinds.
+
+        density:
+            The density in every bin or cell, of the density kinds.
+
+        transition_matrix:
+            The probability that a point of every cell lands in every cell, of `'ulam'`.
+    """
+
+    values: Array | None = None
+    mapping: Callable[[Array], Array] | None = None
+    ergodicity_breaking: float | None = None
+    times: Array | None = None
+    metric: Array | None = None
+    exponent: float | None = None
+    ergodicity_distance: float | None = None
+    edges: Array | None = None
+    density: Array | None = None
+    transition_matrix: Array | None = None
+
+
+def ergodicity(
+    source: Source | Callable[[Array], Array],
+    *,
+    kind: str = 'breaking',
+    variables: Sequence[str] | None = None,
+    start: float = 0.01,
+    dt: float = 1.0,
+    bins: int | npt.ArrayLike | None = None,
+    value_range: tuple[float, float] | None = None,
+    edges: npt.ArrayLike | None = None,
+    samples: int = 100,
+) -> ErgodicityResult:
+    """Return a diagnostic of the ergodicity of an ensemble of runs, one run, or a map.
+
+    The diagnostic is of one kind.
 
     The ensemble kinds read one row per run and one column per time, such as `ExperimentResult.ensemble` returns:
 
@@ -53,6 +129,10 @@ class ErgodicityAnalysis(BaseAnalysis):
       density of its stationary vector.
 
     Args:
+        source:
+            The runs of an ensemble, one row per run, for the ensemble kinds, the trajectory or the values of one run
+            for `'invariant-density'`, or the map, a function of an array of points, for `'ulam'`.
+
         kind:
             The diagnostic, one of the kinds above.
 
@@ -77,152 +157,97 @@ class ErgodicityAnalysis(BaseAnalysis):
         samples:
             The number of evenly spaced points per cell of `'ulam'`.
 
-    Attributes:
-        values_:
-            The runs, one row per run, or the values of the run.
+    Returns:
+        result:
+            The values read and the diagnostic of the kind.
 
-        mapping_:
-            The map of `'ulam'`.
-
-        ergodicity_breaking_:
-            The ergodicity-breaking parameter, of `'breaking'`.
-
-        times_:
-            The times of the columns, of `'metric'`.
-
-        metric_:
-            The fluctuation metric at every time, of `'metric'`.
-
-        exponent_:
-            The slope of `log metric` against `log time` at log-spaced later times, -1 for ergodic runs and 0 for
-            frozen ones, of `'metric'`.
-
-        ergodicity_distance_:
-            The median distance between the law of every run and that of the ensemble, of `'distance'`.
-
-        edges_:
-            The edges of the bins or of the cells, of the density kinds.
-
-        density_:
-            The density in every bin or cell, of the density kinds.
-
-        transition_matrix_:
-            The probability that a point of every cell lands in every cell, of `'ulam'`.
+    Raises:
+        AnalysisError:
+            The kind is unknown, a setting the kind does not read is changed, a setting is out of range, the edges of
+            the Ulam chain are missing, the map is not callable, or the ensemble has fewer than two runs.
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import ErgodicityAnalysis
+        >>> from skcomplex.core.analysis import ergodicity
         >>> runs = [[1.0, -1.0, 1.0, -1.0], [-1.0, 1.0, -1.0, 1.0]]
-        >>> ErgodicityAnalysis().prepare(runs).run().ergodicity_breaking_
+        >>> ergodicity(runs).ergodicity_breaking
         0.0
-        >>> ErgodicityAnalysis('distance').prepare([[0.0, 0.0], [1.0, 1.0]]).run().ergodicity_distance_
+        >>> ergodicity([[0.0, 0.0], [1.0, 1.0]], kind='distance').ergodicity_distance
         0.5
-        >>> ulam = ErgodicityAnalysis('ulam', edges=np.linspace(0, 1, 5))
-        >>> ulam.prepare(lambda x: np.mod(2 * x, 1)).run().density_.round(2).tolist()
+        >>> ulam = ergodicity(lambda x: np.mod(2 * x, 1), kind='ulam', edges=np.linspace(0, 1, 5))
+        >>> ulam.density.round(2).tolist()
         [1.0, 1.0, 1.0, 1.0]
     """
-
-    def __init__(
-        self,
-        kind: str = 'breaking',
-        variables: Sequence[str] | None = None,
-        *,
-        start: float = 0.01,
-        dt: float = 1.0,
-        bins: int | npt.ArrayLike | None = None,
-        value_range: tuple[float, float] | None = None,
-        edges: npt.ArrayLike | None = None,
-        samples: int = 100,
-    ) -> None:
-        self.kind = kind
-        self.variables = variables
-        self.start = start
-        self.dt = dt
-        self.bins = bins
-        self.value_range = value_range
-        self.edges = edges
-        self.samples = samples
-
-    def _check(self) -> None:
-        """Validate the kind, the edges of the Ulam chain, and that the kind reads every changed setting."""
-        self._check_choice('kind', self.kind, KINDS)
-        self._check_settings('kind', SETTINGS[self.kind] | {'variables'})
-        if self.kind == 'ulam' and self.edges is None:
-            error_msg = f'{type(self).__name__} of kind {self.kind!r} needs the edges of the cells. Give edges.'
-            raise AnalysisError(error_msg)
-        if self.samples < 1 or self.dt <= 0:
-            error_msg = f'{type(self).__name__} has samples={self.samples!r} and dt={self.dt!r}. Use positive values.'
-            raise AnalysisError(error_msg)
-
-    def _get_data_kind(self) -> DataKind:
-        """Return the ensemble kind for runs, and the series kind for densities."""
-        return DataKind.ENSEMBLE if self.kind in ENSEMBLE_KINDS else DataKind.SERIES
-
-    def _prepare(self, source: Source | Callable[[Array], Array]) -> None:
-        """Read the runs of an ensemble, one row per run, the values of a run, or the map."""
-        if self.kind == 'ulam':
-            if not callable(source):
-                error_msg = (
-                    f'{type(self).__name__} of kind ulam reads a map, not {type(source).__name__}. Prepare it on a '
-                    'function of an array of points.'
-                )
-                raise AnalysisError(error_msg)
-            self.mapping_ = source
-            return
-        if self.kind == 'invariant-density':
-            self.values_ = self._read_series(source, self.variables).values[:, 0].astype(float)
-            return
-        self.values_ = np.asarray(source, dtype=float)
-        self.times_ = np.arange(1, self.values_.shape[-1] + 1) * self.dt
-        if self.values_.ndim != ENSEMBLE_DIMENSIONS or self.values_.shape[0] < MIN_RUNS:
+    _check_choice('ergodicity', 'kind', kind, KINDS)
+    _check_settings(
+        ergodicity,
+        'kind',
+        SETTINGS[kind] | {'variables'},
+        kind=kind,
+        variables=variables,
+        start=start,
+        dt=dt,
+        bins=bins,
+        value_range=value_range,
+        edges=edges,
+        samples=samples,
+    )
+    if kind == 'ulam' and edges is None:
+        error_msg = f'ergodicity of kind {kind!r} needs the edges of the cells. Give edges.'
+        raise AnalysisError(error_msg)
+    if samples < 1 or dt <= 0:
+        error_msg = f'ergodicity has samples={samples!r} and dt={dt!r}. Use positive values.'
+        raise AnalysisError(error_msg)
+    if kind == 'ulam':
+        if not callable(source):
             error_msg = (
-                f'The diagnostics need at least two runs, one row per run, not an array of shape {self.values_.shape}.'
+                f'ergodicity of kind ulam reads a map, not {type(source).__name__}. Pass a function of an array of '
+                'points.'
             )
             raise AnalysisError(error_msg)
+        return _ulam(source, np.asarray(edges, dtype=float), samples)
+    if callable(source):
+        error_msg = f'ergodicity of kind {kind!r} reads data, not a function.'
+        raise AnalysisError(error_msg)
+    if kind == 'invariant-density':
+        values = _read_series(source, variables).values[:, 0].astype(float)
+        count = BINS['invariant-density'] if bins is None else bins
+        density, found = np.histogram(values, bins=count, range=value_range, density=True)
+        return ErgodicityResult(values=values, edges=found, density=density)
+    runs = np.asarray(source, dtype=float)
+    times = np.arange(1, runs.shape[-1] + 1) * dt
+    if runs.ndim != ENSEMBLE_DIMENSIONS or runs.shape[0] < MIN_RUNS:
+        error_msg = f'The diagnostics need at least two runs, one row per run, not an array of shape {runs.shape}.'
+        raise AnalysisError(error_msg)
+    if kind == 'breaking':
+        spread = float(runs.var())
+        breaking = float(runs.mean(axis=1).var() / spread) if spread > 0 else 0.0
+        return ErgodicityResult(values=runs, times=times, ergodicity_breaking=breaking)
+    if kind == 'metric':
+        metric = (np.cumsum(runs, axis=1) / np.arange(1, runs.shape[1] + 1)).var(axis=0)
+        spaced = np.unique(np.geomspace(max(int(start * times.size), 1), times.size, FIT_POINTS).astype(int) - 1)
+        fitted = spaced[(times[spaced] > 0) & (metric[spaced] > 0)]
+        exponent = float(np.polyfit(np.log(times[fitted]), np.log(metric[fitted]), 1)[0]) if fitted.size > 1 else 0.0
+        return ErgodicityResult(values=runs, times=times, metric=metric, exponent=exponent)
+    found = np.histogram_bin_edges(runs, bins=BINS['distance'] if bins is None else bins)
+    ensemble = np.histogram(runs, bins=found)[0] / runs.size
+    distances = [0.5 * np.abs(np.histogram(run, bins=found)[0] / run.size - ensemble).sum() for run in runs]
+    return ErgodicityResult(values=runs, times=times, ergodicity_distance=float(np.median(distances)))
 
-    def _run_metric(self) -> None:
-        """Compute the fluctuation metric and its exponent."""
-        runs, grid = self.values_, self.times_
-        self.metric_ = (np.cumsum(runs, axis=1) / np.arange(1, runs.shape[1] + 1)).var(axis=0)
-        spaced = np.unique(np.geomspace(max(int(self.start * grid.size), 1), grid.size, FIT_POINTS).astype(int) - 1)
-        fitted = spaced[(grid[spaced] > 0) & (self.metric_[spaced] > 0)]
-        self.exponent_ = (
-            float(np.polyfit(np.log(grid[fitted]), np.log(self.metric_[fitted]), 1)[0]) if fitted.size > 1 else 0.0
-        )
 
-    def _run_distance(self) -> None:
-        """Compute the median distance between the law of every run and that of the ensemble."""
-        runs = self.values_
-        edges = np.histogram_bin_edges(runs, bins=BINS['distance'] if self.bins is None else self.bins)
-        ensemble = np.histogram(runs, bins=edges)[0] / runs.size
-        distances = [0.5 * np.abs(np.histogram(run, bins=edges)[0] / run.size - ensemble).sum() for run in runs]
-        self.ergodicity_distance_ = float(np.median(distances))
-
-    def _run_ulam(self) -> None:
-        """Compute the Ulam chain of the map and the density of its stationary vector."""
-        grid = np.asarray(self.edges, dtype=float)
-        cells = grid.size - 1
-        offsets = (np.arange(self.samples) + 0.5) / self.samples
-        points = grid[:-1, None] + np.diff(grid)[:, None] * offsets[None, :]
-        landed = np.searchsorted(grid, np.asarray(self.mapping_(points.ravel())), side='right') - 1
-        landed = np.clip(landed, 0, cells - 1)
-        origins = np.repeat(np.arange(cells), self.samples)
-        counts = np.bincount(origins * cells + landed, minlength=cells * cells).reshape(cells, cells)
-        self.edges_ = grid
-        self.transition_matrix_ = counts / self.samples
-        self.density_ = MarkovAnalysis._stationary_distribution(self.transition_matrix_) / np.diff(grid)
-
-    def _run(self, inputs: object = None) -> None:
-        """Compute the diagnostic of the kind."""
-        if self.kind == 'breaking':
-            spread = float(self.values_.var())
-            self.ergodicity_breaking_ = float(self.values_.mean(axis=1).var() / spread) if spread > 0 else 0.0
-        elif self.kind == 'metric':
-            self._run_metric()
-        elif self.kind == 'distance':
-            self._run_distance()
-        elif self.kind == 'invariant-density':
-            bins = BINS['invariant-density'] if self.bins is None else self.bins
-            self.density_, self.edges_ = np.histogram(self.values_, bins=bins, range=self.value_range, density=True)
-        else:
-            self._run_ulam()
+def _ulam(mapping: Callable[[Array], Array], grid: Array, samples: int) -> ErgodicityResult:
+    """Return the Ulam chain of the map and the density of its stationary vector."""
+    cells = grid.size - 1
+    offsets = (np.arange(samples) + 0.5) / samples
+    points = grid[:-1, None] + np.diff(grid)[:, None] * offsets[None, :]
+    landed = np.searchsorted(grid, np.asarray(mapping(points.ravel())), side='right') - 1
+    landed = np.clip(landed, 0, cells - 1)
+    origins = np.repeat(np.arange(cells), samples)
+    counts = np.bincount(origins * cells + landed, minlength=cells * cells).reshape(cells, cells)
+    transition_matrix = counts / samples
+    return ErgodicityResult(
+        mapping=mapping,
+        edges=grid,
+        density=_stationary_distribution(transition_matrix) / np.diff(grid),
+        transition_matrix=transition_matrix,
+    )

@@ -14,14 +14,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.analysis import DistributionAnalysis
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.analysis import distribution
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.networks import BarabasiAlbertSystem
 
 SYSTEM = 'barabasi_albert'
 
-system = create_system(SYSTEM)
 # The graph view lays out the nodes of a changing network by forces, which these settings keep compact and centred.
 blueprint = rrb.Blueprint(
     rrb.GraphView(
@@ -38,7 +37,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).prepare().run(until=300)
+trajectory = simulate(BarabasiAlbertSystem(), dt=2.0, observers=[observer], random_state=0)
 
 # %%
 # Degree distribution
@@ -46,11 +45,11 @@ simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).pr
 # The complementary cumulative distribution of the degrees should fall as `k^-2`, the integral of `P(k) ~ k^-3`, in a
 # larger network grown with the same law, with the mean-field prediction `P(K >= k) = m^2 / k^2` for `m = 2` edges.
 
-grown = Simulation(create_system(SYSTEM, n_nodes=5003), dt=1000.0, random_state=0).prepare().run(until=5000).trajectory_
+grown = simulate(BarabasiAlbertSystem(n_nodes=5003), until=5000, dt=1000.0, random_state=0)
 snapshot = grown.network(-1)
 degrees = np.bincount(np.concatenate([snapshot.sources, snapshot.targets]))
-ccdf = DistributionAnalysis('ccdf').prepare(degrees).run()
-values, shares = ccdf.support_, ccdf.survival_
+ccdf = distribution(degrees, kind='ccdf')
+values, shares = ccdf.support, ccdf.survival
 fig, axis = plt.subplots(figsize=(6, 4))
 axis.loglog(values, shares, 'o', markersize=3, label='grown network')
 axis.loglog(values, np.minimum(1.0, 4.0 / values**2), 'k--', label=r'$m^2 / k^2$')

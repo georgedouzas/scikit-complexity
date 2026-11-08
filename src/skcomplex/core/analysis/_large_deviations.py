@@ -1,11 +1,14 @@
-"""Measure large deviations: generating functions, rate functions, cloning, and exponential reweighting."""
+"""Measure large deviations.
+
+The methods are generating functions, rate functions, cloning, and exponential reweighting.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 import warnings
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import replace
+from dataclasses import dataclass, replace
 
 import numpy as np
 import numpy.typing as npt
@@ -13,16 +16,17 @@ from scipy import linalg, special
 
 from ..components.system import System
 from ..engine.problems import ProblemSpec
-from ..engine.runtime import Simulation, Trajectory
+from ..engine.runtime import Trajectory
+from ..engine.runtime._simulations import Simulation
 from ..errors import AnalysisError
+from ..specs import AnalysisTags
 from ..types import Array, DataKind
-from ._base import BaseAnalysis
+from ._base import _check_choice, _check_settings, _composite, _read_series
 from .types import Source
 
 MIN_SIZES = 2
 SMALL_POPULATION = 0.1
 MIN_EFFECTIVE_CLONES = 10
-KINDS = ('tilted', 'block', 'cloning', 'histogram', 'reweight')
 SETTINGS = {
     'tilted': {'weights', 'tilts', 'values'},
     'block': {'tilts', 'block', 'dt', 'values'},
@@ -32,17 +36,100 @@ SETTINGS = {
 }
 """Settings every kind reads, besides `kind` and `variables`."""
 
-DATA_KINDS = {
-    'tilted': DataKind.PATH,
-    'block': DataKind.SERIES,
-    'cloning': DataKind.PATH,
-    'histogram': DataKind.ENSEMBLE,
-    'reweight': DataKind.ENSEMBLE,
+KINDS = ('tilted', 'block', 'cloning', 'histogram', 'reweight')
+
+TAGS = AnalysisTags(DataKind.PATH)
+KIND_TAGS = {
+    'block': AnalysisTags(DataKind.SERIES),
+    'histogram': AnalysisTags(DataKind.ENSEMBLE),
+    'reweight': AnalysisTags(DataKind.ENSEMBLE),
 }
 
 
-class LargeDeviationAnalysis(BaseAnalysis):
-    """Large deviations of a time-additive observable or of an order parameter, of one kind.
+@dataclass(frozen=True)
+class LargeDeviationsResult:
+    """Large deviations of a time-additive observable.
+
+    They are its generating function and rate function.
+
+    Args:
+        rates:
+            The rate matrix of `'tilted'`.
+
+        increments:
+            The increments of `'block'`.
+
+        system:
+            The system or its compiled problem of `'cloning'`.
+
+        samples:
+            The samples at every size of `'histogram'`.
+
+        observations:
+            The samples of `'reweight'`.
+
+        tilts:
+            The tilts of the generating function.
+
+        scgf:
+            The scaled cumulant generating function at every tilt.
+
+        effective_population:
+            The smallest effective number of clones over the selection steps at every tilt, `(Σ w)² / Σ w²`.
+
+        values:
+            The values of the rate function, the centres of the bins of `'histogram'`.
+
+        rate_function:
+            The rate function at every value, 0 at its minimum and `nan` where a size left the bin empty for
+            `'histogram'`.
+
+        weights:
+            The normalized weight of every sample of `'reweight'`.
+
+        mean:
+            The weighted mean of the samples of `'reweight'`.
+
+        effective_size:
+            The effective number of samples `1 / Σ w²` of `'reweight'`.
+    """
+
+    rates: Array | None = None
+    increments: Array | None = None
+    system: System | ProblemSpec | None = None
+    samples: dict[int, Array] | None = None
+    observations: Array | None = None
+    tilts: Array | None = None
+    scgf: Array | None = None
+    effective_population: Array | None = None
+    values: Array | None = None
+    rate_function: Array | None = None
+    weights: Array | None = None
+    mean: float | None = None
+    effective_size: float | None = None
+
+
+def large_deviations(
+    source: Source | ProblemSpec | Mapping[int, npt.ArrayLike],
+    *,
+    kind: str = 'tilted',
+    variables: Sequence[str] | None = None,
+    weights: npt.ArrayLike | None = None,
+    tilts: float | npt.ArrayLike = 1.0,
+    values: npt.ArrayLike | None = None,
+    block: int = 10,
+    dt: float = 1.0,
+    observable: str | Callable[[Trajectory], float] | None = None,
+    population: int = 1000,
+    interval: float = 1.0,
+    until: float = 20.0,
+    random_state: int | None = None,
+    simulation: Mapping[str, object] | None = None,
+    bins: int | npt.ArrayLike = 41,
+    value_range: tuple[float, float] | None = None,
+    log_weights: npt.ArrayLike | None = None,
+) -> LargeDeviationsResult:
+    """Return the large deviations of a time-additive observable, of one kind.
 
     The kinds estimate the scaled cumulant generating function `lambda(k)` at the `tilts`, or the rate function `I`:
 
@@ -64,6 +151,11 @@ class LargeDeviationAnalysis(BaseAnalysis):
     `I(a) = max_k (k a - lambda(k))` over the tilts.
 
     Args:
+        source:
+            The rate matrix for `'tilted'`, the trajectory or an array of increments for `'block'`, the system or its
+            problem for `'cloning'`, a mapping of every size to its samples for `'histogram'`, or the samples for
+            `'reweight'`.
+
         kind:
             The estimate, one of the kinds above.
 
@@ -102,7 +194,7 @@ class LargeDeviationAnalysis(BaseAnalysis):
             The seed of the clones and of the selection.
 
         simulation:
-            Other settings of `Simulation`, such as `solver` or `dt`.
+            Other run settings, such as `solver` or `dt`.
 
         bins:
             The number of bins or their edges of `'histogram'`.
@@ -113,262 +205,233 @@ class LargeDeviationAnalysis(BaseAnalysis):
         log_weights:
             The logarithm of the ratio of the new to the old probability of every sample.
 
-    Attributes:
-        rates_:
-            The rate matrix of `'tilted'`.
+    Returns:
+        result:
+            The data read, the generating function at every tilt, and the rate function at the values.
 
-        increments_:
-            The increments of `'block'`.
-
-        system_:
-            The system or its compiled problem of `'cloning'`.
-
-        samples_:
-            The samples at every size of `'histogram'`.
-
-        observations_:
-            The samples of `'reweight'`.
-
-        tilts_:
-            The tilts of the generating function.
-
-        scgf_:
-            The scaled cumulant generating function at every tilt.
-
-        effective_population_:
-            The smallest effective number of clones over the selection steps at every tilt, `(Σ w)² / Σ w²`.
-
-        values_:
-            The values of the rate function, the centres of the bins of `'histogram'`.
-
-        rate_function_:
-            The rate function at every value, 0 at its minimum and `nan` where a size left the bin empty for
-            `'histogram'`.
-
-        weights_:
-            The normalized weight of every sample of `'reweight'`.
-
-        mean_:
-            The weighted mean of the samples of `'reweight'`.
-
-        effective_size_:
-            The effective number of samples `1 / Σ w²` of `'reweight'`.
+    Raises:
+        AnalysisError:
+            The kind is unknown, a setting the kind does not read is changed, a setting the kind needs is missing, a
+            setting is out of range, or the source does not suit the kind.
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import LargeDeviationAnalysis
-        >>> tilted = LargeDeviationAnalysis(weights=[[1.0]], tilts=[0.0, 1.0])
-        >>> tilted.prepare([[2.0]]).run().scgf_.round(4).tolist()
+        >>> from skcomplex.core.analysis import large_deviations
+        >>> large_deviations([[2.0]], weights=[[1.0]], tilts=[0.0, 1.0]).scgf.round(4).tolist()
         [0.0, 3.4366]
         >>> tilts = np.linspace(-3, 3, 6001)
-        >>> rate = LargeDeviationAnalysis(weights=[[1.0]], tilts=tilts, values=[3.0])
-        >>> round(float(rate.prepare([[2.0]]).run().rate_function_[0]), 4)
+        >>> rate = large_deviations([[2.0]], weights=[[1.0]], tilts=tilts, values=[3.0])
+        >>> round(float(rate.rate_function[0]), 4)
         0.2164
-        >>> LargeDeviationAnalysis('reweight', log_weights=[0.0, 0.0]).prepare([-1.0, 1.0]).run().mean_
+        >>> large_deviations([-1.0, 1.0], kind='reweight', log_weights=[0.0, 0.0]).mean
         0.0
     """
-
-    def __init__(
-        self,
-        kind: str = 'tilted',
-        variables: Sequence[str] | None = None,
-        *,
-        weights: npt.ArrayLike | None = None,
-        tilts: float | npt.ArrayLike = 1.0,
-        values: npt.ArrayLike | None = None,
-        block: int = 10,
-        dt: float = 1.0,
-        observable: str | Callable[[Trajectory], float] | None = None,
-        population: int = 1000,
-        interval: float = 1.0,
-        until: float = 20.0,
-        random_state: int | None = None,
-        simulation: Mapping[str, object] | None = None,
-        bins: int | npt.ArrayLike = 41,
-        value_range: tuple[float, float] | None = None,
-        log_weights: npt.ArrayLike | None = None,
-    ) -> None:
-        self.kind = kind
-        self.variables = variables
-        self.weights = weights
-        self.tilts = tilts
-        self.values = values
-        self.block = block
-        self.dt = dt
-        self.observable = observable
-        self.population = population
-        self.interval = interval
-        self.until = until
-        self.random_state = random_state
-        self.simulation = simulation
-        self.bins = bins
-        self.value_range = value_range
-        self.log_weights = log_weights
-
-    def _check_needed(self, name: str) -> None:
-        """Raise an error for a setting the kind needs that is not given."""
-        if getattr(self, name) is None:
-            error_msg = f'{type(self).__name__} of kind {self.kind!r} needs {name}. Give it.'
+    source = _composite(source)
+    _check_choice('large_deviations', 'kind', kind, KINDS)
+    _check_settings(
+        large_deviations,
+        'kind',
+        SETTINGS[kind] | {'variables'},
+        kind=kind,
+        variables=variables,
+        weights=weights,
+        tilts=tilts,
+        values=values,
+        block=block,
+        dt=dt,
+        observable=observable,
+        population=population,
+        interval=interval,
+        until=until,
+        random_state=random_state,
+        simulation=simulation,
+        bins=bins,
+        value_range=value_range,
+        log_weights=log_weights,
+    )
+    needed = {'tilted': weights, 'cloning': observable, 'reweight': log_weights}
+    names = {'tilted': 'weights', 'cloning': 'observable', 'reweight': 'log_weights'}
+    if kind in needed and needed[kind] is None:
+        error_msg = f'large_deviations of kind {kind!r} needs {names[kind]}. Give it.'
+        raise AnalysisError(error_msg)
+    _check(population, interval, until, block, dt)
+    if kind == 'histogram':
+        if not isinstance(source, Mapping):
+            error_msg = 'large_deviations of kind histogram reads a mapping of every size to its samples.'
             raise AnalysisError(error_msg)
-
-    def _check(self) -> None:
-        """Validate the kind, the settings each kind needs, and the cloning schedule."""
-        self._check_choice('kind', self.kind, KINDS)
-        self._check_settings('kind', SETTINGS[self.kind] | {'variables'})
-        needed = {'tilted': 'weights', 'cloning': 'observable', 'reweight': 'log_weights'}
-        if self.kind in needed:
-            self._check_needed(needed[self.kind])
-        steps = round(self.until / self.interval)
-        if self.population < MIN_SIZES or steps < 1 or not np.isclose(steps * self.interval, self.until):
-            error_msg = (
-                f'Cloning needs at least {MIN_SIZES} clones and a duration that is a positive multiple of the '
-                f'interval, but got {self.population} clones, the duration {self.until}, and the interval '
-                f'{self.interval}.'
-            )
-            raise AnalysisError(error_msg)
-        if self.block < 1 or self.dt <= 0:
-            error_msg = f'{type(self).__name__} has block={self.block!r} and dt={self.dt!r}. Use positive values.'
-            raise AnalysisError(error_msg)
-
-    def _get_data_kind(self) -> DataKind:
-        """Return the path kind for jump processes, the series kind for blocks, and the ensemble kind for samples."""
-        return DATA_KINDS[self.kind]
-
-    def _prepare(self, source: Source | ProblemSpec | Mapping[int, npt.ArrayLike]) -> None:
-        """Read the rate matrix, the increments, the system, or the samples the kind estimates from."""
-        if self.kind == 'tilted':
-            self.rates_ = np.asarray(source, dtype=float)
-        elif self.kind == 'block':
-            self.increments_ = self._read_series(source, self.variables).values[:, 0].astype(float)
-        elif self.kind == 'cloning':
-            if not isinstance(source, System | ProblemSpec):
-                error_msg = (
-                    f'{type(self).__name__} of kind cloning reads a system or its problem, not {type(source).__name__}.'
-                )
-                raise AnalysisError(error_msg)
-            self.system_ = source
-        elif self.kind == 'histogram':
-            if not isinstance(source, Mapping):
-                error_msg = f'{type(self).__name__} of kind histogram reads a mapping of every size to its samples.'
-                raise AnalysisError(error_msg)
-            self.samples_ = {size: np.asarray(source[size], dtype=float) for size in sorted(source)}
-        else:
-            self.observations_ = np.asarray(source, dtype=float)
-
-    def _run_tilted(self) -> None:
-        """Compute the largest eigenvalue of the tilted generator at every tilt."""
-        increments = np.asarray(self.weights, dtype=float)
-        escape = np.diag(self.rates_.sum(axis=1))
-        self.scgf_ = np.asarray(
-            [linalg.eigvals(self.rates_ * np.exp(tilt * increments) - escape).real.max() for tilt in self.tilts_],
+        samples = {size: np.asarray(source[size], dtype=float) for size in sorted(source)}
+        centres, histogram_rates = _histogram(samples, bins, value_range)
+        return LargeDeviationsResult(samples=samples, values=centres, rate_function=histogram_rates)
+    if kind == 'reweight':
+        observations = np.asarray(source, dtype=float)
+        logs = np.asarray(log_weights, dtype=float)
+        normalized = np.exp(logs - special.logsumexp(logs))
+        return LargeDeviationsResult(
+            observations=observations,
+            weights=normalized,
+            mean=float(np.sum(normalized * observations)),
+            effective_size=float(1 / np.sum(normalized**2)),
         )
-
-    def _run_block(self) -> None:
-        """Compute the generating function over the blocks of the run."""
-        array = self.increments_
-        count = array.size // self.block
-        if count < MIN_SIZES:
-            error_msg = (
-                f'The run of {array.size} steps holds fewer than 2 blocks of {self.block} steps. Use shorter blocks.'
+    grid = np.atleast_1d(np.asarray(tilts, dtype=float))
+    rates: Array | None = None
+    increments: Array | None = None
+    system: System | ProblemSpec | None = None
+    effective_population: Array | None = None
+    if kind == 'tilted':
+        rates = np.asarray(source, dtype=float)
+        tilted = np.asarray(weights, dtype=float)
+        escape = np.diag(rates.sum(axis=1))
+        scgf = np.asarray([linalg.eigvals(rates * np.exp(tilt * tilted) - escape).real.max() for tilt in grid])
+    elif kind == 'block':
+        increments = _read_series(source, variables).values[:, 0].astype(float)
+        scgf = _block_scgf(increments, grid, block, dt)
+    else:
+        if not isinstance(source, System | ProblemSpec):
+            error_msg = f'large_deviations of kind cloning reads a system or its problem, not {type(source).__name__}.'
+            raise AnalysisError(error_msg)
+        estimates = [
+            _clone(
+                source,
+                float(tilt),
+                observable=observable,
+                population=population,
+                interval=interval,
+                until=until,
+                random_state=random_state,
+                simulation=simulation,
             )
-            raise AnalysisError(error_msg)
-        sums = array[: count * self.block].reshape(count, self.block).sum(axis=1)
-        self.scgf_ = (special.logsumexp(np.outer(self.tilts_, sums), axis=1) - np.log(count)) / (self.block * self.dt)
+            for tilt in grid
+        ]
+        scgf = np.asarray([value for value, _ in estimates])
+        effective_population = np.asarray([effective for _, effective in estimates])
+        system = source
+    points: Array | None = None
+    rate_function: Array | None = None
+    if values is not None:
+        points = np.atleast_1d(np.asarray(values, dtype=float))
+        rate_function = _legendre_transform(grid, scgf, points)
+    return LargeDeviationsResult(
+        rates=rates,
+        increments=increments,
+        system=system,
+        tilts=grid,
+        scgf=scgf,
+        effective_population=effective_population,
+        values=points,
+        rate_function=rate_function,
+    )
 
-    def _clone(self, tilt: float) -> tuple[float, float]:
-        """Return the generating function at one tilt and the smallest effective population, by cloning."""
-        observable = self.observable
-        if observable is None:
-            error_msg = f'{type(self).__name__} of method cloning needs the observable whose increments it tilts.'
-            raise AnalysisError(error_msg)
-        population, steps = self.population, round(self.until / self.interval)
-        rng = np.random.default_rng(self.random_state)
-        settings = {'dt': self.interval, **(self.simulation or {})}
-        simulation = Simulation(self.system_).set_params(**settings).prepare().run(until=self.interval)
-        problem = simulation.problem_
-        states = np.tile(problem.initial_state, (population, 1))
-        log_growth, effective = 0.0, float(population)
-        for _ in range(steps):
-            increments = np.empty(population)
-            for index in range(population):
-                start = replace(problem, initial_state=states[index].copy())
-                seed = int(rng.integers(2**31 - 1))
-                simulation = (
-                    Simulation(start, random_state=seed).set_params(**settings).prepare().run(until=self.interval)
-                )
-                increments[index] = self._increment(observable, simulation.trajectory_)
-                states[index] = np.asarray(simulation.trajectory_.states)[-1]
-            logs = tilt * increments
-            log_growth += float(special.logsumexp(logs) - np.log(population))
-            weights = np.exp(logs - special.logsumexp(logs))
-            effective = min(effective, float(1 / np.sum(weights**2)))
-            states = states[rng.choice(population, size=population, p=weights)]
-        if effective < max(population * SMALL_POPULATION, MIN_EFFECTIVE_CLONES):
-            warnings.warn(
-                f'The effective population of the cloning fell to {effective:.1f} of {population} clones, so the '
-                'estimate may be biased. Use more clones or a shorter interval.',
-                RuntimeWarning,
-                stacklevel=2,
-            )
-        return log_growth / self.until, effective
 
-    def _run_histogram(self) -> None:
-        """Compute the rate function from the histograms of the sizes."""
-        sizes = list(self.samples_)
-        if len(sizes) < MIN_SIZES:
-            error_msg = f'A rate function from histograms needs at least {MIN_SIZES} sizes, not {len(sizes)}.'
-            raise AnalysisError(error_msg)
-        arrays = list(self.samples_.values())
-        edges = np.histogram_bin_edges(np.concatenate(arrays), bins=self.bins, range=self.value_range)
-        densities = np.asarray([np.histogram(array, bins=edges, density=True)[0] for array in arrays])
-        with np.errstate(divide='ignore'):
-            logs = -np.log(densities)
-        rates = np.full(edges.size - 1, np.nan)
-        for index in range(rates.size):
-            column = logs[:, index]
-            finite = np.isfinite(column)
-            if finite.sum() >= MIN_SIZES:
-                rates[index] = np.polyfit(np.asarray(sizes, dtype=float)[finite], column[finite], 1)[0]
-        self.values_ = (edges[1:] + edges[:-1]) / 2
-        self.rate_function_ = rates - np.nanmin(rates)
+def _block_scgf(array: Array, tilts: Array, block: int, dt: float) -> Array:
+    """Return the generating function over the blocks of the run."""
+    count = array.size // block
+    if count < MIN_SIZES:
+        error_msg = f'The run of {array.size} steps holds fewer than 2 blocks of {block} steps. Use shorter blocks.'
+        raise AnalysisError(error_msg)
+    sums = array[: count * block].reshape(count, block).sum(axis=1)
+    return (special.logsumexp(np.outer(tilts, sums), axis=1) - np.log(count)) / (block * dt)
 
-    def _run_reweight(self) -> None:
-        """Compute the weights of the samples and the reweighted mean."""
-        logs = np.asarray(self.log_weights, dtype=float)
-        self.weights_ = np.exp(logs - special.logsumexp(logs))
-        self.mean_ = float(np.sum(self.weights_ * self.observations_))
-        self.effective_size_ = float(1 / np.sum(self.weights_**2))
 
-    def _run(self, inputs: object = None) -> None:
-        """Compute the estimate of the kind, and the rate function at the values."""
-        if self.kind == 'histogram':
-            self._run_histogram()
-            return
-        if self.kind == 'reweight':
-            self._run_reweight()
-            return
-        self.tilts_ = np.atleast_1d(np.asarray(self.tilts, dtype=float))
-        if self.kind == 'tilted':
-            self._run_tilted()
-        elif self.kind == 'block':
-            self._run_block()
-        else:
-            estimates = [self._clone(float(tilt)) for tilt in self.tilts_]
-            self.scgf_ = np.asarray([scgf for scgf, _ in estimates])
-            self.effective_population_ = np.asarray([effective for _, effective in estimates])
-        if self.values is not None:
-            self.values_ = np.atleast_1d(np.asarray(self.values, dtype=float))
-            self.rate_function_ = self._legendre_transform(self.tilts_, self.scgf_, self.values_)
+def _clone(
+    system: System | ProblemSpec,
+    tilt: float,
+    *,
+    observable: str | Callable[[Trajectory], float] | None,
+    population: int,
+    interval: float,
+    until: float,
+    random_state: int | None,
+    simulation: Mapping[str, object] | None,
+) -> tuple[float, float]:
+    """Return the generating function at one tilt and the least effective population.
 
-    @staticmethod
-    def _increment(observable: str | Callable[[Trajectory], float], trajectory: Trajectory) -> float:
-        """Return the increment of a time-additive observable over one segment of a clone."""
-        if callable(observable):
-            return float(observable(trajectory))
-        values = np.asarray(trajectory.values(observable), dtype=float)
-        return float(np.sum(values[-1] - values[0]))
+    They are found by cloning.
+    """
+    if observable is None:
+        error_msg = 'large_deviations of method cloning needs the observable whose increments it tilts.'
+        raise AnalysisError(error_msg)
+    steps = round(until / interval)
+    rng = np.random.default_rng(random_state)
+    settings = {'dt': interval, **(simulation or {})}
+    first = Simulation(system).set_params(**settings).prepare().run(until=interval)
+    problem = first.problem_
+    states = np.tile(problem.initial_state, (population, 1))
+    log_growth, effective = 0.0, float(population)
+    for _ in range(steps):
+        increments = np.empty(population)
+        for index in range(population):
+            start = replace(problem, initial_state=states[index].copy())
+            seed = int(rng.integers(2**31 - 1))
+            run = Simulation(start, random_state=seed).set_params(**settings).prepare().run(until=interval)
+            increments[index] = _increment(observable, run.trajectory_)
+            states[index] = np.asarray(run.trajectory_.states)[-1]
+        logs = tilt * increments
+        log_growth += float(special.logsumexp(logs) - np.log(population))
+        weights = np.exp(logs - special.logsumexp(logs))
+        effective = min(effective, float(1 / np.sum(weights**2)))
+        states = states[rng.choice(population, size=population, p=weights)]
+    if effective < max(population * SMALL_POPULATION, MIN_EFFECTIVE_CLONES):
+        warnings.warn(
+            f'The effective population of the cloning fell to {effective:.1f} of {population} clones, so the estimate '
+            'may be biased. Use more clones or a shorter interval.',
+            RuntimeWarning,
+            stacklevel=3,
+        )
+    return log_growth / until, effective
 
-    @staticmethod
-    def _legendre_transform(tilts: Array, function: Array, values: Array) -> Array:
-        """Return the rate function `I(a) = max_k (k a - lambda(k))` of a generating function sampled on a grid."""
-        return np.max(np.outer(values, tilts) - function[None, :], axis=1)
+
+def _histogram(
+    samples: dict[int, Array],
+    bins: int | npt.ArrayLike,
+    value_range: tuple[float, float] | None,
+) -> tuple[Array, Array]:
+    """Return the centres of the bins and the rate function.
+
+    The rate function comes from the histograms of the sizes.
+    """
+    sizes = list(samples)
+    if len(sizes) < MIN_SIZES:
+        error_msg = f'A rate function from histograms needs at least {MIN_SIZES} sizes, not {len(sizes)}.'
+        raise AnalysisError(error_msg)
+    arrays = list(samples.values())
+    edges = np.histogram_bin_edges(np.concatenate(arrays), bins=bins, range=value_range)
+    densities = np.asarray([np.histogram(array, bins=edges, density=True)[0] for array in arrays])
+    with np.errstate(divide='ignore'):
+        logs = -np.log(densities)
+    rates = np.full(edges.size - 1, np.nan)
+    for index in range(rates.size):
+        column = logs[:, index]
+        finite = np.isfinite(column)
+        if finite.sum() >= MIN_SIZES:
+            rates[index] = np.polyfit(np.asarray(sizes, dtype=float)[finite], column[finite], 1)[0]
+    return (edges[1:] + edges[:-1]) / 2, rates - np.nanmin(rates)
+
+
+def _increment(observable: str | Callable[[Trajectory], float], trajectory: Trajectory) -> float:
+    """Return the increment of a time-additive observable over one segment of a clone."""
+    if callable(observable):
+        return float(observable(trajectory))
+    values = np.asarray(trajectory.values(observable), dtype=float)
+    return float(np.sum(values[-1] - values[0]))
+
+
+def _legendre_transform(tilts: Array, function: Array, values: Array) -> Array:
+    """Return the rate function `I(a) = max_k (k a - lambda(k))`.
+
+    The generating function is sampled on a grid.
+    """
+    return np.max(np.outer(values, tilts) - function[None, :], axis=1)
+
+
+def _check(population: int, interval: float, until: float, block: int, dt: float) -> None:
+    """Raise an error for a cloning schedule, a block, or a step out of range."""
+    steps = round(until / interval)
+    if population < MIN_SIZES or steps < 1 or not np.isclose(steps * interval, until):
+        error_msg = (
+            f'Cloning needs at least {MIN_SIZES} clones and a duration that is a positive multiple of the interval, '
+            f'but got {population} clones, the duration {until}, and the interval {interval}.'
+        )
+        raise AnalysisError(error_msg)
+    if block < 1 or dt <= 0:
+        error_msg = f'large_deviations has block={block!r} and dt={dt!r}. Use positive values.'
+        raise AnalysisError(error_msg)

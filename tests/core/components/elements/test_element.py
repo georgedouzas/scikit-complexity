@@ -13,8 +13,8 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import JumpLaw, RateLaw, RuleLaw
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import LabelError, ValidationError
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
@@ -242,7 +242,7 @@ def test_validation_reports_an_element_with_an_invalid_label_by_its_path():
 
 def test_element_decays_at_its_own_rate():
     """Test that the laws of an element run with its own parameters."""
-    trajectory = Simulation(System(elements=[DecayingElement('a', n=1.0)]), dt=1).prepare().run(until=1).trajectory_
+    trajectory = simulate(System(elements=[DecayingElement('a', n=1.0)]), until=1, dt=1)
     assert np.isclose(trajectory.values('a.n')[-1], np.exp(-0.2), rtol=1e-3)
 
 
@@ -254,7 +254,7 @@ def test_expression_of_states_is_an_observable_of_the_laws():
         == '-debt_firm*r_firm*(debt_firm/equity_firm - 1)'
     )
     leverage = ObservableSpec('leverage', _firm_leverage)
-    trajectory = Simulation(system, dt=0.5, observables=[leverage]).prepare().run(until=2).trajectory_
+    trajectory = simulate(system, until=2, dt=0.5, observables=[leverage])
     debt, equity = trajectory.values('firm.debt'), trajectory.values('firm.equity')
     np.testing.assert_allclose(trajectory.values('leverage'), debt / equity)
 
@@ -275,7 +275,7 @@ def test_numpy_scalar_times_vector_is_rejected():
 def test_numpy_scalar_values_match_floats():
     """Test that NumPy scalar law values run like the same laws written with Python floats."""
     first, second = (
-        Simulation(System(elements=[element('d')]), dt=0.5).prepare().run(until=2).trajectory_.values('d.x')
+        simulate(System(elements=[element('d')]), until=2, dt=0.5).values('d.x')
         for element in (NumpyDecayElement, FloatDecayElement)
     )
     assert np.array_equal(first, second)

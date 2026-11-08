@@ -11,12 +11,13 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class WienerProcessSpec(BaseSpec):
-    """Spec of a set of Wiener processes whose increments over a step `h` have the covariance `h C`.
+    """Spec of a set of Wiener processes of correlated increments.
 
-    An interaction binds the processes through a role declared with `RoleSpec(noise=True)`, and its noise laws name
-    them through the handle `namespace.<role>.dW`, a symbol for one process and a vector of symbols for several, so
-    `namespace.<role>.dW[k]` names process `k`. Interactions of one system that bind processes of one label share them,
-    so laws that name one process share its increment.
+    Their increments over a step `h` have the covariance `h C`. An interaction binds the processes through a role
+    declared with `RoleSpec(noise=True)`, and its noise laws name them through the handle `namespace.<role>.dW`, a
+    symbol for one process and a vector of symbols for several, so `namespace.<role>.dW[k]` names process `k`.
+    Interactions of one system that bind processes of one label share them, so laws that name one process share its
+    increment.
 
     Args:
         label:

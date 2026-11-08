@@ -4,7 +4,7 @@ import numpy as np
 
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.physics.common.particles import ConstantForceInteraction, MassPointElement
 
 
@@ -15,5 +15,5 @@ def test_particle_constant_acceleration():
         interactions=[ConstantForceInteraction('push', target='p', F=[4.0, 0.0, -2.0])],
         space=ContinuousSpace(n_dim=3),
     )
-    position = Simulation(system, dt=0.5).prepare().run(until=2).trajectory_.values('p.x')[-1]
+    position = simulate(system, until=2, dt=0.5).values('p.x')[-1]
     assert np.allclose(position, [4.0, 0.0, -2.0])

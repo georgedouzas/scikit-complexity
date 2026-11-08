@@ -1,4 +1,7 @@
-"""Finance systems: Kirman's exchange rate driven by traders who switch between fundamentalism and chartism."""
+"""Finance systems: Kirman's exchange rate driven by switching traders.
+
+The traders switch between fundamentalism and chartism.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,18 +15,18 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import lag, normal, uniform, where
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class SwitchingExchangeElement(Element):
-    """Foreign exchange market whose rate deviation follows the share of fundamentalists of Kirman's recruitment chain.
+    """Foreign exchange market whose rate deviation follows the fundamentalists.
 
-    The deviation `x = s - s*` of the exchange rate from its fundamental value follows Eq. 1.36 of Caiani et al.
-    (2016), `(1 + r) x_t = [1 - v n_t + g (1 - n_t)] x_t-1 - g (1 - n_t) x_t-2 + sigma eps_t`, with a standard normal
-    shock `eps_t` of the supply of foreign exchange. Of the `N` traders, `k` are fundamentalists, `n = k / N`. Every
-    step one trader meets another at random, after Kirman (1993): a chartist turns fundamentalist with probability
+    The deviation follows the share of fundamentalists of Kirman's recruitment chain. The deviation `x = s - s*` of the
+    exchange rate from its fundamental value follows Eq. 1.36 of Caiani et al. (2016),
+    `(1 + r) x_t = [1 - v n_t + g (1 - n_t)] x_t-1 - g (1 - n_t) x_t-2 + sigma eps_t`, with a standard normal shock
+    `eps_t` of the supply of foreign exchange. Of the `N` traders, `k` are fundamentalists, `n = k / N`. Every step one
+    trader meets another at random, after Kirman (1993): a chartist turns fundamentalist with probability
     `(1 - k / N) (epsilon + (1 - delta) k / (N - 1))` and a fundamentalist turns chartist with probability
     `(k / N) (epsilon + (1 - delta) (N - k) / (N - 1))`, by a spontaneous change `epsilon` or by recruitment.
 
@@ -67,6 +70,10 @@ class SwitchingExchangeElement(Element):
         1.2
     """
 
+    draws = True
+
+    law_classes = (UpdateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -108,7 +115,9 @@ class SwitchingExchangeElement(Element):
         return s.k / s.n_traders
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the step of the deviation and the recruitment step of the fundamentalists.
+        """Return the step of the deviation and the recruitment step.
+
+        The recruitment step is that of the fundamentalists.
 
         Args:
             s:
@@ -132,39 +141,24 @@ class SwitchingExchangeElement(Element):
         ]
 
 
-@register_system(
-    field='economics/finance',
-    tags=('exchange rate', 'fundamentalists', 'chartists', 'herding', 'ants', 'discrete map'),
-    references=('Caiani et al. 2016 §1.3.2', 'Kirman 1993'),
-    defaults={'until': 20000},
-    observables=lambda system: [
-        ObservableSpec('fundamentalists', SwitchingExchangeElement.get_share, element='market'),
-    ],
-)
-def kirman_exchange_rate(
-    x: float = 0.1,
-    k: int = 15,
-    *,
-    n_traders: int = 30,
-    r: float = 0.01,
-    v: float = 0.5,
-    g: float = 1.0,
-    sigma: float = 0.01,
-    epsilon: float = 0.005,
-    delta: float = 0.01,
-) -> System:
-    """Return Kirman's foreign exchange market, whose traders switch between fundamentalism and chartism like ants.
+class KirmanExchangeRateSystem(BaseSystem):
+    """Kirman's foreign exchange market.
 
-    Fundamentalists expect the exchange rate to revert to its fundamental value, `s_t-1 + v (s* - s_t-1)`, and chartists
-    expect the last change to go on, `s_t-1 + g (s_t-1 - s_t-2)`. With the mean-variance demand of both and the share
-    `n_t` of fundamentalists, the market clears at the deviation of Eq. 1.36 of Caiani et al. (2016, Section 1.3.2),
+    Its traders switch between fundamentalism and chartism like ants. Fundamentalists expect the exchange rate to revert
+    to its fundamental value, `s_t-1 + v (s* - s_t-1)`, and chartists expect the last change to go on,
+    `s_t-1 + g (s_t-1 - s_t-2)`. With the mean-variance demand of both and the share `n_t` of fundamentalists, the
+    market clears at the deviation of Eq. 1.36 of Caiani et al. (2016, Section 1.3.2),
     `(1 + r) x_t = [1 - v n_t + g (1 - n_t)] x_t-1 - g (1 - n_t) x_t-2`, written there with `s_t-2` for `x_t-2`, a shock
     of the supply of foreign exchange added. The share follows the recruitment chain of Kirman's ants, which the source
-    refers to and Kirman (1993) gives: when spontaneous changes are rarer than recruitment, `epsilon < (1 - delta) /
-    (N - 1)`, the traders spend long periods mostly of one kind and switch suddenly. A market of fundamentalists is
-    stable with the eigenvalue `(1 - v) / (1 + r)` (Eq. 1.37), and a market of chartists oscillates, stable only while
-    `g <= 1 + r` (Eq. 1.38), so the volatility of the rate comes and goes with the chartists. One trader meets another
-    every step, so the defaults take a small market of 30 traders, whose regimes switch within a few thousand steps.
+    refers to and Kirman (1993) gives: when spontaneous changes are rarer than recruitment,
+    `epsilon < (1 - delta) / (N - 1)`, the traders spend long periods mostly of one kind and switch suddenly. A market
+    of fundamentalists is stable with the eigenvalue `(1 - v) / (1 + r)` (Eq. 1.37), and a market of chartists
+    oscillates, stable only while `g <= 1 + r` (Eq. 1.38), so the volatility of the rate comes and goes with the
+    chartists. One trader meets another every step, so the defaults take a small market of 30 traders, whose regimes
+    switch within a few thousand steps.
+
+    The system has the deviation `market.x` and the number of fundamentalists `market.k`. The observable of the system
+    is the share of fundamentalists `market.fundamentalists`.
 
     Args:
         x:
@@ -194,26 +188,58 @@ def kirman_exchange_rate(
         delta:
             One minus the probability that a trader recruits the trader it meets.
 
-    Returns:
-        system:
-            The system, with the deviation `market.x` and the number of fundamentalists `market.k`. The observable of
-            the system is the share of fundamentalists `market.fundamentalists`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.finance import kirman_exchange_rate
-        >>> kirman_exchange_rate(g=1.2).elements[0].g
+        >>> from skcomplex.systems.economics.finance import KirmanExchangeRateSystem
+        >>> KirmanExchangeRateSystem(g=1.2).prepare().system_.elements[0].g
         1.2
     """
-    market = SwitchingExchangeElement(
-        'market',
-        x=x,
-        k=k,
-        n_traders=n_traders,
-        r=r,
-        v=v,
-        g=g,
-        sigma=sigma,
-        epsilon=epsilon,
-        delta=delta,
-    )
-    return System(elements=[market])
+
+    field = 'economics/finance'
+    topics = ('exchange rate', 'fundamentalists', 'chartists', 'herding', 'ants', 'discrete map')
+    references = ('Caiani et al. 2016 §1.3.2', 'Kirman 1993')
+    until = 20000
+    observables = (ObservableSpec('fundamentalists', SwitchingExchangeElement.get_share, element='market'),)
+
+    def __init__(
+        self,
+        x: float = 0.1,
+        k: int = 15,
+        *,
+        n_traders: int = 30,
+        r: float = 0.01,
+        v: float = 0.5,
+        g: float = 1.0,
+        sigma: float = 0.01,
+        epsilon: float = 0.005,
+        delta: float = 0.01,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.x = x
+        self.k = k
+        self.n_traders = n_traders
+        self.r = r
+        self.v = v
+        self.g = g
+        self.sigma = sigma
+        self.epsilon = epsilon
+        self.delta = delta
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        market = SwitchingExchangeElement(
+            'market',
+            x=self.x,
+            k=self.k,
+            n_traders=self.n_traders,
+            r=self.r,
+            v=self.v,
+            g=self.g,
+            sigma=self.sigma,
+            epsilon=self.epsilon,
+            delta=self.delta,
+        )
+        return System(self.label, elements=[market])

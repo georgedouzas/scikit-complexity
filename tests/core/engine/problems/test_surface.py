@@ -4,7 +4,8 @@ import enum
 import inspect
 
 from skcomplex.core.engine import problems as package
-from skcomplex.core.engine.problems import BaseKernel, BasePrinter, BaseProblemSpec, BaseSearch, SourceLoader
+from skcomplex.core.engine.problems import BaseKernel, BasePrinter, BaseProblemSpec, BaseSearch
+from skcomplex.core.engine.problems._source_loader import SourceLoader
 from skcomplex.core.specs import BaseRecordSpec, BaseSpec, BaseStructureSpec
 
 BASES = (BaseSpec, BaseKernel, BaseSearch, BasePrinter, SourceLoader)
@@ -26,6 +27,18 @@ def test_value_bases_derive_from_the_value_base():
 
 
 def test_kernel_search_and_printer_bases_are_configurable():
-    """The kernel, search, and printer bases speak the two verbs of every configurable class."""
+    """The kernel, search, and printer bases have the two main public methods of every configurable class."""
     for base in (BaseKernel, BaseSearch, BasePrinter):
-        assert all(callable(getattr(base, verb)) for verb in ('prepare', 'run'))
+        assert all(callable(getattr(base, method)) for method in ('prepare', 'run'))
+
+
+def test_problems_of_the_forms_are_private():
+    """The bases, the problem of the shared pass core, and the frames are public, and the other problems are not."""
+    assert set(package.__all__) == {
+        'BaseKernel',
+        'BasePrinter',
+        'BaseProblemSpec',
+        'BaseSearch',
+        'FrameSpec',
+        'ProblemSpec',
+    }

@@ -16,7 +16,10 @@ from ._reference_spec import ReferenceSpec
 
 @dataclass(frozen=True)
 class ObservedSpec(BaseSpec):
-    """Value of an observable that a role reads at the current state, with the references of its symbols."""
+    """Value of an observable that a role reads at the current state.
+
+    It holds the references of its symbols.
+    """
 
     namespace: SimpleNamespace
     references: dict[Expression, ReferenceSpec]

@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Callable
+from typing import ClassVar
 
 from sage.structure.element import Matrix
 
@@ -14,10 +15,11 @@ from ._base import BaseLaw
 
 
 class RateLaw(BaseLaw):
-    """Contribution to the highest time derivative of a state, the first for states of order 1.
+    """Contribution to the highest time derivative of a state.
 
-    Rates on the same state add up, so a system with only rate laws is a system of ordinary differential equations. On
-    a state of order `k`, a rate contributes to the `k`-th derivative, so independent mechanisms superpose.
+    It is the first derivative for states of order 1. Rates on the same state add up, so a system with only rate laws is
+    a system of ordinary differential equations. On a state of order `k`, a rate contributes to the `k`-th derivative,
+    so independent mechanisms superpose.
 
     Args:
         target:
@@ -45,6 +47,8 @@ class RateLaw(BaseLaw):
         6.0
     """
 
+    law_tag: ClassVar[str] = 'rate'
+
     def __init__(
         self,
         target: Target | Matrix,
@@ -69,8 +73,14 @@ class RateLaw(BaseLaw):
         """Return what the law requires of a system: continuous time."""
         return RequirementSpec(time=(ContinuousTime,))
 
-    def _check(self) -> None:
-        """Raise an error for a value that is a NumPy array."""
+    def _prepare(self, context: str | None = None) -> None:
+        """Raise an error for a value that is a NumPy array.
+
+        Args:
+            context:
+                The path of the element or interaction that returns the law, or `None`.
+        """
+        super()._prepare(context)
         self._check_array('value')
 
     def _run(self, inputs: object) -> None:

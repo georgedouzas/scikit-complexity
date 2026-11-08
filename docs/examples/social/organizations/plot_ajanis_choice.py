@@ -14,14 +14,14 @@ without any employer planning it.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.social.organizations import AjanisChoiceSystem
 
 SYSTEM = 'ajanis_choice'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(create_system(SYSTEM), observers=[observer], random_state=0).prepare().run(until=60)
+trajectory = simulate(AjanisChoiceSystem(), observers=[observer], random_state=0)
 
 # %%
 # Slaves appear only when labour is plentiful
@@ -30,12 +30,12 @@ simulation = Simulation(create_system(SYSTEM), observers=[observer], random_stat
 # paid below it, slave-days in Chesney's words. With 600 workers, fewer than the jobs, wages should rise to the top of
 # the range and no worker should be underpaid.
 
-scarce = Simulation(create_system(SYSTEM, n_workers=300), random_state=0).prepare().run(until=60).trajectory_
+scarce = simulate(AjanisChoiceSystem(n_workers=300), random_state=0)
 fig, (wages, slaves) = plt.subplots(1, 2, figsize=(10, 4))
-for name, trajectory in (('1000 workers', simulation.trajectory_), ('600 workers', scarce)):
-    mean = [np.mean(trajectory.agents('employers', frame).values['wage']) for frame in range(len(trajectory.times))]
-    wages.plot(trajectory.times, mean, label=name)
-    slaves.plot(trajectory.times[1:], np.cumsum(trajectory.values('day.slaves')[1:]), label=name)
+for name, run in (('1000 workers', trajectory), ('600 workers', scarce)):
+    mean = [np.mean(run.agents('employers', frame).values['wage']) for frame in range(len(run.times))]
+    wages.plot(run.times, mean, label=name)
+    slaves.plot(run.times[1:], np.cumsum(run.values('day.slaves')[1:]), label=name)
 wages.axhline(1.0, color='black', linestyle=':', label='minimum wage')
 wages.set_xlabel('days')
 wages.set_ylabel('mean wage')

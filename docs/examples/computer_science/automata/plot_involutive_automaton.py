@@ -15,15 +15,14 @@ import itertools
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.computer_science.automata import InvolutiveAutomatonSystem
 
 SYSTEM = 'involutive_automaton'
 
-system = create_system(SYSTEM, n=3, size=80, density=0.6, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(system, observers=[observer]).prepare().run(until=10)
+trajectory = simulate(InvolutiveAutomatonSystem(n=3, size=80, density=0.6, random_state=0), observers=[observer])
 
 # %%
 # Period two
@@ -31,15 +30,12 @@ simulation = Simulation(system, observers=[observer]).prepare().run(until=10)
 # Every configuration should come back after two steps, so the distance to the start alternates between a positive
 # value and 0, and over all rings of 12 cells the second step returns every one of them.
 
-alive = simulation.trajectory_.values('cells.alive')
+alive = trajectory.values('cells.alive')
 distance = (alive != alive[0]).sum(axis=1)
 configurations = np.asarray(list(itertools.product((0, 1), repeat=12)), dtype=float)
 returned = [
     np.array_equal(
-        Simulation(create_system(SYSTEM, n=3, initial=configuration))
-        .prepare()
-        .run(until=2)
-        .trajectory_.values(
+        simulate(InvolutiveAutomatonSystem(n=3, initial=configuration), until=2).values(
             'cells.alive',
         )[-1],
         configuration,
@@ -51,7 +47,7 @@ image.imshow(alive, aspect='auto', cmap='Greys', interpolation='nearest')
 image.set_xlabel('cell n')
 image.set_ylabel('step')
 image.set_title('The automaton alternates')
-check.plot(simulation.trajectory_.times, distance, 'o-')
+check.plot(trajectory.times, distance, 'o-')
 check.set_xlabel('step')
 check.set_ylabel('cells that differ from the start')
 check.set_title(f'Two steps return every sampled ring: {all(returned)}')

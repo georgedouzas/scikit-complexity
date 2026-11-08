@@ -1,4 +1,7 @@
-"""Neural network systems: Elman's simple recurrent network, trained on the temporal XOR stream."""
+"""Neural network systems: Elman's simple recurrent network.
+
+It is trained on the temporal XOR stream.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,7 +15,7 @@ from sage.all__sagemath_symbolics import exp
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction, TrainingInteraction
 from ....core.components.spaces import DiscreteTime
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import (
     DatasetSpec,
     ObservableSpec,
@@ -24,13 +27,13 @@ from ....core.specs import (
     VisualSpec,
 )
 from ....core.types import Array
-from ..._catalog import register_system
 
 
 class HiddenUnitElement(Element):
-    """Hidden unit of a simple recurrent network, whose activity is a sigmoid of its recurrent input and its drive.
+    """Hidden unit of a simple recurrent network.
 
-    The drive `u` holds the weighted input of the previous step, and the bias `b` is adaptive, so training changes it.
+    Its activity is a sigmoid of its recurrent input and its drive. The drive `u` holds the weighted input of the
+    previous step, and the bias `b` is adaptive, so training changes it.
 
     Args:
         label:
@@ -70,7 +73,9 @@ class HiddenUnitElement(Element):
 
 
 class InputUnitElement(Element):
-    """Input unit of a simple recurrent network, whose value a dataset or a schedule sets at every step.
+    """Input unit of a simple recurrent network.
+
+    A dataset or a schedule sets its value at every step.
 
     Args:
         label:
@@ -142,7 +147,9 @@ class OutputUnitElement(Element):
 
 
 class InputCouplingInteraction(CouplingInteraction):
-    """Weighted input of a simple recurrent network, which sets the drive `u = D x` of every hidden unit each step.
+    """Weighted input of a simple recurrent network.
+
+    It sets the drive `u = D x` of every hidden unit each step.
 
     The weights `D` are an adaptive matrix with one row per hidden unit and one column per input unit, so training
     changes them. The coupling runs in the phase `drive` of the step, which the system declares before the phases
@@ -195,10 +202,10 @@ class InputCouplingInteraction(CouplingInteraction):
 
 
 class ReadoutCouplingInteraction(CouplingInteraction):
-    """Readout of a simple recurrent network, `y_i <- sigmoid(sum_j W_ij s_j + c_i)` with the logistic sigmoid.
+    """Readout of a simple recurrent network, `y_i <- sigmoid(sum_j W_ij s_j + c_i)`.
 
-    Every output unit reads the activities of the hidden units through the adaptive matrix `W`, adds its bias `c`, and
-    takes the sigmoid of the sum as its next prediction.
+    The sigmoid is the logistic one. Every output unit reads the activities of the hidden units through the adaptive
+    matrix `W`, adds its bias `c`, and takes the sigmoid of the sum as its next prediction.
 
     Args:
         label:
@@ -252,10 +259,11 @@ class ReadoutCouplingInteraction(CouplingInteraction):
 
 
 class RecurrenceCouplingInteraction(CouplingInteraction):
-    """Recurrence of a simple recurrent network, `s_i <- sigmoid(sum_j A_ij s_j + u_i + b_i)` with the logistic sigmoid.
+    """Recurrence of a simple recurrent network.
 
-    Every hidden unit reads the activities of every hidden unit, itself included, through the adaptive matrix `A`, adds
-    its drive `u` and its bias `b`, and takes the sigmoid of the sum as its next activity (Gros 2015 Eq. 10.18).
+    It sets `s_i <- sigmoid(sum_j A_ij s_j + u_i + b_i)`. The sigmoid is the logistic one. Every hidden unit reads the
+    activities of every hidden unit, itself included, through the adaptive matrix `A`, adds its drive `u` and its bias
+    `b`, and takes the sigmoid of the sum as its next activity (Gros 2015 Eq. 10.18).
 
     Args:
         label:
@@ -310,60 +318,18 @@ WEIGHT_SCALE = 0.5
 PHASES = (PhaseSpec('drive'), PhaseSpec('hidden'), PhaseSpec('readout'))
 
 
-def _squared_error(member: SimpleNamespace) -> object:
-    """Return the squared error of the prediction of an output unit."""
-    return (member.y - member.target) ** 2
+class ElmanNetworkSystem(BaseSystem):
+    """Elman's simple recurrent network.
 
-
-def _temporal_xor(n_bits: int, rng: np.random.Generator) -> Array:
-    """Return a stream of bits whose every third bit is the exclusive or of the two bits before it."""
-    bits = rng.integers(0, 2, n_bits).astype(float)
-    triples = n_bits // 3
-    bits[2 : 3 * triples : 3] = np.logical_xor(bits[0 : 3 * triples : 3], bits[1 : 3 * triples : 3])
-    return bits
-
-
-def _dataset(bits: Array, window: int) -> DatasetSpec:
-    """Return the windows of a stream that start at every third bit, the next bits as targets, and the metric masks.
-
-    The prediction of a step reads the input of that step, so the target of step `k` is the input of step `k + 1`.
-    """
-    starts = np.arange(0, len(bits) - window, 3)
-    inputs = np.stack([bits[start : start + window] for start in starts])
-    targets = np.stack([bits[start + 1 : start + window + 1] for start in starts])
-    xor = np.broadcast_to(np.arange(window) % 3 == 1, inputs.shape).astype(float)
-    return DatasetSpec(
-        {'inputs.x': inputs[..., np.newaxis], 'outputs.target': targets[..., np.newaxis]},
-        weights={'xor_error': xor, 'random_error': 1.0 - xor},
-    )
-
-
-@register_system(
-    field='computer_science/neural_networks',
-    tags=('neural network', 'recurrent network', 'learning', 'backpropagation through time', 'discrete map'),
-    references=('Gros 2015 §10.5.1', 'Elman 1990'),
-    defaults={'until': 200, 'dt': 1},
-)
-def elman_network(
-    n_hidden: int = 4,
-    *,
-    n_bits: int = 3000,
-    window: int = 12,
-    batch_size: int = 16,
-    learning_rate: float = 0.05,
-    truncation: int | None = None,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return Elman's simple recurrent network, which learns to predict the next bit of a temporal XOR stream.
-
-    The nested discrete map `net` holds one input unit, `n_hidden` hidden units, and one output unit. The input sets
-    the drive `u = D x` of the hidden units, the hidden units take `s <- sigmoid(A s + u + b)` (Gros 2015 Eq. 10.18),
-    and the output predicts `y <- sigmoid(W s + c)`, in three phases of every step, so the prediction of a step reads
-    its input. The training interaction `training` trains `D`, `A`, `W`, `b`, and `c` with Adam on the squared error
-    of predicting the next input from the inputs so far, over windows of `window` bits that start at every third bit of
-    a stream in which every third bit is the exclusive or of the two before it. Only those bits can be predicted, so
-    the metric `xor_error` falls toward 0 while `random_error`, the error on the other bits, stays near 0.25. One step
-    of the system is one epoch.
+    It learns to predict the next bit of a temporal XOR stream. The nested discrete map `net` holds one input unit,
+    `n_hidden` hidden units, and one output unit. The input sets the drive `u = D x` of the hidden units, the hidden
+    units take `s <- sigmoid(A s + u + b)` (Gros 2015 Eq. 10.18), and the output predicts `y <- sigmoid(W s + c)`, in
+    three phases of every step, so the prediction of a step reads its input. The training interaction `training` trains
+    `D`, `A`, `W`, `b`, and `c` with Adam on the squared error of predicting the next input from the inputs so far, over
+    windows of `window` bits that start at every third bit of a stream in which every third bit is the exclusive or of
+    the two before it. Only those bits can be predicted, so the metric `xor_error` falls toward 0 while `random_error`,
+    the error on the other bits, stays near 0.25. One step of the system is one epoch. The system has the nested system
+    `net` and the training interaction `training`.
 
     Args:
         n_hidden:
@@ -388,57 +354,121 @@ def elman_network(
         random_state:
             The seed or generator of the stream and of the initial weights.
 
-    Returns:
-        system:
-            The system, with the nested system `net` and the training interaction `training`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.computer_science.neural_networks import elman_network
-        >>> [item.label for item in elman_network().systems]
+        >>> from skcomplex.systems.computer_science.neural_networks import ElmanNetworkSystem
+        >>> [item.label for item in ElmanNetworkSystem().prepare().system_.systems]
         ['net']
     """
-    rng = np.random.default_rng(random_state)
-    data = _dataset(_temporal_xor(n_bits, rng), window)
-    net = System(
-        'net',
-        elements=[
-            GroupElement('inputs', element=InputUnitElement, size=1),
-            GroupElement('hidden', element=HiddenUnitElement, size=n_hidden),
-            GroupElement('outputs', element=OutputUnitElement, size=1),
-        ],
-        interactions=[
-            InputCouplingInteraction(
-                'input',
-                target='hidden',
-                source='inputs',
-                D=rng.normal(0.0, WEIGHT_SCALE, (n_hidden, 1)),
+
+    field = 'computer_science/neural_networks'
+    topics = ('neural network', 'recurrent network', 'learning', 'backpropagation through time', 'discrete map')
+    references = ('Gros 2015 §10.5.1', 'Elman 1990')
+    until = 200
+    dt = 1
+
+    def __init__(
+        self,
+        n_hidden: int = 4,
+        *,
+        n_bits: int = 3000,
+        window: int = 12,
+        batch_size: int = 16,
+        learning_rate: float = 0.05,
+        truncation: int | None = None,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_hidden = n_hidden
+        self.n_bits = n_bits
+        self.window = window
+        self.batch_size = batch_size
+        self.learning_rate = learning_rate
+        self.truncation = truncation
+        self.random_state = random_state
+
+    @staticmethod
+    def _squared_error(member: SimpleNamespace) -> object:
+        """Return the squared error of the prediction of an output unit."""
+        return (member.y - member.target) ** 2
+
+    @staticmethod
+    def _temporal_xor(n_bits: int, rng: np.random.Generator) -> Array:
+        """Return a stream of bits with a temporal XOR.
+
+        Every third bit is the exclusive or of the two bits before it.
+        """
+        bits = rng.integers(0, 2, n_bits).astype(float)
+        triples = n_bits // 3
+        bits[2 : 3 * triples : 3] = np.logical_xor(bits[0 : 3 * triples : 3], bits[1 : 3 * triples : 3])
+        return bits
+
+    @staticmethod
+    def _dataset(bits: Array, window: int) -> DatasetSpec:
+        """Return the windows of a stream, the next bits as targets, and the metric masks.
+
+        The windows start at every third bit. The prediction of a step reads the input of that step, so the target of
+        step `k` is the input of step `k + 1`.
+        """
+        starts = np.arange(0, len(bits) - window, 3)
+        inputs = np.stack([bits[start : start + window] for start in starts])
+        targets = np.stack([bits[start + 1 : start + window + 1] for start in starts])
+        xor = np.broadcast_to(np.arange(window) % 3 == 1, inputs.shape).astype(float)
+        return DatasetSpec(
+            {'inputs.x': inputs[..., np.newaxis], 'outputs.target': targets[..., np.newaxis]},
+            weights={'xor_error': xor, 'random_error': 1.0 - xor},
+        )
+
+    def _build_system(self) -> System:
+        """Return Elman's simple recurrent network.
+
+        It learns to predict the next bit of a temporal XOR stream.
+        """
+        rng = np.random.default_rng(self.random_state)
+        data = self._dataset(self._temporal_xor(self.n_bits, rng), self.window)
+        net = System(
+            'net',
+            elements=[
+                GroupElement('inputs', element=InputUnitElement, size=1),
+                GroupElement('hidden', element=HiddenUnitElement, size=self.n_hidden),
+                GroupElement('outputs', element=OutputUnitElement, size=1),
+            ],
+            interactions=[
+                InputCouplingInteraction(
+                    'input',
+                    target='hidden',
+                    source='inputs',
+                    D=rng.normal(0.0, WEIGHT_SCALE, (self.n_hidden, 1)),
+                ),
+                RecurrenceCouplingInteraction(
+                    'recurrence',
+                    target='hidden',
+                    A=rng.normal(0.0, WEIGHT_SCALE, (self.n_hidden, self.n_hidden)),
+                ),
+                ReadoutCouplingInteraction(
+                    'readout',
+                    target='outputs',
+                    source='hidden',
+                    W=rng.normal(0.0, WEIGHT_SCALE, (1, self.n_hidden)),
+                ),
+            ],
+            time=DiscreteTime(schedule=PhasesScheduleSpec(PHASES)),
+        )
+        training = TrainingInteraction(
+            'training',
+            system='net',
+            trained=TRAINED,
+            loss=ObservableSpec('error', group='outputs', reduce='sum', expression=self._squared_error),
+            data=data,
+            learning_rate=self.learning_rate,
+            batch_size=self.batch_size,
+            truncation=self.truncation,
+            metrics=(
+                ObservableSpec('xor_error', group='outputs', reduce='sum', expression=self._squared_error),
+                ObservableSpec('random_error', group='outputs', reduce='sum', expression=self._squared_error),
             ),
-            RecurrenceCouplingInteraction(
-                'recurrence',
-                target='hidden',
-                A=rng.normal(0.0, WEIGHT_SCALE, (n_hidden, n_hidden)),
-            ),
-            ReadoutCouplingInteraction(
-                'readout',
-                target='outputs',
-                source='hidden',
-                W=rng.normal(0.0, WEIGHT_SCALE, (1, n_hidden)),
-            ),
-        ],
-        time=DiscreteTime(schedule=PhasesScheduleSpec(PHASES)),
-    )
-    training = TrainingInteraction(
-        'training',
-        system='net',
-        trained=TRAINED,
-        loss=ObservableSpec('error', group='outputs', reduce='sum', expression=_squared_error),
-        data=data,
-        learning_rate=learning_rate,
-        batch_size=batch_size,
-        truncation=truncation,
-        metrics=(
-            ObservableSpec('xor_error', group='outputs', reduce='sum', expression=_squared_error),
-            ObservableSpec('random_error', group='outputs', reduce='sum', expression=_squared_error),
-        ),
-    )
-    return System('elman', systems=[net], interactions=[training], time=DiscreteTime())
+        )
+        return System(self.label, systems=[net], interactions=[training], time=DiscreteTime())

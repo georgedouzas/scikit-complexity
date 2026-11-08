@@ -1,4 +1,7 @@
-"""Net energy systems: a finite fossil reserve whose energy return on investment falls as it is depleted."""
+"""Net energy systems.
+
+The energy return on investment of a finite fossil reserve falls as it is depleted.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,13 +14,15 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw, Sink, Source, TransferLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 def _eroi(s: SimpleNamespace) -> Expression:
-    """Return the energy return on investment, which falls with the remaining fraction of the reserve."""
+    """Return the energy return on investment.
+
+    It falls with the remaining fraction of the reserve.
+    """
     return 1 + (s.initial_eroi - 1) * (s.reserve / s.reserve_size) ** s.decline
 
 
@@ -37,7 +42,9 @@ def _net_per_capita(s: SimpleNamespace) -> Expression:
 
 
 class EnergySectorElement(Element):
-    """Energy sector of a society, a finite reserve, the capacity that extracts it, and the population it supplies.
+    """Energy sector of a society.
+
+    The sector holds a finite reserve, the capacity that extracts it, and the population it supplies.
 
     The capacity draws the gross energy `capacity reserve / reserve_size` from the reserve. Part of it pays for the
     extraction work, the gross energy divided by the energy return on investment
@@ -88,6 +95,11 @@ class EnergySectorElement(Element):
         20.0
     """
 
+    law_classes = (
+        RateLaw,
+        TransferLaw,
+    )
+
     def __init__(
         self,
         label: str,
@@ -117,7 +129,9 @@ class EnergySectorElement(Element):
         self.death_rate = death_rate
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the extraction of the reserve, its energy cost, the growth of the capacity, and the population.
+        """Return the extraction of the reserve and its energy cost.
+
+        The laws also hold the growth of the capacity and the population.
 
         Args:
             s:
@@ -138,37 +152,23 @@ class EnergySectorElement(Element):
         ]
 
 
-@register_system(
-    field='physics/climate',
-    tags=('energy', 'net energy', 'stocks and flows', 'system dynamics', 'ode'),
-    references=('Mobus 2022',),
-    defaults={'until': 250.0, 'dt': 1.0},
-    observables=lambda system: [
-        ObservableSpec('eroi', _eroi, element='energy'),
-        ObservableSpec('gross_energy', _gross_energy, element='energy'),
-        ObservableSpec('extraction_cost', _extraction_cost, element='energy'),
-        ObservableSpec('net_per_capita', _net_per_capita, element='energy'),
-    ],
-)
-def energy_return(
-    reserve: float = 1000.0,
-    capacity: float = 0.1,
-    *,
-    initial_eroi: float = 20.0,
-    reinvestment: float = 0.1,
-    birth_rate: float = 0.03,
-) -> System:
-    """Return the extraction of a finite energy reserve whose energy return on investment declines as it depletes.
+class EnergyReturnSystem(BaseSystem):
+    """The extraction of a finite energy reserve.
+
+    Its energy return on investment declines as it depletes.
 
     The extraction capacity draws the gross energy from the reserve at a rate that falls with the remaining fraction,
-    since the easy sources go first. Part of the gross energy pays for the extraction work, the gross energy divided
-    by the energy return on investment (EROI), which falls from `initial_eroi` to one with the cube of the remaining
-    fraction as the reserve empties. The rest is the net energy that society receives. Society reinvests a share of
-    the net energy in extraction capacity, which depreciates, and the population grows exponentially with no feedback
-    from the energy it receives. Energy is conserved, every unit leaving the reserve is either cost or net energy, so
-    the gross energy rises exponentially and peaks, the net energy peaks before it, and the net energy per person
-    peaks earlier still. The structure follows Mobus (2022, Section 9.6) and its figures of peak net energy, with
-    illustrative parameters in energy units, persons, and years.
+    since the easy sources go first. Part of the gross energy pays for the extraction work, the gross energy divided by
+    the energy return on investment (EROI), which falls from `initial_eroi` to one with the cube of the remaining
+    fraction as the reserve empties. The rest is the net energy that society receives. Society reinvests a share of the
+    net energy in extraction capacity, which depreciates, and the population grows exponentially with no feedback from
+    the energy it receives. Energy is conserved, every unit leaving the reserve is either cost or net energy, so the
+    gross energy rises exponentially and peaks, the net energy peaks before it, and the net energy per person peaks
+    earlier still. The structure follows Mobus (2022, Section 9.6) and its figures of peak net energy, with illustrative
+    parameters in energy units, persons, and years. The system has the reserve `energy.reserve`, the capacity
+    `energy.capacity`, the population `energy.population`, and the flows `energy.energy_cost`, `energy.net_energy`,
+    `energy.births`, and `energy.deaths` per year, over years. The observables of the system are `energy.eroi`,
+    `energy.gross_energy`, `energy.extraction_cost`, and `energy.net_per_capita`.
 
     Args:
         reserve:
@@ -186,25 +186,53 @@ def energy_return(
         birth_rate:
             The relative birth rate of the population per year.
 
-    Returns:
-        system:
-            The system, with the reserve `energy.reserve`, the capacity `energy.capacity`, the population
-            `energy.population`, and the flows `energy.energy_cost`, `energy.net_energy`, `energy.births`, and
-            `energy.deaths` per year, over years. The observables of the system are `energy.eroi`,
-            `energy.gross_energy`, `energy.extraction_cost`, and `energy.net_per_capita`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.climate import energy_return
-        >>> energy_return(initial_eroi=20.0).elements[0].initial_eroi
+        >>> from skcomplex.systems.physics.climate import EnergyReturnSystem
+        >>> EnergyReturnSystem(initial_eroi=20.0).prepare().system_.elements[0].initial_eroi
         20.0
     """
-    sector = EnergySectorElement(
-        'energy',
-        reserve=reserve,
-        capacity=capacity,
-        reserve_size=reserve,
-        initial_eroi=initial_eroi,
-        reinvestment=reinvestment,
-        birth_rate=birth_rate,
+
+    field = 'physics/climate'
+    topics = ('energy', 'net energy', 'stocks and flows', 'system dynamics', 'ode')
+    references = ('Mobus 2022',)
+    until = 250.0
+    dt = 1.0
+    observables = (
+        ObservableSpec('eroi', _eroi, element='energy'),
+        ObservableSpec('gross_energy', _gross_energy, element='energy'),
+        ObservableSpec('extraction_cost', _extraction_cost, element='energy'),
+        ObservableSpec('net_per_capita', _net_per_capita, element='energy'),
     )
-    return System(elements=[sector])
+
+    def __init__(
+        self,
+        reserve: float = 1000.0,
+        capacity: float = 0.1,
+        *,
+        initial_eroi: float = 20.0,
+        reinvestment: float = 0.1,
+        birth_rate: float = 0.03,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.reserve = reserve
+        self.capacity = capacity
+        self.initial_eroi = initial_eroi
+        self.reinvestment = reinvestment
+        self.birth_rate = birth_rate
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        sector = EnergySectorElement(
+            'energy',
+            reserve=self.reserve,
+            capacity=self.capacity,
+            reserve_size=self.reserve,
+            initial_eroi=self.initial_eroi,
+            reinvestment=self.reinvestment,
+            birth_rate=self.birth_rate,
+        )
+        return System(self.label, elements=[sector])

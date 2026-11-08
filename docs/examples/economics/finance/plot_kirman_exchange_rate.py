@@ -14,13 +14,14 @@ rate comes and goes with the chartists.
 import matplotlib.pyplot as plt
 import numpy as np
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation
+from skcomplex.systems.economics.finance import KirmanExchangeRateSystem
 
 SYSTEM = 'kirman_exchange_rate'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=20)
-simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare().run(until=20000)
+trajectory = simulate(KirmanExchangeRateSystem(), observers=[observer])
 
 # %%
 # Regimes and volatility
@@ -29,7 +30,6 @@ simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare(
 # should pile up near 0 and 1. The changes of the deviation should be larger when chartists dominate, since their
 # eigenvalues lie close to the unit circle (Eq. 1.38) while fundamentalists contract the deviation (Eq. 1.37).
 
-trajectory = simulation.trajectory_
 share, deviation = trajectory.values('market.fundamentalists'), trajectory.values('market.x')
 fig, (path, histogram) = plt.subplots(1, 2, figsize=(10, 4))
 path.plot(trajectory.times, deviation, lw=0.5, label='deviation x')

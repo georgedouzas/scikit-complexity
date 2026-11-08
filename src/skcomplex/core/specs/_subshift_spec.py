@@ -14,12 +14,12 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class SubshiftSpec(BaseSpec):
-    """Domain of a state given by a subshift of finite type: the configurations without a forbidden pattern.
+    """Domain of a state given by a subshift of finite type.
 
-    A pattern is a tuple of values in the order of a neighbourhood. It appears at a site when the cells of the
-    neighbourhood of the site hold its values, and patterns that reach outside a space are not checked, so a lattice
-    with fixed edges holds the words of a window. A run checks that every cell holds a value of `alphabet`, and
-    `AutomatonAnalysis` decides whether a whole configuration is admissible.
+    It holds the configurations without a forbidden pattern. A pattern is a tuple of values in the order of a
+    neighbourhood. It appears at a site when the cells of the neighbourhood of the site hold its values, and patterns
+    that reach outside a space are not checked, so a lattice with fixed edges holds the words of a window. A run checks
+    that every cell holds a value of `alphabet`, and `automaton` decides whether a whole configuration is admissible.
 
     Args:
         neighborhood:
@@ -44,7 +44,9 @@ class SubshiftSpec(BaseSpec):
     states: int = 2
 
     def _check(self) -> None:
-        """Raise an error for forbidden patterns of different lengths or with values outside the states.
+        """Raise an error for forbidden patterns of different lengths or with bad values.
+
+        A bad value lies outside the states.
 
         Raises:
             ValidationError:

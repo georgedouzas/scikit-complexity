@@ -1,4 +1,7 @@
-"""Define propulsion steps, the moves of a position along a heading by a constant distance every step."""
+"""Define propulsion steps.
+
+A step moves a position along a heading by a constant distance every step.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,7 +18,9 @@ from .....core.specs import ParameterSpec, RoleSpec
 
 
 class PropulsionStepInteraction(MapInteraction):
-    """Step `x(t + 1) = x + speed (cos theta, sin theta)` of a position in the plane along a heading, in discrete time.
+    """Step `x(t + 1) = x + speed (cos theta, sin theta)` of a position in the plane.
+
+    The step is along a heading, in discrete time.
 
     The step reads the heading at the start of the step, as every map of the step does.
 

@@ -14,15 +14,14 @@ import numpy as np
 from scipy.integrate import quad
 from scipy.stats import poisson
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.networks import NetworkSuperpositionSystem
 
 SYSTEM = 'network_superposition'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=1)
+trajectory = simulate(NetworkSuperpositionSystem(), observers=[observer])
 
 # %%
 # Degree distribution
@@ -31,7 +30,10 @@ simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=
 # degrees of the subgraphs, here for 1000 subgraphs.
 
 low, high, exponent, n_nodes = 0.005, 0.1, 2.0, 100
-degrees = np.asarray(create_system(SYSTEM, n_subgraphs=1000).elements[0].values['degree'], dtype=int)
+degrees = np.asarray(
+    NetworkSuperpositionSystem(n_subgraphs=1000).prepare().system_.elements[0].values['degree'],
+    dtype=int,
+)
 norm = (low ** (1 - exponent) - high ** (1 - exponent)) / (exponent - 1)
 support = np.arange(degrees.max() + 1)
 mixture = [quad(lambda p, k=k: poisson.pmf(k, (n_nodes - 1) * p) * p**-exponent / norm, low, high)[0] for k in support]

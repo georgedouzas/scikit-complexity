@@ -1,4 +1,7 @@
-"""Macroeconomics systems: Brock and Mirman's optimal growth of a representative agent under Markov productivity."""
+"""Macroeconomics systems: Brock and Mirman's optimal growth.
+
+A representative agent grows under Markov productivity.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,17 +14,17 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction, TransitionInteraction
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class StochasticGrowthElement(Element):
-    """Representative economy with capital, a productivity regime, and a Cobb-Douglas technology `Y = z K^alpha`.
+    """Representative economy with capital and a productivity regime.
 
-    The productivity `z` is `z_low` in regime 0 and `z_high` in regime 1, and a Markov chain of the system moves the
-    regime. With logarithmic utility and full depreciation, the optimal consumption is `C = (1 - alpha beta) Y` and
-    the capital of the next period is the output saved, `K' = alpha beta z K^alpha`.
+    Its technology is the Cobb-Douglas `Y = z K^alpha`. The productivity `z` is `z_low` in regime 0 and `z_high` in
+    regime 1, and a Markov chain of the system moves the regime. With logarithmic utility and full depreciation, the
+    optimal consumption is `C = (1 - alpha beta) Y` and the capital of the next period is the output saved,
+    `K' = alpha beta z K^alpha`.
 
     Args:
         label:
@@ -117,39 +120,20 @@ class StochasticGrowthElement(Element):
         return (1 - s.alpha * s.beta) * StochasticGrowthElement.get_output(s)
 
 
-@register_system(
-    field='economics/macroeconomics',
-    tags=('optimal growth', 'representative agent', 'markov chain', 'productivity shocks', 'discrete map'),
-    references=('Caiani et al. 2016 §1.1.4', 'Brock and Mirman 1972'),
-    defaults={'until': 200},
-    observables=lambda system: [
-        ObservableSpec(name, function, element='economy')
-        for name, function in (
-            ('productivity', StochasticGrowthElement.get_productivity),
-            ('output', StochasticGrowthElement.get_output),
-            ('consumption', StochasticGrowthElement.get_consumption),
-        )
-    ],
-)
-def brock_mirman_growth(
-    K: float = 0.2,
-    *,
-    alpha: float = 1 / 3,
-    beta: float = 0.95,
-    z_low: float = 0.9,
-    z_high: float = 1.1,
-    persistence: float = 0.9,
-    regime: int = 0,
-) -> System:
-    """Return the Brock-Mirman economy, the optimal growth of a representative agent whose productivity is Markov.
+class BrockMirmanGrowthSystem(BaseSystem):
+    """The Brock-Mirman economy.
 
-    A representative consumer maximises `E_0 sum_t beta^t ln C_t` subject to `K_{t+1} = Y_t - C_t`, with full
-    depreciation and the output `Y_t = z_t K_t^alpha` of a representative firm, whose productivity `z_t` follows a
-    Markov chain. The solution is the linear consumption rule `C_t = (1 - alpha beta) Y_t`, `C = 0.68 Y` for
-    `alpha = 1/3` and `beta = 0.95`, so the capital follows `K_{t+1} = alpha beta z_t K_t^alpha` and `ln K` is a
-    stationary autoregression around `(ln(alpha beta) + E ln z) / (1 - alpha)`. This is the standard model that Caiani
-    et al. (2016, Section 1.1.4, Eqs. 1.3 to 1.9) compare with an agent-based economy. The source leaves the chain open,
-    so the productivity takes two levels that stay with the probability `persistence`.
+    It is the optimal growth of a representative agent whose productivity is Markov. A representative consumer maximises
+    `E_0 sum_t beta^t ln C_t` subject to `K_{t+1} = Y_t - C_t`, with full depreciation and the output
+    `Y_t = z_t K_t^alpha` of a representative firm, whose productivity `z_t` follows a Markov chain. The solution is the
+    linear consumption rule `C_t = (1 - alpha beta) Y_t`, `C = 0.68 Y` for `alpha = 1/3` and `beta = 0.95`, so the
+    capital follows `K_{t+1} = alpha beta z_t K_t^alpha` and `ln K` is a stationary autoregression around
+    `(ln(alpha beta) + E ln z) / (1 - alpha)`. This is the standard model that Caiani et al. (2016, Section 1.1.4, Eqs.
+    1.3 to 1.9) compare with an agent-based economy. The source leaves the chain open, so the productivity takes two
+    levels that stay with the probability `persistence`.
+
+    The system has the capital `economy.K` and the regime `economy.regime`. The observables of the system are
+    `economy.productivity`, `economy.output`, and `economy.consumption`.
 
     Args:
         K:
@@ -173,36 +157,74 @@ def brock_mirman_growth(
         regime:
             The initial regime, 0 for the low and 1 for the high productivity.
 
-    Returns:
-        system:
-            The system, with the capital `economy.K` and the regime `economy.regime`. The observables of the system are
-            `economy.productivity`, `economy.output`, and `economy.consumption`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.macroeconomics import brock_mirman_growth
-        >>> brock_mirman_growth(beta=0.9).elements[0].beta
+        >>> from skcomplex.systems.economics.macroeconomics import BrockMirmanGrowthSystem
+        >>> BrockMirmanGrowthSystem(beta=0.9).prepare().system_.elements[0].beta
         0.9
     """
-    chain = ((persistence, 1 - persistence), (1 - persistence, persistence))
-    return System(
-        elements=[
-            StochasticGrowthElement(
-                'economy',
-                K=K,
-                regime=regime,
-                alpha=alpha,
-                beta=beta,
-                z_low=z_low,
-                z_high=z_high,
-            ),
-        ],
-        interactions=[
-            MapInteraction(
-                'saving',
-                target='economy',
-                state='K',
-                function=lambda s: s.target.alpha * s.target.beta * StochasticGrowthElement.get_output(s.target),
-            ),
-            TransitionInteraction('productivity', target='economy', state='regime', matrix=lambda s: chain),
+
+    field = 'economics/macroeconomics'
+    topics = ('optimal growth', 'representative agent', 'markov chain', 'productivity shocks', 'discrete map')
+    references = ('Caiani et al. 2016 §1.1.4', 'Brock and Mirman 1972')
+    until = 200
+    observables = tuple(
+        [
+            ObservableSpec(name, function, element='economy')
+            for name, function in (
+                ('productivity', StochasticGrowthElement.get_productivity),
+                ('output', StochasticGrowthElement.get_output),
+                ('consumption', StochasticGrowthElement.get_consumption),
+            )
         ],
     )
+
+    def __init__(
+        self,
+        K: float = 0.2,
+        *,
+        alpha: float = 1 / 3,
+        beta: float = 0.95,
+        z_low: float = 0.9,
+        z_high: float = 1.1,
+        persistence: float = 0.9,
+        regime: int = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.K = K
+        self.alpha = alpha
+        self.beta = beta
+        self.z_low = z_low
+        self.z_high = z_high
+        self.persistence = persistence
+        self.regime = regime
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        chain = ((self.persistence, 1 - self.persistence), (1 - self.persistence, self.persistence))
+        return System(
+            self.label,
+            elements=[
+                StochasticGrowthElement(
+                    'economy',
+                    K=self.K,
+                    regime=self.regime,
+                    alpha=self.alpha,
+                    beta=self.beta,
+                    z_low=self.z_low,
+                    z_high=self.z_high,
+                ),
+            ],
+            interactions=[
+                MapInteraction(
+                    'saving',
+                    target='economy',
+                    state='K',
+                    function=lambda s: s.target.alpha * s.target.beta * StochasticGrowthElement.get_output(s.target),
+                ),
+                TransitionInteraction('productivity', target='economy', state='regime', matrix=lambda s: chain),
+            ],
+        )

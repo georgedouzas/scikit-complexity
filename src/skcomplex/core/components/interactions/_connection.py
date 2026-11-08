@@ -1,4 +1,7 @@
-"""Define connection interactions, the node where the potentials of ports agree and their flows sum to zero."""
+"""Define connection interactions.
+
+A connection is the node where the potentials of ports agree and their flows sum to zero.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,6 +17,7 @@ from ...specs import RoleSpec
 from ...types import ElementKind
 from ..base import BasePart
 from ..laws import BaseLaw, EquationLaw
+from ..spaces import BaseSpace
 from ._interaction import Interaction
 
 
@@ -44,8 +48,8 @@ class ConnectionInteraction(Interaction):
         >>> from skcomplex.core.components.interactions import ConnectionInteraction
         >>> from skcomplex.core.components.laws import EquationLaw
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.core.specs import ConnectorSpec, ParameterSpec, StateSpec
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> PIN = ConnectorSpec('pin', potential='v', flow='i')
         >>> class ConductanceElement(Element):
         ...     ports: ClassVar = {'a': PIN}
@@ -70,7 +74,7 @@ class ConnectionInteraction(Interaction):
         ...     elements=[ConductanceElement('first', e=1.0), ConductanceElement('second', e=3.0)],
         ...     interactions=[ConnectionInteraction('node', members=['first', 'second'], ports=['a', 'a'])],
         ... )
-        >>> trajectory = Simulation(system, dt=1.0).prepare().run(until=1.0).trajectory_
+        >>> trajectory = simulate(system, until=1.0, dt=1.0)
         >>> float(trajectory.values('first.a_v')[-1])
         2.0
     """
@@ -88,14 +92,18 @@ class ConnectionInteraction(Interaction):
         self.members = members
         self.ports = ports
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for members and ports that are empty or differ in length.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The type declares states, or the members and the ports are empty or differ in length.
         """
-        super()._check()
+        super()._prepare(context)
         if not self.members or len(self.members) != len(self.ports):
             error_msg = (
                 f'{self.label!r} connects {len(self.members)} members through {len(self.ports)} ports. Name one port '
@@ -104,7 +112,7 @@ class ConnectionInteraction(Interaction):
             raise ValidationError(error_msg)
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
-        """Return the equality of the potentials of the ports and the balance of their flows.
+        """Return the equality of the potentials of the ports and the balance of flows.
 
         Args:
             namespace:

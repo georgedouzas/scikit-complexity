@@ -17,7 +17,7 @@ from skcomplex.core.components.interactions import TrainingInteraction
 from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import DatasetSpec, ObservableSpec, ParameterSpec, StateSpec
 
 
@@ -55,7 +55,7 @@ training = TrainingInteraction(
     batch_size=1,
 )
 fitting = System('fitting', systems=[system], interactions=[training], time=DiscreteTime())
-trajectory = Simulation(fitting, random_state=0).prepare().run(until=300).trajectory_
+trajectory = simulate(fitting, until=300, random_state=0)
 round(float(trajectory.values('decay/unit.a')[-1]), 3), bool(trajectory.values('fit/loss')[-1] < 1e-6)
 ```
 
@@ -91,11 +91,11 @@ The parts of training work as follows:
   loss of a batch is the weighted mean of the observable over its sequences and steps. The trajectory records the
   trained parameters under their inner paths, such as `decay/unit.a`, the mean batch loss of every epoch as
   `<interaction>/loss`, and every metric over the whole dataset as `<interaction>/<metric>`. The same observables given
-  to a `Simulation` of the trained system record the loss in a forward run.
+  to `simulate` with the trained system record the loss in a forward run.
 - **The optimizer.** `optimizer` is one of `OPTIMIZERS`, `'sgd'`, `'momentum'`, `'rmsprop'`, and `'adam'`, run by
   Optax. Its hyperparameters, `learning_rate`, `momentum`, `beta1`, and `beta2`, the decay of `'rmsprop'`, are
   parameters of the interaction. So a schedule such as `{'fit.learning_rate': ...}` changes them at the next frame.
-  `batch_size` sets the number of sequences of a batch, shuffled by the random stream of the simulation, so a seed
+  `batch_size` sets the number of sequences of a batch, shuffled by the random stream of the run, so a seed
   repeats a run.
 - **Truncation.** `truncation` cuts backpropagation through time after that many inner steps, and `None` follows the
   gradient through the whole run. A truncation of 1 holds the previous inner states as constant inputs, Elman's
@@ -103,13 +103,13 @@ The parts of training work as follows:
 - **The solver.** `GradientDescentSolver`, of `skcomplex.core.engine.solvers`, is the default solver of a system that
   trains. It unrolls a discrete map with `jax.lax.scan` and an ODE with diffrax, computes in double precision by
   default, and keeps the state of the optimizer between frames. The inner system always compiles with `JaxBackend`, so a
-  backend passed to the simulation is ignored.
+  backend passed to `simulate` is ignored.
 - **Flat functions.** `heaviside`, `sign`, `floor`, and `ceil` have a zero gradient almost everywhere. So a loss that
   reads a parameter only through them does not train it, without any error.
 - **Local rules.** Local learning rules, such as Hebb's and Oja's, change a weight from its own activity. So they are
-  update or rate laws on weight states, as in the `hopfield` system, and need no training interaction.
+  update or rate laws on weight states, as in `HopfieldSystem`, and need no training interaction.
 
-The system `elman_network` trains Elman's simple recurrent network on the temporal XOR stream. Its visual draws the loss
+`ElmanNetworkSystem` trains Elman's simple recurrent network on the temporal XOR stream. Its visual draws the loss
 and the metrics as the first view, and the trained matrices as heat maps through `MatrixVisual`, chosen by
 `VisualSpec('matrix')`.
 
@@ -127,7 +127,7 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import contraction, count, total
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
@@ -163,10 +163,9 @@ system = System(
     ],
     interactions=[DriveInteraction('drive', target='cells', source='inputs', W=W)],
 )
-simulation = Simulation(system, dt=0.1).prepare()
-simulation.run(until=20).trajectory_.values('cells.x')[-1].round(3).tolist()
-simulation.update_parameters({'drive.W': 2 * W})
-simulation.run(until=40).trajectory_.values('cells.x')[-1].round(3).tolist()
+schedule = {'drive.W': lambda t: W if t < 20 else 2 * W}
+trajectory = simulate(system, until=40, dt=0.1, schedule=schedule)
+trajectory.values('cells.x')[200].round(3).tolist(), trajectory.values('cells.x')[-1].round(3).tolist()
 ```
 
 `ParameterSpec(shape=('target', 'source'))` declares a parameter of an interaction whose shape is the sizes of the
@@ -174,8 +173,8 @@ groups its roles bind. Here it is a weight matrix with one row per target member
 behaves like any parameter:
 
 - It holds a block of the parameter vector in row-major order.
-- Trajectories and `Simulation.update_parameters` read and set it with its shape, and a schedule or an experiment
-  changes it.
+- Trajectories read it with its shape, and a schedule, such as the doubling of `W` at time 20 above, or an experiment
+  sets it with its shape.
 - With `adaptive=True`, a training interaction trains it.
 - The weights of `total` and `mean`, and of `CouplingInteraction(mode='group')`, read it.
 
@@ -207,9 +206,9 @@ class TripletInteraction(Interaction):
 species = GroupElement('species', element=NodeElement, size=4, values={'x': 0.1})
 triplets = TripletInteraction('triplets', target='species', T=-np.ones((4, 4, 4)))
 community = System(elements=[species], interactions=[triplets])
-trajectory = Simulation(community, dt=0.1).prepare().run(until=50).trajectory_
+trajectory = simulate(community, until=50, dt=0.1)
 trajectory.values('species.x')[-1].round(3).tolist()
 ```
 
-A tensor of order `k` over `N` members holds `N^k` entries, a million for order 3 over 100 members. The system
-`higher_order_random_lotka_volterra` builds the random community of Sidhom and Galla (2024) on such a tensor.
+A tensor of order `k` over `N` members holds `N^k` entries, a million for order 3 over 100 members.
+`HigherOrderRandomLotkaVolterraSystem` builds the random community of Sidhom and Galla (2024) on such a tensor.

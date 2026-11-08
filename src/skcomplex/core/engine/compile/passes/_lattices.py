@@ -1,4 +1,7 @@
-"""Compile the laws of lattices: local rules, drives, cascades, extremal updates, and Monte Carlo sampling."""
+"""Compile the laws of lattices.
+
+They are local rules, drives, cascades, extremal updates, and Monte Carlo sampling.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -45,12 +48,15 @@ from ....specs import (
 )
 from ....types import Array, Indices
 from ..._utils import symbol
-from ...problems import DeclarationsSpec, ExpressionPrinter, KernelSpec, SourceLoader
 from ...problems._cascade_kernel import CascadeKernel
+from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._drive_kernel import DriveKernel
+from ...problems._expression_printer import ExpressionPrinter
 from ...problems._extremal_kernel import ExtremalKernel
+from ...problems._kernel_spec import KernelSpec
 from ...problems._monte_carlo_kernel import MonteCarloKernel
 from ...problems._rule_kernel import RuleKernel
+from ...problems._source_loader import SourceLoader
 from ...types import ReadKind
 from .._base import BaseCompiler, BasePass
 from .._compilation import Compilation
@@ -71,7 +77,10 @@ type LoweredObjective = tuple[
 
 
 class LatticeProblemPass(BasePass):
-    """Pass that adds the steps of local rules, drives, cascades, extremal updates, and Monte Carlo sampling."""
+    """Pass that adds the steps of lattice laws.
+
+    They are local rules, drives, cascades, extremal updates, and Monte Carlo sampling.
+    """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
@@ -156,7 +165,10 @@ class LatticeProblemPass(BasePass):
 
     @staticmethod
     def _lattice_context(spec: KernelSpec, declarations: DeclarationsSpec, fused: bool) -> LatticeContextSpec:
-        """Return the lattice states, the arguments, and the neighbour symbols of the symbols a component reads."""
+        """Return the lattice states, arguments, and neighbour symbols of a component.
+
+        They are those of the symbols the component reads.
+        """
         states, arguments, others = {}, {}, {}
         for item, reference in spec.references.items():
             entry = reference.entry
@@ -176,7 +188,10 @@ class LatticeProblemPass(BasePass):
 
     @staticmethod
     def _monte_carlo_step(spec: KernelSpec, law: SampleLaw, context: LatticeContextSpec) -> LatticeStep:
-        """Return the Monte Carlo sampling of a sample, with Metropolis acceptance at `intensity` by default."""
+        """Return the Monte Carlo sampling of a sample.
+
+        It uses Metropolis acceptance at `intensity` by default.
+        """
         sampler = law.sampler
         if sampler is None:
             if not hasattr(spec.namespace, 'intensity'):
@@ -206,7 +221,10 @@ class LatticeProblemPass(BasePass):
         declarations: DeclarationsSpec,
         fused: bool,
     ) -> tuple[LatticeStep, ...]:
-        """Return the steps of local rules, drives, cascades, extremal laws, and samples in declaration order."""
+        """Return the steps of lattice laws in declaration order.
+
+        They are local rules, drives, cascades, extremal laws, and samples.
+        """
         steps: list[LatticeStep] = []
         for spec, laws in specs:
             if not any(isinstance(law, LATTICE_LAWS) for law in laws):
@@ -218,13 +236,19 @@ class LatticeProblemPass(BasePass):
 
     @staticmethod
     def _as_table(rule: object) -> object:
-        """Return a rule code as its table, through its `table()` method, and any other rule unchanged."""
+        """Return a rule code as its table.
+
+        The table comes from its `table()` method, and any other rule is unchanged.
+        """
         convert = getattr(rule, 'table', None)
         return convert() if not callable(rule) and callable(convert) else rule
 
     @staticmethod
     def _calls(expression: Expression, name: str) -> list[Expression]:
-        """Return the calls of a symbolic function by name inside an expression, outermost first."""
+        """Return the calls of a symbolic function by name inside an expression.
+
+        The outermost calls come first.
+        """
         found, stack = [], [SR(expression)]
         while stack:
             item = stack.pop()
@@ -251,7 +275,10 @@ class LatticeProblemPass(BasePass):
         neighborhood: LatticeNeighborhood | AdjacencyNeighborhood | MemoryNeighborhood,
         owner: str,
     ) -> LatticeSpace:
-        """Return the square lattice of a checkerboard update, or raise an error when neighbours change together."""
+        """Return the square lattice of a checkerboard update.
+
+        An error is raised when neighbours change together.
+        """
         if (
             not isinstance(space, LatticeSpace)
             or space.geometry != 'square'
@@ -274,7 +301,10 @@ class LatticeProblemPass(BasePass):
 
     @staticmethod
     def _coloring(size: int, rows: Indices, columns: Indices) -> tuple[Indices, ...]:
-        """Return the classes of a proper coloring of the graph of some members that joins the given pairs."""
+        """Return the classes of a proper coloring of the graph of some members.
+
+        The graph joins the given pairs.
+        """
         graph = nx.Graph()
         graph.add_nodes_from(range(size))
         graph.add_edges_from(zip(rows.tolist(), columns.tolist(), strict=True))
@@ -284,7 +314,10 @@ class LatticeProblemPass(BasePass):
 
     @staticmethod
     def _color_classes(table: Indices) -> tuple[Indices, ...]:
-        """Return the classes of a proper coloring of the graph that joins every site to the sites of its table row."""
+        """Return the classes of a proper coloring of the graph of the table rows.
+
+        The graph joins every site to the sites of its table row.
+        """
         size = table.shape[0]
         rows = np.repeat(np.arange(size), table.shape[1])
         columns = table.ravel()
@@ -293,7 +326,10 @@ class LatticeProblemPass(BasePass):
 
     @staticmethod
     def _coface_classes(boundary: scipy.sparse.csr_array) -> tuple[Indices, ...]:
-        """Return the classes of a proper coloring of the graph that joins the cells that share a coface."""
+        """Return the classes of a proper coloring of the graph of shared cofaces.
+
+        The graph joins the cells that share a coface.
+        """
         shared = (abs(boundary).T @ abs(boundary)).tocoo()
         real = shared.row != shared.col
         return LatticeProblemPass._coloring(boundary.shape[1], shared.row[real], shared.col[real])
@@ -313,7 +349,10 @@ class LatticeProblemPass(BasePass):
         table: Indices,
         owner: str,
     ) -> tuple[Indices, ...]:
-        """Return the classes of sites a checkerboard or colored schedule updates in turn, and none otherwise."""
+        """Return the classes of sites a checkerboard or colored schedule updates in turn.
+
+        It is none for other schedules.
+        """
         if schedule == 'checkerboard':
             return LatticeProblemPass._sublattices(LatticeProblemPass._check_checkerboard(space, neighborhood, owner))
         if schedule == 'colored':
@@ -322,7 +361,10 @@ class LatticeProblemPass(BasePass):
 
     @staticmethod
     def _compiles_in_numba(rule: Callable[..., object]) -> bool:
-        """Check whether a rule takes its arguments by position or keyword only, the form Numba compiles."""
+        """Check whether a rule takes its arguments by position or keyword only.
+
+        This is the form Numba compiles.
+        """
         try:
             parameters = inspect.signature(rule).parameters.values()
         except (TypeError, ValueError):
@@ -379,7 +421,10 @@ class LatticeProblemPass(BasePass):
         maximum: bool,
         arguments: ArgumentsSpec,
     ) -> Callable[..., None] | None:
-        """Return the compiled loop of the applications of an extremal law, or `None` when Numba cannot compile it."""
+        """Return the compiled loop of the applications of an extremal law.
+
+        It is `None` when Numba cannot compile it.
+        """
         if not LatticeProblemPass._compiles_in_numba(rule):
             return None
         source = 'import numpy as np\n\n\n' + LatticeProblemPass._extremal_source(targets, key, maximum, arguments)
@@ -405,7 +450,10 @@ class LatticeProblemPass(BasePass):
 
     @staticmethod
     def _extremal_members(table: Indices) -> tuple[Indices, Indices]:
-        """Return every site followed by its real neighbours without duplicates, padded with -1, and their counts."""
+        """Return every site followed by its real neighbours, and their counts.
+
+        The neighbours have no duplicates and are padded with -1.
+        """
         size, width = table.shape
         members = np.full((size, width + 1), -1, dtype=np.intp)
         counts = np.zeros(size, dtype=np.intp)
@@ -421,7 +469,10 @@ class LatticeProblemPass(BasePass):
         neighborhood: LatticeNeighborhood | AdjacencyNeighborhood | MemoryNeighborhood,
         owner: str,
     ) -> Indices:
-        """Return the neighbour table of a lattice or a network, or raise an error naming the law that reads it."""
+        """Return the neighbour table of a lattice or a network.
+
+        An error naming the law that reads it is raised without one.
+        """
         try:
             return space._index_table(neighborhood)
         except (ValueError, ValidationError) as error:
@@ -430,7 +481,10 @@ class LatticeProblemPass(BasePass):
 
     @staticmethod
     def _lookup_of(rule: object, n_offsets: int, owner: str) -> LookupSpec | None:
-        """Return the lookup array of a table or totalistic rule, or `None` for a function rule."""
+        """Return the lookup array of a table or totalistic rule.
+
+        It is `None` for a function rule.
+        """
         if isinstance(rule, TableSpec):
             base = rule.n_states
             values = np.full(base**n_offsets, float(rule.default))
@@ -474,7 +528,10 @@ class LatticeProblemPass(BasePass):
         neighbors: Sequence[Expression],
         masks: Sequence[Expression],
     ) -> Expression:
-        """Return an expression with every neighbour sum written as the masked sum over the columns of the table."""
+        """Return an expression with every neighbour sum written as a masked sum.
+
+        The sum runs over the columns of the table.
+        """
         owner = f'The Monte Carlo laws of {context.owner}'
         moved = context.states[target].name
         replacements = {}
@@ -505,10 +562,10 @@ class LatticeProblemPass(BasePass):
         columns: tuple[Sequence[Expression], Sequence[Expression], Sequence[Expression]],
         owner: str,
     ) -> Expression:
-        """Return an expression with every coface sum written over the rests, the signs, and the masks of the cofaces.
+        """Return an expression with every coface sum written over the cofaces.
 
-        Inside a coface, the exterior derivative of the moved state is its sign times the state plus the rest of the
-        oriented sum around the coface.
+        The sum is written over the rests, the signs, and the masks of the cofaces. Inside a coface, the exterior
+        derivative of the moved state is its sign times the state plus the rest of the oriented sum around the coface.
 
         Args:
             expression:
@@ -556,7 +613,10 @@ class LatticeProblemPass(BasePass):
         target: LatticeStateSpec,
         owner: str,
     ) -> tuple[Indices, Array, scipy.sparse.csr_array]:
-        """Return the cofaces of the moved cells, their signs, and the incidence of the cells and the cofaces."""
+        """Return the cofaces of the moved cells, their signs, and incidences.
+
+        The incidence is that of the cells and the cofaces.
+        """
         space = target.space
         degree = DEGREES[target.part]
         if not isinstance(space, CellComplexSpace) or degree >= len(space.incidences_):
@@ -693,7 +753,10 @@ class LatticeProblemPass(BasePass):
 
     @staticmethod
     def _first_component(item: object) -> object:
-        """Return the symbol of the first component of a state of several components, or a scalar symbol as it is."""
+        """Return the symbol of the first component of a state of several components.
+
+        A scalar symbol is returned as it is.
+        """
         return item[0] if isinstance(item, FreeModuleElement) else item
 
     @staticmethod
@@ -703,7 +766,9 @@ class LatticeProblemPass(BasePass):
         reads: tuple[LatticeStateSpec, ...],
         owner: str,
     ) -> Indices | None:
-        """Return the translation table of a memory translated by the values of a state, or `None` for another one.
+        """Return the translation table of a memory translated by the values of a state.
+
+        It is `None` for another memory.
 
         Args:
             law:
@@ -830,10 +895,11 @@ class LatticeProblemPass(BasePass):
         masks: list[Expression],
         owner: str,
     ) -> Expression:
-        """Return the half change of the local objective with one neighbour when the site flips and then the neighbour.
+        """Return the half change of the local objective with one neighbour.
 
-        This is `f(s, n) - f(-s, n)` for an objective of pair terms `f` that the flip of both values keeps, which gives
-        the Wolff bond probability `1 - exp(min(0, -intensity * (f(-s, n) - f(s, n))))`.
+        The site flips and then the neighbour. This is `f(s, n) - f(-s, n)` for an objective of pair terms `f` that the
+        flip of both values keeps, which gives the Wolff bond probability `1 - exp(min(0, -intensity * (f(-s, n) - f(s,
+        n))))`.
         """
         flipped = local.subs({item: -item for item in [target, *neighbours]})
         if not bool((flipped - local).expand().is_trivial_zero()):
@@ -862,7 +928,10 @@ class LatticeProblemPass(BasePass):
         context: LatticeContextSpec,
         target: LatticeStateSpec,
     ) -> LoweredObjective:
-        """Return the table, the classes, the symbols, and the expression of a local objective over neighbours."""
+        """Return the table, classes, symbols, and expression of a neighbour objective.
+
+        The objective is a local objective over neighbours.
+        """
         owner = f'The Monte Carlo laws of {context.owner}'
         over = objective.over
         if not isinstance(over, LatticeNeighborhood | AdjacencyNeighborhood | MemoryNeighborhood):
@@ -892,7 +961,10 @@ class LatticeProblemPass(BasePass):
         context: LatticeContextSpec,
         target: LatticeStateSpec,
     ) -> LoweredObjective:
-        """Return the table, the classes, the symbols, the expression, and the incidence of an objective on cofaces."""
+        """Return the table, classes, symbols, expression, and incidence of an objective.
+
+        The objective is on cofaces.
+        """
         owner = f'The Monte Carlo laws of {context.owner}'
         table, signs, boundary = LatticeProblemPass._coface_tables(target, owner)
         if sampler.schedule == 'checkerboard':
@@ -913,7 +985,9 @@ class LatticeProblemPass(BasePass):
         sampler: SamplerSpec,
         context: LatticeContextSpec,
     ) -> MonteCarloKernel:
-        """Return Monte Carlo sampling compiled from a local objective, a move, and a sampler.
+        """Return Monte Carlo sampling compiled from an objective, a move, and a sampler.
+
+        The objective is a local objective.
 
         Args:
             objective:
@@ -1016,7 +1090,10 @@ class LatticeProblemPass(BasePass):
 
     @staticmethod
     def _schedule_of(law: object) -> str | None:
-        """Return the schedule of a local rule or of the sampler of a sample, the default sampler's without one."""
+        """Return the schedule of a local rule or of the sampler of a sample.
+
+        Without one, it is that of the default sampler.
+        """
         if isinstance(law, LocalRuleLaw):
             return law.schedule
         if isinstance(law, SampleLaw):
@@ -1025,7 +1102,10 @@ class LatticeProblemPass(BasePass):
 
     @staticmethod
     def _schedule_issues(compilation: Compilation) -> list[IssueSpec]:
-        """Return the lattice laws whose checkerboard schedule needs a square lattice that their space is not."""
+        """Return the lattice laws whose checkerboard schedule needs a square lattice.
+
+        Their space is not a square lattice.
+        """
         records = Compilation._required(compilation.census, 'census').records
         issues = []
         for record in records:

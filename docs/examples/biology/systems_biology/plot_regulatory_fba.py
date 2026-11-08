@@ -7,18 +7,18 @@ to release the genes, the lag of a diauxic shift.
 """
 
 # %%
-# The system is created by name from the catalog, which needs the extra `metabolism`. The Boolean nodes and the program
-# run in a discrete partition beside the differential equations of the culture. The primary view is the series of the
-# biomass, the glucose, and the acetate.
+# The system is built from its class, which needs the extra `metabolism`. The Boolean nodes and the program run in a
+# discrete partition beside the differential equations of the culture. The primary view is the series of the biomass,
+# the glucose, and the acetate.
 
 import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import CoSimulationSolver, RK4Solver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.systems_biology import RegulatoryFBASystem
 
 SYSTEM = 'regulatory_fba'
 FRAME = 0.05
@@ -26,8 +26,7 @@ FRAME = 0.05
 blueprint = rrb.Blueprint(rrb.TimeSeriesView(origin='culture', name='culture'), collapse_panels=True)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
 solver = CoSimulationSolver(sync_dt=FRAME, solvers={'culture': RK4Solver(dt=0.005)})
-simulation = Simulation(create_system(SYSTEM), solver=solver, dt=FRAME, observers=[observer]).prepare().run(until=8.0)
-trajectory = simulation.trajectory_
+trajectory = simulate(RegulatoryFBASystem(), solver=solver, dt=FRAME, observers=[observer])
 
 # %%
 # Two phases with a lag

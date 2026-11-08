@@ -6,22 +6,22 @@ its pad, and comes back to rest before the next bogie arrives, so the deflection
 """
 
 # %%
-# The system is created by name from the catalog with wheel loads of 1000 N, one bogie every 10 time units with its
+# The system is built from its class with wheel loads of 1000 N, one bogie every 10 time units with its
 # wheels 3 apart, and a linear ballast, and runs for 60 time units. The default blueprint shows the deflections of the
 # rail and the sleeper with their rates.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.engineering.power_systems import WheelRailContactSystem
 
 SYSTEM = 'wheel_rail_contact'
 
-system = create_system(SYSTEM)
+system = WheelRailContactSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=5)
-simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=60)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # A linear track
@@ -30,11 +30,10 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(unt
 # rail deflection under every load should lie on a line through the origin, and the response to one bogie should have
 # two dips, one per wheel.
 
-trajectory = simulation.trajectory_
 loads = np.linspace(250.0, 2000.0, 8)
 peaks = [
     np.abs(
-        Simulation(create_system(SYSTEM, F=load), dt=0.05).prepare().run(until=10).trajectory_.values('rail.z'),
+        simulate(WheelRailContactSystem(F=load), until=10).values('rail.z'),
     ).max()
     for load in loads
 ]

@@ -1,4 +1,7 @@
-"""Define the moments of a distribution held by a group whose members stand for the points of a grid of coordinates."""
+"""Define the moments of a distribution held by a group.
+
+The members of the group stand for the points of a grid of coordinates.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,14 +18,20 @@ from ._reductions import total
 
 
 def _raw(expression: object, order: int, coordinates: np.ndarray, over: object) -> Expression:
-    """Return the sum of an expression times the coordinates raised to an order, over the members of a group."""
+    """Return the sum over the members of a group of an expression times coordinates.
+
+    The coordinates are raised to an order.
+    """
     if order == 0:
         return total(expression, over=over)
     return total(expression, over=over, weights=coordinates**order)
 
 
 def _raw_over_axes(expression: object, order: int, axes: Sequence[str]) -> Expression:
-    """Return the integral over class axes of an expression times the length of the coordinates to an order."""
+    """Return the integral over class axes of an expression times a coordinate power.
+
+    The power is the length of the coordinates to an order.
+    """
     coordinates = coordinates_of(axes)
     if len(coordinates) == 1:
         return reduce_axes(SR(expression) * coordinates[0] ** order, axes)
@@ -33,7 +42,10 @@ def _raw_over_axes(expression: object, order: int, axes: Sequence[str]) -> Expre
 
 
 def _combined(raw: Callable[[int], Expression], order: int, normalized: bool, central: bool) -> Expression:
-    """Return a raw, normalized, or central moment from the function of the raw moment of every order."""
+    """Return a raw, normalized, or central moment.
+
+    It comes from the function of the raw moment of every order.
+    """
     if not (normalized or central):
         return raw(order)
     density = raw(0)
@@ -54,12 +66,12 @@ def moment(
     central: bool = False,
     axes: Sequence[str] | None = None,
 ) -> Expression:
-    """Return a moment of the distribution that a group holds over a grid of coordinates, one point per member.
+    """Return a moment of the distribution that a group holds over a grid.
 
-    The raw moment of order `r` is `sum_j c_j^r f_j`, where member `j` holds the density `f_j` at the coordinate `c_j`.
-    The order-0 moment is the density. A normalized moment divides by the density, so the normalized order-1 moment
-    is the mean coordinate. A central moment is normalized and taken about the mean, so the central order-2 moment is
-    the variance.
+    The grid is a grid of coordinates, one point per member. The raw moment of order `r` is `sum_j c_j^r f_j`, where
+    member `j` holds the density `f_j` at the coordinate `c_j`. The order-0 moment is the density. A normalized moment
+    divides by the density, so the normalized order-1 moment is the mean coordinate. A central moment is normalized and
+    taken about the mean, so the central order-2 moment is the variance.
 
     With `axes`, the moment reduces a field on a phase space over those class axes at every position, by the sum over
     the cells of the coordinate raised to the order times the cell widths, and it is a field over position that laws

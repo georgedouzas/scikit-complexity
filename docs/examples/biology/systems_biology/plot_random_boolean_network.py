@@ -7,21 +7,20 @@ type.
 """
 
 # %%
-# The system is created by name from the catalog with twenty nodes of two inputs each, the critical wiring. The
-# observer saves every step with the default blueprint, whose primary view is the time series of the node values.
+# The system is built from its class with twenty nodes of two inputs each, the critical wiring. The observer saves
+# every step with the default blueprint, whose primary view is the time series of the node values.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.systems_biology import RandomBooleanNetworkSystem
 
 SYSTEM = 'random_boolean_network'
 
-system = create_system(SYSTEM, n_nodes=20, k=2, random_state=4)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=50)
+trajectory = simulate(RandomBooleanNetworkSystem(n_nodes=20, k=2, random_state=4), observers=[observer])
 
 # %%
 # Transient and attractor
@@ -29,7 +28,6 @@ simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=
 # The state space is finite and the update deterministic, so the run must revisit a state and repeat from it. The
 # first repeated state marks the end of the transient, and the gap to its earlier visit is the length of the cycle.
 
-trajectory = simulation.trajectory_
 states = np.column_stack([trajectory.values(f'node_{i}.x') for i in range(20)]).astype(int)
 seen = {}
 for step, state in enumerate(map(tuple, states)):

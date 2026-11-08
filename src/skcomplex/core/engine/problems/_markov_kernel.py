@@ -1,4 +1,7 @@
-"""Transition or emission matrix of a Markov law, evaluated from the parameters to check its rows."""
+"""Transition or emission matrix of a Markov law.
+
+It is evaluated from the parameters to check its rows.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,10 +19,11 @@ _ROW_TOLERANCE = 1e-9
 
 
 class MarkovKernel(BaseKernel):
-    """Transition or emission matrix of a Markov law, evaluated from the parameters to check its rows.
+    """Transition or emission matrix of a Markov law.
 
-    `run(state)` keeps in `values_` the description of the first negative entry or row that does not sum to one at the
-    parameters of the state, or `None` when every matrix is stochastic.
+    It is evaluated from the parameters to check its rows. `run(state)` keeps in `values_` the description of the first
+    negative entry or row that does not sum to one at the parameters of the state, or `None` when every matrix is
+    stochastic.
 
     Args:
         law:
@@ -49,11 +53,17 @@ class MarkovKernel(BaseKernel):
         self.reads = reads
 
     def _run(self, inputs: RunStateSpec | None) -> None:
-        """Set the description of what is wrong with the matrix at the parameters, or `None`."""
+        """Set the description of what is wrong with the matrix at the parameters.
+
+        It is `None` when nothing is wrong.
+        """
         self.values_ = self._problem(self._state_of(inputs))
 
     def _problem(self, state: RunStateSpec) -> str | None:
-        """Return the description of what is wrong with the matrix at the parameters of a state, or `None`."""
+        """Return the description of what is wrong with the matrix at a state.
+
+        The matrix is read at the parameters of the state, and `None` is returned when nothing is wrong.
+        """
         values = self.function(state.p)
         for member, matrix in enumerate(values):
             where = f' of member {member}' if values.shape[0] > 1 else ''

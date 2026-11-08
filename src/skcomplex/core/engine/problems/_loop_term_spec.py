@@ -14,7 +14,9 @@ from ._reference_spec import ReferenceSpec
 
 @dataclass(frozen=True)
 class LoopTermSpec(BaseSpec):
-    """Node of the feedback graph of a system with the expression its value or its rate is computed from.
+    """Node of the feedback graph of a system.
+
+    It holds the expression its value or its rate is computed from.
 
     Args:
         kind:

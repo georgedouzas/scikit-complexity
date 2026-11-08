@@ -1,4 +1,7 @@
-"""Define crossings, events at the crossing of zero by a guard that reset states or end the run."""
+"""Define crossings.
+
+A crossing is an event at the crossing of zero by a guard that resets states or ends the run.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,18 +16,20 @@ from ...errors import ValidationError
 from ...specs import RoleSpec
 from ...types import ElementKind
 from ..laws import BaseLaw, CrossingLaw
+from ..spaces import BaseSpace
 from ._interaction import Interaction
 
 DIRECTIONS = (-1, 0, 1)
 
 
 class CrossingInteraction(Interaction):
-    """Event at the crossing of zero by a guard, which sets states of the target to new values or ends the run.
+    """Event at the crossing of zero by a guard.
 
-    The guard and the new values are functions of the namespace, which holds `namespace.target`, the states and
-    parameters of the target, and the time `namespace.t`. A guard that reads the members of a group gives every member
-    its own event, which sets the states of that member alone. Solvers locate the crossing within their tolerance, and
-    the trajectory records every crossing among its events, under the label of the interaction and with the member.
+    The event sets states of the target to new values or ends the run. The guard and the new values are functions of the
+    namespace, which holds `namespace.target`, the states and parameters of the target, and the time `namespace.t`. A
+    guard that reads the members of a group gives every member its own event, which sets the states of that member
+    alone. Solvers locate the crossing within their tolerance, and the trajectory records every crossing among its
+    events, under the label of the interaction and with the member.
 
     Args:
         label:
@@ -56,8 +61,8 @@ class CrossingInteraction(Interaction):
         >>> from skcomplex.core.components.interactions import CrossingInteraction
         >>> from skcomplex.core.components.laws import RateLaw
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> class ClockElement(Element):
         ...     def __init__(self, label, x: Annotated[float, StateSpec()] = 0.0):
         ...         super().__init__(label)
@@ -69,7 +74,7 @@ class CrossingInteraction(Interaction):
         ...     'wrap', target='clock', guard=lambda s: s.target.x - 1, reset={'x': lambda s: 0}, direction=1
         ... )
         >>> system = System(elements=[ClockElement('clock')], interactions=[wrap])
-        >>> trajectory = Simulation(system, dt=0.5).prepare().run(until=2.2).trajectory_
+        >>> trajectory = simulate(system, until=2.2, dt=0.5)
         >>> [round(event.time, 6) for event in trajectory.events]
         [1.0, 2.0]
     """
@@ -93,14 +98,18 @@ class CrossingInteraction(Interaction):
         self.direction = direction
         self.terminal = terminal
 
-    def _check(self) -> None:
-        """Raise an error for a direction that is not -1, 0, or 1, or a guard or a new value that is not a function.
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Raise an error for an invalid direction, guard, or new value.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The direction is not -1, 0, or 1, or the guard or a new value is not a function.
         """
-        super()._check()
+        super()._prepare(context)
         if self.direction not in DIRECTIONS:
             error_msg = f'The direction of crossing {self.label!r} is {self.direction!r}. Use -1, 0, or 1.'
             raise ValidationError(error_msg)
@@ -110,7 +119,10 @@ class CrossingInteraction(Interaction):
 
     @staticmethod
     def _get_law_value(value: object) -> object:
-        """Return what a function of the namespace returned: a function as it is, or a symbolic expression."""
+        """Return what a function of the namespace returned.
+
+        A function stays as it is, or the result is a symbolic expression.
+        """
         return value if BaseLaw._is_function(value) else SR(value)
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:

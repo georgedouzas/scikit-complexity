@@ -1,4 +1,7 @@
-"""Define weighted edges, members of a group on the edges of a network that carry a weight drawn when they appear."""
+"""Define weighted edges of a network.
+
+They are members of a group on the edges of a network that carry a weight drawn when they appear.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,7 +15,9 @@ from .....core.specs import StateSpec, VisualSpec
 
 
 class WeightedEdgeElement(Element):
-    """Edge of a network with a weight `w`, such as the strength of an influence or a coupling between two species.
+    """Edge of a network with a weight `w`.
+
+    The weight is such as the strength of an influence or a coupling between two species.
 
     A new edge is marked `fresh` until an `EdgeDrawInteraction` draws its weight.
 

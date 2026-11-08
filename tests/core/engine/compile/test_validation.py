@@ -22,7 +22,7 @@ from skcomplex.core.components.laws import NoiseLaw, RateLaw, RuleLaw, SampleLaw
 from skcomplex.core.components.laws.utils import mean, neighbors
 from skcomplex.core.components.spaces import CayleySpace, DiscreteTime, LatticeSpace, MemoryNeighborhood, NetworkSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.solvers import LammpsSolver, MilsteinSolver, PontryaginSolver, RK4Solver
 from skcomplex.core.engine.solvers._defaults import DEFAULT_SOLVERS
 from skcomplex.core.errors import RoleElementError, ValidationError, ValidationWarning
@@ -208,7 +208,7 @@ def test_report_raises_every_error():
         ),
     )
     with pytest.warns(ValidationWarning, match='Something to know'), pytest.raises(ValidationError) as error:
-        report.prepare()
+        report._check()
     assert '2 error(s)' in str(error.value)
     assert 'growth: The role is unbound. Bind it. [role]' in str(error.value)
     assert '[law-domain]' in str(error.value)

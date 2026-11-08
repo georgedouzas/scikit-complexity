@@ -1,4 +1,7 @@
-"""Define gradient interactions, which move states down the gradient of a potential."""
+"""Define gradient interactions.
+
+They move states down the gradient of a potential.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,19 +22,21 @@ from ...types import ElementKind
 from ..base import BasePart
 from ..laws import BaseLaw, RateLaw
 from ..laws.utils import distribute_operators, laplacian, partial
+from ..spaces import BaseSpace
 from ..types import Target
 from ._interaction import Interaction
 
 
 class GradientInteraction(Interaction):
-    """Motion of states down the gradient of a potential `U(ns)`, as a gradient flow or as Newtonian motion.
+    """Motion of states down the gradient of a potential `U(ns)`.
 
-    Every state `x` the interaction moves gets the rate `-dU/dx / d` on its highest time derivative, with `d` the
-    divisor of its member: a state or parameter of the member, an expression of them such as a moment of inertia
-    `m l^2`, or one divisor per state, such as the masses of two coordinates of one element. On a state of order 1
-    this is the gradient flow `x' = -dU/dx / d`, with `d` a friction, and on a state of order 2 it is Newton's law
-    `x'' = -dU/dx / d`, with `d` an inertia. A vector state gets the gradient of every component, and a tensor state
-    the matrix gradient, the projection of the derivative onto the matrices of its symmetry.
+    The motion is a gradient flow or Newtonian motion. Every state `x` the interaction moves gets the rate `-dU/dx / d`
+    on its highest time derivative, with `d` the divisor of its member: a state or parameter of the member, an
+    expression of them such as a moment of inertia `m l^2`, or one divisor per state, such as the masses of two
+    coordinates of one element. On a state of order 1 this is the gradient flow `x' = -dU/dx / d`, with `d` a friction,
+    and on a state of order 2 it is Newton's law `x'' = -dU/dx / d`, with `d` an inertia. A vector state gets the
+    gradient of every component, and a tensor state the matrix gradient, the projection of the derivative onto the
+    matrices of its symmetry.
 
     On a field the potential is the density `f` of a functional `F = integral f`, which may read the field, its
     derivatives `partial(x, k)` or `gradient(x)`, and its `laplacian(x)`. A variational interaction moves the field by
@@ -79,10 +84,10 @@ class GradientInteraction(Interaction):
         >>> from skcomplex.core.components.elements import CompartmentElement
         >>> from skcomplex.core.components.interactions import GradientInteraction
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> well = GradientInteraction('well', target='walker', states='n', potential=lambda s: s.target.n**2 / 2)
         >>> system = System(elements=[CompartmentElement('walker', n=1.0)], interactions=[well])
-        >>> trajectory = Simulation(system, dt=0.01).prepare().run(until=1.0).trajectory_
+        >>> trajectory = simulate(system, until=1.0, dt=0.01)
         >>> round(float(trajectory.values('walker.n')[-1]), 4)
         0.3679
     """
@@ -116,15 +121,19 @@ class GradientInteraction(Interaction):
         """Return the names of the states the interaction moves."""
         return (self.states,) if isinstance(self.states, str) else tuple(self.states)
 
-    def _check(self) -> None:
-        """Raise an error for a state or a divisor that is not a name, or a potential that is not callable.
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Raise an error for a state or divisor that is not a name, or a bad potential.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The type declares states, a state is not a name, a divisor is neither a name nor a function, or the
                 potential is not callable.
         """
-        super()._check()
+        super()._prepare(context)
         names = self._get_names()
         if not names or not all(isinstance(name, str) and name.isidentifier() for name in names):
             error_msg = f'{type(self).__name__} {self.label!r} moves the states {self.states!r}. Give names of states.'
@@ -145,7 +154,10 @@ class GradientInteraction(Interaction):
             raise ValidationError(error_msg)
 
     def _get_potential(self, namespace: SimpleNamespace) -> object:
-        """Return the potential, the hook a subclass overrides to derive it from its parameters."""
+        """Return the potential.
+
+        This is the hook a subclass overrides to derive it from its parameters.
+        """
         if self.potential is None:
             error_msg = f'{type(self).__name__} {self.label!r} has no potential. Give a function of the namespace.'
             raise ValidationError(error_msg)
@@ -159,7 +171,10 @@ class GradientInteraction(Interaction):
         return getattr(member, divisor) if isinstance(divisor, str) else divisor(member)
 
     def _get_rate_state(self, member: SimpleNamespace, name: str) -> object:
-        """Return the state whose highest derivative gets the rate of a moving state, the moving state itself."""
+        """Return the state whose highest derivative gets the rate of a moving state.
+
+        It is the moving state itself.
+        """
         return getattr(member, name)
 
     def _walk(self, expression: Expression) -> Iterator[Expression]:
@@ -174,9 +189,10 @@ class GradientInteraction(Interaction):
         derivatives: dict[int, Expression],
         field: Expression,
     ) -> Expression:
-        """Return `sum_k partial(flux_k, k)`, or `c laplacian(x)` when every flux is `c x_k` along every axis read.
+        """Return `sum_k partial(flux_k, k)`, or `c laplacian(x)` for fluxes `c x_k`.
 
-        The Laplacian keeps the compact stencil of the field, which nested first derivatives would widen.
+        The Laplacian applies when every flux is `c x_k` along every axis read. The Laplacian keeps the compact stencil
+        of the field, which nested first derivatives would widen.
         """
         coefficients = [SR(fluxes[axis] / derivatives[axis]) for axis in sorted(fluxes)]
         coefficient = coefficients[0]
@@ -189,7 +205,10 @@ class GradientInteraction(Interaction):
         return sum((partial(flux, SR(axis)) for axis, flux in fluxes.items()), SR(0))
 
     def _get_variation(self, density: Expression, field: Expression) -> Expression:
-        """Return the functional derivative of the integral of a density with respect to a field."""
+        """Return the functional derivative of the integral of a density by a field.
+
+        The derivative is with respect to the field.
+        """
         derivatives: dict[int, Expression] = {}
         curvature = None
         for item in self._walk(density):
@@ -212,9 +231,10 @@ class GradientInteraction(Interaction):
         return variation
 
     def _get_laplacian(self, expression: Expression, field: Expression) -> Expression:
-        """Return the Laplacian of an expression of a field, term by term, with the factors free of the field outside.
+        """Return the Laplacian of an expression of a field, term by term.
 
-        The linear terms of the field, such as `laplacian(x)`, stay apart, so a spectral discretization finds them.
+        The factors free of the field stay outside. The linear terms of the field, such as `laplacian(x)`, stay apart,
+        so a spectral discretization finds them.
         """
         expanded = SR(expression).expand()
         terms = expanded.operands() if expanded.operator() is add_vararg else [expanded]
@@ -228,10 +248,11 @@ class GradientInteraction(Interaction):
         return total
 
     def _get_matrix_derivative(self, potential: Expression, state: Matrix) -> Matrix:
-        """Return the matrix gradient of a potential at a tensor state, written in the matrices of its symmetry.
+        """Return the matrix gradient of a potential at a tensor state.
 
-        The derivative with respect to the independent components is the product of the matrices of the components, the
-        metric of the state, and the coefficients of the gradient, so the metric gives the coefficients.
+        It is written in the matrices of the symmetry of the state. The derivative with respect to the independent
+        components is the product of the matrices of the components, the metric of the state, and the coefficients of
+        the gradient, so the metric gives the coefficients.
         """
         if self.conserved:
             error_msg = f'{self.label!r} conserves the tensor state {state}. Give a scalar state.'
@@ -251,7 +272,10 @@ class GradientInteraction(Interaction):
         return total
 
     def _get_derivative(self, potential: Expression, state: Target | Matrix) -> Target | Matrix:
-        """Return the derivative of the potential with respect to a state, every component of a vector state."""
+        """Return the derivative of the potential with respect to a state.
+
+        For a vector state, it returns that of every component.
+        """
         if isinstance(state, Matrix):
             return self._get_matrix_derivative(potential, state)
         if isinstance(state, FreeModuleElement):
@@ -264,7 +288,10 @@ class GradientInteraction(Interaction):
         return potential.diff(state)
 
     def _get_members(self, namespace: SimpleNamespace) -> list[SimpleNamespace]:
-        """Return the namespaces of the members whose states move, those of every role that binds one path."""
+        """Return the namespaces of the members whose states move.
+
+        These are the members of every role that binds one path.
+        """
         return [
             getattr(namespace, name)
             for name, spec in self._get_specs().items()
@@ -272,7 +299,9 @@ class GradientInteraction(Interaction):
         ]
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
-        """Return the rate of every moving state, minus the derivative of the potential over the divisor.
+        """Return the rate of every moving state.
+
+        The rate is minus the derivative of the potential over the divisor.
 
         Args:
             namespace:

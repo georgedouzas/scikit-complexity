@@ -1,21 +1,25 @@
-"""Base class of solvers that translate a compiled problem into a third-party library."""
+"""Base class of solvers that translate a compiled problem.
+
+They translate it into a third-party library.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 from abc import abstractmethod
 
-from ...errors import BackendError, ValidationError
+from ...errors import BackendError, ContextError
 from ..problems import ProblemSpec
 from ._solver import Solver
 
 
 class ExternalSolver(Solver):
-    """Base class of solvers that translate a compiled problem into a third-party library.
+    """Base class of solvers that translate a compiled problem.
 
-    Subclasses implement the hooks `_get_name`, `_get_form`, `_unsupported`, `_build`, and `_advance`, and list the
-    other forms the library runs in `_get_forms`. Before the first frame, `prepare` checks every element, interaction,
-    and law, and raises one error that lists everything the library cannot run.
+    They translate it into a third-party library. Subclasses implement the hooks `_get_name`, `_get_form`,
+    `_unsupported`, `_build`, and `_advance`, and list the other forms the library runs in `_get_forms`. Before the
+    first frame, `prepare` checks every element, interaction, and law, and raises one error that lists everything the
+    library cannot run.
     """
 
     @classmethod
@@ -34,7 +38,9 @@ class ExternalSolver(Solver):
 
     @abstractmethod
     def _unsupported(self, problem: ProblemSpec) -> list[str]:
-        """Return a description of every element, interaction, or law of a problem the library cannot run.
+        """Return a description of every part of a problem the library cannot run.
+
+        The parts are elements, interactions, or laws.
 
         Args:
             problem:
@@ -52,7 +58,9 @@ class ExternalSolver(Solver):
 
     @abstractmethod
     def _build(self, problem: ProblemSpec) -> None:
-        """Build the library system of a supported problem, drawing its seeds from the generator `rng_`.
+        """Build the library system of a supported problem.
+
+        Its seeds are drawn from the generator `rng_`.
 
         Args:
             problem:
@@ -72,7 +80,7 @@ class ExternalSolver(Solver):
                 The compiled problem.
 
         Raises:
-            ValidationError:
+            ContextError:
                 No problem is passed.
 
             BackendError:
@@ -80,7 +88,7 @@ class ExternalSolver(Solver):
         """
         if context is None:
             error_msg = 'A solver prepares on a compiled problem. Pass the problem to `prepare`.'
-            raise ValidationError(error_msg)
+            raise ContextError(error_msg)
         problem = context
         forms = {self._get_form(), *self._get_forms()}
         unsupported = [] if problem.form in forms else [f'the {problem.form} form']

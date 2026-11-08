@@ -14,11 +14,11 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.analysis import LyapunovAnalysis
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.analysis import lyapunov
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.core.experiments import OrbitDiagramExperiment
-from skcomplex.systems import create_system, describe
+from skcomplex.core.experiments import orbit_diagram
+from skcomplex.systems.mathematics.dynamical_systems import CDNMapSystem
 
 SYSTEM = 'cdn_map'
 
@@ -41,15 +41,11 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create_system(SYSTEM), dt=1, observers=[observer]).prepare().run(until=200)
+trajectory = simulate(CDNMapSystem(), observers=[observer])
 shifts = np.linspace(-1.0, 0.0, 400)
-diagram = (
-    OrbitDiagramExperiment(describe(SYSTEM).factory, 'map.beta', shifts, 'map.x', transient=500, keep=100, dt=1)
-    .prepare()
-    .run()
-)
+diagram = orbit_diagram(CDNMapSystem(), 'map.beta', shifts, 'map.x', transient=500, keep=100, dt=1)
 points = np.array(
-    [(100 * beta, -100 * x) for beta, values in zip(diagram.values, diagram.points_, strict=True) for x in values],
+    [(100 * beta, -100 * x) for beta, values in zip(shifts, diagram.points, strict=True) for x in values],
 )
 observer.recording_.log('orbit_diagram', rr.Points2D(points, radii=0.12, colors=[90, 170, 255]), static=True)
 observer.recording_.flush()
@@ -61,17 +57,14 @@ observer.recording_.flush()
 # Fig. 3.17, with dips below 0 in the periodic windows, and negative outside it.
 
 sample = np.linspace(-1.0, 0.0, 101)
-exponents = [
-    LyapunovAnalysis(until=3000, parameters={'map.beta': beta}).prepare(simulation.system).run().exponents_[0]
-    for beta in sample
-]
-fig, (orbits, lyapunov) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
+exponents = [lyapunov(CDNMapSystem(), until=3000, parameters={'map.beta': beta}).exponents[0] for beta in sample]
+fig, (orbits, exponent_axes) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
 orbits.plot(points[:, 0] / 100, -points[:, 1] / 100, ',', color='C0')
 orbits.set_ylabel('long-run x')
 orbits.set_title('Orbit diagram and Lyapunov exponent at alpha = 2.8')
-lyapunov.plot(sample, exponents, color='C3')
-lyapunov.axhline(0, color='black', linestyle=':')
-lyapunov.set_xlabel('shift β')
-lyapunov.set_ylabel('Lyapunov exponent')
+exponent_axes.plot(sample, exponents, color='C3')
+exponent_axes.axhline(0, color='black', linestyle=':')
+exponent_axes.set_xlabel('shift β')
+exponent_axes.set_ylabel('Lyapunov exponent')
 fig.tight_layout()
 plt.show()

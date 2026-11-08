@@ -15,7 +15,9 @@ from ._module_spec import ModuleSpec
 
 @dataclass(frozen=True)
 class WordStructureSpec(BaseStructureSpec):
-    """Word of a string rewriting system at one generation, with its segments where a word geometry is declared.
+    """Word of a string rewriting system at one generation.
+
+    It holds its segments where a word geometry is declared.
 
     Args:
         alphabet:
@@ -76,7 +78,10 @@ class WordStructureSpec(BaseStructureSpec):
 
     @property
     def text(self) -> str:
-        """Word as written, with modules separated by spaces when one has parameters or a long name."""
+        """Word as written.
+
+        Modules are separated by spaces when one has parameters or a long name.
+        """
         modules = self.modules()
         texts = [
             module.name if not module.parameters else f'{module.name}({", ".join(f"{v:g}" for v in module.parameters)})'

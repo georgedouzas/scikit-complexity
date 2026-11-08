@@ -16,12 +16,12 @@ MATRIX_RANK = 2
 
 
 class MatrixVisual(BaseVisual):
-    """Visual that logs a matrix-valued state or parameter as an image colored by value, one image per frame.
+    """Visual that logs a matrix-valued state or parameter as an image.
 
-    The visual draws the variable `variable` of the element at `path`, or the state or parameter named
-    `<path>.<variable>` of a problem without such an element, such as a trained matrix of a system that trains, under
-    the entity path `<path>/<variable>`. The colors span the fixed range `color_range` when it is given and the range
-    of the frame otherwise.
+    The image is colored by value. It logs one image per frame. The visual draws the variable `variable` of the element
+    at `path`, or the state or parameter named `<path>.<variable>` of a problem without such an element, such as a
+    trained matrix of a system that trains, under the entity path `<path>/<variable>`. The colors span the fixed range
+    `color_range` when it is given and the range of the frame otherwise.
 
     Args:
         variable:
@@ -48,10 +48,10 @@ class MatrixVisual(BaseVisual):
             The variable is not a name, or the problem has no matrix of that name.
 
     Examples:
-        >>> from skcomplex.core.engine.compile import PassCompiler
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.viz import MatrixVisual
-        >>> from skcomplex.systems.computer_science.neural_networks import elman_network
-        >>> problem = PassCompiler().prepare(elman_network(n_bits=30)).run().problem_
+        >>> from skcomplex.systems.computer_science.neural_networks import ElmanNetworkSystem
+        >>> problem = simulate(ElmanNetworkSystem(n_bits=30), until=0).problem
         >>> MatrixVisual('A', path='net/recurrence').prepare(problem).name_
         'net/recurrence.A'
     """
@@ -71,15 +71,11 @@ class MatrixVisual(BaseVisual):
         self.variable = variable
         self.color_range = color_range
 
-    def _check(self) -> None:
-        """Raise an error unless the path and the variable are strings."""
-        super()._check()
-        if not isinstance(self.variable, str):
-            error_msg = f'variable = {self.variable!r} must be the name of a matrix-valued state or parameter.'
-            raise ValidationError(error_msg)
-
     def _prepare(self, context: BaseProblemSpec | None) -> None:
-        """Find the matrix of the element at the path, or the matrix named by the path and the variable, and the view.
+        """Find the matrix the visual draws, and the view.
+
+        The matrix is that of the element at the path, or the one named by the path and the variable. It first raises
+        an error unless the path and the variable are strings.
 
         Args:
             context:
@@ -87,8 +83,12 @@ class MatrixVisual(BaseVisual):
 
         Raises:
             ValidationError:
-                No problem is passed, or it has no matrix of that name.
+                The path or the variable is not a string, no problem is passed, or it has no matrix of that name.
         """
+        self._check_path()
+        if not isinstance(self.variable, str):
+            error_msg = f'variable = {self.variable!r} must be the name of a matrix-valued state or parameter.'
+            raise ValidationError(error_msg)
         if context is None:
             error_msg = 'A visual prepares on a compiled problem. Pass the problem to `prepare`.'
             raise ValidationError(error_msg)

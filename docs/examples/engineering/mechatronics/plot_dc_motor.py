@@ -11,17 +11,16 @@ settles at `k V / (R b + k^2)`.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.engineering.mechatronics import DcMotorSystem
 
 SYSTEM = 'dc_motor'
 
 V, R, k, b = 12.0, 1.0, 0.5, 0.2
-system = create_system(SYSTEM, V=V, R=R, k=k, b=b)
-observables = describe(SYSTEM).observables_of(system)
+system = DcMotorSystem(V=V, R=R, k=k, b=b)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(system, dt=0.05, observers=[observer], observables=observables).prepare().run(until=10.0)
+trajectory = simulate(system, dt=0.05, observers=[observer])
 
 # %%
 # Speed and current
@@ -29,7 +28,6 @@ simulation = Simulation(system, dt=0.05, observers=[observer], observables=obser
 # The current peaks while the motor starts against little opposing voltage, then falls as the speed rises to the closed
 # form.
 
-trajectory = simulation.trajectory_
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.plot(trajectory.times, trajectory.values('speed'), label='speed')
 ax.plot(trajectory.times, trajectory.values('current'), label='current')

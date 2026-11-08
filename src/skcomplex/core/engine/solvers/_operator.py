@@ -1,4 +1,7 @@
-"""Advance operator problems with QuTiP by unitary, Lindblad, and operator trajectory evolution."""
+"""Advance operator problems with QuTiP.
+
+Evolution is unitary, Lindblad, or by operator trajectories.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,17 +21,17 @@ from ...errors import SolverError
 from ...specs import RunStateSpec, SupportSpec
 from ...types import Array, FormKind, OrderKind
 from ..compile.passes._operator_compiler import DEFAULT_MAX_DIMENSION
-from ..problems import OperatorProblemSpec
 from ..problems._operator_kernel import OperatorKernel
+from ..problems._operator_problem_spec import OperatorProblemSpec
 from ._base import BaseSolver
 
 
 class OperatorSolver(BaseSolver[OperatorProblemSpec]):
-    """Base class of solvers that advance operator problems with a stepwise QuTiP solver.
+    """Base class of solvers that advance operator problems.
 
-    The solver is created at the first frame and again whenever the parameters change, from the current state, so a
-    parameter update or a schedule applies from the next frame on. Coefficients that depend on time stay functions of
-    time, and the others are folded into constant matrices.
+    They use a stepwise QuTiP solver. The solver is created at the first frame and again whenever the parameters change,
+    from the current state, so a parameter update or a schedule applies from the next frame on. Coefficients that depend
+    on time stay functions of time, and the others are folded into constant matrices.
 
     Args:
         atol:
@@ -83,7 +86,10 @@ class OperatorSolver(BaseSolver[OperatorProblemSpec]):
         self.until = until
 
     def _operator(self, terms: Sequence[OperatorKernel], p: Array) -> qutip.Qobj | qutip.QobjEvo:
-        """Return the QuTiP operator of terms, constant or as a function of time, at fixed parameters."""
+        """Return the QuTiP operator of terms at fixed parameters.
+
+        The operator is constant or a function of time.
+        """
         problem = self.operator_
         dims = [list(problem.dimensions)] * 2
         size = math.prod(problem.dimensions)
@@ -148,12 +154,17 @@ class OperatorSolver(BaseSolver[OperatorProblemSpec]):
         solver.start(self._start_state(x), t)
 
     def _unsupported(self, problem: OperatorProblemSpec) -> list[str]:
-        """Return a description of every part of an operator problem the solver does not run."""
+        """Return a description of every part of an operator problem the solver skips.
+
+        These are the parts the solver does not run.
+        """
         del problem
         return []
 
     def _prepare(self, context: OperatorProblemSpec | None) -> None:
-        """Check that the solver runs the operator problem, and create its QuTiP solver at the first frame.
+        """Check that the solver runs the operator problem.
+
+        Its QuTiP solver is created at the first frame.
 
         Args:
             context:

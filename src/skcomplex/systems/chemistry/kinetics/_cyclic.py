@@ -13,24 +13,18 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, LatticeElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import LatticeSpace, VonNeumannNeighborhood
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
-
-
-def _advance_cyclically(level: Array, *around: Array, n: float | Array, threshold: float | Array) -> Array:
-    """Return the next levels, one step around the cycle where enough neighbours hold the following level."""
-    following = np.mod(level + 1, n)
-    successors = sum((item == following).astype(float) for item in around)
-    return np.where(successors >= threshold, following, level)
 
 
 class CyclicCellElement(Element):
-    """Cell of Griffeath's cyclic cellular automaton, with `n` levels that follow each other in a cycle.
+    """Cell of Griffeath's cyclic cellular automaton, with `n` levels.
+
+    The levels follow each other in a cycle.
 
     A cell moves from level `k` to level `k + 1` modulo `n` when at least `threshold` of its neighbours hold that
-    level, by the local rule of `cyclic_cellular_automaton`, so every level eats its predecessor and random initial
+    level, by the local rule of `CyclicCellularAutomatonSystem`, so every level eats its predecessor and random initial
     levels organize into spiral waves.
 
     Args:
@@ -70,20 +64,13 @@ class CyclicCellElement(Element):
         self.threshold = threshold
 
 
-@register_system(
-    field='chemistry/kinetics',
-    tags=('lattice', 'excitable media', 'spirals', 'cellular automaton'),
-    references=('Griffeath 1988', 'Fisch, Gravner, and Griffeath 1991', 'Dilão 2023'),
-    defaults={'until': 200, 'dt': 1},
-)
-def cyclic_cellular_automaton(
-    shape: Sequence[int] = (64, 64),
-    *,
-    n: int = 14,
-    threshold: int = 1,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return Griffeath's cyclic cellular automaton, whose random levels organize into spiral waves.
+class CyclicCellularAutomatonSystem(BaseSystem):
+    """Griffeath's cyclic cellular automaton.
+
+    Its random levels organize into spiral waves.
+
+    Every cell of a lattice holds one of `n` levels, which follow each other in a cycle, and moves to the following
+    level when at least `threshold` of its von Neumann neighbours hold it. The levels are `cells.level`.
 
     Args:
         shape:
@@ -98,33 +85,67 @@ def cyclic_cellular_automaton(
         random_state:
             The seed or generator of the initial levels.
 
-    Returns:
-        system:
-            The system, with the levels `cells.level`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.chemistry.kinetics import cyclic_cellular_automaton
-        >>> cyclic_cellular_automaton((10, 10), n=8).elements[0].values['n']
+        >>> from skcomplex.systems.chemistry.kinetics import CyclicCellularAutomatonSystem
+        >>> CyclicCellularAutomatonSystem((10, 10), n=8).prepare().system_.elements[0].values['n']
         8
     """
-    levels = np.random.default_rng(random_state).integers(0, n, size=tuple(shape)).astype(float)
-    space = LatticeSpace(tuple(shape))
-    return System(
-        elements=[
-            LatticeElement(
-                'cells',
-                element=CyclicCellElement,
-                space=space,
-                values={'level': levels, 'n': n, 'threshold': threshold},
-            ),
-        ],
-        interactions=[
-            LocalRuleInteraction(
-                'advance',
-                target='cells',
-                state='level',
-                rule=_advance_cyclically,
-                neighborhood=VonNeumannNeighborhood(center=True),
-            ),
-        ],
-    )
+
+    field = 'chemistry/kinetics'
+    topics = ('lattice', 'excitable media', 'spirals', 'cellular automaton')
+    references = ('Griffeath 1988', 'Fisch, Gravner, and Griffeath 1991', 'Dilão 2023')
+    until = 200
+    dt = 1
+
+    def __init__(
+        self,
+        shape: Sequence[int] = (64, 64),
+        *,
+        n: int = 14,
+        threshold: int = 1,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.shape = shape
+        self.n = n
+        self.threshold = threshold
+        self.random_state = random_state
+
+    @staticmethod
+    def _advance_cyclically(level: Array, *around: Array, n: float | Array, threshold: float | Array) -> Array:
+        """Return the next levels, one step around the cycle.
+
+        A cell steps where enough neighbours hold the following level.
+        """
+        following = np.mod(level + 1, n)
+        successors = sum((item == following).astype(float) for item in around)
+        return np.where(successors >= threshold, following, level)
+
+    def _build_system(self) -> System:
+        """Return the lattice of cells with random levels and the rule that advances them."""
+        shape = tuple(self.shape)
+        levels = np.random.default_rng(self.random_state).integers(0, self.n, size=shape).astype(float)
+        return System(
+            self.label,
+            elements=[
+                LatticeElement(
+                    'cells',
+                    element=CyclicCellElement,
+                    space=LatticeSpace(shape),
+                    values={'level': levels, 'n': self.n, 'threshold': self.threshold},
+                ),
+            ],
+            interactions=[
+                LocalRuleInteraction(
+                    'advance',
+                    target='cells',
+                    state='level',
+                    rule=self._advance_cyclically,
+                    neighborhood=VonNeumannNeighborhood(center=True),
+                ),
+            ],
+        )

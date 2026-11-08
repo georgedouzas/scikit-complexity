@@ -12,10 +12,10 @@ A star orbiting in a triangular galactic potential: at low energy its orbit is a
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import SectionAnalysis
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.analysis import section
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.nonlinear_oscillators import HenonHeilesSystem
 
 SYSTEM = 'henon_heiles'
 ENERGY = 1 / 8
@@ -24,11 +24,11 @@ ENERGY = 1 / 8
 def start(y, py, energy=ENERGY):
     """Return the Hénon-Heiles system started on `x = 0` at a given energy."""
     px = np.sqrt(2 * energy - py**2 - y**2 + 2 * y**3 / 3)
-    return create_system(SYSTEM, x=0.0, y=y, px=px, py=py)
+    return HenonHeilesSystem(x=0.0, y=y, px=px, py=py)
 
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=8)
-simulation = Simulation(start(-0.1, 0.0), dt=0.05, observers=[observer]).prepare().run(until=100)
+trajectory = simulate(start(-0.1, 0.0), until=100, observers=[observer])
 
 # %%
 # Poincaré section
@@ -38,8 +38,8 @@ simulation = Simulation(start(-0.1, 0.0), dt=0.05, observers=[observer]).prepare
 
 fig, ax = plt.subplots(figsize=(6, 5))
 for y in np.linspace(-0.3, 0.45, 12):
-    section = SectionAnalysis(state='star.x', value=0.0, until=2000).prepare(start(y, 0.0)).run()
-    ax.plot(section.values_['star.y'], section.values_['star.py'], '.', markersize=1.5)
+    points = section(start(y, 0.0), state='star.x', value=0.0, until=2000)
+    ax.plot(points.values['star.y'], points.values['star.py'], '.', markersize=1.5)
 ax.set_xlabel('y')
 ax.set_ylabel('p_y')
 ax.set_title('Poincaré section at x = 0, E = 1/8')

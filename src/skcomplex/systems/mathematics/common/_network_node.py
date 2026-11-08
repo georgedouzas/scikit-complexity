@@ -1,4 +1,7 @@
-"""Node of a network that carries its degree, clustering, betweenness, and community."""
+"""Node of a network.
+
+The node carries its degree, clustering, betweenness, and community.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,7 +19,9 @@ from ....core.specs import StateSpec, VisualSpec
 
 
 class NetworkNodeElement(Element):
-    """Node of a network that carries its degree, clustering, betweenness, and community.
+    """Node of a network.
+
+    The node carries its degree, clustering, betweenness, and community.
 
     Args:
         label:
@@ -44,6 +49,8 @@ class NetworkNodeElement(Element):
         >>> group.label, group.element.__name__, group.size
         ('nodes', 'NetworkNodeElement', 3)
     """
+
+    law_classes = (RuleLaw,)
 
     def __init__(
         self,

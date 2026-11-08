@@ -6,23 +6,22 @@ grows back toward its capacity.
 """
 
 # %%
-# The system is created by name from the catalog with the book's continuous infusion of `10^-10` g/cm³ per day and runs
-# for 150 days. The observer saves every frame with the default blueprint, whose primary view is the time series of the
-# T cells, the tumour, and the drug.
+# The system is built from its class with the book's continuous infusion of `10^-10` g/cm³ per day and runs for 150
+# days. The observer saves every frame with the default blueprint, whose primary view is the time series of the T
+# cells, the tumour, and the drug.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.oncology import AntiPD1CheckpointSystem
 
 SYSTEM = 'anti_pd1_checkpoint'
 
 solver = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1.0, solver=solver, observers=[observer]).prepare().run(until=150)
+trajectory = simulate(AntiPD1CheckpointSystem(), dt=1.0, solver=solver, observers=[observer])
 
 # %%
 # Dose response
@@ -31,22 +30,12 @@ simulation = Simulation(system, dt=1.0, solver=solver, observers=[observer]).pre
 # should leave more T cells and a smaller tumour. At twenty times the book's infusion the drug blocks all PD-1, and the
 # T cells should grow without bound and clear the tumour.
 
-runs = {
-    dose: Simulation(
-        create_system(SYSTEM, u_ap=dose),
-        dt=1.0,
-        solver=solver,
-    )
-    .prepare()
-    .run(until=150)
-    for dose in (0.0, 1e-9, 2e-9)
-}
-runs[1e-10] = simulation
+runs = {dose: simulate(AntiPD1CheckpointSystem(u_ap=dose), dt=1.0, solver=solver) for dose in (0.0, 1e-9, 2e-9)}
+runs[1e-10] = trajectory
 fig, (tumour, t_cells) = plt.subplots(1, 2, figsize=(10, 4))
 for dose, run in sorted(runs.items()):
-    trajectory = run.trajectory_
-    tumour.plot(trajectory.times, trajectory.values('site.A'), label=f'u = {dose:g}')
-    t_cells.semilogy(trajectory.times, trajectory.values('site.E'), label=f'u = {dose:g}')
+    tumour.plot(run.times, run.values('site.A'), label=f'u = {dose:g}')
+    t_cells.semilogy(run.times, run.values('site.E'), label=f'u = {dose:g}')
 tumour.set_xlabel('time (days)')
 tumour.set_ylabel('tumour (g/cm³)')
 tumour.set_title('More drug, smaller tumour')

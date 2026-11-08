@@ -1,4 +1,7 @@
-"""Define training, which takes optimizer steps on the adaptive parameters of a nested system once per epoch."""
+"""Define training.
+
+Training takes optimizer steps on the adaptive parameters of a nested system once per epoch.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,22 +18,23 @@ from ...specs import DatasetSpec, ObservableSpec, ParameterSpec, RoleSpec
 from ...types import ElementKind
 from ..base import BasePart
 from ..laws import BaseLaw, GradientStepLaw
+from ..spaces import BaseSpace
 from ._interaction import Interaction
 
 OPTIMIZERS = ('sgd', 'momentum', 'rmsprop', 'adam')
 
 
 class TrainingInteraction(Interaction):
-    """Training of the adaptive parameters of a nested system by gradient steps on a loss over unrolled runs.
+    """Training of the adaptive parameters of a nested system by gradient steps.
 
-    The role `system` binds the path of a nested system, which the training unrolls over the sequences of a dataset
-    from its initial states, inside one step of the discrete time of the system that holds the interaction. That step
-    is one epoch of shuffled batches, each followed by one update of the optimizer, and the interaction returns the
-    `GradientStepLaw` that takes it. The hyperparameters of the optimizer are parameters of the interaction, so a
-    schedule or `Simulation.update_parameters` changes them between epochs. `'sgd'` reads the learning rate,
-    `'momentum'` also the momentum, `'rmsprop'` the learning rate and `beta2`, the decay of its mean squared gradient,
-    and `'adam'` the learning rate, `beta1`, and `beta2`. It differs from `GradientInteraction`, which moves states
-    down the gradient of a potential in the system's own time.
+    The gradient steps are on a loss over unrolled runs. The role `system` binds the path of a nested system, which the
+    training unrolls over the sequences of a dataset from its initial states, inside one step of the discrete time of
+    the system that holds the interaction. That step is one epoch of shuffled batches, each followed by one update of
+    the optimizer, and the interaction returns the `GradientStepLaw` that takes it. The hyperparameters of the optimizer
+    are parameters of the interaction, so a schedule of `simulate` changes them between epochs. `'sgd'` reads the
+    learning rate, `'momentum'` also the momentum, `'rmsprop'` the learning rate and `beta2`, the decay of its mean
+    squared gradient, and `'adam'` the learning rate, `beta1`, and `beta2`. It differs from `GradientInteraction`, which
+    moves states down the gradient of a potential in the system's own time.
 
     Args:
         label:
@@ -90,6 +94,8 @@ class TrainingInteraction(Interaction):
         'adam'
     """
 
+    draws = True
+
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (GradientStepLaw,)
 
     def __init__(
@@ -124,7 +130,10 @@ class TrainingInteraction(Interaction):
         self.metrics = metrics
 
     def _check_counts(self) -> None:
-        """Raise an error for an unknown optimizer, or a batch size or truncation that is not a positive integer."""
+        """Raise an error for an unknown optimizer, or bad batch size or truncation.
+
+        The batch size and the truncation must be positive integers.
+        """
         if self.optimizer not in OPTIMIZERS:
             error_msg = (
                 f'The optimizer of {self.label!r} is {self.optimizer!r}, which is not supported. Choose one of '
@@ -140,7 +149,10 @@ class TrainingInteraction(Interaction):
                 raise ValidationError(error_msg)
 
     def _check_observables(self) -> None:
-        """Raise an error for no trained parameter, a loss, data, or metric of the wrong type, or a repeated label."""
+        """Raise an error for no trained parameter, bad observables, or a repeated label.
+
+        The loss, the data, and the metrics must be of the right type.
+        """
         if isinstance(self.trained, str) or not self.trained or not all(isinstance(p, str) for p in self.trained):
             error_msg = f'{self.label!r} trains {self.trained!r}. Give the dotted paths of adaptive parameters.'
             raise ValidationError(error_msg)
@@ -158,18 +170,22 @@ class TrainingInteraction(Interaction):
             )
             raise ValidationError(error_msg)
 
-    def _check(self) -> None:
-        """Raise an error for an optimizer, counts, trained parameters, or observables the training cannot take.
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Raise an error for an optimizer, counts, parameters, or observables it rejects.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The optimizer is unknown, the batch size or the truncation is not a positive integer, no parameter is
                 trained, or the loss, the data, or a metric has the wrong type or label.
         """
-        super()._check()
+        super()._prepare(context)
         self._check_counts()
         self._check_observables()
-        self.data._validated()
+        self.data._check()
 
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
         """Return the gradient-step law of the training."""

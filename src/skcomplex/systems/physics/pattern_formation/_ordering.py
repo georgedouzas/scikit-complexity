@@ -1,4 +1,7 @@
-"""Phase ordering: relaxation of a scalar order parameter in a double well, non-conserved and conserved."""
+"""Phase ordering.
+
+A scalar order parameter relaxes in a double well, non-conserved and conserved.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,14 +19,15 @@ from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import BaseInteraction, GradientInteraction, RateInteraction
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import ETDRK4Solver
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class PhaseFieldElement(Element):
-    """Site of a phase field, which holds the order parameter `phi` that free energies and noise move.
+    """Site of a phase field.
+
+    The site holds the order parameter `phi` that free energies and noise move.
 
     Args:
         label:
@@ -57,7 +61,9 @@ class PhaseFieldElement(Element):
 
 
 class LandauEnergyInteraction(GradientInteraction):
-    """Gradient flow of a field `phi` in the Landau free energy of a double well with a cost of gradients.
+    """Gradient flow of a field `phi` in the Landau free energy of a double well.
+
+    The energy has a cost of gradients.
 
     The free energy is `F = integral -phi^2 / 2 + phi^4 / 4 + kappa |grad phi|^2 / 2`. Its functional derivative is
     the chemical potential `mu = -phi + phi^3 - kappa laplacian(phi)`. A non-conserved field relaxes as `phi_t = -mu`,
@@ -104,7 +110,9 @@ class LandauEnergyInteraction(GradientInteraction):
         self.kappa = kappa
 
     def _get_potential(self, namespace: SimpleNamespace) -> Expression:
-        """Return the density `-phi^2 / 2 + phi^4 / 4 - kappa phi laplacian(phi) / 2`, the gradient term by parts.
+        """Return the density `-phi^2 / 2 + phi^4 / 4 - kappa phi laplacian(phi) / 2`.
+
+        The gradient term is taken by parts.
 
         Args:
             namespace:
@@ -122,6 +130,7 @@ REFERENCES = ('Brauns and Marchetti 2024', 'Allen and Cahn 1979', 'Cahn and Hill
 
 
 def _ordering(
+    label: str,
     *,
     shape: Sequence[int],
     length: float,
@@ -131,7 +140,9 @@ def _ordering(
     conserved: bool,
     temperature: float = 0.0,
 ) -> System:
-    """Return a phase field that starts from small noise around a mean and relaxes in the Landau free energy.
+    """Return a system of a label with a phase field that relaxes.
+
+    The field starts from small noise around a mean.
 
     A positive temperature adds the conserved thermal noise, on finite differences instead of the spectral lattice.
     """
@@ -159,29 +170,19 @@ def _ordering(
         values=values,
         discretization=discretization,
     )
-    return System(elements=[field], interactions=interactions)
+    return System(label, elements=[field], interactions=interactions)
 
 
-@register_system(
-    field='physics/pattern_formation',
-    tags=('field', 'phase ordering', 'coarsening', 'system a', 'spectral', 'pde'),
-    references=REFERENCES,
-    defaults={'until': 100.0, 'dt': 1.0, 'solver': ETDRK4Solver(dt=0.5)},
-)
-def allen_cahn(
-    shape: Sequence[int] = (128, 128),
-    *,
-    length: float = 128.0,
-    mean: float = 0.0,
-    kappa: float = 1.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the Allen-Cahn equation, System A, the non-conserved relaxation of an order parameter in a double well.
+class AllenCahnSystem(BaseSystem):
+    """The Allen-Cahn equation, System A.
+
+    It is the non-conserved relaxation of an order parameter in a double well.
 
     The order parameter follows `phi_t = phi - phi^3 + kappa laplacian(phi)`, the gradient descent of the free energy
     density `-phi^2 / 2 + phi^4 / 4 + kappa |grad(phi)|^2 / 2`. From small noise, domains of `phi = 1` and `phi = -1`
     form and coarsen as their walls move by curvature, so their size grows as `t^(1/2)`. The mean of `phi` is not
-    conserved, and a domain shrinks away instead of exchanging material with its neighbours.
+    conserved, and a domain shrinks away instead of exchanging material with its neighbours. The system has the field
+    `mixture.phi`.
 
     Args:
         shape:
@@ -199,41 +200,56 @@ def allen_cahn(
         random_state:
             The seed or generator of the initial noise of amplitude 0.05.
 
-    Returns:
-        system:
-            The system, with the field `mixture.phi`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.pattern_formation import allen_cahn
-        >>> allen_cahn((8, 8), kappa=2.0).interactions[0].kappa
+        >>> from skcomplex.systems.physics.pattern_formation import AllenCahnSystem
+        >>> AllenCahnSystem((8, 8), kappa=2.0).prepare().system_.interactions[0].kappa
         2.0
     """
-    return _ordering(
-        shape=shape,
-        length=length,
-        mean=mean,
-        kappa=kappa,
-        random_state=random_state,
-        conserved=False,
-    )
+
+    field = 'physics/pattern_formation'
+    topics = ('field', 'phase ordering', 'coarsening', 'system a', 'spectral', 'pde')
+    references = REFERENCES
+    until = 100.0
+    dt = 1.0
+    solver = ETDRK4Solver(dt=0.5)
+
+    def __init__(
+        self,
+        shape: Sequence[int] = (128, 128),
+        *,
+        length: float = 128.0,
+        mean: float = 0.0,
+        kappa: float = 1.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.shape = shape
+        self.length = length
+        self.mean = mean
+        self.kappa = kappa
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        return _ordering(
+            self.label,
+            shape=self.shape,
+            length=self.length,
+            mean=self.mean,
+            kappa=self.kappa,
+            random_state=self.random_state,
+            conserved=False,
+        )
 
 
-@register_system(
-    field='physics/pattern_formation',
-    tags=('field', 'phase separation', 'coarsening', 'conserved', 'system b', 'spectral', 'pde', 'conserved noise'),
-    references=REFERENCES,
-    defaults={'until': 1000.0, 'dt': 10.0, 'solver': ETDRK4Solver(dt=0.25)},
-)
-def cahn_hilliard(
-    shape: Sequence[int] = (64, 64),
-    *,
-    length: float = 64.0,
-    mean: float = 0.0,
-    kappa: float = 1.0,
-    temperature: float = 0.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the Cahn-Hilliard equation, System B, the conserved relaxation of an order parameter in a double well.
+class CahnHilliardSystem(BaseSystem):
+    """The Cahn-Hilliard equation, System B.
+
+    It is the conserved relaxation of an order parameter in a double well.
 
     The order parameter follows `phi_t = laplacian(-phi + phi^3 - kappa laplacian(phi))`, a diffusion down the
     gradient of the chemical potential of the same free energy as the Allen-Cahn equation. Inside the spinodal,
@@ -242,7 +258,7 @@ def cahn_hilliard(
 
     A positive temperature adds the thermal noise of System B, `div(sqrt(2 temperature) eta)`, which conserves the mean
     of `phi` as well. The field then uses finite differences, and an SDE solver such as `EulerMaruyamaSolver` integrates
-    it, with a step below `spacing^4 / (32 kappa)`.
+    it, with a step below `spacing^4 / (32 kappa)`. The system has the field `mixture.phi`.
 
     Args:
         shape:
@@ -263,23 +279,53 @@ def cahn_hilliard(
         random_state:
             The seed or generator of the initial noise of amplitude 0.05.
 
-    Returns:
-        system:
-            The system, with the field `mixture.phi`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.pattern_formation import cahn_hilliard
-        >>> cahn_hilliard((8, 8), mean=0.3).interactions[0].conserved
+        >>> from skcomplex.systems.physics.pattern_formation import CahnHilliardSystem
+        >>> CahnHilliardSystem((8, 8), mean=0.3).prepare().system_.interactions[0].conserved
         True
-        >>> [interaction.label for interaction in cahn_hilliard((8, 8), temperature=0.1).interactions]
+        >>> system = CahnHilliardSystem((8, 8), temperature=0.1).prepare().system_
+        >>> [interaction.label for interaction in system.interactions]
         ['energy', 'noise']
     """
-    return _ordering(
-        shape=shape,
-        length=length,
-        mean=mean,
-        kappa=kappa,
-        random_state=random_state,
-        conserved=True,
-        temperature=temperature,
-    )
+
+    field = 'physics/pattern_formation'
+    topics = ('field', 'phase separation', 'coarsening', 'conserved', 'system b', 'spectral', 'pde', 'conserved noise')
+    references = REFERENCES
+    until = 1000.0
+    dt = 10.0
+    solver = ETDRK4Solver(dt=0.25)
+
+    def __init__(
+        self,
+        shape: Sequence[int] = (64, 64),
+        *,
+        length: float = 64.0,
+        mean: float = 0.0,
+        kappa: float = 1.0,
+        temperature: float = 0.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.shape = shape
+        self.length = length
+        self.mean = mean
+        self.kappa = kappa
+        self.temperature = temperature
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        return _ordering(
+            self.label,
+            shape=self.shape,
+            length=self.length,
+            mean=self.mean,
+            kappa=self.kappa,
+            random_state=self.random_state,
+            conserved=True,
+            temperature=self.temperature,
+        )

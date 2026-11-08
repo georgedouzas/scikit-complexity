@@ -11,7 +11,9 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class StepSpec(BaseSpec):
-    """Step of a run: the state at one time and the time a solver advances it to.
+    """Step of a run.
+
+    It holds the state at one time and the time a solver advances it to.
 
     Args:
         t:

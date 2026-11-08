@@ -1,8 +1,12 @@
-"""Check after the gallery is generated that every example it ran has a screenshot as its thumbnail."""
+"""Check that every example the gallery ran has a screenshot as its thumbnail.
+
+The check runs after the gallery is generated.
+"""
 
 import ast
 import contextlib
 import functools
+import inspect
 import io
 import logging
 import pprint
@@ -16,7 +20,7 @@ from tempfile import TemporaryDirectory
 from types import ModuleType
 
 import numpy as np
-from gallery_tools import build_from_environment, check_coverage, find_examples
+from gallery_tools import build_from_environment, check_coverage, find_examples, library_systems
 from mkdocs.config.defaults import MkDocsConfig
 from mkdocs.exceptions import PluginError
 from mkdocs.plugins import event_priority
@@ -25,7 +29,6 @@ from mkdocs.structure.pages import Page
 from mkdocs_gallery import glr_path_static
 
 from skcomplex.core.base import BaseConfig
-from skcomplex.systems import describe
 
 # mkdocs-gallery 0.10.4, its latest release, still reads docstrings through `ast.Str` and `.s`, which Python 3.12
 # deprecates, so every parsed example logs two warnings. Silence only those, only from mkdocs-gallery.
@@ -36,6 +39,7 @@ LOGGER = logging.getLogger('mkdocs.plugins.skcomplex_gallery')
 GALLERY_PAGES = 'generated/gallery/'
 SYSTEMS_NAVIGATION = 'systems/SUMMARY.md'
 USER_GUIDE = 'overview/user_guide/'
+PARTS = 'parts/'
 SHOW_EXPRESSION = '_show_expression'
 PYTHON_BLOCK = re.compile(r'^```python(?P<continuation> continuation)?\n(?P<code>.*?)^```$', re.MULTILINE | re.DOTALL)
 RUNNING_TIME = '**Total running time of the script:**'
@@ -43,7 +47,10 @@ EMPTY_SUBSECTION = re.compile(r'^## [^\n]*\n\s*<div class="mkd-glr-clear"></div>
 
 
 def _without_empty_sections(nav: list[object]) -> list[object]:
-    """Return a navigation without the sections that hold no page, those of the subfields a sample build leaves out."""
+    """Return a navigation without the sections that hold no page.
+
+    They are those of the subfields a sample build leaves out.
+    """
     kept: list[object] = []
     for item in nav:
         if isinstance(item, dict):
@@ -67,7 +74,9 @@ def _systems_of_examples() -> dict[str, str]:
 
 
 def _show_expression(value: object) -> None:
-    """Print the value of an expression of a block, as a Python prompt does, except for a step that returns its object.
+    """Print the value of an expression of a block, as a Python prompt does.
+
+    A step that returns its object is not printed.
 
     Args:
         value:
@@ -81,7 +90,9 @@ def _show_expression(value: object) -> None:
 
 
 def _with_shown_expressions(code: str) -> str:
-    """Return the source of a block with the value of every expression statement at its top level shown.
+    """Return the source of a block with the values of its expressions shown.
+
+    The values shown are those of every expression statement at its top level.
 
     Args:
         code:
@@ -99,11 +110,11 @@ def _with_shown_expressions(code: str) -> str:
 
 
 def _with_executed_code(markdown: str, page: str) -> str:
-    """Return the Markdown of a guide page with the values of the expressions of its Python blocks below them.
+    """Return the Markdown of a guide or parts page with the values of its expressions.
 
-    A block runs in a module of its own, registered as a real one because observables pickle the functions of a block,
-    and a block that continues another runs in the module of that block. The source stays plain, so it reads and tests
-    as it is.
+    The values of the expressions of its Python blocks are shown below them. A block runs in a module of its own,
+    registered as a real one because observables pickle the functions of a block, and a block that continues another
+    runs in the module of that block. The source stays plain, so it reads and tests as it is.
 
     Args:
         markdown:
@@ -146,7 +157,9 @@ def _with_executed_code(markdown: str, page: str) -> str:
 
 
 def on_page_markdown(markdown: str, page: Page, **kwargs: object) -> str:
-    """Remove the gallery subsections that hold no example, and add its catalog entry to the page of an example.
+    """Run the blocks of a guide or parts page, or tidy a gallery page.
+
+    For an example page, it also describes the system.
 
     Args:
         markdown:
@@ -162,22 +175,24 @@ def on_page_markdown(markdown: str, page: Page, **kwargs: object) -> str:
         markdown:
             The Markdown without the empty subsections, with the description and references of the system of an example.
     """
-    if page.file.src_uri.startswith(USER_GUIDE):
+    if page.file.src_uri.startswith((USER_GUIDE, PARTS)):
         return _with_executed_code(markdown, page.file.src_uri)
     system = _systems_of_examples().get(Path(page.file.src_uri).stem)
     if system is None or not page.file.src_uri.startswith(GALLERY_PAGES):
         return EMPTY_SUBSECTION.sub('', markdown)
-    entry = describe(system)
-    references = '\n'.join(f'- {reference}' for reference in entry.references)
+    system_class = library_systems()[system]
+    description = (inspect.getdoc(system_class) or '').split('\n', maxsplit=1)[0]
+    references = '\n'.join(f'- {reference}' for reference in system_class.references)
     head, marker, tail = markdown.partition(RUNNING_TIME)
-    return f'{head}## About the system\n\n{entry.description}\n\n## References\n\n{references}\n\n{marker}{tail}'
+    return f'{head}## About the system\n\n{description}\n\n## References\n\n{references}\n\n{marker}{tail}'
 
 
 @event_priority(-200)
 def on_files(files: Files, **kwargs: object) -> Files:
-    """Remove the navigation file of the systems, so the build does not publish it as a page.
+    """Remove the navigation file of the systems.
 
-    The low priority runs this after `literate-nav`, which reads the file at priority -100.
+    The build thus does not publish it as a page. The low priority runs this after `literate-nav`, which reads the file
+    at priority -100.
 
     Args:
         files:
@@ -195,10 +210,10 @@ def on_files(files: Files, **kwargs: object) -> Files:
 
 
 def on_pre_build(config: MkDocsConfig, **kwargs: object) -> None:
-    """Fail the build on a failed example, a run example without a screenshot, or an orphan, and on any gap if strict.
+    """Fail the build on a failed, unscreenshotted, or orphan example.
 
-    The checksums of the failed examples and of those without a screenshot are removed first, so the next build runs
-    them again.
+    A run example without a screenshot fails it too, and with strict any gap does. The checksums of the failed examples
+    and of those without a screenshot are removed first, so the next build runs them again.
 
     Args:
         config:

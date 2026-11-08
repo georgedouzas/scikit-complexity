@@ -1,4 +1,7 @@
-"""Fractal systems built by substitution: the Koch curve, the Cantor set, and the Sierpiński triangle and carpet."""
+"""Fractal systems built by substitution.
+
+The module covers the Koch curve, the Cantor set, and the Sierpiński triangle and carpet.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,15 +16,16 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import PatchElement, WordElement
 from ....core.components.laws import ProductionLaw, SubstitutionLaw
-from ....core.components.system import System
-from ....core.engine.compile import RewritingCompiler
+from ....core.components.spaces import BaseSpace
+from ....core.components.system import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import AffineSpec, GeometrySpec, ParameterSpec, PrototileSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class CantorElement(PatchElement):
-    """Patch of intervals, each replaced by its first and its last part of the length `ratio`.
+    """Patch of intervals.
+
+    Each interval is replaced by its first and its last part of the length `ratio`.
 
     Args:
         label:
@@ -53,6 +57,8 @@ class CantorElement(PatchElement):
         >>> CantorElement('cantor', ratio=0.25).ratio
         0.25
     """
+
+    law_classes = (SubstitutionLaw,)
 
     def __init__(
         self,
@@ -114,6 +120,8 @@ class KochElement(WordElement):
         'F+F--F+F'
     """
 
+    law_classes = (ProductionLaw,)
+
     def _get_laws(self, s: SimpleNamespace) -> list[ProductionLaw]:
         """Return the production of the Koch curve.
 
@@ -133,7 +141,9 @@ SHAPES = ('triangle', 'carpet')
 
 
 class SierpinskiElement(PatchElement):
-    """Patch of triangles or squares, each replaced by the scaled copies of the Sierpiński triangle or carpet.
+    """Patch of triangles or squares.
+
+    Each is replaced by the scaled copies of the Sierpiński triangle or carpet.
 
     Args:
         label:
@@ -165,6 +175,8 @@ class SierpinskiElement(PatchElement):
         >>> len(SierpinskiElement('sierpinski', shape='carpet')._get_laws(None)[0].pieces)
         8
     """
+
+    law_classes = (SubstitutionLaw,)
 
     def __init__(
         self,
@@ -210,7 +222,7 @@ class SierpinskiElement(PatchElement):
 
     @staticmethod
     def _sierpinski_tiles(shape: str) -> tuple[PrototileSpec, list[tuple[str, AffineSpec]]]:
-        """Return the prototile of a Sierpiński shape and the scaled copies that replace it."""
+        """Return the prototile of a Sierpiński shape and its scaled replacing copies."""
         if shape == 'triangle':
             height = np.sqrt(3) / 2
             corners = [(0.0, 0.0), (0.5, 0.0), (0.25, height / 2)]
@@ -227,94 +239,119 @@ class SierpinskiElement(PatchElement):
 LARGEST_RATIO = 0.5
 
 
-@register_system(
-    field='mathematics/fractals',
-    tags=('fractal', 'L-system', 'rewriting system', 'turtle'),
-    references=('Prusinkiewicz and Lindenmayer 1990', 'Thurner, Hanel, and Klimek 2018', 'Trzaska 2023'),
-    defaults={'compiler': RewritingCompiler(), 'until': 5, 'dt': 1},
-)
-def koch_curve(angle: float = 60.0) -> System:
-    """Return the Koch curve as the L-system `F → F+F--F+F` drawn by a turtle.
+class KochCurveSystem(BaseSystem):
+    """The Koch curve as the L-system `F → F+F--F+F` drawn by a turtle.
 
     Every generation replaces each segment by four segments of a third of its length, with a bump of the turning angle
     in the middle. With the angle of 60 degrees the curve keeps its endpoints at `(0, 0)` and `(1, 0)`, its length is
-    `(4/3)^n` at generation `n`, and its similarity dimension is `log 4 / log 3`, about 1.262.
+    `(4/3)^n` at generation `n`, and its similarity dimension is `log 4 / log 3`, about 1.262. The system has the word
+    `koch`, its symbol counts `koch.F`, and its size `koch.size`.
 
     Args:
         angle:
             The turning angle of the turtle in degrees.
 
-    Returns:
-        system:
-            The system, with the word `koch`, its symbol counts `koch.F`, and its size `koch.size`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems import create_simulation
-        >>> create_simulation('koch_curve').prepare().run(until=3).trajectory_.values('koch.F').tolist()
+        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.systems.mathematics.fractals import KochCurveSystem
+        >>> simulate(KochCurveSystem(), until=3).values('koch.F').tolist()
         [1.0, 4.0, 16.0, 64.0]
     """
-    word = KochElement(
-        'koch',
-        axiom='F',
-        alphabet='F+-',
-        geometry=GeometrySpec(angle=angle, step=1.0, contraction=1 / 3),
-        bounds=(-0.03, -0.05, 1.03, 0.35),
-    )
-    return System(elements=[word])
+
+    field = 'mathematics/fractals'
+    topics = ('fractal', 'L-system', 'rewriting system', 'turtle')
+    references = ('Prusinkiewicz and Lindenmayer 1990', 'Thurner, Hanel, and Klimek 2018', 'Trzaska 2023')
+    until = 5
+    dt = 1
+
+    def __init__(self, angle: float = 60.0, *, label: str = 'system') -> None:
+        super().__init__(label)
+        self.angle = angle
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        word = KochElement(
+            'koch',
+            axiom='F',
+            alphabet='F+-',
+            geometry=GeometrySpec(angle=self.angle, step=1.0, contraction=1 / 3),
+            bounds=(-0.03, -0.05, 1.03, 0.35),
+        )
+        return System(self.label, elements=[word])
 
 
-@register_system(
-    field='mathematics/fractals',
-    tags=('fractal', 'substitution', 'rewriting system'),
-    references=('Cantor 1883', 'Thurner, Hanel, and Klimek 2018', 'Trzaska 2023'),
-    defaults={'compiler': RewritingCompiler(), 'until': 8, 'dt': 1},
-)
-def cantor_set(ratio: float = 1 / 3) -> System:
-    """Return the Cantor set as the substitution of every interval by its two outer parts.
+class CantorSetSystem(BaseSystem):
+    """The Cantor set as the substitution of every interval by its two outer parts.
 
     Every generation keeps the first and the last part of each interval, each `ratio` of its length, and removes the
     middle. With the ratio of one third, generation `n` has `2^n` intervals of total length `(2/3)^n`, and the limit set
-    has the similarity dimension `log 2 / log 3`, about 0.631.
+    has the similarity dimension `log 2 / log 3`, about 0.631. The system has the patch `cantor` and its number of
+    intervals `cantor.size`.
 
     Args:
         ratio:
             The length of each kept part relative to its interval, below one half.
 
-    Returns:
-        system:
-            The system, with the patch `cantor` and its number of intervals `cantor.size`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValidationError:
             The ratio is not between 0 and 1/2.
 
     Examples:
-        >>> from skcomplex.systems import create_simulation
-        >>> create_simulation('cantor_set').prepare().run(until=3).trajectory_.values('cantor.size').tolist()
+        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.systems.mathematics.fractals import CantorSetSystem
+        >>> simulate(CantorSetSystem(), until=3).values('cantor.size').tolist()
         [1.0, 2.0, 4.0, 8.0]
     """
-    if not 0 < ratio < LARGEST_RATIO:
-        error_msg = f'ratio = {ratio!r} must lie between 0 and 1/2.'
-        raise ValidationError(error_msg)
-    interval = PrototileSpec('interval', [(0.0, 0.0), (1.0, 0.0)])
-    return System(
-        elements=[CantorElement('cantor', prototiles=[interval], bounds=(-0.03, -0.1, 1.03, 0.1), ratio=ratio)],
-    )
+
+    field = 'mathematics/fractals'
+    topics = ('fractal', 'substitution', 'rewriting system')
+    references = ('Cantor 1883', 'Thurner, Hanel, and Klimek 2018', 'Trzaska 2023')
+    until = 8
+    dt = 1
+
+    def __init__(self, ratio: float = 1 / 3, *, label: str = 'system') -> None:
+        super().__init__(label)
+        self.ratio = ratio
+
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Raise an error for a ratio outside of `(0, 1/2)`, then check the parts.
+
+        Args:
+            context:
+                The space a nested system inherits from the system that holds it, or `None`.
+
+        Raises:
+            ValidationError:
+                The ratio is not between 0 and 1/2.
+        """
+        super()._prepare(context)
+        if not 0 < self.ratio < LARGEST_RATIO:
+            error_msg = f'ratio = {self.ratio!r} must lie between 0 and 1/2.'
+            raise ValidationError(error_msg)
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        interval = PrototileSpec('interval', [(0.0, 0.0), (1.0, 0.0)])
+        cantor = CantorElement('cantor', prototiles=[interval], bounds=(-0.03, -0.1, 1.03, 0.1), ratio=self.ratio)
+        return System(self.label, elements=[cantor])
 
 
-@register_system(
-    field='mathematics/fractals',
-    tags=('fractal', 'substitution', 'rewriting system'),
-    references=('Sierpiński 1915', 'Sierpiński 1916', 'Thurner, Hanel, and Klimek 2018', 'Trzaska 2023'),
-    defaults={'compiler': RewritingCompiler(), 'until': 6, 'dt': 1},
-)
-def sierpinski_substitution(shape: str = 'triangle', *, filled: bool = True) -> System:
-    """Return the Sierpiński triangle or carpet as the substitution of a polygon by scaled copies of itself.
+class SierpinskiSubstitutionSystem(BaseSystem):
+    """The Sierpiński triangle or carpet.
+
+    The shape is the substitution of a polygon by scaled copies of itself.
 
     The triangle is replaced by its three corner copies of half its side, so generation `n` has `3^n` triangles of
     total area `(3/4)^n` times the first, and the gasket has the similarity dimension `log 3 / log 2`, about 1.585. The
     square is replaced by the eight copies of a third of its side around its middle, so generation `n` has `8^n`
-    squares of area `(8/9)^n`, and the carpet has the dimension `log 8 / log 3`, about 1.893.
+    squares of area `(8/9)^n`, and the carpet has the dimension `log 8 / log 3`, about 1.893. The system has the patch
+    `sierpinski` and its number of polygons `sierpinski.size`.
 
     Args:
         shape:
@@ -323,19 +360,33 @@ def sierpinski_substitution(shape: str = 'triangle', *, filled: bool = True) -> 
         filled:
             Whether the geometry visual draws the polygons as a filled image instead of outlines.
 
-    Returns:
-        system:
-            The system, with the patch `sierpinski` and its number of polygons `sierpinski.size`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValidationError:
             The shape is unknown.
 
     Examples:
-        >>> from skcomplex.systems import create_simulation
-        >>> simulation = create_simulation('sierpinski_substitution').prepare().run(until=2)
-        >>> simulation.trajectory_.values('sierpinski.size').tolist()
+        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.systems.mathematics.fractals import SierpinskiSubstitutionSystem
+        >>> simulate(SierpinskiSubstitutionSystem(), until=2).values('sierpinski.size').tolist()
         [1.0, 3.0, 9.0]
     """
-    prototile, _ = SierpinskiElement._sierpinski_tiles(shape)
-    return System(elements=[SierpinskiElement('sierpinski', shape=shape, prototiles=[prototile], filled=filled)])
+
+    field = 'mathematics/fractals'
+    topics = ('fractal', 'substitution', 'rewriting system')
+    references = ('Sierpiński 1915', 'Sierpiński 1916', 'Thurner, Hanel, and Klimek 2018', 'Trzaska 2023')
+    until = 6
+    dt = 1
+
+    def __init__(self, shape: str = 'triangle', *, filled: bool = True, label: str = 'system') -> None:
+        super().__init__(label)
+        self.shape = shape
+        self.filled = filled
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        prototile, _ = SierpinskiElement._sierpinski_tiles(self.shape)
+        sierpinski = SierpinskiElement('sierpinski', shape=self.shape, prototiles=[prototile], filled=self.filled)
+        return System(self.label, elements=[sierpinski])

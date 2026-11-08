@@ -13,9 +13,10 @@ from ._base import BaseObserver
 
 
 class InvariantObserver(BaseObserver):
-    """Observer that checks at every frame that every named observable stays within its tolerance of its first value.
+    """Observer that checks that every named observable stays near its first value.
 
-    A simulation attaches one when it is given invariants.
+    At every frame each observable must stay within its tolerance of its first value. A simulation attaches one when it
+    is given invariants.
 
     Args:
         invariants:
@@ -29,14 +30,14 @@ class InvariantObserver(BaseObserver):
         >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.core.specs import ObservableSpec
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import InvariantObserver, Simulation
+        >>> from skcomplex.core.engine.runtime import InvariantObserver, simulate
         >>> from skcomplex.systems.biology.common.populations import PopulationElement
         >>> system = System(
         ...     elements=[GroupElement('herd', element=PopulationElement, size=2, values={'n': [2.0, 6.0]})]
         ... )
         >>> total = ObservableSpec('total', group='herd', reduce='sum', variable='n')
         >>> monitor = InvariantObserver({'total': 1e-9})
-        >>> _ = Simulation(system, dt=1, observables=[total], observers=[monitor]).prepare().run(3)
+        >>> _ = simulate(system, until=3, dt=1, observables=[total], observers=[monitor])
         >>> monitor.initial_
         {'total': 8.0}
     """
@@ -44,8 +45,16 @@ class InvariantObserver(BaseObserver):
     def __init__(self, invariants: Mapping[str, float]) -> None:
         self.invariants = invariants
 
-    def _check(self) -> None:
-        """Raise an error unless every invariant names an observable with a nonnegative tolerance."""
+    def _prepare(self, context: BaseProblemSpec | None) -> None:
+        """Forget the values of the invariants of an earlier run.
+
+        It first raises an error for an invariant without observable or with a negative tolerance. Every invariant must
+        name an observable with a nonnegative tolerance.
+
+        Args:
+            context:
+                The compiled problem the run advances.
+        """
         if not isinstance(self.invariants, Mapping):
             error_msg = f'invariants = {self.invariants!r} must map the path of every observable to its tolerance.'
             raise ValidationError(error_msg)
@@ -56,14 +65,6 @@ class InvariantObserver(BaseObserver):
             if not tolerance >= 0:
                 error_msg = f'The tolerance {tolerance!r} of the invariant {path} must be nonnegative.'
                 raise ValidationError(error_msg)
-
-    def _prepare(self, context: BaseProblemSpec | None) -> None:
-        """Forget the values of the invariants of an earlier run.
-
-        Args:
-            context:
-                The compiled problem the run advances.
-        """
         del context
         self.initial_: dict[str, float] = {}
 

@@ -1,4 +1,7 @@
-"""Econophysics systems: the Kolkata Paise Restaurant problem of choosing among restaurants."""
+"""Econophysics systems: the Kolkata Paise Restaurant problem.
+
+Diners choose among restaurants.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,16 +17,15 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import ChoiceInteraction, GroupingInteraction
-from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.system import System
+from ....core.components.laws import BaseLaw, MatchLaw, RuleLaw, UpdateLaw
+from ....core.components.system import BaseSystem, System
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class DinerView(AgentView):
-    """Diner as the rules see it, with its restaurant, the crowd there, and whether it was served.
+    """Diner as the rules see it.
 
     It reads its `restaurant`, the `crowd` there, and whether it was `served`.
     """
@@ -34,7 +36,9 @@ class DinerView(AgentView):
 
 
 class DinerElement(Element):
-    """Diner of the Kolkata Paise Restaurant problem, who goes to one restaurant every evening.
+    """Diner of the Kolkata Paise Restaurant problem.
+
+    It goes to one restaurant every evening.
 
     Args:
         label:
@@ -140,7 +144,10 @@ class CrowdAvoidanceInteraction(ChoiceInteraction):
         )
 
     def _get_utility(self, agent: DinerView, system: SystemViewProtocol, option: float) -> float:
-        """Return 0 for another restaurant and `-log(1 - 1 / n)` for staying at a crowd of `n`."""
+        """Return the utility of a restaurant.
+
+        It is 0 for another restaurant and `-log(1 - 1 / n)` for staying at a crowd of `n`.
+        """
         if option != getattr(agent, self.state) or agent.crowd < 1:
             return 0.0
         if agent.crowd == 1:
@@ -149,10 +156,11 @@ class CrowdAvoidanceInteraction(ChoiceInteraction):
 
 
 class RestaurantsInteraction(GroupingInteraction):
-    """Restaurants that each serve one meal every evening, to one of the diners who come chosen at random.
+    """Restaurants that each serve one meal every evening.
 
-    The diners are grouped by their restaurant. Every diner learns the crowd at its restaurant, and the first of the
-    group in a random order is served. The interaction reports the fraction of restaurants that serve a meal.
+    The meal goes to one of the diners who come, chosen at random. The diners are grouped by their restaurant. Every
+    diner learns the crowd at its restaurant, and the first of the group in a random order is served. The interaction
+    reports the fraction of restaurants that serve a meal.
 
     Args:
         label:
@@ -175,6 +183,8 @@ class RestaurantsInteraction(GroupingInteraction):
         >>> RestaurantsInteraction('restaurants', target='diners', n_restaurants=5).groups
         'state'
     """
+
+    law_classes = (MatchLaw, RuleLaw, UpdateLaw)
 
     reports: ClassVar[tuple[str, ...]] = ('utilization',)
 
@@ -216,7 +226,9 @@ class RestaurantsInteraction(GroupingInteraction):
         system.report('utilization', len(visited) / self.n_restaurants)
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule that serves the diners and the rule that reports the utilization.
+        """Return the rule that serves the diners and the utilization report.
+
+        The report is a rule of its own.
 
         Args:
             namespace:
@@ -232,23 +244,14 @@ class RestaurantsInteraction(GroupingInteraction):
 STRATEGIES = ('random', 'crowd_avoiding')
 
 
-@register_system(
-    field='economics/econophysics',
-    tags=('kolkata paise restaurant', 'agents', 'resource allocation', 'minority game'),
-    references=('Chakrabarti et al. 2009', 'Ghosh et al. 2010', 'Carmichael and Hadzikadic 2019 ch. 9'),
-    defaults={'until': 100},
-)
-def kolkata_restaurant(
-    n_agents: int = 100,
-    *,
-    n_restaurants: int | None = None,
-    strategy: str = 'random',
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the Kolkata Paise Restaurant problem, where diners spread over restaurants that serve one meal each.
+class KolkataRestaurantSystem(BaseSystem):
+    """The Kolkata Paise Restaurant problem.
 
-    With random choice the expected utilization of `N` restaurants by `N` diners is `1 - 1/e`, about 0.632, and with
-    the stochastic crowd avoiding strategy it settles near 0.8.
+    Diners spread over restaurants that serve one meal each. With random choice the expected utilization of `N`
+    restaurants by `N` diners is `1 - 1/e`, about 0.632, and with the stochastic crowd avoiding strategy it settles near
+    0.8. The system has the group `diners`, the choice `choice` of a restaurant every evening, uniform or by crowd
+    avoidance, and the interaction `restaurants`, which reports the fraction of restaurants that serve a meal
+    `restaurants.utilization`.
 
     Args:
         n_agents:
@@ -263,40 +266,61 @@ def kolkata_restaurant(
         random_state:
             The seed or generator of the first choices.
 
-    Returns:
-        system:
-            The system, with the group `diners`, the choice `choice` of a restaurant every evening, uniform or by crowd
-            avoidance, and the interaction `restaurants`, which reports the fraction of
-            restaurants that serve a meal `restaurants.utilization`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValueError:
             The strategy is unknown.
 
     Examples:
-        >>> from skcomplex.systems.economics.econophysics import kolkata_restaurant
-        >>> type(kolkata_restaurant(10, strategy='crowd_avoiding').interactions[0]).__name__
+        >>> from skcomplex.systems.economics.econophysics import KolkataRestaurantSystem
+        >>> type(KolkataRestaurantSystem(10, strategy='crowd_avoiding').prepare().system_.interactions[0]).__name__
         'CrowdAvoidanceInteraction'
     """
-    if strategy not in STRATEGIES:
-        error_msg = f'Unknown strategy {strategy!r}. Use one of {STRATEGIES}.'
-        raise ValueError(error_msg)
-    n_restaurants = n_agents if n_restaurants is None else n_restaurants
-    options = [float(restaurant) for restaurant in range(n_restaurants)]
-    choices = np.random.default_rng(random_state).integers(n_restaurants, size=n_agents).astype(float)
-    diners = GroupElement('diners', element=DinerElement, size=n_agents, values={'restaurant': choices})
-    choice = (
-        CrowdAvoidanceInteraction('choice', target='diners', options=options)
-        if strategy == 'crowd_avoiding'
-        else ChoiceInteraction(
-            'choice',
-            target='diners',
-            state='restaurant',
-            options=options,
-            utility=lambda agent, system, option: 0.0,
-            intensity=0.0,
-            form='agent',
+
+    field = 'economics/econophysics'
+    topics = ('kolkata paise restaurant', 'agents', 'resource allocation', 'minority game')
+    references = ('Chakrabarti et al. 2009', 'Ghosh et al. 2010', 'Carmichael and Hadzikadic 2019 ch. 9')
+    until = 100
+
+    def __init__(
+        self,
+        n_agents: int = 100,
+        *,
+        n_restaurants: int | None = None,
+        strategy: str = 'random',
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_agents = n_agents
+        self.n_restaurants = n_restaurants
+        self.strategy = strategy
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        n_restaurants = self.n_restaurants
+        if self.strategy not in STRATEGIES:
+            error_msg = f'Unknown strategy {self.strategy!r}. Use one of {STRATEGIES}.'
+            raise ValueError(error_msg)
+        n_restaurants = self.n_agents if n_restaurants is None else n_restaurants
+        options = [float(restaurant) for restaurant in range(n_restaurants)]
+        choices = np.random.default_rng(self.random_state).integers(n_restaurants, size=self.n_agents).astype(float)
+        diners = GroupElement('diners', element=DinerElement, size=self.n_agents, values={'restaurant': choices})
+        choice = (
+            CrowdAvoidanceInteraction('choice', target='diners', options=options)
+            if self.strategy == 'crowd_avoiding'
+            else ChoiceInteraction(
+                'choice',
+                target='diners',
+                state='restaurant',
+                options=options,
+                utility=lambda agent, system, option: 0.0,
+                intensity=0.0,
+                form='agent',
+            )
         )
-    )
-    restaurants = RestaurantsInteraction('restaurants', target='diners', n_restaurants=n_restaurants)
-    return System(elements=[diners], interactions=[choice, restaurants])
+        restaurants = RestaurantsInteraction('restaurants', target='diners', n_restaurants=n_restaurants)
+        return System(self.label, elements=[diners], interactions=[choice, restaurants])

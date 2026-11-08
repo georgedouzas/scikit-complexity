@@ -11,7 +11,7 @@ from skcomplex.core.components.interactions import ChoiceInteraction, FeedbackIn
 from skcomplex.core.components.laws.utils import mean
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation, Trajectory
+from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.engine.solvers import AgentView, SystemView
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
@@ -58,7 +58,7 @@ def _run_choice(choice: ChoiceInteraction, initial: np.ndarray, until: int, seed
     """Return the trajectory of a group of choosers bound to a choice."""
     group = GroupElement('members', element=ChooserElement, size=len(initial), values={'option': initial})
     system = System(elements=[group], interactions=[choice], time=DiscreteTime())
-    return Simulation(system, random_state=seed).prepare().run(until=until).trajectory_
+    return simulate(system, until=until, random_state=seed)
 
 
 def _fixed(namespace: object, option: float) -> float:
@@ -311,7 +311,7 @@ def test_choice_interaction_agent_utility_reads_the_history_of_the_system():
         interactions=[choice, PayoffFeedback('feedback', phase='report')],
         time=DiscreteTime(schedule=schedule),
     )
-    trajectory = Simulation(system, random_state=0).prepare().run(until=5).trajectory_
+    trajectory = simulate(system, until=5, random_state=0)
     assert 0.0 < trajectory.agents('members', 1).values['option'].mean() < 1.0
     assert trajectory.agents('members', 5).values['option'].mean() > 0.9
 

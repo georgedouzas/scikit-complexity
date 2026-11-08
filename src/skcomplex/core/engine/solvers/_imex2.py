@@ -1,4 +1,7 @@
-"""Crank-Nicolson Adams-Bashforth scheme of second order: trapezoidal linear part and extrapolated remainder."""
+"""Crank-Nicolson Adams-Bashforth scheme of second order.
+
+It has a trapezoidal linear part and an extrapolated remainder.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -8,11 +11,11 @@ from ._split import SplitSolver
 
 
 class IMEX2Solver(SplitSolver):
-    """Crank-Nicolson Adams-Bashforth scheme of second order: trapezoidal linear part and extrapolated remainder.
+    """Crank-Nicolson Adams-Bashforth scheme of second order.
 
-    Every step solves `(I - h L / 2) x_{n+1} = (I + h L / 2) x_n + h (3 N_n - N_{n-1}) / 2`, starting with one
-    Crank-Nicolson step with an Euler remainder. A call that does not continue the time, state, and step of the
-    previous call starts the scheme again.
+    It has a trapezoidal linear part and an extrapolated remainder. Every step solves `(I - h L / 2) x_{n+1} = (I + h L
+    / 2) x_n + h (3 N_n - N_{n-1}) / 2`, starting with one Crank-Nicolson step with an Euler remainder. A call that does
+    not continue the time, state, and step of the previous call starts the scheme again.
 
     Args:
         dt:
@@ -25,7 +28,10 @@ class IMEX2Solver(SplitSolver):
     """
 
     def _forget(self) -> None:
-        """Forget the previous remainder, so the next step starts the scheme again."""
+        """Forget the previous remainder.
+
+        The next step then starts the scheme again.
+        """
         self._previous: Array | None = None
 
     def _built(self, p: Array) -> None:

@@ -15,10 +15,10 @@ from skcomplex.core.components.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine._utils import vector
-from skcomplex.core.engine.backends import BaseBackend, NumbaBackend, NumpyBackend, _numba
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.problems import LoweredKernelsSpec
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.backends import BaseBackend, JaxBackend, NumbaBackend, NumpyBackend, _numba
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.problems._lowered_kernels_spec import LoweredKernelsSpec
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import (
     EulerMaruyamaSolver,
     GillespieSolver,
@@ -37,10 +37,10 @@ from skcomplex.core.specs import (
     VisualSpec,
 )
 from skcomplex.core.types import FormKind
-from skcomplex.systems import create_system
 from skcomplex.systems.biology.common.populations import PopulationElement
 from skcomplex.systems.biology.epidemiology import InfectionInteraction, RecoveryInteraction
 from skcomplex.systems.physics.common.particles import HarmonicPotentialInteraction, MassPointElement
+from skcomplex.systems.physics.statistical_mechanics import ContactProcessSystem
 
 CUTOFF = 2.5
 
@@ -237,11 +237,9 @@ def test_compile_auto_backend_depends_on_group_size():
 
 def test_simulation_uses_given_backend(numba_backend):
     """Test that a simulation compiles with the backend it is given."""
-    simulation = (
-        Simulation(_herds(HalvingInteraction('half', target='herds')), backend=numba_backend).prepare().run(until=2)
-    )
-    assert simulation.problem_.backend == 'numba'
-    assert np.allclose(simulation.trajectory_.values('herds.n')[-1], np.linspace(1.0, 50.0, 5) / 4)
+    trajectory = simulate(_herds(HalvingInteraction('half', target='herds')), until=2, backend=numba_backend)
+    assert trajectory.problem.backend == 'numba'
+    assert np.allclose(trajectory.values('herds.n')[-1], np.linspace(1.0, 50.0, 5) / 4)
 
 
 @pytest.mark.parametrize('period', [None, 24.0])
@@ -342,9 +340,7 @@ def test_numpy_backend_calls_vector_call_once_per_step():
             """Return the laws of the pair element."""
             return [UpdateLaw(vector([s.x, s.y]), CallSpec(rotate, (s.x, s.y)))]
 
-    trajectory = (
-        Simulation(System(elements=[PairElement('pair')]), backend=NumpyBackend()).prepare().run(until=4).trajectory_
-    )
+    trajectory = simulate(System(elements=[PairElement('pair')]), until=4, backend=NumpyBackend())
     assert trajectory.values('pair.x').tolist() == [1.0, 0.0, -1.0, 0.0, 1.0]
     assert [calls.count(float(t)) for t in (1, 2, 3)] == [1, 1, 1]
 
@@ -403,59 +399,47 @@ def test_rk4_matches_exponential(backend, numba_backend):
 def test_compiled_gillespie_is_reproducible(numba_backend):
     """Test that the compiled Gillespie loop gives equal trajectories for equal random states."""
     runs = [
-        (
-            Simulation(_epidemic(), solver=GillespieSolver(), backend=numba_backend, dt=1.0, random_state=0)
-            .prepare()
-            .run(until=30)
-        )
+        simulate(_epidemic(), until=30, solver=GillespieSolver(), backend=numba_backend, dt=1.0, random_state=0)
         for _ in range(2)
     ]
-    assert runs[0].problem_.accelerated is not None
-    assert np.array_equal(runs[0].trajectory_.states, runs[1].trajectory_.states)
-    assert np.allclose(runs[0].trajectory_.states.sum(axis=1), 1000)
+    assert runs[0].problem.accelerated is not None
+    assert np.array_equal(runs[0].states, runs[1].states)
+    assert np.allclose(runs[0].states.sum(axis=1), 1000)
 
 
 def test_compiled_gillespie_negative_propensity_raises_error(numba_backend):
     """Test that a negative propensity in the compiled loop raises a solver error."""
     with pytest.raises(SolverError, match='non-negative'):
-        (
-            Simulation(_herds(DecayInteraction('decay', target='herds')), backend=numba_backend, dt=1.0)
-            .prepare()
-            .run(until=1)
-        )
+        simulate(_herds(DecayInteraction('decay', target='herds')), until=1, backend=numba_backend, dt=1.0)
 
 
 def test_compiled_euler_maruyama_is_reproducible(numba_backend):
     """Test that the compiled Euler-Maruyama loop is reproducible and keeps prices positive."""
     runs = [
-        Simulation(
+        simulate(
             _herds(VolatilityInteraction('vol', target='herds')),
+            until=2,
             solver=EulerMaruyamaSolver(dt=1e-3),
             backend=numba_backend,
             dt=0.1,
             random_state=5,
         )
-        .prepare()
-        .run(until=2)
         for _ in range(2)
     ]
-    assert np.array_equal(runs[0].trajectory_.states, runs[1].trajectory_.states)
-    assert np.all(runs[0].trajectory_.states > 0)
+    assert np.array_equal(runs[0].states, runs[1].states)
+    assert np.all(runs[0].states > 0)
 
 
 def test_compiled_iteration_matches_numpy(numba_backend):
     """Test that the compiled discrete loop matches the NumPy loop."""
     results = [
-        (
-            Simulation(
-                _herds(HalvingInteraction('half', target='herds')),
-                solver=IterationSolver(),
-                backend=backend,
-                dt=3,
-            ).prepare()
-        )
-        .run(until=9)
-        .trajectory_.states
+        simulate(
+            _herds(HalvingInteraction('half', target='herds')),
+            until=9,
+            solver=IterationSolver(),
+            backend=backend,
+            dt=3,
+        ).states
         for backend in (NumpyBackend(), numba_backend)
     ]
     assert np.allclose(results[0], results[1])
@@ -469,13 +453,13 @@ def test_velocity_verlet_conserves_energy(backend, numba_backend):
         interactions=[HarmonicPotentialInteraction('trap', target='p')],
         space=ContinuousSpace(n_dim=1),
     )
-    simulation = Simulation(
+    trajectory = simulate(
         system,
+        until=1000,
         solver=VelocityVerletSolver(dt=0.01),
         backend=numba_backend if backend == 'numba' else NumpyBackend(),
         dt=10.0,
-    ).prepare()
-    trajectory = simulation.run(until=1000).trajectory_
+    )
     energy = 0.5 * trajectory.values('p.x_d1')[:, 0, 0] ** 2 + 0.5 * trajectory.values('p.x')[:, 0, 0] ** 2
     assert np.allclose(energy, energy[0], rtol=1e-3)
 
@@ -483,18 +467,13 @@ def test_velocity_verlet_conserves_energy(backend, numba_backend):
 def test_velocity_verlet_needs_position_pairs():
     """Test that velocity Verlet names the states that are neither positions nor velocities."""
     with pytest.raises(SolverError, match=r'herds\.n are neither'):
-        Simulation(
-            _herds(CompiledGrowthInteraction('growth', target='herds')),
-            solver=VelocityVerletSolver(),
-        ).prepare().run(
-            until=1,
-        )
+        simulate(_herds(CompiledGrowthInteraction('growth', target='herds')), until=1, solver=VelocityVerletSolver())
 
 
 def test_backend_substituted_for_a_form_is_reported():
     """Test that a lattice system compiled with Numba warns that its form runs on NumPy, and records NumPy for it."""
     with pytest.warns(BackendWarning, match='lattice dynamics form runs on the numpy backend'):
-        problem = PassCompiler(backend=NumbaBackend()).prepare(create_system('contact_process')).run().problem_
+        problem = PassCompiler(backend=NumbaBackend()).prepare(ContactProcessSystem().prepare().system_).run().problem_
     assert problem.backends['LATTICE'] == 'numpy'
 
 
@@ -511,3 +490,10 @@ def test_backends_derive_from_the_backend_base():
     """Test that the code backends of the engine derive from the backend base of the core."""
     assert issubclass(NumbaBackend, BaseBackend)
     assert issubclass(NumpyBackend, BaseBackend)
+
+
+def test_backends_support_the_tags_of_the_classes_they_support():
+    """Test that a backend supports the tags of the classes it supports."""
+    assert JaxBackend.get_supported_tags().space == {'none'}
+    assert 'noise' not in JaxBackend.get_supported_tags().laws
+    assert 'noise' in NumpyBackend.get_supported_tags().laws

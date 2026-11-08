@@ -1,25 +1,28 @@
-"""Mechatronics: mechanisms joined to circuits and suspensions of masses, springs, and dampers."""
+"""Mechatronics: mechanisms joined to circuits, and suspensions.
 
-from ._magnetic_levitation import LevitatedBallElement, magnetic_levitation
+The suspensions are made of masses, springs, and dampers.
+"""
+
+from ._magnetic_levitation import LevitatedBallElement, MagneticLevitationSystem
 from ._mechatronics import (
     ArmatureElement,
+    DcMotorSystem,
     InertiaElement,
     MotorCouplingInteraction,
     QuarterCarElement,
-    dc_motor,
-    quarter_car,
+    QuarterCarSystem,
 )
-from ._vibrating_table import VibratingTableElement, vibrating_table
+from ._vibrating_table import VibratingTableElement, VibratingTableSystem
 
 __all__: list[str] = [
     'ArmatureElement',
+    'DcMotorSystem',
     'InertiaElement',
     'LevitatedBallElement',
+    'MagneticLevitationSystem',
     'MotorCouplingInteraction',
     'QuarterCarElement',
+    'QuarterCarSystem',
     'VibratingTableElement',
-    'dc_motor',
-    'magnetic_levitation',
-    'quarter_car',
-    'vibrating_table',
+    'VibratingTableSystem',
 ]

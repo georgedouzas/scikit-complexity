@@ -9,8 +9,8 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import HamiltonianInteraction, RateInteraction
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import Yoshida4Solver
 from skcomplex.core.errors import SolverError
 from skcomplex.core.specs import StateSpec
@@ -49,8 +49,7 @@ def _oscillator() -> System:
 
 def _final_error(backend: type, dt: float) -> float:
     """Return the error of the oscillator at time 10 for an internal step."""
-    simulation = Simulation(_oscillator(), backend=backend(), solver=Yoshida4Solver(dt=dt), dt=10.0)
-    trajectory = simulation.prepare().run(until=10.0).trajectory_
+    trajectory = simulate(_oscillator(), until=10.0, backend=backend(), solver=Yoshida4Solver(dt=dt), dt=10.0)
     return float(abs(trajectory.values('mass.x')[-1] - np.cos(10.0)))
 
 
@@ -63,8 +62,7 @@ def test_run_converges_at_fourth_order(backend):
 
 def test_run_bounds_the_energy_of_a_long_run():
     """Test that the energy of the oscillator drifts by less than 1e-6 over a thousand periods."""
-    simulation = Simulation(_oscillator(), solver=Yoshida4Solver(dt=0.05), dt=100.0)
-    trajectory = simulation.prepare().run(until=6000.0).trajectory_
+    trajectory = simulate(_oscillator(), until=6000.0, solver=Yoshida4Solver(dt=0.05), dt=100.0)
     energy = sum(trajectory.values(f'mass.{name}') ** 2 for name in ('x', 'y', 'px', 'py')) / 2
     assert np.ptp(energy) < 1e-6
 

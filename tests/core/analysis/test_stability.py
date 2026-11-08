@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import SR
 
-from skcomplex.core.analysis import StabilityAnalysis
+from skcomplex.core.analysis import stability
 from skcomplex.core.components.elements import Element, FieldElement, GroupElement
 from skcomplex.core.components.interactions import DiffusionInteraction, Interaction, ReactionInteraction
 from skcomplex.core.components.laws import RateLaw
@@ -15,17 +15,17 @@ from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import RoleSpec, StateSpec, VisualSpec
-from skcomplex.systems.biology.ecology import lotka_volterra
-from skcomplex.systems.biology.epidemiology import sir
+from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+from skcomplex.systems.biology.epidemiology import SIRSystem
 from skcomplex.systems.chemistry.common.kinetics import CubicAutocatalysisInteraction
 from skcomplex.systems.chemistry.pattern_formation import BrusselatorElement
-from skcomplex.systems.mathematics.dynamical_systems import logistic_map, lorenz
-from skcomplex.systems.physics.mechanics import harmonic_oscillator
+from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem, LorenzSystem
+from skcomplex.systems.physics.mechanics import HarmonicOscillatorSystem
 
 
 def _stability(source, **settings):
-    """Return the stability analysis of a source, run."""
-    return StabilityAnalysis(**settings).prepare(source).run()
+    """Return the stability of a source."""
+    return stability(source, **settings)
 
 
 def _brusselator(b, *, discretization='spectral', boundary='periodic'):
@@ -48,52 +48,52 @@ def _brusselator(b, *, discretization='spectral', boundary='periodic'):
 
 def test_lotka_volterra_centre():
     """Test that the predator-prey interior point is `(d / b, r / a)` with purely imaginary eigenvalues, a centre."""
-    system = lotka_volterra()
+    system = LotkaVolterraSystem().prepare().system_
     analysis = _stability(system)
     d, b, r, a = (SR.var(name) for name in ('d_death', 'b_predation', 'r_growth', 'a_predation'))
-    index = next(index for index, point in enumerate(analysis.fixed_points_) if point['prey.n'] != 0)
-    interior = analysis.fixed_points_[index]
+    index = next(index for index, point in enumerate(analysis.fixed_points) if point['prey.n'] != 0)
+    interior = analysis.fixed_points[index]
     assert bool(interior['prey.n'] == d / b)
     assert bool(interior['predators.n'] == r / a)
-    assert analysis.classifications_[index] == 'centre'
-    assert abs(analysis.eigenvalues_[index].real).max() < 1e-9
-    assert _stability(system, points=[{'prey.n': 0, 'predators.n': 0}]).classifications_ == ['saddle']
+    assert analysis.classifications[index] == 'centre'
+    assert abs(analysis.eigenvalues[index].real).max() < 1e-9
+    assert _stability(system, points=[{'prey.n': 0, 'predators.n': 0}]).classifications == ['saddle']
 
 
 def test_logistic_map_fixed_point_is_stable():
     """Test that the logistic map's fixed point `1 - 1 / r` is stable at r = 2.5 and 0 is unstable."""
-    analysis = _stability(logistic_map(r=2.5))
+    analysis = _stability(LogisticMapSystem(r=2.5))
     classes = {
         round(float(point['map.x'].subs({SR.var('r_map'): 2.5})), 9): classification
-        for point, classification in zip(analysis.fixed_points_, analysis.classifications_, strict=True)
+        for point, classification in zip(analysis.fixed_points, analysis.classifications, strict=True)
     }
     assert classes == {0.6: 'stable', 0.0: 'unstable'}
 
 
 def test_parameters_substitute_before_solving():
     """Test that parameter values given by path give numeric fixed points."""
-    points = _stability(lorenz(), parameters={'lorenz.rho': 28.0, 'lorenz.beta': 8 / 3}).fixed_points_
+    points = _stability(LorenzSystem(), parameters={'lorenz.rho': 28.0, 'lorenz.beta': 8 / 3}).fixed_points
     assert sorted(round(float(point['lorenz.z']), 6) for point in points) == [0.0, 27.0, 27.0]
 
 
 def test_volume_preservation():
     """Test that the frictionless harmonic oscillator has divergence 0 and Lorenz contracts volumes."""
-    assert _stability(harmonic_oscillator()).divergence_ == 0
+    assert _stability(HarmonicOscillatorSystem().prepare().system_).divergence == 0
     sigma, beta = SR.var('sigma_lorenz'), SR.var('beta_lorenz')
-    assert bool(_stability(lorenz()).divergence_ == -sigma - beta - 1)
+    assert bool(_stability(LorenzSystem()).divergence == -sigma - beta - 1)
 
 
 def test_jacobian_and_nullclines():
     """Test the Jacobian's shape and the nullclines of a two-state system."""
-    analysis = _stability(lotka_volterra())
-    assert analysis.jacobian_.dimensions() == (2, 2)
-    assert set(analysis.nullclines_) == {'prey.n', 'predators.n'}
+    analysis = _stability(LotkaVolterraSystem().prepare().system_)
+    assert analysis.jacobian.dimensions() == (2, 2)
+    assert set(analysis.nullclines) == {'prey.n', 'predators.n'}
 
 
 def test_jump_process_has_no_vector_field():
     """Test that stochastic jump systems are rejected."""
     with pytest.raises(AnalysisError, match='jump process'):
-        _stability(sir(stochastic=True))
+        _stability(SIRSystem(stochastic=True).prepare().system_)
 
 
 def _hawks_and_doves(V=2.0, C=3.0, size=2):
@@ -147,11 +147,11 @@ def _hawks_and_doves(V=2.0, C=3.0, size=2):
 def test_hawks_and_doves_as_group():
     """Test that hawks and doves, two members of a group, have the stable fixed point with `V / C` hawks."""
     analysis = _stability(_hawks_and_doves())
-    index = next(index for index, point in enumerate(analysis.fixed_points_) if point['population.x[0]'] not in {0, 1})
-    interior = analysis.fixed_points_[index]
+    index = next(index for index, point in enumerate(analysis.fixed_points) if point['population.x[0]'] not in {0, 1})
+    interior = analysis.fixed_points[index]
     assert float(interior['population.x[0]']) == pytest.approx(2 / 3)
     assert float(interior['population.x[1]']) == pytest.approx(1 / 3)
-    assert analysis.classifications_[index] == 'stable node'
+    assert analysis.classifications[index] == 'stable node'
 
 
 def test_group_above_limit():
@@ -181,9 +181,9 @@ def test_group_above_limit():
 
 def test_points_are_the_given_points():
     """Test that given points replace the fixed points found by solving."""
-    analysis = _stability(lotka_volterra(), points=[{'prey.n': 0, 'predators.n': 0}])
-    assert analysis.fixed_points_ == [{'prey.n': 0, 'predators.n': 0}]
-    assert len(analysis.eigenvalues_) == 1
+    analysis = _stability(LotkaVolterraSystem().prepare().system_, points=[{'prey.n': 0, 'predators.n': 0}])
+    assert analysis.fixed_points == [{'prey.n': 0, 'predators.n': 0}]
+    assert len(analysis.eigenvalues) == 1
 
 
 def test_dispersion_relation_finds_the_turing_band():
@@ -192,19 +192,19 @@ def test_dispersion_relation_finds_the_turing_band():
     gap = np.sqrt(6.2**2 - 32)
     low, high = np.sqrt((6.2 - gap) / 16), np.sqrt((6.2 + gap) / 16)
     step = 2 * np.pi / (128 * 0.5)
-    assert relation.uniform_ == pytest.approx({'u': 1.0, 'v': 1.9})
-    assert relation.band_.min() == pytest.approx(low, abs=step)
-    assert relation.band_.max() == pytest.approx(high, abs=step)
-    assert relation.growth_rates_[relation.magnitudes_ == 0] < 0
+    assert relation.uniform == pytest.approx({'u': 1.0, 'v': 1.9})
+    assert relation.band.min() == pytest.approx(low, abs=step)
+    assert relation.band.max() == pytest.approx(high, abs=step)
+    assert relation.growth_rates[relation.magnitudes == 0] < 0
 
 
 def test_dispersion_relation_of_finite_differences_and_below_threshold():
     """Test that finite differences agree with spectral modes at long waves, and that no mode grows below threshold."""
     spectral = _stability(_brusselator(1.9), kind='dispersion')
     stencil = _stability(_brusselator(1.9, discretization='finite-difference'), kind='dispersion')
-    long = spectral.magnitudes_ < 0.3
-    assert stencil.growth_rates_[long] == pytest.approx(spectral.growth_rates_[long], abs=1e-2)
-    assert _stability(_brusselator(1.7), kind='dispersion').band_.size == 0
+    long = spectral.magnitudes < 0.3
+    assert stencil.growth_rates[long] == pytest.approx(spectral.growth_rates[long], abs=1e-2)
+    assert _stability(_brusselator(1.7), kind='dispersion').band.size == 0
 
 
 def test_dispersion_relation_rejects_an_interaction_on_another_part():
@@ -228,6 +228,6 @@ def test_dispersion_relation_rejects_non_periodic_fields_and_data():
 def test_stability_checks_its_kind_and_settings():
     """Test that an unknown kind and a setting the kind ignores raise errors."""
     with pytest.raises(AnalysisError, match='fixed-points, dispersion'):
-        StabilityAnalysis('unknown').prepare()
+        stability(LotkaVolterraSystem().prepare().system_, kind='unknown')
     with pytest.raises(AnalysisError, match='does not read points'):
-        StabilityAnalysis('dispersion', points=[{'x': 0.0}]).prepare()
+        stability(LotkaVolterraSystem().prepare().system_, kind='dispersion', points=[{'x': 0.0}])

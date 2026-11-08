@@ -18,9 +18,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.economics.finance import OrderBookSystem
 
 SYSTEM = 'order_book'
 STEPS = 150
@@ -36,18 +36,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM, chartists=0.5, random_state=0)
+system = OrderBookSystem(chartists=0.5, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = (
-    Simulation(
-        system,
-        observers=[observer],
-        random_state=0,
-        observables=describe(SYSTEM).observables_of(system),
-    )
-    .prepare()
-    .run(until=STEPS)
-)
+trajectory = simulate(system, until=STEPS, observers=[observer], random_state=0)
 
 # %%
 # Chartists make the market volatile
@@ -60,12 +51,8 @@ simulation = (
 shares = (0.0, 0.25, 0.5, 0.75)
 volatility, deviation = [], []
 for share in shares:
-    run = (
-        Simulation(create_system(SYSTEM, chartists=share, imitation=0.0, random_state=0), random_state=0)
-        .prepare()
-        .run(until=STEPS)
-    )
-    prices = run.trajectory_.values('book.price')[1:]
+    run = simulate(OrderBookSystem(chartists=share, imitation=0.0, random_state=0), until=STEPS, random_state=0)
+    prices = run.values('book.price')[1:]
     volatility.append(np.diff(np.log(prices)).std())
     deviation.append(np.abs(np.log(prices / 100)).mean())
 fig, (returns, chartists) = plt.subplots(1, 2, figsize=(11, 4))
@@ -75,7 +62,6 @@ returns.set_xlabel('share of chartists, without imitation')
 returns.set_ylabel('size')
 returns.set_title('Chartists amplify the swings of the price')
 returns.legend()
-trajectory = simulation.trajectory_
 chartists.plot(trajectory.times, trajectory.values('chartists'))
 chartists.set_xlabel('step')
 chartists.set_ylabel('share of chartists')

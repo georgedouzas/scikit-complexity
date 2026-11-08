@@ -1,13 +1,16 @@
-"""Heat transfer: diffusion of heat on lattices and meshes, and cooling towards the surroundings."""
+"""Heat transfer systems.
 
-from ._cooling import CoffeeCupElement, cooling_coffee
-from ._heat import HeatElement, harmonic, heat_diffusion, heat_l_shape
+The package covers diffusion of heat on lattices and meshes, and cooling towards the surroundings.
+"""
+
+from ._cooling import CoffeeCupElement, CoolingCoffeeSystem
+from ._heat import HeatDiffusionSystem, HeatElement, HeatLShapeSystem, harmonic
 
 __all__: list[str] = [
     'CoffeeCupElement',
+    'CoolingCoffeeSystem',
+    'HeatDiffusionSystem',
     'HeatElement',
-    'cooling_coffee',
+    'HeatLShapeSystem',
     'harmonic',
-    'heat_diffusion',
-    'heat_l_shape',
 ]

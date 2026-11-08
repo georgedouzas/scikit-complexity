@@ -14,17 +14,17 @@ segregated than anyone's preference.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import NeighborAnalysis
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.analysis import neighbors
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.social.segregation import SchellingSystem
 
 SYSTEM = 'schelling'
 SIDE, STEPS = 50, 50
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-system = create_system(SYSTEM, width=SIDE, height=SIDE, minority=0.5, threshold=0.4, random_state=0)
-simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=STEPS)
+system = SchellingSystem(width=SIDE, height=SIDE, minority=0.5, threshold=0.4, random_state=0)
+trajectory = simulate(system, until=STEPS, observers=[observer], random_state=0)
 
 # %%
 # Mild preferences, strong segregation
@@ -41,16 +41,15 @@ def like_share(trajectory, frame):
     grid = np.full((SIDE, SIDE), -1.0)
     columns, rows = np.asarray(residents.locations, dtype=int).T
     grid[rows, columns] = residents.values['kind']
-    return NeighborAnalysis('like-share', empty=-1.0).prepare(grid).run().share_[0]
+    return neighbors(grid, kind='like-share', empty=-1.0).share[0]
 
 
 thresholds = np.linspace(0.1, 0.8, 8)
 finals = []
 for threshold in thresholds:
-    system = create_system(SYSTEM, width=SIDE, height=SIDE, minority=0.5, threshold=threshold, random_state=0)
-    trajectory = Simulation(system, random_state=0).prepare().run(until=STEPS).trajectory_
+    system = SchellingSystem(width=SIDE, height=SIDE, minority=0.5, threshold=threshold, random_state=0)
+    trajectory = simulate(system, until=STEPS, random_state=0)
     finals.append(like_share(trajectory, STEPS))
-trajectory = simulation.trajectory_
 fig, (series, sweep) = plt.subplots(1, 2, figsize=(10, 4))
 series.plot(trajectory.times, [like_share(trajectory, frame) for frame in range(STEPS + 1)])
 series.axhline(0.4, color='grey', linestyle=':', label='threshold 0.4')
@@ -77,8 +76,8 @@ plt.show()
 choices = [1, 2, 4, 8, 16]
 sorted_shares = []
 for count in choices:
-    system = create_system(SYSTEM, width=SIDE, height=SIDE, minority=0.5, choices=count, random_state=0)
-    trajectory = Simulation(system, random_state=0).prepare().run(until=STEPS).trajectory_
+    system = SchellingSystem(width=SIDE, height=SIDE, minority=0.5, choices=count, random_state=0)
+    trajectory = simulate(system, until=STEPS, random_state=0)
     sorted_shares.append(like_share(trajectory, STEPS))
 fig, axis = plt.subplots(figsize=(5, 4))
 axis.plot(choices, sorted_shares, 'o-')

@@ -9,7 +9,7 @@ of about the same size, roughened by the conserved noise.
 """
 
 # %%
-# The system is created by name from the catalog on a periodic square of 64 sites with unit spacing, at the mean
+# The system is built from its class on a periodic square of 64 sites with unit spacing, at the mean
 # density 0.4, with the active terms `lam = 1` and `zeta = 4` and the noise temperature `D = 0.05`. The catalog
 # defaults integrate it with Euler-Maruyama on the Numba backend, and the default blueprint shows the density as an
 # image, one frame every 30 time units.
@@ -17,29 +17,17 @@ of about the same size, roughened by the conserved noise.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import SpectrumAnalysis
+from skcomplex.core.analysis import spectrum
 from skcomplex.core.engine.backends import NumbaBackend
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.core.engine.solvers import EulerMaruyamaSolver
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.active_matter import ActiveSystemBSystem
 
 SYSTEM = 'active_system_b'
 
-system = create_system(SYSTEM)
+system = ActiveSystemBSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = (
-    Simulation(
-        system,
-        dt=30.0,
-        solver=EulerMaruyamaSolver(dt=0.02),
-        backend=NumbaBackend(),
-        observers=[observer],
-        random_state=0,
-    )
-    .prepare()
-    .run(until=1500)
-)
+trajectory = simulate(system, backend=NumbaBackend(), observers=[observer], random_state=0)
 
 # %%
 # Arrested coarsening
@@ -49,12 +37,12 @@ simulation = (
 # form and then level off well below the `t^(1/3)` curve through its early values. The noise is the divergence of a
 # random flux, so the mean density should stay at its initial value to rounding.
 
-phi = simulation.trajectory_.lattice('fluid.phi')
-times = simulation.trajectory_.times
+phi = trajectory.lattice('fluid.phi')
+times = trajectory.times
 sizes = []
 for field in phi[1:]:
-    factor = SpectrumAnalysis('structure-factor').prepare(field - field.mean()).run()
-    sizes.append(2 * np.pi * factor.power_.sum() / (factor.wavenumbers_ * factor.power_).sum())
+    factor = spectrum(field - field.mean(), kind='structure-factor')
+    sizes.append(2 * np.pi * factor.power.sum() / (factor.wavenumbers * factor.power).sum())
 sizes = np.array(sizes)
 early = np.searchsorted(times[1:], 300.0)
 

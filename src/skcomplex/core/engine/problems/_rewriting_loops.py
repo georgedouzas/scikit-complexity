@@ -1,4 +1,7 @@
-"""Compile the stack walks of string rewriting: bracket-aware contexts and the walk of a word geometry."""
+"""Compile the stack walks of string rewriting.
+
+They are the bracket-aware contexts and the walk of a word geometry.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,7 +28,10 @@ _ACTION_CODES = {
 
 @njit(cache=True)
 def _rotate(vector: npt.NDArray[np.float64], axis: npt.NDArray[np.float64], angle: float) -> npt.NDArray[np.float64]:
-    """Return a vector rotated about a unit axis by an angle with the formula of Rodrigues."""
+    """Return a vector rotated about a unit axis by an angle.
+
+    The rotation uses the formula of Rodrigues.
+    """
     cross = np.array(
         [
             axis[1] * vector[2] - axis[2] * vector[1],
@@ -44,7 +50,10 @@ def _left_neighbors(
     opening: int,
     closing: int,
 ) -> npt.NDArray[np.int64]:
-    """Return the index of the left neighbour of every module, or -1, the module a branch starts from at its start."""
+    """Return the index of the left neighbour of every module, or -1.
+
+    At its start, a branch takes the module it starts from.
+    """
     size = codes.size
     left = np.full(size, -1, dtype=np.int64)
     stack = np.empty(size + 1, dtype=np.int64)
@@ -73,7 +82,10 @@ def _right_neighbors(
     opening: int,
     closing: int,
 ) -> npt.NDArray[np.int64]:
-    """Return the index of the right neighbour of every module, or -1, skipping whole branches."""
+    """Return the index of the right neighbour of every module, or -1.
+
+    Whole branches are skipped.
+    """
     size = codes.size
     right = np.full(size, -1, dtype=np.int64)
     stack = np.empty(size + 1, dtype=np.int64)
@@ -103,10 +115,11 @@ def _neighbors(
     opening: int,
     closing: int,
 ) -> tuple[npt.NDArray[np.int64], npt.NDArray[np.int64]]:
-    """Return the index of the left and the right neighbour of every module, or -1, skipping ignored symbols.
+    """Return the index of the left and the right neighbour of every module, or -1.
 
-    The left neighbour of the first module of a branch is the module the branch starts from, and the right neighbour
-    skips whole branches and stops at the end of a branch, as in Prusinkiewicz and Lindenmayer (1990 §1.8).
+    Ignored symbols are skipped. The left neighbour of the first module of a branch is the module the branch starts
+    from, and the right neighbour skips whole branches and stops at the end of a branch, as in Prusinkiewicz and
+    Lindenmayer (1990 §1.8).
     """
     return _left_neighbors(codes, ignored, opening, closing), _right_neighbors(codes, ignored, opening, closing)
 
@@ -119,7 +132,10 @@ def _turned(
     side: npt.NDArray[np.float64],
     up: npt.NDArray[np.float64],
 ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64], npt.NDArray[np.float64]]:
-    """Return the frame `(forward, side, up)` after a turn, a pitch, or a roll by an angle."""
+    """Return the frame `(forward, side, up)` after a rotation by an angle.
+
+    The rotation is a turn, a pitch, or a roll.
+    """
     if action in (LEFT, RIGHT, REVERSE):
         turn = np.pi if action == REVERSE else (turn if action == LEFT else -turn)
         return _rotate(forward, up, turn), _rotate(side, up, turn), up
@@ -138,9 +154,10 @@ def _walk_word(
     angle: float,
     heading: float,
 ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.int64]]:
-    """Return the segments of shape `(k, 2, 3)` and the branch depths drawn walking a word.
+    """Return the segments and the branch depths drawn walking a word.
 
-    Each module has an action and a value, its first parameter or NaN, which overrides the step or the angle.
+    The segments have shape `(k, 2, 3)`. Each module has an action and a value, its first parameter or NaN, which
+    overrides the step or the angle.
     """
     draws = int(np.sum(actions == DRAW))
     segments = np.zeros((draws, 2, 3))

@@ -9,7 +9,7 @@ number, one row per saved step with the earliest at the top, with the smooth mod
 """
 
 # %%
-# The system is created by name from the catalog with 200 finite-volume cells and the wave number
+# The system is built from its class with 200 finite-volume cells and the wave number
 # `k0 (1 + 0.5 sin x)`. The catalog registers the strong-stability-preserving Runge-Kutta stepper for this system, so it
 # is passed explicitly. The observer saves every frame of 0.1 with the default blueprint, whose primary view is the
 # space-time image of the wave number.
@@ -17,16 +17,15 @@ number, one row per saved step with the earliest at the top, with the smooth mod
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.core.engine.solvers import SSPRKSolver
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.fluids import WaveBreakingSystem
 
 SYSTEM = 'wave_breaking'
 
-system = create_system(SYSTEM)
+system = WaveBreakingSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, solver=SSPRKSolver(), dt=0.1, observers=[observer]).prepare().run(until=25)
+trajectory = simulate(system, until=25, dt=0.1, observers=[observer])
 
 # %%
 # Breaking time and the conservation of waves
@@ -35,7 +34,6 @@ simulation = Simulation(system, solver=SSPRKSolver(), dt=0.1, observers=[observe
 # wave number should stay moderate before `t_b` and jump up to the resolution of the grid right after it. The finite
 # volumes conserve the total number of waves, the integral of `k`, which should stay at its initial value.
 
-trajectory = simulation.trajectory_
 times = trajectory.times
 numbers = trajectory.values('train.k')
 spacing = 2 * np.pi / numbers.shape[1]
@@ -45,7 +43,7 @@ initial = 1 + 0.5 * np.sin(grid)
 breaking = 1 / np.max(np.sqrt(1.0) / 4 * initial**-1.5 * 0.5 * np.cos(grid))
 drift = np.abs(numbers.sum(axis=1) - numbers[0].sum()) / numbers[0].sum()
 fig, (steep, total) = plt.subplots(1, 2, figsize=(10, 4))
-steep.semilogy(times, slope, label='simulation')
+steep.semilogy(times, slope, label='trajectory')
 steep.axvline(breaking, color='gray', linestyle='--', label=f'predicted breaking time {breaking:.1f}')
 steep.set_xlabel('time t')
 steep.set_ylabel('steepest slope |k_x|')

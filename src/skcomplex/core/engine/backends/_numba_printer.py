@@ -1,4 +1,7 @@
-"""Print the kernels and reductions of a problem as the source of fused Numba functions, with its layout slots."""
+"""Print the kernels and reductions of a problem as the source of Numba functions.
+
+The functions are fused and come with their layout slots.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,14 +18,18 @@ from ...components.spaces import ConeNeighborhood, NearestNeighborhood
 from ...errors import ValidationError
 from ...specs import EntrySpec, ReadSpec
 from .._utils import symbols_of
-from ..problems import BasePrinter, ExpressionPrinter, OutputSpec, ReductionScheduleSpec, ReferenceSpec
+from ..problems import BasePrinter
 from ..problems._edge_row_search import EdgeRowSearch
 from ..problems._edge_search import EdgeSearch
+from ..problems._expression_printer import ExpressionPrinter
 from ..problems._law_kernel import LawKernel
 from ..problems._metric_search import MetricSearch
 from ..problems._neighborhood_kernel import NeighborhoodKernel
+from ..problems._output_spec import OutputSpec
 from ..problems._pair_search import PairSearch
 from ..problems._reduction_kernel import ReductionKernel
+from ..problems._reduction_schedule_spec import ReductionScheduleSpec
+from ..problems._reference_spec import ReferenceSpec
 from ..problems._static_search import StaticSearch
 from ..types import ReadKind
 from ._base import _AUTO_MEMBERS
@@ -38,7 +45,7 @@ COMPONENT_KINDS = {
 
 
 class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, list[LawKernel], bool]]]):
-    """Printer of the kernels and reductions of a problem as the source of fused Numba functions.
+    """Printer of the kernels and reductions of a problem as fused Numba source.
 
     `prepare(reductions)` starts an empty source and prints the function that fuses the reductions, or none for
     `None`, and `run(parts)` prints the kernels of every law kind into the source lines of `code_`. A part is the label
@@ -74,7 +81,10 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         self.parallel = parallel
 
     def _prepare(self, context: ReductionScheduleSpec | None) -> None:
-        """Start an empty source and print the function that fuses the reductions, unless there are none."""
+        """Start an empty source and print the function that fuses the reductions.
+
+        Without reductions it prints no function.
+        """
         self.code_ = []
         self.slots_: dict[str, int] = {}
         self.functions_: dict[str, object] = {}
@@ -84,7 +94,9 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
             self._reduce_function(context, self.parallel)
 
     def _run(self, inputs: Sequence[tuple[str, str, list[LawKernel], bool]] | None) -> None:
-        """Print the kernels of every part, each part with its entry function, into the source lines.
+        """Print the kernels of every part into the source lines.
+
+        Each part comes with its entry function.
 
         Args:
             inputs:
@@ -112,7 +124,10 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
             self._entry_function(label, names, mode, size, reduced=reduced)
 
     def _is_parallel(self, kernel: LawKernel) -> bool:
-        """Check whether a kernel runs in parallel threads: over groups of at least 1000 members."""
+        """Check whether a kernel runs in parallel threads.
+
+        It does over groups of at least 1000 members.
+        """
         if not self.parallel:
             return False
         rows = [
@@ -123,7 +138,9 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         return max(rows, default=0) >= _AUTO_MEMBERS
 
     def _slot(self, entry: EntrySpec) -> int:
-        """Return the layout slot of an entry, whose start is `L[2 * slot]` and rows `L[2 * slot + 1]`.
+        """Return the layout slot of an entry.
+
+        Its start is `L[2 * slot]` and its rows `L[2 * slot + 1]`.
 
         Args:
             entry:
@@ -136,7 +153,9 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         return self.slots_.setdefault(entry.name, len(self.slots_))
 
     def _data_slot(self, name: str, values: np.ndarray) -> int:
-        """Return the layout slot of integer data appended to the layout, whose offset is `L[2 * slot]`.
+        """Return the layout slot of integer data appended to the layout.
+
+        Its offset is `L[2 * slot]`.
 
         Args:
             name:
@@ -153,7 +172,9 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         return self.slots_.setdefault(name, len(self.slots_))
 
     def layout(self, entries: Mapping[str, EntrySpec]) -> np.ndarray:
-        """Return the layout array of starts and rows of every slot, followed by the data of the data slots.
+        """Return the layout array of starts and rows of every slot.
+
+        The data of the data slots follows them.
 
         Args:
             entries:
@@ -198,20 +219,29 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
 
     @staticmethod
     def _is_shared(reference: ReferenceSpec) -> bool:
-        """Check whether a reference holds one value for every evaluation index, a single element or a reduction."""
+        """Check whether a reference holds one value for every evaluation index.
+
+        Such a reference is a single element or a reduction.
+        """
         return reference.source is ReadKind.SINGLE or (
             reference.source is ReadKind.REDUCED and reference.entry.members is None
         )
 
     @staticmethod
     def _hoist_layout(lines: list[str]) -> list[str]:
-        """Return function lines with every layout lookup `_L<k>_` read once after the signature."""
+        """Return function lines with every layout lookup `_L<k>_` read once.
+
+        The lookups are read after the signature.
+        """
         used = sorted({int(index) for line in lines for index in re.findall(r'_L(\d+)_', line)})
         reads = [f'{INDENT}_L{index}_ = L[{index}]' for index in used]
         return [*lines[:2], *reads, *lines[2:]]
 
     def _index(self, reference: ReferenceSpec, member: str | None) -> str:
-        """Return the flat index of a reference for a member variable, or for a single element."""
+        """Return the flat index of a reference.
+
+        The reference is to a member variable or to a single element.
+        """
         start = f'_L{2 * self._slot(reference.entry)}_'
         if member is None:
             return f'{start} + {reference.column}'
@@ -219,7 +249,9 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
 
     @staticmethod
     def _printed(printer: ExpressionPrinter, expressions: list[Expression]) -> tuple[list[tuple[str, str]], list[str]]:
-        """Return the assignments of the repeated subexpressions and the codes of expressions printed by a printer.
+        """Return the repeated subexpressions and the codes of expressions of a printer.
+
+        The repeated subexpressions are given as assignments.
 
         Args:
             printer:
@@ -289,7 +321,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
     def _by_end(
         outputs: Sequence[tuple[int, OutputSpec]],
     ) -> tuple[list[tuple[int, OutputSpec]], list[tuple[int, OutputSpec]]]:
-        """Return the outputs that target the first members of pairs and those that target the second members.
+        """Return the outputs that target the first members of pairs and the second ones.
 
         Args:
             outputs:
@@ -309,7 +341,10 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         read: Callable[[Expression], str],
         depth: int,
     ) -> tuple[list[str], list[str]]:
-        """Return the lines that read symbols and compute outputs, and the code of every output value."""
+        """Return the lines that read symbols and compute outputs.
+
+        It also returns the code of every output value.
+        """
         pad = INDENT * depth
         expressions = [output.expression for output in outputs if output.expression is not None]
         arguments = [argument for output in outputs if output.expression is None for argument in output.arguments or ()]
@@ -335,7 +370,10 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         return lines, values
 
     def _single_reads(self, kernel: LawKernel, outputs: Sequence[OutputSpec]) -> list[str]:
-        """Return the lines that read every single-element symbol of outputs once, before the member loops."""
+        """Return the lines that read every single-element symbol of outputs once.
+
+        They come before the member loops.
+        """
         expressions = [output.expression for output in outputs if output.expression is not None]
         arguments = [argument for output in outputs for argument in output.arguments or ()]
         symbols = sorted(symbols_of(expressions + arguments), key=str)
@@ -346,7 +384,10 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         ]
 
     def _edge_rows(self, search: EdgeSearch) -> tuple[str, list[str]]:
-        """Return the code of the number of edges and the lines that read the ends `_a_` and `_b_` of the edge `_m_`."""
+        """Return the edge count code and the lines that read the ends of the edge `_m_`.
+
+        The ends are `_a_` and `_b_`.
+        """
         pad = INDENT * 2
         if search.source is not None and search.target is not None:
             first, second = self._slot(search.source), self._slot(search.target)
@@ -361,7 +402,10 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
 
     @staticmethod
     def _is_gathered(reference: ReferenceSpec) -> bool:
-        """Check whether a reference reads a group through a gather table of members, with no value outside it."""
+        """Check whether a reference reads a group through a gather table of members.
+
+        Such a reference reads no value outside the table.
+        """
         return (
             reference.source is ReadKind.NEIGHBOR
             and reference.shifted.sizes is None
@@ -369,11 +413,11 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         )
 
     def _gathered_member(self, reference: ReferenceSpec) -> str:
-        """Return the code of the member a gathered reference reads at the row `_m_`, from its table in the layout.
+        """Return the code of the member a gathered reference reads at the row `_m_`.
 
-        A table whose members change during a run holds positions in a parameter entry, which holds the members, and a
-        table of the positions in an order drawn at every step reads the member at its position in the order, whose data
-        the layout holds after the tables.
+        It reads it from its table in the layout. A table whose members change during a run holds positions in a
+        parameter entry, which holds the members, and a table of the positions in an order drawn at every step reads the
+        member at its position in the order, whose data the layout holds after the tables.
         """
         read = reference.shifted
         digest = hashlib.sha256(np.asarray(read.table, dtype=np.int64).tobytes()).hexdigest()[:16]
@@ -389,7 +433,10 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         return f'L[_L{2 * order}_ + {row}]'
 
     def _output_count(self, kernel: LawKernel) -> str:
-        """Return the code of the number of values a member kernel writes, its outputs times its rows."""
+        """Return the code of the number of values a member kernel writes.
+
+        It is its outputs times its rows.
+        """
         if isinstance(kernel.pairs, EdgeSearch):
             rows, _ = self._edge_rows(kernel.pairs)
             return f'{len(kernel.outputs)} * L[{rows[2:-1]}]'
@@ -410,7 +457,10 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         second_positions: str,
         depth: int,
     ) -> list[str]:
-        """Return the lines that add the outputs of one pair orientation to their accumulators within the cutoff."""
+        """Return the lines that add the outputs of one pair orientation to accumulators.
+
+        They are added within the cutoff.
+        """
         pairs = self._pair_search_of(kernel)
         pad = INDENT * depth
         lines = []
@@ -438,11 +488,12 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         return lines
 
     def _pair_loop(self, kernel: LawKernel, outputs: list[tuple[int, OutputSpec]], loop: str, same: bool) -> list[str]:
-        """Return the lines of one loop over members and their neighbours that accumulates pair outputs.
+        """Return the lines of one loop over members and neighbours.
 
-        The loop over `_a_` runs over the first members and computes the outputs of first members with `first=_a_` and
-        `second=_n_`. The outputs of second members are computed with `first=_n_` and `second` the loop member, either
-        in the same loop for pairs inside one group or in a loop over `_b_` for two groups.
+        The loop accumulates pair outputs. The loop over `_a_` runs over the first members and computes the outputs of
+        first members with `first=_a_` and `second=_n_`. The outputs of second members are computed with `first=_n_` and
+        `second` the loop member, either in the same loop for pairs inside one group or in a loop over `_b_` for two
+        groups.
         """
         cells = 'a' if same or loop == '_b_' else 'b'
         own = 'a' if loop == '_a_' else 'b'
@@ -509,7 +560,10 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
 
     @staticmethod
     def _written(output: OutputSpec, index: str, value: str, mode: str) -> str:
-        """Return the line that adds or assigns the value of an output, or adds the change of a combined output."""
+        """Return the line that writes the value of an output.
+
+        It adds or assigns the value, or adds the change of a combined output.
+        """
         if mode == 'add':
             return f'{INDENT * 2}out[{index}] += {value}'
         if output.combined:
@@ -517,7 +571,10 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         return f'{INDENT * 2}out[{index}] = {value}'
 
     def _reduced(self, output: OutputSpec, index: str, value: str) -> str:
-        """Return the line that adds the share of the row `_m_` of an output that reduces over rows to its member."""
+        """Return the line that adds the share of the row `_m_` of an output to its member.
+
+        The output is one that reduces over rows.
+        """
         counts = np.asarray(output.counts, dtype=np.int64)
         digest = hashlib.sha256(counts.tobytes()).hexdigest()[:16]
         count = f'L[_L{2 * self._data_slot(f"__counts_{digest}", counts)}_ + _m_]'
@@ -526,7 +583,10 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         return f'{INDENT * 2}out[{index}] += (({value}) - x[{index}]) / {count}'
 
     def _member_written(self, output: OutputSpec, value: str, mode: str) -> str:
-        """Return the line that writes the value of an output of a member kernel for the row `_m_`."""
+        """Return the line that writes an output value of a member kernel.
+
+        It writes it for the row `_m_`.
+        """
         target = self._target_of(output)
         member = '_m_' if target.source is ReadKind.MEMBER else None
         member = self._gathered_member(target) if NumbaPrinter._is_gathered(target) else member
@@ -535,7 +595,10 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         return NumbaPrinter._written(output, self._index(target, member), value, mode)
 
     def _member_kernel(self, kernel: LawKernel, name: str, mode: str, parallel: bool) -> None:
-        """Add the source of a kernel evaluated once per member, for adding, assigning, or concatenating outputs."""
+        """Add the source of a kernel evaluated once per member.
+
+        The kernel adds, assigns, or concatenates outputs.
+        """
         member_entry = next(
             (reference.entry for reference in kernel.references.values() if reference.source is ReadKind.MEMBER),
             None,
@@ -592,7 +655,10 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         self.code_ += ['', '', *NumbaPrinter._hoist_layout(lines)]
 
     def _pair_kernel(self, kernel: LawKernel, name: str, parallel: bool) -> None:
-        """Add the source of a pair kernel that sums pair outputs over neighbours found in the bounded cell grids."""
+        """Add the source of a pair kernel that sums pair outputs over neighbours.
+
+        The neighbours are found in the bounded cell grids.
+        """
         pairs = self._pair_search_of(kernel)
         same = pairs.first == pairs.second
         columns = pairs.first.columns
@@ -629,7 +695,10 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         self.code_ += ['', '', text]
 
     def _edge_kernel(self, kernel: LawKernel, name: str, mode: str) -> None:
-        """Add the source of a kernel evaluated once per edge, whose laws read the ends and the edge member."""
+        """Add the source of a kernel evaluated once per edge.
+
+        Its laws read the ends and the edge member.
+        """
         search = kernel.pairs
         assert isinstance(search, EdgeSearch)
         rows, ends = self._edge_rows(search)
@@ -676,7 +745,10 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         *,
         reduced: bool,
     ) -> None:
-        """Add a top-level function that evaluates the reductions and runs kernels into a new output vector."""
+        """Add a top-level function that evaluates the reductions and runs kernels.
+
+        The kernels run into a new output vector.
+        """
         start = {'add': 'np.zeros(x.size)', 'assign': 'x.copy()', 'concatenate': f'np.empty({size_expression})'}[mode]
         lines = [
             '@njit(cache=CACHE)',
@@ -690,7 +762,10 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         self.code_ += ['', '', *lines]
 
     def _reduction_read(self, name: str, read: ReadSpec, index: int) -> str:
-        """Return the line that reads one symbol of a reduction, for the member `_m_` or once for a shared value."""
+        """Return the line that reads one symbol of a reduction.
+
+        It reads it for the member `_m_`, or once for a shared value.
+        """
         vector = 'x' if read.is_state else 'p'
         if read.entry is None:
             array = f'_set{index}_{name}_'
@@ -735,7 +810,10 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         ]
 
     def _shaped_weights_lines(self, reduction: ReductionKernel, weights: ReadSpec, index: int, count: str) -> list[str]:
-        """Return the lines of a reduction weighted by a shaped parameter, a product with its row-major block."""
+        """Return the lines of a reduction weighted by a shaped parameter.
+
+        The reduction is a product with its row-major block.
+        """
         entry = weights.entry if weights.entry is not None else reduction.entry
         readers, size = entry.shape
         vector = 'x' if weights.is_state else 'p'
@@ -755,7 +833,10 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         ]
 
     def _log_sum_exp_lines(self, reduction: ReductionKernel, index: int, start: str) -> list[str]:
-        """Return the lines of a log-sum-exp reduction, a sum of exponentials shifted by the largest value."""
+        """Return the lines of a log-sum-exp reduction.
+
+        It is a sum of exponentials shifted by the largest value.
+        """
         acc, cnt, top = f'_acc{index}_', f'_cnt{index}_', f'_top{index}_'
         largest = [
             f'if _c_ and ({cnt} == 0.0 or _a_ > {top}):',
@@ -771,7 +852,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         ]
 
     def _reduction_lines(self, reduction: ReductionKernel, index: int) -> list[str]:
-        """Return the lines that compute one reduction and store it in the extended parameter vector."""
+        """Return the lines that compute one reduction into the extended parameter vector."""
         start = f'_L{2 * self._slot(reduction.entry)}_'
         acc, cnt = f'_acc{index}_', f'_cnt{index}_'
         lines = [f'{INDENT}_n{index}_ = {self._reduction_rows(reduction)}']
@@ -823,7 +904,10 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         return [*lines, f'{INDENT}p[{start}] = {value}']
 
     def _search_lines(self, reduction: NeighborhoodKernel, index: int) -> list[str]:
-        """Return the lines that find the neighbours of every member, as rows `_ip<k>_` and neighbours `_ix<k>_`."""
+        """Return the lines that find the neighbours of every member.
+
+        They give rows `_ip<k>_` and neighbours `_ix<k>_`.
+        """
         search = reduction.search
         if isinstance(search, StaticSearch):
             rows = self._data_slot(f'__neighbours_{index}_indptr', search.indptr)
@@ -886,7 +970,10 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         return [*lines, f'{INDENT}_ip{index}_, _ix{index}_ = {call}']
 
     def _pair_read_code(self, reduction: NeighborhoodKernel, item: Expression, index: int) -> str:
-        """Return the code of one symbol of a neighbourhood reduction for the reader `_i_` and the neighbour `_j_`."""
+        """Return the code of one symbol of a neighbourhood reduction.
+
+        It is the code for the reader `_i_` and the neighbour `_j_`.
+        """
         pair = reduction.reads[item]
         read = pair.read
         vector = 'x' if read.is_state else 'p'
@@ -916,7 +1003,10 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         assignments: Sequence[tuple[str, str]],
         active: str,
     ) -> list[str]:
-        """Return the lines that collect the active pairs of every member and write the values of their components."""
+        """Return the lines that collect the active pairs of every member.
+
+        They also write the values of their components.
+        """
         sides = {item: reduction.reads[item].side for item in reduction.symbols}
         readers = [item for item in reduction.symbols if sides[item] == 'reader']
         others = [item for item in reduction.symbols if sides[item] in {'other', 'edge', 'pair'}]
@@ -942,7 +1032,10 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         ]
 
     def _coefficient_code(self, reduction: NeighborhoodKernel, index: int) -> str:
-        """Return the factor of the pair `_e_` of a neighbourhood reduction, from the layout when it is an integer."""
+        """Return the factor of the pair `_e_` of a neighbourhood reduction.
+
+        It is read from the layout when it is an integer.
+        """
         coefficients = reduction.coefficients
         if coefficients is None:
             return ''
@@ -953,7 +1046,10 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         return f' * _cf{index}_[_e_]'
 
     def _neighborhood_lines(self, reduction: NeighborhoodKernel, index: int) -> list[str]:
-        """Return the lines that compute a neighbourhood reduction of every member into the extended parameters."""
+        """Return the lines that compute a neighbourhood reduction of every member.
+
+        They write it into the extended parameters.
+        """
         lines = self._search_lines(reduction, index)
         sides = {item: reduction.reads[item].side for item in reduction.symbols}
         shared = [item for item in reduction.symbols if sides[item] == 'shared']
@@ -1013,7 +1109,10 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         return lines
 
     def _reduce_function(self, reductions: ReductionScheduleSpec, parallel: bool) -> None:
-        """Add the function that returns the parameter vector extended with every reduction, in dependency order."""
+        """Add the function that returns the parameter vector extended with reductions.
+
+        It is extended with every reduction. The reductions are evaluated in dependency order.
+        """
         extents = [
             f'_L{2 * self._slot(item.entry)}_ + _L{2 * self._slot(item.entry) + 1}_ * {item.entry.columns}'
             for item in reductions.steps

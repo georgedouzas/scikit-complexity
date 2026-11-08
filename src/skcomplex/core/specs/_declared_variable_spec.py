@@ -13,7 +13,9 @@ from ._state_spec import StateSpec
 
 @dataclass(frozen=True)
 class DeclaredVariableSpec(BaseSpec):
-    """Spec of a state or a parameter that an element takes as data, with its initial value.
+    """Spec of a state or a parameter that an element takes as data.
+
+    It holds the initial value of the variable.
 
     Args:
         value:
@@ -24,7 +26,7 @@ class DeclaredVariableSpec(BaseSpec):
 
     Raises:
         ValidationError:
-            The spec is neither a `StateSpec` nor a `ParameterSpec`, raised by `prepare`.
+            The spec is neither a `StateSpec` nor a `ParameterSpec`, raised when its owner checks it.
 
     Examples:
         >>> from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
@@ -45,4 +47,4 @@ class DeclaredVariableSpec(BaseSpec):
         if not isinstance(self.spec, StateSpec | ParameterSpec):
             error_msg = f'A declared variable takes a StateSpec or a ParameterSpec, but its spec is {self.spec!r}.'
             raise ValidationError(error_msg)
-        self.spec._validated()
+        self.spec._check()

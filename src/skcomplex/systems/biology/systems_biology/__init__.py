@@ -1,83 +1,92 @@
-"""Systems biology: gene circuits, Boolean networks, circadian clocks, signalling cascades, and Min-protein waves."""
+"""Systems biology of cells and their molecular networks.
+
+The package covers gene circuits, Boolean networks, circadian clocks, signalling cascades, and Min-protein waves.
+"""
 
 from ..common.kinetics import RepressionInteraction, SpeciesElement
 from ..common.metabolism import ToyNetworkElement
 from ..common.networks import BooleanFunctionInteraction, BooleanNodeElement
 from ._adaptation import (
+    EnzymeAdaptationCircuitSystem,
     EnzymeNodeElement,
     EnzymeRegulationInteraction,
     EnzymeStimulusInteraction,
-    enzyme_adaptation_circuit,
 )
 from ._backbone_geometry import BackboneGeometry
-from ._boolean import ThresholdFunctionInteraction, random_boolean_network, yeast_cell_cycle
+from ._boolean import RandomBooleanNetworkSystem, ThresholdFunctionInteraction, YeastCellCycleSystem
 from ._boolean_systems import (
+    BooleanRepressilatorSystem,
     MajorityNodeElement,
+    MammalianCellCycleSystem,
+    NoisyBooleanNetworkSystem,
     NoisyMajorityInteraction,
-    boolean_repressilator,
-    mammalian_cell_cycle,
-    noisy_boolean_network,
-    three_gene_boolean_network,
+    ThreeGeneBooleanNetworkSystem,
 )
 from ._carbon_13_mfa import (
     AtomMapSpec,
+    Carbon13MFASystem,
     FragmentSpec,
-    LabellingAnalysis,
+    LabellingResult,
     LabelMeasurementSpec,
     TracerSpec,
-    carbon_13_mfa,
+    labelling,
     tca_labelling_analysis,
 )
-from ._cascades import GProteinElement, hormone_cascade_amplifier
-from ._clocks import PerClockElement, circadian_clock
-from ._dynamic_fba import dynamic_fba
+from ._cascades import GProteinElement, HormoneCascadeAmplifierSystem
+from ._clocks import CircadianClockSystem, PerClockElement
+from ._dynamic_fba import DynamicFBASystem
 from ._early_stage import (
     AMINO_ACIDS,
+    EarlyStageFoldingIntermediateSystem,
     EllipsePath,
     PathCellElement,
-    early_stage_folding_intermediate,
     read_cell_probabilities,
     read_native_pairs,
 )
-from ._elementary_flux_modes import elementary_flux_modes
+from ._elementary_flux_modes import ElementaryFluxModesSystem
 from ._fates import (
+    BristleLateralInhibitionSystem,
     FateLandscapeElement,
     LateralInhibitionInteraction,
     ProneuralCellElement,
-    bristle_lateral_inhibition,
-    three_way_fate_decision,
+    ThreeWayFateDecisionSystem,
 )
-from ._flux_balance import flux_balance
+from ._flux_balance import FluxBalanceSystem
 from ._fuzzy_oil_drop import (
     BackboneVisual,
     ChainCoordinateElement,
     DihedralAngleElement,
     EnsembleReplayInteraction,
-    FuzzyOilDropAnalysis,
-    fuzzy_oil_drop,
+    FuzzyOilDropMeasuresResult,
+    FuzzyOilDropSystem,
+    fuzzy_oil_drop_measures,
     read_kyte_doolittle_scale,
 )
-from ._genes import GeneElement, negative_autoregulation, repressilator, toggle_switch
+from ._genes import GeneElement, NegativeAutoregulationSystem, RepressilatorSystem, ToggleSwitchSystem
 from ._logical_networks import (
+    GeneralizedLogicalNetworkSystem,
     LogicalRegulationInteraction,
     LogicalVariableElement,
-    generalized_logical_network,
-    petri_net,
+    PetriNetSystem,
 )
-from ._metabolic_perturbations import metabolic_perturbations
-from ._min_proteins import MinSkeletonElement, min_protein_skeleton
+from ._metabolic_perturbations import MetabolicPerturbationsSystem
+from ._min_proteins import MinProteinSkeletonSystem, MinSkeletonElement
 from ._networks import (
+    BiochemicalSystemsTheorySystem,
     GeneralizedMassActionInteraction,
     GlycolysisElement,
+    GlycolysisOscillationsSystem,
+    GoodwinOscillatorSystem,
     PhosphorylationLoopElement,
+    PhosphorylationOscillatorSystem,
     SSystemInteraction,
-    biochemical_systems_theory,
-    glycolysis_oscillations,
-    goodwin_oscillator,
-    phosphorylation_oscillator,
 )
-from ._probabilistic import ProbabilisticFunctionInteraction, ProbabilisticNodeElement, probabilistic_boolean_network
-from ._regulatory_fba import GlucoseSensorInteraction, regulatory_fba
+from ._probabilistic import (
+    ProbabilisticBooleanNetworkSystem,
+    ProbabilisticFunctionInteraction,
+    ProbabilisticNodeElement,
+)
+from ._regulatory_fba import GlucoseSensorInteraction, RegulatoryFBASystem
 from ._structure_spec import StructureSpec
 from ._structures import read_biopython_structure, read_structure, read_trajectory, write_structure
 
@@ -86,80 +95,82 @@ __all__: list[str] = [
     'AtomMapSpec',
     'BackboneGeometry',
     'BackboneVisual',
+    'BiochemicalSystemsTheorySystem',
     'BooleanFunctionInteraction',
     'BooleanNodeElement',
+    'BooleanRepressilatorSystem',
+    'BristleLateralInhibitionSystem',
+    'Carbon13MFASystem',
     'ChainCoordinateElement',
+    'CircadianClockSystem',
     'DihedralAngleElement',
+    'DynamicFBASystem',
+    'EarlyStageFoldingIntermediateSystem',
+    'ElementaryFluxModesSystem',
     'EllipsePath',
     'EnsembleReplayInteraction',
+    'EnzymeAdaptationCircuitSystem',
     'EnzymeNodeElement',
     'EnzymeRegulationInteraction',
     'EnzymeStimulusInteraction',
     'FateLandscapeElement',
+    'FluxBalanceSystem',
     'FragmentSpec',
-    'FuzzyOilDropAnalysis',
+    'FuzzyOilDropMeasuresResult',
+    'FuzzyOilDropSystem',
     'GProteinElement',
     'GeneElement',
+    'GeneralizedLogicalNetworkSystem',
     'GeneralizedMassActionInteraction',
     'GlucoseSensorInteraction',
     'GlycolysisElement',
+    'GlycolysisOscillationsSystem',
+    'GoodwinOscillatorSystem',
+    'HormoneCascadeAmplifierSystem',
     'LabelMeasurementSpec',
-    'LabellingAnalysis',
+    'LabellingResult',
     'LateralInhibitionInteraction',
     'LogicalRegulationInteraction',
     'LogicalVariableElement',
     'MajorityNodeElement',
+    'MammalianCellCycleSystem',
+    'MetabolicPerturbationsSystem',
+    'MinProteinSkeletonSystem',
     'MinSkeletonElement',
+    'NegativeAutoregulationSystem',
+    'NoisyBooleanNetworkSystem',
     'NoisyMajorityInteraction',
     'PathCellElement',
     'PerClockElement',
+    'PetriNetSystem',
     'PhosphorylationLoopElement',
+    'PhosphorylationOscillatorSystem',
+    'ProbabilisticBooleanNetworkSystem',
     'ProbabilisticFunctionInteraction',
     'ProbabilisticNodeElement',
     'ProneuralCellElement',
+    'RandomBooleanNetworkSystem',
+    'RegulatoryFBASystem',
+    'RepressilatorSystem',
     'RepressionInteraction',
     'SSystemInteraction',
     'SpeciesElement',
     'StructureSpec',
+    'ThreeGeneBooleanNetworkSystem',
+    'ThreeWayFateDecisionSystem',
     'ThresholdFunctionInteraction',
+    'ToggleSwitchSystem',
     'ToyNetworkElement',
     'TracerSpec',
-    'biochemical_systems_theory',
-    'boolean_repressilator',
-    'bristle_lateral_inhibition',
-    'carbon_13_mfa',
-    'circadian_clock',
-    'dynamic_fba',
-    'early_stage_folding_intermediate',
-    'elementary_flux_modes',
-    'enzyme_adaptation_circuit',
-    'flux_balance',
-    'fuzzy_oil_drop',
-    'generalized_logical_network',
-    'glycolysis_oscillations',
-    'goodwin_oscillator',
-    'hormone_cascade_amplifier',
-    'mammalian_cell_cycle',
-    'metabolic_perturbations',
-    'min_protein_skeleton',
-    'negative_autoregulation',
-    'noisy_boolean_network',
-    'petri_net',
-    'phosphorylation_oscillator',
-    'probabilistic_boolean_network',
-    'random_boolean_network',
+    'YeastCellCycleSystem',
+    'fuzzy_oil_drop_measures',
+    'labelling',
     'read_biopython_structure',
     'read_cell_probabilities',
     'read_kyte_doolittle_scale',
     'read_native_pairs',
     'read_structure',
     'read_trajectory',
-    'regulatory_fba',
-    'repressilator',
     'tca_labelling_analysis',
-    'three_gene_boolean_network',
-    'three_way_fate_decision',
-    'toggle_switch',
     'write_structure',
-    'yeast_cell_cycle',
 ]

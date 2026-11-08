@@ -3,14 +3,14 @@
 import numpy as np
 import pytest
 
-from skcomplex.systems.social.language import random_typewriting
+from skcomplex.systems.social.language import RandomTypewritingSystem
 
 from ..conftest import _run, _values
 
 
 def test_word_frequency_falls_exponentially_with_length():
     """Test that a word of `L + 1` letters is `letters / (1 - q)` times rarer than a word of `L` letters."""
-    trajectory = _run(random_typewriting(), 100)
+    trajectory = _run(RandomTypewritingSystem(), 100)
     counts, lengths = _values(trajectory, 'words', 'count'), _values(trajectory, 'words', 'length')
     assert np.sum(lengths == 1) == 5
     assert np.sum(lengths == 2) == 25
@@ -20,7 +20,7 @@ def test_word_frequency_falls_exponentially_with_length():
 
 def test_rank_frequency_is_a_power_law():
     """Test that the frequency of the word of rank `r` falls as `r^(-alpha)` with `alpha = 1 - log(1 - q) / log N`."""
-    trajectory = _run(random_typewriting(), 100)
+    trajectory = _run(RandomTypewritingSystem(), 100)
     counts, lengths = _values(trajectory, 'words', 'count'), _values(trajectory, 'words', 'length')
     ranks = np.cumsum(5.0 ** np.arange(1, 5))
     frequencies = [counts[lengths == length].mean() for length in range(1, 5)]

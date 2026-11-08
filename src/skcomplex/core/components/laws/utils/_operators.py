@@ -1,8 +1,8 @@
-"""Define the differential operators of fields, as Sage symbolic functions the compiler lowers.
+"""Define the differential operators of fields as Sage symbolic functions.
 
-Sage differentiates with respect to symbols, not along the axes of a lattice or a mesh, so each operator is a Sage
-function made by `function`, kept unevaluated in expressions until the discretization of the field turns it into
-numbers.
+The compiler lowers them. Sage differentiates with respect to symbols, not along the axes of a lattice or a mesh, so
+each operator is a Sage function made by `function`, kept unevaluated in expressions until the discretization of the
+field turns it into numbers.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -27,7 +27,9 @@ ORDERS = (1, 3)
 
 
 def gradient(expression: object, n_dim: int = 2) -> FreeModuleElement:
-    """Return the gradient of a field expression, the derivative along every dimension of a lattice.
+    """Return the gradient of a field expression.
+
+    It is the derivative along every dimension of a lattice.
 
     Args:
         expression:
@@ -50,7 +52,9 @@ def gradient(expression: object, n_dim: int = 2) -> FreeModuleElement:
 
 
 def divergence(components: Sequence[object] | FreeModuleElement) -> Expression:
-    """Return the divergence of a vector of field expressions, the sum of the derivative of each along its dimension.
+    """Return the divergence of a vector of field expressions.
+
+    It is the sum of the derivative of each along its dimension.
 
     Args:
         components:
@@ -71,7 +75,9 @@ def divergence(components: Sequence[object] | FreeModuleElement) -> Expression:
 
 
 def advection(expression: object, velocity: Sequence[object] | FreeModuleElement) -> Expression:
-    """Return the advection of a field expression by a velocity, its rate of transport, with upwind differences.
+    """Return the advection of a field expression by a velocity.
+
+    It is its rate of transport, with upwind differences.
 
     Args:
         expression:
@@ -94,7 +100,9 @@ def advection(expression: object, velocity: Sequence[object] | FreeModuleElement
 
 
 def inverse_helmholtz(expression: object, screening: object, boundary: object = None) -> Expression:
-    """Return the solution `psi` of the modified-Helmholtz equation `(laplacian - screening**2) psi = expression`.
+    """Return the solution `psi` of a modified-Helmholtz equation.
+
+    The equation is `(laplacian - screening**2) psi = expression`.
 
     Args:
         expression:
@@ -137,7 +145,9 @@ def inverse_helmholtz(expression: object, screening: object, boundary: object = 
 
 
 def inverse_laplacian(expression: object) -> Expression:
-    """Return the solution of the Poisson equation `laplacian(psi) = expression`, the unscreened inverse Helmholtz.
+    """Return the solution of the Poisson equation `laplacian(psi) = expression`.
+
+    It is the unscreened inverse Helmholtz.
 
     Args:
         expression:
@@ -157,7 +167,9 @@ def inverse_laplacian(expression: object) -> Expression:
 
 
 def displacement(axis: int) -> Expression:
-    """Return the symbol of the displacement along an axis, the variable a convolution kernel is written in.
+    """Return the symbol of the displacement along an axis.
+
+    It is the variable a convolution kernel is written in.
 
     Args:
         axis:
@@ -176,7 +188,9 @@ def displacement(axis: int) -> Expression:
 
 
 def convolve(expression: object, kernel: object, radius: object = None) -> Expression:
-    """Return the convolution of a field expression with a kernel of the displacement, the sum over sites times volume.
+    """Return the convolution of a field expression with a kernel of the displacement.
+
+    It is the sum over sites times volume.
 
     Args:
         expression:
@@ -202,7 +216,9 @@ def convolve(expression: object, kernel: object, radius: object = None) -> Expre
 
 
 def shifted(expression: object, offset: Sequence[object], order: int = 1) -> Expression:
-    """Return a field expression read at a physical displacement from every site, one component per axis.
+    """Return a field expression read at a physical displacement from every site.
+
+    The displacement has one component per axis.
 
     Args:
         expression:

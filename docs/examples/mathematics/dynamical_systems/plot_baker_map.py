@@ -16,10 +16,10 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.analysis import LyapunovAnalysis
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.analysis import lyapunov
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.dynamical_systems import BakerMapSystem
 
 SYSTEM = 'baker_map'
 ALPHA, LAMBDA_A, LAMBDA_B = 0.4, 0.25, 0.4
@@ -42,10 +42,10 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM, alpha=ALPHA, lambda_a=LAMBDA_A, lambda_b=LAMBDA_B)
+system = BakerMapSystem(alpha=ALPHA, lambda_a=LAMBDA_A, lambda_b=LAMBDA_B)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=80)
-simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=20000)
-x, y = simulation.trajectory_.values('map.x')[20:], simulation.trajectory_.values('map.y')[20:]
+trajectory = simulate(system, until=20000, observers=[observer])
+x, y = trajectory.values('map.x')[20:], trajectory.values('map.y')[20:]
 observer.recording_.log(
     'attractor',
     rr.Points2D(np.column_stack([100 * x, -100 * y]), radii=0.15, colors=[90, 170, 255]),
@@ -61,8 +61,8 @@ observer.recording_.flush()
 # and `alpha ln lambda_a + (1 - alpha) ln lambda_b`, and the Kaplan-Yorke dimension they give should match the
 # information dimension `1 + λ1 / |λ2|` of Farmer, Ott, and Yorke.
 
-lyapunov = LyapunovAnalysis(until=20000).prepare(system).run()
-exponents = lyapunov.exponents_
+found = lyapunov(system, until=20000)
+exponents = found.exponents
 expected = [
     -ALPHA * np.log(ALPHA) - (1 - ALPHA) * np.log(1 - ALPHA),
     ALPHA * np.log(LAMBDA_A) + (1 - ALPHA) * np.log(LAMBDA_B),
@@ -77,7 +77,7 @@ cantor.set_ylim(0.6, 0.76)
 cantor.set_xlabel('x')
 cantor.set_ylabel('y')
 cantor.set_title(
-    f'Zoom: Kaplan-Yorke dimension {lyapunov.kaplan_yorke_dimension_:.3f}, '
+    f'Zoom: Kaplan-Yorke dimension {found.kaplan_yorke_dimension:.3f}, '
     f'expected {1 + expected[0] / abs(expected[1]):.3f}',
 )
 fig.tight_layout()

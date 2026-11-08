@@ -1,4 +1,7 @@
-"""Macroeconomics systems: linear choices of agents that herd on the past choices of the agents they are linked to."""
+"""Macroeconomics systems: linear choices of agents that herd.
+
+They herd on the past choices of the agents they are linked to.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,14 +16,15 @@ from sage.all__sagemath_symbolics import Expression
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction
 from ....core.components.laws.utils import normal
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 
 class HerdingAgentElement(Element):
-    """Agent whose choice `c` is a weighted sum of the past choices of others plus its individual characteristic.
+    """Agent whose choice `c` is a weighted sum of the past choices of others.
+
+    It adds its individual characteristic.
 
     Args:
         label:
@@ -65,46 +69,19 @@ class HerdingAgentElement(Element):
         self.sigma = sigma
 
 
-def _choice(s: SimpleNamespace, herding: Expression) -> Expression:
-    """Return the next choice, the herding term plus `gamma` times the shocked individual characteristic."""
-    return herding + s.member.gamma * (s.member.x + s.member.sigma * normal('shock', 0, 1))
+class NetworkHerdingSystem(BaseSystem):
+    """Agents whose linear choices herd on the past choices of linked agents.
 
+    They herd on the agents they are linked to. The choice of agent `i` is `c_it = sum_j theta_ij c_j,t-1 + gamma x_it`,
+    so the choices follow `c_t = Theta c_t-1 + gamma x_t` on the weighted network `Theta`, without self-links, Eqs. 1.10
+    and 1.11 of Caiani et al. (2016, Section 1.1.6). The individual characteristic is `x_it = x_i + sigma eps_it`, with
+    a standard normal shock `eps_it`. The mean choice follows `c_t = (1/N) sum_i d_i c_i,t-1 + gamma x_t` (Eq. 1.12),
+    where the out-degree `d_i` of agent `i`, the sum of column `i` of `Theta`, measures how much its choice moves the
+    others, so the persistence of the aggregate depends on the out-degrees and on how they correlate with the choices.
+    Without shocks the choices settle at `(I - Theta)^-1 gamma x` when the spectral radius of `Theta` is below 1.
 
-def _random_links(n_agents: int, density: float, herding: float, rng: np.random.Generator) -> Array:
-    """Return random directed weights with no self-links, every row of which sums to `herding`."""
-    links = (rng.random((n_agents, n_agents)) < density) * rng.random((n_agents, n_agents))
-    np.fill_diagonal(links, 0.0)
-    rows = links.sum(axis=1, keepdims=True)
-    return np.divide(herding * links, rows, out=np.zeros_like(links), where=rows > 0)
-
-
-@register_system(
-    field='economics/macroeconomics',
-    tags=('herding', 'network', 'aggregation', 'agents', 'linear map'),
-    references=('Caiani et al. 2016 §1.1.6',),
-    defaults={'until': 50},
-    observables=lambda system: [ObservableSpec('mean_choice', group='agents', variable='c', reduce='mean')],
-)
-def network_herding(
-    theta: Sequence[Sequence[float]] | None = None,
-    x: Sequence[float] | None = None,
-    *,
-    gamma: float = 1.0,
-    sigma: float = 0.1,
-    n_agents: int = 50,
-    density: float = 0.1,
-    herding: float = 0.5,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return agents whose linear choices herd on the past choices of the agents they are linked to.
-
-    The choice of agent `i` is `c_it = sum_j theta_ij c_j,t-1 + gamma x_it`, so the choices follow
-    `c_t = Theta c_t-1 + gamma x_t` on the weighted network `Theta`, without self-links, Eqs. 1.10 and 1.11 of Caiani
-    et al. (2016, Section 1.1.6). The individual characteristic is `x_it = x_i + sigma eps_it`, with a standard normal
-    shock `eps_it`. The mean choice follows `c_t = (1/N) sum_i d_i c_i,t-1 + gamma x_t` (Eq. 1.12), where the out-degree
-    `d_i` of agent `i`, the sum of column `i` of `Theta`, measures how much its choice moves the others, so the
-    persistence of the aggregate depends on the out-degrees and on how they correlate with the choices. Without
-    shocks the choices settle at `(I - Theta)^-1 gamma x` when the spectral radius of `Theta` is below 1.
+    The system has the group `agents` of the choices `agents.c` and the herding `herding`. The observable of the system
+    is the mean choice `mean_choice`.
 
     Args:
         theta:
@@ -132,36 +109,91 @@ def network_herding(
         random_state:
             The seed or generator of the random network and characteristics.
 
-    Returns:
-        system:
-            The system, with the group `agents` of the choices `agents.c` and the herding `herding`. The observable of
-            the system is the mean choice `mean_choice`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.macroeconomics import network_herding
-        >>> network_herding([[0.0, 0.5], [0.5, 0.0]], [1.0, 1.0]).elements[0].prepare().size_
+        >>> from skcomplex.systems.economics.macroeconomics import NetworkHerdingSystem
+        >>> NetworkHerdingSystem([[0.0, 0.5], [0.5, 0.0]], [1.0, 1.0]).prepare().system_.elements[0].prepare().size_
         2
     """
-    rng = np.random.default_rng(random_state)
-    weights = _random_links(n_agents, density, herding, rng) if theta is None else np.asarray(theta, dtype=float)
-    size = len(weights)
-    means = rng.lognormal(0.0, 1.0, size) if x is None else np.asarray(x, dtype=float)
-    agents = GroupElement(
-        'agents',
-        element=HerdingAgentElement,
-        size=size,
-        values={'c': gamma * means, 'x': means, 'gamma': gamma, 'sigma': sigma},
-    )
-    herding_map = CouplingInteraction(
-        'herding',
-        target='agents',
-        read='c',
-        write='c',
-        function=lambda s: s.other.c,
-        reduce='sum',
-        mode='group',
-        weights=weights.tolist(),
-        form='map',
-        combine=_choice,
-    )
-    return System(elements=[agents], interactions=[herding_map])
+
+    draws = True
+
+    field = 'economics/macroeconomics'
+    topics = ('herding', 'network', 'aggregation', 'agents', 'linear map')
+    references = ('Caiani et al. 2016 §1.1.6',)
+    until = 50
+    observables = (ObservableSpec('mean_choice', group='agents', variable='c', reduce='mean'),)
+
+    def __init__(
+        self,
+        theta: Sequence[Sequence[float]] | None = None,
+        x: Sequence[float] | None = None,
+        *,
+        gamma: float = 1.0,
+        sigma: float = 0.1,
+        n_agents: int = 50,
+        density: float = 0.1,
+        herding: float = 0.5,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.theta = theta
+        self.x = x
+        self.gamma = gamma
+        self.sigma = sigma
+        self.n_agents = n_agents
+        self.density = density
+        self.herding = herding
+        self.random_state = random_state
+
+    @staticmethod
+    def _choice(s: SimpleNamespace, herding: Expression) -> Expression:
+        """Return the next choice.
+
+        It is the herding term plus `gamma` times the shocked individual characteristic.
+        """
+        return herding + s.member.gamma * (s.member.x + s.member.sigma * normal('shock', 0, 1))
+
+    @staticmethod
+    def _random_links(n_agents: int, density: float, herding: float, rng: np.random.Generator) -> Array:
+        """Return random directed weights with no self-links.
+
+        Every row sums to `herding`.
+        """
+        links = (rng.random((n_agents, n_agents)) < density) * rng.random((n_agents, n_agents))
+        np.fill_diagonal(links, 0.0)
+        rows = links.sum(axis=1, keepdims=True)
+        return np.divide(herding * links, rows, out=np.zeros_like(links), where=rows > 0)
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        weights = (
+            self._random_links(self.n_agents, self.density, self.herding, rng)
+            if self.theta is None
+            else np.asarray(self.theta, dtype=float)
+        )
+        size = len(weights)
+        means = rng.lognormal(0.0, 1.0, size) if self.x is None else np.asarray(self.x, dtype=float)
+        agents = GroupElement(
+            'agents',
+            element=HerdingAgentElement,
+            size=size,
+            values={'c': self.gamma * means, 'x': means, 'gamma': self.gamma, 'sigma': self.sigma},
+        )
+        herding_map = CouplingInteraction(
+            'herding',
+            target='agents',
+            read='c',
+            write='c',
+            function=lambda s: s.other.c,
+            reduce='sum',
+            mode='group',
+            weights=weights.tolist(),
+            form='map',
+            combine=self._choice,
+        )
+        return System(self.label, elements=[agents], interactions=[herding_map])

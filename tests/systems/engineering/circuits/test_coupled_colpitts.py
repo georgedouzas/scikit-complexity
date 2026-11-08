@@ -5,7 +5,8 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.systems import create_simulation
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.engineering.circuits import CoupledColpittsSystem
 
 
 def _phase(y, z):
@@ -16,7 +17,7 @@ def _phase(y, z):
 @pytest.mark.parametrize(('k', 'locked'), [(0.0, False), (0.4, True)])
 def test_coupled_colpitts_lock_their_phases_for_moderate_coupling(k, locked):
     """Test that the phases of the detuned oscillators drift apart without coupling and stay together for `k = 0.4`."""
-    trajectory = create_simulation('coupled_colpitts', k=k).prepare().run(until=400).trajectory_
+    trajectory = simulate(CoupledColpittsSystem(k=k), until=400)
     settled = trajectory.times > 100
     phases = [
         _phase(trajectory.values(f'oscillator_{index}.y')[settled], trajectory.values(f'oscillator_{index}.z')[settled])

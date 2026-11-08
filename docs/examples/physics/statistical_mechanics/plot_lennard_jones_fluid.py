@@ -8,23 +8,22 @@ potential minimum. The view shows 400 particles in a periodic box at density 0.5
 """
 
 # %%
-# The system is created by name from the catalog at constant energy. The velocity Verlet stepper takes steps of 0.005
+# The system is built from its class at constant energy. The velocity Verlet stepper takes steps of 0.005
 # and the observer saves every second step with the default blueprint, whose primary view shows the particles.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import NeighborAnalysis
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.core.engine.solvers import VelocityVerletSolver
+from skcomplex.core.analysis import neighbors
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.statistical_mechanics import LennardJonesFluidSystem
 
 SYSTEM = 'lennard_jones_fluid'
 
-system = create_system(SYSTEM, random_state=0)
+system = LennardJonesFluidSystem(random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, solver=VelocityVerletSolver(), dt=0.005, observers=[observer]).prepare().run(until=2.5)
+trajectory = simulate(system, until=2.5, observers=[observer])
 
 # %%
 # Structure of a gas and a liquid
@@ -38,15 +37,15 @@ simulation = Simulation(system, solver=VelocityVerletSolver(), dt=0.005, observe
 fig, ax = plt.subplots(figsize=(7, 4))
 for density in (0.2, 0.8):
     side = np.sqrt(400 / density)
-    run = Simulation(
-        create_system(SYSTEM, density=density, temperature=1.0, random_state=1),
+    run = simulate(
+        LennardJonesFluidSystem(density=density, temperature=1.0, random_state=1).prepare().system_,
+        until=20,
         dt=0.05,
         random_state=1,
-    ).prepare()
-    positions = np.mod(run.run(until=20).trajectory_.values('fluid.x')[100:], side)
-    neighbors = NeighborAnalysis('radial-distribution', box=[side, side], bins=120, r_max=5.0)
-    neighbors.prepare(positions).run()
-    distances, g = neighbors.radii_, neighbors.distribution_
+    )
+    positions = np.mod(run.values('fluid.x')[100:], side)
+    pairs = neighbors(positions, kind='radial-distribution', box=[side, side], bins=120, r_max=5.0)
+    distances, g = pairs.radii, pairs.distribution
     ax.plot(distances, g, label=f'density {density}')
 ax.axvline(2 ** (1 / 6), color='gray', linestyle='--', label='potential minimum 2^(1/6)')
 ax.axhline(1.0, color='lightgray')

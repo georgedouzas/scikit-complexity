@@ -13,7 +13,11 @@ class NotPreparedError(SkcomplexError):
 
 
 class ValidationError(SkcomplexError):
-    """A system, a value, or a combination of a system with its solver and backend is not valid."""
+    """A system, a value, or a system with its solver and backend is not valid."""
+
+
+class ContextError(ValidationError):
+    """A configurable object is prepared without the context it needs, such as a solver without its problem."""
 
 
 class AlgebraicStateError(ValidationError):
@@ -21,11 +25,17 @@ class AlgebraicStateError(ValidationError):
 
 
 class ConservationError(ValidationError):
-    """A conserved quantity changes outside its flows, or an invariant of a run moves beyond its tolerance."""
+    """A conserved quantity or an invariant of a run changes beyond what it may.
+
+    A conserved quantity may change only by its flows, and an invariant only within its tolerance.
+    """
 
 
 class TensorShapeError(ValidationError):
-    """A tensor operation is given an expression of the wrong shape, such as the tensor divergence of a scalar."""
+    """A tensor operation is given an expression of the wrong shape.
+
+    An example is the tensor divergence of a scalar.
+    """
 
 
 class TensorSymmetryError(ValidationError):
@@ -36,12 +46,22 @@ class RewritingError(ValidationError):
     """A rewriting system is malformed, or a generation would exceed its maximum size."""
 
 
+class ParameterError(ValidationError):
+    """A parameter name or value is not valid.
+
+    The name is not part of the problem, or the value is not valid for its system or matrix.
+    """
+
+
 class LabelError(ValidationError):
     """A label is missing, duplicated, or produces a name collision."""
 
 
 class ArgumentError(SkcomplexError, TypeError):
-    """A component is given an argument its type does not declare, or misses a required one."""
+    """A component is given an undeclared argument, or misses a required one.
+
+    An undeclared argument is one its type does not declare.
+    """
 
 
 class RoleError(ValidationError):
@@ -49,15 +69,31 @@ class RoleError(ValidationError):
 
 
 class RoleElementError(RoleError):
-    """A role of an interaction is bound to an element of a kind it does not accept, or without a state it reads."""
+    """A role of an interaction is bound to an element it does not accept.
+
+    The element is of a kind the role does not accept, or lacks a state the role reads.
+    """
+
+
+class TagError(ValidationError):
+    """The tags of a system disagree or are not supported.
+
+    The parts of a system disagree on a capability tag, or a solver or a backend does not support the tags.
+    """
 
 
 class SpaceError(ValidationError):
-    """A part needs a kind of space the system lacks, a vector has no space, or a location does not fit its space."""
+    """A part, a vector, or a location does not fit the space of a system.
+
+    A part needs a kind of space the system lacks, a vector has no space, or a location does not fit its space.
+    """
 
 
 class SpaceTooLargeError(SpaceError):
-    """A space would hold more sites than its limit, or its elements would overflow their integer type."""
+    """A space would hold too many sites, or its elements would overflow.
+
+    It would hold more sites than its limit, or its elements would overflow their integer type.
+    """
 
 
 class PhaseSpaceTooLargeError(SpaceTooLargeError):
@@ -65,7 +101,10 @@ class PhaseSpaceTooLargeError(SpaceTooLargeError):
 
 
 class UnregisteredLawError(ValidationError):
-    """A system holds a law of a class that neither the shared core nor a formalism registered."""
+    """A system holds a law of a class that no one registered.
+
+    Neither the shared core nor a formalism registered its class.
+    """
 
 
 class IncompatibleLawsError(ValidationError):
@@ -77,7 +116,10 @@ class BackendError(SkcomplexError):
 
 
 class PipelineError(SkcomplexError):
-    """The passes of a compilation cannot be ordered, or a pass reads a field that no pass writes."""
+    """The passes of a compilation cannot be ordered, or read a field none writes.
+
+    A pass reads a field that no pass writes.
+    """
 
 
 class SolverError(SkcomplexError):
@@ -85,11 +127,7 @@ class SolverError(SkcomplexError):
 
 
 class InfeasibleError(SolverError):
-    """A linear program has no solution, and its law asks to raise an error for that."""
-
-
-class ParameterError(SkcomplexError):
-    """A parameter name is not part of the problem."""
+    """A linear program has no solution, and its law asks to raise an error."""
 
 
 class SimulationError(SkcomplexError):
@@ -97,7 +135,10 @@ class SimulationError(SkcomplexError):
 
 
 class CapacityError(SimulationError):
-    """A topology request needs more members than a variable group on a network holds rows for."""
+    """A topology request needs more members than a variable group holds rows for.
+
+    The group is a variable group on a network.
+    """
 
 
 class ExperimentError(SkcomplexError):
@@ -117,11 +158,17 @@ class MissingExtraError(SkcomplexError):
 
 
 class RegistryError(SkcomplexError):
-    """A name is registered twice with different meanings, or a registration is not valid or misses what it needs."""
+    """A name is registered twice, or a registration is not valid.
+
+    A name is registered twice with different meanings, or a registration is not valid or misses what it needs.
+    """
 
 
 class BackendWarning(UserWarning):
-    """A part of a problem runs on another backend than the one requested, or a compiled kernel runs in Python."""
+    """A part of a problem runs on another backend, or a compiled kernel in Python.
+
+    The other backend is not the one requested.
+    """
 
 
 class UnobservedStatesWarning(UserWarning):

@@ -1,4 +1,7 @@
-"""Draw bodies, the rods that join them, their fading trails, and static outlines from the states of an element."""
+"""Draw bodies, their rods, their fading trails, and static outlines.
+
+They are drawn from the states of an element.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -32,14 +35,15 @@ _SPACE = 3
 
 
 class BodiesVisual(BaseVisual):
-    """Visual that draws bodies at positions computed from the states of an element, with rods, trails, and outlines.
+    """Visual that draws bodies at positions computed from the states of an element.
 
-    The bodies are logged as points under `<path>/bodies`, the rods from the pivot through the bodies in order as one
-    line strip under `<path>/rods`, the trails of the traced bodies as segments under `<path>/trail` that grow more
-    transparent with age, the outlines once as static line strips under `<path>/outline`, and the marks once as static
-    points under `<path>/marks`. Every state is also logged as a time series under `<path>/<state>`. Bodies with three
-    coordinates are drawn in a 3D view. Bodies with two are drawn in a 2D view with the second coordinate negated,
-    since Rerun's 2D views point their vertical axis down, so the views draw it upward.
+    It also draws rods, trails, and outlines. The bodies are logged as points under `<path>/bodies`, the rods from the
+    pivot through the bodies in order as one line strip under `<path>/rods`, the trails of the traced bodies as segments
+    under `<path>/trail` that grow more transparent with age, the outlines once as static line strips under
+    `<path>/outline`, and the marks once as static points under `<path>/marks`. Every state is also logged as a time
+    series under `<path>/<state>`. Bodies with three coordinates are drawn in a 3D view. Bodies with two are drawn in a
+    2D view with the second coordinate negated, since Rerun's 2D views point their vertical axis down, so the views draw
+    it upward.
 
     Args:
         positions:
@@ -114,7 +118,10 @@ class BodiesVisual(BaseVisual):
         self.recording = recording
 
     def _prepare(self, context: BaseProblemSpec | None) -> None:
-        """Keep the element, forget the trail and the static drawings of earlier runs, and set the views."""
+        """Keep the element, forget what earlier runs drew, and set the views.
+
+        What earlier runs drew is the trail and the static drawings.
+        """
         self.history_: deque[npt.NDArray[np.float64]] = deque(maxlen=self.trail if self.trail else None)
         self.drawn_: set[str] = set()
         super()._prepare(context)
@@ -139,7 +146,10 @@ class BodiesVisual(BaseVisual):
         values: dict[str, object],
         dimension: int,
     ) -> tuple[list[npt.NDArray[np.float64]], npt.NDArray[np.float64]]:
-        """Return the outline polylines and the marks, evaluated from the values when they are functions."""
+        """Return the outline polylines and the marks.
+
+        They are evaluated from the values when they are functions.
+        """
         outline = self.outline(**values) if callable(self.outline) else self.outline
         marks = self.marks(**values) if callable(self.marks) else self.marks
         strips = [np.atleast_2d(np.asarray(item, dtype=float)) for item in outline]
@@ -151,7 +161,10 @@ class BodiesVisual(BaseVisual):
         return bodies if self.pivot is None else np.vstack([np.asarray(self.pivot, dtype=float), bodies])
 
     def _scale(self, bodies: npt.NDArray[np.float64], values: dict[str, object]) -> float:
-        """Return the extent of the drawing: the outline, the marks, the pivot, and the rods at full length."""
+        """Return the extent of the drawing.
+
+        It covers the outline, the marks, the pivot, and the rods at full length.
+        """
         chain = self._chain(bodies)
         strips, marks = self._static(values, bodies.shape[1])
         points = np.vstack([chain, *strips, marks])
@@ -197,7 +210,7 @@ class BodiesVisual(BaseVisual):
         recording.log(f'{path}/trail', self._strips(segments, width, colors))
 
     def _log(self, recording: rr.RecordingStream, element: CompiledElementSpec, frame: FrameSpec) -> None:
-        """Log the bodies, the rods, the trails, the outline, and the states of an element at one frame.
+        """Log the bodies, rods, trails, outline, and states of an element at one frame.
 
         Args:
             recording:
@@ -230,7 +243,9 @@ class BodiesVisual(BaseVisual):
             BaseVisual._log_scalars(recording, f'{path}/{state}', frame.value(name))
 
     def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
-        """Return a 2D view of the bodies that covers the drawing, and a time series view of the states.
+        """Return a 2D view of the bodies and a time series view of the states.
+
+        The 2D view covers the drawing.
 
         Args:
             element:
@@ -285,7 +300,10 @@ class BodiesVisual(BaseVisual):
 
     @staticmethod
     def _values_of(element: CompiledElementSpec, read: Callable[[str], object]) -> dict[str, object]:
-        """Return the parameters and states of an element by their short names, read by dotted name."""
+        """Return the parameters and states of an element by their short names.
+
+        They are read by dotted name.
+        """
         names = {**element.parameters, **element.states}
         return {name: read(dotted) for name, dotted in names.items()}
 
@@ -293,7 +311,10 @@ class BodiesVisual(BaseVisual):
     def _fading_segments(
         paths: Sequence[npt.NDArray[np.float64]],
     ) -> tuple[list[npt.NDArray[np.float64]], list[tuple[int, int, int, int]]]:
-        """Return the segments of paths and their colors, more transparent for older segments."""
+        """Return the segments of paths and their colors.
+
+        Older segments are more transparent.
+        """
         segments: list[npt.NDArray[np.float64]] = []
         colors: list[tuple[int, int, int, int]] = []
         for path in paths:
@@ -306,7 +327,10 @@ class BodiesVisual(BaseVisual):
 
     @staticmethod
     def _bounds_of(points: npt.NDArray[np.float64]) -> rrb.VisualBounds2D | None:
-        """Return 2D view bounds around points with a margin, in logged coordinates, or `None` for one point."""
+        """Return 2D view bounds around points with a margin.
+
+        The bounds are in logged coordinates, or `None` for one point.
+        """
         low, high = points.min(axis=0), points.max(axis=0)
         extent = float((high - low).max())
         if extent <= 0:
@@ -319,7 +343,10 @@ class BodiesVisual(BaseVisual):
 
     @staticmethod
     def _shown(points: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
-        """Return points as logged: with the vertical axis up in two dimensions, unchanged in three."""
+        """Return points as logged.
+
+        In two dimensions the vertical axis is up, and in three they are unchanged.
+        """
         return points * _UPWARD if points.shape[-1] == PAIR else points
 
     @staticmethod

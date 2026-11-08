@@ -1,4 +1,7 @@
-"""Define topology changes, which add and remove the nodes and edges of a network and rewire its edges."""
+"""Define topology changes.
+
+A topology change adds and removes the nodes and edges of a network and rewires its edges.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -8,10 +11,11 @@ from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
 from ...errors import ValidationError
-from ...specs import BaseSpec, RoleSpec, TopologyRequestSpec
+from ...specs import BaseSpec, RoleSpec, Tags, TopologyRequestSpec
 from ...types import ElementKind
 from ..laws import BaseLaw, JumpLaw, UpdateLaw
 from ..laws.utils import where
+from ..spaces import BaseSpace
 from ._neighbor import NeighborInteraction
 
 ACTIONS = (
@@ -32,32 +36,33 @@ type Chance = float | Callable[[SimpleNamespace], object]
 
 
 class TopologyInteraction(NeighborInteraction):
-    """Change of the topology of a network: nodes and edges that are added or removed, and edges that are rewired.
+    """Change of the topology of a network.
 
-    The action runs for every node of the group a role binds, `'add-node'`, `'remove-node'`, `'replace-node'`, which
-    removes the node and adds a new one, and `'add-edge'`, or for every edge of its network, `'remove-edge'` and
-    `'rewire'`. Without a target, `'add-node'` runs once per step, adding one node from outside the network to the one
-    network whose groups are variable, as in growing networks. It fires at a `rate`, with a `probability` per step, or
-    with probability one, and only where the `condition` holds. The rate, the probability, and the condition are numbers
-    or functions of the namespace of an edge, whose ends are `namespace.source` and `namespace.target`, and an action of
-    the nodes reads the node as the source. Without a target, the namespace of `'add-node'` holds the values drawn for
-    the node being added as `namespace.source`, which the condition and a probability read and a rate does not. A new
-    node joins `edges` other nodes, a node adding edges joins `edges` other nodes, and a rewiring keeps the end `keep`
-    of its edge. New ends are drawn with probability proportional to `toward(node)`, a function of the namespace of a
-    candidate node that also holds the node the new edge starts from as `node.source`, or uniformly. That node is the
-    new node of `'add-node'`, the adding node of `'add-edge'`, and the kept end of `'rewire'`. Where fewer candidates
-    have a positive weight than the edges to draw, the new ends are drawn uniformly. A new node or edge takes the
-    `values`, each a value or a function of the random number generator that draws it. The groups on the nodes and the
-    edges of the network are variable. With `hyperedge`, a new node instead forms a hyperedge of that size with
-    `hyperedge - 1` existing nodes and joins each of them by an edge: the first two are the ends of an edge drawn
-    uniformly, so a size of three attaches a triangle along an edge, and further members are drawn by `toward`. The
-    new hyperedge is a new member of the variable group on the hyperedges of the network. With `edges=0` or
-    `independent`, every other member is drawn by `toward`, and the new node draws its edges apart. The action
-    `'add-hyperedge'` runs for every node of the group on the nodes, which forms a hyperedge of size `hyperedge` with
-    nodes drawn by `toward` and is its last member, and `'remove-hyperedge'` runs for every hyperedge of the variable
-    group on the hyperedges that the target binds, whose namespace reads the hyperedge member as the source. With
-    `independent`, every candidate becomes a new end on its own with probability `toward`, so a node joins a random
-    number of nodes, and on a directed layer `direction` sends the new edges out of the node, into it, or both ways.
+    Nodes and edges are added or removed, and edges are rewired. The action runs for every node of the group a role
+    binds, `'add-node'`, `'remove-node'`, `'replace-node'`, which removes the node and adds a new one, and `'add-edge'`,
+    or for every edge of its network, `'remove-edge'` and `'rewire'`. Without a target, `'add-node'` runs once per step,
+    adding one node from outside the network to the one network whose groups are variable, as in growing networks. It
+    fires at a `rate`, with a `probability` per step, or with probability one, and only where the `condition` holds. The
+    rate, the probability, and the condition are numbers or functions of the namespace of an edge, whose ends are
+    `namespace.source` and `namespace.target`, and an action of the nodes reads the node as the source. Without a
+    target, the namespace of `'add-node'` holds the values drawn for the node being added as `namespace.source`, which
+    the condition and a probability read and a rate does not. A new node joins `edges` other nodes, a node adding edges
+    joins `edges` other nodes, and a rewiring keeps the end `keep` of its edge. New ends are drawn with probability
+    proportional to `toward(node)`, a function of the namespace of a candidate node that also holds the node the new
+    edge starts from as `node.source`, or uniformly. That node is the new node of `'add-node'`, the adding node of
+    `'add-edge'`, and the kept end of `'rewire'`. Where fewer candidates have a positive weight than the edges to draw,
+    the new ends are drawn uniformly. A new node or edge takes the `values`, each a value or a function of the random
+    number generator that draws it. The groups on the nodes and the edges of the network are variable. With `hyperedge`,
+    a new node instead forms a hyperedge of that size with `hyperedge - 1` existing nodes and joins each of them by an
+    edge: the first two are the ends of an edge drawn uniformly, so a size of three attaches a triangle along an edge,
+    and further members are drawn by `toward`. The new hyperedge is a new member of the variable group on the hyperedges
+    of the network. With `edges=0` or `independent`, every other member is drawn by `toward`, and the new node draws its
+    edges apart. The action `'add-hyperedge'` runs for every node of the group on the nodes, which forms a hyperedge of
+    size `hyperedge` with nodes drawn by `toward` and is its last member, and `'remove-hyperedge'` runs for every
+    hyperedge of the variable group on the hyperedges that the target binds, whose namespace reads the hyperedge member
+    as the source. With `independent`, every candidate becomes a new end on its own with probability `toward`, so a node
+    joins a random number of nodes, and on a directed layer `direction` sends the new edges out of the node, into it, or
+    both ways.
 
     `'close-triangle'` joins two neighbours of the node that are not yet joined, or a node without such a pair to
     `edges` nodes, `'contract-edge'` merges a neighbour drawn by `toward` into the node, which keeps the
@@ -146,12 +151,12 @@ class TopologyInteraction(NeighborInteraction):
         >>> from skcomplex.core.components.interactions import TopologyInteraction
         >>> from skcomplex.core.components.spaces import NetworkSpace
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> nodes = GroupElement('nodes', element=Element, on='sites', variable=True, capacity=20)
         >>> links = GroupElement('links', element=Element, on='edges', variable=True, capacity=20)
         >>> expiry = TopologyInteraction('expiry', target='nodes', action='remove-edge')
         >>> system = System(elements=[nodes, links], interactions=[expiry], space=NetworkSpace(nx.cycle_graph(5)))
-        >>> trajectory = Simulation(system, random_state=0).prepare().run(until=1).trajectory_
+        >>> trajectory = simulate(system, until=1, random_state=0)
         >>> len(trajectory.network(0).sources), len(trajectory.network(1).sources)
         (5, 0)
 
@@ -159,18 +164,38 @@ class TopologyInteraction(NeighborInteraction):
 
         >>> import xgi
         >>> from skcomplex.core.components.spaces import DiscreteTime
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> triangles = GroupElement('triangles', element=Element, on='hyperedges', variable=True, capacity=8)
         >>> growth = TopologyInteraction('growth', action='add-node', hyperedge=3)
         >>> space = NetworkSpace(nx.complete_graph(3), hyperedges=[[0, 1, 2]])
         >>> system = System(
         ...     elements=[nodes, links, triangles], interactions=[growth], space=space, time=DiscreteTime()
         ... )
-        >>> trajectory = Simulation(system, random_state=0).prepare().run(until=5).trajectory_
+        >>> trajectory = simulate(system, until=5, random_state=0)
         >>> trajectory.network(-1).hyperedges.shape
         (6, 3)
     """
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (JumpLaw, UpdateLaw)
+
+    def _get_tags(self) -> Tags:
+        """Return the tags of jumps at a rate or of updates with a chance.
+
+        These change the topology.
+        """
+        changing = frozenset({'changing topology'})
+        if self._get_argument('rate') is not None:
+            return self._get_variant_tags((JumpLaw,), structure=changing)
+        drawn = self._get_argument('probability') is not None
+        return self._get_variant_tags((UpdateLaw,), stochastic=drawn, structure=changing)
+
+    def _draws(self) -> bool:
+        """Return whether the change draws.
+
+        It draws by an action that draws new ends or that runs for one member.
+        """
+        removal = self._get_argument('action') in ('remove-node', 'remove-edge', 'remove-hyperedge')
+        return super()._draws() or bool(self._get_argument('one')) or not removal
 
     def __init__(
         self,
@@ -214,8 +239,12 @@ class TopologyInteraction(NeighborInteraction):
         self.inherit = inherit
         self.parent = parent
 
-    def _check(self) -> None:
-        """Raise an error for an unknown action or kept end, a rate next to a probability, or a bad number of edges.
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Raise an error for unknown options, a rate with a probability, or bad edges.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
@@ -224,7 +253,7 @@ class TopologyInteraction(NeighborInteraction):
                 action other than `'add-node'` and `'add-edge'` has no target, a hyperedge is given to an action other
                 than `'add-node'` and `'add-hyperedge'`, or `'add-hyperedge'` has none, or the request is invalid.
         """
-        super()._check()
+        super()._prepare(context)
         self._check_variant('action', self.action, ACTIONS, (BaseSpec,))
         if self.rate is not None and self.probability is not None:
             error_msg = f'{self.label!r} fires at a rate and with a probability. Give one of them.'
@@ -243,7 +272,7 @@ class TopologyInteraction(NeighborInteraction):
                 error_msg = f'The {name} of {self.label!r} is {value!r}. Give a function of the namespace, or None.'
                 raise ValidationError(error_msg)
         for request in self._get_requests():
-            request._validated()
+            request._check()
 
     def _get_requests(self) -> list[TopologyRequestSpec]:
         """Return the request of the action."""
@@ -274,7 +303,9 @@ class TopologyInteraction(NeighborInteraction):
         return value(namespace) if callable(value) else value
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the requests of the action, fired at the rate or with the probability where the condition holds.
+        """Return the requests of the action where the condition holds.
+
+        They fire at the rate or with the probability.
 
         Args:
             namespace:

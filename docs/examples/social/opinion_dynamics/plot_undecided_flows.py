@@ -13,14 +13,14 @@ one side, and above it the surplus never makes up its mind.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.social.opinion_dynamics import UndecidedFlowsSystem
 
 SYSTEM = 'undecided_flows'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(create_system(SYSTEM), dt=0.1, observers=[observer]).prepare().run(20)
+trajectory = simulate(UndecidedFlowsSystem(), observers=[observer])
 
 # %%
 # The critical population
@@ -28,11 +28,10 @@ simulation = Simulation(create_system(SYSTEM), dt=0.1, observers=[observer]).pre
 # The final number of undecided agents should be zero below `N_c = omega (1 / gamma + 1 / eta) = 70` and grow as
 # `N - N_c` above it, while the sides hold `omega / gamma = 20` and `omega / eta = 50` agents.
 
-trajectory = simulation.trajectory_
 sizes = np.linspace(20, 150, 14)
 finals = []
 for size in sizes:
-    run = Simulation(create_system(SYSTEM, n_agents=float(size)), dt=1.0).prepare().run(200).trajectory_
+    run = simulate(UndecidedFlowsSystem(n_agents=float(size)), until=200, dt=1.0)
     finals.append(run.values('population.undecided')[-1])
 fig, (flows, critical) = plt.subplots(1, 2, figsize=(10, 4))
 for name, label in (('against', 'against A'), ('support', 'for B'), ('undecided', 'undecided C')):

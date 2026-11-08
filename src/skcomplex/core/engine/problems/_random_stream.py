@@ -11,7 +11,9 @@ from ...errors import ValidationError
 
 
 class RandomStream:
-    """Random stream of one problem, which a solver binds when it prepares and functions of laws read when it runs.
+    """Random stream of one problem.
+
+    A solver binds it when it prepares, and functions of laws read it when it runs.
 
     Examples:
         >>> import numpy as np
@@ -39,7 +41,10 @@ class RandomStream:
 
     @property
     def generator(self) -> np.random.Generator:
-        """Generator the solver bound, which raises an error outside a run."""
+        """Generator the solver bound.
+
+        Reading it outside a run raises an error.
+        """
         if self.generator_ is None:
             error_msg = (
                 'A function with `random=True` asks for the random stream outside a run. A solver binds the stream '

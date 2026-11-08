@@ -5,7 +5,7 @@ import pytest
 from skcomplex.core.components.elements import PointElement
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.physics.common.mechanics import ReflectionInteraction
 
@@ -21,7 +21,7 @@ def test_reflection_scales_the_normal_velocity_and_keeps_the_tangential_one():
     )
     ball = PointElement('ball', x=[0.0, 0.0], x_d1=[1.0, 0.0])
     system = System(elements=[ball], interactions=[wall], space=ContinuousSpace(n_dim=2))
-    trajectory = Simulation(system, dt=0.1).prepare().run(until=2.0).trajectory_
+    trajectory = simulate(system, until=2.0, dt=0.1)
     velocity = trajectory.values('ball.x_d1')[-1]
     assert velocity.tolist() == pytest.approx([0.25, -0.75])
 
@@ -45,7 +45,7 @@ def test_reflection_reflects_only_on_its_region(height, reflected):
     )
     ball = PointElement('ball', x=[0.0, height], x_d1=[1.0, 0.0])
     system = System(elements=[ball], interactions=[wall], space=ContinuousSpace(n_dim=2))
-    trajectory = Simulation(system, dt=0.1).prepare().run(until=2.0).trajectory_
+    trajectory = simulate(system, until=2.0, dt=0.1)
     assert trajectory.values('ball.x_d1')[-1].tolist() == pytest.approx([-1.0 if reflected else 1.0, 0.0])
 
 

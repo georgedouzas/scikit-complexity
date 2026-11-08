@@ -1,108 +1,112 @@
-"""Evolution: evolutionary games, quasispecies, hypercycles, finite populations, landscapes, and coevolution."""
+"""Evolution systems.
+
+They cover evolutionary games, quasispecies, hypercycles, finite populations, landscapes, and coevolution.
+"""
 
 from ..common.populations import ReplicatorInteraction
 from ._assembly import (
+    AssemblyGrowthSystem,
     AssemblyLevelElement,
+    PolymerAssemblyPoolSystem,
     PolymerElement,
     PolymerJoiningInteraction,
-    assembly_growth,
-    polymer_assembly_pool,
 )
-from ._coevolution import SpeciesElement, bak_sneppen
-from ._drift import AlleleFrequencyElement, kimura_diffusion
+from ._coevolution import BakSneppenSystem, SpeciesElement
+from ._drift import AlleleFrequencyElement, KimuraDiffusionSystem
 from ._finite_populations import (
     AdaptiveClimbingInteraction,
+    AdaptiveClimbingSystem,
     ClimberElement,
     IndividualElement,
+    MoranProcessSystem,
     MoranStepInteraction,
+    NKLandscapeSystem,
     TangledNatureLifeCycleInteraction,
-    adaptive_climbing,
-    moran_process,
-    nk_landscape,
-    tangled_nature,
+    TangledNatureSystem,
 )
-from ._games import CyclicSpeciesElement, StrategyElement, replicator_dynamics, rock_paper_scissors
+from ._games import CyclicSpeciesElement, ReplicatorDynamicsSystem, RockPaperScissorsSystem, StrategyElement
 from ._networks import (
     ChemicalElement,
     CompetingSpeciesElement,
+    CompetitiveJainKrishnaSystem,
     CompetitiveSelectionInteraction,
     DependencyFieldInteraction,
+    JainKrishnaSystem,
+    SoleManrubiaSystem,
     TaxonElement,
-    competitive_jain_krishna,
-    jain_krishna,
-    sole_manrubia,
 )
-from ._neutral_network_analysis import NeutralNetworkAnalysis
-from ._nkcs import CoevolutionaryClimbingInteraction, CoevolvingSpeciesElement, nkcs
+from ._neutral_network_analysis import NeutralNetworkResult, neutral_network
+from ._nkcs import CoevolutionaryClimbingInteraction, CoevolvingSpeciesElement, NKCSSystem
 from ._prebiotic import (
     CatalysisInteraction,
+    EigenQuasispeciesSystem,
     GenotypeClassElement,
+    HypercyclesSystem,
     MasterSequenceElement,
     MoleculeElement,
-    eigen_quasispecies,
-    hypercycles,
 )
 from ._rna_walks import (
     NucleotideElement,
+    RNANeutralNetworksSystem,
     fold_sequence,
     mutate_point,
     read_base_pair_distance,
     read_plane_layout,
     read_sequence,
-    rna_neutral_networks,
 )
-from ._substitutions import LocusElement, SubstitutionInteraction, origin_fixation_walk
+from ._substitutions import LocusElement, OriginFixationWalkSystem, SubstitutionInteraction
 
 __all__: list[str] = [
     'AdaptiveClimbingInteraction',
+    'AdaptiveClimbingSystem',
     'AlleleFrequencyElement',
+    'AssemblyGrowthSystem',
     'AssemblyLevelElement',
+    'BakSneppenSystem',
     'CatalysisInteraction',
     'ChemicalElement',
     'ClimberElement',
     'CoevolutionaryClimbingInteraction',
     'CoevolvingSpeciesElement',
     'CompetingSpeciesElement',
+    'CompetitiveJainKrishnaSystem',
     'CompetitiveSelectionInteraction',
     'CyclicSpeciesElement',
     'DependencyFieldInteraction',
+    'EigenQuasispeciesSystem',
     'GenotypeClassElement',
+    'HypercyclesSystem',
     'IndividualElement',
+    'JainKrishnaSystem',
+    'KimuraDiffusionSystem',
     'LocusElement',
     'MasterSequenceElement',
     'MoleculeElement',
+    'MoranProcessSystem',
     'MoranStepInteraction',
-    'NeutralNetworkAnalysis',
+    'NKCSSystem',
+    'NKLandscapeSystem',
+    'NeutralNetworkResult',
     'NucleotideElement',
+    'OriginFixationWalkSystem',
+    'PolymerAssemblyPoolSystem',
     'PolymerElement',
     'PolymerJoiningInteraction',
+    'RNANeutralNetworksSystem',
+    'ReplicatorDynamicsSystem',
     'ReplicatorInteraction',
+    'RockPaperScissorsSystem',
+    'SoleManrubiaSystem',
     'SpeciesElement',
     'StrategyElement',
     'SubstitutionInteraction',
     'TangledNatureLifeCycleInteraction',
+    'TangledNatureSystem',
     'TaxonElement',
-    'adaptive_climbing',
-    'assembly_growth',
-    'bak_sneppen',
-    'competitive_jain_krishna',
-    'eigen_quasispecies',
     'fold_sequence',
-    'hypercycles',
-    'jain_krishna',
-    'kimura_diffusion',
-    'moran_process',
     'mutate_point',
-    'nk_landscape',
-    'nkcs',
-    'origin_fixation_walk',
-    'polymer_assembly_pool',
+    'neutral_network',
     'read_base_pair_distance',
     'read_plane_layout',
     'read_sequence',
-    'replicator_dynamics',
-    'rna_neutral_networks',
-    'rock_paper_scissors',
-    'sole_manrubia',
-    'tangled_nature',
 ]

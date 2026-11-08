@@ -14,15 +14,17 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 
 class InterbankView(AgentView):
-    """Bank as the cascade sees it: its distress `h`, its `status`, and its economic `value`."""
+    """Bank as the cascade sees it.
+
+    It holds its distress `h`, its `status`, and its economic `value`.
+    """
 
     h: float
     status: float
@@ -33,7 +35,9 @@ UNDISTRESSED = 0
 
 
 class InterbankElement(Element):
-    """Bank of the DebtRank cascade, with its level of distress, its state, and its economic value.
+    """Bank of the DebtRank cascade.
+
+    It holds its level of distress, its state, and its economic value.
 
     Args:
         label:
@@ -57,6 +61,8 @@ class InterbankElement(Element):
         >>> GroupElement('banks', element=InterbankElement, size=3, values={'h': [1.0, 0.0, 0.0]}).size
         3
     """
+
+    law_classes = ()
 
     def __init__(
         self,
@@ -98,10 +104,10 @@ INACTIVE = 2
 
 
 class DebtRankCascadeInteraction(Interaction):
-    """Synchronous spread of distress, `h_i = min(1, h_i + sum_j W_ji h_j)` over the distressed banks `j`.
+    """Synchronous spread of distress over the distressed banks `j`.
 
-    A bank whose distress becomes positive turns distressed, and a distressed bank turns inactive after one step, so
-    every bank passes its distress on once.
+    The distress follows `h_i = min(1, h_i + sum_j W_ji h_j)`. A bank whose distress becomes positive turns distressed,
+    and a distressed bank turns inactive after one step, so every bank passes its distress on once.
 
     Args:
         label:
@@ -118,6 +124,8 @@ class DebtRankCascadeInteraction(Interaction):
         >>> DebtRankCascadeInteraction('cascade', banks='banks', impact=[[0.0, 0.5], [0.0, 0.0]]).impact
         [[0.0, 0.5], [0.0, 0.0]]
     """
+
+    law_classes = (RuleLaw,)
 
     def __init__(
         self,
@@ -161,53 +169,18 @@ class DebtRankCascadeInteraction(Interaction):
             bank.h, bank.status = float(level), float(code)
 
 
-def _random_exposures(n_banks: int, density: float, rng: np.random.Generator) -> tuple[Array, Array]:
-    """Return random interbank liabilities and capitals of a given density of links."""
-    links = rng.random((n_banks, n_banks)) < density
-    np.fill_diagonal(links, val=False)
-    liabilities = links * rng.uniform(1.0, 10.0, (n_banks, n_banks))
-    capital = rng.uniform(5.0, 20.0, n_banks)
-    return liabilities, capital
-
-
-def _impact(liabilities: Array, capital: Array) -> Array:
-    """Return the impact matrix `W_ij = min(1, M_ij / C_j)` of a default of `i` on `j`."""
-    return np.minimum(1.0, np.asarray(liabilities, dtype=float) / np.asarray(capital, dtype=float)[None, :])
-
-
-def _economic_values(liabilities: Array) -> Array:
-    """Return the economic value of every bank, its share of all interbank lending."""
-    lent = np.asarray(liabilities, dtype=float).sum(axis=0)
-    return lent / lent.sum()
-
-
 def _value_at_risk(agent: InterbankView) -> float:
     """Return the distress of a bank weighted by its economic value."""
     return float(agent.h * agent.value)
 
 
-@register_system(
-    field='economics/finance',
-    tags=('systemic risk', 'network', 'contagion', 'agents'),
-    references=('Thurner et al. 2018', 'Battiston et al. 2012'),
-    defaults={'until': 10},
-    observables=lambda system: [ObservableSpec('value_at_risk', _value_at_risk, group='banks', reduce='sum')],
-)
-def debtrank(
-    liabilities: Sequence[Sequence[float]] | None = None,
-    capital: Sequence[float] | None = None,
-    *,
-    distressed: Sequence[int] = (0,),
-    psi: float = 1.0,
-    n_banks: int = 10,
-    density: float = 0.3,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the DebtRank cascade of distress from a set of banks through their interbank loans.
+class DebtrankSystem(BaseSystem):
+    """The DebtRank cascade of distress from a set of banks.
 
-    `liabilities[i][j]` is the loan from bank `j` to bank `i`, which `j` loses when `i` defaults, and the impact of `i`
-    on `j` is `min(1, liabilities[i][j] / capital[j])`. The banks in `distressed` start with distress `psi`. The
-    DebtRank is the final value at risk minus the initial one.
+    The distress spreads through their interbank loans. `liabilities[i][j]` is the loan from bank `j` to bank `i`, which
+    `j` loses when `i` defaults, and the impact of `i` on `j` is `min(1, liabilities[i][j] / capital[j])`. The banks in
+    `distressed` start with distress `psi`. The DebtRank is the final value at risk minus the initial one. The system
+    has the group `banks` and the distress weighted by economic value `value_at_risk`.
 
     Args:
         liabilities:
@@ -231,30 +204,86 @@ def debtrank(
         random_state:
             The seed or generator of a random network.
 
-    Returns:
-        system:
-            The system, with the group `banks` and the distress weighted by economic value `value_at_risk`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.finance import debtrank
-        >>> debtrank([[0.0, 5.0], [0.0, 0.0]], [10.0, 10.0]).elements[0].prepare().size_
+        >>> from skcomplex.systems.economics.finance import DebtrankSystem
+        >>> DebtrankSystem([[0.0, 5.0], [0.0, 0.0]], [10.0, 10.0]).prepare().system_.elements[0].prepare().size_
         2
     """
-    if liabilities is None or capital is None:
-        matrix, capitals = _random_exposures(n_banks, density, np.random.default_rng(random_state))
-    else:
-        matrix, capitals = np.asarray(liabilities, dtype=float), np.asarray(capital, dtype=float)
-    size = len(matrix)
-    h = np.zeros(size)
-    h[list(distressed)] = psi
-    status = np.where(h > 0, DISTRESSED, UNDISTRESSED).astype(float)
-    banks = GroupElement(
-        'banks',
-        element=InterbankElement,
-        size=size,
-        values={'h': h, 'status': status, 'value': _economic_values(matrix)},
-    )
-    return System(
-        elements=[banks],
-        interactions=[DebtRankCascadeInteraction('cascade', banks='banks', impact=_impact(matrix, capitals).tolist())],
-    )
+
+    field = 'economics/finance'
+    topics = ('systemic risk', 'network', 'contagion', 'agents')
+    references = ('Thurner et al. 2018', 'Battiston et al. 2012')
+    until = 10
+    observables = (ObservableSpec('value_at_risk', _value_at_risk, group='banks', reduce='sum'),)
+
+    def __init__(
+        self,
+        liabilities: Sequence[Sequence[float]] | None = None,
+        capital: Sequence[float] | None = None,
+        *,
+        distressed: Sequence[int] = (0,),
+        psi: float = 1.0,
+        n_banks: int = 10,
+        density: float = 0.3,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.liabilities = liabilities
+        self.capital = capital
+        self.distressed = distressed
+        self.psi = psi
+        self.n_banks = n_banks
+        self.density = density
+        self.random_state = random_state
+
+    @staticmethod
+    def _random_exposures(n_banks: int, density: float, rng: np.random.Generator) -> tuple[Array, Array]:
+        """Return random interbank liabilities and capitals of a given density of links."""
+        links = rng.random((n_banks, n_banks)) < density
+        np.fill_diagonal(links, val=False)
+        liabilities = links * rng.uniform(1.0, 10.0, (n_banks, n_banks))
+        capital = rng.uniform(5.0, 20.0, n_banks)
+        return liabilities, capital
+
+    @staticmethod
+    def _impact(liabilities: Array, capital: Array) -> Array:
+        """Return the impact matrix `W_ij = min(1, M_ij / C_j)` of a default of `i` on `j`."""
+        return np.minimum(1.0, np.asarray(liabilities, dtype=float) / np.asarray(capital, dtype=float)[None, :])
+
+    @staticmethod
+    def _economic_values(liabilities: Array) -> Array:
+        """Return the economic value of every bank, its share of all interbank lending."""
+        lent = np.asarray(liabilities, dtype=float).sum(axis=0)
+        return lent / lent.sum()
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        if self.liabilities is None or self.capital is None:
+            matrix, capitals = self._random_exposures(
+                self.n_banks,
+                self.density,
+                np.random.default_rng(self.random_state),
+            )
+        else:
+            matrix, capitals = np.asarray(self.liabilities, dtype=float), np.asarray(self.capital, dtype=float)
+        size = len(matrix)
+        h = np.zeros(size)
+        h[list(self.distressed)] = self.psi
+        status = np.where(h > 0, DISTRESSED, UNDISTRESSED).astype(float)
+        banks = GroupElement(
+            'banks',
+            element=InterbankElement,
+            size=size,
+            values={'h': h, 'status': status, 'value': self._economic_values(matrix)},
+        )
+        return System(
+            self.label,
+            elements=[banks],
+            interactions=[
+                DebtRankCascadeInteraction('cascade', banks='banks', impact=self._impact(matrix, capitals).tolist()),
+            ],
+        )

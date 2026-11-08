@@ -5,15 +5,18 @@ import math
 import numpy as np
 import pytest
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ParameterError
-from skcomplex.systems import create_simulation
-from skcomplex.systems.physics.soft_matter import anisotropic_brownian_particles
+from skcomplex.systems.physics.soft_matter import AnisotropicBrownianParticlesSystem, RigidDimersSystem
 
 
 def _bodies(n_particles=400, **settings):
     """Return the times, positions, axes, and spins of a run of anisotropic particles to time 1."""
-    simulation = create_simulation('anisotropic_brownian_particles', n_particles=n_particles, **settings)
-    trajectory = simulation.set_params(random_state=0).prepare().run(until=1.0).trajectory_
+    trajectory = simulate(
+        AnisotropicBrownianParticlesSystem(n_particles=n_particles, **settings),
+        until=1.0,
+        random_state=0,
+    )
     positions = np.stack([np.asarray(trajectory.values(f'particles.{name}')) for name in 'xyz'], axis=-1)
     axes = np.stack([np.asarray(trajectory.values(f'particles.u{name}')) for name in 'xyz'], axis=-1)
     return np.asarray(trajectory.times), positions, axes, np.asarray(trajectory.values('particles.psi'))
@@ -45,14 +48,13 @@ def test_ellipsoid_and_chiral_particles_follow_their_body_frame_diffusion_tensor
 def test_anisotropic_particles_refuse_a_coupling_beyond_the_positive_tensor():
     """Test that a coupling larger than `sqrt(D_par D_spin)` is refused."""
     with pytest.raises(ParameterError):
-        anisotropic_brownian_particles(D_par=1.0, D_spin=0.25, D_c=0.6)
+        AnisotropicBrownianParticlesSystem(D_par=1.0, D_spin=0.25, D_c=0.6).prepare()
 
 
 @pytest.mark.parametrize(('v0', 'expected'), [(0.0, 0.05), (2.0, 0.05 + 4.0 / 4)])
 def test_rigid_dimers_diffuse_as_their_free_draining_limit(v0, expected):
     """Test the rod's rotational diffusion `2 D_t / L²` and the long-time diffusion `D_t / 2 + v0² / (4 D_r)`."""
-    simulation = create_simulation('rigid_dimers', n_dimers=400, v0=v0).set_params(random_state=0)
-    trajectory = simulation.prepare().run(until=20.0).trajectory_
+    trajectory = simulate(RigidDimersSystem(n_dimers=400, v0=v0), until=20.0, random_state=0)
     times = np.asarray(trajectory.times)
     centres, angles = np.asarray(trajectory.values('dimers.c')), np.asarray(trajectory.values('dimers.phi'))
     diffusion = ((centres[-1] - centres[100]) ** 2).sum(axis=-1).mean() / (4 * (times[-1] - times[100]))

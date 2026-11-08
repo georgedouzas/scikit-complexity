@@ -1,4 +1,7 @@
-"""Billiard systems: free particles reflecting off the walls of Sinai and mushroom tables and off three open discs."""
+"""Billiard systems.
+
+Free particles reflect off the walls of Sinai and mushroom tables and off three open discs.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,15 +17,16 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from ..common.mechanics import ReflectionInteraction
 
 
 class MushroomBilliardElement(Element):
-    """Free particle in a mushroom table: a half disc cap of radius `radius` on a stem of half width `width`.
+    """Free particle in a mushroom table.
+
+    The table is a half disc cap of radius `radius` on a stem of half width `width`.
 
     The particle flies straight, and reflects specularly off the cap, the floor of the cap beside the stem, the walls of
     the stem, and its floor at depth `height`. Its phase space mixes regular orbits that stay in the cap with chaotic
@@ -104,14 +108,16 @@ class MushroomBilliardElement(Element):
 
 
 def _sinai_walls(size: float, radius: float, **_: float) -> list[np.ndarray]:
-    """Return the square wall and the central disc of a Sinai table as closed polylines."""
+    """Return the square wall and central disc of a Sinai table as closed polylines."""
     square = size * np.array([[-1.0, -1.0], [1.0, -1.0], [1.0, 1.0], [-1.0, 1.0], [-1.0, -1.0]])
     angles = np.linspace(0.0, 2 * np.pi, 100)
     return [square, radius * np.column_stack([np.cos(angles), np.sin(angles)])]
 
 
 class SinaiBilliardElement(Element):
-    """Free particle in a square table of half side `size` with a central disc of radius `radius`, the Sinai billiard.
+    """Free particle in the Sinai billiard.
+
+    The table is a square of half side `size` with a central disc of radius `radius`.
 
     The particle flies straight, and its specular reflections off the four walls and the disc make its motion ergodic
     and chaotic.
@@ -150,6 +156,8 @@ class SinaiBilliardElement(Element):
         >>> SinaiBilliardElement('ball').radius
         0.4
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
@@ -202,7 +210,9 @@ def _three_disk_walls(spacing: float, radius: float, **_: float) -> list[np.ndar
 
 
 class ThreeDiskBilliardElement(Element):
-    """Free particle scattered by three discs of radius `radius` at the corners of a triangle of side `spacing`.
+    """Free particle scattered by three discs of radius `radius`.
+
+    The discs sit at the corners of a triangle of side `spacing`.
 
     The centers of the discs lie at the distance `spacing / √3` from the origin, at the polar angles `-π / 2`,
     `π / 6`, and `5 π / 6`. The particle flies straight and reflects specularly off the discs. The billiard is open,
@@ -299,38 +309,10 @@ def _wall(
     )
 
 
-def _disc(label: str, angle: float) -> ReflectionInteraction:
-    """Return the reflection off the disc of the three-disk table whose center lies at a polar angle."""
-    cosine, sine = math.cos(angle), math.sin(angle)
+class BilliardsSystem(BaseSystem):
+    """A particle moving freely on a billiard table.
 
-    def guard(s: SimpleNamespace) -> object:
-        distance = s.target.spacing / math.sqrt(3)
-        return (s.target.x - distance * cosine) ** 2 + (s.target.y - distance * sine) ** 2 - s.target.radius**2
-
-    return _wall(label, guard, -1)
-
-
-@register_system(
-    field='physics/nonlinear_oscillators',
-    tags=('events', 'billiard', 'chaos', 'mixed phase space'),
-    references=('Sinai 1970', 'Bunimovich 2001', 'Gaspard and Rice 1989', 'Datseris and Parlitz 2022'),
-    defaults={'until': 20.0, 'dt': 0.05},
-)
-def billiards(
-    shape: str = 'sinai',
-    x: float = 0.1,
-    y: float = 0.6,
-    vx: float = 0.6,
-    vy: float = 0.8,
-    *,
-    size: float = 1.0,
-    disc_radius: float = 0.4,
-    cap_radius: float = 1.0,
-    width: float = 0.4,
-    height: float = 1.0,
-    spacing: float = 2.4,
-) -> System:
-    """Return a particle moving freely on a billiard table and reflecting specularly off its walls.
+    The particle reflects specularly off the walls of the table.
 
     The Sinai table is the square `[-size, size]²` with a disc of radius `disc_radius` at its center, and its motion is
     chaotic. The mushroom table is the upper half of a disc of radius `cap_radius` on a stem of half width `width` and
@@ -339,7 +321,8 @@ def billiards(
     triangle of side `spacing` centered at the origin, with one disc below the origin. A particle that comes from far
     away is scattered chaotically between the discs and leaves again, and the number of its collisions and its outgoing
     angle depend on its incoming direction through a fractal scattering function. Every bounce is an event, and the
-    speed is conserved.
+    speed is conserved. The system has the position `particle.x`, `particle.y` and the velocity `particle.vx`,
+    `particle.vy`.
 
     Args:
         shape:
@@ -375,51 +358,121 @@ def billiards(
         spacing:
             The distance between the centers of the discs of the three-disk table.
 
-    Returns:
-        system:
-            The system, with the position `particle.x`, `particle.y` and the velocity `particle.vx`, `particle.vy`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValidationError:
             The shape is unknown.
 
     Examples:
-        >>> from skcomplex.systems.physics.nonlinear_oscillators import billiards
-        >>> type(billiards('mushroom').elements[0]).__name__
+        >>> from skcomplex.systems.physics.nonlinear_oscillators import BilliardsSystem
+        >>> type(BilliardsSystem('mushroom').prepare().system_.elements[0]).__name__
         'MushroomBilliardElement'
     """
-    if shape == 'sinai':
-        table = SinaiBilliardElement('particle', x=x, y=y, vx=vx, vy=vy, size=size, radius=disc_radius)
-        walls = [
-            _wall('right_wall', lambda s: s.target.x - s.target.size, 1),
-            _wall('left_wall', lambda s: s.target.x + s.target.size, -1),
-            _wall('top_wall', lambda s: s.target.y - s.target.size, 1),
-            _wall('bottom_wall', lambda s: s.target.y + s.target.size, -1),
-            _wall('disc', lambda s: s.target.x**2 + s.target.y**2 - s.target.radius**2, -1),
-        ]
-        return System(elements=[table], interactions=walls)
-    if shape == 'mushroom':
-        table = MushroomBilliardElement(
-            'particle',
-            x=x,
-            y=y,
-            vx=vx,
-            vy=vy,
-            radius=cap_radius,
-            width=width,
-            height=height,
-        )
-        walls = [
-            _wall('cap', lambda s: s.target.x**2 + s.target.y**2 - s.target.radius**2, 1, lambda s: s.target.y > 0),
-            _wall('cap_floor', lambda s: s.target.y, -1, lambda s: abs(s.target.x) > s.target.width),
-            _wall('right_stem_wall', lambda s: s.target.x - s.target.width, 1, lambda s: s.target.y < 0),
-            _wall('left_stem_wall', lambda s: s.target.x + s.target.width, -1, lambda s: s.target.y < 0),
-            _wall('stem_floor', lambda s: s.target.y + s.target.height, -1),
-        ]
-        return System(elements=[table], interactions=walls)
-    if shape == 'three_disk':
-        table = ThreeDiskBilliardElement('particle', x=x, y=y, vx=vx, vy=vy, spacing=spacing, radius=disc_radius)
-        walls = [_disc(f'disc_{index}', angle) for index, angle in enumerate(ANGLES)]
-        return System(elements=[table], interactions=walls)
-    error_msg = f'Unknown billiard shape {shape!r}. Use one of {", ".join(SHAPES)}.'
-    raise ValidationError(error_msg)
+
+    field = 'physics/nonlinear_oscillators'
+    topics = ('events', 'billiard', 'chaos', 'mixed phase space')
+    references = ('Sinai 1970', 'Bunimovich 2001', 'Gaspard and Rice 1989', 'Datseris and Parlitz 2022')
+    until = 20.0
+    dt = 0.05
+
+    def __init__(
+        self,
+        shape: str = 'sinai',
+        x: float = 0.1,
+        y: float = 0.6,
+        vx: float = 0.6,
+        vy: float = 0.8,
+        *,
+        size: float = 1.0,
+        disc_radius: float = 0.4,
+        cap_radius: float = 1.0,
+        width: float = 0.4,
+        height: float = 1.0,
+        spacing: float = 2.4,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.shape = shape
+        self.x = x
+        self.y = y
+        self.vx = vx
+        self.vy = vy
+        self.size = size
+        self.disc_radius = disc_radius
+        self.cap_radius = cap_radius
+        self.width = width
+        self.height = height
+        self.spacing = spacing
+
+    @staticmethod
+    def _disc(label: str, angle: float) -> ReflectionInteraction:
+        """Return the reflection off a disc of the three-disk table.
+
+        The center of the disc lies at a polar angle.
+        """
+        cosine, sine = math.cos(angle), math.sin(angle)
+
+        def guard(s: SimpleNamespace) -> object:
+            distance = s.target.spacing / math.sqrt(3)
+            return (s.target.x - distance * cosine) ** 2 + (s.target.y - distance * sine) ** 2 - s.target.radius**2
+
+        return _wall(label, guard, -1)
+
+    def _build_system(self) -> System:
+        """Return a particle moving freely on a billiard table.
+
+        The particle reflects specularly off the walls of the table.
+        """
+        if self.shape == 'sinai':
+            table = SinaiBilliardElement(
+                'particle',
+                x=self.x,
+                y=self.y,
+                vx=self.vx,
+                vy=self.vy,
+                size=self.size,
+                radius=self.disc_radius,
+            )
+            walls = [
+                _wall('right_wall', lambda s: s.target.x - s.target.size, 1),
+                _wall('left_wall', lambda s: s.target.x + s.target.size, -1),
+                _wall('top_wall', lambda s: s.target.y - s.target.size, 1),
+                _wall('bottom_wall', lambda s: s.target.y + s.target.size, -1),
+                _wall('disc', lambda s: s.target.x**2 + s.target.y**2 - s.target.radius**2, -1),
+            ]
+            return System(self.label, elements=[table], interactions=walls)
+        if self.shape == 'mushroom':
+            table = MushroomBilliardElement(
+                'particle',
+                x=self.x,
+                y=self.y,
+                vx=self.vx,
+                vy=self.vy,
+                radius=self.cap_radius,
+                width=self.width,
+                height=self.height,
+            )
+            walls = [
+                _wall('cap', lambda s: s.target.x**2 + s.target.y**2 - s.target.radius**2, 1, lambda s: s.target.y > 0),
+                _wall('cap_floor', lambda s: s.target.y, -1, lambda s: abs(s.target.x) > s.target.width),
+                _wall('right_stem_wall', lambda s: s.target.x - s.target.width, 1, lambda s: s.target.y < 0),
+                _wall('left_stem_wall', lambda s: s.target.x + s.target.width, -1, lambda s: s.target.y < 0),
+                _wall('stem_floor', lambda s: s.target.y + s.target.height, -1),
+            ]
+            return System(self.label, elements=[table], interactions=walls)
+        if self.shape == 'three_disk':
+            table = ThreeDiskBilliardElement(
+                'particle',
+                x=self.x,
+                y=self.y,
+                vx=self.vx,
+                vy=self.vy,
+                spacing=self.spacing,
+                radius=self.disc_radius,
+            )
+            walls = [self._disc(f'disc_{index}', angle) for index, angle in enumerate(ANGLES)]
+            return System(self.label, elements=[table], interactions=walls)
+        error_msg = f'Unknown billiard shape {self.shape!r}. Use one of {", ".join(SHAPES)}.'
+        raise ValidationError(error_msg)

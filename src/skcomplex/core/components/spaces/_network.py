@@ -1,9 +1,13 @@
-"""Define network spaces, graphs whose nodes members occupy, with named layers of relations over their nodes."""
+"""Define network spaces.
+
+They are graphs whose nodes members occupy, with named layers of relations over their nodes.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 from collections.abc import Sequence
+from typing import ClassVar
 
 import networkx as nx
 import numpy as np
@@ -12,7 +16,7 @@ import scipy.sparse
 import xgi
 
 from ...errors import SpaceError, ValidationError
-from ...specs import LayerSpec
+from ...specs import LayerSpec, Tags
 from ...types import Indices
 from ._adjacency import AdjacencyNeighborhood
 from ._base import BaseNeighborhood, BaseSpace
@@ -21,13 +25,14 @@ MIN_HYPEREDGE_NODES = 2
 
 
 class NetworkSpace(BaseSpace):
-    """Network whose nodes agents occupy or lattice sites sit on, with the neighbours of a node given by its edges.
+    """Network whose nodes agents occupy or lattice sites sit on.
 
-    Lattice groups on a network hold one member per node, in the order of `graph.nodes`. The graph is the default
-    layer, and `layers` adds named relations over the same nodes. Edges of a layer are numbered in the order of
-    `graph.edges`, and every layer lowers to arrays: the source and target node index of every edge, and the
-    adjacency of every node in compressed sparse row form. On an undirected graph the source of an edge is the end
-    that comes first in node order. Build the graph with NetworkX, such as `nx.erdos_renyi_graph(100, 0.1, seed=0)`.
+    The neighbours of a node are given by its edges. Lattice groups on a network hold one member per node, in the order
+    of `graph.nodes`. The graph is the default layer, and `layers` adds named relations over the same nodes. Edges of a
+    layer are numbered in the order of `graph.edges`, and every layer lowers to arrays: the source and target node index
+    of every edge, and the adjacency of every node in compressed sparse row form. On an undirected graph the source of
+    an edge is the end that comes first in node order. Build the graph with NetworkX, such as `nx.erdos_renyi_graph(100,
+    0.1, seed=0)`.
 
     Args:
         graph:
@@ -93,6 +98,13 @@ class NetworkSpace(BaseSpace):
         (10, (0, 1, 2), (0, 1, 2, 3, 4, 5))
     """
 
+    space_tags: ClassVar[tuple[str, ...]] = ('network', 'hypergraph')
+
+    def _get_tags(self) -> Tags:
+        """Return the tags of the network: a hypergraph with hyperedges, and no laws."""
+        hypergraph = isinstance(self.hyperedges, xgi.Hypergraph) or len(self.hyperedges) > 0
+        return Tags(space=frozenset({'hypergraph' if hypergraph else 'network'}))
+
     def __init__(
         self,
         graph: nx.Graph,
@@ -111,7 +123,10 @@ class NetworkSpace(BaseSpace):
         self.hyperedges = hyperedges
 
     def _get_edges(self, graph: nx.Graph) -> tuple[Indices, Indices]:
-        """Return the source and target node of every edge of a layer, the end first in node order if undirected."""
+        """Return the source and target node of every edge of a layer.
+
+        If undirected, the end first in node order comes first.
+        """
         index = {node: number for number, node in enumerate(self.graph.nodes)}
         pairs = np.array([(index[first], index[second]) for first, second in graph.edges()], dtype=np.intp)
         pairs = pairs.reshape(-1, 2)
@@ -120,7 +135,10 @@ class NetworkSpace(BaseSpace):
         return pairs[:, 0].copy(), pairs[:, 1].copy()
 
     def _get_adjacency(self, sources: Indices, targets: Indices, directed: bool) -> tuple[Indices, Indices, Indices]:
-        """Return the neighbours of every node in compressed sparse row form, with the edge of every entry."""
+        """Return the neighbours of every node in compressed sparse row form.
+
+        It also returns the edge of every entry.
+        """
         edges = np.arange(sources.size, dtype=np.intp)
         readers = sources if directed else np.concatenate([sources, targets])
         others = targets if directed else np.concatenate([targets, sources])
@@ -131,7 +149,10 @@ class NetworkSpace(BaseSpace):
         return indptr, others[order].astype(np.intp), ids[order].astype(np.intp)
 
     def _get_hyperedges(self) -> list[tuple[object, ...]]:
-        """Return the nodes of every hyperedge, those of an XGI hyperedge in the order of the nodes of the graph."""
+        """Return the nodes of every hyperedge.
+
+        Those of an XGI hyperedge come in the order of the nodes of the graph.
+        """
         if not isinstance(self.hyperedges, xgi.Hypergraph):
             return [tuple(hyperedge) for hyperedge in self.hyperedges]
         order = {node: number for number, node in enumerate(self.graph.nodes)}
@@ -143,7 +164,9 @@ class NetworkSpace(BaseSpace):
         ]
 
     def _count_parts(self, on: str, layer: str | None = None) -> int:
-        """Return the number of nodes, of edges of a layer, or of hyperedges, which a group has one member on.
+        """Return the number of nodes, of edges of a layer, or of hyperedges.
+
+        A group has one member on each.
 
         Args:
             on:
@@ -170,15 +193,19 @@ class NetworkSpace(BaseSpace):
             return len(self.hyperedges_)
         return super()._count_parts(on, layer)
 
-    def _check(self) -> None:
-        """Raise an error for a hyperedge or a layer that does not fit the nodes of the graph."""
+    def _prepare(self, context: None = None) -> None:
+        """Set the graph, the edges, the adjacency of every layer, and the node positions.
+
+        It first raises an error for a hyperedge or a layer that does not fit the graph nodes.
+        """
+        super()._prepare(context)
         nodes = set(self.graph.nodes)
         for hyperedge in self._get_hyperedges():
             if len(hyperedge) < MIN_HYPEREDGE_NODES or not set(hyperedge) <= nodes:
                 error_msg = f'The hyperedge {tuple(hyperedge)} needs at least two nodes of the graph.'
                 raise ValidationError(error_msg)
         for layer in self.layers:
-            layer._validated()
+            layer._check()
         labels = [layer.label for layer in self.layers]
         repeated = sorted({label for label in labels if labels.count(label) > 1})
         if repeated:
@@ -190,9 +217,6 @@ class NetworkSpace(BaseSpace):
             if set(layer.graph.nodes) != nodes:
                 error_msg = f'The layer {layer.label!r} has other nodes than the graph. Give it the nodes of the graph.'
                 raise ValidationError(error_msg)
-
-    def _prepare(self, context: None = None) -> None:
-        """Set the graph, the edges, and the adjacency of every layer, and the position of every node."""
         self.size_ = int(self.graph.number_of_nodes())
         self.n_dim_ = 1
         self.shape_ = (self.size_,)
@@ -230,10 +254,10 @@ class NetworkSpace(BaseSpace):
         return AdjacencyNeighborhood()
 
     def _index_table(self, neighborhood: BaseNeighborhood) -> npt.NDArray[np.intp]:
-        """Return the node index of every neighbour of every node, padded with the number of nodes.
+        """Return the node index of every neighbour of every node.
 
-        The table has one row per node and one column per neighbour slot, as wide as the largest degree, plus one column
-        for the node itself when the neighbourhood includes it.
+        It is padded with the number of nodes. The table has one row per node and one column per neighbour slot, as wide
+        as the largest degree, plus one column for the node itself when the neighbourhood includes it.
         """
         if not isinstance(neighborhood, AdjacencyNeighborhood):
             error_msg = f'A network reads an adjacency neighbourhood, but it was given {neighborhood!r}.'
@@ -249,7 +273,10 @@ class NetworkSpace(BaseSpace):
         return table
 
     def _neighbor_pairs(self, layer: str | None = None) -> list[tuple[int, int]]:
-        """Return the pairs of distinct nodes joined by an edge of a layer, in the order of its edges."""
+        """Return the pairs of distinct nodes joined by an edge of a layer.
+
+        They come in the order of its edges.
+        """
         sources, targets = self.edges_[layer]
         return [
             (first, second) for first, second in zip(sources.tolist(), targets.tolist(), strict=True) if first != second

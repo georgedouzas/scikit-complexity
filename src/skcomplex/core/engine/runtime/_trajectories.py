@@ -50,12 +50,12 @@ class Trajectory:
     Examples:
         >>> from skcomplex.core.components.system import System
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
-        >>> from skcomplex.core.engine.runtime import Simulation
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> system = System(
         ...     elements=[PopulationElement('a', n=1)],
         ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
         ... )
-        >>> trajectory = Simulation(system, dt=0.5).prepare().run(until=1).trajectory_
+        >>> trajectory = simulate(system, until=1, dt=0.5)
         >>> trajectory.times.tolist()
         [0.0, 0.5, 1.0]
         >>> trajectory.values('a.n').round(3).tolist()
@@ -86,7 +86,10 @@ class Trajectory:
         self.structures = structures
 
     def _present(self, name: str, values: AnyArray) -> AnyArray:
-        """Return the values of a variable with NaN in the rows of a variable group that hold no member at a frame."""
+        """Return the values of a variable with NaN where a group holds no member.
+
+        The NaN fill the rows of a variable group that hold no member at a frame.
+        """
         topology = self.problem.topology
         if topology is None or topology.presence(name, self.parameters[0]) is None:
             return values
@@ -131,7 +134,9 @@ class Trajectory:
         raise KeyError(error_msg)
 
     def member(self, index: int, problem: BaseProblemSpec) -> 'Trajectory':
-        """Return the trajectory of one member of a replicated system, as a trajectory of the original system.
+        """Return the trajectory of one member of a replicated system.
+
+        It is a trajectory of the original system.
 
         Args:
             index:
@@ -146,13 +151,13 @@ class Trajectory:
 
         Examples:
             >>> import numpy as np
-            >>> from skcomplex.core.engine.compile import PassCompiler
-            >>> from skcomplex.core.engine.runtime import Simulation
-            >>> from skcomplex.core.experiments import BaseExperiment
-            >>> from skcomplex.systems.mathematics.dynamical_systems import logistic_map
-            >>> ensemble = BaseExperiment._replicate(logistic_map(), 3, {'map.x': [0.1, 0.2, 0.3]})
-            >>> trajectory = Simulation(ensemble, dt=1).prepare().run(until=2).trajectory_
-            >>> float(trajectory.member(1, PassCompiler().prepare(logistic_map()).run().problem_).values('map.x')[0])
+            >>> from skcomplex.core.experiments._replicate import _replicate
+            >>> from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
+            >>> from skcomplex.core.engine.runtime import simulate
+            >>> system = LogisticMapSystem().prepare().system_
+            >>> ensemble = _replicate(system, 3, {'map.x': [0.1, 0.2, 0.3]})
+            >>> trajectory = simulate(ensemble, until=2, dt=1)
+            >>> float(trajectory.member(1, simulate(system, until=0).problem).values('map.x')[0])
             0.2
         """
         frames = len(self.times)
@@ -180,13 +185,18 @@ class Trajectory:
 
     @property
     def names(self) -> list[str]:
-        """Names of the states, parameters, reporters, and observables that `values` reads."""
+        """Names that `values` reads.
+
+        They are the names of the states, parameters, reporters, and observables.
+        """
         reporters = list(self.reporters[0]) if self.reporters else []
         observables = list(self.observables[0]) if self.observables else []
         return [*self.problem.states.names, *self.problem.parameters.names, *reporters, *observables]
 
     def agent_locations(self, group: str) -> list[AnyArray]:
-        """Return the locations of the agents of a group, one array per frame with one row per agent alive.
+        """Return the locations of the agents of a group.
+
+        There is one array per frame with one row per agent alive.
 
         Args:
             group:
@@ -197,9 +207,9 @@ class Trajectory:
                 The locations at every frame, empty arrays for frames without locations.
 
         Examples:
-            >>> from skcomplex.core.engine.runtime import Simulation
-            >>> from skcomplex.systems import create_system
-            >>> trajectory = Simulation(create_system('boids'), random_state=0).prepare().run(until=2).trajectory_
+            >>> from skcomplex.core.engine.runtime import simulate
+            >>> from skcomplex.systems.biology.collective_behaviour import BoidsSystem
+            >>> trajectory = simulate(BoidsSystem().prepare().system_, until=2, random_state=0)
             >>> [locations.shape[1] for locations in trajectory.agent_locations('flock')]
             [2, 2, 2]
         """
@@ -232,7 +242,9 @@ class Trajectory:
         return self.values(name).reshape(len(self.times), *shape, *self.problem.states.entry(name).member_shape)
 
     def agents(self, group: str, frame: int) -> AgentSnapshotSpec:
-        """Return the agents of a group alive at a frame, with their ids, states, and locations.
+        """Return the agents of a group alive at a frame.
+
+        They come with their ids, states, and locations.
 
         Args:
             group:
@@ -256,7 +268,9 @@ class Trajectory:
         return groups[group]
 
     def network(self, frame: int, nodes: str | None = None, layer: str | None = None) -> NetworkSnapshotSpec:
-        """Return the nodes and edges of a network whose topology changes, as they are at a frame.
+        """Return the nodes and edges of a changing network at a frame.
+
+        The network is one whose topology changes.
 
         Args:
             frame:
@@ -301,8 +315,9 @@ class Trajectory:
                 The path is not a rewritten element of the system.
 
         Examples:
-            >>> from skcomplex.systems import create_simulation
-            >>> trajectory = create_simulation('cantor_set').prepare().run(until=4).trajectory_
+            >>> from skcomplex.core.engine.runtime import simulate
+            >>> from skcomplex.systems.mathematics.fractals import CantorSetSystem
+            >>> trajectory = simulate(CantorSetSystem(), until=4, random_state=0)
             >>> trajectory.structure('cantor', 2).parts
             4
         """

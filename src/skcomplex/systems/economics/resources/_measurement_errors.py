@@ -1,4 +1,7 @@
-"""Resources systems: a logistic fish stock harvested by a quota set from a noisy measurement of the stock."""
+"""Resources systems: a logistic fish stock harvested by a quota.
+
+The quota is set from a noisy measurement of the stock.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,9 +16,8 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import both, normal, where
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 def _extinct_share(stocks: object) -> float:
@@ -24,12 +26,13 @@ def _extinct_share(stocks: object) -> float:
 
 
 class MeasuredFisheryElement(Element):
-    """Logistic fish stock with a noisy growth rate, harvested by a quota set from a measurement with an error.
+    """Logistic fish stock with a noisy growth rate, harvested by a quota.
 
-    Every step of length `step` is an Euler-Maruyama step of `dx = (R0 + sigma_R W) x (1 - x / K) dt - gamma dt`, where
-    `W` is white noise. The fishermen measure `x~ = x + e`, with a Gaussian error `e` of standard deviation `error`, and
-    set the quota `gamma = x~ - K / 2`, which is never negative unless `restocking` lets a negative quota release fish.
-    A stock that reaches zero is extinct and stays at zero.
+    The quota is set from a measurement with an error. Every step of length `step` is an Euler-Maruyama step of
+    `dx = (R0 + sigma_R W) x (1 - x / K) dt - gamma dt`, where `W` is white noise. The fishermen measure `x~ = x + e`,
+    with a Gaussian error `e` of standard deviation `error`, and set the quota `gamma = x~ - K / 2`, which is never
+    negative unless `restocking` lets a negative quota release fish. A stock that reaches zero is extinct and stays at
+    zero.
 
     Args:
         label:
@@ -68,6 +71,10 @@ class MeasuredFisheryElement(Element):
         0.1
     """
 
+    draws = True
+
+    law_classes = (UpdateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -94,7 +101,10 @@ class MeasuredFisheryElement(Element):
 
     @staticmethod
     def _quota(s: SimpleNamespace) -> Expression:
-        """Return the quota `x~ - K / 2` from the measured stock, floored at zero without restocking."""
+        """Return the quota `x~ - K / 2` from the measured stock.
+
+        It is floored at zero without restocking.
+        """
         quota = s.x + normal('error', 0, 1) * s.error - s.K / 2
         return where(quota > 0, quota, s.restocking * quota)
 
@@ -115,38 +125,21 @@ class MeasuredFisheryElement(Element):
         return [UpdateLaw(s.x, where(both(s.x > 0, noisy > 0), noisy, 0)), UpdateLaw(s.catch, quota)]
 
 
-@register_system(
-    field='economics/resources',
-    tags=('fishery', 'harvesting', 'measurement error', 'sde', 'extinction', 'feedback control'),
-    references=('Argun et al. 2021', 'Argun et al. 2016'),
-    defaults={'until': 5000},
-    observables=lambda system: [
-        ObservableSpec('extinct', group='fisheries', variable='x', reduce=_extinct_share),
-        ObservableSpec('mean_stock', group='fisheries', variable='x', reduce='mean'),
-        ObservableSpec('mean_catch', group='fisheries', variable='catch', reduce='mean'),
-    ],
-)
-def fishery_measurement_errors(
-    n_fisheries: int = 200,
-    *,
-    x: float = 0.5,
-    r0: float = 1.0,
-    sigma_r: float = 1.0,
-    K: float = 1.0,
-    error: float = 0.0,
-    step: float = 0.01,
-    restocking: bool = False,
-) -> System:
-    """Return independent fisheries whose quota is set from a measurement of the stock with a Gaussian error.
+class FisheryMeasurementErrorsSystem(BaseSystem):
+    """Independent fisheries whose quota is set from a measurement of the stock.
 
-    The fish stock grows logistically with a growth rate `R0 + sigma_R W(t)` that white noise `W` makes random, and the
-    fishermen harvest the quota `gamma(x~) = x~ - K / 2` from their measurement `x~ = x + e(t)`, Problem 14.8 of
-    Argun et al. (2021). The harvest of the deterministic system peaks at `x = K / 2`, at `R0 K / 4`, and the quota
-    rule holds the stock at `K / sqrt(2)`, where the growth `R0 x (1 - x / K)` equals the quota. The problem asks
-    whether the extinction probability can fall as the measurement error grows, after Argun et al. (2016). A quota is
-    a catch, so it is floored at zero, and `restocking` lets a negative quota release fish as the formula of the source
-    does. Every member of the group `fisheries` is an independent replica, so the share of extinct stocks estimates
-    the extinction probability, and a step is an Euler-Maruyama step of length `step`.
+    The measurement has a Gaussian error. The fish stock grows logistically with a growth rate `R0 + sigma_R W(t)` that
+    white noise `W` makes random, and the fishermen harvest the quota `gamma(x~) = x~ - K / 2` from their measurement
+    `x~ = x + e(t)`, Problem 14.8 of Argun et al. (2021). The harvest of the deterministic system peaks at `x = K / 2`,
+    at `R0 K / 4`, and the quota rule holds the stock at `K / sqrt(2)`, where the growth `R0 x (1 - x / K)` equals the
+    quota. The problem asks whether the extinction probability can fall as the measurement error grows, after Argun et
+    al. (2016). A quota is a catch, so it is floored at zero, and `restocking` lets a negative quota release fish as the
+    formula of the source does. Every member of the group `fisheries` is an independent replica, so the share of extinct
+    stocks estimates the extinction probability, and a step is an Euler-Maruyama step of length `step`.
+
+    The system has the group `fisheries` of the stocks `fisheries.x` and the quotas `fisheries.catch`. The observables
+    of the system are the share of extinct stocks `extinct`, the mean stock `mean_stock`, and the mean quota
+    `mean_catch`.
 
     Args:
         n_fisheries:
@@ -173,29 +166,62 @@ def fishery_measurement_errors(
         restocking:
             Whether a negative quota releases fish.
 
-    Returns:
-        system:
-            The system, with the group `fisheries` of the stocks `fisheries.x` and the quotas `fisheries.catch`. The
-            observables of the system are the share of extinct stocks `extinct`, the mean stock `mean_stock`, and the
-            mean quota `mean_catch`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.resources import fishery_measurement_errors
-        >>> fishery_measurement_errors(10).elements[0].prepare().size_
+        >>> from skcomplex.systems.economics.resources import FisheryMeasurementErrorsSystem
+        >>> FisheryMeasurementErrorsSystem(10).prepare().system_.elements[0].prepare().size_
         10
     """
-    fisheries = GroupElement(
-        'fisheries',
-        element=MeasuredFisheryElement,
-        size=n_fisheries,
-        values={
-            'x': x,
-            'r0': r0,
-            'sigma_r': sigma_r,
-            'K': K,
-            'error': error,
-            'step': step,
-            'restocking': float(restocking),
-        },
+
+    field = 'economics/resources'
+    topics = ('fishery', 'harvesting', 'measurement error', 'sde', 'extinction', 'feedback control')
+    references = ('Argun et al. 2021', 'Argun et al. 2016')
+    until = 5000
+    observables = (
+        ObservableSpec('extinct', group='fisheries', variable='x', reduce=_extinct_share),
+        ObservableSpec('mean_stock', group='fisheries', variable='x', reduce='mean'),
+        ObservableSpec('mean_catch', group='fisheries', variable='catch', reduce='mean'),
     )
-    return System(elements=[fisheries])
+
+    def __init__(
+        self,
+        n_fisheries: int = 200,
+        *,
+        x: float = 0.5,
+        r0: float = 1.0,
+        sigma_r: float = 1.0,
+        K: float = 1.0,
+        error: float = 0.0,
+        step: float = 0.01,
+        restocking: bool = False,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_fisheries = n_fisheries
+        self.x = x
+        self.r0 = r0
+        self.sigma_r = sigma_r
+        self.K = K
+        self.error = error
+        self.step = step
+        self.restocking = restocking
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        fisheries = GroupElement(
+            'fisheries',
+            element=MeasuredFisheryElement,
+            size=self.n_fisheries,
+            values={
+                'x': self.x,
+                'r0': self.r0,
+                'sigma_r': self.sigma_r,
+                'K': self.K,
+                'error': self.error,
+                'step': self.step,
+                'restocking': float(self.restocking),
+            },
+        )
+        return System(self.label, elements=[fisheries])

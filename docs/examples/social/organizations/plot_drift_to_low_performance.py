@@ -13,14 +13,14 @@ upbeat bias turns it into a drift toward high performance.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.social.organizations import DriftToLowPerformanceSystem
 
 SYSTEM = 'drift_to_low_performance'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(create_system(SYSTEM), dt=0.5, observers=[observer]).prepare().run(100)
+trajectory = simulate(DriftToLowPerformanceSystem(), observers=[observer])
 
 # %%
 # The trap and the two ways out
@@ -29,9 +29,9 @@ simulation = Simulation(create_system(SYSTEM), dt=0.5, observers=[observer]).pre
 # initial level, and with an upbeat bias of 10% it should grow.
 
 runs = {
-    'eroding goals': simulation.trajectory_,
-    'absolute standards': Simulation(create_system(SYSTEM, absolute=True), dt=0.5).prepare().run(100).trajectory_,
-    'upbeat bias': Simulation(create_system(SYSTEM, bias=-0.1), dt=0.5).prepare().run(100).trajectory_,
+    'eroding goals': trajectory,
+    'absolute standards': simulate(DriftToLowPerformanceSystem(absolute=True)),
+    'upbeat bias': simulate(DriftToLowPerformanceSystem(bias=-0.1)),
 }
 fig, (performance, states) = plt.subplots(1, 2, figsize=(10, 4))
 for name, trajectory in runs.items():

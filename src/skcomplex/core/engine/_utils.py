@@ -1,4 +1,7 @@
-"""Define the helpers every engine package shares: symbols of compiled laws and declarations of parts."""
+"""Define the helpers every engine package shares.
+
+They give the symbols of compiled laws and the declarations of parts.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,10 +26,11 @@ INSTANCE_VARIABLES: weakref.WeakKeyDictionary[
 
 
 def symbol(name: str, domain: object = RR) -> Expression:
-    """Return the Sage symbol of a name, declared real or integer, or left complex, for the values of a Sage set.
+    """Return the Sage symbol of a name for the values of a Sage set.
 
-    The symbol is declared without Maxima, which Sage would otherwise load to record the domain, so compiling stays
-    fast. Sage keeps one symbol per name, so a name declared before with another domain is declared again.
+    The symbol is declared real or integer, or left complex. The symbol is declared without Maxima, which Sage would
+    otherwise load to record the domain, so compiling stays fast. Sage keeps one symbol per name, so a name declared
+    before with another domain is declared again.
 
     Args:
         name:
@@ -55,7 +59,9 @@ def symbol(name: str, domain: object = RR) -> Expression:
 
 
 def domain_of(item: Expression) -> object:
-    """Return the Sage set a symbol was declared for: the integers, the reals, or the complex numbers.
+    """Return the Sage set a symbol was declared for.
+
+    It is the integers, the reals, or the complex numbers.
 
     Args:
         item:
@@ -183,7 +189,10 @@ def _variable_of(spec: StateSpec | ParameterSpec | RoleSpec) -> VariableSpec:
 
 
 def _companions(name: str, variable: VariableSpec, default: object) -> dict[str, tuple[VariableSpec, object]]:
-    """Return the companion states of a state of higher order or with lags, with their defaults, by name."""
+    """Return the companion states of a state of higher order or with lags.
+
+    They are given by name, with their defaults.
+    """
     companions: dict[str, tuple[VariableSpec, object]] = {}
     domain = CC if variable.domain is CC else RR
     for index in range(1, variable.derivatives + 1):
@@ -198,7 +207,10 @@ def _companions(name: str, variable: VariableSpec, default: object) -> dict[str,
 
 
 def _instance_variables(part: BasePart) -> dict[str, tuple[VariableSpec, object]]:
-    """Return the variables of a part instance, those of its class and those it declares, read once per declaration."""
+    """Return the variables of a part instance.
+
+    They are those of its class and those it declares, read once per declaration.
+    """
     declared = part._get_declared()
     if not declared:
         return _class_variables(type(part))
@@ -216,10 +228,10 @@ def _instance_variables(part: BasePart) -> dict[str, tuple[VariableSpec, object]
 
 
 def declared_variables(part: object) -> dict[str, tuple[VariableSpec, object]]:
-    """Return the declaration and the default of every state, parameter, and role of a part, with companion states.
+    """Return the declaration and the default of every variable of a part.
 
-    A companion state follows the state it belongs to. An instance adds the variables it declares from data, whose
-    default is their value.
+    The variables are every state, parameter, and role, with companion states. A companion state follows the state it
+    belongs to. An instance adds the variables it declares from data, whose default is their value.
 
     Args:
         part:
@@ -254,10 +266,11 @@ def declared_variables(part: object) -> dict[str, tuple[VariableSpec, object]]:
 
 @functools.cache
 def _class_variables(cls: type[BasePart]) -> dict[str, tuple[VariableSpec, object]]:
-    """Return the declaration and the default of every variable of a part class, read once per class.
+    """Return the declaration and the default of every variable of a part class.
 
-    Rules read the declarations of their agents every step, such as the group a reference state names, so the signature
-    and the annotations of a class are parsed once. Callers receive a copy from `declared_variables`.
+    They are read once per class. Rules read the declarations of their agents every step, such as the group a reference
+    state names, so the signature and the annotations of a class are parsed once. Callers receive a copy from
+    `declared_variables`.
     """
     parameters = inspect.signature(cls).parameters
     variables: dict[str, tuple[VariableSpec, object]] = {}
@@ -289,7 +302,9 @@ def declarations_of(part: object, kind: VariableKind) -> dict[str, VariableSpec]
 
 
 def default_of(part: object, name: str) -> object:
-    """Return the default of a declared state, parameter, or role of a part, or of one of its companion states.
+    """Return the default of a declared variable of a part.
+
+    The variable is a state, a parameter, or a role, or one of its companion states.
 
     Args:
         part:

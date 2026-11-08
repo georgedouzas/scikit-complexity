@@ -61,7 +61,9 @@ class ReferenceSpec(BaseSpec):
         return slice(self.entry.start + self.column, self.entry.start + self.entry.size, self.entry.columns)
 
     def column_of(self, x: Array, p: Array) -> Array:
-        """Return the component of every member as a view into the state or parameter vector.
+        """Return the component of every member.
+
+        It is a view into the state or parameter vector.
 
         Args:
             x:

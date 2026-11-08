@@ -86,7 +86,10 @@ class ExtremalKernel(BaseKernel):
         self.loop = loop
 
     def _apply_once(self, x: Array, p: Array, rng: np.random.Generator) -> tuple[int, float]:
-        """Update the extremal site and its neighbours once, and return the site and its value."""
+        """Update the extremal site and its neighbours once.
+
+        The site and its value are returned.
+        """
         keys = x[self.key.sites]
         best = keys.max() if self.maximum else keys.min()
         ties = np.flatnonzero(keys == best)
@@ -107,9 +110,10 @@ class ExtremalKernel(BaseKernel):
         return site, float(best)
 
     def _run(self, inputs: RunStateSpec | None) -> None:
-        """Apply the law `repeat` times to the state vector of the state in place, and set the records.
+        """Apply the law `repeat` times to the state vector of the state in place.
 
-        Every record holds the time of the state, the site, and the extremal value of one application.
+        The records are set too. Every record holds the time of the state, the site, and the extremal value of one
+        application.
         """
         state = self._state_of(inputs)
         x, p, rng, time = state.x, state.p, self._generator_of(state), state.t

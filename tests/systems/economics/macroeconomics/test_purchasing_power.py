@@ -3,8 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.systems import describe
-from skcomplex.systems.economics.macroeconomics import categorized_purchasing_power
+from skcomplex.systems.economics.macroeconomics import CategorizedPurchasingPowerSystem
 from skcomplex.systems.economics.macroeconomics._purchasing_power import A_MATRIX, B_MATRIX, C_MATRIX, D_MATRIX
 
 from ..conftest import _run
@@ -12,9 +11,7 @@ from ..conftest import _run
 
 def _indices(feedback):
     """Return the indices of the sectors after a step policy on the luxury sector."""
-    system = categorized_purchasing_power(feedback=feedback)
-    observables = describe('categorized_purchasing_power').observables_of(system)
-    trajectory = _run(system, 30.0, 0.05, observables=observables)
+    trajectory = _run(CategorizedPurchasingPowerSystem(feedback=feedback), 30.0, 0.05)
     return [trajectory.values(f'economy.y{i}') for i in (1, 2, 3)]
 
 

@@ -13,14 +13,14 @@ winner's copy replacing the loser. Conflicts between groups favour the punishers
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.social.cooperation import TwoLevelBirthDeathSystem
 
 SYSTEM = 'two_level_birth_death'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(create_system(SYSTEM), observers=[observer], random_state=0).prepare().run(until=100)
+trajectory = simulate(TwoLevelBirthDeathSystem(), observers=[observer], random_state=0)
 
 # %%
 # With and without conflicts between groups
@@ -28,12 +28,12 @@ simulation = Simulation(create_system(SYSTEM), observers=[observer], random_stat
 # With conflicts the groups of punishers should take over the population, and without them defectors should gain,
 # while drift fixes every group at all punishers or all defectors.
 
-peaceful = Simulation(create_system(SYSTEM, conflict_rate=0.0), random_state=0).prepare().run(100).trajectory_
+peaceful = simulate(TwoLevelBirthDeathSystem(conflict_rate=0.0), random_state=0)
 fig, (means, final) = plt.subplots(1, 2, figsize=(10, 4))
-for name, trajectory in (('conflicts', simulation.trajectory_), ('no conflicts', peaceful)):
-    share = [np.mean(trajectory.agents('groups', frame).values['punishers']) / 20 for frame in range(101)]
-    means.plot(trajectory.times, share, label=name)
-    final.hist(trajectory.agents('groups', 100).values['punishers'], bins=np.arange(22) - 0.5, alpha=0.6, label=name)
+for name, run in (('conflicts', trajectory), ('no conflicts', peaceful)):
+    share = [np.mean(run.agents('groups', frame).values['punishers']) / 20 for frame in range(101)]
+    means.plot(run.times, share, label=name)
+    final.hist(run.agents('groups', 100).values['punishers'], bins=np.arange(22) - 0.5, alpha=0.6, label=name)
 means.set_xlabel('time')
 means.set_ylabel('mean fraction of punishers')
 means.set_title('Group conflicts sustain punishers')

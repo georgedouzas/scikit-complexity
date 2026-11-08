@@ -1,4 +1,7 @@
-"""Define thermal sampling, Monte Carlo sweeps that read an energy at a temperature."""
+"""Define thermal sampling.
+
+Monte Carlo sweeps read an energy at a temperature.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,7 +19,9 @@ from .....core.specs import ParameterSpec, RoleSpec
 
 
 class ThermalSamplingInteraction(SamplingInteraction):
-    """Monte Carlo sweeps of a state in an energy at a temperature, the intensity one over the temperature.
+    """Monte Carlo sweeps of a state in an energy at a temperature.
+
+    The intensity is one over the temperature.
 
     Args:
         label:
@@ -97,10 +102,16 @@ class ThermalSamplingInteraction(SamplingInteraction):
         self.temperature = temperature
 
     def _get_parameter(self, name: str) -> str:
-        """Return `energy` for the objective of the general interaction, and any other name unchanged."""
+        """Return `energy` for the objective of the general interaction.
+
+        Any other name is returned unchanged.
+        """
         return 'energy' if name == 'objective' else name
 
     def _get_intensity(self, namespace: SimpleNamespace) -> object:
-        """Return one over the temperature, infinite at a temperature of zero that a row score reads as a value."""
+        """Return one over the temperature.
+
+        It is infinite at a temperature of zero, which a row score reads as a value.
+        """
         temperature = SR(self._get_parameter_symbol('temperature', namespace))
         return float('inf') if temperature.is_zero() else 1 / temperature

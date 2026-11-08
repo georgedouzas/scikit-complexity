@@ -15,9 +15,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.biology.oncology import ImmuneCompetitionSystem
 
 SYSTEM = 'immune_competition'
 
@@ -30,19 +30,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-system = create_system(SYSTEM)
-simulation = (
-    Simulation(
-        system,
-        observers=[observer],
-        dt=0.1,
-        observables=describe(SYSTEM).observables_of(system),
-    )
-    .prepare()
-    .run(
-        until=10,
-    )
-)
+trajectory = simulate(ImmuneCompetitionSystem(), until=10, dt=0.1, observers=[observer])
 
 # %%
 # The activation threshold
@@ -54,13 +42,8 @@ simulation = (
 
 def final_density(activation):
     """Return the tumour density after 20 time units for an initial immune activation."""
-    system_system = create_system(SYSTEM, activation=activation)
-    run = (
-        Simulation(system_system, dt=20.0, observables=describe(SYSTEM).observables_of(system_system))
-        .prepare()
-        .run(until=20)
-    )
-    return run.trajectory_.values('tumour_density')[-1]
+    run = simulate(ImmuneCompetitionSystem(activation=activation), until=20, dt=20.0)
+    return run.values('tumour_density')[-1]
 
 
 activations = np.linspace(0.0, 1.0, 5)

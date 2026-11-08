@@ -1,4 +1,7 @@
-"""Crowd systems: the kinetic theory of criminality in a society and the security forces that act against it."""
+"""Crowd systems: the kinetic theory of criminality in a society.
+
+It includes the security forces that act against it.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,13 +19,14 @@ from ....core.components.elements import DensityElement, Element, GroupElement
 from ....core.components.interactions import EncounterInteraction, RateInteraction
 from ....core.components.laws.utils import moment
 from ....core.components.spaces import ContinuousTime, LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, RunSettings, System
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class SecurityAgentsElement(Element):
-    """Density of security agents at one efficacy class, with the share of new recruits that join the class.
+    """Density of security agents at one efficacy class.
+
+    It holds the share of new recruits that join the class.
 
     Args:
         label:
@@ -94,7 +98,9 @@ def contagion_table(classes: int, attraction: object, redemption: object) -> npt
 
 
 class CriminalContagionInteraction(EncounterInteraction):
-    """Conservative encounters between citizens, in which crime attracts and honesty redeems.
+    """Conservative encounters between citizens.
+
+    In them crime attracts and honesty redeems.
 
     Args:
         label:
@@ -151,10 +157,10 @@ class CriminalContagionInteraction(EncounterInteraction):
 
 
 def deterrence_table(classes: int, forces: int) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
-    """Return the rate pattern and the transition table of the encounters of citizens with security forces.
+    """Return the rate pattern and the transition table of deterrence encounters.
 
-    A citizen of a criminal class `h > 0` who meets a security agent of efficacy `v_k` moves one class down at a rate
-    proportional to `v_k`. Honest citizens are left alone.
+    They are the encounters of citizens with security forces. A citizen of a criminal class `h > 0` who meets a security
+    agent of efficacy `v_k` moves one class down at a rate proportional to `v_k`. Honest citizens are left alone.
 
     Args:
         classes:
@@ -185,7 +191,9 @@ def deterrence_table(classes: int, forces: int) -> tuple[npt.NDArray[np.float64]
 
 
 class DeterrenceInteraction(EncounterInteraction):
-    """Encounters of citizens with security forces, which move criminal citizens toward honesty.
+    """Encounters of citizens with security forces.
+
+    They move criminal citizens toward honesty.
 
     Args:
         label:
@@ -228,7 +236,10 @@ class DeterrenceInteraction(EncounterInteraction):
         self.deterrence = deterrence
 
     def _get_rate(self, s: SimpleNamespace) -> object:
-        """Return the deterrence rate of every pair of a criminality class and an efficacy class."""
+        """Return the deterrence rate of every pair of classes.
+
+        A pair holds a criminality class and an efficacy class.
+        """
         return deterrence_table(int(self.classes), int(self.forces))[0] * s.deterrence
 
     def _get_kernel(self, s: SimpleNamespace) -> object:
@@ -237,7 +248,9 @@ class DeterrenceInteraction(EncounterInteraction):
 
 
 def criminality_grid(classes: int) -> npt.NDArray[np.float64]:
-    """Return the criminality of every class of citizens, from 0 for honest to 1 for criminal.
+    """Return the criminality of every class of citizens.
+
+    It runs from 0 for honest to 1 for criminal.
 
     Args:
         classes:
@@ -256,11 +269,11 @@ def criminality_grid(classes: int) -> npt.NDArray[np.float64]:
 
 
 class RecruitmentInteraction(RateInteraction):
-    """Recruitment of security agents in proportion to the mean criminality, a macro-scale external action.
+    """Recruitment of security agents in proportion to the mean criminality.
 
-    It is a `RateInteraction` of the density `f` of the security forces that reads the citizens. The security forces
-    grow at the rate `recruitment m share_k` in efficacy class `k`, where `m` is the mean criminality of the citizens,
-    a moment of their distribution, and retire at the rate `retirement`.
+    It is a macro-scale external action. It is a `RateInteraction` of the density `f` of the security forces that reads
+    the citizens. The security forces grow at the rate `recruitment m share_k` in efficacy class `k`, where `m` is the
+    mean criminality of the citizens, a moment of their distribution, and retire at the rate `retirement`.
 
     Args:
         label:
@@ -304,7 +317,10 @@ class RecruitmentInteraction(RateInteraction):
         self.retirement = retirement
 
     def _get_rate(self, s: SimpleNamespace) -> Expression:
-        """Return the recruitment in proportion to the mean criminality of the citizens, less the retirement."""
+        """Return the recruitment of security agents, less the retirement.
+
+        The recruitment is in proportion to the mean criminality. The criminality is that of the citizens.
+        """
         security, citizens = s.target, s.citizens
         criminality = moment(citizens.f, 1, criminality_grid(int(self.classes)), normalized=True)
         return s.recruitment * criminality * security.share - s.retirement * security.f
@@ -374,7 +390,9 @@ def _sizes_of(system: System) -> tuple[int, int]:
 
 
 def criminality_observables(classes: int, forces: int) -> list[ObservableSpec]:
-    """Return the mean criminality, the criminal fraction, and the density of the security forces of the system.
+    """Return the mean criminality, the criminal fraction, and the security density.
+
+    The density is that of the security forces of the system.
 
     Args:
         classes:
@@ -400,33 +418,19 @@ def criminality_observables(classes: int, forces: int) -> list[ObservableSpec]:
     ]
 
 
-@register_system(
-    field='social/crowds',
-    tags=('criminality', 'security', 'kinetic', 'distribution'),
-    references=CRIMINALITY_REFERENCES,
-    defaults={'until': 60, 'dt': 0.5},
-    observables=lambda system: criminality_observables(*_sizes_of(system)),
-)
-def criminality(
-    classes: int = 5,
-    forces: int = 3,
-    *,
-    criminals: float = 0.2,
-    security: float = 0.05,
-    attraction: float = 0.3,
-    redemption: float = 0.1,
-    deterrence: float = 2.0,
-    recruitment: float = 0.5,
-    retirement: float = 0.1,
-) -> System:
-    """Return the kinetic system of criminality in a society and the security forces that act against it.
+class CriminalitySystem(BaseSystem):
+    """The kinetic system of criminality in a society.
 
-    Citizens are a distribution over criminality classes and security agents a distribution over efficacy classes,
-    held by site groups on lattices of the classes. Encounters between citizens spread crime when it attracts more than
-    honesty redeems, encounters with security agents move criminal citizens toward honesty, a micro-scale action, and
-    the security forces grow in proportion to the mean criminality, a macro-scale action that reads a moment of the
-    citizens. The security forces grow while crime is high, crime recedes, and the forces retire, so crime and
-    security oscillate toward a balance where some crime persists.
+    It includes the security forces that act against it. Citizens are a distribution over criminality classes and
+    security agents a distribution over efficacy classes, held by site groups on lattices of the classes. Encounters
+    between citizens spread crime when it attracts more than honesty redeems, encounters with security agents move
+    criminal citizens toward honesty, a micro-scale action, and the security forces grow in proportion to the mean
+    criminality, a macro-scale action that reads a moment of the citizens. The security forces grow while crime is high,
+    crime recedes, and the forces retire, so crime and security oscillate toward a balance where some crime persists.
+
+    The system has the distributions `citizens` and `security` and the interactions `contagion`, `deterrence`, and
+    `recruitment`. Its standard observables are the mean criminality, the criminal fraction, and the density of the
+    security forces.
 
     Args:
         classes:
@@ -456,57 +460,102 @@ def criminality(
         retirement:
             The retirement rate of security agents.
 
-    Returns:
-        system:
-            The system, with the distributions `citizens` and `security` and the interactions `contagion`,
-            `deterrence`, and `recruitment`. Its standard observables are the mean criminality, the criminal fraction,
-            and the density of the security forces.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.crowds import criminality
-        >>> [item.label for item in criminality().interactions]
+        >>> from skcomplex.systems.social.crowds import CriminalitySystem
+        >>> [item.label for item in CriminalitySystem().prepare().system_.interactions]
         ['contagion', 'deterrence', 'recruitment']
     """
-    citizens = np.zeros(classes)
-    citizens[0], citizens[-1] = 1.0 - criminals, criminals
-    return System(
-        elements=[
-            GroupElement('citizens', element=DensityElement, size=classes, on='sites', values={'f': citizens}),
-            GroupElement(
-                'security',
-                element=SecurityAgentsElement,
-                size=forces,
-                on='sites',
-                space=LatticeSpace(forces, boundary='fixed'),
-                values={'f': np.full(forces, security / forces), 'share': np.full(forces, 1.0 / forces)},
-            ),
-        ],
-        interactions=[
-            CriminalContagionInteraction(
-                'contagion',
-                candidate='citizens',
-                field='citizens',
-                classes=classes,
-                attraction=attraction,
-                redemption=redemption,
-            ),
-            DeterrenceInteraction(
-                'deterrence',
-                candidate='citizens',
-                field='security',
-                classes=classes,
-                forces=forces,
-                deterrence=deterrence,
-            ),
-            RecruitmentInteraction(
-                'recruitment',
-                target='security',
-                citizens='citizens',
-                classes=classes,
-                recruitment=recruitment,
-                retirement=retirement,
-            ),
-        ],
-        space=LatticeSpace(classes, boundary='fixed'),
-        time=ContinuousTime(),
-    )
+
+    field = 'social/crowds'
+    topics = ('criminality', 'security', 'kinetic', 'distribution')
+    references = CRIMINALITY_REFERENCES
+    until = 60
+    dt = 0.5
+
+    def __init__(
+        self,
+        classes: int = 5,
+        forces: int = 3,
+        *,
+        criminals: float = 0.2,
+        security: float = 0.05,
+        attraction: float = 0.3,
+        redemption: float = 0.1,
+        deterrence: float = 2.0,
+        recruitment: float = 0.5,
+        retirement: float = 0.1,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.classes = classes
+        self.forces = forces
+        self.criminals = criminals
+        self.security = security
+        self.attraction = attraction
+        self.redemption = redemption
+        self.deterrence = deterrence
+        self.recruitment = recruitment
+        self.retirement = retirement
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        citizens = np.zeros(self.classes)
+        citizens[0], citizens[-1] = 1.0 - self.criminals, self.criminals
+        return System(
+            self.label,
+            elements=[
+                GroupElement('citizens', element=DensityElement, size=self.classes, on='sites', values={'f': citizens}),
+                GroupElement(
+                    'security',
+                    element=SecurityAgentsElement,
+                    size=self.forces,
+                    on='sites',
+                    space=LatticeSpace(self.forces, boundary='fixed'),
+                    values={
+                        'f': np.full(self.forces, self.security / self.forces),
+                        'share': np.full(self.forces, 1.0 / self.forces),
+                    },
+                ),
+            ],
+            interactions=[
+                CriminalContagionInteraction(
+                    'contagion',
+                    candidate='citizens',
+                    field='citizens',
+                    classes=self.classes,
+                    attraction=self.attraction,
+                    redemption=self.redemption,
+                ),
+                DeterrenceInteraction(
+                    'deterrence',
+                    candidate='citizens',
+                    field='security',
+                    classes=self.classes,
+                    forces=self.forces,
+                    deterrence=self.deterrence,
+                ),
+                RecruitmentInteraction(
+                    'recruitment',
+                    target='security',
+                    citizens='citizens',
+                    classes=self.classes,
+                    recruitment=self.recruitment,
+                    retirement=self.retirement,
+                ),
+            ],
+            space=LatticeSpace(self.classes, boundary='fixed'),
+            time=ContinuousTime(),
+        )
+
+    def get_run_settings(self) -> RunSettings:
+        """Return the tuned run settings.
+
+        The observables of the parts are built from the model parameters.
+        """
+        settings = super().get_run_settings()
+        system = self._pass_parameters()
+        settings['observables'] = criminality_observables(*_sizes_of(system))
+        return settings

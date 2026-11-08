@@ -14,10 +14,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.systems_biology import ProbabilisticBooleanNetworkSystem
 
 SYSTEM = 'probabilistic_boolean_network'
 
@@ -34,8 +33,11 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = (
-    Simulation(create_system(SYSTEM, active=('x1', 'x3')), dt=1, observers=[observer], random_state=4).prepare().run(30)
+trajectory = simulate(
+    ProbabilisticBooleanNetworkSystem(active=('x1', 'x3')),
+    observers=[observer],
+    random_state=4,
+    until=30,
 )
 
 # %%
@@ -47,7 +49,7 @@ simulation = (
 # of the tables give, and the share of runs in which `x1` used its first function, which should be its probability
 # 0.6 at every step.
 
-problem = PassCompiler().prepare(create_system(SYSTEM, active=('x1', 'x3'))).run().problem_
+problem = simulate(ProbabilisticBooleanNetworkSystem(active=('x1', 'x3')).prepare().system_, until=0).problem
 rng = np.random.default_rng(0)
 names = problem.states.names
 values = [names.index(f'{gene}.x') for gene in ('x1', 'x2', 'x3')]

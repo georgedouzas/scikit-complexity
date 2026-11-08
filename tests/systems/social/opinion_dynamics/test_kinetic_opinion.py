@@ -2,13 +2,14 @@
 
 import numpy as np
 
-from ...conftest import _trajectory
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.social.opinion_dynamics import KineticOpinionSystem
 
 
 def test_opinions_reach_consensus_or_polarise():
     """Test that a wide confidence leads to consensus and a narrow one with repulsion to polarisation."""
-    consensus = _trajectory('kinetic_opinion', 60, 60.0, confidence=6, repulsion=0.0)
-    polarised = _trajectory('kinetic_opinion', 60, 60.0, confidence=1, repulsion=0.2)
+    consensus = simulate(KineticOpinionSystem(confidence=6, repulsion=0.0), until=60, dt=60.0, random_state=0)
+    polarised = simulate(KineticOpinionSystem(confidence=1, repulsion=0.2), until=60, dt=60.0, random_state=0)
     assert consensus.values('opinion_variance')[-1] < 0.1 < consensus.values('opinion_variance')[0]
     assert polarised.values('opinion_variance')[-1] > 0.9
     extremes = np.asarray(polarised.values('opinions.f')[-1])[[0, -1]].sum()

@@ -15,9 +15,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.analysis import LoopAnalysis
+from skcomplex.core.analysis import loops
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation, create_system
+from skcomplex.systems.social.organizations import SuccessToTheSuccessfulSystem
 
 SYSTEM = 'success_to_the_successful'
 
@@ -35,7 +36,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = create_simulation(SYSTEM).set_params(dt=1.0, observers=[observer]).prepare().run(until=100)
+trajectory = simulate(SuccessToTheSuccessfulSystem(), dt=1.0, observers=[observer])
 
 # %%
 # The winner takes all
@@ -44,10 +45,9 @@ simulation = create_simulation(SYSTEM).set_params(dt=1.0, observers=[observer]).
 # two balancing loops of depreciation. Starting runs from several splits of the same 100 units shows that the
 # symmetric split is unstable, and whoever starts ahead wins.
 
-polarities = LoopAnalysis().prepare(create_system(SYSTEM)).run().polarities_
+polarities = loops(SuccessToTheSuccessfulSystem()).polarities
 summary = ', '.join(f'{polarities.count(kind)} {kind}' for kind in ('reinforcing', 'balancing'))
 
-trajectory = simulation.trajectory_
 times = np.asarray(trajectory.times)
 fig, (stocks, splits) = plt.subplots(1, 2, figsize=(10, 4))
 stocks.plot(times, trajectory.values('contest.a'), label='first competitor')
@@ -57,8 +57,8 @@ stocks.set_ylabel('resources')
 stocks.set_title('The resources of the competitors')
 stocks.legend()
 for a in (30.0, 45.0, 49.0, 51.0, 55.0, 70.0):
-    scenario = create_simulation(SYSTEM, a=a, b=100.0 - a).set_params(dt=1.0).prepare().run(until=100)
-    splits.plot(times, scenario.trajectory_.values('contest.success'), label=f'a starts at {a:.0f}')
+    scenario = simulate(SuccessToTheSuccessfulSystem(a=a, b=100.0 - a), dt=1.0)
+    splits.plot(times, scenario.values('contest.success'), label=f'a starts at {a:.0f}')
 splits.set_xlabel('years')
 splits.set_ylabel('share of the first competitor')
 splits.set_title('The share of the first competitor')

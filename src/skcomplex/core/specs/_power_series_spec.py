@@ -1,4 +1,7 @@
-"""Define the power series spec, the ring of formal power series over a field truncated at an order."""
+"""Define the power series spec.
+
+It is the ring of formal power series over a field truncated at an order.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,13 +23,13 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class PowerSeriesSpec(BaseSpec):
-    """Ring `K[[t]]` of formal power series over a field, truncated at an order, the domain of a state of a cell.
+    """Ring `K[[t]]` of formal power series over a field, truncated at an order.
 
-    A state of the ring holds every series `sum_i a_i t^i` by its coefficients `a_0, ..., a_{order - 1}`, so it has
-    `order` components, and local rules read the coefficients of every neighbour on a last axis. Sums and differences
-    are those of the coefficients, reduced modulo the characteristic, and the product is the Cauchy product truncated
-    at the order, so the coefficients up to the order are exact. Sage's power series ring of the same precision,
-    `ring`, converts between the coefficients and its series.
+    It is the domain of a state of a cell. A state of the ring holds every series `sum_i a_i t^i` by its coefficients
+    `a_0, ..., a_{order - 1}`, so it has `order` components, and local rules read the coefficients of every neighbour on
+    a last axis. Sums and differences are those of the coefficients, reduced modulo the characteristic, and the product
+    is the Cauchy product truncated at the order, so the coefficients up to the order are exact. Sage's power series
+    ring of the same precision, `ring`, converts between the coefficients and its series.
 
     Args:
         order:
@@ -86,7 +89,10 @@ class PowerSeriesSpec(BaseSpec):
 
     @property
     def alphabet(self) -> object:
-        """Sage set of the stored values of a coefficient, the field or the residues `0` to `p - 1` of a prime field."""
+        """Sage set of the stored values of a coefficient.
+
+        It is the field or the residues `0` to `p - 1` of a prime field.
+        """
         if self.characteristic:
             return FiniteEnumeratedSet(list(range(self.characteristic)))
         return self.sage_field
@@ -102,7 +108,9 @@ class PowerSeriesSpec(BaseSpec):
         return PowerSeriesRing(self.sage_field, self.variable, default_prec=self.order)
 
     def reduce(self, coefficients: npt.ArrayLike) -> Array:
-        """Return coefficients reduced modulo the characteristic, unchanged over a field of characteristic 0.
+        """Return coefficients reduced modulo the characteristic.
+
+        They are unchanged over a field of characteristic 0.
 
         Args:
             coefficients:
@@ -116,7 +124,9 @@ class PowerSeriesSpec(BaseSpec):
         return np.mod(np.rint(values), self.characteristic) if self.characteristic else values
 
     def multiply(self, first: npt.ArrayLike, second: npt.ArrayLike) -> Array:
-        """Return the product of two series truncated at the order, coefficient arrays on the last axis.
+        """Return the product of two series truncated at the order.
+
+        The series are coefficient arrays on the last axis.
 
         Args:
             first:
@@ -153,7 +163,9 @@ class PowerSeriesSpec(BaseSpec):
         return self.ring(values, prec=self.order)
 
     def coefficients_of(self, series: object) -> Array:
-        """Return the coefficients of a series of the ring, or of anything the ring converts, up to the order.
+        """Return the coefficients of a series of the ring up to the order.
+
+        The series can also be anything the ring converts.
 
         Args:
             series:

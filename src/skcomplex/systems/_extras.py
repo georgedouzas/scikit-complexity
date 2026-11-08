@@ -10,7 +10,9 @@ from ..core.errors import MissingExtraError
 
 
 def import_extra(module: str, system: str, extra: str) -> ModuleType:
-    """Return a module of an optional extra, or raise an error naming the system, the extra, and the install command.
+    """Return a module of an optional extra.
+
+    When the extra is missing, it raises an error naming the system, the extra, and the install command.
 
     Args:
         module:

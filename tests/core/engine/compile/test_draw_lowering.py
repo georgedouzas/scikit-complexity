@@ -18,8 +18,8 @@ from skcomplex.core.components.laws.utils import bernoulli, categorical, normal,
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import IncompatibleLawsError, ParameterError, ValidationError
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
@@ -248,7 +248,7 @@ class KeptRegulationInteraction(HyperedgeInteraction):
 
 def _run(system, until, backend=None, random_state=0):
     """Return the trajectory of a system run with frames at every step."""
-    return Simulation(system, dt=1.0, random_state=random_state, backend=backend).prepare().run(until).trajectory_
+    return simulate(system, until=until, dt=1.0, random_state=random_state, backend=backend)
 
 
 def _codes(values):
@@ -365,26 +365,25 @@ def test_transition_reaches_the_stationary_distribution():
 
 def test_transition_follows_a_live_matrix_change():
     """Test that the run lengths of the first symbol fall from mean 10 to mean 2 after a live change."""
-    simulation = Simulation(System(elements=[ChainElement('c')]), dt=1.0, random_state=0).prepare().run(50000)
-    simulation.update_parameters({'c.stay': 0.5})
-    simulation.extend(100000)
-    x = _codes(simulation.trajectory_.values('c.x'))
+    schedule = {'c.stay': lambda t: 0.5 if t >= 50000 else 0.9}
+    trajectory = simulate(System(elements=[ChainElement('c')]), until=150000, dt=1.0, schedule=schedule, random_state=0)
+    x = _codes(trajectory.values('c.x'))
     assert _run_lengths(x[:50000], 0).mean() == pytest.approx(10, rel=0.1)
     assert _run_lengths(x[50002:], 0).mean() == pytest.approx(2, rel=0.1)
+
+
+def test_transition_rejects_a_scheduled_probability_above_one():
+    """Test that a schedule that makes an entry negative raises an error naming the parameter and the time."""
+    schedule = {'c.stay': lambda t: 1.5 if t >= 3 else 0.9}
+    message = r'At t = 3\.0, the schedule sets c\.stay, which would make the entry \(0, 1\) of .* below 0'
+    with pytest.raises(ParameterError, match=message):
+        simulate(System(elements=[ChainElement('c')]), until=10, dt=1.0, schedule=schedule, random_state=0)
 
 
 def test_transition_rejects_a_row_that_does_not_sum_to_one():
     """Test that compiling a matrix with a row that sums to 0.9 names the law, the row, and the sum."""
     with pytest.raises(ValidationError, match=r'row 0 of the transition law of b\.x.* sums to 0\.9'):
         PassCompiler().prepare(System(elements=[BrokenElement('b')])).run()
-
-
-def test_transition_rejects_a_live_change_that_breaks_a_row():
-    """Test that a parameter change that makes an entry negative is rejected and the value is kept."""
-    simulation = Simulation(System(elements=[ChainElement('c')]), dt=1.0, random_state=0).prepare().run(10)
-    with pytest.raises(ParameterError, match=r'c\.stay.*entry \(0, 1\) of the transition law of c\.x.*below 0'):
-        simulation.update_parameters({'c.stay': 1.2})
-    assert simulation.problem_.parameters.read(simulation.parameters_, 'c.stay') == pytest.approx(0.9)
 
 
 def test_emission_aligns_with_the_hidden_state():

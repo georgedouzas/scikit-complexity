@@ -1,4 +1,7 @@
-"""Vicsek flocks in discrete time: polar alignment, cohesive flocks, and polar particles with nematic alignment."""
+"""Vicsek flocks in discrete time.
+
+The module covers polar alignment, cohesive flocks, and polar particles with nematic alignment.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -24,11 +27,10 @@ from ....core.components.spaces import (
     NearestNeighborhood,
     RadiusNeighborhood,
 )
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.components.types import Target
 from ....core.errors import ParameterError
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from ..common.particles import PropulsionStepInteraction
 
 CLOSE = 0.2
@@ -38,7 +40,9 @@ REPULSION = 1e3
 
 
 class CohesiveParticleElement(Element):
-    """Particle of a Grégoire-Chaté flock, which aligns, repels close neighbours, and attracts distant ones.
+    """Particle of a Grégoire-Chaté flock.
+
+    The particle aligns, repels close neighbours, and attracts distant ones.
 
     The new heading is the direction of `alpha sum_j exp(i theta_j) + beta sum_j f(r_ij) e_ij + eta n_i xi` over the
     `n_i` particles within the unit distance, where `e_ij` points from `i` to `j`, `xi` is a random unit vector, and the
@@ -85,6 +89,10 @@ class CohesiveParticleElement(Element):
         >>> CohesiveParticleElement('bird').r_e
         0.5
     """
+
+    draws = True
+
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
@@ -151,7 +159,9 @@ MEMORY = 25
 
 
 class DelayedVicsekParticleElement(Element):
-    """Particle of a delayed Vicsek flock, which keeps its past headings for the delayed or predicted alignment.
+    """Particle of a delayed Vicsek flock.
+
+    The particle keeps its past headings for the delayed or predicted alignment.
 
     The heading keeps its last 25 values, `theta_lag1` to `theta_lag25`, which a delayed alignment reads, and which
     hold the initial heading before the start. A propulsion step moves the particle along its current heading.
@@ -198,7 +208,9 @@ class DelayedVicsekParticleElement(Element):
 
 
 class NematicParticleElement(Element):
-    """Polar particle with nematic alignment, which aligns with the axis of every neighbour on its nearer side.
+    """Polar particle with nematic alignment.
+
+    The particle aligns with the axis of every neighbour on its nearer side.
 
     `HeadingAlignmentInteraction` with `nematic=True` sets the new heading to the circular mean of the headings within
     the unit distance, itself included, each flipped to the side nearer the particle's own heading, plus a uniform
@@ -246,7 +258,9 @@ class NematicParticleElement(Element):
 
 
 class VicsekParticleElement(Element):
-    """Particle of a Vicsek flock, whose heading becomes the mean heading of its neighbours plus noise every step.
+    """Particle of a Vicsek flock.
+
+    Every step its heading becomes the mean heading of its neighbours plus noise.
 
     `HeadingAlignmentInteraction` sets the new heading to the circular mean of the headings within the unit distance,
     itself included, plus a uniform angle in `[-eta pi, eta pi]`. A propulsion step moves the particle along its
@@ -294,7 +308,9 @@ class VicsekParticleElement(Element):
 
 
 class HeadingAlignmentInteraction(CouplingInteraction):
-    """Vicsek alignment, the turn of every particle to the circular mean heading of its neighbours plus noise.
+    """Vicsek alignment.
+
+    Every particle turns to the circular mean heading of its neighbours plus noise.
 
     Every step the heading `theta` of every particle becomes the circular mean of the headings within the unit
     distance, itself included, plus a uniform angle in `[-eta pi, eta pi]` with the parameter `eta` of the particle.
@@ -332,6 +348,8 @@ class HeadingAlignmentInteraction(CouplingInteraction):
         >>> HeadingAlignmentInteraction('alignment', target='flock', nematic=True).reduce
         'circular-mean'
     """
+
+    draws = True
 
     def __init__(
         self,
@@ -376,7 +394,10 @@ class HeadingAlignmentInteraction(CouplingInteraction):
         return mean_heading + slope / spread * (-self.latency - mean_time)
 
     def _get_side(self, namespace: SimpleNamespace) -> Expression:
-        """Return -1 for a neighbour heading away from the particle when nematic, and 1 otherwise."""
+        """Return -1 for a neighbour heading away from the particle when nematic.
+
+        The sign is 1 otherwise.
+        """
         if not self.nematic:
             return SR(1)
         return where(cos(namespace.other.theta - namespace.member.theta) >= 0, 1, -1)
@@ -398,7 +419,10 @@ HEADINGS = VisualSpec(
 
 
 def _heading(member: SimpleNamespace) -> Expression:
-    """Return the unit vector `exp(i theta)` of a member's heading in the complex plane."""
+    """Return the unit vector `exp(i theta)` of a member's heading.
+
+    The vector lies in the complex plane.
+    """
     return exp(I * member.theta)
 
 
@@ -423,7 +447,10 @@ def _nematic_order(s: SimpleNamespace) -> Expression:
 
 
 def _orders(group: str) -> list[ObservableSpec]:
-    """Return the mean heading and axis of a group of flockers and their moduli, the polar and nematic orders."""
+    """Return the mean heading and axis of a group of flockers and their moduli.
+
+    The moduli are the polar and nematic orders.
+    """
     return [
         ObservableSpec('mean_heading', _heading, group=group),
         ObservableSpec('polarization', _polarization),
@@ -433,6 +460,7 @@ def _orders(group: str) -> list[ObservableSpec]:
 
 
 def _flock(
+    label: str,
     element: type[Element],
     n_particles: int,
     size: float,
@@ -442,7 +470,10 @@ def _flock(
     alignment: BaseInteraction | None = None,
     **values: float,
 ) -> System:
-    """Return flockers of a type at uniform positions and headings in a periodic box that step `v0` every step."""
+    """Return a system of flockers of a type in a periodic box.
+
+    The system has a label, and the flockers have uniform positions and headings.
+    """
     rng = np.random.default_rng(seed)
     initial: dict[str, object] = {
         'x': rng.uniform(0.0, size, (n_particles, 2)),
@@ -451,6 +482,7 @@ def _flock(
     }
     flock = GroupElement('flock', element=element, size=n_particles, values=initial, visual=HEADINGS)
     return System(
+        label,
         elements=[flock],
         interactions=[
             PropulsionStepInteraction('propulsion', target='flock', speed=v0),
@@ -461,26 +493,10 @@ def _flock(
     )
 
 
-@register_system(
-    field='physics/active_matter',
-    tags=('active matter', 'flocking', 'alignment', 'discrete time', 'neighborhood'),
-    references=('Vicsek et al. 1995', 'Argun et al. 2021', 'Jensen 2023', 'Vicsek and Zafeiris 2012'),
-    defaults={'until': 200.0, 'dt': 1.0},
-    observables=lambda system: _orders('flock'),
-)
-def vicsek(
-    n_particles: int = 400,
-    *,
-    size: float = 10.0,
-    v0: float = 0.5,
-    eta: float = 0.1,
-    seed: int = 0,
-    neighbors: int | None = None,
-    vision: float | None = None,
-    delay: int = 0,
-    memory: int = 5,
-) -> System:
-    """Return the Vicsek system: particles that move at a constant speed along the mean heading of their neighbours.
+class VicsekSystem(BaseSystem):
+    """The Vicsek system.
+
+    Particles move at a constant speed along the mean heading of their neighbours.
 
     At every step particle `i` takes the direction of the sum of the headings of the particles within the unit
     distance, itself included, plus a uniform angle in `[-eta pi, eta pi]`, and moves `v0` along it in a periodic box.
@@ -500,7 +516,8 @@ def vicsek(
     the clusters, and a long delay hinders them. A negative delay is a prediction: the headings of the neighbours `|h|`
     steps ahead are extrapolated by a least-squares line through their last `memory` headings, and it hinders
     clustering. Every particle then keeps its last 25 headings, so the delay lies in `[-25, 25]`, and before the start
-    they equal the initial heading.
+    they equal the initial heading. The system has the positions `flock.x`, the headings `flock.theta`, and the
+    observables `polarization` and `nematic_order`.
 
     Args:
         n_particles:
@@ -531,71 +548,101 @@ def vicsek(
         memory:
             The number of past headings a prediction fits, from 2 to 26.
 
-    Returns:
-        system:
-            The system, with the positions `flock.x`, the headings `flock.theta`, and the observables `polarization`
-            and `nematic_order`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ParameterError:
             Both `neighbors` and `vision` are given, or the delay or the memory exceeds the 25 kept headings.
 
     Examples:
-        >>> from skcomplex.systems.physics.active_matter import vicsek
-        >>> vicsek(10).elements[0].size
+        >>> from skcomplex.systems.physics.active_matter import VicsekSystem
+        >>> VicsekSystem(10).prepare().system_.elements[0].size
         10
-        >>> type(vicsek(10, neighbors=4).interactions[1].neighborhood).__name__
+        >>> type(VicsekSystem(10, neighbors=4).prepare().system_.interactions[1].neighborhood).__name__
         'NearestNeighborhood'
     """
-    if neighbors is not None and vision is not None:
-        error_msg = 'A Vicsek flock aligns with its nearest neighbours or within a vision cone, not both.'
-        raise ParameterError(error_msg)
-    if abs(delay) > MEMORY or not FIT_POINTS <= memory <= MEMORY + 1:
-        error_msg = (
-            f'The delay {delay!r} and the memory {memory!r} need |delay| <= {MEMORY} and 2 <= memory <= {MEMORY + 1}.'
+
+    field = 'physics/active_matter'
+    topics = ('active matter', 'flocking', 'alignment', 'discrete time', 'neighborhood')
+    references = ('Vicsek et al. 1995', 'Argun et al. 2021', 'Jensen 2023', 'Vicsek and Zafeiris 2012')
+    until = 200.0
+    dt = 1.0
+    observables = tuple(_orders('flock'))
+
+    def __init__(
+        self,
+        n_particles: int = 400,
+        *,
+        size: float = 10.0,
+        v0: float = 0.5,
+        eta: float = 0.1,
+        seed: int = 0,
+        neighbors: int | None = None,
+        vision: float | None = None,
+        delay: int = 0,
+        memory: int = 5,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_particles = n_particles
+        self.size = size
+        self.v0 = v0
+        self.eta = eta
+        self.seed = seed
+        self.neighbors = neighbors
+        self.vision = vision
+        self.delay = delay
+        self.memory = memory
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        if self.neighbors is not None and self.vision is not None:
+            error_msg = 'A Vicsek flock aligns with its nearest neighbours or within a vision cone, not both.'
+            raise ParameterError(error_msg)
+        if abs(self.delay) > MEMORY or not FIT_POINTS <= self.memory <= MEMORY + 1:
+            error_msg = (
+                f'The delay {self.delay!r} and the memory {self.memory!r} need |delay| <= {MEMORY} and 2 <= memory <= '
+                f'{MEMORY + 1}.'
+            )
+            raise ParameterError(error_msg)
+        neighborhood: BaseNeighborhood | None = None
+        if self.neighbors is not None:
+            neighborhood = NearestNeighborhood(self.neighbors, center=True)
+        if self.vision is not None:
+            neighborhood = ConeNeighborhood(1.0, self.vision, direction='theta', center=True)
+        alignment = HeadingAlignmentInteraction(
+            'alignment',
+            target='flock',
+            neighborhood=neighborhood,
+            latency=self.delay,
+            memory=self.memory,
         )
-        raise ParameterError(error_msg)
-    neighborhood: BaseNeighborhood | None = None
-    if neighbors is not None:
-        neighborhood = NearestNeighborhood(neighbors, center=True)
-    if vision is not None:
-        neighborhood = ConeNeighborhood(1.0, vision, direction='theta', center=True)
-    alignment = HeadingAlignmentInteraction(
-        'alignment',
-        target='flock',
-        neighborhood=neighborhood,
-        latency=delay,
-        memory=memory,
-    )
-    element = VicsekParticleElement if delay == 0 else DelayedVicsekParticleElement
-    return _flock(element, n_particles, size, seed, v0=v0, alignment=alignment, eta=eta)
+        element = VicsekParticleElement if self.delay == 0 else DelayedVicsekParticleElement
+        return _flock(
+            self.label,
+            element,
+            self.n_particles,
+            self.size,
+            self.seed,
+            v0=self.v0,
+            alignment=alignment,
+            eta=self.eta,
+        )
 
 
-@register_system(
-    field='physics/active_matter',
-    tags=('active matter', 'flocking', 'cohesion', 'discrete time', 'neighborhood'),
-    references=('Grégoire and Chaté 2004', 'Vicsek and Zafeiris 2012'),
-    defaults={'until': 300.0, 'dt': 1.0},
-    observables=lambda system: _orders('flock'),
-)
-def gregoire_chate(
-    n_particles: int = 200,
-    *,
-    size: float = 5.0,
-    v0: float = 0.05,
-    eta: float = 0.1,
-    alpha: float = 1.0,
-    beta: float = 0.5,
-    seed: int = 0,
-) -> System:
-    """Return the Grégoire-Chaté system: aligning particles that also attract and repel, forming cohesive flocks.
+class GregoireChateSystem(BaseSystem):
+    """The Grégoire-Chaté system.
 
-    At every step particle `i` takes the direction of `alpha sum_j exp(i theta_j) + beta sum_j f(r_ij) e_ij +
-    eta n_i xi`, over the `n_i` particles within the unit distance, where `e_ij` points from `i` to `j`, `xi` is a
-    random unit vector, and the force `f` is a strong repulsion below `r_c = 0.2`, zero at the preferred distance
-    `r_e = 0.5`, and attractive up to `r_a = 0.8`. The particle then moves `v0` along the new heading. At low noise and
-    moderate cohesion the particles gather into cohesive, aligned flocks, and the polar order parameter grows towards
-    1. A strong cohesion locks them in place, and the order is lost.
+    Aligning particles also attract and repel, forming cohesive flocks.
+
+    At every step particle `i` takes the direction of `alpha sum_j exp(i theta_j) + beta sum_j f(r_ij) e_ij + eta n_i
+    xi`, over the `n_i` particles within the unit distance, where `e_ij` points from `i` to `j`, `xi` is a random unit
+    vector, and the force `f` is a strong repulsion below `r_c = 0.2`, zero at the preferred distance `r_e = 0.5`, and
+    attractive up to `r_a = 0.8`. The particle then moves `v0` along the new heading. At low noise and moderate cohesion
+    the particles gather into cohesive, aligned flocks, and the polar order parameter grows towards 1. A strong cohesion
+    locks them in place, and the order is lost. The system has the positions `flock.x`, the headings `flock.theta`, and
+    the observables `polarization` and `nematic_order`.
 
     Args:
         n_particles:
@@ -619,41 +666,72 @@ def gregoire_chate(
         seed:
             The seed of the uniform initial positions and headings.
 
-    Returns:
-        system:
-            The system, with the positions `flock.x`, the headings `flock.theta`, and the observables `polarization`
-            and `nematic_order`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.active_matter import gregoire_chate
-        >>> gregoire_chate(10, beta=2.0).elements[0].values['beta']
+        >>> from skcomplex.systems.physics.active_matter import GregoireChateSystem
+        >>> GregoireChateSystem(10, beta=2.0).prepare().system_.elements[0].values['beta']
         2.0
     """
-    return _flock(CohesiveParticleElement, n_particles, size, seed, v0=v0, eta=eta, alpha=alpha, beta=beta)
+
+    field = 'physics/active_matter'
+    topics = ('active matter', 'flocking', 'cohesion', 'discrete time', 'neighborhood')
+    references = ('Grégoire and Chaté 2004', 'Vicsek and Zafeiris 2012')
+    until = 300.0
+    dt = 1.0
+    observables = tuple(_orders('flock'))
+
+    def __init__(
+        self,
+        n_particles: int = 200,
+        *,
+        size: float = 5.0,
+        v0: float = 0.05,
+        eta: float = 0.1,
+        alpha: float = 1.0,
+        beta: float = 0.5,
+        seed: int = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_particles = n_particles
+        self.size = size
+        self.v0 = v0
+        self.eta = eta
+        self.alpha = alpha
+        self.beta = beta
+        self.seed = seed
+
+    def _build_system(self) -> System:
+        """Return the Grégoire-Chaté system.
+
+        Aligning particles also attract and repel, forming cohesive flocks.
+        """
+        return _flock(
+            self.label,
+            CohesiveParticleElement,
+            self.n_particles,
+            self.size,
+            self.seed,
+            v0=self.v0,
+            eta=self.eta,
+            alpha=self.alpha,
+            beta=self.beta,
+        )
 
 
-@register_system(
-    field='physics/active_matter',
-    tags=('active matter', 'flocking', 'nematic', 'discrete time', 'neighborhood'),
-    references=('Ginelli et al. 2010', 'Chaté 2020'),
-    defaults={'until': 300.0, 'dt': 1.0},
-    observables=lambda system: _orders('flock'),
-)
-def ginelli_nematics(
-    n_particles: int = 400,
-    *,
-    size: float = 10.0,
-    v0: float = 0.3,
-    eta: float = 0.08,
-    seed: int = 0,
-) -> System:
-    """Return polar particles with nematic alignment, which order along a common axis but move both ways along it.
+class GinelliNematicsSystem(BaseSystem):
+    """Polar particles with nematic alignment.
+
+    The particles order along a common axis but move both ways along it.
 
     At every step particle `i` takes the direction of `sum_j sign(cos(theta_j - theta_i)) exp(i theta_j)` over the
     particles within the unit distance, itself included, so it aligns with the axis of every neighbour on the side
     nearer its own heading, plus a uniform angle in `[-eta pi, eta pi]`, and moves `v0` along it. At low noise the
-    particles share an axis, with as many moving one way as the other: the nematic order parameter
-    `|<exp(2 i theta)>|` grows towards 1 while the polar order parameter stays small.
+    particles share an axis, with as many moving one way as the other: the nematic order parameter `|<exp(2 i theta)>|`
+    grows towards 1 while the polar order parameter stays small. The system has the positions `flock.x`, the headings
+    `flock.theta`, and the observables `polarization` and `nematic_order`.
 
     Args:
         n_particles:
@@ -671,15 +749,49 @@ def ginelli_nematics(
         seed:
             The seed of the uniform initial positions and headings.
 
-    Returns:
-        system:
-            The system, with the positions `flock.x`, the headings `flock.theta`, and the observables `polarization`
-            and `nematic_order`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.active_matter import ginelli_nematics
-        >>> ginelli_nematics(10).elements[0].values['eta']
+        >>> from skcomplex.systems.physics.active_matter import GinelliNematicsSystem
+        >>> GinelliNematicsSystem(10).prepare().system_.elements[0].values['eta']
         0.08
     """
-    alignment = HeadingAlignmentInteraction('alignment', target='flock', nematic=True)
-    return _flock(NematicParticleElement, n_particles, size, seed, v0=v0, alignment=alignment, eta=eta)
+
+    field = 'physics/active_matter'
+    topics = ('active matter', 'flocking', 'nematic', 'discrete time', 'neighborhood')
+    references = ('Ginelli et al. 2010', 'Chaté 2020')
+    until = 300.0
+    dt = 1.0
+    observables = tuple(_orders('flock'))
+
+    def __init__(
+        self,
+        n_particles: int = 400,
+        *,
+        size: float = 10.0,
+        v0: float = 0.3,
+        eta: float = 0.08,
+        seed: int = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_particles = n_particles
+        self.size = size
+        self.v0 = v0
+        self.eta = eta
+        self.seed = seed
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        alignment = HeadingAlignmentInteraction('alignment', target='flock', nematic=True)
+        return _flock(
+            self.label,
+            NematicParticleElement,
+            self.n_particles,
+            self.size,
+            self.seed,
+            v0=self.v0,
+            alignment=alignment,
+            eta=self.eta,
+        )

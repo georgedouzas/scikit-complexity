@@ -7,11 +7,11 @@ mathematical operation you need, bind it to your elements, and pass the function
 from skcomplex.core.components.elements import CompartmentElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 
 decay = RateInteraction('decay', target='stock', state='n', rate=lambda s: -0.5 * s.target.n)
 system = System(elements=[CompartmentElement('stock', n=8.0)], interactions=[decay])
-round(float(Simulation(system, dt=0.01).prepare().run(until=2.0).trajectory_.values('stock.n')[-1]), 3)
+round(float(simulate(system, until=2.0, dt=0.01).values('stock.n')[-1]), 3)
 ```
 
 `skcomplex.core.components.interactions` holds one general class per mathematical operation: a rate, a gradient, a
@@ -82,16 +82,17 @@ A class enters the core when it is a fundamental paradigm, such as a variational
 Markov jump process, a reaction network, or imitation dynamics, and when it applies in principle to other domains than
 the one that first needs it. How many fields use it today does not decide it.
 
-The case of one field is a thin subclass of a general class in the catalog, even when it only renames arguments. It
-lives with the one system that uses it, or with the code its field shares when several systems use it. These
-subclasses double as examples of how to build a part of your own, and the page of each system shows them. The
-interactions of `lotka_volterra`, for example, are all rate interactions:
+The case of one field is a thin subclass of a general class in `skcomplex.systems`, even when it only renames
+arguments. It lives with the one system that uses it, or with the code its field shares when several systems use it.
+These subclasses double as examples of how to build a part of your own, and the page of each system shows them. The
+interactions of `LotkaVolterraSystem`, for example, are all rate interactions. `prepare` builds the parts of a system
+class in `system_`:
 
 ```python
 from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
-system = create_system('lotka_volterra')
+system = LotkaVolterraSystem().prepare().system_
 {type(part).__name__: isinstance(part, RateInteraction) for part in system.interactions}
 ```
 
@@ -103,13 +104,13 @@ The general interactions act on a few general elements, so you rarely need an el
 from skcomplex.core.components.elements import CompartmentElement, PointElement
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 
 system = System(
     elements=[CompartmentElement('stock', n=5.0), PointElement('point', x_d1=[1.0, 0.0])],
     space=ContinuousSpace(n_dim=2),
 )
-trajectory = Simulation(system, dt=1.0).prepare().run(until=2.0).trajectory_
+trajectory = simulate(system, until=2.0, dt=1.0)
 trajectory.values('stock.n')[-1], trajectory.values('point.x')[-1].tolist()
 ```
 
@@ -137,11 +138,11 @@ Use `RateInteraction` to add any rate to a state, as the decay at the top of thi
 from skcomplex.core.components.elements import CompartmentElement
 from skcomplex.core.components.interactions import RelaxationInteraction
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 
 smoothing = RelaxationInteraction('smoothing', target='belief', state='n', goal=10.0, time=0.5)
 system = System(elements=[CompartmentElement('belief', n=0.0)], interactions=[smoothing])
-round(float(Simulation(system, dt=0.01).prepare().run(until=5.0).trajectory_.values('belief.n')[-1]), 3)
+round(float(simulate(system, until=5.0, dt=0.01).values('belief.n')[-1]), 3)
 ```
 
 `RelaxationInteraction(target, state, goal, time, noise=None)` relaxes a state towards a goal at the rate
@@ -156,11 +157,11 @@ from skcomplex.core.components.elements import CompartmentElement, PointElement
 from skcomplex.core.components.interactions import GradientInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 
 well = GradientInteraction('well', target='walker', states='n', potential=lambda s: s.target.n**2 / 2)
 flow = System(elements=[CompartmentElement('walker', n=1.0)], interactions=[well])
-round(float(Simulation(flow, dt=0.01).prepare().run(until=1.0).trajectory_.values('walker.n')[-1]), 4)
+round(float(simulate(flow, until=1.0, dt=0.01).values('walker.n')[-1]), 4)
 ```
 
 On a state of order 2, such as the position of a point, the same class gives Newton's equations:
@@ -168,7 +169,7 @@ On a state of order 2, such as the position of a point, the same class gives New
 ```python continuation
 spring = GradientInteraction('spring', target='point', states='x', potential=lambda s: s.target.x * s.target.x / 2)
 newton = System(elements=[PointElement('point', x=[1.0])], interactions=[spring], space=ContinuousSpace(n_dim=1))
-round(float(Simulation(newton, dt=0.01).prepare().run(until=3.1416).trajectory_.values('point.x')[-1][0]), 3)
+round(float(simulate(newton, until=3.1416, dt=0.01).values('point.x')[-1][0]), 3)
 ```
 
 `GradientInteraction(target, states, potential, sources=(), divisor=None, variational=False, conserved=False)` also
@@ -186,7 +187,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import EulerLagrangeInteraction
 from skcomplex.core.components.laws.utils import derivative
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
 
@@ -200,7 +201,7 @@ class AngleElement(Element):
 lagrangian = lambda s: derivative(s.target.q, 1) ** 2 / 2 + cos(s.target.q)
 swing = EulerLagrangeInteraction('swing', target='bob', states='q', lagrangian=lagrangian)
 system = System(elements=[AngleElement('bob')], interactions=[swing])
-round(float(Simulation(system, dt=0.01).prepare().run(until=3.2).trajectory_.values('bob.q')[-1]), 2)
+round(float(simulate(system, until=3.2, dt=0.01).values('bob.q')[-1]), 2)
 ```
 
 `EulerLagrangeInteraction(target, states, lagrangian, dissipation=None, forcing=None)` writes the equations of motion
@@ -217,7 +218,7 @@ from sage.all__sagemath_symbolics import sqrt
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import HamiltonianInteraction
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import Yoshida4Solver
 from skcomplex.core.specs import StateSpec
 
@@ -246,7 +247,7 @@ def kepler(s):
 coordinates, momenta = ('x', 'y'), ('px', 'py')
 gravity = HamiltonianInteraction('gravity', target='sun', coordinates=coordinates, momenta=momenta, hamiltonian=kepler)
 system = System(elements=[PlanetElement('sun')], interactions=[gravity])
-trajectory = Simulation(system, solver=Yoshida4Solver(dt=0.01), dt=1.0).prepare().run(until=6.2832).trajectory_
+trajectory = simulate(system, until=6.2832, solver=Yoshida4Solver(dt=0.01), dt=1.0)
 round(float(trajectory.values('sun.x')[-1]), 6)
 ```
 
@@ -257,18 +258,17 @@ they may be angles. The rates of one state add, so the Hamiltonians of separate 
 `Yoshida4Solver` integrates a separable Hamiltonian at fourth order by three velocity Verlet steps. It first splits the
 states into two blocks whose rates read only the other block. It keeps the energy bounded over long runs.
 
-`InvariantAnalysis` computes Poisson brackets over the canonical pairs. It decides whether expressions given as
+`invariants` computes Poisson brackets over the canonical pairs. It decides whether expressions given as
 `ObservableSpec`s are conserved, and checks a `SymmetrySpec` against the Hamiltonian or the Lagrangian, with its
 Noether charge:
 
 ```python continuation
-from skcomplex.core.analysis import InvariantAnalysis
+from skcomplex.core.analysis import invariants
 from skcomplex.core.specs import ObservableSpec, SymmetrySpec
 
 momentum = ObservableSpec('angular_momentum', lambda s: s.sun.x * s.sun.py - s.sun.y * s.sun.px)
-InvariantAnalysis(expressions=[momentum]).prepare(system).run().conserved_
 rotation = SymmetrySpec('rotation', lambda s: {'sun.x': -s.sun.y, 'sun.y': s.sun.x})
-InvariantAnalysis('symmetry', symmetry=rotation).prepare(system).run().charge_
+invariants(system, expressions=[momentum]).conserved, invariants(system, kind='symmetry', symmetry=rotation).charge
 ```
 
 ### Curved spacetimes
@@ -283,7 +283,7 @@ from skcomplex.core.components.elements import PointElement
 from skcomplex.core.components.interactions import GeodesicInteraction
 from skcomplex.core.components.spaces import PseudoRiemannianSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 
 t, r, theta, phi = SR.var('t r theta phi')
@@ -295,7 +295,7 @@ planet = PointElement('planet', x=[0.0, 20.0, pi / 2, 0.0], x_d1=[dilation, 0.0,
 fall = GeodesicInteraction('fall', target='planet', space=spacetime)
 system = System(elements=[planet], interactions=[fall], space=spacetime)
 solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-10)
-trajectory = Simulation(system, dt=10.0, solver=solver).prepare().run(until=500.0).trajectory_
+trajectory = simulate(system, until=500.0, dt=10.0, solver=solver)
 round(float(trajectory.values('planet.x')[-1][1]), 6)
 ```
 
@@ -321,7 +321,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import EinsteinInteraction
 from skcomplex.core.components.spaces import PseudoRiemannianSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
 
@@ -354,7 +354,7 @@ expansion = EinsteinInteraction(
     'expansion', target='universe', states='a', space=ansatz, components=[(1, 1)], source=dust
 )
 system = System(elements=[UniverseElement('universe')], interactions=[expansion])
-trajectory = Simulation(system, dt=0.1).prepare().run(until=2.0).trajectory_
+trajectory = simulate(system, until=2.0, dt=0.1)
 round(float(trajectory.values('universe.a')[-1]), 4)
 ```
 
@@ -382,7 +382,7 @@ from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.interactions import AdvectionInteraction, ConservationInteraction, DiffusionInteraction
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
 
@@ -403,7 +403,7 @@ totals = {}
 for label, interaction in interactions.items():
     field = FieldElement('wave', element=CellElement, space=space, values=values, discretization='finite-volume')
     system = System(elements=[field], interactions=[interaction])
-    total = Simulation(system, dt=0.01).prepare().run(until=0.5).trajectory_.values('wave.u')[-1].sum()
+    total = simulate(system, until=0.5, dt=0.01).values('wave.u')[-1].sum()
     totals[label] = round(float(total), 6)
 totals
 ```
@@ -426,7 +426,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import MapInteraction
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
 
@@ -438,7 +438,7 @@ class ValueElement(Element):
 
 logistic = MapInteraction('map', target='value', state='x', function=lambda s: 3 * s.target.x * (1 - s.target.x))
 system = System(elements=[ValueElement('value')], interactions=[logistic], time=DiscreteTime())
-Simulation(system).prepare().run(until=2).trajectory_.values('value.x').tolist()
+simulate(system, until=2).values('value.x').tolist()
 ```
 
 `MapInteraction(target, state, function, sources=(), mode='replace', schedule='synchronous', form='symbolic')` sets
@@ -459,7 +459,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import SignAdjustmentInteraction
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
 
@@ -472,7 +472,7 @@ class QuoteElement(Element):
 signal = lambda s: 2 - s.target.x
 search = SignAdjustmentInteraction('search', target='quote', state='x', signal=signal, step=0.5, upper=2.0)
 system = System(elements=[QuoteElement('quote')], interactions=[search], time=DiscreteTime())
-Simulation(system).prepare().run(until=3).trajectory_.values('quote.x').tolist()
+simulate(system, until=3).values('quote.x').tolist()
 ```
 
 `SignAdjustmentInteraction(target, state, signal, step=0.1, mode='multiplicative', lower=None, upper=None)` sets
@@ -490,7 +490,7 @@ from skcomplex.core.components.elements import Element, LatticeElement
 from skcomplex.core.components.interactions import CascadeInteraction, LocalRuleInteraction
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace, VonNeumannNeighborhood
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec, TotalisticSpec
 
 
@@ -503,13 +503,13 @@ class CellElement(Element):
 def run(interaction, values, until):
     cells = LatticeElement('cells', element=CellElement, space=LatticeSpace(5), values={'c': values})
     system = System(elements=[cells], interactions=[interaction], time=DiscreteTime())
-    return Simulation(system, dt=until, random_state=0).prepare().run(until=until)
+    return simulate(system, until=until, dt=until, random_state=0)
 
 
 parity = LocalRuleInteraction(
     'parity', target='cells', state='c', rule=TotalisticSpec({1: 1}), neighborhood=VonNeumannNeighborhood(n_dim=1)
 )
-run(parity, np.eye(5)[2], 1).state_.tolist()
+run(parity, np.eye(5)[2], 1).states[-1].tolist()
 ```
 
 `LocalRuleInteraction(target, state, rule, neighborhood)` runs a cellular automaton from a rule table, a totalistic
@@ -518,8 +518,8 @@ rule, or a function of the ordered neighbourhood.
 ```python continuation
 around = VonNeumannNeighborhood(n_dim=1, center=True)
 toppling = CascadeInteraction('toppling', target='cells', state='c', threshold=2, share=1, neighborhood=around)
-simulation = run(toppling, [0.0, 1.0, 3.0, 1.0, 0.0], 1)
-simulation.state_.tolist(), [event.size for event in simulation.trajectory_.events]
+trajectory = run(toppling, [0.0, 1.0, 3.0, 1.0, 0.0], 1)
+trajectory.states[-1].tolist(), [event.size for event in trajectory.events]
 ```
 
 `CascadeInteraction(target, state, threshold, share, mode, drive=None, neighborhood=None)` first drives the members.
@@ -542,7 +542,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import CouplingInteraction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
 
@@ -575,7 +575,7 @@ kuramoto = CouplingInteraction(
     mode='group',
 )
 system = System(elements=[oscillators], interactions=[kuramoto])
-phases = Simulation(system, dt=1.0).prepare().run(until=10).trajectory_.values('oscillators.theta')[-1]
+phases = simulate(system, until=10, dt=1.0).values('oscillators.theta')[-1]
 round(float(np.abs(np.exp(1j * phases).mean())), 2)
 ```
 
@@ -599,12 +599,12 @@ from skcomplex.core.components.elements import GroupElement, PointElement
 from skcomplex.core.components.interactions import PairCouplingInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 
 morse = PairCouplingInteraction('morse', 'pair', 'pair', cutoff=3.0, potential=lambda s, r: 2 * (1 - exp(1 - r)) ** 2)
 pair = GroupElement('pair', element=PointElement, size=2, values={'x': [[0.0, 0.0], [1.5, 0.0]]})
 system = System(elements=[pair], interactions=[morse], space=ContinuousSpace(n_dim=2))
-positions = Simulation(system, dt=0.1).prepare().run(until=5).trajectory_.values('pair.x')
+positions = simulate(system, until=5, dt=0.1).values('pair.x')
 distances = np.linalg.norm(positions[:, 1] - positions[:, 0], axis=1)
 round(float(distances.min()), 2), round(float(distances.max()), 2)
 ```
@@ -627,7 +627,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import MobilityInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
 
@@ -641,7 +641,7 @@ def fall(positions):
     gravity = MobilityInteraction('stokes', target='spheres', force=lambda s: vector([0.0, 0.0, -1.0]))
     spheres = GroupElement('spheres', element=SphereElement, size=len(positions), values={'x': positions})
     system = System(elements=[spheres], interactions=[gravity], space=ContinuousSpace(n_dim=3))
-    heights = Simulation(system, dt=1.0).prepare().run(until=10.0).trajectory_.values('spheres.x')[..., 2]
+    heights = simulate(system, until=10.0, dt=1.0).values('spheres.x')[..., 2]
     return float(heights[0, 0] - heights[-1, 0]) / 10 * 6 * np.pi
 
 
@@ -667,9 +667,9 @@ fraction `3 a / (4 r) + a^3 / (2 r^3)` to the speed of the first, about a quarte
 - Positions in the plane are the plane `z = 0` of a three-dimensional fluid. The fluid is unbounded, every evaluation
   costs `O(N^2)`, and Cholesky costs `O(N^3)`.
 
-The library has `squirmers`, spherical microswimmers whose slip modes make them pushers or pullers, and
-`hydrodynamically_coupled_traps`, two Brownian spheres in blinking optical tweezers whose free steps correlate through
-the mobility.
+The library has `SquirmersSystem` of `skcomplex.systems.physics.active_matter`, spherical microswimmers whose slip
+modes make them pushers or pullers, and `HydrodynamicallyCoupledTrapsSystem` of `skcomplex.systems.physics.soft_matter`,
+two Brownian spheres in blinking optical tweezers whose free steps correlate through the mobility.
 
 ## Events and discrete states
 
@@ -683,11 +683,11 @@ Use `JumpInteraction` for random events that change states by fixed amounts, suc
 from skcomplex.core.components.elements import CompartmentElement
 from skcomplex.core.components.interactions import JumpInteraction, ReactionInteraction
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 
 arrivals = JumpInteraction('arrivals', target='queue', changes={'n': 1}, rate=lambda s: 2.0)
 queue = System(elements=[CompartmentElement('queue')], interactions=[arrivals])
-counts = Simulation(queue, dt=1.0, random_state=0).prepare().run(until=5).trajectory_.values('queue.n')
+counts = simulate(queue, until=5, dt=1.0, random_state=0).values('queue.n')
 all(count == round(count) for count in counts)
 ```
 
@@ -704,7 +704,7 @@ sir = System(
     elements=[CompartmentElement('S', n=990), CompartmentElement('I', n=10), CompartmentElement('R')],
     interactions=[infection, recovery],
 )
-round(float(Simulation(sir, dt=1.0).prepare().run(until=50).trajectory_.states[-1].sum()), 6)
+round(float(simulate(sir, until=50, dt=1.0).states[-1].sum()), 6)
 ```
 
 `ReactionInteraction(target=None, reactants, products, k, propensity=None, modifiers=None, mode='rate')` runs as
@@ -726,7 +726,7 @@ from skcomplex.core.components.interactions import TransitionInteraction
 from skcomplex.core.components.laws.utils import neighbors, where
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
 
@@ -741,7 +741,7 @@ move = TransitionInteraction(
 )
 holders = GroupElement('holders', element=HolderElement, size=1000)
 system = System(elements=[holders], interactions=[move], time=DiscreteTime())
-values = Simulation(system, random_state=0).prepare().run(until=3).trajectory_.values('holders.state')
+values = simulate(system, until=3, random_state=0).values('holders.state')
 round(float((values[-1] == 1).mean()), 1)
 ```
 
@@ -764,11 +764,11 @@ contact = TransitionInteraction(
 recovery = TransitionInteraction('recovery', target='sites', state='state', source=1, destination=0, rate=lambda s: 1.0)
 sites = LatticeElement('sites', element=HolderElement, space=LatticeSpace((20, 20)))
 system = System(elements=[sites], interactions=[contact, recovery])
-values = Simulation(system, dt=1.0, random_state=0).prepare().run(until=10).trajectory_.values('sites.state')
+values = simulate(system, until=10, dt=1.0, random_state=0).values('sites.state')
 values[-1].mean() > 0.3
 ```
 
-The systems of the field `biology/epidemiology` in the catalog build on such a subclass.
+The ready-made systems of `skcomplex.systems.biology.epidemiology` build on such a subclass.
 
 ### Encounters of a kinetic system
 
@@ -782,7 +782,7 @@ from skcomplex.core.components.elements import DensityElement, GroupElement
 from skcomplex.core.components.interactions import EncounterInteraction
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 
 kernel = np.zeros((3, 1, 3))
 kernel[:, :, 0] = 1.0
@@ -797,7 +797,7 @@ system = System(
     interactions=[gather],
     space=LatticeSpace(3, boundary='fixed'),
 )
-densities = Simulation(system, dt=0.5).prepare().run(until=4.0).trajectory_.values('candidates.f')
+densities = simulate(system, until=4.0, dt=0.5).values('candidates.f')
 np.round(densities[-1], 2).tolist()
 ```
 
@@ -816,7 +816,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import CrossingInteraction, ImpulseInteraction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
 
@@ -834,7 +834,7 @@ wrap = CrossingInteraction(
 )
 kick = ImpulseInteraction('kick', target='clock', reset={'x': lambda s: s.target.x + 0.25}, times=(1.5,))
 system = System(elements=[ClockElement('clock')], interactions=[wrap, kick])
-events = Simulation(system, dt=0.5).prepare().run(until=2.2).trajectory_.events
+events = simulate(system, until=2.2, dt=0.5).events
 [(event.label, round(event.time, 3)) for event in events]
 ```
 
@@ -855,7 +855,7 @@ from skcomplex.core.components.interactions import SamplingInteraction
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
 
@@ -869,7 +869,7 @@ objective = lambda s: -s.target.s * neighbors(s.target.other.s)
 ising = SamplingInteraction('ising', target='spins', state='s', objective=objective, intensity=1.0)
 spins = LatticeElement('spins', element=SpinElement, space=LatticeSpace((8, 8)))
 system = System(elements=[spins], interactions=[ising], time=DiscreteTime())
-abs(Simulation(system, random_state=0).prepare().run(until=20).trajectory_.states[-1].mean()) > 0.9
+abs(simulate(system, until=20, random_state=0).states[-1].mean()) > 0.9
 ```
 
 `SamplingInteraction(target, state, objective, move='flip', intensity=1.0)` runs Monte Carlo sweeps. A move is accepted
@@ -892,7 +892,7 @@ from skcomplex.core.components.elements import Element, LatticeElement
 from skcomplex.core.components.interactions import SamplingInteraction
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import RowScoreSpec, StateSpec
 
 
@@ -913,7 +913,7 @@ walk = SamplingInteraction(
 )
 bits = LatticeElement('bits', element=BitElement, space=LatticeSpace((3, 20)))
 system = System(elements=[bits], interactions=[walk], time=DiscreteTime())
-scores = Simulation(system, random_state=0).prepare().run(until=50).trajectory_.values('walk.score')
+scores = simulate(system, until=50, random_state=0).values('walk.score')
 bool(np.all(np.diff(scores, axis=0) <= 0))
 ```
 
@@ -945,8 +945,8 @@ replay.prepare().targets_
 ```
 
 `DriveLaw` passes the time of the step to a function that names `time`, and the random generator to a function that
-names `random`. A function can then set a lattice state to one member of an ensemble per step, as the system
-`fuzzy_oil_drop` does, and hold the last member after the end.
+names `random`. A function can then set a lattice state to one member of an ensemble per step, as
+`FuzzyOilDropSystem` of `skcomplex.systems.biology.systems_biology` does, and hold the last member after the end.
 
 ## Agent and symbolic forms
 
@@ -979,7 +979,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import MapInteraction, MovementInteraction
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
 
@@ -995,7 +995,7 @@ count = MapInteraction(
 )
 walkers = GroupElement('walkers', element=WalkerElement, size=3)
 system = System(elements=[walkers], interactions=[walk, count], space=LatticeSpace((5, 5)))
-Simulation(system, random_state=0).prepare().run(until=4).trajectory_.agents('walkers', 4).values['steps'].tolist()
+simulate(system, until=4, random_state=0).agents('walkers', 4).values['steps'].tolist()
 ```
 
 An agent rule may name the role whose members run it, `RuleLaw(function, members='target')`. The Mesa solver runs it
@@ -1021,7 +1021,7 @@ from skcomplex.core.components.interactions import ChoiceInteraction
 from skcomplex.core.components.laws.utils import mean
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
 
@@ -1035,7 +1035,7 @@ utility = lambda s, option: 2.0 * option * mean(s.target.option)
 choice = ChoiceInteraction('choice', target='members', state='option', options=(-1, 1), utility=utility)
 members = GroupElement('members', element=ChooserElement, size=500)
 system = System(elements=[members], interactions=[choice], time=DiscreteTime())
-values = Simulation(system, random_state=0).prepare().run(until=10).trajectory_.values('members.option')
+values = simulate(system, until=10, random_state=0).values('members.option')
 round(float(np.mean(values[-1])), 1)
 ```
 
@@ -1054,7 +1054,7 @@ from skcomplex.core.components.elements import Element, LatticeElement
 from skcomplex.core.components.interactions import ImitationInteraction
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
 
@@ -1068,7 +1068,7 @@ initial = np.array([1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0], dtype=float)
 majority = ImitationInteraction('majority', target='voters', rule='majority', form='probability')
 voters = LatticeElement('voters', element=VoterElement, space=LatticeSpace(12), values={'state': initial})
 system = System(elements=[voters], interactions=[majority], time=DiscreteTime())
-Simulation(system, random_state=0).prepare().run(until=1).trajectory_.values('voters.state')[-1].tolist()
+simulate(system, until=1, random_state=0).values('voters.state')[-1].tolist()
 ```
 
 `ImitationInteraction(target, state, payoff, options, rate, rule='random', form='rate')` copies the state of a
@@ -1084,7 +1084,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import ReinforcementInteraction
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
 
@@ -1106,7 +1106,7 @@ learning = ReinforcementInteraction(
 )
 learners = GroupElement('learners', element=LearnerElement, size=2)
 system = System(elements=[learners], interactions=[learning], time=DiscreteTime())
-trajectory = Simulation(system, random_state=0).prepare().run(until=10).trajectory_
+trajectory = simulate(system, until=10, random_state=0)
 first, second = trajectory.values('learners.first')[-1][0], trajectory.values('learners.second')[-1][0]
 round(float(first), 2), round(float(second), 2)
 ```
@@ -1127,7 +1127,7 @@ from skcomplex.core.components.interactions import EvolutionInteraction
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import PhaseSpec, PhasesScheduleSpec, StateSpec
 
 
@@ -1155,7 +1155,7 @@ agents = GroupElement('agents', element=BitStringElement, size=40, values={'stra
 evolution = EvolutionInteraction('evolution', target='agents', phase='evolution')
 schedule = PhasesScheduleSpec([PhaseSpec('scoring'), PhaseSpec('evolution')])
 system = System(elements=[agents], interactions=[evolution], time=DiscreteTime(schedule=schedule))
-trajectory = Simulation(system, random_state=0).prepare().run(until=30).trajectory_
+trajectory = simulate(system, until=30, random_state=0)
 final = np.array(trajectory.agents('agents', 30).values['strategy'].tolist())
 final.sum(axis=1).mean() > initial.sum(axis=1).mean() + 4
 ```
@@ -1180,12 +1180,12 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import MovementInteraction
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 
 walkers = GroupElement('walkers', element=Element, size=2, location=[(2, 2), (2, 2)])
 walk = MovementInteraction('walk', target='walkers', step='neighbor')
 system = System(elements=[walkers], interactions=[walk], space=LatticeSpace((5, 5), neighborhood='von_neumann'))
-trajectory = Simulation(system, random_state=0).prepare().run(until=1).trajectory_
+trajectory = simulate(system, until=1, random_state=0)
 [int(abs(cell - 2).sum()) for cell in trajectory.agents('walkers', 1).locations]
 ```
 
@@ -1202,7 +1202,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import TransferInteraction
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
 
@@ -1214,7 +1214,7 @@ class TankElement(Element):
 
 flow = TransferInteraction('flow', source='upper', target='lower', state='level', amount=lambda s: s.source.level / 2)
 system = System(elements=[TankElement('upper', level=4.0), TankElement('lower')], interactions=[flow])
-trajectory = Simulation(system).prepare().run(until=1.0).trajectory_
+trajectory = simulate(system, until=1.0)
 round(float(trajectory.values('upper.level')[-1] + trajectory.values('lower.level')[-1]), 6)
 ```
 
@@ -1235,7 +1235,7 @@ from skcomplex.core.components.interactions import TransferInteraction
 from skcomplex.core.components.laws.utils import bernoulli
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
 
@@ -1255,7 +1255,7 @@ hops = TransferInteraction(
 )
 lane = GroupElement('lane', element=SiteElement, size=20, values={'occupied': np.tile([1.0, 0.0], 10)})
 system = System(elements=[lane], interactions=[hops], time=DiscreteTime())
-trajectory = Simulation(system, dt=1, random_state=0).prepare().run(until=10).trajectory_
+trajectory = simulate(system, until=10, dt=1, random_state=0)
 set(trajectory.values('lane.occupied').sum(axis=1))
 ```
 
@@ -1281,7 +1281,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import LifeCycleInteraction
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
 
@@ -1294,7 +1294,7 @@ class CellElement(Element):
 cells = GroupElement('cells', element=CellElement, size=1, values={'size': 8.0}, variable=True)
 division = LifeCycleInteraction('division', target='cells', birth=1.0, split=('size',))
 system = System(elements=[cells], interactions=[division], space=LatticeSpace((3, 3)))
-Simulation(system, random_state=0).prepare().run(until=2).trajectory_.agents('cells', 2).values['size'].tolist()
+simulate(system, until=2, random_state=0).agents('cells', 2).values['size'].tolist()
 ```
 
 `LifeCycleInteraction(target, birth, death, rate=None, offspring=1, placement='here', inherit=(), split=(), ...)`
@@ -1312,7 +1312,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import GroupingInteraction
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
 
@@ -1330,7 +1330,7 @@ def adopt_majority(members, system):
 
 voters = GroupElement('voters', element=VoterElement, size=3, values={'s': [1.0, 1.0, 0.0]})
 galam = GroupingInteraction('galam', target='voters', groups='partition', size=3, act=adopt_majority)
-trajectory = Simulation(System(elements=[voters], interactions=[galam])).prepare().run(until=1).trajectory_
+trajectory = simulate(System(elements=[voters], interactions=[galam]), until=1)
 trajectory.agents('voters', 1).values['s'].tolist()
 ```
 
@@ -1379,13 +1379,13 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import TopologyInteraction
 from skcomplex.core.components.spaces import NetworkSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 
 nodes = GroupElement('nodes', element=Element, on='sites', variable=True, capacity=20)
 links = GroupElement('links', element=Element, on='edges', variable=True, capacity=20)
 expiry = TopologyInteraction('expiry', target='nodes', action='remove-edge')
 system = System(elements=[nodes, links], interactions=[expiry], space=NetworkSpace(nx.cycle_graph(5)))
-trajectory = Simulation(system, random_state=0).prepare().run(until=1).trajectory_
+trajectory = simulate(system, until=1, random_state=0)
 len(trajectory.network(0).sources), len(trajectory.network(1).sources)
 ```
 
@@ -1414,13 +1414,13 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import MovementInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 
 divers = GroupElement('divers', element=Element, size=4)
 swim = MovementInteraction('swim', target='divers', step='gaussian', scale=0.1)
 space = ContinuousSpace(extent=(10.0, 5.0, 2.0), boundary='periodic')
 system = System(elements=[divers], interactions=[swim], space=space)
-trajectory = Simulation(system, random_state=0).prepare().run(until=5).trajectory_
+trajectory = simulate(system, until=5, random_state=0)
 trajectory.agents('divers', 5).locations.shape
 ```
 
@@ -1442,7 +1442,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import MovementInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 
 census = [box(0.0, 0.0, 4.0, 4.0), box(5.0, 0.0, 9.0, 4.0)]
 places = [box(1.0, 6.0, 3.0, 8.0)]
@@ -1450,7 +1450,7 @@ people = GroupElement('people', element=Element, size=3, location=[census[0], ce
 outing = MovementInteraction('outing', target='people', step=lambda agent, system: system.region('places', 0))
 space = ContinuousSpace(extent=(10.0, 10.0), regions={'census': census, 'places': places})
 system = System(elements=[people], interactions=[outing], space=space)
-trajectory = Simulation(system, random_state=0).prepare().run(until=1).trajectory_
+trajectory = simulate(system, until=1, random_state=0)
 all(places[0].contains(Point(point)) for point in trajectory.agents('people', 1).locations)
 ```
 
@@ -1459,7 +1459,7 @@ layer to a sequence of Shapely polygons in the coordinates of the space. `prepar
 `regions_`. For a region that is not a valid polygon, it raises `SpaceError`, which names the layer and the region.
 
 - A polygon is a location in `GroupElement(location=...)`, `SystemView.create`, and `AgentView.move_to`. The solver
-  draws a uniform point inside it from the generator of the simulation. It chooses a triangle of the constrained
+  draws a uniform point inside it from the generator of the run. It chooses a triangle of the constrained
   Delaunay triangulation of the polygon with a probability proportional to its area.
 - `AgentView.regions_here(layer)` returns the indices of the regions of a layer that contain the agent.
 - `SystemView.region(layer, index)` returns the polygon of a region, and `SystemView.regions(layer)` the number of
@@ -1497,15 +1497,16 @@ tract_in_metres = translate(projected, -low_x, -low_y)
 [round(value, -3) for value in tract_in_metres.bounds]
 ```
 
-The system `kauai_population` places one agent per resident of the census regions of the synthetic island of its
-package, and `boids_3d` flies in a periodic cube.
+`KauaiPopulationSystem` of `skcomplex.systems.social.organizations` places one agent per resident of the census
+regions of the synthetic island of its package, and `Boids3dSystem` of `skcomplex.systems.biology.collective_behaviour`
+flies in a periodic cube.
 
 ```python
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.collective_behaviour import Boids3dSystem
+from skcomplex.systems.social.organizations import KauaiPopulationSystem
 
-system = create_system('kauai_population', populations=(10, 5, 0))
-system.elements[0].size, list(system.space.regions)
-create_system('boids_3d', n_boids=10).space.extent
+system = KauaiPopulationSystem(populations=(10, 5, 0)).prepare().system_
+system.elements[0].size, list(system.space.regions), Boids3dSystem(n_boids=10).prepare().system_.space.extent
 ```
 
 ## Law utilities
@@ -1553,7 +1554,7 @@ from skcomplex.core.components.laws.utils import (
 )
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
 
@@ -1579,7 +1580,7 @@ film = FieldElement(
     values={'Q': start},
     discretization='spectral',
 )
-trajectory = Simulation(System(elements=[film]), dt=0.01).prepare().run(until=0.2).trajectory_
+trajectory = simulate(System(elements=[film]), until=0.2, dt=0.01)
 bool(np.max(np.abs(trajectory.values('film.Q')[-1])) < np.max(np.abs(start)))
 ```
 
@@ -1607,5 +1608,5 @@ The operations on vectors and tensors are:
   of the field, gives walls there.
 
 The `boundary` of a field takes a matrix of the symmetry of the state as the fixed value `('fixed', matrix)`, which
-gives every edge of the lattice that matrix. `PassCompiler` reports a rate law that breaks the declared symmetry with
+gives every edge of the lattice that matrix. `simulate` reports a rate law that breaks the declared symmetry with
 the code `tensor-symmetry`, and a tensor operation given the wrong shape with the code `law-domain`.

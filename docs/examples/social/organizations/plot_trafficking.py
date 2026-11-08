@@ -7,7 +7,7 @@ those of ordinary houses.
 """
 
 # %%
-# The system is created by name from the catalog on a 30 by 30 grid of three cities with 40 houses, 3 brothels, 12
+# The system is built from its class on a 30 by 30 grid of three cities with 40 houses, 3 brothels, 12
 # victims, and 30 free women, and runs for one year, one step per day. The default blueprint shows the premises and the
 # women, with brothels and victims bright and houses and free women dark: the bright points are the few brothel cells
 # where all the victims are held.
@@ -15,15 +15,15 @@ those of ordinary houses.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.social.organizations import TraffickingSystem
 
 SYSTEM = 'trafficking'
 
-system = create_system(SYSTEM, random_state=0)
+system = TraffickingSystem(random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=360)
+trajectory = simulate(system, until=360, dt=1, observers=[observer], random_state=0)
 
 # %%
 # Traces in the bills
@@ -31,7 +31,6 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prep
 # The bills of a premises grow with the number of people inside, so after every quarter the recorded bills of the three
 # brothels should stand well above those of the houses, where at most a few free women stay.
 
-trajectory = simulation.trajectory_
 quarters = [90, 180, 270, 360]
 fig, ax = plt.subplots(figsize=(7, 4.5))
 for index, day in enumerate(quarters):

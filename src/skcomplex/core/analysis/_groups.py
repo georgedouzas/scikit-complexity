@@ -1,4 +1,7 @@
-"""Expand small groups into one equation per member, with every reduction written as an explicit sum."""
+"""Expand small groups into one equation per member.
+
+Every reduction is written as an explicit sum.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,10 +22,10 @@ from ..specs import EntrySpec, ReadSpec
 
 
 class _Expansion(BaseConfig[ProblemSpec, tuple[set[str], int]]):
-    """Symbols of every group member and the explicit value of every reduction of one problem.
+    """Symbols of every group member and the explicit value of every reduction.
 
-    It prepares on a compiled problem and runs on the names of the groups of one owner and one member, setting
-    `expansion_`, the substitution that writes the equations of that member out.
+    They are those of one problem. It prepares on a compiled problem and runs on the names of the groups of one owner
+    and one member, setting `expansion_`, the substitution that writes the equations of that member out.
 
     Args:
         parameter_values:
@@ -35,14 +38,13 @@ class _Expansion(BaseConfig[ProblemSpec, tuple[set[str], int]]):
 
     expansion_: dict[Expression, Expression]
 
-    def _check(self) -> None:
-        """Accept every setting, since an expansion has none to validate. An expansion with settings validates them."""
-
     def __init__(self, parameter_values: npt.NDArray[np.float64] | None = None) -> None:
         self.parameter_values = parameter_values
 
     def _prepare(self, context: ProblemSpec | None) -> None:
-        """Keep the problem, start the symbols and values of its members, and find the symbols of single components.
+        """Keep the problem, start the symbols and values of its members, find components.
+
+        The components found are the symbols of single components.
 
         Args:
             context:
@@ -71,10 +73,10 @@ class _Expansion(BaseConfig[ProblemSpec, tuple[set[str], int]]):
                         self.by_index_[(is_state, entry.start + column)] = item
 
     def _run(self, inputs: tuple[set[str], int] | None) -> None:
-        """Set `expansion_`, the substitution of one member: its symbols for those of the named groups.
+        """Set `expansion_`, the substitution of one member.
 
-        Every reduction is written as an explicit sum read by the member, and the values of new member parameters are
-        kept in `values_`.
+        It puts its symbols for those of the named groups. Every reduction is written as an explicit sum read by the
+        member, and the values of new member parameters are kept in `values_`.
 
         Args:
             inputs:
@@ -110,7 +112,7 @@ class _Expansion(BaseConfig[ProblemSpec, tuple[set[str], int]]):
         return self.symbols_[key]
 
     def _member_map(self, entry_names: set[str], member: int) -> dict[Expression, Expression]:
-        """Return the substitution of the generic symbols of groups by the symbols of one member."""
+        """Return the substitution of the generic symbols of groups by those of a member."""
         mapping = {}
         for layout in (self.problem_.states, self.problem_.parameters):
             for entry in layout.entries:
@@ -135,7 +137,10 @@ class _Expansion(BaseConfig[ProblemSpec, tuple[set[str], int]]):
         return self._member_symbol(read.entry, read.column, member)
 
     def _value(self, reduction: ReductionKernel, reader: int | None) -> Expression:
-        """Return a reduction as an explicit expression of the member symbols, for one reader with weights."""
+        """Return a reduction as an explicit expression of the member symbols.
+
+        It is for one reader with weights.
+        """
         key = (reduction.symbol, reader)
         if key in self.shared_:
             return self.shared_[key]
@@ -150,7 +155,10 @@ class _Expansion(BaseConfig[ProblemSpec, tuple[set[str], int]]):
         return self.shared_[key]
 
     def _weights_row(self, reduction: ReductionKernel, reader: int | None) -> npt.NDArray[np.float64]:
-        """Return the weights of the members of a reduction for one reader, from a matrix or a shaped parameter."""
+        """Return the weights of the members of a reduction for one reader.
+
+        They come from a matrix or a shaped parameter.
+        """
         weights, position = reduction.weights, reader if reader is not None else 0
         if not isinstance(weights, ReadSpec) or weights.entry is None:
             return np.asarray(scipy.sparse.csr_array(weights).toarray()[position], dtype=np.float64)
@@ -170,7 +178,10 @@ class _Expansion(BaseConfig[ProblemSpec, tuple[set[str], int]]):
         selected: list[Expression | None],
         row: npt.NDArray[np.float64] | None,
     ) -> Expression:
-        """Return the explicit value of a reduction from the terms and conditions of its members, with their weights."""
+        """Return the explicit value of a reduction.
+
+        It comes from the terms and conditions of its members, with their weights.
+        """
         counted = sum((_Expansion._chosen(SR(1), condition, 0) for condition in selected), SR(0))
         if reduction.kind == 'count':
             return counted

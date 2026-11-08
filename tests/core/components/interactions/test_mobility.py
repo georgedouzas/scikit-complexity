@@ -13,7 +13,7 @@ from skcomplex.core.components.interactions import MobilityInteraction
 from skcomplex.core.components.interactions._mobility import _mobility_matrix, _mobility_product, _source_flows
 from skcomplex.core.components.spaces import ContinuousSpace, DiscreteTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
@@ -55,7 +55,7 @@ def _system(interaction, positions, *, orientations=None, forces=None, centers=N
 def _velocities(interaction, positions, **kwargs):
     """Return the velocities of the spheres over a short run of the rate form."""
     system = _system(interaction, positions, **kwargs)
-    trajectory = Simulation(system, dt=1e-6).prepare().run(until=1e-6).trajectory_
+    trajectory = simulate(system, until=1e-6, dt=1e-6)
     return (trajectory.values('spheres.x')[-1] - trajectory.values('spheres.x')[0]) / 1e-6
 
 
@@ -148,7 +148,7 @@ def test_orientation_turns_with_the_angular_velocity_and_stays_unit():
     """Test that a constant torque turns the orientation about it at `T / (8 pi eta a^3)`."""
     spin = MobilityInteraction('spin', target='spheres', orientation='p', torque=lambda s: vector([0.0, 0.0, 1.0]))
     system = _system(spin, [[0.0, 0.0, 0.0]], orientations=[[1.0, 0.0, 0.0]])
-    turn = Simulation(system, dt=0.1).prepare().run(until=16 * math.pi**2).trajectory_.values('spheres.p')
+    turn = simulate(system, until=16 * math.pi**2, dt=0.1).values('spheres.p')
     assert turn[-1, 0] == pytest.approx([1.0, 0.0, 0.0], abs=1e-4)
     assert np.linalg.norm(turn[:, 0], axis=1) == pytest.approx(1.0, abs=1e-4)
 
@@ -163,7 +163,7 @@ def test_intrinsic_velocity_and_planar_torque():
         torque=lambda s: 8 * math.pi,
     )
     system = _system(swim, [[0.0, 0.0]], orientations=[[1.0, 0.0]])
-    trajectory = Simulation(system, dt=0.01).prepare().run(until=math.pi / 2).trajectory_
+    trajectory = simulate(system, until=math.pi / 2, dt=0.01)
     assert trajectory.values('spheres.p')[-1, 0] == pytest.approx([0.0, 1.0], abs=1e-4)
     assert trajectory.values('spheres.x')[-1, 0] == pytest.approx([2.0, 2.0], abs=1e-3)
 
@@ -201,7 +201,7 @@ def test_brownian_steps_have_the_mobility_covariance(root):
         root=root,
     )
     system = _system(stokes, [[0.0, 0.0, 0.0], [2.5, 0.0, 0.0]], time=DiscreteTime())
-    positions = Simulation(system, random_state=0).prepare().run(until=4000).trajectory_.values('spheres.x')
+    positions = simulate(system, until=4000, random_state=0).values('spheres.x')
     steps = np.diff(positions, axis=0)
     along = 6 * math.pi * (1 / (4 * math.pi * 2.5) - 1 / (6 * math.pi * 2.5**3))
     across = 6 * math.pi * (1 + 2 / (3 * 2.5**2)) / (8 * math.pi * 2.5)
@@ -218,7 +218,7 @@ def test_brownian_rotation_turns_orientations():
     positions = rng.uniform(0, 1000, size=(size, 3))
     orientations = np.tile([0.0, 0.0, 1.0], (size, 1))
     system = _system(stokes, positions, orientations=orientations, time=DiscreteTime())
-    turned = Simulation(system, random_state=0).prepare().run(until=100).trajectory_.values('spheres.p')
+    turned = simulate(system, until=100, random_state=0).values('spheres.p')
     rotation = 1 / (8 * math.pi)
     assert turned[-1, :, 2].mean() == pytest.approx(math.exp(-2 * rotation), abs=0.08)
     assert np.linalg.norm(turned[-1], axis=1) == pytest.approx(1.0)
@@ -229,7 +229,7 @@ def test_oseen_overlap_is_not_positive():
     stokes = MobilityInteraction('stokes', target='spheres', tensor='oseen', form='map', temperature=1.0)
     system = _system(stokes, [[0.0, 0.0, 0.0], [0.2, 0.0, 0.0], [0.0, 0.2, 0.0]], time=DiscreteTime())
     with pytest.raises(ValidationError, match='rotne-prager-yamakawa'):
-        Simulation(system, random_state=0).prepare().run(until=2)
+        simulate(system, until=2, random_state=0)
 
 
 @pytest.mark.parametrize(
@@ -252,4 +252,4 @@ def test_stresslet_of_wrong_shape_is_reported():
     """Test that a stresslet whose shape does not match the positions is reported when the laws are built."""
     stokes = MobilityInteraction('stokes', target='spheres', stresslet=lambda s: matrix([[1.0, 0.0], [0.0, -1.0]]))
     with pytest.raises(ValidationError, match='3 by 3'):
-        Simulation(_system(stokes, [[0.0, 0.0, 0.0]]), dt=0.1).prepare()
+        simulate(_system(stokes, [[0.0, 0.0, 0.0]]), until=0, dt=0.1)

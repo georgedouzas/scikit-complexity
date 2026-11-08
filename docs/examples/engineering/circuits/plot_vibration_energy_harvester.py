@@ -7,33 +7,22 @@ its two natural frequencies.
 """
 
 # %%
-# The system is created by name from the catalog with a wheel of 40 kg, a body of 400 kg, and a road of amplitude 1 cm
+# The system is built from its class with a wheel of 40 kg, a body of 400 kg, and a road of amplitude 1 cm
 # driving at 9.42 rad/s, and runs for 10 seconds. The default blueprint shows the displacements of both masses with
 # their rates and the voltage of the bar.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.engineering.circuits import VibrationEnergyHarvesterSystem
 
 SYSTEM = 'vibration_energy_harvester'
 
-system = create_system(SYSTEM)
+system = VibrationEnergyHarvesterSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-simulation = (
-    Simulation(
-        system,
-        dt=0.01,
-        observers=[observer],
-        observables=describe(SYSTEM).observables_of(system),
-    )
-    .prepare()
-    .run(
-        until=10,
-    )
-)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # Frequency response of the voltage
@@ -47,13 +36,8 @@ natural = np.sqrt(np.linalg.eigvals(np.diag([1 / m1, 1 / m2]) @ np.array([[k1 + 
 frequencies = np.linspace(2.0, 100.0, 50)
 amplitudes = []
 for omega in frequencies:
-    system_system = create_system(SYSTEM, omega=omega)
-    run = (
-        Simulation(system_system, dt=0.01, observables=describe(SYSTEM).observables_of(system_system))
-        .prepare()
-        .run(until=10)
-        .trajectory_
-    )
+    system_system = VibrationEnergyHarvesterSystem(omega=omega)
+    run = simulate(system_system)
     amplitudes.append(np.abs(run.values('voltage')[-300:]).max())
 fig, ax = plt.subplots(figsize=(7, 4.5))
 ax.semilogy(frequencies, amplitudes, 'o-', markersize=3, label='simulated voltage amplitude')

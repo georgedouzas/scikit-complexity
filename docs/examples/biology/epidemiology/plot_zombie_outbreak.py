@@ -6,20 +6,19 @@ rise again, so whatever the humans do the outbreak ends in the doomsday state wh
 """
 
 # %%
-# The system is created by name from the catalog with the parameters of Munz et al. (2009), and the observer saves
-# every other frame with the default blueprint, whose primary view is the time series of the three compartments.
+# The system is built from its class with the parameters of Munz et al. (2009), and the observer saves every other
+# frame with the default blueprint, whose primary view is the time series of the three compartments.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.epidemiology import ZombieOutbreakSystem
 
 SYSTEM = 'zombie_outbreak'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=10)
+trajectory = simulate(ZombieOutbreakSystem(), observers=[observer])
 
 # %%
 # Doomsday and the conserved total
@@ -27,7 +26,6 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(unt
 # Without births every event moves an individual between compartments, so the total `S + Z + R` should stay at 501,
 # while the humans fall to zero and the zombies take over.
 
-trajectory = simulation.trajectory_
 times = trajectory.times
 fig, ax = plt.subplots(figsize=(7, 4.5))
 for label, name in (('S.n', 'humans'), ('Z.n', 'zombies'), ('R.n', 'removed')):

@@ -6,22 +6,21 @@ its surface keep raising.
 """
 
 # %%
-# The system is created by name from the catalog with the breast cancer fit of Padmanabhan et al., an initial volume of
-# 1 mm³ and an initial capacity of 12.7 mm³, and run for 20 days. The observer saves every frame with the default
-# blueprint, whose primary view is the time series of the volume and the capacity.
+# The system is built from its class with the breast cancer fit of Padmanabhan et al., an initial volume of 1 mm³ and
+# an initial capacity of 12.7 mm³, and run for 20 days. The observer saves every frame with the default blueprint,
+# whose primary view is the time series of the volume and the capacity.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.oncology import DynamicCarryingCapacitySystem
 
 SYSTEM = 'dynamic_carrying_capacity'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=20)
+trajectory = simulate(DynamicCarryingCapacitySystem(), dt=0.1, observers=[observer])
 
 # %%
 # Tumour and capacity
@@ -29,8 +28,8 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(unti
 # Once the tumour has filled its capacity, `n` stays close to `K`, so `dK/dt = d n^(2/3)` gives `K^(1/3)` rising
 # linearly at the rate `d / 3`, and the volume grows as the cube of time.
 
-times = simulation.trajectory_.times
-volume, capacity = simulation.trajectory_.values('tumour.n'), simulation.trajectory_.values('vessels.K')
+times = trajectory.times
+volume, capacity = trajectory.values('tumour.n'), trajectory.values('vessels.K')
 fig, (curves, cube) = plt.subplots(1, 2, figsize=(10, 4))
 curves.plot(times, volume, label='tumour n')
 curves.plot(times, capacity, label='capacity K')

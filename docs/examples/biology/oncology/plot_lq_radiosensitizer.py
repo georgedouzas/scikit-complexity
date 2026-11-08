@@ -6,22 +6,21 @@ they divide once more and die over the following weeks, while the survivors regr
 """
 
 # %%
-# The system is created by name from the catalog: a xenograft of 27 mm³ receives ten fractions of 2 Gy, the first
-# three hours after a radiosensitizer at 2 μg/mL. The observer saves every frame with the default blueprint, whose
-# primary view is the time series of the six compartments over the 40 days of the response.
+# The system is built from its class: a xenograft of 27 mm³ receives ten fractions of 2 Gy, the first three hours
+# after a radiosensitizer at 2 μg/mL. The observer saves every frame with the default blueprint, whose primary view is
+# the time series of the six compartments over the 40 days of the response.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.oncology import LQRadiosensitizerSystem
 
 SYSTEM = 'lq_radiosensitizer'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.25, observers=[observer]).prepare().run(until=40)
+trajectory = simulate(LQRadiosensitizerSystem(), dt=0.25, observers=[observer], until=40)
 
 # %%
 # Surviving fractions
@@ -31,14 +30,13 @@ simulation = Simulation(system, dt=0.25, observers=[observer]).prepare().run(unt
 # the first fractions, while it lasts, and the treated tumour stays smaller than the one irradiated alone.
 
 alpha, beta, ap, dose = 0.054, 0.0054, 0.42, 2.0
-trajectory = simulation.trajectory_
 names = list(trajectory.problem.states.names)
 cells, sensitizer = names.index('tumour.A1'), names.index('tumour.Us')
 survival = [event.after[cells] / event.before[cells] for event in trajectory.events]
 predicted = [
     np.exp(-(1 + ap * event.before[sensitizer]) * (alpha * dose + beta * dose**2)) for event in trajectory.events
 ]
-alone = Simulation(create_system(SYSTEM, Us=0.0), dt=0.25).prepare().run(until=40).trajectory_
+alone = simulate(LQRadiosensitizerSystem(Us=0.0), dt=0.25, until=40)
 
 
 def total(run):

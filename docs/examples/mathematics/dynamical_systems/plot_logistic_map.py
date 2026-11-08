@@ -16,11 +16,11 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.analysis import LyapunovAnalysis
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.analysis import lyapunov
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.core.experiments import OrbitDiagramExperiment
-from skcomplex.systems import create_system, describe
+from skcomplex.core.experiments import orbit_diagram
+from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
 
 SYSTEM = 'logistic_map'
 
@@ -43,23 +43,11 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create_system(SYSTEM, r=3.7), dt=1, observers=[observer]).prepare().run(until=200)
+trajectory = simulate(LogisticMapSystem(r=3.7), observers=[observer])
 rates = np.linspace(2.8, 4.0, 400)
-diagram = (
-    OrbitDiagramExperiment(
-        describe(SYSTEM).factory,
-        'map.r',
-        rates,
-        'map.x',
-        transient=500,
-        keep=100,
-        dt=1,
-    )
-    .prepare()
-    .run()
-)
+diagram = orbit_diagram(LogisticMapSystem(), 'map.r', rates, 'map.x', transient=500, keep=100, dt=1)
 points = np.array(
-    [(100 * r, -100 * x) for r, values in zip(diagram.values, diagram.points_, strict=True) for x in values],
+    [(100 * r, -100 * x) for r, values in zip(rates, diagram.points, strict=True) for x in values],
 )
 observer.recording_.log('orbit_diagram', rr.Points2D(points, radii=0.12, colors=[90, 170, 255]), static=True)
 observer.recording_.flush()
@@ -71,19 +59,17 @@ observer.recording_.flush()
 # the periodic windows, and turn positive where the orbit diagram fills bands, reaching `ln 2` at `r = 4`.
 
 sample = np.linspace(2.8, 4.0, 41)
-exponents = [
-    LyapunovAnalysis(until=1000, parameters={'map.r': r}).prepare(simulation.system).run().exponents_[0] for r in sample
-]
-fig, (orbits, lyapunov) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
+exponents = [lyapunov(LogisticMapSystem(r=3.7), until=1000, parameters={'map.r': r}).exponents[0] for r in sample]
+fig, (orbits, exponent_axes) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
 orbits.plot(points[:, 0] / 100, -points[:, 1] / 100, ',', color='C0')
 orbits.set_ylabel('long-run x')
 orbits.set_title('Orbit diagram and Lyapunov exponent of the logistic map')
-lyapunov.plot(sample, exponents, '.-', color='C3')
-lyapunov.axhline(0, color='black', linewidth=0.8)
-lyapunov.axhline(np.log(2), color='black', linestyle=':', label='ln 2')
-lyapunov.set_ylim(-1.5, 1)
-lyapunov.set_xlabel('growth rate r')
-lyapunov.set_ylabel('Lyapunov exponent')
-lyapunov.legend(loc='lower left')
+exponent_axes.plot(sample, exponents, '.-', color='C3')
+exponent_axes.axhline(0, color='black', linewidth=0.8)
+exponent_axes.axhline(np.log(2), color='black', linestyle=':', label='ln 2')
+exponent_axes.set_ylim(-1.5, 1)
+exponent_axes.set_xlabel('growth rate r')
+exponent_axes.set_ylabel('Lyapunov exponent')
+exponent_axes.legend(loc='lower left')
 fig.tight_layout()
 plt.show()

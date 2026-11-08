@@ -14,9 +14,9 @@ import numpy as np
 import rerun.blueprint as rrb
 from scipy import integrate
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.computer_science.neural_networks import DilutedHopfieldSystem
 
 SYSTEM = 'diluted_hopfield'
 K, P, BETA = 50.0, 10, 3.0 / 50.0
@@ -29,18 +29,8 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-system = create_system(SYSTEM, n_neurons=4000, connectivity=K, load=0.2, temperature_scale=3.0, overlap=0.3)
-simulation = (
-    Simulation(
-        system,
-        dt=1,
-        observers=[observer],
-        random_state=0,
-        observables=describe(SYSTEM).observables_of(system),
-    )
-    .prepare()
-    .run(20)
-)
+system = DilutedHopfieldSystem(n_neurons=4000, connectivity=K, load=0.2, temperature_scale=3.0, overlap=0.3)
+trajectory = simulate(system, observers=[observer], random_state=0)
 
 # %%
 # The annealed map of the overlap
@@ -61,14 +51,14 @@ def annealed(m):
     return integrate.quad(integrand, -10, 10)[0]
 
 
-overlaps = simulation.trajectory_.values('overlap')
+overlaps = trajectory.values('overlap')
 predicted = [overlaps[0]]
 for _ in overlaps[1:]:
     predicted.append(annealed(predicted[-1]))
 grid = np.linspace(0, 1, 101)
 fig, (series, return_map) = plt.subplots(1, 2, figsize=(10, 4))
-series.plot(simulation.trajectory_.times, overlaps, 'o', label='simulation')
-series.plot(simulation.trajectory_.times, predicted, '--', color='black', label='annealed map')
+series.plot(trajectory.times, overlaps, 'o', label='simulation')
+series.plot(trajectory.times, predicted, '--', color='black', label='annealed map')
 series.set_xlabel('parallel update t')
 series.set_ylabel('overlap m')
 series.set_title('Recall of the first pattern')

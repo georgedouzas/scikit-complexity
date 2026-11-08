@@ -1,4 +1,7 @@
-"""Define patch elements, tiles under affine placements replaced in parallel by substitutions."""
+"""Define patch elements.
+
+A patch holds tiles under affine placements, replaced in parallel by substitutions.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -8,14 +11,15 @@ from typing import Annotated
 
 from ...errors import RewritingError
 from ...specs import AffineSpec, PrototileSpec, StateSpec, VisualSpec
+from ..spaces import BaseSpace
 from ._element import Element
 
 
 class PatchElement(Element):
-    """Element that holds tiles, each a prototile under an affine placement, replaced in parallel by substitutions.
+    """Element that holds tiles replaced in parallel by substitutions.
 
-    A subclass returns the `SubstitutionLaw`s of the patch from `_get_laws`. Its states are the count of every
-    prototile and the number `size` of tiles.
+    Every tile is a prototile under an affine placement. A subclass returns the `SubstitutionLaw`s of the patch from
+    `_get_laws`. Its states are the count of every prototile and the number `size` of tiles.
 
     Args:
         label:
@@ -64,8 +68,17 @@ class PatchElement(Element):
         self.max_size = max_size
         self.bounds = bounds
 
-    def _check(self) -> None:
-        """Raise an error for no prototiles, an invalid prototile, or a tile of an unknown prototile."""
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Set `default_visual_`, the geometry of the tiles.
+
+        It first raises an error for no prototiles, an invalid prototile, or an unknown one. An unknown prototile is one
+        a tile names.
+
+        Args:
+            context:
+                The space the element inherits from its system, which the element does not read.
+        """
+        super()._prepare(context)
         if not self.prototiles:
             error_msg = f'The patch {self.label} needs at least one prototile.'
             raise RewritingError(error_msg)
@@ -74,13 +87,5 @@ class PatchElement(Element):
             if name not in names:
                 error_msg = f'The patch {self.label} has a tile of the unknown prototile {name!r}.'
                 raise RewritingError(error_msg)
-            placement._validated()
-
-    def _prepare(self, context: object = None) -> None:
-        """Set `default_visual_`, the geometry of the tiles.
-
-        Args:
-            context:
-                The space the element inherits from its system, which the element does not read.
-        """
+            placement._check()
         self.default_visual_ = VisualSpec('geometry')

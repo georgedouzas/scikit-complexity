@@ -16,4 +16,4 @@ def test_check_takes_a_known_sense():
 def test_check_rejects_an_unknown_sense():
     """Test that an unknown sense raises an error that names the senses."""
     with pytest.raises(ValidationError, match='max, min'):
-        LinearObjectiveSpec(var('v'), sense='most').prepare()
+        LinearObjectiveSpec(var('v'), sense='most')._check()

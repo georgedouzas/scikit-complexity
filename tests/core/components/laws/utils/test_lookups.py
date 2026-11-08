@@ -9,7 +9,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import lookup
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ObservableSpec, StateSpec, VisualSpec
 
 
@@ -39,8 +39,7 @@ class FertilityElement(Element):
 def test_table_function_interpolates_and_stays_flat():
     """Test that the fertility, observed as an expression of the element, interpolates the table and holds its ends."""
     fertility = ObservableSpec('fertility', _fertility, element='f')
-    trajectory = Simulation(System(elements=[FertilityElement('f')]), dt=0.5, observables=[fertility]).prepare().run(4)
-    trajectory = trajectory.trajectory_
+    trajectory = simulate(System(elements=[FertilityElement('f')]), until=4, dt=0.5, observables=[fertility])
     food = trajectory.values('f.food')
     expected = np.interp(food, [0, 1, 2], [0.0, 2.0, 3.0])
     assert trajectory.values('f.fertility') == pytest.approx(expected)

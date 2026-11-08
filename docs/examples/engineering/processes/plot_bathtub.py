@@ -13,9 +13,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.engineering.processes import BathtubSystem
 
 SYSTEM = 'bathtub'
 
@@ -26,7 +26,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create_system(SYSTEM), dt=0.5, observers=[observer]).prepare().run(10)
+trajectory = simulate(BathtubSystem(), observers=[observer])
 
 # %%
 # The stock integrates its flows
@@ -34,7 +34,6 @@ simulation = Simulation(create_system(SYSTEM), dt=0.5, observers=[observer]).pre
 # The water is a stock and the faucet and the drain are flows, so the level changes at the faucet minus the drain.
 # The level falls at five gallons per minute until the faucet opens, and then the two flows balance.
 
-trajectory = simulation.trajectory_
 times = np.asarray(trajectory.times)
 fig, (stock, flows) = plt.subplots(1, 2, figsize=(10, 4))
 stock.plot(times, trajectory.values('tub.water'))

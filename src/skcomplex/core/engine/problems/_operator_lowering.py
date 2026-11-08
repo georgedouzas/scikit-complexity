@@ -1,4 +1,7 @@
-"""Lowering of operators of subsystems to sparse matrices on the whole space, with their coefficients."""
+"""Lowering of operators of subsystems to sparse matrices on the whole space.
+
+The coefficients are lowered too.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,10 +28,11 @@ from ._operator_kernel import OperatorKernel
 
 
 class OperatorLowering(BaseConfig[None, tuple[object, str]]):
-    """Lowering of operators of subsystems to sparse matrices on the whole space and coefficients to functions.
+    """Lowering of operators of subsystems to sparse matrices on the whole space.
 
-    `run((expression, owner))` keeps in `kernels_` the terms of an operator, with constant terms folded and terms of
-    equal coefficients summed. The owner, the description of the law or observable of the operator, names it in errors.
+    Coefficients are lowered to functions. `run((expression, owner))` keeps in `kernels_` the terms of an operator, with
+    constant terms folded and terms of equal coefficients summed. The owner, the description of the law or observable of
+    the operator, names it in errors.
 
     Args:
         time:
@@ -51,9 +55,6 @@ class OperatorLowering(BaseConfig[None, tuple[object, str]]):
 
     kernels_: tuple[OperatorKernel, ...]
 
-    def _check(self) -> None:
-        """Accept every setting, since an operator lowering has none to validate."""
-
     def _prepare(self, context: None) -> None:
         """Derive nothing from the context, since an operator lowering prepares nothing."""
 
@@ -70,7 +71,9 @@ class OperatorLowering(BaseConfig[None, tuple[object, str]]):
         self.arguments = arguments
 
     def _run(self, inputs: tuple[object, str] | None) -> None:
-        """Set the terms of an operator, with constant terms folded and terms of equal coefficients summed.
+        """Set the terms of an operator.
+
+        Constant terms are folded and terms of equal coefficients are summed.
 
         Args:
             inputs:
@@ -173,7 +176,9 @@ class OperatorLowering(BaseConfig[None, tuple[object, str]]):
         return sp.csr_array(functools.reduce(lambda left, right: sp.kron(left, right, format='csr'), blocks))
 
     def _function(self, coefficient: Expression, owner: str) -> Callable[[float, Array], complex]:
-        """Return the function of a coefficient after checking that it reads parameters and time only.
+        """Return the function of a coefficient.
+
+        The coefficient is first checked to read parameters and time only.
 
         Args:
             coefficient:
@@ -253,7 +258,10 @@ class OperatorLowering(BaseConfig[None, tuple[object, str]]):
 
     @staticmethod
     def _product_of(factors: list[OperatorSpec], expression: Expression) -> OperatorSpec:
-        """Return the product of the factors of a Sage product, which commute only on distinct subsystems."""
+        """Return the product of the factors of a Sage product.
+
+        The factors commute only on distinct subsystems.
+        """
         acting = [OperatorLowering._acted_on(factor) for factor in factors if any(key for key in factor.terms)]
         if sum(len(item) for item in acting) != len(set().union(*acting)):
             error_msg = (
@@ -268,7 +276,9 @@ class OperatorLowering(BaseConfig[None, tuple[object, str]]):
         expression: object,
         subsystems: Mapping[Expression, tuple[str, Mapping[str, LocalOperatorSpec]]],
     ) -> OperatorSpec:
-        """Return the operator of a Sage expression of local operators, products, and adjoints.
+        """Return the operator of a Sage expression.
+
+        The expression is built of local operators, products, and adjoints.
 
         Args:
             expression:

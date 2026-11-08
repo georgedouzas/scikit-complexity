@@ -13,12 +13,12 @@ ARRIVALS = ('random', 'sequential')
 
 @dataclass(frozen=True)
 class ContinuousMatchingSpec(BaseSpec):
-    """Continuous matching by limit and arrival, in which every arriving offer matches the best resting offers.
+    """Continuous matching by limit and arrival.
 
-    Every participant submits one offer, in random order of arrival or in order of creation. An arriving offer matches
-    the best offers of the other side, the oldest first among equal limits, at their limits, as long as the limits
-    cross, and its remainder rests. The resting offers are dropped at the end of every matching (Caiani et al. 2016
-    ch. 3).
+    Every arriving offer matches the best resting offers. Every participant submits one offer, in random order of
+    arrival or in order of creation. An arriving offer matches the best offers of the other side, the oldest first among
+    equal limits, at their limits, as long as the limits cross, and its remainder rests. The resting offers are dropped
+    at the end of every matching (Caiani et al. 2016 ch. 3).
 
     Args:
         arrival:
@@ -26,7 +26,7 @@ class ContinuousMatchingSpec(BaseSpec):
 
     Raises:
         ValidationError:
-            The order of arrival is unknown, raised by `prepare`.
+            The order of arrival is unknown, raised when its owner checks it.
 
     Examples:
         >>> from skcomplex.core.specs import ContinuousMatchingSpec

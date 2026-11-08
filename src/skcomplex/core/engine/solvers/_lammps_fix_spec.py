@@ -12,7 +12,9 @@ from ...types import Array
 
 @dataclass(frozen=True)
 class LammpsFixSpec(BaseSpec):
-    """Values the native fix of an interaction reads when the LAMMPS backend writes its command.
+    """Values the native fix of an interaction reads.
+
+    The LAMMPS backend reads them when it writes its command.
 
     Args:
         name:

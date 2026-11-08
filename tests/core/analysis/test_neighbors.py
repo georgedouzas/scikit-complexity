@@ -6,25 +6,29 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import NeighborAnalysis
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.analysis import NeighborsResult, neighbors
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
-from skcomplex.systems import create_simulation, create_system
+from skcomplex.systems.biology.collective_behaviour import BoidsSystem
+from skcomplex.systems.physics.statistical_mechanics import IsingSystem, LennardJonesFluidSystem
+from skcomplex.systems.social.segregation import SchellingSystem
 
 EMPTY = -1.0
 
 
-def _neighbors(kind: str, source: object, **settings: object) -> NeighborAnalysis:
+def _neighbors(kind: str, source: object, **settings: object) -> NeighborsResult:
     """Return the neighbour analysis of a source for one kind, run."""
-    return NeighborAnalysis(kind, **settings).prepare(source).run()
+    return neighbors(source, kind=kind, **settings)
 
 
 def _schelling_grid(side: int) -> np.ndarray:
     """Return the groups of a relaxed Schelling system with tolerance 0.5 on a grid, `EMPTY` for empty cells."""
-    trajectory = (
-        create_simulation('schelling', width=side, height=side, threshold=0.5, random_state=0).prepare().run(until=100)
+    trajectory = simulate(
+        SchellingSystem(width=side, height=side, threshold=0.5, random_state=0),
+        until=100,
+        random_state=0,
     )
-    residents = trajectory.trajectory_.agents('residents', -1)
+    residents = trajectory.agents('residents', -1)
     group = next(iter(residents.values.values()))
     grid = np.full((side, side), EMPTY)
     places = np.asarray(residents.locations).astype(int)
@@ -41,11 +45,11 @@ def _global_like_share(occupied: np.ndarray) -> float:
 def test_clark_evans_ratio_random_and_ordered_positions():
     """Test that random points give 1 and a triangular lattice gives above 2."""
     points = np.random.default_rng(4).random((2000, 2))
-    assert _neighbors('clark-evans', points, box=[1.0, 1.0]).ratio_[0] == pytest.approx(1, abs=0.05)
+    assert _neighbors('clark-evans', points, box=[1.0, 1.0]).ratio[0] == pytest.approx(1, abs=0.05)
     rows, columns = np.meshgrid(np.arange(40), np.arange(46), indexing='ij')
     lattice = np.column_stack([(columns + 0.5 * (rows % 2)).ravel(), (rows * math.sqrt(3) / 2).ravel()])
-    assert _neighbors('clark-evans', lattice, box=[46.0, 40 * math.sqrt(3) / 2]).ratio_[0] > 2
-    assert _neighbors('distances', lattice[:3]).distances_[0].tolist() == pytest.approx([1.0, 1.0, 1.0])
+    assert _neighbors('clark-evans', lattice, box=[46.0, 40 * math.sqrt(3) / 2]).ratio[0] > 2
+    assert _neighbors('distances', lattice[:3]).distances[0].tolist() == pytest.approx([1.0, 1.0, 1.0])
 
 
 @pytest.mark.slow
@@ -53,39 +57,39 @@ def test_radial_distribution_of_a_gas_and_a_fluid():
     """Test that an ideal gas gives g = 1 and a dense Lennard-Jones fluid peaks at 2^(1/6) sigma."""
     rng = np.random.default_rng(5)
     gas = rng.random((20, 4000, 2)) * 20
-    density = _neighbors('radial-distribution', gas, box=[20.0, 20.0], bins=20).distribution_
+    density = _neighbors('radial-distribution', gas, box=[20.0, 20.0], bins=20).distribution
     assert np.all(np.abs(density - 1) < 0.05)
-    trajectory = create_simulation('lennard_jones_fluid').prepare().run().trajectory_
+    trajectory = simulate(LennardJonesFluidSystem(), random_state=0)
     box = np.asarray(trajectory.problem.system.space.extent_, dtype=float)
     positions = np.mod(np.asarray(trajectory.values('fluid.x'), dtype=float)[-10:], box)
     fluid = _neighbors('radial-distribution', positions, box=box, bins=150, r_max=3.0)
-    assert fluid.radii_[fluid.distribution_.argmax()] == pytest.approx(2 ** (1 / 6), rel=0.05)
+    assert fluid.radii[fluid.distribution.argmax()] == pytest.approx(2 ** (1 / 6), rel=0.05)
 
 
 def test_neighbor_distances_of_every_frame_of_a_trajectory():
     """Test that a flock in a periodic box gives one distance per agent and frame and one ratio per frame."""
-    trajectory = create_simulation('boids').prepare().run(until=3).trajectory_
-    distances = _neighbors('distances', trajectory).distances_
+    trajectory = simulate(BoidsSystem(), until=3, random_state=0)
+    distances = _neighbors('distances', trajectory).distances
     assert distances.shape == (len(trajectory.times), trajectory.agents('flock', 0).ids.size)
     assert np.all(distances > 0)
     if trajectory.problem.agent_space.periodic_:
-        assert _neighbors('clark-evans', trajectory).ratio_.shape == (len(trajectory.times),)
+        assert _neighbors('clark-evans', trajectory).ratio.shape == (len(trajectory.times),)
 
 
 def test_like_neighbor_share_same_index_on_two_domains():
     """Test that a relaxed Schelling system and a quenched Ising lattice exceed 0.75, unlike random arrangements."""
     rng = np.random.default_rng(0)
     schelling = _schelling_grid(40)
-    quench = Simulation(create_system('ising', size=64, temperature=1.0), dt=1).prepare().run(until=200)
-    ising = quench.trajectory_.lattice('spins.spin')[-1]
+    quench = simulate(IsingSystem(size=64, temperature=1.0).prepare().system_, until=200, dt=1)
+    ising = quench.lattice('spins.spin')[-1]
     for grid, empty in ((schelling, EMPTY), (ising, None)):
-        assert _neighbors('like-share', grid, empty=empty).share_[0] > 0.75
+        assert _neighbors('like-share', grid, empty=empty).share[0] > 0.75
         occupied = grid != EMPTY if empty is not None else np.ones(grid.shape, dtype=bool)
         shares = []
         for _ in range(20):
             shuffled = grid.copy()
             shuffled[occupied] = rng.permutation(grid[occupied])
-            shares.append(_neighbors('like-share', shuffled, empty=empty).share_[0])
+            shares.append(_neighbors('like-share', shuffled, empty=empty).share[0])
         assert np.mean(shares) == pytest.approx(_global_like_share(grid[occupied]), abs=0.02)
 
 
@@ -93,7 +97,7 @@ def test_like_neighbor_share_on_networks():
     """Test the like share along the edges of a network, and the error of a node without a state."""
     graph = nx.path_graph(4)
     nx.set_node_attributes(graph, {0: 0, 1: 0, 2: 1, 3: 1}, 'state')
-    assert _neighbors('like-share', graph).share_[0] == pytest.approx(2 / 3)
+    assert _neighbors('like-share', graph).share[0] == pytest.approx(2 / 3)
     with pytest.raises(AnalysisError, match='no attribute'):
         _neighbors('like-share', nx.path_graph(3))
 
@@ -101,8 +105,8 @@ def test_like_neighbor_share_on_networks():
 def test_neighbor_analysis_checks_its_settings():
     """Test the errors of an unknown kind, an ignored setting, and a Clark-Evans ratio without a box."""
     with pytest.raises(AnalysisError, match='Use one of distances'):
-        NeighborAnalysis('voronoi').prepare()
+        neighbors(np.zeros(10), kind='voronoi')
     with pytest.raises(AnalysisError, match='does not read bins'):
-        NeighborAnalysis('distances', bins=10).prepare()
+        neighbors(np.zeros(10), kind='distances', bins=10)
     with pytest.raises(AnalysisError, match='needs a periodic box'):
         _neighbors('clark-evans', np.random.default_rng(0).random((10, 2)))

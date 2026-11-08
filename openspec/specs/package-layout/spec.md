@@ -101,9 +101,9 @@ The package SHALL expose exactly two subpackages, `skcomplex.core` and `skcomple
 - `skcomplex.systems` holds the catalog of ready-made systems.
 
 #### Scenario: Framework imports
-- **WHEN** a user imports `Element` from `skcomplex.core.components.elements`, `Simulation` from
-  `skcomplex.core.engine.runtime`, `RK4Solver` from `skcomplex.core.engine.solvers`, `EntropyAnalysis` from
-  `skcomplex.core.analysis`, and `Experiment` from `skcomplex.core.experiments`
+- **WHEN** a user imports `Element` from `skcomplex.core.components.elements`, `simulate` from
+  `skcomplex.core.engine.runtime`, `RK4Solver` from `skcomplex.core.engine.solvers`, `entropy` from
+  `skcomplex.core.analysis`, and `sweep` from `skcomplex.core.experiments`
 - **THEN** every import succeeds
 
 #### Scenario: Old paths
@@ -133,18 +133,18 @@ The runtime SHALL run any problem through what `BaseProblem` holds, and SHALL re
 - **THEN** both runs succeed, and neither problem is a subclass of `skcomplex.core.components.problems.Problem`
 
 ### Requirement: A system compiler is not a pass
-`BaseSystemCompiler` of `skcomplex.core.engine.compile` SHALL be the base of the compilers that claim a whole system of a
-formalism and compile it to a problem, and SHALL be unrelated to `BasePass`, whose subclasses are steps of one
-compilation.
+`BaseCompiler` of `skcomplex.core.engine.compile` SHALL be the public base of the compilers that compile a whole system
+of one form to a problem, the private compilers of the library's forms included, and SHALL be unrelated to `BasePass`,
+whose subclasses are steps of one compilation.
 
 #### Scenario: Quantum compiler
-- **WHEN** a test checks `QuantumCompiler` against `BaseSystemCompiler` and `BasePass`
+- **WHEN** a test checks the compiler that `simulate` chooses for a quantum system against `BaseCompiler` and `BasePass`
 - **THEN** it derives from the first and not from the second
 
 ### Requirement: Every class derives from the base it is
 Every element and group SHALL derive from `BaseElement`, every interaction from `BaseInteraction`, every space from
 `BaseSpace`, every law from `BaseLaw`, every problem from `BaseProblem`, every solver from `BaseSolver`, every backend
-from `BaseBackend`, every analysis from `BaseAnalysis`, and every spec from `BaseSpec`, and every one of these bases
+from `BaseBackend`, and every spec from `BaseSpec`, and every one of these bases
 SHALL derive from `BaseConfig`. Validation SHALL read a domain's kind from the domain.
 
 #### Scenario: Derived classes
@@ -254,7 +254,7 @@ of one class SHALL be a private method of that class.
 Every class of the engine SHALL derive from exactly one base of its package, SHALL store only its settings in
 `__init__`, SHALL validate them in `prepare`, SHALL take the one object it serves in `prepare(target)` and set the
 attributes that end in `_`, and SHALL take the one input it acts on in `run(inputs)`. A base SHALL take no argument in
-its verbs that its peers do not take, and a variation between subclasses SHALL be a setting.
+its main public methods that its peers do not take, and a variation between subclasses SHALL be a setting.
 
 #### Scenario: Compiling a system
 - **WHEN** a user builds the system compiler, checks it, prepares it on a system, and runs it
@@ -272,7 +272,7 @@ be a class of the engine's tree instead.
 
 #### Scenario: No acting dataclass
 - **WHEN** a reviewer lists the dataclasses of the engine
-- **THEN** every one is frozen and has no public verb besides `prepare` and `run`, and no method besides the hook `_check` and plain readers
+- **THEN** every one is frozen and has no public method besides `prepare` and `run`, and no method besides the hook `_check` and plain readers
 
 ### Requirement: The code imports what it annotates
 No module SHALL import inside an `if TYPE_CHECKING:` block, and the import contracts SHALL check type-checking imports
@@ -301,32 +301,50 @@ its compiler, and its solver that serve the systems of one field SHALL live in t
 
 #### Scenario: Rewriting in the core and the engine
 - **WHEN** a user imports `WordElement` and `PatchElement` from `skcomplex.core.components.elements`, `ProductionLaw` and
-  `SubstitutionLaw` from `skcomplex.core.components.laws`, and `RewritingCompiler` from `skcomplex.core.engine.compile`
-- **THEN** every import succeeds, and none of these modules imports `skcomplex.systems`
+  `SubstitutionLaw` from `skcomplex.core.components.laws`, and `RewritingSolver` from `skcomplex.core.engine.solvers`
+- **THEN** every import succeeds, none of these modules imports `skcomplex.systems`, and the public names of
+  `skcomplex.core.engine.compile` hold no compiler of a form of the library
 
 ### Requirement: The library calls its ready-made items systems
 Every identifier, path, documentation page, and sentence of the library SHALL call a ready-made item of the catalog a
-system, never a system, including scientific names such as "the SIR system". Identifiers of other libraries, such as
+system, never a model, including scientific names such as "the SIR system". Identifiers of other libraries, such as
 `mesa.Model`, and the titles of cited references SHALL keep their own wording.
 
 #### Scenario: Catalog identifiers
 - **WHEN** a user lists the public names of `skcomplex.systems`
-- **THEN** none of them contains `system` or `System`, and the registration function is `register_system`
+- **THEN** they are `all_systems` and `import_extra`, and every ready-made system class ends in `System`
 
 #### Scenario: Prose of the documentation
-- **WHEN** a reviewer searches the README, the user guide, and the docstrings for the word system
+- **WHEN** a reviewer searches the README, the user guide, and the docstrings for the word model as a name of a
+  ready-made system
 - **THEN** it appears only in identifiers of other libraries and in the titles of cited references
 
 ### Requirement: A system module defines its system completely
-Every module of a subfield package of `skcomplex.systems` that registers a system SHALL hold the elements,
+Every module of a subfield package of `skcomplex.systems` that defines a system class SHALL hold the elements,
 interactions, views, and helpers that only that system uses, so the module reads as a complete example. A subfield
 package SHALL NOT hold a component module that serves a single system.
 
 #### Scenario: Reading one system
-- **WHEN** a reader opens the module that registers `active_walkers`
-- **THEN** the element, interaction, and view classes that only `active_walkers` uses are defined in that module
+- **WHEN** a reader opens the module that defines the class of `ActiveWalkersSystem`
+- **THEN** the element, interaction, and view classes that only `ActiveWalkersSystem` uses are defined in that module
 
 #### Scenario: Component module of one system
-- **WHEN** a subfield package holds a module that registers no system and is imported by the module of only one
+- **WHEN** a subfield package holds a module that defines no system class and is imported by the module of only one
   system
 - **THEN** the layout test fails and names the module and the system that should hold it
+
+### Requirement: Estimators for what is defined, functions for what is done
+The public API SHALL hold estimators for the parts a modeler defines and for calibration, and public functions for
+simulating, analysing, and running experiments. Every other helper SHALL be a private method of the class that uses it.
+Compilers and problem forms SHALL be private, with one documented hook for a system package that brings its own form.
+
+#### Scenario: Public surface
+- **WHEN** a test lists the public names of `skcomplex.core.engine`
+- **THEN** it finds solvers, backends, observables, `simulate`, and `Trajectory`, no concrete compiler or `Simulation`,
+  and of compilation and problems only the bases a system package's own form builds on, the problem of the shared pass
+  core, and the frames observers read
+
+#### Scenario: A system package brings its own form
+- **WHEN** a system class tunes the run setting `compiler` with a compiler its package defines on `BaseCompiler`
+- **THEN** `simulate` compiles the system with it, while the library's own forms, such as the rewriting and operator
+  forms, are chosen from what the system holds

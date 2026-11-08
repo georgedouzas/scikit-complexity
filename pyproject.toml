@@ -378,6 +378,7 @@ type = "layers"
 containers = ["skcomplex.core.components"]
 layers = [
     "specs",
+    "mass_action",
     "system",
     "elements | interactions",
     "laws",

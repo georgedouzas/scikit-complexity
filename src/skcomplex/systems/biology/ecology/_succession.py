@@ -13,9 +13,8 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import clip
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class StandElement(Element):
@@ -54,7 +53,9 @@ class StandElement(Element):
 
 
 class PioneerGrowthInteraction(RateInteraction):
-    """Michaelis-Menten regrowth of pioneer trees, whose input from seeds the other groups suppress.
+    """Michaelis-Menten regrowth of pioneer trees.
+
+    The other groups suppress their input from seeds.
 
     Alone, the volume follows `V(t) = V_mat t / (K_M + t)` after a clear cut, which is
     `dV/dt = V (V / V_mat - 2) / K_M + C V_mat / K_M` with `C = 1`. The other groups reduce the factor
@@ -141,7 +142,9 @@ class PioneerGrowthInteraction(RateInteraction):
 
 
 class SuccessionalGrowthInteraction(RateInteraction):
-    """Logistic growth of intermediate or climax trees, crowded by their own group and another, with seedling input.
+    """Logistic growth of intermediate or climax trees with seedling input.
+
+    They are crowded by their own group and another.
 
     The rate is `dV/dt = a + g V (1 - w_1 V_1 / V_mat,1 - w_2 V_2 / V_mat,2)`, with weights normalized to sum to one.
     One of the two crowding stands is usually the target itself.
@@ -214,26 +217,15 @@ class SuccessionalGrowthInteraction(RateInteraction):
         return rate
 
 
-@register_system(
-    field='biology/ecology',
-    tags=('succession', 'forest', 'ode', 'system dynamics', 'competition'),
-    references=('Bala et al. 2017', 'Tietjen and Huth 2006'),
-    defaults={'until': 300.0, 'dt': 1.0},
-)
-def mangrove_succession(
-    keora: float = 0.0,
-    gewa: float = 0.0,
-    sundari: float = 0.0,
-    *,
-    g_gewa: float = 0.05,
-    g_sundari: float = 0.03,
-    seedlings: float = 0.01,
-) -> System:
-    """Return the regrowth of a mangrove forest of the Sundarbans after a clear cut, from pioneers to climax trees.
+class MangroveSuccessionSystem(BaseSystem):
+    """The regrowth of a mangrove forest of the Sundarbans after a clear cut.
+
+    It goes from pioneers to climax trees.
 
     Keora, the pioneer, regrows fastest, Gewa, the intermediate group, follows, and Sundari, the climax group, grows
     slowest but comes to dominate the mature forest and suppresses the others. Volumes, mature volumes, and competition
-    weights follow Bala et al. (2017), and the growth rates of Gewa and Sundari are illustrative.
+    weights follow Bala et al. (2017), and the growth rates of Gewa and Sundari are illustrative. The system has the
+    stands `keora`, `gewa`, and `sundari`.
 
     Args:
         keora:
@@ -254,42 +246,73 @@ def mangrove_succession(
         seedlings:
             The constant input of Gewa and Sundari seedlings.
 
-    Returns:
-        system:
-            The system, with the stands `keora`, `gewa`, and `sundari`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.ecology import mangrove_succession
-        >>> [element.mature for element in mangrove_succession().elements]
+        >>> from skcomplex.systems.biology.ecology import MangroveSuccessionSystem
+        >>> [element.mature for element in MangroveSuccessionSystem().prepare().system_.elements]
         [196.11, 80.0, 320.0]
     """
-    return System(
-        elements=[
-            StandElement('keora', volume=keora, mature=196.11),
-            StandElement('gewa', volume=gewa, mature=80.0),
-            StandElement('sundari', volume=sundari, mature=320.0),
-        ],
-        interactions=[
-            PioneerGrowthInteraction('keora_growth', target='keora', intermediate='gewa', climax='sundari'),
-            SuccessionalGrowthInteraction(
-                'gewa_growth',
-                target='gewa',
-                first='gewa',
-                second='sundari',
-                g=g_gewa,
-                w_first=0.32,
-                w_second=0.68,
-                seedlings=seedlings,
-            ),
-            SuccessionalGrowthInteraction(
-                'sundari_growth',
-                target='sundari',
-                first='gewa',
-                second='sundari',
-                g=g_sundari,
-                w_first=0.01,
-                w_second=0.99,
-                seedlings=seedlings,
-            ),
-        ],
-    )
+
+    field = 'biology/ecology'
+    topics = ('succession', 'forest', 'ode', 'system dynamics', 'competition')
+    references = ('Bala et al. 2017', 'Tietjen and Huth 2006')
+    until = 300.0
+    dt = 1.0
+
+    def __init__(
+        self,
+        keora: float = 0.0,
+        gewa: float = 0.0,
+        sundari: float = 0.0,
+        *,
+        g_gewa: float = 0.05,
+        g_sundari: float = 0.03,
+        seedlings: float = 0.01,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.keora = keora
+        self.gewa = gewa
+        self.sundari = sundari
+        self.g_gewa = g_gewa
+        self.g_sundari = g_sundari
+        self.seedlings = seedlings
+
+    def _build_system(self) -> System:
+        """Return the parts of the regrowth of a mangrove forest after a clear cut.
+
+        The forest is of the Sundarbans.
+        """
+        return System(
+            self.label,
+            elements=[
+                StandElement('keora', volume=self.keora, mature=196.11),
+                StandElement('gewa', volume=self.gewa, mature=80.0),
+                StandElement('sundari', volume=self.sundari, mature=320.0),
+            ],
+            interactions=[
+                PioneerGrowthInteraction('keora_growth', target='keora', intermediate='gewa', climax='sundari'),
+                SuccessionalGrowthInteraction(
+                    'gewa_growth',
+                    target='gewa',
+                    first='gewa',
+                    second='sundari',
+                    g=self.g_gewa,
+                    w_first=0.32,
+                    w_second=0.68,
+                    seedlings=self.seedlings,
+                ),
+                SuccessionalGrowthInteraction(
+                    'sundari_growth',
+                    target='sundari',
+                    first='gewa',
+                    second='sundari',
+                    g=self.g_sundari,
+                    w_first=0.01,
+                    w_second=0.99,
+                    seedlings=self.seedlings,
+                ),
+            ],
+        )

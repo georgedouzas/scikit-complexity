@@ -7,36 +7,17 @@ from collections.abc import Sequence
 
 from ....core.components.elements import CompartmentElement
 from ....core.components.interactions import ReactionInteraction
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import ScipyODESolver
-from ..._catalog import register_system
 
 PROTEINS = ('albumin', 'lipoprotein', 'fibrinogen')
 LITRES_PER_NANOMOLE = 1e-9
 
 
-def _count_binding_sites(radius: float, protein_radius: float) -> float:
-    """Return the number of sites for a protein on a nanoparticle, `4 pi (R + r)^2 / (pi r^2)`."""
-    return 4 * (radius + protein_radius) ** 2 / protein_radius**2
+class NanoparticleCoronaSystem(BaseSystem):
+    """The corona that plasma proteins form on a nanoparticle.
 
-
-@register_system(
-    field='chemistry/kinetics',
-    tags=('nanomedicine', 'protein corona', 'mass action', 'ode', 'Vroman effect'),
-    references=('Padmanabhan, Meskin, and Al Moustafa 2021', 'Dell\'Orco et al. 2010'),
-    defaults={'until': 10800.0, 'dt': 60.0, 'solver': ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-12)},
-)
-def nanoparticle_corona(
-    nanoparticle: float = 18.0,
-    *,
-    radius: float = 35.0,
-    proteins: Sequence[float] = (6e5, 1.5e4, 8.8e3),
-    corona: Sequence[float] = (14.0, 4.0, 0.0),
-    protein_radii: Sequence[float] = (5.0, 4.0, 8.3),
-    association: Sequence[float] = (2.4e3, 3e4, 2e3),
-    dissociation: Sequence[float] = (2e-3, 3e-5, 2e-3),
-) -> System:
-    """Return the corona that albumin, high-density lipoprotein, and fibrinogen form on a nanoparticle in plasma.
+    The proteins are albumin, high-density lipoprotein, and fibrinogen.
 
     Each protein `i` binds a free nanoparticle at the rate `n_i alpha_i U P_i` and leaves it at the rate
     `delta_i B_i`, where `n_i = 4 (R + r_i)^2 / r_i^2` is the number of its sites on a nanoparticle of radius `R`.
@@ -44,7 +25,9 @@ def nanoparticle_corona(
     from mass action, so `U + sum B_i` and every `P_i + B_i` are conserved. The parameters and initial
     concentrations are the book's, without the binding to a target. Concentrations are in nM, association rates in
     1/(M s), and time is in seconds. Albumin, the most abundant, covers the nanoparticles first, and lipoprotein,
-    which binds more tightly, replaces it within hours, which is the Vroman effect.
+    which binds more tightly, replaces it within hours, which is the Vroman effect. The free nanoparticles are
+    `nanoparticle.n`, the free proteins `albumin.n`, `lipoprotein.n`, and `fibrinogen.n`, and the complexes
+    `albumin_corona.n`, `lipoprotein_corona.n`, and `fibrinogen_corona.n`.
 
     Args:
         nanoparticle:
@@ -68,36 +51,83 @@ def nanoparticle_corona(
         dissociation:
             The dissociation rates of the proteins, per second.
 
-    Returns:
-        system:
-            The system, with the free nanoparticles `nanoparticle.n`, the free proteins `albumin.n`,
-            `lipoprotein.n`, and `fibrinogen.n`, and the complexes `albumin_corona.n`, `lipoprotein_corona.n`, and
-            `fibrinogen_corona.n`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.chemistry.kinetics import nanoparticle_corona
-        >>> round(nanoparticle_corona().interactions[0].k, 7)
+        >>> from skcomplex.systems.chemistry.kinetics import NanoparticleCoronaSystem
+        >>> round(NanoparticleCoronaSystem().prepare().system_.interactions[0].k, 7)
         0.0006144
     """
-    elements = [CompartmentElement('nanoparticle', n=nanoparticle)]
-    interactions: list[ReactionInteraction] = []
-    rows = zip(PROTEINS, proteins, corona, protein_radii, association, dissociation, strict=True)
-    for name, free, bound, protein_radius, alpha, delta in rows:
-        complex_ = f'{name}_corona'
-        elements += [CompartmentElement(name, n=free), CompartmentElement(complex_, n=bound)]
-        k = _count_binding_sites(radius, protein_radius) * alpha * LITRES_PER_NANOMOLE
-        interactions += [
-            ReactionInteraction(
-                f'{name}_binding',
-                reactants={('nanoparticle', 'n'): 1, (name, 'n'): 1},
-                products={(complex_, 'n'): 1},
-                k=k,
-            ),
-            ReactionInteraction(
-                f'{name}_release',
-                reactants={(complex_, 'n'): 1},
-                products={('nanoparticle', 'n'): 1, (name, 'n'): 1},
-                k=delta,
-            ),
-        ]
-    return System(elements=elements, interactions=interactions)
+
+    field = 'chemistry/kinetics'
+    topics = ('nanomedicine', 'protein corona', 'mass action', 'ode', 'Vroman effect')
+    references = ('Padmanabhan, Meskin, and Al Moustafa 2021', 'Dell\'Orco et al. 2010')
+    until = 10800.0
+    dt = 60.0
+    solver = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-12)
+
+    def __init__(
+        self,
+        nanoparticle: float = 18.0,
+        *,
+        radius: float = 35.0,
+        proteins: Sequence[float] = (6e5, 1.5e4, 8.8e3),
+        corona: Sequence[float] = (14.0, 4.0, 0.0),
+        protein_radii: Sequence[float] = (5.0, 4.0, 8.3),
+        association: Sequence[float] = (2.4e3, 3e4, 2e3),
+        dissociation: Sequence[float] = (2e-3, 3e-5, 2e-3),
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.nanoparticle = nanoparticle
+        self.radius = radius
+        self.proteins = proteins
+        self.corona = corona
+        self.protein_radii = protein_radii
+        self.association = association
+        self.dissociation = dissociation
+
+    @staticmethod
+    def _count_binding_sites(radius: float, protein_radius: float) -> float:
+        """Return the number of sites for a protein on a nanoparticle.
+
+        It is `4 pi (R + r)^2 / (pi r^2)`.
+        """
+        return 4 * (radius + protein_radius) ** 2 / protein_radius**2
+
+    def _build_system(self) -> System:
+        """Return the nanoparticles, the proteins, and the binding and release reactions.
+
+        The proteins are free and bound, and every protein binds and is released.
+        """
+        elements = [CompartmentElement('nanoparticle', n=self.nanoparticle)]
+        interactions: list[ReactionInteraction] = []
+        rows = zip(
+            PROTEINS,
+            self.proteins,
+            self.corona,
+            self.protein_radii,
+            self.association,
+            self.dissociation,
+            strict=True,
+        )
+        for name, free, bound, protein_radius, alpha, delta in rows:
+            complex_ = f'{name}_corona'
+            elements += [CompartmentElement(name, n=free), CompartmentElement(complex_, n=bound)]
+            k = self._count_binding_sites(self.radius, protein_radius) * alpha * LITRES_PER_NANOMOLE
+            interactions += [
+                ReactionInteraction(
+                    f'{name}_binding',
+                    reactants={('nanoparticle', 'n'): 1, (name, 'n'): 1},
+                    products={(complex_, 'n'): 1},
+                    k=k,
+                ),
+                ReactionInteraction(
+                    f'{name}_release',
+                    reactants={(complex_, 'n'): 1},
+                    products={('nanoparticle', 'n'): 1, (name, 'n'): 1},
+                    k=delta,
+                ),
+            ]
+        return System(self.label, elements=elements, interactions=interactions)

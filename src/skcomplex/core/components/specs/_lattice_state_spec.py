@@ -47,7 +47,10 @@ class LatticeStateSpec(BaseSpec):
 
     @functools.cached_property
     def shape(self) -> tuple[int, ...]:
-        """Shape of the sites of the group, or the number of its members on a part other than the sites."""
+        """Shape of the sites of the group.
+
+        On a part other than the sites, it is the number of its members.
+        """
         return self.space.shape_ if self.rows is None else (self.rows,)
 
     @functools.cached_property

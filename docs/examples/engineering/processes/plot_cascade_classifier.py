@@ -7,7 +7,7 @@ at the top as the fine product.
 """
 
 # %%
-# The system is created by name from the catalog with ten stages, the upward fraction `k = 0.6`, and a unit feed into
+# The system is built from its class with ten stages, the upward fraction `k = 0.6`, and a unit feed into
 # the middle stage, and runs for 50 time units. The blueprint shows the accumulated fine and coarse products in one time
 # series view, where the fine product grows faster.
 
@@ -15,9 +15,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.engineering.processes import CascadeClassifierSystem
 
 SYSTEM = 'cascade_classifier'
 
@@ -35,9 +35,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM)
+system = CascadeClassifierSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=50)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # Barsky's fractional extraction
@@ -51,7 +51,7 @@ z = 10
 fractions = np.linspace(0.3, 0.7, 9)
 shares = []
 for k in fractions:
-    run = Simulation(create_system(SYSTEM, k=float(k)), dt=1.0).prepare().run(until=300).trajectory_
+    run = simulate(CascadeClassifierSystem(k=float(k)), until=300, dt=1.0)
     shares.append(run.values('fine.m')[-1] - run.values('fine.m')[-2])
 grid = np.linspace(0.3, 0.7, 200)
 feed = z // 2

@@ -16,9 +16,8 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import EquationLaw
 from ....core.components.laws.utils import log_sum_exp
 from ....core.components.spaces import StaticTime
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class LanguageElement(Element):
@@ -73,11 +72,11 @@ class WordElement(Element):
 
 
 class LeastEffortInteraction(Interaction):
-    """Probabilities of words that minimise the ratio of the mean cost `C` to the entropy `H`.
+    """Probabilities of words that minimise the ratio of the mean cost to the entropy.
 
-    The probabilities that are stationary for `C / H` on the simplex are `p_i = exp(-lambda c_i) / Z`, for which
-    `H = lambda C + ln Z`. The ratio is stationary in `lambda` where `H = lambda C`, that is where `ln Z = 0`, which
-    solves the exponent. The sum reduces in log space.
+    The mean cost is `C` and the entropy `H`. The probabilities that are stationary for `C / H` on the simplex are
+    `p_i = exp(-lambda c_i) / Z`, for which `H = lambda C + ln Z`. The ratio is stationary in `lambda` where
+    `H = lambda C`, that is where `ln Z = 0`, which solves the exponent. The sum reduces in log space.
 
     Args:
         label:
@@ -94,6 +93,8 @@ class LeastEffortInteraction(Interaction):
         >>> LeastEffortInteraction('effort', target='language', words='words').words
         'words'
     """
+
+    law_classes = (EquationLaw,)
 
     def __init__(
         self,
@@ -125,34 +126,50 @@ class LeastEffortInteraction(Interaction):
         ]
 
 
-@register_system(
-    field='social/language',
-    tags=('power law', 'least effort', 'entropy', 'static'),
-    references=('Giordano 2024, arXiv 2407.02181', 'Mandelbrot 1953'),
-)
-def mandelbrot_least_effort(n_words: int = 200) -> System:
-    """Return the word frequencies that minimise the mean cost of a language over its entropy, a power law of rank.
+class MandelbrotLeastEffortSystem(BaseSystem):
+    """The word frequencies that minimise the mean cost of a language over its entropy.
 
-    A word of rank `i` costs `log(i + 1)`, the length of its code, so the probabilities are `(i + 1)^-lambda`, where
-    `lambda` makes them sum to 1 (Giordano 2024 §6, after Mandelbrot 1953).
+    They are a power law of rank. A word of rank `i` costs `log(i + 1)`, the length of its code, so the probabilities
+    are `(i + 1)^-lambda`, where `lambda` makes them sum to 1 (Giordano 2024 §6, after Mandelbrot 1953). The system has
+    the states `language.exponent`, `words.cost`, and `words.probability`.
 
     Args:
         n_words:
             The number of words.
 
-    Returns:
-        system:
-            The system, with the states `language.exponent`, `words.cost`, and `words.probability`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.core.engine.runtime import Simulation
-        >>> from skcomplex.systems.social.language import mandelbrot_least_effort
-        >>> trajectory = Simulation(mandelbrot_least_effort(50)).prepare().run(1.0).trajectory_
+        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.systems.social.language import MandelbrotLeastEffortSystem
+        >>> trajectory = simulate(MandelbrotLeastEffortSystem(50), until=1.0)
         >>> round(float(trajectory.values('words.probability')[0].sum()), 6)
         1.0
     """
-    costs = np.log(np.arange(1, n_words + 1) + 1.0)
-    visual = VisualSpec('histograms', {'color_by': 'probability'})
-    words = GroupElement('words', element=WordElement, size=n_words, values={'cost': costs}, visual=visual)
-    effort = LeastEffortInteraction('effort', target='language', words='words')
-    return System(elements=[words, LanguageElement('language')], interactions=[effort], time=StaticTime())
+
+    field = 'social/language'
+    topics = ('power law', 'least effort', 'entropy', 'static')
+    references = ('Giordano 2024, arXiv 2407.02181', 'Mandelbrot 1953')
+
+    def __init__(
+        self,
+        n_words: int = 200,
+        *,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_words = n_words
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        costs = np.log(np.arange(1, self.n_words + 1) + 1.0)
+        visual = VisualSpec('histograms', {'color_by': 'probability'})
+        words = GroupElement('words', element=WordElement, size=self.n_words, values={'cost': costs}, visual=visual)
+        effort = LeastEffortInteraction('effort', target='language', words='words')
+        return System(
+            self.label,
+            elements=[words, LanguageElement('language')],
+            interactions=[effort],
+            time=StaticTime(),
+        )

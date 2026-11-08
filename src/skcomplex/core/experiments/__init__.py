@@ -1,36 +1,30 @@
-"""Study systems through many runs: designs, scenarios, replicates, sensitivity analysis, and calibration."""
+"""Study systems through many runs.
 
-from ._base import BaseDesign, BaseExperiment
-from ._basin_stability import BasinStabilityExperiment
-from ._calibration import CalibrationExperiment
-from ._experiment import Experiment
-from ._grid import GridDesign
-from ._latin_hypercube import LatinHypercubeDesign
-from ._morris import MorrisDesign
-from ._one_at_a_time import OneAtATimeDesign
-from ._orbit_diagram import OrbitDiagramExperiment
-from ._random import RandomDesign
+They are sweeps, ensembles, scenarios, sensitivity, basin stability, and calibration. The experiments are functions of a
+system, in the role of the model selection functions of scikit-learn, and return frozen results. Calibration returns the
+fitted system in its result.
+"""
+
+from ._basin_stability import BasinStabilityResult, basin_stability
+from ._calibration import CalibrationResult, calibrate
+from ._ensemble import ensemble
+from ._orbit_diagram import OrbitDiagramResult, orbit_diagram
 from ._results import ExperimentResult
-from ._rows import RowsDesign
-from ._saltelli import SaltelliDesign
-from ._sensitivity import SensitivityAnalysis
-from ._sobol import SobolDesign
+from ._scenarios import compare_scenarios
+from ._sensitivity import SensitivityResult, sensitivity
+from ._sweep import sweep
 
 __all__: list[str] = [
-    'BaseDesign',
-    'BaseExperiment',
-    'BasinStabilityExperiment',
-    'CalibrationExperiment',
-    'Experiment',
+    'BasinStabilityResult',
+    'CalibrationResult',
     'ExperimentResult',
-    'GridDesign',
-    'LatinHypercubeDesign',
-    'MorrisDesign',
-    'OneAtATimeDesign',
-    'OrbitDiagramExperiment',
-    'RandomDesign',
-    'RowsDesign',
-    'SaltelliDesign',
-    'SensitivityAnalysis',
-    'SobolDesign',
+    'OrbitDiagramResult',
+    'SensitivityResult',
+    'basin_stability',
+    'calibrate',
+    'compare_scenarios',
+    'ensemble',
+    'orbit_diagram',
+    'sensitivity',
+    'sweep',
 ]

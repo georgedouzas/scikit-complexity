@@ -9,22 +9,22 @@ the field and then runs along a straight line, while its real part alternates in
 """
 
 # %%
-# The system is created by name from the catalog: a Gaussian packet of width 2 at rest at the centre of a periodic line
+# The system is built from its class: a Gaussian packet of width 2 at rest at the centre of a periodic line
 # of length 80, with `D = 1/2` and charge `q = 1`, in the electric field `E = 1` switched on from `t = 0` to `t = 2`.
 # The observer saves every frame of 0.1 time units with the default blueprint.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.waves import ChargedSchrodingerSystem
 
 SYSTEM = 'charged_schrodinger'
 
-system = create_system(SYSTEM)
+system = ChargedSchrodingerSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.1, observers=[observer], random_state=0).prepare().run(until=8.0)
+trajectory = simulate(system, observers=[observer], random_state=0)
 
 # %%
 # Acceleration by the field, not by a gauge
@@ -35,11 +35,11 @@ simulation = Simulation(system, dt=0.1, observers=[observer], random_state=0).pr
 # at rest, since only the kinetic momentum `k - q A_x` moves it. The norm `sum |psi|^2` is conserved in both runs.
 
 positions = 80 / 256 * np.arange(256) - 40
-times = simulation.trajectory_.times
-density = simulation.trajectory_.values('packet.u') ** 2 + simulation.trajectory_.values('packet.w') ** 2
+times = trajectory.times
+density = trajectory.values('packet.u') ** 2 + trajectory.values('packet.w') ** 2
 centres = density @ positions / density.sum(axis=1)
 expected = np.where(times < 2.0, 0.5 * times**2, 2.0 + 2.0 * (times - 2.0))
-gauge = Simulation(create_system(SYSTEM, E=0.0, A_x=1.0, momentum=1.0), dt=0.1).prepare().run(until=8.0).trajectory_
+gauge = simulate(ChargedSchrodingerSystem(E=0.0, A_x=1.0, momentum=1.0))
 gauge_density = gauge.values('packet.u') ** 2 + gauge.values('packet.w') ** 2
 
 fig, (motion, norm) = plt.subplots(1, 2, figsize=(10, 4))

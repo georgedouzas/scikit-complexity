@@ -10,7 +10,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import OptimizationInteraction
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import (
     CovarianceAdaptationSpec,
@@ -51,7 +51,7 @@ def _system(algorithm: object, count: int = 40) -> System:
 
 def test_run_differential_evolution_on_rastrigin() -> None:
     """Test that the best value is below 1e-3 by step 50 and never increases."""
-    trajectory = Simulation(_system(DifferentialEvolutionSpec()), random_state=1).prepare().run(until=50).trajectory_
+    trajectory = simulate(_system(DifferentialEvolutionSpec()), until=50, random_state=1)
     best = trajectory.values('search.best')[1:]
     assert best[-1] < 1e-3
     assert np.all(np.diff(best) <= 0)
@@ -64,9 +64,7 @@ def test_run_differential_evolution_on_rastrigin() -> None:
 )
 def test_run_same_seed_identical(algorithm: object) -> None:
     """Test that runs with the same seed are identical and the best value never increases."""
-    first, second = (
-        Simulation(_system(algorithm), random_state=1).prepare().run(until=10).trajectory_ for _ in range(2)
-    )
+    first, second = (simulate(_system(algorithm), until=10, random_state=1) for _ in range(2))
     assert np.array_equal(first.values('search.best')[1:], second.values('search.best')[1:])
     first_final = np.asarray(first.agents('swarm', 10).values['x'].tolist())
     second_final = np.asarray(second.agents('swarm', 10).values['x'].tolist())
@@ -76,7 +74,7 @@ def test_run_same_seed_identical(algorithm: object) -> None:
 
 def test_run_algorithm_that_converges_keeps_its_population() -> None:
     """Test that the steps after the algorithm stops itself report the same values and keep the candidates."""
-    trajectory = Simulation(_system(CovarianceAdaptationSpec()), random_state=1).prepare().run(until=400).trajectory_
+    trajectory = simulate(_system(CovarianceAdaptationSpec()), until=400, random_state=1)
     best = trajectory.values('search.best')
     assert best[-1] == best[-2]
     assert np.array_equal(

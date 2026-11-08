@@ -1,4 +1,7 @@
-"""Pass that lowers every conserved noise law to the divergence of one random flux per link of its field."""
+"""Pass that lowers every conserved noise law to the divergence of random fluxes.
+
+There is one random flux per link of its field.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,7 +18,9 @@ from ....components.specs import CensusRecordSpec
 from ....errors import ValidationError
 from ....specs import IssueSpec, NoiseProcessSpec
 from ....types import Indices
-from ...problems import DeclarationsSpec, OutputSpec, ReferenceSpec
+from ...problems._declarations_spec import DeclarationsSpec
+from ...problems._output_spec import OutputSpec
+from ...problems._reference_spec import ReferenceSpec
 from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import Compilation, Laws
@@ -23,7 +28,10 @@ from .._field_lowering import FieldLowering
 
 
 class ConservedNoisePass(BasePass):
-    """Pass that lowers every conserved noise law to the divergence of one random flux per link of its field."""
+    """Pass that lowers every conserved noise law to the divergence of random fluxes.
+
+    There is one random flux per link of its field.
+    """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
@@ -42,7 +50,10 @@ class ConservedNoisePass(BasePass):
 
     @staticmethod
     def _conserved_outputs(specs: Laws, declarations: DeclarationsSpec) -> dict[int, list[OutputSpec]]:
-        """Return the outputs of every conserved noise law, one process per link of its field, by law identity."""
+        """Return the outputs of every conserved noise law, by law identity.
+
+        There is one process per link of its field.
+        """
         places = FieldLowering._field_entries(declarations)
         outputs = {}
         for spec, laws in specs:
@@ -60,7 +71,10 @@ class ConservedNoisePass(BasePass):
 
     @staticmethod
     def _amplitude(owner: str, law: NoiseLaw, references: Mapping[Expression, ReferenceSpec]) -> Expression:
-        """Return the amplitude of a conserved noise, or raise an error when it reads a state or is not symbolic."""
+        """Return the amplitude of a conserved noise.
+
+        An amplitude that reads a state or is not symbolic raises an error.
+        """
         if not isinstance(law.value, Expression | int | float):
             error_msg = (
                 f'The conserved noise law of {owner} has the value {law.value!r}. Give a number or an expression.'
@@ -78,7 +92,10 @@ class ConservedNoisePass(BasePass):
 
     @staticmethod
     def _check_place(owner: str, reference: ReferenceSpec, place: object) -> tuple[FieldElement, LatticeSpace]:
-        """Return the field a conserved noise drives and its lattice, or raise an error when there is none."""
+        """Return the field a conserved noise drives and its lattice.
+
+        An error is raised when there is none.
+        """
         if (
             not isinstance(place, FieldElement)
             or not isinstance(place.space, LatticeSpace)
@@ -96,10 +113,10 @@ class ConservedNoisePass(BasePass):
 
     @staticmethod
     def _link_tables(dimensions: tuple[int, ...], periodic: bool) -> list[tuple[Indices, Indices]]:
-        """Return the links of every site along every dimension of a lattice, numbered `k n + i` for site `i`.
+        """Return the links of every site along every dimension of a lattice.
 
-        The link `(i, k)` joins site `i` to its next neighbour along dimension `k`. Without periodic edges, the links
-        that leave the lattice carry no process.
+        The links are numbered `k n + i` for site `i`. The link `(i, k)` joins site `i` to its next neighbour along
+        dimension `k`. Without periodic edges, the links that leave the lattice carry no process.
 
         Args:
             dimensions:
@@ -134,10 +151,11 @@ class ConservedNoisePass(BasePass):
         places: Mapping[str, FieldElement],
         references: Mapping[Expression, ReferenceSpec],
     ) -> list[OutputSpec]:
-        """Return the outputs of a conserved noise law, the divergence of a random flux on the links of a lattice.
+        """Return the outputs of a conserved noise law.
 
-        Every target component gets one process per link. Site `i` takes `a / h` times the increment of the link from
-        its previous neighbour and `-a / h` times the increment of the link to its next neighbour along every dimension.
+        They are the divergence of a random flux on the links of a lattice. Every target component gets one process per
+        link. Site `i` takes `a / h` times the increment of the link from its previous neighbour and `-a / h` times the
+        increment of the link to its next neighbour along every dimension.
 
         Args:
             owner:
@@ -195,7 +213,10 @@ class ConservedNoisePass(BasePass):
 
     @staticmethod
     def _conserved_issue(record: CensusRecordSpec, components: Mapping[str, object]) -> IssueSpec | None:
-        """Return the issue of a conserved noise law that drives a state outside a finite-difference lattice field."""
+        """Return the issue of a conserved noise law outside a lattice field.
+
+        The law drives a state outside a finite-difference lattice field.
+        """
         outside = [
             name
             for name, _ in record.driven
@@ -213,7 +234,10 @@ class ConservedNoisePass(BasePass):
 
     @staticmethod
     def _conserved_issues(compilation: Compilation) -> list[IssueSpec]:
-        """Return the conserved noise laws that drive a state that is not of a finite-difference field on a lattice."""
+        """Return the conserved noise laws that drive a state outside a lattice field.
+
+        The field must be a finite-difference field on a lattice.
+        """
         components = {node.path: node.component for node in Compilation._required(compilation.nodes, 'nodes')}
         records = Compilation._required(compilation.census, 'census').records
         found = [

@@ -13,15 +13,17 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LifeCycleInteraction, MapInteraction, MovementInteraction
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class EmployeeView(AgentView):
-    """View of an employee of the insider sabotage system, with its states and parameters as attributes."""
+    """View of an employee of the insider sabotage system.
+
+    Its states and parameters are attributes.
+    """
 
     predisposed: float
     disgruntlement: float
@@ -52,12 +54,12 @@ class EmployeeView(AgentView):
 class EmployeeElement(Element):
     """Employee of the insider sabotage system, whose risk is the sum of five factors.
 
-    The risk is `R = P + D + S + K + A`: the predisposition `P`, the disgruntlement `D` of predisposed employees
-    whose daily feeling about the organization falls short of their expectation, the stress `S` raised by seeing a
-    supervisor, the skill `K` that grows every day, and the fixed affect `A`. The expectation weighs the first, the
-    mean, and the latest feeling. Every day an employee wanders to an adjacent cell and leaves with probability
-    `turnover / 365`, replaced by a new hire. In `insider_sabotage`, a movement, a map of every state, and a life cycle
-    that renews the employees who leave run these steps in turn in the activation of every employee.
+    The risk is `R = P + D + S + K + A`: the predisposition `P`, the disgruntlement `D` of predisposed employees whose
+    daily feeling about the organization falls short of their expectation, the stress `S` raised by seeing a supervisor,
+    the skill `K` that grows every day, and the fixed affect `A`. The expectation weighs the first, the mean, and the
+    latest feeling. Every day an employee wanders to an adjacent cell and leaves with probability `turnover / 365`,
+    replaced by a new hire. In `InsiderSabotageSystem`, a movement, a map of every state, and a life cycle that renews
+    the employees who leave run these steps in turn in the activation of every employee.
 
     Args:
         label:
@@ -204,7 +206,10 @@ class EmployeeElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[EmployeeView]:
-        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        """Return the class of the views of the agents.
+
+        Their attributes are the states and parameters.
+        """
         return EmployeeView
 
 
@@ -223,87 +228,10 @@ AFFECT_SHARES = (0.1, 0.8, 0.1)
 HIRE_RESETS = ('disgruntlement', 'stress', 'skill', 'days', 'mean_feeling', 'first', 'expectation')
 
 
-def _feel(agent: EmployeeView, system: SystemViewProtocol) -> float:
-    """Return the feeling of a predisposed employee about the organization today, drawn, or the last one otherwise."""
-    if not agent.predisposed:
-        return float(agent.feeling)
-    return float(system.rng.normal(agent.culture, np.sqrt(agent.change)))
+class InsiderSabotageSystem(BaseSystem):
+    """The insider sabotage system of employees whose risk of sabotage builds up.
 
-
-def _remember_first(agent: EmployeeView, system: SystemViewProtocol) -> float:
-    """Return the first feeling of an employee, today's feeling on the first day of a predisposed employee."""
-    return float(agent.feeling if agent.predisposed and agent.days == 0 else agent.first)
-
-
-def _disgruntle(agent: EmployeeView, system: SystemViewProtocol) -> float:
-    """Return the disgruntlement, the shortfall of today's feeling from the expectation of a predisposed employee."""
-    if not agent.predisposed or agent.days == 0:
-        return float(agent.disgruntlement)
-    return float((agent.expectation - agent.feeling) * agent.affect_weight)
-
-
-def _count_day(agent: EmployeeView, system: SystemViewProtocol) -> float:
-    """Return one day felt for a predisposed employee, and none otherwise."""
-    return float(agent.predisposed)
-
-
-def _average(agent: EmployeeView, system: SystemViewProtocol) -> float:
-    """Return the change of the mean feeling of a predisposed employee by today's feeling."""
-    return float((agent.feeling - agent.mean_feeling) / agent.days) if agent.predisposed else 0.0
-
-
-def _expect(agent: EmployeeView, system: SystemViewProtocol) -> float:
-    """Return the expectation of a predisposed employee, which weighs the first, the mean, and today's feeling."""
-    if not agent.predisposed:
-        return float(agent.expectation)
-    weights = agent.primacy + agent.consistency + agent.recency
-    weighted = agent.primacy * agent.first + agent.consistency * agent.mean_feeling + agent.recency * agent.feeling
-    return float(weighted / weights)
-
-
-def _stress(agent: EmployeeView, system: SystemViewProtocol) -> float:
-    """Return the change of stress towards its level in sight of a supervisor, an agent of another group, or out."""
-    supervised = any(other.group != agent.group for other in [*agent.neighbors(), *agent.agents_here()])
-    if supervised:
-        return float(agent.alpha_seen * (agent.lambda_seen - agent.stress))
-    return float(agent.alpha_unseen * (agent.lambda_unseen - agent.stress))
-
-
-def _learn(agent: EmployeeView, system: SystemViewProtocol) -> float:
-    """Return the growth of the skill of an employee in a day."""
-    return float(system.rng.normal(agent.skill_growth, np.sqrt(agent.skill_variance)))
-
-
-def _leave(agent: EmployeeView, system: SystemViewProtocol) -> float:
-    """Return the daily probability that an employee leaves."""
-    return float(agent.turnover / DAYS_PER_YEAR)
-
-
-def _hire(agent: EmployeeView | None, system: SystemViewProtocol) -> dict[str, object]:
-    """Return the values of a new hire who replaces a leaving employee and keeps its affect."""
-    return {'predisposed': float(system.rng.random() < PREDISPOSED), **dict.fromkeys(HIRE_RESETS, 0.0)}
-
-
-def _sum_risk(agent: EmployeeView, system: SystemViewProtocol) -> float:
-    """Return the risk, the sum of the predisposition, the disgruntlement, the stress, the skill, and the affect."""
-    return float(agent.predisposed + agent.disgruntlement + agent.stress + agent.skill + agent.affect)
-
-
-@register_system(
-    field='social/organizations',
-    tags=('organizations', 'agents', 'grid', 'insider threat'),
-    references=('Ardiles Cruz et al. 2019', 'Carmichael et al. 2019'),
-    defaults={'until': 365},
-)
-def insider_sabotage(
-    size: int = 20,
-    *,
-    n_employees: int = 130,
-    n_supervisors: int = 3,
-    turnover: float = 0.15,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the insider sabotage system of employees whose risk of sabotage builds up over the days of a year.
+    The risk builds up over the days of a year. The system has the groups `employees` and `supervisors`.
 
     Args:
         size:
@@ -321,55 +249,189 @@ def insider_sabotage(
         random_state:
             The seed or generator of the predispositions and affects.
 
-    Returns:
-        system:
-            The system, with the groups `employees` and `supervisors`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.organizations import insider_sabotage
-        >>> [group.size for group in insider_sabotage(n_employees=20, n_supervisors=2).elements]
+        >>> from skcomplex.systems.social.organizations import InsiderSabotageSystem
+        >>> [group.size for group in InsiderSabotageSystem(n_employees=20, n_supervisors=2).prepare().system_.elements]
         [20, 2]
     """
-    rng = np.random.default_rng(random_state)
-    predisposed = (rng.random(n_employees) < PREDISPOSED).astype(float)
-    affect = rng.choice(AFFECTS, n_employees, p=AFFECT_SHARES)
-    employees = GroupElement(
-        'employees',
-        element=EmployeeElement,
-        size=n_employees,
-        values={'predisposed': predisposed, 'affect': affect, 'risk': predisposed + affect, 'turnover': turnover},
-    )
-    supervisors = GroupElement('supervisors', element=Element, size=n_supervisors)
-    wandering = MovementInteraction('wandering', target='supervisors', schedule='member')
-    maps = [
-        ('feeling', _feel, 'replace'),
-        ('first', _remember_first, 'replace'),
-        ('disgruntlement', _disgruntle, 'replace'),
-        ('days', _count_day, 'increment'),
-        ('mean_feeling', _average, 'increment'),
-        ('expectation', _expect, 'replace'),
-        ('stress', _stress, 'increment'),
-        ('skill', _learn, 'increment'),
-    ]
-    work = [
-        MovementInteraction('working', target='employees', schedule='member'),
-        *(
-            MapInteraction(
-                state,
+
+    field = 'social/organizations'
+    topics = ('organizations', 'agents', 'grid', 'insider threat')
+    references = ('Ardiles Cruz et al. 2019', 'Carmichael et al. 2019')
+    until = 365
+
+    def __init__(
+        self,
+        size: int = 20,
+        *,
+        n_employees: int = 130,
+        n_supervisors: int = 3,
+        turnover: float = 0.15,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.size = size
+        self.n_employees = n_employees
+        self.n_supervisors = n_supervisors
+        self.turnover = turnover
+        self.random_state = random_state
+
+    @staticmethod
+    def _feel(agent: EmployeeView, system: SystemViewProtocol) -> float:
+        """Return the feeling of a predisposed employee about the organization today.
+
+        It is drawn, or else the last one.
+        """
+        if not agent.predisposed:
+            return float(agent.feeling)
+        return float(system.rng.normal(agent.culture, np.sqrt(agent.change)))
+
+    @staticmethod
+    def _remember_first(agent: EmployeeView, system: SystemViewProtocol) -> float:
+        """Return the first feeling of an employee.
+
+        It is today's feeling on the first day of a predisposed employee.
+        """
+        return float(agent.feeling if agent.predisposed and agent.days == 0 else agent.first)
+
+    @staticmethod
+    def _disgruntle(agent: EmployeeView, system: SystemViewProtocol) -> float:
+        """Return the disgruntlement.
+
+        It is the shortfall of today's feeling from the expectation of a predisposed one.
+        """
+        if not agent.predisposed or agent.days == 0:
+            return float(agent.disgruntlement)
+        return float((agent.expectation - agent.feeling) * agent.affect_weight)
+
+    @staticmethod
+    def _count_day(agent: EmployeeView, system: SystemViewProtocol) -> float:
+        """Return one day felt for a predisposed employee, and none otherwise."""
+        return float(agent.predisposed)
+
+    @staticmethod
+    def _average(agent: EmployeeView, system: SystemViewProtocol) -> float:
+        """Return the change of the mean feeling of a predisposed employee.
+
+        The change is by today's feeling.
+        """
+        return float((agent.feeling - agent.mean_feeling) / agent.days) if agent.predisposed else 0.0
+
+    @staticmethod
+    def _expect(agent: EmployeeView, system: SystemViewProtocol) -> float:
+        """Return the expectation of a predisposed employee.
+
+        It weighs the first, the mean, and today's feeling.
+        """
+        if not agent.predisposed:
+            return float(agent.expectation)
+        weights = agent.primacy + agent.consistency + agent.recency
+        weighted = agent.primacy * agent.first + agent.consistency * agent.mean_feeling + agent.recency * agent.feeling
+        return float(weighted / weights)
+
+    @staticmethod
+    def _stress(agent: EmployeeView, system: SystemViewProtocol) -> float:
+        """Return the change of stress towards its level.
+
+        The level is that in sight of a supervisor, an agent of another group, or out.
+        """
+        supervised = any(other.group != agent.group for other in [*agent.neighbors(), *agent.agents_here()])
+        if supervised:
+            return float(agent.alpha_seen * (agent.lambda_seen - agent.stress))
+        return float(agent.alpha_unseen * (agent.lambda_unseen - agent.stress))
+
+    @staticmethod
+    def _learn(agent: EmployeeView, system: SystemViewProtocol) -> float:
+        """Return the growth of the skill of an employee in a day."""
+        return float(system.rng.normal(agent.skill_growth, np.sqrt(agent.skill_variance)))
+
+    @staticmethod
+    def _leave(agent: EmployeeView, system: SystemViewProtocol) -> float:
+        """Return the daily probability that an employee leaves."""
+        return float(agent.turnover / DAYS_PER_YEAR)
+
+    @staticmethod
+    def _hire(agent: EmployeeView | None, system: SystemViewProtocol) -> dict[str, object]:
+        """Return the values of a new hire who replaces a leaving employee.
+
+        The new hire keeps its affect.
+        """
+        return {'predisposed': float(system.rng.random() < PREDISPOSED), **dict.fromkeys(HIRE_RESETS, 0.0)}
+
+    @staticmethod
+    def _sum_risk(agent: EmployeeView, system: SystemViewProtocol) -> float:
+        """Return the risk.
+
+        It is the sum of the predisposition, the disgruntlement, the stress, the skill, and the affect.
+        """
+        return float(agent.predisposed + agent.disgruntlement + agent.stress + agent.skill + agent.affect)
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        predisposed = (rng.random(self.n_employees) < PREDISPOSED).astype(float)
+        affect = rng.choice(AFFECTS, self.n_employees, p=AFFECT_SHARES)
+        employees = GroupElement(
+            'employees',
+            element=EmployeeElement,
+            size=self.n_employees,
+            values={
+                'predisposed': predisposed,
+                'affect': affect,
+                'risk': predisposed + affect,
+                'turnover': self.turnover,
+            },
+        )
+        supervisors = GroupElement('supervisors', element=Element, size=self.n_supervisors)
+        wandering = MovementInteraction('wandering', target='supervisors', schedule='member')
+        maps = [
+            ('feeling', self._feel, 'replace'),
+            ('first', self._remember_first, 'replace'),
+            ('disgruntlement', self._disgruntle, 'replace'),
+            ('days', self._count_day, 'increment'),
+            ('mean_feeling', self._average, 'increment'),
+            ('expectation', self._expect, 'replace'),
+            ('stress', self._stress, 'increment'),
+            ('skill', self._learn, 'increment'),
+        ]
+        work = [
+            MovementInteraction('working', target='employees', schedule='member'),
+            *(
+                MapInteraction(
+                    state,
+                    target='employees',
+                    state=state,
+                    function=function,
+                    mode=mode,
+                    schedule='member',
+                    form='agent',
+                )
+                for state, function, mode in maps
+            ),
+            LifeCycleInteraction(
+                'turnover',
                 target='employees',
-                state=state,
-                function=function,
-                mode=mode,
+                death=self._leave,
+                renew=True,
+                values=self._hire,
+                schedule='member',
+            ),
+            MapInteraction(
+                'risk',
+                target='employees',
+                state='risk',
+                function=self._sum_risk,
                 schedule='member',
                 form='agent',
-            )
-            for state, function, mode in maps
-        ),
-        LifeCycleInteraction('turnover', target='employees', death=_leave, renew=True, values=_hire, schedule='member'),
-        MapInteraction('risk', target='employees', state='risk', function=_sum_risk, schedule='member', form='agent'),
-    ]
-    return System(
-        elements=[employees, supervisors],
-        interactions=[wandering, *work],
-        space=LatticeSpace((size, size), boundary='periodic', neighborhood='von_neumann'),
-    )
+            ),
+        ]
+        return System(
+            self.label,
+            elements=[employees, supervisors],
+            interactions=[wandering, *work],
+            space=LatticeSpace((self.size, self.size), boundary='periodic', neighborhood='von_neumann'),
+        )

@@ -1,14 +1,14 @@
 """Test the `_coalitions` module of `skcomplex.systems.economics.econophysics`."""
 
-from skcomplex.systems.economics.econophysics import el_farol_coalitions
+from skcomplex.systems.economics.econophysics import ElFarolCoalitionsSystem
 
 from ..conftest import _run
 
 
 def test_el_farol_coalitions_lower_the_returns_of_all_patrons():
     """Test Table 1 of Collins: attendance near capacity alone, lower returns and wilder swings in coalitions."""
-    alone = _run(el_farol_coalitions(coalitions=False), 500)
-    grouped = _run(el_farol_coalitions(), 500)
+    alone = _run(ElFarolCoalitionsSystem(coalitions=False), 500)
+    grouped = _run(ElFarolCoalitionsSystem(), 500)
     attendance, swings = alone.values('bar.attendance')[1:], grouped.values('bar.attendance')[1:]
     assert 52 < attendance.mean() < 62
     assert alone.values('bar.mean_score')[-1] > 0.4

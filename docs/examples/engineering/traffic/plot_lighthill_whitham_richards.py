@@ -6,23 +6,23 @@ that moves upstream, against the traffic, at a constant speed, as arriving cars 
 """
 
 # %%
-# The system is created by name from the catalog on a road of 200 cells with free traffic at density 0.3 running into a
+# The system is built from its class on a road of 200 cells with free traffic at density 0.3 running into a
 # queue at density 0.8, with the Greenshields speed law, and is integrated with SSPRK for one time unit. The default
 # blueprint puts the history of the density first, where the shock is the edge that moves left.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import SSPRKSolver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.engineering.traffic import LighthillWhithamRichardsSystem
 
 SYSTEM = 'lighthill_whitham_richards'
 
-system = create_system(SYSTEM)
+system = LighthillWhithamRichardsSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(system, dt=0.02, solver=SSPRKSolver(), observers=[observer]).prepare().run(until=1.0)
+trajectory = simulate(system, dt=0.02, solver=SSPRKSolver(), observers=[observer])
 
 # %%
 # Shock speed
@@ -31,7 +31,6 @@ simulation = Simulation(system, dt=0.02, solver=SSPRKSolver(), observers=[observ
 # `vmax (1 - (rho_u + rho_d) / rho_max) = -0.1`, so its position should fall on a line of that slope from the middle of
 # the road.
 
-trajectory = simulation.trajectory_
 rho = trajectory.lattice('road.rho')
 x = (np.arange(rho.shape[1]) + 0.5) / rho.shape[1]
 fronts = [x[np.argmax(row > 0.55)] for row in rho]

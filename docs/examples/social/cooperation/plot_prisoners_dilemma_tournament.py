@@ -14,15 +14,15 @@ eras, when reciprocating strategies dominate, alternate with eras of exploitatio
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.social.cooperation import PrisonersDilemmaTournamentSystem
 
 SYSTEM = 'prisoners_dilemma_tournament'
 
-system = create_system(SYSTEM, random_state=0)
+system = PrisonersDilemmaTournamentSystem(random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=12)
-simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=3000)
+trajectory = simulate(system, until=3000, observers=[observer], random_state=0)
 
 # %%
 # Eras of strategies
@@ -31,7 +31,6 @@ simulation = Simulation(system, observers=[observer], random_state=0).prepare().
 # should switch between eras in step with the mean score: the score is high when the answer to the opponent's
 # cooperation (genes `C` and `CC`) is cooperation, and falls when exploiters that defect after `C` spread.
 
-trajectory = simulation.trajectory_
 frames = range(0, len(trajectory.times), 10)
 genes = np.array([np.asarray(trajectory.agents('agents', frame).values['genome']).mean(axis=0) for frame in frames])
 scores = [np.mean(trajectory.agents('agents', frame).values['fitness']) for frame in frames]

@@ -1,4 +1,7 @@
-"""Define spreading of the active value of a discrete state to neighbours, with recovery and a return."""
+"""Define spreading of the active value of a discrete state to neighbours.
+
+The spreading comes with recovery and a return.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -10,17 +13,19 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from .....core.components.interactions import TransitionInteraction
-from .....core.components.laws import BaseLaw
+from .....core.components.laws import BaseLaw, JumpLaw
 from .....core.components.laws.utils import neighbors, where
 from .....core.components.spaces import AdjacencyNeighborhood
 from .....core.errors import ValidationError
-from .....core.specs import ParameterSpec, RoleSpec
+from .....core.specs import ParameterSpec, RoleSpec, Tags
 
 FORMS = ('number', 'fraction')
 
 
 class SpreadingInteraction(TransitionInteraction):
-    """Spreading of the active value of a discrete state along the edges of a network or the bonds of a lattice.
+    """Spreading of the active value of a discrete state to neighbours.
+
+    The neighbours are along the edges of a network or the bonds of a lattice.
 
     An inactive member becomes active at the rate `beta` times the number of its active neighbours, or times their
     fraction of its neighbours. An active member recovers at the rate `gamma`, to the inactive value, or to the removed
@@ -74,6 +79,12 @@ class SpreadingInteraction(TransitionInteraction):
         'fraction'
     """
 
+    law_classes = (JumpLaw,)
+
+    def _get_tags(self) -> Tags:
+        """Return the tags of the jumps at a rate, the only laws of the interaction."""
+        return self._get_variant_tags(self.law_classes)
+
     def __init__(
         self,
         label: str,
@@ -117,7 +128,9 @@ class SpreadingInteraction(TransitionInteraction):
             raise ValidationError(error_msg)
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the spreading from the active neighbours, the recovery, and the return of every member.
+        """Return the spreading, the recovery, and the return of every member.
+
+        The spreading comes from the active neighbours.
 
         Args:
             namespace:

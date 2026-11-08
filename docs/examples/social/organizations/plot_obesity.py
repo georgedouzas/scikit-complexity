@@ -7,7 +7,7 @@ growing share of them crosses the obesity line at a body mass index of 30.
 """
 
 # %%
-# The system is created by name from the catalog with 100 people, 20 homes, 20 workplaces, and 20 restaurants of three
+# The system is built from its class with 100 people, 20 homes, 20 workplaces, and 20 restaurants of three
 # kinds on a square of side 280, and runs for one year, one step per day. A person eats at a random restaurant within
 # reach, or at the nearest one, and spends 1.55 times the basal metabolic rate a day. The default blueprint shows the
 # people at home, colored by body mass index from 18.5 (dark) to 35 (bright), next to the larger restaurants: the colors
@@ -16,15 +16,15 @@ growing share of them crosses the obesity line at a body mass index of 30.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.social.organizations import ObesitySystem
 
 SYSTEM = 'obesity'
 
-system = create_system(SYSTEM, random_state=0)
+system = ObesitySystem(random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=364)
+trajectory = simulate(system, until=364, dt=1, observers=[observer], random_state=0)
 
 # %%
 # Body mass index by habit
@@ -36,7 +36,6 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prep
 # The gains slow down as heavier bodies burn more, and the quartiles stay wide because the nearby kinds of restaurant
 # differ: a low-habit eater who can only reach fast food still gains.
 
-trajectory = simulation.trajectory_
 frames = range(0, len(trajectory.times), 7)
 days = trajectory.times[list(frames)]
 habits = np.asarray(trajectory.agents('people', 0).values['habit'])

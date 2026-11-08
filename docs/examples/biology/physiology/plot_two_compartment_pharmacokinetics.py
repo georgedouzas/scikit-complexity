@@ -6,22 +6,21 @@ slowly as the body eliminates it, while the tissue concentration rises and follo
 """
 
 # %%
-# The system is created by name from the catalog with the rates of doxorubicin and a unit bolus, and runs for 3000
-# minutes. The observer saves every second frame with the default blueprint, whose primary view is the time series of
-# the central and peripheral concentrations.
+# The system is built from its class with the rates of doxorubicin and a unit bolus, and runs for 3000 minutes. The
+# observer saves every second frame with the default blueprint, whose primary view is the time series of the central
+# and peripheral concentrations.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.physiology import TwoCompartmentPharmacokineticsSystem
 
 SYSTEM = 'two_compartment_pharmacokinetics'
 
-system = create_system(SYSTEM, c0=1.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=10.0, observers=[observer]).prepare().run(until=3000)
+trajectory = simulate(TwoCompartmentPharmacokineticsSystem(c0=1.0), observers=[observer])
 
 # %%
 # Bi-exponential decay
@@ -34,10 +33,10 @@ k10, k12, k21 = 0.082, 0.0475, 0.00125
 total = k10 + k12 + k21
 root = np.sqrt(total**2 - 4 * k10 * k21)
 alpha, beta = (total + root) / 2, (total - root) / 2
-times = simulation.trajectory_.times
+times = trajectory.times
 exact = ((alpha - k21) * np.exp(-alpha * times) + (k21 - beta) * np.exp(-beta * times)) / (alpha - beta)
 fig, (central, drug) = plt.subplots(1, 2, figsize=(10, 4))
-central.semilogy(times, simulation.trajectory_.values('patient.Uc'), label='simulated')
+central.semilogy(times, trajectory.values('patient.Uc'), label='simulated')
 central.semilogy(times, exact, '--', color='black', label='bi-exponential')
 central.semilogy(times, (k21 - beta) / (alpha - beta) * np.exp(-beta * times), ':', label='slow phase')
 central.set_ylim(1e-5, 1.5)
@@ -45,11 +44,11 @@ central.set_xlabel('time (min)')
 central.set_ylabel('central concentration')
 central.set_title('Distribution then elimination')
 central.legend()
-drug.plot(times, simulation.trajectory_.values('patient.Uc'), label='central')
-drug.plot(times, simulation.trajectory_.values('patient.Up'), label='peripheral')
+drug.plot(times, trajectory.values('patient.Uc'), label='central')
+drug.plot(times, trajectory.values('patient.Up'), label='peripheral')
 drug.plot(
     times,
-    simulation.trajectory_.values('patient.Uc') + simulation.trajectory_.values('patient.Up'),
+    trajectory.values('patient.Uc') + trajectory.values('patient.Up'),
     '--',
     label='total',
 )

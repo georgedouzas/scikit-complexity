@@ -14,13 +14,13 @@ can pull together, the coupling kills the oscillations instead of synchronizing 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.physics.synchronization import OscillatorDeathSystem
 
 SYSTEM = 'oscillator_death'
 
-system = create_system(SYSTEM, n_oscillators=50, K=3.0, width=1.5, random_state=0)
+system = OscillatorDeathSystem(n_oscillators=50, K=3.0, width=1.5, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 
 
@@ -29,16 +29,13 @@ def coupling_at(time):
     return 0.0 if time < 5.0 else 3.0
 
 
-simulation = (
-    Simulation(
-        system,
-        dt=0.05,
-        observers=[observer],
-        schedule={'coupling_x.K': coupling_at, 'coupling_y.K': coupling_at},
-        observables=describe(SYSTEM).observables_of(system),
-    )
-    .prepare()
-    .run(until=14)
+trajectory = simulate(
+    system.prepare().system_,
+    until=14,
+    dt=0.05,
+    observers=[observer],
+    schedule={'coupling_x.K': coupling_at, 'coupling_y.K': coupling_at},
+    observables=OscillatorDeathSystem.observables,
 )
 
 # %%
@@ -51,13 +48,9 @@ simulation = (
 widths = [0.5, 1.25, 1.5, 2.0]
 fig, ax = plt.subplots(figsize=(6, 4))
 for width in widths:
-    system_system = create_system(SYSTEM, n_oscillators=100, K=3.0, width=width)
-    run = (
-        Simulation(system_system, dt=0.1, observables=describe(SYSTEM).observables_of(system_system))
-        .prepare()
-        .run(until=20)
-    )
-    times, amplitude = np.asarray(run.trajectory_.times), np.asarray(run.trajectory_.values('amplitude'))
+    system_system = OscillatorDeathSystem(n_oscillators=100, K=3.0, width=width)
+    run = simulate(system_system, dt=0.1)
+    times, amplitude = np.asarray(run.times), np.asarray(run.values('amplitude'))
     line = ax.semilogy(times, amplitude, label=f'ω0 = {width}')[0]
     if width > 1:
         anchor = np.searchsorted(times, 8.0)

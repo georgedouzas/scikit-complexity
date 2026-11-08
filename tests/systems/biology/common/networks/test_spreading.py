@@ -10,7 +10,7 @@ from skcomplex.core.components.elements import Element, LatticeElement
 from skcomplex.core.components.interactions import TransitionInteraction
 from skcomplex.core.components.spaces import LatticeSpace, NetworkSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.systems.biology.epidemiology import SpreadingInteraction
@@ -39,8 +39,8 @@ def _states(space, spreading, initial, until, seed=0):
         elements=[LatticeElement('sites', element=SiteElement, space=space, values={'state': initial})],
         interactions=[spreading],
     )
-    simulation = Simulation(system, dt=1.0, random_state=seed).prepare()
-    return simulation.run(until=until).trajectory_.values('sites.state')
+    trajectory = simulate(system, until=until, dt=1.0, random_state=seed)
+    return trajectory.values('sites.state')
 
 
 def test_contact_process_dies_out_below_and_survives_above_the_critical_rate():

@@ -1,4 +1,7 @@
-"""Random graph ensembles, Kronecker and configuration-model graphs, and the robustness of networks."""
+"""Random graph ensembles, Kronecker and configuration-model graphs, robustness.
+
+The robustness is that of networks.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,17 +21,18 @@ from ....core.components.elements import Element, GroupElement, LatticeElement
 from ....core.components.interactions import MapInteraction, TopologyInteraction
 from ....core.components.laws.utils import components, maximum, mod, neighbors, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import LayerSpec, ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from ..common._network_node import NetworkNodeElement
 from ..common._regulated_node import ACTIVITY_VISUAL
 from ..common._vertex import DEGREE_VISUAL
 
 
 class DependentNodeElement(Element):
-    """Node of two interdependent networks, functional while it belongs to the giant component of both.
+    """Node of two interdependent networks.
+
+    The node is functional while it belongs to the giant component of both.
 
     The node stands for a pair of nodes, one of each network, that depend on each other, so it fails when either of
     them leaves the giant component of the functional nodes of its network.
@@ -61,7 +65,9 @@ class DependentNodeElement(Element):
 
 
 class EnsembleNodeElement(Element):
-    """Node of a random graph, with its degree and the probability that it adds an edge to a random node per step.
+    """Node of a random graph, with its degree and its probability to add an edge.
+
+    The edge goes to a random node, once per step.
 
     Args:
         label:
@@ -96,7 +102,9 @@ class EnsembleNodeElement(Element):
 
 
 class FailingElement(Element):
-    """Node of a network under failures or attacks, with its degree and the parameters of its removal.
+    """Node of a network under failures or attacks.
+
+    The node has its degree and the parameters of its removal.
 
     The removal of the system reads the parameters: every step a node fails with probability `rate` under random
     failures, and under a targeted attack the nodes of the largest degree are removed, one degree class per step.
@@ -145,15 +153,11 @@ ENSEMBLES = ('erdos_renyi', 'watts_strogatz')
 STRATEGIES = ('random', 'targeted')
 
 
-def _get_removal(s: SimpleNamespace) -> object:
-    """Return the probability that a node is removed in a step, at random or as a node of the largest degree."""
-    degree = neighbors(1)
-    hub = where(s.source.targeted * (degree - maximum(degree)) >= 0, s.source.targeted, 0)
-    return (1 - s.source.targeted) * s.source.rate + hub
-
-
 def _get_degree() -> MapInteraction:
-    """Return the map that sets the degree of every node from its edges at the start of a step."""
+    """Return the map that sets the degree of every node from its edges.
+
+    The map runs at the start of a step.
+    """
     return MapInteraction('degree', target='nodes', state='degree', function=lambda s: neighbors(1))
 
 
@@ -178,7 +182,10 @@ def _variable_network(
 
 
 def _node_group(graph: nx.Graph) -> GroupElement:
-    """Return the group on the nodes of a static network with the degree and the clustering of every node."""
+    """Return the group on the nodes of a static network.
+
+    The group has the degree and the clustering of every node.
+    """
     clustering = nx.clustering(graph)
     nodes = list(graph.nodes())
     return GroupElement(
@@ -193,57 +200,15 @@ def _node_group(graph: nx.Graph) -> GroupElement:
     )
 
 
-def _matched_stubs(degrees: npt.NDArray[np.int64], rng: np.random.Generator) -> list[tuple[int, int]]:
-    """Return the links of a uniformly random pairing of the half-links of the nodes, with self-loops and multilinks."""
-    stubs = rng.permutation(np.repeat(np.arange(degrees.size), degrees))
-    return [(int(first), int(second)) for first, second in stubs.reshape(-1, 2)]
+class NetworkAttackSystem(BaseSystem):
+    """Failures or attacks on a scale-free network.
 
+    The network is robust to random failures but fragile to attacks on hubs.
 
-def _simple(links: list[tuple[int, int]], rng: np.random.Generator) -> list[tuple[int, int]]:
-    """Return the links rewired until no self-loop or multilink is left, keeping every degree.
-
-    A self-loop or a repeated link and a link drawn at random are cut and their ends glued crosswise, as in the rewiring
-    of Thurner et al. (2018, section 4.5.1.1).
-    """
-    links = [(min(link), max(link)) for link in links]
-    for _ in range(100 * len(links)):
-        seen: set[tuple[int, int]] = set()
-        bad = []
-        for index, link in enumerate(links):
-            if link[0] == link[1] or link in seen:
-                bad.append(index)
-            seen.add(link)
-        if not bad:
-            return links
-        first = bad[int(rng.integers(len(bad)))]
-        second = int(rng.integers(len(links)))
-        (a, b), (c, d) = links[first], links[second]
-        crossed = [(min(a, c), max(a, c)), (min(b, d), max(b, d))]
-        if first != second and all(x != y and (x, y) not in seen for x, y in crossed):
-            links[first], links[second] = crossed[0], crossed[1]
-    error_msg = 'The degree sequence admits no simple graph reachable by rewiring. Give a sparser degree sequence.'
-    raise ValidationError(error_msg)
-
-
-@register_system(
-    field='mathematics/networks',
-    tags=('network', 'robustness', 'percolation', 'attack', 'scale-free'),
-    references=('Albert, Jeong, and Barabási 2000', 'Cohen et al. 2000', 'Ramasco 2020'),
-    defaults={'until': 100},
-)
-def network_attack(
-    n_nodes: int = 300,
-    *,
-    edges: int = 2,
-    strategy: str = 'targeted',
-    rate: float = 0.01,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return failures or attacks on a scale-free network, robust to random failures but fragile to attacks on hubs.
-
-    The network is a Barabási-Albert graph. Under random failures every node fails with probability `rate` per step,
-    and the giant component shrinks slowly. Under a targeted attack the nodes of the largest degree are removed
-    every step, and the giant component breaks up after a few percent of the nodes are gone.
+    The network is a Barabási-Albert graph. Under random failures every node fails with probability `rate` per step, and
+    the giant component shrinks slowly. Under a targeted attack the nodes of the largest degree are removed every step,
+    and the giant component breaks up after a few percent of the nodes are gone. The system has the groups `nodes` and
+    `links`.
 
     Args:
         n_nodes:
@@ -261,52 +226,88 @@ def network_attack(
         random_state:
             The seed or generator of the network.
 
-    Returns:
-        system:
-            The system, with the groups `nodes` and `links`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValidationError:
             The strategy is unknown.
 
     Examples:
-        >>> from skcomplex.core.engine.runtime import Simulation
-        >>> from skcomplex.systems.mathematics.networks import network_attack
-        >>> trajectory = Simulation(network_attack(50), random_state=0).prepare().run(until=3).trajectory_
+        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.systems.mathematics.networks import NetworkAttackSystem
+        >>> trajectory = simulate(NetworkAttackSystem(50), until=3, random_state=0)
         >>> int(trajectory.network(-1).nodes.size) < 50
         True
     """
-    if strategy not in STRATEGIES:
-        error_msg = f'Unknown strategy {strategy!r}. Use one of {", ".join(STRATEGIES)}.'
-        raise ValidationError(error_msg)
-    space = NetworkSpace(nx.barabasi_albert_graph(n_nodes, edges, seed=random_state))
-    targeted = float(strategy == 'targeted')
-    groups = _variable_network(FailingElement, space, space.graph.number_of_edges(), rate=rate, targeted=targeted)
-    removal = TopologyInteraction('removal', target='nodes', action='remove-node', probability=_get_removal)
-    return System(elements=groups, interactions=[_get_degree(), removal], space=space, time=DiscreteTime())
+
+    field = 'mathematics/networks'
+    topics = ('network', 'robustness', 'percolation', 'attack', 'scale-free')
+    references = ('Albert, Jeong, and Barabási 2000', 'Cohen et al. 2000', 'Ramasco 2020')
+    until = 100
+
+    def __init__(
+        self,
+        n_nodes: int = 300,
+        *,
+        edges: int = 2,
+        strategy: str = 'targeted',
+        rate: float = 0.01,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_nodes = n_nodes
+        self.edges = edges
+        self.strategy = strategy
+        self.rate = rate
+        self.random_state = random_state
+
+    @staticmethod
+    def _get_removal(s: SimpleNamespace) -> object:
+        """Return the probability that a node is removed in a step.
+
+        The node is removed at random or as a node of the largest degree.
+        """
+        degree = neighbors(1)
+        hub = where(s.source.targeted * (degree - maximum(degree)) >= 0, s.source.targeted, 0)
+        return (1 - s.source.targeted) * s.source.rate + hub
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        if self.strategy not in STRATEGIES:
+            error_msg = f'Unknown strategy {self.strategy!r}. Use one of {", ".join(STRATEGIES)}.'
+            raise ValidationError(error_msg)
+        space = NetworkSpace(nx.barabasi_albert_graph(self.n_nodes, self.edges, seed=self.random_state))
+        targeted = float(self.strategy == 'targeted')
+        groups = _variable_network(
+            FailingElement,
+            space,
+            space.graph.number_of_edges(),
+            rate=self.rate,
+            targeted=targeted,
+        )
+        removal = TopologyInteraction('removal', target='nodes', action='remove-node', probability=self._get_removal)
+        return System(
+            self.label,
+            elements=groups,
+            interactions=[_get_degree(), removal],
+            space=space,
+            time=DiscreteTime(),
+        )
 
 
-@register_system(
-    field='mathematics/networks',
-    tags=('network', 'random graph', 'small world', 'giant component'),
-    references=('Erdős and Rényi 1959', 'Watts and Strogatz 1998', 'Barabási 2016'),
-    defaults={'until': 100},
-)
-def random_graph_ensembles(
-    n_nodes: int = 200,
-    *,
-    ensemble: str = 'erdos_renyi',
-    mean_degree: float = 4.0,
-    rewiring: float = 0.2,
-    steps: int = 100,
-) -> System:
-    """Return the construction of an Erdős-Rényi or a Watts-Strogatz random graph, one step of new edges at a time.
+class RandomGraphEnsemblesSystem(BaseSystem):
+    """The construction of an Erdős-Rényi or a Watts-Strogatz random graph.
 
-    The Erdős-Rényi graph starts empty and every node adds an edge to a random node with a probability that brings
-    the mean degree to `mean_degree` after `steps` steps, so a giant component emerges when the mean degree passes 1.
-    The Watts-Strogatz graph starts as a ring where every node joins its `mean_degree` nearest nodes, and every edge
-    moves its target to a random node at a rate that rewires a fraction `rewiring` of the edges after `steps` steps,
-    which shortens paths while the clustering stays high.
+    The graph is built one step of new edges at a time.
+
+    The Erdős-Rényi graph starts empty and every node adds an edge to a random node with a probability that brings the
+    mean degree to `mean_degree` after `steps` steps, so a giant component emerges when the mean degree passes 1. The
+    Watts-Strogatz graph starts as a ring where every node joins its `mean_degree` nearest nodes, and every edge moves
+    its target to a random node at a rate that rewires a fraction `rewiring` of the edges after `steps` steps, which
+    shortens paths while the clustering stays high. The system has the groups `nodes` and `links`, the map `degree`, and
+    the interaction `linking` or `rewiring`.
 
     Args:
         n_nodes:
@@ -324,61 +325,93 @@ def random_graph_ensembles(
         steps:
             The number of steps of the construction.
 
-    Returns:
-        system:
-            The system, with the groups `nodes` and `links`, the map `degree`, and the interaction `linking` or
-            `rewiring`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValidationError:
             The ensemble is unknown.
 
     Examples:
-        >>> from skcomplex.core.engine.runtime import Simulation
-        >>> from skcomplex.systems.mathematics.networks import random_graph_ensembles
-        >>> system = random_graph_ensembles(40, ensemble='watts_strogatz', steps=5)
-        >>> trajectory = Simulation(system, random_state=0).prepare().run(until=5).trajectory_
+        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.systems.mathematics.networks import RandomGraphEnsemblesSystem
+        >>> system = RandomGraphEnsemblesSystem(40, ensemble='watts_strogatz', steps=5).prepare().system_
+        >>> trajectory = simulate(system, until=5, random_state=0)
         >>> int(trajectory.network(-1).sources.size)
         80
     """
-    if ensemble not in ENSEMBLES:
-        error_msg = f'Unknown ensemble {ensemble!r}. Use one of {", ".join(ENSEMBLES)}.'
-        raise ValidationError(error_msg)
-    if ensemble == 'erdos_renyi':
-        space = NetworkSpace(nx.empty_graph(n_nodes))
-        rate = mean_degree / 2 / steps
-        groups = _variable_network(
-            EnsembleNodeElement,
-            space,
-            int(np.ceil(1.5 * mean_degree * n_nodes / 2)) + 10,
-            rate=rate,
+
+    field = 'mathematics/networks'
+    topics = ('network', 'random graph', 'small world', 'giant component')
+    references = ('Erdős and Rényi 1959', 'Watts and Strogatz 1998', 'Barabási 2016')
+    until = 100
+
+    def __init__(
+        self,
+        n_nodes: int = 200,
+        *,
+        ensemble: str = 'erdos_renyi',
+        mean_degree: float = 4.0,
+        rewiring: float = 0.2,
+        steps: int = 100,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_nodes = n_nodes
+        self.ensemble = ensemble
+        self.mean_degree = mean_degree
+        self.rewiring = rewiring
+        self.steps = steps
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        if self.ensemble not in ENSEMBLES:
+            error_msg = f'Unknown ensemble {self.ensemble!r}. Use one of {", ".join(ENSEMBLES)}.'
+            raise ValidationError(error_msg)
+        if self.ensemble == 'erdos_renyi':
+            space = NetworkSpace(nx.empty_graph(self.n_nodes))
+            rate = self.mean_degree / 2 / self.steps
+            groups = _variable_network(
+                EnsembleNodeElement,
+                space,
+                int(np.ceil(1.5 * self.mean_degree * self.n_nodes / 2)) + 10,
+                rate=rate,
+            )
+            linking = TopologyInteraction(
+                'linking',
+                target='nodes',
+                action='add-edge',
+                probability=lambda s: s.source.rate,
+            )
+            return System(
+                self.label,
+                elements=groups,
+                interactions=[_get_degree(), linking],
+                space=space,
+                time=DiscreteTime(),
+            )
+        space = NetworkSpace(nx.watts_strogatz_graph(self.n_nodes, int(self.mean_degree), 0.0))
+        rate = 1 - (1 - self.rewiring) ** (1 / self.steps)
+        groups = _variable_network(EnsembleNodeElement, space, space.graph.number_of_edges())
+        rewiring = TopologyInteraction('rewiring', target='nodes', action='rewire', probability=rate)
+        return System(
+            self.label,
+            elements=groups,
+            interactions=[_get_degree(), rewiring],
+            space=space,
+            time=DiscreteTime(),
         )
-        linking = TopologyInteraction('linking', target='nodes', action='add-edge', probability=lambda s: s.source.rate)
-        return System(elements=groups, interactions=[_get_degree(), linking], space=space, time=DiscreteTime())
-    space = NetworkSpace(nx.watts_strogatz_graph(n_nodes, int(mean_degree), 0.0))
-    rate = 1 - (1 - rewiring) ** (1 / steps)
-    groups = _variable_network(EnsembleNodeElement, space, space.graph.number_of_edges())
-    rewiring = TopologyInteraction('rewiring', target='nodes', action='rewire', probability=rate)
-    return System(elements=groups, interactions=[_get_degree(), rewiring], space=space, time=DiscreteTime())
 
 
-@register_system(
-    field='mathematics/networks',
-    tags=('network', 'kronecker product', 'random graph', 'degree distribution'),
-    references=('Leskovec et al. 2010', 'Gros 2015'),
-    defaults={'until': 1, 'dt': 1},
-)
-def kronecker_graph(
-    first: nx.Graph | None = None,
-    second: nx.Graph | None = None,
-    *,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the Kronecker graph of two graphs, whose adjacency matrix is the Kronecker product of theirs.
+class KroneckerGraphSystem(BaseSystem):
+    """The Kronecker graph of two graphs.
 
-    The node `(i, j)` joins `(k, l)` when `i` joins `k` in the first graph and `j` joins `l` in the second (Gros
-    2015, exercise of chapter 1). The degree of `(i, j)` is the product of the degrees of `i` and `j`, so the mean
-    degree is the product of the mean degrees, and the degree distribution is the distribution of the products.
+    Its adjacency matrix is the Kronecker product of theirs.
+
+    The node `(i, j)` joins `(k, l)` when `i` joins `k` in the first graph and `j` joins `l` in the second (Gros 2015,
+    exercise of chapter 1). The degree of `(i, j)` is the product of the degrees of `i` and `j`, so the mean degree is
+    the product of the mean degrees, and the degree distribution is the distribution of the products. The system has the
+    group `nodes` and their states `degree` and `clustering`.
 
     Args:
         first:
@@ -390,46 +423,58 @@ def kronecker_graph(
         random_state:
             The seed or generator of the default graphs.
 
-    Returns:
-        system:
-            The system, with the group `nodes` and their states `degree` and `clustering`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.systems.mathematics.networks import kronecker_graph
-        >>> kronecker_graph(nx.path_graph(3), nx.path_graph(2)).elements[0].prepare().size_
+        >>> from skcomplex.systems.mathematics.networks import KroneckerGraphSystem
+        >>> KroneckerGraphSystem(nx.path_graph(3), nx.path_graph(2)).prepare().system_.elements[0].prepare().size_
         6
     """
-    rng = np.random.default_rng(random_state)
-    first = nx.barabasi_albert_graph(30, 2, seed=int(rng.integers(2**31))) if first is None else first
-    second = nx.barabasi_albert_graph(20, 1, seed=int(rng.integers(2**31))) if second is None else second
-    graph = nx.convert_node_labels_to_integers(nx.tensor_product(first, second), label_attribute='pair')
-    return System(elements=[_node_group(graph)], space=NetworkSpace(graph))
+
+    field = 'mathematics/networks'
+    topics = ('network', 'kronecker product', 'random graph', 'degree distribution')
+    references = ('Leskovec et al. 2010', 'Gros 2015')
+    until = 1
+    dt = 1
+
+    def __init__(
+        self,
+        first: nx.Graph | None = None,
+        second: nx.Graph | None = None,
+        *,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.first = first
+        self.second = second
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the Kronecker graph of two graphs.
+
+        Its adjacency matrix is the Kronecker product of theirs.
+        """
+        rng = np.random.default_rng(self.random_state)
+        first = nx.barabasi_albert_graph(30, 2, seed=int(rng.integers(2**31))) if self.first is None else self.first
+        second = nx.barabasi_albert_graph(20, 1, seed=int(rng.integers(2**31))) if self.second is None else self.second
+        graph = nx.convert_node_labels_to_integers(nx.tensor_product(first, second), label_attribute='pair')
+        return System(self.label, elements=[_node_group(graph)], space=NetworkSpace(graph))
 
 
-@register_system(
-    field='mathematics/networks',
-    tags=('network', 'configuration model', 'random graph', 'degree sequence', 'friendship paradox'),
-    references=('Molloy and Reed 1995', 'Jensen 2023', 'Thurner et al. 2018'),
-    defaults={'until': 1, 'dt': 1},
-)
-def configuration_model(
-    degrees: Sequence[int] | None = None,
-    *,
-    n_nodes: int = 1000,
-    exponent: float = 2.5,
-    min_degree: int = 2,
-    simple: bool = True,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the configuration model, the maximally random network of a given degree sequence.
+class ConfigurationModelSystem(BaseSystem):
+    """The configuration model.
+
+    It is the maximally random network of a given degree sequence.
 
     Every node gets as many half-links as its degree, and pairs of half-links drawn uniformly at random become links
     (Jensen 2023, section 8.5.1, and Thurner et al. 2018, section 4.5.1). Without a degree sequence the degrees are
-    drawn from the power law `P(k) ~ k^-exponent` for `k >= min_degree`, cut at `sqrt(n_nodes)`, and one half-link
-    is added to a random node when their sum is odd. The pairing leaves self-loops and multilinks, which the rewiring
-    of Thurner et al. removes while it keeps every degree. A neighbour has the mean degree `<k²> / <k>`, above the
-    mean degree, the friendship paradox.
+    drawn from the power law `P(k) ~ k^-exponent` for `k >= min_degree`, cut at `sqrt(n_nodes)`, and one half-link is
+    added to a random node when their sum is odd. The pairing leaves self-loops and multilinks, which the rewiring of
+    Thurner et al. removes while it keeps every degree. A neighbour has the mean degree `<k²> / <k>`, above the mean
+    degree, the friendship paradox. The system has the group `nodes` and their states `degree` and `clustering`.
 
     Args:
         degrees:
@@ -450,61 +495,119 @@ def configuration_model(
         random_state:
             The seed or generator of the degrees, the pairing, and the rewiring.
 
-    Returns:
-        system:
-            The system, with the group `nodes` and their states `degree` and `clustering`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValidationError:
             The degree sum of a given sequence is odd, or rewiring cannot make the graph simple.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.networks import configuration_model
-        >>> system = configuration_model([3, 3, 2, 2, 2])
+        >>> from skcomplex.systems.mathematics.networks import ConfigurationModelSystem
+        >>> system = ConfigurationModelSystem([3, 3, 2, 2, 2]).prepare().system_
         >>> system.elements[0].values['degree'].tolist()
         [3.0, 3.0, 2.0, 2.0, 2.0]
     """
-    rng = np.random.default_rng(random_state)
-    if degrees is None:
-        support = np.arange(min_degree, max(min_degree, int(np.sqrt(n_nodes))) + 1)
-        weights = support.astype(float) ** -exponent
-        drawn = rng.choice(support, size=n_nodes, p=weights / weights.sum())
-        drawn[int(rng.integers(n_nodes))] += int(drawn.sum() % 2)
-    else:
-        drawn = np.asarray(degrees, dtype=np.int64)
-        if drawn.sum() % 2:
-            error_msg = f'The degrees sum to {int(drawn.sum())}. Give a degree sequence with an even sum.'
-            raise ValidationError(error_msg)
-    links = _matched_stubs(drawn, rng)
-    links = _simple(links, rng) if simple else [link for link in links if link[0] != link[1]]
-    graph = nx.Graph()
-    graph.add_nodes_from(range(drawn.size))
-    graph.add_edges_from(links)
-    return System(elements=[_node_group(graph)], space=NetworkSpace(graph))
+
+    field = 'mathematics/networks'
+    topics = ('network', 'configuration model', 'random graph', 'degree sequence', 'friendship paradox')
+    references = ('Molloy and Reed 1995', 'Jensen 2023', 'Thurner et al. 2018')
+    until = 1
+    dt = 1
+
+    def __init__(
+        self,
+        degrees: Sequence[int] | None = None,
+        *,
+        n_nodes: int = 1000,
+        exponent: float = 2.5,
+        min_degree: int = 2,
+        simple: bool = True,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.degrees = degrees
+        self.n_nodes = n_nodes
+        self.exponent = exponent
+        self.min_degree = min_degree
+        self.simple = simple
+        self.random_state = random_state
+
+    @staticmethod
+    def _matched_stubs(degrees: npt.NDArray[np.int64], rng: np.random.Generator) -> list[tuple[int, int]]:
+        """Return the links of a uniformly random pairing of the half-links of the nodes.
+
+        The links may hold loops and multilinks.
+        """
+        stubs = rng.permutation(np.repeat(np.arange(degrees.size), degrees))
+        return [(int(first), int(second)) for first, second in stubs.reshape(-1, 2)]
+
+    @staticmethod
+    def _simple(links: list[tuple[int, int]], rng: np.random.Generator) -> list[tuple[int, int]]:
+        """Return the links rewired until no self-loop or multilink is left.
+
+        The rewiring keeps every degree.
+
+        A self-loop or a repeated link and a link drawn at random are cut and their ends glued crosswise, as in the
+        rewiring of Thurner et al. (2018, section 4.5.1.1).
+        """
+        links = [(min(link), max(link)) for link in links]
+        for _ in range(100 * len(links)):
+            seen: set[tuple[int, int]] = set()
+            bad = []
+            for index, link in enumerate(links):
+                if link[0] == link[1] or link in seen:
+                    bad.append(index)
+                seen.add(link)
+            if not bad:
+                return links
+            first = bad[int(rng.integers(len(bad)))]
+            second = int(rng.integers(len(links)))
+            (a, b), (c, d) = links[first], links[second]
+            crossed = [(min(a, c), max(a, c)), (min(b, d), max(b, d))]
+            if first != second and all(x != y and (x, y) not in seen for x, y in crossed):
+                links[first], links[second] = crossed[0], crossed[1]
+        error_msg = 'The degree sequence admits no simple graph reachable by rewiring. Give a sparser degree sequence.'
+        raise ValidationError(error_msg)
+
+    def _build_system(self) -> System:
+        """Return the configuration model.
+
+        It is the maximally random network of a given degree sequence.
+        """
+        rng = np.random.default_rng(self.random_state)
+        if self.degrees is None:
+            support = np.arange(self.min_degree, max(self.min_degree, int(np.sqrt(self.n_nodes))) + 1)
+            weights = support.astype(float) ** -self.exponent
+            drawn = rng.choice(support, size=self.n_nodes, p=weights / weights.sum())
+            drawn[int(rng.integers(self.n_nodes))] += int(drawn.sum() % 2)
+        else:
+            drawn = np.asarray(self.degrees, dtype=np.int64)
+            if drawn.sum() % 2:
+                error_msg = f'The degrees sum to {int(drawn.sum())}. Give a degree sequence with an even sum.'
+                raise ValidationError(error_msg)
+        links = self._matched_stubs(drawn, rng)
+        links = self._simple(links, rng) if self.simple else [link for link in links if link[0] != link[1]]
+        graph = nx.Graph()
+        graph.add_nodes_from(range(drawn.size))
+        graph.add_edges_from(links)
+        return System(self.label, elements=[_node_group(graph)], space=NetworkSpace(graph))
 
 
-@register_system(
-    field='mathematics/networks',
-    tags=('network', 'interdependent networks', 'cascade', 'percolation', 'multilayer'),
-    references=('Buldyrev et al. 2010', 'Artime et al. 2025'),
-    defaults={'until': 40},
-)
-def interdependent_network_cascade(
-    n_nodes: int = 2000,
-    *,
-    mean_degree: float = 4.0,
-    p: float = 0.8,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the cascade of failures of Buldyrev et al. between two networks whose nodes depend on each other.
+class InterdependentNetworkCascadeSystem(BaseSystem):
+    """The cascade of failures of Buldyrev between two interdependent networks.
 
-    Two Erdős-Rényi networks of the mean degree `mean_degree` share their nodes, every node of one depending on the
-    node of the same index in the other, so a node is one pair of dependent nodes. An attack leaves every node
-    functional with probability `p`. At even steps the nodes outside the giant component of the functional nodes of
-    the first network fail, and at odd steps those outside that of the second network, until the cascade stops at the
-    mutual giant component (Buldyrev et al. 2010, as Artime et al. 2025, section 5, Eqs. 9 to 11, review it). Its
-    share `S` solves `S = p (1 - exp(-k S))²`, which has a solution above 0 only for `p` above `2.4554 / k`, where the
-    networks collapse at once in a discontinuous transition.
+    The cascade is that of Buldyrev et al., and the nodes of the networks depend on each other.
+
+    Two Erdős-Rényi networks of the mean degree `mean_degree` share their nodes, every node of one depending on the node
+    of the same index in the other, so a node is one pair of dependent nodes. An attack leaves every node functional
+    with probability `p`. At even steps the nodes outside the giant component of the functional nodes of the first
+    network fail, and at odd steps those outside that of the second network, until the cascade stops at the mutual giant
+    component (Buldyrev et al. 2010, as Artime et al. 2025, section 5, Eqs. 9 to 11, review it). Its share `S` solves `S
+    = p (1 - exp(-k S))²`, which has a solution above 0 only for `p` above `2.4554 / k`, where the networks collapse at
+    once in a discontinuous transition. The system has the functional nodes `nodes.active` over the graph of the first
+    network and the layer `dependent` of the second.
 
     Args:
         n_nodes:
@@ -519,32 +622,56 @@ def interdependent_network_cascade(
         random_state:
             The seed or generator of the networks and the attack.
 
-    Returns:
-        system:
-            The system, with the functional nodes `nodes.active` over the graph of the first network and the layer
-            `dependent` of the second.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.core.engine.runtime import Simulation
-        >>> from skcomplex.systems.mathematics.networks import interdependent_network_cascade
-        >>> system = interdependent_network_cascade(200, p=0.3)
-        >>> int(Simulation(system).prepare().run(until=20).trajectory_.values('nodes.active')[-1].sum())
+        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.systems.mathematics.networks import InterdependentNetworkCascadeSystem
+        >>> system = InterdependentNetworkCascadeSystem(200, p=0.3).prepare().system_
+        >>> int(simulate(system, until=20).values('nodes.active')[-1].sum())
         0
     """
-    rng = np.random.default_rng(random_state)
-    probability = mean_degree / (n_nodes - 1)
-    first = nx.gnp_random_graph(n_nodes, probability, seed=int(rng.integers(2**31)))
-    second = LayerSpec('dependent', nx.gnp_random_graph(n_nodes, probability, seed=int(rng.integers(2**31))))
-    space = NetworkSpace(first, layers=[second])
-    functional = (rng.uniform(size=n_nodes) < p).astype(float)
-    nodes = LatticeElement('nodes', element=DependentNodeElement, space=space, values={'active': functional})
 
-    def _get_cascade(s: SimpleNamespace) -> object:
-        """Return the activity of a node after the failures of the network of the step."""
-        both = s.target.active * s.target.other.active
-        first_giant = components(both, reduce='giant')
-        second_giant = components(both, over=second, reduce='giant')
-        return s.target.active * where(mod(s.t, 2) < 1, first_giant, second_giant)
+    field = 'mathematics/networks'
+    topics = ('network', 'interdependent networks', 'cascade', 'percolation', 'multilayer')
+    references = ('Buldyrev et al. 2010', 'Artime et al. 2025')
+    until = 40
 
-    cascade = MapInteraction('cascade', target='nodes', state='active', function=_get_cascade)
-    return System(elements=[nodes], interactions=[cascade], time=DiscreteTime())
+    def __init__(
+        self,
+        n_nodes: int = 2000,
+        *,
+        mean_degree: float = 4.0,
+        p: float = 0.8,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_nodes = n_nodes
+        self.mean_degree = mean_degree
+        self.p = p
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the cascade of failures between two networks.
+
+        The nodes of the networks depend on each other.
+        """
+        rng = np.random.default_rng(self.random_state)
+        probability = self.mean_degree / (self.n_nodes - 1)
+        first = nx.gnp_random_graph(self.n_nodes, probability, seed=int(rng.integers(2**31)))
+        second = LayerSpec('dependent', nx.gnp_random_graph(self.n_nodes, probability, seed=int(rng.integers(2**31))))
+        space = NetworkSpace(first, layers=[second])
+        functional = (rng.uniform(size=self.n_nodes) < self.p).astype(float)
+        nodes = LatticeElement('nodes', element=DependentNodeElement, space=space, values={'active': functional})
+
+        def _get_cascade(s: SimpleNamespace) -> object:
+            """Return the activity of a node after the failures of the network of the step."""
+            both = s.target.active * s.target.other.active
+            first_giant = components(both, reduce='giant')
+            second_giant = components(both, over=second, reduce='giant')
+            return s.target.active * where(mod(s.t, 2) < 1, first_giant, second_giant)
+
+        cascade = MapInteraction('cascade', target='nodes', state='active', function=_get_cascade)
+        return System(self.label, elements=[nodes], interactions=[cascade], time=DiscreteTime())

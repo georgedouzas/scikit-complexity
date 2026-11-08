@@ -1,4 +1,7 @@
-"""Tipping cascades: networks of interacting tipping elements that can push one another past their tipping points."""
+"""Tipping cascades.
+
+Networks of interacting tipping elements can push one another past their tipping points.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,25 +20,21 @@ from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import CouplingInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import ContinuousTime, NetworkSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 FOLD = math.sqrt(4 / 27)
 
 
-def _push(s: SimpleNamespace) -> Expression:
-    """Return the push `d (x_j + 1)` of a neighbour `j` on a member, about `2 d` from a tipped neighbour."""
-    return s.member.d * (s.other.x + 1)
-
-
 class TippingElementElement(Element):
-    """Tipping element in the normal form of a fold, pushed toward its upper state by tipped neighbours.
+    """Tipping element in the normal form of a fold.
+
+    Tipped neighbours push the element toward its upper state.
 
     The state follows `dx_i/dt = -x_i^3 + x_i + sqrt(4/27) c_i + d Σ_j A_ij (x_j + 1)`. Alone, the element has a
     lower and an upper stable state for `|c| < 1` and only the upper one beyond the critical value `c = 1`. A neighbour
     in its lower state `x_j ≈ -1` adds almost nothing, while a tipped neighbour at `x_j ≈ 1` adds about `2 d`. The
-    element carries the fold, and the coupling of `tipping_cascade_network` adds the pushes of the neighbours.
+    element carries the fold, and the coupling of `TippingCascadeNetworkSystem` adds the pushes of the neighbours.
 
     Args:
         label:
@@ -58,6 +57,8 @@ class TippingElementElement(Element):
         >>> TippingElementElement('ice sheet').x
         -1.0
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
@@ -87,24 +88,15 @@ class TippingElementElement(Element):
         return [RateLaw(s.x, -(s.x**3) + s.x + FOLD * s.c)]
 
 
-@register_system(
-    field='physics/climate',
-    tags=('tipping points', 'cascades', 'network', 'bistability', 'ode'),
-    references=('Wunderling et al. 2021', 'Klose et al. 2020'),
-    defaults={'until': 40.0, 'dt': 0.1},
-)
-def tipping_cascade_network(
-    graph: nx.Graph | None = None,
-    *,
-    c: float | Sequence[float] = 0.0,
-    d: float = 0.2,
-    x: float | Sequence[float] = -1.0,
-) -> System:
-    """Return a network of tipping elements, where one element pushed past its tipping point can tip its neighbours.
+class TippingCascadeNetworkSystem(BaseSystem):
+    """A network of tipping elements.
+
+    One element pushed past its tipping point can tip its neighbours.
 
     Every node is a fold `dx_i/dt = -x_i^3 + x_i + sqrt(4/27) c_i + d Σ_j A_ij (x_j + 1)` that starts in its lower
     state. An element whose control passes the critical value 1 tips to its upper state, and its coupling then raises
     the effective control of each neighbour by `2 d / sqrt(4/27)`, which can tip neighbours that would not tip alone.
+    The system has the states `elements.x`, one value per node.
 
     Args:
         graph:
@@ -119,23 +111,55 @@ def tipping_cascade_network(
         x:
             The initial states, one value or one per node in node order.
 
-    Returns:
-        system:
-            The system, with the states `elements.x`, one value per node.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.systems.physics.climate import tipping_cascade_network
-        >>> tipping_cascade_network(nx.cycle_graph(5), c=[1.2, 0, 0, 0, 0]).elements[0].prepare().size_
+        >>> from skcomplex.systems.physics.climate import TippingCascadeNetworkSystem
+        >>> system = TippingCascadeNetworkSystem(nx.cycle_graph(5), c=[1.2, 0, 0, 0, 0]).prepare().system_
+        >>> system.elements[0].prepare().size_
         5
     """
-    graph = nx.path_graph(4) if graph is None else graph
-    size = graph.number_of_nodes()
-    values = {
-        'x': np.broadcast_to(np.asarray(x, dtype=float), size).copy(),
-        'c': np.broadcast_to(np.asarray(c, dtype=float), size).copy(),
-        'd': d,
-    }
-    elements = FieldElement('elements', element=TippingElementElement, space=NetworkSpace(graph), values=values)
-    coupling = CouplingInteraction('coupling', target='elements', function=_push)
-    return System(elements=[elements], interactions=[coupling], time=ContinuousTime())
+
+    field = 'physics/climate'
+    topics = ('tipping points', 'cascades', 'network', 'bistability', 'ode')
+    references = ('Wunderling et al. 2021', 'Klose et al. 2020')
+    until = 40.0
+    dt = 0.1
+
+    def __init__(
+        self,
+        graph: nx.Graph | None = None,
+        *,
+        c: float | Sequence[float] = 0.0,
+        d: float = 0.2,
+        x: float | Sequence[float] = -1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.graph = graph
+        self.c = c
+        self.d = d
+        self.x = x
+
+    @staticmethod
+    def _push(s: SimpleNamespace) -> Expression:
+        """Return the push `d (x_j + 1)` of a neighbour `j` on a member.
+
+        The push is about `2 d` from a tipped neighbour.
+        """
+        return s.member.d * (s.other.x + 1)
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        graph = nx.path_graph(4) if self.graph is None else self.graph
+        size = graph.number_of_nodes()
+        values = {
+            'x': np.broadcast_to(np.asarray(self.x, dtype=float), size).copy(),
+            'c': np.broadcast_to(np.asarray(self.c, dtype=float), size).copy(),
+            'd': self.d,
+        }
+        elements = FieldElement('elements', element=TippingElementElement, space=NetworkSpace(graph), values=values)
+        coupling = CouplingInteraction('coupling', target='elements', function=self._push)
+        return System(self.label, elements=[elements], interactions=[coupling], time=ContinuousTime())

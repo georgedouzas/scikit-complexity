@@ -1,10 +1,14 @@
-"""Define linear program laws, which set algebraic states to an optimal solution of a linear program."""
+"""Define linear program laws.
+
+They set algebraic states to an optimal solution of a linear program.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 import operator
 from collections.abc import Sequence
+from typing import ClassVar
 
 from sage.all__sagemath_symbolics import Expression
 
@@ -18,11 +22,12 @@ RELATIONS = (operator.eq, operator.le, operator.ge)
 
 
 class LinearProgramLaw(BaseLaw):
-    """Optimal solution of a linear program, which sets the algebraic states that are its variables.
+    """Optimal solution of a linear program.
 
-    The laws whose variables overlap, from any element or interaction, form one program: their variables unite, their
-    constraints add, and at most one of them holds objectives. The objectives are solved in order, and each optimum is
-    kept within a relative 1e-9 while the next one is solved.
+    It sets the algebraic states that are its variables. The laws whose variables overlap, from any element or
+    interaction, form one program: their variables unite, their constraints add, and at most one of them holds
+    objectives. The objectives are solved in order, and each optimum is kept within a relative 1e-9 while the next one
+    is solved.
 
     Args:
         variables:
@@ -64,6 +69,8 @@ class LinearProgramLaw(BaseLaw):
         (v, w)
     """
 
+    law_tag: ClassVar[str] = 'equation'
+
     def __init__(
         self,
         variables: Sequence[Expression],
@@ -92,14 +99,19 @@ class LinearProgramLaw(BaseLaw):
         """Return what the law requires of a system: continuous, discrete, or static time."""
         return RequirementSpec(time=(ContinuousTime, DiscreteTime, StaticTime))
 
-    def _check(self) -> None:
-        """Raise an error for a program without variables, a malformed constraint or objective, or an unknown policy.
+    def _prepare(self, context: str | None = None) -> None:
+        """Raise an error for no variables, a bad constraint or objective, or a bad policy.
+
+        Args:
+            context:
+                The path of the element or interaction that returns the law, or `None`.
 
         Raises:
             ValidationError:
                 The program has no variables, a constraint is not a relation, an objective is not a
                 `LinearObjectiveSpec`, or the policy is unknown.
         """
+        super()._prepare(context)
         if not len(self.variables):
             error_msg = 'A linear program law sets at least one variable, but it has none.'
             raise ValidationError(error_msg)
@@ -113,7 +125,7 @@ class LinearProgramLaw(BaseLaw):
             if not isinstance(objective, LinearObjectiveSpec):
                 error_msg = f'An objective of a linear program is a `LinearObjectiveSpec`, not {objective!r}.'
                 raise ValidationError(error_msg)
-            objective._validated()
+            objective._check()
         if self.infeasible not in INFEASIBLE_POLICIES:
             error_msg = (
                 f'Unknown infeasibility policy {self.infeasible!r}. Use one of {", ".join(INFEASIBLE_POLICIES)}.'

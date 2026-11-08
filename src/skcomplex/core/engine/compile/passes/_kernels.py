@@ -1,4 +1,7 @@
-"""Lower the laws of every kernel spec into kernels, one per law kind and component."""
+"""Lower the laws of every kernel spec into kernels.
+
+There is one kernel per law kind and component.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,9 +22,13 @@ from ....errors import PipelineError, ValidationError
 from ....specs import CallSpec, LayoutSpec, NoiseProcessSpec, WienerProcessSpec
 from ....types import ProcessKey
 from ..._utils import components_of, symbols_of
-from ...problems import DeclarationsSpec, KernelSpec, LoweredKernelsSpec, OutputSpec, ReferenceSpec
+from ...problems._declarations_spec import DeclarationsSpec
+from ...problems._kernel_spec import KernelSpec
 from ...problems._law_kernel import LawKernel
+from ...problems._lowered_kernels_spec import LoweredKernelsSpec
+from ...problems._output_spec import OutputSpec
 from ...problems._random_stream import RandomStream
+from ...problems._reference_spec import ReferenceSpec
 from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import Compilation, Laws
@@ -87,9 +94,13 @@ class KernelsPass(BasePass):
 
     @staticmethod
     def _outputs_of(value: object, targets: Sequence[ReferenceSpec | None], owner: str) -> list[OutputSpec]:
-        """Return the outputs of one law value for its target components, with the law and component as owner."""
+        """Return the outputs of one law value for its target components.
+
+        The law and component are the owner.
+        """
         if isinstance(value, CallSpec):
-            return KernelsPass._call_outputs(value._validated(), targets, owner)
+            value._check()
+            return KernelsPass._call_outputs(value, targets, owner)
         expressions = KernelsPass._symbolic_components(value, len(targets), owner)
         if expressions is None:
             if not callable(value):
@@ -103,7 +114,10 @@ class KernelsPass(BasePass):
 
     @staticmethod
     def _combines(laws: Sequence[BaseLaw]) -> bool:
-        """Check whether update laws of one state combine: each an increment or a move from its own source value."""
+        """Check whether update laws of one state combine.
+
+        They combine when each is an increment or a move from its own source value.
+        """
         if not all(isinstance(law, UpdateLaw) and law.order is None for law in laws):
             return False
         updates = [law for law in laws if isinstance(law, UpdateLaw)]
@@ -121,10 +135,11 @@ class KernelsPass(BasePass):
         *,
         once: bool,
     ) -> set[int]:
-        """Raise an error for an update or boundary law that sums over members or sets a component it cannot share.
+        """Raise an error for an update or boundary law that cannot share its targets.
 
-        Returns the positions of the targets that an earlier law sets, whose changes this law adds to. A law of one
-        member of a group meets the laws of every member, and a law of every member the laws of each one.
+        It sums over members or sets a component it cannot share. Returns the positions of the targets that an earlier
+        law sets, whose changes this law adds to. A law of one member of a group meets the laws of every member, and a
+        law of every member the laws of each one.
         """
         kind = type(law).__name__
         combined = set()
@@ -154,10 +169,11 @@ class KernelsPass(BasePass):
 
     @staticmethod
     def _assignment_keys(target: ReferenceSpec) -> tuple[tuple[object, ...], ...]:
-        """Return the keys of the laws an assignment of a target meets, the first two, and holds, all but the first.
+        """Return the keys of the laws an assignment of a target meets and holds.
 
-        The laws of every member of a group are held under the component, and the laws of one member under the component
-        and the member and under the laws of single members, so each meets the other.
+        It meets the first two and holds all but the first. The laws of every member of a group are held under the
+        component, and the laws of one member under the component and the member and under the laws of single members,
+        so each meets the other.
         """
         name = target.entry.name
         if target.source is ReadKind.MEMBER or target.entry.members is None:
@@ -167,7 +183,10 @@ class KernelsPass(BasePass):
 
     @staticmethod
     def _is_once(spec: KernelSpec, law: BaseLaw) -> bool:
-        """Check whether a law of a group's interaction sets single elements from reductions alone, so it runs once."""
+        """Check whether a group interaction law sets single elements once.
+
+        It sets them from reductions alone, so it runs once.
+        """
         if (
             spec.rows <= 1
             or spec.pairs is not None
@@ -182,7 +201,10 @@ class KernelsPass(BasePass):
 
     @staticmethod
     def _single_references(spec: KernelSpec) -> dict[Expression, ReferenceSpec]:
-        """Return the references of a spec without its group members, for laws that run once."""
+        """Return the references of a spec without its group members.
+
+        They serve laws that run once.
+        """
         return {
             item: reference
             for item, reference in spec.references.items()
@@ -197,9 +219,10 @@ class KernelsPass(BasePass):
         declarations: DeclarationsSpec,
         lowered: dict[int, list[OutputSpec]],
     ) -> list[OutputSpec]:
-        """Return the outputs of a law for its target components, with the named Wiener process of a noise law.
+        """Return the outputs of a law for its target components.
 
-        A law that a pass of a formalism lowered takes the outputs of that pass.
+        A noise law adds its named Wiener process. A law that a pass of a formalism lowered takes the outputs of that
+        pass.
         """
         if id(law) in lowered:
             return lowered[id(law)]
@@ -224,7 +247,10 @@ class KernelsPass(BasePass):
         declarations: DeclarationsSpec,
         lowered_outputs: dict[int, list[OutputSpec]],
     ) -> LoweredKernelsSpec:
-        """Return the kernels of every law kind, with the law of every output, the update laws of each phase apart."""
+        """Return the kernels of every law kind, with the law of every output.
+
+        The update laws of each phase are kept apart.
+        """
         states, parameters = LayoutSpec(tuple(declarations.states)), LayoutSpec(tuple(declarations.parameters))
         kernels: defaultdict[type, list[LawKernel]] = defaultdict(list)
         jump_changes: dict[int, list[tuple[ReferenceSpec, object]]] = {}
@@ -291,7 +317,10 @@ class KernelsPass(BasePass):
 
     @staticmethod
     def _covariance_factor(covariance: object) -> npt.NDArray[np.float64]:
-        """Return a factor `L` with `L L^T = C` of a covariance, by Cholesky or, for a singular one, by eigenvalues."""
+        """Return a factor `L` with `L L^T = C` of a covariance.
+
+        It is found by Cholesky or, for a singular covariance, by eigenvalues.
+        """
         matrix = np.asarray(covariance, dtype=float)
         try:
             return np.linalg.cholesky(matrix)
@@ -301,7 +330,10 @@ class KernelsPass(BasePass):
 
     @staticmethod
     def _noise_process(key: ProcessKey | None, wieners: Mapping[str, WienerProcessSpec]) -> NoiseProcessSpec | None:
-        """Return the named Wiener process of a process key, with the covariance factor of a `WienerProcessSpec`."""
+        """Return the named Wiener process of a process key.
+
+        It holds the covariance factor of a `WienerProcessSpec`.
+        """
         if key is None:
             return None
         kind, owner, item = key
@@ -309,11 +341,13 @@ class KernelsPass(BasePass):
             return NoiseProcessSpec(key)
         wiener = wieners[owner]
         factor = None if wiener.covariance is None else KernelsPass._covariance_factor(wiener.covariance)
-        return NoiseProcessSpec(owner, item, wiener.dimension, factor)
+        return NoiseProcessSpec(owner, int(item), wiener.dimension, factor)
 
     @staticmethod
     def _kind_of(law: BaseLaw) -> type:
-        """Return the class of a law that decides its form, with every noise law counted as a noise law.
+        """Return the class of a law that decides its form.
+
+        Every noise law counts as a noise law.
 
         Args:
             law:
@@ -372,7 +406,9 @@ class KernelsPass(BasePass):
 
     @staticmethod
     def _symbolic_components(value: object, size: int, owner: str) -> list[Expression] | None:
-        """Return the symbolic components of a law value, or `None` when the value is a callable.
+        """Return the symbolic components of a law value.
+
+        It is `None` when the value is a callable.
 
         Args:
             value:

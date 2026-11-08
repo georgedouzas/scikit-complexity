@@ -3,7 +3,7 @@
 import numpy as np
 
 from skcomplex.systems.economics.markets import (
-    car_wash,
+    CarWashSystem,
 )
 
 from ..conftest import _agents, _run
@@ -11,7 +11,7 @@ from ..conftest import _agents, _run
 
 def test_car_wash_books_every_payment():
     """Test that the revenue prices every wash and valet, and the wash queue never exceeds the balking length."""
-    trajectory = _run(car_wash(p_enter=0.05), 3600)
+    trajectory = _run(CarWashSystem(p_enter=0.05), 3600)
     till = _agents(trajectory, 'till', 3600)
     assert till['revenue'][0] == 4.0 * till['washes'][0] + 10.0 * till['valets'][0]
     assert till['washes'][0] + till['valets'][0] > 0
@@ -22,6 +22,6 @@ def test_car_wash_books_every_payment():
 
 def test_car_wash_runs_reproducibly():
     """Test that two runs of the car wash with the same random state take the same revenue."""
-    first = _agents(_run(car_wash(p_enter=0.05), 600), 'till', 600)['revenue']
-    second = _agents(_run(car_wash(p_enter=0.05), 600), 'till', 600)['revenue']
+    first = _agents(_run(CarWashSystem(p_enter=0.05), 600), 'till', 600)['revenue']
+    second = _agents(_run(CarWashSystem(p_enter=0.05), 600), 'till', 600)['revenue']
     assert np.array_equal(first, second)

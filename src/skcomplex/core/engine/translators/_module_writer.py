@@ -1,4 +1,7 @@
-"""Write the source of a system module from the sorted parts of a stock-and-flow system."""
+"""Write the source of a system module from the sorted parts of a system.
+
+The system is a stock-and-flow system.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,6 +26,7 @@ BASE_IMPORTS = frozenset(
     {
         (SAGE_MODULE, 'Expression'),
         (ELEMENTS_MODULE, 'Element'),
+        ('skcomplex.core.components.system', 'BaseSystem'),
         ('skcomplex.core.components.system', 'System'),
         (SPECS_MODULE, 'ObservableSpec'),
         (SPECS_MODULE, 'StateSpec'),
@@ -52,44 +56,67 @@ ELEMENT_CLASS = '''class {name}(Element):
         """Store the label, the visual, the stocks, and the constants."""
         super().__init__(label, visual=visual)
 {assignments}'''
-TRANSFER = """            TransferInteraction(
-                {name!r},
-                source={label!r},
-                target={label!r},
-                state={state},
-                into={into},
-                amount=_amount__{name},
-                flow={name!r},
-            ),"""
-RELAXATION = """            RelaxationInteraction(
-                {name!r},
-                target={label!r},
-                state={stock!r},
-                goal=_goal__{stock},
-                time=_time__{stock},
-            ),"""
-RATE = """            RateInteraction(
-                {name!r},
-                target={label!r},
-                state={stock!r},
-                rate=_rate__{stock},
-            ),"""
-GROUP = """            GroupElement(
-                {label!r},
-                element={name},
-                size={size},
-                values={{
+TRANSFER = """                TransferInteraction(
+                    {name!r},
+                    source={label!r},
+                    target={label!r},
+                    state={state},
+                    into={into},
+                    amount=_amount__{name},
+                    flow={name!r},
+                ),"""
+RELAXATION = """                RelaxationInteraction(
+                    {name!r},
+                    target={label!r},
+                    state={stock!r},
+                    goal=_goal__{stock},
+                    time=_time__{stock},
+                ),"""
+RATE = """                RateInteraction(
+                    {name!r},
+                    target={label!r},
+                    state={stock!r},
+                    rate=_rate__{stock},
+                ),"""
+GROUP = """                GroupElement(
+                    {label!r},
+                    element={name},
+                    size={size},
+                    values={{
 {values}
-                }},
-            ),"""
-SYSTEM = """    return System(
-        elements=[
+                    }},
+                ),"""
+SYSTEM_CLASS = '''class {name}(BaseSystem):
+    """Run the stock-and-flow system translated from the file `{stem}`.
+
+    Args:
+{arguments}
+    """
+
+    until = UNTIL
+    dt = SAVE_EVERY
+    observables = ({observables})
+
+    def __init__(
+        self,
+        *,
+{declarations}
+    ) -> None:
+        """Store the constants and the label."""
+        super().__init__(label)
+{assignments}
+
+    def _build_system(self) -> System:
+        """Return the element of the stocks and the constants, and the interactions of the flows and the rates."""
+        return System(
+            self.label,
+            elements=[
 {element}
-        ],
-        interactions=[
+            ],
+            interactions=[
 {interactions}
-        ],
-    )"""
+            ],
+        )'''
 
 
 class _ModuleWriter:
@@ -111,7 +138,10 @@ class _ModuleWriter:
 
     @staticmethod
     def _write_return(source: str) -> str:
-        """Return the return statement of a function body, on several lines when it does not fit on one."""
+        """Return the return statement of a function body.
+
+        It spans several lines when it does not fit on one.
+        """
         line = f'{INDENT}return {source}'
         if len(line) <= LINE_LENGTH:
             return line
@@ -131,7 +161,10 @@ class _ModuleWriter:
 
     @staticmethod
     def _write_bindings(source: str) -> list[str]:
-        """Return the lines that bind the namespace of the target and the time, for those a source reads."""
+        """Return the lines that bind the namespace of the target and the time.
+
+        They bind those a source reads.
+        """
         lines = [f'{INDENT}s = namespace.target'] if re.search(r'\bs\b', source) else []
         return [*lines, f'{INDENT}t = namespace.t'] if re.search(r'\bt\b', source) else lines
 
@@ -151,7 +184,10 @@ class _ModuleWriter:
         return ''.join(word.capitalize() for word in self.label.split('_')) + 'Element'
 
     def _get_stock_values(self, name: str) -> list[float]:
-        """Return the first value of a stock for every member, and collect one not known before a run."""
+        """Return the first value of a stock for every member.
+
+        It collects a value not known before a run.
+        """
         parts = self.parts
         values = [
             self.expressions.evaluate(parts.stocks[name].initial, member) for member in range(len(parts.members) or 1)
@@ -161,7 +197,10 @@ class _ModuleWriter:
         return [0.0 if value is None else value for value in values]
 
     def _write_choice(self, name: str) -> str:
-        """Return the source of an auxiliary, a choice by the member when a component defines one member alone."""
+        """Return the source of an auxiliary.
+
+        It is a choice by the member when a component defines one member alone.
+        """
         parts, expressions = self.parts, self.expressions
         components = parts.auxiliaries[name]
         if len(components) == 1:
@@ -198,7 +237,10 @@ class _ModuleWriter:
         return helpers
 
     def _write_element(self) -> str:
-        """Return the source of the element class, whose states are the stocks and whose parameters the constants."""
+        """Return the source of the element class.
+
+        Its states are the stocks and its parameters the constants.
+        """
         parts = self.parts
         declared = [(name, 'StateSpec', self._get_stock_values(name)[0], 'stock') for name in sorted(parts.stocks)]
         declared += [(name, 'ParameterSpec', parts.constants[name][0], 'constant') for name in sorted(parts.constants)]
@@ -221,7 +263,10 @@ class _ModuleWriter:
         )
 
     def _write_transfers(self, flows: dict[str, tuple[str | None, str | None]]) -> tuple[list[str], list[str]]:
-        """Return the functions of the amounts of the flows, and the source of their transfers."""
+        """Return the functions of the amounts of the flows, and the transfer source.
+
+        The source is that of their transfers.
+        """
         imports = self.expressions.imports
         functions, interactions = [], []
         for name, (leaving, entering) in flows.items():
@@ -241,7 +286,7 @@ class _ModuleWriter:
         return functions, interactions
 
     def _write_relaxation(self, stock: str, form: _GoalSeekingSpec) -> tuple[list[str], str, str]:
-        """Return the functions of a goal-seeking stock, the source of its relaxation, and the label of its rate."""
+        """Return the functions, relaxation source, and rate label of a goal-seeking stock."""
         expressions = self.expressions
         original = self.parts.originals[stock]
         expressions.imports.add((INTERACTIONS_MODULE, 'RelaxationInteraction'))
@@ -272,7 +317,10 @@ class _ModuleWriter:
         return functions, RELAXATION.format(name=name, label=self.label, stock=stock), name
 
     def _write_rate(self, stock: str, terms: Sequence[tuple[int, object]]) -> tuple[str, str]:
-        """Return the function of what remains of the net rate of a stock, and the source of its rate interaction."""
+        """Return the function of the rest of the net rate of a stock, and its interaction.
+
+        The function is that of what remains of the net rate, and the source is that of its rate interaction.
+        """
         expressions = self.expressions
         expressions.imports.add((INTERACTIONS_MODULE, 'RateInteraction'))
         pieces = []
@@ -290,14 +338,17 @@ class _ModuleWriter:
         return function, RATE.format(name=self._get_label(f'{stock}_rate'), label=self.label, stock=stock)
 
     def _write_observable(self, name: str) -> str:
-        """Return the source of the observable of a name, of the element or reduced over the group."""
+        """Return the source of the observable of a name.
+
+        The observable is of the element or reduced over the group.
+        """
         if not self.parts.members:
             return f'{INDENT * 2}ObservableSpec({name!r}, _observed__{name}, element={self.label!r}),'
         reduction = '_member_values' if self.parts.is_per_member(name) else "'mean'"
         return f'{INDENT * 2}ObservableSpec({name!r}, _observed__{name}, group={self.label!r}, reduce={reduction}),'
 
     def _write_observables(self, flows: Mapping[str, object], relaxations: Sequence[str]) -> tuple[list[str], str]:
-        """Return the functions of the observables, and the source of the function that lists them."""
+        """Return the functions of the observables, and the source of their tuple items."""
         parts = self.parts
         names = [name for name in sorted(parts.auxiliaries) if name not in flows and parts.is_observable(name)]
         functions = [
@@ -317,33 +368,65 @@ class _ModuleWriter:
                 ),
             )
         specs = '\n'.join(self._write_observable(name) for name in [*names, *relaxations])
-        return functions, self._write_function(
-            'observables(system: System) -> list[ObservableSpec]',
-            'Return one observable per auxiliary and per goal-seeking stock of the system.',
-            f'{INDENT}return [\n{specs}\n{INDENT}]' if specs else f'{INDENT}return []',
-        )
+        return functions, f'\n{specs}\n{INDENT}' if specs else ''
 
-    def _write_system(self, interactions: Sequence[str]) -> str:
-        """Return the source of the function that returns the system of the system."""
+    def _get_system_name(self) -> str:
+        """Return the name of the system class, after the label of the element."""
+        return self._get_class_name().removesuffix('Element') + 'System'
+
+    def _write_element_call(self) -> str:
+        """Return the source of the element of the system.
+
+        It is given the constants of the system.
+        """
         parts = self.parts
         name = self._get_class_name()
-        element = f'{INDENT * 3}{name}({self.label!r}),'
         if parts.members:
             self.expressions.imports.add((ELEMENTS_MODULE, 'GroupElement'))
-            values = {stock: self._get_stock_values(stock) for stock in sorted(parts.stocks)}
-            values |= {key: list(value) for key, value in sorted(parts.constants.items()) if len(value) > 1}
-            values['member'] = [float(index) for index in range(len(parts.members))]
-            listed = '\n'.join(f'{INDENT * 5}{key!r}: {value!r},' for key, value in values.items())
-            element = GROUP.format(label=self.label, name=name, size=len(parts.members), values=listed)
-        return self._write_function(
-            'create_system() -> System',
-            'Return the system of the system.',
-            SYSTEM.format(element=element, interactions='\n'.join(interactions)),
+            values: dict[str, str] = {stock: repr(self._get_stock_values(stock)) for stock in sorted(parts.stocks)}
+            for key, value in sorted(parts.constants.items()):
+                values[key] = f'list(self.{key})' if len(value) > 1 else f'self.{key}'
+            values['member'] = repr([float(index) for index in range(len(parts.members))])
+            listed = '\n'.join(f'{INDENT * 6}{key!r}: {value},' for key, value in values.items())
+            return GROUP.format(label=self.label, name=name, size=len(parts.members), values=listed)
+        if not parts.constants:
+            return f'{INDENT * 4}{name}({self.label!r}),'
+        arguments = '\n'.join(f'{INDENT * 5}{key}=self.{key},' for key in sorted(parts.constants))
+        return f'{INDENT * 4}{name}(\n{INDENT * 5}{self.label!r},\n{arguments}\n{INDENT * 4}),'
+
+    def _write_system(self, interactions: Sequence[str], observables: str) -> str:
+        """Return the source of the system class.
+
+        Its parameters are the constants of the file.
+        """
+        parts = self.parts
+        declared = []
+        for key, value in sorted(parts.constants.items()):
+            declared.append((key, f'tuple[float, ...] = {value!r}' if len(value) > 1 else f'float = {value[0]!r}'))
+        documented = [
+            f'{INDENT * 2}{key}:\n{INDENT * 3}The constant `{self._get_original(key)}`.' for key, _ in declared
+        ]
+        label = 'The label of the system, which names it when it is nested in another one.'
+        documented.append(f'{INDENT * 2}label:\n{INDENT * 3}{label}')
+        declarations = [f'{INDENT * 2}{key}: {annotation},' for key, annotation in declared]
+        declarations.append(f"{INDENT * 2}label: str = 'system',")
+        return SYSTEM_CLASS.format(
+            name=self._get_system_name(),
+            stem=self.stem,
+            arguments='\n\n'.join(documented),
+            observables=observables,
+            declarations='\n'.join(declarations),
+            assignments='\n'.join(f'{INDENT * 2}self.{key} = {key}' for key, _ in declared),
+            element=self._write_element_call(),
+            interactions='\n'.join(interactions),
         )
 
     @staticmethod
     def _write_import(module: str, names: Sequence[str]) -> str:
-        """Return the import of names of a module, on several lines when it does not fit on one."""
+        """Return the import of names of a module.
+
+        It spans several lines when it does not fit on one.
+        """
         line = f'from {module} import {", ".join(names)}'
         if len(line) <= LINE_LENGTH:
             return line
@@ -351,7 +434,10 @@ class _ModuleWriter:
         return f'from {module} import (\n{listed}\n)'
 
     def _write_imports(self) -> str:
-        """Return the import block of the module, the standard library first and the library last."""
+        """Return the import block of the module.
+
+        The standard library comes first and the library last.
+        """
         modules: dict[str, list[str]] = {}
         for module, name in self.expressions.imports:
             modules.setdefault(module, []).append(name)
@@ -382,15 +468,14 @@ class _ModuleWriter:
                 function, interaction = self._write_rate(stock, terms)
                 rates.append(function)
                 interactions.append(interaction)
-        observed, listing = self._write_observables(flows, relaxations)
+        observed, observables = self._write_observables(flows, relaxations)
         blocks = [
             *helpers,
             self._write_element(),
             *amounts,
             *rates,
             *observed,
-            self._write_system(interactions),
-            listing,
+            self._write_system(interactions, observables),
         ]
         constants = (
             f'START = {settings.start!r}\nUNTIL = {settings.until!r}\n'

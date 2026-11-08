@@ -1,4 +1,7 @@
-"""Oncology systems: tumour, immune, and normal cells under chemotherapy, with resistance, delays, and metastasis."""
+"""Tumour, immune, and normal cells under chemotherapy.
+
+The systems cover resistance, delays, and metastasis.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,9 +17,8 @@ from ....core.components.elements import Element
 from ....core.components.interactions import BaseInteraction, RateInteraction, ReactionInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import clip, delayed
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from ..common.kinetics import MichaelisMentenInteraction
 from ..common.pharmacokinetics import DosingInteraction
 from ._tumour_immune_chemotherapy import TumourImmuneChemotherapyElement
@@ -38,7 +40,9 @@ RESISTANCE_CLASSES = {
 
 
 class MetastasisChemotherapyElement(Element):
-    """Normal and tumour cells at a primary and a secondary site, each with its drug, and a delayed migration.
+    """Normal and tumour cells at a primary and a secondary site.
+
+    Each site has its drug, and the migration between them is delayed.
 
     At each site the normal and tumour cells grow logistically, compete, and a drug kills them with a saturating
     response, `a N U / (bc + N)`. The drug at a site follows `dU/dt = u - (k + g1 N / (bc + N) + g2 A / (bc + A)) U`.
@@ -46,8 +50,8 @@ class MetastasisChemotherapyElement(Element):
     after the delay `tau`, `dAs/dt = ... + epsilon delta Ap(t - tau)`. Before the start the primary tumour keeps its
     initial value.
 
-    The element holds the states and parameters and has no laws of its own: the interactions of `delayed_metastasis`
-    read its parameters.
+    The element holds the states and parameters and has no laws of its own: the interactions of
+    `DelayedMetastasisSystem` read its parameters.
 
     Args:
         label:
@@ -237,7 +241,9 @@ class MetastasisChemotherapyElement(Element):
 
 
 class MultidrugResistanceElement(Element):
-    """Tumour cells split by their resistance to three drugs, each given by a constant infusion with its toxicity.
+    """Tumour cells split by their resistance to three drugs.
+
+    Each drug is given by a constant infusion with its toxicity.
 
     The sensitive cells `S`, the cells resistant to one drug `R1`, `R2`, `R3`, to two drugs `R12`, `R13`, `R23`, and
     to all three `R123` grow at the same rate `r`. A fraction `m_i` of the offspring of a population gains resistance
@@ -245,8 +251,8 @@ class MultidrugResistanceElement(Element):
     where `K` sums the kill `a_i (U_i - Uth) F(U_i - Uth)` of every drug the population is sensitive to. The drugs
     follow `dU_i/dt = u_i - k_i U_i` and their toxicities `dTX_i/dt = U_i - eta_i TX_i`.
 
-    The element holds the states and parameters and has no laws of its own: the interactions of `multidrug_resistance`
-    read its parameters.
+    The element holds the states and parameters and has no laws of its own: the interactions of
+    `MultidrugResistanceSystem` read its parameters.
 
     Args:
         label:
@@ -426,7 +432,9 @@ class MultidrugResistanceElement(Element):
 
 
 class ResistanceSwitchingElement(Element):
-    """Sensitive cells and cells resistant by mutation or by a reversible phenotype switch, under a constant dose.
+    """Sensitive cells and cells resistant by mutation or by a phenotype switch.
+
+    The switch is reversible, and the dose is constant.
 
     With the total `V = S + Rm + Rp`, the sensitive cells follow
     `dS/dt = r1 (1 - b V) S - (m1 + m2) S - (alpha_m + alpha_p) u S - a u S + m5 Rp`, the mutated cells
@@ -496,6 +504,8 @@ class ResistanceSwitchingElement(Element):
         0.01
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -537,7 +547,9 @@ class ResistanceSwitchingElement(Element):
         self.u = u
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the growth, transitions, and kill of the sensitive, mutated, and switched cells.
+        """Return the growth, transitions, and kill of the cells.
+
+        The cells are sensitive, mutated, and switched.
 
         Args:
             s:
@@ -560,7 +572,9 @@ class ResistanceSwitchingElement(Element):
 
 
 class RestingHuntingChemotherapyElement(Element):
-    """Hunting immune cells recruited from resting cells after a delay, a tumour, and a drug that kills all three.
+    """Hunting immune cells recruited from resting cells after a delay, and a tumour.
+
+    A drug kills all three.
 
     The hunting cells follow `dE/dt = m1 E Q(t - tau) - d1 E - c1 A E - a E / (bd + E) U`, the resting cells
     `dQ/dt = r1 Q (1 - b1 Q) - m1 E Q(t - tau) - a Q / (bd + Q) U`, the tumour
@@ -569,7 +583,7 @@ class RestingHuntingChemotherapyElement(Element):
     the start the resting cells keep their initial value.
 
     The element holds the states and parameters and has no laws of its own: the interactions of
-    `delayed_resting_hunting_chemotherapy` read its parameters.
+    `DelayedRestingHuntingChemotherapySystem` read its parameters.
 
     Args:
         label:
@@ -683,23 +697,10 @@ class RestingHuntingChemotherapyElement(Element):
         self.u = u
 
 
-@register_system(
-    field='biology/oncology',
-    tags=('chemotherapy', 'ode', 'tumour-immune', 'competition'),
-    references=(BOOK, 'de Pillis and Radunskaya 2003'),
-    defaults={'until': 150.0, 'dt': 0.5},
-)
-def de_pillis_radunskaya(
-    E: float = 0.15,
-    A: float = 0.25,
-    N: float = 1.0,
-    *,
-    u: float = 0.0,
-    s: float = 0.33,
-    r1: float = 1.5,
-    a2: float = 0.3,
-) -> System:
-    """Return the de Pillis-Radunskaya system of immune, tumour, and normal cells under a constant drug infusion.
+class DePillisRadunskayaSystem(BaseSystem):
+    """The de Pillis-Radunskaya system of immune, tumour, and normal cells.
+
+    The cells are under a constant drug infusion.
 
     The cells are normalised so that the carrying capacity of normal cells is 1, and time is in days. Untreated, a
     tumour that starts at 0.25 escapes the immune cells and settles at the high equilibrium where it outnumbers the
@@ -707,7 +708,8 @@ def de_pillis_radunskaya(
     of Table 3.3 of Padmanabhan et al. The book's initial tumour of `1e-5` lies in the basin of the tumour-free
     equilibrium, which is stable since `r1 < c2 s / d1 + c3`, so the defaults are the initial conditions of de Pillis
     and Radunskaya 2003, `E = 0.15`, `A = 0.25`, `N = 1`. The book prints no infusion schedule, so the infusion is a
-    constant rate `u` per day, untreated by default.
+    constant rate `u` per day, untreated by default. The system has the cells `patient.E`, `patient.A`, `patient.N` and
+    the drug `patient.U`.
 
     Args:
         E:
@@ -731,33 +733,65 @@ def de_pillis_radunskaya(
         a2:
             The fraction of tumour cells the drug kills.
 
-    Returns:
-        system:
-            The system, with the cells `patient.E`, `patient.A`, `patient.N` and the drug `patient.U`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.oncology import de_pillis_radunskaya
-        >>> de_pillis_radunskaya(u=1.0).elements[0].u
+        >>> from skcomplex.systems.biology.oncology import DePillisRadunskayaSystem
+        >>> DePillisRadunskayaSystem(u=1.0).prepare().system_.elements[0].u
         1.0
     """
-    return System(elements=[TumourImmuneChemotherapyElement('patient', E=E, A=A, N=N, u=u, s=s, r1=r1, a2=a2)])
+
+    field = 'biology/oncology'
+    topics = ('chemotherapy', 'ode', 'tumour-immune', 'competition')
+    references = (BOOK, 'de Pillis and Radunskaya 2003')
+    until = 150.0
+    dt = 0.5
+
+    def __init__(
+        self,
+        E: float = 0.15,
+        A: float = 0.25,
+        N: float = 1.0,
+        *,
+        u: float = 0.0,
+        s: float = 0.33,
+        r1: float = 1.5,
+        a2: float = 0.3,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.E = E
+        self.A = A
+        self.N = N
+        self.u = u
+        self.s = s
+        self.r1 = r1
+        self.a2 = a2
+
+    def _build_system(self) -> System:
+        """Return the parts of the de Pillis-Radunskaya system of immune."""
+        return System(
+            self.label,
+            elements=[
+                TumourImmuneChemotherapyElement(
+                    'patient',
+                    E=self.E,
+                    A=self.A,
+                    N=self.N,
+                    u=self.u,
+                    s=self.s,
+                    r1=self.r1,
+                    a2=self.a2,
+                ),
+            ],
+        )
 
 
-@register_system(
-    field='biology/oncology',
-    tags=('chemotherapy', 'ode', 'drug resistance', 'toxicity'),
-    references=(BOOK, 'Tse et al. 2007'),
-    defaults={'until': 300.0, 'dt': 1.0},
-)
-def multidrug_resistance(
-    S: float = 4.605e11,
-    *,
-    r: float = 0.0099,
-    u1: float = 10.0,
-    u2: float = 10.0,
-    u3: float = 10.0,
-) -> System:
-    """Return a tumour of eight populations resistant to subsets of three drugs, given by constant infusions.
+class MultidrugResistanceSystem(BaseSystem):
+    """A tumour of eight populations resistant to subsets of three drugs.
+
+    The drugs are given by constant infusions.
 
     Each drug kills the populations sensitive to it once its concentration exceeds a threshold, so the drugs clear the
     sensitive cells while the cells resistant to all three keep growing. Time is in days, the cells are counted, and the
@@ -765,7 +799,8 @@ def multidrug_resistance(
     triple-resistant population without its own growth, `dR123/dt = r (m1 R23 + m2 R13 + m3 R12)`, against its
     assumption that all populations grow at the same rate, so the system adds the growth `r R123`. The book prints no
     infusion schedule, so the drugs are constant infusions whose concentrations settle within the book's range of 0 to
-    50.
+    50. The system has the populations `tumour.S`, `tumour.R1` to `tumour.R123`, the drugs `tumour.U1` to `tumour.U3`,
+    and their toxicities `tumour.TX1` to `tumour.TX3`.
 
     Args:
         S:
@@ -783,121 +818,142 @@ def multidrug_resistance(
         u3:
             The infusion rate of drug 3.
 
-    Returns:
-        system:
-            The system, with the populations `tumour.S`, `tumour.R1` to `tumour.R123`, the drugs `tumour.U1` to
-            `tumour.U3`, and their toxicities `tumour.TX1` to `tumour.TX3`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.oncology import multidrug_resistance
-        >>> multidrug_resistance(u2=0.0).elements[0].u2
+        >>> from skcomplex.systems.biology.oncology import MultidrugResistanceSystem
+        >>> MultidrugResistanceSystem(u2=0.0).prepare().system_.elements[0].u2
         0.0
     """
-    tumour = MultidrugResistanceElement('tumour', S=S, r=r, u1=u1, u2=u2, u3=u3)
 
-    def growth(name: str) -> RateInteraction:
-        """Return the division of the cells of a resistance class."""
-        return RateInteraction(
-            f'growth_{name}',
-            target='tumour',
-            state=name,
-            rate=lambda s: s.target.r * getattr(s.target, name),
-        )
+    field = 'biology/oncology'
+    topics = ('chemotherapy', 'ode', 'drug resistance', 'toxicity')
+    references = (BOOK, 'Tse et al. 2007')
+    until = 300.0
+    dt = 1.0
 
-    def mutation(name: str, drug: int, mutant: str) -> ReactionInteraction:
-        """Return the offspring of a resistance class that gain the resistance to one more drug."""
-        return ReactionInteraction(
-            f'mutation_{name}_{drug}',
-            target='tumour',
-            reactants={name: 1},
-            products={mutant: 1},
-            propensity=lambda s: s.target.r * getattr(s.target, f'm{drug}') * getattr(s.target, name),
-        )
+    def __init__(
+        self,
+        S: float = 4.605e11,
+        *,
+        r: float = 0.0099,
+        u1: float = 10.0,
+        u2: float = 10.0,
+        u3: float = 10.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.S = S
+        self.r = r
+        self.u1 = u1
+        self.u2 = u2
+        self.u3 = u3
 
-    def kill(name: str, drug: int) -> ReactionInteraction:
-        """Return the kill of a resistance class by a drug it is sensitive to, above the threshold."""
-        return ReactionInteraction(
-            f'kill_{name}_{drug}',
-            target='tumour',
-            reactants={name: 1},
-            modifiers={f'U{drug}': 1},
-            propensity=lambda s: getattr(s.target, f'a{drug}')
-            * clip(getattr(s.target, f'U{drug}') - s.target.Uth, 0)
-            * getattr(s.target, name),
-        )
+    def _build_system(self) -> System:
+        """Return the parts of a tumour of eight populations resistant to three drugs.
 
-    def pharmacokinetics(drug: int) -> list[BaseInteraction]:
-        """Return the infusion and clearance of a drug, and the build-up and recovery of its toxicity."""
-        return [
-            DosingInteraction(
-                f'infusion_{drug}',
+        The populations are resistant to subsets of the drugs.
+        """
+        tumour = MultidrugResistanceElement('tumour', S=self.S, r=self.r, u1=self.u1, u2=self.u2, u3=self.u3)
+
+        def growth(name: str) -> RateInteraction:
+            """Return the division of the cells of a resistance class."""
+            return RateInteraction(
+                f'growth_{name}',
                 target='tumour',
-                state=f'U{drug}',
-                dose=lambda s: getattr(s.target, f'u{drug}'),
-            ),
-            ReactionInteraction(
-                f'clearance_{drug}',
+                state=name,
+                rate=lambda s: s.target.r * getattr(s.target, name),
+            )
+
+        def mutation(name: str, drug: int, mutant: str) -> ReactionInteraction:
+            """Return the offspring of a resistance class that gain one more resistance.
+
+            The resistance gained is to one more drug.
+            """
+            return ReactionInteraction(
+                f'mutation_{name}_{drug}',
                 target='tumour',
-                reactants={f'U{drug}': 1},
-                propensity=lambda s: getattr(s.target, f'k{drug}') * getattr(s.target, f'U{drug}'),
-            ),
-            RateInteraction(
-                f'toxicity_{drug}',
+                reactants={name: 1},
+                products={mutant: 1},
+                propensity=lambda s: s.target.r * getattr(s.target, f'm{drug}') * getattr(s.target, name),
+            )
+
+        def kill(name: str, drug: int) -> ReactionInteraction:
+            """Return the kill of a resistance class by a drug it is sensitive to.
+
+            The drug kills above the threshold.
+            """
+            return ReactionInteraction(
+                f'kill_{name}_{drug}',
                 target='tumour',
-                state=f'TX{drug}',
-                rate=lambda s: getattr(s.target, f'U{drug}'),
-            ),
-            ReactionInteraction(
-                f'recovery_{drug}',
-                target='tumour',
-                reactants={f'TX{drug}': 1},
-                propensity=lambda s: getattr(s.target, f'eta{drug}') * getattr(s.target, f'TX{drug}'),
-            ),
+                reactants={name: 1},
+                modifiers={f'U{drug}': 1},
+                propensity=lambda s: getattr(s.target, f'a{drug}')
+                * clip(getattr(s.target, f'U{drug}') - s.target.Uth, 0)
+                * getattr(s.target, name),
+            )
+
+        def pharmacokinetics(drug: int) -> list[BaseInteraction]:
+            """Return the infusion and clearance of a drug, and its toxicity.
+
+            The toxicity builds up and recovers.
+            """
+            return [
+                DosingInteraction(
+                    f'infusion_{drug}',
+                    target='tumour',
+                    state=f'U{drug}',
+                    dose=lambda s: getattr(s.target, f'u{drug}'),
+                ),
+                ReactionInteraction(
+                    f'clearance_{drug}',
+                    target='tumour',
+                    reactants={f'U{drug}': 1},
+                    propensity=lambda s: getattr(s.target, f'k{drug}') * getattr(s.target, f'U{drug}'),
+                ),
+                RateInteraction(
+                    f'toxicity_{drug}',
+                    target='tumour',
+                    state=f'TX{drug}',
+                    rate=lambda s: getattr(s.target, f'U{drug}'),
+                ),
+                ReactionInteraction(
+                    f'recovery_{drug}',
+                    target='tumour',
+                    reactants={f'TX{drug}': 1},
+                    propensity=lambda s: getattr(s.target, f'eta{drug}') * getattr(s.target, f'TX{drug}'),
+                ),
+            ]
+
+        growths = [growth(name) for name in RESISTANCE_CLASSES.values()]
+        sensitivities = [
+            (resistances, name, drug)
+            for resistances, name in RESISTANCE_CLASSES.items()
+            for drug in DRUGS
+            if drug not in resistances
         ]
-
-    growths = [growth(name) for name in RESISTANCE_CLASSES.values()]
-    sensitivities = [
-        (resistances, name, drug)
-        for resistances, name in RESISTANCE_CLASSES.items()
-        for drug in DRUGS
-        if drug not in resistances
-    ]
-    mutations = [
-        mutation(name, drug, RESISTANCE_CLASSES[tuple(sorted((*resistances, drug)))])
-        for resistances, name, drug in sensitivities
-    ]
-    kills = [kill(name, drug) for _, name, drug in sensitivities]
-    drugs = [interaction for drug in DRUGS for interaction in pharmacokinetics(drug)]
-    return System(elements=[tumour], interactions=[*growths, *mutations, *kills, *drugs])
+        mutations = [
+            mutation(name, drug, RESISTANCE_CLASSES[tuple(sorted((*resistances, drug)))])
+            for resistances, name, drug in sensitivities
+        ]
+        kills = [kill(name, drug) for _, name, drug in sensitivities]
+        drugs = [interaction for drug in DRUGS for interaction in pharmacokinetics(drug)]
+        return System(self.label, elements=[tumour], interactions=[*growths, *mutations, *kills, *drugs])
 
 
-@register_system(
-    field='biology/oncology',
-    tags=('chemotherapy', 'ode', 'drug resistance', 'phenotype switching'),
-    references=(BOOK, 'Greene, Sanchez-Tapia, and Sontag 2018', 'Greene, Gevertz, and Sontag 2019'),
-    defaults={'until': 400.0, 'dt': 1.0},
-)
-def drug_resistance_switching(
-    S: float = 0.01,
-    *,
-    u: float = 1.0,
-    m1: float = 1e-6,
-    m2: float = 0.0,
-    alpha_m: float = 0.01,
-    alpha_p: float = 0.0,
-    m5: float = 0.0,
-    r2: float = 0.2,
-    r3: float = 0.2,
-) -> System:
-    """Return sensitive cells and cells resistant by mutation or by a reversible phenotype switch under a dose.
+class DrugResistanceSwitchingSystem(BaseSystem):
+    """Sensitive cells and cells resistant by mutation or by a phenotype switch.
+
+    The switch is reversible, and the cells are under a dose.
 
     The drug kills the sensitive cells, so the resistant cells, which grow slower, take the tumour over. Resistance is
     acquired spontaneously at the rates `m1` and `m2` and induced by the drug at the rates `alpha_m` and `alpha_p` per
     unit of dose, and switched cells return to sensitivity at the rate `m5`. Time and the cells are dimensionless, the
     carrying capacity being 1. The book gives values only for the two-population system of Greene, Sanchez-Tapia, and
-    Sontag, its Table 3.5, which is this system without switched cells. The defaults are that system, with the
-    induced rate `alpha_m = 0.01` of the table and an effective dose of 1, so switching is off until `m2`, `alpha_p`,
-    or `m5` is set.
+    Sontag, its Table 3.5, which is this system without switched cells. The defaults are that system, with the induced
+    rate `alpha_m = 0.01` of the table and an effective dose of 1, so switching is off until `m2`, `alpha_p`, or `m5` is
+    set. The system has the cells `tumour.S`, `tumour.Rm`, and `tumour.Rp`.
 
     Args:
         S:
@@ -927,50 +983,72 @@ def drug_resistance_switching(
         r3:
             The growth rate of switched cells relative to sensitive cells.
 
-    Returns:
-        system:
-            The system, with the cells `tumour.S`, `tumour.Rm`, and `tumour.Rp`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.oncology import drug_resistance_switching
-        >>> drug_resistance_switching(alpha_m=0.0).elements[0].alpha_m
+        >>> from skcomplex.systems.biology.oncology import DrugResistanceSwitchingSystem
+        >>> DrugResistanceSwitchingSystem(alpha_m=0.0).prepare().system_.elements[0].alpha_m
         0.0
     """
-    tumour = ResistanceSwitchingElement(
-        'tumour',
-        S=S,
-        u=u,
-        m1=m1,
-        m2=m2,
-        alpha_m=alpha_m,
-        alpha_p=alpha_p,
-        m5=m5,
-        r2=r2,
-        r3=r3,
-    )
-    return System(elements=[tumour])
+
+    field = 'biology/oncology'
+    topics = ('chemotherapy', 'ode', 'drug resistance', 'phenotype switching')
+    references = (BOOK, 'Greene, Sanchez-Tapia, and Sontag 2018', 'Greene, Gevertz, and Sontag 2019')
+    until = 400.0
+    dt = 1.0
+
+    def __init__(
+        self,
+        S: float = 0.01,
+        *,
+        u: float = 1.0,
+        m1: float = 1e-6,
+        m2: float = 0.0,
+        alpha_m: float = 0.01,
+        alpha_p: float = 0.0,
+        m5: float = 0.0,
+        r2: float = 0.2,
+        r3: float = 0.2,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.S = S
+        self.u = u
+        self.m1 = m1
+        self.m2 = m2
+        self.alpha_m = alpha_m
+        self.alpha_p = alpha_p
+        self.m5 = m5
+        self.r2 = r2
+        self.r3 = r3
+
+    def _build_system(self) -> System:
+        """Return the parts of the system."""
+        tumour = ResistanceSwitchingElement(
+            'tumour',
+            S=self.S,
+            u=self.u,
+            m1=self.m1,
+            m2=self.m2,
+            alpha_m=self.alpha_m,
+            alpha_p=self.alpha_p,
+            m5=self.m5,
+            r2=self.r2,
+            r3=self.r3,
+        )
+        return System(self.label, elements=[tumour])
 
 
-@register_system(
-    field='biology/oncology',
-    tags=('chemotherapy', 'dde', 'delay', 'tumour-immune'),
-    references=(BOOK, 'Banerjee and Sarkar 2008', 'Borges et al. 2014'),
-    defaults={'until': 1500.0, 'dt': 5.0},
-)
-def delayed_resting_hunting_chemotherapy(
-    E: float = 0.01,
-    Q: float = 0.48,
-    A: float = 0.18,
-    *,
-    u: float = 0.0,
-    tau: float = 45.6,
-    a: float = 0.001,
-) -> System:
-    """Return the tumour-immune system of resting and hunting cells with a conversion delay, under a drug infusion.
+class DelayedRestingHuntingChemotherapySystem(BaseSystem):
+    """The tumour-immune system of resting and hunting cells with a conversion delay.
+
+    The system is under a drug infusion.
 
     Resting immune cells become hunting cells after the delay `tau`, and hunting cells kill the tumour. Time and the
-    cells are dimensionless. The parameters and initial conditions are those of Table 3.6 of Padmanabhan et al., and
-    the infusion is a constant rate `u`, untreated by default, within the book's range of 0 to 0.03.
+    cells are dimensionless. The parameters and initial conditions are those of Table 3.6 of Padmanabhan et al., and the
+    infusion is a constant rate `u`, untreated by default, within the book's range of 0 to 0.03. The system has the
+    cells `patient.E`, `patient.Q`, `patient.A` and the drug `patient.U`.
 
     Args:
         E:
@@ -991,117 +1069,143 @@ def delayed_resting_hunting_chemotherapy(
         a:
             The kill rate of the drug on every population.
 
-    Returns:
-        system:
-            The system, with the cells `patient.E`, `patient.Q`, `patient.A` and the drug `patient.U`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.oncology import delayed_resting_hunting_chemotherapy
-        >>> delayed_resting_hunting_chemotherapy(tau=10.0).elements[0].tau
+        >>> from skcomplex.systems.biology.oncology import DelayedRestingHuntingChemotherapySystem
+        >>> DelayedRestingHuntingChemotherapySystem(tau=10.0).prepare().system_.elements[0].tau
         10.0
     """
-    patient = RestingHuntingChemotherapyElement('patient', E=E, Q=Q, A=A, u=u, tau=tau, a=a)
-    drug_effects = [
-        interaction
-        for name in ('E', 'Q', 'A')
-        for interaction in (
-            MichaelisMentenInteraction(
-                f'drug_kill_{name}',
+
+    field = 'biology/oncology'
+    topics = ('chemotherapy', 'dde', 'delay', 'tumour-immune')
+    references = (BOOK, 'Banerjee and Sarkar 2008', 'Borges et al. 2014')
+    until = 1500.0
+    dt = 5.0
+
+    def __init__(
+        self,
+        E: float = 0.01,
+        Q: float = 0.48,
+        A: float = 0.18,
+        *,
+        u: float = 0.0,
+        tau: float = 45.6,
+        a: float = 0.001,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.E = E
+        self.Q = Q
+        self.A = A
+        self.u = u
+        self.tau = tau
+        self.a = a
+
+    def _build_system(self) -> System:
+        """Return the parts of the tumour-immune system of resting and hunting cells.
+
+        The conversion of the cells is delayed.
+        """
+        patient = RestingHuntingChemotherapyElement(
+            'patient',
+            E=self.E,
+            Q=self.Q,
+            A=self.A,
+            u=self.u,
+            tau=self.tau,
+            a=self.a,
+        )
+        drug_effects = [
+            interaction
+            for name in ('E', 'Q', 'A')
+            for interaction in (
+                MichaelisMentenInteraction(
+                    f'drug_kill_{name}',
+                    target='patient',
+                    reactants={name: 1},
+                    substrate=name,
+                    vmax=lambda s: s.target.a,
+                    km=lambda s: s.target.bd,
+                    modifiers={'U': 1},
+                ),
+                MichaelisMentenInteraction(
+                    f'drug_uptake_{name}',
+                    target='patient',
+                    reactants={'U': 1},
+                    substrate=name,
+                    vmax=lambda s: s.target.g,
+                    km=lambda s: s.target.bd,
+                    modifiers={'U': 1},
+                ),
+            )
+        ]
+        interactions = [
+            ReactionInteraction(
+                'recruitment',
                 target='patient',
-                reactants={name: 1},
-                substrate=name,
-                vmax=lambda s: s.target.a,
-                km=lambda s: s.target.bd,
-                modifiers={'U': 1},
+                reactants={'Q': 1},
+                products={'E': 1},
+                modifiers={'E': 1},
+                propensity=lambda s: s.target.m1 * s.target.E * delayed(s.target.Q, s.target.tau),
             ),
-            MichaelisMentenInteraction(
-                f'drug_uptake_{name}',
+            ReactionInteraction(
+                'effector_death',
+                target='patient',
+                reactants={'E': 1},
+                propensity=lambda s: s.target.d1 * s.target.E,
+            ),
+            ReactionInteraction(
+                'effector_inactivation',
+                target='patient',
+                reactants={'E': 1},
+                modifiers={'A': 1},
+                propensity=lambda s: s.target.c1 * s.target.A * s.target.E,
+            ),
+            RateInteraction(
+                'resting_growth',
+                target='patient',
+                state='Q',
+                rate=lambda s: s.target.r1 * s.target.Q * (1 - s.target.b1 * s.target.Q),
+            ),
+            RateInteraction(
+                'tumour_growth',
+                target='patient',
+                state='A',
+                rate=lambda s: s.target.r2 * s.target.A * (1 - s.target.b2 * s.target.A),
+            ),
+            ReactionInteraction(
+                'tumour_kill',
+                target='patient',
+                reactants={'A': 1},
+                modifiers={'E': 1},
+                propensity=lambda s: s.target.c2 * s.target.A * s.target.E,
+            ),
+            DosingInteraction('infusion', target='patient', state='U', dose=lambda s: s.target.u),
+            ReactionInteraction(
+                'clearance',
                 target='patient',
                 reactants={'U': 1},
-                substrate=name,
-                vmax=lambda s: s.target.g,
-                km=lambda s: s.target.bd,
-                modifiers={'U': 1},
+                propensity=lambda s: s.target.k * s.target.U,
             ),
-        )
-    ]
-    interactions = [
-        ReactionInteraction(
-            'recruitment',
-            target='patient',
-            reactants={'Q': 1},
-            products={'E': 1},
-            modifiers={'E': 1},
-            propensity=lambda s: s.target.m1 * s.target.E * delayed(s.target.Q, s.target.tau),
-        ),
-        ReactionInteraction(
-            'effector_death',
-            target='patient',
-            reactants={'E': 1},
-            propensity=lambda s: s.target.d1 * s.target.E,
-        ),
-        ReactionInteraction(
-            'effector_inactivation',
-            target='patient',
-            reactants={'E': 1},
-            modifiers={'A': 1},
-            propensity=lambda s: s.target.c1 * s.target.A * s.target.E,
-        ),
-        RateInteraction(
-            'resting_growth',
-            target='patient',
-            state='Q',
-            rate=lambda s: s.target.r1 * s.target.Q * (1 - s.target.b1 * s.target.Q),
-        ),
-        RateInteraction(
-            'tumour_growth',
-            target='patient',
-            state='A',
-            rate=lambda s: s.target.r2 * s.target.A * (1 - s.target.b2 * s.target.A),
-        ),
-        ReactionInteraction(
-            'tumour_kill',
-            target='patient',
-            reactants={'A': 1},
-            modifiers={'E': 1},
-            propensity=lambda s: s.target.c2 * s.target.A * s.target.E,
-        ),
-        DosingInteraction('infusion', target='patient', state='U', dose=lambda s: s.target.u),
-        ReactionInteraction(
-            'clearance',
-            target='patient',
-            reactants={'U': 1},
-            propensity=lambda s: s.target.k * s.target.U,
-        ),
-        *drug_effects,
-    ]
-    return System(elements=[patient], interactions=interactions)
+            *drug_effects,
+        ]
+        return System(self.label, elements=[patient], interactions=interactions)
 
 
-@register_system(
-    field='biology/oncology',
-    tags=('chemotherapy', 'dde', 'delay', 'metastasis'),
-    references=(BOOK, 'Pinho, Freedman, and Nani 2002'),
-    defaults={'until': 10.0, 'dt': 0.05},
-)
-def delayed_metastasis(
-    Np: float = 1460.0,
-    Ap: float = 165.0,
-    Ns: float = 1750.0,
-    As: float = 0.0,
-    *,
-    up: float = 0.0,
-    us: float = 0.0,
-    tau: float = 1.0,
-) -> System:
-    """Return normal and tumour cells at a primary and a secondary site, with a delayed migration of tumour cells.
+class DelayedMetastasisSystem(BaseSystem):
+    """Normal and tumour cells at a primary and a secondary site.
+
+    The migration of tumour cells is delayed.
 
     Untreated, the faster tumour cells outcompete the normal cells at the primary site, and the cells that migrate seed
-    a tumour that does the same at the secondary site. The parameters are those of Table 3.7 of Padmanabhan et al.,
-    with time in days, and the initial cells are at the upper ends of the book's ranges with the secondary site free
-    of tumour. The book prints the kill at the secondary site with the infusion `us` in place of the concentration
-    `Us`, so the system uses `Us` as at the primary site. The infusions are constant rates, untreated by default, within
-    the book's range of 0 to 650.
+    a tumour that does the same at the secondary site. The parameters are those of Table 3.7 of Padmanabhan et al., with
+    time in days, and the initial cells are at the upper ends of the book's ranges with the secondary site free of
+    tumour. The book prints the kill at the secondary site with the infusion `us` in place of the concentration `Us`, so
+    the system uses `Us` as at the primary site. The infusions are constant rates, untreated by default, within the
+    book's range of 0 to 650. The system has the cells `patient.Np`, `patient.Ap`, `patient.Ns`, `patient.As` and the
+    drugs `patient.Up` and `patient.Us`.
 
     Args:
         Np:
@@ -1125,90 +1229,132 @@ def delayed_metastasis(
         tau:
             The delay of the migration.
 
-    Returns:
-        system:
-            The system, with the cells `patient.Np`, `patient.Ap`, `patient.Ns`, `patient.As` and the drugs
-            `patient.Up` and `patient.Us`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.oncology import delayed_metastasis
-        >>> delayed_metastasis(up=650.0).elements[0].up
+        >>> from skcomplex.systems.biology.oncology import DelayedMetastasisSystem
+        >>> DelayedMetastasisSystem(up=650.0).prepare().system_.elements[0].up
         650.0
     """
-    patient = MetastasisChemotherapyElement('patient', Np=Np, Ap=Ap, Ns=Ns, As=As, up=up, us=us, tau=tau)
 
-    def population(cells: str, other: str, drug: str, index: int, uptake: str) -> list[BaseInteraction]:
-        """Return the growth, the competition, the drug kill, and the drug uptake of the cells of a site."""
-        return [
+    field = 'biology/oncology'
+    topics = ('chemotherapy', 'dde', 'delay', 'metastasis')
+    references = (BOOK, 'Pinho, Freedman, and Nani 2002')
+    until = 10.0
+    dt = 0.05
+
+    def __init__(
+        self,
+        Np: float = 1460.0,
+        Ap: float = 165.0,
+        Ns: float = 1750.0,
+        As: float = 0.0,
+        *,
+        up: float = 0.0,
+        us: float = 0.0,
+        tau: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.Np = Np
+        self.Ap = Ap
+        self.Ns = Ns
+        self.As = As
+        self.up = up
+        self.us = us
+        self.tau = tau
+
+    def _build_system(self) -> System:
+        """Return the parts of normal and tumour cells at a primary and a secondary site."""
+        patient = MetastasisChemotherapyElement(
+            'patient',
+            Np=self.Np,
+            Ap=self.Ap,
+            Ns=self.Ns,
+            As=self.As,
+            up=self.up,
+            us=self.us,
+            tau=self.tau,
+        )
+
+        def population(cells: str, other: str, drug: str, index: int, uptake: str) -> list[BaseInteraction]:
+            """Return the growth, competition, and drug kill and uptake of the cells of a site."""
+            return [
+                RateInteraction(
+                    f'growth_{cells}',
+                    target='patient',
+                    state=cells,
+                    rate=lambda s: getattr(s.target, f'r{index}')
+                    * getattr(s.target, cells)
+                    * (1 - getattr(s.target, f'b{index}') * getattr(s.target, cells)),
+                ),
+                ReactionInteraction(
+                    f'competition_{cells}',
+                    target='patient',
+                    reactants={cells: 1},
+                    modifiers={other: 1},
+                    propensity=lambda s: getattr(s.target, f'c{index}')
+                    * getattr(s.target, cells)
+                    * getattr(s.target, other),
+                ),
+                MichaelisMentenInteraction(
+                    f'drug_kill_{cells}',
+                    target='patient',
+                    reactants={cells: 1},
+                    substrate=cells,
+                    vmax=lambda s: getattr(s.target, f'a{index}'),
+                    km=lambda s: s.target.bc,
+                    modifiers={drug: 1},
+                ),
+                MichaelisMentenInteraction(
+                    f'drug_uptake_{cells}',
+                    target='patient',
+                    reactants={drug: 1},
+                    substrate=cells,
+                    vmax=lambda s: getattr(s.target, uptake),
+                    km=lambda s: s.target.bc,
+                    modifiers={drug: 1},
+                ),
+            ]
+
+        def drug(name: str, dose: str) -> list[BaseInteraction]:
+            """Return the infusion and the clearance of the drug at a site."""
+            return [
+                DosingInteraction(
+                    f'infusion_{name}',
+                    target='patient',
+                    state=name,
+                    dose=lambda s: getattr(s.target, dose),
+                ),
+                ReactionInteraction(
+                    f'clearance_{name}',
+                    target='patient',
+                    reactants={name: 1},
+                    propensity=lambda s: s.target.k * getattr(s.target, name),
+                ),
+            ]
+
+        interactions = [
+            *population('Np', 'Ap', 'Up', 1, 'g1'),
+            *population('Ap', 'Np', 'Up', 2, 'g2'),
+            *population('Ns', 'As', 'Us', 3, 'g3'),
+            *population('As', 'Ns', 'Us', 4, 'g4'),
+            *drug('Up', 'up'),
+            *drug('Us', 'us'),
+        ]
+        interactions += [
+            ReactionInteraction(
+                'emigration',
+                target='patient',
+                reactants={'Ap': 1},
+                propensity=lambda s: s.target.delta * s.target.Ap,
+            ),
             RateInteraction(
-                f'growth_{cells}',
+                'arrival',
                 target='patient',
-                state=cells,
-                rate=lambda s: getattr(s.target, f'r{index}')
-                * getattr(s.target, cells)
-                * (1 - getattr(s.target, f'b{index}') * getattr(s.target, cells)),
-            ),
-            ReactionInteraction(
-                f'competition_{cells}',
-                target='patient',
-                reactants={cells: 1},
-                modifiers={other: 1},
-                propensity=lambda s: getattr(s.target, f'c{index}')
-                * getattr(s.target, cells)
-                * getattr(s.target, other),
-            ),
-            MichaelisMentenInteraction(
-                f'drug_kill_{cells}',
-                target='patient',
-                reactants={cells: 1},
-                substrate=cells,
-                vmax=lambda s: getattr(s.target, f'a{index}'),
-                km=lambda s: s.target.bc,
-                modifiers={drug: 1},
-            ),
-            MichaelisMentenInteraction(
-                f'drug_uptake_{cells}',
-                target='patient',
-                reactants={drug: 1},
-                substrate=cells,
-                vmax=lambda s: getattr(s.target, uptake),
-                km=lambda s: s.target.bc,
-                modifiers={drug: 1},
+                state='As',
+                rate=lambda s: s.target.epsilon * s.target.delta * delayed(s.target.Ap, s.target.tau),
             ),
         ]
-
-    def drug(name: str, dose: str) -> list[BaseInteraction]:
-        """Return the infusion and the clearance of the drug at a site."""
-        return [
-            DosingInteraction(f'infusion_{name}', target='patient', state=name, dose=lambda s: getattr(s.target, dose)),
-            ReactionInteraction(
-                f'clearance_{name}',
-                target='patient',
-                reactants={name: 1},
-                propensity=lambda s: s.target.k * getattr(s.target, name),
-            ),
-        ]
-
-    interactions = [
-        *population('Np', 'Ap', 'Up', 1, 'g1'),
-        *population('Ap', 'Np', 'Up', 2, 'g2'),
-        *population('Ns', 'As', 'Us', 3, 'g3'),
-        *population('As', 'Ns', 'Us', 4, 'g4'),
-        *drug('Up', 'up'),
-        *drug('Us', 'us'),
-    ]
-    interactions += [
-        ReactionInteraction(
-            'emigration',
-            target='patient',
-            reactants={'Ap': 1},
-            propensity=lambda s: s.target.delta * s.target.Ap,
-        ),
-        RateInteraction(
-            'arrival',
-            target='patient',
-            state='As',
-            rate=lambda s: s.target.epsilon * s.target.delta * delayed(s.target.Ap, s.target.tau),
-        ),
-    ]
-    return System(elements=[patient], interactions=interactions)
+        return System(self.label, elements=[patient], interactions=interactions)

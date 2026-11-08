@@ -19,8 +19,8 @@ from skcomplex.core.components.laws.utils import (
 from skcomplex.core.components.spaces import CellComplexSpace, CofaceNeighborhood, LatticeSpace, NetworkSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver, VelocityVerletSolver
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
@@ -362,7 +362,7 @@ def test_gauss_law_holds_for_rate_laws_of_a_first_order_pair():
         ),
     ]
     system = System(elements=[links], interactions=interactions)
-    trajectory = Simulation(system, solver=RK4Solver(dt=0.02)).prepare().run(until=2.0).trajectory_
+    trajectory = simulate(system, until=2.0, solver=RK4Solver(dt=0.02))
     residual = -space.incidences_[0].T @ trajectory.values('links.e').T - density[:, None]
     assert np.abs(residual).max() < GAUSS_LIMIT
 
@@ -379,7 +379,7 @@ def test_gauss_law_holds_for_velocity_verlet():
         rate=lambda n: -codifferential(exterior_derivative(n.target.a)),
     )
     system = System(elements=[links], interactions=[rate])
-    trajectory = Simulation(system, solver=VelocityVerletSolver(dt=0.05)).prepare().run(until=50.0).trajectory_
+    trajectory = simulate(system, until=50.0, solver=VelocityVerletSolver(dt=0.05))
     electric = -trajectory.values('links.a_d1')
     residual = -space.incidences_[0].T @ electric.T - density[:, None]
     assert np.abs(residual).max() < GAUSS_LIMIT
@@ -407,8 +407,7 @@ def test_lattice_dispersion_follows_the_lattice_laplacian(spacing):
     period = 2 * np.pi / expected
     until = 4 * period
     step = period / 200
-    simulation = Simulation(system, solver=VelocityVerletSolver(dt=step / 4), dt=step)
-    trajectory = simulation.prepare().run(until=until).trajectory_
+    trajectory = simulate(system, until=until, solver=VelocityVerletSolver(dt=step / 4), dt=step)
     series = trajectory.values('links.a')[:, size * size]
     crossings = np.flatnonzero(np.diff(np.sign(series)) != 0)
     measured = np.pi * (crossings.size - 1) / (trajectory.times[crossings[-1]] - trajectory.times[crossings[0]])

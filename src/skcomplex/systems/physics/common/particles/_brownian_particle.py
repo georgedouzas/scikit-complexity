@@ -1,4 +1,7 @@
-"""Overdamped Brownian particle at the position `x`, with the friction `gamma` and the thermal energy `temperature`."""
+"""Overdamped Brownian particle at the position `x`.
+
+The particle has the friction `gamma` and the thermal energy `temperature`.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,7 +19,9 @@ POINTS = VisualSpec('points', {'position': 'x', 'radius': 0.05})
 
 
 class BrownianParticleElement(Element):
-    """Overdamped Brownian particle at the position `x`, with the friction `gamma` and the thermal energy `temperature`.
+    """Overdamped Brownian particle at the position `x`.
+
+    The particle has the friction `gamma` and the thermal energy `temperature`.
 
     The particle moves by `dx = F / gamma dt + sqrt(2 temperature / gamma) dW`, with the thermal noise of
     `ThermalNoiseInteraction` and the forces of other interactions, which divide by `gamma`.

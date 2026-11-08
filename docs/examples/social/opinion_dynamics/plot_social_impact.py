@@ -7,22 +7,22 @@ clusters, where its members support each other, and the grid freezes into a stat
 """
 
 # %%
-# The system is created by name from the catalog on a 15 by 15 grid with half of the people of each opinion, random
+# The system is built from its class on a 15 by 15 grid with half of the people of each opinion, random
 # persuasiveness and supportiveness, the distance exponent 2, and no noise, and runs for 20 steps. The default
 # blueprint shows the grid, coloured by opinion.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.social.opinion_dynamics import SocialImpactSystem
 
 SYSTEM = 'social_impact'
 
-system = create_system(SYSTEM, random_state=2)
+system = SocialImpactSystem(random_state=2)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=20)
+trajectory = simulate(system, observers=[observer], random_state=0)
 
 # %%
 # Consensus or a surviving minority
@@ -34,12 +34,8 @@ simulation = Simulation(system, observers=[observer], random_state=0).prepare().
 fig, ax = plt.subplots(figsize=(7, 4.5))
 for exponent, style in [(2.0, '-'), (3.0, '--')]:
     for seed in range(6):
-        run = (
-            Simulation(create_system(SYSTEM, exponent=exponent, random_state=seed), random_state=0)
-            .prepare()
-            .run(until=20)
-        )
-        trajectory = run.trajectory_
+        run = simulate(SocialImpactSystem(exponent=exponent, random_state=seed), random_state=0)
+        trajectory = run
         shares = [
             np.mean(np.asarray(trajectory.agents('people', frame).values['opinion']) > 0)
             for frame in range(len(trajectory.times))

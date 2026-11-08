@@ -1,4 +1,7 @@
-"""Plot the signature analyses of a run as the analysis figure of a gallery example."""
+"""Plot the signature analyses of a run.
+
+They form the analysis figure of a gallery example.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -7,7 +10,7 @@ import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
-from skcomplex.core.analysis import SignatureAnalysis
+from skcomplex.core.analysis import SignaturesResult
 from skcomplex.core.specs import SignatureSpec
 
 PANEL_WIDTH = 5.0
@@ -22,11 +25,13 @@ def _caption(signature: SignatureSpec) -> str:
 
 
 def plot_signature(signature: SignatureSpec, axes: Axes) -> Axes:
-    """Draw one signature on axes: its curves, its scales, its labels, and its title with values.
+    """Draw one signature on axes.
+
+    It draws its curves, its scales, its labels, and its title with values.
 
     Args:
         signature:
-            One signature of `SignatureAnalysis.signatures_`.
+            One signature of `SignaturesResult.signatures`.
 
         axes:
             The Matplotlib axes.
@@ -50,18 +55,20 @@ def plot_signature(signature: SignatureSpec, axes: Axes) -> Axes:
     return axes
 
 
-def plot_signatures(analysis: SignatureAnalysis) -> Figure:
-    """Return a figure with one panel per signature of a run signature analysis, side by side.
+def plot_signatures(result: SignaturesResult) -> Figure:
+    """Return a figure with one panel per signature of a run.
+
+    The panels are side by side.
 
     Args:
-        analysis:
-            The signature analysis of a run, prepared and run.
+        result:
+            The signatures of a run, as `signatures` returns them.
 
     Returns:
         figure:
             The figure.
     """
-    signatures = analysis.signatures_
+    signatures = result.signatures
     count = max(len(signatures), 1)
     figure, panels = plt.subplots(1, count, figsize=(PANEL_WIDTH * count, PANEL_HEIGHT), squeeze=False)
     for signature, axes in zip(signatures, panels[0], strict=False):

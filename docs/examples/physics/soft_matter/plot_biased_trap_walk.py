@@ -7,32 +7,22 @@ grow in bursts and end at very different lengths.
 """
 
 # %%
-# The system is created by name from the catalog with 56 walkers, each in its own line of 80 traps whose trapping times
+# The system is built from its class with 56 walkers, each in its own line of 80 traps whose trapping times
 # are distributed as `tau^(-3/2)`, and simulated for 1495 steps. The observer saves every frame with the default
 # blueprint, whose primary view is the lattice of the sites the walkers have visited.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.physics.soft_matter import BiasedTrapWalkSystem
 
 SYSTEM = 'biased_trap_walk'
 
-system = create_system(SYSTEM, n_walkers=56, n_sites=80, alpha=0.5, random_state=0)
+system = BiasedTrapWalkSystem(n_walkers=56, n_sites=80, alpha=0.5, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = (
-    Simulation(
-        system,
-        dt=5,
-        observers=[observer],
-        random_state=0,
-        observables=describe(SYSTEM).observables_of(system),
-    )
-    .prepare()
-    .run(until=1495)
-)
+simulation = simulate(system, until=1495, dt=5, observers=[observer], random_state=0)
 
 # %%
 # Subdiffusive displacement
@@ -44,14 +34,14 @@ simulation = (
 
 fig, (scaling, spread) = plt.subplots(1, 2, figsize=(10, 4))
 for alpha in (0.3, 0.5, 0.7):
-    system_system = create_system(SYSTEM, n_walkers=100, n_sites=400, alpha=alpha, random_state=1)
-    run = Simulation(
-        system_system,
+    system_system = BiasedTrapWalkSystem(n_walkers=100, n_sites=400, alpha=alpha, random_state=1)
+    trajectory = simulate(
+        system_system.prepare().system_,
+        until=3000,
         dt=10,
         random_state=0,
-        observables=describe(SYSTEM).observables_of(system_system),
-    ).prepare()
-    trajectory = run.run(until=3000).trajectory_
+        observables=BiasedTrapWalkSystem.observables,
+    )
     times, position = trajectory.times[1:], trajectory.values('position')[1:]
     (line,) = scaling.loglog(times, position, label=f'alpha = {alpha}')
     prediction = times**alpha * np.sin(np.pi * alpha) / (np.pi * alpha)
@@ -60,7 +50,7 @@ scaling.set_xlabel('time t')
 scaling.set_ylabel('mean displacement <x>')
 scaling.set_title('Subdiffusion, <x> ~ t^alpha (dashed: renewal theory)')
 scaling.legend()
-visited = simulation.trajectory_.values('traps.visited')[-1].reshape(56, 80)
+visited = simulation.values('traps.visited')[-1].reshape(56, 80)
 spread.hist(visited.sum(axis=1) - 1, bins=15)
 spread.set_xlabel('displacement at t = 1495')
 spread.set_ylabel('number of walkers')

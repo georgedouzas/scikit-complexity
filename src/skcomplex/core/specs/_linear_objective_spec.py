@@ -13,7 +13,9 @@ SENSES = ('max', 'min')
 
 @dataclass(frozen=True)
 class LinearObjectiveSpec(BaseSpec):
-    """Objective of a linear program, linear in its variables or a sum of their absolute values.
+    """Objective of a linear program.
+
+    It is linear in its variables or a sum of their absolute values.
 
     Args:
         expression:
@@ -24,7 +26,7 @@ class LinearObjectiveSpec(BaseSpec):
 
     Raises:
         ValidationError:
-            The sense is unknown, raised by `prepare`.
+            The sense is unknown, raised when its owner checks it.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var

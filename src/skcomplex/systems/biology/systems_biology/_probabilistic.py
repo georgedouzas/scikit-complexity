@@ -1,4 +1,7 @@
-"""Systems biology systems: probabilistic Boolean networks, which draw the function of every node at every step."""
+"""Probabilistic Boolean networks.
+
+They draw the function of every node at every step.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,10 +19,10 @@ from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import categorical, where
-from ....core.components.system import System
+from ....core.components.spaces import BaseSpace
+from ....core.components.system import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from .types import Candidates
 
 SHMULEVICH_INPUTS = ('x1', 'x2', 'x3')
@@ -32,7 +35,9 @@ SHMULEVICH_NETWORK: dict[str, tuple[tuple[tuple[int, ...], float], ...]] = {
 
 
 class ProbabilisticNodeElement(Element):
-    """Node of a probabilistic Boolean network, on or off, with the index of the function that set it last.
+    """Node of a probabilistic Boolean network, on or off.
+
+    It holds the index of the function that set it last.
 
     Args:
         label:
@@ -67,7 +72,9 @@ class ProbabilisticNodeElement(Element):
 
 
 class ProbabilisticFunctionInteraction(MapInteraction):
-    """Synchronous map of a node by one of several truth tables, drawn with given probabilities at every step.
+    """Synchronous map of a node by one of several truth tables.
+
+    The table is drawn with given probabilities at every step.
 
     Each table of `2^k` entries reads the `k` inputs as the bits of a binary number, from the most significant, and
     gives the next value `x` of the target. A second update of the same step records the index of the drawn table in
@@ -102,6 +109,10 @@ class ProbabilisticFunctionInteraction(MapInteraction):
         (0.7, 0.3)
     """
 
+    draws = True
+
+    law_classes = (UpdateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -117,7 +128,10 @@ class ProbabilisticFunctionInteraction(MapInteraction):
         self.probabilities = probabilities
 
     def _get_pattern(self, inputs: Sequence[Expression], index: int) -> Expression:
-        """Return the product that is 1 when the inputs, read as bits from the most significant, spell an index."""
+        """Return the product that is 1 when the inputs spell an index.
+
+        The inputs are read as bits from the most significant.
+        """
         bits = [(index >> (len(inputs) - 1 - position)) & 1 for position in range(len(inputs))]
         return prod((value if bit else 1 - value for value, bit in zip(inputs, bits, strict=True)), start=SR(1))
 
@@ -125,14 +139,20 @@ class ProbabilisticFunctionInteraction(MapInteraction):
         """Return the value of one truth table of the inputs."""
         return sum((self._get_pattern(inputs, index) for index, entry in enumerate(table) if entry), start=SR(0))
 
-    def _check(self) -> None:
-        """Raise an error for tables and probabilities that differ in number, or a table of the wrong size.
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Raise an error for invalid tables and probabilities.
+
+        They are invalid when they differ in number, or a table has the wrong size.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The tables and the probabilities differ in number, or a table does not have one entry per pattern.
         """
-        super()._check()
+        super()._prepare(context)
         if len(self.tables) != len(self.probabilities):
             error_msg = (
                 f'ProbabilisticFunction {self.label} has {len(self.tables)} tables and {len(self.probabilities)} '
@@ -148,7 +168,10 @@ class ProbabilisticFunctionInteraction(MapInteraction):
             raise ValidationError(error_msg)
 
     def _get_draw(self) -> Expression:
-        """Return the index of the table drawn in a step, one draw for the value and its record."""
+        """Return the index of the table drawn in a step.
+
+        One draw serves the value and its record.
+        """
         return categorical('function', list(self.probabilities))
 
     def _get_drawn_value(self, namespace: SimpleNamespace) -> Expression:
@@ -162,7 +185,9 @@ class ProbabilisticFunctionInteraction(MapInteraction):
         return value
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
-        """Return the map of the target by the drawn table and the record of the drawn index.
+        """Return the map of the target by the drawn table.
+
+        It also returns the record of the drawn index.
 
         Args:
             namespace:
@@ -175,24 +200,16 @@ class ProbabilisticFunctionInteraction(MapInteraction):
         return [*super()._get_laws(namespace), UpdateLaw(namespace.target.function, self._get_draw())]
 
 
-@register_system(
-    field='biology/systems_biology',
-    tags=('boolean network', 'gene regulation', 'discrete map', 'stochastic'),
-    references=('Shmulevich et al. 2002', 'Raman 2021'),
-    defaults={'until': 100, 'dt': 1},
-)
-def probabilistic_boolean_network(
-    network: Mapping[str, Candidates] | None = None,
-    *,
-    inputs: Sequence[str] = SHMULEVICH_INPUTS,
-    active: Sequence[str] = ('x1',),
-) -> System:
-    """Return a probabilistic Boolean network, whose nodes draw one of their candidate functions at every step.
+class ProbabilisticBooleanNetworkSystem(BaseSystem):
+    """A probabilistic Boolean network.
 
-    Every node has candidate truth tables of the inputs, each with a probability, and at every step every node draws
-    one of its tables independently and takes its value, all nodes together. The default network follows the three-gene
+    Its nodes draw one of their candidate functions at every step.
+
+    Every node has candidate truth tables of the inputs, each with a probability, and at every step every node draws one
+    of its tables independently and takes its value, all nodes together. The default network follows the three-gene
     example of Shmulevich et al., in which `x1` and `x3` have two candidate functions and `x2` one. From one initial
-    state the network reaches different attractors in different runs.
+    state the network reaches different attractors in different runs. The system has the values `<node>.x` and the
+    indices of the drawn functions `<node>.function`.
 
     Args:
         network:
@@ -205,25 +222,46 @@ def probabilistic_boolean_network(
         active:
             The nodes that are on at the start.
 
-    Returns:
-        system:
-            The system, with the values `<node>.x` and the indices of the drawn functions `<node>.function`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.systems_biology import probabilistic_boolean_network
-        >>> probabilistic_boolean_network().interactions[0].probabilities
+        >>> from skcomplex.systems.biology.systems_biology import ProbabilisticBooleanNetworkSystem
+        >>> ProbabilisticBooleanNetworkSystem().prepare().system_.interactions[0].probabilities
         (0.6, 0.4)
     """
-    chosen = SHMULEVICH_NETWORK if network is None else network
-    nodes = [ProbabilisticNodeElement(name, x=int(name in active)) for name in chosen]
-    functions = [
-        ProbabilisticFunctionInteraction(
-            f'functions_{name}',
-            target=name,
-            inputs=list(inputs),
-            tables=tuple(tuple(table) for table, _ in candidates),
-            probabilities=tuple(probability for _, probability in candidates),
-        )
-        for name, candidates in chosen.items()
-    ]
-    return System(elements=nodes, interactions=functions)
+
+    field = 'biology/systems_biology'
+    topics = ('boolean network', 'gene regulation', 'discrete map', 'stochastic')
+    references = ('Shmulevich et al. 2002', 'Raman 2021')
+    until = 100
+    dt = 1
+
+    def __init__(
+        self,
+        network: Mapping[str, Candidates] | None = None,
+        *,
+        inputs: Sequence[str] = SHMULEVICH_INPUTS,
+        active: Sequence[str] = ('x1',),
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.network = network
+        self.inputs = inputs
+        self.active = active
+
+    def _build_system(self) -> System:
+        """Return the parts of a probabilistic Boolean network."""
+        chosen = SHMULEVICH_NETWORK if self.network is None else self.network
+        nodes = [ProbabilisticNodeElement(name, x=int(name in self.active)) for name in chosen]
+        functions = [
+            ProbabilisticFunctionInteraction(
+                f'functions_{name}',
+                target=name,
+                inputs=list(self.inputs),
+                tables=tuple(tuple(table) for table, _ in candidates),
+                probabilities=tuple(probability for _, probability in candidates),
+            )
+            for name, candidates in chosen.items()
+        ]
+        return System(self.label, elements=nodes, interactions=functions)

@@ -13,15 +13,15 @@ few steps.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.computer_science.automata import BaumslagSolitarAutomatonSystem
 
 SYSTEM = 'baumslag_solitar_automaton'
 
-system = create_system(SYSTEM, radius=6, density=0.5, random_state=0)
+system = BaumslagSolitarAutomatonSystem(radius=6, density=0.5, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(system, observers=[observer]).prepare().run(until=20)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # Exponential growth and freezing
@@ -30,15 +30,15 @@ simulation = Simulation(system, observers=[observer]).prepare().run(until=20)
 # group of rank 2. The ratio of consecutive ball sizes should approach a constant below 3, and the density of ones
 # should settle after a few steps.
 
-space = system.elements[0].space
+space = system.prepare().system_.elements[0].space
 sizes = np.asarray(space.ball_sizes_, dtype=float)
-alive = simulation.trajectory_.values('cells.alive')
+alive = trajectory.values('cells.alive')
 fig, (left, right) = plt.subplots(1, 2, figsize=(9, 4))
 left.plot(np.arange(1, sizes.size), sizes[1:] / sizes[:-1], 'o-')
 left.set_xlabel('radius $n$')
 left.set_ylabel('$|B(n)| / |B(n - 1)|$')
 left.set_title('Exponential growth of BS(1, 2)')
-right.plot(simulation.trajectory_.times, alive.mean(axis=1), 'o-')
+right.plot(trajectory.times, alive.mean(axis=1), 'o-')
 right.set_xlabel('step')
 right.set_ylabel('density of ones')
 right.set_title('The majority rule settles')

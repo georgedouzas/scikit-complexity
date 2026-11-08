@@ -1,4 +1,7 @@
-"""Edge of a network with a weight `w`, which couplings along the edge read."""
+"""Edge of a network with a weight `w`.
+
+Couplings along the edge read the weight.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,7 +16,9 @@ from .....core.specs import ParameterSpec, VisualSpec
 
 
 class LinkElement(Element):
-    """Edge of a network with a weight `w`, which couplings along the edge read.
+    """Edge of a network with a weight `w`.
+
+    Couplings along the edge read the weight.
 
     Args:
         label:

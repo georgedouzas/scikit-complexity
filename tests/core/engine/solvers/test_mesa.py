@@ -11,10 +11,10 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.compile.passes._agents import AgentsPass
 from skcomplex.core.engine.compile.passes._agents_problem import AGENT_RESERVED_NAMES
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import AgentView, MesaSolver
 from skcomplex.core.errors import IncompatibleLawsError, LabelError, SimulationError, SpaceError, ValidationError
 from skcomplex.core.specs import (
@@ -236,7 +236,7 @@ def test_elements_without_laws_are_passive_agents():
             GroupElement('shoppers', element=ShopperElement, size=2),
         ],
     )
-    trajectory = Simulation(system, random_state=0).prepare().run(until=2).trajectory_
+    trajectory = simulate(system, until=2, random_state=0)
     assert [trajectory.agents('stalls', frame).values['stock'].tolist() for frame in (1, 2)] == [[1.0], [0.0]]
 
 
@@ -264,11 +264,9 @@ def test_rules_mixed_with_rates_raise_error():
 
 def test_agents_are_born_every_step():
     """Test that one offspring per agent per step gives 10, 20, 40, and 80 agents."""
-    trajectory = (
-        Simulation(System(elements=[GroupElement('herd', element=BreederElement, size=10, variable=True)]))
-        .prepare()
-        .run(until=3)
-        .trajectory_
+    trajectory = simulate(
+        System(elements=[GroupElement('herd', element=BreederElement, size=10, variable=True)]),
+        until=3,
     )
     assert trajectory.values('herd.count').tolist() == [10.0, 20.0, 40.0, 80.0]
     assert len(trajectory.agents('herd', 3).ids) == 80
@@ -277,9 +275,7 @@ def test_agents_are_born_every_step():
 def test_fixed_group_rejects_births():
     """Test that a rule creating a member of a group of fixed size raises an error that suggests a variable group."""
     with pytest.raises(SimulationError, match='variable=True'):
-        Simulation(System(elements=[GroupElement('herd', element=BreederElement, size=10)])).prepare().run(
-            until=1,
-        )
+        simulate(System(elements=[GroupElement('herd', element=BreederElement, size=10)]), until=1)
 
 
 def test_system_rules_remove_agents():
@@ -289,7 +285,7 @@ def test_system_rules_remove_agents():
         interactions=[CullerInteraction('cull', target='walkers')],
         space=LatticeSpace((5, 5), boundary='fixed'),
     )
-    trajectory = Simulation(system, random_state=0).prepare().run(until=3).trajectory_
+    trajectory = simulate(system, until=3, random_state=0)
     assert trajectory.values('walkers.count').tolist() == [5.0, 4.0, 3.0, 2.0]
     assert 1 not in trajectory.agents('walkers', 1).ids.tolist()
 
@@ -301,7 +297,7 @@ def test_grid_neighbours(neighborhood, expected):
         elements=[GroupElement('probe', element=ProbeElement, size=1, location=(5, 5))],
         space=LatticeSpace((10, 10), boundary='fixed', neighborhood=neighborhood),
     )
-    snapshot = Simulation(system).prepare().run(until=1).trajectory_.agents('probe', 1)
+    snapshot = simulate(system, until=1).agents('probe', 1)
     assert snapshot.values['cells'].tolist() == [expected]
 
 
@@ -311,7 +307,7 @@ def test_network_neighbours_follow_edges():
         elements=[GroupElement('nodes', element=ProbeElement, size=6)],
         space=NetworkSpace(nx.cycle_graph(6)),
     )
-    snapshot = Simulation(system).prepare().run(until=1).trajectory_.agents('nodes', 1)
+    snapshot = simulate(system, until=1).agents('nodes', 1)
     assert snapshot.values['near'].tolist() == [2.0] * 6
     assert sorted(snapshot.locations.tolist()) == list(range(6))
 
@@ -324,27 +320,24 @@ def test_continuous_neighbours_within_radius():
         ],
         space=ContinuousSpace(extent=(10.0, 10.0)),
     )
-    snapshot = Simulation(system).prepare().run(until=1).trajectory_.agents('drifters', 1)
+    snapshot = simulate(system, until=1).agents('drifters', 1)
     assert snapshot.values['near'].tolist() == [1.0, 1.0, 0.0]
 
 
 def test_agent_runs_are_reproducible():
     """Test that equal random states give equal agent trajectories."""
     runs = [
-        Simulation(
+        simulate(
             System(
                 elements=[GroupElement('walkers', element=WalkerElement, size=5)],
                 space=LatticeSpace((10, 10), boundary='fixed'),
             ),
-            random_state=0,
-        )
-        .prepare()
-        .run(
             until=5,
+            random_state=0,
         )
         for _ in range(2)
     ]
-    first, second = (run.trajectory_.agents('walkers', 5) for run in runs)
+    first, second = (run.agents('walkers', 5) for run in runs)
     assert np.array_equal(first.locations, second.locations)
     assert first.values['moves'].tolist() == [5.0] * 5
 
@@ -352,15 +345,16 @@ def test_agent_runs_are_reproducible():
 def test_agent_frames_use_integer_steps():
     """Test that agent-based systems reject a non-integer frame duration."""
     with pytest.raises(ValidationError, match='positive integer'):
-        Simulation(
+        simulate(
             System(elements=[GroupElement('herd', element=BreederElement, size=2, variable=True)]),
+            until=1,
             dt=0.5,
-        ).prepare().run(until=1)
+        )
 
 
 def test_boltzmann_wealth_keeps_wealth():
     """Test that the Boltzmann wealth system as an ordinary system keeps its total wealth and its agents' ids."""
-    trajectory = Simulation(_money_system(), random_state=0).prepare().run(until=100).trajectory_
+    trajectory = simulate(_money_system(), until=100, random_state=0)
     totals = {int(trajectory.agents('agents', frame).values['wealth'].sum()) for frame in range(101)}
     assert totals == {50}
     assert trajectory.agents('agents', 5).ids.tolist() == list(range(1, 51))
@@ -369,7 +363,7 @@ def test_boltzmann_wealth_keeps_wealth():
 def test_agent_parameter_changes_live():
     """Test that a parameter update reaches the rules of the agents."""
     schedule = {'agents.transfer': lambda t: 1.0 if t < 5 else 0.0}
-    trajectory = Simulation(_money_system(), schedule=schedule, random_state=0).prepare().run(until=10).trajectory_
+    trajectory = simulate(_money_system(), until=10, schedule=schedule, random_state=0)
     frames = [trajectory.agents('agents', frame).values['wealth'] for frame in (7, 10)]
     assert np.array_equal(*frames)
 
@@ -457,8 +451,8 @@ def _census(looked_up='counted', space=None, schedule=None):
         interactions=[CensusInteraction('census', counted='cows', others='patches', looked_up=looked_up)],
     )
     system = System(systems=[farm], space=space)
-    simulation = Simulation(system, schedule=schedule, random_state=0).prepare().run(until=3)
-    return simulation, list(SEEN)
+    trajectory = simulate(system, until=3, schedule=schedule, random_state=0)
+    return trajectory, list(SEEN)
 
 
 def test_rule_reads_parameter_of_nested_owner():
@@ -469,8 +463,8 @@ def test_rule_reads_parameter_of_nested_owner():
 
 def test_rule_binds_two_agent_groups_through_roles():
     """Test that an interaction binds two agent groups of different sizes and reads each through its role."""
-    simulation, records = _census()
-    assert simulation.problem_.form == FormKind.AGENT
+    trajectory, records = _census()
+    assert trajectory.problem.form == FormKind.AGENT
     assert records[0]['counted'] == 42
     assert records[0]['others'] == 43
     assert records[0]['paths'] == {'farm/cows'}
@@ -499,8 +493,7 @@ def test_rule_reads_grid_dimensions_and_torus():
 def _views(space, locations):
     """Return views of two agents placed at given locations of a space."""
     system = System(elements=[GroupElement('cows', element=CattleElement, size=2, location=locations)], space=space)
-    simulation = Simulation(system, random_state=0).prepare().run(until=0)
-    stepper = simulation.stepper_
+    stepper = _stepped(system, until=0)
     return [AgentView(agent, stepper) for agent in stepper._group_agents('cows')]
 
 
@@ -614,12 +607,7 @@ class ClockedElement(Element):
 
 def test_rules_read_system_time():
     """Test that rules read the system time k during the step that produces frame k."""
-    trajectory = (
-        Simulation(System(elements=[GroupElement('clocks', element=ClockedElement, size=2)]))
-        .prepare()
-        .run(until=3)
-        .trajectory_
-    )
+    trajectory = simulate(System(elements=[GroupElement('clocks', element=ClockedElement, size=2)]), until=3)
     assert [trajectory.agents('clocks', step).values['seen'].tolist() for step in (1, 2, 3)] == [
         [1.0, 1.0],
         [2.0, 2.0],
@@ -633,7 +621,7 @@ def test_one_agent_takes_one_entry_values():
         elements=[GroupElement('one', element=ClockedElement, size=1, values={'n': [3.0]}, location=[(1, 1)])],
         space=LatticeSpace((5, 5), boundary='fixed'),
     )
-    snapshot = Simulation(system).prepare().run(until=0).trajectory_.agents('one', 0)
+    snapshot = simulate(system, until=0).agents('one', 0)
     assert snapshot.locations.tolist() == [[1, 1]]
     assert snapshot.values['n'].tolist() == [3.0]
 
@@ -684,7 +672,7 @@ def test_agent_views_read_and_set_states_as_properties():
     """Test that a rule sets a state through its view and that an undeclared state raises Python's own error."""
     UNDECLARED.clear()
     system = System(elements=[GroupElement('foragers', element=ForagerElement, size=2)], time=DiscreteTime())
-    trajectory = Simulation(system, dt=1.0, random_state=0).prepare().run(until=3).trajectory_
+    trajectory = simulate(system, until=3, dt=1.0, random_state=0)
     assert trajectory.agents('foragers', 3).values['food'].tolist() == [3.0, 3.0]
     assert UNDECLARED
     assert all(UNDECLARED)
@@ -717,11 +705,10 @@ class SaverElement(Element):
 
 def test_memory_window():
     """Agents remember the last values of the states their type lists."""
-    trajectory = (
-        Simulation(System(elements=[GroupElement('savers', element=SaverElement, size=2)]), random_state=0)
-        .prepare()
-        .run(until=5)
-        .trajectory_
+    trajectory = simulate(
+        System(elements=[GroupElement('savers', element=SaverElement, size=2)]),
+        until=5,
+        random_state=0,
     )
     assert trajectory.agents('savers', 5).values['seen'].tolist() == [3.0, 3.0]
 
@@ -759,7 +746,7 @@ def test_reference_states_name_members_of_another_group_by_id():
             GroupElement('accounts', element=AccountElement, size=3, values={'stall': [1, -1, 0]}),
         ],
     )
-    snapshot = Simulation(system, random_state=0).prepare().run(until=1).trajectory_.agents('accounts', 1)
+    snapshot = simulate(system, until=1, random_state=0).agents('accounts', 1)
     assert snapshot.values['seen'].tolist() == [7.0, -1.0, 5.0]
     assert snapshot.values['stall'].tolist() == [2.0, -1.0, 1.0]
 
@@ -767,7 +754,7 @@ def test_reference_states_name_members_of_another_group_by_id():
 def test_reference_to_a_group_the_system_lacks_names_no_member():
     """Test that a reference state names no member when the system has no referenced group."""
     system = System(elements=[GroupElement('accounts', element=AccountElement, size=2)])
-    snapshot = Simulation(system, random_state=0).prepare().run(until=1).trajectory_.agents('accounts', 1)
+    snapshot = simulate(system, until=1, random_state=0).agents('accounts', 1)
     assert snapshot.values['seen'].tolist() == [-1.0, -1.0]
 
 
@@ -780,7 +767,7 @@ def test_reference_beyond_the_referenced_group_raises():
         ],
     )
     with pytest.raises(SimulationError, match='position 3'):
-        Simulation(system, random_state=0).prepare().run(until=1)
+        simulate(system, until=1, random_state=0)
 
 
 def test_memory_of_unremembered_state_raises():
@@ -801,9 +788,7 @@ def test_memory_of_unremembered_state_raises():
             return [RuleLaw(lambda agent, system: agent.lags('money'))]
 
     with pytest.raises(KeyError, match='remember'):
-        Simulation(System(elements=[GroupElement('agents', element=ForgetfulElement, size=1)])).prepare().run(
-            until=1,
-        )
+        simulate(System(elements=[GroupElement('agents', element=ForgetfulElement, size=1)]), until=1)
 
 
 class TickerElement(Element):
@@ -849,7 +834,7 @@ def test_member_rules_run_in_the_activation_of_every_member_after_its_element_ru
     LOG.clear()
     group = GroupElement('tickers', element=TickerElement, size=5)
     system = System(elements=[group], interactions=[EchoInteraction('echo', target='tickers')], time=DiscreteTime())
-    Simulation(system, random_state=0).prepare().run(until=2)
+    simulate(system, until=2, random_state=0)
     assert len(LOG) == 20
     for first, second in zip(LOG[::2], LOG[1::2], strict=True):
         assert (first[0], second) == ('element', ('member 2.0', first[1]))
@@ -900,6 +885,21 @@ class VisitedElement(Element):
         )
 
 
+def _stepped(
+    system: System,
+    until: int,
+    random_state: int = 0,
+    observables: tuple[ObservableSpec, ...] = (),
+) -> MesaSolver:
+    """Return the agent-based solver after it stepped a system one unit of time at a time until a time."""
+    problem = simulate(system, until=0, random_state=random_state, observables=observables).problem
+    solver = MesaSolver(random_state=random_state, until=until).prepare(problem)
+    state, parameters = solver.initial_state_, problem.initial_parameters
+    for time in range(until):
+        state = solver.run(StepSpec(time, state, parameters, time + 1), final=time + 1 == until).state_
+    return solver
+
+
 def _visited_system(visits: float) -> System:
     """Return a group of four visited agents whose phase visits them with replacement."""
     return System(
@@ -910,7 +910,7 @@ def _visited_system(visits: float) -> System:
 
 def test_visits_draw_agents_with_replacement():
     """Test that a phase of visits activates agents drawn with replacement, visits times the size of the group."""
-    trajectory = Simulation(_visited_system(2.5), random_state=0).prepare().run(until=4).trajectory_
+    trajectory = simulate(_visited_system(2.5), until=4, random_state=0)
     visits = trajectory.agents('visited', 4).values['visits']
     assert visits.sum() == 40
     assert len(set(visits.tolist())) > 1
@@ -918,14 +918,13 @@ def test_visits_draw_agents_with_replacement():
 
 def test_visits_advance_the_time_by_a_fraction_of_the_step():
     """Test that rules read the time `k + i / n` at visit `i` of `n` in step `k`."""
-    simulation = Simulation(_visited_system(1.0), random_state=0).prepare().run(until=2)
-    assert simulation.stepper_.storage_['visited']['times'] == [1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75]
+    solver = _stepped(_visited_system(1.0), until=2)
+    assert solver.storage_['visited']['times'] == [1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75]
 
 
 def test_composition_counts_the_values_of_a_state():
     """Test that the composition of a group keeps the counts of a state as agents change it."""
-    simulation = Simulation(_visited_system(3.0), random_state=1).prepare().run(until=2)
-    compositions = simulation.stepper_.storage_['visited']['compositions']
+    compositions = _stepped(_visited_system(3.0), until=2, random_state=1).storage_['visited']['compositions']
     assert len(compositions) == 24
     assert all(kept == counted for kept, counted in compositions)
 
@@ -937,8 +936,7 @@ def test_periodic_phase_runs_every_period_steps_from_its_offset():
         elements=[GroupElement('visited', element=VisitedElement, size=1)],
         time=DiscreteTime(schedule=PhasesScheduleSpec([phase])),
     )
-    simulation = Simulation(system, random_state=0).prepare().run(until=8)
-    assert simulation.stepper_.storage_['visited']['times'] == [1.0, 4.0, 7.0]
+    assert _stepped(system, until=8).storage_['visited']['times'] == [1.0, 4.0, 7.0]
 
 
 class OccupancyReaderInteraction(Interaction):
@@ -961,9 +959,9 @@ def test_occupancy_counts_the_agents_of_a_group_by_cell():
         interactions=[OccupancyReaderInteraction('reader')],
         space=LatticeSpace((4, 4), boundary='periodic'),
     )
-    simulation = Simulation(system, random_state=0).prepare().run(until=2)
-    occupancies = simulation.stepper_.storage_['reader']['occupancies']
-    locations = simulation.trajectory_.agents('walkers', 2).locations.tolist()
+    solver = _stepped(system, until=2)
+    occupancies = solver.storage_['reader']['occupancies']
+    locations = solver.snapshot_.groups['walkers'].locations.tolist()
     expected = {}
     for location in locations:
         expected[tuple(location)] = expected.get(tuple(location), 0) + 1
@@ -988,8 +986,8 @@ def test_history_reads_an_observable_at_earlier_steps():
     system = _visited_system(1.0)
     system.interactions = [TotalReaderInteraction('reader')]
     observables = [ObservableSpec('total', group='visited', variable='visits', reduce='sum')]
-    simulation = Simulation(system, random_state=0, observables=observables).prepare().run(until=3)
-    assert simulation.stepper_.storage_['reader']['histories'] == [[], [4.0], [4.0, 8.0]]
+    solver = _stepped(system, until=3, observables=tuple(observables))
+    assert solver.storage_['reader']['histories'] == [[], [4.0], [4.0, 8.0]]
 
 
 def _weight_of(agent: VisitedView) -> float:
@@ -1000,7 +998,7 @@ def _weight_of(agent: VisitedView) -> float:
 def test_observables_read_agent_views():
     """Test that an observable of an agent group reads the views of its agents, with the parameters of the group."""
     observables = [ObservableSpec('weights', group='visited', expression=_weight_of, reduce='sum')]
-    trajectory = Simulation(_visited_system(1.0), observables=observables).prepare().run(until=1).trajectory_
+    trajectory = simulate(_visited_system(1.0), until=1, observables=observables)
     assert trajectory.values('weights').tolist() == [8.0, 8.0]
 
 
@@ -1038,7 +1036,7 @@ def test_network_neighbours_of_one_group_read_the_member_sets_of_the_nodes_aroun
         ],
         space=NetworkSpace(nx.path_graph(4)),
     )
-    snapshot = Simulation(system, random_state=0).prepare().run(until=1).trajectory_.agents('holders', 1)
+    snapshot = simulate(system, until=1, random_state=0).agents('holders', 1)
     places = snapshot.locations.tolist()
     assert dict(zip(places, snapshot.values['around'].tolist(), strict=True)) == {0: 1.0, 1: 3.0, 2: 3.0, 3: 1.0}
     assert dict(zip(places, snapshot.values['every'].tolist(), strict=True)) == {0: 2.0, 1: 5.0, 2: 5.0, 3: 2.0}

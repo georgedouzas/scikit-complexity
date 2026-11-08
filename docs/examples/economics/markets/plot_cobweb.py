@@ -14,19 +14,15 @@ price than demand, the cobweb theorem of Ezekiel.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.economics.markets import CobwebSystem
 
 SYSTEM = 'cobweb'
 A, B, C = 10.0, 2.0, 1.0
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = (
-    Simulation(create_system(SYSTEM, price=1.0, a=A, b=B, c=C, d=1.6), dt=1, observers=[observer])
-    .prepare()
-    .run(until=30)
-)
+trajectory = simulate(CobwebSystem(price=1.0, a=A, b=B, c=C, d=1.6), observers=[observer])
 
 # %%
 # Cobweb diagram and the cobweb theorem
@@ -38,15 +34,10 @@ simulation = (
 
 def prices(d, until=30):
     """Return the prices of a cobweb market with supply slope `d`."""
-    return (
-        Simulation(create_system(SYSTEM, price=1.0, a=A, b=B, c=C, d=d), dt=1)
-        .prepare()
-        .run(until=until)
-        .trajectory_.values('market.price')
-    )
+    return simulate(CobwebSystem(price=1.0, a=A, b=B, c=C, d=d), until=until).values('market.price')
 
 
-price = simulation.trajectory_.values('market.price')
+price = trajectory.values('market.price')
 grid = np.linspace(0.5, 5.0, 2)
 fig, (cobweb, theorem) = plt.subplots(1, 2, figsize=(10, 4))
 cobweb.plot(grid, (A - C - 1.6 * grid) / B, color='C0', label='price map')

@@ -52,17 +52,17 @@ to member `k` of an ensemble at step `k`.
 - **THEN** the positions at frame 10 are member 10, and the positions at frame 40 are member 37
 
 ### Requirement: Chain geometry is analysed
-`ShapeAnalysis` SHALL give, per frame of a group's positions, the radius of gyration, the end-to-end distance, and the
+`chain_shape` SHALL give, per frame of a group's positions, the radius of gyration, the end-to-end distance, and the
 root mean square deviation from a reference after optimal superposition.
 
 #### Scenario: Freely rotating chain
-- **WHEN** `ShapeAnalysis(kind='end-to-end')` reads an ensemble of 2000 chains of 200 points with bond length 1, bond
+- **WHEN** `chain_shape(positions, kind='end-to-end')` reads an ensemble of 2000 chains of 200 points with bond length 1, bond
   angle 112°, and uniform dihedral angles
 - **THEN** the mean squared end-to-end distance matches `n b² (1 + cos θ) / (1 − cos θ)`, with `θ` the supplement of the
   bond angle, within 5%
 
 #### Scenario: Superposition
-- **WHEN** `ShapeAnalysis(kind='rmsd')` compares a conformation rotated and translated by a random rigid motion with the
+- **WHEN** `chain_shape(positions, kind='rmsd')` compares a conformation rotated and translated by a random rigid motion with the
   original
 - **THEN** the deviation is below 1e-6
 

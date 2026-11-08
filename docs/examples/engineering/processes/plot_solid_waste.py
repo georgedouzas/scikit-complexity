@@ -13,10 +13,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.analysis import LoopAnalysis
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.analysis import loops
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.engineering.processes import SolidWasteSystem
 
 SYSTEM = 'solid_waste'
 
@@ -30,7 +30,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=5)
-simulation = Simulation(create_system(SYSTEM), dt=0.1, observers=[observer]).prepare().run(40)
+trajectory = simulate(SolidWasteSystem(), observers=[observer])
 
 # %%
 # Filling the landfill
@@ -39,9 +39,8 @@ simulation = Simulation(create_system(SYSTEM), dt=0.1, observers=[observer]).pre
 # and compost, and the capacity adjustment are balancing loops. The growth makes the landfilling rise until the
 # acceptance table closes the landfill, and the residual waste then turns to dumping.
 
-polarities = LoopAnalysis().prepare(create_system(SYSTEM)).run().polarities_
+polarities = loops(SolidWasteSystem()).polarities
 reinforcing, balancing = polarities.count('reinforcing'), polarities.count('balancing')
-trajectory = simulation.trajectory_
 times = np.asarray(trajectory.times)
 fig, (stocks, flows) = plt.subplots(1, 2, figsize=(10, 4))
 stocks.plot(times, trajectory.values('city.landfill'), label='landfill')

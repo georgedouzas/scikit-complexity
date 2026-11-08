@@ -5,21 +5,20 @@ Untreated, the glioma grows by more than an order of magnitude, crowds out the g
 """
 
 # %%
-# The system is created by name from the catalog with the brain of Urenda-Cázares et al.: 5.94e12 glial cells and
-# neurons and a glioma of 6e10 cells. This run gives neither drug nor virus. The observer saves every second frame
-# with the default blueprint, whose primary view is the time series of the cells.
+# The system is built from its class with the brain of Urenda-Cázares et al.: 5.94e12 glial cells and neurons and a
+# glioma of 6e10 cells. This run gives neither drug nor virus. The observer saves every second frame with the default
+# blueprint, whose primary view is the time series of the cells.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.oncology import GliomaChemovirotherapySystem
 
 SYSTEM = 'glioma_chemovirotherapy'
 
-system = create_system(SYSTEM, V=0.0, u1=0.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(until=300)
+trajectory = simulate(GliomaChemovirotherapySystem(V=0.0, u1=0.0), observers=[observer])
 
 # %%
 # Therapy spares the neurons
@@ -28,11 +27,11 @@ simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(unti
 # then stay above 98% of their initial number, while untreated they lose about a third.
 
 arms = {
-    'temozolomide': create_system(SYSTEM, V=0.0),
-    'virus': create_system(SYSTEM, u1=0.0),
-    'both': create_system(SYSTEM),
+    'temozolomide': GliomaChemovirotherapySystem(V=0.0).prepare().system_,
+    'virus': GliomaChemovirotherapySystem(u1=0.0).prepare().system_,
+    'both': GliomaChemovirotherapySystem().prepare().system_,
 }
-untreated = simulation.trajectory_
+untreated = trajectory
 fig, (glioma, neurons) = plt.subplots(1, 2, figsize=(10, 4))
 glioma.semilogy(untreated.times, untreated.values('brain.AU'), label='untreated', color='black')
 neurons.plot(
@@ -42,7 +41,7 @@ neurons.plot(
     color='black',
 )
 for name, arm in arms.items():
-    trajectory = Simulation(arm, dt=1.0).prepare().run(until=300).trajectory_
+    trajectory = simulate(arm, dt=1.0, until=300)
     glioma.semilogy(trajectory.times, trajectory.values('brain.AU').clip(1.0), label=name)
     neurons.plot(trajectory.times, trajectory.values('brain.N') / trajectory.values('brain.N')[0], label=name)
 glioma.set_xlabel('time (days)')

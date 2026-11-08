@@ -7,33 +7,21 @@ tumour is cleared, after which the treatments stop.
 """
 
 # %%
-# The system is created by name from the catalog, the Kirschner-Panetta system in units of `10^5` cells, with a tumour
-# of low antigenicity that escapes the immune response when untreated. The Pontryagin solver of its catalog entry solves
-# the problem on 1001 nodes over 50 days, fine enough for the fast decay of IL-2. The default blueprint shows the
-# cells, IL-2, and both treatments in one time series view.
+# The system is built from its class, the Kirschner-Panetta system in units of `10^5` cells, with a tumour of low
+# antigenicity that escapes the immune response when untreated. Its tuned Pontryagin solver solves the
+# problem on 1001 nodes over 50 days, fine enough for the fast decay of IL-2. The default blueprint shows the cells,
+# IL-2, and both treatments in one time series view.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.biology.oncology import OptimalImmunotherapySystem
 
 SYSTEM = 'optimal_immunotherapy'
 
-system = create_system(SYSTEM)
-entry = describe(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = (
-    Simulation(
-        system,
-        dt=0.5,
-        solver=entry.defaults['solver'],
-        observers=[observer],
-        observables=entry.observables_of(system),
-    )
-    .prepare()
-    .run(until=50)
-)
+trajectory = simulate(OptimalImmunotherapySystem(), observers=[observer])
 
 # %%
 # Treated against untreated
@@ -41,10 +29,7 @@ simulation = (
 # With prohibitive weights on both treatments, the optimal treatment is nearly none and the tumour grows at nearly its
 # intrinsic rate 0.18 per day. With the optimal treatments the tumour should fall by orders of magnitude within weeks.
 
-untreated = (
-    Simulation(create_system(SYSTEM, w1=1e6, w2=1e6), dt=0.5, solver=entry.defaults['solver']).prepare().run(until=50)
-)
-trajectory, free = simulation.trajectory_, untreated.trajectory_
+free = simulate(OptimalImmunotherapySystem(w1=1e6, w2=1e6))
 fig, (tumour, doses) = plt.subplots(1, 2, figsize=(10, 4))
 tumour.semilogy(free.times, free.values('site.y'), label='untreated')
 tumour.semilogy(trajectory.times, trajectory.values('site.y') + 1e-9, label='optimal treatment')

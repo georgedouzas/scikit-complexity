@@ -3,13 +3,13 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.social.cooperation import (
     IteratedDilemmaInteraction,
-    iterated_lattice_dilemma,
-    public_goods_game,
-    spatial_prisoners_dilemma,
+    IteratedLatticeDilemmaSystem,
+    PublicGoodsGameSystem,
+    SpatialPrisonersDilemmaSystem,
 )
 
 from ..conftest import _run
@@ -23,17 +23,17 @@ def _cooperation(trajectory):
 
 def test_spatial_prisoners_dilemma_regimes():
     """Test that cooperators and defectors coexist at temptation 1.85 and defectors win at temptation 3."""
-    coexisting = _cooperation(_run(spatial_prisoners_dilemma(temptation=1.85), 50, dt=1))
+    coexisting = _cooperation(_run(SpatialPrisonersDilemmaSystem(temptation=1.85), 50, dt=1))
     assert coexisting[-10:].min() > 0.1
     assert coexisting[-10:].max() < 0.6
-    assert _cooperation(_run(spatial_prisoners_dilemma(temptation=3.0), 20, dt=1))[-1] == 0
-    fermi = _run(spatial_prisoners_dilemma(temptation=1.05, imitation='fermi', share=0.5), 50, dt=1)
+    assert _cooperation(_run(SpatialPrisonersDilemmaSystem(temptation=3.0), 20, dt=1))[-1] == 0
+    fermi = _run(SpatialPrisonersDilemmaSystem(temptation=1.05, imitation='fermi', share=0.5), 50, dt=1)
     assert _cooperation(fermi)[-1] > 0.9
 
 
 def test_spatial_cooperation_survives_in_clusters():
     """Test that with imitate-the-best and temptation 1.6 cooperators survive in clusters for 200 steps."""
-    trajectory = _run(spatial_prisoners_dilemma((40, 40), temptation=1.6), 200, dt=1)
+    trajectory = _run(SpatialPrisonersDilemmaSystem((40, 40), temptation=1.6), 200, dt=1)
     shares = _cooperation(trajectory)
     assert shares.min() > 0.2
     lattice = trajectory.values('players.strategy')[-1].reshape(40, 40)
@@ -45,13 +45,13 @@ def test_spatial_cooperation_survives_in_clusters():
 def test_spatial_prisoners_dilemma_rejects_unknown_imitation():
     """Test that an unknown imitation rule raises a validation error when the system compiles."""
     with pytest.raises(ValidationError, match='Unknown imitation'):
-        _run(spatial_prisoners_dilemma((10, 10), imitation='copy'), 1, dt=1)
+        _run(SpatialPrisonersDilemmaSystem((10, 10), imitation='copy'), 1, dt=1)
 
 
 def test_public_goods_game_depends_on_synergy():
     """Test that cooperation dies out at synergy 2 and takes over at synergy 6."""
-    assert _cooperation(_run(public_goods_game(synergy=2.0), 50, dt=1))[-1] == 0
-    assert _cooperation(_run(public_goods_game(synergy=6.0), 50, dt=1))[-1] > 0.9
+    assert _cooperation(_run(PublicGoodsGameSystem(synergy=2.0), 50, dt=1))[-1] == 0
+    assert _cooperation(_run(PublicGoodsGameSystem(synergy=6.0), 50, dt=1))[-1] > 0.9
 
 
 def test_best_reply_to_a_strategy_is_to_defect_one_round_earlier():
@@ -73,8 +73,8 @@ def test_iterated_dilemma_with_two_strategies_has_three_regimes():
     """Test that cooperation dominates at `R = 0.82`, coexists at `R = 0.84`, and vanishes at `R = 0.86`."""
     shares = {}
     for reward in (0.82, 0.84, 0.86):
-        system = iterated_lattice_dilemma(reward=reward, extremes=True)
-        strategies = Simulation(system, random_state=0).prepare().run(until=100).trajectory_.values('players.strategy')
+        system = IteratedLatticeDilemmaSystem(reward=reward, extremes=True).prepare().system_
+        strategies = simulate(system, until=100, random_state=0).values('players.strategy')
         shares[reward] = np.mean(strategies[-20:] == 7)
         assert set(np.unique(strategies)) <= {0.0, 7.0}
     assert shares[0.82] > 0.8
@@ -84,8 +84,8 @@ def test_iterated_dilemma_with_two_strategies_has_three_regimes():
 
 def test_iterated_dilemma_with_every_strategy_cycles():
     """Test that in the coexistence regime cooperative and defecting strategies alternate in dominance."""
-    system = iterated_lattice_dilemma()
-    strategies = Simulation(system, random_state=0).prepare().run(until=200).trajectory_.values('players.strategy')
+    system = IteratedLatticeDilemmaSystem().prepare().system_
+    strategies = simulate(system, until=200, random_state=0).values('players.strategy')
     means = strategies.reshape(len(strategies), -1).mean(axis=1)
     assert means[50:].max() - means[50:].min() > 2.0
     assert len(np.unique(strategies[-1])) > 3

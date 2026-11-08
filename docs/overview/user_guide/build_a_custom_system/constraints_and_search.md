@@ -13,7 +13,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import SatisfiabilityInteraction
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import CardinalitySpec, ClauseSpec, StateSpec
 
 
@@ -27,7 +27,7 @@ constraints = [CardinalitySpec((1, 2, 3), 2, 'at-least'), ClauseSpec((-1,)), Cla
 decide = SatisfiabilityInteraction('decide', target='bits', state='on', constraints=constraints)
 bits = GroupElement('bits', element=BitElement, size=3)
 system = System(elements=[bits], interactions=[decide], time=DiscreteTime())
-Simulation(system).prepare().run(until=3).trajectory_.values('decide.satisfiable')[1:]
+simulate(system, until=3).values('decide.satisfiable')[1:]
 ```
 
 `SatisfiabilityInteraction` binds a group of Boolean states and reveals its constraints step by step. Each constraint is
@@ -41,11 +41,11 @@ unsatisfiable.
 state in the box `bounds`.
 
 ```python
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.systems import create_system
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.computer_science.evolutionary_computation import EvolutionaryOptimisersSystem
 
-system = create_system('evolutionary_optimisers', algorithm='particle-swarm', random_state=1)
-Simulation(system, random_state=1).prepare().run(until=20).trajectory_.values('search.best')[-1] < 20
+system = EvolutionaryOptimisersSystem(algorithm='particle-swarm', random_state=1)
+simulate(system, until=20, random_state=1).values('search.best')[-1] < 20
 ```
 
 - The `objective` takes the array of candidates.
@@ -57,5 +57,5 @@ Simulation(system, random_state=1).prepare().run(until=20).trajectory_.values('s
 `SamplingInteraction(cooling=)` anneals. Its `cooling` is a function of the time symbol that multiplies one over the
 intensity. So a Metropolis acceptance with the `'gaussian'` move anneals a group of candidates on a one-dimensional
 `LatticeSpace` whose objective reads no neighbours, with one interaction per state. The solver of sampling takes no
-other laws. So what tracks a run, such as the lowest energy so far, sits in a nested system, as in the system
-`evolutionary_optimisers` with `algorithm='annealing'`.
+other laws. So what tracks a run, such as the lowest energy so far, sits in a nested system, as in
+`EvolutionaryOptimisersSystem(algorithm='annealing')`.

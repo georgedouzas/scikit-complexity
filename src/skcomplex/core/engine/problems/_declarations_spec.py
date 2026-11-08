@@ -65,7 +65,10 @@ class DeclarationsSpec(BaseSpec):
 
     @property
     def ends(self) -> dict[bool, int]:
-        """Sizes of the state vector, under `True`, and of the parameter vector, under `False`."""
+        """Sizes of the state vector and of the parameter vector.
+
+        The size of the state vector is under `True`, and that of the parameter vector under `False`.
+        """
         return {True: sum(entry.size for entry in self.states), False: sum(entry.size for entry in self.parameters)}
 
     @property
@@ -79,7 +82,10 @@ class DeclarationsSpec(BaseSpec):
 
     @property
     def members(self) -> int:
-        """Number of members of the groups, leaving out agents, which chooses a default backend."""
+        """Number of members of the groups, leaving out agents.
+
+        The number chooses a default backend.
+        """
         return sum(block.node.members or 0 for block in self.blocks.values() if not block.node.is_agent)
 
     @cached_property
@@ -110,7 +116,9 @@ class DeclarationsSpec(BaseSpec):
         }
 
     def changing_entries(self, space: object) -> dict[str | None, tuple[EntrySpec, EntrySpec, EntrySpec]]:
-        """Return the source, target, and activity entries of the variable edge group of every changing layer.
+        """Return the source, target, and activity entries of every changing layer.
+
+        The entries are those of the variable edge group of the layer.
 
         Args:
             space:

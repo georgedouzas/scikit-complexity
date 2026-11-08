@@ -1,8 +1,12 @@
-"""Define sample laws, Monte Carlo sweeps that accept moves from the change of a local objective."""
+"""Define sample laws.
+
+They are Monte Carlo sweeps that accept moves from the change of a local objective.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import ClassVar
 
 from ...specs import MoveSpec, ObjectiveSpec, RequirementSpec, SamplerSpec
 from ..spaces import DiscreteTime, LatticeSpace, NetworkSpace
@@ -10,7 +14,9 @@ from ._base import BaseLaw
 
 
 class SampleLaw(BaseLaw):
-    """Monte Carlo sweep that samples states by moves accepted from the change of an objective, one per unit of time.
+    """Monte Carlo sweep that samples states by moves.
+
+    The moves are accepted from the change of an objective, one sweep per unit of time.
 
     Args:
         objective:
@@ -37,6 +43,8 @@ class SampleLaw(BaseLaw):
         (spin,)
     """
 
+    law_tag: ClassVar[str] = 'sampling'
+
     def __init__(
         self,
         objective: ObjectiveSpec,
@@ -56,11 +64,17 @@ class SampleLaw(BaseLaw):
 
     @classmethod
     def _get_requirements(cls) -> RequirementSpec:
-        """Return what the sweep requires of a system: discrete time on a lattice or a network."""
+        """Return what the sweep requires: discrete time on a lattice or a network."""
         return RequirementSpec(time=(DiscreteTime,), space=(LatticeSpace, NetworkSpace))
 
-    def _check(self) -> None:
-        """Check the objective, the move, and the sampler."""
+    def _prepare(self, context: str | None = None) -> None:
+        """Check the objective, the move, and the sampler.
+
+        Args:
+            context:
+                The path of the element or interaction that returns the law, or `None`.
+        """
+        super()._prepare(context)
         for spec in (self.objective, self.move, self.sampler):
             if spec is not None:
-                spec._validated()
+                spec._check()

@@ -13,15 +13,15 @@ image around the ring is the identity.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.computer_science.automata import GroupDifferenceAutomatonSystem
 
 SYSTEM = 'group_difference_automaton'
 
-system = create_system(SYSTEM, size=60, random_state=0)
+system = GroupDifferenceAutomatonSystem(size=60, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(system, observers=[observer]).prepare().run(until=30)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # Constants and the product around the ring
@@ -29,8 +29,8 @@ simulation = Simulation(system, observers=[observer]).prepare().run(until=30)
 # Every constant configuration should map to the identity, so the six constants share one image. The ordered product
 # of the image around the ring telescopes to `x(0)^-1 x(0)`, the identity, at every step.
 
-product = system.interactions[0].rule.keywords['product']
-values = simulation.trajectory_.values('cells.value').astype(int)
+product = system.prepare().system_.interactions[0].rule.keywords['product']
+values = trajectory.values('cells.value').astype(int)
 loops = []
 for row in values[1:]:
     total = 0
@@ -38,8 +38,7 @@ for row in values[1:]:
         total = product[total, element]
     loops.append(total)
 constants = [
-    Simulation(create_system(SYSTEM, size=10, initial=np.full(10, element))).prepare().run(until=1).trajectory_
-    for element in range(6)
+    simulate(GroupDifferenceAutomatonSystem(size=10, initial=np.full(10, element)), until=1) for element in range(6)
 ]
 fig, (image, check) = plt.subplots(1, 2, figsize=(10, 4))
 image.imshow(values, aspect='auto', cmap='tab10', interpolation='nearest')

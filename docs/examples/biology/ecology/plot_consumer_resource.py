@@ -7,21 +7,20 @@ the resource that limits it most.
 """
 
 # %%
-# The system is created by name from the catalog with the settings of Mehta and Blumenthal (2024, figure 4), and the
-# observer saves every frame with the default blueprint, whose primary view is the time series of the consumers.
+# The system is built from its class with the settings of Mehta and Blumenthal (2024, figure 4), and the observer
+# saves every frame with the default blueprint, whose primary view is the time series of the consumers.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.ecology import ConsumerResourceSystem
 
 SYSTEM = 'consumer_resource'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=100)
+trajectory = simulate(ConsumerResourceSystem(), observers=[observer])
 
 # %%
 # Isoclines in resource space
@@ -29,7 +28,7 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(unti
 # A consumer stops growing on its isocline `sum_b c_ib R_b = m_i`. The resources should travel from the supply point
 # `K` to the crossing of both isoclines at `R = (5/3, 5/9)`.
 
-resources = simulation.trajectory_.values('resources.R')
+resources = trajectory.values('resources.R')
 uptake = np.array([[0.5, 0.3], [0.4, 0.6]])
 first = np.linspace(0, 5, 50)
 fig, ax = plt.subplots(figsize=(6, 5))

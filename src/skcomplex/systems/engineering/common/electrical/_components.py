@@ -1,4 +1,7 @@
-"""Electrical components with ports and equations, which connections assemble into circuits."""
+"""Electrical components with ports and equations.
+
+Connections assemble them into circuits.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,10 +23,10 @@ POSITIVE = RealSet.open(0, oo)
 
 
 class TwoPinElement(Element):
-    """Component with a positive pin `p` and a negative pin `n`, whose currents balance.
+    """Component with a positive pin `p` and a negative pin `n`.
 
-    A subclass returns the equations of its branch from `_get_branch_laws`, in the voltage `p_v - n_v` and the current
-    `p_i` from `p` to `n`.
+    Its currents balance. A subclass returns the equations of its branch from `_get_branch_laws`, in the voltage
+    `p_v - n_v` and the current `p_i` from `p` to `n`.
 
     Args:
         label:
@@ -45,6 +48,8 @@ class TwoPinElement(Element):
             The current into the negative pin.
     """
 
+    law_classes = (EquationLaw,)
+
     ports: ClassVar[Mapping[str, ConnectorSpec]] = {'p': ELECTRICAL, 'n': ELECTRICAL}
 
     def __init__(
@@ -64,7 +69,9 @@ class TwoPinElement(Element):
         self.n_i = n_i
 
     def _get_branch_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the equations of the branch, none for an element that a coupling gives them.
+        """Return the equations of the branch.
+
+        There are none for an element that a coupling gives them.
 
         Args:
             s:
@@ -329,7 +336,9 @@ class VoltageSourceElement(TwoPinElement):
 
 
 class CurrentSourceElement(TwoPinElement):
-    """Ideal source that drives a constant current from `n` through the source to `p`, so `p_i = -current`.
+    """Ideal source that drives a constant current from `n` through the source to `p`.
+
+    Its current is `p_i = -current`.
 
     Args:
         label:
@@ -408,6 +417,8 @@ class GroundElement(Element):
         >>> sorted(GroundElement.ports)
         ['p']
     """
+
+    law_classes = (EquationLaw,)
 
     ports: ClassVar[Mapping[str, ConnectorSpec]] = {'p': ELECTRICAL}
 
@@ -493,7 +504,9 @@ class DiodeElement(TwoPinElement):
 
 
 class ChuaDiodeElement(TwoPinElement):
-    """Nonlinear resistor of Chua's circuit, with the current `m1 u + (m0 - m1) (|u + 1| - |u - 1|) / 2` at voltage `u`.
+    """Nonlinear resistor of Chua's circuit.
+
+    It has the current `m1 u + (m0 - m1) (|u + 1| - |u - 1|) / 2` at voltage `u`.
 
     Args:
         label:
@@ -558,9 +571,10 @@ class ChuaDiodeElement(TwoPinElement):
 
 
 class OperationalAmplifierElement(Element):
-    """Ideal operational amplifier, whose inputs draw no current and whose output holds them at equal potentials.
+    """Ideal operational amplifier.
 
-    The output current returns through the supply of the amplifier, so no equation balances it.
+    Its inputs draw no current and its output holds them at equal potentials. The output current returns through the
+    supply of the amplifier, so no equation balances it.
 
     Args:
         label:

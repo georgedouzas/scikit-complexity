@@ -7,7 +7,7 @@ fluctuation that takes a time growing like `exp(V phi(0))`. The time series show
 """
 
 # %%
-# The system is created by name from the catalog with `kappa = 2`, `nu = lambda = 1`, and `V = 100`, so `rho_0 = 1`.
+# The system is built from its class with `kappa = 2`, `nu = lambda = 1`, and `V = 100`, so `rho_0 = 1`.
 # The observer saves every frame of the run with the default blueprint, whose primary view is the time series of the
 # number of particles. The Numba backend runs the jumps in a compiled loop.
 
@@ -15,17 +15,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.engine.backends import NumbaBackend
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.statistical_mechanics import AbsorbingBirthDeathSystem
 
 SYSTEM = 'absorbing_birth_death'
 
-system = create_system(SYSTEM, kappa=2.0, volume=100.0)
+system = AbsorbingBirthDeathSystem(kappa=2.0, volume=100.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = (
-    Simulation(system, dt=0.5, observers=[observer], random_state=0, backend=NumbaBackend()).prepare().run(until=100)
-)
+trajectory = simulate(system, dt=0.5, observers=[observer], random_state=0, backend=NumbaBackend())
 
 # %%
 # Large deviations of the density and the absorbing transition
@@ -44,23 +42,19 @@ def large_deviation(rho, kappa, nu=1.0, lam=1.0):
     return -(rho - rho_0) * (1 + np.log(kappa)) + (rate * np.log(rate) - kappa * np.log(kappa)) / lam
 
 
-long = (
-    Simulation(create_system(SYSTEM, kappa=2.0, volume=100.0), dt=0.5, random_state=1, backend=NumbaBackend())
-    .prepare()
-    .run(
-        until=4000,
-    )
+long = simulate(
+    AbsorbingBirthDeathSystem(kappa=2.0, volume=100.0),
+    until=4000,
+    dt=0.5,
+    random_state=1,
+    backend=NumbaBackend(),
 )
-density = long.trajectory_.values('particles.n')[100:] / 100
+density = long.values('particles.n')[100:] / 100
 kappas = np.linspace(0.6, 2.4, 10)
 means = []
 for kappa in kappas:
-    run = (
-        Simulation(create_system(SYSTEM, kappa=kappa), dt=0.5, random_state=0, backend=NumbaBackend())
-        .prepare()
-        .run(until=200)
-    )
-    means.append((run.trajectory_.values('particles.n')[100:] / 100).mean())
+    run = simulate(AbsorbingBirthDeathSystem(kappa=kappa), until=200, dt=0.5, random_state=0, backend=NumbaBackend())
+    means.append((run.values('particles.n')[100:] / 100).mean())
 grid = np.linspace(0.5, 1.5, 200)
 weights = np.exp(-100 * large_deviation(grid, 2.0))
 fig, (distribution, transition) = plt.subplots(1, 2, figsize=(10, 4))

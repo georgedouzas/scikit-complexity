@@ -7,21 +7,19 @@ principle.
 """
 
 # %%
-# The system is created by name from the catalog with an effort of 0.4 on both species and run for about five cycles.
-# The observer saves every second frame with the default blueprint, whose primary view is the time series of both
-# populations.
+# The system is built from its class with an effort of 0.4 on both species and run for about five cycles. The observer
+# saves every second frame with the default blueprint, whose primary view is the time series of both populations.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.ecology import LotkaVolterraWithHarvestingSystem
 
 SYSTEM = 'lotka_volterra_with_harvesting'
 
-system = create_system(SYSTEM, prey=16.0, predators=8.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=50)
+trajectory = simulate(LotkaVolterraWithHarvestingSystem(prey=16.0, predators=8.0), observers=[observer])
 
 # %%
 # Volterra's principle
@@ -30,12 +28,12 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(unti
 # harvesting the centre is `(d / b, r / a) = (10, 10)`, with it `(18, 6)`. The harvested orbit should circle the
 # shifted centre.
 
-harvested = simulation.trajectory_
-unharvested = Simulation(
-    create_system(SYSTEM, prey=16.0, predators=8.0, prey_harvest=0.0, predator_harvest=0.0),
+harvested = trajectory
+unharvested = simulate(
+    LotkaVolterraWithHarvestingSystem(prey=16.0, predators=8.0, prey_harvest=0.0, predator_harvest=0.0),
+    until=50,
     dt=0.1,
-).prepare()
-unharvested = unharvested.run(until=50).trajectory_
+)
 fig, ax = plt.subplots(figsize=(6, 5))
 ax.plot(unharvested.values('prey.n'), unharvested.values('predators.n'), color='tab:grey', label='without harvesting')
 ax.plot(10.0, 10.0, 'o', color='tab:grey')

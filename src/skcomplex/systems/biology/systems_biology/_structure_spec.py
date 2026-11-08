@@ -53,7 +53,9 @@ class StructureSpec(BaseSpec):
     chain_names: tuple[str, ...]
 
     def _check(self) -> None:
-        """Raise an error for coordinates of another shape, or names that do not hold one entry per atom.
+        """Raise an error for invalid coordinates or names.
+
+        They are invalid when the coordinates have another shape, or the names do not hold one entry per atom.
 
         Raises:
             ValidationError:

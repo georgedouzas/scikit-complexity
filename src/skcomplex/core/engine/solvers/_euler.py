@@ -1,4 +1,7 @@
-"""Explicit Euler integrator of ordinary differential equations with a fixed internal step."""
+"""Explicit Euler integrator of ordinary differential equations.
+
+It takes a fixed internal step.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,10 +23,10 @@ from ._solver import Solver
 
 
 class EulerSolver(Solver):
-    """Explicit Euler integrator of ordinary differential equations with a fixed internal step.
+    """Explicit Euler integrator of ordinary differential equations.
 
-    Every step is `x + h f(t, x)`, the integration Vensim and Stella use by default, so a run with the time step of a
-    system file reproduces the run of those tools step by step.
+    It takes a fixed internal step. Every step is `x + h f(t, x)`, the integration Vensim and Stella use by default, so
+    a run with the time step of a system file reproduces the run of those tools step by step.
 
     Args:
         dt:
@@ -36,7 +39,7 @@ class EulerSolver(Solver):
             The end time of the run the solver prepares for, infinite for a run that goes on until it is stopped.
 
     Examples:
-        >>> from skcomplex.core.engine.compile import PassCompiler
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.components.system import System
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> from skcomplex.core.engine.solvers import EulerSolver
@@ -45,7 +48,7 @@ class EulerSolver(Solver):
         ...     elements=[PopulationElement('a', n=1)],
         ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
         ... )
-        >>> problem = PassCompiler().prepare(system).run().problem_
+        >>> problem = simulate(system, until=0).problem
         >>> stepper = EulerSolver(dt=0.5, random_state=0).prepare(problem)
         >>> step = StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)
         >>> float(stepper.run(step).state_[0])
@@ -79,7 +82,10 @@ class EulerSolver(Solver):
         self.until = until
 
     def _advance_hybrid(self, t: float, x: Array, p: Array, until: float) -> Array:
-        """Integrate with fixed Euler steps, interpolating every step for delays and locating events in it."""
+        """Integrate with fixed Euler steps.
+
+        Every step is interpolated for delays, and events are located in it.
+        """
         problem = self.problem_
         drift = self._drift()
         history = self.history_ = History._open_history(problem, self.history_, t, x)
@@ -109,7 +115,9 @@ class EulerSolver(Solver):
         )
 
     def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
-        """Integrate the drift from time `t` to time `until` in equal steps no longer than `dt`.
+        """Integrate the drift from time `t` to time `until` in equal steps.
+
+        The steps are no longer than `dt`.
 
         Args:
             t:

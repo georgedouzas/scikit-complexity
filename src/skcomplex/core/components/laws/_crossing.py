@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Mapping
+from typing import ClassVar
 
 from sage.all__sagemath_symbolics import Expression
 
@@ -14,10 +15,11 @@ from ._base import BaseLaw
 
 
 class CrossingLaw(BaseLaw):
-    """Event at the crossing of zero by a guard, when states take new values or the run ends.
+    """Event at the crossing of zero by a guard.
 
-    Solvers locate the crossing within their tolerance. Crossings leave the form of a system as is, so they combine with
-    rate laws, and the trajectory records every crossing with its time and the states before and after it.
+    At the event, states take new values or the run ends. Solvers locate the crossing within their tolerance. Crossings
+    leave the form of a system as is, so they combine with rate laws, and the trajectory records every crossing with its
+    time and the states before and after it.
 
     Args:
         guard:
@@ -48,6 +50,8 @@ class CrossingLaw(BaseLaw):
         {z: 1.6}
     """
 
+    law_tag: ClassVar[str] = 'update'
+
     def __init__(
         self,
         guard: object,
@@ -72,14 +76,22 @@ class CrossingLaw(BaseLaw):
         """Return what the law requires of a system: continuous time."""
         return RequirementSpec(time=(ContinuousTime,))
 
-    def _check(self) -> None:
-        """Raise an error for a direction that is not -1, 0, or 1."""
+    def _prepare(self, context: str | None = None) -> None:
+        """Raise an error for a direction that is not -1, 0, or 1.
+
+        Args:
+            context:
+                The path of the element or interaction that returns the law, or `None`.
+        """
+        super()._prepare(context)
         if self.direction not in {-1, 0, 1}:
             error_msg = f'The direction of a crossing is -1, 0, or 1, but got {self.direction!r}.'
             raise ValidationError(error_msg)
 
     def _run(self, inputs: object) -> None:
-        """Set `value_` to the new values of the states at given values of the symbols the reset reads.
+        """Set `value_` to the new values of the states at given symbol values.
+
+        The symbols are those the reset reads.
 
         Args:
             inputs:

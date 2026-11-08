@@ -2,8 +2,8 @@
 
 import numpy as np
 
-from skcomplex.core.analysis import RollingAnalysis
-from skcomplex.systems.physics.climate import EarlyWarningAnalysis
+from skcomplex.core.analysis import rolling
+from skcomplex.systems.physics.climate import early_warning
 
 
 def _approaching_fold(rng: np.random.Generator) -> np.ndarray:
@@ -15,22 +15,21 @@ def _approaching_fold(rng: np.random.Generator) -> np.ndarray:
 
 
 def test_early_warning_equals_the_rolling_analysis():
-    """Test that every indicator equals the detrended rolling analysis of its kind, the main one autocorrelation."""
+    """Test that every indicator equals the detrended rolling statistic of its kind, the main one autocorrelation."""
     series = _approaching_fold(np.random.default_rng(8))
-    warning = EarlyWarningAnalysis(window=300).prepare(series).run()
+    warning = early_warning(series, window=300)
     for kind in ('variance', 'autocorrelation', 'skewness'):
-        rolling = RollingAnalysis(kind, window=300, detrend=True).prepare(series).run()
-        np.testing.assert_array_equal(getattr(warning, f'{kind}_'), rolling.statistic_)
-        np.testing.assert_array_equal(getattr(warning, f'{kind}_trend_'), rolling.trend_)
-    np.testing.assert_array_equal(warning.statistic_, warning.autocorrelation_)
-    assert warning.kind == 'autocorrelation'
+        found = rolling(series, kind=kind, window=300, detrend=True)
+        np.testing.assert_array_equal(getattr(warning, kind), found.statistic)
+        np.testing.assert_array_equal(getattr(warning, f'{kind}_trend'), found.trend)
+    np.testing.assert_array_equal(warning.statistic, warning.autocorrelation)
 
 
 def test_early_warning_reddens_before_tipping():
     """Test that variance, autocorrelation, and reddening rise as the series slows down."""
-    warning = EarlyWarningAnalysis(window=300).prepare(_approaching_fold(np.random.default_rng(8))).run()
-    assert warning.variance_trend_[0] > 0.5
-    assert warning.autocorrelation_trend_[0] > 0.5
-    assert warning.reddening_trend_[0] > 0
-    assert warning.reddening_.shape == (1, 3000)
-    assert np.isnan(warning.reddening_[0, :299]).all()
+    warning = early_warning(_approaching_fold(np.random.default_rng(8)), window=300)
+    assert warning.variance_trend[0] > 0.5
+    assert warning.autocorrelation_trend[0] > 0.5
+    assert warning.reddening_trend[0] > 0
+    assert warning.reddening.shape == (1, 3000)
+    assert np.isnan(warning.reddening[0, :299]).all()

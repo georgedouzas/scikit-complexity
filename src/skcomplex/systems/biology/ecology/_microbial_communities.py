@@ -1,4 +1,4 @@
-"""Ecology systems: microbial communities of species that grow and interact in pairs."""
+"""Microbial communities of species that grow and interact in pairs."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,10 +12,9 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction, RateInteraction
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 COMMUNITY_GROWTH = (1.0, 0.8, 0.6)
 
@@ -23,7 +22,9 @@ COMMUNITY_INTERACTIONS = ((-1.0, -0.3, 0.2), (-0.2, -1.0, -0.3), (0.1, -0.2, -1.
 
 
 class MicrobeElement(Element):
-    """Species of a microbial community, with an abundance and an intrinsic growth rate.
+    """Species of a microbial community.
+
+    It has an abundance and an intrinsic growth rate.
 
     Args:
         label:
@@ -58,7 +59,9 @@ class MicrobeElement(Element):
 
 
 class GeneralizedLotkaVolterraInteraction(CouplingInteraction):
-    """Interactions of the species of a group, `dx_i/dt += x_i sum_j a_ij x_j`, through an interaction matrix `a`.
+    """Interactions of the species of a group, `dx_i/dt += x_i sum_j a_ij x_j`.
+
+    They act through an interaction matrix `a`.
 
     Every species `i` couples to every species `j` of the group, itself included, through the term `x_i x_j` weighted
     by the entry `a_ij` of the interaction matrix, a parameter with one row and one column per species, so a schedule or
@@ -109,34 +112,24 @@ class GeneralizedLotkaVolterraInteraction(CouplingInteraction):
         self.state = state
 
     def _product(self, namespace: SimpleNamespace) -> object:
-        """Return the product `x_i x_j` of the abundances of the species and the other species."""
+        """Return the product `x_i x_j` of the abundances of two species.
+
+        The species are the member `i` and the other species `j`.
+        """
         return getattr(namespace.member, self.state) * getattr(namespace.other, self.state)
 
 
-def _growth(namespace: SimpleNamespace) -> object:
-    """Return the intrinsic growth `b x` of a species."""
-    return namespace.target.b * namespace.target.x
+class GeneralizedLotkaVolterraSystem(BaseSystem):
+    """The generalized Lotka-Volterra system of a microbial community.
 
-
-@register_system(
-    field='biology/ecology',
-    tags=('microbial community', 'Lotka-Volterra', 'interaction matrix', 'ode'),
-    references=('Raman 2021', 'Stein et al. 2013'),
-    defaults={'until': 30.0, 'dt': 0.1},
-)
-def generalized_lotka_volterra(
-    x: Sequence[float] | None = None,
-    *,
-    b: Sequence[float] = COMMUNITY_GROWTH,
-    a: Sequence[Sequence[float]] = COMMUNITY_INTERACTIONS,
-) -> System:
-    """Return the generalized Lotka-Volterra system of a microbial community, `dx_i/dt = x_i (b_i + sum_j a_ij x_j)`.
+    It follows `dx_i/dt = x_i (b_i + sum_j a_ij x_j)`.
 
     Every species grows at its intrinsic rate `b_i` and its growth changes with the abundance of every species through
     the pairwise interaction `a_ij`. A feasible interior fixed point solves `b + a x = 0`. The book gives no parameter
     values. The default is a choice, a community of three self-limiting species with weak competition and one weak
     mutualism, whose fixed point `x = -a^-1 b` is positive and stable, so the species coexist. Abundances and time are
-    in arbitrary units.
+    in arbitrary units. The system has the abundances `species.x` of the members of the group `species`, the growth
+    `growth`, and the interactions `glv`, whose matrix is the parameter `glv.a`.
 
     Args:
         x:
@@ -148,36 +141,64 @@ def generalized_lotka_volterra(
         a:
             The interaction matrix, one row per species.
 
-    Returns:
-        system:
-            The system, with the abundances `species.x` of the members of the group `species`, the growth `growth`, and
-            the interactions `glv`, whose matrix is the parameter `glv.a`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValidationError:
             The growth rates, the matrix, and the abundances do not have one entry per species.
 
     Examples:
-        >>> from skcomplex.systems.biology.ecology import generalized_lotka_volterra
-        >>> generalized_lotka_volterra().elements[0].prepare().size_
+        >>> from skcomplex.systems.biology.ecology import GeneralizedLotkaVolterraSystem
+        >>> GeneralizedLotkaVolterraSystem().prepare().system_.elements[0].prepare().size_
         3
     """
-    size = len(b)
-    abundances = [0.1] * size if x is None else [float(value) for value in x]
-    if len(abundances) != size or len(a) != size or any(len(row) != size for row in a):
-        error_msg = f'The abundances and the interaction matrix must have one entry per species, {size} growth rates.'
-        raise ValidationError(error_msg)
-    species = GroupElement(
-        'species',
-        element=MicrobeElement,
-        size=size,
-        values={'x': abundances, 'b': [float(value) for value in b]},
-    )
-    matrix = tuple(tuple(float(value) for value in row) for row in a)
-    return System(
-        elements=[species],
-        interactions=[
-            RateInteraction('growth', target='species', rate=_growth),
-            GeneralizedLotkaVolterraInteraction('glv', target='species', a=matrix),
-        ],
-    )
+
+    field = 'biology/ecology'
+    topics = ('microbial community', 'Lotka-Volterra', 'interaction matrix', 'ode')
+    references = ('Raman 2021', 'Stein et al. 2013')
+    until = 30.0
+    dt = 0.1
+
+    def __init__(
+        self,
+        x: Sequence[float] | None = None,
+        *,
+        b: Sequence[float] = COMMUNITY_GROWTH,
+        a: Sequence[Sequence[float]] = COMMUNITY_INTERACTIONS,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.x = x
+        self.b = b
+        self.a = a
+
+    @staticmethod
+    def _growth(namespace: SimpleNamespace) -> object:
+        """Return the intrinsic growth `b x` of a species."""
+        return namespace.target.b * namespace.target.x
+
+    def _build_system(self) -> System:
+        """Return the parts of the generalized Lotka-Volterra microbial community."""
+        size = len(self.b)
+        abundances = [0.1] * size if self.x is None else [float(value) for value in self.x]
+        if len(abundances) != size or len(self.a) != size or any(len(row) != size for row in self.a):
+            error_msg = (
+                f'The abundances and the interaction matrix must have one entry per species, {size} growth rates.'
+            )
+            raise ValidationError(error_msg)
+        species = GroupElement(
+            'species',
+            element=MicrobeElement,
+            size=size,
+            values={'x': abundances, 'b': [float(value) for value in self.b]},
+        )
+        matrix = tuple(tuple(float(value) for value in row) for row in self.a)
+        return System(
+            self.label,
+            elements=[species],
+            interactions=[
+                RateInteraction('growth', target='species', rate=self._growth),
+                GeneralizedLotkaVolterraInteraction('glv', target='species', a=matrix),
+            ],
+        )

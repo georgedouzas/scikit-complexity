@@ -2,11 +2,11 @@
 
 import numpy as np
 
-from skcomplex.core.engine.compile import PassCompiler
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems import FrameSpec
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import PhaseRingVisual, RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.synchronization import NonlocalRingChimeraSystem
 
 
 class Logs:
@@ -26,9 +26,9 @@ class Logs:
 
 def test_phase_ring_visual_logs_wrapped_phases_against_index():
     """Test that every oscillator of a chimera ring is a point at its index and its phase in (-π, π], drawn upward."""
-    simulation = Simulation(create_system('nonlocal_ring_chimera', n_oscillators=20, R=3)).prepare().run(until=0.0)
-    problem = simulation.problem_
-    frame = FrameSpec(0, 0.0, simulation.state_, simulation.parameters_, problem)
+    trajectory = simulate(NonlocalRingChimeraSystem(n_oscillators=20, R=3).prepare().system_, until=0.0)
+    problem = trajectory.problem
+    frame = FrameSpec(0, 0.0, trajectory.states[-1], trajectory.parameters[-1], problem)
     logs = Logs()
     (PhaseRingVisual('theta', position='x', path=problem.elements[0].path, recording=logs).prepare(problem).run(frame))
     points = np.asarray(logs.of('ring/phases')[0].positions.as_arrow_array().to_pylist())
@@ -40,7 +40,7 @@ def test_phase_ring_visual_logs_wrapped_phases_against_index():
 
 def test_chimera_ring_shows_phases_first():
     """Test that the default blueprint of the nonlocal ring chimera shows the phases of the ring first."""
-    problem = PassCompiler().prepare(create_system('nonlocal_ring_chimera', n_oscillators=20, R=3)).run().problem_
+    problem = PassCompiler().prepare(NonlocalRingChimeraSystem(n_oscillators=20, R=3).prepare().system_).run().problem_
     blueprint = RerunObserver(blueprint='default').prepare(problem).blueprint_
     stack, views = [blueprint.root_container], []
     while stack:

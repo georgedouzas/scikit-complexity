@@ -17,21 +17,22 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction, Interaction, RateInteraction, RelaxationInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import logistic, mean
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.components.types import Target
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from ..common.excitable import ThetaNeuronElement
 
 
 class PolyhomeostaticNeuronElement(Element):
-    """Rate neuron that adapts its gain and threshold so that its firing rate becomes exponentially distributed.
+    """Rate neuron that adapts its gain and threshold.
+
+    The adaptation makes its firing rate exponentially distributed.
 
     The membrane potential `x` integrates the input `I0 + A sin(omega t)` with rate `Gamma`, and the neuron fires at
     rate `y = 1 / (1 + exp(a (b - x)))`. Stochastic gradient descent on the Kullback-Leibler divergence between the
     distribution of `y` and an exponential of mean `mu` gives `a' = eps_a (1/a + (x - b) d)` and `b' = -eps_b a d`
     with `d = 1 - (2 + 1/mu) y + y²/mu`. The element holds the states and parameters and has no laws of its own: the
-    relaxation and plasticity interactions of `polyhomeostatic_neuron` read its parameters.
+    relaxation and plasticity interactions of `PolyhomeostaticNeuronSystem` read its parameters.
 
     Args:
         label:
@@ -106,7 +107,9 @@ class PolyhomeostaticNeuronElement(Element):
 
 
 class RateUnitElement(Element):
-    """Neural unit of a competitive network, whose activity grows with its input and saturates, `tau x' = x (I - x)`.
+    """Neural unit of a competitive network, `tau x' = x (I - x)`.
+
+    Its activity grows with its input and saturates.
 
     Args:
         label:
@@ -129,6 +132,8 @@ class RateUnitElement(Element):
         >>> RateUnitElement('unit', I=1.2).I
         1.2
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
@@ -159,12 +164,14 @@ class RateUnitElement(Element):
 
 
 class WilsonCowanElement(Element):
-    """Excitatory and inhibitory populations of Wilson and Cowan, as fractions of active cells.
+    """Excitatory and inhibitory populations of Wilson and Cowan.
+
+    The populations are fractions of active cells.
 
     The excitatory activity follows `tau_e E' = -E + (k_e - r_e E) S_e(c1 E - c2 I + P)` and the inhibitory activity
     `tau_i I' = -I + (k_i - r_i I) S_i(c3 E - c4 I + Q)`, where `S(x) = 1 / (1 + exp(-a (x - theta))) - 1 / (1 +
     exp(a theta))` is a sigmoid shifted to vanish at zero input and `k` is its largest value. The element holds the
-    states and parameters and has no laws of its own: the relaxations of `wilson_cowan` read its parameters.
+    states and parameters and has no laws of its own: the relaxations of `WilsonCowanSystem` read its parameters.
 
     Args:
         label:
@@ -269,7 +276,9 @@ class WilsonCowanElement(Element):
 
 
 class MutualInhibitionInteraction(CouplingInteraction):
-    """Inhibition of every unit by the summed activity of all the other units, `-beta x_i sum_{j != i} x_j / tau_i`.
+    """Inhibition of every unit by the summed activity of all the other units.
+
+    The inhibition is `-beta x_i sum_{j != i} x_j / tau_i`.
 
     It is the coupling of the units to each other, as separate elements or as the members of a group, with the term
     `-beta x_i x_j / tau_i` of every other unit `j`.
@@ -309,7 +318,9 @@ class MutualInhibitionInteraction(CouplingInteraction):
 
 
 class PulseCouplingInteraction(Interaction):
-    """Global coupling of theta neurons through the mean of the smooth pulses that every neuron emits.
+    """Global coupling of theta neurons through the mean of their pulses.
+
+    Every neuron emits smooth pulses.
 
     Every neuron receives the current `(1 + cos theta) kappa I`, where `I = mean_j a_n (1 - cos theta_j)^n` is the mean
     pulse of all neurons at the current state. The pulse peaks when a neuron fires, and `a_n` gives it a unit mean over
@@ -333,6 +344,8 @@ class PulseCouplingInteraction(Interaction):
         >>> PulseCouplingInteraction('coupling', neurons='neurons', kappa=2.0).kappa
         2.0
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
@@ -364,75 +377,13 @@ class PulseCouplingInteraction(Interaction):
         return [RateLaw(theta, (1 + cos(theta)) * s.kappa * pulses)]
 
 
-def _lorentzian_quantiles(center: float, width: float, size: int) -> list[float]:
-    """Return evenly spaced quantiles of a Lorentzian distribution."""
-    levels = (np.arange(size) + 0.5) / size
-    return [float(value) for value in center + width * stats.cauchy.ppf(levels)]
+class WilsonCowanSystem(BaseSystem):
+    """The Wilson-Cowan system of interacting excitatory and inhibitory populations.
 
+    The populations are made of neurons.
 
-def _response(x: Expression, gain: Expression, threshold: Expression) -> Expression:
-    """Return the response `logistic(x) - logistic(0)` of a sigmoid of a gain and a threshold, 0 at no input."""
-    response: Expression = logistic(x, threshold, 1 / gain) - logistic(0, threshold, 1 / gain)
-    return response
-
-
-def _saturation(gain: Expression, threshold: Expression) -> Expression:
-    """Return the largest value of the response of a sigmoid of a gain and a threshold."""
-    saturation: Expression = 1 - logistic(0, threshold, 1 / gain)
-    return saturation
-
-
-def _excitation(s: SimpleNamespace) -> Expression:
-    """Return the response of the excitatory population of Wilson and Cowan to its input."""
-    c = s.target
-    excitation: Expression = (_saturation(c.a_e, c.theta_e) - c.r_e * c.E) * _response(
-        c.c1 * c.E - c.c2 * c.I + c.P,
-        c.a_e,
-        c.theta_e,
-    )
-    return excitation
-
-
-def _inhibition(s: SimpleNamespace) -> Expression:
-    """Return the response of the inhibitory population of Wilson and Cowan to its input."""
-    c = s.target
-    inhibition: Expression = (_saturation(c.a_i, c.theta_i) - c.r_i * c.I) * _response(
-        c.c3 * c.E - c.c4 * c.I + c.Q,
-        c.a_i,
-        c.theta_i,
-    )
-    return inhibition
-
-
-def _kl_gradient(s: SimpleNamespace) -> Expression:
-    """Return the factor `d = 1 - (2 + 1/mu) y + y²/mu` of the gradient of the polyhomeostatic neuron."""
-    neuron = s.target
-    rate = logistic(neuron.x, neuron.b, 1 / neuron.a)
-    gradient: Expression = 1 - (2 + 1 / neuron.mu) * rate + rate**2 / neuron.mu
-    return gradient
-
-
-@register_system(
-    field='biology/neuroscience',
-    tags=('neural mass', 'oscillations', 'excitation-inhibition'),
-    references=('Wilson and Cowan 1972', 'arXiv:2112.12147'),
-    defaults={'until': 100.0, 'dt': 0.2},
-)
-def wilson_cowan(
-    E: float = 0.1,
-    I: float = 0.05,
-    *,
-    P: float = 1.25,
-    Q: float = 0.0,
-    c1: float = 16.0,
-    c2: float = 12.0,
-    c3: float = 15.0,
-    c4: float = 3.0,
-) -> System:
-    """Return the Wilson-Cowan system of interacting excitatory and inhibitory populations of neurons.
-
-    With the published couplings, a moderate excitatory input `P = 1.25` gives a limit cycle of population activity,
-    and no input lets the activity decay to rest.
+    With the published couplings, a moderate excitatory input `P = 1.25` gives a limit cycle of population activity, and
+    no input lets the activity decay to rest. The system has the activities `cortex.E` and `cortex.I`.
 
     Args:
         E:
@@ -459,57 +410,121 @@ def wilson_cowan(
         c4:
             The inhibitory to inhibitory coupling.
 
-    Returns:
-        system:
-            The system, with the activities `cortex.E` and `cortex.I`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.neuroscience import wilson_cowan
-        >>> wilson_cowan(P=0.0).elements[0].P
+        >>> from skcomplex.systems.biology.neuroscience import WilsonCowanSystem
+        >>> WilsonCowanSystem(P=0.0).prepare().system_.elements[0].P
         0.0
     """
-    cortex = WilsonCowanElement('cortex', E=E, I=I, P=P, Q=Q, c1=c1, c2=c2, c3=c3, c4=c4)
-    relaxations = [
-        RelaxationInteraction(
-            'excitatory_relaxation',
-            target='cortex',
-            state='E',
-            goal=_excitation,
-            time=lambda s: s.target.tau_e,
-        ),
-        RelaxationInteraction(
-            'inhibitory_relaxation',
-            target='cortex',
-            state='I',
-            goal=_inhibition,
-            time=lambda s: s.target.tau_i,
-        ),
-    ]
-    return System(elements=[cortex], interactions=relaxations)
+
+    field = 'biology/neuroscience'
+    topics = ('neural mass', 'oscillations', 'excitation-inhibition')
+    references = ('Wilson and Cowan 1972', 'arXiv:2112.12147')
+    until = 100.0
+    dt = 0.2
+
+    def __init__(
+        self,
+        E: float = 0.1,
+        I: float = 0.05,
+        *,
+        P: float = 1.25,
+        Q: float = 0.0,
+        c1: float = 16.0,
+        c2: float = 12.0,
+        c3: float = 15.0,
+        c4: float = 3.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.E = E
+        self.I = I
+        self.P = P
+        self.Q = Q
+        self.c1 = c1
+        self.c2 = c2
+        self.c3 = c3
+        self.c4 = c4
+
+    @staticmethod
+    def _response(x: Expression, gain: Expression, threshold: Expression) -> Expression:
+        """Return the response `logistic(x) - logistic(0)` of a sigmoid.
+
+        The sigmoid has a gain and a threshold, and the response is 0 at no input.
+        """
+        response: Expression = logistic(x, threshold, 1 / gain) - logistic(0, threshold, 1 / gain)
+        return response
+
+    @staticmethod
+    def _saturation(gain: Expression, threshold: Expression) -> Expression:
+        """Return the largest value of the response of a sigmoid of a gain and a threshold."""
+        saturation: Expression = 1 - logistic(0, threshold, 1 / gain)
+        return saturation
+
+    def _excitation(self, s: SimpleNamespace) -> Expression:
+        """Return the response of the Wilson-Cowan excitatory population to its input."""
+        c = s.target
+        excitation: Expression = (self._saturation(c.a_e, c.theta_e) - c.r_e * c.E) * self._response(
+            c.c1 * c.E - c.c2 * c.I + c.P,
+            c.a_e,
+            c.theta_e,
+        )
+        return excitation
+
+    def _inhibition(self, s: SimpleNamespace) -> Expression:
+        """Return the response of the Wilson-Cowan inhibitory population to its input."""
+        c = s.target
+        inhibition: Expression = (self._saturation(c.a_i, c.theta_i) - c.r_i * c.I) * self._response(
+            c.c3 * c.E - c.c4 * c.I + c.Q,
+            c.a_i,
+            c.theta_i,
+        )
+        return inhibition
+
+    def _build_system(self) -> System:
+        """Return the parts of the system."""
+        cortex = WilsonCowanElement(
+            'cortex',
+            E=self.E,
+            I=self.I,
+            P=self.P,
+            Q=self.Q,
+            c1=self.c1,
+            c2=self.c2,
+            c3=self.c3,
+            c4=self.c4,
+        )
+        relaxations = [
+            RelaxationInteraction(
+                'excitatory_relaxation',
+                target='cortex',
+                state='E',
+                goal=self._excitation,
+                time=lambda s: s.target.tau_e,
+            ),
+            RelaxationInteraction(
+                'inhibitory_relaxation',
+                target='cortex',
+                state='I',
+                goal=self._inhibition,
+                time=lambda s: s.target.tau_i,
+            ),
+        ]
+        return System(self.label, elements=[cortex], interactions=relaxations)
 
 
-@register_system(
-    field='biology/neuroscience',
-    tags=('neuron', 'phase oscillators', 'mean field', 'network'),
-    references=('Ermentrout and Kopell 1986', 'Luke, Barreto, and So 2013', 'arXiv:1902.05307'),
-    defaults={'until': 20.0, 'dt': 0.1},
-)
-def theta_neurons(
-    n_neurons: int = 50,
-    *,
-    eta: float = -0.2,
-    delta: float = 0.1,
-    kappa: float = 1.5,
-    n: int = 2,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return a network of theta neurons, equivalently quadratic integrate-and-fire neurons, coupled all to all.
+class ThetaNeuronsSystem(BaseSystem):
+    """A network of theta neurons coupled all to all.
+
+    Theta neurons are equivalently quadratic integrate-and-fire neurons.
 
     Neuron `i` follows `theta_i' = (1 - cos theta_i) + (1 + cos theta_i)(eta_i + kappa I)`, where `I` is the mean pulse
     `a_n (1 - cos theta_j)^n` of all neurons at the current state. The excitabilities are evenly spaced quantiles of a
-    Lorentzian distribution of center `eta` and half-width `delta`, the distribution for which Ott and Antonsen's
-    ansatz reduces the network exactly to one complex equation. Strong excitatory coupling switches the network from a
-    quiet state to collective firing.
+    Lorentzian distribution of center `eta` and half-width `delta`, the distribution for which Ott and Antonsen's ansatz
+    reduces the network exactly to one complex equation. Strong excitatory coupling switches the network from a quiet
+    state to collective firing. The system has the phases `neurons.theta` as its only state.
 
     Args:
         n_neurons:
@@ -530,49 +545,76 @@ def theta_neurons(
         random_state:
             The seed or generator of the initial phases.
 
-    Returns:
-        system:
-            The system, with the phases `neurons.theta` as its only state.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.neuroscience import theta_neurons
-        >>> theta_neurons(20).elements[0].prepare().size_
+        >>> from skcomplex.systems.biology.neuroscience import ThetaNeuronsSystem
+        >>> ThetaNeuronsSystem(20).prepare().system_.elements[0].prepare().size_
         20
     """
-    phases = np.random.default_rng(random_state).uniform(0.0, 2 * math.pi, n_neurons)
-    neurons = GroupElement(
-        'neurons',
-        element=ThetaNeuronElement,
-        size=n_neurons,
-        values={'theta': phases, 'eta': np.asarray(_lorentzian_quantiles(eta, delta, n_neurons))},
-    )
-    return System(
-        elements=[neurons],
-        interactions=[PulseCouplingInteraction('coupling', neurons='neurons', kappa=kappa, n=n)],
-    )
+
+    field = 'biology/neuroscience'
+    topics = ('neuron', 'phase oscillators', 'mean field', 'network')
+    references = ('Ermentrout and Kopell 1986', 'Luke, Barreto, and So 2013', 'arXiv:1902.05307')
+    until = 20.0
+    dt = 0.1
+
+    def __init__(
+        self,
+        n_neurons: int = 50,
+        *,
+        eta: float = -0.2,
+        delta: float = 0.1,
+        kappa: float = 1.5,
+        n: int = 2,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_neurons = n_neurons
+        self.eta = eta
+        self.delta = delta
+        self.kappa = kappa
+        self.n = n
+        self.random_state = random_state
+
+    @staticmethod
+    def _lorentzian_quantiles(center: float, width: float, size: int) -> list[float]:
+        """Return evenly spaced quantiles of a Lorentzian distribution."""
+        levels = (np.arange(size) + 0.5) / size
+        return [float(value) for value in center + width * stats.cauchy.ppf(levels)]
+
+    def _build_system(self) -> System:
+        """Return the parts of a network of theta neurons."""
+        phases = np.random.default_rng(self.random_state).uniform(0.0, 2 * math.pi, self.n_neurons)
+        neurons = GroupElement(
+            'neurons',
+            element=ThetaNeuronElement,
+            size=self.n_neurons,
+            values={
+                'theta': phases,
+                'eta': np.asarray(self._lorentzian_quantiles(self.eta, self.delta, self.n_neurons)),
+            },
+        )
+        return System(
+            self.label,
+            elements=[neurons],
+            interactions=[PulseCouplingInteraction('coupling', neurons='neurons', kappa=self.kappa, n=self.n)],
+        )
 
 
-@register_system(
-    field='biology/neuroscience',
-    tags=('neural network', 'competition', 'winner-take-all'),
-    references=('Fukai and Tanaka 1997',),
-    defaults={'until': 40.0, 'dt': 0.2},
-)
-def winners_take_all(
-    inputs: Sequence[float] = (1.0, 1.1, 0.9, 1.05, 0.95),
-    *,
-    beta: float = 2.0,
-    tau: float = 1.0,
-    x: float = 0.1,
-) -> System:
-    """Return a winner-take-all network of units with self-limited growth and mutual inhibition.
+class WinnersTakeAllSystem(BaseSystem):
+    """A winner-take-all network of units.
 
-    Unit `i` follows `tau x_i' = x_i (I_i - x_i - beta sum_{j != i} x_j)`, the competitive network of Fukai and
-    Tanaka. One inhibition interaction binds every unit as an element set and reads the total activity of the set, so
-    the network holds one interaction whatever the number of units. When the inhibition `beta` exceeds 1, only the unit
-    with the largest input stays active, at activity `I_max`. When it is below 1, several winners share the activity.
-    The winners-take-all network of Gros (2015, section 10.4), with reservoir variables and clique encoding, is a
-    different model.
+    The units have self-limited growth and mutual inhibition.
+
+    Unit `i` follows `tau x_i' = x_i (I_i - x_i - beta sum_{j != i} x_j)`, the competitive network of Fukai and Tanaka.
+    One inhibition interaction binds every unit as an element set and reads the total activity of the set, so the
+    network holds one interaction whatever the number of units. When the inhibition `beta` exceeds 1, only the unit with
+    the largest input stays active, at activity `I_max`. When it is below 1, several winners share the activity. The
+    winners-take-all network of Gros (2015, section 10.4), with reservoir variables and clique encoding, is a different
+    model. The system has the activities `unit_<i>.x`.
 
     Args:
         inputs:
@@ -587,40 +629,57 @@ def winners_take_all(
         x:
             The initial activity of every unit.
 
-    Returns:
-        system:
-            The system, with the activities `unit_<i>.x`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.neuroscience import winners_take_all
-        >>> len(winners_take_all((1.0, 2.0, 3.0)).interactions)
+        >>> from skcomplex.systems.biology.neuroscience import WinnersTakeAllSystem
+        >>> len(WinnersTakeAllSystem((1.0, 2.0, 3.0)).prepare().system_.interactions)
         1
     """
-    units = [RateUnitElement(f'unit_{index}', x=x, I=value, tau=tau) for index, value in enumerate(inputs)]
-    inhibition = MutualInhibitionInteraction('inhibition', units=[unit.label for unit in units], beta=beta)
-    return System(elements=units, interactions=[inhibition])
+
+    field = 'biology/neuroscience'
+    topics = ('neural network', 'competition', 'winner-take-all')
+    references = ('Fukai and Tanaka 1997',)
+    until = 40.0
+    dt = 0.2
+
+    def __init__(
+        self,
+        inputs: Sequence[float] = (1.0, 1.1, 0.9, 1.05, 0.95),
+        *,
+        beta: float = 2.0,
+        tau: float = 1.0,
+        x: float = 0.1,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.inputs = inputs
+        self.beta = beta
+        self.tau = tau
+        self.x = x
+
+    def _build_system(self) -> System:
+        """Return the parts of a winner-take-all network of units.
+
+        The units have self-limited growth and mutual inhibition.
+        """
+        units = [
+            RateUnitElement(f'unit_{index}', x=self.x, I=value, tau=self.tau) for index, value in enumerate(self.inputs)
+        ]
+        inhibition = MutualInhibitionInteraction('inhibition', units=[unit.label for unit in units], beta=self.beta)
+        return System(self.label, elements=units, interactions=[inhibition])
 
 
-@register_system(
-    field='biology/neuroscience',
-    tags=('neuron', 'homeostasis', 'adaptation', 'information'),
-    references=('Triesch 2005', 'Markovic and Gros 2010', 'Gros 2015'),
-    defaults={'until': 400.0, 'dt': 1.0},
-)
-def polyhomeostatic_neuron(
-    *,
-    mu: float = 0.2,
-    eps_a: float = 0.05,
-    eps_b: float = 0.05,
-    I0: float = 0.0,
-    A: float = 1.0,
-    omega: float = 1.0,
-) -> System:
-    """Return a neuron that adapts its gain and threshold so its firing rate approaches an exponential distribution.
+class PolyhomeostaticNeuronSystem(BaseSystem):
+    """A neuron that adapts its gain and threshold.
+
+    The adaptation makes its firing rate approach an exponential distribution.
 
     Polyhomeostatic optimization targets the whole distribution of the firing rate, the one of maximal entropy for a
     given mean `mu`, rather than its mean alone. The neuron is driven by a periodic input, and the time average of its
-    rate approaches `mu` as gain and threshold adapt.
+    rate approaches `mu` as gain and threshold adapt. The system has the potential `neuron.x`, the gain `neuron.a`, and
+    the threshold `neuron.b`.
 
     Args:
         mu:
@@ -641,35 +700,81 @@ def polyhomeostatic_neuron(
         omega:
             The angular frequency of the periodic input.
 
-    Returns:
-        system:
-            The system, with the potential `neuron.x`, the gain `neuron.a`, and the threshold `neuron.b`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.neuroscience import polyhomeostatic_neuron
-        >>> polyhomeostatic_neuron(mu=0.1).elements[0].mu
+        >>> from skcomplex.systems.biology.neuroscience import PolyhomeostaticNeuronSystem
+        >>> PolyhomeostaticNeuronSystem(mu=0.1).prepare().system_.elements[0].mu
         0.1
     """
-    neuron = PolyhomeostaticNeuronElement('neuron', mu=mu, eps_a=eps_a, eps_b=eps_b, I0=I0, A=A, omega=omega)
-    interactions = [
-        RelaxationInteraction(
-            'membrane',
-            target='neuron',
-            state='x',
-            goal=lambda s: s.target.I0 + s.target.A * sin(s.target.omega * s.t),
-            time=lambda s: 1 / s.target.Gamma,
-        ),
-        RateInteraction(
-            'gain_plasticity',
-            target='neuron',
-            state='a',
-            rate=lambda s: s.target.eps_a * (1 / s.target.a + (s.target.x - s.target.b) * _kl_gradient(s)),
-        ),
-        RateInteraction(
-            'threshold_plasticity',
-            target='neuron',
-            state='b',
-            rate=lambda s: -s.target.eps_b * s.target.a * _kl_gradient(s),
-        ),
-    ]
-    return System(elements=[neuron], interactions=interactions)
+
+    field = 'biology/neuroscience'
+    topics = ('neuron', 'homeostasis', 'adaptation', 'information')
+    references = ('Triesch 2005', 'Markovic and Gros 2010', 'Gros 2015')
+    until = 400.0
+    dt = 1.0
+
+    def __init__(
+        self,
+        *,
+        mu: float = 0.2,
+        eps_a: float = 0.05,
+        eps_b: float = 0.05,
+        I0: float = 0.0,
+        A: float = 1.0,
+        omega: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.mu = mu
+        self.eps_a = eps_a
+        self.eps_b = eps_b
+        self.I0 = I0
+        self.A = A
+        self.omega = omega
+
+    @staticmethod
+    def _kl_gradient(s: SimpleNamespace) -> Expression:
+        """Return the factor `d = 1 - (2 + 1/mu) y + y²/mu` of the gradient.
+
+        The gradient is the one of the polyhomeostatic neuron.
+        """
+        neuron = s.target
+        rate = logistic(neuron.x, neuron.b, 1 / neuron.a)
+        gradient: Expression = 1 - (2 + 1 / neuron.mu) * rate + rate**2 / neuron.mu
+        return gradient
+
+    def _build_system(self) -> System:
+        """Return the parts of a neuron."""
+        neuron = PolyhomeostaticNeuronElement(
+            'neuron',
+            mu=self.mu,
+            eps_a=self.eps_a,
+            eps_b=self.eps_b,
+            I0=self.I0,
+            A=self.A,
+            omega=self.omega,
+        )
+        interactions = [
+            RelaxationInteraction(
+                'membrane',
+                target='neuron',
+                state='x',
+                goal=lambda s: s.target.I0 + s.target.A * sin(s.target.omega * s.t),
+                time=lambda s: 1 / s.target.Gamma,
+            ),
+            RateInteraction(
+                'gain_plasticity',
+                target='neuron',
+                state='a',
+                rate=lambda s: s.target.eps_a * (1 / s.target.a + (s.target.x - s.target.b) * self._kl_gradient(s)),
+            ),
+            RateInteraction(
+                'threshold_plasticity',
+                target='neuron',
+                state='b',
+                rate=lambda s: -s.target.eps_b * s.target.a * self._kl_gradient(s),
+            ),
+        ]
+        return System(self.label, elements=[neuron], interactions=interactions)

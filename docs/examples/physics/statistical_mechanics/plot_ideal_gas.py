@@ -14,10 +14,10 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.analysis import DistributionAnalysis
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.analysis import distribution
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.statistical_mechanics import IdealGasSystem
 
 SYSTEM = 'ideal_gas'
 
@@ -34,9 +34,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM, n_molecules=800, random_state=0)
+system = IdealGasSystem(n_molecules=800, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-simulation = Simulation(system, dt=0.01, observers=[observer]).prepare().run(until=2.0)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # Speeds against the Maxwell-Boltzmann distribution
@@ -46,11 +46,11 @@ simulation = Simulation(system, dt=0.01, observers=[observer]).prepare().run(unt
 # `f(v) = (m v / kT) exp(-m v^2 / (2 kT))` at that temperature. Walls reverse velocity components without changing
 # speeds, so the agreement holds at every frame.
 
-velocities = simulation.trajectory_.values('gas.x_d1')[-1]
+velocities = trajectory.values('gas.x_d1')[-1]
 speeds = np.linalg.norm(velocities, axis=1)
 kt = float(np.mean(np.sum(velocities**2, axis=1))) / 2
-histogram = DistributionAnalysis('histogram', bins=25).prepare(speeds).run()
-edges, density = histogram.edges_, histogram.density_
+histogram = distribution(speeds, kind='histogram', bins=25)
+edges, density = histogram.edges, histogram.density
 grid = np.linspace(0.0, speeds.max(), 200)
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.stairs(density, edges, fill=True, alpha=0.5, label='simulated speeds')

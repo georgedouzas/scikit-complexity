@@ -2,18 +2,18 @@
 
 from ._reaction_diffusion import (
     BrusselatorElement,
+    BrusselatorSystem,
     GrayScottElement,
+    GrayScottSystem,
     SchnakenbergElement,
-    brusselator,
-    gray_scott,
-    schnakenberg,
+    SchnakenbergSystem,
 )
 
 __all__: list[str] = [
     'BrusselatorElement',
+    'BrusselatorSystem',
     'GrayScottElement',
+    'GrayScottSystem',
     'SchnakenbergElement',
-    'brusselator',
-    'gray_scott',
-    'schnakenberg',
+    'SchnakenbergSystem',
 ]

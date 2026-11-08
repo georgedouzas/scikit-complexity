@@ -9,7 +9,7 @@ thin spiral filaments.
 """
 
 # %%
-# The system is created by name from the catalog with viscosity `nu = 0.001` and a random start built from the Fourier
+# The system is built from its class with viscosity `nu = 0.001` and a random start built from the Fourier
 # modes below 6. The catalog registers the fourth-order exponential time differencing stepper for this spectral system,
 # so it is passed explicitly with steps of 0.05. The observer saves every frame of 0.2 with the default blueprint,
 # whose primary view is the image of the vorticity.
@@ -17,16 +17,15 @@ thin spiral filaments.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.core.engine.solvers import ETDRK4Solver
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.fluids import DecayingTurbulenceSystem
 
 SYSTEM = 'decaying_turbulence'
 
-system = create_system(SYSTEM, shape=(128, 128), random_state=0)
+system = DecayingTurbulenceSystem(shape=(128, 128), random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, solver=ETDRK4Solver(dt=0.05), dt=0.2, observers=[observer]).prepare().run(until=40)
+trajectory = simulate(system, until=40, dt=0.2, observers=[observer])
 
 # %%
 # Energy survives, enstrophy decays
@@ -36,14 +35,14 @@ simulation = Simulation(system, solver=ETDRK4Solver(dt=0.05), dt=0.2, observers=
 # of the small scales, and the enstrophy cascade feeds `P`. The enstrophy should therefore fall much faster than the
 # energy: by about an order of magnitude over the run, while the energy loses only a fraction.
 
-vorticity = simulation.trajectory_.values('flow.omega').reshape(-1, 128, 128)
+vorticity = trajectory.values('flow.omega').reshape(-1, 128, 128)
 spectrum = np.abs(np.fft.fft2(vorticity)) ** 2
 wavenumbers = np.fft.fftfreq(128, d=1 / 128)
 squared = wavenumbers[:, None] ** 2 + wavenumbers[None, :] ** 2
 squared[0, 0] = np.inf
 energy = (spectrum / squared).sum(axis=(1, 2))
 enstrophy = spectrum.sum(axis=(1, 2))
-times = simulation.trajectory_.times
+times = trajectory.times
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(times, energy / energy[0], label='energy E / E(0)')
 ax.plot(times, enstrophy / enstrophy[0], label='enstrophy Z / Z(0)')

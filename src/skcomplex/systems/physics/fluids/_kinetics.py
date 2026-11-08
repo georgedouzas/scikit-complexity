@@ -1,4 +1,7 @@
-"""Kinetic and wave transport systems: wave-number conservation with breaking, and discrete-velocity gases."""
+"""Kinetic and wave transport systems.
+
+The module covers wave-number conservation with breaking, and discrete-velocity gases.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,14 +17,15 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import ConservationInteraction
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import SSPRKSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class CarlemanGasElement(Element):
-    """Site of the Carleman discrete-velocity gas, densities `f_plus` and `f_minus` moving at the speeds `c` and `-c`.
+    """Site of the Carleman discrete-velocity gas.
+
+    The densities `f_plus` and `f_minus` move at the speeds `c` and `-c`.
 
     Collisions turn two particles of one velocity into two of the other at the rate `kappa`, so
     `df_plus/dt + c df_plus/dx = kappa (f_minus^2 - f_plus^2)` and the opposite for `f_minus`, which conserves the
@@ -70,7 +74,9 @@ class CarlemanGasElement(Element):
 
 
 class WaveNumberElement(Element):
-    """Local wave number of deep-water waves, conserved as `dk/dt + d omega(k)/dx = 0` with `omega = sqrt(g k)`.
+    """Local wave number of deep-water waves.
+
+    The wave number is conserved as `dk/dt + d omega(k)/dx = 0` with `omega = sqrt(g k)`.
 
     The wave number travels at the group speed `C(k) = sqrt(g / k) / 2`, which falls as the waves shorten, so long
     waves catch up with short ones and the wave number steepens until it breaks.
@@ -107,23 +113,14 @@ class WaveNumberElement(Element):
         self.g = g
 
 
-def _get_collisions(s: SimpleNamespace) -> Expression:
-    """Return the net rate `kappa (f_minus^2 - f_plus^2)` at which collisions turn left movers into right movers."""
-    return s.target.kappa * (s.target.f_minus**2 - s.target.f_plus**2)
+class WaveBreakingSystem(BaseSystem):
+    """The kinematic wave equation of deep-water wave trains.
 
-
-@register_system(
-    field='physics/fluids',
-    tags=('field', 'waves', 'breaking', 'conservation law', 'finite volume', 'pde'),
-    references=('Whitham 1974', 'Forrest 2018'),
-    defaults={'until': 20.0, 'dt': 0.5, 'solver': SSPRKSolver()},
-)
-def wave_breaking(n: int = 200, *, k0: float = 1.0, amplitude: float = 0.5, g: float = 1.0) -> System:
-    """Return the kinematic wave equation of deep-water wave trains on a periodic interval of length 2 pi.
+    The interval is periodic of length 2 pi.
 
     The wave number starts as `k0 (1 + amplitude sin x)` and steepens into a jump, a break of the wavelength, at the
-    time `1 / max(-C'(k0(x)) k0'(x))` of the first crossing of characteristics. Finite volumes conserve the total
-    number of waves.
+    time `1 / max(-C'(k0(x)) k0'(x))` of the first crossing of characteristics. Finite volumes conserve the total number
+    of waves. The system has the wave number `train.k`.
 
     Args:
         n:
@@ -138,52 +135,76 @@ def wave_breaking(n: int = 200, *, k0: float = 1.0, amplitude: float = 0.5, g: f
         g:
             The gravitational acceleration.
 
-    Returns:
-        system:
-            The system, with the wave number `train.k`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.fluids import wave_breaking
-        >>> wave_breaking(16).elements[0].prepare().size_
+        >>> from skcomplex.systems.physics.fluids import WaveBreakingSystem
+        >>> WaveBreakingSystem(16).prepare().system_.elements[0].prepare().size_
         16
     """
-    spacing = 2 * math.pi / n
-    centers = (np.arange(n) + 0.5) * spacing
-    values = {'k': k0 * (1 + amplitude * np.sin(centers)), 'g': g}
-    space = LatticeSpace(n, spacing=spacing)
-    return System(
-        elements=[
-            FieldElement(
-                'train',
-                element=WaveNumberElement,
-                space=space,
-                values=values,
-                discretization='finite-volume',
-            ),
-        ],
-        interactions=[
-            ConservationInteraction('action', target='train', state='k', flux=lambda s: sqrt(s.target.g * s.target.k)),
-        ],
-    )
+
+    field = 'physics/fluids'
+    topics = ('field', 'waves', 'breaking', 'conservation law', 'finite volume', 'pde')
+    references = ('Whitham 1974', 'Forrest 2018')
+    until = 20.0
+    dt = 0.5
+    solver = SSPRKSolver()
+
+    def __init__(
+        self,
+        n: int = 200,
+        *,
+        k0: float = 1.0,
+        amplitude: float = 0.5,
+        g: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n = n
+        self.k0 = k0
+        self.amplitude = amplitude
+        self.g = g
+
+    def _build_system(self) -> System:
+        """Return the kinematic wave equation of deep-water wave trains.
+
+        The interval is periodic of length 2 pi.
+        """
+        spacing = 2 * math.pi / self.n
+        centers = (np.arange(self.n) + 0.5) * spacing
+        values = {'k': self.k0 * (1 + self.amplitude * np.sin(centers)), 'g': self.g}
+        space = LatticeSpace(self.n, spacing=spacing)
+        return System(
+            self.label,
+            elements=[
+                FieldElement(
+                    'train',
+                    element=WaveNumberElement,
+                    space=space,
+                    values=values,
+                    discretization='finite-volume',
+                ),
+            ],
+            interactions=[
+                ConservationInteraction(
+                    'action',
+                    target='train',
+                    state='k',
+                    flux=lambda s: sqrt(s.target.g * s.target.k),
+                ),
+            ],
+        )
 
 
-@register_system(
-    field='physics/fluids',
-    tags=('field', 'kinetic theory', 'discrete velocities', 'finite volume', 'pde'),
-    references=('Carleman 1957', 'Gatignol 1975', 'Bellomo et al. 2017'),
-    defaults={'until': 5.0, 'dt': 0.1, 'solver': SSPRKSolver()},
-)
-def discrete_velocity_boltzmann(
-    n: int = 200,
-    *,
-    c: float = 1.0,
-    kappa: float = 1.0,
-    length: float = 10.0,
-) -> System:
-    """Return the Carleman discrete-velocity Boltzmann equation on a periodic line, from a pulse of right movers.
+class DiscreteVelocityBoltzmannSystem(BaseSystem):
+    """The Carleman discrete-velocity Boltzmann equation on a periodic line.
 
-    A pulse of right-moving particles on a uniform background splits into two moving pulses while collisions relax
-    every site towards equal densities, and the total mass stays constant.
+    The gas starts from a pulse of right movers.
+
+    A pulse of right-moving particles on a uniform background splits into two moving pulses while collisions relax every
+    site towards equal densities, and the total mass stays constant. The system has the densities `gas.f_plus` and
+    `gas.f_minus`.
 
     Args:
         n:
@@ -198,38 +219,80 @@ def discrete_velocity_boltzmann(
         length:
             The length of the line.
 
-    Returns:
-        system:
-            The system, with the densities `gas.f_plus` and `gas.f_minus`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.fluids import discrete_velocity_boltzmann
-        >>> discrete_velocity_boltzmann(16).elements[0].prepare().size_
+        >>> from skcomplex.systems.physics.fluids import DiscreteVelocityBoltzmannSystem
+        >>> DiscreteVelocityBoltzmannSystem(16).prepare().system_.elements[0].prepare().size_
         16
     """
-    spacing = length / n
-    centers = (np.arange(n) + 0.5) * spacing
-    pulse = np.exp(-((centers - length / 2) ** 2))
-    values = {'f_plus': 0.5 + pulse, 'f_minus': np.full(n, 0.5), 'c': c, 'kappa': kappa}
-    space = LatticeSpace(n, spacing=spacing)
-    return System(
-        elements=[
-            FieldElement('gas', element=CarlemanGasElement, space=space, values=values, discretization='finite-volume'),
-        ],
-        interactions=[
-            ConservationInteraction(
-                'right_movers',
-                target='gas',
-                state='f_plus',
-                flux=lambda s: s.target.c * s.target.f_plus,
-                source=_get_collisions,
-            ),
-            ConservationInteraction(
-                'left_movers',
-                target='gas',
-                state='f_minus',
-                flux=lambda s: -s.target.c * s.target.f_minus,
-                source=lambda s: -_get_collisions(s),
-            ),
-        ],
-    )
+
+    field = 'physics/fluids'
+    topics = ('field', 'kinetic theory', 'discrete velocities', 'finite volume', 'pde')
+    references = ('Carleman 1957', 'Gatignol 1975', 'Bellomo et al. 2017')
+    until = 5.0
+    dt = 0.1
+    solver = SSPRKSolver()
+
+    def __init__(
+        self,
+        n: int = 200,
+        *,
+        c: float = 1.0,
+        kappa: float = 1.0,
+        length: float = 10.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n = n
+        self.c = c
+        self.kappa = kappa
+        self.length = length
+
+    @staticmethod
+    def _get_collisions(s: SimpleNamespace) -> Expression:
+        """Return the net rate at which collisions turn left movers into right movers.
+
+        The rate is `kappa (f_minus^2 - f_plus^2)`.
+        """
+        return s.target.kappa * (s.target.f_minus**2 - s.target.f_plus**2)
+
+    def _build_system(self) -> System:
+        """Return the Carleman discrete-velocity Boltzmann equation on a periodic line.
+
+        The gas starts from a pulse of right movers.
+        """
+        spacing = self.length / self.n
+        centers = (np.arange(self.n) + 0.5) * spacing
+        pulse = np.exp(-((centers - self.length / 2) ** 2))
+        values = {'f_plus': 0.5 + pulse, 'f_minus': np.full(self.n, 0.5), 'c': self.c, 'kappa': self.kappa}
+        space = LatticeSpace(self.n, spacing=spacing)
+        return System(
+            self.label,
+            elements=[
+                FieldElement(
+                    'gas',
+                    element=CarlemanGasElement,
+                    space=space,
+                    values=values,
+                    discretization='finite-volume',
+                ),
+            ],
+            interactions=[
+                ConservationInteraction(
+                    'right_movers',
+                    target='gas',
+                    state='f_plus',
+                    flux=lambda s: s.target.c * s.target.f_plus,
+                    source=self._get_collisions,
+                ),
+                ConservationInteraction(
+                    'left_movers',
+                    target='gas',
+                    state='f_minus',
+                    flux=lambda s: -s.target.c * s.target.f_minus,
+                    source=lambda s: -self._get_collisions(s),
+                ),
+            ],
+        )

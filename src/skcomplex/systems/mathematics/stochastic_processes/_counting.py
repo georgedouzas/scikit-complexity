@@ -1,4 +1,4 @@
-"""Stochastic process systems: counting processes."""
+"""Stochastic process systems of counting processes."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,14 +11,15 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import JumpInteraction, MapInteraction
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class PoissonCounterElement(Element):
-    """Counter of the events of a Poisson process, with the rate of events it is counted at.
+    """Counter of the events of a Poisson process.
+
+    The counter has the rate of events it is counted at.
 
     Args:
         label:
@@ -61,7 +62,9 @@ class BernoulliTrialView(AgentView):
 
 
 class BernoulliTrialElement(Element):
-    """Sequence of independent trials, each a success with the same probability, and the count of its successes.
+    """Sequence of independent trials and the count of its successes.
+
+    Each trial is a success with the same probability.
 
     Args:
         label:
@@ -103,18 +106,19 @@ class BernoulliTrialElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[BernoulliTrialView]:
-        """Return the view of the agents, which types their states and parameters."""
+        """Return the view of the agents.
+
+        The view types their states and parameters.
+        """
         return BernoulliTrialView
 
 
-@register_system(
-    field='mathematics/stochastic_processes',
-    tags=('counting process', 'agents', 'independent trials'),
-    references=('Thurner et al. 2018',),
-    defaults={'until': 100},
-)
-def bernoulli_process(n_sequences: int = 20, *, p: float = 0.5) -> System:
-    """Return independent Bernoulli processes, one success or failure per step, whose success counts are binomial.
+class BernoulliProcessSystem(BaseSystem):
+    """Independent Bernoulli processes, one success or failure per step.
+
+    Their success counts are binomial.
+
+    The system has the group `trials` of states `outcome` and `successes`.
 
     Args:
         n_sequences:
@@ -123,44 +127,65 @@ def bernoulli_process(n_sequences: int = 20, *, p: float = 0.5) -> System:
         p:
             The probability of a success.
 
-    Returns:
-        system:
-            The system, with the group `trials` of states `outcome` and `successes`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.stochastic_processes import bernoulli_process
-        >>> bernoulli_process(3).elements[0].prepare().size_
+        >>> from skcomplex.systems.mathematics.stochastic_processes import BernoulliProcessSystem
+        >>> BernoulliProcessSystem(3).prepare().system_.elements[0].prepare().size_
         3
     """
-    trial = MapInteraction(
-        'trial',
-        target='trials',
-        state='outcome',
-        function=lambda agent, system: float(system.rng.random() < agent.p),
-        form='agent',
-    )
-    count = MapInteraction(
-        'count',
-        target='trials',
-        state='successes',
-        function=lambda agent, system: agent.outcome,
-        mode='increment',
-        form='agent',
-    )
-    return System(
-        elements=[GroupElement('trials', element=BernoulliTrialElement, size=n_sequences, values={'p': p})],
-        interactions=[trial, count],
-    )
+
+    draws = True
+
+    field = 'mathematics/stochastic_processes'
+    topics = ('counting process', 'agents', 'independent trials')
+    references = ('Thurner et al. 2018',)
+    until = 100
+
+    def __init__(
+        self,
+        n_sequences: int = 20,
+        *,
+        p: float = 0.5,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_sequences = n_sequences
+        self.p = p
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        trial = MapInteraction(
+            'trial',
+            target='trials',
+            state='outcome',
+            function=lambda agent, system: float(system.rng.random() < agent.p),
+            form='agent',
+        )
+        count = MapInteraction(
+            'count',
+            target='trials',
+            state='successes',
+            function=lambda agent, system: agent.outcome,
+            mode='increment',
+            form='agent',
+        )
+        return System(
+            self.label,
+            elements=[
+                GroupElement('trials', element=BernoulliTrialElement, size=self.n_sequences, values={'p': self.p}),
+            ],
+            interactions=[trial, count],
+        )
 
 
-@register_system(
-    field='mathematics/stochastic_processes',
-    tags=('counting process', 'jump process', 'waiting times'),
-    references=('Thurner et al. 2018',),
-    defaults={'until': 50.0, 'dt': 1.0},
-)
-def poisson_process(n_processes: int = 20, *, rate: float = 1.0) -> System:
-    """Return independent Poisson processes, counters that grow by one at exponentially distributed waiting times.
+class PoissonProcessSystem(BaseSystem):
+    """Independent Poisson processes.
+
+    The counters grow by one at exponentially distributed waiting times.
+
+    The system has the counts `counters.count`.
 
     Args:
         n_processes:
@@ -169,15 +194,39 @@ def poisson_process(n_processes: int = 20, *, rate: float = 1.0) -> System:
         rate:
             The rate of events of a counter.
 
-    Returns:
-        system:
-            The system, with the counts `counters.count`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.stochastic_processes import poisson_process
-        >>> poisson_process(5).elements[0].prepare().size_
+        >>> from skcomplex.systems.mathematics.stochastic_processes import PoissonProcessSystem
+        >>> PoissonProcessSystem(5).prepare().system_.elements[0].prepare().size_
         5
     """
-    counters = GroupElement('counters', element=PoissonCounterElement, size=n_processes, values={'rate': rate})
-    events = JumpInteraction('events', target='counters', changes={'count': 1}, rate=lambda s: s.target.rate)
-    return System(elements=[counters], interactions=[events])
+
+    field = 'mathematics/stochastic_processes'
+    topics = ('counting process', 'jump process', 'waiting times')
+    references = ('Thurner et al. 2018',)
+    until = 50.0
+    dt = 1.0
+
+    def __init__(
+        self,
+        n_processes: int = 20,
+        *,
+        rate: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_processes = n_processes
+        self.rate = rate
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        counters = GroupElement(
+            'counters',
+            element=PoissonCounterElement,
+            size=self.n_processes,
+            values={'rate': self.rate},
+        )
+        events = JumpInteraction('events', target='counters', changes={'count': 1}, rate=lambda s: s.target.rate)
+        return System(self.label, elements=[counters], interactions=[events])

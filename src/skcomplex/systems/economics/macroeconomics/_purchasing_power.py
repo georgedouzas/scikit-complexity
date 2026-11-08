@@ -1,4 +1,7 @@
-"""Macroeconomics systems: the categorized purchasing power of money under sector policies, decoupled by feedback."""
+"""Macroeconomics systems: the categorized purchasing power of money.
+
+It runs under sector policies, decoupled by feedback.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,9 +16,8 @@ from sage.all__sagemath_symbolics import Expression
 from ....core.components.elements import DeclaredElement
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import step
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, RunSettings, System
 from ....core.specs import DeclaredVariableSpec, ObservableSpec, ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 SECTORS = 3
 
@@ -33,15 +35,16 @@ D_MATRIX = ((1.0, 0.2, 0.0), (0.0, 1.0, 0.2), (0.1, 0.0, 1.0))
 
 
 class PurchasingPowerElement(DeclaredElement):
-    """National economy of three spending sectors, `z' = A z + B u` and `y = C z + D u`, with sector policies.
+    """National economy of three spending sectors, with sector policies.
 
-    The state `z_i` is the gap between the demand and the supply of money of sector `i`, the basic, the desired, and
-    the luxurious living conditions, the output `y_i` is the index of the sector, and the policy `x_i` of a sector is a
-    step of size `policy_i` at the time `policy_time_i`. Without feedback the economy takes the policies as its inputs,
-    `u = x`. With feedback, the market reactions of Forrest's feedback component set `u` so that every sector responds
-    to its own policy only, as the decoupled systems `w_i' = A w_i + B_i x_i` and `y_i = C_i w_i + D_i x_i`, whose
-    states `w_ik` the element holds. The feedback component holds a copy of `z` that equals `z` from the common zero
-    start, so `u = D^-1 (y - C z)` with the decoupled outputs `y`.
+    It follows `z' = A z + B u` and `y = C z + D u`. The state `z_i` is the gap between the demand and the supply of
+    money of sector `i`, the basic, the desired, and the luxurious living conditions, the output `y_i` is the index of
+    the sector, and the policy `x_i` of a sector is a step of size `policy_i` at the time `policy_time_i`. Without
+    feedback the economy takes the policies as its inputs, `u = x`. With feedback, the market reactions of Forrest's
+    feedback component set `u` so that every sector responds to its own policy only, as the decoupled systems
+    `w_i' = A w_i + B_i x_i` and `y_i = C_i w_i + D_i x_i`, whose states `w_ik` the element holds. The feedback
+    component holds a copy of `z` that equals `z` from the common zero start, so `u = D^-1 (y - C z)` with the decoupled
+    outputs `y`.
 
     Args:
         label:
@@ -74,6 +77,8 @@ class PurchasingPowerElement(DeclaredElement):
         0.0
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -94,7 +99,10 @@ class PurchasingPowerElement(DeclaredElement):
         self.feedback = feedback
 
     def _declare_variables(self) -> Mapping[str, DeclaredVariableSpec]:
-        """Return the states `z_i`, with feedback `w_ik`, starting at zero, and the sizes and times of the policies."""
+        """Return the states `z_i`, with feedback `w_ik`, starting at zero.
+
+        It also returns the sizes and times of the policies.
+        """
         states = [f'z{i}' for i in range(1, SECTORS + 1)]
         if self.feedback:
             states += [f'w{i}{k}' for i in range(1, SECTORS + 1) for k in range(1, SECTORS + 1)]
@@ -130,7 +138,9 @@ class PurchasingPowerElement(DeclaredElement):
         ]
 
     def get_inputs(self, s: SimpleNamespace) -> list[Expression]:
-        """Return the inputs `u` of the economy, the policies, or `D^-1 (y - C z)` with feedback.
+        """Return the inputs `u` of the economy.
+
+        They are the policies, or `D^-1 (y - C z)` with feedback.
 
         Args:
             s:
@@ -195,33 +205,22 @@ def _observables(system: System) -> list[ObservableSpec]:
     ]
 
 
-@register_system(
-    field='economics/macroeconomics',
-    tags=('purchasing power', 'monetary policy', 'fiscal policy', 'decoupling', 'feedback', 'linear system', 'ode'),
-    references=('Forrest 2018',),
-    defaults={'until': 15.0, 'dt': 0.05},
-    observables=_observables,
-)
-def categorized_purchasing_power(
-    policy: Sequence[float] = (0.0, 0.0, 1.0),
-    policy_time: Sequence[float] = (1.0, 1.0, 1.0),
-    *,
-    feedback: bool = True,
-    A: Sequence[Sequence[float]] = A_MATRIX,
-    B: Sequence[Sequence[float]] = B_MATRIX,
-    C: Sequence[Sequence[float]] = C_MATRIX,
-    D: Sequence[Sequence[float]] = D_MATRIX,
-) -> System:
-    """Return Forrest's categorized purchasing power of money, three sectors that feedback can steer one by one.
+class CategorizedPurchasingPowerSystem(BaseSystem):
+    """Forrest's categorized purchasing power of money.
 
-    The economy is split into the sectors of the basic, the desired, and the luxurious living conditions, with the
-    gaps `z_i = D_i - S_i` between the demand and the supply of money of each, which the categorized monetary and
-    fiscal policies `x_i` move through `z' = A z + B x`, and the indices of the sectors `y = C z + D x`, from the zero
-    state (Forrest 2018, Eqs. 22.6 and 22.7). The policies of one sector act on all of them. By Theorem 11.3 and Example
-    11.2 the system can be decoupled by feedback into the systems `w' = A w + B_i x_i` and `y_i = C_i w + D_i x_i` of
-    the sectors (Eqs. 22.9 to 22.12), whose market reactions keep each index on its own policy, so money poured into the
-    luxury sector leaves the basic sector alone. The source gives no numbers, so the matrices are illustrative, with a
-    stable `A` and a stable `A - B D^-1 C`, and the policies are steps.
+    Its three sectors can be steered one by one by feedback. The economy is split into the sectors of the basic, the
+    desired, and the luxurious living conditions, with the gaps `z_i = D_i - S_i` between the demand and the supply of
+    money of each, which the categorized monetary and fiscal policies `x_i` move through `z' = A z + B x`, and the
+    indices of the sectors `y = C z + D x`, from the zero state (Forrest 2018, Eqs. 22.6 and 22.7). The policies of one
+    sector act on all of them. By Theorem 11.3 and Example 11.2 the system can be decoupled by feedback into the systems
+    `w' = A w + B_i x_i` and `y_i = C_i w + D_i x_i` of the sectors (Eqs. 22.9 to 22.12), whose market reactions keep
+    each index on its own policy, so money poured into the luxury sector leaves the basic sector alone. The source gives
+    no numbers, so the matrices are illustrative, with a stable `A` and a stable `A - B D^-1 C`, and the policies are
+    steps.
+
+    The system has the gaps `economy.z1` to `economy.z3` and, with feedback, the decoupled states `economy.w11` to
+    `economy.w33`. The observables of the system are the indices `economy.y1` to `economy.y3` and the inputs of the
+    economy `economy.u1` to `economy.u3`.
 
     Args:
         policy:
@@ -245,21 +244,65 @@ def categorized_purchasing_power(
         D:
             The nonsingular matrix of the policies in the indices.
 
-    Returns:
-        system:
-            The system, with the gaps `economy.z1` to `economy.z3` and, with feedback, the decoupled states
-            `economy.w11` to `economy.w33`. The observables of the system are the indices `economy.y1` to
-            `economy.y3` and the inputs of the economy `economy.u1` to `economy.u3`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.macroeconomics import categorized_purchasing_power
-        >>> categorized_purchasing_power(feedback=False).elements[0].feedback
+        >>> from skcomplex.systems.economics.macroeconomics import CategorizedPurchasingPowerSystem
+        >>> CategorizedPurchasingPowerSystem(feedback=False).prepare().system_.elements[0].feedback
         False
     """
-    variables = {
-        name: DeclaredVariableSpec(float(value), ParameterSpec())
-        for i in range(SECTORS)
-        for name, value in ((f'policy{i + 1}', policy[i]), (f'policy_time{i + 1}', policy_time[i]))
-    }
-    economy = PurchasingPowerElement('economy', variables=variables, A=A, B=B, C=C, D=D, feedback=feedback)
-    return System(elements=[economy])
+
+    field = 'economics/macroeconomics'
+    topics = ('purchasing power', 'monetary policy', 'fiscal policy', 'decoupling', 'feedback', 'linear system', 'ode')
+    references = ('Forrest 2018',)
+    until = 15.0
+    dt = 0.05
+
+    def __init__(
+        self,
+        policy: Sequence[float] = (0.0, 0.0, 1.0),
+        policy_time: Sequence[float] = (1.0, 1.0, 1.0),
+        *,
+        feedback: bool = True,
+        A: Sequence[Sequence[float]] = A_MATRIX,
+        B: Sequence[Sequence[float]] = B_MATRIX,
+        C: Sequence[Sequence[float]] = C_MATRIX,
+        D: Sequence[Sequence[float]] = D_MATRIX,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.policy = policy
+        self.policy_time = policy_time
+        self.feedback = feedback
+        self.A = A
+        self.B = B
+        self.C = C
+        self.D = D
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        variables = {
+            name: DeclaredVariableSpec(float(value), ParameterSpec())
+            for i in range(SECTORS)
+            for name, value in ((f'policy{i + 1}', self.policy[i]), (f'policy_time{i + 1}', self.policy_time[i]))
+        }
+        economy = PurchasingPowerElement(
+            'economy',
+            variables=variables,
+            A=self.A,
+            B=self.B,
+            C=self.C,
+            D=self.D,
+            feedback=self.feedback,
+        )
+        return System(self.label, elements=[economy])
+
+    def get_run_settings(self) -> RunSettings:
+        """Return the tuned run settings.
+
+        The observables of the parts are built from the model parameters.
+        """
+        settings = super().get_run_settings()
+        settings['observables'] = _observables(self._pass_parameters())
+        return settings

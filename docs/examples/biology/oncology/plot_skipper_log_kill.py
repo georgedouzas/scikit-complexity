@@ -6,22 +6,21 @@ falls in a sawtooth.
 """
 
 # %%
-# The system is created by name from the catalog: a tumour of a million cells grows at the breast cancer rate of 0.223
-# a day, and a one-day dose every week kills at the rate 2. The observer saves every second frame with the default
-# blueprint, whose primary view is the time series of the number of cells.
+# The system is built from its class: a tumour of a million cells grows at the breast cancer rate of 0.223 a day, and
+# a one-day dose every week kills at the rate 2. The observer saves every second frame with the default blueprint,
+# whose primary view is the time series of the number of cells.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.oncology import SkipperLogKillSystem
 
 SYSTEM = 'skipper_log_kill'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=42)
+trajectory = simulate(SkipperLogKillSystem(), observers=[observer])
 
 # %%
 # Logarithmic steps
@@ -29,7 +28,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(unti
 # Every week the logarithm of the tumour changes by the same amount, the growth `7 r` minus the kill `a dose width`,
 # whatever the size of the tumour. The weekly changes should all equal `7 * 0.223 - 2 = -0.439`.
 
-times, cells = simulation.trajectory_.times, simulation.trajectory_.values('tumour.n')
+times, cells = trajectory.times, trajectory.values('tumour.n')
 weeks = np.isin(np.round(times, 6), 7.0 * np.arange(7))
 steps = np.diff(np.log(cells[weeks]))
 fig, (curve, change) = plt.subplots(1, 2, figsize=(10, 4))

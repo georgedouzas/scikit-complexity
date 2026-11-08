@@ -1,33 +1,79 @@
-"""Test a measure of dependence against surrogates whose variables are shuffled independently."""
+"""Test a measure of dependence against surrogates.
+
+The variables of the surrogates are shuffled independently.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 
 import numpy as np
-from sklearn.base import clone
 
 from ..errors import AnalysisError
+from ..specs import AnalysisTags
 from ..types import Array, DataKind
-from ._base import BaseAnalysis
+from ._base import _read_series
 from .types import Source
 
 ALTERNATIVES = ('greater', 'less', 'two-sided')
 
+TAGS = AnalysisTags(DataKind.SERIES)
 
-class SurrogateTestAnalysis(BaseAnalysis):
-    """Test of an analysis of many variables against surrogates that shuffle every variable independently.
 
-    The analysis runs on the data and on `n` surrogates, and the attribute it sets gives the value of each. The p-value
-    is the fraction of surrogates, with the data counted among them, at least as extreme as the data.
+@dataclass(frozen=True)
+class SurrogateTestResult:
+    """Test of an analysis of many variables against surrogates.
+
+    The surrogates shuffle every variable independently.
 
     Args:
+        values:
+            The data, one row per sample and one column per variable.
+
+        value:
+            The measure on the data.
+
+        surrogates:
+            The measure on every surrogate.
+
+        p_value:
+            The p-value of the data against the surrogates.
+    """
+
+    values: Array
+    value: float
+    surrogates: Array
+    p_value: float
+
+
+def surrogate_test(
+    source: Source,
+    *,
+    analysis: Callable[[Array], object],
+    attribute: str,
+    variables: Sequence[str] | None = None,
+    n: int = 99,
+    alternative: str = 'two-sided',
+    random_state: int | None = None,
+) -> SurrogateTestResult:
+    """Return the test of an analysis of many variables against surrogates.
+
+    The surrogates shuffle every variable independently. The analysis runs on the data and on `n` surrogates, and the
+    field of its result gives the value of each. The p-value is the fraction of surrogates, with the data counted among
+    them, at least as extreme as the data.
+
+    Args:
+        source:
+            The trajectory, or an array with one row per sample and one column per variable.
+
         analysis:
-            The unprepared analysis of the variables, cloned for the data and for every surrogate.
+            The analysis of the variables, a function of an array such as one `bind_analysis` returns, applied to the
+            data and to every surrogate.
 
         attribute:
-            The scalar attribute of the analysis that measures the dependence, such as `'information_'`.
+            The scalar field of the result of the analysis that measures the dependence, such as `'information'`.
 
         variables:
             The variables of a trajectory, or `None` for every scalar state or observable.
@@ -41,87 +87,53 @@ class SurrogateTestAnalysis(BaseAnalysis):
         random_state:
             The seed of the shuffles.
 
-    Attributes:
-        values_:
-            The data, one row per sample and one column per variable.
+    Returns:
+        result:
+            The data, the measure on the data and on every surrogate, and the p-value.
 
-        value_:
-            The measure on the data.
-
-        surrogates_:
-            The measure on every surrogate.
-
-        p_value_:
-            The p-value of the data against the surrogates.
+    Raises:
+        AnalysisError:
+            The alternative is unknown, the number of surrogates is below 1, or the analysis is not callable.
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import InformationAnalysis, SurrogateTestAnalysis
+        >>> from skcomplex.core.analysis import bind_analysis, information, surrogate_test
         >>> bit = np.random.default_rng(0).integers(0, 2, 500)
-        >>> test = SurrogateTestAnalysis(InformationAnalysis('o-information'), 'information_', n=19, random_state=0)
-        >>> test = test.prepare(np.column_stack([bit, bit, bit])).run()
-        >>> round(test.value_, 1), test.p_value_
+        >>> measure = bind_analysis(information, kind='o-information')
+        >>> data = np.column_stack([bit, bit, bit])
+        >>> test = surrogate_test(data, analysis=measure, attribute='information', n=19, random_state=0)
+        >>> round(test.value, 1), test.p_value
         (1.0, 0.05)
     """
+    if alternative not in ALTERNATIVES:
+        error_msg = f'Unknown alternative {alternative!r}. Use one of {", ".join(ALTERNATIVES)}.'
+        raise AnalysisError(error_msg)
+    if isinstance(n, bool) or not isinstance(n, int) or n < 1:
+        error_msg = f'n = {n!r} must be a positive number of surrogates.'
+        raise AnalysisError(error_msg)
+    if not callable(analysis):
+        error_msg = f'The measure of a surrogate test is an analysis function, not {analysis!r}.'
+        raise AnalysisError(error_msg)
+    values = np.asarray(_read_series(source, variables).values, dtype=float)
+    rng = np.random.default_rng(random_state)
+    value = _measure(analysis, attribute, values)
+    surrogates = np.asarray(
+        [
+            _measure(analysis, attribute, np.column_stack([rng.permutation(column) for column in values.T]))
+            for _ in range(n)
+        ],
+        dtype=float,
+    )
+    if alternative == 'greater':
+        extreme = int(np.sum(surrogates >= value))
+    elif alternative == 'less':
+        extreme = int(np.sum(surrogates <= value))
+    else:
+        center = float(np.mean(surrogates))
+        extreme = int(np.sum(np.abs(surrogates - center) >= abs(value - center)))
+    return SurrogateTestResult(values, value, surrogates, (1 + extreme) / (1 + surrogates.size))
 
-    def __init__(
-        self,
-        analysis: BaseAnalysis,
-        attribute: str,
-        variables: Sequence[str] | None = None,
-        *,
-        n: int = 99,
-        alternative: str = 'two-sided',
-        random_state: int | None = None,
-    ) -> None:
-        self.analysis = analysis
-        self.attribute = attribute
-        self.variables = variables
-        self.n = n
-        self.alternative = alternative
-        self.random_state = random_state
 
-    def _check(self) -> None:
-        """Raise an error for an unknown alternative, a number of surrogates below 1, or an analysis that is not one."""
-        if self.alternative not in ALTERNATIVES:
-            error_msg = f'Unknown alternative {self.alternative!r}. Use one of {", ".join(ALTERNATIVES)}.'
-            raise AnalysisError(error_msg)
-        if isinstance(self.n, bool) or not isinstance(self.n, int) or self.n < 1:
-            error_msg = f'n = {self.n!r} must be a positive number of surrogates.'
-            raise AnalysisError(error_msg)
-        if not isinstance(self.analysis, BaseAnalysis):
-            error_msg = f'The measure of a surrogate test is an analysis, not {self.analysis!r}.'
-            raise AnalysisError(error_msg)
-        self.analysis._validated()
-
-    def _get_data_kind(self) -> DataKind:
-        """Return the series kind."""
-        return DataKind.SERIES
-
-    def _prepare(self, source: Source) -> None:
-        """Read the series of the variables as columns."""
-        self.values_ = np.asarray(self._read_series(source, self.variables).values, dtype=float)
-
-    def _measure(self, values: Array) -> float:
-        """Return the attribute of a clone of the analysis run on the values."""
-        return float(getattr(clone(self.analysis).prepare(values).run(), self.attribute))
-
-    def _run(self, inputs: object = None) -> None:
-        """Measure the data and every surrogate, and set the p-value."""
-        rng = np.random.default_rng(self.random_state)
-        self.value_ = self._measure(self.values_)
-        self.surrogates_ = np.asarray(
-            [
-                self._measure(np.column_stack([rng.permutation(column) for column in self.values_.T]))
-                for _ in range(self.n)
-            ],
-            dtype=float,
-        )
-        if self.alternative == 'greater':
-            extreme = int(np.sum(self.surrogates_ >= self.value_))
-        elif self.alternative == 'less':
-            extreme = int(np.sum(self.surrogates_ <= self.value_))
-        else:
-            center = float(np.mean(self.surrogates_))
-            extreme = int(np.sum(np.abs(self.surrogates_ - center) >= abs(self.value_ - center)))
-        self.p_value_ = (1 + extreme) / (1 + self.surrogates_.size)
+def _measure(analysis: Callable[[Array], object], attribute: str, values: Array) -> float:
+    """Return the field of the result of the analysis applied to the values."""
+    return float(getattr(analysis(values), attribute))

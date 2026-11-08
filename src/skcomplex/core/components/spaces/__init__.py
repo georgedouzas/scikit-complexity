@@ -1,4 +1,7 @@
-"""Define the spaces that systems live in, the neighbourhoods of their members, and the time of a system."""
+"""Define the spaces that systems live in, with neighbourhoods and time.
+
+The neighbourhoods are those of their members, and the time is that of a system.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

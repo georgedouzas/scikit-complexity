@@ -17,13 +17,13 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.dynamical_systems import DoublingMapSystem
 
 SYSTEM = 'doubling_map'
 
-system = create_system(SYSTEM, n_points=100, random_state=0)
+system = DoublingMapSystem(n_points=100, random_state=0)
 # Every view shows the whole run, not the default window that follows the latest frame.
 whole_run = rrb.TimeAxis(
     view_range=rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite()),
@@ -43,8 +43,8 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=100)
-occupied = [np.histogram(row, bins=25, range=(0, 1))[0] > 0 for row in simulation.trajectory_.values('points.x')[:30]]
+trajectory = simulate(system, until=100, observers=[observer])
+occupied = [np.histogram(row, bins=25, range=(0, 1))[0] > 0 for row in trajectory.values('points.x')[:30]]
 image = np.where(np.array(occupied).T[::-1, :, None], [255, 170, 40], [20, 20, 30]).astype(np.uint8)
 observer.recording_.log('spreading', rr.Image(image.repeat(12, axis=0).repeat(12, axis=1)), static=True)
 observer.recording_.flush()
@@ -56,13 +56,13 @@ observer.recording_.flush()
 # iterated with `2x mod 1` in floating point should all reach exactly 0 after about 55 steps. The system's points should
 # stay spread, with a flat histogram at the uniform invariant density `p(x) = 1` of Bertin's Exercise 7.2.
 
-values = simulation.trajectory_.values('points.x')
+values = trajectory.values('points.x')
 naive = [values[0]]
 for _ in range(len(values) - 1):
     naive.append(np.mod(2 * naive[-1], 1.0))
 fig, (collapse, density) = plt.subplots(1, 2, figsize=(10, 4))
-collapse.plot(simulation.trajectory_.times, np.mean(np.array(naive) == 0, axis=1), label='floating-point $2x$ mod 1')
-collapse.plot(simulation.trajectory_.times, np.mean(values == 0, axis=1), label='system, exact on $k / q$')
+collapse.plot(trajectory.times, np.mean(np.array(naive) == 0, axis=1), label='floating-point $2x$ mod 1')
+collapse.plot(trajectory.times, np.mean(values == 0, axis=1), label='system, exact on $k / q$')
 collapse.set_xlabel('step')
 collapse.set_ylabel('fraction of points at 0')
 collapse.set_title('Floating-point doubling collapses to 0')

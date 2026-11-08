@@ -1,246 +1,327 @@
-"""Register the systems of the library, and list, describe, and create the system or the simulation of them by name."""
+"""Find the system classes of the library by field, topics, and capability tags."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Mapping, Sequence
+import ast
+import dataclasses
+import importlib
+from collections.abc import Mapping, Sequence
 from importlib.resources import files
 from pathlib import Path
 
-from ..core.components.system import System
-from ..core.engine.runtime import Simulation
-from ..core.errors import ArgumentError, ValidationError
-from ..core.specs import ObservableSpec
-from ._system_catalog import SystemCatalog
-from ._system_entry import Factory, SystemEntry
-from ._system_listing import SystemListing
+from ..core.components.system import BaseSystem
+from ..core.errors import RegistryError, ValidationError
+from ..core.specs import Tags
 
-SYSTEMS = SystemCatalog(Path(str(files('skcomplex.systems'))))
-"""The catalog of the systems of the library and of the systems registered at run time."""
+_LISTED = ('field', 'topics', 'references')
 
 
-def register_system(
-    name: str | None = None,
-    *,
-    field: str,
-    description: str | None = None,
-    tags: Sequence[str] = (),
-    references: Sequence[str] = (),
-    defaults: Mapping[str, object] | None = None,
-    settings: Callable[..., Mapping[str, object]] | None = None,
-    observables: Callable[[System], Sequence[ObservableSpec]] | None = None,
-    initial_state: Callable[..., Mapping[str, object] | None] | None = None,
-) -> Callable[[Factory], Factory]:
-    """Return a decorator that registers a factory as a ready-made system.
+class _SystemClasses:
+    """Reader of the system classes of a package.
+
+    It finds them in the sources without importing them. A system class is a class whose body gives the class variable
+    `field`. Its field and topics are read from the sources, so selecting classes by them imports only the modules of
+    the selected classes.
 
     Args:
-        name:
-            The name of the system, or `None` for the factory's name.
+        root:
+            The directory of the system package.
 
+        package:
+            The dotted name of the system package.
+    """
+
+    def __init__(self, root: Path, package: str = 'skcomplex.systems') -> None:
+        self.root = root
+        self.package = package
+        self._found: dict[str, tuple[str, str, tuple[str, ...]]] | None = None
+
+    def classes(
+        self,
+        field: str | None = None,
+        topics: str | Sequence[str] = (),
+        tags: Mapping[str, str | Sequence[str]] | None = None,
+    ) -> list[tuple[str, type[BaseSystem]]]:
+        """Return the name and the class of every system class.
+
+        The classes can be selected by field, by topics, or by tags.
+
+        Args:
+            field:
+                The field, such as `chemistry`, or the field path, such as `chemistry/kinetics`, to keep, or `None` for
+                every field.
+
+            topics:
+                The topic, or the topics, that every kept class lists.
+
+            tags:
+                The capability tags to keep, by field of `Tags`, each a value or a sequence of values that the tags of a
+                kept class hold, or `None` for any tags.
+
+        Returns:
+            classes:
+                The name and the class of every kept system class, sorted by name.
+
+        Raises:
+            RegistryError:
+                A system class is not named with the suffix `System`, or gives its field, topics, or references with a
+                value computed at run time.
+
+            ValidationError:
+                A tag names no field of `Tags`.
+        """
+        wanted = {topics} if isinstance(topics, str) else set(topics)
+        found = []
+        for name, (module, path, listed) in self._listed().items():
+            if field is not None and path != field and not path.startswith(f'{field}/'):
+                continue
+            if not wanted <= set(listed):
+                continue
+            system_class: type[BaseSystem] = getattr(importlib.import_module(module), name)
+            if tags is None or self._has_tags(system_class().get_tags(), tags):
+                found.append((name, system_class))
+        return sorted(found, key=lambda pair: pair[0])
+
+    @staticmethod
+    def _has_tags(tags: Tags, wanted: Mapping[str, str | Sequence[str]]) -> bool:
+        """Return whether capability tags hold every wanted value of every field.
+
+        Args:
+            tags:
+                The tags of a system.
+
+            wanted:
+                The wanted values, by field of `Tags`, each a value or a sequence of values.
+
+        Returns:
+            held:
+                Whether the tags hold every wanted value.
+
+        Raises:
+            ValidationError:
+                A wanted field is no field of `Tags`.
+        """
+        names = [item.name for item in dataclasses.fields(Tags)]
+        for name, value in wanted.items():
+            if name not in names:
+                error_msg = f'The tag {name!r} is unknown. Use one of {", ".join(map(repr, names))}.'
+                raise ValidationError(error_msg)
+            actual = getattr(tags, name)
+            held = {actual} if isinstance(actual, str) or actual is None else set(actual)
+            if not ({value} if isinstance(value, str) else set(value)) <= held:
+                return False
+        return True
+
+    def _listed(self) -> dict[str, tuple[str, str, tuple[str, ...]]]:
+        """Return the module, the field path, and the topics of every system class.
+
+        They are given by class name and read once.
+        """
+        if self._found is None:
+            found: dict[str, tuple[str, str, tuple[str, ...]]] = {}
+            for path in sorted(self.root.rglob('_*.py')):
+                if path.name == '__init__.py' or path.parent == self.root:
+                    continue
+                module = '.'.join((self.package, *path.relative_to(self.root).with_suffix('').parts))
+                definitions = [
+                    node
+                    for node in ast.parse(path.read_text()).body
+                    if isinstance(node, ast.ClassDef) and self._class_value(node, 'field') is not None
+                ]
+                constants = self._constants(path) if definitions else {}
+                for node in definitions:
+                    found[node.name] = self._class_listing(node, module, constants)
+            self._found = found
+        return self._found
+
+    def _class_listing(
+        self,
+        node: ast.ClassDef,
+        module: str,
+        constants: dict[str, object],
+    ) -> tuple[str, str, tuple[str, ...]]:
+        """Return the module, the field path, and the topics of a system class.
+
+        They are read from its class variables.
+
+        Args:
+            node:
+                The definition of the class.
+
+            module:
+                The dotted name of the module.
+
+            constants:
+                The module-level literal constants of the module.
+
+        Returns:
+            listing:
+                The module, the field path, and the topics.
+
+        Raises:
+            RegistryError:
+                The class is not named with the suffix `System`, gives its field path as no string, or gives a listed
+                class variable with a value computed at run time.
+        """
+        values = {name: self._literal(self._class_value(node, name), name, module, constants) for name in _LISTED}
+        field = values['field']
+        if not node.name.endswith('System') or not isinstance(field, str):
+            error_msg = (
+                f'The class {node.name} of {module} gives the class variable `field`, so it is a system class. Name it '
+                'with the suffix `System`, and give `field` as a string.'
+            )
+            raise RegistryError(error_msg)
+        for name in ('topics', 'references'):
+            if values[name] is not None and not isinstance(values[name], tuple | list):
+                error_msg = f'The class {node.name} of {module} gives {name!r} as {values[name]!r}. Give a tuple.'
+                raise RegistryError(error_msg)
+        topics = values['topics']
+        return module, field, tuple(str(topic) for topic in topics) if isinstance(topics, tuple | list) else ()
+
+    @staticmethod
+    def _class_value(node: ast.ClassDef, name: str) -> ast.expr | None:
+        """Return the value a class body assigns to a class variable.
+
+        It is `None` when the body assigns none.
+        """
+        for item in node.body:
+            if isinstance(item, ast.Assign) and any(
+                isinstance(target, ast.Name) and target.id == name for target in item.targets
+            ):
+                return item.value
+            if isinstance(item, ast.AnnAssign) and isinstance(item.target, ast.Name) and item.target.id == name:
+                return item.value
+        return None
+
+    def _literal(self, node: ast.expr | None, name: str, module: str, constants: dict[str, object]) -> object:
+        """Return the static value of a class variable.
+
+        It is `None` when the class does not give it.
+
+        Args:
+            node:
+                The expression of the value, or `None` when it is not given.
+
+            name:
+                The name of the class variable, for the message of the error.
+
+            module:
+                The dotted name of the module.
+
+            constants:
+                The module-level literal constants of the module.
+
+        Returns:
+            value:
+                The value, or `None`.
+
+        Raises:
+            RegistryError:
+                The value is computed at run time.
+        """
+        if node is None:
+            return None
+        try:
+            return self._evaluate(node, constants)
+        except (TypeError, ValueError) as error:
+            error_msg = (
+                f'A system of {module} defines the class variable {name!r} with a value computed at run time. Write it '
+                'as a literal or a module-level literal constant, so `all_systems` reads it without importing the '
+                'module.'
+            )
+            raise RegistryError(error_msg) from error
+
+    def _constants(self, path: Path, seen: frozenset[Path] = frozenset()) -> dict[str, object]:
+        """Return the module-level literal constants of a system module.
+
+        They include those it imports from its own package.
+        """
+        if path in seen or not path.exists():
+            return {}
+        constants: dict[str, object] = {}
+        for node in ast.parse(path.read_text()).body:
+            if isinstance(node, ast.ImportFrom) and node.level == 1 and node.module:
+                source = self._constants(path.with_name(f'{node.module}.py'), seen | {path})
+                constants.update(
+                    {alias.asname or alias.name: source[alias.name] for alias in node.names if alias.name in source},
+                )
+            elif isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+                try:
+                    constants[node.targets[0].id] = self._evaluate(node.value, constants)
+                except (TypeError, ValueError):
+                    continue
+        return constants
+
+    def _evaluate(self, node: ast.expr, constants: dict[str, object]) -> object:
+        """Return the value of a literal expression.
+
+        Its names are module-level literal constants.
+        """
+        if isinstance(node, ast.Name):
+            if node.id in constants:
+                return constants[node.id]
+            error_msg = f'The name {node.id} is not a literal constant of the module.'
+            raise ValueError(error_msg)
+        if isinstance(node, ast.Tuple | ast.List):
+            items: list[object] = []
+            for element in node.elts:
+                if isinstance(element, ast.Starred):
+                    unpacked = self._evaluate(element.value, constants)
+                    if not isinstance(unpacked, tuple | list):
+                        error_msg = f'The unpacked value {unpacked!r} is not a tuple or a list.'
+                        raise TypeError(error_msg)
+                    items.extend(unpacked)
+                else:
+                    items.append(self._evaluate(element, constants))
+            return tuple(items) if isinstance(node, ast.Tuple) else items
+        return ast.literal_eval(node)
+
+
+_SYSTEM_CLASSES = _SystemClasses(Path(str(files('skcomplex.systems'))))
+
+
+def all_systems(
+    field: str | None = None,
+    topics: str | Sequence[str] = (),
+    tags: Mapping[str, str | Sequence[str]] | None = None,
+) -> list[tuple[str, type[BaseSystem]]]:
+    """Return the name and the class of every ready-made system.
+
+    The systems can be selected by field, by topics, or by capability tags. It takes the role of
+    `sklearn.utils.all_estimators`. The field and the topics of every class are read from the sources, so selecting by
+    them imports the modules of the selected classes alone. Filtering by capability tags builds every selected class
+    with its default model parameters and reads its tags.
+
+    Args:
         field:
-            The field path of the system, its science and subfield, such as `biology/ecology`.
+            The field, such as `chemistry`, or the field path, such as `chemistry/kinetics`, to keep, or `None` for
+            every field.
 
-        description:
-            One sentence on what the system shows, or `None` for the first line of the factory's docstring.
+        topics:
+            The topic, or the topics, that every kept system lists, such as `'oscillation'`.
 
         tags:
-            Keywords for filtering.
-
-        references:
-            The sources of the system.
-
-        defaults:
-            The default run settings: `until` and any `Simulation` argument such as `dt` or `solver`.
-
-        settings:
-            A function of the factory's arguments that returns the run settings that replace `defaults` for these
-            arguments, or `None`.
-
-        observables:
-            A function of the built system that returns its standard observables, which `create_simulation` records, or
-            `None`.
-
-        initial_state:
-            A function of the factory's arguments that returns the initial values `run` gives the simulation, by dotted
-            state name, or `None`.
+            The capability tags to keep, by field of `Tags`, each a value or a sequence of values that the tags of a
+            kept system hold, such as `{'randomness': 'stochastic'}`, or `None` for any tags.
 
     Returns:
-        decorator:
-            The decorator, which returns the factory unchanged.
-
-    Raises:
-        ValidationError:
-            A default run setting is unknown, or a factory argument has no default.
-
-    Examples:
-        >>> from typing import Annotated
-        >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.systems import create_system, register_system
-        >>> class PopulationElement(Element):
-        ...     def __init__(self, label, n: Annotated[float, StateSpec()] = 1.0):
-        ...         super().__init__(label)
-        ...         self.n = n
-        >>> @register_system(field='examples/demo', references=('This docstring',), defaults={'until': 5})
-        ... def constant_population(n: float = 3.0) -> System:
-        ...     '''Return one population that does not change.'''
-        ...     return System(elements=[PopulationElement('a', n=n)])
-        >>> create_system('constant_population').elements[0].n
-        3.0
-    """
-
-    def decorator(factory: Factory) -> Factory:
-        entry = SystemEntry(
-            name or factory.__name__,
-            factory,
-            field,
-            description or '',
-            tuple(tags),
-            tuple(references),
-            dict(defaults or {}),
-            observables,
-            initial_state,
-            settings,
-        )
-        SYSTEMS.register(entry._validated())
-        return factory
-
-    return decorator
-
-
-def catalog(field: str | None = None, tag: str | None = None) -> list[SystemListing]:
-    """Return the listed systems, optionally of one field or with one tag, sorted by field and name.
-
-    The listing reads the registration of every system of the library from its source, and imports no system module.
-    Systems registered at run time outside the library are listed too.
-
-    Args:
-        field:
-            The field, such as `biology`, or the field path, such as `biology/ecology`, to keep, or `None` for every
-            field.
-
-        tag:
-            The tag to keep, or `None` for every system.
-
-    Returns:
-        listings:
-            The listed systems.
+        systems:
+            The name and the class of every kept system, sorted by name.
 
     Raises:
         RegistryError:
-            A system registers its name, field, description, tags, or references with a value computed at run time.
-
-    Examples:
-        >>> from skcomplex.systems import catalog
-        >>> 'lotka_volterra' in [listing.name for listing in catalog(field='biology/ecology')]
-        True
-        >>> sorted({listing.field for listing in catalog(field='chemistry')})
-        ['chemistry/kinetics', 'chemistry/pattern_formation']
-    """
-    return SYSTEMS.listings(field, tag)
-
-
-def describe(name: str) -> SystemEntry:
-    """Return a system by name, with its factory, parameters, metadata, and default run settings.
-
-    It imports the system's module and nothing else of the library.
-
-    Args:
-        name:
-            The name of the system.
-
-    Returns:
-        entry:
-            The registered system.
-
-    Raises:
-        RegistryError:
-            No system has the name.
-
-    Examples:
-        >>> from skcomplex.systems import describe
-        >>> describe('lotka_volterra').field
-        'biology/ecology'
-    """
-    return SYSTEMS.entry(name)
-
-
-def create_system(name: str, **parameters: object) -> System:
-    """Return a ready-made system, built by its factory.
-
-    It imports the system's module and nothing else of the library.
-
-    Args:
-        name:
-            The name of the system.
-
-        **parameters:
-            Arguments of the factory that replace its defaults.
-
-    Returns:
-        system:
-            The built system.
-
-    Raises:
-        RegistryError:
-            No system has the name.
-
-    Examples:
-        >>> from skcomplex.systems import create_system
-        >>> len(create_system('lotka_volterra').elements)
-        2
-    """
-    return SYSTEMS.entry(name).factory(**parameters)
-
-
-def create_simulation(name: str, **parameters: object) -> Simulation:
-    """Create the simulation of a system with its default run settings, ready to prepare and run.
-
-    It imports the system's module and nothing else of the library. The simulation holds the system as its `system`,
-    the system's default `until`, time step, solver, observables and initial state, and the seed `random_state=0`.
-    Change any of them with `set_params` before preparing it.
-
-    Args:
-        name:
-            The name of the system.
-
-        **parameters:
-            Arguments of the factory that replace its defaults.
-
-    Returns:
-        simulation:
-            The unprepared simulation of the system.
-
-    Raises:
-        RegistryError:
-            No system has the name.
+            A system class is not named with the suffix `System`, or gives its field, topics, or references with a
+            value computed at run time.
 
         ValidationError:
-            The system's setting `initial_state` is not a mapping.
-
-        ArgumentError:
-            A default setting of the system is not an argument of `Simulation`.
+            A tag names no field of `Tags`.
 
     Examples:
-        >>> from skcomplex.systems import create_simulation
-        >>> simulation = create_simulation('logistic_growth')
-        >>> simulation.until
-        20.0
-        >>> simulation.prepare().run().time_
-        20.0
+        >>> from skcomplex.systems import all_systems
+        >>> [name for name, _ in all_systems(field='chemistry/pattern_formation')]
+        ['BrusselatorSystem', 'GrayScottSystem', 'SchnakenbergSystem']
+        >>> [name for name, _ in all_systems(field='chemistry', tags={'randomness': 'stochastic'})]
+        ['ChemicalLangevinEquationSystem', 'ChemicalLangevinNetworkSystem']
     """
-    entry = SYSTEMS.entry(name)
-    chosen: dict[str, object] = {'random_state': 0, 'until': 10.0, **entry.settings_of(**parameters)}
-    initial_state = chosen.pop('initial_state', None) or {}
-    if not isinstance(initial_state, Mapping):
-        error_msg = f'The run setting `initial_state` of {name} is {initial_state!r}. Give it as a mapping.'
-        raise ValidationError(error_msg)
-    system = entry.factory(**parameters)
-    initial = {**entry.initial_state_of(**parameters), **initial_state}
-    simulation = Simulation(system, observables=entry.observables_of(system), initial_state=initial)
-    unknown = sorted(set(chosen) - set(simulation.get_params(deep=False)))
-    if unknown:
-        error_msg = f'The system {name} has a run setting {unknown[0]!r}, which is not an argument of `Simulation`.'
-        raise ArgumentError(error_msg)
-    return simulation.set_params(**chosen)
+    return _SYSTEM_CLASSES.classes(field, topics, tags)

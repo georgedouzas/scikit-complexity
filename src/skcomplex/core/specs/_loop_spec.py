@@ -10,7 +10,10 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class _LoopSpec(BaseSpec):
-    """Feedback loop: its nodes from its first state, its polarity, and its gain at the point of evaluation."""
+    """Feedback loop.
+
+    It holds its nodes from its first state, its polarity, and its gain at the point of evaluation.
+    """
 
     nodes: tuple[str, ...]
     polarity: str

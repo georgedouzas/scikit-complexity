@@ -1,4 +1,7 @@
-"""Run gallery examples in parallel processes, capture their screenshots into the cache, and report the runs."""
+"""Run gallery examples in parallel processes and report the runs.
+
+It captures their screenshots into the cache.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -75,19 +78,21 @@ def _last_observer(example: Example, variables: Mapping[str, object]) -> RerunOb
 
 
 def _quiet_matplotlib() -> None:
-    """Switch Matplotlib to its non-interactive backend and make `plt.show` do nothing, even if it is imported.
+    """Switch Matplotlib to its non-interactive backend and silence `plt.show`.
 
-    A worker runs several examples, and once any module has imported `pyplot` the environment variable no longer
-    chooses the backend, so on macOS an example's `plt.show()` would open a window and wait for it to close.
+    `plt.show` does nothing, even if it is imported. A worker runs several examples, and once any module has imported
+    `pyplot` the environment variable no longer chooses the backend, so on macOS an example's `plt.show()` would open a
+    window and wait for it to close.
     """
     mpl.use('agg', force=True)
     plt.show = lambda *_, **__: None
 
 
 def run_example(example: Example, build: GalleryBuild, budget: Budget) -> RunReport:
-    """Run an example in a temporary folder, and capture or take from the cache its thumbnail.
+    """Run an example in a temporary folder, and capture or reuse its thumbnail.
 
-    Matplotlib draws with its non-interactive backend, so the analysis figures of the example open no window.
+    A reused thumbnail is taken from the cache. Matplotlib draws with its non-interactive backend, so the analysis
+    figures of the example open no window.
 
     Args:
         example:
@@ -130,7 +135,9 @@ def run_example(example: Example, build: GalleryBuild, budget: Budget) -> RunRep
 
 
 def run_examples(examples: list[Example], build: GalleryBuild, budget: Budget, jobs: int) -> list[RunReport]:
-    """Run examples in parallel processes and return their reports in the order of the examples.
+    """Run examples in parallel processes and return their reports.
+
+    The reports are in the order of the examples.
 
     Args:
         examples:
@@ -156,7 +163,9 @@ def run_examples(examples: list[Example], build: GalleryBuild, budget: Budget, j
 
 
 def summarize(reports: list[RunReport]) -> str:
-    """Return a summary of runs: the slowest examples with their times, the thumbnails, and the failures.
+    """Return a summary of runs.
+
+    It holds the slowest examples with their times, the thumbnails, and the failures.
 
     Args:
         reports:

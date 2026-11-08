@@ -10,7 +10,9 @@ from ._base_record_spec import BaseRecordSpec
 
 @dataclass(frozen=True, slots=True)
 class ExtremalRecordSpec(BaseRecordSpec):
-    """Application of an extremal law, such as the reset of the member with the smallest value.
+    """Application of an extremal law.
+
+    An example is the reset of the member with the smallest value.
 
     Args:
         label:

@@ -14,7 +14,9 @@ from .....core.specs import ParameterSpec, VisualSpec
 
 
 class MassPointElement(PointElement):
-    """Point mass, a point whose position `x` has order 2, with its velocity `x_d1` and a mass `m`.
+    """Point mass, a point whose position `x` has order 2.
+
+    The point has its velocity `x_d1` and a mass `m`.
 
     The forces on the point divide by the mass through their divisor `'m'`.
 

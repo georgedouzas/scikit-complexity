@@ -6,23 +6,23 @@ that keeps its shape and moves around the ring road while the traffic outside it
 """
 
 # %%
-# The system is created by name from the catalog on a ring of length 10 in 40 cells at density 0.25 with a bump of 0.1,
+# The system is built from its class on a ring of length 10 in 40 cells at density 0.25 with a bump of 0.1,
 # and is integrated with SSPRK for 100 time units. The default blueprint puts the history of the density first, where
 # the cluster is the bright band.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import SSPRKSolver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.engineering.traffic import KernerKonhauserSystem
 
 SYSTEM = 'kerner_konhauser'
 
-system = create_system(SYSTEM)
+system = KernerKonhauserSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.2, solver=SSPRKSolver(cfl=0.15), observers=[observer]).prepare().run(until=100)
+trajectory = simulate(system, solver=SSPRKSolver(cfl=0.15), observers=[observer])
 
 # %%
 # Growth of the cluster
@@ -30,7 +30,6 @@ simulation = Simulation(system, dt=0.2, solver=SSPRKSolver(cfl=0.15), observers=
 # The bump should grow until the density in the cluster saturates far above the mean 0.25, while the density outside
 # falls below it, and the cluster should then keep its shape and travel around the ring.
 
-trajectory = simulation.trajectory_
 rho = trajectory.lattice('road.rho')
 x = (np.arange(rho.shape[1]) + 0.5) * 10.0 / rho.shape[1]
 fig, (growth, profiles) = plt.subplots(1, 2, figsize=(10, 4))

@@ -1,4 +1,7 @@
-"""Substitution system of one patch, compiled to batched products of affine matrices."""
+"""Substitution system of one patch.
+
+It is compiled to batched products of affine matrices.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,7 +22,9 @@ from ._word_kernel import IDENTIFIER
 
 
 class PatchKernel(BaseKernel):
-    """Substitution system of one patch, compiled to batched products of affine matrices.
+    """Substitution system of one patch.
+
+    It is compiled to batched products of affine matrices.
 
     Args:
         path:
@@ -53,8 +58,10 @@ class PatchKernel(BaseKernel):
         self.substitutions = substitutions
         self.parameters = parameters
 
-    def _check(self) -> None:
-        """Compile the prototiles, the tiles, and the substitutions, checking that every name is a prototile.
+    def _compile(self) -> None:
+        """Compile the prototiles, the tiles, and the substitutions.
+
+        Every name is checked to be a prototile.
 
         Raises:
             RewritingError:
@@ -67,7 +74,7 @@ class PatchKernel(BaseKernel):
             error_msg = f'Patch {path!r} has no prototiles. Give at least one.'
             raise RewritingError(error_msg)
         for prototile in self.prototiles:
-            prototile._validated()
+            prototile._check()
         self.names = tuple(prototile.name for prototile in self.prototiles)
         self.counted = tuple(name for name in dict.fromkeys(self.names) if IDENTIFIER.match(name))
         tiles = patch.tiles if patch.tiles is not None else [(self.names[0], None)]
@@ -96,14 +103,26 @@ class PatchKernel(BaseKernel):
         return dict(zip(self.parameters.symbols, values.tolist(), strict=True))
 
     def _prepare(self, context: object) -> None:
-        """Start the structure at generation 0 for a run of the problem, as `values_`."""
+        """Start the structure at generation 0 for a run of the problem, as `values_`.
+
+        It first compiles the structure and its laws, which checks them, so the compiler that reads the compiled tables
+        before any run calls `_compile` alone.
+
+        Args:
+            context:
+                The problem whose initial parameters the run starts from.
+        """
+        self._compile()
         if not isinstance(context, BaseProblemSpec):
             error_msg = f'Patch {self.path!r} starts from the initial parameters of a problem, but got none.'
             raise RewritingError(error_msg)
         self.values_ = self._initial(context.initial_parameters)
 
     def _run(self, inputs: RunStateSpec | None) -> None:
-        """Rewrite the current structure once, in parallel, with the parameters of the state."""
+        """Rewrite the current structure once, in parallel.
+
+        The rewrite reads the parameters of the state.
+        """
         if inputs is None:
             error_msg = f'Patch {self.path!r} rewrites at a state, but got none.'
             raise RewritingError(error_msg)
@@ -147,7 +166,9 @@ class PatchKernel(BaseKernel):
         patch: PatchStructureSpec,
         values: npt.NDArray[np.float64],
     ) -> PatchStructureSpec:
-        """Return the patch of the next generation, every tile replaced by its pieces in parallel.
+        """Return the patch of the next generation.
+
+        Every tile is replaced by its pieces in parallel.
 
         Args:
             patch:

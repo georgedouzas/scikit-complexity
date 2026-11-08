@@ -20,12 +20,12 @@ SPACE_DIMENSIONS = 3
 
 @dataclass(frozen=True)
 class BaseStructureSpec(BaseSpec):
-    """Base of the structures of a rewriting element at one generation: a word, a patch of tiles, or a graph.
+    """Base of the structures of a rewriting element at one generation.
 
-    The readers `parts`, `segments`, `polygons`, `geometry`, and `raster` describe the structure. Subclasses give the
-    parts, the segments, and the polygons, and the measures follow from them with Shapely. Every subclass has the field
-    `generation`, and its arrays are read-only, built with `_frozen`, so later generations cannot change a recorded
-    structure.
+    A structure is a word, a patch of tiles, or a graph. The readers `parts`, `segments`, `polygons`, `geometry`, and
+    `raster` describe the structure. Subclasses give the parts, the segments, and the polygons, and the measures follow
+    from them with Shapely. Every subclass has the field `generation`, and its arrays are read-only, built with
+    `_frozen`, so later generations cannot change a recorded structure.
     """
 
     @property
@@ -48,7 +48,9 @@ class BaseStructureSpec(BaseSpec):
         return np.zeros((0, 2, 2))
 
     def polygons(self) -> AnyArray:
-        """Return the polygons of the geometry, one coordinate array of shape `(t, k, 2)` per vertex count `k`.
+        """Return the polygons of the geometry.
+
+        There is one coordinate array of shape `(t, k, 2)` per vertex count `k`.
 
         Returns:
             polygons:
@@ -113,10 +115,11 @@ class BaseStructureSpec(BaseSpec):
         )
 
     def raster(self, resolution: int, bounds: Sequence[float] | None = None) -> npt.NDArray[np.bool_]:
-        """Return a square boolean grid of the cells the geometry covers, with the first row at the top.
+        """Return a square boolean grid of the cells the geometry covers.
 
-        Segments mark the cells of points spaced at most half a cell apart along them, and polygons mark the cells
-        whose centres they contain, so the grid suits `ScalingAnalysis('box-counting')`.
+        The first row of the grid is at the top. Segments mark the cells of points spaced at most half a cell apart
+        along them, and polygons mark the cells whose centres they contain, so the grid suits
+        `scaling(kind='box-counting')`.
 
         Args:
             resolution:
@@ -167,7 +170,10 @@ class BaseStructureSpec(BaseSpec):
 
     @staticmethod
     def _frozen[S: np.generic](array: npt.ArrayLike, dtype: type[S]) -> npt.NDArray[S]:
-        """Return a read-only copy of an array, so later generations cannot change a recorded structure."""
+        """Return a read-only copy of an array.
+
+        Later generations cannot change a recorded structure through it.
+        """
         result: npt.NDArray[S] = np.array(array, dtype=dtype)
         result.setflags(write=False)
         return result

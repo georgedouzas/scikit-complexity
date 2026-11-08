@@ -1,4 +1,7 @@
-"""Define the bases of what a system compiles to: values, problems, kernels, searches, printers, records, structures."""
+"""Define the bases of what a system compiles to.
+
+The bases cover values, problems, kernels, searches, printers, records, and structures.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,12 +14,13 @@ from ...specs import RunStateSpec
 
 
 class BaseKernel(BaseConfig[object, RunStateSpec]):
-    """Base of the kernels: laws lowered to numbers, the parts of a problem that a solver runs at a state.
+    """Base of the kernels.
 
-    A kernel stores in its constructor what the compiler lowered, such as compiled functions and the indices they read.
-    `prepare(problem)` validates them and sets what a run needs, such as the first renewal times, and
-    `run(state)` acts at a `RunStateSpec`, the time, the state vector, the parameters, and the random number generator,
-    and keeps what the kernel computes, such as the next state or a matrix, in `values_`.
+    Kernels are laws lowered to numbers, the parts of a problem that a solver runs at a state. A kernel stores in its
+    constructor what the compiler lowered, such as compiled functions and the indices they read. `prepare(problem)`
+    validates them and sets what a run needs, such as the first renewal times, and `run(state)` acts at a
+    `RunStateSpec`, the time, the state vector, the parameters, and the random number generator, and keeps what the
+    kernel computes, such as the next state or a matrix, in `values_`.
 
     A developer adds a law kind by subclassing it, together with the pass that builds the kernel and a solver that runs
     it. A kernel takes any context to prepare on, since the problem that holds it is built from its kernels.
@@ -41,11 +45,11 @@ class BaseKernel(BaseConfig[object, RunStateSpec]):
 
     values_: object
 
-    def _check(self) -> None:
-        """Accept every setting, since a kernel has none to validate. A kernel with settings validates them."""
-
     def _prepare(self, context: object | None) -> None:
-        """Derive nothing from the context, since a kernel prepares nothing. A kernel that derives facts sets them."""
+        """Derive nothing from the context, since a kernel prepares nothing.
+
+        A kernel that derives facts sets them.
+        """
 
     @staticmethod
     def _state_of(inputs: RunStateSpec | None) -> RunStateSpec:
@@ -70,7 +74,9 @@ class BaseKernel(BaseConfig[object, RunStateSpec]):
 
     @staticmethod
     def _generator_of(state: RunStateSpec) -> np.random.Generator:
-        """Return the random number generator of a state, raising an error when it has none.
+        """Return the random number generator of a state.
+
+        An error is raised when the state has none.
 
         Args:
             state:
@@ -91,11 +97,11 @@ class BaseKernel(BaseConfig[object, RunStateSpec]):
 
 
 class BaseSearch(BaseConfig[None, RunStateSpec]):
-    """Base of the neighbour searches: the neighbours a kernel reads at a state.
+    """Base of the neighbour searches.
 
-    A search stores the entries and the neighbourhood it reads in its constructor, and `run(state)` keeps the
-    neighbours at a `RunStateSpec` in `pairs_`: the row starts and the neighbours of every member, or the members of
-    every pair.
+    A search finds the neighbours a kernel reads at a state. A search stores the entries and the neighbourhood it reads
+    in its constructor, and `run(state)` keeps the neighbours at a `RunStateSpec` in `pairs_`: the row starts and the
+    neighbours of every member, or the members of every pair.
 
     Attributes:
         pairs_:
@@ -104,11 +110,11 @@ class BaseSearch(BaseConfig[None, RunStateSpec]):
 
     pairs_: object
 
-    def _check(self) -> None:
-        """Accept every setting, since a search has none to validate. A search with settings validates them."""
-
     def _prepare(self, context: None) -> None:
-        """Derive nothing from the context, since a search prepares nothing. A search that derives facts sets them."""
+        """Derive nothing from the context, since a search prepares nothing.
+
+        A search that derives facts sets them.
+        """
 
     @staticmethod
     def _state_of(inputs: RunStateSpec | None) -> RunStateSpec:
@@ -133,11 +139,12 @@ class BaseSearch(BaseConfig[None, RunStateSpec]):
 
 
 class BasePrinter[ContextT, InputT](BaseConfig[ContextT, InputT]):
-    """Base of the printers: they print Sage expressions as code of one target.
+    """Base of the printers.
 
-    A printer stores its target in its constructor, `prepare(symbols)` takes the symbols the code reads, in order, and
-    `run(expressions)` keeps the code of the expressions, or a function that evaluates them, in `code_`. A printer
-    names the types of the symbols it prepares on and of the expressions it prints, which differ between targets.
+    A printer prints Sage expressions as code of one target. A printer stores its target in its constructor,
+    `prepare(symbols)` takes the symbols the code reads, in order, and `run(expressions)` keeps the code of the
+    expressions, or a function that evaluates them, in `code_`. A printer names the types of the symbols it prepares on
+    and of the expressions it prints, which differ between targets.
 
     Attributes:
         code_:
@@ -145,6 +152,3 @@ class BasePrinter[ContextT, InputT](BaseConfig[ContextT, InputT]):
     """
 
     code_: object
-
-    def _check(self) -> None:
-        """Accept every setting, since a printer has none to validate. A printer with settings validates them."""

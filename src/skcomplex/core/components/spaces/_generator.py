@@ -7,7 +7,9 @@ from ._memory import MemoryNeighborhood
 
 
 class GeneratorNeighborhood(MemoryNeighborhood):
-    """Memory set of the generators of a group, after the identity and with their inverses when asked.
+    """Memory set of the generators of a group.
+
+    The identity comes first, and the inverses follow when asked.
 
     Args:
         generators:
@@ -46,6 +48,9 @@ class GeneratorNeighborhood(MemoryNeighborhood):
         self.inverses = inverses
 
     def _get_elements(self) -> tuple[str, ...]:
-        """Return the identity when included, then every generator followed by its inverse when asked."""
+        """Return the identity when included, then every generator and its inverse.
+
+        The inverse follows when asked.
+        """
         words = [word for name in self.generators for word in ((name, f'{name}^-1') if self.inverses else (name,))]
         return ('1', *words) if self.center else tuple(words)

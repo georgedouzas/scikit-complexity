@@ -1,10 +1,10 @@
-"""Define the operators of subsystems, as Sage symbolic functions the compiler lowers to matrices.
+"""Define the operators of subsystems as Sage symbolic functions.
 
-Sage symbolic products commute, but operators do not, so each local operator, each ordered product of operators, and
-each adjoint is a Sage function made by `function`, kept unevaluated in expressions. A local operator names its
-subsystem and the operator of the subsystem's `HilbertSpec`. Coefficients are ordinary Sage expressions, so an operator
-is a sum of numbers or parameter expressions times local operators, products, and adjoints, `J * operator_product(a,
-b)` rather than `J * a * b`.
+The compiler lowers them to matrices. Sage symbolic products commute, but operators do not, so each local operator, each
+ordered product of operators, and each adjoint is a Sage function made by `function`, kept unevaluated in expressions. A
+local operator names its subsystem and the operator of the subsystem's `HilbertSpec`. Coefficients are ordinary Sage
+expressions, so an operator is a sum of numbers or parameter expressions times local operators, products, and adjoints,
+`J * operator_product(a, b)` rather than `J * a * b`.
 
 Examples:
     >>> from sage.all__sagemath_symbolics import SR, var
@@ -26,7 +26,9 @@ dagger = function('dagger', nargs=1)
 
 
 def local_operator(subsystem: object, name: object) -> Expression:
-    """Return the operator of a name of the `HilbertSpec` of a subsystem, acting on that subsystem alone.
+    """Return the operator of a name of the `HilbertSpec` of a subsystem.
+
+    It acts on that subsystem alone.
 
     Args:
         subsystem:
@@ -49,7 +51,9 @@ def local_operator(subsystem: object, name: object) -> Expression:
 
 
 def has_operator(expression: object) -> bool:
-    """Check whether an expression holds a local operator, which makes it an operator rather than a scalar.
+    """Check whether an expression holds a local operator.
+
+    A local operator makes it an operator rather than a scalar.
 
     Args:
         expression:

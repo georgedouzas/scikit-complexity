@@ -5,9 +5,8 @@ import pytest
 from scipy.optimize import brentq
 from scipy.special import gammaln
 
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.systems import describe
-from skcomplex.systems.social.opinion_dynamics import standardized_agents
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.social.opinion_dynamics import StandardizedAgentsSystem
 
 
 def test_standardized_agents_match_the_exact_equilibrium():
@@ -19,25 +18,29 @@ def test_standardized_agents_match_the_exact_equilibrium():
     weights += marked * np.log(2) + (size - marked) * np.log(configurations)
     weights += K * marked * (marked - 1) / (2 * size * temperature)
     probabilities = np.exp(weights - weights.max()) / np.exp(weights - weights.max()).sum()
-    system = standardized_agents(size, K=K, J=0.0, T=temperature, H=configurations, standardized=0.0, random_state=0)
-    q = (
-        Simulation(system, random_state=0, observables=describe('standardized_agents').observables_of(system))
+    system = (
+        StandardizedAgentsSystem(size, K=K, J=0.0, T=temperature, H=configurations, standardized=0.0, random_state=0)
         .prepare()
-        .run(until=5000)
-        .trajectory_.values('q')
+        .system_
     )
+    q = simulate(
+        system,
+        until=5000,
+        random_state=0,
+        observables=StandardizedAgentsSystem().get_run_settings()['observables'],
+    ).values('q')
     assert q[200:].mean() == pytest.approx(np.sum(probabilities * marked / size), abs=0.04)
 
 
 @pytest.mark.parametrize(('temperature', 'ordered'), [(0.5, True), (1.3, False)])
 def test_standardized_agents_order_below_t_m(temperature, ordered):
     """Test that standardized agents magnetize below T_M = J, to the root of m = tanh(J m / T), and not above."""
-    system = standardized_agents(100, K=10.0, J=1.0, T=temperature, H=50, random_state=0)
-    trajectory = (
-        Simulation(system, random_state=0, observables=describe('standardized_agents').observables_of(system))
-        .prepare()
-        .run(until=1000)
-        .trajectory_
+    system = StandardizedAgentsSystem(100, K=10.0, J=1.0, T=temperature, H=50, random_state=0).prepare().system_
+    trajectory = simulate(
+        system,
+        until=1000,
+        random_state=0,
+        observables=StandardizedAgentsSystem().get_run_settings()['observables'],
     )
     magnetization = np.abs(trajectory.values('m')[-200:]).mean()
     assert trajectory.values('q')[-200:].mean() > 0.95

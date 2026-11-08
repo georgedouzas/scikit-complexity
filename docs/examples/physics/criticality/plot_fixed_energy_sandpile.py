@@ -13,13 +13,14 @@ absorbing phase transition whose order parameter is the density of active sites.
 import matplotlib.pyplot as plt
 import numpy as np
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation
+from skcomplex.systems.physics.criticality import FixedEnergySandpileSystem
 
 SYSTEM = 'fixed_energy_sandpile'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=5)
-simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare().run(until=500)
+trajectory = simulate(FixedEnergySandpileSystem(), until=500, observers=[observer], random_state=0)
 
 # %%
 # Absorbing phase transition
@@ -30,8 +31,8 @@ simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare(
 densities = np.linspace(1.9, 2.6, 15)
 activities = []
 for density in densities:
-    run = create_simulation(SYSTEM, density=density).prepare().run(until=500)
-    activities.append(np.mean(run.trajectory_.values('activity')[-100:]))
+    run = simulate(FixedEnergySandpileSystem(density=density), until=500, random_state=0)
+    activities.append(np.mean(run.values('activity')[-100:]))
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.plot(densities, activities, 'o-')
 ax.axvline(2.125, linestyle='--', color='black')

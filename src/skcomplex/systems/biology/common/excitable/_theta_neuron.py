@@ -1,4 +1,7 @@
-"""Theta neuron of Ermentrout and Kopell, `theta' = (1 - cos theta) + (1 + cos theta) eta`, a spiking phase."""
+"""Theta neuron of Ermentrout and Kopell, a spiking phase.
+
+The phase follows `theta' = (1 - cos theta) + (1 + cos theta) eta`.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,7 +17,9 @@ from .....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class ThetaNeuronElement(Element):
-    """Theta neuron of Ermentrout and Kopell, `theta' = (1 - cos theta) + (1 + cos theta) eta`, a spiking phase.
+    """Theta neuron of Ermentrout and Kopell, a spiking phase.
+
+    The phase follows `theta' = (1 - cos theta) + (1 + cos theta) eta`.
 
     The neuron fires when its phase passes π. With `eta > 0` it fires periodically with period `π / sqrt(eta)`, and
     with `eta < 0` it is excitable. The change of variable `V = tan(theta / 2)` turns it into the quadratic
@@ -39,6 +44,8 @@ class ThetaNeuronElement(Element):
         >>> GroupElement('neurons', element=ThetaNeuronElement, size=10, values={'eta': 0.5}).size
         10
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,

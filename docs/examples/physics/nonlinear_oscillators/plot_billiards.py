@@ -12,16 +12,16 @@ the open three-disk billiard the particle comes from far away, bounces between t
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.nonlinear_oscillators import BilliardsSystem
 
 SYSTEM = 'billiards'
 
 
-system = create_system(SYSTEM, shape='sinai', x=0.1, y=0.6, vx=0.6, vy=0.8)
+system = BilliardsSystem(shape='sinai', x=0.1, y=0.6, vx=0.6, vy=0.8)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-simulation = Simulation(system, dt=0.04, observers=[observer]).prepare().run(until=40)
+trajectory = simulate(system, until=40, dt=0.04, observers=[observer])
 
 # %%
 # Separation of nearby paths
@@ -33,17 +33,13 @@ simulation = Simulation(system, dt=0.04, observers=[observer]).prepare().run(unt
 turn = 1e-8
 vx, vy = 0.6 * np.cos(turn) - 0.8 * np.sin(turn), 0.6 * np.sin(turn) + 0.8 * np.cos(turn)
 paths = [
-    (
-        Simulation(create_system(SYSTEM, shape='sinai', x=0.1, y=0.6, vx=velocity[0], vy=velocity[1]), dt=0.01)
-        .prepare()
-        .run(until=60)
-    )
+    (simulate(BilliardsSystem(shape='sinai', x=0.1, y=0.6, vx=velocity[0], vy=velocity[1]), until=60, dt=0.01))
     for velocity in [(0.6, 0.8), (vx, vy)]
 ]
-times = np.asarray(paths[0].trajectory_.times)
+times = np.asarray(paths[0].times)
 distance = np.hypot(
-    np.ravel(paths[0].trajectory_.values('particle.x')) - np.ravel(paths[1].trajectory_.values('particle.x')),
-    np.ravel(paths[0].trajectory_.values('particle.y')) - np.ravel(paths[1].trajectory_.values('particle.y')),
+    np.ravel(paths[0].values('particle.x')) - np.ravel(paths[1].values('particle.x')),
+    np.ravel(paths[0].values('particle.y')) - np.ravel(paths[1].values('particle.y')),
 )
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.semilogy(times, distance)
@@ -63,15 +59,14 @@ plt.show()
 angles = np.linspace(1.44, 1.56, 121)
 collisions = []
 for phi in angles:
-    system = create_system(
-        SYSTEM,
+    system = BilliardsSystem(
         shape='three_disk',
         x=8 * np.cos(phi),
         y=8 * np.sin(phi),
         vx=-np.cos(phi),
         vy=-np.sin(phi),
     )
-    collisions.append(len(Simulation(system, dt=0.1).prepare().run(until=25).trajectory_.events))
+    collisions.append(len(simulate(system, until=25, dt=0.1).events))
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.plot(angles, collisions, '.-')
 ax.set_xlabel('incoming angle phi')

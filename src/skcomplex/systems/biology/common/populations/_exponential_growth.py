@@ -1,4 +1,7 @@
-"""Define exponential growth, a population that grows at a constant per capita rate."""
+"""Define exponential growth of a population.
+
+The population grows at a constant per capita rate.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,7 +16,9 @@ from ._growth import GrowthInteraction
 
 
 class ExponentialGrowthInteraction(GrowthInteraction):
-    """Growth at a constant per capita rate, `dn/dt = r n`, the exponential form of a growth without harvest.
+    """Growth at a constant per capita rate, `dn/dt = r n`.
+
+    It is the exponential form of a growth without harvest.
 
     Args:
         label:
@@ -31,13 +36,13 @@ class ExponentialGrowthInteraction(GrowthInteraction):
     Examples:
         >>> from skcomplex.core.components.elements import CompartmentElement
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> system = System(
         ...     elements=[CompartmentElement('rabbits', n=1.0)],
         ...     interactions=[ExponentialGrowthInteraction('growth', target='rabbits', r=0.5)],
         ... )
-        >>> trajectory = Simulation(system, dt=0.01).prepare().run(until=2.0).trajectory_
+        >>> trajectory = simulate(system, until=2.0, dt=0.01)
         >>> round(float(trajectory.values('rabbits.n')[-1]), 3)
         2.718
     """

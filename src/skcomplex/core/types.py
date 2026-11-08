@@ -1,4 +1,7 @@
-"""Define the types every layer of the package reads: arrays, tuples, functions, keys, and kinds."""
+"""Define the types every layer of the package reads.
+
+They are arrays, tuples, functions, keys, and kinds.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -9,7 +12,6 @@ from enum import StrEnum
 import numpy as np
 import numpy.typing as npt
 
-# arrays and tuples
 type Array = npt.NDArray[np.float64]
 type IntArray = npt.NDArray[np.int64]
 type Indices = npt.NDArray[np.intp]
@@ -17,12 +19,11 @@ type ComplexArray = npt.NDArray[np.complex128]
 type AnyArray = npt.NDArray[np.generic]
 type IntTuple = tuple[int, ...]
 type Pair = tuple[int, int]
-
-# functions and keys
 type VectorFunction = Callable[[float, Array, Array], Array]
 type ProcessKey = tuple[str, str, str | int]
 type Preference = Callable[[object, object], float]
 type Stoichiometry = Mapping[tuple[str, str] | str, float | Callable[..., object]]
+type ReactionTable = Mapping[str, tuple[Mapping[str, float], Mapping[str, float], float]]
 
 
 class DataKind(StrEnum):
@@ -64,7 +65,10 @@ class DataKind(StrEnum):
 
 
 class DomainKind(StrEnum):
-    """Kind of value a state takes, which decides the laws that may target it."""
+    """Kind of value a state takes.
+
+    It decides the laws that may target the state.
+    """
 
     REAL = 'real'
     INTEGER = 'integer'
@@ -105,7 +109,9 @@ class NoiseKind(StrEnum):
 
 
 class FormKind(StrEnum):
-    """Mathematical form of a compiled system, which decides the solvers that advance it.
+    """Mathematical form of a compiled system.
+
+    It decides the solvers that advance the system.
 
     Examples:
         >>> from skcomplex.core.types import FormKind
@@ -130,9 +136,10 @@ class FormKind(StrEnum):
 
 
 class ElementKind(StrEnum):
-    """Kind of element or system that carries states, as solvers, backends, and the roles of interactions name them.
+    """Kind of element or system that carries states.
 
-    `ANY` names every kind in a role that accepts them all, and no element is of this kind.
+    Solvers, backends, and the roles of interactions name these kinds. `ANY` names every kind in a role that accepts
+    them all, and no element is of this kind.
     """
 
     ANY = 'any'

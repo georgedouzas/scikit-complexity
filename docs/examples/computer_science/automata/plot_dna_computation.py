@@ -14,13 +14,14 @@ every node, and what was left was the solution.
 import matplotlib.pyplot as plt
 import numpy as np
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation
+from skcomplex.systems.computer_science.automata import DNAComputationSystem
 
 SYSTEM = 'dna_computation'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare().run()
+trajectory = simulate(DNAComputationSystem(), observers=[observer], random_state=0)
 
 # %%
 # The filters
@@ -28,7 +29,6 @@ simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare(
 # Each filter should leave fewer strands: those from node 0 to node 6, those of seven nodes among them, and those that
 # visit every node. The last ones should all spell the only Hamiltonian path, 0, 1, 2, 3, 4, 5, 6.
 
-trajectory = simulation.trajectory_
 counts = []
 for frame in range(len(trajectory.times)):
     paths = np.asarray(trajectory.agents('strands', frame).values['path'], dtype=int)

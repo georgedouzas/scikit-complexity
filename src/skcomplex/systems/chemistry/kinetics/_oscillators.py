@@ -11,18 +11,19 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.interactions import ReactionInteraction, RelaxationInteraction
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import ScipyODESolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from ..common.kinetics import BrusselatorReactionElement, CubicAutocatalysisInteraction
 
 
 class CubicAutocatalysisElement(Element):
-    """Continuously fed reactor of cubic autocatalysis, the concentrations of the reactant `a` and the autocatalyst `b`.
+    """Continuously fed reactor of cubic autocatalysis.
 
-    The reactions and the flows of `cubic_autocatalysis` change the concentrations and read the feed rate `F` and the
-    decay rate `k` from the reactor.
+    It holds the concentrations of the reactant `a` and the autocatalyst `b`.
+
+    The reactions and the flows of `CubicAutocatalysisSystem` change the concentrations and read the feed rate `F` and
+    the decay rate `k` from the reactor.
 
     Args:
         label:
@@ -67,10 +68,12 @@ class CubicAutocatalysisElement(Element):
 
 
 class OregonatorElement(Element):
-    """Reactor of the scaled Oregonator, the scaled concentrations of bromous acid, bromide, and the oxidized catalyst.
+    """Reactor of the scaled Oregonator.
+
+    It holds the scaled concentrations of bromous acid, bromide, and the oxidized catalyst.
 
     The scaled concentrations follow `epsilon dx/dt = q y - x y + x (1 - x)`, `delta dy/dt = -q y - x y + f z`, and
-    `dz/dt = x - z`. The reactions of `oregonator` change the concentrations, with the time scales `epsilon` and
+    `dz/dt = x - z`. The reactions of `OregonatorSystem` change the concentrations, with the time scales `epsilon` and
     `delta` dividing the stoichiometric coefficients of `x` and `y`, and read the parameters from the reactor.
 
     Args:
@@ -130,52 +133,14 @@ class OregonatorElement(Element):
         self.f = f
 
 
-def _get_residence(s: SimpleNamespace) -> Expression:
-    """Return the residence time `1 / F` of the continuously fed reactor."""
-    return 1 / s.target.F
+class BrusselatorODESystem(BaseSystem):
+    """The well-mixed Brusselator.
 
-
-def _get_x_scale(s: SimpleNamespace) -> Expression:
-    """Return the stoichiometric coefficient `1 / epsilon` of the scaled bromous acid."""
-    return 1 / s.target.epsilon
-
-
-def _get_y_scale(s: SimpleNamespace) -> Expression:
-    """Return the stoichiometric coefficient `1 / delta` of the scaled bromide."""
-    return 1 / s.target.delta
-
-
-def _get_y_yield(s: SimpleNamespace) -> Expression:
-    """Return the stoichiometric coefficient `f / delta` of the scaled bromide made from the oxidized catalyst."""
-    return s.target.f / s.target.delta
-
-
-def _get_bromate_bromide(s: SimpleNamespace) -> Expression:
-    """Return the propensity `q y` of the reaction of bromate with bromide."""
-    return s.target.q * s.target.y
-
-
-def _get_bromous_bromide(s: SimpleNamespace) -> Expression:
-    """Return the propensity `x y` of the reaction of bromous acid with bromide."""
-    return s.target.x * s.target.y
-
-
-def _get_disproportionation(s: SimpleNamespace) -> Expression:
-    """Return the propensity `x^2` of the disproportionation of bromous acid."""
-    return s.target.x**2
-
-
-@register_system(
-    field='chemistry/kinetics',
-    tags=('ode', 'oscillation', 'limit cycle', 'autocatalysis'),
-    references=('Prigogine and Lefever 1968', 'Datseris and Parlitz 2022', 'Trzaska 2023'),
-    defaults={'until': 50.0, 'dt': 0.1},
-)
-def brusselator_ode(u: float = 1.0, v: float = 1.0, *, a: float = 1.0, b: float = 3.0) -> System:
-    """Return the well-mixed Brusselator, which oscillates on a limit cycle when `b > 1 + a**2`.
+    It oscillates on a limit cycle when `b > 1 + a**2`.
 
     The reactions `A -> U`, `B + U -> V + D`, `2U + V -> 3U`, and `U -> E` with the buffered reactants `A` and `B`
-    give `du/dt = a - (b + 1) u + u^2 v` and `dv/dt = b u - u^2 v`, with the fixed point `(a, b / a)`.
+    give `du/dt = a - (b + 1) u + u^2 v` and `dv/dt = b u - u^2 v`, with the fixed point `(a, b / a)`. The
+    concentrations are `reactor.u` and `reactor.v`.
 
     Args:
         u:
@@ -190,49 +155,60 @@ def brusselator_ode(u: float = 1.0, v: float = 1.0, *, a: float = 1.0, b: float 
         b:
             The constant supply of the second reactant.
 
-    Returns:
-        system:
-            The system, with the concentrations `reactor.u` and `reactor.v`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.chemistry.kinetics import brusselator_ode
-        >>> brusselator_ode(b=1.5).elements[0].b
+        >>> from skcomplex.systems.chemistry.kinetics import BrusselatorODESystem
+        >>> BrusselatorODESystem(b=1.5).prepare().system_.elements[0].b
         1.5
     """
-    return System(
-        elements=[BrusselatorReactionElement('reactor', u=u, v=v, a=a, b=b)],
-        interactions=[
-            ReactionInteraction('feed', target='reactor', products={'u': 1}, modifiers={'a': 1}),
-            ReactionInteraction(
-                'conversion',
-                target='reactor',
-                reactants={'u': 1},
-                products={'v': 1},
-                modifiers={'b': 1},
-            ),
-            CubicAutocatalysisInteraction('autocatalysis', target='reactor', substrate='v', autocatalyst='u'),
-            ReactionInteraction('decay', target='reactor', reactants={'u': 1}),
-        ],
-    )
+
+    field = 'chemistry/kinetics'
+    topics = ('ode', 'oscillation', 'limit cycle', 'autocatalysis')
+    references = ('Prigogine and Lefever 1968', 'Datseris and Parlitz 2022', 'Trzaska 2023')
+    until = 50.0
+    dt = 0.1
+
+    def __init__(
+        self,
+        u: float = 1.0,
+        v: float = 1.0,
+        *,
+        a: float = 1.0,
+        b: float = 3.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.u = u
+        self.v = v
+        self.a = a
+        self.b = b
+
+    def _build_system(self) -> System:
+        """Return the reactor and the four reactions of the Brusselator."""
+        return System(
+            self.label,
+            elements=[BrusselatorReactionElement('reactor', u=self.u, v=self.v, a=self.a, b=self.b)],
+            interactions=[
+                ReactionInteraction('feed', target='reactor', products={'u': 1}, modifiers={'a': 1}),
+                ReactionInteraction(
+                    'conversion',
+                    target='reactor',
+                    reactants={'u': 1},
+                    products={'v': 1},
+                    modifiers={'b': 1},
+                ),
+                CubicAutocatalysisInteraction('autocatalysis', target='reactor', substrate='v', autocatalyst='u'),
+                ReactionInteraction('decay', target='reactor', reactants={'u': 1}),
+            ],
+        )
 
 
-@register_system(
-    field='chemistry/kinetics',
-    tags=('ode', 'oscillation', 'relaxation oscillation', 'stiff', 'Belousov-Zhabotinsky'),
-    references=('Field and Noyes 1974', 'Field, Körös, and Noyes 1972', 'Tyson 1985', 'Trzaska 2023'),
-    defaults={'until': 30.0, 'dt': 0.05, 'solver': ScipyODESolver(method='LSODA', rtol=1e-6, atol=1e-9)},
-)
-def oregonator(
-    x: float = 0.1,
-    y: float = 0.1,
-    z: float = 0.1,
-    *,
-    epsilon: float = 0.04,
-    delta: float = 4e-4,
-    q: float = 8e-4,
-    f: float = 1.0,
-) -> System:
-    """Return the scaled Oregonator, the reduction of the FKN mechanism of the Belousov-Zhabotinsky reaction.
+class OregonatorSystem(BaseSystem):
+    """The scaled Oregonator of the Belousov-Zhabotinsky reaction.
+
+    It is the reduction of the FKN mechanism of the reaction.
 
     The scaled concentrations of bromous acid `x`, bromide `y`, and the oxidized catalyst `z` follow
     `epsilon dx/dt = q y - x y + x (1 - x)`, `delta dy/dt = -q y - x y + f z`, and `dz/dt = x - z`. The five reactions
@@ -240,7 +216,7 @@ def oregonator(
     autocatalysis `X -> 2X + Z` at `x`, the disproportionation `2X -> 0` at `x^2`, and the reduction of the catalyst
     `Z -> f Y` at `z`, change `x` and `y` by stoichiometric coefficients scaled by `1 / epsilon` and `1 / delta`. With
     the standard parameters the reaction settles on a relaxation limit cycle, and the small `epsilon` and `delta` make
-    it stiff.
+    it stiff. The concentrations are `reactor.x`, `reactor.y`, and `reactor.z`.
 
     Args:
         x:
@@ -264,66 +240,136 @@ def oregonator(
         f:
             The stoichiometric factor of bromide production from the catalyst.
 
-    Returns:
-        system:
-            The system, with the concentrations `reactor.x`, `reactor.y`, and `reactor.z`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.chemistry.kinetics import oregonator
-        >>> oregonator(f=0.8).elements[0].f
+        >>> from skcomplex.systems.chemistry.kinetics import OregonatorSystem
+        >>> OregonatorSystem(f=0.8).prepare().system_.elements[0].f
         0.8
     """
-    return System(
-        elements=[OregonatorElement('reactor', x=x, y=y, z=z, epsilon=epsilon, delta=delta, q=q, f=f)],
-        interactions=[
-            ReactionInteraction(
-                'bromate_bromide',
-                target='reactor',
-                reactants={'y': _get_y_scale},
-                products={'x': _get_x_scale},
-                propensity=_get_bromate_bromide,
-            ),
-            ReactionInteraction(
-                'bromous_bromide',
-                target='reactor',
-                reactants={'x': _get_x_scale, 'y': _get_y_scale},
-                propensity=_get_bromous_bromide,
-            ),
-            ReactionInteraction(
-                'autocatalysis',
-                target='reactor',
-                products={'x': _get_x_scale, 'z': 1},
-                modifiers={'x': 1},
-            ),
-            ReactionInteraction(
-                'disproportionation',
-                target='reactor',
-                reactants={'x': _get_x_scale},
-                propensity=_get_disproportionation,
-            ),
-            ReactionInteraction(
-                'catalyst_reduction',
-                target='reactor',
-                reactants={'z': 1},
-                products={'y': _get_y_yield},
-            ),
-        ],
-    )
+
+    field = 'chemistry/kinetics'
+    topics = ('ode', 'oscillation', 'relaxation oscillation', 'stiff', 'Belousov-Zhabotinsky')
+    references = ('Field and Noyes 1974', 'Field, Körös, and Noyes 1972', 'Tyson 1985', 'Trzaska 2023')
+    until = 30.0
+    dt = 0.05
+    solver = ScipyODESolver(method='LSODA', rtol=1e-6, atol=1e-9)
+
+    def __init__(
+        self,
+        x: float = 0.1,
+        y: float = 0.1,
+        z: float = 0.1,
+        *,
+        epsilon: float = 0.04,
+        delta: float = 4e-4,
+        q: float = 8e-4,
+        f: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.x = x
+        self.y = y
+        self.z = z
+        self.epsilon = epsilon
+        self.delta = delta
+        self.q = q
+        self.f = f
+
+    @staticmethod
+    def _get_x_scale(s: SimpleNamespace) -> Expression:
+        """Return the stoichiometric coefficient `1 / epsilon` of the scaled bromous acid."""
+        return 1 / s.target.epsilon
+
+    @staticmethod
+    def _get_y_scale(s: SimpleNamespace) -> Expression:
+        """Return the stoichiometric coefficient `1 / delta` of the scaled bromide."""
+        return 1 / s.target.delta
+
+    @staticmethod
+    def _get_y_yield(s: SimpleNamespace) -> Expression:
+        """Return the stoichiometric coefficient `f / delta` of the scaled bromide.
+
+        It is the bromide made from the oxidized catalyst.
+        """
+        return s.target.f / s.target.delta
+
+    @staticmethod
+    def _get_bromate_bromide(s: SimpleNamespace) -> Expression:
+        """Return the propensity `q y` of the reaction of bromate with bromide."""
+        return s.target.q * s.target.y
+
+    @staticmethod
+    def _get_bromous_bromide(s: SimpleNamespace) -> Expression:
+        """Return the propensity `x y` of the reaction of bromous acid with bromide."""
+        return s.target.x * s.target.y
+
+    @staticmethod
+    def _get_disproportionation(s: SimpleNamespace) -> Expression:
+        """Return the propensity `x^2` of the disproportionation of bromous acid."""
+        return s.target.x**2
+
+    def _build_system(self) -> System:
+        """Return the reactor and the five reactions of the Oregonator."""
+        reactor = OregonatorElement(
+            'reactor',
+            x=self.x,
+            y=self.y,
+            z=self.z,
+            epsilon=self.epsilon,
+            delta=self.delta,
+            q=self.q,
+            f=self.f,
+        )
+        return System(
+            self.label,
+            elements=[reactor],
+            interactions=[
+                ReactionInteraction(
+                    'bromate_bromide',
+                    target='reactor',
+                    reactants={'y': self._get_y_scale},
+                    products={'x': self._get_x_scale},
+                    propensity=self._get_bromate_bromide,
+                ),
+                ReactionInteraction(
+                    'bromous_bromide',
+                    target='reactor',
+                    reactants={'x': self._get_x_scale, 'y': self._get_y_scale},
+                    propensity=self._get_bromous_bromide,
+                ),
+                ReactionInteraction(
+                    'autocatalysis',
+                    target='reactor',
+                    products={'x': self._get_x_scale, 'z': 1},
+                    modifiers={'x': 1},
+                ),
+                ReactionInteraction(
+                    'disproportionation',
+                    target='reactor',
+                    reactants={'x': self._get_x_scale},
+                    propensity=self._get_disproportionation,
+                ),
+                ReactionInteraction(
+                    'catalyst_reduction',
+                    target='reactor',
+                    reactants={'z': 1},
+                    products={'y': self._get_y_yield},
+                ),
+            ],
+        )
 
 
-@register_system(
-    field='chemistry/kinetics',
-    tags=('ode', 'autocatalysis', 'bistability', 'reactor'),
-    references=('Gray and Scott 1983', 'Trzaska 2023'),
-    defaults={'until': 500.0, 'dt': 1.0},
-)
-def cubic_autocatalysis(a: float = 0.5, b: float = 0.5, *, F: float = 0.04, k: float = 0.05) -> System:
-    """Return cubic autocatalysis `A + 2B -> 3B` with the decay `B -> C` in a continuously fed reactor.
+class CubicAutocatalysisSystem(BaseSystem):
+    """Cubic autocatalysis `A + 2B -> 3B` with the decay `B -> C`.
+
+    It runs in a continuously fed reactor.
 
     The flow through the reactor relaxes the reactant to its feed concentration 1 and washes out the autocatalyst at
     the rate `F`, so the dimensionless concentrations follow `da/dt = -a b^2 + F (1 - a)` and
     `db/dt = a b^2 - (F + k) b`. The washout state `(1, 0)` is always stable, and a reacting state coexists with it
-    when `F + k < sqrt(F) / 2`.
+    when `F + k < sqrt(F) / 2`. The concentrations are `reactor.a` and `reactor.b`.
 
     Args:
         a:
@@ -338,21 +384,53 @@ def cubic_autocatalysis(a: float = 0.5, b: float = 0.5, *, F: float = 0.04, k: f
         k:
             The decay rate of the autocatalyst.
 
-    Returns:
-        system:
-            The system, with the concentrations `reactor.a` and `reactor.b`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.chemistry.kinetics import cubic_autocatalysis
-        >>> cubic_autocatalysis(k=0.06).elements[0].k
+        >>> from skcomplex.systems.chemistry.kinetics import CubicAutocatalysisSystem
+        >>> CubicAutocatalysisSystem(k=0.06).prepare().system_.elements[0].k
         0.06
     """
-    return System(
-        elements=[CubicAutocatalysisElement('reactor', a=a, b=b, F=F, k=k)],
-        interactions=[
-            CubicAutocatalysisInteraction('autocatalysis', target='reactor', substrate='a', autocatalyst='b'),
-            ReactionInteraction('decay', target='reactor', reactants={'b': 1}, modifiers={'k': 1}),
-            RelaxationInteraction('feed', target='reactor', state='a', goal=1.0, time=_get_residence),
-            RelaxationInteraction('outflow', target='reactor', state='b', goal=0.0, time=_get_residence),
-        ],
-    )
+
+    field = 'chemistry/kinetics'
+    topics = ('ode', 'autocatalysis', 'bistability', 'reactor')
+    references = ('Gray and Scott 1983', 'Trzaska 2023')
+    until = 500.0
+    dt = 1.0
+
+    def __init__(
+        self,
+        a: float = 0.5,
+        b: float = 0.5,
+        *,
+        F: float = 0.04,
+        k: float = 0.05,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.a = a
+        self.b = b
+        self.F = F
+        self.k = k
+
+    @staticmethod
+    def _get_residence(s: SimpleNamespace) -> Expression:
+        """Return the residence time `1 / F` of the continuously fed reactor."""
+        return 1 / s.target.F
+
+    def _build_system(self) -> System:
+        """Return the reactor, the autocatalysis, the decay, and the flows.
+
+        The flows run through the reactor.
+        """
+        return System(
+            self.label,
+            elements=[CubicAutocatalysisElement('reactor', a=self.a, b=self.b, F=self.F, k=self.k)],
+            interactions=[
+                CubicAutocatalysisInteraction('autocatalysis', target='reactor', substrate='a', autocatalyst='b'),
+                ReactionInteraction('decay', target='reactor', reactants={'b': 1}, modifiers={'k': 1}),
+                RelaxationInteraction('feed', target='reactor', state='a', goal=1.0, time=self._get_residence),
+                RelaxationInteraction('outflow', target='reactor', state='b', goal=0.0, time=self._get_residence),
+            ],
+        )

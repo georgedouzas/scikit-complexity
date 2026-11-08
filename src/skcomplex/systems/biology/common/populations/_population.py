@@ -1,4 +1,7 @@
-"""Define populations, compartments that hold the size of a population of one species."""
+"""Define populations of one species.
+
+A population is a compartment that holds the size of a population of one species.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

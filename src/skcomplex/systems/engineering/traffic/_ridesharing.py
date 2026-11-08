@@ -1,4 +1,7 @@
-"""Ridesharing: riders who request trips on a city grid and cabs that a stable matching sends to them."""
+"""Ridesharing: riders who request trips on a city grid and cabs sent to them.
+
+A stable matching sends the cabs.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,7 +18,7 @@ from ....core.components.interactions import LifeCycleInteraction, MapInteractio
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.laws.utils import transfer
 from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ArgumentError
 from ....core.specs import (
@@ -29,11 +32,13 @@ from ....core.specs import (
     StateSpec,
     VisualSpec,
 )
-from ..._catalog import register_system
 
 
 class CabView(AgentView):
-    """View of a cab of the ridesharing system, with its states and parameters as attributes."""
+    """View of a cab of the ridesharing system.
+
+    Its states and parameters are attributes.
+    """
 
     task: float
     target_x: float
@@ -61,9 +66,10 @@ IDLE, PICKING_UP, DELIVERING = 0.0, 1.0, 2.0
 
 
 class CabElement(Element):
-    """Cab that drives one block a step to its rider, collects the fare, and drives the rider to its destination.
+    """Cab that drives a rider to its destination for a fare.
 
-    The fare is a base fare plus a fare per block of the trip, paid as a transfer from rider to cab.
+    It drives one block a step to its rider, collects the fare, and drives the rider to its destination. The fare is a
+    base fare plus a fare per block of the trip, paid as a transfer from rider to cab.
 
     Args:
         label:
@@ -109,6 +115,8 @@ class CabElement(Element):
         3
     """
 
+    law_classes = (RuleLaw,)
+
     def __init__(
         self,
         label: str,
@@ -139,7 +147,10 @@ class CabElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[CabView]:
-        """Return the view of the cabs, which types their states and parameters."""
+        """Return the view of the cabs.
+
+        It types their states and parameters.
+        """
         return CabView
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
@@ -201,12 +212,17 @@ class CabElement(Element):
 
     @staticmethod
     def _blocks(first: tuple[int, int], second: tuple[int, int]) -> int:
-        """Return the number of blocks between two cells of the grid, the Manhattan distance."""
+        """Return the number of blocks between two cells of the grid.
+
+        It is the Manhattan distance.
+        """
         return abs(first[0] - second[0]) + abs(first[1] - second[1])
 
 
 class RiderElement(Element):
-    """Rider who waits at a cell for a cab to a destination, and pays the fare when the cab picks it up.
+    """Rider who waits at a cell for a cab to a destination.
+
+    It pays the fare when the cab picks it up.
 
     Args:
         label:
@@ -257,14 +273,18 @@ class RiderElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[RiderView]:
-        """Return the view of the riders, which types their states."""
+        """Return the view of the riders.
+
+        It types their states.
+        """
         return RiderView
 
 
 class ArrivalInteraction(LifeCycleInteraction):
-    """Arrival of new riders at random cells with random destinations, a life cycle of arrivals only.
+    """Arrival of new riders at random cells with random destinations.
 
-    Every step a Poisson number of riders, with mean `demand`, appear at random cells with random destinations.
+    It is a life cycle of arrivals only. Every step a Poisson number of riders, with mean `demand`, appear at random
+    cells with random destinations.
 
     Args:
         label:
@@ -366,74 +386,17 @@ def _busy(agent: CabView) -> float:
     return float(agent.task != IDLE)
 
 
-def _ridesharing_observables(system: System) -> list[ObservableSpec]:
-    """Return the number of waiting riders, their mean waiting time, and the share of busy cabs."""
-    del system
-    return [
-        ObservableSpec('queue', group='riders', variable='waited', reduce='count'),
-        ObservableSpec('mean_wait', group='riders', variable='waited', reduce='mean'),
-        ObservableSpec('utilisation', _busy, group='cabs', reduce='mean'),
-    ]
+class RidesharingSystem(BaseSystem):
+    """Riders who request trips on a city grid and cabs sent to them.
 
+    A stable matching sends the cabs. Every step new riders appear at random cells with random destinations, and the
+    dispatch matches the waiting riders with the idle cabs by a stable matching in which riders prefer nearer cabs and
+    cabs prefer riders who waited longer. Every cab drives one block a step to its rider, collects the fare, and drives
+    the rider to its destination. While the demand stays below the trips the fleet can serve, riders wait about as long
+    as a cab takes to reach them. As the demand approaches that capacity, every cab is busy, the queue of waiting riders
+    grows, and the waiting time rises steeply, as in a queue near saturation.
 
-def _nearness(rider: object, cab: object) -> float:
-    """Return the preference of a rider for a cab, higher for a cab fewer blocks away."""
-    if not isinstance(rider, RiderView) or not isinstance(cab, CabView):
-        error_msg = f'A rider ranks cabs, but got {rider!r} and {cab!r}.'
-        raise ArgumentError(error_msg)
-    return -float(CabElement._blocks(CabElement._cell(rider.location), CabElement._cell(cab.location)))
-
-
-def _patience(cab: object, rider: object) -> float:
-    """Return the preference of a cab for a rider, higher for a rider who waited longer."""
-    if not isinstance(rider, RiderView):
-        error_msg = f'A cab ranks riders, but got {rider!r}.'
-        raise ArgumentError(error_msg)
-    return rider.waited
-
-
-def _dispatch(ride: MatchSpec, system: SystemView) -> None:
-    """Send the cab of a ride to its rider."""
-    del system
-    rider, cab = ride.requester, ride.provider
-    if not isinstance(rider, RiderView) or not isinstance(cab, CabView):
-        error_msg = f'A ride matches a rider with a cab, but got {rider!r} and {cab!r}.'
-        raise ArgumentError(error_msg)
-    new_target_x_value, new_target_y_value = CabElement._cell(rider.location)
-    cab.target_x = new_target_x_value
-    cab.target_y = new_target_y_value
-    new_destination_x, new_destination_y = rider.destination_x, rider.destination_y
-    cab.destination_x = new_destination_x
-    cab.destination_y = new_destination_y
-    cab.rider = float(rider.id)
-    cab.task = PICKING_UP
-
-
-@register_system(
-    field='engineering/traffic',
-    tags=('ridesharing', 'agents', 'matching', 'queues', 'grid'),
-    references=('Carmichael and Hadzikadic 2019 ch. 7',),
-    defaults={'until': 200},
-    observables=_ridesharing_observables,
-)
-def ridesharing(
-    n_cabs: int = 30,
-    *,
-    demand: float = 1.0,
-    width: int = 30,
-    height: int = 30,
-    base_fare: float = 2.0,
-    block_fare: float = 0.5,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return riders who request trips on a city grid and cabs that a stable matching sends to them.
-
-    Every step new riders appear at random cells with random destinations, and the dispatch matches the waiting
-    riders with the idle cabs by a stable matching in which riders prefer nearer cabs and cabs prefer riders who waited
-    longer. Every cab drives one block a step to its rider, collects the fare, and drives the rider to its destination.
-    While the demand stays below the trips the fleet can serve, riders wait about as long as a cab takes to reach them.
-    As the demand approaches that capacity, every cab is busy, the queue of waiting riders grows, and the waiting time
-    rises steeply, as in a queue near saturation.
+    The system has the groups `riders` and `cabs`, the arrivals `arrival`, and the matching `dispatch`.
 
     Args:
         n_cabs:
@@ -457,57 +420,136 @@ def ridesharing(
         random_state:
             The seed or generator of the cells of the cabs.
 
-    Returns:
-        system:
-            The system, with the groups `riders` and `cabs`, the arrivals `arrival`, and the matching `dispatch`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.engineering.traffic import ridesharing
-        >>> [group.size for group in ridesharing(5).elements]
+        >>> from skcomplex.systems.engineering.traffic import RidesharingSystem
+        >>> [group.size for group in RidesharingSystem(5).prepare().system_.elements]
         [1, 5]
     """
-    rng = np.random.default_rng(random_state)
-    cells = rng.integers((width, height), size=(n_cabs + 1, 2))
-    riders = GroupElement(
-        'riders',
-        element=RiderElement,
-        size=1,
-        values={'destination_x': float(rng.integers(width)), 'destination_y': float(rng.integers(height))},
-        variable=True,
-        location=[(int(cells[0, 0]), int(cells[0, 1]))],
+
+    field = 'engineering/traffic'
+    topics = ('ridesharing', 'agents', 'matching', 'queues', 'grid')
+    references = ('Carmichael and Hadzikadic 2019 ch. 7',)
+    until = 200
+    observables = (
+        ObservableSpec('queue', group='riders', variable='waited', reduce='count'),
+        ObservableSpec('mean_wait', group='riders', variable='waited', reduce='mean'),
+        ObservableSpec('utilisation', _busy, group='cabs', reduce='mean'),
     )
-    cabs = GroupElement(
-        'cabs',
-        element=CabElement,
-        size=n_cabs,
-        values={'base_fare': base_fare, 'block_fare': block_fare},
-        location=[(int(x), int(y)) for x, y in cells[1:]],
-    )
-    return System(
-        elements=[riders, cabs],
-        interactions=[
-            ArrivalInteraction('arrival', target='riders', demand=demand, width=width, height=height),
-            MapInteraction(
-                'waiting',
-                target='riders',
-                state='waited',
-                function=lambda agent, system: 1.0,
-                mode='increment',
-                form='agent',
-                phase='drive',
+
+    def __init__(
+        self,
+        n_cabs: int = 30,
+        *,
+        demand: float = 1.0,
+        width: int = 30,
+        height: int = 30,
+        base_fare: float = 2.0,
+        block_fare: float = 0.5,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_cabs = n_cabs
+        self.demand = demand
+        self.width = width
+        self.height = height
+        self.base_fare = base_fare
+        self.block_fare = block_fare
+        self.random_state = random_state
+
+    @staticmethod
+    def _nearness(rider: object, cab: object) -> float:
+        """Return the preference of a rider for a cab, higher for a cab fewer blocks away."""
+        if not isinstance(rider, RiderView) or not isinstance(cab, CabView):
+            error_msg = f'A rider ranks cabs, but got {rider!r} and {cab!r}.'
+            raise ArgumentError(error_msg)
+        return -float(CabElement._blocks(CabElement._cell(rider.location), CabElement._cell(cab.location)))
+
+    @staticmethod
+    def _patience(cab: object, rider: object) -> float:
+        """Return the preference of a cab for a rider.
+
+        It is higher for a rider who waited longer.
+        """
+        if not isinstance(rider, RiderView):
+            error_msg = f'A cab ranks riders, but got {rider!r}.'
+            raise ArgumentError(error_msg)
+        return rider.waited
+
+    @staticmethod
+    def _dispatch(ride: MatchSpec, system: SystemView) -> None:
+        """Send the cab of a ride to its rider."""
+        del system
+        rider, cab = ride.requester, ride.provider
+        if not isinstance(rider, RiderView) or not isinstance(cab, CabView):
+            error_msg = f'A ride matches a rider with a cab, but got {rider!r} and {cab!r}.'
+            raise ArgumentError(error_msg)
+        new_target_x_value, new_target_y_value = CabElement._cell(rider.location)
+        cab.target_x = new_target_x_value
+        cab.target_y = new_target_y_value
+        new_destination_x, new_destination_y = rider.destination_x, rider.destination_y
+        cab.destination_x = new_destination_x
+        cab.destination_y = new_destination_y
+        cab.rider = float(rider.id)
+        cab.task = PICKING_UP
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        cells = rng.integers((self.width, self.height), size=(self.n_cabs + 1, 2))
+        riders = GroupElement(
+            'riders',
+            element=RiderElement,
+            size=1,
+            values={
+                'destination_x': float(rng.integers(self.width)),
+                'destination_y': float(rng.integers(self.height)),
+            },
+            variable=True,
+            location=[(int(cells[0, 0]), int(cells[0, 1]))],
+        )
+        cabs = GroupElement(
+            'cabs',
+            element=CabElement,
+            size=self.n_cabs,
+            values={'base_fare': self.base_fare, 'block_fare': self.block_fare},
+            location=[(int(x), int(y)) for x, y in cells[1:]],
+        )
+        return System(
+            self.label,
+            elements=[riders, cabs],
+            interactions=[
+                ArrivalInteraction(
+                    'arrival',
+                    target='riders',
+                    demand=self.demand,
+                    width=self.width,
+                    height=self.height,
+                ),
+                MapInteraction(
+                    'waiting',
+                    target='riders',
+                    state='waited',
+                    function=lambda agent, system: 1.0,
+                    mode='increment',
+                    form='agent',
+                    phase='drive',
+                ),
+                MatchingInteraction(
+                    'dispatch',
+                    requesters='riders',
+                    providers='cabs',
+                    rule=StableMatchingSpec(requester_preference=self._nearness, provider_preference=self._patience),
+                    quantity='seats',
+                    phase='dispatch',
+                    on_match=self._dispatch,
+                ),
+            ],
+            space=LatticeSpace((self.width, self.height), boundary='fixed', neighborhood='von_neumann'),
+            time=DiscreteTime(
+                schedule=PhasesScheduleSpec([PhaseSpec('arrival'), PhaseSpec('dispatch'), PhaseSpec('drive')]),
             ),
-            MatchingInteraction(
-                'dispatch',
-                requesters='riders',
-                providers='cabs',
-                rule=StableMatchingSpec(requester_preference=_nearness, provider_preference=_patience),
-                quantity='seats',
-                phase='dispatch',
-                on_match=_dispatch,
-            ),
-        ],
-        space=LatticeSpace((width, height), boundary='fixed', neighborhood='von_neumann'),
-        time=DiscreteTime(
-            schedule=PhasesScheduleSpec([PhaseSpec('arrival'), PhaseSpec('dispatch'), PhaseSpec('drive')]),
-        ),
-    )
+        )

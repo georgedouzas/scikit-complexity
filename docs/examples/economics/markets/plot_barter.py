@@ -16,10 +16,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
-from skcomplex.systems.economics.markets import contract_curve
+from skcomplex.systems.economics.markets import BarterSystem, contract_curve
 
 SYSTEM = 'barter'
 
@@ -34,9 +33,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM, n_barterers=100, random_state=0)
+system = BarterSystem(n_barterers=100, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=30)
+trajectory = simulate(system, until=30, observers=[observer], random_state=0)
 
 # %%
 # The contract curve of the Edgeworth box
@@ -53,8 +52,8 @@ box.plot(chocolate, contract_curve(chocolate, A, B, 10.0, 10.0), color='black', 
 rng = np.random.default_rng(1)
 for index in range(8):
     x, y = rng.uniform(1, 9, 2)
-    edgeworth = create_system(SYSTEM, chocolate=(x, 10 - x), cigarettes=(y, 10 - y), weights=(A, B))
-    final = Simulation(edgeworth, random_state=0).prepare().run(until=2).trajectory_.agents('barterers', 2).values
+    edgeworth = BarterSystem(chocolate=(x, 10 - x), cigarettes=(y, 10 - y), weights=(A, B))
+    final = simulate(edgeworth, until=2, random_state=0).agents('barterers', 2).values
     label = ('endowment', 'final allocation') if index == 0 else (None, None)
     box.plot([x, final['chocolate'][0]], [y, final['cigarettes'][0]], color='grey', lw=0.8)
     box.scatter(x, y, color='C0', label=label[0])
@@ -65,8 +64,8 @@ box.set_xlabel('chocolate of the first barterer')
 box.set_ylabel('cigarettes of the first barterer')
 box.set_title('Barter ends on the contract curve')
 box.legend()
-dispersion = simulation.trajectory_.values('exchange.dispersion')
-spread.semilogy(simulation.trajectory_.times, dispersion, marker='.')
+dispersion = trajectory.values('exchange.dispersion')
+spread.semilogy(trajectory.times, dispersion, marker='.')
 spread.set_xlabel('step')
 spread.set_ylabel('standard deviation of log price')
 spread.set_title('The prisoners settle on one price')

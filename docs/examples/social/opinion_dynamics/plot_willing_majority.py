@@ -13,15 +13,15 @@ zealots of one opinion wins everyone over.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.social.opinion_dynamics import WillingMajoritySystem
 
 SYSTEM = 'willing_majority'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-system = create_system(SYSTEM, zealots=0.1, zealot_opinion=1.0)
-simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=50)
+system = WillingMajoritySystem(zealots=0.1, zealot_opinion=1.0)
+trajectory = simulate(system, observers=[observer], random_state=0)
 
 # %%
 # Consensus and zealots
@@ -30,13 +30,13 @@ simulation = Simulation(system, observers=[observer], random_state=0).prepare().
 # opinions, and reach 1 with the zealots of `A`.
 
 runs = {
-    'all willing': create_system(SYSTEM),
-    'zealots of both opinions': create_system(SYSTEM, zealots=0.2),
+    'all willing': WillingMajoritySystem(),
+    'zealots of both opinions': WillingMajoritySystem(zealots=0.2),
     'zealots of A': system,
 }
 fig, (shares, groups) = plt.subplots(1, 2, figsize=(10, 4))
 for name, item in runs.items():
-    trajectory = Simulation(item, random_state=0).prepare().run(until=50).trajectory_
+    trajectory = simulate(item, until=50, random_state=0)
     share = [np.mean(trajectory.agents('voters', frame).values['opinion']) for frame in range(51)]
     shares.plot(trajectory.times, share, label=name)
 shares.set_xlabel('sweeps')
@@ -46,7 +46,7 @@ shares.legend()
 fractions = np.linspace(0.0, 0.4, 9)
 finals = []
 for fraction in fractions:
-    trajectory = Simulation(create_system(SYSTEM, zealots=fraction), random_state=0).prepare().run(50).trajectory_
+    trajectory = simulate(WillingMajoritySystem(zealots=fraction), random_state=0)
     opinions = trajectory.agents('voters', 50).values['opinion']
     finals.append(min(opinions.mean(), 1 - opinions.mean()))
 groups.plot(fractions, finals, 'o-')

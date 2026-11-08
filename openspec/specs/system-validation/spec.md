@@ -67,12 +67,12 @@ It SHALL check:
 - **THEN** the report holds one error whose fix names the installation extra
 
 ### Requirement: Compilation and simulation validate first
-A compiler and `Simulation` SHALL validate in `prepare` before doing any other work, raise one `ValidationError` listing
+A compiler and `simulate` SHALL validate before doing any other work, raise one `ValidationError` listing
 every error of the report, and emit warnings as named warnings. A valid system SHALL compile without any further
 compatibility error.
 
 #### Scenario: Error before compilation
-- **WHEN** an invalid system is passed to `Simulation`
+- **WHEN** an invalid system is passed to `simulate`
 - **THEN** a `ValidationError` is raised before any kernel is generated, and its message lists every error with its
   path and fix
 
@@ -105,7 +105,7 @@ the system uses, naming the first law or element that needs it and listing the s
 
 #### Scenario: Milstein with a shared process
 - **WHEN** a system in which one process drives two states is validated with the solver `Milstein`
-- **THEN** the report holds one error that names the process's first law and suggests `EulerMaruyama` or `Heun`
+- **THEN** the report holds one error that names the process's first law and suggests `EulerMaruyamaSolver` or `Heun`
 
 #### Scenario: Automatic solver for correlated noise
 - **WHEN** a system with a correlated Wiener element is simulated with the solver `'auto'`

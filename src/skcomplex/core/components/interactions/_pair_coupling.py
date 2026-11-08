@@ -1,4 +1,7 @@
-"""Define pair coupling, which adds a function of every pair within a cutoff, or minus a gradient, to both members."""
+"""Define pair coupling.
+
+Pair coupling adds a function of every pair within a cutoff, or minus a gradient, to both members.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,20 +18,21 @@ from ...errors import ValidationError
 from ...specs import ParameterSpec, RoleSpec
 from ...types import ElementKind
 from ..laws import BaseLaw, RateLaw
+from ..spaces import BaseSpace
 from ..types import NamespaceFunction, PairPotential, Target
 from ._pair import PairInteraction
 
 
 class PairCouplingInteraction(PairInteraction):
-    """Coupling of every pair of members closer than a cutoff, through a function of the pair or a pair potential.
+    """Coupling of every pair of members closer than a cutoff.
 
-    Every member of a pair adds a value to the rate of its state `write`, which gives the highest derivative of a state
-    of any order. With `function`, the value is `function(namespace)`, where `namespace.first` is the member that adds
-    it and `namespace.second` the other member. With `potential`, a function `potential(namespace, r)` of the distance
-    `r` between the values of the vector state `position` of the pair, the value is minus the gradient of the potential
-    with respect to the member's own `position`. A `divisor` names a state or parameter of the members that divides
-    the value. With several states `write`, the function returns one value per state, in their order, so one pair
-    couples several states jointly.
+    It is through a function of the pair or a pair potential. Every member of a pair adds a value to the rate of its
+    state `write`, which gives the highest derivative of a state of any order. With `function`, the value is
+    `function(namespace)`, where `namespace.first` is the member that adds it and `namespace.second` the other member.
+    With `potential`, a function `potential(namespace, r)` of the distance `r` between the values of the vector state
+    `position` of the pair, the value is minus the gradient of the potential with respect to the member's own
+    `position`. A `divisor` names a state or parameter of the members that divides the value. With several states
+    `write`, the function returns one value per state, in their order, so one pair couples several states jointly.
 
     Args:
         label:
@@ -103,15 +107,21 @@ class PairCouplingInteraction(PairInteraction):
         self.divisor = divisor
         self.period = period
 
-    def _check(self) -> None:
-        """Raise an error unless exactly one of the function and the potential is a callable.
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Raise an error unless one of the function and the potential is a callable.
+
+        Exactly one of them must be.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The function and the potential are both given or both missing, the given one is not callable, or the
                 potential has several states to write.
         """
-        super()._check()
+        super()._prepare(context)
         given = [item for item in (self.function, self.potential) if item is not None]
         if len(given) != 1 or not callable(given[0]):
             error_msg = (
@@ -124,7 +134,10 @@ class PairCouplingInteraction(PairInteraction):
             raise ValidationError(error_msg)
 
     def _get_gradient_value(self, namespace: SimpleNamespace) -> Target:
-        """Return minus the gradient of the pair potential with respect to the position of the first member."""
+        """Return minus the gradient of the pair potential.
+
+        The gradient is with respect to the position of the first member.
+        """
         assert self.potential is not None
         distance = SR.var('r', domain='positive')
         first, second = self._get_member(namespace, 'first'), self._get_member(namespace, 'second')
@@ -134,7 +147,10 @@ class PairCouplingInteraction(PairInteraction):
         return -slope * separation / r
 
     def _get_values(self, namespace: SimpleNamespace) -> list[Target]:
-        """Return the values the first member of a pair adds to the rates of its states, in the order of `write`."""
+        """Return the values the first member of a pair adds to the rates of its states.
+
+        They are in the order of `write`.
+        """
         if self.function is None:
             values = [self._get_gradient_value(namespace)]
         elif isinstance(self.write, str):

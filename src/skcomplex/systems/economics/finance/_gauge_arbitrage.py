@@ -1,4 +1,7 @@
-"""Gauge arbitrage: exchange rates on links as lattice electrodynamics, sourced by traders who move a good on sites."""
+"""Gauge arbitrage: exchange rates on links as lattice electrodynamics.
+
+Traders who move a good on sites source them.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,11 +22,10 @@ from ....core.components.interactions import NeighborInteraction, RateInteractio
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import codifferential, exterior_derivative
 from ....core.components.spaces import CellComplexSpace, LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, RunSettings, System
 from ....core.engine.solvers import RK4Solver
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 SOLVER_TOLERANCE = 1e-15
 
@@ -63,7 +65,9 @@ class GoodSiteElement(Element):
 
 
 class ExchangeLinkElement(Element):
-    """Link of a lattice with an exchange-rate potential `A` and its rate of change `E`.
+    """Link of a lattice with an exchange-rate potential `A` and its rate `E`.
+
+    The rate `E` is the rate of change of the potential.
 
     Args:
         label:
@@ -102,14 +106,14 @@ class ExchangeLinkElement(Element):
 
 
 class TraderCurrentInteraction(NeighborInteraction):
-    """Trader current `J = -D (rho_t - rho_s - q A (rho_s + rho_t) / 2)` along the links, down the covariant gradient.
+    """Trader current along the links, down the covariant gradient.
 
-    The covariant derivative is `D_mu = d_mu - A_mu` of Schwichtenberg (2020 Eq. 2.55), with the charge `q` of its
-    Eq. 4.24, and the current is minus the diffusion constant times this derivative of the good, as in Eq. 2.56. The
-    current moves the good from the source of a link to its target (footnote 18 of §2.1), and it is the source of the
-    field of the link with the sign of the Ampere-Maxwell law of Eq. 2.39, `E' = ... - J`, so the Gauss law holds as the
-    good moves. These signs give the potential a mass, `A'' = ... - D q rho A`, for a positive density and charge, so
-    the fields stay bounded.
+    The current is `J = -D (rho_t - rho_s - q A (rho_s + rho_t) / 2)`. The covariant derivative is `D_mu = d_mu - A_mu`
+    of Schwichtenberg (2020 Eq. 2.55), with the charge `q` of its Eq. 4.24, and the current is minus the diffusion
+    constant times this derivative of the good, as in Eq. 2.56. The current moves the good from the source of a link to
+    its target (footnote 18 of §2.1), and it is the source of the field of the link with the sign of the Ampere-Maxwell
+    law of Eq. 2.39, `E' = ... - J`, so the Gauss law holds as the good moves. These signs give the potential a mass,
+    `A'' = ... - D q rho A`, for a positive density and charge, so the fields stay bounded.
 
     Args:
         label:
@@ -133,6 +137,8 @@ class TraderCurrentInteraction(NeighborInteraction):
         0.5
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -149,7 +155,7 @@ class TraderCurrentInteraction(NeighborInteraction):
         self.q = q
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rates of the good at both ends of a link and of the electric field of the link.
+        """Return the rates of the good at both ends of a link and of its electric field.
 
         Args:
             namespace:
@@ -165,16 +171,6 @@ class TraderCurrentInteraction(NeighborInteraction):
         return [RateLaw(source.rho, -current), RateLaw(target.rho, current), RateLaw(edge.E, -current)]
 
 
-def _potential_rate(namespace: SimpleNamespace) -> Expression:
-    """Return the rate of the potential, the field `F_0i` of the link."""
-    return namespace.target.E
-
-
-def _field_rate(namespace: SimpleNamespace) -> Expression:
-    """Return the rate of the field without the current, minus the codifferential of the exterior derivative."""
-    return -codifferential(exterior_derivative(namespace.target.A))
-
-
 def _total_good(t: float, values: Mapping[str, object]) -> float:
     """Return the total of the good."""
     del t
@@ -182,7 +178,12 @@ def _total_good(t: float, values: Mapping[str, object]) -> float:
 
 
 def _gauss_residual(edges: scipy.sparse.csr_array, t: float, values: Mapping[str, object]) -> float:
-    """Return the largest absolute difference of the codifferential of the field and the excess of the good."""
+    """Return the largest absolute difference of the codifferential and the excess.
+
+    The codifferential is that of the field, and the excess that of the good.
+
+    The excess is that of the good.
+    """
     del t
     density = np.ravel(np.asarray(values['sites.rho'], dtype=float))
     electric = np.ravel(np.asarray(values['links.E'], dtype=float))
@@ -198,35 +199,10 @@ def _market_observables(system: System) -> list[ObservableSpec]:
     ]
 
 
-def _initial_field(edges: scipy.sparse.csr_array, excess: Array) -> Array:
-    """Return the electric field of the smallest norm whose codifferential is the excess of the good."""
-    field = scipy.sparse.linalg.lsqr(
-        -edges.T,
-        excess,
-        atol=SOLVER_TOLERANCE,
-        btol=SOLVER_TOLERANCE,
-        conlim=0.0,
-        iter_lim=100 * excess.size,
-    )[0]
-    return np.asarray(field, dtype=float)
+class GaugeArbitrageMarketSystem(BaseSystem):
+    """Exchange-rate potentials on links as lattice Maxwell fields.
 
-
-@register_system(
-    field='economics/finance',
-    tags=('gauge', 'arbitrage', 'exchange rates', 'lattice', 'maxwell', 'cell complex'),
-    references=('Schwichtenberg 2020',),
-    defaults={'until': 20.0, 'dt': 0.5, 'solver': RK4Solver(dt=0.02)},
-    observables=_market_observables,
-)
-def gauge_arbitrage_market(
-    size: int = 16,
-    *,
-    D: float = 0.5,
-    q: float = 0.2,
-    bump: float = 1.0,
-    seed: int = 0,
-) -> System:
-    """Return exchange-rate potentials on links as lattice Maxwell fields, sourced by traders who move a good on sites.
+    Traders who move a good on sites source them.
 
     The potentials follow `A_t = E` and `E_t = -codifferential(dA) - J`, and the good follows `rho_t =
     -codifferential(J)` with the current `J = -D (d rho - q A rho)` along its covariant gradient, after Schwichtenberg
@@ -254,30 +230,94 @@ def gauge_arbitrage_market(
         seed:
             The seed of the initial density.
 
-    Returns:
-        system:
-            The system.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.finance import gauge_arbitrage_market
-        >>> [element.label for element in gauge_arbitrage_market(4).elements]
+        >>> from skcomplex.systems.economics.finance import GaugeArbitrageMarketSystem
+        >>> [element.label for element in GaugeArbitrageMarketSystem(4).prepare().system_.elements]
         ['sites', 'links']
     """
-    space = CellComplexSpace(LatticeSpace((size, size))).prepare()
-    density = 1.0 + bump * np.random.default_rng(seed).random(size * size)
-    field = _initial_field(space.incidences_[0], density - density.mean())
-    sites = GroupElement('sites', element=GoodSiteElement, space=space, on='sites', values={'rho': density})
-    links = GroupElement(
-        'links',
-        element=ExchangeLinkElement,
-        space=space,
-        on='edges',
-        values={'E': field},
-        visual=VisualSpec('cell', {'state': 'A'}),
-    )
-    interactions = [
-        RateInteraction('potential', target='links', state='A', rate=_potential_rate),
-        RateInteraction('field', target='links', state='E', rate=_field_rate),
-        TraderCurrentInteraction('current', target='sites', links='links', D=D, q=q),
-    ]
-    return System(elements=[sites, links], interactions=interactions)
+
+    field = 'economics/finance'
+    topics = ('gauge', 'arbitrage', 'exchange rates', 'lattice', 'maxwell', 'cell complex')
+    references = ('Schwichtenberg 2020',)
+    until = 20.0
+    dt = 0.5
+    solver = RK4Solver(dt=0.02)
+
+    def __init__(
+        self,
+        size: int = 16,
+        *,
+        D: float = 0.5,
+        q: float = 0.2,
+        bump: float = 1.0,
+        seed: int = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.size = size
+        self.D = D
+        self.q = q
+        self.bump = bump
+        self.seed = seed
+
+    @staticmethod
+    def _potential_rate(namespace: SimpleNamespace) -> Expression:
+        """Return the rate of the potential, the field `F_0i` of the link."""
+        return namespace.target.E
+
+    @staticmethod
+    def _field_rate(namespace: SimpleNamespace) -> Expression:
+        """Return the rate of the field without the current.
+
+        It is minus the codifferential of the exterior derivative.
+        """
+        return -codifferential(exterior_derivative(namespace.target.A))
+
+    @staticmethod
+    def _initial_field(edges: scipy.sparse.csr_array, excess: Array) -> Array:
+        """Return the electric field of the smallest norm with a given codifferential.
+
+        Its codifferential is the excess of the good.
+        """
+        field = scipy.sparse.linalg.lsqr(
+            -edges.T,
+            excess,
+            atol=SOLVER_TOLERANCE,
+            btol=SOLVER_TOLERANCE,
+            conlim=0.0,
+            iter_lim=100 * excess.size,
+        )[0]
+        return np.asarray(field, dtype=float)
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        space = CellComplexSpace(LatticeSpace((self.size, self.size))).prepare()
+        density = 1.0 + self.bump * np.random.default_rng(self.seed).random(self.size * self.size)
+        field = self._initial_field(space.incidences_[0], density - density.mean())
+        sites = GroupElement('sites', element=GoodSiteElement, space=space, on='sites', values={'rho': density})
+        links = GroupElement(
+            'links',
+            element=ExchangeLinkElement,
+            space=space,
+            on='edges',
+            values={'E': field},
+            visual=VisualSpec('cell', {'state': 'A'}),
+        )
+        interactions = [
+            RateInteraction('potential', target='links', state='A', rate=self._potential_rate),
+            RateInteraction('field', target='links', state='E', rate=self._field_rate),
+            TraderCurrentInteraction('current', target='sites', links='links', D=self.D, q=self.q),
+        ]
+        return System(self.label, elements=[sites, links], interactions=interactions)
+
+    def get_run_settings(self) -> RunSettings:
+        """Return the tuned run settings.
+
+        The observables of the parts are built from the model parameters.
+        """
+        settings = super().get_run_settings()
+        settings['observables'] = _market_observables(self._pass_parameters())
+        return settings

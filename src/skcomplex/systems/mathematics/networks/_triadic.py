@@ -1,4 +1,7 @@
-"""Triadic percolation: regulating nodes switch the links of a network on and off from the giant component."""
+"""Triadic percolation.
+
+Regulating nodes switch the links of a network on and off from the giant component.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,14 +19,15 @@ from ....core.components.interactions import HyperedgeInteraction, Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import bernoulli, components, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from ..common._regulated_node import RegulatedNodeElement
 
 
 class RegulatedLinkElement(Element):
-    """Link of a network with triadic regulation, with its activity and the sign of its regulating node.
+    """Link of a network with triadic regulation.
+
+    The link has its activity and the sign of its regulating node.
 
     Args:
         label:
@@ -59,7 +63,9 @@ class RegulatedLinkElement(Element):
 
 
 class GiantComponentInteraction(Interaction):
-    """Activity of every node in its phase, 1 in the giant component of the active links and 0 outside it.
+    """Activity of every node in its phase.
+
+    The activity is 1 in the giant component of the active links and 0 outside it.
 
     Args:
         label:
@@ -80,6 +86,8 @@ class GiantComponentInteraction(Interaction):
         'links'
     """
 
+    law_classes = (UpdateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -99,7 +107,9 @@ class GiantComponentInteraction(Interaction):
 
 
 class TriadicRegulationInteraction(HyperedgeInteraction):
-    """Regulation of every link by a third node, which lets the link be active with probability `p` in its phase.
+    """Regulation of every link by a third node.
+
+    The node lets the link be active with probability `p` in its phase.
 
     Every hyperedge `(i, j, r)` holds the two ends of the link `(i, j)` and its regulating node `r`. In every step the
     link becomes active with probability `p` when a positive regulator is active or a negative regulator is inactive,
@@ -127,6 +137,10 @@ class TriadicRegulationInteraction(HyperedgeInteraction):
         3
     """
 
+    draws = True
+
+    law_classes = (UpdateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -143,51 +157,19 @@ class TriadicRegulationInteraction(HyperedgeInteraction):
         self.phase = phase
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the activity of the link from its regulating node, the third member of the hyperedge."""
+        """Return the activity of the link from its regulating node.
+
+        The regulating node is the third member of the hyperedge.
+        """
         regulator = s.others[1].active
         allowed = where(s.edge.sign > 0, regulator, 1 - regulator)
         return [UpdateLaw(s.edge.active, bernoulli('retained', s.p) * allowed, phase=self.phase)]
 
 
-def _giant_observables(system: System) -> list[ObservableSpec]:
-    """Return the fraction of nodes in the giant component."""
-    del system
-    return [ObservableSpec('giant', group='nodes', variable='active')]
+class TriadicPercolationSystem(BaseSystem):
+    """Triadic percolation.
 
-
-def _regulated_links(
-    graph: nx.Graph,
-    negative: float,
-    rng: np.random.Generator,
-) -> tuple[list[tuple[int, int, int]], np.ndarray]:
-    """Return a hyperedge of every link with a regulator drawn among the other nodes, and the sign of every one."""
-    size = graph.number_of_nodes()
-    hyperedges = []
-    for first, second in graph.edges:
-        regulator = int(rng.integers(size - 2))
-        for end in sorted((first, second)):
-            regulator += int(regulator >= end)
-        hyperedges.append((first, second, regulator))
-    signs = np.where(rng.uniform(size=len(hyperedges)) < negative, -1, 1)
-    return hyperedges, signs
-
-
-@register_system(
-    field='mathematics/networks',
-    tags=('network', 'hypergraph', 'percolation', 'triadic interactions', 'period doubling'),
-    references=('Sun et al. 2023', 'Millán, Sun, Torres, and Bianconi 2023'),
-    defaults={'until': 30, 'dt': 1},
-    observables=_giant_observables,
-)
-def triadic_percolation(
-    n_nodes: int = 1000,
-    *,
-    mean_degree: float = 4.0,
-    p: float = 0.5,
-    negative: float = 1.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return triadic percolation, where regulating nodes switch links on and off from the giant component.
+    Regulating nodes switch links on and off from the giant component.
 
     Every link of an Erdős-Rényi graph has one regulating node, drawn at random among the other nodes, which is
     negative with probability `negative` and positive otherwise. The link and its regulator form a hyperedge of size
@@ -196,11 +178,12 @@ def triadic_percolation(
     otherwise. In the phase `percolation` a node is active when it belongs to the giant component of the links the
     regulation of the same step left active. All nodes and links start active.
 
-    With the fraction `R` of nodes in the giant component, the links are active with probability
-    `p_L = p ((1 - negative) R + negative (1 - R))`, and `R` follows the map `R' = S(c p_L)`, where `S(m)` solves
-    `S = 1 - exp(-m S)` for the mean degree `c`. With negative regulators alone the map decreases, so above the
-    percolation point `p = 1 / c` its fixed point is unstable and `R` alternates between a large and a small giant
-    component, a cycle of period two. Below it the giant component vanishes.
+    With the fraction `R` of nodes in the giant component, the links are active with probability `p_L = p ((1 -
+    negative) R + negative (1 - R))`, and `R` follows the map `R' = S(c p_L)`, where `S(m)` solves `S = 1 - exp(-m S)`
+    for the mean degree `c`. With negative regulators alone the map decreases, so above the percolation point `p = 1 /
+    c` its fixed point is unstable and `R` alternates between a large and a small giant component, a cycle of period
+    two. Below it the giant component vanishes. The system has the activities `nodes.active` and `links.active` and the
+    signs `links.sign`.
 
     Args:
         n_nodes:
@@ -218,28 +201,77 @@ def triadic_percolation(
         random_state:
             The seed or generator of the graph, the regulators, and their signs.
 
-    Returns:
-        system:
-            The system, with the activities `nodes.active` and `links.active` and the signs `links.sign`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.core.engine.runtime import Simulation
-        >>> from skcomplex.systems.mathematics.networks import triadic_percolation
-        >>> system = triadic_percolation(200, p=0.8)
-        >>> trajectory = Simulation(system, random_state=0).prepare().run(until=3).trajectory_
+        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.systems.mathematics.networks import TriadicPercolationSystem
+        >>> system = TriadicPercolationSystem(200, p=0.8).prepare().system_
+        >>> trajectory = simulate(system, until=3, random_state=0)
         >>> giant = trajectory.values('nodes.active').mean(axis=1)
         >>> bool(giant[1] < 0.5 < giant[2])
         True
     """
-    rng = np.random.default_rng(random_state)
-    graph = nx.gnp_random_graph(n_nodes, mean_degree / (n_nodes - 1), seed=rng)
-    hyperedges, signs = _regulated_links(graph, negative, rng)
-    space = NetworkSpace(graph, hyperedges=hyperedges)
-    nodes = LatticeElement('nodes', element=RegulatedNodeElement, space=space)
-    links = GroupElement('links', element=RegulatedLinkElement, space=space, on='edges', values={'sign': signs})
-    interactions = [
-        TriadicRegulationInteraction('regulation', nodes='nodes', links='links', p=p, phase='regulation'),
-        GiantComponentInteraction('percolation', nodes='nodes', links='links', phase='percolation'),
-    ]
-    time = DiscreteTime(schedule=PhasesScheduleSpec((PhaseSpec('regulation'), PhaseSpec('percolation'))))
-    return System(elements=[nodes, links], interactions=interactions, time=time)
+
+    field = 'mathematics/networks'
+    topics = ('network', 'hypergraph', 'percolation', 'triadic interactions', 'period doubling')
+    references = ('Sun et al. 2023', 'Millán, Sun, Torres, and Bianconi 2023')
+    until = 30
+    dt = 1
+    observables = (ObservableSpec('giant', group='nodes', variable='active'),)
+
+    def __init__(
+        self,
+        n_nodes: int = 1000,
+        *,
+        mean_degree: float = 4.0,
+        p: float = 0.5,
+        negative: float = 1.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_nodes = n_nodes
+        self.mean_degree = mean_degree
+        self.p = p
+        self.negative = negative
+        self.random_state = random_state
+
+    @staticmethod
+    def _regulated_links(
+        graph: nx.Graph,
+        negative: float,
+        rng: np.random.Generator,
+    ) -> tuple[list[tuple[int, int, int]], np.ndarray]:
+        """Return a hyperedge of every link with a regulator drawn among the other nodes.
+
+        The sign of every regulator is returned too.
+        """
+        size = graph.number_of_nodes()
+        hyperedges = []
+        for first, second in graph.edges:
+            regulator = int(rng.integers(size - 2))
+            for end in sorted((first, second)):
+                regulator += int(regulator >= end)
+            hyperedges.append((first, second, regulator))
+        signs = np.where(rng.uniform(size=len(hyperedges)) < negative, -1, 1)
+        return hyperedges, signs
+
+    def _build_system(self) -> System:
+        """Return triadic percolation.
+
+        Regulating nodes switch links on and off from the giant component.
+        """
+        rng = np.random.default_rng(self.random_state)
+        graph = nx.gnp_random_graph(self.n_nodes, self.mean_degree / (self.n_nodes - 1), seed=rng)
+        hyperedges, signs = self._regulated_links(graph, self.negative, rng)
+        space = NetworkSpace(graph, hyperedges=hyperedges)
+        nodes = LatticeElement('nodes', element=RegulatedNodeElement, space=space)
+        links = GroupElement('links', element=RegulatedLinkElement, space=space, on='edges', values={'sign': signs})
+        interactions = [
+            TriadicRegulationInteraction('regulation', nodes='nodes', links='links', p=self.p, phase='regulation'),
+            GiantComponentInteraction('percolation', nodes='nodes', links='links', phase='percolation'),
+        ]
+        time = DiscreteTime(schedule=PhasesScheduleSpec((PhaseSpec('regulation'), PhaseSpec('percolation'))))
+        return System(self.label, elements=[nodes, links], interactions=interactions, time=time)

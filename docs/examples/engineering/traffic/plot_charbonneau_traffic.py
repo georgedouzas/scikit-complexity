@@ -13,15 +13,15 @@ along the road while the cars themselves keep moving forwards.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.engineering.traffic import CharbonneauTrafficSystem
 
 SYSTEM = 'charbonneau_traffic'
 
-system = create_system(SYSTEM, probability=0.1, random_state=0)
+system = CharbonneauTrafficSystem(probability=0.1, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=200)
+trajectory = simulate(system, until=200, observers=[observer], random_state=0)
 
 # %%
 # Jams travel backwards
@@ -29,7 +29,6 @@ simulation = Simulation(system, observers=[observer], random_state=0).prepare().
 # In the space-time diagram every car is a line rising to the right, and slow cars are dark. Jams should show as dark
 # bands that drift to the left, against the traffic, as cars leave a jam at its front and join it at its back.
 
-trajectory = simulation.trajectory_
 frames = range(len(trajectory.times))
 positions = np.array([trajectory.agents('cars', frame).values['x'] for frame in frames])
 speeds = np.array([trajectory.agents('cars', frame).values['v'] for frame in frames])

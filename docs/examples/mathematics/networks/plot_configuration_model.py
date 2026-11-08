@@ -14,9 +14,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.networks import ConfigurationModelSystem
 
 SYSTEM = 'configuration_model'
 
@@ -34,9 +34,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM)
+system = ConfigurationModelSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=1)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # The friendship paradox
@@ -48,13 +48,13 @@ simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=
 exponents = np.linspace(2.1, 3.5, 8)
 means, neighbours = [], []
 for exponent in exponents:
-    graph = create_system(SYSTEM, n_nodes=3000, exponent=exponent).space.graph
+    graph = ConfigurationModelSystem(n_nodes=3000, exponent=exponent).prepare().system_.space.graph
     degrees = np.array([degree for _, degree in graph.degree])
     means.append(degrees.mean())
     neighbours.append(np.mean([graph.degree(end) for edge in graph.edges for end in edge]))
-graph = system.space.graph
-asked = system.elements[0].values['degree']
-dropped = create_system(SYSTEM, simple=False).space.graph
+graph = system.prepare().system_.space.graph
+asked = system.prepare().system_.elements[0].values['degree']
+dropped = ConfigurationModelSystem(simple=False).prepare().system_.space.graph
 fig, (paradox, degrees_kept) = plt.subplots(1, 2, figsize=(10, 4))
 paradox.plot(exponents, means, 'o-', label='mean degree <k>')
 paradox.plot(exponents, neighbours, 's-', label='mean degree of a neighbour')

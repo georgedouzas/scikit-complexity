@@ -18,8 +18,8 @@ from skcomplex.core.components.spaces import (
 )
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import SolverError, ValidationError
 from skcomplex.core.specs import (
     MoveSpec,
@@ -32,9 +32,9 @@ from skcomplex.core.specs import (
     TotalisticSpec,
     VisualSpec,
 )
-from skcomplex.systems.computer_science.automata import elementary_automaton, game_of_life
-from skcomplex.systems.physics.criticality import forest_fire
-from skcomplex.systems.physics.statistical_mechanics import ising, xy
+from skcomplex.systems.computer_science.automata import ElementaryAutomatonSystem, GameOfLifeSystem
+from skcomplex.systems.physics.criticality import ForestFireSystem
+from skcomplex.systems.physics.statistical_mechanics import IsingSystem, XYSystem
 
 
 class ShiftElement(Element):
@@ -133,7 +133,7 @@ def test_fixed_and_reflecting_edges():
             ),
         ],
     )
-    assert Simulation(fixed, dt=1).prepare().run(until=1).state_.tolist() == [9, 1, 2]
+    assert simulate(fixed, until=1, dt=1).states[-1].tolist() == [9, 1, 2]
     mirror = System(
         elements=[
             LatticeElement(
@@ -144,7 +144,7 @@ def test_fixed_and_reflecting_edges():
             ),
         ],
     )
-    assert Simulation(mirror, dt=1).prepare().run(until=1).state_.tolist() == [1, 1, 2]
+    assert simulate(mirror, until=1, dt=1).states[-1].tolist() == [1, 1, 2]
 
 
 def test_neighborhoods_are_ordered():
@@ -159,7 +159,7 @@ def test_neighborhoods_are_ordered():
 
 def test_rule_30_matches_published_pattern():
     """Test that rule 30 from a single live cell reproduces its space-time diagram for 15 steps."""
-    trajectory = Simulation(elementary_automaton(30, size=41), dt=1).prepare().run(until=15).trajectory_
+    trajectory = simulate(ElementaryAutomatonSystem(30, size=41).prepare().system_, until=15, dt=1)
     assert np.array_equal(trajectory.lattice('cells.alive').astype(int), _rule_30(15, 41))
 
 
@@ -167,7 +167,7 @@ def test_glider_moves_diagonally():
     """Test that a glider on a periodic 20 x 20 lattice has the same shape one cell further after 4 steps."""
     glider = np.zeros((20, 20))
     glider[1, 2] = glider[2, 3] = glider[3, 1] = glider[3, 2] = glider[3, 3] = 1
-    trajectory = Simulation(game_of_life((20, 20), initial=glider), dt=1).prepare().run(until=4).trajectory_
+    trajectory = simulate(GameOfLifeSystem((20, 20), initial=glider).prepare().system_, until=4, dt=1)
     cells = trajectory.lattice('cells.alive')
     assert np.array_equal(cells[-1], np.roll(glider, (1, 1), axis=(0, 1)))
     assert not np.array_equal(cells[2], cells[0])
@@ -176,8 +176,8 @@ def test_glider_moves_diagonally():
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
 def test_lookup_rules_agree_across_backends(backend):
     """Test that the fused and the NumPy lookup rules give the same Game of Life."""
-    trajectory = Simulation(game_of_life((30, 30)), dt=1, backend=backend()).prepare().run(until=20).trajectory_
-    reference = Simulation(game_of_life((30, 30)), dt=1, backend=NumpyBackend()).prepare().run(until=20).trajectory_
+    trajectory = simulate(GameOfLifeSystem((30, 30)).prepare().system_, until=20, dt=1, backend=backend())
+    reference = simulate(GameOfLifeSystem((30, 30)).prepare().system_, until=20, dt=1, backend=NumpyBackend())
     assert np.array_equal(trajectory.states, reference.states)
 
 
@@ -206,7 +206,7 @@ def test_table_and_totalistic_rules():
             LatticeElement('ring', element=ParityElement, space=LatticeSpace(5), values={'bit': [0, 1, 0, 0, 0]}),
         ],
     )
-    assert Simulation(ring, dt=1).prepare().run(until=1).state_.tolist() == [1, 1, 1, 0, 0]
+    assert simulate(ring, until=1, dt=1).states[-1].tolist() == [1, 1, 1, 0, 0]
 
     class SwapElement(Element):
         """Swap element."""
@@ -228,7 +228,7 @@ def test_table_and_totalistic_rules():
     flip = System(
         elements=[LatticeElement('ring', element=SwapElement, space=LatticeSpace(3), values={'bit': [0, 1, 0]})],
     )
-    assert Simulation(flip, dt=1).prepare().run(until=1).state_.tolist() == [1, 0, 1]
+    assert simulate(flip, until=1, dt=1).states[-1].tolist() == [1, 0, 1]
 
     class CountElement(Element):
         """Count element."""
@@ -256,19 +256,19 @@ def test_table_and_totalistic_rules():
     count = System(
         elements=[LatticeElement('ring', element=CountElement, space=LatticeSpace(4), values={'bit': [1, 0, 0, 0]})],
     )
-    assert Simulation(count, dt=1).prepare().run(until=1).state_.tolist() == [1, 1, 0, 1]
+    assert simulate(count, until=1, dt=1).states[-1].tolist() == [1, 1, 0, 1]
 
 
 def test_synchronous_rule_shifts_whole_configuration():
     """Test that one synchronous step of a rule that copies the left neighbour shifts every cell by one."""
-    assert Simulation(_shift('synchronous'), dt=1).prepare().run(until=1).state_.tolist() == [6, 1, 2, 3, 4, 5]
+    assert simulate(_shift('synchronous'), until=1, dt=1).states[-1].tolist() == [6, 1, 2, 3, 4, 5]
 
 
 @pytest.mark.parametrize('schedule', ['random-sequential', 'random-site'])
 def test_asynchronous_schedules_are_reproducible(schedule):
     """Test that asynchronous schedules copy values from neighbours and repeat with the same seed."""
-    first = Simulation(_shift(schedule), dt=1, random_state=3).prepare().run(until=2).state_
-    second = Simulation(_shift(schedule), dt=1, random_state=3).prepare().run(until=2).state_
+    first = simulate(_shift(schedule), until=2, dt=1, random_state=3).states[-1]
+    second = simulate(_shift(schedule), until=2, dt=1, random_state=3).states[-1]
     assert first.tolist() == second.tolist()
     assert set(first) <= {1, 2, 3, 4, 5, 6}
     assert first.tolist() != [5, 6, 1, 2, 3, 4]
@@ -276,7 +276,7 @@ def test_asynchronous_schedules_are_reproducible(schedule):
 
 def test_checkerboard_schedule_updates_sublattices_in_turn():
     """Test that a checkerboard update of the copy rule on a ring moves even sites first, then odd sites."""
-    assert Simulation(_shift('checkerboard'), dt=1).prepare().run(until=1).state_.tolist() == [6, 6, 2, 2, 4, 4]
+    assert simulate(_shift('checkerboard'), until=1, dt=1).states[-1].tolist() == [6, 6, 2, 2, 4, 4]
 
 
 def test_checkerboard_needs_bipartite_neighbourhood():
@@ -314,9 +314,9 @@ def test_unknown_schedule_is_rejected():
 
 def test_forest_fire_is_reproducible():
     """Test that two forest fires with the same seed give identical lattices at every step."""
-    first = Simulation(forest_fire((30, 30)), dt=1, random_state=7).prepare().run(until=30).trajectory_.states
-    second = Simulation(forest_fire((30, 30)), dt=1, random_state=7).prepare().run(until=30).trajectory_.states
-    third = Simulation(forest_fire((30, 30)), dt=1, random_state=8).prepare().run(until=30).trajectory_.states
+    first = simulate(ForestFireSystem((30, 30)).prepare().system_, until=30, dt=1, random_state=7).states
+    second = simulate(ForestFireSystem((30, 30)).prepare().system_, until=30, dt=1, random_state=7).states
+    third = simulate(ForestFireSystem((30, 30)).prepare().system_, until=30, dt=1, random_state=8).states
     assert np.array_equal(first, second)
     assert not np.array_equal(first, third)
 
@@ -343,17 +343,15 @@ def test_rule_reads_parameters_by_keyword():
             """Return the laws of the growth element."""
             return [LocalRuleLaw(s.value, LatticeNeighborhood(((0,),)), lambda value, *, rate: value + rate)]
 
-    simulation = (
-        Simulation(
-            System(elements=[LatticeElement('cells', element=GrowthElement, space=LatticeSpace(2))]),
-            dt=1,
-        )
-        .prepare()
-        .run(until=2)
+    trajectory = simulate(
+        System(elements=[LatticeElement('cells', element=GrowthElement, space=LatticeSpace(2))]),
+        until=3,
+        dt=1,
+        schedule={'cells.rate': lambda t: 1.0 if t < 2 else 5.0},
     )
-    assert simulation.state_.tolist() == [2.0, 2.0]
-    simulation.update_parameters({'cells.rate': 5.0})
-    assert simulation.parameters_.tolist() == [5.0, 5.0]
+    assert trajectory.states[2].tolist() == [2.0, 2.0]
+    assert trajectory.parameters[-1].tolist() == [5.0, 5.0]
+    assert trajectory.states[-1].tolist() == [7.0, 7.0]
 
 
 def test_relaxation_records_avalanches():
@@ -390,20 +388,17 @@ def test_relaxation_records_avalanches():
             ]
 
     space = LatticeSpace(5, boundary='fixed')
-    trajectory = (
-        Simulation(
-            System(
-                elements=[LatticeElement('pile', element=PileElement, space=space, values={'height': [1, 1, 1, 1, 1]})],
-            ),
-            dt=1,
-        )
-        .prepare()
-        .run(1)
+    trajectory = simulate(
+        System(
+            elements=[LatticeElement('pile', element=PileElement, space=space, values={'height': [1, 1, 1, 1, 1]})],
+        ),
+        until=1,
+        dt=1,
     )
-    (record,) = trajectory.trajectory_.events
+    (record,) = trajectory.events
     assert (record.label, record.time) == ('pile', 1.0)
     assert (record.size, record.duration, record.area) == (9, 5, 5)
-    assert np.all(trajectory.state_ < 2)
+    assert np.all(trajectory.states[-1] < 2)
 
 
 def test_relaxation_without_end_raises():
@@ -434,10 +429,11 @@ def test_relaxation_without_end_raises():
             ]
 
     with pytest.raises(SolverError, match='not stable after 10 iterations'):
-        Simulation(
+        simulate(
             System(elements=[LatticeElement('cells', element=RestlessElement, space=LatticeSpace(2))]),
+            until=1,
             dt=1,
-        ).prepare().run(until=1)
+        )
 
 
 def test_local_rule_needs_lattice_group():
@@ -488,36 +484,39 @@ def test_monte_carlo_energy_change_is_symbolic():
 @pytest.mark.parametrize('sampler', ['metropolis', 'glauber', 'heat-bath'])
 def test_samplers_order_cold_ising(sampler):
     """Test that every sampler keeps a cold Ising lattice ordered and disorders a hot one."""
-    cold = (
-        Simulation(ising(16, temperature=0.5, initial='up', sampler=sampler), dt=50, random_state=0).prepare().run(200)
+    cold = simulate(
+        IsingSystem(16, temperature=0.5, initial='up', sampler=sampler).prepare().system_,
+        until=200,
+        dt=50,
+        random_state=0,
     )
-    hot = (
-        Simulation(ising(16, temperature=10.0, initial='up', sampler=sampler), dt=50, random_state=0).prepare().run(200)
+    hot = simulate(
+        IsingSystem(16, temperature=10.0, initial='up', sampler=sampler).prepare().system_,
+        until=200,
+        dt=50,
+        random_state=0,
     )
-    assert abs(cold.state_.mean()) > 0.95
-    assert abs(hot.state_.mean()) < 0.3
+    assert abs(cold.states[-1].mean()) > 0.95
+    assert abs(hot.states[-1].mean()) < 0.3
 
 
 def test_temperature_changes_live():
     """Test that raising the temperature of an ordered lattice during a run disorders it."""
-    simulation = (
-        Simulation(
-            ising(16, temperature=0.5, initial='up'),
-            dt=50,
-            random_state=0,
-            schedule={'spins.temperature': lambda time: 0.5 if time < 100 else 20.0},
-        )
-        .prepare()
-        .run(until=200)
+    trajectory = simulate(
+        IsingSystem(16, temperature=0.5, initial='up').prepare().system_,
+        until=200,
+        dt=50,
+        random_state=0,
+        schedule={'spins.temperature': lambda time: 0.5 if time < 100 else 20.0},
     )
-    magnetization = np.abs(simulation.trajectory_.values('spins.spin').mean(axis=1))
+    magnetization = np.abs(trajectory.values('spins.spin').mean(axis=1))
     assert magnetization[2] > 0.95
     assert magnetization[-1] < 0.3
 
 
 def test_monte_carlo_wraps_angles_after_every_sweep():
     """Test that Monte Carlo rotations of the XY system keep every angle in (-π, π]."""
-    values = Simulation(xy(16)).prepare().run(until=50).trajectory_.values('spins.theta')
+    values = simulate(XYSystem(16).prepare().system_, until=50).values('spins.theta')
     assert np.all((values > -np.pi) & (values <= np.pi))
 
 
@@ -566,9 +565,8 @@ def _pile(activity, evaluated):
 def test_relaxation_over_active_sites_matches_the_full_update():
     """Test that relaxing only active sites and their neighbours gives the heights and durations of full updates."""
     sparse_sites, full_sites = [], []
-    sparse = Simulation(_pile(lambda heights: heights >= 4, sparse_sites), dt=5000, random_state=0).prepare()
-    sparse = sparse.run(until=5000).trajectory_
-    full = Simulation(_pile(None, full_sites), dt=5000, random_state=0).prepare().run(until=5000).trajectory_
+    sparse = simulate(_pile(lambda heights: heights >= 4, sparse_sites), until=5000, dt=5000, random_state=0)
+    full = simulate(_pile(None, full_sites), until=5000, dt=5000, random_state=0)
     np.testing.assert_array_equal(sparse.values('pile.height')[-1], full.values('pile.height')[-1])
     assert [event.duration for event in sparse.events] == [event.duration for event in full.events]
     assert [event.time for event in sparse.events] == [event.time for event in full.events]

@@ -1,4 +1,4 @@
-"""Stochastic process systems: random iterations of interval maps."""
+"""Stochastic process systems of random iterations of interval maps."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,13 +13,14 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import bernoulli
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class RandomBranchMapElement(Element):
-    """Value of a random interval map, which applies `(1 + x) / 2` with probability `p1` and `mu x²` otherwise.
+    """Value of a random interval map.
+
+    The map applies `(1 + x) / 2` with probability `p1` and `mu x²` otherwise.
 
     Args:
         label:
@@ -42,6 +43,10 @@ class RandomBranchMapElement(Element):
         >>> RandomBranchMapElement('map', p1=0.3).p1
         0.3
     """
+
+    draws = True
+
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
@@ -72,26 +77,18 @@ class RandomBranchMapElement(Element):
         return [UpdateLaw(s.x, first * (1 + s.x) / 2 + (1 - first) * s.mu * s.x**2)]
 
 
-@register_system(
-    field='mathematics/stochastic_processes',
-    tags=('random map', 'iterated function system', 'interval map', 'stationary distribution'),
-    references=('Dilão 2023',),
-    defaults={'until': 200, 'dt': 1},
-)
-def random_branch_map(
-    n_orbits: int = 200,
-    *,
-    p1: float = 0.5,
-    mu: float = 1.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return orbits of a random map of `[0, 1]` with the two branches `(1 + x) / 2` and `mu x²`.
+class RandomBranchMapSystem(BaseSystem):
+    """Orbits of a random map of `[0, 1]`.
+
+    The map has the two branches `(1 + x) / 2` and `mu x²`.
 
     At every step each orbit applies `(1 + x) / 2` with probability `p1` and `mu x²` otherwise (Dilão 2023, Exercise
     5.10). The first branch pulls towards 1 and the second towards 0, so the orbits settle on a stationary
     distribution whose shape changes with `p1` and `mu`. For `mu = 0` the second branch resets the orbit to 0, and
     the stationary mean is `p1 / (2 - p1)`. For `mu = 1` both branches fix `x = 1`, which attracts the orbits once
     `p1 > 1/2`, since there the first branch halves the distance to 1 and the second doubles it.
+
+    The system has the group `orbits` of state `x`.
 
     Args:
         n_orbits:
@@ -106,23 +103,50 @@ def random_branch_map(
         random_state:
             The seed or generator of the initial values, uniform on `[0, 1]`.
 
-    Returns:
-        system:
-            The system, with the group `orbits` of state `x`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.stochastic_processes import random_branch_map
-        >>> random_branch_map(10, p1=0.3).elements[0].prepare().size_
+        >>> from skcomplex.systems.mathematics.stochastic_processes import RandomBranchMapSystem
+        >>> RandomBranchMapSystem(10, p1=0.3).prepare().system_.elements[0].prepare().size_
         10
     """
-    start = np.random.default_rng(random_state).uniform(0.0, 1.0, n_orbits)
-    return System(
-        elements=[
-            GroupElement(
-                'orbits',
-                element=RandomBranchMapElement,
-                size=n_orbits,
-                values={'x': start, 'p1': p1, 'mu': mu},
-            ),
-        ],
-    )
+
+    field = 'mathematics/stochastic_processes'
+    topics = ('random map', 'iterated function system', 'interval map', 'stationary distribution')
+    references = ('Dilão 2023',)
+    until = 200
+    dt = 1
+
+    def __init__(
+        self,
+        n_orbits: int = 200,
+        *,
+        p1: float = 0.5,
+        mu: float = 1.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_orbits = n_orbits
+        self.p1 = p1
+        self.mu = mu
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return orbits of a random map of `[0, 1]`.
+
+        The map has the two branches `(1 + x) / 2` and `mu x²`.
+        """
+        start = np.random.default_rng(self.random_state).uniform(0.0, 1.0, self.n_orbits)
+        return System(
+            self.label,
+            elements=[
+                GroupElement(
+                    'orbits',
+                    element=RandomBranchMapElement,
+                    size=self.n_orbits,
+                    values={'x': start, 'p1': self.p1, 'mu': self.mu},
+                ),
+            ],
+        )

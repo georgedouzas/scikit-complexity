@@ -1,4 +1,4 @@
-"""Pattern formation systems: reaction-diffusion fields whose sites react and whose states diffuse."""
+"""Reaction-diffusion fields whose sites react and whose states diffuse."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,18 +13,19 @@ from sage.all__sagemath_symbolics import Expression
 from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import DiffusionInteraction, ReactionInteraction
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import RK4Solver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 from ..common.kinetics import BrusselatorReactionElement, CubicAutocatalysisInteraction
 
 
 class BrusselatorElement(BrusselatorReactionElement):
-    """Site of the Brusselator, the reactor of the Brusselator with the diffusion coefficients of its intermediates.
+    """Site of the Brusselator, its reactor with the diffusion coefficients.
 
-    The four reactions of `brusselator` run at every site, and its diffusions read `Du` and `Dv`.
+    The coefficients are those of its intermediates.
+
+    The four reactions of `BrusselatorSystem` run at every site, and its diffusions read `Du` and `Dv`.
 
     Args:
         label:
@@ -77,9 +78,9 @@ class BrusselatorElement(BrusselatorReactionElement):
 class GrayScottElement(Element):
     """Site of the Gray-Scott system, the substrate `u` and the activator `v`.
 
-    The reactions of `gray_scott` at every site, the cubic autocatalysis of the activator on the substrate, the feed
-    `F` of the substrate, and the removal `F + k` of the activator, read `F` and `k`, and its diffusions read `Du` and
-    `Dv`.
+    The reactions of `GrayScottSystem` at every site, the cubic autocatalysis of the activator on the substrate, the
+    feed `F` of the substrate, and the removal `F + k` of the activator, read `F` and `k`, and its diffusions read `Du`
+    and `Dv`.
 
     Args:
         label:
@@ -136,8 +137,8 @@ class GrayScottElement(Element):
 class SchnakenbergElement(Element):
     """Site of the Schnakenberg system, the activator `u` and the inhibitor `v`.
 
-    The reactions of `schnakenberg` at every site, the productions `a` of `u` and `b` of `v`, the decay of `u`, and
-    the autocatalysis `2U + V -> 3U`, read `a` and `b`, and its diffusions read `Du` and `Dv`.
+    The reactions of `SchnakenbergSystem` at every site, the productions `a` of `u` and `b` of `v`, the decay of `u`,
+    and the autocatalysis `2U + V -> 3U`, read `a` and `b`, and its diffusions read `Du` and `Dv`.
 
     Args:
         label:
@@ -202,41 +203,13 @@ def _get_v_diffusion(s: SimpleNamespace) -> Expression:
 
 
 def _get_diffusions() -> list[DiffusionInteraction]:
-    """Return the diffusions of `u` and `v` on the field `cells`, at the coefficients `Du` and `Dv` of its sites."""
+    """Return the diffusions of `u` and `v` on the field `cells`.
+
+    They run at the coefficients `Du` and `Dv` of its sites.
+    """
     return [
         DiffusionInteraction('u_diffusion', target='cells', state='u', coefficient=_get_u_diffusion),
         DiffusionInteraction('v_diffusion', target='cells', state='v', coefficient=_get_v_diffusion),
-    ]
-
-
-def _get_gray_scott_reactions() -> list[ReactionInteraction]:
-    """Return the reactions of the Gray-Scott system at every site of `cells`, the kinetics of `cubic_autocatalysis`."""
-    return [
-        CubicAutocatalysisInteraction('autocatalysis', target='cells', substrate='u', autocatalyst='v'),
-        ReactionInteraction('feed', target='cells', products={'u': 1}, modifiers={'F': 1}),
-        ReactionInteraction('washout', target='cells', reactants={'u': 1}, modifiers={'F': 1}),
-        ReactionInteraction('outflow', target='cells', reactants={'v': 1}, modifiers={'F': 1}),
-        ReactionInteraction('decay', target='cells', reactants={'v': 1}, modifiers={'k': 1}),
-    ]
-
-
-def _get_brusselator_reactions() -> list[ReactionInteraction]:
-    """Return the reactions of the Brusselator at every site of `cells`, the kinetics of `brusselator_ode`."""
-    return [
-        ReactionInteraction('feed', target='cells', products={'u': 1}, modifiers={'a': 1}),
-        ReactionInteraction('conversion', target='cells', reactants={'u': 1}, products={'v': 1}, modifiers={'b': 1}),
-        CubicAutocatalysisInteraction('autocatalysis', target='cells', substrate='v', autocatalyst='u'),
-        ReactionInteraction('decay', target='cells', reactants={'u': 1}),
-    ]
-
-
-def _get_schnakenberg_reactions() -> list[ReactionInteraction]:
-    """Return the reactions of the Schnakenberg system at every site of `cells`."""
-    return [
-        ReactionInteraction('production_u', target='cells', products={'u': 1}, modifiers={'a': 1}),
-        ReactionInteraction('decay', target='cells', reactants={'u': 1}),
-        CubicAutocatalysisInteraction('autocatalysis', target='cells', substrate='v', autocatalyst='u'),
-        ReactionInteraction('production_v', target='cells', products={'v': 1}, modifiers={'b': 1}),
     ]
 
 
@@ -245,22 +218,14 @@ def _noise(shape: tuple[int, ...], scale: float, random_state: int | np.random.G
     return scale * np.random.default_rng(random_state).uniform(-1.0, 1.0, size=shape)
 
 
-@register_system(
-    field='chemistry/pattern_formation',
-    tags=('field', 'reaction-diffusion', 'self-replication', 'pde'),
-    references=('Gray and Scott 1984', 'Pearson 1993'),
-    defaults={'until': 2000.0, 'dt': 20.0, 'solver': RK4Solver(dt=1.0)},
-)
-def gray_scott(
-    shape: Sequence[int] = (128, 128),
-    *,
-    Du: float = 0.16,
-    Dv: float = 0.08,
-    F: float = 0.035,
-    k: float = 0.065,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the Gray-Scott reaction-diffusion system, seeded in its middle, which grows spots that replicate.
+class GrayScottSystem(BaseSystem):
+    """The Gray-Scott reaction-diffusion system, seeded in its middle.
+
+    It grows spots that replicate.
+
+    Every site of a periodic lattice runs the kinetics of `CubicAutocatalysisSystem`, the cubic autocatalysis of the
+    activator on the substrate, the feed `F` of the substrate, and the removal `F + k` of the activator, and both
+    diffuse. The substrate is `cells.u` and the activator `cells.v`.
 
     Args:
         shape:
@@ -281,43 +246,74 @@ def gray_scott(
         random_state:
             The seed or generator of the noise on the seed.
 
-    Returns:
-        system:
-            The system, with the substrate `cells.u` and the activator `cells.v`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.chemistry.pattern_formation import gray_scott
-        >>> gray_scott((32, 32), F=0.04).elements[0].values['F']
+        >>> from skcomplex.systems.chemistry.pattern_formation import GrayScottSystem
+        >>> GrayScottSystem((32, 32), F=0.04).prepare().system_.elements[0].values['F']
         0.04
     """
-    shape = tuple(shape)
-    u, v = np.ones(shape), np.zeros(shape)
-    middle = tuple(slice(size // 2 - size // 10, size // 2 + size // 10) for size in shape)
-    u[middle], v[middle] = 0.5, 0.25
-    noise = _noise(shape, 0.01, random_state)
-    values = {'u': u + noise, 'v': v + np.abs(noise), 'Du': Du, 'Dv': Dv, 'F': F, 'k': k}
-    return System(
-        elements=[FieldElement('cells', element=GrayScottElement, space=LatticeSpace(shape), values=values)],
-        interactions=[*_get_gray_scott_reactions(), *_get_diffusions()],
-    )
+
+    field = 'chemistry/pattern_formation'
+    topics = ('field', 'reaction-diffusion', 'self-replication', 'pde')
+    references = ('Gray and Scott 1984', 'Pearson 1993')
+    until = 2000.0
+    dt = 20.0
+    solver = RK4Solver(dt=1.0)
+
+    def __init__(
+        self,
+        shape: Sequence[int] = (128, 128),
+        *,
+        Du: float = 0.16,
+        Dv: float = 0.08,
+        F: float = 0.035,
+        k: float = 0.065,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.shape = shape
+        self.Du = Du
+        self.Dv = Dv
+        self.F = F
+        self.k = k
+        self.random_state = random_state
+
+    @staticmethod
+    def _get_reactions() -> list[ReactionInteraction]:
+        """Return the reactions of the Gray-Scott system at every site of `cells`."""
+        return [
+            CubicAutocatalysisInteraction('autocatalysis', target='cells', substrate='u', autocatalyst='v'),
+            ReactionInteraction('feed', target='cells', products={'u': 1}, modifiers={'F': 1}),
+            ReactionInteraction('washout', target='cells', reactants={'u': 1}, modifiers={'F': 1}),
+            ReactionInteraction('outflow', target='cells', reactants={'v': 1}, modifiers={'F': 1}),
+            ReactionInteraction('decay', target='cells', reactants={'v': 1}, modifiers={'k': 1}),
+        ]
+
+    def _build_system(self) -> System:
+        """Return the field seeded in its middle, its reactions, and its diffusions."""
+        shape = tuple(self.shape)
+        u, v = np.ones(shape), np.zeros(shape)
+        middle = tuple(slice(size // 2 - size // 10, size // 2 + size // 10) for size in shape)
+        u[middle], v[middle] = 0.5, 0.25
+        noise = _noise(shape, 0.01, self.random_state)
+        values = {'u': u + noise, 'v': v + np.abs(noise), 'Du': self.Du, 'Dv': self.Dv, 'F': self.F, 'k': self.k}
+        return System(
+            self.label,
+            elements=[FieldElement('cells', element=GrayScottElement, space=LatticeSpace(shape), values=values)],
+            interactions=[*self._get_reactions(), *_get_diffusions()],
+        )
 
 
-@register_system(
-    field='chemistry/pattern_formation',
-    tags=('field', 'reaction-diffusion', 'Turing', 'oscillation', 'pde'),
-    references=('Prigogine and Lefever 1968', 'Gros 2015'),
-    defaults={'until': 100.0, 'dt': 1.0, 'solver': RK4Solver(dt=0.01)},
-)
-def brusselator(
-    shape: Sequence[int] = (64, 64),
-    *,
-    a: float = 1.0,
-    b: float = 3.0,
-    Du: float = 1.0,
-    Dv: float = 8.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the Brusselator reaction-diffusion system from small noise around its steady state `(a, b / a)`.
+class BrusselatorSystem(BaseSystem):
+    """The Brusselator reaction-diffusion system from noise around its steady state.
+
+    The noise is small and the steady state is `(a, b / a)`.
+
+    Every site of a periodic lattice runs the kinetics of `BrusselatorODESystem`, and both intermediates diffuse. The
+    concentrations are `cells.u` and `cells.v`.
 
     Args:
         shape:
@@ -338,50 +334,82 @@ def brusselator(
         random_state:
             The seed or generator of the noise.
 
-    Returns:
-        system:
-            The system, with the concentrations `cells.u` and `cells.v`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.chemistry.pattern_formation import brusselator
-        >>> brusselator((8, 8), b=2.5).elements[0].values['b']
+        >>> from skcomplex.systems.chemistry.pattern_formation import BrusselatorSystem
+        >>> BrusselatorSystem((8, 8), b=2.5).prepare().system_.elements[0].values['b']
         2.5
     """
-    shape = tuple(shape)
-    values = {
-        'u': a + _noise(shape, 0.01, random_state),
-        'v': np.full(shape, b / a),
-        'a': a,
-        'b': b,
-        'Du': Du,
-        'Dv': Dv,
-    }
-    return System(
-        elements=[FieldElement('cells', element=BrusselatorElement, space=LatticeSpace(shape), values=values)],
-        interactions=[*_get_brusselator_reactions(), *_get_diffusions()],
-    )
+
+    field = 'chemistry/pattern_formation'
+    topics = ('field', 'reaction-diffusion', 'Turing', 'oscillation', 'pde')
+    references = ('Prigogine and Lefever 1968', 'Gros 2015')
+    until = 100.0
+    dt = 1.0
+    solver = RK4Solver(dt=0.01)
+
+    def __init__(
+        self,
+        shape: Sequence[int] = (64, 64),
+        *,
+        a: float = 1.0,
+        b: float = 3.0,
+        Du: float = 1.0,
+        Dv: float = 8.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.shape = shape
+        self.a = a
+        self.b = b
+        self.Du = Du
+        self.Dv = Dv
+        self.random_state = random_state
+
+    @staticmethod
+    def _get_reactions() -> list[ReactionInteraction]:
+        """Return the reactions of the Brusselator at every site of `cells`."""
+        return [
+            ReactionInteraction('feed', target='cells', products={'u': 1}, modifiers={'a': 1}),
+            ReactionInteraction(
+                'conversion',
+                target='cells',
+                reactants={'u': 1},
+                products={'v': 1},
+                modifiers={'b': 1},
+            ),
+            CubicAutocatalysisInteraction('autocatalysis', target='cells', substrate='v', autocatalyst='u'),
+            ReactionInteraction('decay', target='cells', reactants={'u': 1}),
+        ]
+
+    def _build_system(self) -> System:
+        """Return the field near its steady state, its reactions, and its diffusions."""
+        shape = tuple(self.shape)
+        values = {
+            'u': self.a + _noise(shape, 0.01, self.random_state),
+            'v': np.full(shape, self.b / self.a),
+            'a': self.a,
+            'b': self.b,
+            'Du': self.Du,
+            'Dv': self.Dv,
+        }
+        return System(
+            self.label,
+            elements=[FieldElement('cells', element=BrusselatorElement, space=LatticeSpace(shape), values=values)],
+            interactions=[*self._get_reactions(), *_get_diffusions()],
+        )
 
 
-@register_system(
-    field='chemistry/pattern_formation',
-    tags=('field', 'reaction-diffusion', 'Turing', 'pde'),
-    references=('Schnakenberg 1979', 'Turing 1952', 'Murray 2003'),
-    defaults={'until': 200.0, 'dt': 5.0, 'solver': RK4Solver(dt=0.005)},
-)
-def schnakenberg(
-    shape: Sequence[int] = (64, 64),
-    *,
-    a: float = 0.1,
-    b: float = 0.9,
-    Du: float = 1.0,
-    Dv: float = 40.0,
-    spacing: float = 1.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the Schnakenberg reaction-diffusion system, which forms Turing patterns from noise when `Dv >> Du`.
+class SchnakenbergSystem(BaseSystem):
+    """The Schnakenberg reaction-diffusion system.
+
+    It forms Turing patterns from noise when `Dv >> Du`.
 
     The steady state `u = a + b`, `v = b / (a + b)^2` is stable without diffusion and unstable to perturbations of a
-    band of wavelengths with it.
+    band of wavelengths with it. The concentrations are `cells.u` and `cells.v`.
 
     Args:
         shape:
@@ -405,33 +433,74 @@ def schnakenberg(
         random_state:
             The seed or generator of the noise.
 
-    Returns:
-        system:
-            The system, with the concentrations `cells.u` and `cells.v`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.chemistry.pattern_formation import schnakenberg
-        >>> schnakenberg((8, 8)).elements[0].values['Dv']
+        >>> from skcomplex.systems.chemistry.pattern_formation import SchnakenbergSystem
+        >>> SchnakenbergSystem((8, 8)).prepare().system_.elements[0].values['Dv']
         40.0
     """
-    shape = tuple(shape)
-    steady_u, steady_v = a + b, b / (a + b) ** 2
-    values = {
-        'u': steady_u * (1 + _noise(shape, 0.01, random_state)),
-        'v': np.full(shape, steady_v),
-        'a': a,
-        'b': b,
-        'Du': Du,
-        'Dv': Dv,
-    }
-    return System(
-        elements=[
-            FieldElement(
-                'cells',
-                element=SchnakenbergElement,
-                space=LatticeSpace(shape, spacing=spacing),
-                values=values,
-            ),
-        ],
-        interactions=[*_get_schnakenberg_reactions(), *_get_diffusions()],
-    )
+
+    field = 'chemistry/pattern_formation'
+    topics = ('field', 'reaction-diffusion', 'Turing', 'pde')
+    references = ('Schnakenberg 1979', 'Turing 1952', 'Murray 2003')
+    until = 200.0
+    dt = 5.0
+    solver = RK4Solver(dt=0.005)
+
+    def __init__(
+        self,
+        shape: Sequence[int] = (64, 64),
+        *,
+        a: float = 0.1,
+        b: float = 0.9,
+        Du: float = 1.0,
+        Dv: float = 40.0,
+        spacing: float = 1.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.shape = shape
+        self.a = a
+        self.b = b
+        self.Du = Du
+        self.Dv = Dv
+        self.spacing = spacing
+        self.random_state = random_state
+
+    @staticmethod
+    def _get_reactions() -> list[ReactionInteraction]:
+        """Return the reactions of the Schnakenberg system at every site of `cells`."""
+        return [
+            ReactionInteraction('production_u', target='cells', products={'u': 1}, modifiers={'a': 1}),
+            ReactionInteraction('decay', target='cells', reactants={'u': 1}),
+            CubicAutocatalysisInteraction('autocatalysis', target='cells', substrate='v', autocatalyst='u'),
+            ReactionInteraction('production_v', target='cells', products={'v': 1}, modifiers={'b': 1}),
+        ]
+
+    def _build_system(self) -> System:
+        """Return the field near its steady state, its reactions, and its diffusions."""
+        shape = tuple(self.shape)
+        steady_u, steady_v = self.a + self.b, self.b / (self.a + self.b) ** 2
+        values = {
+            'u': steady_u * (1 + _noise(shape, 0.01, self.random_state)),
+            'v': np.full(shape, steady_v),
+            'a': self.a,
+            'b': self.b,
+            'Du': self.Du,
+            'Dv': self.Dv,
+        }
+        return System(
+            self.label,
+            elements=[
+                FieldElement(
+                    'cells',
+                    element=SchnakenbergElement,
+                    space=LatticeSpace(shape, spacing=self.spacing),
+                    values=values,
+                ),
+            ],
+            interactions=[*self._get_reactions(), *_get_diffusions()],
+        )

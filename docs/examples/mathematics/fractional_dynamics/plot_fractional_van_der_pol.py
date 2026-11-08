@@ -15,9 +15,9 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.fractional_dynamics import FractionalVanDerPolSystem
 
 SYSTEM = 'fractional_van_der_pol'
 
@@ -40,11 +40,10 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
-simulation = Simulation(create_system(SYSTEM, x=3.0), dt=0.1, observers=[observer]).prepare().run(until=40)
-inside = Simulation(create_system(SYSTEM, x=0.1), dt=0.1).prepare().run(until=40).trajectory_
+trajectory = simulate(FractionalVanDerPolSystem(x=3.0), observers=[observer])
+inside = simulate(FractionalVanDerPolSystem(x=0.1))
 strips = [
-    np.column_stack([25 * run.values('oscillator.x'), -25 * run.values('oscillator.y')])
-    for run in (simulation.trajectory_, inside)
+    np.column_stack([25 * run.values('oscillator.x'), -25 * run.values('oscillator.y')]) for run in (trajectory, inside)
 ]
 observer.recording_.log(
     'phase_plane',
@@ -62,7 +61,7 @@ observer.recording_.flush()
 
 def cycle_amplitude(start, order):
     """Return the largest displacement over the last 10 time units of a run of 40."""
-    run = Simulation(create_system(SYSTEM, x=start, order=order), dt=0.1).prepare().run(until=40).trajectory_
+    run = simulate(FractionalVanDerPolSystem(x=start, order=order))
     return np.max(np.abs(run.values('oscillator.x')[-100:]))
 
 

@@ -8,7 +8,7 @@ from sklearn.base import clone
 from skcomplex.core.components.elements import PointElement
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver, ScipyODESolver
 from skcomplex.core.errors import SpaceError, ValidationError
 
@@ -102,7 +102,7 @@ def test_reflecting_box_reverses_crossing_particle():
         elements=[PointElement('p', x=[0.9], x_d1=[1.0])],
         space=ContinuousSpace(extent=(1.0,), boundary='reflecting'),
     )
-    trajectory = Simulation(system, dt=0.2).prepare().run(until=0.2).trajectory_
+    trajectory = simulate(system, until=0.2, dt=0.2)
     assert trajectory.values('p.x')[-1, 0] == pytest.approx(0.9)
     assert trajectory.values('p.x_d1')[-1, 0] == pytest.approx(-1.0)
 
@@ -113,7 +113,7 @@ def test_periodic_box_wraps_leaving_particle():
         elements=[PointElement('p', x=[0.9], x_d1=[1.0])],
         space=ContinuousSpace(extent=(1.0,), boundary='periodic'),
     )
-    trajectory = Simulation(system, dt=0.2).prepare().run(until=0.2).trajectory_
+    trajectory = simulate(system, until=0.2, dt=0.2)
     assert trajectory.values('p.x')[-1, 0] == pytest.approx(0.1)
     assert trajectory.values('p.x_d1')[-1, 0] == pytest.approx(1.0)
 
@@ -125,6 +125,6 @@ def test_long_frame_keeps_particle_in_reflecting_box(solver):
         elements=[PointElement('p', x=[0.5], x_d1=[1.0])],
         space=ContinuousSpace(extent=(1.0,), boundary='reflecting'),
     )
-    trajectory = Simulation(system, solver=solver, dt=5.0).prepare().run(until=5).trajectory_
+    trajectory = simulate(system, until=5, solver=solver, dt=5.0)
     assert trajectory.values('p.x')[-1, 0] == pytest.approx(0.5, abs=1e-6)
     assert trajectory.values('p.x_d1')[-1, 0] == pytest.approx(-1.0, abs=1e-6)

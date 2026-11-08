@@ -7,18 +7,18 @@ Above it the master sequence is lost, the error catastrophe.
 """
 
 # %%
-# The system is created by name from the catalog with the mutation rate `u = 0.3` below the selective disadvantage
-# `sigma = 0.5`, starting from the master sequence alone. The blueprint shows the shares of the master sequence and
-# of the first five classes of mutants in one time series view.
+# The system is built from its class with the mutation rate `u = 0.3` below the selective disadvantage `sigma = 0.5`,
+# starting from the master sequence alone. The blueprint shows the shares of the master sequence and of the first five
+# classes of mutants in one time series view.
 
 import matplotlib.pyplot as plt
 import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.evolution import EigenQuasispeciesSystem
 
 SYSTEM = 'eigen_quasispecies'
 
@@ -36,9 +36,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM, u=0.3, sigma=0.5)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=40)
+trajectory = simulate(EigenQuasispeciesSystem(u=0.3, sigma=0.5), observers=[observer], until=40)
 
 # %%
 # The error threshold
@@ -47,13 +46,7 @@ simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=
 # error threshold `u = sigma`.
 
 rates = np.linspace(0.0, 0.7, 15)
-shares = [
-    Simulation(create_system(SYSTEM, u=rate, sigma=0.5), dt=1)
-    .prepare()
-    .run(until=200)
-    .trajectory_.values('master.x')[-1]
-    for rate in rates
-]
+shares = [simulate(EigenQuasispeciesSystem(u=rate, sigma=0.5), until=200).values('master.x')[-1] for rate in rates]
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(rates, shares, 'o', label='simulated')
 ax.plot(rates, np.clip(1 - rates / 0.5, 0, None), '--', color='black', label='1 - u / sigma')

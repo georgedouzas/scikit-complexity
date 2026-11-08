@@ -1,44 +1,47 @@
-"""Nonlinear oscillators: Duffing, Toda, Van der Pol, Stuart-Landau, Adler, impulses, billiards, and chaos."""
+"""Nonlinear oscillator systems.
 
-from ._billiards import MushroomBilliardElement, SinaiBilliardElement, ThreeDiskBilliardElement, billiards
+The package covers Duffing, Toda, Van der Pol, Stuart-Landau, Adler, impulses, billiards, and chaos.
+"""
+
+from ._billiards import BilliardsSystem, MushroomBilliardElement, SinaiBilliardElement, ThreeDiskBilliardElement
 from ._oscillators import (
+    AdlerEquationSystem,
     AdlerPhaseElement,
     DuffingElement,
+    DuffingSystem,
+    ForcedTodaSystem,
+    ForcedVanDerPolSystem,
     HenonHeilesElement,
+    HenonHeilesSystem,
     ImpulsiveOscillatorElement,
+    ImpulsiveOscillatorSystem,
+    NuclearQuadrupoleSystem,
     QuadrupoleElement,
+    StuartLandauSystem,
     TodaElement,
     VanDerPolElement,
-    adler_equation,
-    duffing,
-    forced_toda,
-    forced_van_der_pol,
-    henon_heiles,
-    impulsive_oscillator,
-    nuclear_quadrupole,
-    stuart_landau,
-    van_der_pol,
+    VanDerPolSystem,
 )
 
 __all__: list[str] = [
+    'AdlerEquationSystem',
     'AdlerPhaseElement',
+    'BilliardsSystem',
     'DuffingElement',
+    'DuffingSystem',
+    'ForcedTodaSystem',
+    'ForcedVanDerPolSystem',
     'HenonHeilesElement',
+    'HenonHeilesSystem',
     'ImpulsiveOscillatorElement',
+    'ImpulsiveOscillatorSystem',
     'MushroomBilliardElement',
+    'NuclearQuadrupoleSystem',
     'QuadrupoleElement',
     'SinaiBilliardElement',
+    'StuartLandauSystem',
     'ThreeDiskBilliardElement',
     'TodaElement',
     'VanDerPolElement',
-    'adler_equation',
-    'billiards',
-    'duffing',
-    'forced_toda',
-    'forced_van_der_pol',
-    'henon_heiles',
-    'impulsive_oscillator',
-    'nuclear_quadrupole',
-    'stuart_landau',
-    'van_der_pol',
+    'VanDerPolSystem',
 ]

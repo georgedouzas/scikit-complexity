@@ -13,38 +13,30 @@ increasing returns of urban scaling.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import ScalingAnalysis
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.analysis import scaling
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.core.experiments import Experiment, GridDesign
-from skcomplex.systems import create_system, describe
-from skcomplex.systems.social.organizations import gravity_urban_scaling
+from skcomplex.core.experiments import sweep
+from skcomplex.systems.social.organizations import GravityUrbanScalingSystem
 
 SYSTEM = 'gravity_urban_scaling'
 
-system = create_system(SYSTEM)
+system = GravityUrbanScalingSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-observables = describe(SYSTEM).observables_of(system)
-simulation = Simulation(system, observers=[observer], observables=observables).prepare().run(until=1.0)
+observables = system.get_run_settings()['observables']
+trajectory = simulate(system, until=1.0, observables=observables, observers=[observer])
 
 # %%
 # Total interaction against the population
 # ----------------------------------------
-# An `Experiment` sweeps the population, and `ScalingAnalysis(kind='power')` fits the exponent.
+# A `sweep` varies the population, and `scaling(kind='power')` fits the exponent.
 
 populations = [100, 200, 400, 800]
 bounds = {'population': populations, 'gamma': [1.0]}
-experiment = Experiment(
-    gravity_urban_scaling,
-    GridDesign(),
-    bounds,
-    until=1.0,
-    outputs=['total_contacts'],
-    observables=observables,
-)
-totals = experiment.prepare().run().result_.series('total_contacts')[:, 0]
-scaling = ScalingAnalysis('power', parameters=populations, critical=0.0, above=True)
-exponent = float(np.ravel(scaling.prepare(totals).run().exponent_)[0])
+result = sweep(GravityUrbanScalingSystem(), bounds, until=1.0, outputs=['total_contacts'], observables=observables)
+totals = result.series('total_contacts')[:, 0]
+fit = scaling(totals, kind='power', parameters=populations, critical=0.0, above=True)
+exponent = float(np.ravel(fit.exponent)[0])
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.loglog(populations, totals, 'o', label=f'fitted exponent {exponent:.2f}')
 ax.loglog(populations, totals[0] * (np.array(populations) / populations[0]) ** 1.5, color='black', label='exponent 1.5')

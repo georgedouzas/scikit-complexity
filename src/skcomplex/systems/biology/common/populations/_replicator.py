@@ -1,4 +1,7 @@
-"""Define replicator dynamics, the growth of every share of a group by its fitness above the mean fitness."""
+"""Define replicator dynamics.
+
+Every share of a group grows by its fitness above the mean fitness.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,12 +14,15 @@ from sage.all__sagemath_symbolics import Expression
 
 from .....core.components.interactions import RateInteraction
 from .....core.components.laws.utils import total
+from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
 from .....core.specs import RoleSpec
 
 
 class ReplicatorInteraction(RateInteraction):
-    """Replicator equation of the shares of a group, `dx_i/dt = x_i (f_i - sum_j x_j f_j)`, with a fitness `f`.
+    """Replicator equation of the shares of a group, with a fitness `f`.
+
+    The shares follow `dx_i/dt = x_i (f_i - sum_j x_j f_j)`.
 
     Every member of the group holds the share of a type, such as a strategy or a molecule. Its share grows with its
     fitness above the mean fitness of the group, so the total of the shares stays constant.
@@ -43,15 +49,15 @@ class ReplicatorInteraction(RateInteraction):
         >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.core.components.laws.utils import total
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.systems.biology.evolution import ReplicatorInteraction, StrategyElement
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> population = GroupElement('population', element=StrategyElement, size=2, values={'x': [0.5, 0.5]})
         >>> payoff = ((1.0, 1.0), (0.0, 0.0))
         >>> replication = ReplicatorInteraction(
         ...     'replication', target='population', fitness=lambda s: total(s.target.x, weights=payoff)
         ... )
         >>> system = System(elements=[population], interactions=[replication])
-        >>> trajectory = Simulation(system, dt=0.1).prepare().run(until=20.0).trajectory_
+        >>> trajectory = simulate(system, until=20.0, dt=0.1)
         >>> [round(float(share), 3) for share in trajectory.values('population.x')[-1]]
         [1.0, 0.0]
     """
@@ -68,23 +74,33 @@ class ReplicatorInteraction(RateInteraction):
         self.fitness = fitness
 
     def _check_fitness(self) -> None:
-        """Raise an error for a fitness that is not callable, the hook a subclass that derives its fitness overrides."""
+        """Raise an error for a fitness that is not callable.
+
+        It is the hook a subclass that derives its fitness overrides.
+        """
         if not callable(self.fitness):
             error_msg = f'The fitness of {self.label!r} is {self.fitness!r}. Give a function of the namespace.'
             raise ValidationError(error_msg)
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for a state, functions, or a fitness the interaction cannot take.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The state is not a name, or the fitness is not callable.
         """
-        super()._check()
+        super()._prepare(context)
         self._check_fitness()
 
     def _get_fitness(self, namespace: SimpleNamespace) -> Expression:
-        """Return the fitness of a member, the hook a subclass overrides to derive it from its parameters."""
+        """Return the fitness of a member.
+
+        It is the hook a subclass overrides to derive it from its parameters.
+        """
         fitness = self.fitness
         if fitness is None:
             error_msg = f'The fitness of {self.label!r} is missing. Give a function of the namespace.'

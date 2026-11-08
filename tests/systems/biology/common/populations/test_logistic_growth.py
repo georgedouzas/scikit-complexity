@@ -5,14 +5,14 @@ import pytest
 
 from skcomplex.core.components.elements import CompartmentElement
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.common.populations import LogisticGrowthInteraction, PopulationElement
 
 
 def _run(interaction, n0, until=4.0, dt=0.01):
     """Return the times and the population of one compartment under one interaction."""
     system = System(elements=[CompartmentElement('population', n=n0)], interactions=[interaction])
-    trajectory = Simulation(system, dt=dt).prepare().run(until=until).trajectory_
+    trajectory = simulate(system, dt=dt, until=until)
     return np.asarray(trajectory.times), np.asarray(trajectory.values('population.n'))
 
 
@@ -36,11 +36,4 @@ def test_logistic_growth_saturates():
         elements=[PopulationElement('p', n=5)],
         interactions=[LogisticGrowthInteraction('g', target='p', r=1.0, K=200)],
     )
-    assert Simulation(
-        system,
-        dt=1.0,
-    ).prepare().run(
-        until=30,
-    ).trajectory_.values('p.n')[
-        -1
-    ] == pytest.approx(200, rel=1e-3)
+    assert simulate(system, dt=1.0, until=30).values('p.n')[-1] == pytest.approx(200, rel=1e-3)

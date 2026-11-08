@@ -12,12 +12,12 @@ from skcomplex.core.components.interactions import AdvectionInteraction
 from skcomplex.core.components.laws import FluxLaw
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace, SimplexSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import SSPRKSolver
 from skcomplex.core.errors import SolverError
-from skcomplex.core.specs import AxisSpec, StateSpec, VisualSpec
-from skcomplex.systems.physics.fluids import burgers, shallow_water
+from skcomplex.core.specs import AxisSpec, StateSpec, StepSpec, VisualSpec
+from skcomplex.systems.physics.fluids import BurgersSystem, ShallowWaterSystem
 
 N_STATES = 5
 DAM_SPEED_UP = 15.0
@@ -58,7 +58,7 @@ def _volume(system):
 
 def test_max_speed_matches_numerical_eigenvalues():
     """Test that the closed-form speeds of the dam break agree with the numerical eigenvalues."""
-    problem, volume = _volume(shallow_water(200))
+    problem, volume = _volume(ShallowWaterSystem(200).prepare().system_)
     rng = np.random.default_rng(0)
     depth, discharge = volume.starts
     x = problem.initial_state.copy()
@@ -73,12 +73,14 @@ def test_max_speed_matches_numerical_eigenvalues():
 
 def _timed_dam_break(closed):
     """Return the time and the final state of the dam break on 1600 cells, with closed-form or numerical speeds."""
-    simulation = Simulation(shallow_water(1600), dt=0.5, solver=SSPRKSolver()).prepare()
+    problem = PassCompiler(solver=SSPRKSolver()).prepare(ShallowWaterSystem(1600).prepare().system_).run().problem_
     if not closed:
-        simulation.problem_.volumes[0].set_params(speeds=())
+        problem.volumes[0].set_params(speeds=())
+    solver = SSPRKSolver().set_params(until=0.5).prepare(problem)
+    step = StepSpec(0.0, solver.initial_state_.copy(), problem.initial_parameters.copy(), 0.5)
     start = time.perf_counter()
-    simulation.run(until=0.5)
-    return time.perf_counter() - start, simulation.state_
+    state = solver.run(step, final=True).state_
+    return time.perf_counter() - start, state
 
 
 @pytest.mark.benchmark
@@ -93,10 +95,10 @@ def test_run_is_faster_with_closed_form_speeds():
 
 def test_run_keeps_burgers_shock_conservative_and_monotone():
     """Test that the Burgers shock keeps its total and forms no new extrema with the closed-form speeds."""
-    system = burgers(400)
+    system = BurgersSystem(400).prepare().system_
     initial = np.asarray(system.elements[0].values['u'])
     _, volume = _volume(system)
-    values = Simulation(system, dt=2.0, solver=SSPRKSolver()).prepare().run(until=2.0).state_
+    values = simulate(system, until=2.0, dt=2.0, solver=SSPRKSolver()).states[-1]
     assert volume.closed_form is True
     assert values.sum() == pytest.approx(initial.sum(), rel=1e-12)
     assert initial.min() - 1e-12 <= values.min() <= values.max() <= initial.max() + 1e-12
@@ -116,7 +118,7 @@ def test_run_falls_back_to_numerical_eigenvalues_without_closed_form():
     )
     system = System(elements=[field])
     _, volume = _volume(system)
-    trajectory = Simulation(system, dt=0.5, solver=SSPRKSolver()).prepare().run(until=0.5).trajectory_
+    trajectory = simulate(system, until=0.5, dt=0.5, solver=SSPRKSolver())
     assert volume.closed_form is False
     for index in range(N_STATES):
         total = values[f'u{index}'].sum()
@@ -125,7 +127,7 @@ def test_run_falls_back_to_numerical_eigenvalues_without_closed_form():
 
 def test_max_speed_rejects_states_outside_the_hyperbolic_region():
     """Test that non-real closed-form speeds raise a solver error naming the field."""
-    problem, volume = _volume(shallow_water(20))
+    problem, volume = _volume(ShallowWaterSystem(20).prepare().system_)
     x = problem.initial_state.copy()
     x[volume.starts[0] : volume.starts[0] + 20] = -1.0
     with pytest.raises(SolverError, match='channel'):

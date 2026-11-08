@@ -22,11 +22,11 @@ _BACKGROUND = np.array([20, 20, 30], dtype=np.uint8)
 
 
 class GeometryVisual(BaseVisual):
-    """Visual that logs the structure of a rewritten element at every frame, in a frame fixed across generations.
+    """Visual that logs the structure of a rewritten element at every frame.
 
-    Word segments, segment tiles, and polygon outlines are one batch of line strips, colored by branch depth or by
-    prototile. A filled patch is an image of its raster instead. The counts of symbols or prototiles are logged as
-    series under `<path>/counts/<state>`.
+    The frame of the drawing is fixed across generations. Word segments, segment tiles, and polygon outlines are one
+    batch of line strips, colored by branch depth or by prototile. A filled patch is an image of its raster instead. The
+    counts of symbols or prototiles are logged as series under `<path>/counts/<state>`.
 
     Args:
         filled:
@@ -94,7 +94,9 @@ class GeometryVisual(BaseVisual):
         recording.log(element.path, archetype(strips, colors=colors))
 
     def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
-        """Return the view of the geometry, with the bounds of the element, and a time series view of the counts.
+        """Return the view of the geometry and a time series view of the counts.
+
+        The view of the geometry has the bounds of the element.
 
         Args:
             element:
@@ -119,8 +121,8 @@ class GeometryVisual(BaseVisual):
             ...     def _get_laws(self, namespace):
             ...         return [ProductionLaw('F', 'F+F--F+F')]
             >>> koch = KochElement('koch', axiom='F', geometry=GeometrySpec(angle=60.0, contraction=1 / 3))
-            >>> from skcomplex.core.engine.compile import RewritingCompiler
-            >>> problem = RewritingCompiler().prepare(System(elements=[koch], time=DiscreteTime())).run().problem_
+            >>> from skcomplex.core.engine.runtime import simulate
+            >>> problem = simulate(System(elements=[koch], time=DiscreteTime()), until=0).problem
             >>> views = GeometryVisual(path=problem.elements[0].path).prepare(problem).views_
             >>> [type(view).__name__ for view in views]
             ['Spatial2DView', 'TimeSeriesView']
@@ -132,7 +134,9 @@ class GeometryVisual(BaseVisual):
         geometry = getattr(component, 'geometry', None)
         if geometry is not None and geometry.dimension == SPACE_DIMENSION:
             return [rrb.Spatial3DView(origin=path, name=path), series]
-        bounds = self._bounds_of(element) if isinstance(element, CompiledElementSpec) else None
+        if not isinstance(element, CompiledElementSpec):
+            return [rrb.Spatial2DView(origin=path, name=path), series]
+        bounds = self._bounds_of(element)
         if bounds is None or self._is_filled(element):
             return [rrb.Spatial2DView(origin=path, name=path), series]
         xmin, ymin, xmax, ymax = bounds
@@ -141,7 +145,10 @@ class GeometryVisual(BaseVisual):
 
     @staticmethod
     def _bounds_of(element: CompiledElementSpec) -> tuple[float, float, float, float] | None:
-        """Return the box an element's geometry is drawn in, its declared bounds or the box of a patch's first tiles."""
+        """Return the box an element's geometry is drawn in.
+
+        It is its declared bounds or the box of a patch's first tiles.
+        """
         component = element.element
         declared = getattr(component, 'bounds', None)
         if declared is not None:
@@ -167,7 +174,10 @@ class GeometryVisual(BaseVisual):
 
     @staticmethod
     def _strips(structure: BaseStructureSpec) -> tuple[list[npt.NDArray[np.float64]], npt.NDArray[np.float64]]:
-        """Return the line strips of a structure, with y flipped for Rerun's downward axis, and a value per strip."""
+        """Return the line strips of a structure and a value per strip.
+
+        The y axis is flipped for Rerun's downward axis.
+        """
         segments = structure.segments()
         if isinstance(structure, WordStructureSpec):
             values = np.zeros(len(segments)) if structure.depths is None else structure.depths.astype(float)

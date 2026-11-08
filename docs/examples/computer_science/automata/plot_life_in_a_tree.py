@@ -13,15 +13,15 @@ pre-injective.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.computer_science.automata import LifeInATreeSystem
 
 SYSTEM = 'life_in_a_tree'
 
-system = create_system(SYSTEM, radius=4, density=0.3, random_state=0)
+system = LifeInATreeSystem(radius=4, density=0.3, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(system, observers=[observer]).prepare().run(until=20)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # Density by word length and a collision
@@ -31,18 +31,21 @@ simulation = Simulation(system, observers=[observer]).prepare().run(until=20)
 # neighbours dead, so it has the same image as the empty configuration, two configurations that differ at one cell, the
 # failure of pre-injectivity on the whole tree.
 
-space = system.elements[0].space.prepare()
-alive = simulation.trajectory_.values('cells.alive')
+space = system.prepare().system_.elements[0].space.prepare()
+alive = trajectory.values('cells.alive')
 lone = np.zeros(space.size_)
 lone[0] = 1.0
 images = [
-    Simulation(create_system(SYSTEM, radius=4, initial=cells)).prepare().run(until=1).trajectory_.values('cells.alive')
+    simulate(LifeInATreeSystem(radius=4, initial=cells), until=1).values('cells.alive')
     for cells in (lone, np.zeros(space.size_))
 ]
 fig, ax = plt.subplots(figsize=(7, 4))
 for length in range(5):
     ax.plot(
-        simulation.trajectory_.times, alive[:, space.lengths_ == length].mean(axis=1), 'o-', label=f'length {length}',
+        trajectory.times,
+        alive[:, space.lengths_ == length].mean(axis=1),
+        'o-',
+        label=f'length {length}',
     )
 ax.set_xlabel('step')
 ax.set_ylabel('density of live cells')

@@ -19,11 +19,10 @@ from ....core.components.interactions import (
 )
 from ....core.components.laws import Source
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class PredatorView(AgentView):
@@ -38,7 +37,7 @@ class PredatorView(AgentView):
 
 
 class PredatorElement(Element):
-    """Predator that walks at random, eats a prey of its cell, breeds after a meal, and dies.
+    """Predator that walks at random, eats prey, breeds after a meal, and dies.
 
     In its own activation a predator walks to a random neighbouring cell, eats and removes one random prey of the new
     cell, counted in `meals`, breeds with the probability `conversion` after a meal, dies with the probability
@@ -97,7 +96,7 @@ class PreyView(AgentView):
 
 
 class PreyElement(Element):
-    """Prey that walks at random and gives birth in cells it does not share with other prey.
+    """Prey that walks at random and gives birth when alone in its cell.
 
     In its own activation a prey walks to a random neighbouring cell and then gives birth with the probability
     `birth` when no other prey shares the new cell, by member interactions.
@@ -135,95 +134,14 @@ class PreyElement(Element):
         return PreyView
 
 
-def _get_birth(prey: AgentViewProtocol, system: SystemViewProtocol) -> float:
-    """Return the probability `birth` that a prey gives birth, zero when other prey share its cell."""
-    del system
-    if not isinstance(prey, PreyView) or prey.agents_here(prey.group):
-        return 0.0
-    return float(prey.birth)
+class AgentBasedLotkaVolterraSystem(BaseSystem):
+    """Prey and predators that walk on a grid, whose numbers cycle.
 
+    Their numbers cycle like the Lotka-Volterra equations.
 
-def _get_conversion(predator: AgentViewProtocol, system: SystemViewProtocol) -> float:
-    """Return the probability `conversion` that a predator breeds after a meal in this step, zero without one."""
-    del system
-    return float(predator.conversion) if isinstance(predator, PredatorView) and predator.meals > 0 else 0.0
-
-
-def _get_death(predator: AgentViewProtocol, system: SystemViewProtocol) -> float:
-    """Return the probability `death` that a predator dies in a step."""
-    del system
-    return float(predator.death) if isinstance(predator, PredatorView) else 0.0
-
-
-def _get_digested(predator: AgentViewProtocol, system: SystemViewProtocol) -> float:
-    """Return zero, the meals a predator starts its next step with."""
-    del predator, system
-    return 0.0
-
-
-def _get_prey(group: str) -> list[MovementInteraction | LifeCycleInteraction]:
-    """Return the member interactions of a prey: walk, then give birth when alone in the new cell."""
-    return [
-        MovementInteraction(f'{group}_walk', target=group, schedule='member'),
-        LifeCycleInteraction(f'{group}_birth', target=group, birth=_get_birth, schedule='member'),
-    ]
-
-
-def _get_predators(
-    group: str,
-    prey: str,
-) -> list[MovementInteraction | TransferInteraction | LifeCycleInteraction | MapInteraction]:
-    """Return the member interactions of a predator: walk, eat a prey of its cell, breed after it, die, digest."""
-    return [
-        MovementInteraction(f'{group}_walk', target=group, schedule='member'),
-        TransferInteraction(
-            f'{group}_eating',
-            source=prey,
-            target=group,
-            state=Source(),
-            into='meals',
-            amount=1.0,
-            pairing='cell',
-            form='agent',
-            schedule='member',
-            actor='target',
-            partners=1,
-            remove='source',
-        ),
-        LifeCycleInteraction(f'{group}_breeding', target=group, birth=_get_conversion, schedule='member'),
-        LifeCycleInteraction(f'{group}_death', target=group, death=_get_death, schedule='member'),
-        MapInteraction(
-            f'{group}_digestion',
-            target=group,
-            state='meals',
-            function=_get_digested,
-            form='agent',
-            schedule='member',
-        ),
-    ]
-
-
-@register_system(
-    field='biology/ecology',
-    tags=('predator-prey', 'agents', 'grid', 'oscillation'),
-    references=('Argun et al. 2021', 'Lotka 1925', 'Volterra 1926'),
-    defaults={'until': 200},
-)
-def agent_based_lotka_volterra(
-    width: int = 30,
-    height: int = 30,
-    *,
-    prey: int = 300,
-    predators: int = 60,
-    birth: float = 0.2,
-    conversion: float = 0.5,
-    death: float = 0.1,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return prey and predators that walk on a grid, whose numbers cycle like the Lotka-Volterra equations.
-
-    Prey give birth only in cells they do not share with other prey, which limits their density, and predators eat
-    prey they meet and breed after a meal. Demographic noise makes the cycles irregular and can end them by extinction.
+    Prey give birth only in cells they do not share with other prey, which limits their density, and predators eat prey
+    they meet and breed after a meal. Demographic noise makes the cycles irregular and can end them by extinction. The
+    system has the groups `prey` and `predators`.
 
     Args:
         width:
@@ -250,37 +168,148 @@ def agent_based_lotka_volterra(
         random_state:
             The seed or generator of the initial cells.
 
-    Returns:
-        system:
-            The system, with the groups `prey` and `predators`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.ecology import agent_based_lotka_volterra
-        >>> [group.size for group in agent_based_lotka_volterra(10, 10, prey=50, predators=5).elements]
+        >>> from skcomplex.systems.biology.ecology import AgentBasedLotkaVolterraSystem
+        >>> system = AgentBasedLotkaVolterraSystem(10, 10, prey=50, predators=5).prepare().system_
+        >>> [group.size for group in system.elements]
         [50, 5]
     """
-    rng = np.random.default_rng(random_state)
-    cells = rng.integers(0, [width, height], size=(prey + predators, 2))
-    locations = [tuple(int(item) for item in cell) for cell in cells]
-    return System(
-        elements=[
-            GroupElement(
-                'prey',
-                element=PreyElement,
-                size=prey,
-                values={'birth': birth},
-                variable=True,
-                location=locations[:prey],
+
+    field = 'biology/ecology'
+    topics = ('predator-prey', 'agents', 'grid', 'oscillation')
+    references = ('Argun et al. 2021', 'Lotka 1925', 'Volterra 1926')
+    until = 200
+
+    def __init__(
+        self,
+        width: int = 30,
+        height: int = 30,
+        *,
+        prey: int = 300,
+        predators: int = 60,
+        birth: float = 0.2,
+        conversion: float = 0.5,
+        death: float = 0.1,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.width = width
+        self.height = height
+        self.prey = prey
+        self.predators = predators
+        self.birth = birth
+        self.conversion = conversion
+        self.death = death
+        self.random_state = random_state
+
+    @staticmethod
+    def _get_birth(prey: AgentViewProtocol, system: SystemViewProtocol) -> float:
+        """Return the probability `birth` that a prey gives birth.
+
+        It is zero when other prey share its cell.
+        """
+        del system
+        if not isinstance(prey, PreyView) or prey.agents_here(prey.group):
+            return 0.0
+        return float(prey.birth)
+
+    @staticmethod
+    def _get_conversion(predator: AgentViewProtocol, system: SystemViewProtocol) -> float:
+        """Return the probability `conversion` that a predator breeds in this step.
+
+        It is the probability of breeding after a meal, and zero without one.
+        """
+        del system
+        return float(predator.conversion) if isinstance(predator, PredatorView) and predator.meals > 0 else 0.0
+
+    @staticmethod
+    def _get_death(predator: AgentViewProtocol, system: SystemViewProtocol) -> float:
+        """Return the probability `death` that a predator dies in a step."""
+        del system
+        return float(predator.death) if isinstance(predator, PredatorView) else 0.0
+
+    @staticmethod
+    def _get_digested(predator: AgentViewProtocol, system: SystemViewProtocol) -> float:
+        """Return zero, the meals a predator starts its next step with."""
+        del predator, system
+        return 0.0
+
+    def _get_prey(self, group: str) -> list[MovementInteraction | LifeCycleInteraction]:
+        """Return the member interactions of a prey.
+
+        A prey walks, then gives birth when alone in the new cell.
+        """
+        return [
+            MovementInteraction(f'{group}_walk', target=group, schedule='member'),
+            LifeCycleInteraction(f'{group}_birth', target=group, birth=self._get_birth, schedule='member'),
+        ]
+
+    def _get_predators(
+        self,
+        group: str,
+        prey: str,
+    ) -> list[MovementInteraction | TransferInteraction | LifeCycleInteraction | MapInteraction]:
+        """Return the member interactions of a predator.
+
+        A predator walks, eats a prey of its cell, breeds after it, dies, and digests.
+        """
+        return [
+            MovementInteraction(f'{group}_walk', target=group, schedule='member'),
+            TransferInteraction(
+                f'{group}_eating',
+                source=prey,
+                target=group,
+                state=Source(),
+                into='meals',
+                amount=1.0,
+                pairing='cell',
+                form='agent',
+                schedule='member',
+                actor='target',
+                partners=1,
+                remove='source',
             ),
-            GroupElement(
-                'predators',
-                element=PredatorElement,
-                size=predators,
-                values={'conversion': conversion, 'death': death},
-                variable=True,
-                location=locations[prey:],
+            LifeCycleInteraction(f'{group}_breeding', target=group, birth=self._get_conversion, schedule='member'),
+            LifeCycleInteraction(f'{group}_death', target=group, death=self._get_death, schedule='member'),
+            MapInteraction(
+                f'{group}_digestion',
+                target=group,
+                state='meals',
+                function=self._get_digested,
+                form='agent',
+                schedule='member',
             ),
-        ],
-        interactions=[*_get_prey('prey'), *_get_predators('predators', 'prey')],
-        space=LatticeSpace((width, height), boundary='periodic'),
-    )
+        ]
+
+    def _build_system(self) -> System:
+        """Return the parts of prey and predators that walk on a grid."""
+        rng = np.random.default_rng(self.random_state)
+        cells = rng.integers(0, [self.width, self.height], size=(self.prey + self.predators, 2))
+        locations = [tuple(int(item) for item in cell) for cell in cells]
+        return System(
+            self.label,
+            elements=[
+                GroupElement(
+                    'prey',
+                    element=PreyElement,
+                    size=self.prey,
+                    values={'birth': self.birth},
+                    variable=True,
+                    location=locations[: self.prey],
+                ),
+                GroupElement(
+                    'predators',
+                    element=PredatorElement,
+                    size=self.predators,
+                    values={'conversion': self.conversion, 'death': self.death},
+                    variable=True,
+                    location=locations[self.prey :],
+                ),
+            ],
+            interactions=[*self._get_prey('prey'), *self._get_predators('predators', 'prey')],
+            space=LatticeSpace((self.width, self.height), boundary='periodic'),
+        )

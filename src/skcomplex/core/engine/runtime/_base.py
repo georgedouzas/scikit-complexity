@@ -1,4 +1,7 @@
-"""Define the bases of the runtime: observers, which receive the frames of a simulation, and clocks, which pace them."""
+"""Define the bases of the runtime.
+
+Observers receive the frames of a simulation, and clocks pace them.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,7 +23,7 @@ class BaseObserver(BaseConfig[BaseProblemSpec, FrameSpec]):
 
     Examples:
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import BaseObserver, Simulation
+        >>> from skcomplex.core.engine.runtime import BaseObserver, simulate
         >>> from skcomplex.systems.biology.common.populations import PopulationElement
         >>> class CountingObserver(BaseObserver):
         ...     def _prepare(self, context):
@@ -29,20 +32,22 @@ class BaseObserver(BaseConfig[BaseProblemSpec, FrameSpec]):
         ...     def _run(self, inputs):
         ...         self.count_ += inputs is not None
         >>> observer = CountingObserver()
-        >>> simulation = Simulation(System(elements=[PopulationElement('a')]), dt=1, observers=[observer])
-        >>> _ = simulation.prepare().run(until=3)
+        >>> _ = simulate(System(elements=[PopulationElement('a')]), until=3, dt=1, observers=[observer])
         >>> observer.count_
         4
     """
 
-    def _check(self) -> None:
-        """Accept every setting, since an observer has none to validate. An observer with settings validates them."""
-
     def _prepare(self, context: BaseProblemSpec | None) -> None:
-        """Prepare for a run of the compiled problem. By default, prepare nothing."""
+        """Prepare for a run of the compiled problem.
+
+        By default, prepare nothing.
+        """
 
     def _run(self, inputs: FrameSpec | None) -> None:
-        """React to a frame, or to the end of the run without one. By default, do nothing."""
+        """React to a frame, or to the end of the run without one.
+
+        By default, do nothing.
+        """
 
     def prepare(self, problem: BaseProblemSpec | None = None) -> Self:
         """Prepare the checked observer for a run of a compiled problem.
@@ -58,7 +63,9 @@ class BaseObserver(BaseConfig[BaseProblemSpec, FrameSpec]):
         return super().prepare(problem)
 
     def run(self, frame: FrameSpec | None = None, final: bool = False) -> Self:
-        """React to a frame, and release what preparing acquired at the last call.
+        """React to a frame.
+
+        At the last call, it releases what preparing acquired.
 
         Args:
             frame:
@@ -76,11 +83,11 @@ class BaseObserver(BaseConfig[BaseProblemSpec, FrameSpec]):
 
 
 class BaseClock(BaseConfig[None, float]):
-    """Base class of clocks, which decide how long to wait between frames.
+    """Base class of clocks.
 
-    A clock follows the common API of the engine. It is prepared at the start of a run with `prepare()`,
-    which marks the wall time, and `run(elapsed)` waits until a frame that is `elapsed` simulated time units after the
-    start is due. Subclasses implement `_run`.
+    A clock decides how long to wait between frames. A clock follows the common API of the engine. It is prepared at the
+    start of a run with `prepare()`, which marks the wall time, and `run(elapsed)` waits until a frame that is `elapsed`
+    simulated time units after the start is due. Subclasses implement `_run`.
 
     Attributes:
         started_:
@@ -90,16 +97,15 @@ class BaseClock(BaseConfig[None, float]):
             The largest delay of a frame behind its due time, in seconds.
     """
 
-    def _check(self) -> None:
-        """Accept every setting, since a clock has none to validate. A clock with settings validates them."""
-
     def _prepare(self, context: None) -> None:
         """Mark the wall time at which the run starts."""
         self.started_ = time.perf_counter()
         self.max_lag_ = 0.0
 
     def _run(self, inputs: float | None) -> None:
-        """Wait until a frame that is `inputs` simulated time units after the start is due. By default, never wait.
+        """Wait until a frame that is `inputs` simulated time units after the start is due.
+
+        By default, it never waits.
 
         Args:
             inputs:
@@ -120,7 +126,7 @@ class BaseClock(BaseConfig[None, float]):
         return super().prepare(context)
 
     def run(self, elapsed: float | None = None, final: bool = False) -> Self:
-        """Wait until a frame that is `elapsed` simulated time units after the start is due.
+        """Wait until the frame `elapsed` simulated time units after the start is due.
 
         Args:
             elapsed:

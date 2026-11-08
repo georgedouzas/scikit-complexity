@@ -18,9 +18,9 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.computer_science.evolutionary_computation import BitStringEvolutionSystem
 
 SYSTEM = 'bit_string_evolution'
 
@@ -31,14 +31,9 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = (
-    Simulation(create_system(SYSTEM, random_state=0), dt=1, observers=[observer], random_state=0)
-    .prepare()
-    .run(until=200)
-)
+trajectory = simulate(BitStringEvolutionSystem(random_state=0), until=200, dt=1, observers=[observer], random_state=0)
 landscape = np.random.default_rng(0)
 zero_values, one_values = landscape.random(8), landscape.random(8)
-trajectory = simulation.trajectory_
 snapshots = [trajectory.agents('genomes', frame) for frame in range(len(trajectory.times))]
 bits = np.array([(snapshot.values['genome'].astype(int)[:, None] >> np.arange(8)) & 1 for snapshot in snapshots])
 better = np.where(one_values > zero_values, bits.mean(axis=1), 1 - bits.mean(axis=1)).T

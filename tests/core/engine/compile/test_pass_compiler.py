@@ -49,7 +49,9 @@ from skcomplex.core.components.spaces import (
 from skcomplex.core.components.system import System
 from skcomplex.core.engine._utils import domain_of, symbol
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import OperatorCompiler, PassCompiler, RewritingCompiler
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.compile._rewriting_compiler import RewritingCompiler
+from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
 from skcomplex.core.engine.problems import ProblemSpec
 from skcomplex.core.engine.solvers import GillespieSolver
 from skcomplex.core.errors import (

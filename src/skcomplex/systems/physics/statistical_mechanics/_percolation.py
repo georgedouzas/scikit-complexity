@@ -10,9 +10,8 @@ import numpy.typing as npt
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.spaces import ContinuousSpace, StaticTime
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class DiskElement(Element):
@@ -40,23 +39,14 @@ class DiskElement(Element):
         self.x = x
 
 
-@register_system(
-    field='physics/statistical_mechanics',
-    tags=('percolation', 'disorder', 'clusters', 'static'),
-    references=('Satz 2022', 'Mertens and Moore 2012'),
-)
-def continuum_percolation(
-    filling: float = 1.1,
-    *,
-    side: float = 60.0,
-    radius: float = 1.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return overlapping disks at uniform positions in a square, whose clusters percolate near a filling of 1.13.
+class ContinuumPercolationSystem(BaseSystem):
+    """Overlapping disks at uniform positions in a square.
+
+    Their clusters percolate near a filling of 1.13.
 
     The number of disks is `filling side^2 / (pi radius^2)`. The clusters of touching disks are read by
-    `ClusterAnalysis(radius=radius)`, and an `Experiment` sweeps `filling` and `random_state` for the spanning
-    probability (Satz 2022 ch. 3).
+    `clusters(source, radius=radius)`, and a `sweep` varies `filling` and `random_state` for the spanning
+    probability (Satz 2022 ch. 3). The system has the positions `disks.x`.
 
     Args:
         filling:
@@ -71,17 +61,43 @@ def continuum_percolation(
         random_state:
             The seed or generator of the positions.
 
-    Returns:
-        system:
-            The system, with the positions `disks.x`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.statistical_mechanics import continuum_percolation
-        >>> continuum_percolation(1.0, side=10.0).elements[0].size
+        >>> from skcomplex.systems.physics.statistical_mechanics import ContinuumPercolationSystem
+        >>> ContinuumPercolationSystem(1.0, side=10.0).prepare().system_.elements[0].size
         32
     """
-    size = round(filling * side**2 / (np.pi * radius**2))
-    positions = np.random.default_rng(random_state).uniform(0.0, side, (size, 2))
-    visual = VisualSpec('points', {'position': 'x', 'radius': radius, 'states': ()})
-    disks = GroupElement('disks', element=DiskElement, size=size, values={'x': positions}, visual=visual)
-    return System(elements=[disks], space=ContinuousSpace(extent=[side, side]), time=StaticTime())
+
+    field = 'physics/statistical_mechanics'
+    topics = ('percolation', 'disorder', 'clusters', 'static')
+    references = ('Satz 2022', 'Mertens and Moore 2012')
+
+    def __init__(
+        self,
+        filling: float = 1.1,
+        *,
+        side: float = 60.0,
+        radius: float = 1.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.filling = filling
+        self.side = side
+        self.radius = radius
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        size = round(self.filling * self.side**2 / (np.pi * self.radius**2))
+        positions = np.random.default_rng(self.random_state).uniform(0.0, self.side, (size, 2))
+        visual = VisualSpec('points', {'position': 'x', 'radius': self.radius, 'states': ()})
+        disks = GroupElement('disks', element=DiskElement, size=size, values={'x': positions}, visual=visual)
+        return System(
+            self.label,
+            elements=[disks],
+            space=ContinuousSpace(extent=[self.side, self.side]),
+            time=StaticTime(),
+        )

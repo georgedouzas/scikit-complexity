@@ -1,4 +1,7 @@
-"""Lower differential operators on fields to finite-difference stencils and graph Laplacians."""
+"""Lower differential operators on fields to stencils and graph Laplacians.
+
+The stencils are finite-difference stencils.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -43,16 +46,14 @@ from ...errors import ValidationError
 from ...specs import NeighborReadSpec, RunStateSpec
 from ...types import Indices, IntTuple
 from .._utils import domain_of, symbol
-from ..problems import (
-    CollisionKernel,
-    DeclarationsSpec,
-    DiffusiveLimitSpec,
-    ExpressionPrinter,
-    KernelSpec,
-    ReferenceSpec,
-)
+from ..problems._collision_kernel import CollisionKernel
+from ..problems._declarations_spec import DeclarationsSpec
+from ..problems._diffusive_limit_spec import DiffusiveLimitSpec
+from ..problems._expression_printer import ExpressionPrinter
 from ..problems._field_operator_kernel import FieldOperatorKernel
+from ..problems._kernel_spec import KernelSpec
 from ..problems._law_kernel import LATTICE_BOUNDARIES, MODES
+from ..problems._reference_spec import ReferenceSpec
 from ..types import ReadKind
 from ._base import BaseLowering, BasePass
 from ._compilation import Compilation
@@ -82,11 +83,12 @@ SHIFTED_MODES = {'periodic': 'grid-wrap', 'zero-flux': 'reflect', 'fixed': 'grid
 FILTER_MODES = {'periodic': 'wrap', 'zero-flux': 'reflect', 'fixed': 'constant'}
 
 
-class FieldLowering(BaseLowering[list[BaseLaw]]):
-    """Lowering of the differential operators in the laws of one component to stencils, with the symbols they read.
+class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
+    """Lowering of the differential operators in the laws of one component to stencils.
 
-    `prepare(compilation)` reads the fields and the initial values of the compilation, and `run(laws)` returns the laws
-    with every operator replaced by its stencil, noting the stable steps of the Laplacians of rate laws.
+    The lowering also returns the symbols the stencils read. `prepare(compilation)` reads the fields and the initial
+    values of the compilation, and `run(laws)` returns the laws with every operator replaced by its stencil, noting the
+    stable steps of the Laplacians of rate laws.
 
     Args:
         spec:
@@ -168,7 +170,9 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         self.cross_section_ = None
 
     def _run(self, inputs: list[BaseLaw] | None) -> None:
-        """Set laws whose differential operators are lowered, noting the stable steps of rate laws.
+        """Set laws whose differential operators are lowered.
+
+        The stable steps of rate laws are noted along the way.
 
         Args:
             inputs:
@@ -204,7 +208,10 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
 
     @staticmethod
     def _initial_values(spec: KernelSpec, declarations: DeclarationsSpec) -> dict[Expression, float]:
-        """Return the initial value of every symbol of a component, the first member's for groups."""
+        """Return the initial value of every symbol of a component.
+
+        For groups, it is the value of the first member.
+        """
         states = np.concatenate([np.zeros(0), *declarations.initial_states])
         parameters = np.concatenate([np.zeros(0), *declarations.initial_parameters])
         return {
@@ -214,7 +221,9 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         }
 
     def _known_reference(self, item: Expression) -> ReferenceSpec:
-        """Return the reference of a symbol of the spec, raising an error for a symbol the spec does not read.
+        """Return the reference of a symbol of the spec.
+
+        A symbol the spec does not read raises an error.
 
         Args:
             item:
@@ -254,7 +263,7 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         place: FieldElement,
         offset: IntTuple | int,
     ) -> tuple[Indices, float | None, int | None]:
-        """Return the neighbour table, the fixed value, and the mode of a symbol at an offset."""
+        """Return the neighbour table, fixed value, and mode of a symbol at an offset."""
         reference = self._known_reference(item)
         variable = reference.entry.name.rpartition('.')[2]
         if reference.is_state:
@@ -345,7 +354,10 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         return expression.subs(replacements)
 
     def _read_mode(self, space: object, kind: str, offset: IntTuple | int) -> int | None:
-        """Return the mode of the edges a read at an offset crosses, or `None` when it crosses edges of two kinds."""
+        """Return the mode of the edges a read at an offset crosses.
+
+        It is `None` when the read crosses edges of two kinds.
+        """
         if not isinstance(space, PhaseSpace) or isinstance(offset, int):
             return MODES[kind]
         kinds = {
@@ -365,7 +377,10 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         return tuple(a + b for a, b in zip(current or (0,) * len(offset), offset, strict=True))
 
     def _boundaries(self, expression: Expression) -> list[tuple[str, object]]:
-        """Return the boundary conditions of the field states an expression reads, through derived values."""
+        """Return the boundary conditions of the field states an expression reads.
+
+        The states read through derived values count too.
+        """
         found = []
         for item in SR(expression).variables():
             if item in self.solution_boundaries_:
@@ -384,7 +399,10 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         return found
 
     def _boundary(self, expression: Expression, place: FieldElement) -> tuple[str, object]:
-        """Return the one boundary condition of the field states an expression reads, or the edges of the space."""
+        """Return the one boundary condition of the field states an expression reads.
+
+        Without one, it is the edges of the space.
+        """
         found = set(self._boundaries(expression))
         if len(found) > 1:
             error_msg = (
@@ -396,7 +414,10 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         return found.pop() if found else place._get_boundary('')
 
     def _neighbor_table(self, place: FieldElement, kind: str, value: object, offset: IntTuple | int) -> Indices:
-        """Return the neighbour of every site at an offset, with the number of sites for reads beyond fixed edges."""
+        """Return the neighbour of every site at an offset.
+
+        Reads beyond fixed edges get the number of sites.
+        """
         space = place.space
         if isinstance(space, NetworkSpace) and isinstance(offset, int):
             table = space._index_table(AdjacencyNeighborhood())
@@ -412,7 +433,9 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         return np.asarray(lattice._index_table(LatticeNeighborhood((offset,)))[:, 0], dtype=np.intp)
 
     def _shifted_derived(self, base: Expression, total: IntTuple | int) -> Expression:
-        """Return the symbol of a derived value read at a neighbouring site, indexing its values by the neighbour table.
+        """Return the symbol of a derived value read at a neighbouring site.
+
+        Its values are indexed by the neighbour table.
 
         Args:
             base:
@@ -446,7 +469,10 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         return self._derived(place, read, target)
 
     def _places(self, expression: Expression) -> dict[int, FieldElement]:
-        """Return the fields an expression reads, through member symbols, neighbour reads, and derived values."""
+        """Return the fields an expression reads.
+
+        The fields are read through member symbols, neighbour reads, and derived values.
+        """
         places: dict[int, FieldElement] = {}
         place: FieldElement | None
         for item in SR(expression).variables():
@@ -517,7 +543,9 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         return space, step, tuple(-item for item in step)
 
     def _lower(self, expression: object) -> object:
-        """Return an expression with every operator replaced by its stencil, innermost first.
+        """Return an expression with every operator replaced by its stencil.
+
+        The innermost operators are replaced first.
 
         Args:
             expression:
@@ -566,7 +594,10 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         return self._collision(operands[0], place)
 
     def _phase_space(self, operand: Expression, place: FieldElement) -> PhaseSpace:
-        """Return the phase space of a field whose class axes an operator reads, raising an error for another space."""
+        """Return the phase space of a field whose class axes an operator reads.
+
+        Another space raises an error.
+        """
         if not isinstance(place.space, PhaseSpace):
             error_msg = (
                 f'A law of {self.spec.owner} reduces {operand} over class axes, but its field lives on '
@@ -576,7 +607,10 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         return place.space
 
     def _axes_of(self, coordinates: list[Expression], space: PhaseSpace) -> tuple[int, ...]:
-        """Return the indices of the class axes of their coordinates, raising an error for an axis the space lacks."""
+        """Return the indices of the class axes of their coordinates.
+
+        An axis the space lacks raises an error.
+        """
         names = [str(item).removeprefix(COORDINATE_PREFIX) for item in coordinates]
         missing = [name for name in names if name not in space.class_axes_]
         if missing:
@@ -588,7 +622,10 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         return tuple(space.class_axes_[name] for name in names)
 
     def _reduced(self, operand: Expression, coordinates: list[Expression], place: FieldElement) -> Expression:
-        """Return the symbol of the integral of an expression over class axes, broadcast back along them."""
+        """Return the symbol of the integral of an expression over class axes.
+
+        The integral is broadcast back along the axes.
+        """
         space = self._phase_space(operand, place)
         axes = self._axes_of(coordinates, space)
         width = float(np.prod([space.spacings_[axis] for axis in axes]))
@@ -612,7 +649,10 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         coordinates: list[Expression],
         place: FieldElement,
     ) -> Expression:
-        """Return the symbol of the integral of an expression over class axes against a kernel of two points."""
+        """Return the symbol of the integral of an expression against a two-point kernel.
+
+        The integral runs over class axes.
+        """
         space = self._phase_space(operand, place)
         axes = self._axes_of(coordinates, space)
         names = [str(item).removeprefix(COORDINATE_PREFIX) for item in coordinates]
@@ -637,7 +677,10 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         return self._derived(place, read.prepare())
 
     def _cumulative(self, operand: Expression, axis: int, reverse: bool, place: FieldElement) -> Expression:
-        """Return the symbol of the integral of an expression along an axis of a lattice up to every site or beyond."""
+        """Return the symbol of the integral of an expression along a lattice axis.
+
+        The integral runs up to every site or beyond it.
+        """
         space = place.space
         if not isinstance(space, LatticeSpace) or not 0 <= axis < space.n_dim_:
             error_msg = (
@@ -665,14 +708,20 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         coordinates: list[Expression],
         place: FieldElement,
     ) -> Expression:
-        """Return the symbol of the density with the largest entropy and the moments of an expression."""
+        """Return the symbol of the density with the largest entropy.
+
+        The density keeps the moments of an expression.
+        """
         space = self._phase_space(operand, place)
         apply = self._equilibrium_apply(space, self._axes_of(coordinates, space), order)
         read = FieldOperatorKernel(operand=operand, symbols=self._symbols(operand), apply=apply)
         return self._derived(place, read.prepare())
 
     def _collision(self, operand: Expression, place: FieldElement) -> Expression:
-        """Return the symbol of the binary collision integral of a density over the class axes of its phase space."""
+        """Return the symbol of the binary collision integral of a density.
+
+        The integral runs over the class axes of its phase space.
+        """
         space = self._phase_space(operand, place)
         if self.cross_section_ is None:
             error_msg = (
@@ -691,7 +740,7 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         return self._derived(place, read.prepare())
 
     def _discretized(self, name: str, operands: list[object], place: FieldElement) -> Expression:
-        """Return a local operator or an inversion lowered for the discretization of its field."""
+        """Return a local operator or inversion lowered for its field's discretization."""
         if isinstance(place.space, SimplexSpace):
             error_msg = (
                 f'A law of {self.spec.owner} applies {name} to a field on a simplex, which only takes finite-volume '
@@ -722,7 +771,10 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         return velocity * where(velocity > 0, behind, ahead)
 
     def _derived(self, place: FieldElement, read: FieldOperatorKernel, target: Expression | None = None) -> Expression:
-        """Return a symbol that stands for a derived value of a field, a new one by default, with its read."""
+        """Return a symbol that stands for a derived value of a field, with its read.
+
+        The symbol is a new one by default.
+        """
         target = symbol(f'_derived_{place.label}_{len(self.derived_)}') if target is None else target
         references = [self._known_reference(item) for item in read.symbols]
         entry = next(
@@ -735,7 +787,10 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         return target
 
     def _spectral(self, name: str, operands: list[object], place: FieldElement) -> Expression:
-        """Return the symbol of a spectral operator applied to an expression, composing chains of operators."""
+        """Return the symbol of a spectral operator applied to an expression.
+
+        Chains of operators are composed.
+        """
         space = place.space
         if not isinstance(space, LatticeSpace) or space.boundary != 'periodic':
             error_msg = f'A law of {self.spec.owner} uses a spectral field, which needs a periodic lattice.'
@@ -776,7 +831,10 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         multiplier: npt.NDArray[np.complex128],
         place: FieldElement,
     ) -> Expression:
-        """Return the symbol of a Fourier multiplier applied to an expression, composing chains of multipliers."""
+        """Return the symbol of a Fourier multiplier applied to an expression.
+
+        Chains of multipliers are composed.
+        """
         dimensions = place.space.shape_ if isinstance(place.space, LatticeSpace) else ()
         inner = self.derived_.get(operand)
         if inner is not None and inner[1].multiplier is not None:
@@ -802,7 +860,10 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         )
 
     def _screening(self, screening: Expression) -> float:
-        """Return the value of a screening at the current parameters, raising an error when it is not a real number."""
+        """Return the value of a screening at the current parameters.
+
+        A value that is not a real number raises an error.
+        """
         value = SR(screening).subs(self.initial_)
         if value.variables() or not value.is_real() or float(value) < 0:
             error_msg = (
@@ -813,7 +874,10 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         return float(value)
 
     def _given_boundary(self, operands: list[object]) -> tuple[str, float] | None:
-        """Return the boundary condition given to an inversion by its code and value, or `None` when none is given."""
+        """Return the boundary condition given to an inversion by its code and value.
+
+        It is `None` when none is given.
+        """
         if not operands:
             return None
         code, value = SR(operands[0]), SR(operands[1])
@@ -832,7 +896,9 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         place: FieldElement,
         given: tuple[str, float] | None = None,
     ) -> Expression:
-        """Return the symbol of the solution of a modified-Helmholtz equation on a lattice, a network, or a mesh.
+        """Return the symbol of the solution of a modified-Helmholtz equation.
+
+        The equation is on a lattice, a network, or a mesh.
 
         Args:
             operand:
@@ -897,7 +963,7 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         grids: Sequence[npt.NDArray[np.float64]],
         verb: str,
     ) -> npt.NDArray[np.float64]:
-        """Return a kernel of some symbols and the parameters evaluated on grids of the symbols.
+        """Return a kernel of some symbols and the parameters evaluated on their grids.
 
         Args:
             kernel:
@@ -942,7 +1008,9 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         *,
         wrapped: bool,
     ) -> npt.NDArray[np.float64]:
-        """Return a kernel sampled at the displacements of a lattice within a radius, times the cell volume.
+        """Return a kernel sampled at the lattice displacements within a radius.
+
+        The samples are multiplied by the cell volume.
 
         Args:
             kernel:
@@ -981,7 +1049,10 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         return np.where(inside, sampled, 0.0) * float(np.prod(space.spacings_))
 
     def _convolve(self, operand: Expression, kernel: Expression, radius: Expression, place: FieldElement) -> Expression:
-        """Return the symbol of the convolution of an expression with a kernel on a lattice, along its position axes."""
+        """Return the symbol of the convolution of an expression with a lattice kernel.
+
+        The convolution runs along the position axes of the lattice.
+        """
         space = place.space
         if not isinstance(space, LatticeSpace):
             error_msg = (
@@ -1017,7 +1088,10 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         kind: str,
         value: object,
     ) -> csr_matrix:
-        """Return the sparse matrix of the linear part of a convolution with a window, the sites within its radius."""
+        """Return the sparse matrix of the linear part of a convolution with a window.
+
+        The window covers the sites within its radius.
+        """
         size = place.size_
         total = csr_matrix((size, size))
         centre = np.asarray(window.shape) // 2
@@ -1030,7 +1104,9 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         return csr_matrix(total)
 
     def _shifted(self, operand: Expression, operands: list[Expression]) -> Expression:
-        """Return an expression read at a physical displacement, a neighbour read for whole sites, else interpolated.
+        """Return an expression read at a physical displacement.
+
+        A displacement of whole sites is a neighbour read, and others are interpolated.
 
         Args:
             operand:
@@ -1105,7 +1181,10 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         return self._derived(place, read)
 
     def _note_volume_limit(self, coefficient: Expression, stiffness: float) -> None:
-        """Record the diffusive step limit of a finite-volume field as a function of the parameters it reads."""
+        """Record the diffusive step limit of a finite-volume field.
+
+        The limit is a function of the parameters it reads.
+        """
         symbols = sorted(set(coefficient.variables()) - {TIME}, key=str)
         found = [self._reference_of(item, self.spec) for item in symbols]
         references = [reference for reference in found if reference is not None]
@@ -1157,7 +1236,9 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
 
     @staticmethod
     def _basis(space: PhaseSpace, axes: tuple[int, ...], order: int) -> npt.NDArray[np.float64]:
-        """Return the functions whose moments an equilibrium keeps at every class, one column per function.
+        """Return the functions whose moments an equilibrium keeps at every class.
+
+        There is one column per function.
 
         Args:
             space:
@@ -1190,7 +1271,9 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         width: float,
         guess: npt.NDArray[np.float64],
     ) -> npt.NDArray[np.float64]:
-        """Return the exponents of the densities `exp(basis @ a)` of the given discrete moments, by damped Newton steps.
+        """Return the exponents of the densities `exp(basis @ a)` of discrete moments.
+
+        The exponents are found by damped Newton steps.
 
         Args:
             basis:
@@ -1228,7 +1311,9 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         axes: tuple[int, ...],
         order: int,
     ) -> Callable[[npt.NDArray[np.float64]], npt.NDArray[np.float64]]:
-        """Return the function of the values of a density to its maximum-entropy equilibrium at every position.
+        """Return the function of a density to its maximum-entropy equilibrium.
+
+        It maps the values of the density at every position.
 
         Args:
             space:
@@ -1272,7 +1357,10 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         classes: int,
         dimension: int,
     ) -> npt.NDArray[np.float64]:
-        """Return the exponents of the continuous Maxwellian of given moments, or a uniform density below order 2."""
+        """Return the exponents of the continuous Maxwellian of given moments.
+
+        Below order 2, it is a uniform density.
+        """
         guess = np.zeros(moments.shape)
         total = moments[:, 0]
         if moments.shape[1] == dimension + PLANE:
@@ -1293,14 +1381,20 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
 
     @staticmethod
     def _law_has_operators(law: BaseLaw) -> bool:
-        """Check whether the value of a law, or a flux of a flux law, applies a differential operator."""
+        """Check whether the value of a law applies a differential operator.
+
+        The flux of a flux law counts as its value.
+        """
         if isinstance(law, FluxLaw):
             return any(FieldLowering._has_operators(SR(item)) for item in FieldLowering._components(law))
         return FieldLowering._has_operators(getattr(law, 'value', None))
 
     @staticmethod
     def _volumes(space: object) -> npt.NDArray[np.float64] | float:
-        """Return the fraction of the volume of every cell inside the domain of a simplex space, or one elsewhere."""
+        """Return the fraction of the volume of every cell inside a simplex domain.
+
+        Outside a simplex space, the fraction is one.
+        """
         return space.volumes_ if isinstance(space, SimplexSpace) else 1.0
 
     @staticmethod
@@ -1308,7 +1402,10 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         space: PhaseSpace,
         apply: Callable[[npt.NDArray[np.float64]], npt.NDArray[np.float64]],
     ) -> Callable[[npt.NDArray[np.float64]], npt.NDArray[np.float64]]:
-        """Return an operator of the position lattice on values over the phase space that do not vary with class."""
+        """Return an operator of the position lattice on values over the phase space.
+
+        The values do not vary with class.
+        """
         classes = space.size_ // space.position_size_
 
         def over(values: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
@@ -1318,7 +1415,10 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
 
     @staticmethod
     def _transported_axes(space: LatticeSpace, name: str) -> tuple[int, ...] | None:
-        """Return the axes a spectral operator of a phase space acts along, or `None` for all of them on a lattice."""
+        """Return the axes a spectral operator of a phase space acts along.
+
+        It is `None` for all of them on a lattice.
+        """
         if not isinstance(space, PhaseSpace):
             return None
         if name == 'inverse_helmholtz':
@@ -1351,7 +1451,9 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         dimensions: tuple[int, ...],
         axes: tuple[int, ...] | None = None,
     ) -> Callable[[npt.NDArray[np.float64]], npt.NDArray[np.float64]]:
-        """Return the function that applies a Fourier multiplier to the values of a periodic lattice.
+        """Return the function that applies a Fourier multiplier to lattice values.
+
+        The lattice is periodic.
 
         Args:
             multiplier:
@@ -1378,7 +1480,10 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
 
     @staticmethod
     def _whole_sites(offset: list[Expression], spacings: tuple[float, ...]) -> IntTuple | None:
-        """Return a displacement in whole sites when every component is a number of whole spacings, else `None`."""
+        """Return a displacement in whole sites, or `None`.
+
+        It is `None` unless every component is a number of whole spacings.
+        """
         sites = []
         for item, step in zip(offset, spacings, strict=True):
             if SR(item).variables() or not SR(item).is_real():
@@ -1396,10 +1501,11 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         kind: str,
         fill: float,
     ) -> Callable[[npt.NDArray[np.float64]], npt.NDArray[np.float64]]:
-        """Return the function that convolves the values of a lattice with a centred window of weights.
+        """Return the function that convolves lattice values with a centred window.
 
-        Windows of at most `SMALL_KERNEL` sites per axis use a direct filter, and larger ones an overlap-add FFT of the
-        values padded beyond the edges with the fixed value or their mirror image. Windows act along the axes they span.
+        The window holds weights. Windows of at most `SMALL_KERNEL` sites per axis use a direct filter, and larger ones
+        an overlap-add FFT of the values padded beyond the edges with the fixed value or their mirror image. Windows act
+        along the axes they span.
 
         Args:
             window:
@@ -1440,7 +1546,9 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         fill: float,
         order: int = 1,
     ) -> Callable[[npt.NDArray[np.float64], npt.NDArray[np.float64]], npt.NDArray[np.float64]]:
-        """Return the function that reads the values of a lattice at displaced positions by spline interpolation.
+        """Return the function that reads lattice values at displaced positions.
+
+        It reads them by spline interpolation.
 
         Args:
             dimensions:
@@ -1479,11 +1587,11 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         kind: str,
         fill: float,
     ) -> Callable[[npt.NDArray[np.float64]], npt.NDArray[np.float64]]:
-        """Return the function that inverts the lattice stencil of `laplacian - screening**2` by a fast transform.
+        """Return the function that inverts the lattice stencil `laplacian - screening**2`.
 
-        Periodic edges use real FFTs, fixed edges the sine transform of type 1 with the fixed value lifted into the
-        right-hand side, and zero-flux edges the cosine transform of type 2, each with the eigenvalues of the stencil.
-        The mode of zero eigenvalue, the mean, is set to zero.
+        It inverts it by a fast transform. Periodic edges use real FFTs, fixed edges the sine transform of type 1 with
+        the fixed value lifted into the right-hand side, and zero-flux edges the cosine transform of type 2, each with
+        the eigenvalues of the stencil. The mode of zero eigenvalue, the mean, is set to zero.
 
         Args:
             space:
@@ -1544,7 +1652,10 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         matrix: csr_matrix,
         free: npt.NDArray[np.intp],
     ) -> Callable[[npt.NDArray[np.float64]], npt.NDArray[np.float64]]:
-        """Return the function that solves a sparse system on its free rows, factorised once, zero on the others."""
+        """Return the function that solves a sparse system on its free rows.
+
+        It is factorised once, and the other rows are zero.
+        """
         solve = factorized(matrix[free][:, free].tocsc())
         size = matrix.shape[0]
 
@@ -1560,7 +1671,9 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         space: NetworkSpace,
         screening: float,
     ) -> Callable[[npt.NDArray[np.float64]], npt.NDArray[np.float64]]:
-        """Return the function that inverts the graph Laplacian minus `screening**2`, with zero mean when unscreened.
+        """Return the function that inverts the graph Laplacian minus `screening**2`.
+
+        The solution has zero mean when unscreened.
 
         Args:
             space:
@@ -1599,10 +1712,11 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         kind: str,
         fill: object,
     ) -> Callable[[npt.NDArray[np.float64]], npt.NDArray[np.float64]]:
-        """Return the function that inverts the lumped finite element Laplacian minus `screening**2` on a mesh.
+        """Return the function that inverts the finite element Laplacian on a mesh.
 
-        It solves `(K + screening**2 M) psi = -M f` with the stiffness matrix `K` and the lumped mass `M`, with the
-        fixed value on the boundary nodes of fixed edges and zero mean for unscreened zero-flux edges.
+        The Laplacian has lumped mass and is shifted by minus `screening**2`. It solves `(K + screening**2 M) psi = -M
+        f` with the stiffness matrix `K` and the lumped mass `M`, with the fixed value on the boundary nodes of fixed
+        edges and zero mean for unscreened zero-flux edges.
 
         Args:
             space:
@@ -1674,7 +1788,10 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         shape: tuple[int, int],
         cell_shape: tuple[int, int],
     ) -> tuple[csr_matrix, npt.NDArray[np.float64]]:
-        """Return the stiffness matrix and the lumped mass of a mesh, cached by its nodes and cells."""
+        """Return the stiffness matrix and lumped mass of a mesh, cached.
+
+        The cache key is its nodes and cells.
+        """
         nodes = np.frombuffer(points).reshape(shape)
         elements = np.frombuffer(cells, dtype=np.int64).reshape(cell_shape)
         space = MeshSpace(nodes, elements)
@@ -1685,7 +1802,7 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
 
     @staticmethod
     def _mesh_matrices(space: MeshSpace) -> tuple[csr_matrix, npt.NDArray[np.float64]]:
-        """Return the stiffness matrix and the lumped mass of the linear elements of a mesh.
+        """Return the stiffness matrix and lumped mass of the linear elements of a mesh.
 
         Args:
             space:
@@ -1701,7 +1818,9 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
 
     @staticmethod
     def _mesh_laplacian(space: MeshSpace) -> csr_matrix:
-        """Return the discrete Laplacian of linear elements with lumped mass, `-M^-1 K`, as a sparse matrix.
+        """Return the discrete Laplacian of linear elements with lumped mass.
+
+        It is `-M^-1 K`, as a sparse matrix.
 
         Args:
             space:
@@ -1717,7 +1836,10 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
     @staticmethod
     @functools.cache
     def _wavenumbers(dimensions: tuple[int, ...], spacings: tuple[float, ...]) -> tuple[npt.NDArray[np.float64], ...]:
-        """Return the angular wavenumbers of the real Fourier modes of a periodic lattice, broadcast along each axis."""
+        """Return the angular wavenumbers of the real Fourier modes of a periodic lattice.
+
+        They are broadcast along each axis.
+        """
         axes = [2 * np.pi * np.fft.fftfreq(size, d=step) for size, step in zip(dimensions[:-1], spacings, strict=False)]
         axes.append(2 * np.pi * np.fft.rfftfreq(dimensions[-1], d=spacings[-1]))
         return tuple(np.meshgrid(*axes, indexing='ij'))
@@ -1725,7 +1847,10 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
     @staticmethod
     @functools.cache
     def _dealiasing_mask(dimensions: tuple[int, ...]) -> npt.NDArray[np.bool_]:
-        """Return the Fourier modes the two-thirds rule keeps, below two thirds of the largest along every axis."""
+        """Return the Fourier modes the two-thirds rule keeps.
+
+        They are below two thirds of the largest along every axis.
+        """
         axes = [np.abs(np.fft.fftfreq(size, d=1.0 / size)) < size / 3 for size in dimensions[:-1]]
         axes.append(np.fft.rfftfreq(dimensions[-1], d=1.0 / dimensions[-1]) < dimensions[-1] / 3)
         grids = np.meshgrid(*axes, indexing='ij')

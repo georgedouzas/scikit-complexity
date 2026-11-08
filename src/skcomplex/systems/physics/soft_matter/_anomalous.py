@@ -1,4 +1,7 @@
-"""Anomalous diffusion: random walks with power-law waiting times and flights, heterogeneity, and memory."""
+"""Anomalous diffusion.
+
+The module covers random walks with power-law waiting times and flights, heterogeneity, and memory.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,16 +18,17 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import JumpInteraction, MapInteraction, RateInteraction
 from ....core.components.laws.utils import draw, normal
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import EulerMaruyamaSolver, FractionalEulerMaruyamaSolver, RK4Solver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 POINTS = VisualSpec('points', {'position': 'x'})
 
 
 class ContinuousTimeWalkerElement(Element):
-    """Walker that waits a power-law time `tau0 r^(-1 / alpha)` for `r` uniform, then jumps by a Gaussian step.
+    """Walker that waits a power-law time, then jumps by a Gaussian step.
+
+    The waiting time is `tau0 r^(-1 / alpha)` for `r` uniform.
 
     The jumps are a jump interaction of the system, which resets the position after every waiting time.
 
@@ -71,7 +75,9 @@ class ContinuousTimeWalkerElement(Element):
 
 
 class FractionalWalkerElement(Element):
-    """Walker driven by fractional Brownian motion, `dx = sqrt(2 D) dB_H`, whose increments are correlated in time.
+    """Walker driven by fractional Brownian motion, `dx = sqrt(2 D) dB_H`.
+
+    The increments are correlated in time.
 
     Args:
         label:
@@ -111,7 +117,9 @@ class FractionalWalkerElement(Element):
 
 
 class LevyFlierElement(Element):
-    """Walker that jumps at every step by a length of power-law tail `l^(-1 - mu)` in a random direction.
+    """Walker that jumps at every step in a random direction.
+
+    The length of a jump has the power-law tail `l^(-1 - mu)`.
 
     Args:
         label:
@@ -151,7 +159,9 @@ class LevyFlierElement(Element):
 
 
 class LevyWalkerElement(Element):
-    """Walker that flies at constant speed in a random direction for a power-law flight time, then turns.
+    """Walker that flies at constant speed in a random direction, then turns.
+
+    Every flight lasts a power-law flight time.
 
     The flight is a rate interaction of the position, and the turns a jump interaction that resets the velocity after
     every flight time.
@@ -204,7 +214,9 @@ class LevyWalkerElement(Element):
 
 
 class TransientWalkerElement(Element):
-    """Brownian walker whose diffusion coefficient `D` is redrawn after waiting times of mean `D^(-gamma)`.
+    """Brownian walker whose diffusion coefficient `D` is redrawn at random times.
+
+    The waiting times have the mean `D^(-gamma)`.
 
     The coefficient takes values of density `sigma D^(sigma - 1)` on `(0, 1)`, the beta distribution `B(sigma, 1)`, so
     slow walkers wait long before they change.
@@ -251,38 +263,24 @@ class TransientWalkerElement(Element):
         self.gamma = gamma
 
 
-def _get_flight(s: SimpleNamespace) -> object:
-    """Return the position after a jump of power-law length `l0 r^(-1 / mu)` in a random direction."""
-    length = draw('length', 'pareto', b=s.target.mu, scale=s.target.l0)
-    steps = _direction('direction', len(list(s.target.x)))
-    return vector(SR, [item + length * step for item, step in zip(s.target.x, steps, strict=True)])
-
-
 def _direction(name: str, size: int) -> list[Expression]:
-    """Return a unit vector of uniformly random direction drawn from standard normal components."""
+    """Return a unit vector of uniformly random direction.
+
+    The vector is drawn from standard normal components.
+    """
     components = [normal(f'{name}{index}') for index in range(size)]
     length = sqrt(sum(component**2 for component in components))
     return [component / length for component in components]
 
 
-@register_system(
-    field='physics/soft_matter',
-    tags=('anomalous diffusion', 'renewal process', 'subdiffusion', 'random walk'),
-    references=('Argun et al. 2021', 'Metzler and Klafter 2000', 'Montroll and Weiss 1965', 'Bertin 2021'),
-    defaults={'until': 1000.0, 'dt': 5.0},
-)
-def continuous_time_random_walk(
-    n_walkers: int = 500,
-    *,
-    alpha: float = 0.5,
-    tau0: float = 1.0,
-    sigma: float = 1.0,
-    n_dim: int = 2,
-) -> System:
-    """Return the continuous-time random walk, Gaussian jumps after waiting times with the tail `tau^(-1 - alpha)`.
+class ContinuousTimeRandomWalkSystem(BaseSystem):
+    """The continuous-time random walk.
+
+    Gaussian jumps follow waiting times with the tail `tau^(-1 - alpha)`.
 
     For `alpha < 1` the waiting times have no mean, so the number of jumps grows as `t^alpha` and the ensemble mean
-    squared displacement grows as `t^alpha`, slower than Brownian motion. The walkers renew on their own clocks.
+    squared displacement grows as `t^alpha`, slower than Brownian motion. The walkers renew on their own clocks. The
+    system has the positions `walkers.x` and the jump count `jumps.renewals`.
 
     Args:
         n_walkers:
@@ -300,51 +298,72 @@ def continuous_time_random_walk(
         n_dim:
             The number of dimensions.
 
-    Returns:
-        system:
-            The system, with the positions `walkers.x` and the jump count `jumps.renewals`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.soft_matter import continuous_time_random_walk
-        >>> continuous_time_random_walk(10, alpha=0.7).elements[0].values['alpha']
+        >>> from skcomplex.systems.physics.soft_matter import ContinuousTimeRandomWalkSystem
+        >>> ContinuousTimeRandomWalkSystem(10, alpha=0.7).prepare().system_.elements[0].values['alpha']
         0.7
     """
-    walkers = GroupElement(
-        'walkers',
-        element=ContinuousTimeWalkerElement,
-        size=n_walkers,
-        values={'x': np.zeros((n_walkers, n_dim)), 'alpha': alpha, 'tau0': tau0, 'sigma': sigma},
-    )
-    jumps = JumpInteraction(
-        'jumps',
-        target='walkers',
-        waiting=lambda s: draw('wait', 'pareto', b=s.target.alpha, scale=s.target.tau0),
-        reset={
-            'x': lambda s: [item + normal(f'jump{index}', 0, s.target.sigma) for index, item in enumerate(s.target.x)],
-        },
-    )
-    return System(elements=[walkers], interactions=[jumps], space=ContinuousSpace(n_dim=n_dim))
+
+    field = 'physics/soft_matter'
+    topics = ('anomalous diffusion', 'renewal process', 'subdiffusion', 'random walk')
+    references = ('Argun et al. 2021', 'Metzler and Klafter 2000', 'Montroll and Weiss 1965', 'Bertin 2021')
+    until = 1000.0
+    dt = 5.0
+
+    def __init__(
+        self,
+        n_walkers: int = 500,
+        *,
+        alpha: float = 0.5,
+        tau0: float = 1.0,
+        sigma: float = 1.0,
+        n_dim: int = 2,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_walkers = n_walkers
+        self.alpha = alpha
+        self.tau0 = tau0
+        self.sigma = sigma
+        self.n_dim = n_dim
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        walkers = GroupElement(
+            'walkers',
+            element=ContinuousTimeWalkerElement,
+            size=self.n_walkers,
+            values={
+                'x': np.zeros((self.n_walkers, self.n_dim)),
+                'alpha': self.alpha,
+                'tau0': self.tau0,
+                'sigma': self.sigma,
+            },
+        )
+        jumps = JumpInteraction(
+            'jumps',
+            target='walkers',
+            waiting=lambda s: draw('wait', 'pareto', b=s.target.alpha, scale=s.target.tau0),
+            reset={
+                'x': lambda s: [
+                    item + normal(f'jump{index}', 0, s.target.sigma) for index, item in enumerate(s.target.x)
+                ],
+            },
+        )
+        return System(self.label, elements=[walkers], interactions=[jumps], space=ContinuousSpace(n_dim=self.n_dim))
 
 
-@register_system(
-    field='physics/soft_matter',
-    tags=('anomalous diffusion', 'renewal process', 'superdiffusion', 'random walk'),
-    references=('Argun et al. 2021', 'Zaburdaev, Denisov, and Klafter 2015', 'Shlesinger, West, and Klafter 1987'),
-    defaults={'until': 500.0, 'dt': 2.5, 'solver': RK4Solver(dt=0.5)},
-)
-def levy_walk(
-    n_walkers: int = 500,
-    *,
-    sigma: float = 1.5,
-    tau0: float = 1.0,
-    speed: float = 1.0,
-    n_dim: int = 2,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the Lévy walk, flights at constant speed in random directions for times with the tail `tau^(-1 - sigma)`.
+class LevyWalkSystem(BaseSystem):
+    """The Lévy walk.
+
+    Flights at constant speed in random directions last times with the tail `tau^(-1 - sigma)`.
 
     For `1 < sigma < 2` the flight times have a mean but no variance, so long flights dominate and the ensemble mean
-    squared displacement grows as `t^(3 - sigma)`, faster than Brownian motion and slower than ballistic motion.
+    squared displacement grows as `t^(3 - sigma)`, faster than Brownian motion and slower than ballistic motion. The
+    system has the positions `walkers.x`, the velocities `walkers.v`, and the turn count `turns.renewals`.
 
     Args:
         n_walkers:
@@ -365,52 +384,81 @@ def levy_walk(
         random_state:
             The seed or generator of the directions of the first flights.
 
-    Returns:
-        system:
-            The system, with the positions `walkers.x`, the velocities `walkers.v`, and the turn count `turns.renewals`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.soft_matter import levy_walk
-        >>> levy_walk(10, sigma=1.2).elements[0].values['sigma']
+        >>> from skcomplex.systems.physics.soft_matter import LevyWalkSystem
+        >>> LevyWalkSystem(10, sigma=1.2).prepare().system_.elements[0].values['sigma']
         1.2
     """
-    directions = np.random.default_rng(random_state).standard_normal((n_walkers, n_dim))
-    velocities = speed * directions / np.linalg.norm(directions, axis=1, keepdims=True)
-    walkers = GroupElement(
-        'walkers',
-        element=LevyWalkerElement,
-        size=n_walkers,
-        values={'x': np.zeros((n_walkers, n_dim)), 'v': velocities, 'sigma': sigma, 'tau0': tau0, 'speed': speed},
-    )
-    flight = RateInteraction('flight', target='walkers', state='x', rate=lambda s: s.target.v)
-    turns = JumpInteraction(
-        'turns',
-        target='walkers',
-        waiting=lambda s: draw('flight', 'pareto', b=s.target.sigma, scale=s.target.tau0),
-        reset={'v': lambda s: [s.target.speed * item for item in _direction('direction', len(list(s.target.v)))]},
-    )
-    return System(elements=[walkers], interactions=[flight, turns], space=ContinuousSpace(n_dim=n_dim))
+
+    field = 'physics/soft_matter'
+    topics = ('anomalous diffusion', 'renewal process', 'superdiffusion', 'random walk')
+    references = ('Argun et al. 2021', 'Zaburdaev, Denisov, and Klafter 2015', 'Shlesinger, West, and Klafter 1987')
+    until = 500.0
+    dt = 2.5
+    solver = RK4Solver(dt=0.5)
+
+    def __init__(
+        self,
+        n_walkers: int = 500,
+        *,
+        sigma: float = 1.5,
+        tau0: float = 1.0,
+        speed: float = 1.0,
+        n_dim: int = 2,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_walkers = n_walkers
+        self.sigma = sigma
+        self.tau0 = tau0
+        self.speed = speed
+        self.n_dim = n_dim
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        directions = np.random.default_rng(self.random_state).standard_normal((self.n_walkers, self.n_dim))
+        velocities = self.speed * directions / np.linalg.norm(directions, axis=1, keepdims=True)
+        walkers = GroupElement(
+            'walkers',
+            element=LevyWalkerElement,
+            size=self.n_walkers,
+            values={
+                'x': np.zeros((self.n_walkers, self.n_dim)),
+                'v': velocities,
+                'sigma': self.sigma,
+                'tau0': self.tau0,
+                'speed': self.speed,
+            },
+        )
+        flight = RateInteraction('flight', target='walkers', state='x', rate=lambda s: s.target.v)
+        turns = JumpInteraction(
+            'turns',
+            target='walkers',
+            waiting=lambda s: draw('flight', 'pareto', b=s.target.sigma, scale=s.target.tau0),
+            reset={'v': lambda s: [s.target.speed * item for item in _direction('direction', len(list(s.target.v)))]},
+        )
+        return System(
+            self.label,
+            elements=[walkers],
+            interactions=[flight, turns],
+            space=ContinuousSpace(n_dim=self.n_dim),
+        )
 
 
-@register_system(
-    field='physics/soft_matter',
-    tags=('anomalous diffusion', 'renewal process', 'heterogeneity', 'sde'),
-    references=('Argun et al. 2021', 'Massignan et al. 2014'),
-    defaults={'until': 500.0, 'dt': 2.5, 'solver': EulerMaruyamaSolver(dt=0.5)},
-)
-def annealed_transient_time_motion(
-    n_walkers: int = 500,
-    *,
-    sigma: float = 0.5,
-    gamma: float = 1.0,
-    n_dim: int = 2,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return annealed transient time motion, Brownian walkers whose diffusion coefficient changes at random times.
+class AnnealedTransientTimeMotionSystem(BaseSystem):
+    """Annealed transient time motion.
+
+    The diffusion coefficient of Brownian walkers changes at random times.
 
     Every walker diffuses with a coefficient `D` of density `sigma D^(sigma - 1)` on `(0, 1)` and keeps it for an
     exponential time of mean `D^(-gamma)`, so slow walkers stay slow for long. For `sigma < gamma` the ensemble mean
-    squared displacement grows as `t^(sigma / gamma)`.
+    squared displacement grows as `t^(sigma / gamma)`. The system has the positions `walkers.x`, the coefficients
+    `walkers.D`, and the change count `changes.renewals`.
 
     Args:
         n_walkers:
@@ -428,50 +476,76 @@ def annealed_transient_time_motion(
         random_state:
             The seed or generator of the first diffusion coefficients.
 
-    Returns:
-        system:
-            The system, with the positions `walkers.x`, the coefficients `walkers.D`, and the change count
-            `changes.renewals`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.soft_matter import annealed_transient_time_motion
-        >>> annealed_transient_time_motion(10, gamma=2.0).elements[0].values['gamma']
+        >>> from skcomplex.systems.physics.soft_matter import AnnealedTransientTimeMotionSystem
+        >>> AnnealedTransientTimeMotionSystem(10, gamma=2.0).prepare().system_.elements[0].values['gamma']
         2.0
     """
-    coefficients = np.random.default_rng(random_state).beta(sigma, 1.0, n_walkers)
-    walkers = GroupElement(
-        'walkers',
-        element=TransientWalkerElement,
-        size=n_walkers,
-        values={'x': np.zeros((n_walkers, n_dim)), 'D': coefficients, 'sigma': sigma, 'gamma': gamma},
-    )
-    noise = RateInteraction('noise', target='walkers', noise=lambda s: sqrt(2 * s.target.D))
-    changes = JumpInteraction(
-        'changes',
-        target='walkers',
-        waiting=lambda s: draw('wait', 'expon', scale=s.target.D ** (-s.target.gamma)),
-        reset={'D': lambda s: draw('coefficient', 'beta', a=s.target.sigma, b=1)},
-    )
-    return System(elements=[walkers], interactions=[noise, changes], space=ContinuousSpace(n_dim=n_dim))
+
+    field = 'physics/soft_matter'
+    topics = ('anomalous diffusion', 'renewal process', 'heterogeneity', 'sde')
+    references = ('Argun et al. 2021', 'Massignan et al. 2014')
+    until = 500.0
+    dt = 2.5
+    solver = EulerMaruyamaSolver(dt=0.5)
+
+    def __init__(
+        self,
+        n_walkers: int = 500,
+        *,
+        sigma: float = 0.5,
+        gamma: float = 1.0,
+        n_dim: int = 2,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_walkers = n_walkers
+        self.sigma = sigma
+        self.gamma = gamma
+        self.n_dim = n_dim
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        coefficients = np.random.default_rng(self.random_state).beta(self.sigma, 1.0, self.n_walkers)
+        walkers = GroupElement(
+            'walkers',
+            element=TransientWalkerElement,
+            size=self.n_walkers,
+            values={
+                'x': np.zeros((self.n_walkers, self.n_dim)),
+                'D': coefficients,
+                'sigma': self.sigma,
+                'gamma': self.gamma,
+            },
+        )
+        noise = RateInteraction('noise', target='walkers', noise=lambda s: sqrt(2 * s.target.D))
+        changes = JumpInteraction(
+            'changes',
+            target='walkers',
+            waiting=lambda s: draw('wait', 'expon', scale=s.target.D ** (-s.target.gamma)),
+            reset={'D': lambda s: draw('coefficient', 'beta', a=s.target.sigma, b=1)},
+        )
+        return System(
+            self.label,
+            elements=[walkers],
+            interactions=[noise, changes],
+            space=ContinuousSpace(n_dim=self.n_dim),
+        )
 
 
-@register_system(
-    field='physics/soft_matter',
-    tags=('anomalous diffusion', 'fractional noise', 'long memory', 'sde'),
-    references=('Argun et al. 2021', 'Mandelbrot and Van Ness 1968'),
-    defaults={'until': 10.0, 'dt': 0.05, 'solver': FractionalEulerMaruyamaSolver(dt=0.01)},
-)
-def fractional_brownian_motion(
-    n_walkers: int = 500,
-    *,
-    H: float = 0.3,
-    D: float = 1.0,
-    n_dim: int = 2,
-) -> System:
-    """Return fractional Brownian motion, `dx = sqrt(2 D) dB_H`, with `<x^2> = 2 D t^(2 H)` along every axis.
+class FractionalBrownianMotionSystem(BaseSystem):
+    """Fractional Brownian motion, `dx = sqrt(2 D) dB_H`.
+
+    Along every axis `<x^2> = 2 D t^(2 H)`.
 
     The increments are correlated over the whole run: they anticorrelate for `H < 1/2`, which makes the walkers
-    subdiffusive, and correlate for `H > 1/2`, which makes them superdiffusive.
+    subdiffusive, and correlate for `H > 1/2`, which makes them superdiffusive. The system has the positions
+    `walkers.x`.
 
     Args:
         n_walkers:
@@ -486,47 +560,65 @@ def fractional_brownian_motion(
         n_dim:
             The number of dimensions.
 
-    Returns:
-        system:
-            The system, with the positions `walkers.x`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.soft_matter import fractional_brownian_motion
-        >>> fractional_brownian_motion(10, H=0.7).elements[0].values['H']
+        >>> from skcomplex.systems.physics.soft_matter import FractionalBrownianMotionSystem
+        >>> FractionalBrownianMotionSystem(10, H=0.7).prepare().system_.elements[0].values['H']
         0.7
     """
-    walkers = GroupElement(
-        'walkers',
-        element=FractionalWalkerElement,
-        size=n_walkers,
-        values={'x': np.zeros((n_walkers, n_dim)), 'D': D, 'H': H},
-    )
-    noise = RateInteraction(
-        'noise',
-        target='walkers',
-        noise=lambda s: sqrt(2 * s.target.D),
-        hurst=lambda s: s.target.H,
-    )
-    return System(elements=[walkers], interactions=[noise], space=ContinuousSpace(n_dim=n_dim))
+
+    field = 'physics/soft_matter'
+    topics = ('anomalous diffusion', 'fractional noise', 'long memory', 'sde')
+    references = ('Argun et al. 2021', 'Mandelbrot and Van Ness 1968')
+    until = 10.0
+    dt = 0.05
+    solver = FractionalEulerMaruyamaSolver(dt=0.01)
+
+    def __init__(
+        self,
+        n_walkers: int = 500,
+        *,
+        H: float = 0.3,
+        D: float = 1.0,
+        n_dim: int = 2,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_walkers = n_walkers
+        self.H = H
+        self.D = D
+        self.n_dim = n_dim
+
+    def _build_system(self) -> System:
+        """Return fractional Brownian motion, `dx = sqrt(2 D) dB_H`.
+
+        Along every axis `<x^2> = 2 D t^(2 H)`.
+        """
+        walkers = GroupElement(
+            'walkers',
+            element=FractionalWalkerElement,
+            size=self.n_walkers,
+            values={'x': np.zeros((self.n_walkers, self.n_dim)), 'D': self.D, 'H': self.H},
+        )
+        noise = RateInteraction(
+            'noise',
+            target='walkers',
+            noise=lambda s: sqrt(2 * s.target.D),
+            hurst=lambda s: s.target.H,
+        )
+        return System(self.label, elements=[walkers], interactions=[noise], space=ContinuousSpace(n_dim=self.n_dim))
 
 
-@register_system(
-    field='physics/soft_matter',
-    tags=('anomalous diffusion', 'superdiffusion', 'random walk', 'stochastic map'),
-    references=('Bertin 2021', 'Shlesinger, Zaslavsky, and Frisch 1995'),
-    defaults={'until': 200.0, 'dt': 1.0},
-)
-def levy_flight(
-    n_walkers: int = 500,
-    *,
-    mu: float = 1.2,
-    l0: float = 1.0,
-    n_dim: int = 2,
-) -> System:
-    """Return the Lévy flight, a walk whose jumps have lengths with the tail `l^(-1 - mu)` in random directions.
+class LevyFlightSystem(BaseSystem):
+    """The Lévy flight.
+
+    The walk jumps in random directions by lengths with the tail `l^(-1 - mu)`.
 
     For `mu < 2` the jump lengths have no variance, so the walk is dominated by its longest jumps and the typical
-    distance travelled after `n` steps grows as `n^(1 / mu)`, faster than the `n^(1/2)` of a random walk.
+    distance travelled after `n` steps grows as `n^(1 / mu)`, faster than the `n^(1/2)` of a random walk. The system has
+    the positions `walkers.x`.
 
     Args:
         n_walkers:
@@ -541,20 +633,58 @@ def levy_flight(
         n_dim:
             The number of dimensions.
 
-    Returns:
-        system:
-            The system, with the positions `walkers.x`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.soft_matter import levy_flight
-        >>> levy_flight(10, mu=1.5).elements[0].values['mu']
+        >>> from skcomplex.systems.physics.soft_matter import LevyFlightSystem
+        >>> LevyFlightSystem(10, mu=1.5).prepare().system_.elements[0].values['mu']
         1.5
     """
-    walkers = GroupElement(
-        'walkers',
-        element=LevyFlierElement,
-        size=n_walkers,
-        values={'x': np.zeros((n_walkers, n_dim)), 'mu': mu, 'l0': l0},
-    )
-    flights = MapInteraction('flights', target='walkers', state='x', function=_get_flight)
-    return System(elements=[walkers], interactions=[flights], space=ContinuousSpace(n_dim=n_dim))
+
+    draws = True
+
+    field = 'physics/soft_matter'
+    topics = ('anomalous diffusion', 'superdiffusion', 'random walk', 'stochastic map')
+    references = ('Bertin 2021', 'Shlesinger, Zaslavsky, and Frisch 1995')
+    until = 200.0
+    dt = 1.0
+
+    def __init__(
+        self,
+        n_walkers: int = 500,
+        *,
+        mu: float = 1.2,
+        l0: float = 1.0,
+        n_dim: int = 2,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_walkers = n_walkers
+        self.mu = mu
+        self.l0 = l0
+        self.n_dim = n_dim
+
+    @staticmethod
+    def _get_flight(s: SimpleNamespace) -> object:
+        """Return the position after a jump in a random direction.
+
+        The jump has the power-law length `l0 r^(-1 / mu)`.
+        """
+        length = draw('length', 'pareto', b=s.target.mu, scale=s.target.l0)
+        steps = _direction('direction', len(list(s.target.x)))
+        return vector(SR, [item + length * step for item, step in zip(s.target.x, steps, strict=True)])
+
+    def _build_system(self) -> System:
+        """Return the Lévy flight.
+
+        The walk jumps in random directions by lengths with the tail `l^(-1 - mu)`.
+        """
+        walkers = GroupElement(
+            'walkers',
+            element=LevyFlierElement,
+            size=self.n_walkers,
+            values={'x': np.zeros((self.n_walkers, self.n_dim)), 'mu': self.mu, 'l0': self.l0},
+        )
+        flights = MapInteraction('flights', target='walkers', state='x', function=self._get_flight)
+        return System(self.label, elements=[walkers], interactions=[flights], space=ContinuousSpace(n_dim=self.n_dim))

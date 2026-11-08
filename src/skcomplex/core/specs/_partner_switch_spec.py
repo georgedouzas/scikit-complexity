@@ -10,13 +10,13 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class PartnerSwitchSpec(BaseSpec):
-    """Partner choice that samples providers and switches to one of a lower limit with some probability.
+    """Partner choice that samples providers and switches to a lower limit.
 
-    The rule follows chapter 2 of Caiani et al. (2016). Every requester, in random order, samples `sample` providers
-    that still offer something. When the lowest limit among them is below the limit of its current partner, the
-    requester switches with probability `1 - exp(intensity * (p_new - p_old) / p_new)`, and otherwise stays. It matches
-    with its partner at the partner's limit, and the requester's state `partner`, when it has one, holds the id of the
-    partner across steps.
+    The switch happens with some probability. The rule follows chapter 2 of Caiani et al. (2016). Every requester, in
+    random order, samples `sample` providers that still offer something. When the lowest limit among them is below the
+    limit of its current partner, the requester switches with probability `1 - exp(intensity * (p_new - p_old) /
+    p_new)`, and otherwise stays. It matches with its partner at the partner's limit, and the requester's state
+    `partner`, when it has one, holds the id of the partner across steps.
 
     Args:
         sample:

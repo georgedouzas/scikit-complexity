@@ -1,4 +1,7 @@
-"""Markets systems: Epstein and Axtell's Sugarscape of foragers on a landscape of regrowing sugar."""
+"""Markets systems: Epstein and Axtell's Sugarscape.
+
+Foragers live on a landscape of regrowing sugar.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,22 +14,24 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
-from ....core.analysis import DistributionAnalysis
+from ....core.analysis import distribution
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LifeCycleInteraction, MovementInteraction, TransferInteraction
 from ....core.components.laws import Sink
 from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import BaseSpec, ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 from ..common.resources import RegrowthInteraction
 
 
 class ForagerView(AgentView):
-    """Forager as the rules see it: its wealth `sugar`, its `vision`, and its `metabolism`."""
+    """Forager as the rules see it.
+
+    It holds its wealth `sugar`, its `vision`, and its `metabolism`.
+    """
 
     sugar: float
     vision: float
@@ -34,12 +39,12 @@ class ForagerView(AgentView):
 
 
 class ForagerElement(Element):
-    """Agent that moves to the richest free cell in sight, harvests its sugar, burns its metabolism, and may starve.
+    """Agent that moves to the richest free cell in sight and harvests its sugar.
 
-    In its own activation, a forager sees `vision` cells along each of the four lattice directions and moves to the
-    free cell with the most sugar, the nearest among equals, or stays when no cell in sight beats its own, by a
-    `MovementInteraction` of the best step with a vision. Transfers then harvest the sugar of its cell and burn its
-    metabolism, and a `LifeCycleInteraction` removes it when its wealth falls below zero.
+    It burns its metabolism, and may starve. In its own activation, a forager sees `vision` cells along each of the four
+    lattice directions and moves to the free cell with the most sugar, the nearest among equals, or stays when no cell
+    in sight beats its own, by a `MovementInteraction` of the best step with a vision. Transfers then harvest the sugar
+    of its cell and burn its metabolism, and a `LifeCycleInteraction` removes it when its wealth falls below zero.
 
     Args:
         label:
@@ -94,7 +99,9 @@ class SugarPatchView(AgentView):
 
 @dataclass(frozen=True)
 class _PatchMapSpec(BaseSpec):
-    """Patches of a run by cell, which the foragers build once and keep in the storage of the system.
+    """Patches of a run by cell.
+
+    The foragers build them once and keep them in the storage of the system.
 
     Args:
         patches:
@@ -105,9 +112,9 @@ class _PatchMapSpec(BaseSpec):
 
 
 class SugarPatchElement(Element):
-    """Cell of the landscape whose sugar grows back by a fixed amount a step up to its capacity.
+    """Cell of the landscape whose sugar grows back up to its capacity.
 
-    The growback is a `RegrowthInteraction` of the group of patches.
+    The sugar grows back by a fixed amount a step. The growback is a `RegrowthInteraction` of the group of patches.
 
     Args:
         label:
@@ -232,79 +239,21 @@ def _is_starved(forager: AgentViewProtocol, system: SystemViewProtocol) -> bool:
     return isinstance(forager, ForagerView) and forager.sugar < 0
 
 
-def _get_foraging() -> list[MovementInteraction | TransferInteraction | LifeCycleInteraction]:
-    """Return the member interactions of a forager: move to the best cell in sight, harvest, burn, and starve."""
-    return [
-        MovementInteraction(
-            'search',
-            target='foragers',
-            step='best',
-            score=_get_sugar,
-            vision=_get_vision,
-            exclusive=True,
-            schedule='member',
-            phase='foraging',
-        ),
-        TransferInteraction(
-            'harvest',
-            source='patches',
-            target='foragers',
-            state='sugar',
-            amount=_get_harvest,
-            pairing='cell',
-            form='agent',
-            actor='target',
-            schedule='member',
-            phase='foraging',
-        ),
-        TransferInteraction(
-            'metabolism',
-            source='foragers',
-            target='foragers',
-            state='sugar',
-            into=Sink(),
-            amount=_get_metabolism,
-            form='agent',
-            schedule='member',
-            phase='foraging',
-        ),
-        LifeCycleInteraction('starvation', target='foragers', death=_is_starved, schedule='member', phase='foraging'),
-    ]
-
-
 def _gini(wealth: object) -> float:
     """Return the Gini coefficient of the wealth of the foragers."""
-    return float(DistributionAnalysis('gini').prepare(np.asarray(wealth, dtype=float)).run().gini_)
+    gini = distribution(np.asarray(wealth, dtype=float), kind='gini').gini
+    return 0.0 if gini is None else gini
 
 
-@register_system(
-    field='economics/markets',
-    tags=('sugarscape', 'wealth', 'agents', 'grid'),
-    references=('Argun et al. 2021 sec. 16.2', 'Downey 2018 ch. 9'),
-    defaults={'until': 100},
-    observables=lambda system: [
-        ObservableSpec('population', group='foragers', variable='sugar', reduce='count'),
-        ObservableSpec('gini', group='foragers', variable='sugar', reduce=_gini),
-    ],
-)
-def sugarscape(
-    width: int = 50,
-    height: int = 50,
-    *,
-    n_foragers: int = 400,
-    max_vision: int = 6,
-    max_metabolism: float = 4.0,
-    low_sugar: float = 5.0,
-    high_sugar: float = 25.0,
-    growback: float = 1.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the Sugarscape of Epstein and Axtell, foragers of random vision and metabolism on two sugar peaks.
+class SugarscapeSystem(BaseSystem):
+    """The Sugarscape of Epstein and Axtell.
 
-    Every step the foragers, in random order, move to the richest free cell in sight, harvest it, and burn their
-    metabolism, and those whose wealth falls below zero die. Then the sugar grows back. Foragers of poor vision or
-    high metabolism starve, so the population falls to the carrying capacity of the landscape, and the wealth of the
-    survivors becomes skewed, with a Gini coefficient that rises from its initial value.
+    Foragers of random vision and metabolism live on two sugar peaks. Every step the foragers, in random order, move to
+    the richest free cell in sight, harvest it, and burn their metabolism, and those whose wealth falls below zero die.
+    Then the sugar grows back. Foragers of poor vision or high metabolism starve, so the population falls to the
+    carrying capacity of the landscape, and the wealth of the survivors becomes skewed, with a Gini coefficient that
+    rises from its initial value. The system has the groups `patches` and `foragers`, whose catalog observables are the
+    population `population` and the Gini coefficient of wealth `gini`.
 
     Args:
         width:
@@ -334,45 +283,130 @@ def sugarscape(
         random_state:
             The seed or generator of the foragers' cells, visions, metabolisms, and wealth.
 
-    Returns:
-        system:
-            The system, with the groups `patches` and `foragers`, whose catalog observables are the population
-            `population` and the Gini coefficient of wealth `gini`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.markets import sugarscape
-        >>> [group.size for group in sugarscape(10, 10, n_foragers=20).elements]
+        >>> from skcomplex.systems.economics.markets import SugarscapeSystem
+        >>> [group.size for group in SugarscapeSystem(10, 10, n_foragers=20).prepare().system_.elements]
         [100, 20]
     """
-    rng = np.random.default_rng(random_state)
-    capacity = landscape(width, height).ravel()
-    cells = [(x, y) for x in range(width) for y in range(height)]
-    patches = GroupElement(
-        'patches',
-        element=SugarPatchElement,
-        size=len(cells),
-        values={'sugar': capacity, 'capacity': capacity, 'growback': growback},
-        location=cells,
+
+    field = 'economics/markets'
+    topics = ('sugarscape', 'wealth', 'agents', 'grid')
+    references = ('Argun et al. 2021 sec. 16.2', 'Downey 2018 ch. 9')
+    until = 100
+    observables = (
+        ObservableSpec('population', group='foragers', variable='sugar', reduce='count'),
+        ObservableSpec('gini', group='foragers', variable='sugar', reduce=_gini),
     )
-    occupied = rng.choice(len(cells), size=min(n_foragers, len(cells)), replace=False)
-    foragers = GroupElement(
-        'foragers',
-        element=ForagerElement,
-        size=len(occupied),
-        values={
-            'sugar': rng.uniform(low_sugar, high_sugar, len(occupied)),
-            'vision': rng.integers(1, max_vision + 1, len(occupied)).astype(float),
-            'metabolism': rng.uniform(1.0, max_metabolism, len(occupied)),
-        },
-        variable=True,
-        location=[cells[index] for index in occupied],
-    )
-    return System(
-        elements=[patches, foragers],
-        interactions=[
-            *_get_foraging(),
-            RegrowthInteraction('growback', target='patches', state='sugar', growth='growback', phase='growth'),
-        ],
-        space=LatticeSpace((width, height), boundary='fixed', neighborhood='von_neumann'),
-        time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('foraging'), PhaseSpec('growth')])),
-    )
+
+    def __init__(
+        self,
+        width: int = 50,
+        height: int = 50,
+        *,
+        n_foragers: int = 400,
+        max_vision: int = 6,
+        max_metabolism: float = 4.0,
+        low_sugar: float = 5.0,
+        high_sugar: float = 25.0,
+        growback: float = 1.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.width = width
+        self.height = height
+        self.n_foragers = n_foragers
+        self.max_vision = max_vision
+        self.max_metabolism = max_metabolism
+        self.low_sugar = low_sugar
+        self.high_sugar = high_sugar
+        self.growback = growback
+        self.random_state = random_state
+
+    @staticmethod
+    def _get_foraging() -> list[MovementInteraction | TransferInteraction | LifeCycleInteraction]:
+        """Return the member interactions of a forager.
+
+        They move to the best cell in sight, harvest, burn, and starve.
+        """
+        return [
+            MovementInteraction(
+                'search',
+                target='foragers',
+                step='best',
+                score=_get_sugar,
+                vision=_get_vision,
+                exclusive=True,
+                schedule='member',
+                phase='foraging',
+            ),
+            TransferInteraction(
+                'harvest',
+                source='patches',
+                target='foragers',
+                state='sugar',
+                amount=_get_harvest,
+                pairing='cell',
+                form='agent',
+                actor='target',
+                schedule='member',
+                phase='foraging',
+            ),
+            TransferInteraction(
+                'metabolism',
+                source='foragers',
+                target='foragers',
+                state='sugar',
+                into=Sink(),
+                amount=_get_metabolism,
+                form='agent',
+                schedule='member',
+                phase='foraging',
+            ),
+            LifeCycleInteraction(
+                'starvation',
+                target='foragers',
+                death=_is_starved,
+                schedule='member',
+                phase='foraging',
+            ),
+        ]
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        capacity = landscape(self.width, self.height).ravel()
+        cells = [(x, y) for x in range(self.width) for y in range(self.height)]
+        patches = GroupElement(
+            'patches',
+            element=SugarPatchElement,
+            size=len(cells),
+            values={'sugar': capacity, 'capacity': capacity, 'growback': self.growback},
+            location=cells,
+        )
+        occupied = rng.choice(len(cells), size=min(self.n_foragers, len(cells)), replace=False)
+        foragers = GroupElement(
+            'foragers',
+            element=ForagerElement,
+            size=len(occupied),
+            values={
+                'sugar': rng.uniform(self.low_sugar, self.high_sugar, len(occupied)),
+                'vision': rng.integers(1, self.max_vision + 1, len(occupied)).astype(float),
+                'metabolism': rng.uniform(1.0, self.max_metabolism, len(occupied)),
+            },
+            variable=True,
+            location=[cells[index] for index in occupied],
+        )
+        return System(
+            self.label,
+            elements=[patches, foragers],
+            interactions=[
+                *self._get_foraging(),
+                RegrowthInteraction('growback', target='patches', state='sugar', growth='growback', phase='growth'),
+            ],
+            space=LatticeSpace((self.width, self.height), boundary='fixed', neighborhood='von_neumann'),
+            time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('foraging'), PhaseSpec('growth')])),
+        )

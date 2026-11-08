@@ -1,4 +1,7 @@
-"""Trapping: walkers driven through quenched landscapes of broadly distributed trapping times."""
+"""Trapping.
+
+Walkers are driven through quenched landscapes of broadly distributed trapping times.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,23 +17,12 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, LatticeElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ObservableSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 ALONG_ROW = LatticeNeighborhood(((0, 0), (0, -1), (0, 1)))
 VISITED = VisualSpec('image', {'states': ['visited'], 'low': 0.0, 'high': 1.0})
-
-
-def _hop(*values: Array) -> tuple[Array, Array, Array]:
-    """Return the occupation, the visits, and the clocks after one step of fully biased hops out of the traps."""
-    occupied, left_occupied, _, visited, _, _, clock, left_clock, _, tau, left_tau, right_tau = values
-    leaves = (occupied == 1) & (clock + 1 >= tau) & (right_tau > 0)
-    arrives = (left_occupied == 1) & (left_clock + 1 >= left_tau)
-    stays = (occupied == 1) & ~leaves
-    next_occupied = (stays | arrives).astype(float)
-    return next_occupied, np.maximum(visited, next_occupied), np.where(stays, clock + 1, 0.0)
 
 
 def _mean_position(s: SimpleNamespace) -> object:
@@ -39,7 +31,9 @@ def _mean_position(s: SimpleNamespace) -> object:
 
 
 class TrapSiteElement(Element):
-    """Site of a line of traps, which holds a walker for its trapping time `tau` before the walker hops to the right.
+    """Site of a line of traps.
+
+    The site holds a walker for its trapping time `tau` before the walker hops to the right.
 
     The walker on a site counts the steps it has spent there with `clock` and hops to the next site after `tau`
     steps, and every site keeps a record of whether a walker has visited it. A walker hops only onto a site of positive
@@ -87,37 +81,17 @@ class TrapSiteElement(Element):
         self.tau = tau
 
 
-def _trap_observables(system: System) -> list[ObservableSpec]:
-    """Return the visits, the walkers, and the mean position of the traps."""
-    return [
-        ObservableSpec('visits', group='traps', variable='visited', reduce='sum'),
-        ObservableSpec('walkers', group='traps', variable='occupied', reduce='sum'),
-        ObservableSpec('position', _mean_position),
-    ]
+class BiasedTrapWalkSystem(BaseSystem):
+    """Walkers that hop always to the right through quenched traps.
 
+    The trapping times are broadly distributed.
 
-@register_system(
-    field='physics/soft_matter',
-    tags=('lattice', 'anomalous diffusion', 'disorder', 'traps', 'subdiffusion'),
-    references=('Bertin 2021', 'Bouchaud and Georges 1990'),
-    defaults={'until': 2000, 'dt': 10},
-    observables=_trap_observables,
-)
-def biased_trap_walk(
-    n_walkers: int = 100,
-    *,
-    n_sites: int = 300,
-    alpha: float = 0.5,
-    tau0: float = 1.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return walkers that hop always to the right through quenched traps with broadly distributed trapping times.
-
-    Every walker moves along its own line of sites and stays `tau_i` steps on site `i` before it hops to site
-    `i + 1`. The trapping times are drawn once, as `ceil(tau0 u^(-1 / alpha))` for uniform numbers `u`, so their
-    distribution decays as `tau0^alpha / tau^(1 + alpha)`. For `alpha < 1` their mean diverges, the time to cross `N`
-    sites grows as `N^(1 / alpha)`, and the displacement grows subdiffusively as `x ~ (t / tau0)^alpha`, with the
-    mean `<x> = (t / tau0)^alpha sin(pi alpha) / (pi alpha)` at long times. The walkers start on the first site.
+    Every walker moves along its own line of sites and stays `tau_i` steps on site `i` before it hops to site `i + 1`.
+    The trapping times are drawn once, as `ceil(tau0 u^(-1 / alpha))` for uniform numbers `u`, so their distribution
+    decays as `tau0^alpha / tau^(1 + alpha)`. For `alpha < 1` their mean diverges, the time to cross `N` sites grows as
+    `N^(1 / alpha)`, and the displacement grows subdiffusively as `x ~ (t / tau0)^alpha`, with the mean `<x> = (t /
+    tau0)^alpha sin(pi alpha) / (pi alpha)` at long times. The walkers start on the first site. The system has the
+    lattice `traps` of shape `(n_walkers, n_sites)` and the mean displacement `position`.
 
     Args:
         n_walkers:
@@ -135,32 +109,75 @@ def biased_trap_walk(
         random_state:
             The seed or generator of the trapping times.
 
-    Returns:
-        system:
-            The system, with the lattice `traps` of shape `(n_walkers, n_sites)` and the mean displacement `position`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.soft_matter import biased_trap_walk
-        >>> biased_trap_walk(4, n_sites=10).elements[0].prepare().size_
+        >>> from skcomplex.systems.physics.soft_matter import BiasedTrapWalkSystem
+        >>> BiasedTrapWalkSystem(4, n_sites=10).prepare().system_.elements[0].prepare().size_
         40
     """
-    shape = (n_walkers, n_sites)
-    tau = np.ceil(tau0 * (1 - np.random.default_rng(random_state).random(shape)) ** (-1 / alpha))
-    start = np.zeros(shape)
-    start[:, 0] = 1.0
-    traps = LatticeElement(
-        'traps',
-        element=TrapSiteElement,
-        space=LatticeSpace(shape, boundary='fixed', fill=-1.0),
-        values={'occupied': start, 'visited': start, 'tau': tau},
-        visual=VISITED,
+
+    field = 'physics/soft_matter'
+    topics = ('lattice', 'anomalous diffusion', 'disorder', 'traps', 'subdiffusion')
+    references = ('Bertin 2021', 'Bouchaud and Georges 1990')
+    until = 2000
+    dt = 10
+    observables = (
+        ObservableSpec('visits', group='traps', variable='visited', reduce='sum'),
+        ObservableSpec('walkers', group='traps', variable='occupied', reduce='sum'),
+        ObservableSpec('position', _mean_position),
     )
-    hops = LocalRuleInteraction(
-        'hops',
-        target='traps',
-        state=('occupied', 'visited', 'clock'),
-        rule=_hop,
-        neighborhood=ALONG_ROW,
-        reads=('occupied', 'visited', 'clock', 'tau'),
-    )
-    return System(elements=[traps], interactions=[hops])
+
+    def __init__(
+        self,
+        n_walkers: int = 100,
+        *,
+        n_sites: int = 300,
+        alpha: float = 0.5,
+        tau0: float = 1.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_walkers = n_walkers
+        self.n_sites = n_sites
+        self.alpha = alpha
+        self.tau0 = tau0
+        self.random_state = random_state
+
+    @staticmethod
+    def _hop(*values: Array) -> tuple[Array, Array, Array]:
+        """Return the occupation, the visits, and the clocks after one step.
+
+        The step is one of fully biased hops out of the traps.
+        """
+        occupied, left_occupied, _, visited, _, _, clock, left_clock, _, tau, left_tau, right_tau = values
+        leaves = (occupied == 1) & (clock + 1 >= tau) & (right_tau > 0)
+        arrives = (left_occupied == 1) & (left_clock + 1 >= left_tau)
+        stays = (occupied == 1) & ~leaves
+        next_occupied = (stays | arrives).astype(float)
+        return next_occupied, np.maximum(visited, next_occupied), np.where(stays, clock + 1, 0.0)
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        shape = (self.n_walkers, self.n_sites)
+        tau = np.ceil(self.tau0 * (1 - np.random.default_rng(self.random_state).random(shape)) ** (-1 / self.alpha))
+        start = np.zeros(shape)
+        start[:, 0] = 1.0
+        traps = LatticeElement(
+            'traps',
+            element=TrapSiteElement,
+            space=LatticeSpace(shape, boundary='fixed', fill=-1.0),
+            values={'occupied': start, 'visited': start, 'tau': tau},
+            visual=VISITED,
+        )
+        hops = LocalRuleInteraction(
+            'hops',
+            target='traps',
+            state=('occupied', 'visited', 'clock'),
+            rule=self._hop,
+            neighborhood=ALONG_ROW,
+            reads=('occupied', 'visited', 'clock', 'tau'),
+        )
+        return System(self.label, elements=[traps], interactions=[hops])

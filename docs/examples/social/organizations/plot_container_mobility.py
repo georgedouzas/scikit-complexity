@@ -14,14 +14,14 @@ containers, so its displacements mix the typical sizes of the containers, the sc
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.social.organizations import ContainerMobilitySystem
 
 SYSTEM = 'container_mobility'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(create_system(SYSTEM), observers=[observer], random_state=0).prepare().run(until=500)
+trajectory = simulate(ContainerMobilitySystem(), observers=[observer], random_state=0)
 
 # %%
 # Displacements at three scales
@@ -29,7 +29,6 @@ simulation = Simulation(create_system(SYSTEM), observers=[observer], random_stat
 # The lengths of the displacements should split into three bumps, one per level, near one, four, and sixteen cells,
 # and the shares of the levels should match the probabilities of travel.
 
-trajectory = simulation.trajectory_
 frames = range(1, len(trajectory.times))
 x = np.array([trajectory.agents('individuals', frame).values['x'] for frame in frames])
 y = np.array([trajectory.agents('individuals', frame).values['y'] for frame in frames])

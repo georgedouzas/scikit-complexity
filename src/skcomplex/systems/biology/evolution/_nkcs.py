@@ -15,11 +15,10 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import DiscreteTime
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 
 class CoevolvingSpeciesView(AgentView):
@@ -34,7 +33,9 @@ class CoevolvingSpeciesView(AgentView):
 
 
 class CoevolvingSpeciesElement(Element):
-    """Species of an NKCS ecosystem, a genome whose fitness depends on its own genes and on genes of other species.
+    """Species of an NKCS ecosystem, a genome with a fitness.
+
+    The fitness depends on its own genes and on genes of other species.
 
     A `CoevolutionaryClimbingInteraction` mutates the genome and sets the fitness and the number of accepted moves of
     the last step.
@@ -82,7 +83,9 @@ class CoevolvingSpeciesElement(Element):
 
 
 class CoevolutionaryClimbingInteraction(Interaction):
-    """Hill climbing of species on coupled NK landscapes, one point mutation per species and step, the NKCS model.
+    """Hill climbing of species on coupled NK landscapes, the NKCS model.
+
+    Each species takes one point mutation per step.
 
     Every gene of a species contributes to its fitness through a random table of its own state, the states of the next
     `k` genes of the species, and the states of `c` random genes in each of `s` other species. The fitness of a species
@@ -117,6 +120,10 @@ class CoevolutionaryClimbingInteraction(Interaction):
         >>> CoevolutionaryClimbingInteraction('climbing', species='species', k=4).k
         4
     """
+
+    draws = True
+
+    law_classes = (RuleLaw,)
 
     def __init__(
         self,
@@ -171,7 +178,10 @@ class CoevolutionaryClimbingInteraction(Interaction):
             item.fitness = self._fitness(index, genomes)
 
     def _fitness(self, index: int, genomes: list[int]) -> float:
-        """Return the fitness of a species, the mean contribution of its genes at the current genomes."""
+        """Return the fitness of a species.
+
+        It is the mean contribution of its genes at the current genomes.
+        """
         partners, genes, tables = self._landscape(len(genomes), (self.n, self.k, self.c, self.s, self.seed))
         own = genomes[index]
         total = 0.0
@@ -186,7 +196,10 @@ class CoevolutionaryClimbingInteraction(Interaction):
     @staticmethod
     @lru_cache(maxsize=8)
     def _landscape(size: int, settings: tuple[int, int, int, int, int]) -> tuple[Array, Array, Array]:
-        """Return the partner species, the coupled genes of every gene, and the tables, from `(n, k, c, s, seed)`."""
+        """Return the partner species, the coupled genes, and the tables.
+
+        The coupled genes are those of every gene, and everything derives from `(n, k, c, s, seed)`.
+        """
         n, k, c, s, seed = settings
         rng = np.random.default_rng(seed)
         others = [np.delete(np.arange(size), index) for index in range(size)]
@@ -196,29 +209,17 @@ class CoevolutionaryClimbingInteraction(Interaction):
         return partners.astype(float), genes.astype(float), tables
 
 
-@register_system(
-    field='biology/evolution',
-    tags=('coevolution', 'fitness landscape', 'avalanches', 'criticality', 'agents'),
-    references=('Kauffman and Johnsen 1991', 'Thurner et al. 2018'),
-    defaults={'until': 200},
-)
-def nkcs(
-    n_species: int = 10,
-    *,
-    n: int = 12,
-    k: int = 2,
-    c: int = 1,
-    s: int = 2,
-    seed: int = 0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the NKCS model of Kauffman and Johnsen, species climbing NK landscapes coupled to each other's genes.
+class NKCSSystem(BaseSystem):
+    """The NKCS model of Kauffman and Johnsen.
 
-    Every gene of a species depends on `k` genes of its own species and on `c` genes in each of `s` partner species.
-    A species keeps a point mutation when it raises its fitness, which changes the landscapes of the species that
-    depend on it, so adaptations trigger coevolutionary avalanches. Rugged landscapes, `k` above about `c s`, freeze
-    the ecosystem once every species sits on a peak, and smoother ones keep it in a chaotic regime of endless
-    adaptation.
+    Species climb NK landscapes coupled to each other's genes.
+
+    Every gene of a species depends on `k` genes of its own species and on `c` genes in each of `s` partner species. A
+    species keeps a point mutation when it raises its fitness, which changes the landscapes of the species that depend
+    on it, so adaptations trigger coevolutionary avalanches. Rugged landscapes, `k` above about `c s`, freeze the
+    ecosystem once every species sits on a peak, and smoother ones keep it in a chaotic regime of endless adaptation.
+    The system has the genomes `species.genome`, fitnesses `species.fitness`, and accepted mutations `species.moves` of
+    the group `species`.
 
     Args:
         n_species:
@@ -242,17 +243,57 @@ def nkcs(
         random_state:
             The seed or generator of the initial genomes.
 
-    Returns:
-        system:
-            The system, with the genomes `species.genome`, fitnesses `species.fitness`, and accepted mutations
-            `species.moves` of the group `species`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.evolution import nkcs
-        >>> nkcs(5).elements[0].prepare().size_
+        >>> from skcomplex.systems.biology.evolution import NKCSSystem
+        >>> NKCSSystem(5).prepare().system_.elements[0].prepare().size_
         5
     """
-    genomes = np.random.default_rng(random_state).integers(0, 2**n, size=n_species).astype(float)
-    species = GroupElement('species', element=CoevolvingSpeciesElement, size=n_species, values={'genome': genomes})
-    climbing = CoevolutionaryClimbingInteraction('climbing', species='species', n=n, k=k, c=c, s=s, seed=seed)
-    return System(elements=[species], interactions=[climbing], time=DiscreteTime())
+
+    field = 'biology/evolution'
+    topics = ('coevolution', 'fitness landscape', 'avalanches', 'criticality', 'agents')
+    references = ('Kauffman and Johnsen 1991', 'Thurner et al. 2018')
+    until = 200
+
+    def __init__(
+        self,
+        n_species: int = 10,
+        *,
+        n: int = 12,
+        k: int = 2,
+        c: int = 1,
+        s: int = 2,
+        seed: int = 0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_species = n_species
+        self.n = n
+        self.k = k
+        self.c = c
+        self.s = s
+        self.seed = seed
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the NKCS model of Kauffman and Johnsen."""
+        genomes = np.random.default_rng(self.random_state).integers(0, 2**self.n, size=self.n_species).astype(float)
+        species = GroupElement(
+            'species',
+            element=CoevolvingSpeciesElement,
+            size=self.n_species,
+            values={'genome': genomes},
+        )
+        climbing = CoevolutionaryClimbingInteraction(
+            'climbing',
+            species='species',
+            n=self.n,
+            k=self.k,
+            c=self.c,
+            s=self.s,
+            seed=self.seed,
+        )
+        return System(self.label, elements=[species], interactions=[climbing], time=DiscreteTime())

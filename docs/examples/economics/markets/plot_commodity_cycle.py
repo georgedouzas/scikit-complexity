@@ -14,9 +14,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.analysis import LoopAnalysis
+from skcomplex.core.analysis import loops
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation, create_system
+from skcomplex.systems.economics.markets import CommodityCycleSystem
 
 SYSTEM = 'commodity_cycle'
 
@@ -30,7 +31,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = create_simulation(SYSTEM).set_params(dt=0.25, observers=[observer]).prepare().run(until=60)
+trajectory = simulate(CommodityCycleSystem(), observers=[observer])
 
 # %%
 # The price leads the capacity
@@ -40,10 +41,9 @@ simulation = create_simulation(SYSTEM).set_params(dt=0.25, observers=[observer])
 # completions to the capacity, and its delay drives the cycle. The price peaks first, the capacity orders follow, and
 # the capacity peaks years later.
 
-polarities = LoopAnalysis().prepare(create_system(SYSTEM)).run().polarities_
+polarities = loops(CommodityCycleSystem()).polarities
 summary = ', '.join(f'{polarities.count(kind)} {kind}' for kind in ('reinforcing', 'balancing'))
 
-trajectory = simulation.trajectory_
 times = np.asarray(trajectory.times)
 fig, (price, capacity) = plt.subplots(1, 2, figsize=(10, 4))
 price.plot(times, trajectory.values('market.price'), label='price')

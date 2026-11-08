@@ -12,9 +12,8 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, JumpLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class ListenersElement(Element):
@@ -48,10 +47,10 @@ class ListenersElement(Element):
 
 
 class RumourContactsInteraction(Interaction):
-    """Contacts of the Maki-Thompson rumour system in a well-mixed population of size `N`.
+    """Contacts of the Maki-Thompson rumour system in a well-mixed population.
 
-    A spreader who meets an ignorant tells the rumour at rate `spread * X * Y / N`, and a spreader who meets another
-    spreader or a stifler stops spreading at rate `stifle * Y * (Y - 1 + Z) / N`.
+    The population has size `N`. A spreader who meets an ignorant tells the rumour at rate `spread * X * Y / N`, and a
+    spreader who meets another spreader or a stifler stops spreading at rate `stifle * Y * (Y - 1 + Z) / N`.
 
     Args:
         label:
@@ -77,6 +76,8 @@ class RumourContactsInteraction(Interaction):
         >>> RumourContactsInteraction('contacts', ignorants='X', spreaders='Y', stiflers='Z').spread
         1.0
     """
+
+    law_classes = (JumpLaw,)
 
     def __init__(
         self,
@@ -114,14 +115,10 @@ class RumourContactsInteraction(Interaction):
         ]
 
 
-@register_system(
-    field='social/spreading',
-    tags=('rumours', 'jump process', 'stochastic'),
-    references=('Maki and Thompson 1973', 'Pastor-Satorras et al. 2015'),
-    defaults={'until': 20.0, 'dt': 0.5},
-)
-def maki_thompson(n_people: int = 1000, *, spread: float = 1.0, stifle: float = 1.0) -> System:
-    """Return the Maki-Thompson rumour system started by one spreader, which leaves about 20% of people ignorant.
+class MakiThompsonSystem(BaseSystem):
+    """The Maki-Thompson rumour system started by one spreader.
+
+    It leaves about 20% of people ignorant. The system has the counts `ignorants.n`, `spreaders.n`, and `stiflers.n`.
 
     Args:
         n_people:
@@ -133,29 +130,51 @@ def maki_thompson(n_people: int = 1000, *, spread: float = 1.0, stifle: float = 
         stifle:
             The contact rate that stifles a spreader.
 
-    Returns:
-        system:
-            The system, with the counts `ignorants.n`, `spreaders.n`, and `stiflers.n`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.spreading import maki_thompson
-        >>> [element.n for element in maki_thompson(100).elements]
+        >>> from skcomplex.systems.social.spreading import MakiThompsonSystem
+        >>> [element.n for element in MakiThompsonSystem(100).prepare().system_.elements]
         [99, 1, 0]
     """
-    return System(
-        elements=[
-            ListenersElement('ignorants', n=n_people - 1),
-            ListenersElement('spreaders', n=1),
-            ListenersElement('stiflers', n=0),
-        ],
-        interactions=[
-            RumourContactsInteraction(
-                'contacts',
-                ignorants='ignorants',
-                spreaders='spreaders',
-                stiflers='stiflers',
-                spread=spread,
-                stifle=stifle,
-            ),
-        ],
-    )
+
+    field = 'social/spreading'
+    topics = ('rumours', 'jump process', 'stochastic')
+    references = ('Maki and Thompson 1973', 'Pastor-Satorras et al. 2015')
+    until = 20.0
+    dt = 0.5
+
+    def __init__(
+        self,
+        n_people: int = 1000,
+        *,
+        spread: float = 1.0,
+        stifle: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_people = n_people
+        self.spread = spread
+        self.stifle = stifle
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        return System(
+            self.label,
+            elements=[
+                ListenersElement('ignorants', n=self.n_people - 1),
+                ListenersElement('spreaders', n=1),
+                ListenersElement('stiflers', n=0),
+            ],
+            interactions=[
+                RumourContactsInteraction(
+                    'contacts',
+                    ignorants='ignorants',
+                    spreaders='spreaders',
+                    stiflers='stiflers',
+                    spread=self.spread,
+                    stifle=self.stifle,
+                ),
+            ],
+        )

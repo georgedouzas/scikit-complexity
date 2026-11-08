@@ -4,16 +4,15 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import FitAnalysis, NetworkAnalysis, RenormalizationAnalysis
-from skcomplex.core.engine.runtime import Simulation, Trajectory
+from skcomplex.core.analysis import fit_law, network_measures, renormalization
+from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.systems import create_system
 from skcomplex.systems.mathematics.networks import (
-    barabasi_albert,
-    graphlet_arrival,
-    holme_kim,
-    popularity_similarity_network,
-    vertex_copying,
+    BarabasiAlbertSystem,
+    GraphletArrivalSystem,
+    HolmeKimSystem,
+    PopularitySimilarityNetworkSystem,
+    VertexCopyingSystem,
 )
 
 from .conftest import _final_graph
@@ -21,19 +20,19 @@ from .conftest import _final_graph
 
 def test_barabasi_albert_grows_a_scale_free_network():
     """Test that Barabási-Albert growth adds one node with two edges per step and a degree tail exponent near 3."""
-    graph, trajectory = _final_graph(barabasi_albert(3003), 3000)
+    graph, trajectory = _final_graph(BarabasiAlbertSystem(3003), 3000)
     assert graph.number_of_nodes() == 3003
     assert graph.number_of_edges() == 3 + 2 * 3000
     degrees = np.array([degree for _, degree in graph.degree])
-    fit = FitAnalysis(minimum=8, discrete=True, bootstrap=0).prepare(degrees).run()
-    assert abs(fit.exponent_ - 3) < 0.4
+    fit = fit_law(degrees, minimum=8, discrete=True, bootstrap=0)
+    assert abs(fit.exponent - 3) < 0.4
     assert np.nanmax(trajectory.values('nodes.degree')[-1]) == pytest.approx(degrees.max(), abs=2)
 
 
 def test_holme_kim_keeps_clustering_that_barabasi_albert_loses():
     """Test that triad formation keeps the clustering high where preferential attachment alone lets it vanish."""
-    clustered, _ = _final_graph(holme_kim(1004, triad=0.9), 1000)
-    attached, _ = _final_graph(barabasi_albert(1003, edges=3, seed_nodes=3), 1000)
+    clustered, _ = _final_graph(HolmeKimSystem(1004, triad=0.9), 1000)
+    attached, _ = _final_graph(BarabasiAlbertSystem(1003, edges=3, seed_nodes=3), 1000)
     assert clustered.number_of_edges() == pytest.approx(attached.number_of_edges(), rel=0.02)
     assert nx.average_clustering(clustered) > 0.3
     assert nx.average_clustering(attached) < 0.1
@@ -41,40 +40,47 @@ def test_holme_kim_keeps_clustering_that_barabasi_albert_loses():
 
 def test_vertex_copying_makes_hubs_that_random_attachment_lacks():
     """Test that copying edges gives a much larger largest degree than joining random nodes."""
-    copied, _ = _final_graph(vertex_copying(1004, randomness=0.1), 1000)
-    uniform, _ = _final_graph(vertex_copying(1004, randomness=1.0), 1000)
+    copied, _ = _final_graph(VertexCopyingSystem(1004, randomness=0.1), 1000)
+    uniform, _ = _final_graph(VertexCopyingSystem(1004, randomness=1.0), 1000)
     largest = max(degree for _, degree in copied.degree)
     assert largest > 2 * max(degree for _, degree in uniform.degree)
 
 
-@pytest.mark.parametrize('name', ['barabasi_albert', 'holme_kim', 'vertex_copying'])
-def test_growth_systems_are_created_by_name(name):
-    """Test that the growth systems are registered and start with their seed network."""
-    system = create_system(name)
+@pytest.mark.parametrize('system_class', [BarabasiAlbertSystem, HolmeKimSystem, VertexCopyingSystem])
+def test_growth_systems_start_with_their_seed_network(system_class):
+    """Test that the growth systems start with their seed network."""
+    system = system_class().prepare().system_
     assert system.elements[0].variable
     assert system.elements[1].on == 'edges'
 
 
 def _similarity_trajectory(n_nodes: int, seed: int, **settings: float) -> Trajectory:
     """Return the trajectory of a popularity-similarity network of a size, with the frames of its start and its end."""
-    system = popularity_similarity_network(n_nodes, random_state=seed, **settings)
+    system = PopularitySimilarityNetworkSystem(n_nodes, random_state=seed, **settings)
     steps = n_nodes - 3
-    return Simulation(system, dt=float(steps), random_state=seed).prepare().run(until=steps).trajectory_
+    return simulate(system, until=steps, dt=float(steps), random_state=seed)
 
 
 def test_popularity_similarity_network_degrees_are_heavy_tailed_and_clustered():
     """Test that 2000 nodes of exponent 2.5 fit a mean over seeds within 0.07 of 2.69, and are clustered."""
     graphs = [_similarity_trajectory(2000, seed, exponent=2.5).network(-1).graph() for seed in range(4)]
-    fitted = [float(NetworkAnalysis('degrees').prepare(graph).run().exponent_[0]) for graph in graphs]
+    fitted = [float(network_measures(graph, kind='degrees').exponent[0]) for graph in graphs]
     assert np.mean(fitted) == pytest.approx(2.69, abs=0.07)
     assert min(nx.average_clustering(graph) for graph in graphs) > 0.3
 
 
 def test_popularity_similarity_network_renormalizes_geometrically_with_its_exponent():
     """Test that the mean degree exponent over seeds stays within 0.2 of the original at three geometric scales."""
-    analysis = RenormalizationAnalysis('geometric', steps=3, beta=5.0)
     exponents = np.mean(
-        [analysis.prepare(_similarity_trajectory(2000, seed, exponent=2.5)).run().exponents_ for seed in range(4)],
+        [
+            renormalization(
+                _similarity_trajectory(2000, seed, exponent=2.5),
+                kind='geometric',
+                steps=3,
+                beta=5.0,
+            ).exponents
+            for seed in range(4)
+        ],
         axis=0,
     )
     assert np.abs(exponents[1:] - exponents[0]).max() <= 0.2
@@ -108,12 +114,12 @@ def test_popularity_similarity_network_clustering_falls_with_the_temperature():
 def test_popularity_similarity_network_rejects_invalid_settings(settings: dict[str, float], message: str):
     """Test that an exponent not above 2 and a temperature outside the unit interval raise an error."""
     with pytest.raises(ValidationError, match=message):
-        popularity_similarity_network(20, **settings)
+        PopularitySimilarityNetworkSystem(20, **settings).prepare()
 
 
 def test_bianconi_barabasi_fitness_lets_fit_nodes_win_edges():
     """Test that with fitness the degree of the older nodes rises with their fitness, and every step adds two edges."""
-    graph, trajectory = _final_graph(barabasi_albert(1003, fitness=True), 1000)
+    graph, trajectory = _final_graph(BarabasiAlbertSystem(1003, fitness=True), 1000)
     assert graph.number_of_edges() == 3 + 2 * 1000
     fitness, age, degree = (trajectory.values(f'nodes.{state}')[-1] for state in ('fitness', 'age', 'degree'))
     old = age > 500
@@ -125,7 +131,7 @@ def test_bianconi_barabasi_fitness_lets_fit_nodes_win_edges():
 @pytest.mark.parametrize('alpha', [0.0, 0.3, 1.0])
 def test_graphlet_arrival_grows_a_tree_with_the_degree_shares_of_filkov(alpha):
     """Test that graphlets grow a tree with the degree shares `2 (2 - alpha) / 5` and `alpha (7 - alpha) / 15`."""
-    graph, _ = _final_graph(graphlet_arrival(2002, alpha=alpha), 1000)
+    graph, _ = _final_graph(GraphletArrivalSystem(2002, alpha=alpha), 1000)
     assert nx.is_tree(graph)
     assert graph.number_of_nodes() == 2002
     degrees = np.array([degree for _, degree in graph.degree])

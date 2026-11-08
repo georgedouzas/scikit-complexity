@@ -1,4 +1,7 @@
-"""Potential well systems: a particle in the one-dimensional well `k x² e^-x`."""
+"""Potential well systems.
+
+The module holds a particle in the one-dimensional well `k x² e^-x`.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -10,14 +13,15 @@ from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, RoleSpec
-from ..._catalog import register_system
 from ..common.particles import MassPointElement, PotentialEnergyInteraction
 
 
 class ExponentialWellInteraction(PotentialEnergyInteraction):
-    """Potential `k x² e^-x` on a particle in one dimension, a well at `x = 0` behind a barrier at `x = 2`.
+    """Potential `k x² e^-x` on a particle in one dimension.
+
+    The potential has a well at `x = 0` behind a barrier at `x = 2`.
 
     Args:
         label:
@@ -60,18 +64,12 @@ class ExponentialWellInteraction(PotentialEnergyInteraction):
         return s.k * position**2 * exp(-position)
 
 
-@register_system(
-    field='physics/mechanics',
-    tags=('mechanics', 'ode', 'potential', 'hamiltonian'),
-    references=('Starkovich 2021',),
-    defaults={'until': 20.0, 'dt': 0.05},
-)
-def particle_in_a_well(x: float = 1.0, v: float = 0.5, *, k: float = 2.0, m: float = 1.0) -> System:
-    """Return a particle moving without friction in the potential `U(x) = k x² e^-x`.
+class ParticleInAWellSystem(BaseSystem):
+    """A particle moving without friction in the potential `U(x) = k x² e^-x`.
 
-    The potential has a stable equilibrium at `x = 0` and an unstable one at `x = 2`, the top of a barrier of height
-    `4 k e^-2`. A particle in the well with less energy than the barrier oscillates, and one with more escapes to
-    large `x`.
+    The potential has a stable equilibrium at `x = 0` and an unstable one at `x = 2`, the top of a barrier of height `4
+    k e^-2`. A particle in the well with less energy than the barrier oscillates, and one with more escapes to large
+    `x`. The system has the particle `particle` and its position `particle.x` in one dimension.
 
     Args:
         x:
@@ -86,17 +84,41 @@ def particle_in_a_well(x: float = 1.0, v: float = 0.5, *, k: float = 2.0, m: flo
         m:
             The mass of the particle.
 
-    Returns:
-        system:
-            The system, with the particle `particle` and its position `particle.x` in one dimension.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.mechanics import particle_in_a_well
-        >>> particle_in_a_well(k=3.0).interactions[0].k
+        >>> from skcomplex.systems.physics.mechanics import ParticleInAWellSystem
+        >>> ParticleInAWellSystem(k=3.0).prepare().system_.interactions[0].k
         3.0
     """
-    return System(
-        elements=[MassPointElement('particle', x=x, x_d1=v, m=m)],
-        interactions=[ExponentialWellInteraction('well', target='particle', k=k)],
-        space=ContinuousSpace(n_dim=1),
-    )
+
+    field = 'physics/mechanics'
+    topics = ('mechanics', 'ode', 'potential', 'hamiltonian')
+    references = ('Starkovich 2021',)
+    until = 20.0
+    dt = 0.05
+
+    def __init__(
+        self,
+        x: float = 1.0,
+        v: float = 0.5,
+        *,
+        k: float = 2.0,
+        m: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.x = x
+        self.v = v
+        self.k = k
+        self.m = m
+
+    def _build_system(self) -> System:
+        """Return a particle moving without friction in the potential `U(x) = k x² e^-x`."""
+        return System(
+            self.label,
+            elements=[MassPointElement('particle', x=self.x, x_d1=self.v, m=self.m)],
+            interactions=[ExponentialWellInteraction('well', target='particle', k=self.k)],
+            space=ContinuousSpace(n_dim=1),
+        )

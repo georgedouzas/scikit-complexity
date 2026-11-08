@@ -15,9 +15,9 @@ from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime, LatticeSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine._utils import declared_variables
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.experiments import BaseExperiment
+from skcomplex.core.experiments._replicate import _replicate
 from skcomplex.core.specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec
 
 GENERATED_CLASSES_ALLOWED = {'core/engine/solvers/_mesa.py': 2}
@@ -63,7 +63,7 @@ def _variables():
 
 def _simulate(system, until=1.0):
     """Return the trajectory of a system."""
-    return Simulation(system, dt=0.01).prepare().run(until=until).trajectory_
+    return simulate(system, until=until, dt=0.01)
 
 
 def _generated_classes(root):
@@ -132,8 +132,9 @@ def test_declared_element_runs_a_map_on_its_lags():
     specs = {'x': DeclaredVariableSpec(1.0, StateSpec(lags=1, initial=(0.0,)))}
     element = DeclaredElement('cell', variables=specs)
     fibonacci = MapInteraction('next', target='cell', state='x', mode='increment', function=lambda s: s.target.x_lag1)
-    trajectory = Simulation(System(elements=[element], interactions=[fibonacci], time=DiscreteTime()), dt=1)
-    assert trajectory.prepare().run(until=5).trajectory_.values('cell.x')[-1] == pytest.approx(8.0)
+    assert simulate(System(elements=[element], interactions=[fibonacci], time=DiscreteTime()), until=5, dt=1).values(
+        'cell.x',
+    )[-1] == pytest.approx(8.0)
 
 
 def test_declared_element_in_a_group_takes_values_per_member():
@@ -156,7 +157,7 @@ def test_declared_element_replicates_in_an_experiment():
     """Test that replicating a system keeps the declared variables and takes one value per member."""
     element = _DeclaredDecayElement('cell', variables=_variables())
     system = System(elements=[element], time=ContinuousTime())
-    ensemble = BaseExperiment._replicate(system, 2, {'cell.x': np.array([1.0, 3.0])})
+    ensemble = _replicate(system, 2, {'cell.x': np.array([1.0, 3.0])})
     last = _simulate(ensemble).values('cell.x')[-1]
     assert last == pytest.approx(np.array([1.0, 3.0]) * np.exp(-0.5), rel=1e-4)
 

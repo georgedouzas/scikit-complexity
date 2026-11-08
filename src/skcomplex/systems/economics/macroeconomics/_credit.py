@@ -1,4 +1,7 @@
-"""Macroeconomics systems: credit networks of firms that borrow from banks and switch to cheaper lenders."""
+"""Macroeconomics systems: credit networks of firms that borrow from banks.
+
+The firms switch to cheaper lenders.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,7 +17,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, MatchingInteraction
 from ....core.components.spaces import DiscreteTime
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import (
     MatchSpec,
@@ -26,11 +29,10 @@ from ....core.specs import (
     StateSpec,
     VisualSpec,
 )
-from ..._catalog import register_system
 
 
 class FirmView(AgentView):
-    """Firm as the rules see it: its balance sheet, loan, partner, return, injection, default, and parameters.
+    """Firm as the rules see it.
 
     It reads its `net_worth`, `demand`, `loan`, `rate`, `partner`, `gross_return`, `injected`, and `defaulted`, and the
     parameters `leverage`, `mean_return`, `volatility`, and `entry`.
@@ -51,11 +53,12 @@ class FirmView(AgentView):
 
 
 class FirmElement(Element):
-    """Firm that borrows in proportion to its net worth, invests at a random return, and defaults on negative worth.
+    """Firm that borrows in proportion to its net worth and invests.
 
-    Every step the firm asks for `leverage` times its net worth from its bank, invests its net worth and the loan at
-    the return `mean_return + volatility * z`, and pays the interest. When its net worth becomes negative it repays
-    what it can, the bank writes off the rest, and a new firm with the net worth `entry` replaces it.
+    It invests at a random return, and defaults on negative worth. Every step the firm asks for `leverage` times its net
+    worth from its bank, invests its net worth and the loan at the return `mean_return + volatility * z`, and pays the
+    interest. When its net worth becomes negative it repays what it can, the bank writes off the rest, and a new firm
+    with the net worth `entry` replaces it.
 
     Args:
         label:
@@ -151,7 +154,9 @@ class FirmElement(Element):
 
     @staticmethod
     def get_return(agent: FirmView, system: SystemView) -> float:
-        """Return the return on the net worth and the loan invested, at a normal rate of return of at least -1.
+        """Return the return on the net worth and the loan invested.
+
+        The rate of return is normal and at least -1.
 
         Args:
             agent:
@@ -169,7 +174,9 @@ class FirmElement(Element):
 
     @staticmethod
     def get_worth(agent: FirmView) -> float:
-        """Return the net worth after the return and the interest, negative for a firm that defaults.
+        """Return the net worth after the return and the interest.
+
+        It is negative for a firm that defaults.
 
         Args:
             agent:
@@ -183,7 +190,9 @@ class FirmElement(Element):
 
     @staticmethod
     def get_plan() -> tuple[tuple[str, Callable[[FirmView, SystemView], float]], ...]:
-        """Return the states a firm sets in the plan of a step, a loan request of `leverage` times its net worth.
+        """Return the states a firm sets in the plan of a step.
+
+        It requests a loan of `leverage` times its net worth.
 
         Returns:
             plan:
@@ -199,7 +208,9 @@ class FirmElement(Element):
 
     @staticmethod
     def get_default() -> tuple[tuple[str, Callable[[FirmView, SystemView], float]], ...]:
-        """Return the states a firm sets after its return, those of an entrant for a firm that defaults.
+        """Return the states a firm sets after its return.
+
+        A firm that defaults takes those of an entrant.
 
         Returns:
             default:
@@ -215,7 +226,10 @@ class FirmElement(Element):
 
 
 class LenderView(AgentView):
-    """Lender as the rules see it: its `equity`, `ask`, `supply`, `lent`, `losses`, `alpha`, and `capital_ratio`."""
+    """Lender as the rules see it.
+
+    It holds its `equity`, `ask`, `supply`, `lent`, `losses`, `alpha`, and `capital_ratio`.
+    """
 
     equity: float
     ask: float
@@ -227,11 +241,12 @@ class LenderView(AgentView):
 
 
 class LenderElement(Element):
-    """Bank that lends up to a multiple of its equity at a rate that falls with its equity.
+    """Bank that lends up to a multiple of its equity.
 
-    The bank asks the rate `alpha * equity ** -alpha` of Delli Gatti et al. (2010), so better capitalised banks lend
-    cheaper, and it offers loans up to `equity / capital_ratio`. The maps of its settlement read the firms bound to
-    their role `sources`, whose interest and defaults reach the bank they name in their reference state `partner`.
+    Its rate falls with its equity. The bank asks the rate `alpha * equity ** -alpha` of Delli Gatti et al. (2010), so
+    better capitalised banks lend cheaper, and it offers loans up to `equity / capital_ratio`. The maps of its
+    settlement read the firms bound to their role `sources`, whose interest and defaults reach the bank they name in
+    their reference state `partner`.
 
     Args:
         label:
@@ -297,7 +312,9 @@ class LenderElement(Element):
 
     @staticmethod
     def get_quote() -> tuple[tuple[str, Callable[[LenderView, SystemView], float]], ...]:
-        """Return the states a bank sets in the plan of a step, its rate and lending capacity from its equity.
+        """Return the states a bank sets in the plan of a step.
+
+        They are its rate and lending capacity from its equity.
 
         Returns:
             quote:
@@ -312,9 +329,10 @@ class LenderElement(Element):
 
     @staticmethod
     def _get_borrowers(agent: LenderView, system: SystemView) -> list[FirmView]:
-        """Return the firms bound to the role `sources` that borrowed from a bank in the step.
+        """Return the firms bound to the role `sources` that borrowed from a bank.
 
-        The firms are grouped by their bank once per step of each settlement map, which reads but does not change them.
+        They borrowed in the step. The firms are grouped by their bank once per step of each settlement map, which reads
+        but does not change them.
         """
         step = (system.time, system.round)
         cached = system.storage.get('borrowers')
@@ -330,7 +348,9 @@ class LenderElement(Element):
 
     @staticmethod
     def get_income(agent: LenderView, system: SystemView) -> float:
-        """Return the interest a bank earns in the step, less what its defaulting borrowers cannot repay.
+        """Return the interest a bank earns in the step.
+
+        It is less what its defaulting borrowers cannot repay.
 
         Args:
             agent:
@@ -366,11 +386,11 @@ class LenderElement(Element):
 
 
 class CreditMarketInteraction(MatchingInteraction[SystemView]):
-    """Credit market that also reports the spread of the rates firms pay over the cheapest bank's rate.
+    """Credit market that also reports the spread of the rates firms pay.
 
-    The firms request loans and the banks provide them. The spread is the mean of `r_i / r_min - 1` over the borrowing
-    firms, the dispersion of rates that a market with costly search leaves and that switching to cheaper lenders
-    erodes.
+    The spread is over the cheapest bank's rate. The firms request loans and the banks provide them. The spread is the
+    mean of `r_i / r_min - 1` over the borrowing firms, the dispersion of rates that a market with costly search leaves
+    and that switching to cheaper lenders erodes.
 
     Args:
         label:
@@ -413,7 +433,9 @@ class CreditMarketInteraction(MatchingInteraction[SystemView]):
     reports: ClassVar[tuple[str, ...]] = (*MatchingInteraction.reports, 'spread')
 
     def _report_matches(self, matches: list[MatchSpec], unmatched: float, system: SystemView) -> None:
-        """Report the price, the volume, the unmatched quantity, and the spread of the rates over the cheapest rate.
+        """Report the price, the volume, the unmatched quantity, and the spread.
+
+        The spread is that of the rates over the cheapest rate.
 
         Args:
             matches:
@@ -432,18 +454,6 @@ class CreditMarketInteraction(MatchingInteraction[SystemView]):
         system.report('spread', spread)
 
 
-def _lend(trade: MatchSpec, system: SystemView) -> None:
-    """Record a loan on the books of the firm and of the bank."""
-    del system
-    firm, bank = trade.requester, trade.provider
-    if not isinstance(firm, FirmView) or not isinstance(bank, LenderView):
-        error_msg = 'A loan is a trade of a firm with a bank.'
-        raise TypeError(error_msg)
-    firm.loan += trade.quantity
-    firm.rate = trade.value
-    bank.lent += trade.quantity
-
-
 def _herfindahl(values: object) -> float:
     """Return the Herfindahl index of the banks' shares of the loans."""
     lent = np.asarray(values, dtype=float)
@@ -458,49 +468,19 @@ def _largest_share(values: object) -> float:
     return float(lent.max() / total) if total > 0 else float('nan')
 
 
-def _credit_observables(system: System) -> list[ObservableSpec]:
-    """Return the concentration, equity, worth, returns, injections, defaults, and losses of the credit market."""
-    return [
-        ObservableSpec('herfindahl', group='banks', variable='lent', reduce=_herfindahl),
-        ObservableSpec('largest_share', group='banks', variable='lent', reduce=_largest_share),
-        ObservableSpec('bank_equity', group='banks', variable='equity', reduce='sum'),
-        ObservableSpec('firm_worth', group='firms', variable='net_worth', reduce='sum'),
-        ObservableSpec('returns', group='firms', variable='gross_return', reduce='sum'),
-        ObservableSpec('injected', group='firms', variable='injected', reduce='sum'),
-        ObservableSpec('defaults', group='firms', variable='defaulted', reduce='sum'),
-        ObservableSpec('bad_debt', group='banks', variable='losses', reduce='sum'),
-    ]
+class CreditNetworksSystem(BaseSystem):
+    """A credit market where firms sample banks and switch to cheaper lenders.
 
+    Defaults hit the lenders. Every step the banks quote rates that fall with their equity, every firm samples `sample`
+    banks and switches from its lender to the cheapest of them with probability
+    `1 - exp(intensity * (r_new - r_old) / r_new)`, borrows, and invests at a random return. Interest and write-offs of
+    defaulted firms move net worth between firms and banks, so the total net worth changes only by the firms' returns
+    and the entrants' net worth. A higher intensity of switching concentrates the loans in the cheapest banks and
+    narrows the spread of the rates that firms pay.
 
-@register_system(
-    field='economics/macroeconomics',
-    tags=('credit', 'banks', 'agents', 'market', 'network'),
-    references=('Caiani et al. 2016 ch. 2', 'Delli Gatti et al. 2010'),
-    defaults={'until': 100},
-    observables=_credit_observables,
-)
-def credit_networks(
-    firms: int = 100,
-    banks: int = 10,
-    *,
-    sample: int = 3,
-    intensity: float = 4.0,
-    leverage: float = 1.0,
-    mean_return: float = 0.03,
-    volatility: float = 0.3,
-    net_worth: float = 10.0,
-    equity: float = 100.0,
-    alpha: float = 0.1,
-    capital_ratio: float = 0.1,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return a credit market where firms sample banks and switch to cheaper lenders, and defaults hit the lenders.
-
-    Every step the banks quote rates that fall with their equity, every firm samples `sample` banks and switches from
-    its lender to the cheapest of them with probability `1 - exp(intensity * (r_new - r_old) / r_new)`, borrows, and
-    invests at a random return. Interest and write-offs of defaulted firms move net worth between firms and banks, so
-    the total net worth changes only by the firms' returns and the entrants' net worth. A higher intensity of switching
-    concentrates the loans in the cheapest banks and narrows the spread of the rates that firms pay.
+    The system has the groups `firms` and `banks`, the market `credit` with its reporter `credit.spread`, and the
+    observables `herfindahl`, `largest_share`, `bank_equity`, `firm_worth`, `returns`, `injected`, `defaults`, and
+    `bad_debt`.
 
     Args:
         firms:
@@ -539,87 +519,159 @@ def credit_networks(
         random_state:
             The seed or generator of the initial equities.
 
-    Returns:
-        system:
-            The system, with the groups `firms` and `banks`, the market `credit` with its reporter `credit.spread`, and
-            the observables `herfindahl`, `largest_share`, `bank_equity`, `firm_worth`, `returns`, `injected`,
-            `defaults`, and `bad_debt`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.macroeconomics import credit_networks
-        >>> [element.label for element in credit_networks().elements]
+        >>> from skcomplex.systems.economics.macroeconomics import CreditNetworksSystem
+        >>> [element.label for element in CreditNetworksSystem().prepare().system_.elements]
         ['firms', 'banks']
     """
-    rng = np.random.default_rng(random_state)
-    lenders = GroupElement(
-        'banks',
-        element=LenderElement,
-        size=banks,
-        values={'equity': equity * rng.uniform(0.5, 1.5, banks), 'alpha': alpha, 'capital_ratio': capital_ratio},
+
+    field = 'economics/macroeconomics'
+    topics = ('credit', 'banks', 'agents', 'market', 'network')
+    references = ('Caiani et al. 2016 ch. 2', 'Delli Gatti et al. 2010')
+    until = 100
+    observables = (
+        ObservableSpec('herfindahl', group='banks', variable='lent', reduce=_herfindahl),
+        ObservableSpec('largest_share', group='banks', variable='lent', reduce=_largest_share),
+        ObservableSpec('bank_equity', group='banks', variable='equity', reduce='sum'),
+        ObservableSpec('firm_worth', group='firms', variable='net_worth', reduce='sum'),
+        ObservableSpec('returns', group='firms', variable='gross_return', reduce='sum'),
+        ObservableSpec('injected', group='firms', variable='injected', reduce='sum'),
+        ObservableSpec('defaults', group='firms', variable='defaulted', reduce='sum'),
+        ObservableSpec('bad_debt', group='banks', variable='losses', reduce='sum'),
     )
-    borrowers = GroupElement(
-        'firms',
-        element=FirmElement,
-        size=firms,
-        values={
-            'net_worth': net_worth,
-            'leverage': leverage,
-            'mean_return': mean_return,
-            'volatility': volatility,
-            'entry': net_worth,
-        },
-    )
-    market = CreditMarketInteraction(
-        'credit',
-        requesters='firms',
-        providers='banks',
-        rule=PartnerSwitchSpec(sample=sample, intensity=intensity),
-        limit=('bid', 'ask'),
-        quantity=('demand', 'supply'),
-        phase='credit',
-        on_match=_lend,
-    )
-    plan = [
-        MapInteraction(f'{group}_plan_{name}', target=group, state=name, function=function, form='agent', phase='plan')
-        for group, steps in (('firms', FirmElement.get_plan()), ('banks', LenderElement.get_quote()))
-        for name, function in steps
-    ]
-    settlement = [
-        MapInteraction(
-            'returns',
-            target='firms',
-            state='gross_return',
-            function=FirmElement.get_return,
-            form='agent',
-            phase='settle',
-        ),
-        *(
+
+    def __init__(
+        self,
+        firms: int = 100,
+        banks: int = 10,
+        *,
+        sample: int = 3,
+        intensity: float = 4.0,
+        leverage: float = 1.0,
+        mean_return: float = 0.03,
+        volatility: float = 0.3,
+        net_worth: float = 10.0,
+        equity: float = 100.0,
+        alpha: float = 0.1,
+        capital_ratio: float = 0.1,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.firms = firms
+        self.banks = banks
+        self.sample = sample
+        self.intensity = intensity
+        self.leverage = leverage
+        self.mean_return = mean_return
+        self.volatility = volatility
+        self.net_worth = net_worth
+        self.equity = equity
+        self.alpha = alpha
+        self.capital_ratio = capital_ratio
+        self.random_state = random_state
+
+    @staticmethod
+    def _lend(trade: MatchSpec, system: SystemView) -> None:
+        """Record a loan on the books of the firm and of the bank."""
+        del system
+        firm, bank = trade.requester, trade.provider
+        if not isinstance(firm, FirmView) or not isinstance(bank, LenderView):
+            error_msg = 'A loan is a trade of a firm with a bank.'
+            raise TypeError(error_msg)
+        firm.loan += trade.quantity
+        firm.rate = trade.value
+        bank.lent += trade.quantity
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        lenders = GroupElement(
+            'banks',
+            element=LenderElement,
+            size=self.banks,
+            values={
+                'equity': self.equity * rng.uniform(0.5, 1.5, self.banks),
+                'alpha': self.alpha,
+                'capital_ratio': self.capital_ratio,
+            },
+        )
+        borrowers = GroupElement(
+            'firms',
+            element=FirmElement,
+            size=self.firms,
+            values={
+                'net_worth': self.net_worth,
+                'leverage': self.leverage,
+                'mean_return': self.mean_return,
+                'volatility': self.volatility,
+                'entry': self.net_worth,
+            },
+        )
+        market = CreditMarketInteraction(
+            'credit',
+            requesters='firms',
+            providers='banks',
+            rule=PartnerSwitchSpec(sample=self.sample, intensity=self.intensity),
+            limit=('bid', 'ask'),
+            quantity=('demand', 'supply'),
+            phase='credit',
+            on_match=self._lend,
+        )
+        plan = [
             MapInteraction(
-                f'bank_{name}',
-                target='banks',
+                f'{group}_plan_{name}',
+                target=group,
                 state=name,
                 function=function,
-                sources=('firms',),
-                mode='increment',
                 form='agent',
-                phase='settle',
+                phase='plan',
             )
-            for name, function in (('equity', LenderElement.get_income), ('losses', LenderElement.get_losses))
-        ),
-        *(
+            for group, steps in (('firms', FirmElement.get_plan()), ('banks', LenderElement.get_quote()))
+            for name, function in steps
+        ]
+        settlement = [
             MapInteraction(
-                f'firms_settle_{name}',
+                'returns',
                 target='firms',
-                state=name,
-                function=function,
+                state='gross_return',
+                function=FirmElement.get_return,
                 form='agent',
                 phase='settle',
-            )
-            for name, function in FirmElement.get_default()
-        ),
-    ]
-    return System(
-        elements=[borrowers, lenders],
-        interactions=[*plan, market, *settlement],
-        time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('plan'), PhaseSpec('credit'), PhaseSpec('settle')])),
-    )
+            ),
+            *(
+                MapInteraction(
+                    f'bank_{name}',
+                    target='banks',
+                    state=name,
+                    function=function,
+                    sources=('firms',),
+                    mode='increment',
+                    form='agent',
+                    phase='settle',
+                )
+                for name, function in (('equity', LenderElement.get_income), ('losses', LenderElement.get_losses))
+            ),
+            *(
+                MapInteraction(
+                    f'firms_settle_{name}',
+                    target='firms',
+                    state=name,
+                    function=function,
+                    form='agent',
+                    phase='settle',
+                )
+                for name, function in FirmElement.get_default()
+            ),
+        ]
+        return System(
+            self.label,
+            elements=[borrowers, lenders],
+            interactions=[*plan, market, *settlement],
+            time=DiscreteTime(
+                schedule=PhasesScheduleSpec([PhaseSpec('plan'), PhaseSpec('credit'), PhaseSpec('settle')]),
+            ),
+        )

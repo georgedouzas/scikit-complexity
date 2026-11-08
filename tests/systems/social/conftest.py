@@ -3,13 +3,13 @@
 import numpy as np
 import numpy.typing as npt
 
-from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation, Trajectory
+from skcomplex.core.components.system import BaseSystem
+from skcomplex.core.engine.runtime import Trajectory, simulate
 
 
-def _run(system: System, until: float, *, dt: float | None = None) -> Trajectory:
-    """Return the trajectory of a system run with a fixed random state."""
-    return Simulation(system, random_state=0, dt=dt).prepare().run(until=until).trajectory_
+def _run(system: BaseSystem, until: float, *, dt: float | None = None) -> Trajectory:
+    """Return the trajectory of a system run with a fixed random state, with its tuned settings for the others."""
+    return simulate(system, until=until, dt=dt, random_state=0)
 
 
 def _values(trajectory: Trajectory, group: str, name: str, frame: int = -1) -> npt.NDArray[np.float64]:

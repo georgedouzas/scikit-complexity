@@ -7,17 +7,17 @@ how to solve it.
 from skcomplex.core.components.elements import CompartmentElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 
 rabbits = CompartmentElement('rabbits', n=10)
 growth = RateInteraction('growth', target='rabbits', state='n', rate=lambda s: 0.5 * s.target.n)
 system = System(elements=[rabbits], interactions=[growth])
-Simulation(system, dt=0.1).prepare().run(until=2).trajectory_.values('rabbits.n')[-1].round(2)
+simulate(system, until=2, dt=0.1).values('rabbits.n')[-1].round(2)
 ```
 
 The element `rabbits` carries the state `n`, the interaction `growth` adds the rate `0.5 n` to it, and the system holds
-both. The simulation speaks the same two verbs as the parts: `prepare` checks the system, and `run` advances it and
-records the value of `n` at every frame in its trajectory.
+both. `simulate` checks the system, runs it until the time you give, and returns its trajectory, which holds the value
+of `n` at every frame.
 
 An element of your own declares its states as arguments of its `__init__`, each annotated with a spec. `StateSpec`
 marks `n` as a state, and the default of the argument is its initial value. `CompartmentElement` is such an element of
@@ -37,7 +37,7 @@ class PopulationElement(Element):
 
 
 system = System(elements=[PopulationElement('rabbits', n=10)], interactions=[growth])
-Simulation(system, dt=0.1).prepare().run(until=2).trajectory_.values('rabbits.n')[-1].round(2)
+simulate(system, until=2, dt=0.1).values('rabbits.n')[-1].round(2)
 ```
 
 [Defining elements](defining_elements.md) covers states, parameters, roles, and their specs in full.
@@ -53,22 +53,23 @@ A system is made of **parts**: its elements, its interactions, the laws they ret
 
 These concepts carry no field-specific meaning. A population, a particle, a firm, and a cell are all elements. So a
 system in any field of science is a configuration of the same interface, and every ready-made system in
-`skcomplex.systems` is a factory that builds such a configuration.
+`skcomplex.systems`, such as `SIRSystem`, is a class that builds such a configuration from its model parameters.
 
-## Two verbs
+## Two main public methods
 
-Every part speaks two verbs, and both return the part itself.
+Every part has two main public methods, and both return the part itself.
 
 - `prepare(...)` validates the part and prepares it against what it works on.
 - `run(...)` sets what the part contributes. An element, an interaction, or a system sets its laws in `laws_`. A law
   sets in `value_` its value at given values of the symbols it reads, such as the rate of a `RateLaw`.
 
-A part must be prepared before it runs.
+A part must be prepared before it runs. Every part also has `get_params`, `set_params`, and `get_tags`, as estimators of
+scikit-learn do. `simulate` is a function, since it is what you do to a system and not a part of it.
 
-The interaction `growth` returns a `RateLaw` on `n`. A law speaks the two verbs on its own too, so you can check it
+The interaction `growth` returns a `RateLaw` on `n`. A law has the two main public methods on its own too, so you can check it
 before it joins a system. Here it gives its rate at `n = 10`.
 
-```python
+```python continuation
 from sage.all__sagemath_symbolics import var
 
 from skcomplex.core.components.laws import RateLaw
@@ -94,9 +95,12 @@ continuously, in discrete steps, or not at all.
 A run records **observables**, named values computed from the states at every frame, and checks the **invariants** it
 is given.
 
-`skcomplex.core.components` holds the parts. `skcomplex.core.engine` compiles a system, infers its mathematical form
-from its laws, and builds fast numeric functions that its solvers advance. The laws decide the form, and the form
-decides the default solver.
+`skcomplex.core.components` holds the parts. `skcomplex.core.engine` holds `simulate`, the solvers, and the backends.
+The laws of a system give its tags, such as its law kinds and its time, and the tags decide the default solver.
+
+```python continuation
+sorted(system.get_tags().laws), sorted(system.get_tags().time)
+```
 
 | Laws | Form | Default solver |
 | --- | --- | --- |

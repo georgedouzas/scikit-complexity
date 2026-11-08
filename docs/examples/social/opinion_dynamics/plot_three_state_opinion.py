@@ -13,14 +13,14 @@ majority only when the sensitivity to the neighbours is large enough.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.social.opinion_dynamics import ThreeStateOpinionSystem
 
 SYSTEM = 'three_state_opinion'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(create_system(SYSTEM), observers=[observer], random_state=0).prepare().run(until=50)
+trajectory = simulate(ThreeStateOpinionSystem(), observers=[observer], random_state=0)
 
 # %%
 # Order with the sensitivity
@@ -32,8 +32,8 @@ simulation = Simulation(create_system(SYSTEM), observers=[observer], random_stat
 sensitivities = [0.5, 1.0, 2.0, 4.0, 8.0]
 order, undecided = [], []
 for sensitivity in sensitivities:
-    trajectory = Simulation(create_system(SYSTEM, sensitivity=sensitivity), random_state=0).prepare().run(100)
-    opinions = np.array([trajectory.trajectory_.agents('voters', frame).values['opinion'] for frame in range(50, 101)])
+    trajectory = simulate(ThreeStateOpinionSystem(sensitivity=sensitivity), until=100, random_state=0)
+    opinions = np.array([trajectory.agents('voters', frame).values['opinion'] for frame in range(50, 101)])
     order.append(np.mean(np.abs(opinions.mean(axis=1))))
     undecided.append(np.mean(opinions == 0))
 grid = np.linspace(0.3, 8, 100)

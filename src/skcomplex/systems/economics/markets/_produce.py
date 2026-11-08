@@ -13,15 +13,17 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 
 class ShopperView(AgentView):
-    """Shopper as its rule sees it: its `wanted` items, its `visited` stalls, its `missed` items, and its `spent`."""
+    """Shopper as its rule sees it.
+
+    It holds its `wanted` items, its `visited` stalls, its `missed` items, and its `spent`.
+    """
 
     wanted: float
     visited: float
@@ -30,7 +32,10 @@ class ShopperView(AgentView):
 
 
 class StallView(AgentView):
-    """Stall as the shoppers see it: its index `stall`, its `stock` of produce as a bit mask, and its `markup`."""
+    """Stall as the shoppers see it.
+
+    It holds its index `stall`, its `stock` of produce as a bit mask, and its `markup`.
+    """
 
     stall: float
     stock: float
@@ -41,9 +46,10 @@ WHOLESALE_PRICES = (0.6, 0.5, 0.7, 0.9, 1.2, 1.5, 0.8, 0.4, 0.5, 0.3, 0.6, 1.0)
 
 
 class ShopperElement(Element):
-    """Shopper who visits one stall a step that it has not visited yet and buys what it wants there.
+    """Shopper who visits one stall a step and buys what it wants there.
 
-    A shopper gives up the items that it has not found once it has visited every stall.
+    It only visits stalls it has not visited yet. A shopper gives up the items that it has not found once it has visited
+    every stall.
 
     Args:
         label:
@@ -70,6 +76,8 @@ class ShopperElement(Element):
         >>> GroupElement('shoppers', element=ShopperElement, size=5, values={'wanted': 3}).size
         5
     """
+
+    law_classes = (RuleLaw,)
 
     stalls: ClassVar[str] = 'stalls'
 
@@ -137,7 +145,9 @@ class ShopperElement(Element):
 
 
 class StallElement(Element):
-    """Market stall that sells some kinds of produce at the wholesale price plus its markup.
+    """Market stall that sells some kinds of produce.
+
+    It sells at the wholesale price plus its markup.
 
     Args:
         label:
@@ -161,6 +171,8 @@ class StallElement(Element):
         >>> GroupElement('stalls', element=StallElement, size=3, values={'stall': [0, 1, 2]}).size
         3
     """
+
+    law_classes = ()
 
     def __init__(
         self,
@@ -201,39 +213,18 @@ MAX_LIST_LENGTH = 8
 MAX_MARKUP = 30
 
 
-def _random_masks(sizes: npt.NDArray[np.int64], rng: np.random.Generator) -> Array:
-    """Return one bit mask per size, each with that many distinct items chosen at random."""
-    n_items = len(WHOLESALE_PRICES)
-    masks = [sum(1 << int(item) for item in rng.choice(n_items, size, replace=False)) for size in sizes]
-    return np.array(masks, dtype=float)
-
-
 def _items_left(wanted: object) -> float:
     """Return the mean number of items left on the shoppers' lists, given as bit masks."""
     return float(np.mean([len(ShopperElement._items_of(int(mask))) for mask in np.asarray(wanted, dtype=float)]))
 
 
-@register_system(
-    field='economics/markets',
-    tags=('market', 'agents', 'heterogeneity'),
-    references=('Hamill and Gilbert 2016',),
-    defaults={'until': 10},
-    observables=lambda system: [
-        ObservableSpec('items_left', group='shoppers', variable='wanted', reduce=_items_left),
-        ObservableSpec('spent', group='shoppers', variable='spent'),
-    ],
-)
-def produce_market(
-    n_shoppers: int = 50,
-    n_stalls: int = 9,
-    *,
-    n_items_stocked: int = 6,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return Hamill and Gilbert's produce market, where shoppers with lists of produce visit stalls at random.
+class ProduceMarketSystem(BaseSystem):
+    """Hamill and Gilbert's produce market.
 
-    There are twelve kinds of fruit and vegetables. Every stall sells a random selection of them at its own markup of 1
-    to 30 percent on the wholesale prices, and every shopper wants between one and eight of them.
+    Shoppers with lists of produce visit stalls at random. There are twelve kinds of fruit and vegetables. Every stall
+    sells a random selection of them at its own markup of 1 to 30 percent on the wholesale prices, and every shopper
+    wants between one and eight of them. The system has the groups `stalls` and `shoppers`, the mean number of items
+    left on the lists `items_left`, and the mean money spent `spent`.
 
     Args:
         n_shoppers:
@@ -248,27 +239,63 @@ def produce_market(
         random_state:
             The seed or generator of the stocks, the markups, and the shopping lists.
 
-    Returns:
-        system:
-            The system, with the groups `stalls` and `shoppers`, the mean number of items left on the lists
-            `items_left`, and the mean money spent `spent`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.markets import produce_market
-        >>> [group.size for group in produce_market(10, 3).elements]
+        >>> from skcomplex.systems.economics.markets import ProduceMarketSystem
+        >>> [group.size for group in ProduceMarketSystem(10, 3).prepare().system_.elements]
         [3, 10]
     """
-    rng = np.random.default_rng(random_state)
-    stocks = _random_masks(np.full(n_stalls, n_items_stocked), rng)
-    markups = rng.integers(1, MAX_MARKUP + 1, n_stalls) / 100
-    lists = _random_masks(rng.integers(1, MAX_LIST_LENGTH + 1, n_shoppers), rng)
-    stalls = GroupElement(
-        'stalls',
-        element=StallElement,
-        size=n_stalls,
-        values={'stall': np.arange(n_stalls, dtype=float), 'stock': stocks, 'markup': markups},
+
+    field = 'economics/markets'
+    topics = ('market', 'agents', 'heterogeneity')
+    references = ('Hamill and Gilbert 2016',)
+    until = 10
+    observables = (
+        ObservableSpec('items_left', group='shoppers', variable='wanted', reduce=_items_left),
+        ObservableSpec('spent', group='shoppers', variable='spent'),
     )
-    shoppers = GroupElement('shoppers', element=ShopperElement, size=n_shoppers, values={'wanted': lists})
-    return System(
-        elements=[stalls, shoppers],
-    )
+
+    def __init__(
+        self,
+        n_shoppers: int = 50,
+        n_stalls: int = 9,
+        *,
+        n_items_stocked: int = 6,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_shoppers = n_shoppers
+        self.n_stalls = n_stalls
+        self.n_items_stocked = n_items_stocked
+        self.random_state = random_state
+
+    @staticmethod
+    def _random_masks(sizes: npt.NDArray[np.int64], rng: np.random.Generator) -> Array:
+        """Return one bit mask per size.
+
+        Each mask has that many distinct items chosen at random.
+        """
+        n_items = len(WHOLESALE_PRICES)
+        masks = [sum(1 << int(item) for item in rng.choice(n_items, size, replace=False)) for size in sizes]
+        return np.array(masks, dtype=float)
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        stocks = self._random_masks(np.full(self.n_stalls, self.n_items_stocked), rng)
+        markups = rng.integers(1, MAX_MARKUP + 1, self.n_stalls) / 100
+        lists = self._random_masks(rng.integers(1, MAX_LIST_LENGTH + 1, self.n_shoppers), rng)
+        stalls = GroupElement(
+            'stalls',
+            element=StallElement,
+            size=self.n_stalls,
+            values={'stall': np.arange(self.n_stalls, dtype=float), 'stock': stocks, 'markup': markups},
+        )
+        shoppers = GroupElement('shoppers', element=ShopperElement, size=self.n_shoppers, values={'wanted': lists})
+        return System(
+            self.label,
+            elements=[stalls, shoppers],
+        )

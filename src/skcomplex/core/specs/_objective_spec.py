@@ -10,11 +10,11 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class ObjectiveSpec(BaseSpec):
-    """Spec of the local objective of a lattice site, every term of the total objective that involves the site's value.
+    """Spec of the local objective of a lattice site.
 
-    The change of a move is the difference of the local objective at the proposed and the current value. Neighbour
-    values are read with `neighbors(..., reduce='each')` in neighbourhood order, or summed with
-    `neighbors(..., reduce='sum')`.
+    It is every term of the total objective that involves the site's value. The change of a move is the difference of
+    the local objective at the proposed and the current value. Neighbour values are read with `neighbors(...,
+    reduce='each')` in neighbourhood order, or summed with `neighbors(..., reduce='sum')`.
 
     Args:
         expression:
@@ -36,4 +36,7 @@ class ObjectiveSpec(BaseSpec):
     over: object
 
     def _check(self) -> None:
-        """Accept the spec, which has nothing to check."""
+        """Accept the spec.
+
+        It has nothing to check.
+        """

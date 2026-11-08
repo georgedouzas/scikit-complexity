@@ -13,21 +13,22 @@ from ...components.spaces import ContinuousTime, LatticeSpace
 from ...errors import SolverError
 from ...specs import SupportSpec
 from ...types import Array, FormKind, Indices, IntArray, OrderKind
-from ..problems import KineticProblemSpec, ProblemSpec
+from ..problems import ProblemSpec
 from ..problems._encounter_kernel import EncounterKernel
+from ..problems._kinetic_problem_spec import KineticProblemSpec
 from ._solver import Solver
 
 
 class KineticSolver(Solver):
-    """Direct simulation Monte Carlo of encounter laws with finite particles on activity grids.
+    """Direct simulation Monte Carlo of encounter laws with finite particles.
 
-    Every density is held as counts of particles of one common mass, chosen so that the largest initial density has `n`
-    particles. Every step of length at most `dt` applies the encounter laws in turn. A candidate particle at activity
-    `h` encounters with probability `1 - exp(-lambda_h dt)`, where `lambda_h = sum_k eta[h, k] g_k` over the field
-    density `g`, and picks its field activity and outcome in proportion to `eta[h, k] A[h, k, i] g_k`. A proliferation
-    adds a Poisson number of particles and a destruction removes a binomial number. The state holds the empirical
-    densities, so the trajectories match those of the gain and loss equations, which the particles approach as `n`
-    grows.
+    The particles live on activity grids. Every density is held as counts of particles of one common mass, chosen so
+    that the largest initial density has `n` particles. Every step of length at most `dt` applies the encounter laws in
+    turn. A candidate particle at activity `h` encounters with probability `1 - exp(-lambda_h dt)`, where `lambda_h =
+    sum_k eta[h, k] g_k` over the field density `g`, and picks its field activity and outcome in proportion to `eta[h,
+    k] A[h, k, i] g_k`. A proliferation adds a Poisson number of particles and a destruction removes a binomial number.
+    The state holds the empirical densities, so the trajectories match those of the gain and loss equations, which the
+    particles approach as `n` grows.
 
     Args:
         n:
@@ -48,6 +49,8 @@ class KineticSolver(Solver):
         >>> KineticSolver(n=1000)._get_support().laws == {EncounterLaw, BilinearLaw}
         True
     """
+
+    draws = True
 
     @classmethod
     def _get_support(cls) -> SupportSpec:
@@ -78,7 +81,10 @@ class KineticSolver(Solver):
         self.until = until
 
     def _check_problem(self, problem: ProblemSpec) -> KineticProblemSpec:
-        """Return a problem of encounter laws, raising an error for laws other than encounters, or no encounter."""
+        """Return a problem of encounter laws.
+
+        An error is raised for laws other than encounters, or no encounter.
+        """
         if not isinstance(problem, KineticProblemSpec) or not problem.encounters:
             error_msg = 'KineticSolver samples encounter laws, but the problem has none. Use an ODE solver.'
             raise SolverError(error_msg)
@@ -125,7 +131,10 @@ class KineticSolver(Solver):
         self.initial_state_ = self._state(self.initial_state_)
 
     def _sample(self, x: Array) -> None:
-        """Draw the particle counts of every density from a state, with the mass that gives the largest one `n`."""
+        """Draw the particle counts of every density from a state.
+
+        The mass is the one that gives the largest density `n` particles.
+        """
         totals = [float(np.sum(x[indices])) for indices in self.densities_]
         if min((float(np.min(x[indices])) for indices in self.densities_), default=0.0) < 0:
             error_msg = 'KineticSolver samples nonnegative densities, but a density of the state is negative.'
@@ -176,7 +185,10 @@ class KineticSolver(Solver):
         counts -= self.rng_.binomial(counts, -np.expm1(-totals * step))
 
     def _apply_bilinear(self, encounter: EncounterKernel, p: Array, step: float) -> None:
-        """Add the particles of a positive rate, or remove those of a negative rate from the first density."""
+        """Add the particles of a positive rate, or remove those of a negative rate.
+
+        Particles are removed from the first density.
+        """
         rates = encounter.rate_matrix(p)
         if not np.any(rates < 0):
             self._proliferate(encounter, p, step)
@@ -196,10 +208,10 @@ class KineticSolver(Solver):
             actions[encounter.kind](encounter, p, step)
 
     def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
-        """Sample the encounters of the particles from time `t` to time `until` in equal steps no longer than `dt`.
+        """Sample the encounters of the particles from time `t` to time `until`.
 
-        A state that differs from the empirical densities of the particles, such as one an observer changed, is
-        sampled into particles anew.
+        Sampling takes equal steps no longer than `dt`. A state that differs from the empirical densities of the
+        particles, such as one an observer changed, is sampled into particles anew.
 
         Args:
             t:
@@ -234,7 +246,10 @@ class KineticSolver(Solver):
 
     @staticmethod
     def _densities(encounters: tuple[EncounterKernel, ...]) -> list[Indices]:
-        """Return the state indices of every density the encounters read or change, each once."""
+        """Return the state indices of every density the encounters read or change.
+
+        Each index appears once.
+        """
         found: dict[tuple[int, ...], Indices] = {}
         for encounter in encounters:
             for indices in (encounter.candidate, encounter.field, encounter.test):

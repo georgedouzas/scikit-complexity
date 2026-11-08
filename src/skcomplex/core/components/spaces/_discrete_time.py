@@ -3,6 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import ClassVar
+
 import numpy as np
 import numpy.typing as npt
 
@@ -14,7 +16,9 @@ SCHEDULES = ('synchronous', 'random-sequential')
 
 
 class DiscreteTime(BaseTime):
-    """Discrete time, in which updates, rules, local rules, rewrites, and samples change the states every step.
+    """Discrete time, in which the states change every step.
+
+    They change by updates, rules, local rules, rewrites, and samples.
 
     Args:
         schedule:
@@ -31,21 +35,27 @@ class DiscreteTime(BaseTime):
         'random-sequential'
     """
 
+    time_tag: ClassVar[str] = 'discrete'
+
     def __init__(self, schedule: str | ScheduleSpec = 'synchronous', *, label: str = 'time') -> None:
         super().__init__(label)
         self.schedule = schedule
 
-    def _check(self) -> None:
-        """Raise an error for a schedule that is neither known nor a `ScheduleSpec`."""
+    def _prepare(self, context: None = None) -> None:
+        """Set the schedule.
+
+        It first raises an error for a schedule that is neither known nor a `ScheduleSpec`.
+
+        Args:
+            context:
+                Nothing, since a time is prepared alone.
+        """
+        super()._prepare(context)
         if isinstance(self.schedule, ScheduleSpec):
-            self.schedule._validated()
-            return
-        if self.schedule not in SCHEDULES:
+            self.schedule._check()
+        elif self.schedule not in SCHEDULES:
             error_msg = f'Unknown schedule {self.schedule!r}. Use one of {", ".join(SCHEDULES)}, or a ScheduleSpec.'
             raise ValidationError(error_msg)
-
-    def _prepare(self, context: None = None) -> None:
-        """Set the schedule."""
         self.schedule_ = self.schedule
 
     def _get_frames(self, until: float) -> npt.NDArray[np.float64]:

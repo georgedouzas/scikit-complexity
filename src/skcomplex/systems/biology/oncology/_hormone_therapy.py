@@ -14,11 +14,10 @@ from ....core.components.elements import Element
 from ....core.components.interactions import BaseInteraction, CrossingInteraction, RateInteraction, ReactionInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import hill, pulse_train
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import ScipyODESolver
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from ..common.pharmacokinetics import DosingInteraction
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
@@ -43,7 +42,9 @@ PATIENT_FACTORS = {
 
 
 class AndrogenReceptorProstateElement(Element):
-    """Normal epithelium and prostate cancer cells driven by activated androgen receptors, with tissue and serum PSA.
+    """Normal epithelium and prostate cancer cells with tissue and serum PSA.
+
+    The cells are driven by activated androgen receptors.
 
     The normal cells follow `dN/dt = r1 N (1 - (N + c1 (AD + AI)) / b1) - d1 N`, the dependent cells
     `dAD/dt = r2 AD (1 - m1)(1 - L) - d2 AD`, and the independent cells `dAI/dt = r3 AI (1 - (c1 N + AD + AI) / b3)
@@ -56,7 +57,7 @@ class AndrogenReceptorProstateElement(Element):
     `v1 a^phi / (v2^phi + a^phi) + v3` at the age `a`, divided by the volume `Vc` of a billion cells.
 
     The element holds the states and parameters and has no laws of its own: the interactions of
-    `prostate_androgen_receptor` read its parameters.
+    `ProstateAndrogenReceptorSystem` read its parameters.
 
     Args:
         label:
@@ -271,14 +272,16 @@ class AndrogenReceptorProstateElement(Element):
 
 
 class AndrogenSuppressionElement(Element):
-    """Androgen-dependent and androgen-independent prostate cancer cells under continuous androgen suppression.
+    """Androgen-dependent and androgen-independent prostate cancer cells.
+
+    The cells are under continuous androgen suppression.
 
     The dependent cells follow `dAD/dt = r1 U (1 - b (AD + c1 AI)) AD - (d1 + m1)(1 - U / U0) AD`, the independent
     cells `dAI/dt = r2 (1 - b (AI + c2 AD)) AI + m1 (1 - U / U0) AD`, and the serum androgen
     `du/dt = -du (U - U0) - U0 du a`, which the drug efficacy `a` lowers to `U0 (1 - a)`.
 
     The element holds the states and parameters and has no laws of its own: the interactions of
-    `continuous_androgen_suppression` read its parameters.
+    `ContinuousAndrogenSuppressionSystem` read its parameters.
 
     Args:
         label:
@@ -368,7 +371,9 @@ class AndrogenSuppressionElement(Element):
 
 
 class CellQuotaProstateElement(Element):
-    """Prostate cancer cells whose growth and mutation follow their androgen cell quota, with the PSA they release.
+    """Prostate cancer cells that follow their androgen cell quota.
+
+    The growth and the mutation of the cells follow the quota, and the cells release PSA.
 
     The cells grow at the Droop rate `rm (1 - q_i / Q_i)`, die at `d_i`, and switch from dependent to independent at
     `mx1 m501^n / (Q1^n + m501^n)` and back at `mx2 Q2^n / (Q2^n + m502^n)`. The quotas follow
@@ -378,7 +383,7 @@ class CellQuotaProstateElement(Element):
     every `period` days and to `U0` otherwise.
 
     The element holds the states and parameters and has no laws of its own: the interactions of
-    `prostate_cell_quota` read its parameters.
+    `ProstateCellQuotaSystem` read its parameters.
 
     Args:
         label:
@@ -563,7 +568,9 @@ class CellQuotaProstateElement(Element):
 
 
 class IntermittentSuppressionElement(Element):
-    """Prostate cancer cells under androgen suppression that PSA thresholds switch on and off.
+    """Prostate cancer cells under androgen suppression switched by PSA.
+
+    PSA thresholds switch the suppression on and off.
 
     The dependent cells follow `dAD/dt = r1 (k1 + (1 - k1) U / (U + k2)) AD - d1 (k3 + (1 - k3) U / (U + k4)) AD
     - m1 (1 - U / U0) AD`, the independent cells `dAI/dt = m1 (1 - U / U0) AD + r2 (1 - U / U0) AI - d2 AI`, and
@@ -571,7 +578,7 @@ class IntermittentSuppressionElement(Element):
     through `h1` and 0 when it falls through `h0`.
 
     The element holds the states and parameters and has no laws of its own: the interactions of
-    `ideta_intermittent_androgen` read its parameters.
+    `IdetaIntermittentAndrogenSystem` read its parameters.
 
     Args:
         label:
@@ -681,7 +688,9 @@ class IntermittentSuppressionElement(Element):
 
 
 class PiecewiseLinearProstateElement(Element):
-    """Androgen-dependent, reversibly and irreversibly independent prostate cancer cells under intermittent therapy.
+    """Prostate cancer cells under intermittent therapy.
+
+    The cells are androgen-dependent, reversibly independent, or irreversibly independent.
 
     During therapy, `u = 1`, the cells follow `dAD/dt = w11_on AD`, `dAIR/dt = w21_on AD + w22_on AIR`, and
     `dAII/dt = w31_on AD + w32_on AIR + w33_on AII`. Off therapy they follow `dAD/dt = w11_off AD + w12_off AIR`,
@@ -752,6 +761,8 @@ class PiecewiseLinearProstateElement(Element):
         1.0
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -795,7 +806,9 @@ class PiecewiseLinearProstateElement(Element):
         self.x3 = x3
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the linear growth and transitions of each mode and the switching of the therapy.
+        """Return the linear growth and transitions of each mode.
+
+        The switching of the therapy comes with them.
 
         Args:
             s:
@@ -814,7 +827,9 @@ class PiecewiseLinearProstateElement(Element):
 
 
 class TamoxifenTumourElement(Element):
-    """Breast tumour in three Gompertzian cell-cycle phases under tamoxifen, its metabolite, and the lymphocytes.
+    """Breast tumour in three Gompertzian cell-cycle phases under tamoxifen.
+
+    The model includes the metabolite of tamoxifen and the lymphocytes.
 
     The phases follow `dAg/dt = -mg Ag L + 2 mm Am L - a1 Ag (UX + delta1 UH)`, `dAs/dt = -ms As + mg Ag L`, and
     `dAm/dt = -mm Am L + ms As`, with `L = log(Asat / (Ag + As + Am))`. Tamoxifen passes from the gut `X0` through
@@ -824,7 +839,7 @@ class TamoxifenTumourElement(Element):
     `dE/dt = s - d1 E - a2 E (UX + delta2 UH)`, and tamoxifen enters the gut at the constant rate `u`.
 
     The element holds the states and parameters and has no laws of its own: the interactions of
-    `tamoxifen_cell_cycle` read its parameters.
+    `TamoxifenCellCycleSystem` read its parameters.
 
     Args:
         label:
@@ -974,7 +989,9 @@ class TamoxifenTumourElement(Element):
 
 
 class TherapySwitchInteraction(CrossingInteraction):
-    """Switch that sets the therapy state of a tumour to a value when a signal crosses a threshold in a direction.
+    """Switch of the therapy state of a tumour when a signal crosses a threshold.
+
+    The switch sets the state to a value when the signal crosses in a direction.
 
     A pair of switches, one that sets the therapy to 1 when the signal rises through a high threshold and one that
     sets it to 0 when the signal falls through a low one, is the relay with hysteresis of intermittent therapy. Every
@@ -1045,82 +1062,28 @@ class TherapySwitchInteraction(CrossingInteraction):
         return self.value
 
 
-def _prostate_volume(target: SimpleNamespace, t: Expression) -> Expression:
-    """Return the prostate volume in cm³ at the age of the patient, `v1 a^phi / (v2^phi + a^phi) + v3`."""
-    age = target.age + t / 8760
-    volume: Expression = target.v1 * age**target.phi / (target.v2**target.phi + age**target.phi) + target.v3
-    return volume
-
-
-def _receptor_growth(target: SimpleNamespace, psi1: Expression, phi1: Expression) -> Expression:
-    """Return the growth rate that the receptors activated by DHT and testosterone drive."""
-    UD, UT = target.UD, target.UT
-    growth: Expression = psi1 * UD**2 / (target.psi2**2 + UD**2) + phi1 * UT**2 / (target.phi2**2 + UT**2)
-    return growth
-
-
-def _receptor_death(target: SimpleNamespace, psi3: Expression) -> Expression:
-    """Return the death rate that the activated receptors lower."""
-    death: Expression = psi3 / (target.psi4 + target.UD + target.UT)
-    return death
-
-
-def _dependent_division(target: SimpleNamespace) -> Expression:
-    """Return the division of androgen-dependent cells, crowded by the normal and the cancer cells."""
-    crowding = (target.c1 * target.N + target.AD + target.AI) / target.b2
-    division: Expression = _receptor_growth(target, target.psi1_d, target.phi1_d) * target.AD * (1 - crowding)
-    return division
-
-
-def _quota_uptake(target: SimpleNamespace, Q: Expression, q: Expression) -> Expression:
-    """Return the uptake of androgen into a quota, which slows as the quota fills."""
-    uptake: Expression = target.vm * (target.qm - Q) / (target.qm - q) * target.U / (target.U + target.v50)
-    return uptake
-
-
-def _room(target: SimpleNamespace) -> Expression:
-    """Return the Gompertz room `log(Asat / (Ag + As + Am))` that slows the passage through the cell cycle."""
-    room: Expression = log(target.Asat / (target.Ag + target.As + target.Am))
-    return room
-
-
 def _get_switches(signal: Callable[[SimpleNamespace], object], h0: float, h1: float) -> list[BaseInteraction]:
-    """Return the relay with hysteresis that starts the therapy above `h1` and stops it below `h0` of a signal."""
+    """Return the relay with hysteresis of a signal that starts and stops the therapy.
+
+    The relay starts the therapy above `h1` and stops it below `h0`.
+    """
     return [
         TherapySwitchInteraction('on', target='tumour', signal=signal, threshold=h1, value=1.0, direction=1),
         TherapySwitchInteraction('off', target='tumour', signal=signal, threshold=h0, value=0.0, direction=-1),
     ]
 
 
-@register_system(
-    field='biology/oncology',
-    tags=('hormone therapy', 'ode', 'prostate cancer', 'androgen'),
-    references=(BOOK, 'Zazoua and Wang 2019'),
-    defaults={'until': 1500.0, 'dt': 5.0},
-)
-def continuous_androgen_suppression(
-    AD: float = 10.0,
-    AI: float = 0.14,
-    U: float = 20.0,
-    *,
-    r1: float = 0.025,
-    r2: float = 0.006,
-    b: float = 0.091e-9,
-    c1: float = 0.9,
-    c2: float = 0.8,
-    d1: float = 0.064,
-    m1: float = 5e-5,
-    U0: float = 20.0,
-    du: float = 0.08,
-    a: float = 0.9,
-) -> System:
-    """Return prostate cancer under continuous androgen suppression, which androgen-independent cells survive.
+class ContinuousAndrogenSuppressionSystem(BaseSystem):
+    """Prostate cancer under continuous androgen suppression.
+
+    Androgen-independent cells survive the suppression.
 
     The suppression lowers the serum androgen from `U0` to `U0 (1 - a)` at the rate `du`. The androgen-dependent cells
     grow in proportion to the androgen and die and turn independent in proportion to the deprivation `1 - U / U0`, so
-    they decline once the suppression is deep enough, while the independent cells grow regardless and cause the
-    relapse. Cells are counted, androgen is in ng/mL, and time is in days. The book's efficacy lies between 0.6 and
-    0.9, and only the upper end makes the dependent cells decline.
+    they decline once the suppression is deep enough, while the independent cells grow regardless and cause the relapse.
+    Cells are counted, androgen is in ng/mL, and time is in days. The book's efficacy lies between 0.6 and 0.9, and only
+    the upper end makes the dependent cells decline. The system has the cells `tumour.AD` and `tumour.AI` and the
+    androgen `tumour.U`.
 
     Args:
         AD:
@@ -1162,107 +1125,128 @@ def continuous_androgen_suppression(
         a:
             The efficacy of the suppression.
 
-    Returns:
-        system:
-            The system, with the cells `tumour.AD` and `tumour.AI` and the androgen `tumour.U`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.oncology import continuous_androgen_suppression
-        >>> continuous_androgen_suppression(a=0.6).elements[0].a
+        >>> from skcomplex.systems.biology.oncology import ContinuousAndrogenSuppressionSystem
+        >>> ContinuousAndrogenSuppressionSystem(a=0.6).prepare().system_.elements[0].a
         0.6
     """
-    tumour = AndrogenSuppressionElement(
-        'tumour',
-        AD=AD,
-        AI=AI,
-        U=U,
-        r1=r1,
-        r2=r2,
-        b=b,
-        c1=c1,
-        c2=c2,
-        d1=d1,
-        m1=m1,
-        U0=U0,
-        du=du,
-        a=a,
-    )
-    interactions = [
-        RateInteraction(
-            'dependent_growth',
-            target='tumour',
-            state='AD',
-            rate=lambda s: s.target.r1
-            * s.target.U
-            * (1 - s.target.b * (s.target.AD + s.target.c1 * s.target.AI))
-            * s.target.AD,
-        ),
-        ReactionInteraction(
-            'deprivation_death',
-            target='tumour',
-            reactants={'AD': 1},
-            propensity=lambda s: s.target.d1 * (1 - s.target.U / s.target.U0) * s.target.AD,
-        ),
-        ReactionInteraction(
-            'mutation',
-            target='tumour',
-            reactants={'AD': 1},
-            products={'AI': 1},
-            propensity=lambda s: s.target.m1 * (1 - s.target.U / s.target.U0) * s.target.AD,
-        ),
-        RateInteraction(
-            'independent_growth',
-            target='tumour',
-            state='AI',
-            rate=lambda s: s.target.r2 * (1 - s.target.b * (s.target.AI + s.target.c2 * s.target.AD)) * s.target.AI,
-        ),
-        RateInteraction(
-            'androgen_production',
-            target='tumour',
-            state='U',
-            rate=lambda s: -s.target.du * (s.target.U - s.target.U0),
-        ),
-        RateInteraction(
-            'suppression',
-            target='tumour',
-            state='U',
-            rate=lambda s: -s.target.U0 * s.target.du * s.target.a,
-        ),
-    ]
-    return System(elements=[tumour], interactions=interactions)
+
+    field = 'biology/oncology'
+    topics = ('hormone therapy', 'ode', 'prostate cancer', 'androgen')
+    references = (BOOK, 'Zazoua and Wang 2019')
+    until = 1500.0
+    dt = 5.0
+
+    def __init__(
+        self,
+        AD: float = 10.0,
+        AI: float = 0.14,
+        U: float = 20.0,
+        *,
+        r1: float = 0.025,
+        r2: float = 0.006,
+        b: float = 0.091e-9,
+        c1: float = 0.9,
+        c2: float = 0.8,
+        d1: float = 0.064,
+        m1: float = 5e-5,
+        U0: float = 20.0,
+        du: float = 0.08,
+        a: float = 0.9,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.AD = AD
+        self.AI = AI
+        self.U = U
+        self.r1 = r1
+        self.r2 = r2
+        self.b = b
+        self.c1 = c1
+        self.c2 = c2
+        self.d1 = d1
+        self.m1 = m1
+        self.U0 = U0
+        self.du = du
+        self.a = a
+
+    def _build_system(self) -> System:
+        """Return the parts of prostate cancer under continuous androgen suppression."""
+        tumour = AndrogenSuppressionElement(
+            'tumour',
+            AD=self.AD,
+            AI=self.AI,
+            U=self.U,
+            r1=self.r1,
+            r2=self.r2,
+            b=self.b,
+            c1=self.c1,
+            c2=self.c2,
+            d1=self.d1,
+            m1=self.m1,
+            U0=self.U0,
+            du=self.du,
+            a=self.a,
+        )
+        interactions = [
+            RateInteraction(
+                'dependent_growth',
+                target='tumour',
+                state='AD',
+                rate=lambda s: s.target.r1
+                * s.target.U
+                * (1 - s.target.b * (s.target.AD + s.target.c1 * s.target.AI))
+                * s.target.AD,
+            ),
+            ReactionInteraction(
+                'deprivation_death',
+                target='tumour',
+                reactants={'AD': 1},
+                propensity=lambda s: s.target.d1 * (1 - s.target.U / s.target.U0) * s.target.AD,
+            ),
+            ReactionInteraction(
+                'mutation',
+                target='tumour',
+                reactants={'AD': 1},
+                products={'AI': 1},
+                propensity=lambda s: s.target.m1 * (1 - s.target.U / s.target.U0) * s.target.AD,
+            ),
+            RateInteraction(
+                'independent_growth',
+                target='tumour',
+                state='AI',
+                rate=lambda s: s.target.r2 * (1 - s.target.b * (s.target.AI + s.target.c2 * s.target.AD)) * s.target.AI,
+            ),
+            RateInteraction(
+                'androgen_production',
+                target='tumour',
+                state='U',
+                rate=lambda s: -s.target.du * (s.target.U - s.target.U0),
+            ),
+            RateInteraction(
+                'suppression',
+                target='tumour',
+                state='U',
+                rate=lambda s: -s.target.U0 * s.target.du * s.target.a,
+            ),
+        ]
+        return System(self.label, elements=[tumour], interactions=interactions)
 
 
-@register_system(
-    field='biology/oncology',
-    tags=('hormone therapy', 'ode', 'prostate cancer', 'events', 'intermittent'),
-    references=(BOOK, 'Ideta et al. 2008'),
-    defaults={'until': 600.0, 'dt': 2.0},
-)
-def ideta_intermittent_androgen(
-    AD: float = 5.0,
-    AI: float = 0.0,
-    *,
-    r1: float = 0.0204,
-    r2: float = 0.0242,
-    d1: float = 0.0076,
-    d2: float = 0.0168,
-    m1: float = 5e-5,
-    k1: float = 0.0,
-    k2: float = 2.0,
-    k3: float = 8.0,
-    k4: float = 0.5,
-    U0: float = 30.0,
-    du: float = 0.08,
-    h0: float = 10.0,
-    h1: float = 15.0,
-) -> System:
-    """Return the Ideta system of intermittent androgen suppression, switched on and off by PSA thresholds.
+class IdetaIntermittentAndrogenSystem(BaseSystem):
+    """The Ideta system of intermittent androgen suppression.
+
+    PSA thresholds switch the suppression on and off.
 
     The therapy starts when the serum PSA, the number of cancer cells, rises through `h1` and stops when it falls
     through `h0`. The androgen follows with the delay `1 / du`, so the dependent cells shrink during therapy and regrow
-    after it, and the PSA cycles between the thresholds while the independent cells stay few. Cells are counted, the
-    PSA is in ng/mL, the androgen in nmol/L, starting at its normal level `U0` within the book's 8 to 35, and time is
-    in days.
+    after it, and the PSA cycles between the thresholds while the independent cells stay few. Cells are counted, the PSA
+    is in ng/mL, the androgen in nmol/L, starting at its normal level `U0` within the book's 8 to 35, and time is in
+    days. The system has the cells `tumour.AD` and `tumour.AI`, the androgen `tumour.U`, the therapy `tumour.u`, and the
+    switches as `on` and `off` events.
 
     Args:
         AD:
@@ -1310,123 +1294,145 @@ def ideta_intermittent_androgen(
         h1:
             The PSA above which the therapy starts.
 
-    Returns:
-        system:
-            The system, with the cells `tumour.AD` and `tumour.AI`, the androgen `tumour.U`, the therapy `tumour.u`, and
-            the switches as `on` and `off` events.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.oncology import ideta_intermittent_androgen
-        >>> ideta_intermittent_androgen(h1=20.0).interactions[-2].threshold
+        >>> from skcomplex.systems.biology.oncology import IdetaIntermittentAndrogenSystem
+        >>> IdetaIntermittentAndrogenSystem(h1=20.0).prepare().system_.interactions[-2].threshold
         20.0
     """
-    tumour = IntermittentSuppressionElement(
-        'tumour',
-        AD=AD,
-        AI=AI,
-        U=U0,
-        r1=r1,
-        r2=r2,
-        d1=d1,
-        d2=d2,
-        m1=m1,
-        k1=k1,
-        k2=k2,
-        k3=k3,
-        k4=k4,
-        U0=U0,
-        du=du,
-    )
-    switches = _get_switches(lambda s: s.target.x1 * s.target.AD + s.target.x2 * s.target.AI, h0, h1)
-    interactions = [
-        RateInteraction(
-            'dependent_growth',
-            target='tumour',
-            state='AD',
-            rate=lambda s: s.target.r1
-            * (s.target.k1 + (1 - s.target.k1) * s.target.U / (s.target.U + s.target.k2))
-            * s.target.AD,
-        ),
-        ReactionInteraction(
-            'dependent_death',
-            target='tumour',
-            reactants={'AD': 1},
-            propensity=lambda s: s.target.d1
-            * (s.target.k3 + (1 - s.target.k3) * s.target.U / (s.target.U + s.target.k4))
-            * s.target.AD,
-        ),
-        ReactionInteraction(
-            'mutation',
-            target='tumour',
-            reactants={'AD': 1},
-            products={'AI': 1},
-            propensity=lambda s: s.target.m1 * (1 - s.target.U / s.target.U0) * s.target.AD,
-        ),
-        RateInteraction(
-            'independent_growth',
-            target='tumour',
-            state='AI',
-            rate=lambda s: s.target.r2 * (1 - s.target.U / s.target.U0) * s.target.AI,
-        ),
-        ReactionInteraction(
-            'independent_death',
-            target='tumour',
-            reactants={'AI': 1},
-            propensity=lambda s: s.target.d2 * s.target.AI,
-        ),
-        RateInteraction(
-            'androgen_production',
-            target='tumour',
-            state='U',
-            rate=lambda s: -s.target.du * (s.target.U - s.target.U0),
-        ),
-        RateInteraction(
-            'suppression',
-            target='tumour',
-            state='U',
-            rate=lambda s: -s.target.U0 * s.target.du * s.target.u,
-        ),
-        *switches,
-    ]
-    return System(elements=[tumour], interactions=interactions)
+
+    field = 'biology/oncology'
+    topics = ('hormone therapy', 'ode', 'prostate cancer', 'events', 'intermittent')
+    references = (BOOK, 'Ideta et al. 2008')
+    until = 600.0
+    dt = 2.0
+
+    def __init__(
+        self,
+        AD: float = 5.0,
+        AI: float = 0.0,
+        *,
+        r1: float = 0.0204,
+        r2: float = 0.0242,
+        d1: float = 0.0076,
+        d2: float = 0.0168,
+        m1: float = 5e-5,
+        k1: float = 0.0,
+        k2: float = 2.0,
+        k3: float = 8.0,
+        k4: float = 0.5,
+        U0: float = 30.0,
+        du: float = 0.08,
+        h0: float = 10.0,
+        h1: float = 15.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.AD = AD
+        self.AI = AI
+        self.r1 = r1
+        self.r2 = r2
+        self.d1 = d1
+        self.d2 = d2
+        self.m1 = m1
+        self.k1 = k1
+        self.k2 = k2
+        self.k3 = k3
+        self.k4 = k4
+        self.U0 = U0
+        self.du = du
+        self.h0 = h0
+        self.h1 = h1
+
+    def _build_system(self) -> System:
+        """Return the parts of the Ideta system of intermittent androgen suppression."""
+        tumour = IntermittentSuppressionElement(
+            'tumour',
+            AD=self.AD,
+            AI=self.AI,
+            U=self.U0,
+            r1=self.r1,
+            r2=self.r2,
+            d1=self.d1,
+            d2=self.d2,
+            m1=self.m1,
+            k1=self.k1,
+            k2=self.k2,
+            k3=self.k3,
+            k4=self.k4,
+            U0=self.U0,
+            du=self.du,
+        )
+        switches = _get_switches(lambda s: s.target.x1 * s.target.AD + s.target.x2 * s.target.AI, self.h0, self.h1)
+        interactions = [
+            RateInteraction(
+                'dependent_growth',
+                target='tumour',
+                state='AD',
+                rate=lambda s: s.target.r1
+                * (s.target.k1 + (1 - s.target.k1) * s.target.U / (s.target.U + s.target.k2))
+                * s.target.AD,
+            ),
+            ReactionInteraction(
+                'dependent_death',
+                target='tumour',
+                reactants={'AD': 1},
+                propensity=lambda s: s.target.d1
+                * (s.target.k3 + (1 - s.target.k3) * s.target.U / (s.target.U + s.target.k4))
+                * s.target.AD,
+            ),
+            ReactionInteraction(
+                'mutation',
+                target='tumour',
+                reactants={'AD': 1},
+                products={'AI': 1},
+                propensity=lambda s: s.target.m1 * (1 - s.target.U / s.target.U0) * s.target.AD,
+            ),
+            RateInteraction(
+                'independent_growth',
+                target='tumour',
+                state='AI',
+                rate=lambda s: s.target.r2 * (1 - s.target.U / s.target.U0) * s.target.AI,
+            ),
+            ReactionInteraction(
+                'independent_death',
+                target='tumour',
+                reactants={'AI': 1},
+                propensity=lambda s: s.target.d2 * s.target.AI,
+            ),
+            RateInteraction(
+                'androgen_production',
+                target='tumour',
+                state='U',
+                rate=lambda s: -s.target.du * (s.target.U - s.target.U0),
+            ),
+            RateInteraction(
+                'suppression',
+                target='tumour',
+                state='U',
+                rate=lambda s: -s.target.U0 * s.target.du * s.target.u,
+            ),
+            *switches,
+        ]
+        return System(self.label, elements=[tumour], interactions=interactions)
 
 
-@register_system(
-    field='biology/oncology',
-    tags=('hormone therapy', 'ode', 'prostate cancer', 'cell quota', 'intermittent'),
-    references=(BOOK, 'Portz, Kuang, and Nagy 2012'),
-    defaults={'until': 1500.0, 'dt': 5.0},
-)
-def prostate_cell_quota(
-    AD: float = 15.0,
-    AI: float = 0.0,
-    *,
-    rm: float = 0.025,
-    q1: float = 0.3,
-    q2: float = 0.15,
-    d1: float = 0.015,
-    d2: float = 0.015,
-    r0: float = 0.01,
-    r1: float = 0.15,
-    r2: float = 0.15,
-    n: float = 3.0,
-    theta: float = 3.0,
-    U0: float = 15.0,
-    Umin: float = 0.5,
-    du1: float = 0.08,
-    period: float = 500.0,
-    width: float = 250.0,
-) -> System:
-    """Return the Portz cell-quota system of prostate cancer, whose cells grow on their internal androgen.
+class ProstateCellQuotaSystem(BaseSystem):
+    """The Portz cell-quota system of prostate cancer.
 
-    The androgen-dependent and independent cells grow at the Droop rate `rm (1 - q_i / Q_i)` of their cell quotas,
-    which take up serum androgen, and the PSA they release follows the quotas. A deprived dependent cell turns
-    independent faster, and an independent cell full of androgen turns back. The serum androgen follows the
-    exponential relaxation of the book's equation 7.18 between the normal level `U0` and `Umin`, with therapy during
-    the first `width` days of every `period`. The book gives neither the steepness `n` of the mutation rates nor
-    `theta` of the PSA production, nor the serum levels, their relaxation rate, and the schedule, so these defaults
-    are chosen, and the other defaults lie within the book's ranges. Cells are in billions, quotas in nM, PSA in
-    ng/mL, and time in days. The PSA starts near its value for the initial quotas.
+    The cells grow on their internal androgen.
+
+    The androgen-dependent and independent cells grow at the Droop rate `rm (1 - q_i / Q_i)` of their cell quotas, which
+    take up serum androgen, and the PSA they release follows the quotas. A deprived dependent cell turns independent
+    faster, and an independent cell full of androgen turns back. The serum androgen follows the exponential relaxation
+    of the book's equation 7.18 between the normal level `U0` and `Umin`, with therapy during the first `width` days of
+    every `period`. The book gives neither the steepness `n` of the mutation rates nor `theta` of the PSA production,
+    nor the serum levels, their relaxation rate, and the schedule, so these defaults are chosen, and the other defaults
+    lie within the book's ranges. Cells are in billions, quotas in nM, PSA in ng/mL, and time in days. The PSA starts
+    near its value for the initial quotas. The system has the cells `tumour.AD` and `tumour.AI`, the quotas `tumour.Q1`
+    and `tumour.Q2`, the PSA `tumour.P`, and the androgen `tumour.U`.
 
     Args:
         AD:
@@ -1480,172 +1486,219 @@ def prostate_cell_quota(
         width:
             The duration of a therapy period.
 
-    Returns:
-        system:
-            The system, with the cells `tumour.AD` and `tumour.AI`, the quotas `tumour.Q1` and `tumour.Q2`, the PSA
-            `tumour.P`, and the androgen `tumour.U`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.oncology import prostate_cell_quota
-        >>> prostate_cell_quota(q1=0.45).elements[0].q1
+        >>> from skcomplex.systems.biology.oncology import ProstateCellQuotaSystem
+        >>> ProstateCellQuotaSystem(q1=0.45).prepare().system_.elements[0].q1
         0.45
     """
-    tumour = CellQuotaProstateElement(
-        'tumour',
-        AD=AD,
-        AI=AI,
-        U=U0,
-        rm=rm,
-        q1=q1,
-        q2=q2,
-        d1=d1,
-        d2=d2,
-        r0=r0,
-        r1=r1,
-        r2=r2,
-        n=n,
-        theta=theta,
-        U0=U0,
-        Umin=Umin,
-        du1=du1,
-        period=period,
-        width=width,
-    )
-    interactions = [
-        RateInteraction(
-            'dependent_growth',
-            target='tumour',
-            state='AD',
-            rate=lambda s: s.target.rm * (1 - s.target.q1 / s.target.Q1) * s.target.AD,
-        ),
-        ReactionInteraction(
-            'dependent_death',
-            target='tumour',
-            reactants={'AD': 1},
-            propensity=lambda s: s.target.d1 * s.target.AD,
-        ),
-        ReactionInteraction(
-            'to_independent',
-            target='tumour',
-            reactants={'AD': 1},
-            products={'AI': 1},
-            propensity=lambda s: s.target.mx1 * (1 - hill(s.target.Q1, s.target.m501, s.target.n)) * s.target.AD,
-        ),
-        ReactionInteraction(
-            'to_dependent',
-            target='tumour',
-            reactants={'AI': 1},
-            products={'AD': 1},
-            propensity=lambda s: s.target.mx2 * hill(s.target.Q2, s.target.m502, s.target.n) * s.target.AI,
-        ),
-        RateInteraction(
-            'independent_growth',
-            target='tumour',
-            state='AI',
-            rate=lambda s: s.target.rm * (1 - s.target.q2 / s.target.Q2) * s.target.AI,
-        ),
-        ReactionInteraction(
-            'independent_death',
-            target='tumour',
-            reactants={'AI': 1},
-            propensity=lambda s: s.target.d2 * s.target.AI,
-        ),
-        RateInteraction(
-            'dependent_uptake',
-            target='tumour',
-            state='Q1',
-            rate=lambda s: _quota_uptake(s.target, s.target.Q1, s.target.q1),
-        ),
-        RateInteraction(
-            'dependent_use',
-            target='tumour',
-            state='Q1',
-            rate=lambda s: -s.target.rm * (s.target.Q1 - s.target.q1),
-        ),
-        ReactionInteraction(
-            'dependent_degradation',
-            target='tumour',
-            reactants={'Q1': 1},
-            propensity=lambda s: s.target.d3 * s.target.Q1,
-        ),
-        RateInteraction(
-            'independent_uptake',
-            target='tumour',
-            state='Q2',
-            rate=lambda s: _quota_uptake(s.target, s.target.Q2, s.target.q2),
-        ),
-        RateInteraction(
-            'independent_use',
-            target='tumour',
-            state='Q2',
-            rate=lambda s: -s.target.rm * (s.target.Q2 - s.target.q2),
-        ),
-        ReactionInteraction(
-            'independent_degradation',
-            target='tumour',
-            reactants={'Q2': 1},
-            propensity=lambda s: s.target.d3 * s.target.Q2,
-        ),
-        RateInteraction(
-            'psa_leak',
-            target='tumour',
-            state='P',
-            rate=lambda s: s.target.r0 * (s.target.AD + s.target.AI),
-        ),
-        RateInteraction(
-            'psa_production',
-            target='tumour',
-            state='P',
-            rate=lambda s: s.target.r1 * s.target.AD * hill(s.target.Q1, s.target.rho1, s.target.theta)
-            + s.target.r2 * s.target.AI * hill(s.target.Q2, s.target.rho2, s.target.theta),
-        ),
-        ReactionInteraction(
-            'psa_clearance',
-            target='tumour',
-            reactants={'P': 1},
-            propensity=lambda s: s.target.du * s.target.P,
-        ),
-        RateInteraction(
-            'androgen',
-            target='tumour',
-            state='U',
-            rate=lambda s: s.target.du1
-            * (
-                s.target.U0 - (s.target.U0 - s.target.Umin) * pulse_train(s.t, tumour.period, tumour.width) - s.target.U
+
+    field = 'biology/oncology'
+    topics = ('hormone therapy', 'ode', 'prostate cancer', 'cell quota', 'intermittent')
+    references = (BOOK, 'Portz, Kuang, and Nagy 2012')
+    until = 1500.0
+    dt = 5.0
+
+    def __init__(
+        self,
+        AD: float = 15.0,
+        AI: float = 0.0,
+        *,
+        rm: float = 0.025,
+        q1: float = 0.3,
+        q2: float = 0.15,
+        d1: float = 0.015,
+        d2: float = 0.015,
+        r0: float = 0.01,
+        r1: float = 0.15,
+        r2: float = 0.15,
+        n: float = 3.0,
+        theta: float = 3.0,
+        U0: float = 15.0,
+        Umin: float = 0.5,
+        du1: float = 0.08,
+        period: float = 500.0,
+        width: float = 250.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.AD = AD
+        self.AI = AI
+        self.rm = rm
+        self.q1 = q1
+        self.q2 = q2
+        self.d1 = d1
+        self.d2 = d2
+        self.r0 = r0
+        self.r1 = r1
+        self.r2 = r2
+        self.n = n
+        self.theta = theta
+        self.U0 = U0
+        self.Umin = Umin
+        self.du1 = du1
+        self.period = period
+        self.width = width
+
+    @staticmethod
+    def _quota_uptake(target: SimpleNamespace, Q: Expression, q: Expression) -> Expression:
+        """Return the uptake of androgen into a quota.
+
+        The uptake slows as the quota fills.
+        """
+        uptake: Expression = target.vm * (target.qm - Q) / (target.qm - q) * target.U / (target.U + target.v50)
+        return uptake
+
+    def _build_system(self) -> System:
+        """Return the parts of the Portz cell-quota system of prostate cancer."""
+        tumour = CellQuotaProstateElement(
+            'tumour',
+            AD=self.AD,
+            AI=self.AI,
+            U=self.U0,
+            rm=self.rm,
+            q1=self.q1,
+            q2=self.q2,
+            d1=self.d1,
+            d2=self.d2,
+            r0=self.r0,
+            r1=self.r1,
+            r2=self.r2,
+            n=self.n,
+            theta=self.theta,
+            U0=self.U0,
+            Umin=self.Umin,
+            du1=self.du1,
+            period=self.period,
+            width=self.width,
+        )
+        interactions = [
+            RateInteraction(
+                'dependent_growth',
+                target='tumour',
+                state='AD',
+                rate=lambda s: s.target.rm * (1 - s.target.q1 / s.target.Q1) * s.target.AD,
             ),
-        ),
-    ]
-    return System(elements=[tumour], interactions=interactions)
+            ReactionInteraction(
+                'dependent_death',
+                target='tumour',
+                reactants={'AD': 1},
+                propensity=lambda s: s.target.d1 * s.target.AD,
+            ),
+            ReactionInteraction(
+                'to_independent',
+                target='tumour',
+                reactants={'AD': 1},
+                products={'AI': 1},
+                propensity=lambda s: s.target.mx1 * (1 - hill(s.target.Q1, s.target.m501, s.target.n)) * s.target.AD,
+            ),
+            ReactionInteraction(
+                'to_dependent',
+                target='tumour',
+                reactants={'AI': 1},
+                products={'AD': 1},
+                propensity=lambda s: s.target.mx2 * hill(s.target.Q2, s.target.m502, s.target.n) * s.target.AI,
+            ),
+            RateInteraction(
+                'independent_growth',
+                target='tumour',
+                state='AI',
+                rate=lambda s: s.target.rm * (1 - s.target.q2 / s.target.Q2) * s.target.AI,
+            ),
+            ReactionInteraction(
+                'independent_death',
+                target='tumour',
+                reactants={'AI': 1},
+                propensity=lambda s: s.target.d2 * s.target.AI,
+            ),
+            RateInteraction(
+                'dependent_uptake',
+                target='tumour',
+                state='Q1',
+                rate=lambda s: self._quota_uptake(s.target, s.target.Q1, s.target.q1),
+            ),
+            RateInteraction(
+                'dependent_use',
+                target='tumour',
+                state='Q1',
+                rate=lambda s: -s.target.rm * (s.target.Q1 - s.target.q1),
+            ),
+            ReactionInteraction(
+                'dependent_degradation',
+                target='tumour',
+                reactants={'Q1': 1},
+                propensity=lambda s: s.target.d3 * s.target.Q1,
+            ),
+            RateInteraction(
+                'independent_uptake',
+                target='tumour',
+                state='Q2',
+                rate=lambda s: self._quota_uptake(s.target, s.target.Q2, s.target.q2),
+            ),
+            RateInteraction(
+                'independent_use',
+                target='tumour',
+                state='Q2',
+                rate=lambda s: -s.target.rm * (s.target.Q2 - s.target.q2),
+            ),
+            ReactionInteraction(
+                'independent_degradation',
+                target='tumour',
+                reactants={'Q2': 1},
+                propensity=lambda s: s.target.d3 * s.target.Q2,
+            ),
+            RateInteraction(
+                'psa_leak',
+                target='tumour',
+                state='P',
+                rate=lambda s: s.target.r0 * (s.target.AD + s.target.AI),
+            ),
+            RateInteraction(
+                'psa_production',
+                target='tumour',
+                state='P',
+                rate=lambda s: s.target.r1 * s.target.AD * hill(s.target.Q1, s.target.rho1, s.target.theta)
+                + s.target.r2 * s.target.AI * hill(s.target.Q2, s.target.rho2, s.target.theta),
+            ),
+            ReactionInteraction(
+                'psa_clearance',
+                target='tumour',
+                reactants={'P': 1},
+                propensity=lambda s: s.target.du * s.target.P,
+            ),
+            RateInteraction(
+                'androgen',
+                target='tumour',
+                state='U',
+                rate=lambda s: s.target.du1
+                * (
+                    s.target.U0
+                    - (s.target.U0 - s.target.Umin) * pulse_train(s.t, tumour.period, tumour.width)
+                    - s.target.U
+                ),
+            ),
+        ]
+        return System(self.label, elements=[tumour], interactions=interactions)
 
 
-@register_system(
-    field='biology/oncology',
-    tags=('hormone therapy', 'ode', 'prostate cancer', 'androgen receptor', 'PSA'),
-    references=(BOOK, 'Jain et al. 2011'),
-    defaults={'until': 26280.0, 'dt': 168.0, 'solver': ScipyODESolver(method='LSODA')},
-)
-def prostate_androgen_receptor(
-    N: float = 1.5,
-    AD: float = 1.0,
-    AI: float = 0.0,
-    *,
-    UT: float = 40.0,
-    UD: float = 40.0,
-    m1: float = 1e-4,
-    age: float = 60.0,
-) -> System:
-    """Return the Jain system of prostate epithelium and cancer driven by activated androgen receptors, with PSA.
+class ProstateAndrogenReceptorSystem(BaseSystem):
+    """The Jain system of prostate epithelium and cancer, with PSA.
+
+    The cells are driven by activated androgen receptors.
 
     The growth and death rates of the normal, androgen-dependent, and androgen-independent cells follow the receptors
     activated by testosterone, `UT`, and dihydrotestosterone, `UD`, which are parameters, so androgen ablation is a
     lower activation. The normal cells fill a capacity that grows with the age-dependent prostate volume, and the PSA
-    the cells produce in the tissue leaks into the serum through the normal epithelium and, faster, through the
-    tumour. Cells are in billions, receptors in nM, PSA in ng/mL, and time in hours, the age in years. The book
-    leaves several parts open, filled as follows. The half saturations `psi2`, `phi2`, and `psi4` of the cancer cells
-    are those of the normal cells. The death rate is `psi3_i / (psi4 + UD + UT)`. One activation `UT`, `UD` holds
-    for all cell types, and so does `sigma`. The independent cells gain the part `m1` of the divisions of the
-    dependent cells. The negligible interaction `c1` is 0. The capacity of the normal cells is the prostate volume
-    over the volume of a billion cells, and the PSA leak rate per million cells becomes `0.3125` per billion.
+    the cells produce in the tissue leaks into the serum through the normal epithelium and, faster, through the tumour.
+    Cells are in billions, receptors in nM, PSA in ng/mL, and time in hours, the age in years. The book leaves several
+    parts open, filled as follows. The half saturations `psi2`, `phi2`, and `psi4` of the cancer cells are those of the
+    normal cells. The death rate is `psi3_i / (psi4 + UD + UT)`. One activation `UT`, `UD` holds for all cell types, and
+    so does `sigma`. The independent cells gain the part `m1` of the divisions of the dependent cells. The negligible
+    interaction `c1` is 0. The capacity of the normal cells is the prostate volume over the volume of a billion cells,
+    and the PSA leak rate per million cells becomes `0.3125` per billion. The system has the cells `prostate.N`,
+    `prostate.AD`, and `prostate.AI`, and the PSA `prostate.UIP` in the tissue and `prostate.UP` in the serum.
 
     Args:
         N:
@@ -1669,128 +1722,198 @@ def prostate_androgen_receptor(
         age:
             The age of the patient at the start.
 
-    Returns:
-        system:
-            The system, with the cells `prostate.N`, `prostate.AD`, and `prostate.AI`, and the PSA `prostate.UIP` in
-            the tissue and `prostate.UP` in the serum.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.oncology import prostate_androgen_receptor
-        >>> prostate_androgen_receptor(UT=5.0).elements[0].UT
+        >>> from skcomplex.systems.biology.oncology import ProstateAndrogenReceptorSystem
+        >>> ProstateAndrogenReceptorSystem(UT=5.0).prepare().system_.elements[0].UT
         5.0
     """
-    prostate = AndrogenReceptorProstateElement('prostate', N=N, AD=AD, AI=AI, UT=UT, UD=UD, m1=m1, age=age)
-    interactions = [
-        RateInteraction(
-            'normal_growth',
-            target='prostate',
-            state='N',
-            rate=lambda s: _receptor_growth(s.target, s.target.psi1_n, s.target.phi1_n)
-            * s.target.N
-            * (
-                1
-                - (s.target.N + s.target.c1 * (s.target.AD + s.target.AI))
-                / (_prostate_volume(s.target, s.t) / s.target.Vc)
+
+    field = 'biology/oncology'
+    topics = ('hormone therapy', 'ode', 'prostate cancer', 'androgen receptor', 'PSA')
+    references = (BOOK, 'Jain et al. 2011')
+    until = 26280.0
+    dt = 168.0
+    solver = ScipyODESolver(method='LSODA')
+
+    def __init__(
+        self,
+        N: float = 1.5,
+        AD: float = 1.0,
+        AI: float = 0.0,
+        *,
+        UT: float = 40.0,
+        UD: float = 40.0,
+        m1: float = 1e-4,
+        age: float = 60.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.N = N
+        self.AD = AD
+        self.AI = AI
+        self.UT = UT
+        self.UD = UD
+        self.m1 = m1
+        self.age = age
+
+    @staticmethod
+    def _prostate_volume(target: SimpleNamespace, t: Expression) -> Expression:
+        """Return the prostate volume in cm³ at the age of the patient.
+
+        The volume is `v1 a^phi / (v2^phi + a^phi) + v3`.
+        """
+        age = target.age + t / 8760
+        volume: Expression = target.v1 * age**target.phi / (target.v2**target.phi + age**target.phi) + target.v3
+        return volume
+
+    @staticmethod
+    def _receptor_growth(target: SimpleNamespace, psi1: Expression, phi1: Expression) -> Expression:
+        """Return the growth rate that the activated receptors drive.
+
+        The receptors are activated by DHT and testosterone.
+        """
+        UD, UT = target.UD, target.UT
+        growth: Expression = psi1 * UD**2 / (target.psi2**2 + UD**2) + phi1 * UT**2 / (target.phi2**2 + UT**2)
+        return growth
+
+    @staticmethod
+    def _receptor_death(target: SimpleNamespace, psi3: Expression) -> Expression:
+        """Return the death rate that the activated receptors lower."""
+        death: Expression = psi3 / (target.psi4 + target.UD + target.UT)
+        return death
+
+    def _dependent_division(self, target: SimpleNamespace) -> Expression:
+        """Return the division of androgen-dependent cells.
+
+        The normal and the cancer cells crowd the division.
+        """
+        crowding = (target.c1 * target.N + target.AD + target.AI) / target.b2
+        division: Expression = self._receptor_growth(target, target.psi1_d, target.phi1_d) * target.AD * (1 - crowding)
+        return division
+
+    def _build_system(self) -> System:
+        """Return the parts of the system."""
+        prostate = AndrogenReceptorProstateElement(
+            'prostate',
+            N=self.N,
+            AD=self.AD,
+            AI=self.AI,
+            UT=self.UT,
+            UD=self.UD,
+            m1=self.m1,
+            age=self.age,
+        )
+        interactions = [
+            RateInteraction(
+                'normal_growth',
+                target='prostate',
+                state='N',
+                rate=lambda s: self._receptor_growth(s.target, s.target.psi1_n, s.target.phi1_n)
+                * s.target.N
+                * (
+                    1
+                    - (s.target.N + s.target.c1 * (s.target.AD + s.target.AI))
+                    / (self._prostate_volume(s.target, s.t) / s.target.Vc)
+                ),
             ),
-        ),
-        ReactionInteraction(
-            'normal_death',
-            target='prostate',
-            reactants={'N': 1},
-            propensity=lambda s: _receptor_death(s.target, s.target.psi3_n) * s.target.N,
-        ),
-        RateInteraction(
-            'dependent_division',
-            target='prostate',
-            state='AD',
-            rate=lambda s: _dependent_division(s.target),
-        ),
-        ReactionInteraction(
-            'mutation',
-            target='prostate',
-            reactants={'AD': 1},
-            products={'AI': 1},
-            propensity=lambda s: s.target.m1 * _dependent_division(s.target),
-        ),
-        ReactionInteraction(
-            'dependent_death',
-            target='prostate',
-            reactants={'AD': 1},
-            propensity=lambda s: _receptor_death(s.target, s.target.psi3_d) * s.target.AD,
-        ),
-        RateInteraction(
-            'independent_growth',
-            target='prostate',
-            state='AI',
-            rate=lambda s: _receptor_growth(s.target, s.target.psi1_i, s.target.phi1_i)
-            * s.target.AI
-            * (1 - (s.target.c1 * s.target.N + s.target.AD + s.target.AI) / s.target.b3),
-        ),
-        ReactionInteraction(
-            'independent_death',
-            target='prostate',
-            reactants={'AI': 1},
-            propensity=lambda s: _receptor_death(s.target, s.target.psi3_i) * s.target.AI,
-        ),
-        RateInteraction(
-            'psa_production',
-            target='prostate',
-            state='UIP',
-            rate=lambda s: (s.target.UT + s.target.UD + s.target.sigma)
-            * (s.target.beta_n * s.target.N + s.target.beta_d * s.target.AD + s.target.beta_i * s.target.AI),
-        ),
-        ReactionInteraction(
-            'normal_leak',
-            target='prostate',
-            reactants={'UIP': 1},
-            products={'UP': 1},
-            propensity=lambda s: s.target.du1
-            * s.target.UIP
-            * s.target.N
-            / (_prostate_volume(s.target, s.t) / s.target.Vc),
-        ),
-        ReactionInteraction(
-            'cancer_leak',
-            target='prostate',
-            reactants={'UIP': 1},
-            products={'UP': 1},
-            propensity=lambda s: s.target.gamma_p
-            * s.target.UIP
-            * (s.target.AD + s.target.AI) ** 2
-            / (s.target.KP + s.target.AD + s.target.AI),
-        ),
-        ReactionInteraction(
-            'intracellular_clearance',
-            target='prostate',
-            reactants={'UIP': 1},
-            propensity=lambda s: s.target.du2 * s.target.UIP,
-        ),
-        ReactionInteraction(
-            'serum_clearance',
-            target='prostate',
-            reactants={'UP': 1},
-            propensity=lambda s: s.target.du3 * s.target.UP,
-        ),
-    ]
-    return System(elements=[prostate], interactions=interactions)
+            ReactionInteraction(
+                'normal_death',
+                target='prostate',
+                reactants={'N': 1},
+                propensity=lambda s: self._receptor_death(s.target, s.target.psi3_n) * s.target.N,
+            ),
+            RateInteraction(
+                'dependent_division',
+                target='prostate',
+                state='AD',
+                rate=lambda s: self._dependent_division(s.target),
+            ),
+            ReactionInteraction(
+                'mutation',
+                target='prostate',
+                reactants={'AD': 1},
+                products={'AI': 1},
+                propensity=lambda s: s.target.m1 * self._dependent_division(s.target),
+            ),
+            ReactionInteraction(
+                'dependent_death',
+                target='prostate',
+                reactants={'AD': 1},
+                propensity=lambda s: self._receptor_death(s.target, s.target.psi3_d) * s.target.AD,
+            ),
+            RateInteraction(
+                'independent_growth',
+                target='prostate',
+                state='AI',
+                rate=lambda s: self._receptor_growth(s.target, s.target.psi1_i, s.target.phi1_i)
+                * s.target.AI
+                * (1 - (s.target.c1 * s.target.N + s.target.AD + s.target.AI) / s.target.b3),
+            ),
+            ReactionInteraction(
+                'independent_death',
+                target='prostate',
+                reactants={'AI': 1},
+                propensity=lambda s: self._receptor_death(s.target, s.target.psi3_i) * s.target.AI,
+            ),
+            RateInteraction(
+                'psa_production',
+                target='prostate',
+                state='UIP',
+                rate=lambda s: (s.target.UT + s.target.UD + s.target.sigma)
+                * (s.target.beta_n * s.target.N + s.target.beta_d * s.target.AD + s.target.beta_i * s.target.AI),
+            ),
+            ReactionInteraction(
+                'normal_leak',
+                target='prostate',
+                reactants={'UIP': 1},
+                products={'UP': 1},
+                propensity=lambda s: s.target.du1
+                * s.target.UIP
+                * s.target.N
+                / (self._prostate_volume(s.target, s.t) / s.target.Vc),
+            ),
+            ReactionInteraction(
+                'cancer_leak',
+                target='prostate',
+                reactants={'UIP': 1},
+                products={'UP': 1},
+                propensity=lambda s: s.target.gamma_p
+                * s.target.UIP
+                * (s.target.AD + s.target.AI) ** 2
+                / (s.target.KP + s.target.AD + s.target.AI),
+            ),
+            ReactionInteraction(
+                'intracellular_clearance',
+                target='prostate',
+                reactants={'UIP': 1},
+                propensity=lambda s: s.target.du2 * s.target.UIP,
+            ),
+            ReactionInteraction(
+                'serum_clearance',
+                target='prostate',
+                reactants={'UP': 1},
+                propensity=lambda s: s.target.du3 * s.target.UP,
+            ),
+        ]
+        return System(self.label, elements=[prostate], interactions=interactions)
 
 
-@register_system(
-    field='biology/oncology',
-    tags=('hormone therapy', 'ode', 'prostate cancer', 'piecewise linear', 'events', 'intermittent'),
-    references=(BOOK, 'Hirata, Bruchovsky, and Aihara 2010'),
-    defaults={'until': 1500.0, 'dt': 5.0},
-)
-def piecewise_linear_ias(patient: int = 1, *, h0: float = 4.0, h1: float = 10.0) -> System:
-    """Return the Hirata piecewise-linear system of intermittent androgen suppression for one of three patient types.
+class PiecewiseLinearIASSystem(BaseSystem):
+    """The Hirata piecewise-linear system of intermittent androgen suppression.
 
-    The androgen-dependent, adapted, and mutated cells grow and change into each other linearly, with one set of
-    rates during therapy and one off therapy, and the therapy switches on when the PSA, the sum of the cells, rises
-    through `h1` and off when it falls through `h0`. The rates are the book's daily factors, `w = omega - 1` on the
-    diagonal and `w = omega` off it. Patient 1 does not relapse, patient 2 relapses late, and patient 3 relapses,
-    once the mutated cells outgrow the therapy. The book only states that therapy starts above 10 ng/mL, so the
-    therapy stops below 4 ng/mL and is on at the start when the PSA exceeds `h1`. The cells are in units of the PSA,
-    ng/mL, and time is in days.
+    The system holds for one of three patient types.
+
+    The androgen-dependent, adapted, and mutated cells grow and change into each other linearly, with one set of rates
+    during therapy and one off therapy, and the therapy switches on when the PSA, the sum of the cells, rises through
+    `h1` and off when it falls through `h0`. The rates are the book's daily factors, `w = omega - 1` on the diagonal and
+    `w = omega` off it. Patient 1 does not relapse, patient 2 relapses late, and patient 3 relapses, once the mutated
+    cells outgrow the therapy. The book only states that therapy starts above 10 ng/mL, so the therapy stops below 4
+    ng/mL and is on at the start when the PSA exceeds `h1`. The cells are in units of the PSA, ng/mL, and time is in
+    days. The system has the cells `tumour.AD`, `tumour.AIR`, and `tumour.AII`, the therapy `tumour.u`, and the switches
+    as `on` and `off` events.
 
     Args:
         patient:
@@ -1802,75 +1925,84 @@ def piecewise_linear_ias(patient: int = 1, *, h0: float = 4.0, h1: float = 10.0)
         h1:
             The PSA above which the therapy starts.
 
-    Returns:
-        system:
-            The system, with the cells `tumour.AD`, `tumour.AIR`, and `tumour.AII`, the therapy `tumour.u`, and the
-            switches as `on` and `off` events.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValidationError:
             The patient type is not 1, 2, or 3.
 
     Examples:
-        >>> from skcomplex.systems.biology.oncology import piecewise_linear_ias
-        >>> piecewise_linear_ias(patient=3).elements[0].AD
+        >>> from skcomplex.systems.biology.oncology import PiecewiseLinearIASSystem
+        >>> PiecewiseLinearIASSystem(patient=3).prepare().system_.elements[0].AD
         11.02
     """
-    if patient not in PATIENT_FACTORS:
-        error_msg = f'The patient type must be 1, 2, or 3, got {patient!r}.'
-        raise ValidationError(error_msg)
-    factors = PATIENT_FACTORS[patient]
-    on11, on21, on22, on31, on32, on33 = factors['on']
-    off11, off12, off22, off33 = factors['off']
-    AD, AIR, AII = factors['cells']
-    tumour = PiecewiseLinearProstateElement(
-        'tumour',
-        AD=AD,
-        AIR=AIR,
-        AII=AII,
-        u=float(h1 < AD + AIR + AII),
-        w11_on=on11 - 1,
-        w21_on=on21,
-        w22_on=on22 - 1,
-        w31_on=on31,
-        w32_on=on32,
-        w33_on=on33 - 1,
-        w11_off=off11 - 1,
-        w12_off=off12,
-        w22_off=off22 - 1,
-        w33_off=off33 - 1,
-    )
-    switches = _get_switches(
-        lambda s: s.target.x1 * s.target.AD + s.target.x2 * s.target.AIR + s.target.x3 * s.target.AII,
-        h0,
-        h1,
-    )
-    return System(elements=[tumour], interactions=switches)
+
+    field = 'biology/oncology'
+    topics = ('hormone therapy', 'ode', 'prostate cancer', 'piecewise linear', 'events', 'intermittent')
+    references = (BOOK, 'Hirata, Bruchovsky, and Aihara 2010')
+    until = 1500.0
+    dt = 5.0
+
+    def __init__(
+        self,
+        patient: int = 1,
+        *,
+        h0: float = 4.0,
+        h1: float = 10.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.patient = patient
+        self.h0 = h0
+        self.h1 = h1
+
+    def _build_system(self) -> System:
+        """Return the parts of the system."""
+        if self.patient not in PATIENT_FACTORS:
+            error_msg = f'The patient type must be 1, 2, or 3, got {self.patient!r}.'
+            raise ValidationError(error_msg)
+        factors = PATIENT_FACTORS[self.patient]
+        on11, on21, on22, on31, on32, on33 = factors['on']
+        off11, off12, off22, off33 = factors['off']
+        AD, AIR, AII = factors['cells']
+        tumour = PiecewiseLinearProstateElement(
+            'tumour',
+            AD=AD,
+            AIR=AIR,
+            AII=AII,
+            u=float(self.h1 < AD + AIR + AII),
+            w11_on=on11 - 1,
+            w21_on=on21,
+            w22_on=on22 - 1,
+            w31_on=on31,
+            w32_on=on32,
+            w33_on=on33 - 1,
+            w11_off=off11 - 1,
+            w12_off=off12,
+            w22_off=off22 - 1,
+            w33_off=off33 - 1,
+        )
+        switches = _get_switches(
+            lambda s: s.target.x1 * s.target.AD + s.target.x2 * s.target.AIR + s.target.x3 * s.target.AII,
+            self.h0,
+            self.h1,
+        )
+        return System(self.label, elements=[tumour], interactions=switches)
 
 
-@register_system(
-    field='biology/oncology',
-    tags=('hormone therapy', 'ode', 'breast cancer', 'cell cycle', 'pharmacokinetics'),
-    references=(BOOK, 'Chen, Kirkby, and Jena 2012'),
-    defaults={'until': 2400.0, 'dt': 8.0, 'solver': ScipyODESolver(method='LSODA')},
-)
-def tamoxifen_cell_cycle(
-    Ag: float = 900.0,
-    As: float = 50.0,
-    Am: float = 50.0,
-    *,
-    u: float = 12.5,
-    a1: float = 0.0062,
-    a2: float = 0.010,
-) -> System:
-    """Return a breast tumour in Gompertzian cell-cycle phases under daily tamoxifen and its active metabolite.
+class TamoxifenCellCycleSystem(BaseSystem):
+    """A breast tumour in Gompertzian cell-cycle phases under daily tamoxifen.
 
-    The cells pass from the growth phase through synthesis to mitosis and divide back into the growth phase, at
-    rates that slow as the tumour approaches `Asat`. Tamoxifen is absorbed from the gut into the plasma, where it is
+    The active metabolite of tamoxifen also acts on the tumour.
+
+    The cells pass from the growth phase through synthesis to mitosis and divide back into the growth phase, at rates
+    that slow as the tumour approaches `Asat`. Tamoxifen is absorbed from the gut into the plasma, where it is
     metabolized into 4-hydroxytamoxifen, and both kill cells in the growth phase, the metabolite 25 times more. They
     also kill circulating lymphocytes, which stay at `s / d1` without the drug. The book gives no infusion rate, so the
-    default `u` is 300 μg a day, given continuously. Volumes are in mm³, drug masses in μg, concentrations in
-    μg/mL, lymphocytes in millions, and time in hours.
+    default `u` is 300 μg a day, given continuously. Volumes are in mm³, drug masses in μg, concentrations in μg/mL,
+    lymphocytes in millions, and time in hours. The system has the phases `tumour.Ag`, `tumour.As`, and `tumour.Am`, the
+    drug masses `tumour.X0` to `tumour.X3`, and the lymphocytes `tumour.E`.
 
     Args:
         Ag:
@@ -1891,95 +2023,131 @@ def tamoxifen_cell_cycle(
         a2:
             The kill rate of the lymphocytes per unit of drug.
 
-    Returns:
-        system:
-            The system, with the phases `tumour.Ag`, `tumour.As`, and `tumour.Am`, the drug masses `tumour.X0` to
-            `tumour.X3`, and the lymphocytes `tumour.E`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.oncology import tamoxifen_cell_cycle
-        >>> tamoxifen_cell_cycle(u=0.0).elements[0].u
+        >>> from skcomplex.systems.biology.oncology import TamoxifenCellCycleSystem
+        >>> TamoxifenCellCycleSystem(u=0.0).prepare().system_.elements[0].u
         0.0
     """
-    tumour = TamoxifenTumourElement('tumour', Ag=Ag, As=As, Am=Am, u=u, a1=a1, a2=a2)
-    interactions = [
-        ReactionInteraction(
-            'g1_exit',
-            target='tumour',
-            reactants={'Ag': 1},
-            products={'As': 1},
-            propensity=lambda s: s.target.mg * s.target.Ag * _room(s.target),
-        ),
-        ReactionInteraction(
-            'synthesis',
-            target='tumour',
-            reactants={'As': 1},
-            products={'Am': 1},
-            propensity=lambda s: s.target.ms * s.target.As,
-        ),
-        ReactionInteraction(
-            'mitosis',
-            target='tumour',
-            reactants={'Am': 1},
-            products={'Ag': 2},
-            propensity=lambda s: s.target.mm * s.target.Am * _room(s.target),
-        ),
-        ReactionInteraction(
-            'drug_kill',
-            target='tumour',
-            reactants={'Ag': 1},
-            propensity=lambda s: s.target.a1
-            * s.target.Ag
-            * (s.target.X2 / s.target.V + s.target.delta1 * s.target.X3 / s.target.V),
-        ),
-        DosingInteraction('dosing', target='tumour', state='X0', dose=lambda s: s.target.u),
-        ReactionInteraction(
-            'absorption',
-            target='tumour',
-            reactants={'X0': 1},
-            products={'X1': 1},
-            propensity=lambda s: s.target.k01 * s.target.X0,
-        ),
-        ReactionInteraction(
-            'transport',
-            target='tumour',
-            reactants={'X1': 1},
-            products={'X2': 1},
-            propensity=lambda s: s.target.k12 * s.target.X1,
-        ),
-        ReactionInteraction(
-            'metabolism',
-            target='tumour',
-            reactants={'X2': 1},
-            products={'X3': 1},
-            propensity=lambda s: s.target.k23 * s.target.X2,
-        ),
-        ReactionInteraction(
-            'tamoxifen_clearance',
-            target='tumour',
-            reactants={'X2': 1},
-            propensity=lambda s: s.target.du1 * s.target.X2,
-        ),
-        ReactionInteraction(
-            'metabolite_clearance',
-            target='tumour',
-            reactants={'X3': 1},
-            propensity=lambda s: s.target.du2 * s.target.X3,
-        ),
-        RateInteraction('effector_source', target='tumour', state='E', rate=lambda s: s.target.s),
-        ReactionInteraction(
-            'effector_death',
-            target='tumour',
-            reactants={'E': 1},
-            propensity=lambda s: s.target.d1 * s.target.E,
-        ),
-        ReactionInteraction(
-            'effector_drug_kill',
-            target='tumour',
-            reactants={'E': 1},
-            propensity=lambda s: s.target.a2
-            * s.target.E
-            * (s.target.X2 / s.target.V + s.target.delta2 * s.target.X3 / s.target.V),
-        ),
-    ]
-    return System(elements=[tumour], interactions=interactions)
+
+    field = 'biology/oncology'
+    topics = ('hormone therapy', 'ode', 'breast cancer', 'cell cycle', 'pharmacokinetics')
+    references = (BOOK, 'Chen, Kirkby, and Jena 2012')
+    until = 2400.0
+    dt = 8.0
+    solver = ScipyODESolver(method='LSODA')
+
+    def __init__(
+        self,
+        Ag: float = 900.0,
+        As: float = 50.0,
+        Am: float = 50.0,
+        *,
+        u: float = 12.5,
+        a1: float = 0.0062,
+        a2: float = 0.010,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.Ag = Ag
+        self.As = As
+        self.Am = Am
+        self.u = u
+        self.a1 = a1
+        self.a2 = a2
+
+    @staticmethod
+    def _room(target: SimpleNamespace) -> Expression:
+        """Return the Gompertz room `log(Asat / (Ag + As + Am))`.
+
+        The room slows the passage through the cell cycle.
+        """
+        room: Expression = log(target.Asat / (target.Ag + target.As + target.Am))
+        return room
+
+    def _build_system(self) -> System:
+        """Return the parts of the system."""
+        tumour = TamoxifenTumourElement('tumour', Ag=self.Ag, As=self.As, Am=self.Am, u=self.u, a1=self.a1, a2=self.a2)
+        interactions = [
+            ReactionInteraction(
+                'g1_exit',
+                target='tumour',
+                reactants={'Ag': 1},
+                products={'As': 1},
+                propensity=lambda s: s.target.mg * s.target.Ag * self._room(s.target),
+            ),
+            ReactionInteraction(
+                'synthesis',
+                target='tumour',
+                reactants={'As': 1},
+                products={'Am': 1},
+                propensity=lambda s: s.target.ms * s.target.As,
+            ),
+            ReactionInteraction(
+                'mitosis',
+                target='tumour',
+                reactants={'Am': 1},
+                products={'Ag': 2},
+                propensity=lambda s: s.target.mm * s.target.Am * self._room(s.target),
+            ),
+            ReactionInteraction(
+                'drug_kill',
+                target='tumour',
+                reactants={'Ag': 1},
+                propensity=lambda s: s.target.a1
+                * s.target.Ag
+                * (s.target.X2 / s.target.V + s.target.delta1 * s.target.X3 / s.target.V),
+            ),
+            DosingInteraction('dosing', target='tumour', state='X0', dose=lambda s: s.target.u),
+            ReactionInteraction(
+                'absorption',
+                target='tumour',
+                reactants={'X0': 1},
+                products={'X1': 1},
+                propensity=lambda s: s.target.k01 * s.target.X0,
+            ),
+            ReactionInteraction(
+                'transport',
+                target='tumour',
+                reactants={'X1': 1},
+                products={'X2': 1},
+                propensity=lambda s: s.target.k12 * s.target.X1,
+            ),
+            ReactionInteraction(
+                'metabolism',
+                target='tumour',
+                reactants={'X2': 1},
+                products={'X3': 1},
+                propensity=lambda s: s.target.k23 * s.target.X2,
+            ),
+            ReactionInteraction(
+                'tamoxifen_clearance',
+                target='tumour',
+                reactants={'X2': 1},
+                propensity=lambda s: s.target.du1 * s.target.X2,
+            ),
+            ReactionInteraction(
+                'metabolite_clearance',
+                target='tumour',
+                reactants={'X3': 1},
+                propensity=lambda s: s.target.du2 * s.target.X3,
+            ),
+            RateInteraction('effector_source', target='tumour', state='E', rate=lambda s: s.target.s),
+            ReactionInteraction(
+                'effector_death',
+                target='tumour',
+                reactants={'E': 1},
+                propensity=lambda s: s.target.d1 * s.target.E,
+            ),
+            ReactionInteraction(
+                'effector_drug_kill',
+                target='tumour',
+                reactants={'E': 1},
+                propensity=lambda s: s.target.a2
+                * s.target.E
+                * (s.target.X2 / s.target.V + s.target.delta2 * s.target.X3 / s.target.V),
+            ),
+        ]
+        return System(self.label, elements=[tumour], interactions=interactions)

@@ -6,22 +6,21 @@ settles on sustained oscillations around it, because the delay `tau` times the g
 """
 
 # %%
-# The system is created by name from the catalog with `r tau = 2`, above the threshold of π/2. The observer saves
-# every fourth frame with the default blueprint, whose primary view is the time series of the population.
+# The system is built from its class with `r tau = 2`, above the threshold of π/2. The observer saves every fourth
+# frame with the default blueprint, whose primary view is the time series of the population.
 
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.signal import find_peaks
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.ecology import HutchinsonSystem
 
 SYSTEM = 'hutchinson'
 
-system = create_system(SYSTEM, n=50.0, r=1.0, K=100.0, tau=2.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=100)
+trajectory = simulate(HutchinsonSystem(n=50.0, r=1.0, K=100.0, tau=2.0), observers=[observer])
 
 # %%
 # Period of the oscillation
@@ -29,7 +28,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(unti
 # Near the threshold the period of the oscillation is `4 tau`, and it lengthens as `r tau` grows. The time between
 # successive peaks of the settled oscillation should be somewhat above `4 tau = 8`, and the same at every peak.
 
-times, population = simulation.trajectory_.times, simulation.trajectory_.values('population.n')
+times, population = trajectory.times, trajectory.values('population.n')
 peaks, _ = find_peaks(population)
 periods = np.diff(times[peaks])
 fig, (series, period) = plt.subplots(1, 2, figsize=(10, 4))

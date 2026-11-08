@@ -21,7 +21,7 @@ its first step. A delay that is an expression of parameters SHALL take its small
 - **THEN** the population oscillates around `K` with a growing then stable amplitude
 
 #### Scenario: Very short delay
-- **WHEN** `dx/dt = -x(t - τ)` with `x = 1` before the start runs with `ScipyODE` until time 0.2 for τ = 1e-4 and
+- **WHEN** `dx/dt = -x(t - τ)` with `x = 1` before the start runs with `ScipyODESolver` until time 0.2 for τ = 1e-4 and
   τ = 1e-6
 - **THEN** both runs finish without error, and the final state matches `exp(-0.2)` within 1e-3
 
@@ -51,7 +51,7 @@ discontinuities, also when it keeps one integrator across frames and the run has
   1e-6
 
 #### Scenario: Pulse train in a persistent integrator
-- **WHEN** a decay receives a pulse train of period 21 and width 1/24 and runs with `ScipyODE` until time 10
+- **WHEN** a decay receives a pulse train of period 21 and width 1/24 and runs with `ScipyODESolver` until time 10
 - **THEN** the next breakpoint after time 1 is 21, and the final state matches the analytic response within a relative
   tolerance of 1e-5
 
@@ -109,10 +109,10 @@ A condition on states inside `where` or `step` in a rate law SHALL compile into 
 integrators with event location restart at the crossing, and hidden events SHALL not appear in the trajectory's events.
 
 #### Scenario: Bathtub drains empty
-- **WHEN** `bathtub(water=20.0)` runs until 6 with the default solver
+- **WHEN** `BathtubSystem(water=20.0)` runs until 6 with the default solver
 - **THEN** it finishes without a stall warning, the water stays nonnegative within 1e-6, and the trajectory has no
   events
 
 #### Scenario: Escapement of a clock
-- **WHEN** `huygens_clocks` is compiled
+- **WHEN** `HuygensClocksSystem` is compiled
 - **THEN** the escapement `sign(|theta| - theta_c)` of each clock compiles into one hidden event

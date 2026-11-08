@@ -16,19 +16,20 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.economics.innovation import InteractingUrnsNetworkSystem
 
 SYSTEM = 'interacting_urns_network'
 STEPS = 150
 
 graph = nx.karate_club_graph()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = (
-    Simulation(create_system(SYSTEM, graph=graph, rho=6, nu=3), observers=[observer], random_state=0)
-    .prepare()
-    .run(until=STEPS)
+trajectory = simulate(
+    InteractingUrnsNetworkSystem(graph=graph, rho=6, nu=3),
+    until=STEPS,
+    observers=[observer],
+    random_state=0,
 )
 
 # %%
@@ -51,7 +52,6 @@ def heaps(adjacency, rho, nu, steps):
     return np.asarray(novelties)
 
 
-trajectory = simulation.trajectory_
 frames = range(len(trajectory.times))
 novelties = np.asarray(
     [

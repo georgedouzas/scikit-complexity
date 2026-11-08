@@ -11,7 +11,9 @@ from ....core.components.laws.utils import transfer
 
 
 def cobb_douglas(agent: object, goods: Sequence[str], weights: Sequence[str]) -> float:
-    """Return the logarithm of the Cobb-Douglas utility of an agent, `sum_i a_i log x_i`.
+    """Return the logarithm of the Cobb-Douglas utility of an agent.
+
+    It is `sum_i a_i log x_i`.
 
     Args:
         agent:
@@ -46,7 +48,9 @@ def cobb_douglas(agent: object, goods: Sequence[str], weights: Sequence[str]) ->
 
 
 def marginal_rate(agent: object, good: str, numeraire: str, weights: tuple[str, str]) -> float:
-    """Return the marginal rate of substitution of a good for a numeraire, the units of numeraire one unit is worth.
+    """Return the marginal rate of substitution of a good for a numeraire.
+
+    It is the units of numeraire one unit is worth.
 
     Args:
         agent:
@@ -85,7 +89,10 @@ def _trade_once(
     weights: Sequence[str],
     quantity: float,
 ) -> float | None:
-    """Trade a quantity of one good for its price in another when both traders gain, and return the price."""
+    """Trade a quantity of one good for its price in another.
+
+    The trade happens when both traders gain, and it returns the price.
+    """
     good, numeraire = goods[pair[0]], goods[pair[1]]
     names = (weights[pair[0]], weights[pair[1]])
     if not all(float(getattr(agent, name)) > 0 for agent in (first, second) for name in names):
@@ -117,13 +124,13 @@ def trade_goods(
     quantity: float = 0.1,
     limit: int = 1000,
 ) -> list[tuple[int, int, float]]:
-    """Barter small quantities of goods between two agents while both gain, and return the trades.
+    """Barter small quantities of goods between two agents while both gain.
 
-    For every pair of goods in turn, the agent that values the first good more in units of the second buys `quantity`
-    of it from the other at the geometric mean of their marginal rates of substitution, as in the Sugarscape trade of
-    Epstein and Axtell (1996). A trade happens only when it raises the Cobb-Douglas utility of both agents, and every
-    trade is two transfers, so the total of every good is unchanged. The agents trade until a round over all pairs of
-    goods makes no trade, or until `limit` trades.
+    It returns the trades. For every pair of goods in turn, the agent that values the first good more in units of the
+    second buys `quantity` of it from the other at the geometric mean of their marginal rates of substitution, as in the
+    Sugarscape trade of Epstein and Axtell (1996). A trade happens only when it raises the Cobb-Douglas utility of both
+    agents, and every trade is two transfers, so the total of every good is unchanged. The agents trade until a round
+    over all pairs of goods makes no trade, or until `limit` trades.
 
     Args:
         first:

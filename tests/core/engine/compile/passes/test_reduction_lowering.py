@@ -14,8 +14,8 @@ from skcomplex.core.components.interactions import CouplingInteraction
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 
 from .....conftest import _weighted
@@ -51,7 +51,7 @@ def _step(x, gain, function, reduce):
         form='map',
     )
     system = System(elements=[members], interactions=[coupling], time=DiscreteTime())
-    return Simulation(system).prepare().run(until=1).trajectory_.values('members.x')[-1]
+    return simulate(system, until=1).values('members.x')[-1]
 
 
 def _separable(s):

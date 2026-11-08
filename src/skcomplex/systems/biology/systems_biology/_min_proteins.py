@@ -1,4 +1,7 @@
-"""Min-protein patterns: the skeleton system of MinD and MinE cycling between the membrane and the cytosol."""
+"""Min-protein patterns.
+
+The skeleton system has MinD and MinE cycling between the membrane and the cytosol.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,23 +16,24 @@ from scipy.optimize import brentq
 from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import DiffusionInteraction, ReactionInteraction
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import ScipyODESolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 
 class MinSkeletonElement(Element):
-    """Site of the Min skeleton system, with membrane MinD and MinDE and cytosolic MinD-ATP, MinD-ADP, and MinE.
+    """Site of the Min skeleton system.
+
+    It holds membrane MinD and MinDE and cytosolic MinD-ATP, MinD-ADP, and MinE.
 
     The reactions are the attachment and self-recruitment of MinD-ATP to the membrane, `(k_d + k_dd md) cdt`, the
     recruitment of MinE by membrane MinD, `k_de md ce`, the dissociation of MinDE complexes, `k_off mde`, which releases
     MinD-ADP and MinE to the cytosol, and the nucleotide exchange `lam cdd` from MinD-ADP to MinD-ATP. They conserve
     the totals of MinD, `md + mde + cdt + cdd`, and of MinE, `mde + ce`.
 
-    The element holds the states and parameters and has no laws of its own: the interactions of `min_protein_skeleton`
-    read its parameters.
+    The element holds the states and parameters and has no laws of its own: the interactions of
+    `MinProteinSkeletonSystem` read its parameters.
 
     Args:
         label:
@@ -113,46 +117,19 @@ class MinSkeletonElement(Element):
         self.lam = lam
 
 
-def _uniform_state(element: MinSkeletonElement, total_D: float, total_E: float) -> dict[str, float]:
-    """Return the uniform steady state of the skeleton system with the totals of MinD and MinE."""
+class MinProteinSkeletonSystem(BaseSystem):
+    """The skeleton system of the Min proteins on a periodic line.
 
-    def others(md: float) -> tuple[float, float, float, float]:
-        mde = total_E * element.k_de * md / (element.k_off + element.k_de * md)
-        return (
-            mde,
-            element.k_off * mde / (element.k_d + element.k_dd * md),
-            element.k_off * mde / element.lam,
-            total_E - mde,
-        )
+    It is a mass-conserving reaction-diffusion system.
 
-    md = brentq(lambda md: md + sum(others(md)[:3]) - total_D, 0.0, total_D)
-    mde, cdt, cdd, ce = others(md)
-    return {'md': md, 'mde': mde, 'cdt': cdt, 'cdd': cdd, 'ce': ce}
-
-
-@register_system(
-    field='biology/systems_biology',
-    tags=('field', 'min proteins', 'mass conserving', 'reaction-diffusion', 'traveling waves', 'pde'),
-    references=('Brauns and Marchetti 2024', 'Halatek and Frey 2018', 'Huang, Meir, and Wingreen 2003'),
-    defaults={'until': 400.0, 'dt': 4.0, 'solver': ScipyODESolver(method='BDF', jacobian='exact')},
-)
-def min_protein_skeleton(
-    n_sites: int = 128,
-    *,
-    length: float = 100.0,
-    total_D: float = 200.0,
-    total_E: float = 120.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the skeleton system of the Min proteins on a periodic line, a mass-conserving reaction-diffusion system.
-
-    MinD and MinE cycle between the membrane, where they diffuse slowly, and the cytosol, where they diffuse fast,
-    with the reactions of `MinSkeletonElement`. The reactions conserve the totals of MinD and MinE, so only diffusion
-    moves mass, and the local reactive equilibria map the dynamics onto conserved fields with nonreciprocal
-    cross-diffusion (Brauns and Marchetti, App. F). With the default totals, the uniform state is unstable to an
-    oscillatory band of wavelengths near 17, and narrow bands of membrane MinD travel along the line and meet head-on.
-    The fast cytosolic diffusion and the fast recruitment make the system stiff, so the catalog registers the implicit
-    `BDF` method with the exact Jacobian.
+    MinD and MinE cycle between the membrane, where they diffuse slowly, and the cytosol, where they diffuse fast, with
+    the reactions of `MinSkeletonElement`. The reactions conserve the totals of MinD and MinE, so only diffusion moves
+    mass, and the local reactive equilibria map the dynamics onto conserved fields with nonreciprocal cross-diffusion
+    (Brauns and Marchetti, App. F). With the default totals, the uniform state is unstable to an oscillatory band of
+    wavelengths near 17, and narrow bands of membrane MinD travel along the line and meet head-on. The fast cytosolic
+    diffusion and the fast recruitment make the system stiff, so the catalog registers the implicit `BDF` method with
+    the exact Jacobian. The system has the membrane fields `cell.md` and `cell.mde` and the cytosolic fields `cell.cdt`,
+    `cell.cdd`, and `cell.ce`.
 
     Args:
         n_sites:
@@ -170,61 +147,106 @@ def min_protein_skeleton(
         random_state:
             The seed or generator of the 1% noise that moves MinD between the membrane and the cytosol.
 
-    Returns:
-        system:
-            The system, with the membrane fields `cell.md` and `cell.mde` and the cytosolic fields `cell.cdt`,
-            `cell.cdd`, and `cell.ce`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.systems_biology import min_protein_skeleton
-        >>> values = min_protein_skeleton(32).elements[0].values
+        >>> from skcomplex.systems.biology.systems_biology import MinProteinSkeletonSystem
+        >>> values = MinProteinSkeletonSystem(32).prepare().system_.elements[0].values
         >>> round(float(values['ce'].mean() + values['mde'].mean()), 6)
         120.0
     """
-    rng = np.random.default_rng(random_state)
-    uniform = _uniform_state(MinSkeletonElement('site'), total_D, total_E)
-    values: dict[str, Array] = {name: np.full(n_sites, value) for name, value in uniform.items()}
-    noise = 0.01 * uniform['md'] * rng.uniform(-1.0, 1.0, n_sites)
-    values['md'] = values['md'] + noise
-    values['cdt'] = values['cdt'] - noise
-    space = LatticeSpace(n_sites, spacing=length / n_sites)
-    cell = FieldElement('cell', element=MinSkeletonElement, space=space, values=values)
-    reactions = [
-        ReactionInteraction(
-            'attachment',
-            target='cell',
-            reactants={'cdt': 1},
-            products={'md': 1},
-            propensity=lambda s: (s.target.k_d + s.target.k_dd * s.target.md) * s.target.cdt,
-        ),
-        ReactionInteraction(
-            'recruitment',
-            target='cell',
-            reactants={'md': 1, 'ce': 1},
-            products={'mde': 1},
-            propensity=lambda s: s.target.k_de * s.target.md * s.target.ce,
-        ),
-        ReactionInteraction(
-            'release',
-            target='cell',
-            reactants={'mde': 1},
-            products={'cdd': 1, 'ce': 1},
-            propensity=lambda s: s.target.k_off * s.target.mde,
-        ),
-        ReactionInteraction(
-            'exchange',
-            target='cell',
-            reactants={'cdd': 1},
-            products={'cdt': 1},
-            propensity=lambda s: s.target.lam * s.target.cdd,
-        ),
-    ]
-    membrane = [
-        DiffusionInteraction(f'diffusion_{state}', target='cell', state=state, coefficient=lambda s: s.target.Dm)
-        for state in ('md', 'mde')
-    ]
-    cytosol = [
-        DiffusionInteraction(f'diffusion_{state}', target='cell', state=state, coefficient=lambda s: s.target.Dc)
-        for state in ('cdt', 'cdd', 'ce')
-    ]
-    return System(elements=[cell], interactions=[*reactions, *membrane, *cytosol])
+
+    field = 'biology/systems_biology'
+    topics = ('field', 'min proteins', 'mass conserving', 'reaction-diffusion', 'traveling waves', 'pde')
+    references = ('Brauns and Marchetti 2024', 'Halatek and Frey 2018', 'Huang, Meir, and Wingreen 2003')
+    until = 400.0
+    dt = 4.0
+    solver = ScipyODESolver(method='BDF', jacobian='exact')
+
+    def __init__(
+        self,
+        n_sites: int = 128,
+        *,
+        length: float = 100.0,
+        total_D: float = 200.0,
+        total_E: float = 120.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_sites = n_sites
+        self.length = length
+        self.total_D = total_D
+        self.total_E = total_E
+        self.random_state = random_state
+
+    @staticmethod
+    def _uniform_state(element: MinSkeletonElement, total_D: float, total_E: float) -> dict[str, float]:
+        """Return the uniform steady state of the skeleton system.
+
+        It has the totals of MinD and MinE.
+        """
+
+        def others(md: float) -> tuple[float, float, float, float]:
+            mde = total_E * element.k_de * md / (element.k_off + element.k_de * md)
+            return (
+                mde,
+                element.k_off * mde / (element.k_d + element.k_dd * md),
+                element.k_off * mde / element.lam,
+                total_E - mde,
+            )
+
+        md = brentq(lambda md: md + sum(others(md)[:3]) - total_D, 0.0, total_D)
+        mde, cdt, cdd, ce = others(md)
+        return {'md': md, 'mde': mde, 'cdt': cdt, 'cdd': cdd, 'ce': ce}
+
+    def _build_system(self) -> System:
+        """Return the parts of the skeleton system of the Min proteins on a periodic line."""
+        rng = np.random.default_rng(self.random_state)
+        uniform = self._uniform_state(MinSkeletonElement('site'), self.total_D, self.total_E)
+        values: dict[str, Array] = {name: np.full(self.n_sites, value) for name, value in uniform.items()}
+        noise = 0.01 * uniform['md'] * rng.uniform(-1.0, 1.0, self.n_sites)
+        values['md'] = values['md'] + noise
+        values['cdt'] = values['cdt'] - noise
+        space = LatticeSpace(self.n_sites, spacing=self.length / self.n_sites)
+        cell = FieldElement('cell', element=MinSkeletonElement, space=space, values=values)
+        reactions = [
+            ReactionInteraction(
+                'attachment',
+                target='cell',
+                reactants={'cdt': 1},
+                products={'md': 1},
+                propensity=lambda s: (s.target.k_d + s.target.k_dd * s.target.md) * s.target.cdt,
+            ),
+            ReactionInteraction(
+                'recruitment',
+                target='cell',
+                reactants={'md': 1, 'ce': 1},
+                products={'mde': 1},
+                propensity=lambda s: s.target.k_de * s.target.md * s.target.ce,
+            ),
+            ReactionInteraction(
+                'release',
+                target='cell',
+                reactants={'mde': 1},
+                products={'cdd': 1, 'ce': 1},
+                propensity=lambda s: s.target.k_off * s.target.mde,
+            ),
+            ReactionInteraction(
+                'exchange',
+                target='cell',
+                reactants={'cdd': 1},
+                products={'cdt': 1},
+                propensity=lambda s: s.target.lam * s.target.cdd,
+            ),
+        ]
+        membrane = [
+            DiffusionInteraction(f'diffusion_{state}', target='cell', state=state, coefficient=lambda s: s.target.Dm)
+            for state in ('md', 'mde')
+        ]
+        cytosol = [
+            DiffusionInteraction(f'diffusion_{state}', target='cell', state=state, coefficient=lambda s: s.target.Dc)
+            for state in ('cdt', 'cdd', 'ce')
+        ]
+        return System(self.label, elements=[cell], interactions=[*reactions, *membrane, *cytosol])

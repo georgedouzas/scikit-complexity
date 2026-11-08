@@ -8,7 +8,7 @@ against the traffic.
 """
 
 # %%
-# The system is created by name from the catalog on a ring of 10 kilometres in 200 cells, at 35 vehicles per kilometre
+# The system is built from its class on a ring of 10 kilometres in 200 cells, at 35 vehicles per kilometre
 # with a perturbation of 2, with the calibrated parameters of Treiber, Hennecke, and Helbing. Lengths are in kilometres
 # and times in hours, and SSPRK integrates it for one hour. The default blueprint puts the history of the density first,
 # where the jams are the bright bands that lean against the traffic.
@@ -16,16 +16,16 @@ against the traffic.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import SSPRKSolver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.engineering.traffic import GktTrafficSystem
 
 SYSTEM = 'gkt_traffic'
 
-system = create_system(SYSTEM)
+system = GktTrafficSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1 / 60, solver=SSPRKSolver(cfl=0.4), observers=[observer]).prepare().run(1.0)
+trajectory = simulate(system, dt=1 / 60, solver=SSPRKSolver(cfl=0.4), observers=[observer])
 
 # %%
 # Fronts that move upstream
@@ -35,7 +35,6 @@ simulation = Simulation(system, dt=1 / 60, solver=SSPRKSolver(cfl=0.4), observer
 # freeways, and this system should give about 20, from the jump between the jam and its outflow. The density should stay
 # conserved.
 
-trajectory = simulation.trajectory_
 rho = trajectory.lattice('road.rho')
 minutes = trajectory.times * 60
 shifts = []

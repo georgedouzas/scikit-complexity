@@ -11,7 +11,9 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class TableSpec(BaseSpec):
-    """Rule given by the next value of every neighbourhood pattern of integer states `0` to `states - 1`.
+    """Rule given by the next value of every neighbourhood pattern of integer states.
+
+    The states are `0` to `states - 1`.
 
     Args:
         mapping:
@@ -35,7 +37,10 @@ class TableSpec(BaseSpec):
 
     @property
     def n_states(self) -> int:
-        """Number of state values, the given `states` or one more than the largest value in the patterns, at least 2."""
+        """Number of state values.
+
+        It is the given `states` or one more than the largest value in the patterns, at least 2.
+        """
         if self.states is not None:
             return self.states
         largest = max((value for pattern in self.mapping for value in pattern), default=0)

@@ -1,4 +1,7 @@
-"""Read the residence of states through hidden states that keep their previous values and counts."""
+"""Read the residence of states through hidden states.
+
+The hidden states keep their previous values and counts.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,7 +17,8 @@ from ....components.laws.utils import where
 from ....errors import ValidationError
 from ....specs import EntrySpec
 from ..._utils import components_of, symbol, vector
-from ...problems import KernelSpec, ReferenceSpec
+from ...problems._kernel_spec import KernelSpec
+from ...problems._reference_spec import ReferenceSpec
 from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import Compilation
@@ -24,7 +28,10 @@ RESIDENCE_PREFIX = '__residence'
 
 
 class ResidencesPass(BasePass):
-    """Pass that reads the residence of states through hidden states of their previous values and their counts."""
+    """Pass that reads the residence of states through hidden states.
+
+    The hidden states keep their previous values and counts.
+    """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
@@ -35,7 +42,10 @@ class ResidencesPass(BasePass):
         return ('lowered',)
 
     def _run(self, inputs: object = None) -> None:
-        """Replace the residences of the lowered laws by hidden states, with the update laws of those states."""
+        """Replace the residences of the lowered laws by hidden states.
+
+        The update laws of those states are added.
+        """
         compilation = self.compilation_
         lowered = Compilation._required(compilation.lowered, 'lowered')
         replaced: dict[int, KernelSpec] = {}
@@ -67,7 +77,10 @@ class ResidencesPass(BasePass):
         compilation: Compilation,
         references: dict[Expression, ReferenceSpec],
     ) -> tuple[Expression, Expression]:
-        """Return the symbols of the hidden previous value and count of a state, declared in the layout."""
+        """Return the symbols of the hidden previous value and count of a state.
+
+        They are declared in the layout.
+        """
         declarations = Compilation._required(compilation.layout, 'layout')
         entry = reference.entry
         members = entry.members if reference.source is ReadKind.MEMBER else None
@@ -92,9 +105,10 @@ class ResidencesPass(BasePass):
         compilation: Compilation,
         references: dict[Expression, ReferenceSpec],
     ) -> list[BaseLaw]:
-        """Return update laws with every residence replaced by its count, followed by the laws of the hidden states.
+        """Return update laws with every residence replaced by its count.
 
-        The references of the hidden states are added to `references`, which the spec receives after its laws.
+        The laws of the hidden states follow them. The references of the hidden states are added to `references`, which
+        the spec receives after its laws.
         """
         counts: dict[Expression, Expression] = {}
         added: list[BaseLaw] = []
@@ -128,7 +142,10 @@ class ResidencesPass(BasePass):
 
     @staticmethod
     def _substituted(law: BaseLaw, counts: dict[Expression, Expression]) -> BaseLaw:
-        """Return an update law with its residences replaced by their counts, or any other law unchanged."""
+        """Return an update law with its residences replaced by their counts.
+
+        Any other law is returned unchanged.
+        """
         if not isinstance(law, UpdateLaw) or not counts:
             return law
         value = law.value

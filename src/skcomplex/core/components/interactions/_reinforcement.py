@@ -1,4 +1,7 @@
-"""Define reinforcement interactions, which move the score of every option towards its realized payoff."""
+"""Define reinforcement interactions.
+
+They move the score of every option towards its realized payoff.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,11 +15,12 @@ from sage.all__sagemath_symbolics import Expression
 from sage.sets.real_set import RealSet
 
 from ...errors import ValidationError
-from ...specs import ParameterSpec, RoleSpec
+from ...specs import ParameterSpec, RoleSpec, Tags
 from ...types import Array, ElementKind
 from ..base import BasePart
 from ..laws import BaseLaw, RuleLaw, UpdateLaw
 from ..laws.utils import where
+from ..spaces import BaseSpace
 from ..types import AgentViewProtocol, SystemViewProtocol
 from ._base import SCHEDULES
 from ._interaction import Interaction
@@ -26,22 +30,22 @@ RULES = ('average', 'cumulative')
 
 
 class ReinforcementInteraction(Interaction):
-    """Reinforcement of the scores of options, each moving towards the payoff its option realized in the step.
+    """Reinforcement of the scores of options.
 
-    Every step, the score `s_k` of option `k` of every member moves towards the realized payoff `P_k` at the rate `a`,
-    `s_k <- s_k + a (P_k - s_k)`, so a score is an exponentially weighted mean of past payoffs, and the last payoff at
-    the rate 1, by the rule `'average'`. By the rule `'cumulative'` the score adds the payoff, `s_k <- s_k + P_k`, so
-    it is the sum of past payoffs, such as a virtual score. In the agent form the scores may be the components of one
-    vector state, one per option, and a group of one member holds scores that several groups share. In the
-    `'symbolic'` form, `payoff(namespace, k)` returns the payoff of option `k` as a symbolic
-    expression, where `namespace.target` holds the states and parameters of the group. In the `'agent'` form, the
-    group is an agent group and `payoff(agent, system, k)` returns the payoff as a number, so it can read the agent and
-    the history and storage of the system view. With `chosen`, the name of a state that holds the index of the option a
-    member chose, only the score of that option moves, and the payoff of the other options is not read. In the agent
-    form every agent reinforces at once under the schedule `'synchronous'`, one after the other in their order or in a
-    new random order every step under `'sequential'` or `'random-sequential'`, and each in its own activation under
-    `'member'`, together with the rules of its element and the other member interactions, in the order the system
-    lists them, such as after a choice and a transfer in one visit.
+    Each score moves towards the payoff its option realized in the step. Every step, the score `s_k` of option `k` of
+    every member moves towards the realized payoff `P_k` at the rate `a`, `s_k <- s_k + a (P_k - s_k)`, so a score is an
+    exponentially weighted mean of past payoffs, and the last payoff at the rate 1, by the rule `'average'`. By the rule
+    `'cumulative'` the score adds the payoff, `s_k <- s_k + P_k`, so it is the sum of past payoffs, such as a virtual
+    score. In the agent form the scores may be the components of one vector state, one per option, and a group of one
+    member holds scores that several groups share. In the `'symbolic'` form, `payoff(namespace, k)` returns the payoff
+    of option `k` as a symbolic expression, where `namespace.target` holds the states and parameters of the group. In
+    the `'agent'` form, the group is an agent group and `payoff(agent, system, k)` returns the payoff as a number, so it
+    can read the agent and the history and storage of the system view. With `chosen`, the name of a state that holds the
+    index of the option a member chose, only the score of that option moves, and the payoff of the other options is not
+    read. In the agent form every agent reinforces at once under the schedule `'synchronous'`, one after the other in
+    their order or in a new random order every step under `'sequential'` or `'random-sequential'`, and each in its own
+    activation under `'member'`, together with the rules of its element and the other member interactions, in the order
+    the system lists them, such as after a choice and a transfer in one visit.
 
     Args:
         label:
@@ -103,6 +107,10 @@ class ReinforcementInteraction(Interaction):
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw, UpdateLaw)
 
+    def _get_tags(self) -> Tags:
+        """Return the tags of the agent-form rules or the symbolic reinforcement updates."""
+        return self._get_variant_tags((RuleLaw,) if self._get_argument('form') == 'agent' else (UpdateLaw,))
+
     def __init__(
         self,
         label: str,
@@ -128,15 +136,19 @@ class ReinforcementInteraction(Interaction):
         self.chosen = chosen
         self.schedule = schedule
 
-    def _check(self) -> None:
-        """Raise an error for an unknown variant, no scores, or a payoff that cannot be called.
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Raise an error for an unknown variant, no scores, or an uncallable payoff.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The type declares states, the form, the rule, or the schedule is unknown, the symbolic form runs member
                 by member, there are no scores, or the payoff is not callable.
         """
-        super()._check()
+        super()._prepare(context)
         for name, value, variants in (
             ('form', self.form, FORMS),
             ('rule', self.rule, RULES),
@@ -166,7 +178,10 @@ class ReinforcementInteraction(Interaction):
         return np.array([getattr(agent, name) for name in self.scores], dtype=float)
 
     def _get_scores(self, agent: AgentViewProtocol, system: SystemViewProtocol) -> Array:
-        """Return the new scores of an agent, every score or only that of its chosen option moved by its payoff."""
+        """Return the new scores of an agent.
+
+        Every score, or only that of its chosen option, moves by its payoff.
+        """
         old = self._read(agent)
         options = range(len(old)) if self.chosen is None else [int(getattr(agent, self.chosen))]
         rate = 1.0 if self.rule == 'cumulative' else self._get_parameter_value('rate', system)
@@ -190,7 +205,9 @@ class ReinforcementInteraction(Interaction):
             self._write(agent, self._get_scores(agent, system))
 
     def reinforce(self, system: SystemViewProtocol) -> None:
-        """Move the scores of every agent towards the payoffs of its options, by the schedule.
+        """Move the scores of every agent towards the payoffs of its options.
+
+        The agents follow the schedule.
 
         Args:
             system:
@@ -199,7 +216,7 @@ class ReinforcementInteraction(Interaction):
         self._update_agents(system, self.schedule, self._get_scores, self._write)
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
-        """Return the update of every score towards its payoff, or the rule of the agent form.
+        """Return the update of every score towards its payoff, or the agent-form rule.
 
         Args:
             namespace:

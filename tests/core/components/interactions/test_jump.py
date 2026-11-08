@@ -10,7 +10,7 @@ from skcomplex.core.components.interactions import JumpInteraction
 from skcomplex.core.components.laws.utils import draw
 from skcomplex.core.components.spaces import ContinuousSpace, DiscreteTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import StateSpec, VisualSpec
 
@@ -37,8 +37,8 @@ def _final(interactions, until, *, time=None, size=MEMBERS, dt=1.0, state='x'):
     """Return the final values of a state of every member of a group of counters."""
     group = GroupElement('counters', element=CounterElement, size=size)
     system = System(elements=[group], interactions=interactions, time=time)
-    simulation = Simulation(system, dt=dt, random_state=0).prepare().run(until=until)
-    return np.atleast_1d(simulation.trajectory_.values(f'counters.{state}')[-1])
+    trajectory = simulate(system, until=until, dt=dt, random_state=0)
+    return np.atleast_1d(trajectory.values(f'counters.{state}')[-1])
 
 
 def test_jumps_at_a_rate_count_a_poisson_process():
@@ -133,6 +133,5 @@ def test_jumps_after_waits_reset_every_component_of_a_vector_state():
         interactions=[steps],
         space=ContinuousSpace(n_dim=2),
     )
-    simulation = Simulation(system, dt=1.0, random_state=0).prepare()
-    trajectory = simulation.run(until=3.5).trajectory_
+    trajectory = simulate(system, until=3.5, dt=1.0, random_state=0)
     np.testing.assert_allclose(trajectory.values('walker.x')[-1], [3.0, 3.0])

@@ -2,27 +2,27 @@
 
 import itertools
 import math
+from dataclasses import FrozenInstanceError
 
 import numpy as np
 import numpy.typing as npt
 import pytest
 from scipy.integrate import solve_ivp
-from sklearn.base import clone
 
-from skcomplex.core.analysis import InformationAnalysis
+from skcomplex.core.analysis import InformationResult, information
 from skcomplex.core.errors import AnalysisError
 
 SAMPLES = 20_000
 
 
-def _analysis(kind: str, source: object, **settings: object) -> InformationAnalysis:
+def _analysis(kind: str, source: object, **settings: object) -> InformationResult:
     """Return the run information analysis of a source for one kind."""
-    return InformationAnalysis(kind, **settings).prepare(source).run()
+    return information(source, kind=kind, **settings)
 
 
 def _information(kind: str, source: object, **settings: object) -> np.ndarray | float:
     """Return the information of a source for one kind."""
-    return _analysis(kind, source, **settings).information_
+    return _analysis(kind, source, **settings).information
 
 
 def _pair(kind: str, first: npt.ArrayLike, second: npt.ArrayLike, **settings: object) -> float:
@@ -97,18 +97,18 @@ def test_mutual_information_of_a_series_with_itself_is_its_entropy():
 
 def test_symbolisation_and_permutations():
     """Test quantile and bin symbols and the error of an unknown symbolisation."""
-    assert _analysis('mutual', [1.0, 2.0, 3.0, 4.0], symbols='bins').symbols_[:, 0].tolist() == [0, 0, 1, 1]
+    assert _analysis('mutual', [1.0, 2.0, 3.0, 4.0], symbols='bins').symbols[:, 0].tolist() == [0, 0, 1, 1]
     noise = np.random.default_rng(3).normal(size=1000)
-    symbols = _analysis('mutual', noise, symbols='quantiles', bins=4).symbols_[:, 0]
+    symbols = _analysis('mutual', noise, symbols='quantiles', bins=4).symbols[:, 0]
     assert np.bincount(symbols).tolist() == [250] * 4
     with pytest.raises(AnalysisError, match=r"symbols='words'"):
-        InformationAnalysis(symbols='words').prepare()
+        information([0, 1, 0, 1], symbols='words')
 
 
 def test_symbolize_long_ordinal_patterns():
     """Test that ordinal patterns of length 12 of white noise give one symbol per distinct rank pattern."""
     noise = np.random.default_rng(9).standard_normal(20_000)
-    symbols = _analysis('mutual', noise, symbols='ordinal', order=12).symbols_[:, 0]
+    symbols = _analysis('mutual', noise, symbols='ordinal', order=12).symbols[:, 0]
     patterns = [
         tuple(np.argsort(window, kind='stable')) for window in np.lib.stride_tricks.sliding_window_view(noise, 12)
     ]
@@ -122,7 +122,7 @@ def test_ordinal_patterns_rank_every_permutation():
     for permutation in itertools.permutations(range(3)):
         values = np.empty(3)
         values[list(permutation)] = np.arange(3)
-        ranks.append(int(_analysis('mutual', values, symbols='ordinal').symbols_[0, 0]))
+        ranks.append(int(_analysis('mutual', values, symbols='ordinal').symbols[0, 0]))
     assert ranks == list(range(6))
 
 
@@ -173,9 +173,9 @@ def test_transfer_entropy_directed_coupling_of_two_domains():
 def test_transfer_entropy_rejects_unknown_estimators():
     """Test that an unknown estimator raises an error naming the known ones."""
     with pytest.raises(AnalysisError, match='plugin, knn'):
-        InformationAnalysis('transfer', estimator='kernel').prepare()
+        information([0, 1, 0, 1], kind='transfer', estimator='kernel')
     with pytest.raises(AnalysisError, match='plugin, knn'):
-        InformationAnalysis('transfer', estimator='gaussian').prepare()
+        information([0, 1, 0, 1], kind='transfer', estimator='gaussian')
 
 
 def test_o_information_xor_is_synergistic():
@@ -235,34 +235,33 @@ def test_o_information_gaussian_sum_is_synergistic():
 def test_total_correlation_unknown_estimator():
     """Test that an unknown estimator raises an error naming the known ones."""
     with pytest.raises(AnalysisError, match='plugin, gaussian, knn'):
-        InformationAnalysis('total-correlation', estimator='binned').prepare()
+        information([0, 1, 0, 1], kind='total-correlation', estimator='binned')
 
 
 def test_unknown_kind_lists_the_kinds():
     """Test that an unknown kind names the kinds of the class."""
     with pytest.raises(AnalysisError, match='mutual, auto-mutual, transfer'):
-        InformationAnalysis('unknown').prepare()
+        information([0, 1, 0, 1], kind='unknown')
 
 
 def test_ignored_settings_are_rejected():
     """Test that a setting the kind or the symbolization does not read raises an error naming it."""
     with pytest.raises(AnalysisError, match='does not read lag'):
-        InformationAnalysis('mutual', lag=2).prepare()
+        information([0, 1, 0, 1], kind='mutual', lag=2)
     with pytest.raises(AnalysisError, match='does not read bins'):
-        InformationAnalysis('mutual', bins=4).prepare()
+        information([0, 1, 0, 1], kind='mutual', bins=4)
     with pytest.raises(AnalysisError, match='does not read symbols'):
-        InformationAnalysis('kl-divergence', symbols='bins').prepare()
+        information([0, 1, 0, 1], kind='kl-divergence', symbols='bins')
 
 
 def test_negative_history_is_rejected():
     """Test that a history below 1 raises an error naming it."""
     with pytest.raises(AnalysisError, match='history=0'):
-        InformationAnalysis('transfer', history=0).prepare()
+        information([0, 1, 0, 1], kind='transfer', history=0)
 
 
-def test_clone_drops_the_results():
-    """Test that a clone keeps the settings and none of the fitted attributes."""
-    analysis = _analysis('transfer', _bits(0, 2), history=2)
-    copy = clone(analysis)
-    assert copy.get_params() == analysis.get_params()
-    assert not hasattr(copy, 'information_')
+def test_result_is_frozen():
+    """Test that the result of an information measure is a frozen value."""
+    result = _analysis('transfer', _bits(0, 2), history=2)
+    with pytest.raises(FrozenInstanceError):
+        result.information = 0.0

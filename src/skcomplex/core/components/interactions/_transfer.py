@@ -1,4 +1,7 @@
-"""Define transfers, which move amounts of states between members, the cells agents stand on, sources, and sinks."""
+"""Define transfers.
+
+Transfers move amounts of states between members, the cells agents stand on, sources, and sinks.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,7 +14,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression
 
 from ...errors import SimulationError, ValidationError
-from ...specs import PartnerSpec, RoleSpec
+from ...specs import PartnerSpec, RoleSpec, Tags
 from ...types import ElementKind
 from ..laws import BaseLaw, MatchLaw, RuleLaw, Sink, Source, TransferLaw
 from ..laws.utils import shift_member, where
@@ -42,7 +45,7 @@ type Settlement = Callable[..., None]
 
 
 class TransferInteraction(Interaction):
-    """Transfer of amounts of states from the members of a source role to the members of a target role.
+    """Transfer of amounts of states from source-role members to target-role members.
 
     A leg moves an amount out of a state of the source member, or out of `Source()`, into a state of the target member,
     or into `Sink()`. The transfer has a first leg, `state` into `into` by `amount`, and any further `legs`, each
@@ -186,9 +189,9 @@ class TransferInteraction(Interaction):
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.interactions import TransferInteraction
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.core.specs import StateSpec
         >>> from typing import Annotated
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> class TankElement(Element):
         ...     def __init__(self, label, visual=None, *, level: Annotated[float, StateSpec()] = 0.0):
         ...         super().__init__(label, visual=visual)
@@ -197,12 +200,31 @@ class TransferInteraction(Interaction):
         ...     'flow', source='upper', target='lower', state='level', amount=lambda s: s.source.level / 2
         ... )
         >>> system = System(elements=[TankElement('upper', level=4.0), TankElement('lower')], interactions=[flow])
-        >>> trajectory = Simulation(system).prepare().run(until=1.0).trajectory_
+        >>> trajectory = simulate(system, until=1.0)
         >>> round(float(trajectory.values('upper.level')[-1] + trajectory.values('lower.level')[-1]), 6)
         4.0
     """
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (MatchLaw, RuleLaw, TransferLaw)
+
+    def _get_tags(self) -> Tags:
+        """Return the tags of the rules of the agent form or of the transfers.
+
+        The transfers jump when they have a rate.
+        """
+        if self._get_argument('form') == 'agent':
+            return self._get_variant_tags((RuleLaw,))
+        return self._get_variant_tags((TransferLaw,), stochastic=self._get_argument('rate') is not None)
+
+    def _draws(self) -> bool:
+        """Return whether the agent form draws.
+
+        It draws by its order, random pairs or partners, or a number of partners.
+        """
+        if self._get_argument('form') != 'agent':
+            return self.draws
+        drawn = self.pairing in ('random', 'pairs', 'neighbor-pairs') or not isinstance(self.pairing, str | None)
+        return super()._draws() or drawn or self.partners is not None
 
     def __init__(
         self,
@@ -214,7 +236,7 @@ class TransferInteraction(Interaction):
         into: str | Sink | None = None,
         amount: Amount,
         flow: str = '',
-        pairing: str | Pairing = 'members',
+        pairing: str | Pairing | PartnerSpec = 'members',
         legs: Sequence[Leg] = (),
         fallback: Annotated[str | None, RoleSpec(elements=(ElementKind.ANY,))] = None,
         guard: Callable[..., object] | None = None,
@@ -254,7 +276,10 @@ class TransferInteraction(Interaction):
         self.settlement = settlement
 
     def _get_legs(self) -> list[NamedLeg]:
-        """Return every leg with the state it adds to resolved and the name of its flow, empty when it has none."""
+        """Return every leg with its resolved state and the name of its flow.
+
+        The resolved state is the one it adds to, and the flow name is empty when it has none.
+        """
         legs: list[NamedLeg] = []
         for state, into, amount, *flow in ((self.state, self.into, self.amount, self.flow), *self.legs):
             name = flow[0] if flow else ''
@@ -262,7 +287,10 @@ class TransferInteraction(Interaction):
         return legs
 
     def _check_leg(self, state: object, into: object, amount: object, flow: object) -> None:
-        """Raise an error for a leg with unusable ends, amount, or flow name, or a symbolic end that names no role."""
+        """Raise an error for a leg with bad ends, amount, or flow name.
+
+        It also raises it for a symbolic end that names no role.
+        """
         if not isinstance(state, str | Source) or not isinstance(into, str | Sink):
             error_msg = (
                 f'A leg of {self.label!r} moves {state!r} into {into!r}. Give a state name or `Source()` it leaves, '
@@ -289,7 +317,10 @@ class TransferInteraction(Interaction):
             raise ValidationError(error_msg)
 
     def _check_flows(self) -> None:
-        """Raise an error for flow names that two legs share, or that the agent form, which reports no flows, takes."""
+        """Raise an error for flow names that two legs share, or that the agent form takes.
+
+        The agent form reports no flows.
+        """
         names = [leg[3] for leg in self._get_legs() if leg[3]]
         if len(set(names)) < len(names):
             error_msg = f'Two legs of {self.label!r} share a flow name among {names!r}. Give every flow its own name.'
@@ -305,8 +336,12 @@ class TransferInteraction(Interaction):
             self._check_grid('pairing', self.pairing, space, alternative)
         self._check_partners(self.pairing, space)
 
-    def _check(self) -> None:
-        """Raise an error for an unknown form or pairing, a malformed leg, or an option the form does not take.
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Raise an error for an unknown form or pairing, a bad leg, or a bad option.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
@@ -316,7 +351,7 @@ class TransferInteraction(Interaction):
                 an offset is not a whole number or pairs two groups, or the schedule `'member'` has a pairing it
                 cannot draw.
         """
-        super()._check()
+        super()._prepare(context)
         if self.form not in FORMS:
             error_msg = f'Unknown form {self.form!r} of {self.label!r}. Use one of {", ".join(FORMS)}.'
             raise ValidationError(error_msg)
@@ -325,7 +360,7 @@ class TransferInteraction(Interaction):
             raise ValidationError(error_msg)
         self._check_variant('pairing', self.pairing, PAIRINGS, (PartnerSpec,), functions=True)
         if isinstance(self.pairing, PartnerSpec):
-            self.pairing._validated()
+            self.pairing._check()
         self._check_settlement()
         if self.form == 'symbolic' and self.fallback is not None:
             error_msg = f'The symbolic form of {self.label!r} pairs members. Use `form="agent"` for a fallback group.'
@@ -347,7 +382,7 @@ class TransferInteraction(Interaction):
         self._check_schedule()
 
     def _check_settlement(self) -> None:
-        """Raise an error for a settlement that cannot be called, or that the form or the pairing does not take."""
+        """Raise an error for an uncallable settlement, or one its form or pairing rejects."""
         if self.settlement is None:
             return
         if not callable(self.settlement):
@@ -380,7 +415,10 @@ class TransferInteraction(Interaction):
             raise ValidationError(error_msg)
 
     def _check_schedule(self) -> None:
-        """Raise an error for an unknown schedule, actor, or removal, or partners the schedule cannot draw."""
+        """Raise an error for an unknown schedule, actor, or removal, or bad partners.
+
+        The schedule cannot draw the bad partners.
+        """
         for name, value, variants in (
             ('schedule', self.schedule, SCHEDULES),
             ('actor', self.actor, ACTORS),
@@ -416,17 +454,26 @@ class TransferInteraction(Interaction):
             raise ValidationError(error_msg)
 
     def _get_owner(self) -> str:
-        """Return the path of the element or group the source and target roles both bind, or the empty string."""
+        """Return the path of the element or group both source and target roles bind.
+
+        It returns the empty string otherwise.
+        """
         roles = self._get_specs()
         bound = all(isinstance(roles.get(self._get_role(role)), RoleSpec) for role in ('source', 'target'))
         return self.source if bound and self.source == self.target else ''
 
     def _get_holders(self, namespace: SimpleNamespace) -> list[tuple[SimpleNamespace, SimpleNamespace]]:
-        """Return the namespaces of the source and the target of every pair the symbolic form transfers between."""
+        """Return the namespaces of the source and the target of every pair.
+
+        These are the pairs the symbolic form transfers between.
+        """
         return [(getattr(namespace, self._get_role('source')), getattr(namespace, self._get_role('target')))]
 
     def _shift(self, holder: SimpleNamespace) -> SimpleNamespace:
-        """Return the namespace of a group with every symbol read at the member the offset names."""
+        """Return the namespace of a group with every symbol read at an offset member.
+
+        The offset names the member.
+        """
         if not self.offset:
             return holder
         return SimpleNamespace(
@@ -440,7 +487,10 @@ class TransferInteraction(Interaction):
 
     @staticmethod
     def _get_holder(namespace: SimpleNamespace, end: str, own: SimpleNamespace) -> object:
-        """Return the symbol of a leg end, the state of the role it names or the state of its own side."""
+        """Return the symbol of a leg end.
+
+        It is the state of the role it names or the state of its own side.
+        """
         role, _, state = end.rpartition('.')
         return getattr(getattr(namespace, role) if role else own, state)
 
@@ -451,7 +501,10 @@ class TransferInteraction(Interaction):
         rate: Amount | None,
         reverse: bool,
     ) -> TransferLaw:
-        """Return the transfer law of one leg of a pair, forward or back, reported under its flow name."""
+        """Return the transfer law of one leg of a pair, forward or back.
+
+        It is reported under its flow name.
+        """
         state, into, amount, flow = leg
         owner = self._get_owner() if flow else ''
         held = (
@@ -481,7 +534,10 @@ class TransferInteraction(Interaction):
         return TransferLaw(held, sink, value, jumps, label=flow, owner=owner)
 
     def _get_transfer_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the transfer laws of every leg of every pair, forward and back, of the symbolic form."""
+        """Return the transfer laws of every leg of every pair of the symbolic form.
+
+        They go forward and back.
+        """
         laws: list[BaseLaw] = []
         for source, target in self._get_holders(namespace):
             paired = SimpleNamespace(
@@ -493,7 +549,10 @@ class TransferInteraction(Interaction):
         return laws
 
     def _get_pairing(self) -> MatchLaw:
-        """Return the law of the pairs of the pairing, whose capacity for a function is `partners`, or 1 without it."""
+        """Return the law of the pairs of the pairing.
+
+        Its capacity for a function is `partners`, or 1 without it.
+        """
         pairing = self.pairing
         spec = NAMED_PARTNERS[pairing] if isinstance(pairing, str) else pairing
         return MatchLaw(self.source, self.target, spec, capacity=self.partners or 1)
@@ -529,12 +588,15 @@ class TransferInteraction(Interaction):
         return float(value)
 
     def _transfer_pair(self, source: AgentViewProtocol, target: AgentViewProtocol, system: SystemViewProtocol) -> None:
-        """Transfer between two living agents, and remove the member of the pair that a removal names."""
+        """Transfer between two living agents and remove the member a removal names."""
         if source.alive and target.alive and self.transfer(source, target, system) and self.remove is not None:
             (source if self.remove == 'source' else target).remove()
 
     def _deposit(self, agent: AgentViewProtocol, system: SystemViewProtocol) -> None:
-        """Move the amounts of every leg from an agent into the site of the target field at its cell or node."""
+        """Move the amounts of every leg from an agent into the site of the target field.
+
+        The site is at its cell or node.
+        """
         cell = agent.location_key
         if not agent.alive or (self.guard is not None and not self.guard(agent, cell, system)):
             return
@@ -548,7 +610,7 @@ class TransferInteraction(Interaction):
                 system.deposit(f'{field}.{into}', cell, amount)
 
     def _get_partners(self, agent: AgentViewProtocol, system: SystemViewProtocol) -> list[AgentViewProtocol]:
-        """Return the partners of an actor by the pairing, or the number of them drawn at random."""
+        """Return the partners of an actor by the pairing, or a random number of them."""
         if self.pairing == 'members':
             return [agent]
         role = self._get_role('source' if self.actor == 'target' else 'target')
@@ -581,7 +643,10 @@ class TransferInteraction(Interaction):
                 self._transfer_pair(*pair, system)
 
     def _transfer_pairs(self, system: SystemViewProtocol) -> None:
-        """Transfer between every pair of agents of one step, or into the sites of the source agents."""
+        """Transfer between every pair of agents of one step.
+
+        The transfer may go into the sites of the source agents instead.
+        """
         if self.pairing == 'site':
             sources = system.agents(self._get_role('source'))
             for index in system.rng.permutation(len(sources)):
@@ -608,7 +673,9 @@ class TransferInteraction(Interaction):
         return self._get_transfer_laws(namespace)
 
     def transfer(self, source: AgentViewProtocol, target: AgentViewProtocol, system: SystemViewProtocol) -> bool:
-        """Move the amounts of every leg from one source agent to one target agent, when the guard holds.
+        """Move the amounts of every leg from one source agent to one target agent.
+
+        It moves them when the guard holds.
 
         Args:
             source:

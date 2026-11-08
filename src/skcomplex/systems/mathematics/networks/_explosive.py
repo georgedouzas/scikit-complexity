@@ -1,4 +1,7 @@
-"""Explosive percolation: edges chosen by the Achlioptas product rule, which delays and sharpens the giant component."""
+"""Explosive percolation.
+
+Edges chosen by the Achlioptas product rule delay and sharpen the giant component.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,9 +17,8 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, TopologyInteraction
 from ....core.components.laws.utils import components
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ObservableSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 SIZE_VISUAL = VisualSpec('sites', {'states': ['size']})
 
@@ -54,33 +56,18 @@ class ClusterNodeElement(Element):
         self.size = size
 
 
-def _largest_observables(system: System) -> list[ObservableSpec]:
-    """Return the number of nodes of the largest component."""
-    del system
-    return [ObservableSpec('largest', group='nodes', variable='size', reduce='max')]
+class ExplosivePercolationSystem(BaseSystem):
+    """Explosive percolation.
 
-
-def _get_product(node: SimpleNamespace) -> object:
-    """Return the product of the sizes of the components a candidate edge joins, the score of the product rule."""
-    return node.size * node.source.size
-
-
-@register_system(
-    field='mathematics/networks',
-    tags=('network', 'percolation', 'explosive percolation', 'Achlioptas process', 'giant component'),
-    references=("Achlioptas, D'Souza, and Spencer 2009", 'Artime et al. 2025'),
-    defaults={'until': 1000},
-    observables=_largest_observables,
-)
-def explosive_percolation(n_nodes: int = 1000, *, candidates: int = 2) -> System:
-    """Return explosive percolation, where the Achlioptas product rule delays and sharpens the giant component.
+    The Achlioptas product rule delays and sharpens the giant component.
 
     The network starts with `n_nodes` isolated nodes, and every step adds one edge. It draws `candidates` edges, each
     between two distinct nodes not yet joined drawn uniformly, and adds the one whose product of the sizes of the
     components it joins is smallest, the product rule of Achlioptas, D'Souza, and Spencer (2009). A map reads the size
-    of the component of every node at the start of every step. With one candidate the edges are those of an
-    Erdős-Rényi graph, whose giant component grows continuously from `t = 1/2` edges per node. With two candidates the
-    rule suppresses large components until the giant component jumps in a narrow window near `t = 0.888`.
+    of the component of every node at the start of every step. With one candidate the edges are those of an Erdős-Rényi
+    graph, whose giant component grows continuously from `t = 1/2` edges per node. With two candidates the rule
+    suppresses large components until the giant component jumps in a narrow window near `t = 0.888`. The system has the
+    size of the component of every node `nodes.size`.
 
     Args:
         n_nodes:
@@ -89,22 +76,52 @@ def explosive_percolation(n_nodes: int = 1000, *, candidates: int = 2) -> System
         candidates:
             The number of candidate edges of every step.
 
-    Returns:
-        system:
-            The system, with the size of the component of every node `nodes.size`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.core.engine.runtime import Simulation
-        >>> from skcomplex.systems.mathematics.networks import explosive_percolation
-        >>> trajectory = Simulation(explosive_percolation(100), random_state=0).prepare().run(until=50).trajectory_
+        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.systems.mathematics.networks import ExplosivePercolationSystem
+        >>> trajectory = simulate(ExplosivePercolationSystem(100), until=50, random_state=0)
         >>> len(trajectory.network(-1).sources)
         50
     """
-    nodes = GroupElement('nodes', element=ClusterNodeElement, on='sites', variable=True, capacity=n_nodes)
-    links = GroupElement('links', element=Element, on='edges', variable=True, capacity=2 * n_nodes)
-    interactions = [
-        MapInteraction('size', target='nodes', state='size', function=lambda s: components(1, reduce='size')),
-        TopologyInteraction('linking', action='add-edge', candidates=candidates, score=_get_product),
-    ]
-    space = NetworkSpace(nx.empty_graph(n_nodes))
-    return System(elements=[nodes, links], interactions=interactions, space=space, time=DiscreteTime())
+
+    field = 'mathematics/networks'
+    topics = ('network', 'percolation', 'explosive percolation', 'Achlioptas process', 'giant component')
+    references = ("Achlioptas, D'Souza, and Spencer 2009", 'Artime et al. 2025')
+    until = 1000
+    observables = (ObservableSpec('largest', group='nodes', variable='size', reduce='max'),)
+
+    def __init__(
+        self,
+        n_nodes: int = 1000,
+        *,
+        candidates: int = 2,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_nodes = n_nodes
+        self.candidates = candidates
+
+    @staticmethod
+    def _get_product(node: SimpleNamespace) -> object:
+        """Return the score of the product rule of a candidate edge.
+
+        The score is the product of the sizes of the components the edge joins.
+        """
+        return node.size * node.source.size
+
+    def _build_system(self) -> System:
+        """Return explosive percolation.
+
+        The Achlioptas product rule delays and sharpens the giant component.
+        """
+        nodes = GroupElement('nodes', element=ClusterNodeElement, on='sites', variable=True, capacity=self.n_nodes)
+        links = GroupElement('links', element=Element, on='edges', variable=True, capacity=2 * self.n_nodes)
+        interactions = [
+            MapInteraction('size', target='nodes', state='size', function=lambda s: components(1, reduce='size')),
+            TopologyInteraction('linking', action='add-edge', candidates=self.candidates, score=self._get_product),
+        ]
+        space = NetworkSpace(nx.empty_graph(self.n_nodes))
+        return System(self.label, elements=[nodes, links], interactions=interactions, space=space, time=DiscreteTime())

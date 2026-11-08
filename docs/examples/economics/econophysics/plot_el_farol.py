@@ -16,9 +16,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.economics.econophysics import ElFarolSystem
 
 SYSTEM = 'el_farol'
 WEEKS, TRANSIENT, CAPACITY = 500, 100, 60
@@ -35,12 +35,8 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
-system = create_system(SYSTEM, n_agents=100, capacity=CAPACITY, random_state=0)
-simulation = (
-    Simulation(system, observers=[observer], random_state=0, observables=describe(SYSTEM).observables_of(system))
-    .prepare()
-    .run(until=WEEKS)
-)
+system = ElFarolSystem(n_agents=100, capacity=CAPACITY, random_state=0)
+trajectory = simulate(system, until=WEEKS, observers=[observer], random_state=0)
 
 # %%
 # Self-organization around the capacity
@@ -48,8 +44,8 @@ simulation = (
 # Arthur found that the mean attendance converges to the capacity, while the attendance keeps fluctuating, since any
 # predictor that becomes popular defeats itself. The running mean after the transient should approach 60.
 
-times = simulation.trajectory_.times
-attendance = simulation.trajectory_.values('attendance')
+times = trajectory.times
+attendance = trajectory.values('attendance')
 settled = attendance[TRANSIENT:]
 running = np.cumsum(settled) / np.arange(1, len(settled) + 1)
 fig, (series, histogram) = plt.subplots(1, 2, figsize=(10, 4))

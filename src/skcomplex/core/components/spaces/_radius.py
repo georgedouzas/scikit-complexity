@@ -1,4 +1,7 @@
-"""Define radius neighbourhoods, the members of a continuous space within a distance."""
+"""Define radius neighbourhoods.
+
+They are the members of a continuous space within a distance.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -8,9 +11,10 @@ from ._base import BaseNeighborhood
 
 
 class RadiusNeighborhood(BaseNeighborhood):
-    """Members of a continuous space within a distance of a member, the metric neighbourhood.
+    """Members of a continuous space within a distance of a member.
 
-    Distances are measured between the position states of the members, by the minimum image in a periodic box.
+    This is the metric neighbourhood. Distances are measured between the position states of the members, by the minimum
+    image in a periodic box.
 
     Args:
         radius:
@@ -33,8 +37,9 @@ class RadiusNeighborhood(BaseNeighborhood):
         self.radius = radius
         self.center = center
 
-    def _check(self) -> None:
+    def _prepare(self, context: None = None) -> None:
         """Raise an error for a radius that is not positive."""
+        super()._prepare(context)
         if not float(self.radius) > 0:
             error_msg = f'A radius neighbourhood needs a positive radius, but got {self.radius!r}.'
             raise ValidationError(error_msg)

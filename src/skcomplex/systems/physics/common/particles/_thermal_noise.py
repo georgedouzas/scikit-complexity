@@ -1,4 +1,7 @@
-"""Thermal noise of overdamped particles, the random force `sqrt(2 gamma temperature) dW` divided by `gamma`."""
+"""Thermal noise of overdamped particles.
+
+The noise is the random force `sqrt(2 gamma temperature) dW` divided by `gamma`.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,7 +16,9 @@ from .....core.specs import RoleSpec
 
 
 class ThermalNoiseInteraction(RateInteraction):
-    """Thermal noise of overdamped particles, the random force `sqrt(2 gamma temperature) dW` divided by `gamma`.
+    """Thermal noise of overdamped particles.
+
+    The noise is the random force `sqrt(2 gamma temperature) dW` divided by `gamma`.
 
     The friction `gamma` and the thermal energy `temperature` are parameters of the target, so every component of the
     position diffuses with the coefficient `temperature / gamma`.

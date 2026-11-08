@@ -8,24 +8,24 @@ the plane, spreading into a round Gaussian cloud.
 """
 
 # %%
-# The system is created by name from the catalog with inertia, mass `m = 1`, friction `gamma = 1`, and thermal energy
+# The system is built from its class with inertia, mass `m = 1`, friction `gamma = 1`, and thermal energy
 # `kT = 1`, so the momentum relaxation time is 1. The Euler-Maruyama stepper takes steps of 0.005 and the observer
 # saves every frame of 0.05 with the default blueprint, whose primary view shows the particles.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.soft_matter import BrownianMotionSystem
 
 SYSTEM = 'brownian_motion'
 
-system = create_system(SYSTEM, n_particles=500, n_dim=2, random_state=0)
+system = BrownianMotionSystem(n_particles=500, n_dim=2, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 solver = EulerMaruyamaSolver(dt=0.005)
-simulation = Simulation(system, solver=solver, dt=0.05, observers=[observer], random_state=0).prepare().run(until=10)
+trajectory = simulate(system, solver=solver, dt=0.05, observers=[observer], random_state=0)
 
 # %%
 # From ballistic flight to diffusion
@@ -35,12 +35,11 @@ simulation = Simulation(system, solver=solver, dt=0.05, observers=[observer], ra
 # and as `2 kT t / gamma` above it, and the measured displacement in the plane, twice the value per axis, should
 # follow it across the crossover.
 
-trajectory = simulation.trajectory_
 times = trajectory.times[1:]
 squared = np.mean(np.sum(trajectory.values('beads.x')[1:] ** 2, axis=-1), axis=1)
 exact = 2 * 2 * (times - (1 - np.exp(-times)))
 fig, ax = plt.subplots(figsize=(7, 4))
-ax.loglog(times, squared, 'o', markersize=3, label='simulation, 500 particles')
+ax.loglog(times, squared, 'o', markersize=3, label='trajectory, 500 particles')
 ax.loglog(times, exact, color='black', label='Ornstein-Uhlenbeck')
 ax.loglog(times, 2 * times**2, ':', color='gray', label='ballistic, 2 kT t^2 / m')
 ax.loglog(times, 4 * times, '--', color='gray', label='diffusive, 4 kT t / gamma')

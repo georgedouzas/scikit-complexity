@@ -50,7 +50,7 @@ from skcomplex.core.components.spaces import (
     VonNeumannNeighborhood,
 )
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import SpaceError, ValidationError
 from skcomplex.core.specs import BaseSpec, ParameterSpec, PartnerSpec, RoleSpec, StateSpec, TopologyRequestSpec
 from skcomplex.core.types import ElementKind
@@ -183,7 +183,7 @@ def _run_agents(interaction):
         values={'x': np.array([0.0, 1.0, 0.0, 1.0])},
     )
     system = System(elements=[agents], interactions=[interaction], space=LatticeSpace((2, 2)), time=DiscreteTime())
-    return Simulation(system, random_state=0).prepare().run(until=5).trajectory_.agents('nodes', 5).values['x']
+    return simulate(system, until=5, random_state=0).agents('nodes', 5).values['x']
 
 
 def _get_renamed(interaction):
@@ -212,8 +212,7 @@ def _run_nodes(interaction, discrete):
         values={'x': np.array([0.0, 1.0, 0.0, 1.0])},
     )
     system = System(elements=[nodes], interactions=[interaction], time=DiscreteTime() if discrete else None)
-    simulation = Simulation(system, dt=1 if discrete else 0.1, random_state=0)
-    return simulation.prepare().run(until=5 if discrete else 1.0).trajectory_.values('nodes.x')
+    return simulate(system, until=5 if discrete else 1.0, dt=1 if discrete else 0.1, random_state=0).values('nodes.x')
 
 
 class WeightedInteraction(BaseInteraction):
@@ -410,7 +409,7 @@ def test_dispatch_method_of_a_subclass_runs_its_spec_variant():
         form='agent',
     )
     system = System(elements=[group], interactions=[choice], time=DiscreteTime())
-    trajectory = Simulation(system, random_state=0).prepare().run(until=1).trajectory_
+    trajectory = simulate(system, until=1, random_state=0)
     assert trajectory.agents('members', 1).values['x'].tolist() == [2.0, 2.0, 2.0]
 
 
@@ -423,7 +422,7 @@ def _run_variant(*interactions, space=None, time=None):
         space=LatticeSpace((3,)) if space is None else space,
         time=DiscreteTime() if time is None else time,
     )
-    Simulation(system, random_state=0).prepare().run(until=2)
+    simulate(system, until=2, random_state=0)
 
 
 def _choice(form):
@@ -594,3 +593,46 @@ def test_every_core_interaction_with_laws_lists_them():
     bases = {BaseInteraction, Interaction, NeighborInteraction, PairInteraction, HyperedgeInteraction}
     for kind in set(_interaction_classes()) - bases:
         assert kind.law_classes, kind.__name__
+
+
+@pytest.mark.parametrize(
+    ('interaction', 'laws', 'randomness'),
+    [
+        (RateInteraction('growth', target='a', rate=1.0), {'rate'}, 'deterministic'),
+        (RateInteraction('growth', target='a', rate=1.0, noise=0.1), {'rate', 'noise'}, 'stochastic'),
+        (ReactionInteraction('decay', target='a', reactants={'x': 1}), {'rate'}, 'deterministic'),
+        (ReactionInteraction('decay', target='a', reactants={'x': 1}, mode='jump'), {'jump'}, 'stochastic'),
+        (
+            ReactionInteraction('decay', target='a', reactants={'x': 1}, mode='langevin'),
+            {'rate', 'noise'},
+            'stochastic',
+        ),
+        (JumpInteraction('flip', target='a', changes={'x': 1.0}, probability=lambda s: 0.5), {'update'}, 'stochastic'),
+        (MapInteraction('map', target='a', state='x', function=lambda s: s.target.x), {'update'}, 'deterministic'),
+    ],
+)
+def test_interaction_tags_follow_its_arguments(interaction, laws, randomness):
+    """Test that the law kinds and the randomness of an interaction follow the arguments that choose its laws."""
+    tags = interaction.get_tags()
+    assert (tags.laws, tags.randomness) == (laws, randomness)
+
+
+def test_interaction_tags_give_the_times_and_structure_of_the_chosen_laws():
+    """Test that an interaction gives the times its chosen laws run in, and how they change the structure."""
+    assert MapInteraction('map', target='a', state='x', function=lambda s: s.target.x).get_tags().time == {'discrete'}
+    assert RateInteraction('growth', target='a', rate=1.0).get_tags().time == {'continuous'}
+    assert TopologyInteraction('rewire').get_tags().structure == {'changing topology'}
+
+
+def test_interaction_that_writes_unlisted_laws_has_unknown_law_kinds():
+    """Test that a subclass that writes its laws without listing them leaves its law kinds and randomness unknown."""
+
+    class CustomRateInteraction(RateInteraction):
+        """Rate interaction with laws of its own."""
+
+        def _get_laws(self, namespace):
+            return []
+
+    tags = CustomRateInteraction('growth', target='a', rate=1.0).get_tags()
+    assert (tags.laws, tags.randomness) == (None, None)
+    assert Interaction('free').get_tags().laws is None

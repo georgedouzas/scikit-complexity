@@ -11,6 +11,7 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import SR, Expression
 
 from .....core.components.interactions import MapInteraction
+from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
 from .....core.specs import RoleSpec
 
@@ -58,7 +59,10 @@ class BooleanFunctionInteraction(MapInteraction):
         self.table = table
 
     def _get_pattern(self, inputs: Sequence[Expression], index: int) -> Expression:
-        """Return the product that is 1 when the inputs, read as bits from the most significant, spell an index."""
+        """Return the product that is 1 when the inputs spell an index.
+
+        The inputs are read as bits from the most significant.
+        """
         bits = [(index >> (len(inputs) - 1 - position)) & 1 for position in range(len(inputs))]
         return prod((value if bit else 1 - value for value, bit in zip(inputs, bits, strict=True)), start=SR(1))
 
@@ -68,14 +72,18 @@ class BooleanFunctionInteraction(MapInteraction):
         terms = [self._get_pattern(inputs, index) for index, entry in enumerate(self.table) if entry]
         return sum(terms, start=SR(0))
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for a table without one entry per pattern of the inputs.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The table does not have one entry per pattern of the inputs.
         """
-        super()._check()
+        super()._prepare(context)
         if len(self.table) != 2 ** len(self.inputs):
             error_msg = (
                 f'BooleanFunction {self.label} reads {len(self.inputs)} inputs, which take {2 ** len(self.inputs)} '

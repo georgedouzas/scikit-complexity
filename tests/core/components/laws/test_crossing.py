@@ -10,7 +10,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import CrossingLaw, RateLaw
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import BackendWarning, ValidationError
 from skcomplex.core.specs import CallSpec, StateSpec, VisualSpec
 
@@ -53,7 +53,7 @@ class BallElement(Element):
 def _trajectory(law, backend=None):
     """Return the trajectory of a ball whose crossing has the given form."""
     system = System(elements=[BallElement('ball', law=law)])
-    return Simulation(system, dt=0.001, backend=backend or NumpyBackend()).prepare().run(until=1.0).trajectory_
+    return simulate(system, until=1.0, dt=0.001, backend=backend or NumpyBackend())
 
 
 @pytest.mark.parametrize('law', ['functions', 'relative', 'mixed'])
@@ -94,7 +94,7 @@ def test_crossing_with_a_function_reads_every_member_of_a_group():
             return [RateLaw(s.y, -1.0), CrossingLaw(guard, {s.y: lambda t, values: 5.0}, -1)]
 
     group = GroupElement('herd', element=FallingElement, size=2, values={'y': [1.0, 2.0]})
-    trajectory = Simulation(System(elements=[group]), dt=0.01).prepare().run(until=1.5).trajectory_
+    trajectory = simulate(System(elements=[group]), until=1.5, dt=0.01)
     assert np.asarray(trajectory.values('herd.y'))[-1] == pytest.approx([4.5, 0.5], abs=1e-6)
 
 
@@ -102,4 +102,4 @@ def test_crossing_rejects_a_call_with_arguments():
     """Test that a crossing names the forms of a function it takes."""
     system = System(elements=[BallElement('ball', law='arguments')])
     with pytest.raises(ValidationError, match='An event takes'):
-        Simulation(system, dt=0.01).prepare()
+        simulate(system, until=0, dt=0.01)

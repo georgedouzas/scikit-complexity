@@ -9,11 +9,11 @@ from skcomplex.core.errors import ValidationError
 from skcomplex.systems.biology.common.metabolism import ReactionSpec, metabolic_network_type
 from skcomplex.systems.biology.systems_biology import (
     AtomMapSpec,
+    Carbon13MFASystem,
     FragmentSpec,
-    LabellingAnalysis,
     LabelMeasurementSpec,
     TracerSpec,
-    carbon_13_mfa,
+    labelling,
     tca_labelling_analysis,
 )
 
@@ -22,19 +22,19 @@ TRUE = {'v1': 100.0, 'v2': 100.0, 'v3': 50.0, 'v4': 50.0, 'v5': 50.0, 'v6': 50.0
 
 def test_estimation_recovers_the_split_of_alpha_ketoglutarate():
     """Test the estimated split, that every interval holds its true value, and that the test accepts the fit."""
-    analysis = tca_labelling_analysis(noise=0.002, random_state=0).prepare(carbon_13_mfa()).run()
-    assert analysis.fluxes_['v3'] == pytest.approx(50, abs=2)
-    assert analysis.fluxes_['v4'] == pytest.approx(50, abs=2)
-    assert analysis.accepted_
+    analysis = tca_labelling_analysis(noise=0.002, random_state=0)(Carbon13MFASystem().prepare().system_)
+    assert analysis.fluxes['v3'] == pytest.approx(50, abs=2)
+    assert analysis.fluxes['v4'] == pytest.approx(50, abs=2)
+    assert analysis.accepted
     for name, value in TRUE.items():
-        low, high = analysis.intervals_[name]
+        low, high = analysis.intervals[name]
         assert low - 1e-6 <= value <= high + 1e-6, name
 
 
 def test_simulation_gives_the_published_pattern():
     """Test the glutamate of the true fluxes and the tracer of Antoniewicz et al. (2007)."""
-    analysis = tca_labelling_analysis('simulation').prepare(carbon_13_mfa()).run()
-    found = analysis.distributions_['published']['Glu']
+    analysis = tca_labelling_analysis('simulation')(Carbon13MFASystem().prepare().system_)
+    found = analysis.distributions['published']['Glu']
     np.testing.assert_allclose(found, [0.3464, 0.2695, 0.2708, 0.0807, 0.0286, 0.0039], atol=5e-5)
 
 
@@ -48,7 +48,7 @@ def test_origins_of_a_valid_map():
 def test_check_names_an_unbalanced_letter():
     """Test that a product letter no reactant carries raises an error that names the reaction and the letter."""
     with pytest.raises(ValidationError, match=r"reaction v1.*'z'"):
-        AtomMapSpec('v1', [('A', 'ab')], [('B', 'az')]).prepare()
+        AtomMapSpec('v1', [('A', 'ab')], [('B', 'az')])._check()
 
 
 BOUND = 300.0
@@ -96,14 +96,14 @@ def _system():
 
 def _simulated(tracers):
     """Return the distributions of glutamate of the true fluxes under some tracers."""
-    analysis = LabellingAnalysis(
+    return labelling(
+        _system(),
         atoms=ATOMS,
         tracers=tracers,
         fragments=[GLUTAMATE],
         fluxes=TRUE_FLUXES,
         symmetric=('Suc', 'Fum'),
-    )
-    return analysis.prepare(_system()).run().distributions_
+    ).distributions
 
 
 def _measurements(noise=0.0, seed=0):
@@ -124,7 +124,7 @@ def test_check_names_an_inconsistent_atom_count():
         AtomMapSpec('v2', [('B', 'abcd')], [('Glu', 'abcd')]),
     ]
     with pytest.raises(ValidationError, match=r'v1 gives Glu 5 atoms.*v2'):
-        LabellingAnalysis(atoms=atoms).prepare()
+        labelling(_system(), atoms=atoms)
 
 
 def test_simulation_gives_the_published_distribution():
@@ -219,14 +219,14 @@ def test_simulation_scrambles_a_symmetric_metabolite():
     ]
     fragments = [FragmentSpec('Fum', (atom,), f'atom{atom}') for atom in (1, 2, 3, 4)]
     system = System(elements=[metabolic_network_type('SymmetricElement', reactions)('net')], time=StaticTime())
-    analysis = LabellingAnalysis(
+    found = labelling(
+        system,
         atoms=atoms,
         tracers={'first': [TracerSpec('Sub', {'1000': 1.0})]},
         fragments=fragments,
         fluxes={'in': 1.0, 'on': 1.0, 'out': 1.0},
         symmetric=('Suc',),
-    )
-    found = analysis.prepare(system).run().distributions_['first']
+    ).distributions['first']
     assert found['atom1'][1] == pytest.approx(0.5)
     assert found['atom4'][1] == pytest.approx(0.5)
     assert found['atom2'][1] == pytest.approx(0.0)
@@ -234,20 +234,17 @@ def test_simulation_scrambles_a_symmetric_metabolite():
 
 def _estimated(measurements, tracers, *, measured=None, intervals='linear', random_state=0):
     """Return the estimation of the TCA example."""
-    return (
-        LabellingAnalysis(
-            'estimation',
-            atoms=ATOMS,
-            tracers=tracers,
-            fragments=[GLUTAMATE],
-            measurements=measurements,
-            measured_fluxes=measured or {'v1': (100.0, 0.0)},
-            symmetric=('Suc', 'Fum'),
-            intervals=intervals,
-            random_state=random_state,
-        )
-        .prepare(_system())
-        .run()
+    return labelling(
+        _system(),
+        kind='estimation',
+        atoms=ATOMS,
+        tracers=tracers,
+        fragments=[GLUTAMATE],
+        measurements=measurements,
+        measured_fluxes=measured or {'v1': (100.0, 0.0)},
+        symmetric=('Suc', 'Fum'),
+        intervals=intervals,
+        random_state=random_state,
     )
 
 
@@ -255,10 +252,10 @@ def test_estimation_recovers_the_fluxes_from_noise_free_data():
     """Test that every net flux is recovered within 1e-4 relative error, with a residual below 1e-10."""
     tracers, measurements = _measurements()
     analysis = _estimated(measurements, tracers)
-    assert analysis.residual_ < 1e-10
+    assert analysis.residual < 1e-10
     for name in ('v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v8', 'v9'):
         expected = 50.0 if name == 'v6' else TRUE_FLUXES[name]
-        assert analysis.fluxes_[name] == pytest.approx(expected, rel=1e-4)
+        assert analysis.fluxes[name] == pytest.approx(expected, rel=1e-4)
 
 
 def test_estimation_repeats_with_one_seed():
@@ -266,16 +263,16 @@ def test_estimation_repeats_with_one_seed():
     tracers, measurements = _measurements(noise=0.002)
     first = _estimated(measurements, tracers)
     second = _estimated(measurements, tracers)
-    assert first.fluxes_ == second.fluxes_
-    assert first.residual_ == second.residual_
+    assert first.fluxes == second.fluxes
+    assert first.residual == second.residual
 
 
 def test_estimation_rejects_data_that_contradict_the_balances():
     """Test that a measured flux against the balances puts the residual above the acceptance range."""
     tracers, measurements = _measurements(noise=0.002)
     analysis = _estimated(measurements, tracers, measured={'v1': (100.0, 0.0), 'v2': (150.0, 1.0)})
-    assert analysis.residual_ > analysis.chi2_[1]
-    assert not analysis.accepted_
+    assert analysis.residual > analysis.chi2[1]
+    assert not analysis.accepted
 
 
 @pytest.fixture(scope='module')
@@ -287,15 +284,15 @@ def profiled():
 
 def test_estimation_of_noisy_data_has_intervals_that_hold_the_truth(profiled):
     """Test that every profile interval of a net flux holds its true value, and that the test accepts the fit."""
-    assert profiled.accepted_
+    assert profiled.accepted
     for name in ('v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v8', 'v9'):
-        low, high = profiled.intervals_[name]
+        low, high = profiled.intervals[name]
         expected = 50.0 if name == 'v6' else TRUE_FLUXES[name]
         assert low - 1e-3 <= expected <= high + 1e-3
 
 
 def test_estimation_marks_an_unidentifiable_exchange(profiled):
     """Test that the fumarase exchange, which the data do not fix, reaches a bound and is not identifiable."""
-    low, high = profiled.intervals_['v6.exchange']
+    low, high = profiled.intervals['v6.exchange']
     assert low == pytest.approx(0.0, abs=1e-3) or high == pytest.approx(BOUND)
-    assert not profiled.identifiable_['v6.exchange']
+    assert not profiled.identifiable['v6.exchange']

@@ -1,4 +1,7 @@
-"""Simplicial contagion: infection through the links and the filled triangles of a simplicial complex."""
+"""Simplicial contagion: infection through a simplicial complex.
+
+The infection goes through the links and the filled triangles.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,13 +22,14 @@ from ....core.components.interactions import HyperedgeInteraction
 from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.laws.utils import where
 from ....core.components.spaces import NetworkSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class InfectiveElement(Element):
-    """Node of a contagion, susceptible at 0 and infected at 1, that recovers at a rate.
+    """Node of a contagion, susceptible at 0 and infected at 1.
+
+    It recovers at a rate.
 
     Args:
         label:
@@ -45,6 +49,8 @@ class InfectiveElement(Element):
         >>> InfectiveElement('node').recovery
         1.0
     """
+
+    law_classes = (JumpLaw,)
 
     def __init__(
         self,
@@ -67,10 +73,11 @@ PAIR = 2
 
 
 class SimplicialInfectionInteraction(HyperedgeInteraction):
-    """Infection of a susceptible node by the other members of a link or a filled triangle, when all are infected.
+    """Infection of a susceptible node by the other members of a link or a triangle.
 
-    A susceptible node of a link is infected at rate `beta` when its neighbour is infected, and a susceptible node of a
-    triangle at rate `beta_triangle` when both other members are infected.
+    The triangle is filled, and the infection needs all of them infected. A susceptible node of a link is infected at
+    rate `beta` when its neighbour is infected, and a susceptible node of a triangle at rate `beta_triangle` when both
+    other members are infected.
 
     Args:
         label:
@@ -91,6 +98,8 @@ class SimplicialInfectionInteraction(HyperedgeInteraction):
         0.5
     """
 
+    law_classes = (JumpLaw,)
+
     def __init__(
         self,
         label: str,
@@ -105,7 +114,10 @@ class SimplicialInfectionInteraction(HyperedgeInteraction):
         self.beta_triangle = beta_triangle
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the infection of the focal node when every other member of its link or triangle is infected."""
+        """Return the infection of the focal node.
+
+        It happens when every other member of its link or triangle is infected.
+        """
         infected = s.member.infected
         rate = s.beta if len(s.others) + 1 == PAIR else s.beta_triangle
         exposed = math.prod((other.infected for other in s.others), start=where(infected == 0, 1, 0))
@@ -115,44 +127,20 @@ class SimplicialInfectionInteraction(HyperedgeInteraction):
 TRIANGLE = 3
 
 
-def _simplicial_complex(n_nodes: int, links: float, triangles: float, seed: int) -> tuple[nx.Graph, list[tuple]]:
-    """Return a random simplicial complex: random links, and random filled triangles whose sides join the links."""
-    simplices = xgi.random_simplicial_complex(n_nodes, [links, triangles], seed=seed)
-    members = [tuple(sorted(edge)) for edge in simplices.edges.members(dtype=list)]
-    graph = nx.Graph()
-    graph.add_nodes_from(range(n_nodes))
-    graph.add_edges_from(edge for edge in members if len(edge) == PAIR)
-    return graph, [*graph.edges, *(edge for edge in members if len(edge) == TRIANGLE)]
+class SimplicialContagionSystem(BaseSystem):
+    """The simplicial contagion of Iacopini et al.
 
+    It is an SIS process on the links and triangles of a complex. A random simplicial complex joins every pair of nodes
+    with probability `p1` and fills every triple with probability `p2`, chosen so that a node has `mean_degree` links
+    and `mean_triangles` triangles on average. A susceptible node is infected at rate
+    `beta = infectivity * recovery / <k>` by every infected neighbour, and at rate
+    `beta_triangle = triangle_infectivity * recovery / <k_triangle>` by every triangle whose two other members are
+    infected, and an infected node recovers at rate `recovery`. The mean-field prevalence follows
+    `rho' = -rho + infectivity rho (1 - rho) + triangle_infectivity rho^2 (1 - rho)` in units of the recovery time. For
+    `triangle_infectivity > 1` and infectivities below the epidemic threshold 1, an endemic state coexists with the
+    healthy one, so the epidemic dies out from a small seed and persists from a large one.
 
-@register_system(
-    field='social/spreading',
-    tags=('contagion', 'network', 'hypergraph', 'simplicial complex', 'bistability'),
-    references=('Iacopini et al. 2019', 'Majhi et al. 2022'),
-    defaults={'until': 20.0, 'dt': 0.5},
-    observables=lambda system: [ObservableSpec('prevalence', group='nodes', variable='infected')],
-)
-def simplicial_contagion(
-    n_nodes: int = 200,
-    *,
-    infectivity: float = 0.75,
-    triangle_infectivity: float = 3.0,
-    mean_degree: float = 20.0,
-    mean_triangles: float = 6.0,
-    recovery: float = 1.0,
-    share: float = 0.4,
-    seed: int = 0,
-) -> System:
-    """Return the simplicial contagion of Iacopini et al., an SIS process on the links and triangles of a complex.
-
-    A random simplicial complex joins every pair of nodes with probability `p1` and fills every triple with probability
-    `p2`, chosen so that a node has `mean_degree` links and `mean_triangles` triangles on average. A susceptible node is
-    infected at rate `beta = infectivity * recovery / <k>` by every infected neighbour, and at rate `beta_triangle =
-    triangle_infectivity * recovery / <k_triangle>` by every triangle whose two other members are infected, and an
-    infected node recovers at rate `recovery`. The mean-field prevalence follows `rho' = -rho + infectivity rho (1 -
-    rho) + triangle_infectivity rho^2 (1 - rho)` in units of the recovery time. For `triangle_infectivity > 1` and
-    infectivities below the epidemic threshold 1, an endemic state coexists with the healthy one, so the epidemic
-    dies out from a small seed and persists from a large one.
+    The system has the states `nodes.infected` and the prevalence `prevalence`.
 
     Args:
         n_nodes:
@@ -179,37 +167,82 @@ def simplicial_contagion(
         seed:
             The seed of the complex and the infected nodes.
 
-    Returns:
-        system:
-            The system, with the states `nodes.infected` and the prevalence `prevalence`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.spreading import simplicial_contagion
-        >>> system = simplicial_contagion(30, mean_degree=6.0, mean_triangles=2.0)
+        >>> from skcomplex.systems.social.spreading import SimplicialContagionSystem
+        >>> system = SimplicialContagionSystem(30, mean_degree=6.0, mean_triangles=2.0).prepare().system_
         >>> system.elements[0].prepare().size_
         30
     """
-    pairs = math.comb(n_nodes - 1, PAIR - 1)
-    triples = math.comb(n_nodes - 1, TRIANGLE - 1)
-    triangles = min(mean_triangles / triples, 1.0)
-    links = min(max(mean_degree - 2 * mean_triangles, 0.0) / pairs, 1.0)
-    graph, hyperedges = _simplicial_complex(n_nodes, links, triangles, seed)
-    sizes = [len(members) for members in hyperedges]
-    degree = max(PAIR * sizes.count(PAIR) / n_nodes, 1.0)
-    shared = max(TRIANGLE * sizes.count(TRIANGLE) / n_nodes, 1.0)
-    rng = np.random.default_rng(seed + 1)
-    infected = (rng.permutation(n_nodes) < round(share * n_nodes)).astype(float)
-    nodes = LatticeElement(
-        'nodes',
-        element=InfectiveElement,
-        space=NetworkSpace(graph, hyperedges=hyperedges),
-        values={'infected': infected, 'recovery': recovery},
-        visual=VisualSpec('sites', {'states': ['infected'], 'low': 0.0, 'high': 1.0}),
-    )
-    infection = SimplicialInfectionInteraction(
-        'infection',
-        target='nodes',
-        beta=infectivity * recovery / degree,
-        beta_triangle=triangle_infectivity * recovery / shared,
-    )
-    return System(elements=[nodes], interactions=[infection])
+
+    field = 'social/spreading'
+    topics = ('contagion', 'network', 'hypergraph', 'simplicial complex', 'bistability')
+    references = ('Iacopini et al. 2019', 'Majhi et al. 2022')
+    until = 20.0
+    dt = 0.5
+    observables = (ObservableSpec('prevalence', group='nodes', variable='infected'),)
+
+    def __init__(
+        self,
+        n_nodes: int = 200,
+        *,
+        infectivity: float = 0.75,
+        triangle_infectivity: float = 3.0,
+        mean_degree: float = 20.0,
+        mean_triangles: float = 6.0,
+        recovery: float = 1.0,
+        share: float = 0.4,
+        seed: int = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_nodes = n_nodes
+        self.infectivity = infectivity
+        self.triangle_infectivity = triangle_infectivity
+        self.mean_degree = mean_degree
+        self.mean_triangles = mean_triangles
+        self.recovery = recovery
+        self.share = share
+        self.seed = seed
+
+    @staticmethod
+    def _simplicial_complex(n_nodes: int, links: float, triangles: float, seed: int) -> tuple[nx.Graph, list[tuple]]:
+        """Return a random simplicial complex.
+
+        It holds random links, and random filled triangles whose sides join the links.
+        """
+        simplices = xgi.random_simplicial_complex(n_nodes, [links, triangles], seed=seed)
+        members = [tuple(sorted(edge)) for edge in simplices.edges.members(dtype=list)]
+        graph = nx.Graph()
+        graph.add_nodes_from(range(n_nodes))
+        graph.add_edges_from(edge for edge in members if len(edge) == PAIR)
+        return graph, [*graph.edges, *(edge for edge in members if len(edge) == TRIANGLE)]
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        pairs = math.comb(self.n_nodes - 1, PAIR - 1)
+        triples = math.comb(self.n_nodes - 1, TRIANGLE - 1)
+        triangles = min(self.mean_triangles / triples, 1.0)
+        links = min(max(self.mean_degree - 2 * self.mean_triangles, 0.0) / pairs, 1.0)
+        graph, hyperedges = self._simplicial_complex(self.n_nodes, links, triangles, self.seed)
+        sizes = [len(members) for members in hyperedges]
+        degree = max(PAIR * sizes.count(PAIR) / self.n_nodes, 1.0)
+        shared = max(TRIANGLE * sizes.count(TRIANGLE) / self.n_nodes, 1.0)
+        rng = np.random.default_rng(self.seed + 1)
+        infected = (rng.permutation(self.n_nodes) < round(self.share * self.n_nodes)).astype(float)
+        nodes = LatticeElement(
+            'nodes',
+            element=InfectiveElement,
+            space=NetworkSpace(graph, hyperedges=hyperedges),
+            values={'infected': infected, 'recovery': self.recovery},
+            visual=VisualSpec('sites', {'states': ['infected'], 'low': 0.0, 'high': 1.0}),
+        )
+        infection = SimplicialInfectionInteraction(
+            'infection',
+            target='nodes',
+            beta=self.infectivity * self.recovery / degree,
+            beta_triangle=self.triangle_infectivity * self.recovery / shared,
+        )
+        return System(self.label, elements=[nodes], interactions=[infection])

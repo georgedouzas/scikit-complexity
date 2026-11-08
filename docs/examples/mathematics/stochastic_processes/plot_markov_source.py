@@ -13,10 +13,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.analysis import EntropyAnalysis, EpsilonMachineAnalysis
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.analysis import entropy, epsilon_machine
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.stochastic_processes import MarkovSourceSystem
 
 SYSTEM = 'markov_source'
 TRANSITION = np.array([[0.9, 0.1], [0.4, 0.6]])
@@ -29,11 +29,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = (
-    Simulation(create_system(SYSTEM, transition=TRANSITION), dt=1, observers=[observer], random_state=0)
-    .prepare()
-    .run(299)
-)
+trajectory = simulate(MarkovSourceSystem(transition=TRANSITION), until=299, observers=[observer], random_state=0)
 
 # %%
 # Entropy rate
@@ -43,15 +39,13 @@ simulation = (
 # run of 100000 symbols should drop from the entropy of single symbols to `h` at `m = 2` and stay there, since one
 # symbol of the past holds all the memory of the source.
 
-symbols = (
-    Simulation(create_system(SYSTEM, transition=TRANSITION), dt=1, random_state=1).prepare().run(100000).trajectory_
-)
-blocks = EntropyAnalysis('block', dimension=8).prepare(symbols.values('source.symbol').astype(int)).run()
-entropies = blocks.entropy_[0]
+symbols = simulate(MarkovSourceSystem(transition=TRANSITION), until=100000, random_state=1)
+blocks = entropy(symbols.values('source.symbol').astype(int), kind='block', dimension=8)
+entropies = blocks.entropy[0]
 stationary = np.array([0.8, 0.2])
 rate = -np.sum(stationary[:, None] * TRANSITION * np.log2(TRANSITION))
 fig, (sequence, rates) = plt.subplots(1, 2, figsize=(10, 4))
-sequence.step(simulation.trajectory_.times, simulation.trajectory_.values('source.symbol'), where='post')
+sequence.step(trajectory.times, trajectory.values('source.symbol'), where='post')
 sequence.set_xlabel('step')
 sequence.set_ylabel('symbol')
 sequence.set_title('Long stretches of symbol 0')
@@ -72,14 +66,14 @@ plt.show()
 # statistical complexity is then the entropy of `pi`, about 0.722 bits, and its entropy rate is `h`.
 
 source = symbols.values('source.symbol').astype(int)
-machine = EpsilonMachineAnalysis(max_length=3).prepare(source).run()
-labels = [f'last symbol {state[0][-1]}' for state in machine.histories_]
+machine = epsilon_machine(source, max_length=3)
+labels = [f'last symbol {state[0][-1]}' for state in machine.histories]
 fig, occupancy = plt.subplots(figsize=(5, 4))
-occupancy.bar(labels, machine.stationary_)
+occupancy.bar(labels, machine.stationary)
 occupancy.set_ylabel('fraction of time')
 occupancy.set_title(
-    f'{len(machine.histories_)} causal states, $C_\\mu$ = {machine.statistical_complexity_:.3f} bits, '
-    f'$h_\\mu$ = {machine.entropy_rate_:.3f} bits',
+    f'{len(machine.histories)} causal states, $C_\\mu$ = {machine.statistical_complexity:.3f} bits, '
+    f'$h_\\mu$ = {machine.entropy_rate:.3f} bits',
     fontsize=10,
 )
 fig.tight_layout()

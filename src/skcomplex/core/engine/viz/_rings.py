@@ -1,4 +1,7 @@
-"""Draw the phases of a group of oscillators against their position along a ring or a chain."""
+"""Draw the phases of a group of oscillators against their position.
+
+The position is along a ring or a chain.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,13 +21,13 @@ _POSITION_MARGIN = 0.05
 
 
 class PhaseRingVisual(BaseVisual):
-    """Visual that logs the wrapped phases of a group of oscillators against their position as colored points.
+    """Visual that logs the wrapped phases of oscillators against their position.
 
-    Every member is a point at its position along the group and its phase wrapped into `(-pi, pi]`, colored by the
-    cyclic palette of phases, so a coherent stretch of oscillators shows as a flat run of one color and an incoherent
-    stretch as scattered points. The points are logged under `<path>/phases` with the vertical axis up, one turn of
-    phase spanning six tenths of the extent of the positions, and the other states as time series under
-    `<path>/<state>`.
+    The oscillators are those of a group, logged as colored points. Every member is a point at its position along the
+    group and its phase wrapped into `(-pi, pi]`, colored by the cyclic palette of phases, so a coherent stretch of
+    oscillators shows as a flat run of one color and an incoherent stretch as scattered points. The points are logged
+    under `<path>/phases` with the vertical axis up, one turn of phase spanning six tenths of the extent of the
+    positions, and the other states as time series under `<path>/<state>`.
 
     Args:
         phase:
@@ -60,7 +63,9 @@ class PhaseRingVisual(BaseVisual):
         self.recording = recording
 
     def _log(self, recording: rr.RecordingStream, element: CompiledElementSpec, frame: FrameSpec) -> None:
-        """Log the wrapped phases of the members against their positions, and the other states as time series.
+        """Log the wrapped phases of the members against their positions.
+
+        The other states are logged as time series.
 
         Args:
             recording:
@@ -90,7 +95,9 @@ class PhaseRingVisual(BaseVisual):
                 BaseVisual._log_scalars(recording, f'{element.path}/{state}', frame.value(name))
 
     def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
-        """Return a 2D view of the phases against the positions, bounded by one turn of phase.
+        """Return a 2D view of the phases against the positions.
+
+        It is bounded by one turn of phase.
 
         Args:
             element:
@@ -123,5 +130,8 @@ class PhaseRingVisual(BaseVisual):
 
     @staticmethod
     def _phase_scale(extent: float) -> float:
-        """Return the height of one radian, so one turn of phase spans a share of the extent of the positions."""
+        """Return the height of one radian.
+
+        One turn of phase then spans a share of the extent of the positions.
+        """
         return _HEIGHT_SHARE * max(extent, 1.0) / (2 * np.pi)

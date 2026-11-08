@@ -8,21 +8,21 @@ dead ends. The view shows a 128 x 128 lattice at `p = 0.6` once the fire has gon
 """
 
 # %%
-# The system is created by name from the catalog. One step moves the fire front by one site. The observer saves every
+# The system is built from its class. One step moves the fire front by one site. The observer saves every
 # step with the default blueprint, whose primary view is the image of the covers: empty, occupied, burning, and burnt.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.statistical_mechanics import SitePercolationSystem
 
 SYSTEM = 'site_percolation'
 
-system = create_system(SYSTEM, shape=(128, 128), p=0.6, random_state=2)
+system = SitePercolationSystem(shape=(128, 128), p=0.6, random_state=2)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=299)
+trajectory = simulate(system, until=299, observers=[observer], random_state=0)
 
 # %%
 # Spanning probability and finite-size scaling
@@ -35,12 +35,8 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prep
 
 def spans(side, p, seed):
     """Return whether the fire lit along the top row of a lattice reaches its bottom row."""
-    run = (
-        Simulation(create_system(SYSTEM, shape=(side, side), p=p, random_state=seed), dt=1)
-        .prepare()
-        .run(until=4 * side)
-    )
-    return bool((run.trajectory_.values('lattice.cover')[-1].reshape(side, side)[-1] >= 2).any())
+    run = simulate(SitePercolationSystem(shape=(side, side), p=p, random_state=seed), until=4 * side)
+    return bool((run.values('lattice.cover')[-1].reshape(side, side)[-1] >= 2).any())
 
 
 probabilities = np.linspace(0.5, 0.7, 17)

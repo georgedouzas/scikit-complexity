@@ -1,4 +1,7 @@
-"""Koopman embeddings: a quadratic flow with a slow manifold that a finite set of observables makes linear."""
+"""Koopman embeddings.
+
+A finite set of observables makes a quadratic flow with a slow manifold linear.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -9,13 +12,14 @@ from typing import Annotated
 
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class SlowManifoldElement(Element):
-    """Quadratic flow `x1' = mu x1`, `x2' = lam (x2 - x1^2)` with the slow manifold `x2 = x1^2`.
+    """Quadratic flow `x1' = mu x1`, `x2' = lam (x2 - x1^2)`.
+
+    The flow has the slow manifold `x2 = x1^2`.
 
     Args:
         label:
@@ -41,6 +45,8 @@ class SlowManifoldElement(Element):
         >>> SlowManifoldElement('flow', lam=-2.0).lam
         -2.0
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
@@ -72,26 +78,16 @@ class SlowManifoldElement(Element):
         return [RateLaw(s.x1, s.mu * s.x1), RateLaw(s.x2, s.lam * (s.x2 - s.x1**2))]
 
 
-@register_system(
-    field='mathematics/dynamical_systems',
-    tags=('Koopman operator', 'slow manifold', 'eigenfunctions', 'ode'),
-    references=('Brunton, Budišić, Kaiser, and Kutz 2022', 'Tu et al. 2014', 'Brunton et al. 2016'),
-    defaults={'until': 40.0, 'dt': 0.1},
-)
-def koopman_slow_manifold(
-    x1: float = 1.0,
-    x2: float = -1.0,
-    *,
-    mu: float = -0.05,
-    lam: float = -1.0,
-) -> System:
-    """Return the quadratic flow `x1' = mu x1`, `x2' = lam (x2 - x1^2)`, with a slow manifold and a linear embedding.
+class KoopmanSlowManifoldSystem(BaseSystem):
+    """The quadratic flow `x1' = mu x1`, `x2' = lam (x2 - x1^2)`.
 
-    For `lam < mu < 0` the fast direction contracts onto the slow manifold `x2 = x1^2`, and the state then slides
-    along it to the origin. With the observable `x1^2`, the coordinates `(x1, x2, x1^2)` span a Koopman-invariant
-    subspace in which the flow is linear, with the eigenvalues `mu`, `lam`, and `2 mu`. The Koopman eigenfunctions
-    `phi_mu = x1` and `phi_lam = x2 - b x1^2` with `b = lam / (lam - 2 mu)` decay exactly as `exp(mu t)` and
-    `exp(lam t)`, so trajectories follow the parabolas `x2 = b x1^2 + C |x1|^(lam / mu)`.
+    The flow has a slow manifold and a linear embedding.
+
+    For `lam < mu < 0` the fast direction contracts onto the slow manifold `x2 = x1^2`, and the state then slides along
+    it to the origin. With the observable `x1^2`, the coordinates `(x1, x2, x1^2)` span a Koopman-invariant subspace in
+    which the flow is linear, with the eigenvalues `mu`, `lam`, and `2 mu`. The Koopman eigenfunctions `phi_mu = x1` and
+    `phi_lam = x2 - b x1^2` with `b = lam / (lam - 2 mu)` decay exactly as `exp(mu t)` and `exp(lam t)`, so trajectories
+    follow the parabolas `x2 = b x1^2 + C |x1|^(lam / mu)`. The system has the states `flow.x1` and `flow.x2`.
 
     Args:
         x1:
@@ -106,13 +102,39 @@ def koopman_slow_manifold(
         lam:
             The fast eigenvalue.
 
-    Returns:
-        system:
-            The system, with the states `flow.x1` and `flow.x2`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.dynamical_systems import koopman_slow_manifold
-        >>> koopman_slow_manifold(lam=-2.0).elements[0].lam
+        >>> from skcomplex.systems.mathematics.dynamical_systems import KoopmanSlowManifoldSystem
+        >>> KoopmanSlowManifoldSystem(lam=-2.0).prepare().system_.elements[0].lam
         -2.0
     """
-    return System(elements=[SlowManifoldElement('flow', x1=x1, x2=x2, mu=mu, lam=lam)])
+
+    field = 'mathematics/dynamical_systems'
+    topics = ('Koopman operator', 'slow manifold', 'eigenfunctions', 'ode')
+    references = ('Brunton, Budišić, Kaiser, and Kutz 2022', 'Tu et al. 2014', 'Brunton et al. 2016')
+    until = 40.0
+    dt = 0.1
+
+    def __init__(
+        self,
+        x1: float = 1.0,
+        x2: float = -1.0,
+        *,
+        mu: float = -0.05,
+        lam: float = -1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.x1 = x1
+        self.x2 = x2
+        self.mu = mu
+        self.lam = lam
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        return System(
+            self.label,
+            elements=[SlowManifoldElement('flow', x1=self.x1, x2=self.x2, mu=self.mu, lam=self.lam)],
+        )

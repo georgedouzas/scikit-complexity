@@ -12,15 +12,15 @@ the same, and the width of the bump grows like the square root of time, the sign
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.heat import HeatDiffusionSystem
 
 SYSTEM = 'heat_diffusion'
 
-system = create_system(SYSTEM, shape=(64, 64), D=1.0)
+system = HeatDiffusionSystem(shape=(64, 64), D=1.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(until=50)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # Conservation and spreading
@@ -28,8 +28,8 @@ simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(unti
 # With insulated edges the total heat should stay constant. Away from the edges the variance of the temperature
 # profile along each axis grows as `var(t) = var(0) + 2 D t`, so the measured variance should follow that line.
 
-fields = simulation.trajectory_.lattice('plate.u')
-times = np.asarray(simulation.trajectory_.times)
+fields = trajectory.lattice('plate.u')
+times = np.asarray(trajectory.times)
 coordinates = np.arange(fields.shape[1])
 total = fields.sum(axis=(1, 2))
 profile = fields.sum(axis=2) / total[:, None]

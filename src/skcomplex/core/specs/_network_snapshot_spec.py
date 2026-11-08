@@ -41,7 +41,9 @@ class NetworkSnapshotSpec(BaseSpec):
     hyperedges: npt.NDArray[np.intp] | None = None
 
     def graph(self) -> nx.Graph:
-        """Return the NetworkX graph of the snapshot, whose nodes are the node rows present.
+        """Return the NetworkX graph of the snapshot.
+
+        Its nodes are the node rows present.
 
         Returns:
             graph:

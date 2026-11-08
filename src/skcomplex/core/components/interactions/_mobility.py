@@ -1,4 +1,7 @@
-"""Define mobility, the linear map of a Stokes fluid from the forces and torques on particles to their velocities."""
+"""Define mobility.
+
+Mobility is the linear map of a Stokes fluid from the forces and torques on particles to their velocities.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,9 +18,10 @@ from sage.all__sagemath_symbolics import SR, Expression, fast_callable, oo
 from sage.sets.real_set import RealSet
 
 from ...errors import ValidationError
-from ...specs import CallSpec, ParameterSpec, RoleSpec
+from ...specs import CallSpec, ParameterSpec, RoleSpec, Tags
 from ...types import Array, ElementKind
 from ..laws import BaseLaw, RateLaw, UpdateLaw
+from ..spaces import BaseSpace
 from ..types import NamespaceFunction, PairPotential, Target
 from ._interaction import Interaction
 
@@ -37,13 +41,13 @@ def _pair_coefficients(
     eta: float,
     regular: bool,
 ) -> tuple[float, float, float, float, float]:  # pragma: no cover
-    """Return the coefficients of the mobility blocks of a pair of spheres at a distance `r`.
+    """Return the coefficients of the mobility blocks of a pair of spheres.
 
-    The translational block is `t_i I + t_o u u` and the rotational block `r_i I + r_o u u`, with the unit separation
-    `u`, and the rotation-translation block is `c [u]_x`, which gives both the angular velocity of a sphere from the
-    force on the other and its velocity from the torque on the other. The regular coefficients are those of the Rotne-
-    Prager-Yamakawa tensor, which overlapping spheres read in their regularized form, and the others those of the Oseen
-    tensor and the rotlet.
+    The spheres are at a distance `r`. The translational block is `t_i I + t_o u u` and the rotational block `r_i I +
+    r_o u u`, with the unit separation `u`, and the rotation-translation block is `c [u]_x`, which gives both the
+    angular velocity of a sphere from the force on the other and its velocity from the torque on the other. The regular
+    coefficients are those of the Rotne- Prager-Yamakawa tensor, which overlapping spheres read in their regularized
+    form, and the others those of the Oseen tensor and the rotlet.
     """
     if regular and r < 2 * a:
         ratio = r / a
@@ -72,10 +76,10 @@ def _mobility_product(
     fluid: tuple[float, float],
     kind: int,
 ) -> tuple[Array, Array]:  # pragma: no cover
-    """Return the velocities and angular velocities of the grand mobility applied to forces and torques.
+    """Return the velocities and angular velocities of the grand mobility on forces.
 
-    The fluid holds the radius of the spheres and the viscosity, and the kind is the index of the tensor in `TENSORS`.
-    The free-draining kind couples no pair.
+    The grand mobility is applied to forces and torques. The fluid holds the radius of the spheres and the viscosity,
+    and the kind is the index of the tensor in `TENSORS`. The free-draining kind couples no pair.
     """
     a, eta = fluid
     size = x.shape[0]
@@ -108,7 +112,10 @@ def _mobility_product(
 
 @numba.njit(cache=True)
 def _mobility_matrix(x: Array, fluid: tuple[float, float], kind: int) -> Array:  # pragma: no cover
-    """Return the grand mobility, translations of every member first and then rotations, three components each."""
+    """Return the grand mobility.
+
+    The translations of every member come first and then the rotations, three components each.
+    """
     a, eta = fluid
     size = x.shape[0]
     matrix = np.zeros((6 * size, 6 * size))
@@ -143,7 +150,10 @@ def _mobility_matrix(x: Array, fluid: tuple[float, float], kind: int) -> Array: 
 
 @numba.njit(cache=True)
 def _source_flows(x: Array, stresslet: Array, dipole: Array, eta: float) -> tuple[Array, Array]:  # pragma: no cover
-    """Return the flow and half the vorticity at every member of the stresslets and potential dipoles of the others."""
+    """Return the flow and half the vorticity at every member from the others.
+
+    They come from the stresslets and potential dipoles of the others.
+    """
     size = x.shape[0]
     velocity = np.zeros((size, 3))
     angular = np.zeros((size, 3))
@@ -177,10 +187,11 @@ def _source_flows(x: Array, stresslet: Array, dipole: Array, eta: float) -> tupl
 
 
 class MobilityInteraction(Interaction):
-    """Mobility of spheres in a Stokes fluid, the linear map from forces and torques to velocities and spins.
+    """Mobility of spheres in a Stokes fluid.
 
-    Every member of the group `target` of spheres of radius `a` in a fluid of viscosity `eta` moves at the velocity
-    `U_i` and spins at the angular velocity `Omega_i` of
+    It is the linear map from forces and torques to velocities and spins. Every member of the group `target` of spheres
+    of radius `a` in a fluid of viscosity `eta` moves at the velocity `U_i` and spins at the angular velocity `Omega_i`
+    of
 
     `(U_i, Omega_i) = sum_j M_ij (F_j, T_j) + (V_i, 0) + sum_{j != i} (u_j(x_i), w_j(x_i) / 2)`
 
@@ -287,8 +298,8 @@ class MobilityInteraction(Interaction):
         >>> from skcomplex.core.components.interactions import MobilityInteraction
         >>> from skcomplex.core.components.spaces import ContinuousSpace
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> class SphereElement(Element):
         ...     def __init__(self, label, *, x: Annotated[list, StateSpec(vector=True, role='position')] = 0.0):
         ...         super().__init__(label)
@@ -296,12 +307,18 @@ class MobilityInteraction(Interaction):
         >>> pull = MobilityInteraction('stokes', target='spheres', force=lambda s: vector([1.0, 0.0, 0.0]))
         >>> spheres = GroupElement('spheres', element=SphereElement, size=2, values={'x': [[0, 0, 0], [0, 4, 0]]})
         >>> system = System(elements=[spheres], interactions=[pull], space=ContinuousSpace(n_dim=3))
-        >>> trajectory = Simulation(system, dt=1.0).prepare().run(until=1.0).trajectory_
+        >>> trajectory = simulate(system, until=1.0, dt=1.0)
         >>> (trajectory.values('spheres.x')[-1, :, 0] * 6 * math.pi).round(4).tolist()
         [1.1953, 1.1953]
     """
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RateLaw, UpdateLaw)
+
+    def _get_tags(self) -> Tags:
+        """Return the tags of the rate-form rates or of the random updates of the map form."""
+        if self._get_argument('form') == 'map':
+            return self._get_variant_tags((UpdateLaw,), stochastic=True)
+        return self._get_variant_tags((RateLaw,))
 
     def __init__(
         self,
@@ -346,14 +363,20 @@ class MobilityInteraction(Interaction):
         self.temperature = temperature
         self.dt = dt
 
-    def _check(self) -> None:
-        """Raise an error for an unknown variant, a function that is not callable, or noise in continuous time.
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Raise an error for an unknown variant, a bad function, or continuous noise.
+
+        The noise may not run in continuous time.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 A variant is unknown, a function is not callable, or the rate form has a positive temperature.
         """
-        super()._check()
+        super()._prepare(context)
         self._check_variant('tensor', self.tensor, TENSORS)
         self._check_variant('form', self.form, FORMS)
         self._check_variant('root', self.root, ROOTS)
@@ -370,7 +393,10 @@ class MobilityInteraction(Interaction):
             raise ValidationError(error_msg)
 
     def _get_vector(self, function: NamespaceFunction | None, namespace: SimpleNamespace, size: int) -> list[Target]:
-        """Return the components of a vector function of the namespace, zeros when it is `None`."""
+        """Return the components of a vector function of the namespace.
+
+        They are zeros when it is `None`.
+        """
         if function is None:
             return [SR(0)] * size
         values = function(namespace)
@@ -381,7 +407,10 @@ class MobilityInteraction(Interaction):
         return [SR(component) for component in components]
 
     def _get_stresslet(self, namespace: SimpleNamespace, dimension: int) -> list[Target]:
-        """Return the components of the stresslet of a member by rows, zeros when it is `None`."""
+        """Return the components of the stresslet of a member by rows.
+
+        They are zeros when it is `None`.
+        """
         if self.stresslet is None:
             return [SR(0)] * dimension**2
         matrix = self.stresslet(namespace)
@@ -394,7 +423,10 @@ class MobilityInteraction(Interaction):
         return [SR(item) for row in rows for item in row]
 
     def _get_pair_force(self, namespace: SimpleNamespace) -> tuple[Callable[..., float] | None, list[Expression]]:
-        """Return the radial force `-dU/dr` of the pair potential as a numeric function, with the symbols it reads."""
+        """Return the radial force `-dU/dr` of the pair potential as a numeric function.
+
+        It also returns the symbols it reads.
+        """
         if self.potential is None:
             return None, []
         distance = SR.var('pair_distance', domain='positive')
@@ -458,13 +490,18 @@ class MobilityInteraction(Interaction):
 
     @staticmethod
     def _embed(values: Array, dimension: int) -> Array:
-        """Return vectors of the plane as vectors of space in the plane `z = 0`, or vectors of space as they are."""
+        """Return vectors of the plane as vectors of space in the plane `z = 0`.
+
+        Vectors of space stay as they are.
+        """
         if dimension == SPACE:
             return np.ascontiguousarray(values, dtype=float)
         return np.ascontiguousarray(np.column_stack([values, np.zeros(values.shape[0])]), dtype=float)
 
     def _get_cutoff(self, namespace: SimpleNamespace) -> object:
-        """Return the cutoff of the pair potential, the hook a subclass overrides to derive it from its parameters.
+        """Return the cutoff of the pair potential.
+
+        This is the hook a subclass overrides to derive it from its parameters.
 
         Args:
             namespace:
@@ -484,7 +521,10 @@ class MobilityInteraction(Interaction):
         cutoff: float,
         constants: list[float],
     ) -> Array:
-        """Return the total force of the pair potential on every pair closer than the cutoff, -1 for every pair."""
+        """Return the total pair-potential force on every pair closer than the cutoff.
+
+        It returns -1 for every pair.
+        """
         forces = np.zeros_like(x)
         if pair_force is None:
             return forces
@@ -502,7 +542,10 @@ class MobilityInteraction(Interaction):
         return forces
 
     def _get_indices(self, size: int, dimension: int) -> Array:
-        """Return the indices of the grand mobility that the members move along: translations, then rotations."""
+        """Return the indices of the grand mobility that the members move along.
+
+        The translations come first, then the rotations.
+        """
         axes = range(dimension)
         translations = [3 * member + axis for member in range(size) for axis in axes]
         if self.orientation is None:
@@ -512,7 +555,10 @@ class MobilityInteraction(Interaction):
         return np.array(translations + rotations, dtype=np.intp)
 
     def _get_cholesky_sample(self, x: Array, indices: Array, normal: Array, a: float, eta: float) -> Array:
-        """Return `B xi` for the Cholesky factor `B` of the grand mobility on the indices the members move along."""
+        """Return `B xi` for the Cholesky factor `B` of the grand mobility.
+
+        It is on the indices the members move along.
+        """
         matrix = _mobility_matrix(x, (a, eta), TENSORS.index(self.tensor))[np.ix_(indices, indices)]
         try:
             factor = np.linalg.cholesky(matrix)
@@ -526,7 +572,10 @@ class MobilityInteraction(Interaction):
         return sample
 
     def _get_lanczos_sample(self, x: Array, indices: Array, normal: Array, a: float, eta: float) -> Array:
-        """Return a Lanczos approximation of `M^(1/2) xi` with the matrix-free product of the grand mobility."""
+        """Return a Lanczos approximation of `M^(1/2) xi`.
+
+        It uses the matrix-free product of the grand mobility.
+        """
         size = x.shape[0]
         kind = TENSORS.index(self.tensor)
 
@@ -580,10 +629,11 @@ class MobilityInteraction(Interaction):
         arguments: tuple[Array, ...],
         rng: np.random.Generator | None,
     ) -> tuple[Array, Array]:
-        """Return the displacement of the positions per unit time and the rotation vectors of the orientations.
+        """Return the displacement of the positions and the rotation of the orientations.
 
-        In the rate form these are the velocities and angular velocities. In the map form they are the displacements and
-        rotation vectors of one step, with the Brownian part.
+        They are the displacement per unit time and the rotation vectors. In the rate form these are the velocities and
+        angular velocities. In the map form they are the displacements and rotation vectors of one step, with the
+        Brownian part.
         """
         size = arguments[0].shape[0]
         columns = iter(np.asarray(argument, dtype=float) for argument in arguments)
@@ -633,10 +683,10 @@ class MobilityInteraction(Interaction):
         *arguments: Array,
         rng: np.random.Generator | None = None,
     ) -> Array:
-        """Return the rates or next values of the positions or orientations of every member.
+        """Return the rates or next values of the positions or orientations of members.
 
-        The positions and the orientations share one evaluation of a time and arguments, so in the map form both read
-        the same Brownian displacement.
+        They are those of every member. The positions and the orientations share one evaluation of a time and arguments,
+        so in the map form both read the same Brownian displacement.
 
         Args:
             dimension:

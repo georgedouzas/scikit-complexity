@@ -5,9 +5,9 @@ import numpy as np
 from skcomplex.core.components.elements import FieldElement
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ETDRK4Solver
-from skcomplex.systems.physics.pattern_formation import complex_ginzburg_landau
+from skcomplex.systems.physics.pattern_formation import ComplexGinzburgLandauSystem
 from skcomplex.systems.physics.pattern_formation._ordering import PhaseFieldElement
 from skcomplex.systems.physics.pattern_formation._patterns import SwiftHohenbergEnergyInteraction
 
@@ -19,8 +19,13 @@ def _amplitude(r):
     space = LatticeSpace((sites,), spacing=16 * np.pi / sites)
     field = FieldElement('cells', element=PhaseFieldElement, space=space, values=values, discretization='spectral')
     energy = SwiftHohenbergEnergyInteraction('energy', target='cells', state='phi', r=r)
-    simulation = Simulation(System(elements=[field], interactions=[energy]), dt=1.0, solver=ETDRK4Solver(dt=0.1))
-    return np.abs(simulation.prepare().run(until=60.0).trajectory_.values('cells.phi')[-1]).max()
+    trajectory = simulate(
+        System(elements=[field], interactions=[energy]),
+        until=60.0,
+        dt=1.0,
+        solver=ETDRK4Solver(dt=0.1),
+    )
+    return np.abs(trajectory.values('cells.phi')[-1]).max()
 
 
 def test_rolls_grow_above_onset_and_decay_below():
@@ -31,7 +36,9 @@ def test_rolls_grow_above_onset_and_decay_below():
 
 def test_complex_ginzburg_landau_seeds_both_parts():
     """Test that the random state fixes both the real and the imaginary part of the initial amplitude."""
-    first, second, other = (complex_ginzburg_landau((8, 8), random_state=seed) for seed in (1, 1, 2))
+    first, second, other = (
+        ComplexGinzburgLandauSystem((8, 8), random_state=seed).prepare().system_ for seed in (1, 1, 2)
+    )
     for part in ('u', 'v'):
         values = [np.asarray(system.elements[0].values[part]) for system in (first, second, other)]
         np.testing.assert_array_equal(values[0], values[1])

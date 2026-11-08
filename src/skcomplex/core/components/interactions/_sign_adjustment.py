@@ -1,4 +1,7 @@
-"""Define sign adjustments, which step a state of discrete time up or down by the sign of a signal."""
+"""Define sign adjustments.
+
+A sign adjustment steps a state of discrete time up or down by the sign of a signal.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,11 +14,12 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ...errors import ValidationError
-from ...specs import RoleSpec
+from ...specs import RoleSpec, Tags
 from ...types import ElementKind
 from ..base import BasePart
 from ..laws import BaseLaw, RuleLaw, UpdateLaw
 from ..laws.utils import clip, sign
+from ..spaces import BaseSpace
 from ..types import AgentViewProtocol, SystemViewProtocol
 from ._base import SCHEDULES
 from ._interaction import Interaction
@@ -88,8 +92,8 @@ class SignAdjustmentInteraction(Interaction):
         >>> from skcomplex.core.components.interactions import SignAdjustmentInteraction
         >>> from skcomplex.core.components.spaces import DiscreteTime
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> class QuoteElement(Element):
         ...     def __init__(self, label, x: Annotated[float, StateSpec()] = 1.0):
         ...         super().__init__(label)
@@ -98,11 +102,15 @@ class SignAdjustmentInteraction(Interaction):
         ...     'search', target='quote', state='x', signal=lambda s: 2 - s.target.x, step=0.5, upper=2.0
         ... )
         >>> system = System(elements=[QuoteElement('quote')], interactions=[search], time=DiscreteTime())
-        >>> Simulation(system).prepare().run(until=3).trajectory_.values('quote.x').tolist()
+        >>> simulate(system, until=3).values('quote.x').tolist()
         [1.0, 1.5, 2.0, 2.0]
     """
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw, UpdateLaw)
+
+    def _get_tags(self) -> Tags:
+        """Return the tags of the agent-form rules or of the symbolic adjustment updates."""
+        return self._get_variant_tags((RuleLaw,) if self._get_argument('form') == 'agent' else (UpdateLaw,))
 
     def __init__(
         self,
@@ -131,15 +139,19 @@ class SignAdjustmentInteraction(Interaction):
         self.phase = phase
         self.schedule = schedule
 
-    def _check(self) -> None:
-        """Raise an error for an unknown mode, form, or schedule, or a signal that cannot be called.
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Raise an error for an unknown mode, form, or schedule, or an uncallable signal.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The mode, the form, or the schedule is unknown, the symbolic form is not synchronous, or the signal is
                 not callable.
         """
-        super()._check()
+        super()._prepare(context)
         for name, value, variants in (('mode', self.mode, MODES), ('form', self.form, FORMS)):
             if value not in variants:
                 error_msg = f'The {name} of {self.label!r} is {value!r}. Use one of {", ".join(variants)}.'
@@ -204,7 +216,7 @@ class SignAdjustmentInteraction(Interaction):
         self._update_agents(system, self.schedule, self._get_value, self._set_value)
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
-        """Return the update of the state to its stepped value, or the rule of the agent form.
+        """Return the update of the state to its stepped value, or the agent-form rule.
 
         Args:
             namespace:

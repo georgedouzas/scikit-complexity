@@ -9,9 +9,9 @@ from skcomplex.core.components.interactions import FeedbackInteraction
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
-from skcomplex.systems import create_simulation
+from skcomplex.systems.economics.markets import ShopsSystem
 
 
 class ShopElement(Element):
@@ -73,7 +73,7 @@ def test_interest_rate_rule():
         time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('policy')])),
     )
     observables = [ObservableSpec('price_level', group='shops', variable='price')]
-    trajectory = Simulation(system, random_state=0, observables=observables).prepare().run(until=40).trajectory_
+    trajectory = simulate(system, until=40, random_state=0, observables=observables)
     rate, inflation = trajectory.values('bank.rate'), trajectory.values('bank.inflation')
     changed = np.diff(rate) != 0
     assert changed.any()
@@ -84,8 +84,8 @@ def test_interest_rate_rule():
 
 def test_digital_market_closes_shops_and_lowers_prices():
     """Test that shopping online leaves fewer shops, a larger leader, and lower prices than shopping in person."""
-    local = create_simulation('shops', online=0.0).prepare().run(until=100).trajectory_
-    digital = create_simulation('shops', online=1.0).prepare().run(until=100).trajectory_
+    local = simulate(ShopsSystem(online=0.0), until=100)
+    digital = simulate(ShopsSystem(online=1.0), until=100)
     assert digital.values('open_shops')[-1] < local.values('open_shops')[-1]
     assert digital.values('concentration')[-1] > 2 * local.values('concentration')[-1]
     assert digital.values('mean_price')[50:].mean() < local.values('mean_price')[50:].mean()

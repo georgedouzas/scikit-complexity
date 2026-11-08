@@ -1,4 +1,7 @@
-"""Run compiled problems in JAX, as pure functions that JAX traces, compiles, and differentiates."""
+"""Run compiled problems in JAX.
+
+They run as pure functions that JAX traces, compiles, and differentiates.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,9 +19,12 @@ from ...components.spaces import ContinuousTime, DiscreteTime
 from ...errors import BackendError, ValidationError
 from ...specs import LoweredFunctionsSpec, ReadSpec, SupportSpec
 from ...types import Array, FormKind, OrderKind
-from ..problems import ExpressionPrinter, LoweredKernelsSpec, ReductionScheduleSpec, ReferenceSpec
+from ..problems._expression_printer import ExpressionPrinter
 from ..problems._law_kernel import LawKernel
+from ..problems._lowered_kernels_spec import LoweredKernelsSpec
 from ..problems._reduction_kernel import ReductionKernel
+from ..problems._reduction_schedule_spec import ReductionScheduleSpec
+from ..problems._reference_spec import ReferenceSpec
 from ..types import ReadKind, TracedArray, TracedFunction
 from ._base import BaseBackend
 
@@ -30,13 +36,13 @@ type TracedValues = Callable[[object, TracedArray, TracedArray], list[TracedArra
 
 
 class JaxBackend(BaseBackend):
-    """Backend that writes discrete maps and ordinary differential equations as pure JAX functions.
+    """Backend that writes discrete maps and ODEs as pure JAX functions.
 
-    The functions return new arrays instead of writing into buffers, so JAX traces, compiles, and differentiates them.
-    Reductions lower to sums, means, and matrix products, and a reduction weighted by a shaped parameter to the product
-    with its block of the parameter vector reshaped into a matrix. The forward functions in `functions_` take and
-    return NumPy arrays and compute in double precision. Rule, noise, and jump laws, reductions over neighbourhoods,
-    and laws given as Python callables have no JAX form.
+    The ODEs are ordinary differential equations. The functions return new arrays instead of writing into buffers, so
+    JAX traces, compiles, and differentiates them. Reductions lower to sums, means, and matrix products, and a reduction
+    weighted by a shaped parameter to the product with its block of the parameter vector reshaped into a matrix. The
+    forward functions in `functions_` take and return NumPy arrays and compute in double precision. Rule, noise, and
+    jump laws, reductions over neighbourhoods, and laws given as Python callables have no JAX form.
 
     Attributes:
         functions_:
@@ -47,12 +53,12 @@ class JaxBackend(BaseBackend):
             differential equations or the update of a discrete map.
 
     Examples:
-        >>> from skcomplex.core.engine.compile import PassCompiler
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.backends import JaxBackend
         >>> from skcomplex.core.components.system import System
         >>> from skcomplex.systems.biology.common.populations import PopulationElement
         >>> system = System(elements=[PopulationElement('a', n=2.0)])
-        >>> problem = PassCompiler(backend=JaxBackend()).prepare(system).run().problem_
+        >>> problem = simulate(system, until=0, backend=JaxBackend()).problem
         >>> problem.backend
         'jax'
     """
@@ -77,7 +83,10 @@ class JaxBackend(BaseBackend):
 
     @staticmethod
     def _reader(reference: ReferenceSpec, owner: str) -> TracedRead:
-        """Return the function that reads one symbol of a law kernel from the state and extended parameter vectors."""
+        """Return the function that reads one symbol of a law kernel.
+
+        It reads it from the state and extended parameter vectors.
+        """
         is_state, source = reference.is_state, reference.source
         if source is ReadKind.SINGLE or (source is ReadKind.REDUCED and reference.entry.members is None):
             index = reference.index
@@ -93,7 +102,10 @@ class JaxBackend(BaseBackend):
 
     @staticmethod
     def _values_of(kernel: LawKernel) -> TracedValues:
-        """Return the pure function of the values of every output of a law kernel, one value per evaluation index."""
+        """Return the pure function of the values of every output of a law kernel.
+
+        It gives one value per evaluation index.
+        """
         if kernel.pairs is not None or kernel.has_python_functions:
             error_msg = (
                 f'A law of {kernel.owner} runs over pairs or calls a Python function, which the JAX backend does not '
@@ -114,7 +126,10 @@ class JaxBackend(BaseBackend):
 
     @staticmethod
     def _target_of(target: ReferenceSpec | None, owner: str) -> ReferenceSpec:
-        """Return the target of an output, after checking that it is a member or single read."""
+        """Return the target of an output.
+
+        It checks first that the target is a member or single read.
+        """
         if target is None or target.source not in {ReadKind.MEMBER, ReadKind.SINGLE}:
             error_msg = (
                 f'A law of {owner} writes through a table or to no target, which the JAX backend does not write.'
@@ -147,7 +162,10 @@ class JaxBackend(BaseBackend):
 
     @staticmethod
     def _assigning(kernels: list[LawKernel]) -> TracedFunction:
-        """Return the pure function that sets the outputs of kernels on the state, adding changes of combined ones."""
+        """Return the pure function that sets the outputs of kernels on the state.
+
+        It adds the changes of combined outputs.
+        """
         parts = []
         for kernel in kernels:
             if any(item.reduce is not None for item in kernel.outputs):
@@ -169,7 +187,10 @@ class JaxBackend(BaseBackend):
 
     @staticmethod
     def _reduced(kind: str, argument: TracedArray, condition: TracedArray) -> TracedArray:
-        """Return the reduction of the selected members of a group, 0 for no member except the count."""
+        """Return the reduction of the selected members of a group.
+
+        It is 0 for no member, except for the count.
+        """
         count = condition.sum()
         if kind == 'count':
             return count.astype(float)
@@ -192,7 +213,10 @@ class JaxBackend(BaseBackend):
 
     @staticmethod
     def _weight_matrix(weights: scipy.sparse.csr_array | ReadSpec) -> Callable[[TracedArray, TracedArray], object]:
-        """Return the function that gives the weight matrix of a reduction, a shaped parameter or a constant matrix."""
+        """Return the function that gives the weight matrix of a reduction.
+
+        The matrix is a shaped parameter or a constant matrix.
+        """
         if isinstance(weights, ReadSpec) and weights.entry is not None:
             is_state, index, shape = weights.is_state, weights.index, weights.entry.shape
             return lambda x, q: (x if is_state else q)[index].reshape(shape)
@@ -201,7 +225,10 @@ class JaxBackend(BaseBackend):
 
     @staticmethod
     def _reduction_step(reduction: object) -> TracedFunction:
-        """Return the pure function that writes one reduction into the extended parameter vector."""
+        """Return the pure function that writes one reduction into the parameters.
+
+        It writes it into the extended parameter vector.
+        """
         if not isinstance(reduction, ReductionKernel):
             error_msg = (
                 'The laws reduce over neighbourhoods, which the JAX backend does not write. Reduce over groups, or '
@@ -231,7 +258,10 @@ class JaxBackend(BaseBackend):
 
     @staticmethod
     def _extending(function: TracedFunction, reductions: ReductionScheduleSpec | None) -> TracedFunction:
-        """Return a pure function of the parameter vector that evaluates the reductions before the function."""
+        """Return a pure function of the parameter vector that evaluates the reductions.
+
+        The reductions are evaluated before the function.
+        """
         if reductions is None or not reductions.steps:
             return function
         steps = [JaxBackend._reduction_step(item) for item in reductions.steps]
@@ -248,7 +278,10 @@ class JaxBackend(BaseBackend):
 
     @staticmethod
     def _forward(function: TracedFunction) -> Callable[[float, Array, Array], Array]:
-        """Return the function on NumPy arrays that runs a pure function compiled by JAX in double precision."""
+        """Return the function on NumPy arrays that runs a pure function compiled by JAX.
+
+        It runs in double precision.
+        """
         compiled = jax.jit(function)
 
         def forward(t: float, x: Array, p: Array) -> Array:
@@ -258,7 +291,9 @@ class JaxBackend(BaseBackend):
         return forward
 
     def _run(self, inputs: LoweredKernelsSpec | None) -> None:
-        """Set the pure functions of the form of the kernels and their forward functions on NumPy arrays.
+        """Set the pure functions of the form of the kernels and their forward functions.
+
+        The forward functions run on NumPy arrays.
 
         Args:
             inputs:

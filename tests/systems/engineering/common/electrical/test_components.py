@@ -12,10 +12,10 @@ from scipy.signal import find_peaks
 from skcomplex.core.components.interactions import ConnectionInteraction
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver, ScipyODESolver
 from skcomplex.core.specs import ConnectorSpec
-from skcomplex.systems.engineering.circuits import chua
+from skcomplex.systems.engineering.circuits import ChuaSystem
 from skcomplex.systems.engineering.common.electrical import (
     ELECTRICAL,
     CapacitorElement,
@@ -89,7 +89,7 @@ def test_electrical_connector_lives_in_the_library():
 @pytest.mark.parametrize('solver', [ScipyODESolver(), RK4Solver(dt=1e-3)], ids=['scipy', 'rk4'])
 def test_series_rlc_oscillates_at_its_resonance(solver):
     """Test that the capacitor voltage of a series RLC circuit oscillates within 1% of `1 / (2 pi sqrt(L C))`."""
-    trajectory = Simulation(_series_rlc(), dt=0.005, solver=solver).prepare().run(until=10.0).trajectory_
+    trajectory = simulate(_series_rlc(), until=10.0, dt=0.005, solver=solver)
     voltage = trajectory.values('tank.u').ravel()
     peaks, _ = find_peaks(voltage)
     frequency = (len(peaks) - 1) / (trajectory.times[peaks[-1]] - trajectory.times[peaks[0]])
@@ -98,9 +98,9 @@ def test_series_rlc_oscillates_at_its_resonance(solver):
 
 def test_series_rlc_runs_on_the_numba_backend():
     """Test that the linear equations of a circuit lower to symbolic laws that the Numba backend runs."""
-    simulation = Simulation(_series_rlc(), dt=0.01, backend=NumbaBackend()).prepare().run(until=1.0)
-    assert simulation.problem_.backend == 'numba'
-    assert simulation.trajectory_.values('tank.u')[-1] < 1.0
+    trajectory = simulate(_series_rlc(), until=1.0, dt=0.01, backend=NumbaBackend())
+    assert trajectory.problem.backend == 'numba'
+    assert trajectory.values('tank.u')[-1] < 1.0
 
 
 def test_diode_current_solves_the_diode_equation():
@@ -118,7 +118,7 @@ def test_diode_current_solves_the_diode_equation():
             [('diode', 'n'), ('source', 'n'), ('ground', 'p')],
         ),
     )
-    trajectory = Simulation(system, dt=0.25).prepare().run(until=1.0).trajectory_
+    trajectory = simulate(system, until=1.0, dt=0.25)
 
     def balance(current):
         return 1e-6 * (math.exp((1.0 - 100.0 * current) / 0.025) - 1) - current
@@ -136,7 +136,7 @@ def test_current_source_drives_a_resistor():
             [('source', 'n'), ('load', 'n'), ('ground', 'p')],
         ),
     )
-    trajectory = Simulation(system, dt=0.5).prepare().run(until=1.0).trajectory_
+    trajectory = simulate(system, until=1.0, dt=0.5)
     assert np.allclose(trajectory.values('load.p_v').ravel(), 2.0)
 
 
@@ -157,22 +157,22 @@ def test_operational_amplifier_inverts_with_the_ratio_of_its_resistors():
             [('source', 'n'), ('amplifier', 'p'), ('ground', 'p')],
         ),
     )
-    trajectory = Simulation(system, dt=0.5).prepare().run(until=1.0).trajectory_
+    trajectory = simulate(system, until=1.0, dt=0.5)
     assert np.allclose(trajectory.values('amplifier.out_v').ravel(), -1.5)
 
 
 def test_component_chua_follows_chua():
-    """Test that the capacitor voltages of the component circuit follow `chua` until chaos separates the two runs."""
+    """Test that the capacitor voltages of the component circuit follow `ChuaSystem` until chaos parts the runs."""
     settings = {'dt': 0.05, 'solver': ScipyODESolver(method='RK45', rtol=1e-10, atol=1e-10)}
-    circuit = Simulation(_component_chua(), **settings).prepare().run(until=20.0).trajectory_
-    written = Simulation(chua(), **settings).prepare().run(until=20.0).trajectory_
+    circuit = simulate(_component_chua(), until=20.0, **settings)
+    written = simulate(ChuaSystem().prepare().system_, until=20.0, **settings)
     assert np.allclose(circuit.values('first.u').ravel(), written.values('circuit.x').ravel(), rtol=0, atol=1e-4)
     assert np.allclose(circuit.values('second.u').ravel(), written.values('circuit.y').ravel(), rtol=0, atol=1e-4)
 
 
 def test_component_chua_visits_both_scrolls():
     """Test that the component circuit meets the bounds of the test of `chua`."""
-    trajectory = Simulation(_component_chua(), dt=0.05).prepare().run(until=100.0).trajectory_
+    trajectory = simulate(_component_chua(), until=100.0, dt=0.05)
     voltage = trajectory.values('first.u')[400:]
     assert np.abs(voltage).max() < 3.0
     assert 0.2 < (voltage > 0).mean() < 0.8

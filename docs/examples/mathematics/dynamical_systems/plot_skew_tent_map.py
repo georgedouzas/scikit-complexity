@@ -15,13 +15,12 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.dynamical_systems import SkewTentMapSystem
 
 SYSTEM = 'skew_tent_map'
 
-system = create_system(SYSTEM, n_points=100, a=0.3, random_state=0)
 # Every view shows the whole run, not the default window that follows the latest frame.
 whole_run = rrb.TimeAxis(
     view_range=rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite()),
@@ -41,8 +40,8 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=40)
-occupied = [np.histogram(row, bins=25, range=(0, 1))[0] > 0 for row in simulation.trajectory_.values('points.x')[:30]]
+trajectory = simulate(SkewTentMapSystem(n_points=100, a=0.3, random_state=0), until=40, observers=[observer])
+occupied = [np.histogram(row, bins=25, range=(0, 1))[0] > 0 for row in trajectory.values('points.x')[:30]]
 image = np.where(np.array(occupied).T[::-1, :, None], [255, 170, 40], [20, 20, 30]).astype(np.uint8)
 observer.recording_.log('spreading', rr.Image(image.repeat(12, axis=0).repeat(12, axis=1)), static=True)
 observer.recording_.flush()
@@ -54,7 +53,7 @@ observer.recording_.flush()
 # values of the last 30 steps, pooled over the ensemble, should give a flat histogram at the density 1 that Bertin
 # derives from the Perron-Frobenius equation `p(x) = a p(ax) + (1 - a) p(1 - (1 - a) x)`.
 
-values = simulation.trajectory_.values('points.x')
+values = trajectory.values('points.x')
 fig, (branches, density) = plt.subplots(1, 2, figsize=(10, 4))
 branches.plot(values[:-1].ravel(), values[1:].ravel(), '.', markersize=1, alpha=0.3)
 branches.set_xlabel('$x_t$')

@@ -1,4 +1,7 @@
-"""Define FitzHugh-Nagumo kinetics, a fast variable with a cubic nullcline and a slow linear recovery."""
+"""Define FitzHugh-Nagumo kinetics.
+
+They are a fast variable with a cubic nullcline and a slow linear recovery.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,12 +14,15 @@ from sage.sets.real_set import RealSet
 
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, RateLaw
+from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
 from .....core.specs import ParameterSpec, RoleSpec
 
 
 class FitzHughNagumoInteraction(Interaction):
-    """FitzHugh-Nagumo kinetics of a fast variable `v` and a slow recovery `w` of a target.
+    """FitzHugh-Nagumo kinetics of a fast variable `v` and a slow recovery `w`.
+
+    The fast variable and the recovery are states of a target.
 
     The fast variable follows `v' = v - v³/3 - w + I` and the recovery `w' = epsilon (v + a - b w)`. On a field the
     kinetics act on every cell, and a diffusion of the fast variable makes the medium excitable.
@@ -54,9 +60,9 @@ class FitzHughNagumoInteraction(Interaction):
         >>> from typing import Annotated
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.systems.biology.common.excitable import FitzHughNagumoInteraction
         >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> class CellElement(Element):
         ...     def __init__(
         ...         self, label, visual=None, *, v: Annotated[float, StateSpec()] = -1.2,
@@ -67,10 +73,12 @@ class FitzHughNagumoInteraction(Interaction):
         ...         self.w = w
         >>> kinetics = FitzHughNagumoInteraction('kinetics', target='cell', I=0.5)
         >>> system = System(elements=[CellElement('cell')], interactions=[kinetics])
-        >>> trajectory = Simulation(system, dt=0.1).prepare().run(until=100.0).trajectory_
+        >>> trajectory = simulate(system, until=100.0, dt=0.1)
         >>> bool(trajectory.values('cell.v').max() > 1.5)
         True
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
@@ -93,14 +101,18 @@ class FitzHughNagumoInteraction(Interaction):
         self.epsilon = epsilon
         self.I = I
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for state names that are not names or that coincide.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 A state name is not a name, or the fast and the slow state are the same.
         """
-        super()._check()
+        super()._prepare(context)
         names = (self.fast, self.slow)
         if not all(isinstance(name, str) and name.isidentifier() for name in names) or self.fast == self.slow:
             error_msg = f'{self.label!r} reads the states {names!r}. Give two different names of states.'

@@ -15,16 +15,18 @@ from scipy import ndimage
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import GroupingInteraction
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, RunSettings, System
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import AnyArray, IntArray
-from ..._catalog import register_system
 
 
 class VillageView(AgentView):
-    """View of a village of the Axelrod culture system, with its states and parameters as attributes."""
+    """View of a village of the Axelrod culture system.
+
+    Its states and parameters are attributes.
+    """
 
     culture: float
     features: float
@@ -32,7 +34,9 @@ class VillageView(AgentView):
 
 
 class VillageElement(Element):
-    """Village of Axelrod's system, with a culture of `F` features of `q` traits each, stored as one integer.
+    """Village of Axelrod's system, with a culture of `F` features of `q` traits each.
+
+    The culture is stored as one integer.
 
     Args:
         label:
@@ -75,12 +79,17 @@ class VillageElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[VillageView]:
-        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        """Return the class of the views of the agents.
+
+        Their attributes are the states and parameters.
+        """
         return VillageView
 
 
 def cultural_traits(culture: float, features: int, traits: int) -> IntArray:
-    """Return the traits of a culture vector stored as one integer, its digits in base `q`.
+    """Return the traits of a culture vector stored as one integer.
+
+    They are its digits in base `q`.
 
     Args:
         culture:
@@ -105,7 +114,7 @@ def cultural_traits(culture: float, features: int, traits: int) -> IntArray:
 
 
 class CulturalInfluenceInteraction(GroupingInteraction):
-    """Cultural influence of Axelrod's system, where every village in turn may copy a trait of a random neighbour.
+    """Cultural influence of Axelrod's system.
 
     Every step every village, in random order, picks a random neighbour and, with probability equal to the fraction of
     features they share, copies the trait of one feature on which they differ.
@@ -136,7 +145,9 @@ class CulturalInfluenceInteraction(GroupingInteraction):
         super().__init__(label, target=target, groups='neighborhood', phase=phase)
 
     def act_on(self, members: list[AgentViewProtocol], system: SystemViewProtocol) -> None:
-        """Copy one differing trait of a random neighbour with probability equal to the cultural overlap.
+        """Copy one differing trait of a random neighbour.
+
+        The probability is equal to the cultural overlap.
 
         Args:
             members:
@@ -200,7 +211,9 @@ def _count_cultures(cultures: AnyArray) -> int:
 
 
 def culture_observables(width: int, height: int) -> list[ObservableSpec]:
-    """Return the share of the largest cultural region and the number of cultures of a full grid of villages.
+    """Return the share of the largest cultural region and the number of cultures.
+
+    They are read from a full grid of villages.
 
     Args:
         width:
@@ -234,25 +247,13 @@ def _get_culture_observables(system: System) -> list[ObservableSpec]:
     return culture_observables(width, height)
 
 
-@register_system(
-    field='social/opinion_dynamics',
-    tags=('culture', 'agents', 'grid', 'social influence', 'phase transition'),
-    references=('Axelrod 1997', 'Castellano, Fortunato, and Loreto 2009'),
-    defaults={'until': 200},
-    observables=_get_culture_observables,
-)
-def axelrod(
-    width: int = 20,
-    height: int = 20,
-    *,
-    features: int = 5,
-    traits: int = 10,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return Axelrod's culture dissemination system on a full grid with von Neumann neighbourhoods.
+class AxelrodSystem(BaseSystem):
+    """Axelrod's culture dissemination system on a full grid.
 
-    Every village starts with random traits. For few traits per feature the villages converge to one culture, and
-    for many traits they freeze into many small cultural regions, an order-disorder transition at a critical `q`.
+    The grid has von Neumann neighbourhoods. Every village starts with random traits. For few traits per feature the
+    villages converge to one culture, and for many traits they freeze into many small cultural regions, an
+    order-disorder transition at a critical `q`. The system has the group `villages` and the influence `influence`.
+    `culture_observables` gives the share of the largest cultural region and the number of cultures.
 
     Args:
         width:
@@ -270,30 +271,63 @@ def axelrod(
         random_state:
             The seed or generator of the initial cultures.
 
-    Returns:
-        system:
-            The system, with the group `villages` and the influence `influence`. `culture_observables` gives the
-            share of the largest cultural region and the number of cultures.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.opinion_dynamics import axelrod
-        >>> axelrod(5, 4).elements[0].prepare().size_
+        >>> from skcomplex.systems.social.opinion_dynamics import AxelrodSystem
+        >>> AxelrodSystem(5, 4).prepare().system_.elements[0].prepare().size_
         20
     """
-    rng = np.random.default_rng(random_state)
-    size = width * height
-    digits = rng.integers(traits, size=(size, features))
-    cultures = (digits * traits ** np.arange(features)).sum(axis=1).astype(float)
-    locations = [(x, y) for x in range(width) for y in range(height)]
-    villages = GroupElement(
-        'villages',
-        element=VillageElement,
-        size=size,
-        values={'culture': cultures, 'features': features, 'traits': traits},
-        location=locations,
-    )
-    return System(
-        elements=[villages],
-        interactions=[CulturalInfluenceInteraction('influence', target='villages')],
-        space=LatticeSpace((width, height), boundary='fixed', neighborhood='von_neumann', capacity=1),
-    )
+
+    field = 'social/opinion_dynamics'
+    topics = ('culture', 'agents', 'grid', 'social influence', 'phase transition')
+    references = ('Axelrod 1997', 'Castellano, Fortunato, and Loreto 2009')
+    until = 200
+
+    def __init__(
+        self,
+        width: int = 20,
+        height: int = 20,
+        *,
+        features: int = 5,
+        traits: int = 10,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.width = width
+        self.height = height
+        self.features = features
+        self.traits = traits
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        size = self.width * self.height
+        digits = rng.integers(self.traits, size=(size, self.features))
+        cultures = (digits * self.traits ** np.arange(self.features)).sum(axis=1).astype(float)
+        locations = [(x, y) for x in range(self.width) for y in range(self.height)]
+        villages = GroupElement(
+            'villages',
+            element=VillageElement,
+            size=size,
+            values={'culture': cultures, 'features': self.features, 'traits': self.traits},
+            location=locations,
+        )
+        return System(
+            self.label,
+            elements=[villages],
+            interactions=[CulturalInfluenceInteraction('influence', target='villages')],
+            space=LatticeSpace((self.width, self.height), boundary='fixed', neighborhood='von_neumann', capacity=1),
+        )
+
+    def get_run_settings(self) -> RunSettings:
+        """Return the tuned run settings.
+
+        The observables of the parts are built from the model parameters.
+        """
+        settings = super().get_run_settings()
+        settings['observables'] = _get_culture_observables(self._pass_parameters())
+        return settings

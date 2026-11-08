@@ -13,7 +13,9 @@ from ...specs._base_spec import BaseSpec
 
 @dataclass(frozen=True, eq=False)
 class PartialsSpec(BaseSpec):
-    """Nonzero partial derivatives of expressions by symbols, compiled into one NumPy function.
+    """Nonzero partial derivatives of expressions by symbols.
+
+    They are compiled into one NumPy function.
 
     Args:
         pairs:

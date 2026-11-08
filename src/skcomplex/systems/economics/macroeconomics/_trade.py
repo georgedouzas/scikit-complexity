@@ -1,4 +1,7 @@
-"""Macroeconomics systems: the exchange rate and the balance of trade of an open economy."""
+"""Macroeconomics systems: the exchange rate and the balance of trade.
+
+The economy is open.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,9 +15,8 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import where
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class TradingEconomyElement(Element):
@@ -139,7 +141,10 @@ def _home_price(s: SimpleNamespace) -> Expression:
 
 
 def _exchange_rate(s: SimpleNamespace) -> Expression:
-    """Return the rate that balances the currency market at the current volumes when it floats, else the rate."""
+    """Return the rate that balances the currency market when it floats.
+
+    It balances the market at the current volumes, and otherwise it is the rate.
+    """
     home = s.target
     balancing = home.M * home.world_price / (home.X * home.home_price * (1 + home.inflation))
     rate: Expression = where(home.floating > 0, balancing, home.E)
@@ -147,27 +152,25 @@ def _exchange_rate(s: SimpleNamespace) -> Expression:
 
 
 def _exports(s: SimpleNamespace) -> Expression:
-    """Return the export volume, which responds to the World price of the exports with a constant elasticity."""
+    """Return the export volume.
+
+    It responds to the World price of the exports with a constant elasticity.
+    """
     home = s.target
     volume: Expression = home.exports * (1 + home.export_elasticity * (home.PH * home.E / home.export_price - 1))
     return volume
 
 
 def _imports(s: SimpleNamespace) -> Expression:
-    """Return the import volume, which responds to the home price of the imports with a constant elasticity."""
+    """Return the import volume.
+
+    It responds to the home price of the imports with a constant elasticity.
+    """
     home = s.target
     volume: Expression = home.imports * (
         1 + home.import_elasticity * (home.world_price / (home.E * home.import_price) - 1)
     )
     return volume
-
-
-def _adjustments() -> list[MapInteraction]:
-    """Return the maps of the home price, the exchange rate, and the trade volumes at every stage."""
-    return [
-        MapInteraction(f'{state}_adjustment', target='home', state=state, function=function)
-        for state, function in (('PH', _home_price), ('E', _exchange_rate), ('X', _exports), ('M', _imports))
-    ]
 
 
 def _balance(s: SimpleNamespace) -> Expression:
@@ -176,7 +179,10 @@ def _balance(s: SimpleNamespace) -> Expression:
 
 
 def _real_rate(s: SimpleNamespace) -> Expression:
-    """Return the real exchange rate, the home price level in World currency over the world price level."""
+    """Return the real exchange rate.
+
+    It is the home price level in World currency over the world price level.
+    """
     home = s.home
     price_level = home.world_price / home.E * home.import_share + home.PH * (1 - home.import_share)
     return price_level * home.E / home.world_price
@@ -187,42 +193,18 @@ def _output(s: SimpleNamespace) -> Expression:
     return s.home.demand + s.home.government + s.home.X - s.home.M
 
 
-def _trade_observables(system: System) -> list[ObservableSpec]:
-    """Return the trade balance, the real exchange rate, and the output."""
-    return [
-        ObservableSpec('balance', _balance),
-        ObservableSpec('real_rate', _real_rate),
-        ObservableSpec('output', _output),
-    ]
+class ExchangeRatesSystem(BaseSystem):
+    """Hamill and Gilbert's staged adjustment of trade and the exchange rate.
 
+    The adjustment follows a rise in home prices. The economy starts in balance at the exchange rate
+    `E = M * PW / (X * PH)`, in units of World currency per unit of Home currency, with the export and import volumes
+    and prices of the United Kingdom in 1999 by default. Home prices rise by `inflation` at the first stage. At every
+    stage a floating rate takes the value that balances the currency market at the current volumes, a fixed rate stays,
+    and the volumes respond to the prices of the stage before with constant price elasticities. The book follows two
+    stages, the default.
 
-@register_system(
-    field='economics/macroeconomics',
-    tags=('international trade', 'exchange rate', 'discrete map'),
-    references=('Hamill and Gilbert 2016',),
-    defaults={'until': 2, 'dt': 1},
-    observables=_trade_observables,
-)
-def exchange_rates(
-    exports: float = 32.0,
-    imports: float = 34.0,
-    *,
-    home_price: float = 1.2,
-    inflation: float = 0.1,
-    export_elasticity: float = -1.0,
-    import_elasticity: float = -1.0,
-    floating: bool = True,
-    demand: float = 52.0,
-    government: float = 50.0,
-    world_price: float = 1.0,
-) -> System:
-    """Return Hamill and Gilbert's staged adjustment of trade and the exchange rate to a rise in home prices.
-
-    The economy starts in balance at the exchange rate `E = M * PW / (X * PH)`, in units of World currency per unit of
-    Home currency, with the export and import volumes and prices of the United Kingdom in 1999 by default. Home prices
-    rise by `inflation` at the first stage. At every stage a floating rate takes the value that balances the currency
-    market at the current volumes, a fixed rate stays, and the volumes respond to the prices of the stage before with
-    constant price elasticities. The book follows two stages, the default.
+    The system has the economy `home`, the balance of trade at home prices `balance`, the real exchange rate
+    `real_rate`, and the output `output`.
 
     Args:
         exports:
@@ -255,35 +237,85 @@ def exchange_rates(
         world_price:
             The world price level.
 
-    Returns:
-        system:
-            The system, with the economy `home`, the balance of trade at home prices `balance`, the real exchange rate
-            `real_rate`, and the output `output`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.macroeconomics import exchange_rates
-        >>> round(exchange_rates().elements[0].E, 3)
+        >>> from skcomplex.systems.economics.macroeconomics import ExchangeRatesSystem
+        >>> round(ExchangeRatesSystem().prepare().system_.elements[0].E, 3)
         0.885
     """
-    rate = imports * world_price / (exports * home_price)
-    home = TradingEconomyElement(
-        'home',
-        E=rate,
-        X=exports,
-        M=imports,
-        PH=home_price,
-        home_price=home_price,
-        inflation=inflation,
-        world_price=world_price,
-        exports=exports,
-        imports=imports,
-        export_price=home_price * rate,
-        import_price=world_price / rate,
-        export_elasticity=export_elasticity,
-        import_elasticity=import_elasticity,
-        floating=float(floating),
-        import_share=imports / (demand + government + exports - imports),
-        demand=demand,
-        government=government,
+
+    field = 'economics/macroeconomics'
+    topics = ('international trade', 'exchange rate', 'discrete map')
+    references = ('Hamill and Gilbert 2016',)
+    until = 2
+    dt = 1
+    observables = (
+        ObservableSpec('balance', _balance),
+        ObservableSpec('real_rate', _real_rate),
+        ObservableSpec('output', _output),
     )
-    return System(elements=[home], interactions=_adjustments())
+
+    def __init__(
+        self,
+        exports: float = 32.0,
+        imports: float = 34.0,
+        *,
+        home_price: float = 1.2,
+        inflation: float = 0.1,
+        export_elasticity: float = -1.0,
+        import_elasticity: float = -1.0,
+        floating: bool = True,
+        demand: float = 52.0,
+        government: float = 50.0,
+        world_price: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.exports = exports
+        self.imports = imports
+        self.home_price = home_price
+        self.inflation = inflation
+        self.export_elasticity = export_elasticity
+        self.import_elasticity = import_elasticity
+        self.floating = floating
+        self.demand = demand
+        self.government = government
+        self.world_price = world_price
+
+    @staticmethod
+    def _adjustments() -> list[MapInteraction]:
+        """Return the maps of the home price, the exchange rate, and the trade volumes.
+
+        There is one at every stage.
+        """
+        return [
+            MapInteraction(f'{state}_adjustment', target='home', state=state, function=function)
+            for state, function in (('PH', _home_price), ('E', _exchange_rate), ('X', _exports), ('M', _imports))
+        ]
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rate = self.imports * self.world_price / (self.exports * self.home_price)
+        home = TradingEconomyElement(
+            'home',
+            E=rate,
+            X=self.exports,
+            M=self.imports,
+            PH=self.home_price,
+            home_price=self.home_price,
+            inflation=self.inflation,
+            world_price=self.world_price,
+            exports=self.exports,
+            imports=self.imports,
+            export_price=self.home_price * rate,
+            import_price=self.world_price / rate,
+            export_elasticity=self.export_elasticity,
+            import_elasticity=self.import_elasticity,
+            floating=float(self.floating),
+            import_share=self.imports / (self.demand + self.government + self.exports - self.imports),
+            demand=self.demand,
+            government=self.government,
+        )
+        return System(self.label, elements=[home], interactions=self._adjustments())

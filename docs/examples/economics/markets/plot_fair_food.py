@@ -17,24 +17,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.special import expit
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.economics.markets import FairFoodSystem
 
 SYSTEM = 'fair_food'
 
-system = create_system(SYSTEM, width=20, height=20, random_state=0)
+system = FairFoodSystem(width=20, height=20, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = (
-    Simulation(
-        system,
-        observers=[observer],
-        random_state=0,
-        observables=describe(SYSTEM).observables_of(system),
-    )
-    .prepare()
-    .run(until=30)
-)
+trajectory = simulate(system, until=30, observers=[observer], random_state=0)
 
 # %%
 # Price premium and social influence
@@ -44,7 +35,7 @@ simulation = (
 # ethics and budgets. Simulations without influence should follow this curve, and with influence the share should be
 # higher at every premium, since buyers of fair food make it more attractive to their neighbours.
 
-consumers = simulation.trajectory_.agents('consumers', 0)
+consumers = trajectory.agents('consumers', 0)
 ethics, budgets = consumers.values['ethics'], consumers.values['budget']
 premiums = np.linspace(0.0, 1.0, 5)
 fine = np.linspace(0.0, 1.0, 101)
@@ -52,14 +43,8 @@ expected = [np.mean((budgets >= 1 + premium) * expit(2 * ethics - 5 * premium / 
 shares = {}
 for social_weight in (0.0, 2.0):
     shares[social_weight] = [
-        Simulation(
-            create_system(SYSTEM, premium=premium, social_weight=social_weight, random_state=0),
-            random_state=0,
-            observables=describe(SYSTEM).observables_of(system),
-        )
-        .prepare()
-        .run(until=15)
-        .trajectory_.values('fair_share')[-5:]
+        simulate(FairFoodSystem(premium=premium, social_weight=social_weight, random_state=0), until=15, random_state=0)
+        .values('fair_share')[-5:]
         .mean()
         for premium in premiums
     ]

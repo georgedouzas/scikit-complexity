@@ -8,25 +8,25 @@ thermal cloud of the trap.
 """
 
 # %%
-# The system is created by name from the catalog with stiffnesses `k = (1, 0.25)`, friction `gamma = 1`, and thermal
+# The system is built from its class with stiffnesses `k = (1, 0.25)`, friction `gamma = 1`, and thermal
 # energy `kT = 1`. The Euler-Maruyama stepper takes steps of 0.01 and the observer saves every frame of 0.1 with the
 # default blueprint, whose primary view shows the beads.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import DistributionAnalysis
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.analysis import distribution
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.soft_matter import OpticalTrapSystem
 
 SYSTEM = 'optical_trap'
 
-system = create_system(SYSTEM, n_particles=500, k=(1.0, 0.25))
+system = OpticalTrapSystem(n_particles=500, k=(1.0, 0.25))
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 solver = EulerMaruyamaSolver(dt=0.01)
-simulation = Simulation(system, solver=solver, dt=0.1, observers=[observer], random_state=0).prepare().run(until=25)
+trajectory = simulate(system, until=25, solver=solver, observers=[observer], random_state=0)
 
 # %%
 # Equipartition calibrates the trap
@@ -36,12 +36,12 @@ simulation = Simulation(system, solver=solver, dt=0.1, observers=[observer], ran
 # `gamma / k = 4` of the soft axis, the positions along each axis should follow these Gaussians, twice as wide along
 # the soft axis.
 
-positions = simulation.trajectory_.values('beads.x')[150:]
+positions = trajectory.values('beads.x')[150:]
 fig, ax = plt.subplots(figsize=(7, 4))
 for axis, (stiffness, color) in enumerate(((1.0, 'tab:blue'), (0.25, 'tab:orange'))):
     values = positions[..., axis].ravel()
-    histogram = DistributionAnalysis('histogram', bins=40).prepare(values).run()
-    edges, density = histogram.edges_, histogram.density_
+    histogram = distribution(values, kind='histogram', bins=40)
+    edges, density = histogram.edges, histogram.density
     grid = np.linspace(edges[0], edges[-1], 200)
     ax.stairs(density, edges, color=color, label=f'axis {axis}, measured k = {1 / values.var():.2f}')
     gaussian = np.sqrt(stiffness / (2 * np.pi)) * np.exp(-stiffness * grid**2 / 2)

@@ -15,10 +15,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.analysis import LoopAnalysis
-from skcomplex.core.engine.runtime import ConservationObserver, Simulation
+from skcomplex.core.analysis import loops
+from skcomplex.core.engine.runtime import ConservationObserver, simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.economics.macroeconomics import StockFlowConsistentEconomySystem
 
 SYSTEM = 'stock_flow_consistent_economy'
 
@@ -35,7 +35,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create_system(SYSTEM), dt=1, observers=[observer, ConservationObserver()]).prepare().run(100)
+trajectory = simulate(StockFlowConsistentEconomySystem(), observers=[observer, ConservationObserver()])
 
 # %%
 # Money changes only at the boundary
@@ -44,13 +44,12 @@ simulation = Simulation(create_system(SYSTEM), dt=1, observers=[observer, Conser
 # households, the firms, and the bank only pay each other. The transaction-flow matrix of a period lists every flow
 # with its outflow and inflow, so its rows sum to zero.
 
-trajectory = simulation.trajectory_
 times = np.asarray(trajectory.times)
 money = (
     trajectory.values('households.deposits') + trajectory.values('firms.deposits') + trajectory.values('bank.deposits')
 )
 created = trajectory.values('circuit.lending') - trajectory.values('circuit.repayments')
-matrix = LoopAnalysis('flow-matrix', frame=10).prepare(trajectory).run()
+matrix = loops(trajectory, kind='flow-matrix', frame=10)
 fig, (totals, table) = plt.subplots(1, 2, figsize=(11, 4))
 totals.plot(times, money - money[0], label='change of total money')
 totals.plot(times[1:], np.cumsum(created[:-1]), '--', color='black', label='cumulative lending - repayment')
@@ -59,13 +58,13 @@ totals.set_ylabel('money')
 totals.set_title('Money is created and destroyed only by the bank')
 totals.legend()
 image = table.imshow(
-    matrix.matrix_,
+    matrix.matrix,
     cmap='coolwarm',
-    vmin=-np.abs(matrix.matrix_).max(),
-    vmax=np.abs(matrix.matrix_).max(),
+    vmin=-np.abs(matrix.matrix).max(),
+    vmax=np.abs(matrix.matrix).max(),
 )
-table.set_xticks(range(len(matrix.holders_)), [holder.split('.')[0] for holder in matrix.holders_], rotation=30)
-table.set_yticks(range(len(matrix.flows_)), [flow.split('.')[1] for flow in matrix.flows_])
+table.set_xticks(range(len(matrix.holders)), [holder.split('.')[0] for holder in matrix.holders], rotation=30)
+table.set_yticks(range(len(matrix.flows)), [flow.split('.')[1] for flow in matrix.flows])
 table.set_title('Transaction-flow matrix at period 10')
 fig.colorbar(image, ax=table)
 fig.tight_layout()

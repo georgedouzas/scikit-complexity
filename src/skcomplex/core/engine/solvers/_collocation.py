@@ -1,4 +1,7 @@
-"""Solve optimal control problems by direct collocation, a transcription solved by nonlinear programming."""
+"""Solve optimal control problems by direct collocation.
+
+Collocation is a transcription solved by nonlinear programming.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,6 +16,7 @@ from ...components.spaces import ContinuousTime
 from ...errors import SolverError, ValidationError
 from ...specs import ControlSolutionSpec, SupportSpec
 from ...types import Array, OrderKind
+from ..problems import ProblemSpec
 from ..problems._control_problem_spec import _ControlProblemSpec
 from ..types import Cost, GridFunction
 from ._optimal_control import OptimalControlSolver
@@ -23,15 +27,16 @@ MIN_NODES = 2
 
 
 class CollocationSolver(OptimalControlSolver):
-    """Optimal control by direct collocation, a transcription of the problem solved by nonlinear programming.
+    """Optimal control by direct collocation.
 
-    The states and the controls at the points of a grid are the variables of a nonlinear programme. The trapezoidal
-    scheme requires the states of neighbouring nodes to differ by the trapezoidal integral of their rates, and the
-    Hermite-Simpson scheme adds a midpoint to every interval, with a cubic interpolation of the states and Simpson's
-    integral. The cost is the quadrature of the running cost over the points plus the terminal cost. The controls lie
-    within their bounds and the states of nonnegative domains stay nonnegative. SciPy's `minimize` solves the programme
-    with the gradient of the cost and the Jacobian of the constraints derived symbolically. An objective to maximise is
-    minimised with its sign changed.
+    Collocation is a transcription of the problem solved by nonlinear programming. The states and the controls at the
+    points of a grid are the variables of a nonlinear programme. The trapezoidal scheme requires the states of
+    neighbouring nodes to differ by the trapezoidal integral of their rates, and the Hermite-Simpson scheme adds a
+    midpoint to every interval, with a cubic interpolation of the states and Simpson's integral. The cost is the
+    quadrature of the running cost over the points plus the terminal cost. The controls lie within their bounds and the
+    states of nonnegative domains stay nonnegative. SciPy's `minimize` solves the programme with the gradient of the
+    cost and the Jacobian of the constraints derived symbolically. An objective to maximise is minimised with its sign
+    changed.
 
     Args:
         objective:
@@ -82,7 +87,7 @@ class CollocationSolver(OptimalControlSolver):
         >>> from skcomplex.core.components.laws import RateLaw
         >>> from skcomplex.core.specs import ParameterSpec, StateSpec
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.solvers import CollocationSolver
         >>> class PlantElement(Element):
         ...     def __init__(
@@ -99,9 +104,8 @@ class CollocationSolver(OptimalControlSolver):
         ...         return [RateLaw(s.x, s.u)]
         >>> cost = lambda s: (s.plant.x**2 + s.plant.u**2) / 2
         >>> solver = CollocationSolver(objective=cost, nodes=51, scheme='hermite-simpson')
-        >>> simulation = Simulation(System(elements=[PlantElement('plant')]), solver=solver)
-        >>> simulation = simulation.prepare().run(until=1.0)
-        >>> float(round(simulation.trajectory_.values('plant.u')[0], 3))
+        >>> trajectory = simulate(System(elements=[PlantElement('plant')]), until=1.0, solver=solver)
+        >>> float(round(trajectory.values('plant.u')[0], 3))
         -0.762
     """
 
@@ -140,8 +144,14 @@ class CollocationSolver(OptimalControlSolver):
         self.random_state = random_state
         self.until = until
 
-    def _check(self) -> None:
-        """Raise an error for a missing objective, an unknown sense, scheme, or method, or too few nodes.
+    def _prepare(self, context: ProblemSpec | None) -> None:
+        """Raise an error for a missing objective, an unknown setting, or too few nodes.
+
+        The unknown setting is a sense, scheme, or method.
+
+        Args:
+            context:
+                The compiled problem.
 
         Raises:
             SolverError:
@@ -150,7 +160,6 @@ class CollocationSolver(OptimalControlSolver):
             ValidationError:
                 The sense, the scheme, or the method is unknown, or the grid has fewer than 2 nodes.
         """
-        super()._check()
         if self.scheme not in SCHEMES:
             error_msg = f'Unknown collocation scheme {self.scheme!r}. Use one of {", ".join(SCHEMES)}.'
             raise ValidationError(error_msg)
@@ -160,6 +169,7 @@ class CollocationSolver(OptimalControlSolver):
         if not (isinstance(self.nodes, int) and self.nodes >= MIN_NODES):
             error_msg = f'nodes = {self.nodes!r} must be an integer of at least {MIN_NODES}.'
             raise ValidationError(error_msg)
+        super()._prepare(context)
 
     def _unpack(self, z: Array, points: int) -> tuple[Array, Array]:
         """Return the states and the controls of the points from the vector of variables."""
@@ -184,7 +194,10 @@ class CollocationSolver(OptimalControlSolver):
         return np.concatenate([defects.T.ravel(), x[0] - x0])
 
     def _jacobian(self, z: Array, points: Array, coefficients: tuple[Array, Array], p: Array) -> Array:
-        """Return the Jacobian of the defects by the variables, from the symbolic Jacobians of the rates."""
+        """Return the Jacobian of the defects by the variables.
+
+        It comes from the symbolic Jacobians of the rates.
+        """
         x, u = self._unpack(z, points.size)
         states, rates = coefficients
         n, m, size = x.shape[1], u.shape[1], points.size
@@ -202,7 +215,10 @@ class CollocationSolver(OptimalControlSolver):
         return jacobian
 
     def _bounds(self, points: int) -> Bounds:
-        """Return the bounds of the variables: the lower bounds of the states and the bounds of the controls."""
+        """Return the bounds of the variables.
+
+        They are the lower bounds of the states and the bounds of the controls.
+        """
         lower, upper = self.control_problem_.bounds
         state_lower = np.tile(self.control_problem_.lower, points)
         state_upper = np.full(state_lower.size, np.inf)
@@ -296,7 +312,10 @@ class CollocationSolver(OptimalControlSolver):
 
     @staticmethod
     def _trapezoidal(times: Array) -> tuple[Array, Array, Array, Array]:
-        """Return the points, the defect coefficients of states and rates, and the quadrature weights of trapezoids."""
+        """Return the points, the defect coefficients, and the weights of trapezoids.
+
+        The defect coefficients are those of states and rates, and the weights are quadrature weights.
+        """
         steps = np.diff(times)
         rows = np.arange(steps.size)
         states = np.zeros((steps.size, times.size))
@@ -310,7 +329,12 @@ class CollocationSolver(OptimalControlSolver):
 
     @staticmethod
     def _hermite_simpson(times: Array) -> tuple[Array, Array, Array, Array]:
-        """Return the points with midpoints, the defect coefficients of states and rates, and Simpson's weights."""
+        """Return the points, the defect coefficients, and Simpson's weights.
+
+        The points include the midpoints.
+
+        The defect coefficients are those of states and rates.
+        """
         steps = np.diff(times)
         points = np.empty(2 * times.size - 1)
         points[0::2], points[1::2] = times, times[:-1] + steps / 2

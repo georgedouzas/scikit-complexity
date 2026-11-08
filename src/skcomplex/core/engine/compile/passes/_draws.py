@@ -1,4 +1,7 @@
-"""Read the random draws of update laws from values drawn after the parameters at every step."""
+"""Read the random draws of update laws from values drawn after the parameters.
+
+The values are drawn at every step.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -10,7 +13,10 @@ from .._draw_lowering import DrawLowering
 
 
 class DrawsPass(BasePass):
-    """Pass that replaces the draws of update laws by values drawn after the parameters."""
+    """Pass that replaces the draws of update laws by values drawn.
+
+    The values are drawn after the parameters.
+    """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""

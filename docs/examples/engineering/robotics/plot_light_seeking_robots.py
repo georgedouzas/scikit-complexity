@@ -8,7 +8,7 @@ drives them out of the light.
 """
 
 # %%
-# The system is created by name from the catalog with 20 robots that start at the centre of a well of radius 2, the
+# The system is built from its class with 20 robots that start at the centre of a well of radius 2, the
 # light of width 1, and the sensory delay 5, and runs for 100 time units. The robots' positions are vector states, so
 # the blueprint shows their distances along `x` on the range of the well, without a legend.
 
@@ -16,10 +16,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.engineering.robotics import LightSeekingRobotsSystem
 
 SYSTEM = 'light_seeking_robots'
 
@@ -38,10 +38,10 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM)
+system = LightSeekingRobotsSystem()
 solver = EulerMaruyamaSolver(dt=0.01)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-simulation = Simulation(system, dt=0.5, solver=solver, observers=[observer], random_state=0).prepare().run(until=100)
+trajectory = simulate(system, solver=solver, observers=[observer], random_state=0)
 
 # %%
 # The delay decides
@@ -53,12 +53,8 @@ simulation = Simulation(system, dt=0.5, solver=solver, observers=[observer], ran
 delays = [0.0, 1.0, 2.0, 3.0, 5.0, 8.0]
 intensities, distances = [], {}
 for delay in delays:
-    run = (
-        Simulation(create_system(SYSTEM, n_robots=40, delay=delay), dt=0.5, solver=solver, random_state=1)
-        .prepare()
-        .run(until=150)
-    )
-    trajectory = run.trajectory_
+    run = simulate(LightSeekingRobotsSystem(n_robots=40, delay=delay), until=150, solver=solver, random_state=1)
+    trajectory = run
     r = np.hypot(trajectory.values('robots.x'), trajectory.values('robots.y'))[trajectory.times > 50]
     intensities.append(np.exp(-(r**2)).mean())
     distances[delay] = r.ravel()

@@ -15,26 +15,15 @@ drifting, its order rising and falling in a slow breathing rhythm.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.physics.synchronization import KuramotoSakaguchiChimeraSystem
 
 SYSTEM = 'kuramoto_sakaguchi_chimera'
 
-system = create_system(SYSTEM)
+system = KuramotoSakaguchiChimeraSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = (
-    Simulation(
-        system,
-        dt=1.0,
-        observers=[observer],
-        observables=describe(SYSTEM).observables_of(system),
-    )
-    .prepare()
-    .run(
-        until=300,
-    )
-)
+trajectory = simulate(system, until=300, observers=[observer])
 
 # %%
 # Order parameters
@@ -46,11 +35,11 @@ simulation = (
 
 def order(population):
     """Return the order parameter of a population at every frame."""
-    phases = np.asarray(simulation.trajectory_.values(f'{population}.theta'))
+    phases = np.asarray(trajectory.values(f'{population}.theta'))
     return np.abs(np.exp(1j * phases).mean(axis=1))
 
 
-times = simulation.trajectory_.times
+times = trajectory.times
 fig, ax = plt.subplots(figsize=(7, 4))
 for population in ('first', 'second'):
     ax.plot(times, order(population), label=f'{population} population')

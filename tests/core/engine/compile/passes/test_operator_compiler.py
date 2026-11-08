@@ -15,7 +15,9 @@ from skcomplex.core.components.laws.utils import local_operator
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine._utils import symbol
-from skcomplex.core.engine.compile import BaseCompiler, BasePass, ObservableEvaluator, OperatorCompiler
+from skcomplex.core.engine.compile import BaseCompiler, BasePass
+from skcomplex.core.engine.compile._observables import ObservableEvaluator
+from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
 from skcomplex.core.errors import IncompatibleLawsError, ValidationError
 from skcomplex.core.specs import HilbertSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.systems.biology.common.populations import PopulationElement

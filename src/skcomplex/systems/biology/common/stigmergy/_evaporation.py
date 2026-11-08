@@ -1,4 +1,7 @@
-"""Define evaporation, the loss of a mark left in the environment at a per unit rate that its holder sets."""
+"""Define evaporation of a mark left in the environment.
+
+The mark is lost at a per unit rate that its holder sets.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -9,12 +12,15 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression
 
 from .....core.components.interactions import RateInteraction
+from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
 from .....core.specs import RoleSpec
 
 
 class EvaporationInteraction(RateInteraction):
-    """Evaporation of a mark, `dm/dt = -e m`, where the rate `e` is a parameter of the element that holds the mark.
+    """Evaporation of a mark, `dm/dt = -e m`.
+
+    The rate `e` is a parameter of the element that holds the mark.
 
     Animals leave marks such as pheromone or emotional traces in the cells of a field, and every mark evaporates at
     the rate its cell holds, so the rate can vary from cell to cell.
@@ -40,9 +46,9 @@ class EvaporationInteraction(RateInteraction):
         >>> from typing import Annotated
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.systems.biology.common.stigmergy import EvaporationInteraction
         >>> from skcomplex.core.specs import ParameterSpec, StateSpec
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> class ScentElement(Element):
         ...     def __init__(
         ...         self, label, level: Annotated[float, StateSpec()] = 8.0, e: Annotated[float, ParameterSpec()] = 0.5
@@ -52,7 +58,7 @@ class EvaporationInteraction(RateInteraction):
         ...         self.e = e
         >>> evaporation = EvaporationInteraction('evaporation', target='scent', state='level', evaporation='e')
         >>> system = System(elements=[ScentElement('scent')], interactions=[evaporation])
-        >>> trajectory = Simulation(system, dt=0.01).prepare().run(until=2.0).trajectory_
+        >>> trajectory = simulate(system, until=2.0, dt=0.01)
         >>> round(float(trajectory.values('scent.level')[-1]), 3)
         2.943
     """
@@ -68,14 +74,18 @@ class EvaporationInteraction(RateInteraction):
         super().__init__(label, target=target, state=state)
         self.evaporation = evaporation
 
-    def _check(self) -> None:
-        """Raise an error for a name of the rate of evaporation that is not a name of a parameter.
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Raise an error for a name of the rate of evaporation that is no parameter.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The state or the name of the rate of evaporation is not a name.
         """
-        super()._check()
+        super()._prepare(context)
         if not isinstance(self.evaporation, str) or not self.evaporation.isidentifier():
             error_msg = f'The evaporation of {self.label!r} is {self.evaporation!r}. Name a parameter of the target.'
             raise ValidationError(error_msg)

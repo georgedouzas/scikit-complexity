@@ -1,4 +1,7 @@
-"""Define repression, reactions that synthesize a species at a rate a Hill function of a repressor lowers."""
+"""Define repression of the synthesis of a species.
+
+Repression is a reaction that synthesizes a species at a rate a Hill function of a repressor lowers.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,7 +20,9 @@ from .....core.types import Stoichiometry
 
 
 class RepressionInteraction(ReactionInteraction):
-    """Synthesis of a product at the rate `alpha0 + alpha (1 - hill(y, K, n))`, repressed by a modifier `y`.
+    """Synthesis of a product at the rate `alpha0 + alpha (1 - hill(y, K, n))`.
+
+    The synthesis is repressed by a modifier `y`.
 
     The product, such as the mRNA of a gene, gains units at the leaky rate `alpha0` plus the rate `alpha` lowered by the
     decreasing Hill function `1 / (1 + (y / K)^n)` of the one modifier, the repressor. The repressor enters the rate
@@ -58,14 +63,14 @@ class RepressionInteraction(ReactionInteraction):
 
     Examples:
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.biology.systems_biology import RepressionInteraction, SpeciesElement
         >>> repression = RepressionInteraction(
         ...     'repression', products={('mRNA', 'x'): 1}, modifiers={('repressor', 'x'): 1}, alpha=2.0, K=1.0
         ... )
         >>> species = [SpeciesElement('mRNA'), SpeciesElement('repressor', x=1.0)]
-        >>> trajectory = Simulation(System(elements=species, interactions=[repression]), dt=0.1).prepare()
-        >>> round(float(trajectory.run(until=1.0).trajectory_.values('mRNA.x')[-1]), 3)
+        >>> trajectory = simulate(System(elements=species, interactions=[repression]), until=1.0, dt=0.1)
+        >>> round(float(trajectory.values('mRNA.x')[-1]), 3)
         1.0
     """
 
@@ -89,7 +94,9 @@ class RepressionInteraction(ReactionInteraction):
         self.n = n
 
     def _get_rate(self, namespace: SimpleNamespace) -> Expression:
-        """Return the repressed synthesis rate `alpha0 + alpha (1 - hill(y, K, n))` of the repressor `y`.
+        """Return the repressed synthesis rate of the repressor `y`.
+
+        The rate is `alpha0 + alpha (1 - hill(y, K, n))`.
 
         Args:
             namespace:

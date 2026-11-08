@@ -1,4 +1,7 @@
-"""Solve the equations of a static system once, by the compiled solution or numerically from the initial state."""
+"""Solve the equations of a static system once.
+
+They are solved by the compiled solution or numerically from the initial state.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,11 +20,11 @@ from ._solver import Solver
 
 
 class RootSolver(Solver):
-    """Solver of the equations of a static system, which it solves once for the one frame of the run.
+    """Solver of the equations of a static system.
 
-    The compiled solution gives the states when Sage finds a unique explicit one. Otherwise `scipy.optimize.root` solves
-    the residuals of the equations with their exact Jacobian, from the initial state as the guess. A system without
-    equations solves to its initial state.
+    It solves them once for the one frame of the run. The compiled solution gives the states when Sage finds a unique
+    explicit one. Otherwise `scipy.optimize.root` solves the residuals of the equations with their exact Jacobian, from
+    the initial state as the guess. A system without equations solves to its initial state.
 
     Args:
         method:
@@ -47,8 +50,8 @@ class RootSolver(Solver):
         >>> from skcomplex.core.components.laws import EquationLaw
         >>> from skcomplex.core.components.spaces import StaticTime
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> class FixedPointElement(Element):
         ...     def __init__(self, label, x: Annotated[float, StateSpec()] = 1.0):
         ...         super().__init__(label)
@@ -57,7 +60,7 @@ class RootSolver(Solver):
         ...     def _get_laws(self, s):
         ...         return [EquationLaw(s.x == cos(s.x), target=s.x)]
         >>> system = System(elements=[FixedPointElement('a')], time=StaticTime())
-        >>> trajectory = Simulation(system).prepare().run(1.0).trajectory_
+        >>> trajectory = simulate(system, until=1.0)
         >>> round(float(trajectory.values('a.x')[0]), 7)
         0.7390851
     """
@@ -96,7 +99,10 @@ class RootSolver(Solver):
         return np.asarray(self._drift()(0.0, state, p), dtype=float)[self.problem_.unknowns]
 
     def _kernel(self) -> JacobianKernel:
-        """Return the kernel of the exact Jacobian of the residuals, raising an error for a problem without one."""
+        """Return the kernel of the exact Jacobian of the residuals.
+
+        An error is raised for a problem without one.
+        """
         kernel = self.problem_.jacobian
         if kernel is None:
             error_msg = f'{type(self).__name__} solves with the exact Jacobian, but the problem has none.'
@@ -112,7 +118,10 @@ class RootSolver(Solver):
         return np.asarray(matrix.toarray(), dtype=float)[np.ix_(indices, indices)]
 
     def _solved(self, x: Array, p: Array) -> Array:
-        """Return the state vector that solves the equations from an initial state and parameters."""
+        """Return the state vector that solves the equations.
+
+        It starts from an initial state and parameters.
+        """
         problem = self.problem_
         indices = problem.unknowns
         if not indices.size:
@@ -154,7 +163,9 @@ class RootSolver(Solver):
         self.initial_state_ = self._solved(self.problem_.initial_state, self.problem_.initial_parameters)
 
     def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
-        """Return the state unchanged, since the state was solved for the one frame of the run.
+        """Return the state unchanged.
+
+        The state was solved for the one frame of the run.
 
         Args:
             t:

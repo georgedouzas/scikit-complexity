@@ -1,4 +1,7 @@
-"""Growing networks: preferential attachment, fitness, triad formation, copying, graphlets, and hyperbolic growth."""
+"""Growing networks.
+
+The module covers preferential attachment, fitness, triad formation, copying, graphlets, and hyperbolic growth.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,15 +19,16 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import BaseInteraction, MapInteraction, TopologyInteraction
 from ....core.components.laws.utils import logistic, neighbors, total, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from ..common._vertex import DEGREE_VISUAL, VertexElement
 
 
 class CopyingVertexElement(VertexElement):
-    """Node of a vertex-copying network, which holds the inverse of its degree for the copying of its edges.
+    """Node of a vertex-copying network.
+
+    The node holds the inverse of its degree for the copying of its edges.
 
     Args:
         label:
@@ -62,7 +66,9 @@ class CopyingVertexElement(VertexElement):
 
 
 class FitnessVertexElement(VertexElement):
-    """Node of a growing network with an intrinsic fitness, which scales its chance to win new edges.
+    """Node of a growing network with an intrinsic fitness.
+
+    The fitness scales its chance to win new edges.
 
     A new edge joins the node with probability proportional to its fitness times its degree, as in the model of
     Bianconi and Barabási. The fitness is drawn when the node joins and stays fixed.
@@ -103,7 +109,9 @@ class FitnessVertexElement(VertexElement):
 
 
 class SimilarityVertexElement(VertexElement):
-    """Node of a popularity-similarity network, with an angle on the circle next to its age and degree.
+    """Node of a popularity-similarity network.
+
+    The node has an angle on the circle next to its age and degree.
 
     Args:
         label:
@@ -141,7 +149,9 @@ class SimilarityVertexElement(VertexElement):
 
 
 class TriadVertexElement(VertexElement):
-    """Node of a Holme-Kim network, which closes triangles with the neighbours of its first contact when it joins.
+    """Node of a Holme-Kim network.
+
+    When it joins, the node closes triangles with the neighbours of its first contact.
 
     One step after a node joins with one edge by preferential attachment, the triad formation of the system adds
     `extra` edges to it. Each new end is a neighbour of its first contact with probability `triad`, and a node drawn by
@@ -213,22 +223,21 @@ def _degree(node: SimpleNamespace) -> object:
 
 
 def _get_bookkeeping() -> list[MapInteraction]:
-    """Return the maps that age every node and read its degree from the edges at the start of a step."""
+    """Return the maps that age every node and read its degree from the edges.
+
+    The maps run at the start of a step.
+    """
     return [
         MapInteraction('ageing', target='nodes', state='age', function=lambda s: 1, mode='increment'),
         MapInteraction('degree', target='nodes', state='degree', function=lambda s: neighbors(1)),
     ]
 
 
-def _get_triad_weight(node: SimpleNamespace) -> object:
-    """Return the mixture of triad formation and preferential attachment for a candidate node."""
-    closing = neighbors(node.other.near)
-    attaching = neighbors(1)
-    return node.triad * closing / (total(closing) + SMALLEST_TOTAL) + (1 - node.triad) * attaching / total(attaching)
-
-
 def _nodes(element: type[VertexElement], capacity: int, **values: object) -> GroupElement:
-    """Return the variable group on the nodes of a growing network, whose seed nodes start at age 1."""
+    """Return the variable group on the nodes of a growing network.
+
+    Its seed nodes start at age 1.
+    """
     return GroupElement(
         'nodes',
         element=element,
@@ -246,10 +255,16 @@ def _grown(
     space: NetworkSpace,
     capacity: int,
     interactions: Sequence[BaseInteraction] = (),
+    *,
+    label: str,
 ) -> System:
-    """Return a growing network of a group on its nodes, a variable edge group, the arrival of nodes, and its maps."""
+    """Return a growing network of a group on its nodes.
+
+    The network has a variable edge group, the arrival of nodes, and its maps.
+    """
     links = GroupElement('links', element=Element, on='edges', variable=True, capacity=capacity)
     return System(
+        label,
         elements=[nodes, links],
         interactions=[growth, *_get_bookkeeping(), *interactions],
         space=space,
@@ -257,54 +272,19 @@ def _grown(
     )
 
 
-def _get_similarity_weight(
-    node: SimpleNamespace,
-    arrivals: int,
-    *,
-    edges: int,
-    fading: float,
-    temperature: float,
-) -> object:
-    """Return the Fermi-Dirac probability of the hyperbolic distance between a candidate node and the new node."""
-    now = node.t + arrivals
-    radius = 2 * ln(now)
-    candidate = fading * 2 * ln(now - node.age) + (1 - fading) * radius
-    angle = pi - abs(pi - abs(node.angle - node.source.angle))
-    distance = candidate + radius + 2 * ln(angle / 2 + SMALLEST_ANGLE)
-    spread = 2 * temperature * (1 - exp(-(1 - fading) * radius / 2)) / (sin(temperature * pi) * edges * (1 - fading))
-    return 1 - logistic(distance, radius - 2 * ln(spread), 2 * temperature)
+class BarabasiAlbertSystem(BaseSystem):
+    """Barabási-Albert growth.
 
-
-@register_system(
-    field='mathematics/networks',
-    tags=('network', 'growth', 'preferential attachment', 'scale-free'),
-    references=(
-        'Barabási and Albert 1999',
-        'Bianconi and Barabási 2001',
-        'Argun et al. 2021',
-        'Gros 2015',
-        'Thurner et al. 2018',
-        'Raman 2021',
-    ),
-    defaults={'until': 300},
-)
-def barabasi_albert(
-    n_nodes: int = 303,
-    *,
-    edges: int = 2,
-    seed_nodes: int = 3,
-    fitness: bool = False,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return Barabási-Albert growth, whose degrees follow a power law `P(k) ~ k^-3` by preferential attachment.
+    By preferential attachment the degrees follow a power law `P(k) ~ k^-3`.
 
     The network starts complete on `seed_nodes` nodes, and every step one node joins with `edges` edges to nodes
     drawn with probability proportional to their degree, until it holds `n_nodes` nodes.
 
     With `fitness`, every node draws a fitness `eta` uniformly in `[0, 1]` and new edges join nodes with probability
-    proportional to `eta k`, the model of Bianconi and Barabási (2001) that Raman (2021, section 3.2.4) describes.
-    The degree of a node then grows as `t^beta(eta)` with an exponent that rises with its fitness, so a fit late node
-    overtakes older ones.
+    proportional to `eta k`, the model of Bianconi and Barabási (2001) that Raman (2021, section 3.2.4) describes. The
+    degree of a node then grows as `t^beta(eta)` with an exponent that rises with its fitness, so a fit late node
+    overtakes older ones. The system has the groups `nodes` and `links` and the arrival `growth`, and with `fitness` the
+    state `nodes.fitness`.
 
     Args:
         n_nodes:
@@ -322,48 +302,77 @@ def barabasi_albert(
         random_state:
             The seed or generator of the fitness of the seed nodes.
 
-    Returns:
-        system:
-            The system, with the groups `nodes` and `links` and the arrival `growth`, and with `fitness` the state
-            `nodes.fitness`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.core.engine.runtime import Simulation
-        >>> from skcomplex.systems.mathematics.networks import barabasi_albert
-        >>> trajectory = Simulation(barabasi_albert(13), random_state=0).prepare().run(until=10).trajectory_
+        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.systems.mathematics.networks import BarabasiAlbertSystem
+        >>> trajectory = simulate(BarabasiAlbertSystem(13), until=10, random_state=0)
         >>> int(trajectory.network(-1).sources.size)
         23
     """
-    space = NetworkSpace(nx.complete_graph(seed_nodes))
-    capacity = edges * n_nodes + seed_nodes**2
-    if not fitness:
-        nodes = _nodes(VertexElement, n_nodes)
-        growth = TopologyInteraction('growth', action='add-node', edges=edges, toward=_degree)
-        return _grown(nodes, growth, space, capacity)
-    seed_fitness = np.random.default_rng(random_state).uniform(0.0, 1.0, seed_nodes)
-    nodes = _nodes(FitnessVertexElement, n_nodes, fitness=seed_fitness.tolist())
-    growth = TopologyInteraction(
-        'growth',
-        action='add-node',
-        edges=edges,
-        values={'fitness': lambda rng: rng.uniform(0.0, 1.0)},
-        toward=lambda node: node.fitness * neighbors(1),
+
+    field = 'mathematics/networks'
+    topics = ('network', 'growth', 'preferential attachment', 'scale-free')
+    references = (
+        'Barabási and Albert 1999',
+        'Bianconi and Barabási 2001',
+        'Argun et al. 2021',
+        'Gros 2015',
+        'Thurner et al. 2018',
+        'Raman 2021',
     )
-    return _grown(nodes, growth, space, capacity)
+    until = 300
+
+    def __init__(
+        self,
+        n_nodes: int = 303,
+        *,
+        edges: int = 2,
+        seed_nodes: int = 3,
+        fitness: bool = False,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_nodes = n_nodes
+        self.edges = edges
+        self.seed_nodes = seed_nodes
+        self.fitness = fitness
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return Barabási-Albert growth.
+
+        By preferential attachment the degrees follow a power law `P(k) ~ k^-3`.
+        """
+        space = NetworkSpace(nx.complete_graph(self.seed_nodes))
+        capacity = self.edges * self.n_nodes + self.seed_nodes**2
+        if not self.fitness:
+            nodes = _nodes(VertexElement, self.n_nodes)
+            growth = TopologyInteraction('growth', action='add-node', edges=self.edges, toward=_degree)
+            return _grown(nodes, growth, space, capacity, label=self.label)
+        seed_fitness = np.random.default_rng(self.random_state).uniform(0.0, 1.0, self.seed_nodes)
+        nodes = _nodes(FitnessVertexElement, self.n_nodes, fitness=seed_fitness.tolist())
+        growth = TopologyInteraction(
+            'growth',
+            action='add-node',
+            edges=self.edges,
+            values={'fitness': lambda rng: rng.uniform(0.0, 1.0)},
+            toward=lambda node: node.fitness * neighbors(1),
+        )
+        return _grown(nodes, growth, space, capacity, label=self.label)
 
 
-@register_system(
-    field='mathematics/networks',
-    tags=('network', 'growth', 'preferential attachment', 'clustering', 'triad formation'),
-    references=('Holme and Kim 2002', 'Downey 2018'),
-    defaults={'until': 300},
-)
-def holme_kim(n_nodes: int = 304, *, edges: int = 3, triad: float = 0.8, seed_nodes: int = 4) -> System:
-    """Return Holme-Kim growth, scale-free like Barabási-Albert growth but with clustering that stays high.
+class HolmeKimSystem(BaseSystem):
+    """Holme-Kim growth.
 
-    Every step a node joins with one edge by preferential attachment, and the next step it adds `edges - 1` edges,
-    each to a neighbour of its first contact with probability `triad`, closing a triangle, and by preferential
-    attachment otherwise.
+    The network is scale-free like Barabási-Albert growth but with clustering that stays high.
+
+    Every step a node joins with one edge by preferential attachment, and the next step it adds `edges - 1` edges, each
+    to a neighbour of its first contact with probability `triad`, closing a triangle, and by preferential attachment
+    otherwise. The system has the groups `nodes` and `links` and the arrival `growth`.
 
     Args:
         n_nodes:
@@ -378,46 +387,81 @@ def holme_kim(n_nodes: int = 304, *, edges: int = 3, triad: float = 0.8, seed_no
         seed_nodes:
             The number of nodes of the complete seed network.
 
-    Returns:
-        system:
-            The system, with the groups `nodes` and `links` and the arrival `growth`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.networks import holme_kim
-        >>> holme_kim(20).elements[0].element.__name__
+        >>> from skcomplex.systems.mathematics.networks import HolmeKimSystem
+        >>> HolmeKimSystem(20).prepare().system_.elements[0].element.__name__
         'TriadVertexElement'
     """
-    space = NetworkSpace(nx.complete_graph(seed_nodes))
-    nodes = _nodes(TriadVertexElement, n_nodes, triad=triad, extra=edges - 1)
-    near = MapInteraction(
-        'near',
-        target='nodes',
-        state='near',
-        function=lambda s: neighbors(where(s.target.other.age < JOINING_AGE, 1, 0)),
-    )
-    closure = TopologyInteraction(
-        'closure',
-        target='nodes',
-        action='add-edge',
-        condition=lambda s: s.source.age < JOINING_AGE,
-        toward=_get_triad_weight,
-        edges=edges - 1,
-    )
-    growth = TopologyInteraction('growth', action='add-node', toward=_degree)
-    return _grown(nodes, growth, space, edges * n_nodes + seed_nodes**2, [near, closure])
+
+    field = 'mathematics/networks'
+    topics = ('network', 'growth', 'preferential attachment', 'clustering', 'triad formation')
+    references = ('Holme and Kim 2002', 'Downey 2018')
+    until = 300
+
+    def __init__(
+        self,
+        n_nodes: int = 304,
+        *,
+        edges: int = 3,
+        triad: float = 0.8,
+        seed_nodes: int = 4,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_nodes = n_nodes
+        self.edges = edges
+        self.triad = triad
+        self.seed_nodes = seed_nodes
+
+    @staticmethod
+    def _get_triad_weight(node: SimpleNamespace) -> object:
+        """Return the mix of triad formation and preferential attachment for a candidate.
+
+        The candidate is a node.
+        """
+        closing = neighbors(node.other.near)
+        attaching = neighbors(1)
+        return node.triad * closing / (total(closing) + SMALLEST_TOTAL) + (1 - node.triad) * attaching / total(
+            attaching,
+        )
+
+    def _build_system(self) -> System:
+        """Return Holme-Kim growth.
+
+        The network is scale-free like Barabási-Albert growth but with clustering that stays high.
+        """
+        space = NetworkSpace(nx.complete_graph(self.seed_nodes))
+        nodes = _nodes(TriadVertexElement, self.n_nodes, triad=self.triad, extra=self.edges - 1)
+        near = MapInteraction(
+            'near',
+            target='nodes',
+            state='near',
+            function=lambda s: neighbors(where(s.target.other.age < JOINING_AGE, 1, 0)),
+        )
+        closure = TopologyInteraction(
+            'closure',
+            target='nodes',
+            action='add-edge',
+            condition=lambda s: s.source.age < JOINING_AGE,
+            toward=self._get_triad_weight,
+            edges=self.edges - 1,
+        )
+        growth = TopologyInteraction('growth', action='add-node', toward=_degree)
+        capacity = self.edges * self.n_nodes + self.seed_nodes**2
+        return _grown(nodes, growth, space, capacity, [near, closure], label=self.label)
 
 
-@register_system(
-    field='mathematics/networks',
-    tags=('network', 'growth', 'copying', 'scale-free'),
-    references=('Kleinberg et al. 1999', 'Krapivsky and Redner 2005', 'Ramasco 2020'),
-    defaults={'until': 300},
-)
-def vertex_copying(n_nodes: int = 304, *, edges: int = 3, randomness: float = 0.2, seed_nodes: int = 4) -> System:
-    """Return vertex-copying growth, whose new nodes copy the edges of existing nodes and make a heavy-tailed degree.
+class VertexCopyingSystem(BaseSystem):
+    """Vertex-copying growth.
 
-    Every step a node joins with `edges` edges, each to a random node with probability `randomness` and otherwise to
-    a random neighbour of a random prototype, which favours nodes of high degree without reading degrees.
+    New nodes copy the edges of existing nodes and make a heavy-tailed degree.
+
+    Every step a node joins with `edges` edges, each to a random node with probability `randomness` and otherwise to a
+    random neighbour of a random prototype, which favours nodes of high degree without reading degrees. The system has
+    the groups `nodes` and `links` and the arrival `growth`.
 
     Args:
         n_nodes:
@@ -432,56 +476,65 @@ def vertex_copying(n_nodes: int = 304, *, edges: int = 3, randomness: float = 0.
         seed_nodes:
             The number of nodes of the complete seed network.
 
-    Returns:
-        system:
-            The system, with the groups `nodes` and `links` and the arrival `growth`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.networks import vertex_copying
-        >>> vertex_copying(20).interactions[0].edges
+        >>> from skcomplex.systems.mathematics.networks import VertexCopyingSystem
+        >>> VertexCopyingSystem(20).prepare().system_.interactions[0].edges
         3
     """
-    space = NetworkSpace(nx.complete_graph(seed_nodes))
-    nodes = _nodes(CopyingVertexElement, n_nodes)
-    growth = TopologyInteraction(
-        'growth',
-        action='add-node',
-        edges=edges,
-        toward=lambda node: randomness + (1 - randomness) * neighbors(node.other.inverse),
-    )
-    inverse = MapInteraction(
-        'inverse',
-        target='nodes',
-        state='inverse',
-        function=lambda s: 1 / (neighbors(1) + SMALLEST_DEGREE),
-    )
-    return _grown(nodes, growth, space, edges * n_nodes + seed_nodes**2, [inverse])
+
+    field = 'mathematics/networks'
+    topics = ('network', 'growth', 'copying', 'scale-free')
+    references = ('Kleinberg et al. 1999', 'Krapivsky and Redner 2005', 'Ramasco 2020')
+    until = 300
+
+    def __init__(
+        self,
+        n_nodes: int = 304,
+        *,
+        edges: int = 3,
+        randomness: float = 0.2,
+        seed_nodes: int = 4,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_nodes = n_nodes
+        self.edges = edges
+        self.randomness = randomness
+        self.seed_nodes = seed_nodes
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        space = NetworkSpace(nx.complete_graph(self.seed_nodes))
+        nodes = _nodes(CopyingVertexElement, self.n_nodes)
+        growth = TopologyInteraction(
+            'growth',
+            action='add-node',
+            edges=self.edges,
+            toward=lambda node: self.randomness + (1 - self.randomness) * neighbors(node.other.inverse),
+        )
+        inverse = MapInteraction(
+            'inverse',
+            target='nodes',
+            state='inverse',
+            function=lambda s: 1 / (neighbors(1) + SMALLEST_DEGREE),
+        )
+        return _grown(nodes, growth, space, self.edges * self.n_nodes + self.seed_nodes**2, [inverse], label=self.label)
 
 
-@register_system(
-    field='mathematics/networks',
-    tags=('network', 'growth', 'hyperbolic', 'popularity-similarity', 'scale-free', 'clustering'),
-    references=(
-        'Papadopoulos et al. 2012, arXiv 1106.0286',
-        'Gabrielli, Garlaschelli, Patil, and Serrano 2024, arXiv 2412.12988',
-    ),
-    defaults={'until': 297},
-)
-def popularity_similarity_network(
-    n_nodes: int = 300,
-    *,
-    edges: int = 2,
-    exponent: float = 2.5,
-    temperature: float = 0.2,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return popularity-similarity growth, scale-free and clustered, whose nodes attach by hyperbolic distance.
+class PopularitySimilarityNetworkSystem(BaseSystem):
+    """Popularity-similarity growth, scale-free and clustered.
+
+    Its nodes attach by hyperbolic distance.
 
     Every step a node joins at a uniform angle on the circle and the radius `2 ln t`, every other node `s` moves to the
     radius `b 2 ln s + (1 - b) 2 ln t` with `b = 1 / (exponent - 1)`, and the new node joins `edges` nodes drawn in
     proportion to the Fermi-Dirac probability of their hyperbolic distance `x = r_s + r_t + 2 ln(theta / 2)`, at the
     temperature `temperature`. The degrees follow a power law of the given exponent, and the clustering falls as the
-    temperature rises (Papadopoulos et al. 2012).
+    temperature rises (Papadopoulos et al. 2012). The system has the groups `nodes` and `links`, the arrival `growth`,
+    and the states `nodes.angle`, `nodes.age`, and `nodes.degree`.
 
     Args:
         n_nodes:
@@ -499,65 +552,122 @@ def popularity_similarity_network(
         random_state:
             The seed or generator of the angles of the seed network.
 
-    Returns:
-        system:
-            The system, with the groups `nodes` and `links`, the arrival `growth`, and the states `nodes.angle`,
-            `nodes.age`, and `nodes.degree`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValidationError:
             The exponent is not above 2, or the temperature is not between 0 and 1.
 
     Examples:
-        >>> from skcomplex.core.engine.runtime import Simulation
-        >>> from skcomplex.systems.mathematics.networks import popularity_similarity_network
-        >>> system = popularity_similarity_network(13)
-        >>> trajectory = Simulation(system, random_state=0).prepare().run(until=10).trajectory_
+        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.systems.mathematics.networks import PopularitySimilarityNetworkSystem
+        >>> system = PopularitySimilarityNetworkSystem(13).prepare().system_
+        >>> trajectory = simulate(system, until=10, random_state=0)
         >>> int(trajectory.network(-1).sources.size)
         23
     """
-    if exponent <= MIN_EXPONENT:
-        error_msg = f'The degree exponent of the growth is {exponent!r}. Give an exponent above {MIN_EXPONENT}.'
-        raise ValidationError(error_msg)
-    if not 0 < temperature < 1:
-        error_msg = f'The temperature of the growth is {temperature!r}. Give a temperature between 0 and 1.'
-        raise ValidationError(error_msg)
-    seed_nodes = edges + 1
-    fading = 1 / (exponent - 1)
-    angles = np.random.default_rng(random_state).uniform(0.0, 2 * np.pi, seed_nodes)
-    ages = np.arange(seed_nodes - 1, -1, -1, dtype=float)
-    nodes = _nodes(SimilarityVertexElement, n_nodes, age=ages.tolist(), angle=angles.tolist())
-    growth = TopologyInteraction(
-        'growth',
-        action='add-node',
-        edges=edges,
-        values={'angle': lambda rng: rng.uniform(0.0, 2 * np.pi)},
-        toward=lambda node: _get_similarity_weight(
-            node,
-            seed_nodes + 1,
-            edges=edges,
-            fading=fading,
-            temperature=temperature,
-        ),
+
+    field = 'mathematics/networks'
+    topics = ('network', 'growth', 'hyperbolic', 'popularity-similarity', 'scale-free', 'clustering')
+    references = (
+        'Papadopoulos et al. 2012, arXiv 1106.0286',
+        'Gabrielli, Garlaschelli, Patil, and Serrano 2024, arXiv 2412.12988',
     )
-    return _grown(nodes, growth, NetworkSpace(nx.complete_graph(seed_nodes)), edges * n_nodes + seed_nodes**2)
+    until = 297
+
+    def __init__(
+        self,
+        n_nodes: int = 300,
+        *,
+        edges: int = 2,
+        exponent: float = 2.5,
+        temperature: float = 0.2,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_nodes = n_nodes
+        self.edges = edges
+        self.exponent = exponent
+        self.temperature = temperature
+        self.random_state = random_state
+
+    @staticmethod
+    def _get_similarity_weight(
+        node: SimpleNamespace,
+        arrivals: int,
+        *,
+        edges: int,
+        fading: float,
+        temperature: float,
+    ) -> object:
+        """Return the Fermi-Dirac probability of a candidate node's hyperbolic distance.
+
+        The distance is that between the candidate node and the new node.
+        """
+        now = node.t + arrivals
+        radius = 2 * ln(now)
+        candidate = fading * 2 * ln(now - node.age) + (1 - fading) * radius
+        angle = pi - abs(pi - abs(node.angle - node.source.angle))
+        distance = candidate + radius + 2 * ln(angle / 2 + SMALLEST_ANGLE)
+        spread = (
+            2 * temperature * (1 - exp(-(1 - fading) * radius / 2)) / (sin(temperature * pi) * edges * (1 - fading))
+        )
+        return 1 - logistic(distance, radius - 2 * ln(spread), 2 * temperature)
+
+    def _build_system(self) -> System:
+        """Return popularity-similarity growth, scale-free and clustered.
+
+        Its nodes attach by hyperbolic distance.
+        """
+        if self.exponent <= MIN_EXPONENT:
+            error_msg = (
+                f'The degree exponent of the growth is {self.exponent!r}. Give an exponent above {MIN_EXPONENT}.'
+            )
+            raise ValidationError(error_msg)
+        if not 0 < self.temperature < 1:
+            error_msg = f'The temperature of the growth is {self.temperature!r}. Give a temperature between 0 and 1.'
+            raise ValidationError(error_msg)
+        seed_nodes = self.edges + 1
+        fading = 1 / (self.exponent - 1)
+        angles = np.random.default_rng(self.random_state).uniform(0.0, 2 * np.pi, seed_nodes)
+        ages = np.arange(seed_nodes - 1, -1, -1, dtype=float)
+        nodes = _nodes(SimilarityVertexElement, self.n_nodes, age=ages.tolist(), angle=angles.tolist())
+        growth = TopologyInteraction(
+            'growth',
+            action='add-node',
+            edges=self.edges,
+            values={'angle': lambda rng: rng.uniform(0.0, 2 * np.pi)},
+            toward=lambda node: self._get_similarity_weight(
+                node,
+                seed_nodes + 1,
+                edges=self.edges,
+                fading=fading,
+                temperature=self.temperature,
+            ),
+        )
+        return _grown(
+            nodes,
+            growth,
+            NetworkSpace(nx.complete_graph(seed_nodes)),
+            self.edges * self.n_nodes + seed_nodes**2,
+            label=self.label,
+        )
 
 
-@register_system(
-    field='mathematics/networks',
-    tags=('network', 'growth', 'graphlet', 'preferential attachment', 'tree'),
-    references=('Filkov et al. 2009', 'Raman 2021'),
-    defaults={'until': 300},
-)
-def graphlet_arrival(n_nodes: int = 602, *, alpha: float = 0.3) -> System:
-    """Return growth by the arrival of three-node graphlets, a tree whose degree exponent rises with `alpha`.
+class GraphletArrivalSystem(BaseSystem):
+    """Growth by the arrival of three-node graphlets.
+
+    The tree has a degree exponent that rises with `alpha`.
 
     The network starts from one edge, and every step a graphlet of a central node and two peripheral nodes joined to it
     arrives and merges one of its nodes with an existing node drawn with probability proportional to its degree: a
     peripheral node with probability `alpha`, so the existing node gains the central node, which carries the other
     peripheral node, and the central node otherwise, so the existing node gains both peripheral nodes (Filkov et al.
     2009, as Raman 2021, section 3.2.4.2, describes). Every step adds two nodes and two edges, and the shares of nodes
-    of degree 1 and 2 are `2 (2 - alpha) / 5` and `alpha (7 - alpha) / 15`.
+    of degree 1 and 2 are `2 (2 - alpha) / 5` and `alpha (7 - alpha) / 15`. The system has the groups `nodes` and
+    `links` and the arrivals `growth` and `graphlet`.
 
     Args:
         n_nodes:
@@ -566,24 +676,47 @@ def graphlet_arrival(n_nodes: int = 602, *, alpha: float = 0.3) -> System:
         alpha:
             The probability that the graphlet attaches by a peripheral node.
 
-    Returns:
-        system:
-            The system, with the groups `nodes` and `links` and the arrivals `growth` and `graphlet`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.core.engine.runtime import Simulation
-        >>> from skcomplex.systems.mathematics.networks import graphlet_arrival
-        >>> trajectory = Simulation(graphlet_arrival(22), random_state=0).prepare().run(until=10).trajectory_
+        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.systems.mathematics.networks import GraphletArrivalSystem
+        >>> trajectory = simulate(GraphletArrivalSystem(22), until=10, random_state=0)
         >>> int(trajectory.network(-1).nodes.size), int(trajectory.network(-1).sources.size)
         (22, 21)
     """
-    nodes = _nodes(VertexElement, n_nodes)
-    growth = TopologyInteraction('growth', action='add-node', toward=_degree)
-    graphlet = TopologyInteraction(
-        'graphlet',
-        action='add-node',
-        values={'age': 0.0},
-        toward=lambda node: alpha * where(node.age < JOINING_AGE, 1, 0)
-        + (1 - alpha) * where(node.age > JOINING_AGE, 1, 0) * neighbors(where(node.other.age < JOINING_AGE, 1, 0)),
-    )
-    return _grown(nodes, growth, NetworkSpace(nx.path_graph(2)), n_nodes, [graphlet])
+
+    field = 'mathematics/networks'
+    topics = ('network', 'growth', 'graphlet', 'preferential attachment', 'tree')
+    references = ('Filkov et al. 2009', 'Raman 2021')
+    until = 300
+
+    def __init__(
+        self,
+        n_nodes: int = 602,
+        *,
+        alpha: float = 0.3,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_nodes = n_nodes
+        self.alpha = alpha
+
+    def _build_system(self) -> System:
+        """Return growth by the arrival of three-node graphlets.
+
+        The tree has a degree exponent that rises with `alpha`.
+        """
+        nodes = _nodes(VertexElement, self.n_nodes)
+        growth = TopologyInteraction('growth', action='add-node', toward=_degree)
+        graphlet = TopologyInteraction(
+            'graphlet',
+            action='add-node',
+            values={'age': 0.0},
+            toward=lambda node: self.alpha * where(node.age < JOINING_AGE, 1, 0)
+            + (1 - self.alpha)
+            * where(node.age > JOINING_AGE, 1, 0)
+            * neighbors(where(node.other.age < JOINING_AGE, 1, 0)),
+        )
+        return _grown(nodes, growth, NetworkSpace(nx.path_graph(2)), self.n_nodes, [graphlet], label=self.label)

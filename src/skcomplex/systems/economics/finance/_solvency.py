@@ -1,4 +1,7 @@
-"""Finance systems: default cascades through interbank exposures and the clearing of interbank payments."""
+"""Finance systems: default cascades and the clearing of interbank payments.
+
+The cascades run through interbank exposures.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,19 +14,19 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import GroupElement
 from ....core.components.interactions import FeedbackInteraction
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import SystemView
 from ....core.specs import ParameterSpec, RoleSpec
 from ....core.types import Array
-from ..._catalog import register_system
 from ..common._balance_sheet import DEFAULTED, DEFAULTING, SOLVENT, BalanceSheetElement, BalanceSheetView
 
 
 class DefaultCascadeInteraction(FeedbackInteraction[SystemView]):
-    """Synchronous cascade of defaults, in which the creditors of a defaulting bank write off their claims on it.
+    """Synchronous cascade of defaults.
 
-    Every step the banks that defaulted in the last step pass their losses on: every creditor `j` of a defaulting bank
-    `i` loses `(1 - recovery) L_ij` of its equity, and a solvent bank whose equity falls below the threshold defaults.
+    The creditors of a defaulting bank write off their claims on it. Every step the banks that defaulted in the last
+    step pass their losses on: every creditor `j` of a defaulting bank `i` loses `(1 - recovery) L_ij` of its equity,
+    and a solvent bank whose equity falls below the threshold defaults.
 
     Args:
         label:
@@ -73,7 +76,9 @@ class DefaultCascadeInteraction(FeedbackInteraction[SystemView]):
         self.recovery = recovery
 
     def act(self, system: SystemView) -> None:
-        """Pass on the losses of the defaulting banks and default the banks below the threshold.
+        """Pass on the losses of the defaulting banks.
+
+        Then default the banks below the threshold.
 
         Args:
             system:
@@ -94,12 +99,12 @@ class DefaultCascadeInteraction(FeedbackInteraction[SystemView]):
 
 
 class PaymentClearingInteraction(FeedbackInteraction[SystemView]):
-    """Clearing of interbank payments by the iteration `p <- min(p_bar, e + Pi^T p)` of Eisenberg and Noe.
+    """Clearing of interbank payments of Eisenberg and Noe.
 
-    Every step every bank pays the smaller of what it owes, `p_bar_i = sum_j L_ij`, and what it has, its external assets
-    plus the payments it receives, which its debtors make in proportion to their liabilities, `Pi_ij = L_ij / p_bar_i`.
-    From full payments the iteration falls to the greatest clearing vector, and a bank that pays less than it owes
-    defaults.
+    It iterates `p <- min(p_bar, e + Pi^T p)`. Every step every bank pays the smaller of what it owes,
+    `p_bar_i = sum_j L_ij`, and what it has, its external assets plus the payments it receives, which its debtors make
+    in proportion to their liabilities, `Pi_ij = L_ij / p_bar_i`. From full payments the iteration falls to the greatest
+    clearing vector, and a bank that pays less than it owes defaults.
 
     Args:
         label:
@@ -160,58 +165,21 @@ class PaymentClearingInteraction(FeedbackInteraction[SystemView]):
         system.report('defaults', float(defaulted.sum()))
 
 
-def _gai_kapadia_network(
-    n_banks: int,
-    degree: float,
-    interbank_share: float,
-    capital_ratio: float,
-    rng: np.random.Generator,
-) -> tuple[Array, Array, Array]:
-    """Return the liabilities, external assets, and capitals of the random network of Gai and Kapadia.
+class DefaultCascadeSystem(BaseSystem):
+    """A cascade of defaults through interbank exposures.
 
-    Every bank has assets of 100, of which the share `interbank_share` are claims split evenly over its debtors, links
-    drawn with probability `degree / (n - 1)`, and capital of `capital_ratio` of its assets.
-    """
-    links = rng.random((n_banks, n_banks)) < degree / (n_banks - 1)
-    np.fill_diagonal(links, val=False)
-    debtors = links.sum(axis=0)
-    claims = np.divide(100.0 * interbank_share, debtors, out=np.zeros(n_banks), where=debtors > 0)
-    liabilities = np.asarray(links * claims[None, :], dtype=float)
-    external = 100.0 - liabilities.sum(axis=0)
-    capital = np.full(n_banks, 100.0 * capital_ratio)
-    return liabilities, external, capital
+    It starts from a shock to the external assets of some banks. Banks are linked by contracts, `liabilities[i][j]` the
+    amount bank `i` owes bank `j`. A bank whose equity falls below the threshold `h` defaults, and its creditors write
+    off their claims on it, losing `(1 - R) L_ij` of their equity at the next step, which may default them in turn. This
+    is the cascade of Thurner et al. (2018, Section 5.5.3.2), and with `h = 0` and the recovery rate `R = 0` it is the
+    contagion on default of Gai and Kapadia (2010) as Bardoscia et al. (2021, Section 3.1) review it. The shocked banks
+    lose the share `shock` of their external assets at the start. Without a given network, every bank has assets of 100,
+    a fifth of them interbank claims split evenly over a random number of debtors of mean `degree`, and capital of 4
+    percent, the network of Gai and Kapadia, whose cascades are large in a window of intermediate degrees and rare for
+    sparse or dense networks.
 
-
-@register_system(
-    field='economics/finance',
-    tags=('systemic risk', 'network', 'contagion', 'default cascade', 'agents'),
-    references=('Thurner et al. 2018', 'Bardoscia et al. 2021', 'Gai and Kapadia 2010'),
-    defaults={'until': 30},
-)
-def default_cascade(
-    liabilities: Sequence[Sequence[float]] | None = None,
-    equity: Sequence[float] | None = None,
-    *,
-    shocked: Sequence[int] = (0,),
-    shock: float = 1.0,
-    threshold: float = 0.0,
-    recovery: float = 0.0,
-    n_banks: int = 250,
-    degree: float = 4.0,
-    interbank_share: float = 0.2,
-    capital_ratio: float = 0.04,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return a cascade of defaults through interbank exposures, from a shock to the external assets of some banks.
-
-    Banks are linked by contracts, `liabilities[i][j]` the amount bank `i` owes bank `j`. A bank whose equity falls
-    below the threshold `h` defaults, and its creditors write off their claims on it, losing `(1 - R) L_ij` of their
-    equity at the next step, which may default them in turn. This is the cascade of Thurner et al. (2018, Section
-    5.5.3.2), and with `h = 0` and the recovery rate `R = 0` it is the contagion on default of Gai and Kapadia (2010) as
-    Bardoscia et al. (2021, Section 3.1) review it. The shocked banks lose the share `shock` of their external assets at
-    the start. Without a given network, every bank has assets of 100, a fifth of them interbank claims split evenly over
-    a random number of debtors of mean `degree`, and capital of 4 percent, the network of Gai and Kapadia, whose
-    cascades are large in a window of intermediate degrees and rare for sparse or dense networks.
+    The system has the group `banks` and the cascade `cascade`, whose reporters are the number of defaulted banks
+    `cascade.defaults` and the losses written off in the step `cascade.losses`.
 
     Args:
         liabilities:
@@ -247,66 +215,121 @@ def default_cascade(
         random_state:
             The seed or generator of the random network.
 
-    Returns:
-        system:
-            The system, with the group `banks` and the cascade `cascade`, whose reporters are the number of defaulted
-            banks `cascade.defaults` and the losses written off in the step `cascade.losses`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.finance import default_cascade
-        >>> default_cascade([[0.0, 5.0], [0.0, 0.0]], [1.0, 2.0]).elements[0].prepare().size_
+        >>> from skcomplex.systems.economics.finance import DefaultCascadeSystem
+        >>> DefaultCascadeSystem([[0.0, 5.0], [0.0, 0.0]], [1.0, 2.0]).prepare().system_.elements[0].prepare().size_
         2
     """
-    if liabilities is None or equity is None:
-        rng = np.random.default_rng(random_state)
-        matrix, external, capital = _gai_kapadia_network(n_banks, degree, interbank_share, capital_ratio, rng)
-    else:
-        matrix, capital = np.asarray(liabilities, dtype=float), np.asarray(equity, dtype=float)
-        external = np.maximum(capital, 0.0)
-    size = len(matrix)
-    hit = np.zeros(size, dtype=bool)
-    hit[list(shocked)] = True
-    losses = np.where(hit, shock * external, 0.0)
-    after = capital - losses
-    status = np.where(after < threshold, DEFAULTING, SOLVENT).astype(float)
-    banks = GroupElement(
-        'banks',
-        element=BalanceSheetElement,
-        size=size,
-        values={'external': external - losses, 'equity': after, 'status': status},
-    )
-    cascade = DefaultCascadeInteraction(
-        'cascade',
-        banks='banks',
-        liabilities=matrix.tolist(),
-        threshold=threshold,
-        recovery=recovery,
-    )
-    return System(elements=[banks], interactions=[cascade])
+
+    field = 'economics/finance'
+    topics = ('systemic risk', 'network', 'contagion', 'default cascade', 'agents')
+    references = ('Thurner et al. 2018', 'Bardoscia et al. 2021', 'Gai and Kapadia 2010')
+    until = 30
+
+    def __init__(
+        self,
+        liabilities: Sequence[Sequence[float]] | None = None,
+        equity: Sequence[float] | None = None,
+        *,
+        shocked: Sequence[int] = (0,),
+        shock: float = 1.0,
+        threshold: float = 0.0,
+        recovery: float = 0.0,
+        n_banks: int = 250,
+        degree: float = 4.0,
+        interbank_share: float = 0.2,
+        capital_ratio: float = 0.04,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.liabilities = liabilities
+        self.equity = equity
+        self.shocked = shocked
+        self.shock = shock
+        self.threshold = threshold
+        self.recovery = recovery
+        self.n_banks = n_banks
+        self.degree = degree
+        self.interbank_share = interbank_share
+        self.capital_ratio = capital_ratio
+        self.random_state = random_state
+
+    @staticmethod
+    def _gai_kapadia_network(
+        n_banks: int,
+        degree: float,
+        interbank_share: float,
+        capital_ratio: float,
+        rng: np.random.Generator,
+    ) -> tuple[Array, Array, Array]:
+        """Return the liabilities, external assets, and capitals of a random network.
+
+        The network is that of Gai and Kapadia. Every bank has assets of 100, of which the share `interbank_share` are
+        claims split evenly over its debtors, links drawn with probability `degree / (n - 1)`, and capital of
+        `capital_ratio` of its assets.
+        """
+        links = rng.random((n_banks, n_banks)) < degree / (n_banks - 1)
+        np.fill_diagonal(links, val=False)
+        debtors = links.sum(axis=0)
+        claims = np.divide(100.0 * interbank_share, debtors, out=np.zeros(n_banks), where=debtors > 0)
+        liabilities = np.asarray(links * claims[None, :], dtype=float)
+        external = 100.0 - liabilities.sum(axis=0)
+        capital = np.full(n_banks, 100.0 * capital_ratio)
+        return liabilities, external, capital
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        if self.liabilities is None or self.equity is None:
+            rng = np.random.default_rng(self.random_state)
+            matrix, external, capital = self._gai_kapadia_network(
+                self.n_banks,
+                self.degree,
+                self.interbank_share,
+                self.capital_ratio,
+                rng,
+            )
+        else:
+            matrix, capital = np.asarray(self.liabilities, dtype=float), np.asarray(self.equity, dtype=float)
+            external = np.maximum(capital, 0.0)
+        size = len(matrix)
+        hit = np.zeros(size, dtype=bool)
+        hit[list(self.shocked)] = True
+        losses = np.where(hit, self.shock * external, 0.0)
+        after = capital - losses
+        status = np.where(after < self.threshold, DEFAULTING, SOLVENT).astype(float)
+        banks = GroupElement(
+            'banks',
+            element=BalanceSheetElement,
+            size=size,
+            values={'external': external - losses, 'equity': after, 'status': status},
+        )
+        cascade = DefaultCascadeInteraction(
+            'cascade',
+            banks='banks',
+            liabilities=matrix.tolist(),
+            threshold=self.threshold,
+            recovery=self.recovery,
+        )
+        return System(self.label, elements=[banks], interactions=[cascade])
 
 
-@register_system(
-    field='economics/finance',
-    tags=('systemic risk', 'network', 'clearing', 'payments', 'fixed point', 'agents'),
-    references=('Bardoscia et al. 2021', 'Eisenberg and Noe 2001'),
-    defaults={'until': 30},
-)
-def eisenberg_noe_clearing(
-    liabilities: Sequence[Sequence[float]] | None = None,
-    external: Sequence[float] | None = None,
-    *,
-    n_banks: int = 50,
-    density: float = 0.1,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the clearing of interbank payments of Eisenberg and Noe, a fixed point of proportional payments.
+class EisenbergNoeClearingSystem(BaseSystem):
+    """The clearing of interbank payments of Eisenberg and Noe.
 
-    Bank `i` owes `L_ij` to bank `j`, `p_bar_i` in all, and holds external assets `e_i`. A clearing vector pays
-    `p_i = min(p_bar_i, e_i + sum_j Pi_ji p_j)`, every bank paying in full or all it has, its debtors paying in
-    proportion `Pi_ij = L_ij / p_bar_i`, the liquidity contagion of Bardoscia et al. (2021, Section 3.1). Every step is
-    one round of the iteration from full payments, which falls monotonically to the greatest clearing vector, the
-    solution of the linear programme `max sum_i p_i` with `p <= p_bar` and `p <= e + Pi^T p`. Without a given network
-    the liabilities are random and the external assets are small for a few banks.
+    It is a fixed point of proportional payments. Bank `i` owes `L_ij` to bank `j`, `p_bar_i` in all, and holds external
+    assets `e_i`. A clearing vector pays `p_i = min(p_bar_i, e_i + sum_j Pi_ji p_j)`, every bank paying in full or all
+    it has, its debtors paying in proportion `Pi_ij = L_ij / p_bar_i`, the liquidity contagion of Bardoscia et al.
+    (2021, Section 3.1). Every step is one round of the iteration from full payments, which falls monotonically to the
+    greatest clearing vector, the solution of the linear programme `max sum_i p_i` with `p <= p_bar` and
+    `p <= e + Pi^T p`. Without a given network the liabilities are random and the external assets are small for a few
+    banks.
+
+    The system has the group `banks` of the payments `banks.payment`, and the clearing `clearing`, whose reporters are
+    the total unpaid liabilities `clearing.shortfall` and the number of defaulting banks `clearing.defaults`.
 
     Args:
         liabilities:
@@ -324,30 +347,53 @@ def eisenberg_noe_clearing(
         random_state:
             The seed or generator of a random network.
 
-    Returns:
-        system:
-            The system, with the group `banks` of the payments `banks.payment`, and the clearing `clearing`, whose
-            reporters are the total unpaid liabilities `clearing.shortfall` and the number of defaulting banks
-            `clearing.defaults`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.finance import eisenberg_noe_clearing
-        >>> eisenberg_noe_clearing([[0.0, 2.0], [1.0, 0.0]], [0.5, 1.0]).elements[0].prepare().size_
+        >>> from skcomplex.systems.economics.finance import EisenbergNoeClearingSystem
+        >>> system = EisenbergNoeClearingSystem([[0.0, 2.0], [1.0, 0.0]], [0.5, 1.0]).prepare().system_
+        >>> system.elements[0].prepare().size_
         2
     """
-    if liabilities is None or external is None:
-        rng = np.random.default_rng(random_state)
-        links = rng.random((n_banks, n_banks)) < density
-        np.fill_diagonal(links, val=False)
-        matrix = links * rng.uniform(1.0, 10.0, (n_banks, n_banks))
-        assets = rng.exponential(5.0, n_banks)
-    else:
-        matrix, assets = np.asarray(liabilities, dtype=float), np.asarray(external, dtype=float)
-    banks = GroupElement(
-        'banks',
-        element=BalanceSheetElement,
-        size=len(matrix),
-        values={'external': assets, 'payment': matrix.sum(axis=1)},
-    )
-    clearing = PaymentClearingInteraction('clearing', banks='banks', liabilities=matrix.tolist())
-    return System(elements=[banks], interactions=[clearing])
+
+    field = 'economics/finance'
+    topics = ('systemic risk', 'network', 'clearing', 'payments', 'fixed point', 'agents')
+    references = ('Bardoscia et al. 2021', 'Eisenberg and Noe 2001')
+    until = 30
+
+    def __init__(
+        self,
+        liabilities: Sequence[Sequence[float]] | None = None,
+        external: Sequence[float] | None = None,
+        *,
+        n_banks: int = 50,
+        density: float = 0.1,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.liabilities = liabilities
+        self.external = external
+        self.n_banks = n_banks
+        self.density = density
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        if self.liabilities is None or self.external is None:
+            rng = np.random.default_rng(self.random_state)
+            links = rng.random((self.n_banks, self.n_banks)) < self.density
+            np.fill_diagonal(links, val=False)
+            matrix = links * rng.uniform(1.0, 10.0, (self.n_banks, self.n_banks))
+            assets = rng.exponential(5.0, self.n_banks)
+        else:
+            matrix, assets = np.asarray(self.liabilities, dtype=float), np.asarray(self.external, dtype=float)
+        banks = GroupElement(
+            'banks',
+            element=BalanceSheetElement,
+            size=len(matrix),
+            values={'external': assets, 'payment': matrix.sum(axis=1)},
+        )
+        clearing = PaymentClearingInteraction('clearing', banks='banks', liabilities=matrix.tolist())
+        return System(self.label, elements=[banks], interactions=[clearing])

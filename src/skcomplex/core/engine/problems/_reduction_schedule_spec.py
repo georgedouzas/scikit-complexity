@@ -19,7 +19,9 @@ from ._reduction_kernel import ReductionKernel
 
 @dataclass(frozen=True)
 class ReductionScheduleSpec(BaseSpec):
-    """Reductions of a problem, evaluated in dependency order into the extended parameter vector.
+    """Reductions of a problem.
+
+    They are evaluated in dependency order into the extended parameter vector.
 
     Args:
         reductions:
@@ -78,7 +80,9 @@ class ReductionScheduleSpec(BaseSpec):
         self,
         function: Callable[[float, Array, Array], R] | None,
     ) -> Callable[[float, Array, Array], R] | None:
-        """Return a function of the state and the parameters that reads the reductions at the state it receives.
+        """Return a function of the state and the parameters.
+
+        The function reads the reductions at the state it receives.
 
         Args:
             function:

@@ -1,4 +1,7 @@
-"""Define random pairs, a grouping that draws as many random ordered pairs of agents per step as there are agents."""
+"""Define random pairs, a grouping of random ordered pairs of agents.
+
+It draws as many pairs per step as there are agents.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,11 +16,12 @@ PAIR = 2
 
 
 class RandomPairsInteraction(GroupingInteraction):
-    """Grouping that draws as many random ordered pairs of distinct agents per step as there are agents.
+    """Grouping that draws random ordered pairs of distinct agents.
 
-    The pairs are drawn independently, so an agent can meet several partners in one step, and every pair acts in random
-    order through `act_on`, which a subclass overrides. One unit of time holds one encounter per agent, as in the
-    random sequential encounters of mean-field opinion and convention systems.
+    It draws as many pairs per step as there are agents. The pairs are drawn independently, so an agent can meet several
+    partners in one step, and every pair acts in random order through `act_on`, which a subclass overrides. One unit of
+    time holds one encounter per agent, as in the random sequential encounters of mean-field opinion and convention
+    systems.
 
     Args:
         label:

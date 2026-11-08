@@ -2,8 +2,8 @@
 
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.systems.social.language import mandelbrot_least_effort
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.social.language import MandelbrotLeastEffortSystem
 
 
 def _cost_over_entropy(exponent: float, costs: np.ndarray) -> float:
@@ -15,7 +15,7 @@ def _cost_over_entropy(exponent: float, costs: np.ndarray) -> float:
 
 def test_mandelbrot_least_effort_frequencies() -> None:
     """Test that the frequencies follow a power law of the solved exponent, which minimises cost over entropy."""
-    trajectory = Simulation(mandelbrot_least_effort()).prepare().run(1.0).trajectory_
+    trajectory = simulate(MandelbrotLeastEffortSystem().prepare().system_, until=1.0)
     exponent = float(trajectory.values('language.exponent')[0])
     costs = trajectory.values('words.cost')[0]
     probabilities = trajectory.values('words.probability')[0]

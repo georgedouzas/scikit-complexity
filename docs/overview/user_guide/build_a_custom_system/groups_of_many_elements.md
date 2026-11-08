@@ -9,7 +9,7 @@ import numpy as np
 from skcomplex.core.components.elements import GroupElement, PointElement
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 
 rng = np.random.default_rng(0)
 values = {'x': rng.uniform(0, 1, (1_000, 2)), 'x_d1': rng.normal(0, 1, (1_000, 2))}
@@ -17,7 +17,7 @@ gas = System(
     elements=[GroupElement('gas', element=PointElement, size=1_000, values=values)],
     space=ContinuousSpace(extent=(1.0, 1.0), boundary='reflecting'),
 )
-trajectory = Simulation(gas, dt=0.01).prepare().run(until=0.5).trajectory_
+trajectory = simulate(gas, until=0.5, dt=0.01)
 trajectory.values('gas.x').shape
 ```
 
@@ -30,15 +30,15 @@ size, and every law written for one member runs over all members with array oper
 - An interaction whose role binds to a group applies to every member. A single element bound next to the group
   receives the sum over the members, unless its law reads the group only through reductions.
 - Group variables are named by the group path, such as `gas.x` with shape `(1000, 2)`.
-- A group parameter takes one value for every member, or one value per member, in `update_parameters`.
+- A group parameter takes one value for every member, or one value per member, in the `schedule` of `simulate`.
 
-The catalog system `ideal_gas` builds such a gas of non-interacting molecules in a reflecting box, with the parameters
-`n_molecules`, `kT`, and `size`:
+The ready-made `IdealGasSystem` builds such a gas of non-interacting molecules in a reflecting box, with the model
+parameters `n_molecules`, `kT`, and `size`. `prepare` builds its parts in `system_`:
 
 ```python
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.statistical_mechanics import IdealGasSystem
 
-create_system('ideal_gas', n_molecules=200, kT=2.0, size=1.0).elements[0].size
+IdealGasSystem(n_molecules=200, kT=2.0, size=1.0).prepare().system_.elements[0].size
 ```
 
 ## Reductions over a group
@@ -56,7 +56,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import total
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
 
@@ -70,7 +70,7 @@ class UnitElement(Element):
 
 
 units = System(elements=[GroupElement('units', element=UnitElement, size=50, values={'x': np.linspace(-1, 1, 50)})])
-Simulation(units, dt=0.5).prepare().run(until=2).trajectory_.values('units.x')[-1, :3].round(3).tolist()
+simulate(units, until=2, dt=0.5).values('units.x')[-1, :3].round(3).tolist()
 ```
 
 `total`, `mean`, `maximum`, `minimum`, `variance`, and `count` of `skcomplex.core.components.laws.utils` reduce an
@@ -111,7 +111,7 @@ game = System(
     elements=[GroupElement('population', element=StrategyElement, size=2, values={'x': [0.1, 0.9]})],
     interactions=[ReplicationInteraction('replication', population='population')],
 )
-Simulation(game, dt=1.0).prepare().run(until=40).trajectory_.values('population.x')[-1].round(3).tolist()
+simulate(game, until=40, dt=1.0).values('population.x')[-1].round(3).tolist()
 ```
 
 The arguments of a reduction are:
@@ -148,7 +148,7 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import total
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
@@ -173,7 +173,7 @@ network = System(
     elements=[ActivityElement(f'unit_{index}', x=0.1 * (index + 1)) for index in range(3)],
     interactions=[InhibitionInteraction('inhibition', units=['unit_0', 'unit_1', 'unit_2'])],
 )
-(Simulation(network, dt=1.0).prepare().run(until=30).state_.round(3) + 0.0).tolist()
+(simulate(network, until=30, dt=1.0).states[-1].round(3) + 0.0).tolist()
 ```
 
 ## Variadic roles
@@ -188,7 +188,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
@@ -226,20 +226,20 @@ summed = System(
     ],
     interactions=[WeightedSumInteraction('sum', target='out', inputs=['a', 'b', 'nodes[3]'], weights=[1.0, 1.0, 10.0])],
 )
-simulation = Simulation(summed, dt=1).prepare().run(until=1)
-simulation.update_parameters({'sum.weights[2]': 0.0})
-simulation.trajectory_.values('out.x').tolist(), simulation.parameters_.tolist()
+trajectory = simulate(summed, until=2, dt=1, schedule={'sum.weights[2]': lambda t: 10.0 if t < 1 else 0.0})
+trajectory.values('out.x').tolist(), trajectory.values('sum.weights')[-1].tolist()
 ```
 
 - A role declared with `RoleSpec(variadic=True)` binds a list of element paths and group member references
   `<group>[<i>]`. Laws read it as a tuple of namespaces in the given order.
 - A parameter declared with `ParameterSpec(per='<role>')` holds one value per entry, and laws read it as a tuple of
-  symbols. Each value is the parameter component `<path>.<name>[<i>]`, which `update_parameters` and `schedule` set
+  symbols. Each value is the parameter component `<path>.<name>[<i>]`, which the `schedule` of `simulate` sets
   like any parameter.
 
 An element set and a variadic role both bind a list. An element set applies the laws once per element, each element
-read like a single element. A variadic role gives one law the whole sequence. `random_boolean_network` and
-`yeast_cell_cycle` read the inputs of every node through one variadic role.
+read like a single element. A variadic role gives one law the whole sequence. `RandomBooleanNetworkSystem` and
+`YeastCellCycleSystem` of `skcomplex.systems.biology.systems_biology` read the inputs of every node through one variadic
+role.
 
 A role declared with `RoleSpec(noise=True)` binds a `WienerProcessSpec` instead of a path, as the shared and
 correlated noise of [Delays, events, drivers, and noise](delays_events_drivers_and_noise.md) shows.
@@ -260,7 +260,7 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import mod, shift_member
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
@@ -290,7 +290,7 @@ ring = System(
     elements=[GroupElement('cars', element=CarElement, size=20, values={'x': positions})],
     interactions=[FollowingInteraction('following', cars='cars', length=40.0)],
 )
-bool(Simulation(ring, dt=1.0).prepare().run(until=50).trajectory_.values('cars.v')[-1].std() > 0.1)
+bool(simulate(ring, until=50, dt=1.0).values('cars.v')[-1].std() > 0.1)
 ```
 
 `shift_member(expression, offset, boundary='periodic', fill=0.0)` reads an expression of a group's members at the
@@ -301,8 +301,8 @@ member `offset` places along the group order, the member index.
 - The read compiles to an index table of the group, so one kernel runs over every member on the NumPy and the Numba
   backends.
 
-The ring roads of `optimal_velocity` and `intelligent_driver_system` read the car ahead this way, with `mod` for the
-headway across the point where positions wrap.
+The ring roads of `OptimalVelocitySystem` and `IntelligentDriverSystem` of `skcomplex.systems.engineering.traffic`
+read the car ahead this way, with `mod` for the headway across the point where positions wrap.
 
 Roles of one interaction can also bind several groups of one size, and the laws read row `i` of every group together.
 Groups of different sizes raise a `RoleError`, since coupling every member of one group with every member of another
@@ -322,7 +322,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import total
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import RunStateSpec, StateSpec
 
 
@@ -336,7 +336,7 @@ class UnitElement(Element):
 
 
 units = System(elements=[GroupElement('units', element=UnitElement, size=50, values={'x': np.linspace(-1, 1, 50)})])
-problem = PassCompiler().prepare(units).run().problem_
+problem = simulate(units, until=1).problem
 state = RunStateSpec(0.0, problem.initial_state, problem.initial_parameters)
 jacobian = problem.jacobian.prepare(problem).run(state).values_
 jacobian.shape, problem.jacobian.pattern().nnz
@@ -355,7 +355,7 @@ therefore has the rank-one block `dF_i/dR dR/dx_j` of every reduction `R`.
 Mean-field groups are rarely stiff, so an explicit method such as `ScipyODESolver(method='RK45')` suits large groups
 with reductions.
 
-`StabilityAnalysis` and the other analyses of the vector field in `skcomplex.core.analysis` expand a group of at most
+`stability` and the other analyses of the vector field in `skcomplex.core.analysis` expand a group of at most
 64 members into one equation per member, with every reduction written as an explicit sum. The fixed points of
 replicator dynamics are therefore derived symbolically. A larger group raises an error that states the limit.
 
@@ -370,7 +370,7 @@ from skcomplex.core.components.elements import GroupElement, PointElement
 from skcomplex.core.components.interactions import PairCouplingInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 
 
 def lennard_jones(s, r):
@@ -384,7 +384,7 @@ liquid = System(
     interactions=[PairCouplingInteraction('lj', 'atoms', 'atoms', cutoff=2.5, potential=lennard_jones)],
     space=ContinuousSpace(n_dim=2),
 )
-Simulation(liquid, dt=0.05).prepare().run(until=1).trajectory_.values('atoms.x').shape
+simulate(liquid, until=1, dt=0.05).values('atoms.x').shape
 ```
 
 A pair interaction is written once for a pair of members and summed over every pair closer than its cutoff, inside one

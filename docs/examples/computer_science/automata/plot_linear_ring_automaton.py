@@ -12,20 +12,20 @@ cell per step on each side, as the coefficients of `(x + 1/x - 2)^t` reduced mod
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import AutomatonAnalysis
+from skcomplex.core.analysis import automaton
 from skcomplex.core.components.interactions import LocalRuleInteraction
 from skcomplex.core.components.spaces import BoxNeighborhood
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.specs import LinearRuleSpec
-from skcomplex.systems import create_system
+from skcomplex.systems.computer_science.automata import LinearRingAutomatonSystem
 
 SYSTEM = 'linear_ring_automaton'
 
-system = create_system(SYSTEM, size=101, modulus=3)
+system = LinearRingAutomatonSystem(size=101, modulus=3)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(system, observers=[observer]).prepare().run(until=40)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # Nonzero cells and invertibility
@@ -35,10 +35,10 @@ simulation = Simulation(system, observers=[observer]).prepare().run(until=40)
 # matrix of `a^-1 + a - 2`, whose rank over GF(3) decides whether a configuration can be recovered from its image, and
 # on the integers its Laurent polynomial is surjective, not being zero, but not invertible, not being a monomial.
 
-values = simulation.trajectory_.values('cells.value')
+values = trajectory.values('cells.value')
 steps = np.arange(values.shape[0])
 laplacian = System(
-    elements=system.elements,
+    elements=system.prepare().system_.elements,
     interactions=[
         LocalRuleInteraction(
             'laplacian',
@@ -49,8 +49,8 @@ laplacian = System(
         ),
     ],
 )
-invertible = AutomatonAnalysis('injective').prepare(laplacian).run().injective_
-surjective = AutomatonAnalysis('surjective', infinite=True).prepare(laplacian).run().surjective_
+invertible = automaton(laplacian, kind='injective').injective
+surjective = automaton(laplacian, kind='surjective', infinite=True).surjective
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.plot(steps, (values != 0).sum(axis=1), 'o-', label='nonzero cells')
 ax.plot(steps, 2 * steps + 1, '--', label='light cone $2t + 1$')

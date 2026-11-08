@@ -6,13 +6,13 @@ import numpy as np
 import pytest
 from scipy.spatial.transform import Rotation
 
-from skcomplex.core.analysis import ShapeAnalysis
+from skcomplex.core.analysis import chain_shape
 from skcomplex.core.components.elements import Element, LatticeElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import DriveLaw
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import RoleSpec, StateSpec
 
@@ -42,7 +42,7 @@ def test_shape_end_to_end_of_a_freely_rotating_chain():
     positions = _freely_rotating_chains(2000, n + 1, bond_angle, np.random.default_rng(0))
     bonds = np.linalg.norm(np.diff(positions, axis=1), axis=2)
     assert bonds == pytest.approx(1.0)
-    values = ShapeAnalysis('end-to-end').prepare(positions).run().values_
+    values = chain_shape(positions, kind='end-to-end').values
     cosine = np.cos(np.pi - bond_angle)
     assert np.mean(values**2) == pytest.approx(n * (1 + cosine) / (1 - cosine), rel=0.05)
 
@@ -52,32 +52,32 @@ def test_shape_rmsd_vanishes_after_superposition():
     rng = np.random.default_rng(1)
     original = rng.normal(size=(30, 3))
     moved = Rotation.random(random_state=rng).apply(original) + rng.normal(size=3)
-    values = ShapeAnalysis('rmsd', reference=original).prepare(moved[None]).run().values_
+    values = chain_shape(moved[None], kind='rmsd', reference=original).values
     assert values[0] < 1e-6
 
 
 def test_shape_gyration_of_two_points():
     """Test that two points at distance 2 have a radius of gyration of 1."""
     chain = np.array([[[0.0, 0.0, 0.0], [2.0, 0.0, 0.0]]])
-    assert ShapeAnalysis().prepare(chain).run().values_[0] == pytest.approx(1.0)
+    assert chain_shape(chain).values[0] == pytest.approx(1.0)
 
 
 def test_shape_rejects_a_deviation_without_a_reference():
     """Test that the kind `rmsd` needs a reference."""
     with pytest.raises(AnalysisError, match='reference'):
-        ShapeAnalysis('rmsd').prepare()
+        chain_shape(np.zeros((1, 3, 2)), kind='rmsd')
 
 
 def test_shape_rejects_an_unknown_kind():
     """Test that an unknown kind raises an error that names it."""
     with pytest.raises(AnalysisError, match='waist'):
-        ShapeAnalysis('waist').prepare()
+        chain_shape(np.zeros((1, 3, 2)), kind='waist')
 
 
 def test_shape_rejects_positions_of_another_rank():
     """Test that positions without frames raise an error that names their shape."""
     with pytest.raises(AnalysisError, match=r'\(2, 3\)'):
-        ShapeAnalysis().prepare(np.zeros((2, 3)))
+        chain_shape(np.zeros((2, 3)))
 
 
 class CoordinateElement(Element):
@@ -109,14 +109,14 @@ def test_shape_reads_a_lattice_state_of_a_trajectory():
     """Test that a lattice state whose last axis holds coordinates is read as frames by points by dimensions."""
     chain = LatticeElement('chain', element=CoordinateElement, space=LatticeSpace((4, 3), boundary='fixed'))
     system = System(elements=[chain], interactions=[StretchInteraction('s', target='chain')], time=DiscreteTime())
-    trajectory = Simulation(system, random_state=0).prepare().run(until=2).trajectory_
-    values = ShapeAnalysis('end-to-end', group='chain.x').prepare(trajectory).run().values_
+    trajectory = simulate(system, until=2, random_state=0)
+    values = chain_shape(trajectory, kind='end-to-end', group='chain.x').values
     assert values.tolist() == [0.0, 3.0, 6.0]
 
 
 def test_shape_reports_a_group_it_cannot_find():
     """Test that a trajectory without the group raises an error."""
     chain = LatticeElement('chain', element=CoordinateElement, space=LatticeSpace((4, 3), boundary='fixed'))
-    trajectory = Simulation(System(elements=[chain], time=DiscreteTime()), random_state=0).prepare().run(1).trajectory_
+    trajectory = simulate(System(elements=[chain], time=DiscreteTime()), until=1, random_state=0)
     with pytest.raises(AnalysisError):
-        ShapeAnalysis(group='nothing').prepare(trajectory)
+        chain_shape(trajectory, group='nothing')

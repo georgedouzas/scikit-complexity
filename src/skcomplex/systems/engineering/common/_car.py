@@ -14,6 +14,8 @@ from ....core.specs import StateSpec, VisualSpec
 class CarElement(Element):
     """Car on a road whose position `x` advances at its speed `v`."""
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,

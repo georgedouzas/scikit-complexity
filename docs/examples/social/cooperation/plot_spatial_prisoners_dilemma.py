@@ -15,16 +15,16 @@ coexist in an ever-changing, chaotic patchwork with a stable share of cooperator
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.social.cooperation import SpatialPrisonersDilemmaSystem
 
 SYSTEM = 'spatial_prisoners_dilemma'
 ROUNDS = 100
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-system = create_system(SYSTEM, temptation=1.85, random_state=0)
-simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=ROUNDS)
+system = SpatialPrisonersDilemmaSystem(temptation=1.85, random_state=0)
+trajectory = simulate(system, until=ROUNDS, observers=[observer], random_state=0)
 
 # %%
 # Three regimes of the temptation
@@ -38,18 +38,14 @@ simulation = Simulation(system, observers=[observer], random_state=0).prepare().
 
 def cooperators(temptation, rounds=ROUNDS):
     """Return the share of cooperators after every round."""
-    run = (
-        Simulation(create_system(SYSTEM, temptation=temptation, random_state=0), random_state=0)
-        .prepare()
-        .run(until=rounds)
-    )
-    return run.trajectory_.values('players.strategy').reshape(rounds + 1, -1).mean(axis=1)
+    run = simulate(SpatialPrisonersDilemmaSystem(temptation=temptation, random_state=0), until=rounds, random_state=0)
+    return run.values('players.strategy').reshape(rounds + 1, -1).mean(axis=1)
 
 
 temptations = np.linspace(1.05, 2.45, 15)
 fig, (series, sweep) = plt.subplots(1, 2, figsize=(10, 4))
 for index, temptation in enumerate((1.6, 1.85, 2.1)):
-    shares = simulation.trajectory_.values('players.strategy').reshape(ROUNDS + 1, -1).mean(axis=1)
+    shares = trajectory.values('players.strategy').reshape(ROUNDS + 1, -1).mean(axis=1)
     shares = shares if temptation == 1.85 else cooperators(temptation)
     series.plot(shares, color=f'C{index}', label=f'b = {temptation}')
 series.axhline(12 * np.log(2) - 8, color='grey', linestyle=':', label='12 ln 2 - 8')

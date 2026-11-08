@@ -14,7 +14,9 @@ from ._entry_spec import EntrySpec
 
 @dataclass(frozen=True)
 class DirectionSpec(BaseSpec):
-    """State that holds the direction of the members, a vector or an angle in two dimensions.
+    """State that holds the direction of the members.
+
+    The direction is a vector, or an angle in two dimensions.
 
     Args:
         entry:

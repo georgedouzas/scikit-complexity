@@ -1,4 +1,7 @@
-"""Build the gather tables of the hyperedges of a network, one per size, and expand reductions over their members."""
+"""Build the gather tables of the hyperedges of a network and expand reductions.
+
+There is one table per size, and the reductions over their members are expanded.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,8 +22,9 @@ from ....errors import RoleError, ValidationError
 from ....specs import ReductionSpec
 from ....types import Indices
 from ..._utils import vector
-from ...problems import BlockSpec, KernelSpec
+from ...problems._block_spec import BlockSpec
 from ...problems._declarations_spec import _ACTIVE, MEMBERS
+from ...problems._kernel_spec import KernelSpec
 from ...types import ReadKind
 from .._base import BasePass
 
@@ -32,18 +36,21 @@ type Tables = tuple[Indices, list[Indices], Indices, Indices | None]
 
 
 class HyperedgeTables:
-    """Gather tables of the members of the hyperedges of one size, which the laws of a hyperedge interaction read.
+    """Gather tables of the members of the hyperedges of one size.
 
-    The laws of the focal member run over one row per member of every hyperedge, and the laws of the member of a group
-    on hyperedges or edges over one row per hyperedge. Every symbol of the laws reads its value through the table of
-    its slot: the focal member, one of the other members, the hyperedge, or the edge. On a network whose hyperedges
-    are the rows of a variable group, the tables of the members hold positions in the parameter entry of the members
-    of every row, which topology requests rewrite during a run.
+    The laws of a hyperedge interaction read them. The laws of the focal member run over one row per member of every
+    hyperedge, and the laws of the member of a group on hyperedges or edges over one row per hyperedge. Every symbol of
+    the laws reads its value through the table of its slot: the focal member, one of the other members, the hyperedge,
+    or the edge. On a network whose hyperedges are the rows of a variable group, the tables of the members hold
+    positions in the parameter entry of the members of every row, which topology requests rewrite during a run.
     """
 
     @staticmethod
     def _space(node: NodeSpec, nodes: BlockSpec, second: BlockSpec | None) -> NetworkSpace:
-        """Return the network of the nodes, after checking the sizes of the groups the roles bind."""
+        """Return the network of the nodes.
+
+        It first checks the sizes of the groups the roles bind.
+        """
         space = nodes.node.space
         if not isinstance(space, NetworkSpace) or not space.hyperedges_:
             error_msg = (
@@ -112,7 +119,9 @@ class HyperedgeTables:
 
     @staticmethod
     def _tables(members: np.ndarray, ids: Indices, mode: str) -> tuple[Indices, list[Indices], Indices, np.ndarray]:
-        """Return the rows of the focal member, of every other member, and of the hyperedge, and the hyperedge members.
+        """Return the rows of the focal member, the other members, and the hyperedge.
+
+        It also returns the members of the hyperedges.
 
         Args:
             members:
@@ -143,7 +152,9 @@ class HyperedgeTables:
 
     @staticmethod
     def _incidences(space: NetworkSpace, size: int) -> tuple[Indices, list[Indices]]:
-        """Return the hyperedges of one size around every node, as rows grouped by node, and their other members.
+        """Return the hyperedges of one size around every node.
+
+        They are rows grouped by node, with their other members.
 
         Args:
             space:
@@ -176,7 +187,9 @@ class HyperedgeTables:
 
     @staticmethod
     def _sizes(node: NodeSpec, space: NetworkSpace) -> list[int]:
-        """Return the sizes of the hyperedges an interaction runs on, its own size or every size of the network.
+        """Return the sizes of the hyperedges an interaction runs on.
+
+        It is its own size, or every size of the network.
 
         Args:
             node:
@@ -207,7 +220,9 @@ class HyperedgeTables:
 
     @staticmethod
     def _tables_of(node: NodeSpec, nodes: BlockSpec, second: BlockSpec | None) -> list[tuple[str, Tables]]:
-        """Return the gather tables of every size of hyperedge an interaction runs on, for both kinds of laws.
+        """Return the gather tables of every hyperedge size an interaction runs on.
+
+        Tables are given for both kinds of laws.
 
         Args:
             node:
@@ -258,10 +273,10 @@ class HyperedgeTables:
         second: BlockSpec | None,
         growing: BlockSpec,
     ) -> list[tuple[str, Tables]]:
-        """Return the gather tables of the rows of a variable group on hyperedges, for both kinds of laws.
+        """Return the gather tables of the rows of a variable group on hyperedges.
 
-        The tables of the focal and the other members hold the positions of the members in the parameter entry of the
-        members of every row, and the table of the hyperedge holds its row.
+        Tables are given for both kinds of laws. The tables of the focal and the other members hold the positions of the
+        members in the parameter entry of the members of every row, and the table of the hyperedge holds its row.
 
         Args:
             node:
@@ -306,9 +321,10 @@ class HyperedgeTables:
                 f'Bind the variable group on its hyperedges, {growing.node.path}.'
             )
             raise RoleError(error_msg)
-        if getattr(node.component, 'size', None) not in {None, size}:
+        given = getattr(node.component, 'size', None)
+        if given not in {None, size}:
             error_msg = (
-                f'Hyperedge interaction {node.path} runs on hyperedges of size {node.component.size}, but the '
+                f'Hyperedge interaction {node.path} runs on hyperedges of size {given}, but the '
                 f'hyperedges of {growing.node.path} have size {size}. Give the size {size}.'
             )
             raise RoleError(error_msg)
@@ -322,7 +338,10 @@ class HyperedgeTables:
 
     @staticmethod
     def _activity(spec: KernelSpec) -> Expression | None:
-        """Return the symbol of the activity of the hyperedge of every row on a growing hypergraph, or `None`."""
+        """Return the symbol of the hyperedge activity of every row, or `None`.
+
+        The hyperedges are those of a growing hypergraph.
+        """
         return next(
             (
                 item
@@ -334,7 +353,10 @@ class HyperedgeTables:
 
     @staticmethod
     def _scaled(spec: KernelSpec, law: BaseLaw, value: object, activity: Expression) -> Expression | FreeModuleElement:
-        """Return a scalar or a vector value multiplied by an activity, refusing a value that is not symbolic."""
+        """Return a scalar or a vector value multiplied by an activity.
+
+        A value that is not symbolic is refused.
+        """
         if not isinstance(value, Expression | FreeModuleElement | Number):
             error_msg = (
                 f'{spec.owner} returns {type(law).__name__} with the value {value!r} for the members of hyperedges '
@@ -348,10 +370,11 @@ class HyperedgeTables:
 
     @staticmethod
     def _masked(spec: KernelSpec, law: BaseLaw) -> BaseLaw:
-        """Return a law of a spec on a growing hypergraph that vanishes on the free rows of the group on hyperedges.
+        """Return a law of a spec on a growing hypergraph that vanishes on free rows.
 
-        A rate, a noise, or a jump is multiplied by the activity of the hyperedge. An update of the hyperedge member
-        writes only its own row, which a new hyperedge starts afresh, so it stays as it is.
+        The free rows are those of the group on hyperedges. A rate, a noise, or a jump is multiplied by the activity of
+        the hyperedge. An update of the hyperedge member writes only its own row, which a new hyperedge starts afresh,
+        so it stays as it is.
 
         Args:
             spec:
@@ -373,9 +396,13 @@ class HyperedgeTables:
         if activity is None:
             return law
         if isinstance(law, RateLaw | NoiseLaw):
-            return BasePass._replaced(law, value=HyperedgeTables._scaled(spec, law, law.value, activity))._validated()
+            return BasePass._replaced(law, value=HyperedgeTables._scaled(spec, law, law.value, activity)).prepare(
+                spec.owner,
+            )
         if isinstance(law, JumpLaw):
-            return BasePass._replaced(law, rate=HyperedgeTables._scaled(spec, law, law.rate, activity))._validated()
+            return BasePass._replaced(law, rate=HyperedgeTables._scaled(spec, law, law.rate, activity)).prepare(
+                spec.owner,
+            )
         if isinstance(law, UpdateLaw) and spec.hyperedge == HYPEREDGE_LAWS:
             return law
         error_msg = (
@@ -386,7 +413,9 @@ class HyperedgeTables:
 
     @staticmethod
     def _neighborhoods(node: NodeSpec, nodes: BlockSpec) -> list[list[int]]:
-        """Return every member of a group on the sites of a space followed by the members around it.
+        """Return every member of a group on the sites of a space and its neighbours.
+
+        Every member is followed by the members around it.
 
         Args:
             node:
@@ -415,11 +444,11 @@ class HyperedgeTables:
 
     @staticmethod
     def _groups_of(node: NodeSpec, nodes: BlockSpec) -> list[np.ndarray]:
-        """Return the members of the groups of a grouping, one array per size with one row per group.
+        """Return the members of the groups of a grouping.
 
-        Pairs and partitions hold positions in an order drawn at every step: consecutive positions form a group, the
-        positions left over form the last group of a partition, and an odd position forms no pair. Neighbourhoods hold
-        the members of the groups of the space.
+        There is one array per size, with one row per group. Pairs and partitions hold positions in an order drawn at
+        every step: consecutive positions form a group, the positions left over form the last group of a partition, and
+        an odd position forms no pair. Neighbourhoods hold the members of the groups of the space.
 
         Args:
             node:
@@ -453,7 +482,10 @@ class HyperedgeTables:
 
     @staticmethod
     def _components(value: object) -> list[Expression]:
-        """Return the symbols of a namespace entry, the components of a vector or the one symbol."""
+        """Return the symbols of a namespace entry.
+
+        They are the components of a vector, or the one symbol.
+        """
         if isinstance(value, FreeModuleElement):
             return [SR(item) for item in value]
         if isinstance(value, tuple):
@@ -462,7 +494,7 @@ class HyperedgeTables:
 
     @staticmethod
     def _slots(spec: KernelSpec) -> dict[Expression, list[Expression]]:
-        """Return the symbols of the focal and the other members that every symbol of the members stands for."""
+        """Return the focal and other member symbols that every member symbol stands for."""
         namespace = spec.namespace
         slots: dict[Expression, list[Expression]] = {}
         for name, value in vars(namespace.members).items():
@@ -474,10 +506,11 @@ class HyperedgeTables:
 
     @staticmethod
     def _around(spec: KernelSpec, kind: ReadKind) -> tuple[dict[Expression, list[Expression]], dict[Expression, int]]:
-        """Return the slots of a hyperedge around a member that the namespace of a spec holds, by symbol of the members.
+        """Return the slots of a hyperedge around a member, by member symbol.
 
-        A namespace of a member of a group on a network with hyperedges, the namespace of a spec or one of its
-        entries, holds `members`, every member of a hyperedge around the member, and `others`, the other members.
+        The namespace of a spec holds the slots. A namespace of a member of a group on a network with hyperedges, the
+        namespace of a spec or one of its entries, holds `members`, every member of a hyperedge around the member, and
+        `others`, the other members.
 
         Args:
             spec:
@@ -513,7 +546,9 @@ class HyperedgeTables:
 
     @staticmethod
     def _expanded(reduction: ReductionSpec, slots: dict[Expression, list[Expression]]) -> Expression:
-        """Return a reduction over the members of a hyperedge written out as a sum, a mean, or an extremum of slots.
+        """Return a reduction over the members of a hyperedge written out over slots.
+
+        It is written as a sum, a mean, or an extremum of slots.
 
         Args:
             reduction:
@@ -556,7 +591,9 @@ class HyperedgeTables:
 
     @staticmethod
     def _expansions(spec: KernelSpec, expressions: list[Expression]) -> dict[Expression, Expression]:
-        """Return every reduction over the members of a hyperedge in expressions with its expansion over the slots.
+        """Return every hyperedge member reduction in expressions with its expansion.
+
+        The expansion is over the slots.
 
         Args:
             spec:
@@ -576,7 +613,9 @@ class HyperedgeTables:
         slots: dict[Expression, list[Expression]],
         expressions: list[Expression],
     ) -> dict[Expression, Expression]:
-        """Return every reduction over the members of a hyperedge in expressions with its expansion over given slots.
+        """Return every hyperedge member reduction with its expansion over given slots.
+
+        The reductions are those in expressions.
 
         Args:
             slots:

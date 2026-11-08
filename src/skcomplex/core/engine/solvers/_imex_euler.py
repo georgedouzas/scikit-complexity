@@ -1,4 +1,7 @@
-"""Implicit-explicit Euler: the linear part implicit and the nonlinear remainder explicit, of first order."""
+"""Implicit-explicit Euler of first order.
+
+The linear part is implicit and the nonlinear remainder explicit.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -8,10 +11,11 @@ from ._split import SplitSolver
 
 
 class IMEXEulerSolver(SplitSolver):
-    """Implicit-explicit Euler: the linear part implicit and the nonlinear remainder explicit, of first order.
+    """Implicit-explicit Euler of first order.
 
-    Every step solves `(I - h L) x_{n+1} = x_n + h N(x_n)`, with sparse solves for finite differences and finite
-    elements and division per Fourier mode for spectral fields.
+    The linear part is implicit and the nonlinear remainder explicit. Every step solves `(I - h L) x_{n+1} = x_n + h
+    N(x_n)`, with sparse solves for finite differences and finite elements and division per Fourier mode for spectral
+    fields.
 
     Args:
         dt:
@@ -19,11 +23,11 @@ class IMEXEulerSolver(SplitSolver):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.engine.compile import PassCompiler
-        >>> from skcomplex.systems.physics.heat import heat_diffusion
+        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.systems.physics.heat import HeatDiffusionSystem
         >>> from skcomplex.core.engine.solvers import IMEXEulerSolver
         >>> from skcomplex.core.specs import StepSpec
-        >>> problem = PassCompiler().prepare(heat_diffusion((16, 16))).run().problem_
+        >>> problem = simulate(HeatDiffusionSystem((16, 16)), until=0).problem
         >>> stepper = IMEXEulerSolver(dt=1.0, random_state=0).prepare(problem)
         >>> state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 10.0)).state_
         >>> bool(np.isclose(state.sum(), problem.initial_state.sum()))

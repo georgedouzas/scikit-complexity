@@ -88,7 +88,9 @@ class LayoutSpec(BaseSpec):
         return self._by_name[name]
 
     def locate(self, name: str) -> tuple[EntrySpec, slice]:
-        """Return the entry of a variable or of one of its components, and the slice of the vector it covers.
+        """Return the entry of a variable or of one of its components.
+
+        It also returns the slice of the vector that the variable covers.
 
         Args:
             name:

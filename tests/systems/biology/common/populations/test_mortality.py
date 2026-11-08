@@ -4,14 +4,14 @@ import numpy as np
 
 from skcomplex.core.components.elements import CompartmentElement
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.common.populations import MortalityInteraction
 
 
 def _run(interaction, n0, until=4.0, dt=0.01):
     """Return the times and the population of one compartment under one interaction."""
     system = System(elements=[CompartmentElement('population', n=n0)], interactions=[interaction])
-    trajectory = Simulation(system, dt=dt).prepare().run(until=until).trajectory_
+    trajectory = simulate(system, dt=dt, until=until)
     return np.asarray(trajectory.times), np.asarray(trajectory.values('population.n'))
 
 

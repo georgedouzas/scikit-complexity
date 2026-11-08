@@ -1,4 +1,7 @@
-"""Reductions in the member expression of an observable, compiled with the reduction lowering of laws."""
+"""Reductions in the member expression of an observable.
+
+They are compiled with the reduction lowering of laws.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,10 +21,11 @@ from ..problems._reduction_kernel import ReductionKernel
 
 
 class _MemberReductions(BaseConfig[None, object]):
-    """Reductions in the member expression of an observable, compiled with the reduction lowering of laws.
+    """Reductions in the member expression of an observable.
 
-    `prepare()` starts with the reads given and no reduction found, and `run(expression)` sets `expression_`, the
-    expression with every reduction replaced by the placeholder of its value, compiling every reduction once.
+    They are compiled with the reduction lowering of laws. `prepare()` starts with the reads given and no reduction
+    found, and `run(expression)` sets `expression_`, the expression with every reduction replaced by the placeholder of
+    its value, compiling every reduction once.
 
     Args:
         path:
@@ -56,9 +60,6 @@ class _MemberReductions(BaseConfig[None, object]):
     reads_: dict[Expression, ReadSpec]
     found_: dict[str, ReductionKernel]
     expression_: object
-
-    def _check(self) -> None:
-        """Accept every setting, since a member reduction has none to validate."""
 
     def __init__(
         self,
@@ -96,7 +97,7 @@ class _MemberReductions(BaseConfig[None, object]):
         self.expression_ = self._lowered(inputs)
 
     def _lowered(self, expression: object) -> object:
-        """Return an expression with every reduction replaced by the placeholder of its value.
+        """Return an expression with every reduction replaced by its value placeholder.
 
         Args:
             expression:
@@ -120,7 +121,7 @@ class _MemberReductions(BaseConfig[None, object]):
         return max((item.entry.start + item.entry.size for item in self.found_.values()), default=self.parameters)
 
     def _check_over(self, reduction: ReductionSpec) -> None:
-        """Raise an error when a reduction reduces over a group other than the observable's group."""
+        """Raise an error for a reduction over another group than the observable's."""
         read = self.reads_.get(reduction.over) if reduction.over is not None else None
         if reduction.over is None or (read is not None and read.per_member):
             return

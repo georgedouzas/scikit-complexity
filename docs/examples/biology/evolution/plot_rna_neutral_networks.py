@@ -15,16 +15,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import spearmanr
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
-from skcomplex.systems.biology.evolution import NeutralNetworkAnalysis, fold_sequence
+from skcomplex.systems.biology.evolution import RNANeutralNetworksSystem, fold_sequence, neutral_network
 
 SYSTEM = 'rna_neutral_networks'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = Simulation(system, observers=[observer], random_state=0).prepare().run(until=299).trajectory_
+trajectory = simulate(RNANeutralNetworksSystem(), observers=[observer], random_state=0, until=299)
 
 # %%
 # Drift, robustness, and evolvability
@@ -43,8 +41,8 @@ letters = trajectory.lattice('walkers.base')
 sequences = np.array([[''.join(row) for row in frame] for frame in letters], dtype=object)
 distances = (letters != letters[0]).sum(axis=2)
 samples = sequences[::10]
-robustness = NeutralNetworkAnalysis(fold_of, 'genotype-robustness').prepare(samples).run().values_.ravel()
-evolvability = NeutralNetworkAnalysis(fold_of, 'genotype-evolvability').prepare(samples).run().values_.ravel()
+robustness = neutral_network(samples, phenotype_of=fold_of, kind='genotype-robustness').values.ravel()
+evolvability = neutral_network(samples, phenotype_of=fold_of, kind='genotype-evolvability').values.ravel()
 correlation = spearmanr(robustness, evolvability).statistic
 
 fig, (drift, trade) = plt.subplots(1, 2, figsize=(11, 4))

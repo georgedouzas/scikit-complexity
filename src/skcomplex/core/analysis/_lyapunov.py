@@ -1,9 +1,13 @@
-"""Measure chaos with Lyapunov exponents: the spectrum of a system from its tangent dynamics, or the largest of data."""
+"""Measure chaos with Lyapunov exponents.
+
+They are the spectrum of a system from its tangent dynamics, or the largest of data.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 
 import nolds
 import numba
@@ -11,13 +15,16 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, dirac_delta, sgn
 
 from ..components.system import System
-from ..engine.problems import BaseProblemSpec, ExpressionPrinter, ProblemSpec, SourceLoader
+from ..engine.problems import BaseProblemSpec, ProblemSpec
 from ..engine.problems._dynamics_spec import _DynamicsSpec
+from ..engine.problems._expression_printer import ExpressionPrinter
+from ..engine.problems._source_loader import SourceLoader
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
+from ..specs import AnalysisTags
 from ..types import Array, DataKind, VectorFunction
-from ._base import BaseAnalysis
-from ._stability import StabilityAnalysis
+from ._base import _check_choice, _check_settings, _check_tags, _composite, _read_series, _read_system
+from ._stability import _dynamics_of
 from .types import Source
 
 KINDS = ('spectrum', 'largest')
@@ -28,6 +35,11 @@ SETTINGS = {
 """Settings every kind reads, besides `kind`."""
 
 FUNCTIONS: dict[str, VectorFunction] = {}
+
+TAGS = AnalysisTags(DataKind.SYSTEM, randomness='deterministic')
+KIND_TAGS = {
+    'largest': AnalysisTags(DataKind.SERIES, randomness='deterministic'),
+}
 
 
 @numba.njit
@@ -41,7 +53,10 @@ def _flow_spectrum(
     steps: int,
     skip: int,
 ) -> Array:
-    """Integrate a flow and its tangent vectors with RK4, re-orthonormalising every step, and average the growth."""
+    """Integrate a flow and its tangent vectors with RK4, and average the growth.
+
+    The tangent vectors are re-orthonormalised every step.
+    """
     q = np.eye(x.size)[:, :n].copy()
     sums = np.zeros(n)
     t = 0.0
@@ -66,7 +81,10 @@ def _flow_spectrum(
 
 @numba.njit
 def _map_spectrum(f: VectorFunction, jac: VectorFunction, x: Array, p: Array, n: int, steps: int, skip: int) -> Array:
-    """Iterate a map and its tangent vectors, re-orthonormalising every step, and average the growth."""
+    """Iterate a map and its tangent vectors, and average the growth.
+
+    The tangent vectors are re-orthonormalised every step.
+    """
     q = np.eye(x.size)[:, :n].copy()
     sums = np.zeros(n)
     for step in range(skip + steps):
@@ -79,8 +97,66 @@ def _map_spectrum(f: VectorFunction, jac: VectorFunction, x: Array, p: Array, n:
     return sums / steps
 
 
-class LyapunovAnalysis(BaseAnalysis):
-    """Lyapunov exponents of a system from its tangent dynamics, or the largest exponent of recorded series.
+@dataclass(frozen=True)
+class LyapunovResult:
+    """Lyapunov exponents of a system, or the largest exponent of every series.
+
+    The series are those recorded.
+
+    Args:
+        problem:
+            The compiled problem of the spectrum of a system, or `None` for an array of exponents or for `'largest'`.
+
+        exponents:
+            The exponents of the spectrum in decreasing order, per unit of time for flows and per iteration for maps,
+            or `None` for `'largest'`.
+
+        kaplan_yorke_dimension:
+            The Kaplan-Yorke dimension of the spectrum, with `j` the largest number of exponents whose sum is
+            nonnegative, or `None` for `'largest'`.
+
+        kolmogorov_sinai_entropy:
+            The entropy rate of the dynamics in nats per unit time, the sum of the positive exponents, or `None` for
+            `'largest'`.
+
+        values:
+            The series of `'largest'`, one per column, or `None` for `'spectrum'`.
+
+        labels:
+            The label of every series of `'largest'`, or `None` for `'spectrum'`.
+
+        largest_exponent:
+            The largest exponent per unit time of every series of `'largest'`, or `None` for `'spectrum'`.
+    """
+
+    problem: ProblemSpec | None = None
+    exponents: Array | None = None
+    kaplan_yorke_dimension: float | None = None
+    kolmogorov_sinai_entropy: float | None = None
+    values: Array | None = None
+    labels: list[str] | None = None
+    largest_exponent: Array | None = None
+
+
+def lyapunov(
+    source: Source,
+    *,
+    kind: str = 'spectrum',
+    variables: Sequence[str] | None = None,
+    n_exponents: int | None = None,
+    until: float | None = None,
+    dt: float | None = None,
+    transient: float | None = None,
+    parameters: Mapping[str, float] | None = None,
+    dimension: int = 3,
+    delay: int = 1,
+    min_separation: int | None = None,
+    trajectory_length: int = 20,
+    skip: int = 0,
+) -> LyapunovResult:
+    """Return the Lyapunov exponents of a system, or the largest exponent of series.
+
+    The exponents of a system come from its tangent dynamics.
 
     The kinds read a system or data:
 
@@ -97,6 +173,10 @@ class LyapunovAnalysis(BaseAnalysis):
     A positive largest exponent indicates chaos.
 
     Args:
+        source:
+            The system, its compiled problem, or a trajectory of it for `'spectrum'`, or an array of exponents, and
+            the trajectory or the array of series for `'largest'`.
+
         kind:
             The exponents to compute, one of the kinds above.
 
@@ -136,207 +216,182 @@ class LyapunovAnalysis(BaseAnalysis):
             The number of first steps of the divergence left out of the fit, while neighbours align with the unstable
             direction.
 
-    Attributes:
-        problem_:
-            The compiled problem of the spectrum of a system, or `None` for an array of exponents.
+    Returns:
+        result:
+            The spectrum with its dimension and entropy, or the largest exponent of every series.
 
-        exponents_:
-            The exponents of the spectrum in decreasing order, per unit of time for flows and per iteration for maps.
+    Raises:
+        AnalysisError:
+            The kind is unknown, a setting the kind does not read is changed, or a setting is not positive.
 
-        kaplan_yorke_dimension_:
-            The Kaplan-Yorke dimension of the spectrum, with `j` the largest number of exponents whose sum is
-            nonnegative.
-
-        kolmogorov_sinai_entropy_:
-            The entropy rate of the dynamics in nats per unit time, the sum of the positive exponents.
-
-        values_:
-            The series of `'largest'`, one per column.
-
-        labels_:
-            The label of every series of `'largest'`.
-
-        largest_exponent_:
-            The largest exponent per unit time of every series of `'largest'`.
+        TagError:
+            The system of the source is stochastic, since the exponents need a deterministic system.
 
     Examples:
-        >>> from skcomplex.core.analysis import LyapunovAnalysis
-        >>> from skcomplex.systems.mathematics.dynamical_systems import logistic_map
-        >>> analysis = LyapunovAnalysis(until=20000).prepare(logistic_map(r=4.0)).run()
-        >>> float(analysis.exponents_[0].round(2))
+        >>> from skcomplex.core.analysis import lyapunov
+        >>> from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
+        >>> float(lyapunov(LogisticMapSystem(r=4.0), until=20000).exponents[0].round(2))
         0.69
-        >>> round(LyapunovAnalysis().prepare([0.906, 0.0, -14.572]).run().kaplan_yorke_dimension_, 2)
+        >>> round(lyapunov([0.906, 0.0, -14.572]).kaplan_yorke_dimension, 2)
         2.06
     """
-
-    def __init__(
-        self,
-        kind: str = 'spectrum',
-        variables: Sequence[str] | None = None,
-        *,
-        n_exponents: int | None = None,
-        until: float | None = None,
-        dt: float | None = None,
-        transient: float | None = None,
-        parameters: Mapping[str, float] | None = None,
-        dimension: int = 3,
-        delay: int = 1,
-        min_separation: int | None = None,
-        trajectory_length: int = 20,
-        skip: int = 0,
-    ) -> None:
-        self.kind = kind
-        self.variables = variables
-        self.n_exponents = n_exponents
-        self.until = until
-        self.dt = dt
-        self.transient = transient
-        self.parameters = parameters
-        self.dimension = dimension
-        self.delay = delay
-        self.min_separation = min_separation
-        self.trajectory_length = trajectory_length
-        self.skip = skip
-
-    def _check(self) -> None:
-        """Validate the kind, that the kind reads every changed setting, and the positive settings."""
-        self._check_choice('kind', self.kind, KINDS)
-        self._check_settings('kind', SETTINGS[self.kind])
-        if (self.dt is not None and self.dt <= 0) or self.dimension < 1 or self.delay < 1:
-            error_msg = (
-                f'{type(self).__name__} has dt={self.dt!r}, dimension={self.dimension!r}, and delay={self.delay!r}. '
-                'Use positive values.'
-            )
-            raise AnalysisError(error_msg)
-
-    def _get_data_kind(self) -> DataKind:
-        """Return the system kind for the spectrum, and the series kind for the largest exponent of data."""
-        return DataKind.SYSTEM if self.kind == 'spectrum' else DataKind.SERIES
-
-    def _prepare(self, source: Source) -> None:
-        """Read the series for the largest exponent, or the dynamics of the system or the exponents for the spectrum."""
-        if self.kind == 'largest':
-            series = self._read_series(source, self.variables)
-            self.values_ = series.values
-            self.labels_ = series.labels
-            return
-        if isinstance(source, System | BaseProblemSpec | Trajectory):
-            dynamics = StabilityAnalysis._dynamics_of(self._read_system(source), self.parameters)
-            self.problem_: ProblemSpec | None = dynamics.problem
-            return
-        self.problem_ = None
-        self.exponents_ = np.sort(np.asarray(source, dtype=float).ravel())[::-1]
-
-    def _compute_spectrum(self, dynamics: _DynamicsSpec) -> Array:
-        """Return the exponents of the system from its tangent dynamics."""
-        size = len(dynamics.symbols)
-        count = size if self.n_exponents is None else self.n_exponents
-        problem = dynamics.problem
-        indices = {
-            name: entry.start + column
-            for entry in problem.states.entries
-            for column, name in enumerate(entry.generic_names)
-        }
-        start = np.asarray([problem.initial_state[indices[name]] for name in dynamics.names], dtype=float)
-        f = self._function('field', dynamics, dynamics.rates, (size,))
-        jac = self._function('jacobian', dynamics, self._jacobian(dynamics), (size, size))
-        values = np.asarray([float(value) for value in dynamics.parameters.values()], dtype=float)
-        if dynamics.discrete:
-            steps = int(self.until if self.until is not None else 10_000)
-            skip = int(self.transient if self.transient is not None else steps // 10)
-            exponents = _map_spectrum(f, jac, start, values, count, steps, skip)
-        else:
-            dt = self.dt if self.dt is not None else 0.01
-            total = self.until if self.until is not None else 1000.0
-            steps = round(total / dt)
-            skip = round((self.transient if self.transient is not None else total / 10) / dt)
-            exponents = _flow_spectrum(f, jac, start, values, count, dt, steps, skip)
-        return np.sort(np.asarray(exponents))[::-1]
-
-    def _run(self, inputs: object = None) -> None:
-        """Compute the spectrum with its dimension and entropy, or the largest exponent of every series."""
-        if self.kind == 'largest':
-            self.largest_exponent_ = np.asarray(
-                [
-                    nolds.lyap_r(
-                        np.asarray(column, dtype=float),
-                        emb_dim=self.dimension,
-                        lag=self.delay,
-                        min_tsep=self.min_separation,
-                        tau=self.dt if self.dt is not None else 1.0,
-                        trajectory_len=self.trajectory_length,
-                        fit='poly',
-                        fit_offset=self.skip,
-                    )
-                    for column in self.values_.T
-                ],
-                dtype=float,
-            )
-            return
-        if self.problem_ is not None:
-            self.exponents_ = self._compute_spectrum(StabilityAnalysis._dynamics_of(self.problem_, self.parameters))
-        self.kaplan_yorke_dimension_ = self._kaplan_yorke(self.exponents_)
-        self.kolmogorov_sinai_entropy_ = float(self.exponents_[self.exponents_ > 0].sum())
-
-    @staticmethod
-    def _without_kinks(expression: Expression) -> Expression:
-        """Return an expression with each `abs(u)` as `u sgn(u)`, whose derivative is `sgn(u)`, not `u / |u|`."""
-        wild = SR.wild(0)
-        return SR(expression).subs({abs(wild): wild * sgn(wild)})
-
-    @staticmethod
-    def _jacobian(dynamics: _DynamicsSpec) -> list[Expression]:
-        """Return the entries of the Jacobian of the rates row by row, with the kinks of absolute values as signs."""
-        wild = SR.wild(0)
-        rates = [LyapunovAnalysis._without_kinks(rate) for rate in dynamics.rates]
-        return [rate.diff(item).subs({dirac_delta(wild): 0}) for rate in rates for item in dynamics.symbols]
-
-    @staticmethod
-    def _function(
-        name: str,
-        dynamics: _DynamicsSpec,
-        expressions: list[Expression],
-        shape: tuple[int, ...],
-    ) -> VectorFunction:
-        """Return a Numba function `f(t, x, p)` that fills an array of a shape, compiled once per printed source.
-
-        The parameters are read from `p` in the order of `dynamics.parameters`, so systems of one structure share the
-        compiled function whatever their parameter values.
-        """
-        names = (
-            {item: f'x[{index}]' for index, item in enumerate(dynamics.symbols)}
-            | {item: f'p[{index}]' for index, item in enumerate(dynamics.parameters)}
-            | {dynamics.time: 't'}
+    source = _composite(source)
+    _check_choice('lyapunov', 'kind', kind, KINDS)
+    _check_tags(lyapunov, source, kind)
+    _check_settings(
+        lyapunov,
+        'kind',
+        SETTINGS[kind],
+        kind=kind,
+        variables=variables,
+        n_exponents=n_exponents,
+        until=until,
+        dt=dt,
+        transient=transient,
+        parameters=parameters,
+        dimension=dimension,
+        delay=delay,
+        min_separation=min_separation,
+        trajectory_length=trajectory_length,
+        skip=skip,
+    )
+    if (dt is not None and dt <= 0) or dimension < 1 or delay < 1:
+        error_msg = f'lyapunov has dt={dt!r}, dimension={dimension!r}, and delay={delay!r}. Use positive values.'
+        raise AnalysisError(error_msg)
+    if kind == 'largest':
+        series = _read_series(source, variables)
+        largest = np.asarray(
+            [
+                nolds.lyap_r(
+                    np.asarray(column, dtype=float),
+                    emb_dim=dimension,
+                    lag=delay,
+                    min_tsep=min_separation,
+                    tau=dt if dt is not None else 1.0,
+                    trajectory_len=trajectory_length,
+                    fit='poly',
+                    fit_offset=skip,
+                )
+                for column in series.values.T
+            ],
+            dtype=float,
         )
-        printer = ExpressionPrinter('scalar', names=lambda item: names[item]).prepare()
-        printed = printer.run([SR(item) for item in expressions]).code_
-        if not isinstance(printed, tuple):
-            error_msg = f'The printer returned no code for the Jacobian of {name}.'
-            raise AnalysisError(error_msg)
-        assignments, codes = printed
-        lines = ['import math', 'import numpy as np', '', '']
-        lines += [f'def {name}(t, x, p):', f'    out = np.zeros({shape})']
-        lines += [f'    {bound} = {code}' for bound, code in assignments]
-        lines += [
-            f'    out[{np.unravel_index(index, shape) if len(shape) > 1 else index}] = {code}'
-            for index, code in enumerate(codes)
-        ]
-        lines.append('    return out')
-        source = '\n'.join(lines) + '\n'
-        if source not in FUNCTIONS:
-            module = SourceLoader('skcomplex_lyapunov').prepare().run(source).module_
-            FUNCTIONS[source] = numba.njit(getattr(module, name))
-        return FUNCTIONS[source]
+        return LyapunovResult(values=series.values, labels=series.labels, largest_exponent=largest)
+    problem = None
+    if isinstance(source, System | BaseProblemSpec | Trajectory):
+        dynamics = _dynamics_of(_read_system(source), parameters)
+        problem = dynamics.problem
+        exponents = _compute_spectrum(dynamics, n_exponents, until, dt, transient)
+    else:
+        exponents = np.sort(np.asarray(source, dtype=float).ravel())[::-1]
+    return LyapunovResult(
+        problem=problem,
+        exponents=exponents,
+        kaplan_yorke_dimension=_kaplan_yorke(exponents),
+        kolmogorov_sinai_entropy=float(exponents[exponents > 0].sum()),
+    )
 
-    @staticmethod
-    def _kaplan_yorke(exponents: Array) -> float:
-        """Return the Kaplan-Yorke dimension `j + Σ_{i<=j} λ_i / |λ_{j+1}|` of a Lyapunov spectrum."""
-        ordered = np.sort(np.asarray(exponents, dtype=float))[::-1]
-        sums = np.cumsum(ordered)
-        nonnegative = np.flatnonzero(sums >= 0)
-        if not nonnegative.size:
-            return 0.0
-        count = int(nonnegative[-1]) + 1
-        if count == ordered.size:
-            return float(count)
-        return float(count + sums[count - 1] / abs(ordered[count]))
+
+def _compute_spectrum(
+    dynamics: _DynamicsSpec,
+    n_exponents: int | None,
+    until: float | None,
+    dt: float | None,
+    transient: float | None,
+) -> Array:
+    """Return the exponents of the system from its tangent dynamics."""
+    size = len(dynamics.symbols)
+    count = size if n_exponents is None else n_exponents
+    problem = dynamics.problem
+    indices = {
+        name: entry.start + column
+        for entry in problem.states.entries
+        for column, name in enumerate(entry.generic_names)
+    }
+    start = np.asarray([problem.initial_state[indices[name]] for name in dynamics.names], dtype=float)
+    f = _function('field', dynamics, dynamics.rates, (size,))
+    jac = _function('jacobian', dynamics, _jacobian(dynamics), (size, size))
+    values = np.asarray([float(value) for value in dynamics.parameters.values()], dtype=float)
+    if dynamics.discrete:
+        steps = int(until if until is not None else 10_000)
+        skip = int(transient if transient is not None else steps // 10)
+        exponents = _map_spectrum(f, jac, start, values, count, steps, skip)
+    else:
+        step = dt if dt is not None else 0.01
+        total = until if until is not None else 1000.0
+        steps = round(total / step)
+        skip = round((transient if transient is not None else total / 10) / step)
+        exponents = _flow_spectrum(f, jac, start, values, count, step, steps, skip)
+    return np.sort(np.asarray(exponents))[::-1]
+
+
+def _without_kinks(expression: Expression) -> Expression:
+    """Return an expression with each `abs(u)` as `u sgn(u)`.
+
+    Its derivative is then `sgn(u)`, not `u / |u|`.
+    """
+    wild = SR.wild(0)
+    return SR(expression).subs({abs(wild): wild * sgn(wild)})
+
+
+def _jacobian(dynamics: _DynamicsSpec) -> list[Expression]:
+    """Return the entries of the Jacobian of the rates row by row.
+
+    The kinks of absolute values become signs.
+    """
+    wild = SR.wild(0)
+    rates = [_without_kinks(rate) for rate in dynamics.rates]
+    return [rate.diff(item).subs({dirac_delta(wild): 0}) for rate in rates for item in dynamics.symbols]
+
+
+def _function(
+    name: str,
+    dynamics: _DynamicsSpec,
+    expressions: list[Expression],
+    shape: tuple[int, ...],
+) -> VectorFunction:
+    """Return a Numba function `f(t, x, p)` that fills an array of a shape.
+
+    It is compiled once per printed source. The parameters are read from `p` in the order of `dynamics.parameters`, so
+    systems of one structure share the compiled function whatever their parameter values.
+    """
+    names = (
+        {item: f'x[{index}]' for index, item in enumerate(dynamics.symbols)}
+        | {item: f'p[{index}]' for index, item in enumerate(dynamics.parameters)}
+        | {dynamics.time: 't'}
+    )
+    printer = ExpressionPrinter('scalar', names=lambda item: names[item]).prepare()
+    printed = printer.run([SR(item) for item in expressions]).code_
+    if not isinstance(printed, tuple):
+        error_msg = f'The printer returned no code for the Jacobian of {name}.'
+        raise AnalysisError(error_msg)
+    assignments, codes = printed
+    lines = ['import math', 'import numpy as np', '', '']
+    lines += [f'def {name}(t, x, p):', f'    out = np.zeros({shape})']
+    lines += [f'    {bound} = {code}' for bound, code in assignments]
+    lines += [
+        f'    out[{np.unravel_index(index, shape) if len(shape) > 1 else index}] = {code}'
+        for index, code in enumerate(codes)
+    ]
+    lines.append('    return out')
+    source = '\n'.join(lines) + '\n'
+    if source not in FUNCTIONS:
+        module = SourceLoader('skcomplex_lyapunov').prepare().run(source).module_
+        FUNCTIONS[source] = numba.njit(getattr(module, name))
+    return FUNCTIONS[source]
+
+
+def _kaplan_yorke(exponents: Array) -> float:
+    """Return the Kaplan-Yorke dimension of a Lyapunov spectrum.
+
+    It is `j + Σ_{i<=j} λ_i / |λ_{j+1}|`.
+    """
+    ordered = np.sort(np.asarray(exponents, dtype=float))[::-1]
+    sums = np.cumsum(ordered)
+    nonnegative = np.flatnonzero(sums >= 0)
+    if not nonnegative.size:
+        return 0.0
+    count = int(nonnegative[-1]) + 1
+    if count == ordered.size:
+        return float(count)
+    return float(count + sums[count - 1] / abs(ordered[count]))

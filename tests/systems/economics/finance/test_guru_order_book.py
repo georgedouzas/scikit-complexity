@@ -3,19 +3,18 @@
 import numpy as np
 from scipy.stats import kurtosis
 
-from skcomplex.systems import describe
-from skcomplex.systems.economics.finance import guru_order_book
+from skcomplex.systems.economics.finance import GuruOrderBookSystem
 
 from ..conftest import _run_observed
 
 
 def test_guru_order_book_coordinates_on_gurus_with_fat_tailed_returns():
     """Test that holdings are conserved, that a guru gathers most followers, and that returns have fat tails."""
-    system = guru_order_book()
+    system = GuruOrderBookSystem().prepare().system_
     trajectory = _run_observed(
         system,
         1000,
-        observables=describe('guru_order_book').observables_of(system),
+        observables=GuruOrderBookSystem().get_run_settings()['observables'],
         invariants={'total_cash': 1e-6, 'total_stocks': 1e-6},
     )
     returns = trajectory.values('market.log_return')[1:]

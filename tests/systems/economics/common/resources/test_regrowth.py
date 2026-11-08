@@ -7,7 +7,7 @@ import numpy as np
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.core.types import AnyArray
 from skcomplex.systems.economics.common.resources import RegrowthInteraction
@@ -34,7 +34,7 @@ def _levels(*, relative: bool) -> AnyArray:
     stocks = GroupElement('stocks', element=StockElement, size=2, values={'level': [0.0, 3.0]})
     regrowth = RegrowthInteraction('regrowth', target='stocks', state='level', growth='growth', relative=relative)
     system = System(elements=[stocks], interactions=[regrowth], time=DiscreteTime())
-    trajectory = Simulation(system, random_state=0).prepare().run(until=3).trajectory_
+    trajectory = simulate(system, until=3, random_state=0)
     return np.array([trajectory.agents('stocks', frame).values['level'] for frame in range(4)])
 
 

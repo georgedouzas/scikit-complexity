@@ -1,9 +1,13 @@
-"""Define cascade laws, a slow drive followed by fast updates until a lattice is stable."""
+"""Define cascade laws.
+
+A cascade is a slow drive followed by fast updates until a lattice is stable.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 from collections.abc import Callable, Sequence
+from typing import ClassVar
 
 from ...specs import RequirementSpec
 from ..spaces import DiscreteTime, LatticeSpace, NetworkSpace
@@ -11,11 +15,12 @@ from ._base import BaseLaw
 
 
 class CascadeLaw(BaseLaw):
-    """Cascade of a lattice: drive laws once per step, then the laws that relax it until it is stable.
+    """Cascade of a lattice.
 
-    Every cascade that changes the lattice is recorded as an event with its size, the number of site updates, its
-    duration, the number of iterations, and its area, the number of distinct sites updated. A site update is a site
-    that changes in an iteration, or a site that `activity` marks as active before it, such as a toppling site.
+    Drive laws run once per step, then the laws that relax it run until it is stable. Every cascade that changes the
+    lattice is recorded as an event with its size, the number of site updates, its duration, the number of iterations,
+    and its area, the number of distinct sites updated. A site update is a site that changes in an iteration, or a site
+    that `activity` marks as active before it, such as a toppling site.
 
     Args:
         drive:
@@ -48,6 +53,8 @@ class CascadeLaw(BaseLaw):
         (height,)
     """
 
+    law_tag: ClassVar[str] = 'update'
+
     def __init__(
         self,
         drive: Sequence[BaseLaw],
@@ -71,10 +78,16 @@ class CascadeLaw(BaseLaw):
 
     @classmethod
     def _get_requirements(cls) -> RequirementSpec:
-        """Return what the cascade requires of a system: discrete time on a lattice or a network."""
+        """Return what the cascade requires: discrete time on a lattice or a network."""
         return RequirementSpec(time=(DiscreteTime,), space=(LatticeSpace, NetworkSpace))
 
-    def _check(self) -> None:
-        """Check every drive law and every law that relaxes the lattice."""
+    def _prepare(self, context: str | None = None) -> None:
+        """Check every drive law and every law that relaxes the lattice.
+
+        Args:
+            context:
+                The path of the element or interaction that returns the law, or `None`.
+        """
+        super()._prepare(context)
         for law in (*self.drive, *self.relax):
-            law._validated()
+            law.prepare(context)

@@ -1,4 +1,7 @@
-"""Define Monte Carlo sampling of a state, by moves accepted from the change of a local objective."""
+"""Define Monte Carlo sampling of a state.
+
+The sampling makes moves accepted from the change of a local objective.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -27,6 +30,7 @@ from ...specs import (
     RoleSpec,
     RowScoreSpec,
     SamplerSpec,
+    Tags,
 )
 from ...types import Array, ComplexArray, ElementKind, Indices
 from ..laws import BaseLaw, DriveLaw, SampleLaw
@@ -58,7 +62,10 @@ POSITIVE_VALUES = ConditionSet(RR, _is_positive)
 
 @numba.njit(cache=True)
 def _elastic_change(strength: float, target: float, total: float, step: float) -> float:  # pragma: no cover
-    """Return the change of `strength * (total - target)^2` when the total grows by a step."""
+    """Return the change of `strength * (total - target)^2` when the total grows.
+
+    The total grows by a step.
+    """
     return strength * step * (2.0 * (total - target) + step)
 
 
@@ -70,16 +77,16 @@ def _copy_labels(
     proposals: tuple[Indices, Array, Array],
     acceptance: tuple[float, bool],
 ) -> None:  # pragma: no cover
-    """Propose label copies at the given sites, accept them in place, and keep the totals of every label.
+    """Propose label copies at the given sites and accept them in place.
 
-    Every attempt copies the label of a neighbour of a site, the neighbour at the fraction `picks` of its neighbours,
-    into the site. The contacts are the neighbours of every site, their number, the weights of the contacts, and the
-    volumes of the sites. The change of the objective sums the contact energies `contact` between labels weighted by the
-    contacts of the site, and the change of the elastic constraints of the two labels, of strengths `constraints[0]` and
-    targets `constraints[1]` on the volumes `totals[0]`, and of strengths `constraints[2]` and targets `constraints[3]`
-    on the surfaces `totals[1]`. An accepted copy updates the totals of the two labels only. The proposals are the
-    sites, the picks, and the uniform numbers of the acceptance, and the acceptance the intensity and whether the rule
-    is the Metropolis rule.
+    It keeps the totals of every label. Every attempt copies the label of a neighbour of a site, the neighbour at the
+    fraction `picks` of its neighbours, into the site. The contacts are the neighbours of every site, their number, the
+    weights of the contacts, and the volumes of the sites. The change of the objective sums the contact energies
+    `contact` between labels weighted by the contacts of the site, and the change of the elastic constraints of the two
+    labels, of strengths `constraints[0]` and targets `constraints[1]` on the volumes `totals[0]`, and of strengths
+    `constraints[2]` and targets `constraints[3]` on the surfaces `totals[1]`. An accepted copy updates the totals of
+    the two labels only. The proposals are the sites, the picks, and the uniform numbers of the acceptance, and the
+    acceptance the intensity and whether the rule is the Metropolis rule.
     """
     neighbors, counts, weights, sizes = contacts
     contact, constraints, totals = scores
@@ -129,22 +136,23 @@ def _copy_labels(
 
 
 class SamplingInteraction(Interaction):
-    """Monte Carlo sweeps of a state of the members of a lattice or network group, one sweep per unit of time.
+    """Monte Carlo sweeps of a state of the members of a lattice or network group.
 
-    Every sweep proposes a move of the state of every member and accepts it from the change of the local objective of
-    the member, the terms of the objective that involve its value, at the intensity. The local objective is a function
-    of the namespace, which holds `namespace.target`, the states and parameters of the member, and
-    `namespace.target.other`, a neighbour, whose values `neighbors(...)` sums over `neighborhood`. A move is `'flip'`,
-    the negative value, `'random-value'`, a value drawn from `values`, `'rotate'`, the value plus a uniform number in
-    `[-width, width]`, `'gaussian'`, the value plus a normal number of standard deviation `width`, or a function
-    `move(values, random)` of the array of the current values of some members and the random generator that returns
-    their proposed values. The move `'cluster'` is the Wolff algorithm instead: a sweep flips clusters until the flipped
-    members number as many as the members, each cluster grown from a random member through the bonds to neighbours
-    with probability `1 - exp(min(0, -intensity * (f(-s, n) - f(s, n))))`, where `f(s, n)` is the term of the local
-    objective of a member of value `s` with a neighbour of value `n`. It takes an objective of such pair terms that the
-    flip of both values keeps, and ignores the rule and the schedule. A group on the edges of a cell complex takes a
-    local objective that sums over `CofaceNeighborhood`, inside which `exterior_derivative` of the state is the oriented
-    sum around the one face, and its `'colored'` schedule updates together only links that share no face.
+    There is one sweep per unit of time. Every sweep proposes a move of the state of every member and accepts it from
+    the change of the local objective of the member, the terms of the objective that involve its value, at the
+    intensity. The local objective is a function of the namespace, which holds `namespace.target`, the states and
+    parameters of the member, and `namespace.target.other`, a neighbour, whose values `neighbors(...)` sums over
+    `neighborhood`. A move is `'flip'`, the negative value, `'random-value'`, a value drawn from `values`, `'rotate'`,
+    the value plus a uniform number in `[-width, width]`, `'gaussian'`, the value plus a normal number of standard
+    deviation `width`, or a function `move(values, random)` of the array of the current values of some members and the
+    random generator that returns their proposed values. The move `'cluster'` is the Wolff algorithm instead: a sweep
+    flips clusters until the flipped members number as many as the members, each cluster grown from a random member
+    through the bonds to neighbours with probability `1 - exp(min(0, -intensity * (f(-s, n) - f(s, n))))`, where `f(s,
+    n)` is the term of the local objective of a member of value `s` with a neighbour of value `n`. It takes an objective
+    of such pair terms that the flip of both values keeps, and ignores the rule and the schedule. A group on the edges
+    of a cell complex takes a local objective that sums over `CofaceNeighborhood`, inside which `exterior_derivative` of
+    the state is the oriented sum around the one face, and its `'colored'` schedule updates together only links that
+    share no face.
 
     An objective that is a `RowScoreSpec` scores whole rows of a state on a `LatticeSpace` instead, along the last axis.
     Every unit of time proposes its `proposals` moves per row, each accepted from the change of the score of the row,
@@ -226,9 +234,9 @@ class SamplingInteraction(Interaction):
         >>> from skcomplex.core.components.laws.utils import neighbors
         >>> from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.core.specs import StateSpec
         >>> from typing import Annotated
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> class SpinElement(Element):
         ...     def __init__(self, label, s: Annotated[float, StateSpec()] = 1.0):
         ...         super().__init__(label)
@@ -237,13 +245,14 @@ class SamplingInteraction(Interaction):
         >>> ising = SamplingInteraction('ising', target='spins', state='s', objective=objective, intensity=1.0)
         >>> spins = LatticeElement('spins', element=SpinElement, space=LatticeSpace((8, 8)))
         >>> system = System(elements=[spins], interactions=[ising], time=DiscreteTime())
-        >>> states = Simulation(system, random_state=0).prepare().run(until=20).trajectory_.states
+        >>> states = simulate(system, until=20, random_state=0).states
         >>> bool(abs(states[-1].mean()) > 0.9)
         True
         >>> from sage.all__sagemath_symbolics import cos
         >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.core.components.laws.utils import exterior_derivative
         >>> from skcomplex.core.components.spaces import CellComplexSpace, CofaceNeighborhood
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> class LinkElement(Element):
         ...     def __init__(self, label, theta: Annotated[float, StateSpec()] = 0.0):
         ...         super().__init__(label)
@@ -254,10 +263,11 @@ class SamplingInteraction(Interaction):
         ... )
         >>> links = GroupElement('links', element=LinkElement, space=CellComplexSpace(LatticeSpace((4, 4))), on='edges')
         >>> system = System(elements=[links], interactions=[gauge], time=DiscreteTime())
-        >>> Simulation(system, random_state=0).prepare().run(until=2).trajectory_.states.shape
+        >>> simulate(system, until=2, random_state=0).states.shape
         (3, 32)
         >>> import numpy as np
         >>> from skcomplex.core.specs import RowScoreSpec
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> def flip_one(row, random):
         ...     row[random.integers(row.size)] *= -1
         ...     return row
@@ -266,9 +276,10 @@ class SamplingInteraction(Interaction):
         ... )
         >>> spins = LatticeElement('spins', element=SpinElement, space=LatticeSpace((2, 8)))
         >>> system = System(elements=[spins], interactions=[walk], time=DiscreteTime())
-        >>> Simulation(system, random_state=0).prepare().run(until=3).trajectory_.values('walk.score').shape
+        >>> simulate(system, until=3, random_state=0).values('walk.score').shape
         (4, 2)
         >>> from skcomplex.core.specs import HolonomyScoreSpec, MatrixGroupSpec
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> group = MatrixGroupSpec('SU', 2)
         >>> class MatrixLinkElement(Element):
         ...     def __init__(self, label, U: Annotated[object, StateSpec(group=group)] = tuple(group.identity)):
@@ -282,9 +293,10 @@ class SamplingInteraction(Interaction):
         >>> space = CellComplexSpace(LatticeSpace((4, 4)))
         >>> links = GroupElement('links', element=MatrixLinkElement, space=space, on='edges')
         >>> system = System(elements=[links], interactions=[wilson], time=DiscreteTime())
-        >>> Simulation(system, random_state=0).prepare().run(until=2).trajectory_.values('links.U').shape
+        >>> simulate(system, until=2, random_state=0).values('links.U').shape
         (3, 32, 8)
         >>> from skcomplex.core.specs import RegionScoreSpec
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> class SiteElement(Element):
         ...     def __init__(self, label, region: Annotated[float, StateSpec()] = 0.0):
         ...         super().__init__(label)
@@ -297,12 +309,20 @@ class SamplingInteraction(Interaction):
         >>> regions = np.kron(np.arange(4).reshape(2, 2), np.ones((4, 4)))
         >>> sites = LatticeElement('sites', element=SiteElement, space=LatticeSpace((8, 8)), values={'region': regions})
         >>> system = System(elements=[sites], interactions=[copies], time=DiscreteTime())
-        >>> final = Simulation(system, random_state=0).prepare().run(until=20).state_
+        >>> final = simulate(system, until=20, random_state=0).states[-1]
         >>> sorted(np.unique(final).tolist())
         [0.0, 1.0, 2.0, 3.0]
     """
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (DriveLaw, SampleLaw)
+
+    def _get_tags(self) -> Tags:
+        """Return the tags of a Monte Carlo sweep of a function, or of score drives.
+
+        The drives are of a declared score, which draw.
+        """
+        sweep = callable(self._get_argument('objective'))
+        return self._get_variant_tags((SampleLaw,) if sweep else (DriveLaw,), stochastic=True)
 
     def __init__(
         self,
@@ -344,8 +364,11 @@ class SamplingInteraction(Interaction):
         return self._get_parameter_symbol('intensity', namespace)
 
     def _check_row_score(self, score: RowScoreSpec) -> None:
-        """Raise an error for a row score that cannot run, a cluster move, or a heat-bath rule without values."""
-        score._validated()
+        """Raise an error for a bad row score, a cluster move, or a heat-bath rule.
+
+        It raises it for a row score that cannot run, or a heat-bath rule without values.
+        """
+        score._check()
         if self.move == 'cluster':
             error_msg = f'The row score of sampling {self.label!r} accepts single moves of a row, not cluster moves.'
             raise ValidationError(error_msg)
@@ -357,7 +380,10 @@ class SamplingInteraction(Interaction):
             raise ValidationError(error_msg)
 
     def _get_row_keywords(self, score: RowScoreSpec, index: int, parameters: Mapping[str, object]) -> dict[str, object]:
-        """Return the parameters that a row score names, those of one value per site read at the row."""
+        """Return the parameters that a row score names.
+
+        They are those of one value per site read at the row.
+        """
         try:
             names = inspect.signature(score.function).parameters
         except (TypeError, ValueError):
@@ -387,7 +413,10 @@ class SamplingInteraction(Interaction):
         intensity: float,
         rng: np.random.Generator,
     ) -> Array:
-        """Return a row with the value of one random site drawn among all values by the weights of their scores."""
+        """Return a row with the value of one random site drawn among all values.
+
+        The value is drawn by the weights of their scores.
+        """
         candidates = np.asarray(self.values, dtype=float)
         proposal = row.copy()
         site = rng.integers(row.size)
@@ -401,7 +430,10 @@ class SamplingInteraction(Interaction):
         return proposal
 
     def _propose_row(self, row: Array, rng: np.random.Generator) -> Array:
-        """Return a row after one move: a function of the row, or a named move at one random site."""
+        """Return a row after one move.
+
+        The move is a function of the row, or a named move at one random site.
+        """
         if callable(self.move):
             return np.asarray(self.move(row.copy(), rng), dtype=float)
         proposal = row.copy()
@@ -425,7 +457,10 @@ class SamplingInteraction(Interaction):
             return bool(rng.random() < 1.0 / (1.0 + np.exp(exponent)))
 
     def _accept_rows(self, values: Array, *, random: np.random.Generator, time: float, **parameters: object) -> Array:
-        """Return a state after the proposed moves of every row, each accepted from the change of the row's score."""
+        """Return a state after the proposed moves of every row.
+
+        Each move is accepted from the change of the row's score.
+        """
         score = getattr(self, self._get_parameter('objective'))
         intensity = float(SR(self._get_intensity(SimpleNamespace(**parameters))))
         if self.cooling is not None:
@@ -446,8 +481,11 @@ class SamplingInteraction(Interaction):
         return rows.reshape(values.shape)
 
     def _check_holonomy_score(self, score: HolonomyScoreSpec) -> None:
-        """Raise an error for a holonomy score with a move, a rule, or a schedule that a matrix group does not take."""
-        score._validated()
+        """Raise an error for a holonomy score with options a matrix group does not take.
+
+        The options are a move, a rule, or a schedule.
+        """
+        score._check()
         if not callable(self.move) and self.move not in HOLONOMY_MOVES:
             error_msg = (
                 f'The holonomy score of sampling {self.label!r} moves matrices of a group. Use the move '
@@ -467,7 +505,9 @@ class SamplingInteraction(Interaction):
     @staticmethod
     @functools.cache
     def _get_staples(space: CellComplexSpace) -> tuple[tuple[Indices, ...], Indices, Array, Array, Array]:
-        """Return the tables of the faces around every edge of a cell complex, read once per complex.
+        """Return the tables of the faces around every edge of a cell complex.
+
+        They are read once per complex.
 
         Args:
             space:
@@ -518,7 +558,10 @@ class SamplingInteraction(Interaction):
         real: Array,
         keywords: Mapping[str, object],
     ) -> Array:
-        """Return the local objective of every edge, the score of the holonomies of its faces that start at it."""
+        """Return the local objective of every edge.
+
+        It is the score of the holonomies of its faces that start at it.
+        """
         score = getattr(self, self._get_parameter('objective'))
         inverse = np.conj(np.swapaxes(matrices, -1, -2))
         oriented = np.where((orientations > 0)[..., None, None], matrices[:, None], inverse[:, None])
@@ -539,7 +582,7 @@ class SamplingInteraction(Interaction):
         return group.near_identity_of(rng, self.width, len(matrices)) @ matrices
 
     def _accept_changes(self, changes: Array, intensity: float, rng: np.random.Generator) -> npt.NDArray[np.bool_]:
-        """Return whether every change of an objective is accepted by the rule at the intensity."""
+        """Return whether the rule accepts every change of an objective at the intensity."""
         exponents = np.where(changes == 0.0, 0.0, changes * np.where(changes == 0.0, 1.0, intensity))
         draws = rng.random(changes.shape)
         with np.errstate(over='ignore'):
@@ -556,7 +599,10 @@ class SamplingInteraction(Interaction):
         space: BaseSpace,
         **parameters: object,
     ) -> Array:
-        """Return a matrix group state on the edges of a cell complex after one sweep of moves of every edge."""
+        """Return a matrix group state on the edges of a cell complex after one sweep.
+
+        The sweep makes moves of every edge.
+        """
         score = getattr(self, self._get_parameter('objective'))
         if (
             not isinstance(space, CellComplexSpace)
@@ -595,8 +641,11 @@ class SamplingInteraction(Interaction):
         return group.components_of(group.projection_of(matrices))
 
     def _check_region_score(self, score: RegionScoreSpec) -> None:
-        """Raise an error for a region score with a move other than a label copy, or the heat-bath rule."""
-        score._validated()
+        """Raise an error for a region score with a bad move or the heat-bath rule.
+
+        A bad move is a move other than a label copy.
+        """
+        score._check()
         if self.move != 'copy':
             error_msg = f"The region score of sampling {self.label!r} moves labels by the move 'copy'."
             raise ValidationError(error_msg)
@@ -607,7 +656,9 @@ class SamplingInteraction(Interaction):
     @staticmethod
     @functools.cache
     def _get_contacts(space: BaseSpace, neighborhood: BaseNeighborhood | None) -> tuple[Indices, Indices, Array, Array]:
-        """Return the tables of the neighbours of every site, the weights of their contacts, and the site volumes.
+        """Return the tables of the neighbours of every site, their contacts, and volumes.
+
+        The tables hold the weights of the contacts and the site volumes.
 
         A lattice site has the neighbours of the neighbourhood, or of the default neighbourhood of the lattice, with
         contacts of weight 1 and a volume of 1. A node of a network has its neighbours along the edges of the layer of
@@ -667,7 +718,10 @@ class SamplingInteraction(Interaction):
         labels: Indices,
         parameters: Mapping[str, object],
     ) -> tuple[Array, Array]:
-        """Return the strength and the target of a constraint of every label, zero for no constraint."""
+        """Return the strength and the target of a constraint of every label.
+
+        They are zero for no constraint.
+        """
         if function is None:
             return np.zeros(labels.size), np.zeros(labels.size)
         constraint = np.asarray(function(labels, **self._get_keywords(function, parameters)), dtype=object)
@@ -684,7 +738,10 @@ class SamplingInteraction(Interaction):
         space: BaseSpace,
         **parameters: object,
     ) -> Array:
-        """Return a state of labels after one sweep of label copies, as many as `hits` times the sites."""
+        """Return a state of labels after one sweep of label copies.
+
+        The sweep makes as many copies as `hits` times the sites.
+        """
         rng = random
         score = getattr(self, self._get_parameter('objective'))
         if not isinstance(space, (LatticeSpace, NetworkSpace)) or values.size != space.size_:
@@ -732,14 +789,18 @@ class SamplingInteraction(Interaction):
             return {}
         return {name: value for name, value in parameters.items() if name in names}
 
-    def _check(self) -> None:
-        """Raise an error for an unknown move, rule, or schedule, or an objective that is not callable.
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Raise an error for an unknown move, rule, or schedule, or a bad objective.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The move, the rule, or the schedule is unknown, or the objective or the cooling is not callable.
         """
-        super()._check()
+        super()._prepare(context)
         if self.cooling is not None and not callable(self.cooling):
             error_msg = f'The cooling of sampling {self.label!r} must be a function of the time symbol.'
             raise ValidationError(error_msg)
@@ -757,7 +818,7 @@ class SamplingInteraction(Interaction):
         elif not callable(objective):
             error_msg = f'The objective of sampling {self.label!r} must be a function of the namespace.'
             raise ValidationError(error_msg)
-        SamplerSpec(self.rule, schedule=self.schedule)._validated()
+        SamplerSpec(self.rule, schedule=self.schedule)._check()
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the sample law of the state.

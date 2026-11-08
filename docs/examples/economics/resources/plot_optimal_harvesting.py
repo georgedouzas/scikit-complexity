@@ -8,33 +8,22 @@ the stock left over has no value.
 """
 
 # %%
-# The system is created by name from the catalog with the growth rate and the capacity 1, the cost 0.2 per unit of
-# effort, and the discount rate 0.1, from a full stock. The collocation solver of its catalog entry transcribes the
+# The system is built from its class with the growth rate and the capacity 1, the cost 0.2 per unit of
+# effort, and the discount rate 0.1, from a full stock. Its tuned collocation solver transcribes the
 # problem on 101 nodes over 20 years. The default blueprint shows the stock and the effort in one time series view.
 
 import matplotlib.pyplot as plt
 from scipy.optimize import brentq
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.economics.resources import OptimalHarvestingSystem
 
 SYSTEM = 'optimal_harvesting'
 
-system = create_system(SYSTEM)
-entry = describe(SYSTEM)
+system = OptimalHarvestingSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = (
-    Simulation(
-        system,
-        dt=0.2,
-        solver=entry.defaults['solver'],
-        observers=[observer],
-        observables=entry.observables_of(system),
-    )
-    .prepare()
-    .run(until=20)
-)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # The singular level
@@ -44,7 +33,6 @@ simulation = (
 # `r (1 - x*)`.
 
 level = brentq(lambda x: 1 - 2 * x + 0.2 * (1 - x) / (x - 0.2) - 0.1, 0.21, 1.0)
-trajectory = simulation.trajectory_
 fig, ax = plt.subplots(figsize=(7, 4.5))
 ax.plot(trajectory.times, trajectory.values('resource.x'), label='stock x')
 ax.plot(trajectory.times, trajectory.values('resource.effort'), label='effort E')

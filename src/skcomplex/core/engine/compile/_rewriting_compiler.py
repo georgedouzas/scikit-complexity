@@ -1,4 +1,4 @@
-"""Pass that compiles a system of words or patches into a problem of the rewriting form."""
+"""Pass that compiles a system of words or patches into a rewriting problem."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,7 +18,10 @@ from ...errors import IncompatibleLawsError, RewritingError, SkcomplexError, Val
 from ...specs import EntrySpec, IssueSpec, LayoutSpec, ParametersSpec
 from ...types import FormKind, VariableKind
 from .._utils import declarations_of, symbol
-from ..problems import BaseProblemSpec, PatchKernel, RewritingProblemSpec, WordKernel
+from ..problems import BaseProblemSpec
+from ..problems._patch_kernel import PatchKernel
+from ..problems._rewriting_problem_spec import RewritingProblemSpec
+from ..problems._word_kernel import WordKernel
 from ._base import BaseCompiler
 from .passes._flatten import FlattenPass
 from .passes._layout import LayoutPass
@@ -43,14 +46,16 @@ class RewritingCompiler(BaseCompiler):
 
     Examples:
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.compile import RewritingCompiler
+        >>> from skcomplex.core.engine.compile._rewriting_compiler import RewritingCompiler
         >>> from skcomplex.systems.biology.common.populations import PopulationElement
         >>> RewritingCompiler().prepare(System(elements=[PopulationElement('rabbits')])).report_.ok
         False
     """
 
     def _issues(self, system: System) -> list[IssueSpec]:
-        """Return the issue of a system the compiler does not compile, or whose tree cannot be flattened.
+        """Return the issue of a system the compiler cannot compile or flatten.
+
+        The tree of the system cannot be flattened, or the compiler does not compile it.
 
         Args:
             system:
@@ -109,7 +114,7 @@ class RewritingCompiler(BaseCompiler):
     @staticmethod
     def _productions(node: NodeSpec, namespace: SimpleNamespace) -> list[Production]:
         """Return the checked productions or substitutions of a word or a patch."""
-        laws = node.component._get_laws(namespace)
+        laws = node.as_element._get_laws(namespace)
         productions = [law for law in laws if isinstance(law, _PRODUCTION_LAWS)]
         wrong = [law for law in laws if not isinstance(law, _PRODUCTION_LAWS)]
         if wrong:
@@ -118,13 +123,16 @@ class RewritingCompiler(BaseCompiler):
                 'changes by its productions only. Return ProductionLaw or SubstitutionLaw laws.'
             )
             raise RewritingError(error_msg)
-        return [law._validated() for law in productions]
+        return [law.prepare(node.path) for law in productions]
 
     @staticmethod
     def _parameters(
         nodes: list[NodeSpec],
     ) -> tuple[list[EntrySpec], list[float], dict[str, SimpleNamespace], dict[str, Expression]]:
-        """Return the parameter entries and values of the rewritten elements, with their namespaces and symbols."""
+        """Return the parameter entries and values of the rewritten elements.
+
+        Their namespaces and symbols are also returned.
+        """
         entries: list[EntrySpec] = []
         values: list[float] = []
         namespaces: dict[str, SimpleNamespace] = {}
@@ -152,7 +160,10 @@ class RewritingCompiler(BaseCompiler):
         parameters: ParametersSpec,
         values: npt.NDArray[np.float64],
     ) -> WordKernel | PatchKernel:
-        """Return the compiled rewriting system of one element from the laws that target it."""
+        """Return the compiled rewriting system of one element.
+
+        It is compiled from the laws that target the element.
+        """
         element = node.component
         kind = RewritingCompiler._structure_of(type(element))
         if kind is None:
@@ -165,31 +176,43 @@ class RewritingCompiler(BaseCompiler):
                 f'{type(element).__name__} {node.path!r} is rewritten by {expected.__name__}s, but got {wrong[0]!r}.'
             )
             raise RewritingError(error_msg)
-        if kind == 'sequence':
-            return WordKernel(
+        kernel: WordKernel | PatchKernel
+        if isinstance(element, WordElement):
+            kernel = WordKernel(
                 node.path,
                 element,
                 [law for law in laws if isinstance(law, ProductionLaw)],
                 parameters,
                 values,
-            )._validated()
-        return PatchKernel(
-            node.path,
-            element,
-            [law for law in laws if isinstance(law, SubstitutionLaw)],
-            parameters,
-        )._validated()
+            )
+        elif isinstance(element, PatchElement):
+            kernel = PatchKernel(
+                node.path,
+                element,
+                [law for law in laws if isinstance(law, SubstitutionLaw)],
+                parameters,
+            )
+        else:
+            error_msg = f'{node.path} holds no sequence or tiling that rewriting laws rewrite.'
+            raise ValidationError(error_msg)
+        kernel._compile()
+        return kernel
 
     @staticmethod
     def _structure_of(element_type: type) -> str | None:
-        """Return the kind of structure an element type rewrites, or `None` for a type that rewrites none."""
+        """Return the kind of structure an element type rewrites.
+
+        It is `None` for a type that rewrites none.
+        """
         if not isinstance(element_type, type):
             return None
         return next((kind for base, kind in _STRUCTURES.items() if issubclass(element_type, base)), None)
 
     @staticmethod
     def _compile_rewriting(system: System) -> 'RewritingProblemSpec':
-        """Compile a system of words or patches, each rewritten by the rewriting laws it returns.
+        """Compile a system of words or patches.
+
+        Each is rewritten by the rewriting laws it returns.
 
         Args:
             system:
@@ -210,7 +233,7 @@ class RewritingCompiler(BaseCompiler):
         Examples:
             >>> from skcomplex.core.components.spaces import DiscreteTime
             >>> from skcomplex.core.components.system import System
-            >>> from skcomplex.core.engine.compile import RewritingCompiler
+            >>> from skcomplex.core.engine.compile._rewriting_compiler import RewritingCompiler
             >>> from skcomplex.core.components.laws import ProductionLaw
             >>> from skcomplex.core.components.elements import WordElement
             >>> class AlgaeElement(WordElement):
@@ -266,7 +289,10 @@ class RewritingCompiler(BaseCompiler):
             )
             for name in names:
                 states.append(EntrySpec(f'{item.path}.{name}', len(states), (), NN))
-            initial += item.counts(item._initial(initial_parameters))
+            if isinstance(item, WordKernel):
+                initial += item.counts(item._initial(initial_parameters))
+            else:
+                initial += item.counts(item._initial(initial_parameters))
         return RewritingProblemSpec(
             form=FormKind.REWRITING,
             states=LayoutSpec(tuple(states)),

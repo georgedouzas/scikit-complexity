@@ -8,7 +8,7 @@ one bright column, the condensate, holds about 125 particles while the other sit
 """
 
 # %%
-# The system is created by name from the catalog on 50 sites at density 3 with `u(n) = 1 + 4 / n`, so the critical
+# The system is built from its class on 50 sites at density 3 with `u(n) = 1 + 4 / n`, so the critical
 # density is 0.5 and the condensate should hold about `50 (3 - 0.5) = 125` particles. The observer saves every frame
 # with the default blueprint, whose primary view is the space-time image of the occupations. The Numba backend runs
 # the hops in a compiled loop.
@@ -18,17 +18,15 @@ import numpy as np
 from scipy.special import gammaln
 
 from skcomplex.core.engine.backends import NumbaBackend
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.statistical_mechanics import ZeroRangeProcessSystem
 
 SYSTEM = 'zero_range_process'
 
-system = create_system(SYSTEM, n_sites=50, density=3.0, b=4.0)
+system = ZeroRangeProcessSystem(n_sites=50, density=3.0, b=4.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = (
-    Simulation(system, dt=12.0, observers=[observer], random_state=0, backend=NumbaBackend()).prepare().run(until=3000)
-)
+trajectory = simulate(system, until=3000, dt=12.0, observers=[observer], random_state=0, backend=NumbaBackend())
 
 # %%
 # Condensate and fluid
@@ -38,13 +36,13 @@ simulation = (
 # all sites but the largest, after the condensate forms, should follow this law, and the largest occupation should
 # approach `L (rho - rho_c) = 125`.
 
-occupations = simulation.trajectory_.values('sites.n')
+occupations = trajectory.values('sites.n')
 settled = np.sort(occupations[100:], axis=1)[:, :-1].ravel()
 counts = np.arange(0, 12)
 weights = np.exp(gammaln(counts + 1) + gammaln(5) - gammaln(counts + 5))
 measured = np.array([(settled == count).mean() for count in counts])
 fig, (growth, fluid) = plt.subplots(1, 2, figsize=(10, 4))
-growth.plot(simulation.trajectory_.times, occupations.max(axis=1), label='largest site')
+growth.plot(trajectory.times, occupations.max(axis=1), label='largest site')
 growth.axhline(125, color='black', linestyle='--', label='L (rho - rho_c)')
 growth.set_xlabel('time')
 growth.set_ylabel('particles')

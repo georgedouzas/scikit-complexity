@@ -5,13 +5,13 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 import numpy as np
-from sklearn.base import BaseEstimator
 
 from ...components.specs import ScenarioSpec
+from ...engine.runtime import Trajectory
 from ...engine.solvers import BaseSolver
 from ...specs._base_spec import BaseSpec
 from ...specs._observable_spec import ObservableSpec
@@ -27,10 +27,10 @@ class _TaskSpec(BaseSpec):
             The position of the run in the experiment.
 
         source:
-            The factory or system of the system.
+            The system, or the factory of systems.
 
         row:
-            The design values.
+            The values of the run, by model parameter or dotted path.
 
         scenario:
             The scenario.
@@ -42,25 +42,25 @@ class _TaskSpec(BaseSpec):
             The random stream of the run.
 
         until:
-            The simulated time to run to.
+            The end time of the run, or `None` for the tuned end time of the system.
 
         dt:
-            The time step of the simulation, or `None` for its default.
+            The time between frames, or `None` for the tuned one.
 
         solver:
-            The solver of the simulation, or `None` for its default.
+            The solver, or `None` for the tuned one.
 
         outputs:
-            The outputs to keep.
+            The outputs to keep, or `None` for every observable or state.
 
         warmup:
             The simulated time before which kept series are discarded.
 
         observables:
-            The observables of the run, or `None` for none.
+            The observables of the run, or none for the tuned ones.
 
         analyses:
-            The unprepared analyses of the run by their column prefix.
+            The analyses of the run, functions of its trajectory, by their column prefix.
     """
 
     index: int
@@ -69,10 +69,10 @@ class _TaskSpec(BaseSpec):
     scenario: ScenarioSpec
     replicate: int
     seed: np.random.SeedSequence
-    until: float
+    until: float | None
     dt: float | None
     solver: BaseSolver | None
     outputs: Sequence[Output] | None
     warmup: float
-    observables: Sequence[ObservableSpec] | None
-    analyses: tuple[tuple[str, BaseEstimator], ...]
+    observables: Sequence[ObservableSpec]
+    analyses: tuple[tuple[str, Callable[[Trajectory], object]], ...]

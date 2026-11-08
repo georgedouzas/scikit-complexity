@@ -1,4 +1,7 @@
-"""Fishery systems: the life cycle of a migratory fish through stages that natural losses and the catch deplete."""
+"""Fishery systems: the life cycle of a migratory fish through stages.
+
+Natural losses and the catch deplete the stages.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,9 +17,8 @@ from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.laws.utils import minimum
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 TONNES_PER_MILLION_KG = 1e3
 FEMALE_FRACTION = 0.5
@@ -39,10 +41,11 @@ def _stage(
     time: str,
     losses: tuple[tuple[str, str], ...],
 ) -> TransferInteraction:
-    """Return the transfer that drains a stage over its duration, a share to each loss and the rest to the next stage.
+    """Return the transfer that drains a stage over its duration.
 
-    The stage reads the duration `time` and the share of every loss by name, and reports the flow to the next stage as
-    `hilsa.<label>` and the flow to every loss as `hilsa.<label>_<loss>`.
+    A share goes to each loss and the rest to the next stage. The stage reads the duration `time` and the share of every
+    loss by name, and reports the flow to the next stage as `hilsa.<label>` and the flow to every loss as
+    `hilsa.<label>_<loss>`.
     """
     shares = [share for share, _ in losses]
     return TransferInteraction(
@@ -76,7 +79,10 @@ def _loss(s: SimpleNamespace, stock: str, time: str, share: str) -> Expression:
 
 
 def _spawning(s: SimpleNamespace) -> Expression:
-    """Return the spawning, the adults about to spawn that the catch spares over the spawning time."""
+    """Return the spawning.
+
+    It is the adults about to spawn that the catch spares over the spawning time.
+    """
     return (1 - s.adult_harvest) * s.spawners / s.spawning_time
 
 
@@ -95,71 +101,10 @@ def _juvenile_weight(s: SimpleNamespace) -> Expression:
     return s.weight_per_juvenile * s.juveniles * TONNES_PER_MILLION_KG
 
 
-def _life_cycle() -> list[TransferInteraction]:
-    """Return the spawning, hatching, growth, migration, losses, and catch of the stages of the hilsa life cycle."""
-    mortality = 'mortality'
-    return [
-        TransferInteraction(
-            'egg_deposition',
-            source='hilsa',
-            target='hilsa',
-            state=Source('spawning'),
-            into='eggs',
-            amount=lambda s: s.source.eggs_per_nest * _nests(s.source),
-            flow='egg_deposition',
-        ),
-        _stage('hatching', 'eggs', 'larvae', 'hatching_time', (('egg_loss', mortality),)),
-        _stage('juvenile_entering', 'larvae', 'juveniles', 'larval_time', (('larval_loss', mortality),)),
-        _stage(
-            'young_entering_ocean',
-            'juveniles',
-            'yearlings',
-            'river_time',
-            (('juvenile_loss', mortality), ('juvenile_harvest', 'catch')),
-        ),
-        _stage('maturation', 'yearlings', 'adults', 'ocean_time', (('first_year_loss', mortality),)),
-        _stage('adults_entering', 'adults', 'migrants', 'adult_ocean_time', (('second_year_loss', mortality),)),
-        _stage('adults_leaving', 'migrants', 'spawners', 'migration_time', (('migration_loss', mortality),)),
-        TransferInteraction(
-            'spawning',
-            source='hilsa',
-            target='hilsa',
-            state='spawners',
-            into=Sink('spent'),
-            amount=lambda s: _spawning(s.source),
-            flow='spawning',
-            legs=[
-                (
-                    'spawners',
-                    Sink('catch'),
-                    lambda s: s.source.adult_harvest * s.source.spawners / s.source.spawning_time,
-                    'adult_catch',
-                ),
-            ],
-        ),
-    ]
-
-
-def _filled_stages(
-    spawners: float,
-    eggs_per_nest: float,
-    juvenile_harvest: float,
-    adult_harvest: float,
-    migration_loss: float,
-) -> dict[str, float]:
-    """Return the stages that the egg deposition of the initial spawners fills as it passes through the life cycle."""
-    spawning = FEMALE_FRACTION * (1 - adult_harvest) * spawners / SPAWNING_TIME
-    inflow = eggs_per_nest * min(spawning, MAX_NESTS)
-    losses = {'juveniles': STAGES[2][4] + juvenile_harvest, 'migrants': migration_loss}
-    stages = {}
-    for name, _, duration, _, fraction in STAGES:
-        stages[name] = inflow * duration
-        inflow *= 1 - losses.get(name, fraction)
-    return {**stages, 'spawners': spawners}
-
-
 class HilsaElement(Element):
-    """Life cycle of the hilsa, with one stock of fish per stage and the parameters of the stages and the catch.
+    """Life cycle of the hilsa, with one stock of fish per stage.
+
+    It holds the parameters of the stages and the catch.
 
     Args:
         label:
@@ -313,36 +258,23 @@ class HilsaElement(Element):
         self.weight_per_juvenile = weight_per_juvenile
 
 
-@register_system(
-    field='economics/resources',
-    tags=('fishery', 'life cycle', 'stocks and flows', 'system dynamics', 'ode'),
-    references=('Bala et al. 2017',),
-    defaults={'until': 120.0, 'dt': 0.5},
-    observables=lambda system: [
-        ObservableSpec('nests', _nests, element='hilsa'),
-        ObservableSpec('adult_weight', _adult_weight, element='hilsa'),
-        ObservableSpec('juvenile_weight', _juvenile_weight, element='hilsa'),
-    ],
-)
-def hilsa_fishery(
-    spawners: float = 375.0,
-    *,
-    eggs_per_nest: float = 2e5,
-    juvenile_harvest: float = 0.48,
-    adult_harvest: float = 0.8,
-    migration_loss: float = 0.25,
-) -> System:
-    """Return a hilsa fishery, the life cycle of a migratory fish that the catch of juveniles and spawners depletes.
+class HilsaFisherySystem(BaseSystem):
+    """A hilsa fishery, the life cycle of a migratory fish.
 
-    Spawning adults lay eggs in nests in the rivers, and the number of nests is limited by the spawning grounds. The
-    eggs hatch into larvae within a month, the larvae become juveniles within two months, and the juveniles stay in
-    the rivers for eight months before they enter the ocean. The fish mature in the ocean over two years, migrate back
-    to the rivers, and spawn. Every stage drains over its duration, and a fixed fraction of its outflow is lost to
-    natural mortality, to the catch of juveniles, or to the catch of spawning adults, while the rest enters the next
-    stage. Fish are conserved, every change of a stage is a flow, and the population settles where the spawning
-    grounds fill, unless the catch keeps the reproduction below replacement. The stages, the durations, and the loss
-    fractions follow the hilsa system of Bala, Arshad and Noh (2017, Chapter 9), with the stocks in millions of fish
-    and time in months.
+    The catch of juveniles and spawners depletes it. Spawning adults lay eggs in nests in the rivers, and the number of
+    nests is limited by the spawning grounds. The eggs hatch into larvae within a month, the larvae become juveniles
+    within two months, and the juveniles stay in the rivers for eight months before they enter the ocean. The fish
+    mature in the ocean over two years, migrate back to the rivers, and spawn. Every stage drains over its duration, and
+    a fixed fraction of its outflow is lost to natural mortality, to the catch of juveniles, or to the catch of spawning
+    adults, while the rest enters the next stage. Fish are conserved, every change of a stage is a flow, and the
+    population settles where the spawning grounds fill, unless the catch keeps the reproduction below replacement. The
+    stages, the durations, and the loss fractions follow the hilsa system of Bala, Arshad and Noh (2017, Chapter 9),
+    with the stocks in millions of fish and time in months.
+
+    The system has the stages `hilsa.eggs`, `hilsa.larvae`, `hilsa.juveniles`, `hilsa.yearlings`, `hilsa.adults`,
+    `hilsa.migrants`, and `hilsa.spawners`, and the flows between the stages, among them `hilsa.egg_deposition`,
+    `hilsa.young_entering_ocean_catch`, and `hilsa.adult_catch`, per month, over months. The observables of the system
+    are the nests `hilsa.nests`, and the weights `hilsa.adult_weight` and `hilsa.juvenile_weight` in tonnes.
 
     Args:
         spawners:
@@ -360,25 +292,128 @@ def hilsa_fishery(
         migration_loss:
             The fraction of the adults lost during their migration to the rivers.
 
-    Returns:
-        system:
-            The system, with the stages `hilsa.eggs`, `hilsa.larvae`, `hilsa.juveniles`, `hilsa.yearlings`,
-            `hilsa.adults`, `hilsa.migrants`, and `hilsa.spawners`, and the flows between the stages, among them
-            `hilsa.egg_deposition`, `hilsa.young_entering_ocean_catch`, and `hilsa.adult_catch`, per month, over
-            months. The observables of the system are the nests `hilsa.nests`, and the weights `hilsa.adult_weight` and
-            `hilsa.juvenile_weight` in tonnes.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.resources import hilsa_fishery
-        >>> hilsa_fishery(adult_harvest=0.5).elements[0].adult_harvest
+        >>> from skcomplex.systems.economics.resources import HilsaFisherySystem
+        >>> HilsaFisherySystem(adult_harvest=0.5).prepare().system_.elements[0].adult_harvest
         0.5
     """
-    hilsa = HilsaElement(
-        'hilsa',
-        eggs_per_nest=eggs_per_nest,
-        juvenile_harvest=juvenile_harvest,
-        adult_harvest=adult_harvest,
-        migration_loss=migration_loss,
+
+    field = 'economics/resources'
+    topics = ('fishery', 'life cycle', 'stocks and flows', 'system dynamics', 'ode')
+    references = ('Bala et al. 2017',)
+    until = 120.0
+    dt = 0.5
+    observables = (
+        ObservableSpec('nests', _nests, element='hilsa'),
+        ObservableSpec('adult_weight', _adult_weight, element='hilsa'),
+        ObservableSpec('juvenile_weight', _juvenile_weight, element='hilsa'),
     )
-    hilsa.set_params(**_filled_stages(spawners, eggs_per_nest, juvenile_harvest, adult_harvest, migration_loss))
-    return System(elements=[hilsa], interactions=_life_cycle())
+
+    def __init__(
+        self,
+        spawners: float = 375.0,
+        *,
+        eggs_per_nest: float = 2e5,
+        juvenile_harvest: float = 0.48,
+        adult_harvest: float = 0.8,
+        migration_loss: float = 0.25,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.spawners = spawners
+        self.eggs_per_nest = eggs_per_nest
+        self.juvenile_harvest = juvenile_harvest
+        self.adult_harvest = adult_harvest
+        self.migration_loss = migration_loss
+
+    @staticmethod
+    def _life_cycle() -> list[TransferInteraction]:
+        """Return the life cycle flows of the stages of the hilsa.
+
+        They are the spawning, hatching, growth, migration, losses, and catch.
+        """
+        mortality = 'mortality'
+        return [
+            TransferInteraction(
+                'egg_deposition',
+                source='hilsa',
+                target='hilsa',
+                state=Source('spawning'),
+                into='eggs',
+                amount=lambda s: s.source.eggs_per_nest * _nests(s.source),
+                flow='egg_deposition',
+            ),
+            _stage('hatching', 'eggs', 'larvae', 'hatching_time', (('egg_loss', mortality),)),
+            _stage('juvenile_entering', 'larvae', 'juveniles', 'larval_time', (('larval_loss', mortality),)),
+            _stage(
+                'young_entering_ocean',
+                'juveniles',
+                'yearlings',
+                'river_time',
+                (('juvenile_loss', mortality), ('juvenile_harvest', 'catch')),
+            ),
+            _stage('maturation', 'yearlings', 'adults', 'ocean_time', (('first_year_loss', mortality),)),
+            _stage('adults_entering', 'adults', 'migrants', 'adult_ocean_time', (('second_year_loss', mortality),)),
+            _stage('adults_leaving', 'migrants', 'spawners', 'migration_time', (('migration_loss', mortality),)),
+            TransferInteraction(
+                'spawning',
+                source='hilsa',
+                target='hilsa',
+                state='spawners',
+                into=Sink('spent'),
+                amount=lambda s: _spawning(s.source),
+                flow='spawning',
+                legs=[
+                    (
+                        'spawners',
+                        Sink('catch'),
+                        lambda s: s.source.adult_harvest * s.source.spawners / s.source.spawning_time,
+                        'adult_catch',
+                    ),
+                ],
+            ),
+        ]
+
+    @staticmethod
+    def _filled_stages(
+        spawners: float,
+        eggs_per_nest: float,
+        juvenile_harvest: float,
+        adult_harvest: float,
+        migration_loss: float,
+    ) -> dict[str, float]:
+        """Return the stages filled by the egg deposition of the initial spawners.
+
+        The deposition fills them through the life cycle.
+        """
+        spawning = FEMALE_FRACTION * (1 - adult_harvest) * spawners / SPAWNING_TIME
+        inflow = eggs_per_nest * min(spawning, MAX_NESTS)
+        losses = {'juveniles': STAGES[2][4] + juvenile_harvest, 'migrants': migration_loss}
+        stages = {}
+        for name, _, duration, _, fraction in STAGES:
+            stages[name] = inflow * duration
+            inflow *= 1 - losses.get(name, fraction)
+        return {**stages, 'spawners': spawners}
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        hilsa = HilsaElement(
+            'hilsa',
+            eggs_per_nest=self.eggs_per_nest,
+            juvenile_harvest=self.juvenile_harvest,
+            adult_harvest=self.adult_harvest,
+            migration_loss=self.migration_loss,
+        )
+        hilsa.set_params(
+            **self._filled_stages(
+                self.spawners,
+                self.eggs_per_nest,
+                self.juvenile_harvest,
+                self.adult_harvest,
+                self.migration_loss,
+            ),
+        )
+        return System(self.label, elements=[hilsa], interactions=self._life_cycle())

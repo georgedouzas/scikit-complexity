@@ -1,4 +1,7 @@
-"""Define encounters, bilinear moves of a density over activity classes by meetings with another density."""
+"""Define encounters.
+
+Encounters are bilinear moves of a density over activity classes by meetings with another density.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,24 +14,26 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ...errors import ValidationError
-from ...specs import RoleSpec
+from ...specs import RoleSpec, Tags
 from ...types import ElementKind
 from ..laws import BaseLaw, BilinearLaw, EncounterLaw, RateLaw
 from ..laws.utils import collision
+from ..spaces import BaseSpace
 from ._interaction import Interaction
 
 OUTCOMES = ('conservative', 'destructive', 'proliferative')
 
 
 class EncounterInteraction(Interaction):
-    """Encounters of a candidate density with a field density over activity classes, which move, remove, or create.
+    """Encounters of a candidate density with a field density over activity classes.
 
-    The candidate and the field are groups of `DensityElement` on the sites of lattices of activity classes, one member
-    per class. A candidate at class `h` meets a field at class `k` at the rate `eta[h, k]`. In the outcome
-    `'conservative'` the candidate moves to class `i` with the probability `kernel[h, k, i]`, in the outcome
-    `'destructive'` it is removed, and in the outcome `'proliferative'` it creates a new candidate at class `i` with
-    the probability `kernel[h, k, i]`, or at its own class without a kernel. The rate and the kernel are functions of
-    the namespace, which holds `namespace.candidate`, `namespace.field`, and the parameters of the interaction.
+    The encounters move, remove, or create. The candidate and the field are groups of `DensityElement` on the sites of
+    lattices of activity classes, one member per class. A candidate at class `h` meets a field at class `k` at the rate
+    `eta[h, k]`. In the outcome `'conservative'` the candidate moves to class `i` with the probability `kernel[h, k,
+    i]`, in the outcome `'destructive'` it is removed, and in the outcome `'proliferative'` it creates a new candidate
+    at class `i` with the probability `kernel[h, k, i]`, or at its own class without a kernel. The rate and the kernel
+    are functions of the namespace, which holds `namespace.candidate`, `namespace.field`, and the parameters of the
+    interaction.
 
     On a `PhaseSpace` the classes are the points of the class axes, and encounters pair classes at the same position. A
     rate that is one expression may read the `coordinate` of the class of the candidate. Without a field the encounter
@@ -95,6 +100,18 @@ class EncounterInteraction(Interaction):
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (BilinearLaw, EncounterLaw, RateLaw)
 
+    def _get_tags(self) -> Tags:
+        """Return the tags of a collision rate, or of a linear or bilinear encounter.
+
+        The arguments choose which.
+        """
+        if self._get_argument('cross_section') is not None:
+            return self._get_variant_tags((RateLaw,))
+        bilinear = self._get_argument('outcome') in ('destructive', 'proliferative')
+        if self._get_argument('field') is not None and bilinear:
+            return self._get_variant_tags((BilinearLaw,))
+        return self._get_variant_tags((EncounterLaw,))
+
     def __init__(
         self,
         label: str,
@@ -119,7 +136,10 @@ class EncounterInteraction(Interaction):
         self.factor = factor
 
     def _check_collision(self) -> None:
-        """Raise an error for a cross-section or a factor that is no function, or a cross-section with others."""
+        """Raise an error for a cross-section or factor that is no function, or misused.
+
+        A cross-section may not come with the others.
+        """
         if not callable(self.cross_section):
             error_msg = f'The cross-section of {self.label!r} is {self.cross_section!r}. Give a function of two arrays.'
             raise ValidationError(error_msg)
@@ -131,8 +151,12 @@ class EncounterInteraction(Interaction):
             error_msg = f'The cross-section of {self.label!r} sets the rate. Give no rate, kernel, field, or outcome.'
             raise ValidationError(error_msg)
 
-    def _check(self) -> None:
-        """Raise an error for an unknown outcome, a function that is not callable, or a conservative kernel missing.
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Raise an error for an unknown outcome, a bad function, or a missing kernel.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
@@ -140,7 +164,7 @@ class EncounterInteraction(Interaction):
                 no kernel, an encounter without a field is not conservative, an encounter has neither a rate nor a
                 cross-section, or a cross-section comes with a rate, a kernel, a field, or an outcome.
         """
-        super()._check()
+        super()._prepare(context)
         if not isinstance(self.state, str) or not self.state.isidentifier():
             error_msg = f'{type(self).__name__} {self.label!r} reads the state {self.state!r}, which is no name.'
             raise ValidationError(error_msg)
@@ -166,7 +190,10 @@ class EncounterInteraction(Interaction):
             raise ValidationError(error_msg)
 
     def _linear_laws(self, candidate: Expression, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the encounter law of a redistribution without a field, one field class of value one."""
+        """Return the encounter law of a redistribution without a field.
+
+        It uses one field class of value one.
+        """
         assert self.rate is not None
         rate = np.asarray(self.rate(namespace), dtype=object)
         rates = rate if rate.ndim == 0 else rate.reshape(-1, 1)

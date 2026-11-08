@@ -1,4 +1,7 @@
-"""Elementary reactions as rate equations, jump processes, and chemical Langevin equations."""
+"""Elementary reactions as rate equations, jumps, and Langevin equations.
+
+The jumps are jump processes and the Langevin equations are chemical Langevin equations.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -9,77 +12,35 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import CompartmentElement, Element
+from ....core.components.elements import Element
 from ....core.components.interactions import ReactionInteraction
-from ....core.components.system import System
+from ....core.components.mass_action import MassActionSystem
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
+from ....core.types import ReactionTable
 
 X = ('reactor', 'x')
 
 
-def _get_enzyme_reactions(
-    k_binding: float,
-    k_unbinding: float,
-    k_catalysis: float,
-    mode: str,
-) -> list[ReactionInteraction]:
-    """Return the binding, unbinding, and catalysis of the enzyme reaction `E + S <-> C -> E + P` in a mode."""
-    enzyme, substrate, complex_, product = ('E', 'n'), ('S', 'n'), ('C', 'n'), ('P', 'n')
-    return [
-        ReactionInteraction(
-            'binding',
-            reactants={enzyme: 1, substrate: 1},
-            products={complex_: 1},
-            k=k_binding,
-            mode=mode,
-        ),
-        ReactionInteraction(
-            'unbinding',
-            reactants={complex_: 1},
-            products={enzyme: 1, substrate: 1},
-            k=k_unbinding,
-            mode=mode,
-        ),
-        ReactionInteraction(
-            'catalysis',
-            reactants={complex_: 1},
-            products={enzyme: 1, product: 1},
-            k=k_catalysis,
-            mode=mode,
-        ),
-    ]
+def _get_enzyme_reactions(k_binding: float, k_unbinding: float, k_catalysis: float) -> ReactionTable:
+    """Return the binding, unbinding, and catalysis of the enzyme reaction.
 
-
-def _get_autocatalysis(s: SimpleNamespace) -> Expression:
-    """Return the propensity `c1 A x (x - 1) / 2` of `A + 2X -> 3X`."""
-    reactor = s.reactants[0]
-    return reactor.c1 / 2 * reactor.A * reactor.x * (reactor.x - 1)
-
-
-def _get_reversal(s: SimpleNamespace) -> Expression:
-    """Return the propensity `c2 x (x - 1) (x - 2) / 6` of `3X -> A + 2X`."""
-    reactor = s.reactants[0]
-    return reactor.c2 / 6 * reactor.x * (reactor.x - 1) * (reactor.x - 2)
-
-
-def _get_production(s: SimpleNamespace) -> Expression:
-    """Return the propensity `c3 B` of `B -> X`."""
-    reactor = s.products[0]
-    return reactor.c3 * reactor.B
-
-
-def _get_conversion(s: SimpleNamespace) -> Expression:
-    """Return the propensity `c4 x` of `X -> B`."""
-    reactor = s.reactants[0]
-    return reactor.c4 * reactor.x
+    The reaction is `E + S <-> C -> E + P`.
+    """
+    return {
+        'binding': ({'E': 1, 'S': 1}, {'C': 1}, k_binding),
+        'unbinding': ({'C': 1}, {'E': 1, 'S': 1}, k_unbinding),
+        'catalysis': ({'C': 1}, {'E': 1, 'P': 1}, k_catalysis),
+    }
 
 
 class SchloglElement(Element):
-    """Reactor of Schlögl's reaction, the number of molecules of `X` with the buffered species `A` and `B`.
+    """Reactor of Schlögl's reaction, the number of molecules of `X`.
 
-    The reactions of `chemical_langevin_equation` change `x` and read the rate constants and the constant numbers of
+    The buffered species are `A` and `B`.
+
+    The reactions of `ChemicalLangevinEquationSystem` change `x` and read the rate constants and the constant numbers of
     molecules of `A` and `B` from the reactor.
 
     Args:
@@ -139,25 +100,14 @@ class SchloglElement(Element):
         self.B = B
 
 
-@register_system(
-    field='chemistry/kinetics',
-    tags=('enzyme kinetics', 'ode', 'jump process', 'gillespie'),
-    references=('Michaelis and Menten 1913', 'Gillespie 1977', 'Trzaska 2023'),
-    defaults={'until': 50.0, 'dt': 0.5},
-)
-def michaelis_menten(
-    enzyme: float = 100.0,
-    substrate: float = 300.0,
-    *,
-    k_binding: float = 0.01,
-    k_unbinding: float = 0.1,
-    k_catalysis: float = 0.1,
-    stochastic: bool = False,
-) -> System:
-    """Return the enzyme reaction `E + S <-> C -> E + P` of Michaelis and Menten, as rate equations or as jumps.
+class MichaelisMentenSystem(MassActionSystem):
+    """The enzyme reaction `E + S <-> C -> E + P` of Michaelis and Menten.
+
+    It runs as rate equations or as jumps.
 
     The total enzyme `E + C` and the total substrate `S + C + P` are conserved. In stochastic mode the amounts are
-    numbers of molecules and the reactions are the random events of Gillespie's algorithm.
+    numbers of molecules and the reactions are the random events of Gillespie's algorithm. The amounts are `E.n`,
+    `S.n`, `C.n`, and `P.n`.
 
     Args:
         enzyme:
@@ -178,49 +128,68 @@ def michaelis_menten(
         stochastic:
             Whether the reactions are random events.
 
-    Returns:
-        system:
-            The system, with the amounts `E.n`, `S.n`, `C.n`, and `P.n`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.chemistry.kinetics import michaelis_menten
-        >>> [element.label for element in michaelis_menten().elements]
+        >>> from skcomplex.systems.chemistry.kinetics import MichaelisMentenSystem
+        >>> [element.label for element in MichaelisMentenSystem().prepare().system_.elements]
         ['E', 'S', 'C', 'P']
+        >>> sorted(MichaelisMentenSystem(stochastic=True).get_tags().laws)
+        ['jump']
     """
-    return System(
-        elements=[
-            CompartmentElement('E', n=enzyme),
-            CompartmentElement('S', n=substrate),
-            CompartmentElement('C'),
-            CompartmentElement('P'),
-        ],
-        interactions=_get_enzyme_reactions(k_binding, k_unbinding, k_catalysis, 'jump' if stochastic else 'rate'),
-    )
+
+    field = 'chemistry/kinetics'
+    topics = ('enzyme kinetics', 'ode', 'jump process', 'gillespie')
+    references = ('Michaelis and Menten 1913', 'Gillespie 1977', 'Trzaska 2023')
+    until = 50.0
+    dt = 0.5
+
+    def __init__(
+        self,
+        enzyme: float = 100.0,
+        substrate: float = 300.0,
+        *,
+        k_binding: float = 0.01,
+        k_unbinding: float = 0.1,
+        k_catalysis: float = 0.1,
+        stochastic: bool = False,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label=label)
+        self.enzyme = enzyme
+        self.substrate = substrate
+        self.k_binding = k_binding
+        self.k_unbinding = k_unbinding
+        self.k_catalysis = k_catalysis
+        self.stochastic = stochastic
+
+    def _get_species(self) -> dict[str, float]:
+        """Return the initial amounts of the enzyme, substrate, complex, and product."""
+        return {'E': self.enzyme, 'S': self.substrate, 'C': 0.0, 'P': 0.0}
+
+    def _get_reactions(self) -> ReactionTable:
+        """Return the binding, unbinding, and catalysis of the enzyme reaction."""
+        return _get_enzyme_reactions(self.k_binding, self.k_unbinding, self.k_catalysis)
+
+    def _get_mode(self) -> str:
+        """Return the mode of the reactions.
+
+        It is random events when stochastic and rate equations otherwise.
+        """
+        return 'jump' if self.stochastic else 'rate'
 
 
-@register_system(
-    field='chemistry/kinetics',
-    tags=('sde', 'chemical Langevin equation', 'bistability', 'noise'),
-    references=('Schlögl 1972', 'Gillespie 2000', 'Trzaska 2023'),
-    defaults={'until': 200.0, 'dt': 0.05, 'solver': EulerMaruyamaSolver(dt=1e-3)},
-)
-def chemical_langevin_equation(
-    x: float = 50.0,
-    *,
-    c1: float = 1.5e-6,
-    c2: float = 2.5e-3,
-    c3: float = 2e-4,
-    c4: float = 3.5,
-    A: float = 1e5,
-    B: float = 2e5,
-) -> System:
-    """Return the chemical Langevin equation of Schlögl's bistable reaction, whose noise switches between two states.
+class ChemicalLangevinEquationSystem(BaseSystem):
+    """The chemical Langevin equation of Schlögl's bistable reaction.
+
+    Its noise switches between two states.
 
     The channels `A + 2X -> 3X`, `3X -> A + 2X`, `B -> X`, and `X -> B` have the propensities `c1 A x (x - 1) / 2`,
     `c2 x (x - 1) (x - 2) / 6`, `c3 B`, and `c4 x`. Every channel adds its propensity times its change of `x` to the
     drift and drives `x` with its own Wiener process of amplitude the square root of its propensity. The default rate
     constants are those of Gillespie 2000 scaled to a volume five times smaller, so the stable states lie near 17 and
-    113 molecules and the noise switches between them within 200 time units.
+    113 molecules and the noise switches between them within 200 time units. The number of molecules is `reactor.x`.
 
     Args:
         x:
@@ -244,57 +213,113 @@ def chemical_langevin_equation(
         B:
             The constant number of molecules of `B`.
 
-    Returns:
-        system:
-            The system, with the number of molecules `reactor.x`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.chemistry.kinetics import chemical_langevin_equation
-        >>> chemical_langevin_equation(c4=3.0).elements[0].c4
+        >>> from skcomplex.systems.chemistry.kinetics import ChemicalLangevinEquationSystem
+        >>> ChemicalLangevinEquationSystem(c4=3.0).prepare().system_.elements[0].c4
         3.0
     """
-    return System(
-        elements=[SchloglElement('reactor', x=x, c1=c1, c2=c2, c3=c3, c4=c4, A=A, B=B)],
-        interactions=[
-            ReactionInteraction(
-                'autocatalysis',
-                reactants={X: 2},
-                products={X: 3},
-                propensity=_get_autocatalysis,
-                mode='langevin',
-            ),
-            ReactionInteraction(
-                'reversal',
-                reactants={X: 3},
-                products={X: 2},
-                propensity=_get_reversal,
-                mode='langevin',
-            ),
-            ReactionInteraction('production', products={X: 1}, propensity=_get_production, mode='langevin'),
-            ReactionInteraction('conversion', reactants={X: 1}, propensity=_get_conversion, mode='langevin'),
-        ],
-    )
+
+    field = 'chemistry/kinetics'
+    topics = ('sde', 'chemical Langevin equation', 'bistability', 'noise')
+    references = ('Schlögl 1972', 'Gillespie 2000', 'Trzaska 2023')
+    until = 200.0
+    dt = 0.05
+    solver = EulerMaruyamaSolver(dt=1e-3)
+
+    def __init__(
+        self,
+        x: float = 50.0,
+        *,
+        c1: float = 1.5e-6,
+        c2: float = 2.5e-3,
+        c3: float = 2e-4,
+        c4: float = 3.5,
+        A: float = 1e5,
+        B: float = 2e5,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.x = x
+        self.c1 = c1
+        self.c2 = c2
+        self.c3 = c3
+        self.c4 = c4
+        self.A = A
+        self.B = B
+
+    @staticmethod
+    def _get_autocatalysis(s: SimpleNamespace) -> Expression:
+        """Return the propensity `c1 A x (x - 1) / 2` of `A + 2X -> 3X`."""
+        reactor = s.reactants[0]
+        return reactor.c1 / 2 * reactor.A * reactor.x * (reactor.x - 1)
+
+    @staticmethod
+    def _get_reversal(s: SimpleNamespace) -> Expression:
+        """Return the propensity `c2 x (x - 1) (x - 2) / 6` of `3X -> A + 2X`."""
+        reactor = s.reactants[0]
+        return reactor.c2 / 6 * reactor.x * (reactor.x - 1) * (reactor.x - 2)
+
+    @staticmethod
+    def _get_production(s: SimpleNamespace) -> Expression:
+        """Return the propensity `c3 B` of `B -> X`."""
+        reactor = s.products[0]
+        return reactor.c3 * reactor.B
+
+    @staticmethod
+    def _get_conversion(s: SimpleNamespace) -> Expression:
+        """Return the propensity `c4 x` of `X -> B`."""
+        reactor = s.reactants[0]
+        return reactor.c4 * reactor.x
+
+    def _build_system(self) -> System:
+        """Return the reactor and the four channels of Schlögl's reaction.
+
+        The channels are chemical Langevin equations.
+        """
+        reactor = SchloglElement(
+            'reactor',
+            x=self.x,
+            c1=self.c1,
+            c2=self.c2,
+            c3=self.c3,
+            c4=self.c4,
+            A=self.A,
+            B=self.B,
+        )
+        return System(
+            self.label,
+            elements=[reactor],
+            interactions=[
+                ReactionInteraction(
+                    'autocatalysis',
+                    reactants={X: 2},
+                    products={X: 3},
+                    propensity=self._get_autocatalysis,
+                    mode='langevin',
+                ),
+                ReactionInteraction(
+                    'reversal',
+                    reactants={X: 3},
+                    products={X: 2},
+                    propensity=self._get_reversal,
+                    mode='langevin',
+                ),
+                ReactionInteraction('production', products={X: 1}, propensity=self._get_production, mode='langevin'),
+                ReactionInteraction('conversion', reactants={X: 1}, propensity=self._get_conversion, mode='langevin'),
+            ],
+        )
 
 
-@register_system(
-    field='chemistry/kinetics',
-    tags=('enzyme kinetics', 'sde', 'chemical Langevin equation', 'noise'),
-    references=('Michaelis and Menten 1913', 'Gillespie 2000'),
-    defaults={'until': 50.0, 'dt': 0.5, 'solver': EulerMaruyamaSolver(dt=1e-3)},
-)
-def chemical_langevin_network(
-    enzyme: float = 100.0,
-    substrate: float = 300.0,
-    *,
-    k_binding: float = 0.01,
-    k_unbinding: float = 0.1,
-    k_catalysis: float = 0.1,
-) -> System:
-    """Return the chemical Langevin equation of the enzyme reaction `E + S <-> C -> E + P`.
+class ChemicalLangevinNetworkSystem(MassActionSystem):
+    """The chemical Langevin equation of the enzyme reaction `E + S <-> C -> E + P`.
 
     Every reaction adds its rate times its change of every species to the drift, and one Wiener process with the
     amplitude the square root of its rate drives every species it changes. Since one increment changes all of them, the
-    total enzyme `E + C` and the total substrate `S + C + P` stay constant under the noise, as in the jump process.
+    total enzyme `E + C` and the total substrate `S + C + P` stay constant under the noise, as in the jump process. The
+    amounts are `E.n`, `S.n`, `C.n`, and `P.n`.
 
     Args:
         enzyme:
@@ -312,21 +337,47 @@ def chemical_langevin_network(
         k_catalysis:
             The rate constant of the conversion of the complex into enzyme and product.
 
-    Returns:
-        system:
-            The system, with the amounts `E.n`, `S.n`, `C.n`, and `P.n`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.chemistry.kinetics import chemical_langevin_network
-        >>> [reaction.mode for reaction in chemical_langevin_network().interactions]
+        >>> from skcomplex.systems.chemistry.kinetics import ChemicalLangevinNetworkSystem
+        >>> [reaction.mode for reaction in ChemicalLangevinNetworkSystem().prepare().system_.interactions]
         ['langevin', 'langevin', 'langevin']
     """
-    return System(
-        elements=[
-            CompartmentElement('E', n=enzyme),
-            CompartmentElement('S', n=substrate),
-            CompartmentElement('C'),
-            CompartmentElement('P'),
-        ],
-        interactions=_get_enzyme_reactions(k_binding, k_unbinding, k_catalysis, 'langevin'),
-    )
+
+    field = 'chemistry/kinetics'
+    topics = ('enzyme kinetics', 'sde', 'chemical Langevin equation', 'noise')
+    references = ('Michaelis and Menten 1913', 'Gillespie 2000')
+    until = 50.0
+    dt = 0.5
+    solver = EulerMaruyamaSolver(dt=1e-3)
+
+    def __init__(
+        self,
+        enzyme: float = 100.0,
+        substrate: float = 300.0,
+        *,
+        k_binding: float = 0.01,
+        k_unbinding: float = 0.1,
+        k_catalysis: float = 0.1,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label=label)
+        self.enzyme = enzyme
+        self.substrate = substrate
+        self.k_binding = k_binding
+        self.k_unbinding = k_unbinding
+        self.k_catalysis = k_catalysis
+
+    def _get_species(self) -> dict[str, float]:
+        """Return the initial amounts of the enzyme, substrate, complex, and product."""
+        return {'E': self.enzyme, 'S': self.substrate, 'C': 0.0, 'P': 0.0}
+
+    def _get_reactions(self) -> ReactionTable:
+        """Return the binding, unbinding, and catalysis of the enzyme reaction."""
+        return _get_enzyme_reactions(self.k_binding, self.k_unbinding, self.k_catalysis)
+
+    def _get_mode(self) -> str:
+        """Return the mode of the reactions, the chemical Langevin equation."""
+        return 'langevin'

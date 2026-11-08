@@ -13,9 +13,8 @@ from ....core.components.elements import Element
 from ....core.components.interactions import BaseInteraction, Interaction, MapInteraction
 from ....core.components.laws import BaseLaw, RateLaw, UpdateLaw
 from ....core.components.laws.utils import lag, lookup, series
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from ..common.populations import (
     ExponentialGrowthInteraction,
     LogisticGrowthInteraction,
@@ -60,7 +59,9 @@ THERMAL = (
 
 
 class ShrimpElement(Element):
-    """Penaeid shrimp, an individual whose gut, biomass, gonads, and length grow on food at the water temperature.
+    """Penaeid shrimp, an individual that grows on food at the water temperature.
+
+    Its gut, biomass, gonads, and length grow.
 
     The shrimp ingests `I = R_max (1 - exp(-k F))` of the food `F`, with the maximum ration `R_max` the product of a
     table of its biomass, a table of the water temperature, and the factor `ration`. Its gut content `G` follows
@@ -121,6 +122,8 @@ class ShrimpElement(Element):
         29.9
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -156,7 +159,9 @@ class ShrimpElement(Element):
         self.K = K
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the ingestion, assimilation, respiration, spawning, gonad growth, and length growth.
+        """Return the ingestion, assimilation, respiration, spawning, and growth laws.
+
+        The growth laws are those of the gonads and of the length.
 
         Args:
             s:
@@ -182,7 +187,9 @@ class ShrimpElement(Element):
 
 
 class RabbitsElement(Element):
-    """Pairs of rabbits of this month and of last month, the two age classes of Fibonacci's recurrence.
+    """Pairs of rabbits of this month and of last month.
+
+    They are the two age classes of Fibonacci's recurrence.
 
     Args:
         label:
@@ -217,7 +224,9 @@ class RabbitsElement(Element):
 
 
 class RickerGrowthInteraction(Interaction):
-    """Ricker growth of a population in discrete generations, `n' = r n exp(-n)`, overcompensating at high density.
+    """Ricker growth of a population in discrete generations, `n' = r n exp(-n)`.
+
+    It overcompensates at high density.
 
     The size `n` is in units of the density at which the offspring of a generation peak, so a crowded generation
     leaves fewer offspring than a sparser one.
@@ -237,6 +246,8 @@ class RickerGrowthInteraction(Interaction):
         >>> RickerGrowthInteraction('growth', target='fish', r=12.0).r
         12.0
     """
+
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
@@ -265,7 +276,9 @@ class RickerGrowthInteraction(Interaction):
 
 
 class SeasonalLogisticGrowthInteraction(LogisticGrowthInteraction):
-    """Logistic growth under a carrying capacity that varies periodically, `K(t) = K (1 + amplitude sin(2 pi t / T))`.
+    """Logistic growth under a carrying capacity that varies periodically.
+
+    The capacity is `K(t) = K (1 + amplitude sin(2 pi t / T))`.
 
     Args:
         label:
@@ -307,7 +320,9 @@ class SeasonalLogisticGrowthInteraction(LogisticGrowthInteraction):
         self.period = period
 
     def _get_capacity(self, namespace: SimpleNamespace) -> Expression:
-        """Return the capacity `K (1 + amplitude sin(2 pi t / T))` at the time of the namespace.
+        """Return the capacity at the time of the namespace.
+
+        It is `K (1 + amplitude sin(2 pi t / T))`.
 
         Args:
             namespace:
@@ -322,14 +337,10 @@ class SeasonalLogisticGrowthInteraction(LogisticGrowthInteraction):
         return capacity
 
 
-@register_system(
-    field='biology/ecology',
-    tags=('population', 'ode'),
-    references=('Malthus 1798',),
-    defaults={'until': 20.0, 'dt': 0.1},
-)
-def exponential_growth(n: float = 10.0, r: float = 0.1) -> System:
-    """Return a population that grows or declines at a constant per-capita rate.
+class ExponentialGrowthSystem(BaseSystem):
+    """A population that grows or declines at a constant per-capita rate.
+
+    The system has the population `population`.
 
     Args:
         n:
@@ -338,29 +349,48 @@ def exponential_growth(n: float = 10.0, r: float = 0.1) -> System:
         r:
             The per-capita growth rate.
 
-    Returns:
-        system:
-            The system, with the population `population`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.ecology import exponential_growth
-        >>> exponential_growth(r=0.2).interactions[0].r
+        >>> from skcomplex.systems.biology.ecology import ExponentialGrowthSystem
+        >>> ExponentialGrowthSystem(r=0.2).prepare().system_.interactions[0].r
         0.2
     """
-    return System(
-        elements=[PopulationElement('population', n=n)],
-        interactions=[ExponentialGrowthInteraction('growth', target='population', r=r)],
-    )
+
+    field = 'biology/ecology'
+    topics = ('population', 'ode')
+    references = ('Malthus 1798',)
+    until = 20.0
+    dt = 0.1
+
+    def __init__(
+        self,
+        n: float = 10.0,
+        r: float = 0.1,
+        *,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n = n
+        self.r = r
+
+    def _build_system(self) -> System:
+        """Return the parts of a population that grows at a constant per-capita rate.
+
+        The population grows or declines.
+        """
+        return System(
+            self.label,
+            elements=[PopulationElement('population', n=self.n)],
+            interactions=[ExponentialGrowthInteraction('growth', target='population', r=self.r)],
+        )
 
 
-@register_system(
-    field='biology/ecology',
-    tags=('population', 'ode'),
-    references=('Verhulst 1838',),
-    defaults={'until': 20.0, 'dt': 0.1},
-)
-def logistic_growth(n: float = 10.0, r: float = 1.0, K: float = 100.0) -> System:
-    """Return a population that grows logistically towards its carrying capacity.
+class LogisticGrowthSystem(BaseSystem):
+    """A population that grows logistically towards its carrying capacity.
+
+    The system has the population `population`.
 
     Args:
         n:
@@ -372,39 +402,53 @@ def logistic_growth(n: float = 10.0, r: float = 1.0, K: float = 100.0) -> System
         K:
             The carrying capacity.
 
-    Returns:
-        system:
-            The system, with the population `population`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.ecology import logistic_growth
-        >>> logistic_growth(K=500.0).interactions[0].K
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+        >>> LogisticGrowthSystem(K=500.0).prepare().system_.interactions[0].K
         500.0
     """
-    return System(
-        elements=[PopulationElement('population', n=n)],
-        interactions=[LogisticGrowthInteraction('growth', target='population', r=r, K=K)],
-    )
+
+    field = 'biology/ecology'
+    topics = ('population', 'ode')
+    references = ('Verhulst 1838',)
+    until = 20.0
+    dt = 0.1
+
+    def __init__(
+        self,
+        n: float = 10.0,
+        r: float = 1.0,
+        K: float = 100.0,
+        *,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n = n
+        self.r = r
+        self.K = K
+
+    def _build_system(self) -> System:
+        """Return the parts of a population that grows logistically.
+
+        It grows towards its carrying capacity.
+        """
+        return System(
+            self.label,
+            elements=[PopulationElement('population', n=self.n)],
+            interactions=[LogisticGrowthInteraction('growth', target='population', r=self.r, K=self.K)],
+        )
 
 
-@register_system(
-    field='biology/ecology',
-    tags=('population', 'ode', 'forcing', 'periodic'),
-    references=('Coleman 1979', 'Trzaska 2023'),
-    defaults={'until': 20.0, 'dt': 0.05},
-)
-def varying_capacity_logistic(
-    n: float = 10.0,
-    *,
-    r: float = 2.0,
-    K: float = 100.0,
-    amplitude: float = 0.5,
-    period: float = 1.0,
-) -> System:
-    """Return logistic growth under a seasonal carrying capacity, which settles on a cycle of the season's period.
+class VaryingCapacityLogisticSystem(BaseSystem):
+    """Logistic growth under a seasonal carrying capacity.
+
+    It settles on a cycle of the season's period.
 
     Whatever its initial size, the population tends to a unique periodic solution, which lags behind the capacity and
-    varies less than it.
+    varies less than it. The system has the population `population`.
 
     Args:
         n:
@@ -422,40 +466,62 @@ def varying_capacity_logistic(
         period:
             The period of the seasons.
 
-    Returns:
-        system:
-            The system, with the population `population`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.ecology import varying_capacity_logistic
-        >>> varying_capacity_logistic(amplitude=0.2).interactions[0].amplitude
+        >>> from skcomplex.systems.biology.ecology import VaryingCapacityLogisticSystem
+        >>> VaryingCapacityLogisticSystem(amplitude=0.2).prepare().system_.interactions[0].amplitude
         0.2
     """
-    return System(
-        elements=[PopulationElement('population', n=n)],
-        interactions=[
-            SeasonalLogisticGrowthInteraction(
-                'growth',
-                target='population',
-                r=r,
-                K=K,
-                amplitude=amplitude,
-                period=period,
-            ),
-        ],
-    )
+
+    field = 'biology/ecology'
+    topics = ('population', 'ode', 'forcing', 'periodic')
+    references = ('Coleman 1979', 'Trzaska 2023')
+    until = 20.0
+    dt = 0.05
+
+    def __init__(
+        self,
+        n: float = 10.0,
+        *,
+        r: float = 2.0,
+        K: float = 100.0,
+        amplitude: float = 0.5,
+        period: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n = n
+        self.r = r
+        self.K = K
+        self.amplitude = amplitude
+        self.period = period
+
+    def _build_system(self) -> System:
+        """Return the parts of logistic growth under a seasonal carrying capacity."""
+        return System(
+            self.label,
+            elements=[PopulationElement('population', n=self.n)],
+            interactions=[
+                SeasonalLogisticGrowthInteraction(
+                    'growth',
+                    target='population',
+                    r=self.r,
+                    K=self.K,
+                    amplitude=self.amplitude,
+                    period=self.period,
+                ),
+            ],
+        )
 
 
-@register_system(
-    field='biology/ecology',
-    tags=('population', 'delay', 'oscillation'),
-    references=('Hutchinson 1948', 'Erneux 2009'),
-    defaults={'until': 100.0, 'dt': 0.1},
-)
-def hutchinson(n: float = 50.0, *, r: float = 1.0, K: float = 100.0, tau: float = 2.0) -> System:
-    """Return Hutchinson's delayed logistic equation, which oscillates around `K` when `r * tau` exceeds π/2.
+class HutchinsonSystem(BaseSystem):
+    """Hutchinson's delayed logistic equation.
 
-    The history before the start is the initial size.
+    It oscillates around `K` when `r * tau` exceeds π/2.
+
+    The history before the start is the initial size. The system has the population `population`.
 
     Args:
         n:
@@ -470,38 +536,49 @@ def hutchinson(n: float = 50.0, *, r: float = 1.0, K: float = 100.0, tau: float 
         tau:
             The delay of the density feedback.
 
-    Returns:
-        system:
-            The system, with the population `population`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.ecology import hutchinson
-        >>> hutchinson(tau=1.0).interactions[0].tau
+        >>> from skcomplex.systems.biology.ecology import HutchinsonSystem
+        >>> HutchinsonSystem(tau=1.0).prepare().system_.interactions[0].tau
         1.0
     """
-    return System(
-        elements=[PopulationElement('population', n=n)],
-        interactions=[LogisticGrowthInteraction('growth', target='population', r=r, K=K, tau=tau)],
-    )
+
+    field = 'biology/ecology'
+    topics = ('population', 'delay', 'oscillation')
+    references = ('Hutchinson 1948', 'Erneux 2009')
+    until = 100.0
+    dt = 0.1
+
+    def __init__(
+        self,
+        n: float = 50.0,
+        *,
+        r: float = 1.0,
+        K: float = 100.0,
+        tau: float = 2.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n = n
+        self.r = r
+        self.K = K
+        self.tau = tau
+
+    def _build_system(self) -> System:
+        """Return the parts of Hutchinson's delayed logistic equation."""
+        return System(
+            self.label,
+            elements=[PopulationElement('population', n=self.n)],
+            interactions=[LogisticGrowthInteraction('growth', target='population', r=self.r, K=self.K, tau=self.tau)],
+        )
 
 
-@register_system(
-    field='biology/ecology',
-    tags=('predator-prey', 'ode', 'oscillation'),
-    references=('Lotka 1925', 'Volterra 1926'),
-    defaults={'until': 50.0, 'dt': 0.1},
-)
-def lotka_volterra(
-    prey: float = 40.0,
-    predators: float = 9.0,
-    *,
-    r: float = 1.1,
-    a: float = 0.4,
-    b: float = 0.1,
-    d: float = 0.4,
-    K: float | None = None,
-) -> System:
-    """Return prey and predators whose populations oscillate through predation.
+class LotkaVolterraSystem(BaseSystem):
+    """Prey and predators whose populations oscillate through predation.
+
+    The system has the populations `prey` and `predators`.
 
     Args:
         prey:
@@ -525,40 +602,70 @@ def lotka_volterra(
         K:
             The carrying capacity of the prey, or `None` for exponential growth of the prey.
 
-    Returns:
-        system:
-            The system, with the populations `prey` and `predators`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.ecology import lotka_volterra
-        >>> [element.label for element in lotka_volterra().elements]
+        >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+        >>> [element.label for element in LotkaVolterraSystem().prepare().system_.elements]
         ['prey', 'predators']
     """
-    growth: BaseInteraction = (
-        ExponentialGrowthInteraction('growth', target='prey', r=r)
-        if K is None
-        else LogisticGrowthInteraction('growth', target='prey', r=r, K=K)
-    )
-    return System(
-        elements=[PopulationElement('prey', n=prey), PopulationElement('predators', n=predators)],
-        interactions=[
-            growth,
-            PredationInteraction('predation', predator='predators', prey='prey', a=a, b=b),
-            MortalityInteraction('death', target='predators', d=d),
-        ],
-    )
+
+    field = 'biology/ecology'
+    topics = ('predator-prey', 'ode', 'oscillation')
+    references = ('Lotka 1925', 'Volterra 1926')
+    until = 50.0
+    dt = 0.1
+
+    def __init__(
+        self,
+        prey: float = 40.0,
+        predators: float = 9.0,
+        *,
+        r: float = 1.1,
+        a: float = 0.4,
+        b: float = 0.1,
+        d: float = 0.4,
+        K: float | None = None,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.prey = prey
+        self.predators = predators
+        self.r = r
+        self.a = a
+        self.b = b
+        self.d = d
+        self.K = K
+
+    def _build_system(self) -> System:
+        """Return the parts of prey and predators whose populations oscillate.
+
+        Their populations oscillate through predation.
+        """
+        growth: BaseInteraction = (
+            ExponentialGrowthInteraction('growth', target='prey', r=self.r)
+            if self.K is None
+            else LogisticGrowthInteraction('growth', target='prey', r=self.r, K=self.K)
+        )
+        return System(
+            self.label,
+            elements=[PopulationElement('prey', n=self.prey), PopulationElement('predators', n=self.predators)],
+            interactions=[
+                growth,
+                PredationInteraction('predation', predator='predators', prey='prey', a=self.a, b=self.b),
+                MortalityInteraction('death', target='predators', d=self.d),
+            ],
+        )
 
 
-@register_system(
-    field='biology/ecology',
-    tags=('population', 'discrete map', 'second order', 'age structure'),
-    references=('Fibonacci 1202',),
-    defaults={'until': 20, 'dt': 1},
-)
-def fibonacci_rabbits(pairs: float = 1.0, previous: float = 0.0) -> System:
-    """Return Fibonacci's rabbits, `N_{t+1} = N_t + N_{t-1}`, where every pair older than one month breeds a new pair.
+class FibonacciRabbitsSystem(BaseSystem):
+    """Fibonacci's rabbits, `N_{t+1} = N_t + N_{t-1}`.
+
+    Every pair older than one month breeds a new pair.
 
     The previous population counts the pairs old enough to breed, so the recurrence is an age structure of two classes.
+    The system has the population `rabbits.pairs` and last month's `rabbits.pairs_lag1`.
 
     Args:
         pairs:
@@ -567,35 +674,55 @@ def fibonacci_rabbits(pairs: float = 1.0, previous: float = 0.0) -> System:
         previous:
             The number of pairs last month.
 
-    Returns:
-        system:
-            The system, with the population `rabbits.pairs` and last month's `rabbits.pairs_lag1`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.ecology import fibonacci_rabbits
-        >>> fibonacci_rabbits().elements[0].pairs
+        >>> from skcomplex.systems.biology.ecology import FibonacciRabbitsSystem
+        >>> FibonacciRabbitsSystem().prepare().system_.elements[0].pairs
         1.0
     """
-    breeding = MapInteraction(
-        'breeding',
-        target='rabbits',
-        state='pairs',
-        function=lambda s: s.target.pairs + lag(s.target.pairs, 1),
-    )
-    return System(elements=[RabbitsElement('rabbits', pairs=pairs, pairs_lag1=previous)], interactions=[breeding])
+
+    field = 'biology/ecology'
+    topics = ('population', 'discrete map', 'second order', 'age structure')
+    references = ('Fibonacci 1202',)
+    until = 20
+    dt = 1
+
+    def __init__(
+        self,
+        pairs: float = 1.0,
+        previous: float = 0.0,
+        *,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.pairs = pairs
+        self.previous = previous
+
+    def _build_system(self) -> System:
+        """Return the parts of Fibonacci's rabbits."""
+        breeding = MapInteraction(
+            'breeding',
+            target='rabbits',
+            state='pairs',
+            function=lambda s: s.target.pairs + lag(s.target.pairs, 1),
+        )
+        return System(
+            self.label,
+            elements=[RabbitsElement('rabbits', pairs=self.pairs, pairs_lag1=self.previous)],
+            interactions=[breeding],
+        )
 
 
-@register_system(
-    field='biology/ecology',
-    tags=('population', 'discrete map', 'period doubling', 'chaos'),
-    references=('Ricker 1954', 'Dilão 2023'),
-    defaults={'until': 100, 'dt': 1},
-)
-def ricker(n: float = 0.5, *, r: float = 2.0) -> System:
-    """Return Ricker's map of a population in discrete generations, `n' = r n exp(-n)`, chaotic for large `r`.
+class RickerSystem(BaseSystem):
+    """Ricker's map of a population in discrete generations, `n' = r n exp(-n)`.
 
-    The positive fixed point `n = ln r` is stable while `1 < r < e^2`. Beyond `e^2`, about 7.39, it loses stability to
-    a two-cycle, and further period doublings lead to chaos near `r = 14.8`. The size stays positive for every `r`.
+    It is chaotic for large `r`.
+
+    The positive fixed point `n = ln r` is stable while `1 < r < e^2`. Beyond `e^2`, about 7.39, it loses stability to a
+    two-cycle, and further period doublings lead to chaos near `r = 14.8`. The size stays positive for every `r`. The
+    system has the population `population.n`.
 
     Args:
         n:
@@ -604,37 +731,45 @@ def ricker(n: float = 0.5, *, r: float = 2.0) -> System:
         r:
             The growth factor at low density.
 
-    Returns:
-        system:
-            The system, with the population `population.n`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.ecology import ricker
-        >>> ricker(r=12.0).interactions[0].r
+        >>> from skcomplex.systems.biology.ecology import RickerSystem
+        >>> RickerSystem(r=12.0).prepare().system_.interactions[0].r
         12.0
     """
-    return System(
-        elements=[PopulationElement('population', n=n)],
-        interactions=[RickerGrowthInteraction('growth', target='population', r=r)],
-    )
+
+    field = 'biology/ecology'
+    topics = ('population', 'discrete map', 'period doubling', 'chaos')
+    references = ('Ricker 1954', 'Dilão 2023')
+    until = 100
+    dt = 1
+
+    def __init__(
+        self,
+        n: float = 0.5,
+        *,
+        r: float = 2.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n = n
+        self.r = r
+
+    def _build_system(self) -> System:
+        """Return the parts of Ricker's map of a population in discrete generations."""
+        return System(
+            self.label,
+            elements=[PopulationElement('population', n=self.n)],
+            interactions=[RickerGrowthInteraction('growth', target='population', r=self.r)],
+        )
 
 
-@register_system(
-    field='biology/ecology',
-    tags=('individual growth', 'bioenergetics', 'aquaculture', 'stocks and flows', 'ode'),
-    references=('Franco et al. 2006', 'Bala et al. 2017'),
-    defaults={'until': 60.0, 'dt': 0.5},
-)
-def penaeid_shrimp(
-    gut: float = 0.5,
-    biomass: float = 1.0,
-    *,
-    ration: float = 2.5,
-    respiration: float = 0.05,
-    L_inf: float = 29.9,
-    K: float = 0.013,
-) -> System:
-    """Return the growth of one penaeid shrimp from the juvenile stage, forced by the food and the water temperature.
+class PenaeidShrimpSystem(BaseSystem):
+    """The growth of one penaeid shrimp from the juvenile stage.
+
+    The growth is forced by the food and the water temperature.
 
     The individual ingests food up to a maximum ration set by its biomass and the water temperature, assimilates its
     gut content, respires, and spawns, while its gonads grow and its carapace length follows von Bertalanffy's curve
@@ -644,7 +779,8 @@ def penaeid_shrimp(
     The coefficients are those of the listing of Bala et al. (2017). With them the respiration of a juvenile at 28 C,
     `respiration exp(0.07 T) (phi B)^0.185`, is about half its biomass per day, more than its maximum ration, so the
     total biomass declines slowly while the gonads and the length grow. The weight gain the source describes needs a
-    lower `respiration` coefficient, such as 0.02.
+    lower `respiration` coefficient, such as 0.02. The system has the states `shrimp.gut`, `shrimp.biomass`,
+    `shrimp.gonads`, and `shrimp.length`.
 
     Args:
         gut:
@@ -665,25 +801,53 @@ def penaeid_shrimp(
         K:
             The growth coefficient of the length, per day.
 
-    Returns:
-        system:
-            The system, with the states `shrimp.gut`, `shrimp.biomass`, `shrimp.gonads`, and `shrimp.length`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.ecology import penaeid_shrimp
-        >>> penaeid_shrimp().elements[0].K
+        >>> from skcomplex.systems.biology.ecology import PenaeidShrimpSystem
+        >>> PenaeidShrimpSystem().prepare().system_.elements[0].K
         0.013
     """
-    return System(
-        elements=[
-            ShrimpElement(
-                'shrimp',
-                gut=gut,
-                biomass=biomass,
-                ration=ration,
-                respiration=respiration,
-                L_inf=L_inf,
-                K=K,
-            ),
-        ],
-    )
+
+    field = 'biology/ecology'
+    topics = ('individual growth', 'bioenergetics', 'aquaculture', 'stocks and flows', 'ode')
+    references = ('Franco et al. 2006', 'Bala et al. 2017')
+    until = 60.0
+    dt = 0.5
+
+    def __init__(
+        self,
+        gut: float = 0.5,
+        biomass: float = 1.0,
+        *,
+        ration: float = 2.5,
+        respiration: float = 0.05,
+        L_inf: float = 29.9,
+        K: float = 0.013,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.gut = gut
+        self.biomass = biomass
+        self.ration = ration
+        self.respiration = respiration
+        self.L_inf = L_inf
+        self.K = K
+
+    def _build_system(self) -> System:
+        """Return the parts of the growth of one penaeid shrimp from the juvenile stage."""
+        return System(
+            self.label,
+            elements=[
+                ShrimpElement(
+                    'shrimp',
+                    gut=self.gut,
+                    biomass=self.biomass,
+                    ration=self.ration,
+                    respiration=self.respiration,
+                    L_inf=self.L_inf,
+                    K=self.K,
+                ),
+            ],
+        )

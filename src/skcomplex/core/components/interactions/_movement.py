@@ -1,4 +1,7 @@
-"""Define movements, which move the agents of a group by steps to other cells, nodes, or positions."""
+"""Define movements.
+
+A movement moves the agents of a group by steps to other cells, nodes, or positions.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -121,17 +124,26 @@ class MovementInteraction(Interaction):
         >>> from skcomplex.core.components.interactions import MovementInteraction
         >>> from skcomplex.core.components.spaces import LatticeSpace
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> walkers = GroupElement('walkers', element=Element, size=2, location=[(2, 2), (2, 2)])
         >>> walk = MovementInteraction('walk', target='walkers', step='neighbor')
         >>> space = LatticeSpace((5, 5), neighborhood='von_neumann')
         >>> system = System(elements=[walkers], interactions=[walk], space=space)
-        >>> trajectory = Simulation(system, random_state=0).prepare().run(until=1).trajectory_
+        >>> trajectory = simulate(system, until=1, random_state=0)
         >>> [bool(abs(cell - 2).sum() == 1) for cell in trajectory.agents('walkers', 1).locations]
         [True, True]
     """
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw,)
+
+    def _draws(self) -> bool:
+        """Return whether the movement draws.
+
+        It draws by its order, a random step, a probability or rate, or random ties.
+        """
+        ties = self.ties or ('random' if self.vision is None else 'nearest')
+        drawn = self.step in ('neighbor', 'gaussian', 'levy') or (self.step == 'best' and ties == 'random')
+        return super()._draws() or drawn or self.probability != 1 or self.rate is not None or self.accept is not None
 
     def __init__(
         self,
@@ -171,14 +183,14 @@ class MovementInteraction(Interaction):
         self.ties = ties
 
     def _check_functions(self) -> None:
-        """Raise an error for a condition, an acceptance, a score, or a cost that cannot be called."""
+        """Raise an error for a condition, acceptance, score, or cost that is not callable."""
         for name in ('condition', 'accept', 'score'):
             value = getattr(self, name)
             if value is not None and not callable(value):
                 error_msg = f'The {name} of {self.label!r} is {value!r}. Give a function, or None.'
                 raise ValidationError(error_msg)
         if isinstance(self.cost, TransferInteraction):
-            self.cost._validated()
+            self.cost.prepare()
         elif self.cost is not None and not callable(self.cost):
             error_msg = f'The cost of {self.label!r} is {self.cost!r}. Give a TransferInteraction, a function, or None.'
             raise ValidationError(error_msg)
@@ -188,15 +200,19 @@ class MovementInteraction(Interaction):
         if isinstance(self.step, str) and self.step in GRID_STEPS:
             self._check_grid('step', self.step, space, "step='gaussian' or step='levy', or a step function")
 
-    def _check(self) -> None:
-        """Raise an error for an unknown step, a rate that is not positive, or a function that cannot be called.
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Raise an error for an unknown step, a rate not positive, or a bad function.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The step, the schedule, or the ties are unknown, the rate is not positive, a function is not callable,
                 or the step `'best'` has no score.
         """
-        super()._check()
+        super()._prepare(context)
         self._check_variant('step', self.step, STEPS, functions=True)
         if self.rate is not None and (isinstance(self.rate, bool) or not self.rate > 0):
             error_msg = f'The rate of {self.label!r} is {self.rate!r}. Give a positive number, or None.'
@@ -246,7 +262,10 @@ class MovementInteraction(Interaction):
 
     @staticmethod
     def _shift(here: tuple[int, ...], cell: tuple[int, ...], system: SystemViewProtocol) -> tuple[int, ...]:
-        """Return the unit step from a cell to a neighbouring cell, across the wrapped edge of a torus."""
+        """Return the unit step from a cell to a neighbouring cell.
+
+        The step goes across the wrapped edge of a torus.
+        """
         shift = [b - a for a, b in zip(here, cell, strict=True)]
         if system.torus:
             sizes = [int(item) for item in system.dimensions or ()]
@@ -259,7 +278,10 @@ class MovementInteraction(Interaction):
         occupied: set[object],
         system: SystemViewProtocol,
     ) -> tuple[list[object], list[int]]:
-        """Return the cells in sight of an agent along every direction of a lattice, its own first, with distances."""
+        """Return the cells in sight of an agent along every direction of a lattice.
+
+        Its own cell comes first, with the distances.
+        """
         vision = self.vision(agent, system) if callable(self.vision) else self.vision
         reach = int(vision or 0)
         here = tuple(int(item) for item in np.atleast_1d(np.asarray(agent.location_key)))
@@ -313,7 +335,10 @@ class MovementInteraction(Interaction):
             self.cost(agent, system)
 
     def _take(self, agent: AgentViewProtocol, destination: object, occupied: set[object]) -> bool:
-        """Move an agent to a destination unless an exclusive movement finds it held, and return whether it moved."""
+        """Move an agent to a destination unless an exclusive movement finds it held.
+
+        It returns whether it moved.
+        """
         if not self.exclusive:
             agent.move_to(destination)
             return True
@@ -333,7 +358,10 @@ class MovementInteraction(Interaction):
         probability: float,
         occupied: set[object],
     ) -> None:
-        """Take the attempted steps of one agent, each with its probability and acceptance, charging every step."""
+        """Take the attempted steps of one agent.
+
+        Each step has its probability and acceptance, and every step is charged.
+        """
         for _ in range(self._count_attempts(system)):
             if probability < 1.0 and system.rng.random() >= probability:
                 continue
@@ -354,7 +382,10 @@ class MovementInteraction(Interaction):
             self._move(agent, system, self._get_parameter_value('probability', system), occupied)
 
     def _move_all(self, system: SystemViewProtocol) -> None:
-        """Move every agent of the group whose condition holds, in their order or in random order."""
+        """Move every agent of the group whose condition holds.
+
+        They move in their order or in random order.
+        """
         agents = system.agents(self._get_role('target'))
         occupied = {agent.location_key for agent in agents} if self.exclusive else set()
         probability = self._get_parameter_value('probability', system)

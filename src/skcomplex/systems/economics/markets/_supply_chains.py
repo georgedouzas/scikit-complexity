@@ -1,4 +1,7 @@
-"""Markets systems: Sterman's beer distribution game, a supply chain of four echelons with delays."""
+"""Markets systems: Sterman's beer distribution game.
+
+It is a supply chain of four echelons with delays.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,19 +17,18 @@ from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction, TransferInteraction
 from ....core.components.laws import BaseLaw, RateLaw, Sink, Source
 from ....core.components.laws.utils import distributed_delay, maximum, minimum, step
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class EchelonElement(Element):
-    """Echelon of a supply chain, which ships its backlog from its inventory and orders by anchoring and adjustment.
+    """Echelon of a supply chain.
 
-    It ships its backlog over the dispatch time, limited by its inventory. Its expected demand adapts to incoming
-    orders at the rate `theta`, and it orders its expected demand plus `alpha` times the gap between its desired stock
-    and its effective inventory, the inventory less the backlog, less `beta` times its supply line, never negative.
-    Its orders reach its supplier after the mail delay, and the beer its supplier ships arrives after the shipping
-    delay.
+    It ships its backlog from its inventory and orders by anchoring and adjustment. It ships its backlog over the
+    dispatch time, limited by its inventory. Its expected demand adapts to incoming orders at the rate `theta`, and it
+    orders its expected demand plus `alpha` times the gap between its desired stock and its effective inventory, the
+    inventory less the backlog, less `beta` times its supply line, never negative. Its orders reach its supplier after
+    the mail delay, and the beer its supplier ships arrives after the shipping delay.
 
     Args:
         label:
@@ -77,6 +79,8 @@ class EchelonElement(Element):
         10.0
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -124,12 +128,18 @@ class EchelonElement(Element):
 
     @staticmethod
     def _shipments(echelon: SimpleNamespace) -> Expression:
-        """Return the shipments of an echelon, its backlog limited by its inventory over the dispatch time."""
+        """Return the shipments of an echelon.
+
+        They are its backlog limited by its inventory over the dispatch time.
+        """
         return minimum(echelon.backlog, echelon.inventory) / echelon.dispatch_time
 
     @staticmethod
     def _echelon_laws(s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of an echelon, the shipping of its backlog and the decay of its expectation."""
+        """Return the laws of an echelon.
+
+        They are the shipping of its backlog and the decay of its expectation.
+        """
         return [
             RateLaw(s.backlog, -EchelonElement._shipments(s)),
             RateLaw(s.expected, -s.theta * s.expected),
@@ -137,7 +147,9 @@ class EchelonElement(Element):
 
 
 class FactoryElement(EchelonElement):
-    """Factory of a supply chain, an echelon whose orders a brewery brews over the production delay.
+    """Factory of a supply chain.
+
+    It is an echelon whose orders a brewery brews over the production delay.
 
     Args:
         label:
@@ -230,7 +242,9 @@ class FactoryElement(EchelonElement):
 
 
 class RetailerElement(EchelonElement):
-    """Retailer of a supply chain, an echelon whose customers order their demand, which steps once.
+    """Retailer of a supply chain.
+
+    It is an echelon whose customers order their demand, which steps once.
 
     Args:
         label:
@@ -333,9 +347,10 @@ class RetailerElement(EchelonElement):
 
 
 class BreweryInteraction(TransferInteraction):
-    """Brewery of a supply chain, which brews the orders of the factory over its production delay.
+    """Brewery of a supply chain.
 
-    The brewing is a transfer from the brewery into the beer in production at the factory and on to its inventory.
+    It brews the orders of the factory over its production delay. The brewing is a transfer from the brewery into the
+    beer in production at the factory and on to its inventory.
 
     Args:
         label:
@@ -374,14 +389,20 @@ class BreweryInteraction(TransferInteraction):
 
     @staticmethod
     def _orders(echelon: SimpleNamespace) -> Expression:
-        """Return the orders of an echelon by Sterman's anchoring and adjustment rule, never negative."""
+        """Return the orders of an echelon by Sterman's anchoring and adjustment rule.
+
+        They are never negative.
+        """
         effective = echelon.inventory - echelon.backlog
         orders = echelon.expected + echelon.alpha * (echelon.desired - effective - echelon.beta * echelon.supply_line)
         return maximum(orders, 0)
 
     @staticmethod
     def _completions(factory: SimpleNamespace) -> Expression:
-        """Return the brews completed for the factory, its orders after a third-order production delay."""
+        """Return the brews completed for the factory.
+
+        They are its orders after a third-order production delay.
+        """
         return distributed_delay(BreweryInteraction._orders(factory), order=3, time=factory.production_delay)
 
 
@@ -426,11 +447,11 @@ class RetailDemandInteraction(TransferInteraction):
 
 
 class SupplyLinkInteraction(TransferInteraction):
-    """Link of a supply chain, which ships beer from the upstream echelon to the downstream echelon.
+    """Link of a supply chain.
 
-    The shipments and their arrivals, after a third-order delay of the shipping delay of the downstream echelon, are
-    the legs of one transfer, from the inventory of the upstream echelon to the beer in transit to the downstream
-    echelon and on to its inventory.
+    It ships beer from the upstream echelon to the downstream echelon. The shipments and their arrivals, after a
+    third-order delay of the shipping delay of the downstream echelon, are the legs of one transfer, from the inventory
+    of the upstream echelon to the beer in transit to the downstream echelon and on to its inventory.
 
     Args:
         label:
@@ -476,12 +497,18 @@ class SupplyLinkInteraction(TransferInteraction):
         self.upstream = upstream
 
     def _get_holders(self, namespace: SimpleNamespace) -> list[tuple[SimpleNamespace, SimpleNamespace]]:
-        """Return the upstream echelon, which ships, and the downstream echelon, which receives."""
+        """Return the upstream echelon and the downstream echelon.
+
+        The upstream echelon ships, and the downstream echelon receives.
+        """
         return [(namespace.upstream, namespace.downstream)]
 
     @staticmethod
     def _arrivals(upstream: SimpleNamespace, downstream: SimpleNamespace) -> Expression:
-        """Return the arrivals at the downstream echelon, the shipments after a third-order shipping delay."""
+        """Return the arrivals at the downstream echelon.
+
+        They are the shipments after a third-order shipping delay.
+        """
         return distributed_delay(EchelonElement._shipments(upstream), order=3, time=downstream.shipping_delay)
 
 
@@ -489,7 +516,10 @@ ECHELONS = ('retailer', 'wholesaler', 'distributor', 'factory')
 
 
 def _received(downstream: SimpleNamespace) -> Expression:
-    """Return the orders of the downstream echelon that reach its supplier, after a third-order mail delay."""
+    """Return the orders of the downstream echelon that reach its supplier.
+
+    They arrive after a third-order mail delay.
+    """
     return distributed_delay(BreweryInteraction._orders(downstream), order=3, time=downstream.mail_delay)
 
 
@@ -499,99 +529,35 @@ def _demand(retailer: SimpleNamespace, t: Expression) -> Expression:
 
 
 def _customer_orders(s: SimpleNamespace) -> Expression:
-    """Return the orders of the customers of the namespace of the system, which holds the retailer."""
+    """Return the orders of the customers of the namespace of the system.
+
+    The namespace holds the retailer.
+    """
     return _demand(s.retailer, s.t)
 
 
-def _get_link_rates(downstream: str, upstream: str) -> list[RateInteraction]:
-    """Return the rates of a link, the supply line of the downstream echelon and the incoming orders upstream."""
-    return [
-        RateInteraction(
-            f'{downstream}_supply_line',
-            target=downstream,
-            state='supply_line',
-            sources=[upstream],
-            rate=lambda s: BreweryInteraction._orders(s.target)
-            - SupplyLinkInteraction._arrivals(s.sources[0], s.target),
-        ),
-        RateInteraction(
-            f'{upstream}_backlog',
-            target=upstream,
-            state='backlog',
-            sources=[downstream],
-            rate=lambda s: _received(s.sources[0]),
-        ),
-        RateInteraction(
-            f'{upstream}_expected',
-            target=upstream,
-            state='expected',
-            sources=[downstream],
-            rate=lambda s: s.target.theta * _received(s.sources[0]),
-        ),
-    ]
+class BeerGameSystem(BaseSystem):
+    """Sterman's beer distribution game.
 
+    Its orders swing wider at every echelon upstream. A retailer, a wholesaler, a distributor, and a factory each hold
+    an inventory of beer and a backlog of orders waiting to ship. Each ships its backlog over the dispatch time, limited
+    by its inventory, and the beer reaches the next echelon downstream after the shipping delay. Orders reach the next
+    echelon upstream after the mail delay, and the factory brews its orders over the production delay. Customer demand
+    steps from 4 to 8 cases a week in week 5. Every echelon orders by Sterman's anchoring and adjustment rule, its
+    expected demand plus `alpha` times the gap between its desired stock `S'` and its effective inventory, the inventory
+    less the backlog, plus `beta` times its supply line, the beer it ordered and has not received. The expected demand
+    adapts to incoming orders at the rate `theta`. The defaults of `theta`, `alpha`, and `beta` are the median estimates
+    of Sterman 1989, and `S'` is set so the chain starts in equilibrium at 4 cases a week. The game is weekly and its
+    delays are fixed, while this system is a continuous approximation in which third-order delays stand in for the fixed
+    ones. The amplitude of the orders grows from the retailer to the factory, the bullwhip effect.
 
-def _get_customer_rates() -> list[RateInteraction]:
-    """Return the rates of the customers, the demand that reaches the retailer and its expectation."""
-    return [
-        RateInteraction('retailer_backlog', target='retailer', state='backlog', rate=lambda s: _demand(s.target, s.t)),
-        RateInteraction(
-            'retailer_expected',
-            target='retailer',
-            state='expected',
-            rate=lambda s: s.target.theta * _demand(s.target, s.t),
-        ),
-    ]
-
-
-def _get_brewery_rate() -> RateInteraction:
-    """Return the rate of the supply line of the factory, its orders less the brews completed."""
-    return RateInteraction(
-        'factory_supply_line',
-        target='factory',
-        state='supply_line',
-        rate=lambda s: BreweryInteraction._orders(s.target) - BreweryInteraction._completions(s.target),
-    )
-
-
-@register_system(
-    field='economics/markets',
-    tags=('supply chain', 'bullwhip effect', 'delay', 'stocks and flows', 'system dynamics', 'ode'),
-    references=('Sterman 1989',),
-    defaults={'until': 36.0, 'dt': 0.5},
-    observables=lambda system: [
-        *(ObservableSpec('orders', BreweryInteraction._orders, element=label) for label in ECHELONS),
-        *(ObservableSpec('shipments', EchelonElement._shipments, element=label) for label in ECHELONS),
-        ObservableSpec('customers.orders', _customer_orders),
-    ],
-)
-def beer_game(
-    inventory: float = 12.0,
-    *,
-    demand: float = 4.0,
-    demand_step: float = 4.0,
-    step_time: float = 5.0,
-    theta: float = 0.36,
-    alpha: float = 0.26,
-    beta: float = 0.34,
-    dispatch_time: float = 1.0,
-    mail_delay: float = 2.0,
-    shipping_delay: float = 2.0,
-    production_delay: float = 3.0,
-) -> System:
-    """Return Sterman's beer distribution game, a supply chain whose orders swing wider at every echelon upstream.
-
-    A retailer, a wholesaler, a distributor, and a factory each hold an inventory of beer and a backlog of orders
-    waiting to ship. Each ships its backlog over the dispatch time, limited by its inventory, and the beer reaches the
-    next echelon downstream after the shipping delay. Orders reach the next echelon upstream after the mail delay, and
-    the factory brews its orders over the production delay. Customer demand steps from 4 to 8 cases a week in week 5.
-    Every echelon orders by Sterman's anchoring and adjustment rule, its expected demand plus `alpha` times the gap
-    between its desired stock `S'` and its effective inventory, the inventory less the backlog, plus `beta` times its
-    supply line, the beer it ordered and has not received. The expected demand adapts to incoming orders at the rate
-    `theta`. The defaults of `theta`, `alpha`, and `beta` are the median estimates of Sterman 1989, and `S'` is set so
-    the chain starts in equilibrium at 4 cases a week. The game is weekly and its delays are fixed, while this system is
-    a continuous approximation in which third-order delays stand in for the fixed ones. The amplitude of the orders
-    grows from the retailer to the factory, the bullwhip effect.
+    The system has the stocks `<echelon>.inventory`, `<echelon>.in_transit`, `<echelon>.backlog`, `<echelon>.expected`,
+    and `<echelon>.supply_line` of the echelons `retailer`, `wholesaler`, `distributor`, and `factory`, and the flows
+    `<upstream>_to_<downstream>.shipments` and `<upstream>_to_<downstream>.arrivals` of the links, `customers.sales`,
+    and `brewery.starts` and `brewery.completions`. The rates `<echelon>_backlog` and `<echelon>_expected` add the
+    orders that reach every echelon and adapt its expectation, and the rates `<echelon>_supply_line` keep its supply
+    line. The observables of the system are the orders `<echelon>.orders` and the shipments `<echelon>.shipments` of
+    every echelon, and the orders of the customers `customers.orders`.
 
     Args:
         inventory:
@@ -627,56 +593,156 @@ def beer_game(
         production_delay:
             The average time the factory takes to brew its orders.
 
-    Returns:
-        system:
-            The system, with the stocks `<echelon>.inventory`, `<echelon>.in_transit`, `<echelon>.backlog`,
-            `<echelon>.expected`, and `<echelon>.supply_line` of the echelons `retailer`, `wholesaler`, `distributor`,
-            and `factory`, and the flows `<upstream>_to_<downstream>.shipments` and
-            `<upstream>_to_<downstream>.arrivals` of the links, `customers.sales`, and `brewery.starts` and
-            `brewery.completions`. The rates `<echelon>_backlog` and `<echelon>_expected` add the orders that reach
-            every echelon and adapt its expectation, and the rates `<echelon>_supply_line` keep its supply line. The
-            observables of the system are the orders `<echelon>.orders` and the shipments
-            `<echelon>.shipments` of every echelon, and the orders of the customers `customers.orders`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.markets import beer_game
-        >>> [element.label for element in beer_game().elements]
+        >>> from skcomplex.systems.economics.markets import BeerGameSystem
+        >>> [element.label for element in BeerGameSystem().prepare().system_.elements]
         ['retailer', 'wholesaler', 'distributor', 'factory']
     """
-    throughput = demand * dispatch_time
-    echelons: list[EchelonElement] = []
-    for label in ECHELONS:
-        pipeline = production_delay if label == 'factory' else shipping_delay
-        lead_time = pipeline if label == 'factory' else mail_delay + shipping_delay
-        supply_line = demand * lead_time
-        values = {
-            'inventory': inventory,
-            'in_transit': demand * pipeline,
-            'backlog': throughput,
-            'expected': demand,
-            'supply_line': supply_line,
-            'desired': inventory - throughput + beta * supply_line,
-            'theta': theta,
-            'alpha': alpha,
-            'beta': beta,
-            'dispatch_time': dispatch_time,
-            'mail_delay': mail_delay,
-            'shipping_delay': shipping_delay,
-        }
-        if label == 'retailer':
-            values.update(demand=demand, demand_step=demand_step, step_time=step_time)
-        elif label == 'factory':
-            values.update(production_delay=production_delay)
-        kind = {'retailer': RetailerElement, 'factory': FactoryElement}.get(label, EchelonElement)
-        echelons.append(kind(label).set_params(**values))
-    links = [
-        interaction
-        for downstream, upstream in pairwise(ECHELONS)
-        for interaction in (
-            *_get_link_rates(downstream, upstream),
-            SupplyLinkInteraction(f'{upstream}_to_{downstream}', downstream=downstream, upstream=upstream),
+
+    field = 'economics/markets'
+    topics = ('supply chain', 'bullwhip effect', 'delay', 'stocks and flows', 'system dynamics', 'ode')
+    references = ('Sterman 1989',)
+    until = 36.0
+    dt = 0.5
+    observables = (
+        *(ObservableSpec('orders', BreweryInteraction._orders, element=label) for label in ECHELONS),
+        *(ObservableSpec('shipments', EchelonElement._shipments, element=label) for label in ECHELONS),
+        ObservableSpec('customers.orders', _customer_orders),
+    )
+
+    def __init__(
+        self,
+        inventory: float = 12.0,
+        *,
+        demand: float = 4.0,
+        demand_step: float = 4.0,
+        step_time: float = 5.0,
+        theta: float = 0.36,
+        alpha: float = 0.26,
+        beta: float = 0.34,
+        dispatch_time: float = 1.0,
+        mail_delay: float = 2.0,
+        shipping_delay: float = 2.0,
+        production_delay: float = 3.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.inventory = inventory
+        self.demand = demand
+        self.demand_step = demand_step
+        self.step_time = step_time
+        self.theta = theta
+        self.alpha = alpha
+        self.beta = beta
+        self.dispatch_time = dispatch_time
+        self.mail_delay = mail_delay
+        self.shipping_delay = shipping_delay
+        self.production_delay = production_delay
+
+    @staticmethod
+    def _get_link_rates(downstream: str, upstream: str) -> list[RateInteraction]:
+        """Return the rates of a link.
+
+        They are the supply line of the downstream echelon and the incoming orders upstream.
+        """
+        return [
+            RateInteraction(
+                f'{downstream}_supply_line',
+                target=downstream,
+                state='supply_line',
+                sources=[upstream],
+                rate=lambda s: BreweryInteraction._orders(s.target)
+                - SupplyLinkInteraction._arrivals(s.sources[0], s.target),
+            ),
+            RateInteraction(
+                f'{upstream}_backlog',
+                target=upstream,
+                state='backlog',
+                sources=[downstream],
+                rate=lambda s: _received(s.sources[0]),
+            ),
+            RateInteraction(
+                f'{upstream}_expected',
+                target=upstream,
+                state='expected',
+                sources=[downstream],
+                rate=lambda s: s.target.theta * _received(s.sources[0]),
+            ),
+        ]
+
+    @staticmethod
+    def _get_customer_rates() -> list[RateInteraction]:
+        """Return the rates of the customers.
+
+        They are the demand that reaches the retailer and its expectation.
+        """
+        return [
+            RateInteraction(
+                'retailer_backlog',
+                target='retailer',
+                state='backlog',
+                rate=lambda s: _demand(s.target, s.t),
+            ),
+            RateInteraction(
+                'retailer_expected',
+                target='retailer',
+                state='expected',
+                rate=lambda s: s.target.theta * _demand(s.target, s.t),
+            ),
+        ]
+
+    @staticmethod
+    def _get_brewery_rate() -> RateInteraction:
+        """Return the rate of the supply line of the factory.
+
+        It is its orders less the brews completed.
+        """
+        return RateInteraction(
+            'factory_supply_line',
+            target='factory',
+            state='supply_line',
+            rate=lambda s: BreweryInteraction._orders(s.target) - BreweryInteraction._completions(s.target),
         )
-    ]
-    customers = [*_get_customer_rates(), RetailDemandInteraction('customers', retailer='retailer')]
-    brewery = [_get_brewery_rate(), BreweryInteraction('brewery', factory='factory')]
-    return System(elements=echelons, interactions=[*links, *customers, *brewery])
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        throughput = self.demand * self.dispatch_time
+        echelons: list[EchelonElement] = []
+        for label in ECHELONS:
+            pipeline = self.production_delay if label == 'factory' else self.shipping_delay
+            lead_time = pipeline if label == 'factory' else self.mail_delay + self.shipping_delay
+            supply_line = self.demand * lead_time
+            values = {
+                'inventory': self.inventory,
+                'in_transit': self.demand * pipeline,
+                'backlog': throughput,
+                'expected': self.demand,
+                'supply_line': supply_line,
+                'desired': self.inventory - throughput + self.beta * supply_line,
+                'theta': self.theta,
+                'alpha': self.alpha,
+                'beta': self.beta,
+                'dispatch_time': self.dispatch_time,
+                'mail_delay': self.mail_delay,
+                'shipping_delay': self.shipping_delay,
+            }
+            if label == 'retailer':
+                values.update(demand=self.demand, demand_step=self.demand_step, step_time=self.step_time)
+            elif label == 'factory':
+                values.update(production_delay=self.production_delay)
+            kind = {'retailer': RetailerElement, 'factory': FactoryElement}.get(label, EchelonElement)
+            echelons.append(kind(label).set_params(**values))
+        links = [
+            interaction
+            for downstream, upstream in pairwise(ECHELONS)
+            for interaction in (
+                *self._get_link_rates(downstream, upstream),
+                SupplyLinkInteraction(f'{upstream}_to_{downstream}', downstream=downstream, upstream=upstream),
+            )
+        ]
+        customers = [*self._get_customer_rates(), RetailDemandInteraction('customers', retailer='retailer')]
+        brewery = [self._get_brewery_rate(), BreweryInteraction('brewery', factory='factory')]
+        return System(self.label, elements=echelons, interactions=[*links, *customers, *brewery])

@@ -11,7 +11,9 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class ArgumentsSpec(BaseSpec):
-    """Parameters and states that a lattice law reads besides its neighbourhoods, by name.
+    """Parameters and states that a lattice law reads besides its neighbourhoods.
+
+    They are given by name.
 
     Args:
         names:

@@ -1,4 +1,7 @@
-"""Two-level birth-death systems: Moran competition within groups and pairwise conflicts between them."""
+"""Two-level birth-death systems: competition within and between groups.
+
+The competition is Moran within groups and pairwise conflicts between them.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,15 +16,17 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 
 class PunisherGroupView(AgentView):
-    """View of a group of the two-level birth-death process, with its states as attributes."""
+    """View of a group of the two-level birth-death process.
+
+    Its states are attributes.
+    """
 
     punishers: float
 
@@ -30,7 +35,9 @@ PAIR = 2
 
 
 class PunisherGroupElement(Element):
-    """Group of defectors and altruistic punishers of a fixed size, held by its number of punishers.
+    """Group of defectors and altruistic punishers of a fixed size.
+
+    It is held by its number of punishers.
 
     Args:
         label:
@@ -65,13 +72,13 @@ class PunisherGroupElement(Element):
 
 
 class TwoLevelBirthDeathInteraction(Interaction):
-    """Two-level birth-death process of Luo and coauthors with pairwise conflicts between groups.
+    """Two-level birth-death process of Luo and coauthors.
 
-    Within a group of `n` members with `i` punishers, a punisher reproduces at the rate `1 + w pi_P(i / n)` and a
-    defector at `1 + w pi_D(i / n)`, and the offspring replaces a random member of the group, the parent included.
-    Every group fights a randomly drawn other group at the rate `Lambda`, wins with the probability
-    `rho = 1/2 + (z - u) / 2` of the fractions of punishers, and the winner's copy replaces the loser. The events of
-    every step of one unit of time are drawn exactly, by the Gillespie algorithm.
+    Groups have pairwise conflicts between them. Within a group of `n` members with `i` punishers, a punisher reproduces
+    at the rate `1 + w pi_P(i / n)` and a defector at `1 + w pi_D(i / n)`, and the offspring replaces a random member of
+    the group, the parent included. Every group fights a randomly drawn other group at the rate `Lambda`, wins with the
+    probability `rho = 1/2 + (z - u) / 2` of the fractions of punishers, and the winner's copy replaces the loser. The
+    events of every step of one unit of time are drawn exactly, by the Gillespie algorithm.
 
     Args:
         label:
@@ -109,6 +116,10 @@ class TwoLevelBirthDeathInteraction(Interaction):
         >>> TwoLevelBirthDeathInteraction('competition', target='groups').members
         20
     """
+
+    draws = True
+
+    law_classes = (RuleLaw,)
 
     def __init__(
         self,
@@ -149,7 +160,10 @@ class TwoLevelBirthDeathInteraction(Interaction):
         return [RuleLaw(self.compete)]
 
     def _get_birth_rates(self, punishers: Array) -> tuple[Array, Array]:
-        """Return the rates at which the punishers and the defectors of every group reproduce."""
+        """Return the rates at which the punishers and the defectors reproduce.
+
+        They are given for every group.
+        """
         members = float(self.members)
         z = punishers / members
         payoff_punisher = (self.benefit + self.interaction_cost) * z - (
@@ -198,35 +212,19 @@ class TwoLevelBirthDeathInteraction(Interaction):
             group_view.punishers = value
 
 
-@register_system(
-    field='social/cooperation',
-    tags=('agents', 'multilevel selection', 'punishment', 'birth-death', 'gillespie'),
-    references=('Cooney 2024', 'Luo 2014'),
-    defaults={'until': 100},
-)
-def two_level_birth_death(
-    groups: int = 50,
-    *,
-    members: int = 20,
-    selection: float = 0.1,
-    conflict_rate: float = 0.2,
-    benefit: float = 2.0,
-    cost: float = 1.0,
-    punishment: float = 0.5,
-    interaction_cost: float = 0.5,
-    fixed_cost: float = 0.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the finite two-level birth-death process of defectors and altruistic punishers in competing groups.
+class TwoLevelBirthDeathSystem(BaseSystem):
+    """The finite two-level birth-death process of defectors and altruistic punishers.
 
-    The population has `m` groups of `n` members. Within groups, punishers and defectors reproduce at the rates
-    `1 + w pi_P(z)` and `1 + w pi_D(z)` of the fraction `z` of punishers, with `pi_P = (b + k) z - (c + q + k)` and
-    `pi_D = (b - p) z`, and the offspring replaces a random member of the group. Every group fights a random other
-    group at the rate `Lambda` and wins with the probability `1/2 + (z - u) / 2`, and the winner's copy replaces the
-    loser (Cooney 2024, arXiv 2405.18419 section 3.1 and appendix A.1). With many large groups, the density of the
-    fractions of punishers follows `two_level_replicator` with `lambda = Lambda / w`, so between-group conflict
-    sustains the punishers above `lambda* = c + q - p` and the defectors take over without it. The groups start with
-    uniformly drawn numbers of punishers.
+    The punishers and defectors live in competing groups. The population has `m` groups of `n` members. Within groups,
+    punishers and defectors reproduce at the rates `1 + w pi_P(z)` and `1 + w pi_D(z)` of the fraction `z` of punishers,
+    with `pi_P = (b + k) z - (c + q + k)` and `pi_D = (b - p) z`, and the offspring replaces a random member of the
+    group. Every group fights a random other group at the rate `Lambda` and wins with the probability
+    `1/2 + (z - u) / 2`, and the winner's copy replaces the loser (Cooney 2024, arXiv 2405.18419 section 3.1 and
+    appendix A.1). With many large groups, the density of the fractions of punishers follows `TwoLevelReplicatorSystem`
+    with `lambda = Lambda / w`, so between-group conflict sustains the punishers above `lambda* = c + q - p` and the
+    defectors take over without it. The groups start with uniformly drawn numbers of punishers.
+
+    The system has the group `groups`.
 
     Args:
         groups:
@@ -259,32 +257,66 @@ def two_level_birth_death(
         random_state:
             The seed or generator of the initial groups.
 
-    Returns:
-        system:
-            The system, with the group `groups`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.cooperation import two_level_birth_death
-        >>> two_level_birth_death(10).elements[0].prepare().size_
+        >>> from skcomplex.systems.social.cooperation import TwoLevelBirthDeathSystem
+        >>> TwoLevelBirthDeathSystem(10).prepare().system_.elements[0].prepare().size_
         10
     """
-    rng = np.random.default_rng(random_state)
-    population = GroupElement(
-        'groups',
-        element=PunisherGroupElement,
-        size=groups,
-        values={'punishers': rng.integers(members + 1, size=groups).astype(float)},
-    )
-    competition = TwoLevelBirthDeathInteraction(
-        'competition',
-        target='groups',
-        members=members,
-        selection=selection,
-        conflict_rate=conflict_rate,
-        benefit=benefit,
-        cost=cost,
-        punishment=punishment,
-        interaction_cost=interaction_cost,
-        fixed_cost=fixed_cost,
-    )
-    return System(elements=[population], interactions=[competition])
+
+    field = 'social/cooperation'
+    topics = ('agents', 'multilevel selection', 'punishment', 'birth-death', 'gillespie')
+    references = ('Cooney 2024', 'Luo 2014')
+    until = 100
+
+    def __init__(
+        self,
+        groups: int = 50,
+        *,
+        members: int = 20,
+        selection: float = 0.1,
+        conflict_rate: float = 0.2,
+        benefit: float = 2.0,
+        cost: float = 1.0,
+        punishment: float = 0.5,
+        interaction_cost: float = 0.5,
+        fixed_cost: float = 0.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.groups = groups
+        self.members = members
+        self.selection = selection
+        self.conflict_rate = conflict_rate
+        self.benefit = benefit
+        self.cost = cost
+        self.punishment = punishment
+        self.interaction_cost = interaction_cost
+        self.fixed_cost = fixed_cost
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        population = GroupElement(
+            'groups',
+            element=PunisherGroupElement,
+            size=self.groups,
+            values={'punishers': rng.integers(self.members + 1, size=self.groups).astype(float)},
+        )
+        competition = TwoLevelBirthDeathInteraction(
+            'competition',
+            target='groups',
+            members=self.members,
+            selection=self.selection,
+            conflict_rate=self.conflict_rate,
+            benefit=self.benefit,
+            cost=self.cost,
+            punishment=self.punishment,
+            interaction_cost=self.interaction_cost,
+            fixed_cost=self.fixed_cost,
+        )
+        return System(self.label, elements=[population], interactions=[competition])

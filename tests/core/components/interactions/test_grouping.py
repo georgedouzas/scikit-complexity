@@ -13,7 +13,7 @@ from skcomplex.core.components.laws.utils import count, mean, total, where
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import BaseBackend, NumbaBackend, NumpyBackend
-from skcomplex.core.engine.runtime import Simulation, Trajectory
+from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import (
     ParameterSpec,
@@ -63,7 +63,7 @@ def _count(members, system):
 
 def _run(system: System, until: int) -> Trajectory:
     """Return the trajectory of a system run to a time."""
-    return Simulation(system, random_state=0).prepare().run(until=until).trajectory_
+    return simulate(system, until=until, random_state=0)
 
 
 def _voters(values: dict[str, object], size: int, location: object = None) -> GroupElement:
@@ -232,8 +232,8 @@ def _stream(seed: int = 0) -> np.random.Generator:
 
 def _symbolic_run(system: System, until: int, backend: BaseBackend, seed: int = 0) -> np.ndarray:
     """Return the opinions of the voters at every frame of a run of a symbolic grouping."""
-    simulation = Simulation(system, random_state=seed, backend=backend).prepare().run(until=until)
-    return simulation.trajectory_.values('voters.s')
+    trajectory = simulate(system, until=until, random_state=seed, backend=backend)
+    return trajectory.values('voters.s')
 
 
 @BACKENDS
@@ -345,7 +345,7 @@ def test_get_laws_symbolic_phases_imitate_the_payoffs_of_the_same_step(backend):
     imitation = ImitationInteraction('imitation', target='players', rule='best', form='probability', phase='imitate')
     time = DiscreteTime(schedule=PhasesScheduleSpec((PhaseSpec('play'), PhaseSpec('imitate'))))
     system = System(elements=[players], interactions=[payoffs, imitation], time=time)
-    simulation = Simulation(system, random_state=0, backend=backend).prepare().run(until=3)
+    trajectory = simulate(system, until=3, random_state=0, backend=backend)
     around = [
         np.array(
             [
@@ -365,8 +365,8 @@ def test_get_laws_symbolic_phases_imitate_the_payoffs_of_the_same_step(backend):
         state = np.array(
             [state[best[site]] if payoff[best[site]] > payoff[site] else state[site] for site in range(36)],
         )
-        assert np.allclose(simulation.trajectory_.values('players.payoff')[step], payoff, atol=1e-12)
-        assert simulation.trajectory_.values('players.state')[step].tolist() == state.tolist()
+        assert np.allclose(trajectory.values('players.payoff')[step], payoff, atol=1e-12)
+        assert trajectory.values('players.state')[step].tolist() == state.tolist()
 
 
 @pytest.mark.parametrize('groups', ['partition', 'neighborhood'])
@@ -394,7 +394,7 @@ def _groups_after_one_step(groups: object, seed: int) -> list[list[float]]:
     voters = _voters({'s': [float(index) for index in range(7)]}, 7)
     grouping = GroupingInteraction('groups', target='voters', groups=groups, act=record)
     system = System(elements=[voters], interactions=[grouping], time=DiscreteTime())
-    Simulation(system, random_state=seed).prepare().run(until=1)
+    simulate(system, until=1, random_state=seed)
     return seen
 
 

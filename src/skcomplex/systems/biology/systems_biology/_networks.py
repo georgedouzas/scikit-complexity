@@ -1,4 +1,4 @@
-"""Systems biology systems: cellular oscillators, glycolytic oscillations, and power-law rate equations."""
+"""Cellular oscillators, glycolytic oscillations, and power-law rate equations."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,10 +15,10 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import DeclaredElement, Element
 from ....core.components.interactions import BaseInteraction, Interaction, ReactionInteraction
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.system import System
+from ....core.components.spaces import BaseSpace
+from ....core.components.system import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from ..common.kinetics import MichaelisMentenInteraction, RepressionInteraction, SpeciesElement
 
 CONCENTRATIONS = MappingProxyType(
@@ -93,7 +93,9 @@ MIN_GOODWIN_STAGES = 2
 
 
 class GlycolysisElement(DeclaredElement):
-    """Yeast glycolysis in a flow reactor, the fifteen metabolites of the model of Nielsen and coworkers.
+    """Yeast glycolysis in a flow reactor.
+
+    It has the fifteen metabolites of the model of Nielsen and coworkers.
 
     The model of Nielsen, Sørensen, Hynne, and Busse (1998), BioModels BIOMD0000000042, follows glucose `GLC` through
     hexokinase, phosphofructokinase with its inhibition by the ratio of `ATP` to `AMP`, aldolase, glyceraldehyde
@@ -118,8 +120,13 @@ class GlycolysisElement(DeclaredElement):
         10.0
     """
 
+    law_classes = (RateLaw,)
+
     def _declare_variables(self) -> Mapping[str, DeclaredVariableSpec]:
-        """Return the concentrations and the rate constants of the source, updated by `variables`."""
+        """Return the concentrations and the rate constants of the source.
+
+        They are updated by `variables`.
+        """
         nonnegative = RealSet.closed_open(0, oo)
         declared = {
             name: DeclaredVariableSpec(value, StateSpec(domain=nonnegative)) for name, value in CONCENTRATIONS.items()
@@ -130,7 +137,9 @@ class GlycolysisElement(DeclaredElement):
         return {**declared, **(self.variables or {})}
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rates of the metabolites, the reactions of glycolysis and the exchange with the feed.
+        """Return the rates of the metabolites.
+
+        They are the reactions of glycolysis and the exchange with the feed.
 
         Args:
             s:
@@ -177,7 +186,9 @@ class GlycolysisElement(DeclaredElement):
 
 
 class PhosphorylationLoopElement(Element):
-    """Three proteins, each phosphorylated and dephosphorylated by Michaelis-Menten kinetics, that regulate each other.
+    """Three proteins that regulate each other.
+
+    Each is phosphorylated and dephosphorylated by Michaelis-Menten kinetics.
 
     The states are the unphosphorylated amounts, and each total is conserved. With `u_T = A_T - A`, and so on:
 
@@ -186,7 +197,7 @@ class PhosphorylationLoopElement(Element):
     - `dC/dt = kp3 B (C_T - C) / (K3 + C_T - C) - kd3 C / (K3 + C)`.
 
     The element holds the states and parameters and has no laws of its own: the interactions of
-    `phosphorylation_oscillator` read its parameters.
+    `PhosphorylationOscillatorSystem` read its parameters.
 
     Args:
         label:
@@ -286,7 +297,9 @@ class PhosphorylationLoopElement(Element):
 
 
 class GeneralizedMassActionInteraction(Interaction):
-    """Rates of a biochemical system in the generalized mass action form of biochemical systems theory.
+    """Rates of a biochemical system in the generalized mass action form.
+
+    The form is that of biochemical systems theory.
 
     Flux `j` is the power law `v_j = gamma_j prod_k x_k^f_jk`, and species `i` changes as `dx_i/dt = sum_j s_ij v_j`.
     The kinetic orders `f_jk` are real numbers, negative for inhibition.
@@ -320,6 +333,8 @@ class GeneralizedMassActionInteraction(Interaction):
         (1, 2)
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -336,11 +351,17 @@ class GeneralizedMassActionInteraction(Interaction):
         self.orders = orders
 
     def _get_power_product(self, values: Sequence[Expression], orders: Sequence[float]) -> Expression:
-        """Return the product `prod_k x_k^f_k` of the values raised to their kinetic orders, leaving out zero orders."""
+        """Return the product `prod_k x_k^f_k` of the values raised to their kinetic orders.
+
+        Zero orders are left out.
+        """
         return prod((value**order for value, order in zip(values, orders, strict=True) if order), start=SR(1))
 
     def _check_shape(self, name: str, rows: int, columns: int) -> None:
-        """Raise an error unless a matrix argument has the given numbers of rows and columns."""
+        """Raise an error unless a matrix argument has the given shape.
+
+        The shape is the given numbers of rows and columns.
+        """
         matrix = getattr(self, name)
         if len(matrix) == rows and all(len(row) == columns for row in matrix):
             return
@@ -351,7 +372,10 @@ class GeneralizedMassActionInteraction(Interaction):
         raise ValidationError(error_msg)
 
     def _check_matrices(self) -> None:
-        """Raise an error for a stoichiometry or kinetic orders that do not match the species and the fluxes."""
+        """Raise an error for a stoichiometry or kinetic orders of the wrong shape.
+
+        They must match the species and the fluxes.
+        """
         self._check_shape('stoichiometry', len(self.species), len(self.gamma))
         self._check_shape('orders', len(self.gamma), len(self.species))
 
@@ -360,17 +384,24 @@ class GeneralizedMassActionInteraction(Interaction):
         return [rate * self._get_power_product(values, row) for rate, row in zip(self.gamma, self.orders, strict=True)]
 
     def _get_stoichiometry(self) -> Sequence[Sequence[float]]:
-        """Return the stoichiometric coefficient of every species in every flux, one row per species."""
+        """Return the stoichiometric coefficient of every species in every flux.
+
+        There is one row per species.
+        """
         return self.stoichiometry
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for matrices that do not match the species and the fluxes.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The matrices do not have one row per flux or species and one entry per species or flux.
         """
-        super()._check()
+        super()._prepare(context)
         self._check_matrices()
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
@@ -393,7 +424,9 @@ class GeneralizedMassActionInteraction(Interaction):
 
 
 class SSystemInteraction(GeneralizedMassActionInteraction):
-    """Rates of a biochemical system in the S-system form of biochemical systems theory.
+    """Rates of a biochemical system in the S-system form.
+
+    The form is that of biochemical systems theory.
 
     Every species has one aggregated production and one aggregated degradation, both power laws:
     `dx_i/dt = alpha_i prod_j x_j^g_ij - beta_i prod_j x_j^h_ij`. It is the generalized mass action form with two
@@ -458,7 +491,10 @@ class SSystemInteraction(GeneralizedMassActionInteraction):
         ]
 
     def _get_stoichiometry(self) -> Sequence[Sequence[float]]:
-        """Return the coefficient 1 of every species in its production and -1 in its degradation."""
+        """Return the coefficients of every species in its production and degradation.
+
+        The coefficient is 1 in its production and -1 in its degradation.
+        """
         size = len(self.species)
         return [
             [1.0 if flux == 2 * row else -1.0 if flux == 2 * row + 1 else 0.0 for flux in range(2 * size)]
@@ -466,33 +502,18 @@ class SSystemInteraction(GeneralizedMassActionInteraction):
         ]
 
 
-@register_system(
-    field='biology/systems_biology',
-    tags=('oscillator', 'phosphorylation', 'Michaelis-Menten', 'negative feedback', 'ode'),
-    references=(RAMAN, 'Mogilner, Wollman, and Marshall 2006'),
-    defaults={'until': 40.0, 'dt': 0.05},
-)
-def phosphorylation_oscillator(
-    A: float = 1.0,
-    B: float = 0.0,
-    C: float = 0.0,
-    *,
-    kp1: float = 1.0,
-    kd1: float = 2.0,
-    kp2: float = 2.0,
-    kd2: float = 1.0,
-    kp3: float = 2.0,
-    kd3: float = 1.0,
-    K: float = 0.01,
-) -> System:
-    """Return three proteins whose phosphorylation cycles regulate each other in a loop that oscillates.
+class PhosphorylationOscillatorSystem(BaseSystem):
+    """Three proteins whose phosphorylation cycles regulate each other in a loop.
 
-    C converts A, A converts B, and B converts C, each reaction with Michaelis-Menten kinetics and each total
-    conserved, so the loop is a negative feedback of three steps. The book prints the equations and no parameter
-    values. The defaults are a choice: totals of 1, Michaelis constants `K` far below the totals, which make every
-    cycle an ultrasensitive switch, and rates that put every switch at half the total of its enzyme. The proteins then
-    switch on and off in turn on a limit cycle of period about 4.2. With large `K` the switches become graded and the
-    loop settles on a fixed point. The amounts are fractions of the totals.
+    The loop oscillates.
+
+    C converts A, A converts B, and B converts C, each reaction with Michaelis-Menten kinetics and each total conserved,
+    so the loop is a negative feedback of three steps. The book prints the equations and no parameter values. The
+    defaults are a choice: totals of 1, Michaelis constants `K` far below the totals, which make every cycle an
+    ultrasensitive switch, and rates that put every switch at half the total of its enzyme. The proteins then switch on
+    and off in turn on a limit cycle of period about 4.2. With large `K` the switches become graded and the loop settles
+    on a fixed point. The amounts are fractions of the totals. The system has the amounts `loop.A`, `loop.B`, and
+    `loop.C`.
 
     Args:
         A:
@@ -525,112 +546,133 @@ def phosphorylation_oscillator(
         K:
             The Michaelis constant of every reaction.
 
-    Returns:
-        system:
-            The system, with the amounts `loop.A`, `loop.B`, and `loop.C`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.systems_biology import phosphorylation_oscillator
-        >>> phosphorylation_oscillator(K=0.1).elements[0].K2
+        >>> from skcomplex.systems.biology.systems_biology import PhosphorylationOscillatorSystem
+        >>> PhosphorylationOscillatorSystem(K=0.1).prepare().system_.elements[0].K2
         0.1
     """
-    loop = PhosphorylationLoopElement(
-        'loop',
-        A=A,
-        B=B,
-        C=C,
-        kp1=kp1,
-        kd1=kd1,
-        kp2=kp2,
-        kd2=kd2,
-        kp3=kp3,
-        kd3=kd3,
-        K1=K,
-        K2=K,
-        K3=K,
-    )
-    reactions = [
-        MichaelisMentenInteraction(
-            'a_restoration',
-            target='loop',
-            products={'A': 1},
-            substrate=lambda s: s.target.A_T - s.target.A,
-            vmax=lambda s: s.target.kp1,
-            km=lambda s: s.target.K1,
-        ),
-        MichaelisMentenInteraction(
-            'a_conversion',
-            target='loop',
-            reactants={'A': 1},
-            substrate='A',
-            vmax=lambda s: s.target.kd1,
-            km=lambda s: s.target.K1,
-            modifiers={'C': 1},
-        ),
-        MichaelisMentenInteraction(
-            'b_conversion',
-            target='loop',
-            products={'B': 1},
-            substrate=lambda s: s.target.B_T - s.target.B,
-            vmax=lambda s: s.target.kp2,
-            km=lambda s: s.target.K2,
-            modifiers={'A': 1},
-        ),
-        MichaelisMentenInteraction(
-            'b_removal',
-            target='loop',
-            reactants={'B': 1},
-            substrate='B',
-            vmax=lambda s: s.target.kd2,
-            km=lambda s: s.target.K2,
-        ),
-        MichaelisMentenInteraction(
-            'c_conversion',
-            target='loop',
-            products={'C': 1},
-            substrate=lambda s: s.target.C_T - s.target.C,
-            vmax=lambda s: s.target.kp3,
-            km=lambda s: s.target.K3,
-            modifiers={'B': 1},
-        ),
-        MichaelisMentenInteraction(
-            'c_removal',
-            target='loop',
-            reactants={'C': 1},
-            substrate='C',
-            vmax=lambda s: s.target.kd3,
-            km=lambda s: s.target.K3,
-        ),
-    ]
-    return System(elements=[loop], interactions=reactions)
+
+    field = 'biology/systems_biology'
+    topics = ('oscillator', 'phosphorylation', 'Michaelis-Menten', 'negative feedback', 'ode')
+    references = (RAMAN, 'Mogilner, Wollman, and Marshall 2006')
+    until = 40.0
+    dt = 0.05
+
+    def __init__(
+        self,
+        A: float = 1.0,
+        B: float = 0.0,
+        C: float = 0.0,
+        *,
+        kp1: float = 1.0,
+        kd1: float = 2.0,
+        kp2: float = 2.0,
+        kd2: float = 1.0,
+        kp3: float = 2.0,
+        kd3: float = 1.0,
+        K: float = 0.01,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.A = A
+        self.B = B
+        self.C = C
+        self.kp1 = kp1
+        self.kd1 = kd1
+        self.kp2 = kp2
+        self.kd2 = kd2
+        self.kp3 = kp3
+        self.kd3 = kd3
+        self.K = K
+
+    def _build_system(self) -> System:
+        """Return the parts of three proteins."""
+        loop = PhosphorylationLoopElement(
+            'loop',
+            A=self.A,
+            B=self.B,
+            C=self.C,
+            kp1=self.kp1,
+            kd1=self.kd1,
+            kp2=self.kp2,
+            kd2=self.kd2,
+            kp3=self.kp3,
+            kd3=self.kd3,
+            K1=self.K,
+            K2=self.K,
+            K3=self.K,
+        )
+        reactions = [
+            MichaelisMentenInteraction(
+                'a_restoration',
+                target='loop',
+                products={'A': 1},
+                substrate=lambda s: s.target.A_T - s.target.A,
+                vmax=lambda s: s.target.kp1,
+                km=lambda s: s.target.K1,
+            ),
+            MichaelisMentenInteraction(
+                'a_conversion',
+                target='loop',
+                reactants={'A': 1},
+                substrate='A',
+                vmax=lambda s: s.target.kd1,
+                km=lambda s: s.target.K1,
+                modifiers={'C': 1},
+            ),
+            MichaelisMentenInteraction(
+                'b_conversion',
+                target='loop',
+                products={'B': 1},
+                substrate=lambda s: s.target.B_T - s.target.B,
+                vmax=lambda s: s.target.kp2,
+                km=lambda s: s.target.K2,
+                modifiers={'A': 1},
+            ),
+            MichaelisMentenInteraction(
+                'b_removal',
+                target='loop',
+                reactants={'B': 1},
+                substrate='B',
+                vmax=lambda s: s.target.kd2,
+                km=lambda s: s.target.K2,
+            ),
+            MichaelisMentenInteraction(
+                'c_conversion',
+                target='loop',
+                products={'C': 1},
+                substrate=lambda s: s.target.C_T - s.target.C,
+                vmax=lambda s: s.target.kp3,
+                km=lambda s: s.target.K3,
+                modifiers={'B': 1},
+            ),
+            MichaelisMentenInteraction(
+                'c_removal',
+                target='loop',
+                reactants={'C': 1},
+                substrate='C',
+                vmax=lambda s: s.target.kd3,
+                km=lambda s: s.target.K3,
+            ),
+        ]
+        return System(self.label, elements=[loop], interactions=reactions)
 
 
-@register_system(
-    field='biology/systems_biology',
-    tags=('biochemical systems theory', 'power law', 'S-system', 'generalized mass action', 'ode'),
-    references=(RAMAN, 'Savageau 1976', 'Voit 2000'),
-    defaults={'until': 20.0, 'dt': 0.05},
-)
-def biochemical_systems_theory(
-    x: Sequence[float] = (0.5, 1.0, 4.0),
-    *,
-    form: str = 's-system',
-    alpha: Sequence[float] = PATHWAY_ALPHA,
-    beta: Sequence[float] = PATHWAY_BETA,
-    g: Sequence[Sequence[float]] = PATHWAY_G,
-    h: Sequence[Sequence[float]] = PATHWAY_H,
-    stoichiometry: Sequence[Sequence[float]] = PATHWAY_STOICHIOMETRY,
-    gamma: Sequence[float] = PATHWAY_GAMMA,
-    orders: Sequence[Sequence[float]] = PATHWAY_ORDERS,
-) -> System:
-    """Return a biochemical system of power-law rates, in the S-system or the generalized mass action form.
+class BiochemicalSystemsTheorySystem(BaseSystem):
+    """A biochemical system of power-law rates.
 
-    The S-system form gives every species one production and one degradation,
-    `dx_i/dt = alpha_i prod_j x_j^g_ij - beta_i prod_j x_j^h_ij`. The generalized mass action form sums power-law
-    fluxes, `dx_i/dt = sum_j s_ij gamma_j prod_k x_k^f_jk`. The book states only the two forms. The default is a
-    choice, an unbranched pathway `X1 -> X2 -> X3` whose end product inhibits the supply of `X1`, written in both forms
-    with the same rates, `dX1/dt = 2 X3^-0.5 - X1^0.5`, `dX2/dt = X1^0.5 - X2^0.5`, and `dX3/dt = X2^0.5 - X3^0.5`.
-    The steady state of an S-system solves the linear system `(g - h) log x = log(beta / alpha)`, here `x = (2, 2, 2)`.
+    It takes the S-system or the generalized mass action form.
+
+    The S-system form gives every species one production and one degradation, `dx_i/dt = alpha_i prod_j x_j^g_ij -
+    beta_i prod_j x_j^h_ij`. The generalized mass action form sums power-law fluxes, `dx_i/dt = sum_j s_ij gamma_j
+    prod_k x_k^f_jk`. The book states only the two forms. The default is a choice, an unbranched pathway `X1 -> X2 ->
+    X3` whose end product inhibits the supply of `X1`, written in both forms with the same rates, `dX1/dt = 2 X3^-0.5 -
+    X1^0.5`, `dX2/dt = X1^0.5 - X2^0.5`, and `dX3/dt = X2^0.5 - X3^0.5`. The steady state of an S-system solves the
+    linear system `(g - h) log x = log(beta / alpha)`, here `x = (2, 2, 2)`. The system has the concentrations `X1.x`,
+    `X2.x`, and so on.
 
     Args:
         x:
@@ -660,69 +702,89 @@ def biochemical_systems_theory(
         orders:
             The kinetic orders of the fluxes of the generalized mass action form, one row per flux.
 
-    Returns:
-        system:
-            The system, with the concentrations `X1.x`, `X2.x`, and so on.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValidationError:
             The form is unknown.
 
     Examples:
-        >>> from skcomplex.systems.biology.systems_biology import biochemical_systems_theory
-        >>> biochemical_systems_theory(form='gma').interactions[0].gamma
+        >>> from skcomplex.systems.biology.systems_biology import BiochemicalSystemsTheorySystem
+        >>> BiochemicalSystemsTheorySystem(form='gma').prepare().system_.interactions[0].gamma
         (2.0, 1.0, 1.0, 1.0)
     """
-    species = [SpeciesElement(f'X{index}', x=float(value)) for index, value in enumerate(x, start=1)]
-    paths = [item.label for item in species]
-    if form == 's-system':
-        rates: BaseInteraction = SSystemInteraction(
-            'rates',
-            species=paths,
-            alpha=[float(value) for value in alpha],
-            beta=[float(value) for value in beta],
-            g=tuple(tuple(row) for row in g),
-            h=tuple(tuple(row) for row in h),
-        )
-    elif form == 'gma':
-        rates = GeneralizedMassActionInteraction(
-            'rates',
-            species=paths,
-            stoichiometry=tuple(tuple(row) for row in stoichiometry),
-            gamma=tuple(gamma),
-            orders=tuple(tuple(row) for row in orders),
-        )
-    else:
-        error_msg = f'Unknown form {form!r}. Use s-system or gma.'
-        raise ValidationError(error_msg)
-    return System(elements=species, interactions=[rates])
+
+    field = 'biology/systems_biology'
+    topics = ('biochemical systems theory', 'power law', 'S-system', 'generalized mass action', 'ode')
+    references = (RAMAN, 'Savageau 1976', 'Voit 2000')
+    until = 20.0
+    dt = 0.05
+
+    def __init__(
+        self,
+        x: Sequence[float] = (0.5, 1.0, 4.0),
+        *,
+        form: str = 's-system',
+        alpha: Sequence[float] = PATHWAY_ALPHA,
+        beta: Sequence[float] = PATHWAY_BETA,
+        g: Sequence[Sequence[float]] = PATHWAY_G,
+        h: Sequence[Sequence[float]] = PATHWAY_H,
+        stoichiometry: Sequence[Sequence[float]] = PATHWAY_STOICHIOMETRY,
+        gamma: Sequence[float] = PATHWAY_GAMMA,
+        orders: Sequence[Sequence[float]] = PATHWAY_ORDERS,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.x = x
+        self.form = form
+        self.alpha = alpha
+        self.beta = beta
+        self.g = g
+        self.h = h
+        self.stoichiometry = stoichiometry
+        self.gamma = gamma
+        self.orders = orders
+
+    def _build_system(self) -> System:
+        """Return the parts of a biochemical system of power-law rates."""
+        species = [SpeciesElement(f'X{index}', x=float(value)) for index, value in enumerate(self.x, start=1)]
+        paths = [item.label for item in species]
+        if self.form == 's-system':
+            rates: BaseInteraction = SSystemInteraction(
+                'rates',
+                species=paths,
+                alpha=[float(value) for value in self.alpha],
+                beta=[float(value) for value in self.beta],
+                g=tuple(tuple(row) for row in self.g),
+                h=tuple(tuple(row) for row in self.h),
+            )
+        elif self.form == 'gma':
+            rates = GeneralizedMassActionInteraction(
+                'rates',
+                species=paths,
+                stoichiometry=tuple(tuple(row) for row in self.stoichiometry),
+                gamma=tuple(self.gamma),
+                orders=tuple(tuple(row) for row in self.orders),
+            )
+        else:
+            error_msg = f'Unknown form {self.form!r}. Use s-system or gma.'
+            raise ValidationError(error_msg)
+        return System(self.label, elements=species, interactions=[rates])
 
 
-@register_system(
-    field='biology/systems_biology',
-    tags=('oscillator', 'negative feedback', 'Hill function', 'gene regulation', 'ode'),
-    references=(RAMAN, 'Goodwin 1965', 'Griffith 1968'),
-    defaults={'until': 60.0, 'dt': 0.1},
-)
-def goodwin_oscillator(
-    variables: int = 3,
-    x: Sequence[float] | None = None,
-    *,
-    a: float = 100.0,
-    b: float = 1.0,
-    K: float = 1.0,
-    n: float = 12.0,
-    k: float = 1.0,
-) -> System:
-    """Return the Goodwin oscillator, a chain of stages whose last one represses the synthesis of the first.
+class GoodwinOscillatorSystem(BaseSystem):
+    """The Goodwin oscillator, a chain of stages.
+
+    The last stage represses the synthesis of the first.
 
     The first stage, an mRNA, is synthesized at `a / (1 + (x_N / K)^n)` and every later stage at `k` times the stage
-    before it, and every stage decays at rate `b`: `dx_1/dt = a / (1 + (x_N / K)^n) - b x_1` and
-    `dx_i/dt = k x_(i-1) - b x_i`. The book points to BioModels and prints no equations, so the system takes the
-    standard form of Goodwin with the degradation of Griffith. With equal degradation rates the fixed point loses
-    stability when the loop gain passes `sec(pi / N)^N`, 8 for three stages. When `a` is large the repressor saturates
-    and the gain is close to `n`, so three stages oscillate for Hill coefficients above about 8 and settle for lower
-    ones. The concentrations and the time are dimensionless.
+    before it, and every stage decays at rate `b`: `dx_1/dt = a / (1 + (x_N / K)^n) - b x_1` and `dx_i/dt = k x_(i-1) -
+    b x_i`. The book points to BioModels and prints no equations, so the system takes the standard form of Goodwin with
+    the degradation of Griffith. With equal degradation rates the fixed point loses stability when the loop gain passes
+    `sec(pi / N)^N`, 8 for three stages. When `a` is large the repressor saturates and the gain is close to `n`, so
+    three stages oscillate for Hill coefficients above about 8 and settle for lower ones. The concentrations and the
+    time are dimensionless. The system has the concentrations `x1.x` to `x<variables>.x`.
 
     Args:
         variables:
@@ -746,55 +808,90 @@ def goodwin_oscillator(
         k:
             The synthesis rate of every later stage per unit of the stage before it.
 
-    Returns:
-        system:
-            The system, with the concentrations `x1.x` to `x<variables>.x`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValidationError:
             There are fewer than two stages, or the initial concentrations do not match them.
 
     Examples:
-        >>> from skcomplex.systems.biology.systems_biology import goodwin_oscillator
-        >>> [stage.label for stage in goodwin_oscillator(4).elements]
+        >>> from skcomplex.systems.biology.systems_biology import GoodwinOscillatorSystem
+        >>> [stage.label for stage in GoodwinOscillatorSystem(4).prepare().system_.elements]
         ['x1', 'x2', 'x3', 'x4']
     """
-    initial = [0.1 * index for index in range(1, variables + 1)] if x is None else list(x)
-    if variables < MIN_GOODWIN_STAGES or len(initial) != variables:
-        error_msg = f'The Goodwin loop needs at least 2 stages and one initial value per stage, not {variables} stages.'
-        raise ValidationError(error_msg)
-    labels = [f'x{index}' for index in range(1, variables + 1)]
-    stages = [SpeciesElement(label, x=float(value)) for label, value in zip(labels, initial, strict=True)]
-    repression = RepressionInteraction(
-        'repression',
-        products={(labels[0], 'x'): 1},
-        modifiers={(labels[-1], 'x'): 1},
-        alpha=a,
-        K=K,
-        n=n,
-    )
-    syntheses = [
-        ReactionInteraction(f'synthesis_{target}', products={(target, 'x'): 1}, modifiers={(source, 'x'): 1}, k=k)
-        for source, target in itertools.pairwise(labels)
-    ]
-    degradations = [ReactionInteraction(f'degradation_{label}', reactants={(label, 'x'): 1}, k=b) for label in labels]
-    return System(elements=stages, interactions=[repression, *syntheses, *degradations])
+
+    field = 'biology/systems_biology'
+    topics = ('oscillator', 'negative feedback', 'Hill function', 'gene regulation', 'ode')
+    references = (RAMAN, 'Goodwin 1965', 'Griffith 1968')
+    until = 60.0
+    dt = 0.1
+
+    def __init__(
+        self,
+        variables: int = 3,
+        x: Sequence[float] | None = None,
+        *,
+        a: float = 100.0,
+        b: float = 1.0,
+        K: float = 1.0,
+        n: float = 12.0,
+        k: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.variables = variables
+        self.x = x
+        self.a = a
+        self.b = b
+        self.K = K
+        self.n = n
+        self.k = k
+
+    def _build_system(self) -> System:
+        """Return the parts of the Goodwin oscillator."""
+        initial = [0.1 * index for index in range(1, self.variables + 1)] if self.x is None else list(self.x)
+        if self.variables < MIN_GOODWIN_STAGES or len(initial) != self.variables:
+            error_msg = (
+                f'The Goodwin loop needs at least 2 stages and one initial value per stage, not {self.variables} '
+                'stages.'
+            )
+            raise ValidationError(error_msg)
+        labels = [f'x{index}' for index in range(1, self.variables + 1)]
+        stages = [SpeciesElement(label, x=float(value)) for label, value in zip(labels, initial, strict=True)]
+        repression = RepressionInteraction(
+            'repression',
+            products={(labels[0], 'x'): 1},
+            modifiers={(labels[-1], 'x'): 1},
+            alpha=self.a,
+            K=self.K,
+            n=self.n,
+        )
+        syntheses = [
+            ReactionInteraction(
+                f'synthesis_{target}',
+                products={(target, 'x'): 1},
+                modifiers={(source, 'x'): 1},
+                k=self.k,
+            )
+            for source, target in itertools.pairwise(labels)
+        ]
+        degradations = [
+            ReactionInteraction(f'degradation_{label}', reactants={(label, 'x'): 1}, k=self.b) for label in labels
+        ]
+        return System(self.label, elements=stages, interactions=[repression, *syntheses, *degradations])
 
 
-@register_system(
-    field='biology/systems_biology',
-    tags=('glycolysis', 'metabolic oscillations', 'nadh', 'biomodels', 'ode'),
-    references=('Nielsen et al. 1998', 'Raman 2021'),
-    defaults={'until': 300.0, 'dt': 0.5},
-)
-def glycolysis_oscillations(*, flow: float = 0.011, V4: float = 10.0) -> System:
-    """Return the glycolysis of a yeast extract in a flow reactor, whose NADH oscillates with a period of minutes.
+class GlycolysisOscillationsSystem(BaseSystem):
+    """The glycolysis of a yeast extract in a flow reactor.
+
+    Its NADH oscillates with a period of minutes.
 
     The model of Nielsen et al. (1998), BioModels BIOMD0000000042, has fifteen metabolites, the inhibition of
     phosphofructokinase by `ATP` and its activation by `AMP`, and the exchange with the feed of the reactor at the rate
-    `flow`. With the published parameters the reactor settles on sustained oscillations of `NADH` and of all the
-    other metabolites. Raman (2021, exercise 5.7) varies `V4`, `K4GAP`, `K4NAD`, `k8f`, and `k8b` by half to study
-    their effect on `NAD` and `NADH`.
+    `flow`. With the published parameters the reactor settles on sustained oscillations of `NADH` and of all the other
+    metabolites. Raman (2021, exercise 5.7) varies `V4`, `K4GAP`, `K4NAD`, `k8f`, and `k8b` by half to study their
+    effect on `NAD` and `NADH`. The system has the concentrations `extract.<metabolite>`, such as `extract.NADH`, in mM.
 
     Args:
         flow:
@@ -803,17 +900,36 @@ def glycolysis_oscillations(*, flow: float = 0.011, V4: float = 10.0) -> System:
         V4:
             The largest rate of glyceraldehyde phosphate dehydrogenase, in mM per minute.
 
-    Returns:
-        system:
-            The system, with the concentrations `extract.<metabolite>`, such as `extract.NADH`, in mM.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.systems_biology import glycolysis_oscillations
-        >>> glycolysis_oscillations(flow=0.02).elements[0].get_value('flow')
+        >>> from skcomplex.systems.biology.systems_biology import GlycolysisOscillationsSystem
+        >>> GlycolysisOscillationsSystem(flow=0.02).prepare().system_.elements[0].get_value('flow')
         0.02
     """
-    variables = {
-        'flow': DeclaredVariableSpec(flow, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-        'V4': DeclaredVariableSpec(V4, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-    }
-    return System(elements=[GlycolysisElement('extract', variables=variables)])
+
+    field = 'biology/systems_biology'
+    topics = ('glycolysis', 'metabolic oscillations', 'nadh', 'biomodels', 'ode')
+    references = ('Nielsen et al. 1998', 'Raman 2021')
+    until = 300.0
+    dt = 0.5
+
+    def __init__(
+        self,
+        *,
+        flow: float = 0.011,
+        V4: float = 10.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.flow = flow
+        self.V4 = V4
+
+    def _build_system(self) -> System:
+        """Return the parts of the glycolysis of a yeast extract in a flow reactor."""
+        variables = {
+            'flow': DeclaredVariableSpec(self.flow, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'V4': DeclaredVariableSpec(self.V4, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+        }
+        return System(self.label, elements=[GlycolysisElement('extract', variables=variables)])

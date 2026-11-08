@@ -1,4 +1,7 @@
-"""Predictor-corrector scheme for SDEs that averages the drift over the step and keeps the Itô noise."""
+"""Predictor-corrector scheme for SDEs.
+
+It averages the drift over the step and keeps the Itô noise.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,10 +26,11 @@ from ._sde import SDESolver
 
 
 class HeunSolver(SDESolver):
-    """Predictor-corrector scheme for SDEs that averages the drift over the step and keeps the Itô noise.
+    """Predictor-corrector scheme for SDEs.
 
-    The predictor `X~ = X + f(X) h + g(X) dW` gives the corrector `X + (f(X) + f(X~)) h / 2 + g(X) dW`, which has strong
-    order 1 for additive noise and integrates the Itô form for any noise.
+    It averages the drift over the step and keeps the Itô noise. The predictor `X~ = X + f(X) h + g(X) dW` gives the
+    corrector `X + (f(X) + f(X~)) h / 2 + g(X) dW`, which has strong order 1 for additive noise and integrates the Itô
+    form for any noise.
 
     Args:
         dt:
@@ -34,11 +38,11 @@ class HeunSolver(SDESolver):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.engine.compile import PassCompiler
-        >>> from skcomplex.systems.economics.finance import geometric_brownian_motion
+        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.systems.economics.finance import GeometricBrownianMotionSystem
         >>> from skcomplex.core.engine.solvers import HeunSolver
         >>> from skcomplex.core.specs import StepSpec
-        >>> problem = PassCompiler().prepare(geometric_brownian_motion()).run().problem_
+        >>> problem = simulate(GeometricBrownianMotionSystem(), until=0).problem
         >>> stepper = HeunSolver(dt=0.01, random_state=0).prepare(problem)
         >>> bool(stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_[0] > 0)
         True
@@ -65,7 +69,9 @@ class HeunSolver(SDESolver):
         noise: Array,
         end: float,
     ) -> Array:
-        """Return the state after one Heun step with given Wiener increments, with the corrector drift at the end.
+        """Return the state after one Heun step with given Wiener increments.
+
+        The corrector drift is taken at the end.
 
         Args:
             time:

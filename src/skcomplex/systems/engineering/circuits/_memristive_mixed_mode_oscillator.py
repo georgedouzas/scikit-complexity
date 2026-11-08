@@ -1,4 +1,7 @@
-"""Memristive mixed-mode oscillator: a slow-fast circuit with a cubic flux-controlled memristor."""
+"""Memristive mixed-mode oscillator.
+
+It is a slow-fast circuit with a cubic flux-controlled memristor.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,17 +14,17 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import ScipyODESolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class MemristiveCircuitElement(Element):
-    """Slow-fast circuit with a cubic flux-controlled memristor, whose oscillations mix small and large amplitudes.
+    """Slow-fast circuit with a cubic flux-controlled memristor.
 
-    The memristor has the charge `q = a w + b w^3` of its flux `w`, so its memductance is `a + 3 b w^2`, and the
-    circuit follows `epsilon x' = -y - (a + 3 b w^2) x`, `y' = alpha (x - R y - z + e)`, `z' = -β y`, and `w' = x`.
+    Its oscillations mix small and large amplitudes. The memristor has the charge `q = a w + b w^3` of its flux `w`, so
+    its memductance is `a + 3 b w^2`, and the circuit follows `epsilon x' = -y - (a + 3 b w^2) x`,
+    `y' = alpha (x - R y - z + e)`, `z' = -β y`, and `w' = x`.
 
     Args:
         label:
@@ -68,6 +71,8 @@ class MemristiveCircuitElement(Element):
         >>> MemristiveCircuitElement('circuit').a
         -0.34
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
@@ -118,34 +123,19 @@ class MemristiveCircuitElement(Element):
         ]
 
 
-@register_system(
-    field='engineering/circuits',
-    tags=('circuit', 'memristor', 'mixed-mode oscillations', 'slow-fast', 'ode'),
-    references=('Trzaska 2023',),
-    defaults={'until': 150.0, 'dt': 0.02, 'solver': ScipyODESolver(method='LSODA')},
-)
-def memristive_mixed_mode_oscillator(
-    x: float = 0.0,
-    y: float = 0.0,
-    z: float = 0.0,
-    w: float = 0.0,
-    *,
-    epsilon: float = 0.01,
-    R: float = 2.0,
-    alpha: float = 1.55,
-    beta: float = 0.15,
-    e: float = -0.04,
-    a: float = -0.34,
-    b: float = 0.05,
-) -> System:
-    """Return a slow-fast circuit with a cubic flux-controlled memristor, whose oscillations mix two amplitudes.
+class MemristiveMixedModeOscillatorSystem(BaseSystem):
+    """A slow-fast circuit with a cubic flux-controlled memristor.
 
-    The memristor has the charge `q = a w + b w^3` of its flux `w`, and with the voltage `x` of the memristor, the
-    current `y` of the inductor, and the voltage `z` of the second capacitor, the circuit follows
-    `epsilon x' = -y - (a + 3 b w^2) x`, `y' = alpha (x - R y - z + e)`, `z' = -β y`, and `w' = x`. Trzaska prints the
-    memductance as `a + 3 b w`, but only the derivative `a + 3 b w^2` of the characteristic gives the response he
-    reports: for the defaults, from rest, the voltage settles on the mixed-mode oscillation `2^11`, two large spikes
-    and eleven small oscillations in a period of about 7.8.
+    Its oscillations mix two amplitudes. The memristor has the charge `q = a w + b w^3` of its flux `w`, and with the
+    voltage `x` of the memristor, the current `y` of the inductor, and the voltage `z` of the second capacitor, the
+    circuit follows `epsilon x' = -y - (a + 3 b w^2) x`, `y' = alpha (x - R y - z + e)`, `z' = -β y`, and `w' = x`.
+    Trzaska prints the memductance as `a + 3 b w`, but only the derivative `a + 3 b w^2` of the characteristic gives the
+    response he reports: for the defaults, from rest, the voltage settles on the mixed-mode oscillation `2^11`, two
+    large spikes and eleven small oscillations in a period of about 7.9, against the 7.816 he reports. The spikes last
+    about a hundredth of the period, so the tuned solver runs at the relative tolerance `1e-8`, below which looser runs
+    drift to an irregular pattern of shorter periods.
+
+    The system has the states `circuit.x`, `circuit.y`, `circuit.z`, and `circuit.w`.
 
     Args:
         x:
@@ -181,27 +171,65 @@ def memristive_mixed_mode_oscillator(
         b:
             The cubic coefficient of the memristor characteristic.
 
-    Returns:
-        system:
-            The system, with the states `circuit.x`, `circuit.y`, `circuit.z`, and `circuit.w`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.engineering.circuits import memristive_mixed_mode_oscillator
-        >>> memristive_mixed_mode_oscillator(a=-0.5).elements[0].a
+        >>> from skcomplex.systems.engineering.circuits import MemristiveMixedModeOscillatorSystem
+        >>> MemristiveMixedModeOscillatorSystem(a=-0.5).prepare().system_.elements[0].a
         -0.5
     """
-    circuit = MemristiveCircuitElement(
-        'circuit',
-        x=x,
-        y=y,
-        z=z,
-        w=w,
-        epsilon=epsilon,
-        R=R,
-        alpha=alpha,
-        beta=beta,
-        e=e,
-        a=a,
-        b=b,
-    )
-    return System(elements=[circuit])
+
+    field = 'engineering/circuits'
+    topics = ('circuit', 'memristor', 'mixed-mode oscillations', 'slow-fast', 'ode')
+    references = ('Trzaska 2023',)
+    until = 150.0
+    dt = 0.02
+    solver = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
+
+    def __init__(
+        self,
+        x: float = 0.0,
+        y: float = 0.0,
+        z: float = 0.0,
+        w: float = 0.0,
+        *,
+        epsilon: float = 0.01,
+        R: float = 2.0,
+        alpha: float = 1.55,
+        beta: float = 0.15,
+        e: float = -0.04,
+        a: float = -0.34,
+        b: float = 0.05,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.x = x
+        self.y = y
+        self.z = z
+        self.w = w
+        self.epsilon = epsilon
+        self.R = R
+        self.alpha = alpha
+        self.beta = beta
+        self.e = e
+        self.a = a
+        self.b = b
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        circuit = MemristiveCircuitElement(
+            'circuit',
+            x=self.x,
+            y=self.y,
+            z=self.z,
+            w=self.w,
+            epsilon=self.epsilon,
+            R=self.R,
+            alpha=self.alpha,
+            beta=self.beta,
+            e=self.e,
+            a=self.a,
+            b=self.b,
+        )
+        return System(self.label, elements=[circuit])

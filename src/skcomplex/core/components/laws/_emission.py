@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Sequence
+from typing import ClassVar
 
 from sage.all__sagemath_symbolics import Expression
 
@@ -14,9 +15,10 @@ from ._base import BaseLaw
 
 
 class EmissionLaw(BaseLaw):
-    """Observation of a hidden Markov source, a state drawn from the row of an emission matrix a hidden state selects.
+    """Observation of a hidden Markov source.
 
-    The emission reads the hidden state's value after the same step, so the hidden and observed sequences align.
+    The observation is a state drawn from the row of an emission matrix a hidden state selects. The emission reads the
+    hidden state's value after the same step, so the hidden and observed sequences align.
 
     Args:
         target:
@@ -40,6 +42,8 @@ class EmissionLaw(BaseLaw):
         (observed,)
     """
 
+    law_tag: ClassVar[str] = 'jump'
+
     def __init__(
         self,
         target: Expression,
@@ -62,8 +66,16 @@ class EmissionLaw(BaseLaw):
         """Return what the law requires of a system: discrete time."""
         return RequirementSpec(time=(DiscreteTime,))
 
-    def _check(self) -> None:
-        """Raise an error for a matrix that is not a nonempty sequence of rows of equal length."""
+    def _prepare(self, context: str | None = None) -> None:
+        """Raise an error for a matrix that is not a nonempty sequence of equal rows.
+
+        The rows must be of equal length.
+
+        Args:
+            context:
+                The path of the element or interaction that returns the law, or `None`.
+        """
+        super()._prepare(context)
         if self._is_function(self.matrix):
             error_msg = (
                 'The matrix of an EmissionLaw is a function, but an emission matrix is symbolic only, because it draws '

@@ -1,4 +1,7 @@
-"""Define Michaelis-Menten reactions, reactions whose propensity saturates in the amount of their substrate."""
+"""Define Michaelis-Menten reactions.
+
+Their propensity saturates in the amount of their substrate.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -10,13 +13,16 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import SR, Expression
 
 from .....core.components.interactions import ReactionInteraction
+from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
 from .....core.specs import RoleSpec
 from .....core.types import Stoichiometry
 
 
 class MichaelisMentenInteraction(ReactionInteraction):
-    """Reaction at the Michaelis-Menten propensity `vmax S / (km + S)`, times every modifier to its coefficient.
+    """Reaction at the Michaelis-Menten propensity `vmax S / (km + S)`.
+
+    The propensity is multiplied by every modifier to its coefficient.
 
     The substrate `S` is a state of the target, or a function of the namespace that returns an amount that is no state
     of its own, such as the phosphorylated form `A_T - A` of a protein whose total is conserved. The modifiers are the
@@ -61,13 +67,13 @@ class MichaelisMentenInteraction(ReactionInteraction):
     Examples:
         >>> from skcomplex.core.components.elements import CompartmentElement
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.systems.biology.common.kinetics import MichaelisMentenInteraction
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> uptake = MichaelisMentenInteraction(
         ...     'uptake', target='cell', reactants={'n': 1}, substrate='n', vmax=1.0, km=100.0
         ... )
         >>> system = System(elements=[CompartmentElement('cell', n=500.0)], interactions=[uptake])
-        >>> trajectory = Simulation(system, dt=1.0).prepare().run(until=10.0).trajectory_
+        >>> trajectory = simulate(system, until=10.0, dt=1.0)
         >>> round(float(trajectory.values('cell.n')[-1]), 3)
         491.679
     """
@@ -90,15 +96,19 @@ class MichaelisMentenInteraction(ReactionInteraction):
         self.vmax = vmax
         self.km = km
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for a substrate or rates the reaction cannot take.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The substrate is neither a name nor a function, a rate is neither a function nor a number, or the
                 reaction cannot take its species or mode.
         """
-        super()._check()
+        super()._prepare(context)
         if not (callable(self.substrate) or (isinstance(self.substrate, str) and self.substrate.isidentifier())):
             error_msg = (
                 f'The substrate of {self.label!r} is {self.substrate!r}. Give the name of a state of the target or a '
@@ -116,7 +126,9 @@ class MichaelisMentenInteraction(ReactionInteraction):
         return value(namespace) if callable(value) else value
 
     def _get_rate(self, namespace: SimpleNamespace) -> Expression:
-        """Return the saturating propensity of the substrate, times every modifier to its coefficient.
+        """Return the saturating propensity of the substrate.
+
+        The propensity is multiplied by every modifier to its coefficient.
 
         Args:
             namespace:

@@ -13,8 +13,8 @@ from skcomplex.core.components.laws import BilinearLaw, EncounterLaw
 from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime, LatticeSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -119,10 +119,10 @@ def _wealth_system(table=None, time=None, space=None):
 
 def test_conservative_encounters_keep_the_density():
     """Test that conservative encounters keep the total density within 1e-10 over 100 time units."""
-    simulation = Simulation(_wealth_system(), dt=1.0).prepare().run(until=100)
-    totals = np.asarray(simulation.trajectory_.values('wealth.f')).sum(axis=1)
+    trajectory = simulate(_wealth_system(), until=100, dt=1.0)
+    totals = np.asarray(trajectory.values('wealth.f')).sum(axis=1)
     np.testing.assert_allclose(totals, totals[0], rtol=1e-10)
-    assert not np.allclose(simulation.trajectory_.values('wealth.f')[-1], _profile())
+    assert not np.allclose(trajectory.values('wealth.f')[-1], _profile())
 
 
 def test_encounter_rates_follow_gain_and_loss():
@@ -259,13 +259,8 @@ def test_encounter_in_discrete_time_is_reported():
 
 def test_rk4_runs_encounters():
     """Test that a fixed-step Runge-Kutta solver runs encounters like the default solver."""
-    first = Simulation(_wealth_system(), dt=1.0).prepare().run(until=5).trajectory_.values('wealth.f')[-1]
-    second = (
-        Simulation(_wealth_system(), dt=1.0, solver=RK4Solver(dt=0.01))
-        .prepare()
-        .run(until=5)
-        .trajectory_.values('wealth.f')[-1]
-    )
+    first = simulate(_wealth_system(), until=5, dt=1.0).values('wealth.f')[-1]
+    second = simulate(_wealth_system(), until=5, dt=1.0, solver=RK4Solver(dt=0.01)).values('wealth.f')[-1]
     np.testing.assert_allclose(first, second, atol=1e-5)
 
 

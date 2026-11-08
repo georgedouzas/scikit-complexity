@@ -1,4 +1,7 @@
-"""Draw the states of a lattice group as images, with a space-time image in one dimension."""
+"""Draw the states of a lattice group as images.
+
+A one-dimensional lattice also gets a space-time image.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -24,10 +27,11 @@ _SPACE_TIME = 'space_time'
 
 
 class ImageVisual(BaseVisual):
-    """Visual that logs every state of a lattice group as an image colored by value, or a tensor in 3D and more.
+    """Visual that logs every state of a lattice group as an image colored by value.
 
-    A one-dimensional lattice also logs a space-time image under `<path>/space_time/<state>`, with one row per logged
-    frame, the oldest at the top, and at most `history` rows. Its colors span the values of the rows it shows.
+    In 3D and more, it logs a tensor. A one-dimensional lattice also logs a space-time image under
+    `<path>/space_time/<state>`, with one row per logged frame, the oldest at the top, and at most `history` rows. Its
+    colors span the values of the rows it shows.
 
     A state on a phase space of more than two axes can log a plane through `slices`. Its moments over the class axes log
     under `<path>/<state>/moment_<order>`, as a bar series over a one-dimensional position lattice and as an image over
@@ -103,7 +107,10 @@ class ImageVisual(BaseVisual):
         super()._prepare(context)
 
     def _phase_space_of(self, element: CompiledElementSpec) -> PhaseSpace:
-        """Return the phase space of a group, raising an error for a group on another space."""
+        """Return the phase space of a group.
+
+        It raises an error for a group on another space.
+        """
         space = getattr(element.element, 'space', None)
         if not isinstance(space, PhaseSpace):
             error_msg = f'ImageVisual logs slices and moments of a phase space, but {element.path} lives on {space!r}.'
@@ -111,7 +118,10 @@ class ImageVisual(BaseVisual):
         return space
 
     def _plane_of(self, space: PhaseSpace) -> dict[str | int, int]:
-        """Return the fixed index of every axis of a plane through a phase space, by the index of the axis."""
+        """Return the fixed index of every axis of a plane through a phase space.
+
+        They are given by the index of the axis.
+        """
         plane = {
             space.class_axes_[axis] if isinstance(axis, str) and axis in space.class_axes_ else axis: index
             for axis, index in (self.slices or {}).items()
@@ -132,7 +142,10 @@ class ImageVisual(BaseVisual):
         return values[tuple(index)]
 
     def _moment_of(self, values: npt.NDArray[np.float64], space: PhaseSpace, order: int) -> npt.NDArray[np.float64]:
-        """Return a moment of the values of a state over the class axes of a phase space, a field over position."""
+        """Return a moment of the values of a state over the class axes of a phase space.
+
+        The moment is a field over position.
+        """
         axes = tuple(space.class_axes_.values())
         grids = np.meshgrid(*space.coordinates_.values(), indexing='ij')
         weights = sum(grid**2 for grid in grids) ** (order / 2) * np.prod([space.spacings_[axis] for axis in axes])
@@ -145,7 +158,10 @@ class ImageVisual(BaseVisual):
         path: str,
         values: npt.NDArray[np.float64],
     ) -> None:
-        """Log the moments of a state over the class axes, as a bar series or an image over position."""
+        """Log the moments of a state over the class axes.
+
+        They are logged as a bar series or an image over position.
+        """
         space = self._phase_space_of(element)
         for order in self.moments or ():
             moment = self._moment_of(values, space, order)
@@ -155,19 +171,28 @@ class ImageVisual(BaseVisual):
                 self._log_image(recording, f'{path}/moment_{order}', moment, cyclic=False)
 
     def _history_of(self, sites: int) -> int:
-        """Return the number of rows of the space-time image of a one-dimensional lattice of a number of sites."""
+        """Return the number of rows of the space-time image of a one-dimensional lattice.
+
+        It depends on the number of sites.
+        """
         if self.history is not None:
             return self.history
         return int(np.clip(sites, _MIN_HISTORY, _MAX_HISTORY))
 
     def _range(self, values: npt.NDArray[np.float64]) -> tuple[float, float]:
-        """Return the values of the two ends of the color scale, the given ones or the extremes of the values."""
+        """Return the values of the two ends of the color scale.
+
+        They are the given ones or the extremes of the values.
+        """
         low = float(values.min()) if self.low is None else float(self.low)
         high = float(values.max()) if self.high is None else float(self.high)
         return low, high
 
     def _log_space_time(self, recording: rr.RecordingStream, path: str, values: npt.NDArray[np.float64]) -> None:
-        """Log the recent rows of a one-dimensional lattice as a space-time depth image with a color map."""
+        """Log the recent rows of a one-dimensional lattice as a space-time image.
+
+        The image is a depth image with a color map.
+        """
         rows = self._history_of(len(values))
         if not rows:
             return
@@ -185,7 +210,10 @@ class ImageVisual(BaseVisual):
         *,
         cyclic: bool,
     ) -> None:
-        """Log lattice values as an image colored by value or by a cyclic palette, or as a tensor in 3D and more."""
+        """Log lattice values as an image, or as a tensor in 3D and more.
+
+        The image is colored by value or by a cyclic palette.
+        """
         if values.ndim > _IMAGE_RANK:
             recording.log(path, rr.Tensor(values))
             return
@@ -200,11 +228,12 @@ class ImageVisual(BaseVisual):
         )
 
     def _log(self, recording: rr.RecordingStream, element: CompiledElementSpec, frame: FrameSpec) -> None:
-        """Log every chosen state of a lattice group under `<path>/<state>`, and a space-time image in one dimension.
+        """Log every chosen state of a lattice group under `<path>/<state>`.
 
-        A complex state logs its modulus under `<path>/<state>/modulus`, colored over the range, and its phase under
-        `<path>/<state>/phase`, colored by a cyclic palette over `(-pi, pi]`. An angle state is colored by the same
-        cyclic palette. Its space-time image shows the modulus.
+        In one dimension it also logs a space-time image. A complex state logs its modulus under
+        `<path>/<state>/modulus`, colored over the range, and its phase under `<path>/<state>/phase`, colored by a
+        cyclic palette over `(-pi, pi]`. An angle state is colored by the same cyclic palette. Its space-time image
+        shows the modulus.
 
         Args:
             recording:
@@ -236,9 +265,10 @@ class ImageVisual(BaseVisual):
             self._log_image(recording, f'{path}/{_PHASE}', np.angle(np.asarray(values, dtype=complex)), cyclic=True)
 
     def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
-        """Return one 2D spatial view per chosen state, or a tensor view for a lattice of three or more dimensions.
+        """Return one 2D spatial view per chosen state.
 
-        A one-dimensional lattice gets the 2D spatial views of its space-time images first, named `<state> history`.
+        A lattice of three or more dimensions gets a tensor view. A one-dimensional lattice gets the 2D spatial views of
+        its space-time images first, named `<state> history`.
 
         Args:
             element:
@@ -254,14 +284,15 @@ class ImageVisual(BaseVisual):
                 dimension.
 
         Examples:
-            >>> from skcomplex.core.engine.compile import PassCompiler
+            >>> from skcomplex.core.engine.runtime import simulate
             >>> from skcomplex.core.engine.viz import ImageVisual
-            >>> from skcomplex.systems import create_system
-            >>> problem = PassCompiler().prepare(create_system('gray_scott', shape=(16, 16))).run().problem_
+            >>> from skcomplex.systems.chemistry.pattern_formation import GrayScottSystem
+            >>> problem = simulate(GrayScottSystem(shape=(16, 16)), until=0).problem
             >>> views = ImageVisual(path=problem.elements[0].path).prepare(problem).views_
             >>> [str(view.origin) for view in views]
             ['cells/u', 'cells/v']
-            >>> problem = PassCompiler().prepare(create_system('elementary_automaton')).run().problem_
+            >>> from skcomplex.systems.computer_science.automata import ElementaryAutomatonSystem
+        >>> problem = simulate(ElementaryAutomatonSystem(), until=0).problem
             >>> views = ImageVisual(path=problem.elements[0].path).prepare(problem).views_
             >>> [str(view.origin) for view in views]
             ['cells/space_time/alive', 'cells/alive']
@@ -292,7 +323,10 @@ class ImageVisual(BaseVisual):
         return [*histories, *views]
 
     def _moment_views(self, element: CompiledElementSpec, path: str) -> list[rrb.View]:
-        """Return the view of every logged moment, a bar chart over one position axis and else a 2D spatial view."""
+        """Return the view of every logged moment.
+
+        It is a bar chart over one position axis and else a 2D spatial view.
+        """
         if not self.moments:
             return []
         rank = len(self._phase_space_of(element).position_axes_)
@@ -301,7 +335,10 @@ class ImageVisual(BaseVisual):
 
     @staticmethod
     def _levels_of(values: npt.NDArray[np.float64], low: float, high: float) -> npt.NDArray[np.uint8]:
-        """Return the values as levels from 1 to 255 of a color map, with 0 left for no data."""
+        """Return the values as levels from 1 to 255 of a color map.
+
+        The level 0 is left for no data.
+        """
         if high <= low:
             return np.ones(values.shape, dtype=np.uint8)
         return (1 + np.clip((values - low) * (254.0 / (high - low)), 0.0, 254.0)).astype(np.uint8)

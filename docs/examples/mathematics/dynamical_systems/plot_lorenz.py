@@ -15,9 +15,9 @@ import rerun as rr
 import rerun.blueprint as rrb
 from scipy.signal import find_peaks
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.dynamical_systems import LorenzSystem
 
 SYSTEM = 'lorenz'
 
@@ -42,8 +42,8 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=20)
-simulation = Simulation(create_system(SYSTEM), dt=0.01, observers=[observer]).prepare().run(until=50)
-points = np.column_stack([simulation.trajectory_.values(f'lorenz.{state}') for state in 'xyz'])
+trajectory = simulate(LorenzSystem(), observers=[observer])
+points = np.column_stack([trajectory.values(f'lorenz.{state}') for state in 'xyz'])
 observer.recording_.log('attractor', rr.LineStrips3D([points], radii=0.15, colors=[255, 170, 40]), static=True)
 observer.recording_.flush()
 
@@ -53,7 +53,7 @@ observer.recording_.flush()
 # Lorenz showed that each maximum of `z` is almost a function of the previous one. Plotting successive maxima of the
 # simulated `z` against each other should give a thin tent-shaped curve, the signature of chaos on the attractor.
 
-z = simulation.trajectory_.values('lorenz.z')
+z = trajectory.values('lorenz.z')
 maxima = z[find_peaks(z)[0]]
 fig, ax = plt.subplots(figsize=(5, 5))
 ax.plot(maxima[:-1], maxima[1:], '.', markersize=4)

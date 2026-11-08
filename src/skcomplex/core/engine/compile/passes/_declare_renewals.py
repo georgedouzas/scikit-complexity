@@ -1,4 +1,7 @@
-"""Pass that declares the hidden state that counts the renewals of every renewal law, once delays are lowered."""
+"""Pass that declares the hidden state that counts the renewals of renewal laws.
+
+It runs once delays are lowered, for every renewal law.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,7 +14,8 @@ from sage.all__sagemath_symbolics import NN
 from ....components.laws import BaseLaw
 from ....specs import EntrySpec
 from ..._utils import symbol
-from ...problems import DeclarationsSpec, KernelSpec
+from ...problems._declarations_spec import DeclarationsSpec
+from ...problems._kernel_spec import KernelSpec
 from .._base import BasePass
 from .._bound_renewal_spec import BoundRenewalSpec
 from .._compilation import Compilation
@@ -21,7 +25,10 @@ from ._layout import LayoutPass
 
 
 class DeclareRenewalsPass(BasePass):
-    """Pass that declares the hidden state that counts the renewals of every renewal law, once delays are lowered."""
+    """Pass that declares the hidden state that counts the renewals of renewal laws.
+
+    It runs once delays are lowered, for every renewal law.
+    """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
@@ -48,9 +55,10 @@ class DeclareRenewalsPass(BasePass):
         declarations: DeclarationsSpec,
         label: str,
     ) -> tuple[DeclarationsSpec, BoundRenewalSpec]:
-        """Return the declarations with the hidden state that counts the renewals of every member of a renewal law.
+        """Return the declarations with the hidden state that counts renewals.
 
-        Returns the declarations and the renewal law with its hidden state.
+        The state counts the renewals of every member of a renewal law. Returns the declarations and the renewal law
+        with its hidden state.
         """
         group = CensusPass._renewal_group(spec, law)
         rows = spec.rows
@@ -73,7 +81,10 @@ class DeclareRenewalsPass(BasePass):
         laws: list[BaseLaw],
         declarations: DeclarationsSpec,
     ) -> tuple[DeclarationsSpec, list[BoundRenewalSpec]]:
-        """Return the declarations with the hidden states counting the renewals of a spec, and its renewal laws."""
+        """Return the declarations with the hidden states that count renewals.
+
+        They count the renewals of a spec, and its renewal laws are also returned.
+        """
         renewals = [law for law in laws if isinstance(law, RenewalLaw)]
         declared = []
         for law in renewals:

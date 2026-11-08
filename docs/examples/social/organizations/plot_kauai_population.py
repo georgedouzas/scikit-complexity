@@ -14,16 +14,15 @@ the chapter are left out.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.social.organizations import KauaiPopulationSystem
 
 SYSTEM = 'kauai_population'
 
-system = create_system(SYSTEM)
-observables = describe(SYSTEM).observables_of(system)
+system = KauaiPopulationSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(system, observers=[observer], observables=observables, random_state=0).prepare().run(until=30)
+trajectory = simulate(system, observers=[observer], random_state=0)
 
 # %%
 # Where the residents stand
@@ -31,7 +30,6 @@ simulation = Simulation(system, observers=[observer], observables=observables, r
 # The residents gather in their homes, facilities, and favourite places in turn, a cycle of three steps. The mean
 # sentiment shows how the population responds as a whole.
 
-trajectory = simulation.trajectory_
 fig, axes = plt.subplots(1, 2, figsize=(9, 4))
 for frame, label in zip((0, 1, 2), ('home', 'work', 'favourite'), strict=True):
     locations = trajectory.agents('residents', frame).locations

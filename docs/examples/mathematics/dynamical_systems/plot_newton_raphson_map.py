@@ -17,10 +17,10 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.analysis import ScalingAnalysis
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.analysis import scaling
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.dynamical_systems import NewtonRaphsonMapSystem
 
 SYSTEM = 'newton_raphson_map'
 ROOTS = np.exp(2j * np.pi * np.arange(3) / 3)
@@ -56,9 +56,9 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create_system(SYSTEM, x=-0.5, y=0.02), dt=1, observers=[observer]).prepare().run(until=30)
+trajectory = simulate(NewtonRaphsonMapSystem(x=-0.5, y=0.02), until=30, observers=[observer])
 starts = [(-0.5, 0.02), (-0.5, -0.02), (0.3, 0.55), (0.3, 0.45), (0.3, -0.55), (0.3, -0.45)]
-orbits = [Simulation(create_system(SYSTEM, x=x, y=y), dt=1).prepare().run(until=30).trajectory_ for x, y in starts]
+orbits = [simulate(NewtonRaphsonMapSystem(x=x, y=y), until=30) for x, y in starts]
 labels = basins(SIZE)
 palette = np.array([[230, 90, 60], [70, 160, 220], [250, 200, 60]], dtype=np.uint8)
 observer.recording_.log('basins', rr.Image(palette[labels]), static=True)
@@ -76,7 +76,7 @@ finals = [
 ]
 fine = basins(1024)
 boundary = (np.diff(fine, axis=0, prepend=fine[:1]) != 0) | (np.diff(fine, axis=1, prepend=fine[:, :1]) != 0)
-dimension = ScalingAnalysis('box-counting').prepare(boundary).run().exponent_
+dimension = scaling(boundary, kind='box-counting').exponent
 fig, (picture, edges) = plt.subplots(1, 2, figsize=(10, 4.5))
 picture.imshow(palette[labels], extent=(-1.5, 1.5, -1.5, 1.5))
 for run in orbits:

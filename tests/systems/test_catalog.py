@@ -1,7 +1,6 @@
-"""Test the catalog of the catalog: listing, describing, creating, and running systems by name."""
+"""Test the listing of the ready-made systems, and that every system conforms to the generic interface."""
 
 import ast
-import importlib
 import multiprocessing
 from importlib.resources import files
 from pathlib import Path
@@ -10,20 +9,26 @@ import numpy as np
 import pytest
 from sklearn.base import clone
 
-from skcomplex.core.components.system import System
+from skcomplex.core.components.system import BaseSystem, System
 from skcomplex.core.engine.backends import NumpyBackend
-from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.problems import ProblemSpec
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.errors import RegistryError, ValidationError
-from skcomplex.systems import SystemCatalog, catalog, create_simulation, create_system, describe, register_system
+from skcomplex.systems import all_systems
+from skcomplex.systems._catalog import _SystemClasses
 from skcomplex.systems.biology.common.populations import (
     ExponentialGrowthInteraction,
     MortalityInteraction,
     PopulationElement,
 )
-from skcomplex.systems.biology.ecology import PredationInteraction
+from skcomplex.systems.biology.ecology import LotkaVolterraSystem, PredationInteraction
+from skcomplex.systems.biology.epidemiology import SIRSystem
+from skcomplex.systems.economics.finance import OrderBookSystem
+from skcomplex.systems.mathematics.stochastic_processes import PoissonProcessSystem
+from skcomplex.systems.physics.active_matter import ActiveGelsSystem
+from skcomplex.systems.physics.statistical_mechanics import IdealGasSystem
+from skcomplex.systems.social.opinion_dynamics import AxelrodSystem
 
 
 def _undeclared_laws(system: System) -> list[str]:
@@ -37,70 +42,80 @@ def _undeclared_laws(system: System) -> list[str]:
     return found + [item for child in system.systems for item in _undeclared_laws(child)]
 
 
-def test_create_unknown_name_suggests_close_names():
-    """Test that an unknown system name raises an error that suggests the closest registered names."""
-    with pytest.raises(RegistryError, match=r"'pendulumm'\. Did you mean pendulum"):
-        create_system('pendulumm')
+def test_run_settings_depend_on_the_model_parameters():
+    """Test that a system class whose tuned run settings depend on its model parameters gives them for these."""
+    assert ActiveGelsSystem().get_run_settings()['until'] == ActiveGelsSystem.until
+    assert ActiveGelsSystem(order='polar').get_run_settings()['until'] == 200.0
+    assert simulate(ActiveGelsSystem(order='polar', shape=(4, 4)), until=2.0).times[-1] == 2.0
 
 
-def test_listings_reject_computed_registration_argument(tmp_path: Path):
-    """Test that a field path computed at run time is rejected with the module and the argument."""
-    module = tmp_path / 'physics' / 'mechanics' / '_computed.py'
-    module.parent.mkdir(parents=True)
-    module.write_text(
-        'from skcomplex.systems import register_system\n\n\n'
-        "@register_system(field='physics/' + 'mechanics')\n"
-        'def computed():\n'
-        '    """Return nothing."""\n',
-    )
-    message = r"skcomplex\.systems\.physics\.mechanics\._computed registers the argument 'field'"
-    with pytest.raises(RegistryError, match=message):
-        SystemCatalog(tmp_path).listings()
+def test_simulate_reads_the_run_settings_of_an_instance():
+    """Test that the observables and invariants of an instance are those `simulate` records and checks."""
+    observables = AxelrodSystem(width=4, height=4).get_run_settings()['observables']
+    trajectory = simulate(AxelrodSystem(width=4, height=4), until=1, random_state=0)
+    assert observables
+    assert all(len(trajectory.values(spec.label)) == len(trajectory.times) for spec in observables)
+    assert OrderBookSystem().get_run_settings()['invariants'] == {'total_money': 1e-6, 'total_shares': 1e-6}
 
 
-def test_create_simulation_takes_settings_that_depend_on_the_factory_arguments():
-    """Test that a function of the factory arguments replaces the default run settings for these arguments."""
-    entry = describe('active_gels')
-    assert entry.settings_of()['until'] == entry.defaults['until']
-    assert entry.settings_of(order='polar')['until'] == 200.0
-    assert (
-        create_simulation('active_gels', order='polar', shape=(4, 4)).prepare().run(until=2.0).trajectory_.times[-1]
-        == 2.0
-    )
-
-
-def test_listing_imports_no_system_module():
-    """Test that importing the catalog and listing it, whole or by field, loads no module of a field."""
+def test_importing_the_systems_imports_no_system_module():
+    """Test that importing the systems package loads no module of a field."""
     code = """
 import sys
-from skcomplex.systems import catalog
-listed = len(catalog())
-physics = catalog(field='physics/mechanics')
+import skcomplex.systems
 fields = {'biology', 'chemistry', 'computer_science', 'economics', 'engineering', 'mathematics', 'physics', 'social'}
 loaded = [name for name in sys.modules if name.startswith('skcomplex.systems.') and name.split('.')[2] in fields]
-assert listed > 500 and len(physics) > 0 and all(entry.field.startswith('physics/mechanics') for entry in physics)
 assert loaded == [], loaded
-assert not any(name == 'skcomplex.formalisms' or name.startswith('skcomplex.formalisms.') for name in sys.modules)
 """
-    process = multiprocessing.get_context('spawn').Process(target=exec, args=(code,))
+    process = multiprocessing.get_context('spawn').Process(target=exec, args=(code, {}))
     process.start()
     process.join()
     assert process.exitcode == 0
 
 
-def test_listing_matches_registration():
-    """Test that every listed system registers, once its module is imported, the metadata it was listed with."""
-    for listing in catalog():
-        if not listing.module.startswith('skcomplex.systems.'):
-            continue
-        importlib.import_module(listing.module)
-        entry = describe(listing.name)
-        listed = (listing.name, listing.field, listing.description, listing.tags)
-        assert (entry.name, entry.field, entry.description, entry.tags) == listed, listing.name
+def test_all_systems_lists_system_classes_by_field_and_topics():
+    """Test that the system classes of a field or with topics are listed by class name, sorted, and imported alone."""
+    code = """
+import sys
+from skcomplex.systems import all_systems
+from skcomplex.core.components.system import BaseSystem
+listed = all_systems(field='chemistry/pattern_formation')
+assert [name for name, _ in listed] == ['BrusselatorSystem', 'GrayScottSystem', 'SchnakenbergSystem'], listed
+assert all(issubclass(system, BaseSystem) and system.__name__ == name for name, system in listed)
+loaded = [name for name in sys.modules if name.startswith('skcomplex.systems.chemistry.kinetics')]
+assert loaded == [], loaded
+assert [name for name, _ in all_systems(field='chemistry', topics=('oscillation', 'pde'))] == ['BrusselatorSystem']
+"""
+    process = multiprocessing.get_context('spawn').Process(target=exec, args=(code, {}))
+    process.start()
+    process.join()
+    assert process.exitcode == 0
+
+
+def test_all_systems_filters_by_capability_tags():
+    """Test that filtering by capability tags keeps the system classes whose tags hold every wanted value."""
+    stochastic = all_systems(field='chemistry', tags={'randomness': 'stochastic'})
+    assert [name for name, _ in stochastic] == ['ChemicalLangevinEquationSystem', 'ChemicalLangevinNetworkSystem']
+    lattice = all_systems(field='chemistry', tags={'space': 'lattice', 'laws': ['update']})
+    assert [name for name, _ in lattice] == ['CyclicCellularAutomatonSystem', 'HodgepodgeSystem']
+    with pytest.raises(ValidationError, match="The tag 'spaces' is unknown"):
+        all_systems(field='chemistry', tags={'spaces': 'lattice'})
+
+
+def test_listing_rejects_a_system_class_without_suffix_or_with_computed_field(tmp_path: Path):
+    """Test that a class giving `field` needs the suffix `System` and a literal field path."""
+    module = tmp_path / 'physics' / 'mechanics' / '_classes.py'
+    module.parent.mkdir(parents=True)
+    module.write_text("class Pendulum:\n    field = 'physics/mechanics'\n")
+    with pytest.raises(RegistryError, match='Name it with the suffix `System`'):
+        _SystemClasses(tmp_path).classes()
+    module.write_text("class PendulumSystem:\n    field = 'physics/' + 'mechanics'\n")
+    with pytest.raises(RegistryError, match="defines the class variable 'field' with a value computed at run time"):
+        _SystemClasses(tmp_path).classes()
 
 
 CONFORMANCE_FRAMES = 10
-SLOW = {'active_gels', 'cocoa', 'higher_order_random_lotka_volterra'}
+SLOW = {'ActiveGelsSystem', 'CocoaSystem', 'HigherOrderRandomLotkaVolterraSystem'}
 
 
 FIELDS = [
@@ -137,38 +152,32 @@ def _probe_pattern(problem, x, p, rng):
         assert set(found) <= set(allowed), f'column {column} reaches rows {sorted(set(found) - set(allowed))}'
 
 
-def test_catalog_filters_by_field():
-    """Test that the catalog lists the systems of a field or subfield with descriptions, references, and formalisms."""
-    entries = catalog(field='biology/ecology')
-    names = [entry.name for entry in entries]
-    assert {'exponential_growth', 'logistic_growth', 'lotka_volterra', 'wolf_sheep'} <= set(names)
-    assert all(entry.field == 'biology/ecology' and entry.description and entry.references for entry in entries)
-    biology = catalog(field='biology')
-    assert {entry.name for entry in entries} < {entry.name for entry in biology}
-    assert {entry.field.partition('/')[0] for entry in biology} == {'biology'}
-    lotka = describe('lotka_volterra')
-    assert lotka.formalism == 'ordinary differential equations'
-    assert lotka.parameters['a'] == 0.4
-    assert not lotka.description.startswith('Return')
+def test_all_systems_filters_by_field():
+    """Test that the systems of a field or subfield are listed, each with its field, references, and description."""
+    ecology = all_systems(field='biology/ecology')
+    names = [name for name, _ in ecology]
+    assert {'ExponentialGrowthSystem', 'LogisticGrowthSystem', 'LotkaVolterraSystem', 'WolfSheepSystem'} <= set(names)
+    assert all(system.field == 'biology/ecology' and system.references and system.__doc__ for _, system in ecology)
+    biology = all_systems(field='biology')
+    assert set(names) < {name for name, _ in biology}
+    assert {system.field.partition('/')[0] for _, system in biology} == {'biology'}
 
 
 def test_every_system_has_one_field_path():
-    """Test that every catalog system lives in one subfield, named by a field path of a known field."""
-    library = [entry for entry in catalog() if not entry.field.startswith(('examples', 'test'))]
-    assert len({entry.name for entry in library}) == len(library)
-    fields = {entry.field.split('/')[0] for entry in library}
-    assert fields == set(FIELDS)
-    assert all(len(entry.field.split('/')) == 2 for entry in library)
+    """Test that every ready-made system lives in one subfield, named by a field path of a known field."""
+    library = all_systems()
+    assert len({name for name, _ in library}) == len(library)
+    assert {system.field.split('/')[0] for _, system in library} == set(FIELDS)
+    assert all(len(system.field.split('/')) == 2 for _, system in library)
 
 
-def test_catalog_filters_by_tag():
-    """Test that the catalog keeps only the systems with a tag."""
-    assert {entry.name for entry in catalog(tag='agents')} >= {'wolf_sheep', 'schelling', 'voter_system'}
+def test_all_systems_filters_by_topic():
+    """Test that listing by a topic keeps only the systems with it."""
+    assert {name for name, _ in all_systems(topics='agents')} >= {'WolfSheepSystem', 'SchellingSystem', 'VoterSystem'}
 
 
-def test_create_matches_components():
-    """Test that a system created by name runs like the same system built from its components."""
-    created = create_system('lotka_volterra', a=0.2)
+def test_system_class_matches_components():
+    """Test that a system class runs like the same system built from its components."""
     built = System(
         elements=[PopulationElement('prey', n=40.0), PopulationElement('predators', n=9.0)],
         interactions=[
@@ -177,51 +186,34 @@ def test_create_matches_components():
             MortalityInteraction('death', target='predators', d=0.4),
         ],
     )
-    first = Simulation(created, dt=0.1).prepare().run(until=5).trajectory_.states
-    second = Simulation(built, dt=0.1).prepare().run(until=5).trajectory_.states
+    first = simulate(LotkaVolterraSystem(a=0.2).prepare().system_, until=5, dt=0.1).states
+    second = simulate(built, until=5, dt=0.1).states
     assert np.array_equal(first, second)
 
 
-def test_create_simulation_uses_default_settings():
-    """Test that running a system by name uses its default duration and step."""
-    simulation = create_simulation('sir').prepare().run(until=20.0)
-    assert simulation.trajectory_.times[-1] == 20.0
-    assert simulation.dt_ == describe('sir').defaults['dt']
-
-
-def test_registration_requires_defaults():
-    """Test that a factory with an argument without default cannot be registered."""
-
-    def needs_size(size: int) -> System:
-        """Return nothing useful."""
-        return System()
-
-    with pytest.raises(ValidationError, match='needs defaults for size'):
-        register_system(field='test')(needs_size)
-    with pytest.raises(ValidationError, match='Unknown run settings'):
-        register_system(field='test', defaults={'speed': 2})(needs_size)
+def test_simulate_uses_the_tuned_settings():
+    """Test that simulating a system class uses its tuned time between frames."""
+    trajectory = simulate(SIRSystem(), until=20.0)
+    assert trajectory.times[-1] == 20.0
+    assert trajectory.times[1] - trajectory.times[0] == SIRSystem.dt
 
 
 @pytest.mark.parametrize(
-    'entry',
-    [pytest.param(entry, marks=pytest.mark.slow) if entry.name in SLOW else entry for entry in catalog()],
-    ids=lambda entry: entry.name,
+    'system',
+    [pytest.param(system, marks=pytest.mark.slow) if name in SLOW else system for name, system in all_systems()],
+    ids=lambda system: system.__name__,
 )
-def test_system_conforms(entry, tmp_path):
-    """Test that a registered system is created, validated, compiled, simulated, logged, and cloned generically."""
-    defaults = describe(entry.name).defaults
-    system = create_system(entry.name)
-    compiler = defaults.get('compiler', PassCompiler())
-    assert clone(compiler).prepare(system).report_.ok
-    problem = clone(compiler).prepare(system).run().problem_
-    assert _undeclared_laws(system) == []
-    settings = {key: value for key, value in defaults.items() if key != 'until'}
-    dt = settings.get('dt', 1.0)
-    until = min(defaults.get('until', CONFORMANCE_FRAMES * dt), CONFORMANCE_FRAMES * dt)
-    observer = RerunObserver(entry.name, save_path=tmp_path / 'run.rrd')
-    observables = describe(entry.name).observables_of(system)
-    simulation = Simulation(system, observers=[observer], observables=observables, random_state=0, **settings).prepare()
-    trajectory = simulation.run(until=until).trajectory_
+def test_system_conforms(system: type[BaseSystem], tmp_path: Path):
+    """Test that a ready-made system is built, validated, compiled, simulated, logged, and cloned generically."""
+    built = system()
+    settings = built.get_run_settings()
+    dt = settings['dt'] or 1.0
+    tuned = settings['until']
+    until = CONFORMANCE_FRAMES * dt if tuned is None else min(tuned, CONFORMANCE_FRAMES * dt)
+    observer = RerunObserver(system.__name__, save_path=tmp_path / 'run.rrd')
+    trajectory = simulate(built, until=until, observers=[observer], random_state=0)
+    problem = trajectory.problem
+    assert _undeclared_laws(built.system_) == []
     assert observer.logged_frames_ == len(trajectory.times)
     for name in problem.states.names:
         assert len(trajectory.values(name)) == len(trajectory.times)
@@ -229,16 +221,15 @@ def test_system_conforms(entry, tmp_path):
         assert len(trajectory.values(f'{scope}/{observable.label}' if scope else observable.label)) == len(
             trajectory.times,
         )
-    copy = clone(system)
-    assert copy is not system
-    assert clone(compiler).prepare(copy).run().problem_.states.names == problem.states.names
+    copy = clone(built)
+    assert copy is not built
+    assert simulate(copy, until=0, random_state=0).problem.states.names == problem.states.names
 
 
-@pytest.mark.parametrize('entry', catalog(), ids=lambda entry: entry.name)
-def test_jacobian_pattern_holds_finite_differences(entry):
+@pytest.mark.parametrize('system', [system for _, system in all_systems()], ids=lambda system: system.__name__)
+def test_jacobian_pattern_holds_finite_differences(system: type[BaseSystem]):
     """Test that the Jacobian pattern of every system with an ODE form holds its finite differences at random states."""
-    compiler = clone(describe(entry.name).defaults.get('compiler', PassCompiler())).set_params(backend=NumpyBackend())
-    problem = compiler.prepare(create_system(entry.name)).run().problem_
+    problem = simulate(system(), until=0, backend=NumpyBackend(), random_state=0).problem
     if not isinstance(problem, ProblemSpec) or problem.jacobian is None or problem.delays or problem.drift is None:
         pytest.skip('The system has no ODE form without delays.')
     rng = np.random.default_rng(0)
@@ -249,27 +240,14 @@ def test_jacobian_pattern_holds_finite_differences(entry):
 
 
 @pytest.mark.slow
-def test_default_runs_of_a_stochastic_system_repeat():
-    """Test that default catalog runs repeat, for random initial conditions and for stochastic dynamics."""
-    gas = create_simulation('ideal_gas').prepare().run().trajectory_.values('gas.x_d1')
-    np.testing.assert_array_equal(gas, create_simulation('ideal_gas').prepare().run().trajectory_.values('gas.x_d1'))
-    assert not np.array_equal(
-        gas,
-        create_simulation('ideal_gas', random_state=None).prepare().run().trajectory_.values('gas.x_d1'),
-    )
-    counts = create_simulation('poisson_process').prepare().run().trajectory_.values('counters.count')
-    np.testing.assert_array_equal(
-        counts,
-        create_simulation('poisson_process').prepare().run().trajectory_.values('counters.count'),
-    )
-    fresh = (
-        create_simulation('poisson_process')
-        .set_params(random_state=None)
-        .prepare()
-        .run()
-        .trajectory_.values('counters.count')
-    )
-    assert not np.array_equal(counts, fresh)
+def test_seeded_runs_of_a_stochastic_system_repeat():
+    """Test that seeded runs repeat, for random initial conditions and for stochastic dynamics."""
+    gas = simulate(IdealGasSystem(), random_state=0).values('gas.x_d1')
+    np.testing.assert_array_equal(gas, simulate(IdealGasSystem(), random_state=0).values('gas.x_d1'))
+    assert not np.array_equal(gas, simulate(IdealGasSystem(random_state=None), random_state=0).values('gas.x_d1'))
+    counts = simulate(PoissonProcessSystem(), random_state=0).values('counters.count')
+    np.testing.assert_array_equal(counts, simulate(PoissonProcessSystem(), random_state=0).values('counters.count'))
+    assert not np.array_equal(counts, simulate(PoissonProcessSystem(), random_state=None).values('counters.count'))
 
 
 # Fields whose component modules are not yet folded into their systems. The change that folds a field removes it here.
@@ -293,18 +271,21 @@ def _imported_modules(path: Path, field: Path) -> set[Path]:
     return {module for module in found if module.is_relative_to(field) and module != path}
 
 
-def _registers_system(path: Path) -> bool:
-    """Return whether a module decorates a factory with `register_system`."""
+def _defines_field(node: ast.ClassDef) -> bool:
+    """Return whether a class body gives the class variable `field`, which makes the class a system class."""
     return any(
-        isinstance(decorator, ast.Call) and getattr(decorator.func, 'id', None) == 'register_system'
-        for node in ast.parse(path.read_text()).body
-        if isinstance(node, ast.FunctionDef)
-        for decorator in node.decorator_list
+        isinstance(item, ast.Assign) and any(getattr(target, 'id', None) == 'field' for target in item.targets)
+        for item in node.body
     )
 
 
+def _defines_system(path: Path) -> bool:
+    """Return whether a module defines a system class."""
+    return any(isinstance(node, ast.ClassDef) and _defines_field(node) for node in ast.parse(path.read_text()).body)
+
+
 def _owners(field: Path) -> dict[Path, set[Path]]:
-    """Return the system modules that reach every other private module of a field, through modules registering nothing.
+    """Return the system modules that reach every other private module of a field, through modules defining none.
 
     Public modules, such as the `types` module of a subfield, are part of the interface and serve no single system. A
     module of `common` that another module of `common` imports belongs to a shared family, such as the force tables of
@@ -312,7 +293,7 @@ def _owners(field: Path) -> dict[Path, set[Path]]:
     """
     modules = [path for path in sorted(field.rglob('_*.py')) if path.name != '__init__.py']
     imports = {path: _imported_modules(path, field) for path in modules}
-    systems = {path for path in modules if _registers_system(path)}
+    systems = {path for path in modules if _defines_system(path)}
     common = field / 'common'
     family = {
         module
@@ -347,7 +328,7 @@ def _owners(field: Path) -> dict[Path, set[Path]]:
     ],
 )
 def test_no_module_serves_one_system(field):
-    """Test that no module of a field that registers no system serves only one system, which should hold it instead."""
+    """Test that no module of a field that defines no system serves only one system, which should hold it instead."""
     root = Path(str(files('skcomplex.systems'))) / field
     found = [
         f'{module.relative_to(root)} -> {next(iter(systems)).relative_to(root)}'
@@ -359,13 +340,13 @@ def test_no_module_serves_one_system(field):
 
 @pytest.mark.parametrize('field', FIELDS)
 def test_no_system_module_imports_another(field):
-    """Test that no module registering systems imports another module registering systems of its subfield."""
+    """Test that no module defining systems imports another module defining systems of its subfield."""
     root = Path(str(files('skcomplex.systems'))) / field
-    systems = [path for path in sorted(root.rglob('_*.py')) if _registers_system(path)]
+    systems = [path for path in sorted(root.rglob('_*.py')) if _defines_system(path)]
     found = [
         f'{path.relative_to(root)} -> {module.relative_to(root)}'
         for path in systems
         for module in sorted(_imported_modules(path, root))
-        if module.parent == path.parent and _registers_system(module)
+        if module.parent == path.parent and _defines_system(module)
     ]
     assert found == []

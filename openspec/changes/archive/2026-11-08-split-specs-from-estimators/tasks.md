@@ -1,0 +1,25 @@
+## 1. Bases
+
+- [x] 1.1 Make `BaseSpec` a frozen dataclass base with only `_check`, not a `BaseConfig`, and remove `prepare` and `run` from specs
+- [x] 1.2 Remove `_check` and `_validated` from `BaseConfig`, and make `prepare` call `_prepare` and nothing else
+- [x] 1.3 Move the label and declared-spec checks of `BasePart` to the start of its `_prepare`
+
+## 2. Estimators
+
+- [x] 2.1 Move every estimator's `_check` body to the start of its `_prepare`, in the core, family base by family base
+- [x] 2.2 Do the same in every system module of `skcomplex.systems`, by field
+- [x] 2.3 Make owners prepare the parts they own and call `_check` on the specs they read, instead of `_validated`
+
+- [x] 2.4 Replace `Calibration` with `calibrate` returning a frozen `CalibrationResult`, and migrate its users
+
+## 3. Callers and docs
+
+- [x] 3.1 Replace every `spec.prepare()` and `spec.run()` call in src, tests, docs, and gallery examples
+- [x] 3.2 Update the base tests, the guide pages that show `_check`, and the migration page
+- [x] 3.3 Update the user guide section on writing new parts
+
+## 4. Verification
+
+- [x] 4.1 Checks, import contracts, and layout tests pass
+- [x] 4.2 Tests and doctests pass in batches, and the inventory and gallery checks pass
+- [x] 4.3 The full suite and the strict docs build pass in CI

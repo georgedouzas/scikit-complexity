@@ -2,16 +2,16 @@
 
 import pytest
 
-from skcomplex.systems import create_simulation
-from skcomplex.systems.biology.common.metabolism import CommunityAnalysis
-from skcomplex.systems.biology.ecology import community_fba
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.biology.common.metabolism import community_growth
+from skcomplex.systems.biology.ecology import CommunityFBASystem
 
 GROWTH = 'v_Biomass_Ecoli_core'
 
 
 def _growth(**arguments):
     """Return the community growth and the growth of the members of a run."""
-    trajectory = create_simulation('community_fba', **arguments).prepare().run().trajectory_
+    trajectory = simulate(CommunityFBASystem(**arguments))
     members = [
         float(trajectory.values(f'member_{position}.{GROWTH}')[0])
         for position in range(len(arguments.get('knockouts', (0, 0))))
@@ -35,10 +35,12 @@ def test_identical_members_grow_at_the_rate_of_one():
     community, members = _growth(knockouts=('', ''), exchanges=exchanges)
     assert members == pytest.approx([0.8739, 0.8739], abs=1e-4)
     assert community == pytest.approx(0.8739, abs=1e-4)
-    analysis = CommunityAnalysis(medium={'EX_glc__D_e': -10.0})
-    analysis = analysis.prepare(community_fba(knockouts=('', ''), exchanges=exchanges)).run()
-    assert analysis.growth_ == pytest.approx(0.8739, abs=1e-4)
-    assert sum(analysis.abundances_.values()) == pytest.approx(1.0)
+    result = community_growth(
+        CommunityFBASystem(knockouts=('', ''), exchanges=exchanges).prepare().system_,
+        medium={'EX_glc__D_e': -10.0},
+    )
+    assert result.growth == pytest.approx(0.8739, abs=1e-4)
+    assert sum(result.abundances.values()) == pytest.approx(1.0)
 
 
 def test_community_fba_grows_the_members_at_one_rate():

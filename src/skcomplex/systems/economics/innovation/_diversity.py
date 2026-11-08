@@ -1,4 +1,7 @@
-"""Innovation systems: diversity that grows by combining existing entities into new ones."""
+"""Innovation systems: diversity that grows by combining existing entities.
+
+The combinations make new entities.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,20 +16,14 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import where
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
-
-
-def _new_entities(s: SimpleNamespace) -> Expression:
-    """Return the share of new entities that the new pairs produce, at most the share that does not exist yet."""
-    previous, current = s.target.x, s.target.x + s.target.d
-    produced = s.target.r * (1 - current) * (current**2 - previous**2)
-    return where(produced < 1 - current, produced, 1 - current)
 
 
 class AdjacentPossibleElement(Element):
-    """Combinatorial system of entities, with the share that exists and the share its new pairs can produce.
+    """Combinatorial system of entities.
+
+    It holds the share that exists and the share its new pairs can produce.
 
     Args:
         label:
@@ -65,19 +62,15 @@ class AdjacentPossibleElement(Element):
         self.r = r
 
 
-@register_system(
-    field='economics/innovation',
-    tags=('innovation', 'combinatorial evolution', 'phase transition', 'discrete map'),
-    references=('Thurner et al. 2018', 'Hanel et al. 2005'),
-    defaults={'until': 50, 'dt': 1},
-)
-def creative_phase_transition(x: float = 0.1, *, r: float = 5.0) -> System:
-    """Return the diversity of a combinatorial system, which jumps from sparse to full above a critical rule density.
+class CreativePhaseTransitionSystem(BaseSystem):
+    """The diversity of a combinatorial system.
 
-    The share of existing entities `x` grows by the share `d` of new entities that pairs of existing entities can
-    produce, `x_{t+1} = x_t + d_t` and `d_{t+1} = r (1 - x_{t+1}) (x_{t+1}^2 - x_t^2)`, with the rule density `r`.
-    The first step produces `d_0 = r x_0^2 (1 - x_0)`, and no step produces more than the entities that do not exist
-    yet. The final diversity changes discontinuously with `r` and `x_0`.
+    It jumps from sparse to full above a critical rule density. The share of existing entities `x` grows by the share
+    `d` of new entities that pairs of existing entities can produce, `x_{t+1} = x_t + d_t` and
+    `d_{t+1} = r (1 - x_{t+1}) (x_{t+1}^2 - x_t^2)`, with the rule density `r`. The first step produces
+    `d_0 = r x_0^2 (1 - x_0)`, and no step produces more than the entities that do not exist yet. The final diversity
+    changes discontinuously with `r` and `x_0`. The system has the diversity `system.x` and the adjacent possible
+    `system.d`.
 
     Args:
         x:
@@ -86,19 +79,55 @@ def creative_phase_transition(x: float = 0.1, *, r: float = 5.0) -> System:
         r:
             The rule density, the number of productive pairs per entity.
 
-    Returns:
-        system:
-            The system, with the diversity `system.x` and the adjacent possible `system.d`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.innovation import creative_phase_transition
-        >>> creative_phase_transition(r=2.0).elements[0].r
+        >>> from skcomplex.systems.economics.innovation import CreativePhaseTransitionSystem
+        >>> CreativePhaseTransitionSystem(r=2.0).prepare().system_.elements[0].r
         2.0
     """
-    return System(
-        elements=[AdjacentPossibleElement('system', x=x, d=r * x**2 * (1 - x), r=r)],
-        interactions=[
-            MapInteraction('combination', target='system', state='x', function=lambda s: s.target.d, mode='increment'),
-            MapInteraction('adjacent_possible', target='system', state='d', function=_new_entities),
-        ],
-    )
+
+    field = 'economics/innovation'
+    topics = ('innovation', 'combinatorial evolution', 'phase transition', 'discrete map')
+    references = ('Thurner et al. 2018', 'Hanel et al. 2005')
+    until = 50
+    dt = 1
+
+    def __init__(
+        self,
+        x: float = 0.1,
+        *,
+        r: float = 5.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.x = x
+        self.r = r
+
+    @staticmethod
+    def _new_entities(s: SimpleNamespace) -> Expression:
+        """Return the share of new entities that the new pairs produce.
+
+        It is at most the share that does not exist yet.
+        """
+        previous, current = s.target.x, s.target.x + s.target.d
+        produced = s.target.r * (1 - current) * (current**2 - previous**2)
+        return where(produced < 1 - current, produced, 1 - current)
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        return System(
+            self.label,
+            elements=[AdjacentPossibleElement('system', x=self.x, d=self.r * self.x**2 * (1 - self.x), r=self.r)],
+            interactions=[
+                MapInteraction(
+                    'combination',
+                    target='system',
+                    state='x',
+                    function=lambda s: s.target.d,
+                    mode='increment',
+                ),
+                MapInteraction('adjacent_possible', target='system', state='d', function=self._new_entities),
+            ],
+        )

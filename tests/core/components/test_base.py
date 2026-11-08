@@ -77,14 +77,12 @@ class DoublingPart(BasePart):
         super().__init__(label)
         self.factor = factor
 
-    def _check(self):
-        """Raise an error for a factor that is not a number."""
+    def _prepare(self, context=None):
+        """Check the factor, then count the preparation and keep the context."""
+        super()._prepare(context)
         if not isinstance(self.factor, int | float):
             error_msg = f'The factor {self.factor!r} is not a number.'
             raise ValidationError(error_msg)
-
-    def _prepare(self, context=None):
-        """Count the preparation and keep the context."""
         self.prepared_ = getattr(self, 'prepared_', 0) + 1
         self.context_ = context
 
@@ -114,11 +112,9 @@ class SpecifiedPart(BasePart):
         self.target = target
         self.plain = plain
 
-    def _check(self):
-        """Accept every argument."""
-
     def _prepare(self, context=None):
-        """Prepare nothing."""
+        """Check the label and the declared specs, and prepare nothing else."""
+        super()._prepare(context)
 
     def _get_laws(self, namespace):
         """Return no laws."""
@@ -168,23 +164,23 @@ def _hand_written(cls):
     return names
 
 
-def test_verbs_check_prepare_and_run():
-    """Test that checking marks the part, preparing derives its attributes from a context, and running acts."""
+def test_prepare_and_run():
+    """Test that preparing derives the attributes of the part from a context, and running acts."""
     part = DoublingPart('doubling').prepare('context')
     assert (part.prepared_, part.context_) == (1, 'context')
     assert part.run(3).doubled_ == 6
 
 
-def test_check_validates_the_label_and_the_arguments():
-    """Test that checking rejects a label that is not a string and an argument the part cannot take."""
+def test_prepare_checks_the_label_and_the_arguments():
+    """Test that preparing rejects a label that is not a string and an argument the part cannot take."""
     with pytest.raises(ValidationError, match='label of DoublingPart must be a string'):
         DoublingPart(1).prepare()
     with pytest.raises(ValidationError, match='not a number'):
         DoublingPart('doubling', factor='two').prepare()
 
 
-def test_check_validates_every_declared_spec():
-    """Test that checking a part checks the spec of every annotated argument."""
+def test_prepare_checks_every_declared_spec():
+    """Test that preparing a part checks the spec of every annotated argument."""
     with pytest.raises(ValidationError, match='order'):
         InvalidSpecPart('invalid').prepare()
 

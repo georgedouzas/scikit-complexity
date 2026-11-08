@@ -14,9 +14,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.stochastic_processes import RandomBranchMapSystem
 
 SYSTEM = 'random_branch_map'
 
@@ -28,7 +28,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create_system(SYSTEM, n_orbits=20), dt=1, observers=[observer]).prepare().run(until=200)
+trajectory = simulate(RandomBranchMapSystem(n_orbits=20), observers=[observer])
 
 # %%
 # Bifurcation diagram over the coin
@@ -44,8 +44,8 @@ fig, axes = plt.subplots(1, 3, figsize=(12, 4), sharey=True)
 for axis, mu in zip(axes, (0.0, 0.5, 1.0), strict=True):
     means = []
     for p1 in probabilities:
-        run = Simulation(create_system(SYSTEM, n_orbits=300, p1=p1, mu=mu), dt=1).prepare().run(until=100)
-        x = run.trajectory_.values('orbits.x')[-1]
+        run = simulate(RandomBranchMapSystem(n_orbits=300, p1=p1, mu=mu), until=100)
+        x = run.values('orbits.x')[-1]
         axis.plot(np.full_like(x, p1), x, ',', color='C0')
         means.append(x.mean())
     axis.plot(probabilities, means, color='C3', label='mean')

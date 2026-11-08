@@ -13,14 +13,14 @@ law of word frequencies without any meaning or economy in the text.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.social.language import RandomTypewritingSystem
 
 SYSTEM = 'random_typewriting'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(create_system(SYSTEM), observers=[observer], random_state=0).prepare().run(until=100)
+trajectory = simulate(RandomTypewritingSystem(), until=100, observers=[observer], random_state=0)
 
 # %%
 # Zipf's law from two exponentials
@@ -29,7 +29,6 @@ simulation = Simulation(create_system(SYSTEM), observers=[observer], random_stat
 # 1.14, in steps, one step per word length, and the mean count of a word should fall by `letters / (1 - q) = 6.25` per
 # letter.
 
-trajectory = simulation.trajectory_
 words = trajectory.agents('words', len(trajectory.times) - 1).values
 counts = np.sort(words['count'])[::-1]
 ranks = np.arange(1, counts.size + 1)

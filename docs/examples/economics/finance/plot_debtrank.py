@@ -16,9 +16,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.economics.finance import DebtrankSystem
 
 SYSTEM = 'debtrank'
 N_BANKS, DENSITY, ROUNDS = 50, 0.1, 10
@@ -26,13 +26,8 @@ N_BANKS, DENSITY, ROUNDS = 50, 0.1, 10
 
 def cascade(bank):
     """Return the trajectory of the cascade from the default of one bank."""
-    system = create_system(SYSTEM, n_banks=N_BANKS, density=DENSITY, distressed=(bank,), random_state=0)
-    return (
-        Simulation(system, random_state=0, observables=describe(SYSTEM).observables_of(system))
-        .prepare()
-        .run(until=ROUNDS)
-        .trajectory_
-    )
+    system = DebtrankSystem(n_banks=N_BANKS, density=DENSITY, distressed=(bank,), random_state=0)
+    return simulate(system, until=ROUNDS, random_state=0)
 
 
 def debtrank(trajectory):
@@ -41,7 +36,7 @@ def debtrank(trajectory):
 
 
 ranks = np.array([debtrank(cascade(bank)) for bank in range(N_BANKS)])
-system = create_system(SYSTEM, n_banks=N_BANKS, density=DENSITY, distressed=(int(ranks.argmax()),), random_state=0)
+system = DebtrankSystem(n_banks=N_BANKS, density=DENSITY, distressed=(int(ranks.argmax()),), random_state=0)
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
     rrb.TimeSeriesView(origin='/value_at_risk', name='value at risk', axis_x=rrb.TimeAxis(view_range=whole_run)),
@@ -50,16 +45,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = (
-    Simulation(
-        system,
-        observers=[observer],
-        random_state=0,
-        observables=describe(SYSTEM).observables_of(system),
-    )
-    .prepare()
-    .run(until=ROUNDS)
-)
+trajectory = simulate(system, until=ROUNDS, observers=[observer], random_state=0)
 
 # %%
 # DebtRank of every bank
@@ -81,8 +67,8 @@ def direct(impact, values, bank):
     return h @ values - values[bank]
 
 
-impact = np.asarray(system.interactions[0].impact)
-values = simulation.trajectory_.agents('banks', 0).values['value']
+impact = np.asarray(system.prepare().system_.interactions[0].impact)
+values = trajectory.agents('banks', 0).values['value']
 fig, (check, importance) = plt.subplots(1, 2, figsize=(10, 4))
 check.plot(ranks, [direct(impact, values, bank) for bank in range(N_BANKS)], 'o')
 check.plot([0, ranks.max()], [0, ranks.max()], 'k:', lw=0.8)

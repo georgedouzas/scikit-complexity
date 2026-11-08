@@ -1,4 +1,7 @@
-"""Define adjacency neighbourhoods, the nodes along the edges of a node of a network."""
+"""Define adjacency neighbourhoods.
+
+They are the nodes along the edges of a node of a network.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -7,10 +10,10 @@ from ._base import BaseNeighborhood
 
 
 class AdjacencyNeighborhood(BaseNeighborhood):
-    """Nodes along the edges of a node of a network, in node order, after the node itself when it is included.
+    """Nodes along the edges of a node of a network, in node order.
 
-    Rules receive the values of the neighbours padded to the largest degree of the graph. On a directed graph the
-    neighbours are the successors.
+    The node itself comes first when it is included. Rules receive the values of the neighbours padded to the largest
+    degree of the graph. On a directed graph the neighbours are the successors.
 
     Args:
         center:

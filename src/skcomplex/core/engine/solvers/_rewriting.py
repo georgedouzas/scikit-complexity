@@ -10,20 +10,23 @@ from ...components.spaces import CayleySpace, ContinuousSpace, DiscreteTime, Lat
 from ...errors import SolverError
 from ...specs import PatchStructureSpec, RunStateSpec, StructureStateSpec, SupportSpec, WordStructureSpec
 from ...types import Array, FormKind, OrderKind
-from ..problems import RewritingProblemSpec
+from ..problems._patch_kernel import PatchKernel
+from ..problems._rewriting_problem_spec import RewritingProblemSpec
+from ..problems._word_kernel import WordKernel
 from ._base import BaseSolver
 
 
 class RewritingSolver(BaseSolver[RewritingProblemSpec]):
-    """Solver of rewriting systems, which rewrites every structure in parallel once per generation.
+    """Solver of rewriting systems.
 
-    The structures live next to the state vector, whose components are their symbol, prototile, or label counts and
-    sizes. Stochastic productions draw from the simulation's random stream.
+    It rewrites every structure in parallel once per generation. The structures live next to the state vector, whose
+    components are their symbol, prototile, or label counts and sizes. Stochastic productions draw from the simulation's
+    random stream.
 
     Examples:
         >>> from skcomplex.core.components.spaces import DiscreteTime
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.components.laws import ProductionLaw
         >>> from skcomplex.core.engine.solvers import RewritingSolver
         >>> from skcomplex.core.components.elements import WordElement
@@ -31,11 +34,7 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
         ...     def _get_laws(self, namespace):
         ...         return [ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]
         >>> system = System(elements=[AlgaeElement('algae', axiom='A')], time=DiscreteTime())
-        >>> from skcomplex.core.engine.compile import RewritingCompiler
-        >>> compiler = RewritingCompiler()
-        >>> simulation = Simulation(system, compiler=compiler, solver=RewritingSolver())
-        >>> simulation = simulation.prepare()
-        >>> trajectory = simulation.run(until=5).trajectory_
+        >>> trajectory = simulate(system, until=5, solver=RewritingSolver())
         >>> trajectory.values('algae.size').tolist()
         [1.0, 2.0, 3.0, 5.0, 8.0, 13.0]
     """
@@ -83,7 +82,13 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
 
     def _state(self) -> Array:
         """Return the state vector of the counts and sizes of the current structures."""
-        counts = [value for item in self.systems_ for value in item.counts(self.structures_[item.path])]
+        counts: list[float] = []
+        for item in self.systems_:
+            structure = self.structures_[item.path]
+            if isinstance(item, WordKernel) and isinstance(structure, WordStructureSpec):
+                counts += item.counts(structure)
+            if isinstance(item, PatchKernel) and isinstance(structure, PatchStructureSpec):
+                counts += item.counts(structure)
         return np.asarray(counts, dtype=float)
 
     def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
@@ -112,7 +117,10 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
         return self._state()
 
     def _collect(self) -> None:
-        """Set the snapshot of the current structures, which later generations do not change, and their measures."""
+        """Set the snapshot of the current structures and their measures.
+
+        Later generations do not change the snapshot.
+        """
         reporters: dict[str, float] = {}
         for path, structure in self.structures_.items():
             if structure.has_geometry:

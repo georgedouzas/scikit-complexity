@@ -46,7 +46,10 @@ class PairSearch(BaseSearch):
         self.pairs_ = self._pairs(self._state_of(inputs))
 
     def _pairs(self, state: RunStateSpec) -> tuple[Indices, Indices]:
-        """Return the indices of the first and second members of every pair within the cutoff."""
+        """Return the indices of the members of every pair within the cutoff.
+
+        They are the first and second members of every pair.
+        """
         x, p = state.x, state.p
         cutoff = float(self.cutoff.view(p)[0, 0])
         first, second = self._positions(self.first.view(x)), self._positions(self.second.view(x))
@@ -63,7 +66,9 @@ class PairSearch(BaseSearch):
         return np.mod(positions, self.period) if self.period is not None else positions
 
     def second_images(self, x: Array, first: Indices, second: Indices) -> Array:
-        """Return the positions of the second members as seen from the first, with minimum image distances.
+        """Return the positions of the second members as seen from the first.
+
+        They are taken at minimum image distances.
 
         Args:
             x:

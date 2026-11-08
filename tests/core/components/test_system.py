@@ -7,10 +7,12 @@ import networkx as nx
 import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import CC, oo, var
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
+from sklearn.base import clone
 
 from skcomplex.core.components.elements import Element, GroupElement, PointElement
-from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.interactions import Interaction, MapInteraction, RateInteraction
 from skcomplex.core.components.laws import GeneratorLaw, RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import local_operator
 from skcomplex.core.components.spaces import (
@@ -21,12 +23,13 @@ from skcomplex.core.components.spaces import (
     NetworkSpace,
     StaticTime,
 )
-from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import OperatorCompiler, PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.components.system import BaseSystem, System
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import UnitarySolver
-from skcomplex.core.errors import ValidationError
+from skcomplex.core.errors import RoleElementError, TagError, ValidationError
 from skcomplex.core.specs import HilbertSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.systems.biology.epidemiology import SIRSystem
 
 PAULI = HilbertSpec(
     2,
@@ -188,9 +191,9 @@ def test_four_part_system_runs():
         space=None,
         time=ContinuousTime(),
     )
-    trajectory = Simulation(system, dt=0.5).prepare().run(until=1).trajectory_
+    trajectory = simulate(system, until=1, dt=0.5)
     assert trajectory.values('rabbits.n')[-1] > 1.0
-    assert Simulation(system).prepare().run(until=0).problem_.parameters.names == ['growth.r']
+    assert simulate(system, until=0).problem.parameters.names == ['growth.r']
 
 
 def test_systems_nest_and_interactions_couple_them_by_path():
@@ -199,8 +202,22 @@ def test_systems_nest_and_interactions_couple_them_by_path():
         systems=[System('meadow', elements=[StockElement('rabbits', n=2.0)])],
         interactions=[GrowthInteraction('growth', target='meadow/rabbits')],
     )
-    trajectory = Simulation(system, dt=0.5).prepare().run(until=1).trajectory_
+    trajectory = simulate(system, until=1, dt=0.5)
     assert trajectory.values('meadow/rabbits.n')[-1] > 2.0
+
+
+def test_system_classes_nest_twice_under_their_labels():
+    """Test that a ready-made system class nests twice by label, with its paths and its parameters kept apart."""
+    system = System(
+        systems=[SIRSystem(label='town'), System('region', systems=[SIRSystem(beta=0.0006, label='city')])],
+        interactions=[GrowthInteraction('arrivals', target='town/S', r=0.01)],
+    )
+    assert PassCompiler().prepare(system).report_.ok
+    assert system.prepare().system_.systems[0].elements[0].label == 'S'
+    trajectory = simulate(system, until=10, dt=1.0)
+    alone = simulate(SIRSystem(), until=10, dt=1.0)
+    assert trajectory.values('town/S.n')[-1] > alone.values('S.n')[-1]
+    assert trajectory.values('region/city/S.n')[-1] < alone.values('S.n')[-1]
 
 
 def test_duplicate_labels_are_reported():
@@ -247,7 +264,7 @@ def test_periodic_space_wraps_positions():
         elements=[PointElement('p', x=[0.9, 0.5], x_d1=[1.0, 0.0])],
         space=ContinuousSpace(extent=(1.0, 1.0), boundary='periodic'),
     )
-    trajectory = Simulation(system, dt=0.2).prepare().run(until=0.2).trajectory_
+    trajectory = simulate(system, until=0.2, dt=0.2)
     assert trajectory.values('p.x')[-1].tolist() == pytest.approx([0.1, 0.5])
 
 
@@ -259,7 +276,7 @@ def test_periodic_box_wraps_member_with_same_velocity():
         ],
         space=ContinuousSpace(extent=(1.0, 1.0), boundary='periodic'),
     )
-    trajectory = Simulation(system, dt=0.1).prepare().run(until=0.2).trajectory_
+    trajectory = simulate(system, until=0.2, dt=0.1)
     assert np.allclose(trajectory.values('gas.x')[-1], [[0.15, 0.5]])
     assert np.allclose(trajectory.values('gas.x_d1')[-1], [[1.0, 0.0]])
 
@@ -267,7 +284,7 @@ def test_periodic_box_wraps_member_with_same_velocity():
 def test_variable_group_of_elements_grows():
     """Test that a variable group of 10 dividing members has 20, 40, and 80 after one, two, and three steps."""
     system = System(elements=[GroupElement('cells', element=CellElement, size=10, variable=True)])
-    trajectory = Simulation(system).prepare().run(until=3).trajectory_
+    trajectory = simulate(system, until=3)
     assert trajectory.values('cells.count').tolist() == [10.0, 20.0, 40.0, 80.0]
 
 
@@ -283,12 +300,141 @@ def test_group_on_edges_outside_a_network_is_reported():
     system = System(elements=[GroupElement('weights', element=StockElement, on='edges')], space=LatticeSpace(4))
     report = PassCompiler().prepare(system).report_
     (issue,) = report.errors
-    assert (issue.code, issue.message) == ('space-missing', 'LatticeSpace has no edges.')
+    assert (issue.code, issue.message) == ('space-missing', 'weights: LatticeSpace has no edges.')
 
 
 def test_element_with_hilbert_state_runs_unitary_dynamics():
     """Test that an element with a complex state in a Hilbert space and a generator law runs unitary dynamics."""
     system = System(elements=[TwoLevelElement('q')])
-    simulation = Simulation(system, compiler=OperatorCompiler(), solver=UnitarySolver(), dt=np.pi).prepare()
-    simulation.run(until=np.pi)
-    assert simulation.problem_.form.name == 'OPERATOR'
+    trajectory = simulate(system, until=np.pi, solver=UnitarySolver(), dt=np.pi)
+    assert trajectory.problem.form.name == 'OPERATOR'
+
+
+class SwitchElement(Element):
+    """Element with one boolean state."""
+
+    def __init__(self, label: str, on: Annotated[int, StateSpec(FiniteEnumeratedSet([0, 1]))] = 0) -> None:
+        super().__init__(label)
+        self.on = on
+
+
+class GrowthSystem(BaseSystem):
+    """System of exponential growth whose model parameter is the rate."""
+
+    until = 5.0
+
+    def __init__(self, label: str = 'growth', r: float = 1.0) -> None:
+        super().__init__(label)
+        self.r = r
+
+    def _build_system(self) -> System:
+        growth = RateInteraction('growth', target='stock', state='n', rate=self.r)
+        return System(self.label, elements=[StockElement('stock')], interactions=[growth])
+
+
+def test_system_is_a_base_system_with_tags_derived_from_its_parts():
+    """Test that a system of a rate and a noise interaction is stochastic, with both law kinds."""
+    noisy = RateInteraction('growth', target='stock', state='n', rate=1.0, noise=0.1)
+    system = System(elements=[StockElement('stock')], interactions=[noisy])
+    tags = system.get_tags()
+    assert isinstance(system, BaseSystem)
+    assert (tags.laws, tags.randomness, tags.time, tags.space) == (
+        {'rate', 'noise'},
+        'stochastic',
+        {'continuous'},
+        {'none'},
+    )
+    assert tags.domains == {'real'}
+
+
+def test_system_tags_reject_parts_on_spaces_that_nothing_joins():
+    """Test that elements on a lattice and on a network, in a system without a space, disagree on the space."""
+    on_lattice = GroupElement('cells', element=StockElement, space=LatticeSpace((3,)))
+    on_network = GroupElement('nodes', element=StockElement, space=NetworkSpace(nx.cycle_graph(3)))
+    with pytest.raises(TagError, match=r"The parts 'cells' and 'nodes' disagree on the tag 'space'"):
+        System(elements=[on_lattice, on_network]).get_tags()
+    joined = System(elements=[on_lattice, on_network], space=ContinuousSpace(n_dim=2)).get_tags()
+    assert joined.space == {'continuous', 'lattice', 'network'}
+
+
+def test_system_tags_reject_parts_of_times_that_nothing_joins():
+    """Test that a rate and a map in one system disagree on the time, unless nested systems of each time join them."""
+    rate = RateInteraction('growth', target='stock', state='n', rate=1.0)
+    step = MapInteraction('step', target='counter/stock', state='n', function=lambda s: s.target.n)
+    with pytest.raises(TagError, match=r"disagree on the tag 'time'"):
+        System(elements=[StockElement('stock')], interactions=[rate, step]).get_tags()
+    nested = System(
+        systems=[
+            System('plant', elements=[StockElement('stock')], time=ContinuousTime()),
+            System('counter', elements=[StockElement('stock')], time=DiscreteTime()),
+        ],
+        interactions=[rate.set_params(target='plant/stock'), step],
+    )
+    assert nested.get_tags().time == {'continuous', 'discrete'}
+
+
+def test_system_rejects_a_role_bound_to_a_domain_it_does_not_accept():
+    """Test that a rate interaction on a boolean state fails to prepare, naming role, element, and domain."""
+    rate = RateInteraction('growth', target='switch', state='on', rate=1.0)
+    system = System(elements=[SwitchElement('switch')], interactions=[rate])
+    with pytest.raises(
+        RoleElementError,
+        match=r"The role 'target' of 'growth' .* 'switch' .* 'on' of the domain 'boolean'",
+    ):
+        system.prepare()
+
+
+def test_base_system_passes_model_parameters_down_to_its_parts():
+    """Test that setting a model parameter of a system subclass changes the parts of the next `prepare`."""
+    system = GrowthSystem(r=0.3).prepare()
+    before = system.system_
+    assert system.get_params() == {'label': 'growth', 'r': 0.3}
+    assert before.interactions[0].rate == 0.3
+    system.set_params(r=0.5).prepare()
+    assert system.system_ is not before
+    assert system.system_.interactions[0].rate == 0.5
+    assert clone(system).get_params()['r'] == 0.5
+    assert system.get_tags().laws == {'rate'}
+
+
+class CountingSystem(GrowthSystem):
+    """System of exponential growth that counts how often it builds its parts."""
+
+    def __init__(self, label: str = 'growth', r: float = 1.0, weights: object = None) -> None:
+        super().__init__(label, r)
+        self.weights = weights
+        self.n_builds = 0
+
+    def _build_system(self) -> System:
+        self.n_builds += 1
+        return super()._build_system()
+
+
+def test_base_system_builds_its_parts_once_per_set_of_parameters():
+    """Test that tags, checks, and prepares reuse the built parts until a parameter changes by value."""
+    system = CountingSystem(r=0.3, weights=np.ones(3))
+    system.get_tags()
+    system.prepare().prepare()
+    system.get_tags()
+    assert system.n_builds == 1
+    system.set_params(r=0.3, weights=np.ones(3)).prepare()
+    assert system.n_builds == 1
+    system.set_params(weights=np.zeros(3)).prepare()
+    assert system.n_builds == 2
+    system.set_params(r=0.5).prepare()
+    assert (system.n_builds, system.system_.interactions[0].rate) == (3, 0.5)
+    system.get_tags()
+    assert system.n_builds == 3
+
+
+def test_base_system_rejects_parts_that_are_no_system():
+    """Test that a system subclass whose hook returns no `System` fails to prepare."""
+
+    class BrokenSystem(BaseSystem):
+        """System whose hook returns an element."""
+
+        def _build_system(self):
+            return StockElement('stock')
+
+    with pytest.raises(ValidationError, match='builds its parts as a System, not as StockElement'):
+        BrokenSystem().prepare()

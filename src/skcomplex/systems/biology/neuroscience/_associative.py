@@ -1,4 +1,7 @@
-"""Neuroscience systems: associative thought processes as transient attractors of clique-encoding networks."""
+"""Neuroscience systems: associative thought processes.
+
+Thoughts are transient attractors of clique-encoding networks.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,9 +19,8 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import total, where
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 UNIT = RealSet.closed(0, 1)
 
@@ -26,7 +28,9 @@ CLIQUES = ((0, 1), (0, 6), (3, 6), (1, 2, 3), (4, 5, 6), (1, 2, 4, 5))
 
 
 class AssociativeSiteElement(Element):
-    """Site of a dense homogeneous associative network, an activity coupled to a slow reservoir.
+    """Site of a dense homogeneous associative network.
+
+    The site holds an activity coupled to a slow reservoir.
 
     The reservoir `phi` of an active site, `x > x_c`, depletes as `dphi/dt = -gamma_minus phi`, and the reservoir of an
     inactive site recovers as `dphi/dt = gamma_plus (1 - phi) (1 - x / x_c)`. The network couples the activities.
@@ -58,6 +62,8 @@ class AssociativeSiteElement(Element):
         >>> AssociativeSiteElement('sites').x_c
         0.85
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
@@ -93,7 +99,9 @@ class AssociativeSiteElement(Element):
 
 
 class CliqueCompetitionInteraction(Interaction):
-    """Competition of the cliques of a winners-take-all network, gated by the reservoirs of the sites.
+    """Competition of the cliques of a winners-take-all network.
+
+    The reservoirs of the sites gate the competition.
 
     Site `i` grows by `dx_i/dt = (1 - x_i) r_i` for a positive input `r_i` and decays by `dx_i/dt = x_i r_i` for a
     negative one, with `r_i = sum_j [f_w(phi_i) w_ij + z_ij f_z(phi_j)] x_j`. The excitatory links `w_ij > 0` join the
@@ -135,6 +143,8 @@ class CliqueCompetitionInteraction(Interaction):
         >>> CliqueCompetitionInteraction('competition', sites='sites', w=((0.0, 0.1), (0.1, 0.0))).z
         1.0
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
@@ -185,30 +195,18 @@ class CliqueCompetitionInteraction(Interaction):
         return floor + (1 - floor) * (atan((phi - center) / width) - lowest) / (atan((1 - center) / width) - lowest)
 
 
-@register_system(
-    field='biology/neuroscience',
-    tags=('associative memory', 'transient attractors', 'winners-take-all', 'cognitive systems', 'ode'),
-    references=('Gros 2007', 'Gros 2015'),
-    defaults={'until': 1500.0, 'dt': 2.0},
-)
-def associative_thought_process(
-    cliques: Sequence[Sequence[int]] = CLIQUES,
-    *,
-    w: float = 0.15,
-    z: float = 1.0,
-    x_c: float = 0.85,
-    gamma_plus: float = 0.005,
-    gamma_minus: float = 0.005,
-    start: Sequence[int] = (0, 1),
-) -> System:
-    """Return the dense homogeneous associative network of Gros, whose memories become active one after the other.
+class AssociativeThoughtProcessSystem(BaseSystem):
+    """The dense homogeneous associative network of Gros.
 
-    Every memory is a clique of sites joined by excitatory links of strength `w`, and every other pair of sites
-    inhibits each other with strength `z`. Without reservoirs the network is a winners-take-all network whose cliques
-    are stable attractors. The reservoirs of an active clique deplete slowly, and once they are low the clique loses
-    its excitation and its hold on the other sites, so the activity hops to an associated clique that shares sites with
-    it. The memories become transient attractors, and the network runs through a sequence of them, an associative
-    thought process. The default is the network of seven sites and six cliques of Gros (2015, figure 10.12).
+    Its memories become active one after the other.
+
+    Every memory is a clique of sites joined by excitatory links of strength `w`, and every other pair of sites inhibits
+    each other with strength `z`. Without reservoirs the network is a winners-take-all network whose cliques are stable
+    attractors. The reservoirs of an active clique deplete slowly, and once they are low the clique loses its excitation
+    and its hold on the other sites, so the activity hops to an associated clique that shares sites with it. The
+    memories become transient attractors, and the network runs through a sequence of them, an associative thought
+    process. The default is the network of seven sites and six cliques of Gros (2015, figure 10.12). The system has the
+    activities `sites.x` and the reservoirs `sites.phi`.
 
     Args:
         cliques:
@@ -232,27 +230,67 @@ def associative_thought_process(
         start:
             The sites that are active at the start.
 
-    Returns:
-        system:
-            The system, with the activities `sites.x` and the reservoirs `sites.phi`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.neuroscience import associative_thought_process
-        >>> associative_thought_process().elements[0].prepare().size_
+        >>> from skcomplex.systems.biology.neuroscience import AssociativeThoughtProcessSystem
+        >>> AssociativeThoughtProcessSystem().prepare().system_.elements[0].prepare().size_
         7
     """
-    size = 1 + max(max(clique) for clique in cliques)
-    links = np.zeros((size, size))
-    for clique in cliques:
-        for first, second in combinations(clique, 2):
-            links[first, second] = links[second, first] = w
-    activities = np.zeros(size)
-    activities[list(start)] = 1.0
-    sites = GroupElement(
-        'sites',
-        element=AssociativeSiteElement,
-        size=size,
-        values={'x': activities, 'phi': 1.0, 'x_c': x_c, 'gamma_plus': gamma_plus, 'gamma_minus': gamma_minus},
-    )
-    competition = CliqueCompetitionInteraction('competition', sites='sites', w=tuple(map(tuple, links.tolist())), z=z)
-    return System(elements=[sites], interactions=[competition])
+
+    field = 'biology/neuroscience'
+    topics = ('associative memory', 'transient attractors', 'winners-take-all', 'cognitive systems', 'ode')
+    references = ('Gros 2007', 'Gros 2015')
+    until = 1500.0
+    dt = 2.0
+
+    def __init__(
+        self,
+        cliques: Sequence[Sequence[int]] = CLIQUES,
+        *,
+        w: float = 0.15,
+        z: float = 1.0,
+        x_c: float = 0.85,
+        gamma_plus: float = 0.005,
+        gamma_minus: float = 0.005,
+        start: Sequence[int] = (0, 1),
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.cliques = cliques
+        self.w = w
+        self.z = z
+        self.x_c = x_c
+        self.gamma_plus = gamma_plus
+        self.gamma_minus = gamma_minus
+        self.start = start
+
+    def _build_system(self) -> System:
+        """Return the parts of the dense homogeneous associative network of Gros."""
+        size = 1 + max(max(clique) for clique in self.cliques)
+        links = np.zeros((size, size))
+        for clique in self.cliques:
+            for first, second in combinations(clique, 2):
+                links[first, second] = links[second, first] = self.w
+        activities = np.zeros(size)
+        activities[list(self.start)] = 1.0
+        sites = GroupElement(
+            'sites',
+            element=AssociativeSiteElement,
+            size=size,
+            values={
+                'x': activities,
+                'phi': 1.0,
+                'x_c': self.x_c,
+                'gamma_plus': self.gamma_plus,
+                'gamma_minus': self.gamma_minus,
+            },
+        )
+        competition = CliqueCompetitionInteraction(
+            'competition',
+            sites='sites',
+            w=tuple(map(tuple, links.tolist())),
+            z=self.z,
+        )
+        return System(self.label, elements=[sites], interactions=[competition])

@@ -1,4 +1,7 @@
-"""Oscillator realizations shared by the physics packages: phase and Stuart-Landau oscillators, links, and order."""
+"""Oscillator realizations shared by the physics packages.
+
+The package holds phase and Stuart-Landau oscillators, links, and order.
+"""
 
 from ._kuramoto_coupling import KuramotoCouplingInteraction
 from ._link import LinkElement

@@ -6,22 +6,21 @@ open and the potential shoots up to about +40 mV, then the potassium channels op
 """
 
 # %%
-# The system is created by name from the catalog with a current of 10 µA/cm², above the threshold of periodic firing,
-# and run for 50 ms. The observer saves every second frame with the default blueprint, whose primary view is the time
-# series of the potential and the gates.
+# The system is built from its class with a current of 10 µA/cm², above the threshold of periodic firing, and run for
+# 50 ms. The observer saves every second frame with the default blueprint, whose primary view is the time series of
+# the potential and the gates.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.neuroscience import HodgkinHuxleySystem
 
 SYSTEM = 'hodgkin_huxley'
 
-system = create_system(SYSTEM, I=10.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=50)
+trajectory = simulate(HodgkinHuxleySystem(I=10.0), observers=[observer])
 
 # %%
 # Gates and the firing rate
@@ -30,7 +29,6 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(unti
 # activation `n` rises, which ends the spike. The spikes should be evenly spaced, with the period of about 14.6 ms
 # Hodgkin and Huxley's neuron has at this current.
 
-trajectory = simulation.trajectory_
 spikes = np.array([event.time for event in trajectory.events if event.label == 'spike'])
 fig, (potential, gates) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
 potential.plot(trajectory.times, trajectory.values('neuron.v'))

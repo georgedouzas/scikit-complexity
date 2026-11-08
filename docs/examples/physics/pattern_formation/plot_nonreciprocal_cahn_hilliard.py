@@ -9,7 +9,7 @@ coarsening.
 """
 
 # %%
-# The system is created by name from the catalog with 128 sites, the purely nonreciprocal coupling `alpha = 0.3`, and
+# The system is built from its class with 128 sites, the purely nonreciprocal coupling `alpha = 0.3`, and
 # the diffusivity `D = 0.1` of the second field, above the threshold `alpha > D` of Brauns and Marchetti. Both fields
 # start from noise of amplitude 0.01 around the mixed state. The observer saves every frame of 2 time units with the
 # default blueprint, whose primary view is the space-time image of `phi`.
@@ -17,17 +17,17 @@ coarsening.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import StabilityAnalysis
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.analysis import stability
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.pattern_formation import NonreciprocalCahnHilliardSystem
 
 SYSTEM = 'nonreciprocal_cahn_hilliard'
 LENGTH = 40.0
 
-system = create_system(SYSTEM)
+system = NonreciprocalCahnHilliardSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).prepare().run(until=400)
+trajectory = simulate(system, observers=[observer], random_state=0)
 
 # %%
 # A propagating unstable band
@@ -39,10 +39,13 @@ simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).pr
 # sites, whose wavenumbers resolve the band finely. In the run above, the phase of the dominant Fourier
 # mode of `phi` should advance at a constant rate once the domains form, the signature of domains that travel.
 
-above = StabilityAnalysis('dispersion').prepare(create_system(SYSTEM, shape=(512,), length=400.0)).run()
-below = StabilityAnalysis('dispersion').prepare(create_system(SYSTEM, shape=(512,), length=400.0, alpha=0.05)).run()
+above = stability(NonreciprocalCahnHilliardSystem(shape=(512,), length=400.0).prepare().system_, kind='dispersion')
+below = stability(
+    NonreciprocalCahnHilliardSystem(shape=(512,), length=400.0, alpha=0.05).prepare().system_,
+    kind='dispersion',
+)
 edge = np.sqrt(1 - 0.1)
-phi = simulation.trajectory_.lattice('mixture.phi')
+phi = trajectory.lattice('mixture.phi')
 times = 2.0 * np.arange(len(phi))
 modes = np.fft.rfft(phi, axis=1)
 mode = 1 + np.argmax(np.abs(modes[-1, 1:]))
@@ -53,11 +56,11 @@ speed = abs(drift) / (2 * np.pi * mode / LENGTH)
 
 fig, (rates, turning) = plt.subplots(1, 2, figsize=(11, 4))
 for relation, label in [(above, 'alpha = 0.3'), (below, 'alpha = 0.05')]:
-    order = np.argsort(relation.magnitudes_)
-    rates.plot(relation.magnitudes_[order], relation.growth_rates_[order], label=f'growth rate, {label}')
+    order = np.argsort(relation.magnitudes)
+    rates.plot(relation.magnitudes[order], relation.growth_rates[order], label=f'growth rate, {label}')
     rates.plot(
-        relation.magnitudes_[order],
-        np.abs(relation.frequencies_[order]),
+        relation.magnitudes[order],
+        np.abs(relation.frequencies[order]),
         '--',
         color=rates.lines[-1].get_color(),
         label=f'|frequency|, {label}',

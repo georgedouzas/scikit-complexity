@@ -14,16 +14,15 @@ approach and crawling at its farthest point, so that the line to the star sweeps
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.core.engine.solvers import Yoshida4Solver
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.celestial_mechanics import TwoBodyOrbitSystem
 
 SYSTEM = 'two_body_orbit'
 
-system = create_system(SYSTEM, eccentricity=0.6, mass=1000.0, radius=10.0)
+system = TwoBodyOrbitSystem(eccentricity=0.6, mass=1000.0, radius=10.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.05, solver=Yoshida4Solver(), observers=[observer]).prepare().run(until=24.8)
+trajectory = simulate(system, until=24.8, dt=0.05, observers=[observer])
 
 # %%
 # Kepler's first and second laws
@@ -31,7 +30,6 @@ simulation = Simulation(system, dt=0.05, solver=Yoshida4Solver(), observers=[obs
 # The orbit should lie on the ellipse `r(θ) = p / (1 + e cos θ)` with `p = 10 (1 + e)`, and the areal velocity
 # `|x p_y - y p_x| / 2`, half the angular momentum, should stay constant along the orbit.
 
-trajectory = simulation.trajectory_
 x, y, px, py = (np.ravel(trajectory.values(f'planet.{name}')) for name in ('x', 'y', 'px', 'py'))
 areal = np.abs(x * py - y * px) / 2
 angles = np.linspace(0, 2 * np.pi, 400)
@@ -45,7 +43,7 @@ orbit.set_xlabel('x')
 orbit.set_ylabel('y')
 orbit.set_title('First law: an ellipse with the star at a focus')
 orbit.legend(loc='upper left')
-area.plot(simulation.trajectory_.times, areal)
+area.plot(trajectory.times, areal)
 area.set_ylim(0, 1.2 * areal.max())
 area.set_xlabel('time')
 area.set_ylabel('areal velocity')

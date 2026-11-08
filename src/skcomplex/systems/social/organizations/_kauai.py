@@ -1,4 +1,7 @@
-"""Kauai population system: residents placed by census regions, whose sentiment follows events and the people around."""
+"""Kauai population system: residents placed by census regions.
+
+Their sentiment follows events and the people around.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,17 +23,19 @@ from shapely.geometry import shape
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, MovementInteraction
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 
 class ResidentView(AgentView):
-    """View of a resident of the Kauai population system, with its states and parameters as attributes."""
+    """View of a resident of the Kauai population system.
+
+    Its states and parameters are attributes.
+    """
 
     sentiment: float
     weights: Array
@@ -50,10 +55,11 @@ class ResidentView(AgentView):
 
 
 class ResidentElement(Element):
-    """Resident of the Kauai population system, who lives, works, and spends time at points of a map.
+    """Resident of the Kauai population system.
 
-    A resident starts at its home, a point of its census region. It holds a sentiment between -1 and 1, one weight per
-    topic of the events that move the sentiment, and the demographic scalars of Carmichael et al. (2019 ch. 3 §4.2).
+    The resident lives, works, and spends time at points of a map. A resident starts at its home, a point of its census
+    region. It holds a sentiment between -1 and 1, one weight per topic of the events that move the sentiment, and the
+    demographic scalars of Carmichael et al. (2019 ch. 3 §4.2).
 
     Args:
         label:
@@ -164,10 +170,11 @@ STOPS = 3
 
 
 class CommuteInteraction(MovementInteraction):
-    """Commute of every resident in a cycle of three steps: to work, to its favourite place, and back home.
+    """Commute of every resident in a cycle of three steps.
 
-    The work and the favourite place are regions of the layers `facilities` and `places`, so a resident stands at a new
-    uniform point of the region at every visit, and at the same point of its home.
+    The steps go to work, to its favourite place, and back home. The work and the favourite place are regions of the
+    layers `facilities` and `places`, so a resident stands at a new uniform point of the region at every visit, and at
+    the same point of its home.
 
     Args:
         label:
@@ -187,7 +194,10 @@ class CommuteInteraction(MovementInteraction):
 
     @staticmethod
     def _commute(agent: AgentViewProtocol, system: SystemViewProtocol) -> object:
-        """Return the destination of a resident at the current step, its work, its favourite place, or its home."""
+        """Return the destination of a resident at the current step.
+
+        It is its work, its favourite place, or its home.
+        """
         resident = cast(ResidentView, agent)
         if np.isnan(resident.home).any():
             resident.home = np.asarray(resident.location, dtype=float)
@@ -200,7 +210,9 @@ class CommuteInteraction(MovementInteraction):
 
 
 class PlaceVisitsInteraction(MapInteraction):
-    """Count of the steps every resident stands in its favourite place, read from the regions of the layer `places`.
+    """Count of the steps every resident stands in its favourite place.
+
+    The place is read from the regions of the layer `places`.
 
     Args:
         label:
@@ -239,18 +251,18 @@ DEMOGRAPHIC_TERMS = 5
 
 
 class SentimentInteraction(MapInteraction):
-    """Sentiment of every resident, which responds to events and to the partner the resident chooses at each step.
+    """Sentiment of every resident.
 
-    The rules are those of Zanbaka et al. in Carmichael et al. (2019 ch. 3 §4.3). An event is one or more entries
-    `(time, topic, weight)`, and it changes the sentiment `S` to `S + sum(mu A_T (E_T - S))` over its topics, with `mu`
-    the parameter `event_rate` of the resident, `A_T` its weight of the topic, and `E_T` the weight of the event
-    (Eq. 5).
-    The partner is the most likely of at most `partners` residents drawn from the grid cell of the resident, by
-    `P = DSS / 2 + STI / 2`, with `DSS` the mean of five similarities and `STI` the share of topics both weigh (Eqs. 1
-    and 2). The two sentiments then change at once to `a1 + mu1 (a2 - a1)` and `a2 + mu2 (a1 - a2)`, with
-    `mu = 1 - |a| CR` of each and `CR` its parameter `convergence` (Eq. 4). The chapter prints no definition of the
-    terms of `DSS`, so here race, gender, and occupation count 1 when equal and 0 otherwise, and age and sentiment count
-    one minus their distance over their range. A sentiment stays between -1 and 1.
+    It responds to events and to the partner the resident chooses at each step. The rules are those of Zanbaka et al. in
+    Carmichael et al. (2019 ch. 3 §4.3). An event is one or more entries `(time, topic, weight)`, and it changes the
+    sentiment `S` to `S + sum(mu A_T (E_T - S))` over its topics, with `mu` the parameter `event_rate` of the resident,
+    `A_T` its weight of the topic, and `E_T` the weight of the event (Eq. 5). The partner is the most likely of at most
+    `partners` residents drawn from the grid cell of the resident, by `P = DSS / 2 + STI / 2`, with `DSS` the mean of
+    five similarities and `STI` the share of topics both weigh (Eqs. 1 and 2). The two sentiments then change at once to
+    `a1 + mu1 (a2 - a1)` and `a2 + mu2 (a1 - a2)`, with `mu = 1 - |a| CR` of each and `CR` its parameter `convergence`
+    (Eq. 4). The chapter prints no definition of the terms of `DSS`, so here race, gender, and occupation count 1 when
+    equal and 0 otherwise, and age and sentiment count one minus their distance over their range. A sentiment stays
+    between -1 and 1.
 
     Args:
         label:
@@ -267,6 +279,8 @@ class SentimentInteraction(MapInteraction):
         >>> SentimentInteraction('sentiment', target='residents', events=[(1, 0, 0.5)]).events
         [(1, 0, 0.5)]
     """
+
+    draws = True
 
     def __init__(
         self,
@@ -320,7 +334,10 @@ class SentimentInteraction(MapInteraction):
         return tuple(np.floor(np.asarray(resident.location, dtype=float) / resident.cell_size).astype(int).tolist())
 
     def _choose_partner(self, resident: ResidentView, system: SystemViewProtocol) -> ResidentView | None:
-        """Return the most likely of the residents drawn from the grid cell of a resident, or `None` without any."""
+        """Return the most likely of the residents drawn from the grid cell of a resident.
+
+        It is `None` without any.
+        """
         diagonal = resident.cell_size * np.sqrt(2.0)
         cell = self._read_grid_cell(resident)
         around = [cast(ResidentView, other) for other in resident.neighbors(diagonal)]
@@ -332,7 +349,10 @@ class SentimentInteraction(MapInteraction):
         return max(drawn, key=lambda other: self._read_probability(resident, other))
 
     def _update(self, agent: AgentViewProtocol, system: SystemViewProtocol) -> float:
-        """Return the sentiment of a resident after the step, having also set the sentiment of its partner."""
+        """Return the sentiment of a resident after the step.
+
+        It also sets the sentiment of its partner.
+        """
         resident = cast(ResidentView, agent)
         own = self._respond_to_events(resident, int(system.time))
         partner = self._choose_partner(resident, system)
@@ -353,7 +373,9 @@ def _read_layer(layer: str) -> str:
 
 
 def load_island_layers() -> dict[str, list[Polygon]]:
-    """Return the polygons of every layer of the synthetic island, in a metric coordinate system.
+    """Return the polygons of every layer of the synthetic island.
+
+    They are in a metric coordinate system.
 
     Returns:
         layers:
@@ -371,7 +393,9 @@ def load_island_layers() -> dict[str, list[Polygon]]:
 
 
 def load_island_populations() -> list[int]:
-    """Return the number of residents of every region of the census layer of the synthetic island.
+    """Return the number of residents of every census region of the synthetic island.
+
+    The regions are those of the census layer.
 
     Returns:
         populations:
@@ -410,52 +434,21 @@ GENDERS = 2
 OLDEST_AGE = 90.0
 
 
-def _get_weights(n_residents: int, n_topics: int, share: float, rng: np.random.Generator) -> np.ndarray:
-    """Return the weight of every topic per resident, above zero for the given share of residents of every topic."""
-    weights = np.zeros((n_residents, n_topics))
-    n_weighted = round(share * n_residents)
-    for topic in range(n_topics):
-        weighted = rng.permutation(n_residents)[:n_weighted]
-        weights[weighted, topic] = rng.uniform(MIN_WEIGHT, 1.0, n_weighted)
-    return weights
+class KauaiPopulationSystem(BaseSystem):
+    """One agent per resident of the census regions of a map.
 
+    The agents move between home, work, and favourite places. Every resident starts at a uniform point of its census
+    region, its home, and has a facility of work and a favourite place drawn uniformly. It commutes between the three in
+    a cycle of three steps. Its sentiment follows the rules of Zanbaka et al. in Carmichael et al. (2019 ch. 3 §4.3):
+    the response to events (Eq. 5) and the interaction with a partner it chooses from its grid cell (Eqs. 1, 2, and 4),
+    through `SentimentInteraction`. The default map is a synthetic island, and the occupations follow Table 1 of the
+    chapter. This system leaves out the base security interactions (Eq. 7), physical security information, adverse
+    agents, and the many favourite places and the weekly cycle of the chapter. The chapter gives the 15 partners, the
+    grid of 1 km, and the event rate 0.05 of its example, and it gives no value of `CR`, the initial sentiments, the
+    topic weights, or the demographics, which are choices of this system.
 
-def _mean_sentiment(system: System) -> list[ObservableSpec]:
-    """Return the mean sentiment of the residents."""
-    return [ObservableSpec('mean_sentiment', group='residents', variable='sentiment', reduce='mean')]
-
-
-@register_system(
-    field='social/organizations',
-    tags=('agents', 'continuous space', 'region layers', 'census', 'sentiment'),
-    references=('Carmichael et al. 2019',),
-    defaults={'until': 30},
-    observables=_mean_sentiment,
-)
-def kauai_population(
-    populations: Sequence[int] | None = None,
-    *,
-    layers: Mapping[str, Sequence[Polygon]] | None = None,
-    n_topics: int = 2,
-    weighted_share: float = 0.5,
-    events: Sequence[tuple[int, int, float]] = ((1, 0, 0.8),),
-    convergence: float = 1.0,
-    event_rate: float = 0.05,
-    cell_size: float = 1000.0,
-    partners: int = 15,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return one agent per resident of the census regions of a map, moving between home, work, and favourite places.
-
-    Every resident starts at a uniform point of its census region, its home, and has a facility of work and a favourite
-    place drawn uniformly. It commutes between the three in a cycle of three steps. Its sentiment follows the rules of
-    Zanbaka et al. in Carmichael et al. (2019 ch. 3 §4.3): the response to events (Eq. 5) and the interaction with a
-    partner it chooses from its grid cell (Eqs. 1, 2, and 4), through `SentimentInteraction`. The default map is a
-    synthetic island, and the occupations follow Table 1 of the chapter. This system leaves out the base security
-    interactions (Eq. 7), physical security information, adverse agents, and the many favourite places and the weekly
-    cycle of the chapter. The chapter gives the 15 partners, the grid of 1 km, and the event rate 0.05 of its example,
-    and it gives no value of `CR`, the initial sentiments, the topic weights, or the demographics, which are choices of
-    this system.
+    The system has the group `residents`, its states `sentiment`, `weights`, `home`, `census`, `work`, `favourite`,
+    `visits`, `race`, `gender`, `occupation`, and `age`, and the region layers in its space.
 
     Args:
         populations:
@@ -492,56 +485,105 @@ def kauai_population(
             The seed or generator of the initial sentiments, the weights, the demographics, the work, and the favourite
             places.
 
-    Returns:
-        system:
-            The system, with the group `residents`, its states `sentiment`, `weights`, `home`, `census`, `work`,
-            `favourite`, `visits`, `race`, `gender`, `occupation`, and `age`, and the region layers in its space.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValidationError:
             The populations do not name one number per census region.
 
     Examples:
-        >>> from skcomplex.systems.social.organizations import kauai_population
-        >>> kauai_population((3, 2, 0)).elements[0].size
+        >>> from skcomplex.systems.social.organizations import KauaiPopulationSystem
+        >>> KauaiPopulationSystem((3, 2, 0)).prepare().system_.elements[0].size
         5
     """
-    regions = load_island_layers() if layers is None else layers
-    counts = load_island_populations() if populations is None else populations
-    if len(counts) != len(regions['census']):
-        error_msg = f'The populations {counts} need one number for each of the {len(regions["census"])} census regions.'
-        raise ValidationError(error_msg)
-    rng = np.random.default_rng(random_state)
-    census = np.repeat(np.arange(len(counts)), counts)
-    size = len(census)
-    shares = np.array(OCCUPATION_SHARES) / sum(OCCUPATION_SHARES)
-    residents = GroupElement(
-        'residents',
-        element=ResidentElement,
-        size=size,
-        values={
-            'sentiment': rng.uniform(-0.2, 0.2, size),
-            'weights': _get_weights(size, n_topics, weighted_share, rng),
-            'home': np.full((size, 2), np.nan),
-            'census': census.astype(float),
-            'work': rng.integers(len(regions['facilities']), size=size).astype(float),
-            'favourite': rng.integers(len(regions['places']), size=size).astype(float),
-            'race': rng.integers(RACES, size=size).astype(float),
-            'gender': rng.integers(GENDERS, size=size).astype(float),
-            'occupation': rng.choice(len(shares), size=size, p=shares).astype(float),
-            'age': rng.uniform(0.0, OLDEST_AGE, size),
-            'convergence': convergence,
-            'event_rate': event_rate,
-            'cell_size': cell_size,
-            'partners': float(partners),
-        },
-        location=[regions['census'][region] for region in census.tolist()],
-    )
-    bounds = shapely.total_bounds([polygon for polygons in regions.values() for polygon in polygons])
-    interactions = [
-        CommuteInteraction('commute', target='residents'),
-        PlaceVisitsInteraction('visits', target='residents'),
-        SentimentInteraction('sentiment', target='residents', events=events),
-    ]
-    space = ContinuousSpace(extent=(float(bounds[2]), float(bounds[3])), regions=regions)
-    return System(elements=[residents], interactions=interactions, space=space)
+
+    field = 'social/organizations'
+    topics = ('agents', 'continuous space', 'region layers', 'census', 'sentiment')
+    references = ('Carmichael et al. 2019',)
+    until = 30
+    observables = (ObservableSpec('mean_sentiment', group='residents', variable='sentiment', reduce='mean'),)
+
+    def __init__(
+        self,
+        populations: Sequence[int] | None = None,
+        *,
+        layers: Mapping[str, Sequence[Polygon]] | None = None,
+        n_topics: int = 2,
+        weighted_share: float = 0.5,
+        events: Sequence[tuple[int, int, float]] = ((1, 0, 0.8),),
+        convergence: float = 1.0,
+        event_rate: float = 0.05,
+        cell_size: float = 1000.0,
+        partners: int = 15,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.populations = populations
+        self.layers = layers
+        self.n_topics = n_topics
+        self.weighted_share = weighted_share
+        self.events = events
+        self.convergence = convergence
+        self.event_rate = event_rate
+        self.cell_size = cell_size
+        self.partners = partners
+        self.random_state = random_state
+
+    @staticmethod
+    def _get_weights(n_residents: int, n_topics: int, share: float, rng: np.random.Generator) -> np.ndarray:
+        """Return the weight of every topic per resident.
+
+        The weight is above zero for the given share of residents of every topic.
+        """
+        weights = np.zeros((n_residents, n_topics))
+        n_weighted = round(share * n_residents)
+        for topic in range(n_topics):
+            weighted = rng.permutation(n_residents)[:n_weighted]
+            weights[weighted, topic] = rng.uniform(MIN_WEIGHT, 1.0, n_weighted)
+        return weights
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        regions = load_island_layers() if self.layers is None else self.layers
+        counts = load_island_populations() if self.populations is None else self.populations
+        if len(counts) != len(regions['census']):
+            error_msg = (
+                f'The populations {counts} need one number for each of the {len(regions["census"])} census regions.'
+            )
+            raise ValidationError(error_msg)
+        rng = np.random.default_rng(self.random_state)
+        census = np.repeat(np.arange(len(counts)), counts)
+        size = len(census)
+        shares = np.array(OCCUPATION_SHARES) / sum(OCCUPATION_SHARES)
+        residents = GroupElement(
+            'residents',
+            element=ResidentElement,
+            size=size,
+            values={
+                'sentiment': rng.uniform(-0.2, 0.2, size),
+                'weights': self._get_weights(size, self.n_topics, self.weighted_share, rng),
+                'home': np.full((size, 2), np.nan),
+                'census': census.astype(float),
+                'work': rng.integers(len(regions['facilities']), size=size).astype(float),
+                'favourite': rng.integers(len(regions['places']), size=size).astype(float),
+                'race': rng.integers(RACES, size=size).astype(float),
+                'gender': rng.integers(GENDERS, size=size).astype(float),
+                'occupation': rng.choice(len(shares), size=size, p=shares).astype(float),
+                'age': rng.uniform(0.0, OLDEST_AGE, size),
+                'convergence': self.convergence,
+                'event_rate': self.event_rate,
+                'cell_size': self.cell_size,
+                'partners': float(self.partners),
+            },
+            location=[regions['census'][region] for region in census.tolist()],
+        )
+        bounds = shapely.total_bounds([polygon for polygons in regions.values() for polygon in polygons])
+        interactions = [
+            CommuteInteraction('commute', target='residents'),
+            PlaceVisitsInteraction('visits', target='residents'),
+            SentimentInteraction('sentiment', target='residents', events=self.events),
+        ]
+        space = ContinuousSpace(extent=(float(bounds[2]), float(bounds[3])), regions=regions)
+        return System(self.label, elements=[residents], interactions=interactions, space=space)

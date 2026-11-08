@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 from scipy.optimize import nnls
 
-from skcomplex.core.analysis import ElementaryModeAnalysis
+from skcomplex.core.analysis import elementary_modes
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import LinearProgramLaw
 from skcomplex.core.components.spaces import StaticTime
@@ -80,13 +80,13 @@ def _toy(**values):
 
 def _column(analysis, name):
     """Return the column of a variable of the modes."""
-    return analysis.modes_[:, list(analysis.labels_).index(f'net.{name}')]
+    return analysis.modes[:, list(analysis.labels).index(f'net.{name}')]
 
 
 def test_run_finds_the_two_modes_of_the_toy_network():
     """Test the 2 modes of the toy network, normalised to the uptake, each with its exact balances."""
-    analysis = ElementaryModeAnalysis(normalize='net.b1').prepare(_toy()).run()
-    assert analysis.modes_.shape[0] == 2
+    analysis = elementary_modes(_toy(), normalize='net.b1')
+    assert analysis.modes.shape[0] == 2
     assert set(_column(analysis, 'vbio')) == {Fraction(1, 12)}
     assert set(_column(analysis, 'v6')) == {Fraction(5, 3)}
     assert {(item[0], item[1]) for item in zip(_column(analysis, 'v1'), _column(analysis, 'v2'), strict=True)} == {
@@ -95,15 +95,15 @@ def test_run_finds_the_two_modes_of_the_toy_network():
     }
     assert np.all(_column(analysis, 'v3') == _column(analysis, 'v2'))
     exact = [[Fraction(int(item)) for item in row] for row in MATRIX]
-    for mode in analysis.modes_:
+    for mode in analysis.modes:
         assert all(sum(a * b for a, b in zip(row, mode, strict=True)) == 0 for row in exact)
 
 
 def test_run_decomposes_the_optimum_over_the_modes():
     """Test that the FBA optimum is a non-negative combination of the modes, with growth 1000 over their ratio 20."""
-    analysis = ElementaryModeAnalysis(normalize='net.b1').prepare(_toy()).run()
+    analysis = elementary_modes(_toy(), normalize='net.b1')
     optimum = np.array([600, 0, 0, 550, 50, 1000, 100, 600, 1000, 50], dtype=float)
-    modes = np.asarray(analysis.modes_, dtype=float)
+    modes = np.asarray(analysis.modes, dtype=float)
     _, residual = nnls(modes.T, optimum)
     assert residual < 1e-9
     ratios = _column(analysis, 'v6') / _column(analysis, 'vbio')
@@ -119,8 +119,8 @@ def test_run_finds_the_simple_cycles_of_a_circulation():
     for column, (tail, head) in enumerate(arcs):
         matrix[tail, column] -= 1
         matrix[head, column] += 1
-    analysis = ElementaryModeAnalysis().prepare(matrix).run()
-    found = {frozenset(np.flatnonzero(row).tolist()) for row in analysis.modes_}
+    analysis = elementary_modes(matrix)
+    found = {frozenset(np.flatnonzero(row).tolist()) for row in analysis.modes}
     cycles = {
         frozenset(arcs.index((cycle[index], cycle[(index + 1) % len(cycle)])) for index in range(len(cycle)))
         for cycle in nx.simple_cycles(graph)
@@ -131,9 +131,9 @@ def test_run_finds_the_simple_cycles_of_a_circulation():
 
 def test_prepare_removes_a_variable_that_a_switch_fixes_at_zero():
     """Test that with the switch of `v1` off only the mode through `v2` and `v3` remains."""
-    analysis = ElementaryModeAnalysis(normalize='net.b1').prepare(_toy(switch=0.0)).run()
-    assert analysis.modes_.shape[0] == 1
-    assert 'net.v1' not in analysis.labels_
+    analysis = elementary_modes(_toy(switch=0.0), normalize='net.b1')
+    assert analysis.modes.shape[0] == 1
+    assert 'net.v1' not in analysis.labels
     assert _column(analysis, 'v2')[0] == Fraction(1)
     assert _column(analysis, 'v3')[0] == Fraction(1)
 
@@ -141,37 +141,37 @@ def test_prepare_removes_a_variable_that_a_switch_fixes_at_zero():
 def test_prepare_names_a_balance_with_a_right_side():
     """Test that a balance with the right side 5 raises an error that names it and says why."""
     with pytest.raises(AnalysisError, match=r'balance .*b1_net.*modes are defined at steady state'):
-        ElementaryModeAnalysis().prepare(_toy(side=5.0))
+        elementary_modes(_toy(side=5.0))
 
 
 def test_run_gives_the_same_vectors_as_pathways_and_modes():
     """Test that the pathways and the modes of the toy network hold the same 2 vectors."""
-    modes = ElementaryModeAnalysis(kind='modes', normalize='net.b1').prepare(_toy()).run().modes_
-    pathways = ElementaryModeAnalysis(kind='pathways', normalize='net.b1').prepare(_toy()).run().modes_
+    modes = elementary_modes(_toy(), kind='modes', normalize='net.b1').modes
+    pathways = elementary_modes(_toy(), kind='pathways', normalize='net.b1').modes
     assert {tuple(row) for row in modes} == {tuple(row) for row in pathways}
 
 
 def test_run_keeps_the_lines_of_a_cone_that_is_not_pointed():
     """Test that a reversible internal cycle is a line of the pathways and two modes."""
     matrix = np.array([[1.0, -1.0], [-1.0, 1.0]])
-    modes = ElementaryModeAnalysis(irreversible=(), kind='modes').prepare(matrix).run()
-    pathways = ElementaryModeAnalysis(irreversible=(), kind='pathways').prepare(matrix).run()
-    assert modes.modes_.shape[0] == 2
-    assert pathways.modes_.shape[0] == 0
-    assert pathways.lines_.tolist() == [[Fraction(1), Fraction(1)]]
+    modes = elementary_modes(matrix, irreversible=(), kind='modes')
+    pathways = elementary_modes(matrix, irreversible=(), kind='pathways')
+    assert modes.modes.shape[0] == 2
+    assert pathways.modes.shape[0] == 0
+    assert pathways.lines.tolist() == [[Fraction(1), Fraction(1)]]
 
 
 def test_check_rejects_an_unknown_kind():
     """Test that an unknown kind raises an error that names the kinds."""
     with pytest.raises(AnalysisError, match='modes, pathways'):
-        ElementaryModeAnalysis(kind='rays').prepare()
+        elementary_modes(MATRIX, kind='rays')
 
 
 def test_prepare_rejects_a_coefficient_far_from_a_fraction():
     """Test that a coefficient that a fraction moves too far raises an error that names the variable."""
     matrix = np.array([[np.pi * 1e-7, -1.0]])
     with pytest.raises(AnalysisError, match='v0'):
-        ElementaryModeAnalysis().prepare(matrix)
+        elementary_modes(matrix)
 
 
 def test_run_stops_at_the_time_limit():
@@ -183,7 +183,7 @@ def test_run_stops_at_the_time_limit():
         matrix[tail, column] -= 1
         matrix[head, column] += 1
     with pytest.raises(EnumerationLimitError, match=f'{len(arcs)} variables.*0.5 s'):
-        ElementaryModeAnalysis(timeout=0.5).prepare(matrix).run()
+        elementary_modes(matrix, timeout=0.5)
 
 
 def test_run_finds_the_modes_and_pathways_of_figure_9_2_of_raman():
@@ -201,8 +201,8 @@ def test_run_finds_the_modes_and_pathways_of_figure_9_2_of_raman():
     matrix = np.array([[float(row.get(name, 0)) for name in names] for row in rows.values()])
     irreversible = [position for position, name in enumerate(names) if not name.endswith('r')]
     settings = {'labels': names, 'irreversible': irreversible}
-    modes = ElementaryModeAnalysis('modes', **settings).prepare(matrix).run().modes_
-    pathways = ElementaryModeAnalysis('pathways', **settings).prepare(matrix).run().modes_
+    modes = elementary_modes(matrix, kind='modes', **settings).modes
+    pathways = elementary_modes(matrix, kind='pathways', **settings).modes
     assert modes.shape[0] == 7
     assert pathways.shape[0] == 4
     assert {tuple(row) for row in pathways} <= {tuple(row) for row in modes}
@@ -214,6 +214,6 @@ def test_run_finds_the_modes_and_pathways_of_figure_9_2_of_raman():
 def test_run_orders_the_rows_by_a_variable():
     """Test that the rows follow a variable, largest first."""
     matrix = np.array([[1.0, -1.0, -2.0, 0.0, 0.0], [0.0, 1.0, 0.0, -1.0, 0.0], [0.0, 0.0, 1.0, 0.0, -1.0]])
-    analysis = ElementaryModeAnalysis(normalize='v0', sort='v4').prepare(matrix).run()
-    assert analysis.modes_[:, 4].tolist() == sorted(analysis.modes_[:, 4].tolist(), reverse=True)
-    assert analysis.modes_[0, 4] == Fraction(1, 2)
+    analysis = elementary_modes(matrix, normalize='v0', sort='v4')
+    assert analysis.modes[:, 4].tolist() == sorted(analysis.modes[:, 4].tolist(), reverse=True)
+    assert analysis.modes[0, 4] == Fraction(1, 2)

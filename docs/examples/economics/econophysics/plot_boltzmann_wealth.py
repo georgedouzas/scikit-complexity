@@ -15,11 +15,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.analysis import DistributionAnalysis
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.analysis import distribution
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.specs import ObservableSpec
-from skcomplex.systems import create_system
+from skcomplex.systems.economics.econophysics import BoltzmannWealthSystem
 
 SYSTEM = 'boltzmann_wealth'
 STEPS = 200
@@ -27,10 +27,10 @@ STEPS = 200
 
 def gini(wealth: np.ndarray) -> float:
     """Return the Gini coefficient of the wealth."""
-    return DistributionAnalysis('gini').prepare(wealth).run().gini_
+    return distribution(wealth, kind='gini').gini
 
 
-system = create_system(SYSTEM, n_agents=300)
+system = BoltzmannWealthSystem(n_agents=300)
 observables = [ObservableSpec('gini', group='traders', variable='wealth', reduce=gini)]
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
@@ -40,9 +40,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = (
-    Simulation(system, observers=[observer], random_state=0, observables=observables).prepare().run(until=STEPS)
-)
+trajectory = simulate(system, until=STEPS, observables=observables, observers=[observer], random_state=0)
 
 # %%
 # Stationary distribution of wealth
@@ -51,7 +49,6 @@ simulation = (
 # by a constant factor per unit, a straight line on a logarithmic axis, as for a Boltzmann distribution of energy. The
 # Lorenz curve, the share of wealth held by the poorest fraction of agents, should bow far below the line of equality.
 
-trajectory = simulation.trajectory_
 wealth = np.concatenate(
     [trajectory.agents('traders', frame).values['wealth'] for frame in range(STEPS // 2, STEPS + 1)],
 )

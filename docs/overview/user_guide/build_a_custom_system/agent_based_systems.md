@@ -14,7 +14,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
@@ -49,7 +49,7 @@ foragers = System(
     elements=[GroupElement('foragers', element=ForagerElement, size=50, variable=True)],
     space=LatticeSpace((30, 30), boundary='periodic'),
 )
-trajectory = Simulation(foragers, random_state=0).prepare().run(until=20).trajectory_
+trajectory = simulate(foragers, until=20, random_state=0)
 int(trajectory.values('foragers.count')[-1]), len(trajectory.agents('foragers', 20).ids)
 ```
 
@@ -64,7 +64,7 @@ Agents are ordinary elements whose laws are rules written as code.
 
 A system with rules is agent-based. It runs in discrete time on `MesaSolver`, one Mesa step per unit of time, with
 every agent activated in random order. `MesaSolver` declares what it runs like any solver, so
-`PassCompiler(solver=MesaSolver()).prepare(system).report_` holds the laws, spaces, and times it does not support.
+`simulate(system, solver=MesaSolver())` raises a `TagError` that names the laws, spaces, or times it does not support.
 
 What an agent can do:
 
@@ -100,8 +100,8 @@ What the system gives a rule:
 What a run records: frames and trajectories hold every group's agents with their ids, states, and locations, through
 `trajectory.agents(group, frame)`, and the count of every group as the reporter `<group>.count`.
 
-The catalog has Schelling segregation as `schelling`, the voter system as `voter_system`, Boltzmann wealth exchange as
-`boltzmann_wealth`, and the wolf and sheep system as `wolf_sheep`.
+The catalog has Schelling segregation as `SchellingSystem`, the voter system as `VoterSystem`, Boltzmann wealth exchange
+as `BoltzmannWealthSystem`, and the wolf and sheep system as `WolfSheepSystem`.
 
 An interaction can hold a rule too, and read the groups bound to its roles. Here walkers drift along a periodic road
 inside a subsystem, and an interaction counts the pairs closer than its `reach`:
@@ -114,7 +114,7 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, RoleSpec
 
 
@@ -155,7 +155,7 @@ road = System(
     ],
     space=ContinuousSpace(extent=(50.0, 1.0), boundary='periodic'),
 )
-Simulation(road, random_state=0).prepare().run(until=5)
+_ = simulate(road, until=5, random_state=0)
 counts
 ```
 
@@ -175,7 +175,7 @@ from skcomplex.core.components.interactions import FeedbackInteraction, Matching
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import BatchMatchingSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec
 
 
@@ -246,7 +246,7 @@ auction = System(
     ],
     time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('quote'), PhaseSpec('trade')])),
 )
-trajectory = Simulation(auction, random_state=0).prepare().run(until=5).trajectory_
+trajectory = simulate(auction, until=5, random_state=0)
 prices = [round(float(price), 3) for price in trajectory.values('auction.value')[1:]]
 prices, float(trajectory.values('clerk.traded')[-1]), round(float(trajectory.values('clerk.fee')[-1]), 3)
 trajectory.values('auction.volume').tolist()
@@ -343,7 +343,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
 
@@ -367,7 +367,7 @@ class CoinElement(Element):
 
 
 coins = System('coins', elements=[GroupElement('coins', element=CoinElement, size=10)], time=DiscreteTime())
-int(Simulation(coins, random_state=0).prepare().run(until=10).trajectory_.agents('coins', 10).values['heads'].sum())
+int(simulate(coins, until=10, random_state=0).agents('coins', 10).values['heads'].sum())
 ```
 
 A Mesa model is ported to a system piece by piece:

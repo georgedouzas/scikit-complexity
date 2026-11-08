@@ -14,14 +14,14 @@ time diverges as `π / √|mu|`.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.dynamical_systems import SaddleNodeFormSystem
 
 SYSTEM = 'saddle_node_form'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(create_system(SYSTEM, x=1.0, mu=-0.004), dt=0.1, observers=[observer]).prepare().run(until=48)
+trajectory = simulate(SaddleNodeFormSystem(x=1.0, mu=-0.004), until=48, dt=0.1, observers=[observer])
 
 # %%
 # Passage time through the bottleneck
@@ -34,12 +34,12 @@ passages = []
 for distance in distances:
     width = np.sqrt(distance)
     until = 2 * np.arctan(1 / width) / width + 0.5
-    trajectory = Simulation(create_system(SYSTEM, x=1.0, mu=-distance), dt=0.01).prepare().run(until=until).trajectory_
+    trajectory = simulate(SaddleNodeFormSystem(x=1.0, mu=-distance), until=until, dt=0.01)
     passages.append(trajectory.times[np.argmax(trajectory.values('form.x') < -1)])
 fig, (series, passage) = plt.subplots(1, 2, figsize=(11, 4))
-series.plot(simulation.trajectory_.times, simulation.trajectory_.values('form.x'), label='mu = -0.004')
+series.plot(trajectory.times, trajectory.values('form.x'), label='mu = -0.004')
 for mu in (0.01, 0.1):
-    settled = Simulation(create_system(SYSTEM, x=1.0, mu=mu), dt=0.1).prepare().run(until=48).trajectory_
+    settled = simulate(SaddleNodeFormSystem(x=1.0, mu=mu), until=48, dt=0.1)
     series.plot(settled.times, settled.values('form.x'), label=f'mu = {mu}')
 series.set_ylim(-2, 1.05)
 series.set_xlabel('time')

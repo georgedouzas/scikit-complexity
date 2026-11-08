@@ -1,20 +1,21 @@
 """Test the Markov analysis of transition matrices, stationary laws, spectral gaps, and Markov state models."""
 
 import math
+from dataclasses import FrozenInstanceError
 
 import networkx as nx
 import numpy as np
 import pytest
-from sklearn.base import clone
 
-from skcomplex.core.analysis import MarkovAnalysis
+from skcomplex.core.analysis import MarkovResult, markov
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
-from skcomplex.systems import create_simulation
+from skcomplex.systems.mathematics.stochastic_processes import PoissonProcessSystem
 
 
-def _markov(kind: str, source: object, **settings: object) -> MarkovAnalysis:
+def _markov(kind: str, source: object, **settings: object) -> MarkovResult:
     """Return the Markov analysis of a source for one kind, run."""
-    return MarkovAnalysis(kind, **settings).prepare(source).run()
+    return markov(source, kind=kind, **settings)
 
 
 THREE_STATES = np.asarray([[0.90, 0.08, 0.02], [0.04 / 0.3, 1 - 0.04 / 0.3 - 0.12, 0.12], [0.05, 0.18, 0.77]])
@@ -90,8 +91,8 @@ def test_markov_state_model_of_a_known_three_state_chain():
     """Test that 10^5 steps recover every transition probability and flat implied timescales."""
     path = _chain(THREE_STATES, 100_000, np.random.default_rng(0))
     system = _markov('state-system', path)
-    np.testing.assert_allclose(system.transition_matrix_, THREE_STATES, atol=0.02)
-    timescales = _markov('timescales', path, lags=[1, 2, 4], n_timescales=2).timescales_
+    np.testing.assert_allclose(system.transition_matrix, THREE_STATES, atol=0.02)
+    timescales = _markov('timescales', path, lags=[1, 2, 4], n_timescales=2).timescales
     np.testing.assert_allclose(timescales, np.broadcast_to(timescales[0], timescales.shape), rtol=0.05)
 
 
@@ -102,9 +103,9 @@ def test_markov_state_model_double_well_on_two_domains():
     network, network_dt = _schlogl(rng, 4.0, 4000.0)
     for states, dt, cores in ((well, well_dt, (18, 31)), (network, network_dt, (6, 18))):
         system = _markov('state-system', states, lag=20, n_metastable=2, dt=dt)
-        assert len(system.metastable_sets_) == 2
+        assert len(system.metastable_sets) == 2
         there, back = _dwell_times(states, *cores, dt)
-        assert system.timescales_[0] == pytest.approx(1 / (1 / there + 1 / back), rel=0.2)
+        assert system.timescales[0] == pytest.approx(1 / (1 / there + 1 / back), rel=0.2)
 
 
 @pytest.mark.parametrize(
@@ -164,47 +165,47 @@ def test_state_system_keeps_its_reference_values(
 ):
     """Test the fits of a fixed path against the values recorded from the previous library."""
     system = _markov('state-system', _chain(FOUR_STATES, 20_000, np.random.default_rng(0)), **settings)
-    assert system.states_.tolist() == [0, 1, 2, 3]
-    np.testing.assert_allclose(system.transition_matrix_, matrix, rtol=1e-3, atol=1e-6)
-    np.testing.assert_allclose(system.stationary_, stationary, rtol=1e-3)
-    np.testing.assert_allclose(system.timescales_, timescales, rtol=1e-3)
+    assert system.states.tolist() == [0, 1, 2, 3]
+    np.testing.assert_allclose(system.transition_matrix, matrix, rtol=1e-3, atol=1e-6)
+    np.testing.assert_allclose(system.stationary, stationary, rtol=1e-3)
+    np.testing.assert_allclose(system.timescales, timescales, rtol=1e-3)
 
 
 def test_state_system_of_several_paths_keeps_its_reference_values():
     """Test that the rows of two paths count together, against the recorded values."""
     path = _chain(FOUR_STATES, 20_000, np.random.default_rng(0))
     system = _markov('state-system', np.vstack([path[:10_000], path[10_000:]]))
-    np.testing.assert_allclose(system.stationary_, [0.231573, 0.244474, 0.29513, 0.228823], rtol=1e-3)
-    np.testing.assert_allclose(system.timescales_, [34.047193, 5.09301, 4.434383], rtol=1e-3)
+    np.testing.assert_allclose(system.stationary, [0.231573, 0.244474, 0.29513, 0.228823], rtol=1e-3)
+    np.testing.assert_allclose(system.timescales, [34.047193, 5.09301, 4.434383], rtol=1e-3)
 
 
 def test_state_system_keeps_the_largest_connected_set():
     """Test that a transient state leaves the system and that a tie gives the later set, as recorded."""
     transient = _markov('state-system', [3, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1])
-    assert transient.states_.tolist() == [0, 1]
-    np.testing.assert_allclose(transient.transition_matrix_, [[0.2, 0.8], [0.75, 0.25]], rtol=1e-3)
-    np.testing.assert_allclose(transient.stationary_, [0.483871, 0.516129], rtol=1e-3)
-    np.testing.assert_allclose(transient.timescales_, [1.672697], rtol=1e-3)
+    assert transient.states.tolist() == [0, 1]
+    np.testing.assert_allclose(transient.transition_matrix, [[0.2, 0.8], [0.75, 0.25]], rtol=1e-3)
+    np.testing.assert_allclose(transient.stationary, [0.483871, 0.516129], rtol=1e-3)
+    np.testing.assert_allclose(transient.timescales, [1.672697], rtol=1e-3)
     tie = _markov('state-system', [0, 1, 0, 1, 0, 2, 3, 2, 3, 2], reversible=False)
-    assert tie.states_.tolist() == [2, 3]
-    assert tie.timescales_.tolist() == [np.inf]
+    assert tie.states.tolist() == [2, 3]
+    assert tie.timescales.tolist() == [np.inf]
 
 
 def test_state_system_finds_the_recorded_metastable_sets():
     """Test the partition of a double-well chain and its timescales against the recorded values."""
     system = _markov('state-system', _chain(DOUBLE_WELL, 20_000, np.random.default_rng(1)), n_metastable=2)
-    assert sorted(found.tolist() for found in system.metastable_sets_) == [[0, 1, 2], [3, 4, 5]]
-    np.testing.assert_allclose(system.timescales_, [82.644678, 2.623531, 2.207486, 0.557418, 0.467036], rtol=1e-3)
+    assert sorted(found.tolist() for found in system.metastable_sets) == [[0, 1, 2], [3, 4, 5]]
+    np.testing.assert_allclose(system.timescales, [82.644678, 2.623531, 2.207486, 0.557418, 0.467036], rtol=1e-3)
 
 
 def test_timescales_keep_their_reference_values():
     """Test the timescales at every lag of both fits, and that a large number stops at the modes there are."""
     path = _chain(FOUR_STATES, 20_000, np.random.default_rng(0))
-    reversible = _markov('timescales', path, lags=[1, 3], n_timescales=2, dt=0.5).timescales_
+    reversible = _markov('timescales', path, lags=[1, 3], n_timescales=2, dt=0.5).timescales
     np.testing.assert_allclose(reversible, [[17.024238, 2.546553], [17.354038, 2.529955]], rtol=1e-3)
-    irreversible = _markov('timescales', path, lags=[1, 3], n_timescales=2, reversible=False).timescales_
+    irreversible = _markov('timescales', path, lags=[1, 3], n_timescales=2, reversible=False).timescales
     np.testing.assert_allclose(irreversible, [[33.785728, 5.065865], [34.447698, 5.041137]], rtol=1e-3)
-    every = _markov('timescales', path, n_timescales=9).timescales_
+    every = _markov('timescales', path, n_timescales=9).timescales
     np.testing.assert_allclose(every, [[34.048475, 5.093107, 4.434706]], rtol=1e-3)
 
 
@@ -219,9 +220,9 @@ def test_state_system_needs_two_connected_states():
 def test_metastable_sets_of_every_number_of_sets():
     """Test one set, one set per state, and too many sets, as recorded from the previous library."""
     path = _chain(DOUBLE_WELL, 20_000, np.random.default_rng(1))
-    whole = _markov('state-system', path, n_metastable=1).metastable_sets_
+    whole = _markov('state-system', path, n_metastable=1).metastable_sets
     assert [found.tolist() for found in whole] == [[0, 1, 2, 3, 4, 5]]
-    apart = _markov('state-system', path, n_metastable=6).metastable_sets_
+    apart = _markov('state-system', path, n_metastable=6).metastable_sets
     assert [found.tolist() for found in apart] == [[0], [1], [2], [3], [4], [5]]
     with pytest.raises(AnalysisError, match='sets'):
         _markov('state-system', path, n_metastable=7)
@@ -230,7 +231,7 @@ def test_metastable_sets_of_every_number_of_sets():
 def test_metastable_sets_need_a_reversible_system():
     """Test that metastable sets of a system without detailed balance raise an error."""
     with pytest.raises(AnalysisError, match='reversible'):
-        MarkovAnalysis('state-system', n_metastable=2, reversible=False).prepare()
+        markov([0, 1, 0, 1], kind='state-system', n_metastable=2, reversible=False)
 
 
 def test_stationary_distribution_ehrenfest_urn_and_ring_walk():
@@ -243,58 +244,57 @@ def test_stationary_distribution_ehrenfest_urn_and_ring_walk():
         if count < balls:
             rates[count, count + 1] = balls - count
     binomial = np.asarray([math.comb(balls, count) for count in range(balls + 1)]) / 2**balls
-    np.testing.assert_allclose(_markov('stationary', rates, matrix='rate').stationary_, binomial, atol=1e-10)
+    np.testing.assert_allclose(_markov('stationary', rates, matrix='rate').stationary, binomial, atol=1e-10)
     adjacency = nx.to_numpy_array(nx.cycle_graph(11))
     walk = 0.5 * np.eye(11) + 0.5 * adjacency / 2
     gap = _markov('spectral-gap', walk, matrix='transition')
-    assert gap.spectral_gap_ == pytest.approx((1 - math.cos(2 * math.pi / 11)) / 2, abs=1e-10)
-    assert gap.relaxation_times_[0] == pytest.approx(-1 / math.log(1 - gap.spectral_gap_), rel=1e-9)
+    assert gap.spectral_gap == pytest.approx((1 - math.cos(2 * math.pi / 11)) / 2, abs=1e-10)
+    assert gap.relaxation_times[0] == pytest.approx(-1 / math.log(1 - gap.spectral_gap), rel=1e-9)
 
 
 def test_spectral_gap_of_rates():
     """Test the gap and relaxation time of a two-state rate matrix with rates 1 and 2."""
     gap = _markov('spectral-gap', [[0.0, 1.0], [2.0, 0.0]], matrix='rate')
-    assert gap.spectral_gap_ == pytest.approx(3)
-    assert gap.relaxation_times_.tolist() == pytest.approx([1 / 3])
+    assert gap.spectral_gap == pytest.approx(3)
+    assert gap.relaxation_times.tolist() == pytest.approx([1 / 3])
 
 
 def test_transition_matrix_estimates_a_known_chain():
     """Test that a long path recovers its transition matrix and counts transitions at a lag."""
     matrix = np.asarray([[0.9, 0.1], [0.3, 0.7]])
     path = _chain(matrix, 50_000, np.random.default_rng(0))
-    np.testing.assert_allclose(_markov('transition-matrix', path).transition_matrix_, matrix, atol=0.02)
-    assert _markov('transition-matrix', path, lag=2).counts_.sum() == path.size - 2
-    assert _markov('transition-matrix', [0, 0], n_states=2).transition_matrix_[1].tolist() == [0.0, 1.0]
+    np.testing.assert_allclose(_markov('transition-matrix', path).transition_matrix, matrix, atol=0.02)
+    assert _markov('transition-matrix', path, lag=2).counts.sum() == path.size - 2
+    assert _markov('transition-matrix', [0, 0], n_states=2).transition_matrix[1].tolist() == [0.0, 1.0]
 
 
 def test_stationary_distribution_of_a_path():
     """Test that the stationary law of a path is that of its estimated transition matrix."""
     path = _chain(np.asarray([[0.5, 0.5], [0.25, 0.75]]), 50_000, np.random.default_rng(3))
-    np.testing.assert_allclose(_markov('stationary', path).stationary_, [1 / 3, 2 / 3], atol=0.02)
+    np.testing.assert_allclose(_markov('stationary', path).stationary, [1 / 3, 2 / 3], atol=0.02)
 
 
 def test_markov_analysis_reads_the_jump_path_of_a_trajectory():
     """Test that a trajectory of a jump process gives the transition matrix of its jump path."""
-    trajectory = create_simulation('poisson_process', n_processes=1).prepare().run(until=30.0).trajectory_
-    matrix = _markov('transition-matrix', trajectory).transition_matrix_
+    trajectory = simulate(PoissonProcessSystem(n_processes=1), until=30.0, random_state=0)
+    matrix = _markov('transition-matrix', trajectory).transition_matrix
     np.testing.assert_allclose(matrix.sum(axis=1), 1)
 
 
 def test_markov_analysis_rejects_bad_settings():
     """Test that an unknown kind, an ignored setting, a bad matrix, and a non-square matrix raise errors."""
     with pytest.raises(AnalysisError, match='kind'):
-        MarkovAnalysis('unknown').prepare()
+        markov([0, 1, 0, 1], kind='unknown')
     with pytest.raises(AnalysisError, match='does not read n_metastable'):
-        MarkovAnalysis('stationary', n_metastable=2).prepare()
+        markov([0, 1, 0, 1], kind='stationary', n_metastable=2)
     with pytest.raises(AnalysisError, match='matrix'):
-        MarkovAnalysis('stationary', matrix='unknown').prepare()
+        markov([0, 1, 0, 1], kind='stationary', matrix='unknown')
     with pytest.raises(AnalysisError, match='square'):
         _markov('stationary', [[1.0, 0.0]], matrix='transition')
 
 
-def test_markov_analysis_clones_without_results():
-    """Test that a clone of a run analysis has its settings and no results."""
-    analysis = _markov('transition-matrix', [0, 1, 0, 1], lag=1)
-    cloned = clone(analysis)
-    assert cloned.get_params() == analysis.get_params()
-    assert not hasattr(cloned, 'transition_matrix_')
+def test_markov_result_is_frozen():
+    """Test that the result of a Markov chain is a frozen value."""
+    result = _markov('transition-matrix', [0, 1, 0, 1], lag=1)
+    with pytest.raises(FrozenInstanceError):
+        result.transition_matrix = None

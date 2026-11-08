@@ -1,4 +1,7 @@
-"""Find the connected components of the active links between members with a union-find forest."""
+"""Find the connected components of the active links between members.
+
+They are found with a union-find forest.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,7 +28,10 @@ def _root(parents: IntArray, member: int) -> int:
 
 @njit(cache=True)
 def _component_labels(size: int, firsts: IntArray, seconds: IntArray, count: int) -> IntArray:
-    """Return the smallest member of the component of every member, over the first `count` active links."""
+    """Return the smallest member of the component of every member.
+
+    The components are over the first `count` active links.
+    """
     parents = np.arange(size)
     for link in range(count):
         first, second = _root(parents, firsts[link]), _root(parents, seconds[link])
@@ -41,10 +47,11 @@ def _component_labels(size: int, firsts: IntArray, seconds: IntArray, count: int
 
 @njit(cache=True)
 def _component_values(size: int, firsts: IntArray, seconds: IntArray, count: int, kind: int) -> Array:
-    """Return the label, the size, the largest size, or the membership of the giant component of every member.
+    """Return a value of the component of every member.
 
-    The first `count` entries of `firsts` and `seconds` are the members of the active links. The label of a component is
-    its smallest member, and the giant component is the largest one, the one of the smallest label among ties.
+    The value is the label, the size, the largest size, or the membership of the giant component. The first `count`
+    entries of `firsts` and `seconds` are the members of the active links. The label of a component is its smallest
+    member, and the giant component is the largest one, the one of the smallest label among ties.
     """
     labels = _component_labels(size, firsts, seconds, count)
     sizes = np.zeros(size, dtype=np.int64)

@@ -2,14 +2,14 @@
 
 import numpy as np
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import KineticSolver
-
-from ...conftest import _trajectory
+from skcomplex.systems.social.crowds import EvacuationSystem
 
 
 def test_evacuation_empties_the_building():
     """Test that the evacuated fraction grows monotonically to the whole crowd and the density is kept."""
-    trajectory = _trajectory('evacuation', 40, 2.0)
+    trajectory = simulate(EvacuationSystem(), until=40, dt=2.0, random_state=0)
     evacuated = trajectory.values('evacuated')
     assert evacuated[0] == 0.0
     assert np.all(np.diff(evacuated) >= -1e-12)
@@ -19,6 +19,6 @@ def test_evacuation_empties_the_building():
 
 def test_evacuation_runs_with_particles():
     """Test that the particle solver evacuates the building like the gain and loss equations."""
-    equations = _trajectory('evacuation', 6, 3.0)
-    particles = _trajectory('evacuation', 6, 3.0, solver=KineticSolver(n=20_000, dt=0.01))
+    equations = simulate(EvacuationSystem(), until=6, dt=3.0, random_state=0)
+    particles = simulate(EvacuationSystem(), until=6, dt=3.0, solver=KineticSolver(n=20_000, dt=0.01), random_state=0)
     np.testing.assert_allclose(particles.values('evacuated'), equations.values('evacuated'), atol=0.03)

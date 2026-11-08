@@ -1,4 +1,7 @@
-"""Spin realizations shared by the physics packages: Ising spins and the Monte Carlo sampling of Ising spins."""
+"""Spin realizations shared by the physics packages.
+
+The package holds Ising spins and the Monte Carlo sampling of Ising spins.
+"""
 
 from ._ising_sampling import IsingSamplingInteraction
 from ._ising_spin import IsingSpinElement

@@ -1,48 +1,52 @@
-"""Criticality: sandpiles, forest fires, absorbing-state transitions, learners at the edge, and avalanches."""
+"""Criticality systems.
+
+The package covers sandpiles, forest fires, absorbing-state transitions, learners at the edge, and avalanches.
+"""
 
 from ..common import SandpileCellElement
-from ._absorbing import ActiveFieldElement, directed_percolation_langevin
-from ._crackling_noise import CracklingNoiseAnalysis
+from ._absorbing import ActiveFieldElement, DirectedPercolationLangevinSystem
+from ._crackling_noise import CracklingNoiseResult, crackling_noise
 from ._criticality import (
     AvalancheInteraction,
     FireInteraction,
     ForestElement,
-    forest_fire,
-    hexagonal_forest_fire,
-    manna_sandpile,
-    sandpile,
+    ForestFireSystem,
+    HexagonalForestFireSystem,
+    MannaSandpileSystem,
+    SandpileSystem,
 )
-from ._evolutionary_learning import LearnerElement, evolutionary_sk_game
-from ._learning import LearningAgentElement, sk_game
+from ._evolutionary_learning import EvolutionarySKGameSystem, LearnerElement
+from ._learning import LearningAgentElement, SKGameSystem
 from ._sandpiles import (
     BranchingTreeElement,
     EnergySiteElement,
+    FixedEnergySandpileSystem,
+    SelfOrganizedBranchingSystem,
     ToppleInteraction,
-    fixed_energy_sandpile,
-    self_organized_branching,
-    zhang_sandpile,
+    ZhangSandpileSystem,
 )
 
 __all__: list[str] = [
     'ActiveFieldElement',
     'AvalancheInteraction',
     'BranchingTreeElement',
-    'CracklingNoiseAnalysis',
+    'CracklingNoiseResult',
+    'DirectedPercolationLangevinSystem',
     'EnergySiteElement',
+    'EvolutionarySKGameSystem',
     'FireInteraction',
+    'FixedEnergySandpileSystem',
     'ForestElement',
+    'ForestFireSystem',
+    'HexagonalForestFireSystem',
     'LearnerElement',
     'LearningAgentElement',
+    'MannaSandpileSystem',
+    'SKGameSystem',
     'SandpileCellElement',
+    'SandpileSystem',
+    'SelfOrganizedBranchingSystem',
     'ToppleInteraction',
-    'directed_percolation_langevin',
-    'evolutionary_sk_game',
-    'fixed_energy_sandpile',
-    'forest_fire',
-    'hexagonal_forest_fire',
-    'manna_sandpile',
-    'sandpile',
-    'self_organized_branching',
-    'sk_game',
-    'zhang_sandpile',
+    'ZhangSandpileSystem',
+    'crackling_noise',
 ]

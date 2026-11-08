@@ -1,4 +1,7 @@
-"""Neural network systems: the echo state network, a reservoir of leaky tanh units driven by an input."""
+"""Neural network systems: the echo state network.
+
+It is a reservoir of leaky tanh units driven by an input.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,33 +19,16 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import total
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
-
-
-def _recurrent_weights(
-    n_units: int,
-    connectivity: float,
-    spectral_radius: float,
-    rng: np.random.Generator,
-) -> scipy.sparse.csr_array:
-    """Return sparse Gaussian recurrent weights scaled to a spectral radius."""
-    weights = mat_gen.normal(n_units, n_units, connectivity=connectivity, sr=spectral_radius, seed=rng)
-    return scipy.sparse.csr_array(weights)
-
-
-def _leaky_tanh(s: SimpleNamespace, *, weights: scipy.sparse.csr_array) -> Expression:
-    """Return the next activity `(1 - a) r + a tanh(sum_j W_ij r_j + w A sin(f t))` of a unit."""
-    unit = s.target
-    drive = total(unit.r, weights=weights) + unit.w_in * unit.amplitude * sin(unit.frequency * s.t)
-    return (1 - unit.leak) * unit.r + unit.leak * tanh(drive)
 
 
 class ReservoirUnitElement(Element):
-    """Leaky tanh unit of an echo state network, with its activity and the weight, leak, and sine of its input.
+    """Leaky tanh unit of an echo state network.
 
-    The map of `echo_state_network` sets `r(t + 1) = (1 - a) r + a tanh(sum_j W_ij r_j + w u(t))` with the input
+    It holds its activity and the weight, leak, and sine of its input.
+
+    The map of `EchoStateNetworkSystem` sets `r(t + 1) = (1 - a) r + a tanh(sum_j W_ij r_j + w u(t))` with the input
     `u(t) = A sin(f t)`.
 
     Args:
@@ -92,29 +78,13 @@ class ReservoirUnitElement(Element):
         self.frequency = frequency
 
 
-@register_system(
-    field='computer_science/neural_networks',
-    tags=('neural network', 'reservoir computing', 'echo state', 'discrete map'),
-    references=('Jaeger 2001', 'Cestnik and Martens 2025'),
-    defaults={'until': 200, 'dt': 1},
-)
-def echo_state_network(
-    n_units: int = 200,
-    *,
-    spectral_radius: float = 0.9,
-    leak: float = 0.3,
-    connectivity: float = 0.1,
-    input_scaling: float = 1.0,
-    amplitude: float = 1.0,
-    frequency: float = 0.2,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return an echo state network, a reservoir of leaky tanh units with random recurrent weights driven by a sine.
+class EchoStateNetworkSystem(BaseSystem):
+    """An echo state network, a reservoir of leaky tanh units driven by a sine.
 
     The recurrent weights are sparse and Gaussian, scaled to a spectral radius below 1, so the reservoir has the echo
     state property: its activities forget their initial values and become a function of the input history alone. A
-    readout trained on these activities, as `skcomplex.core.analysis.ReservoirAnalysis` does, turns the reservoir
-    into a forecaster.
+    readout trained on these activities, as `skcomplex.core.analysis.reservoir` does, turns the reservoir into a
+    forecaster. The system has the group `units` of activities `r`, one per unit.
 
     Args:
         n_units:
@@ -141,33 +111,85 @@ def echo_state_network(
         random_state:
             The seed or generator of the weights and of the initial activities.
 
-    Returns:
-        system:
-            The system, with the group `units` of activities `r`, one per unit.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.computer_science.neural_networks import echo_state_network
-        >>> echo_state_network(50).elements[0].prepare().size_
+        >>> from skcomplex.systems.computer_science.neural_networks import EchoStateNetworkSystem
+        >>> EchoStateNetworkSystem(50).prepare().system_.elements[0].prepare().size_
         50
     """
-    rng = np.random.default_rng(random_state)
-    weights = _recurrent_weights(n_units, connectivity, spectral_radius, rng)
-    units = GroupElement(
-        'units',
-        element=ReservoirUnitElement,
-        size=n_units,
-        values={
-            'r': rng.uniform(-1.0, 1.0, n_units),
-            'w_in': rng.uniform(-input_scaling, input_scaling, n_units),
-            'leak': leak,
-            'amplitude': amplitude,
-            'frequency': frequency,
-        },
-    )
-    reservoir = MapInteraction(
-        'reservoir',
-        target='units',
-        state='r',
-        function=functools.partial(_leaky_tanh, weights=weights),
-    )
-    return System(elements=[units], interactions=[reservoir])
+
+    field = 'computer_science/neural_networks'
+    topics = ('neural network', 'reservoir computing', 'echo state', 'discrete map')
+    references = ('Jaeger 2001', 'Cestnik and Martens 2025')
+    until = 200
+    dt = 1
+
+    def __init__(
+        self,
+        n_units: int = 200,
+        *,
+        spectral_radius: float = 0.9,
+        leak: float = 0.3,
+        connectivity: float = 0.1,
+        input_scaling: float = 1.0,
+        amplitude: float = 1.0,
+        frequency: float = 0.2,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_units = n_units
+        self.spectral_radius = spectral_radius
+        self.leak = leak
+        self.connectivity = connectivity
+        self.input_scaling = input_scaling
+        self.amplitude = amplitude
+        self.frequency = frequency
+        self.random_state = random_state
+
+    @staticmethod
+    def _recurrent_weights(
+        n_units: int,
+        connectivity: float,
+        spectral_radius: float,
+        rng: np.random.Generator,
+    ) -> scipy.sparse.csr_array:
+        """Return sparse Gaussian recurrent weights scaled to a spectral radius."""
+        weights = mat_gen.normal(n_units, n_units, connectivity=connectivity, sr=spectral_radius, seed=rng)
+        return scipy.sparse.csr_array(weights)
+
+    @staticmethod
+    def _leaky_tanh(s: SimpleNamespace, *, weights: scipy.sparse.csr_array) -> Expression:
+        """Return the next activity of a unit.
+
+        It is `(1 - a) r + a tanh(sum_j W_ij r_j + w A sin(f t))`.
+        """
+        unit = s.target
+        drive = total(unit.r, weights=weights) + unit.w_in * unit.amplitude * sin(unit.frequency * s.t)
+        return (1 - unit.leak) * unit.r + unit.leak * tanh(drive)
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        weights = self._recurrent_weights(self.n_units, self.connectivity, self.spectral_radius, rng)
+        units = GroupElement(
+            'units',
+            element=ReservoirUnitElement,
+            size=self.n_units,
+            values={
+                'r': rng.uniform(-1.0, 1.0, self.n_units),
+                'w_in': rng.uniform(-self.input_scaling, self.input_scaling, self.n_units),
+                'leak': self.leak,
+                'amplitude': self.amplitude,
+                'frequency': self.frequency,
+            },
+        )
+        reservoir = MapInteraction(
+            'reservoir',
+            target='units',
+            state='r',
+            function=functools.partial(self._leaky_tanh, weights=weights),
+        )
+        return System(self.label, elements=[units], interactions=[reservoir])

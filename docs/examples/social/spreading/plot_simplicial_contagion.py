@@ -15,18 +15,16 @@ the triangles the epidemic either dies out or settles at a high prevalence, depe
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.social.spreading import SimplicialContagionSystem
 
 SYSTEM = 'simplicial_contagion'
 
-system = create_system(SYSTEM, share=0.4, seed=0)
-observables = describe(SYSTEM).observables_of(system)
+system = SimplicialContagionSystem(share=0.4, seed=0)
+observables = system.get_run_settings()['observables']
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='observables', interval=1)
-simulation = (
-    Simulation(system, dt=0.5, observers=[observer], observables=observables, random_state=0).prepare().run(until=30)
-)
+trajectory = simulate(system, until=30, observables=observables, observers=[observer], random_state=0)
 
 # %%
 # Two stable prevalences
@@ -39,9 +37,9 @@ simulation = (
 
 def prevalence(infectivity, share):
     """Return the mean share of infected nodes over the last ten time units of a run."""
-    system_system = create_system(SYSTEM, infectivity=infectivity, share=share, seed=0)
-    run = Simulation(system_system, dt=0.5, random_state=0).prepare().run(until=30)
-    infected = run.trajectory_.values('nodes.infected')
+    system_system = SimplicialContagionSystem(infectivity=infectivity, share=share, seed=0)
+    run = simulate(system_system, until=30, random_state=0)
+    infected = run.values('nodes.infected')
     return infected.reshape(len(infected), -1).mean(axis=1)[-20:].mean()
 
 
