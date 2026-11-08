@@ -1,4 +1,7 @@
-"""Markets systems: Gooding's Toy Trader, traders with money and toys who buy the cheapest toy they can see."""
+"""Markets systems: Gooding's Toy Trader.
+
+Traders with money and toys buy the cheapest toy they can see.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -54,7 +57,9 @@ class ToyTraderView(AgentView):
 
 
 class ToyTraderElement(Element):
-    """Trader on a torus with money, toys, crayons, and blackboards, its selling prices, and its pricing rule.
+    """Trader on a torus with money, toys, crayons, and blackboards.
+
+    It holds its selling prices and its pricing rule.
 
     Args:
         label:
@@ -155,16 +160,17 @@ class ToyTraderElement(Element):
 
 
 class ToyMarketInteraction(FeedbackInteraction[SystemView]):
-    """Market of the Toy Trader: every trader buys the cheapest good it can see, sellers price by inventory, all move.
+    """Market of the Toy Trader.
 
-    Every iteration the traders, in random order, try to buy one unit of every good from the trader with the lowest
-    price within the radius `sight`, picking at random among equal prices, and buy it when they can pay. After a sale
-    the seller lowers its price by its factor `price_down` when its stock is above the target and raises it by
-    `price_up` when it is below, never below 0.5. Then every trader moves one unit in a random direction on the torus.
-    Toys are priced by the trader's own factors, which mutate with the probability `mutation` by the difference of two
-    uniform draws on `[0, 0.01)`, and crayons and blackboards by the factors 1.0101 and 0.99. With a fitness test, a
-    trader of the poorest half copies with the probability `imitation` the toy price of a random trader of the richest
-    `elite` share and, each with probability one half, its factors plus a uniform mutation on `[-0.01, 0.01]`.
+    Every trader buys the cheapest good it can see, sellers price by inventory, and all move. Every iteration the
+    traders, in random order, try to buy one unit of every good from the trader with the lowest price within the radius
+    `sight`, picking at random among equal prices, and buy it when they can pay. After a sale the seller lowers its
+    price by its factor `price_down` when its stock is above the target and raises it by `price_up` when it is below,
+    never below 0.5. Then every trader moves one unit in a random direction on the torus. Toys are priced by the
+    trader's own factors, which mutate with the probability `mutation` by the difference of two uniform draws on
+    `[0, 0.01)`, and crayons and blackboards by the factors 1.0101 and 0.99. With a fitness test, a trader of the
+    poorest half copies with the probability `imitation` the toy price of a random trader of the richest `elite` share
+    and, each with probability one half, its factors plus a uniform mutation on `[-0.01, 0.01]`.
 
     Args:
         label:
@@ -275,7 +281,10 @@ class ToyMarketInteraction(FeedbackInteraction[SystemView]):
             state['prices'][seller, good] *= up
 
     def _trade(self, system: SystemView, state: dict[str, Array]) -> list[float]:
-        """Let every trader in random order buy one unit of every good from the cheapest trader in sight."""
+        """Let every trader buy one unit of every good from the cheapest trader in sight.
+
+        The traders buy in random order.
+        """
         rng, sight, size = system.rng, system.parameter('sight'), system.parameter('size')
         places, sold = state['places'], []
         for buyer in rng.permutation(len(places)):
@@ -303,7 +312,10 @@ class ToyMarketInteraction(FeedbackInteraction[SystemView]):
         return sold
 
     def _evolve(self, system: SystemView, state: dict[str, Array], average: float) -> None:
-        """Mutate the pricing factors and let poor traders imitate rich ones under the fitness test."""
+        """Mutate the pricing factors and let poor traders imitate rich ones.
+
+        The imitation passes the fitness test.
+        """
         rng, count = system.rng, len(state['money'])
         mutation = system.parameter('mutation')
         for name, low, high in (('up', 1.0, np.inf), ('down', 0.001, 1.0)):
@@ -362,18 +374,19 @@ class ToyMarketInteraction(FeedbackInteraction[SystemView]):
 
 
 class ToyTraderSystem(BaseSystem):
-    """Gooding's Toy Trader, traders with money and toys who buy the cheapest toy they can see.
+    """Gooding's Toy Trader.
 
-    Four hundred traders on a 51 by 51 torus start with 100 money, 5 toys, and a toy price of 10. Every iteration every
-    trader buys one toy from the cheapest trader within its market sight, if it can pay, and moves one unit in a random
-    direction. A seller keeps its stock at 3 toys by lowering its price by the factor 0.99 above it and raising it by
-    1.0101 below it (Gooding 2019, Section 8.2 and the appendix). Money and toys are conserved and supply exceeds the
-    demand for stocks, yet the price depends on the market sight: it falls when traders see only their neighbours and
-    rises when they see everyone, so supply and demand alone do not set it (Section 10.1). Mutating pricing factors
-    make the traders heterogeneous and raise prices and inequality, and the imitation of the richest 5 percent by the
-    poorest half under a fitness test of money or of assets evolves the price patterns of speculation and asset markets
-    (Sections 10.2 and 11). With `n_goods=3` the traders also trade crayons and blackboards, starting with 30 and 15,
-    which keep the fixed factors and the target stocks of 10 to 15 and 5 to 8 of the Three-Goods Trader (Section 11.1).
+    Traders with money and toys buy the cheapest toy they can see. Four hundred traders on a 51 by 51 torus start with
+    100 money, 5 toys, and a toy price of 10. Every iteration every trader buys one toy from the cheapest trader within
+    its market sight, if it can pay, and moves one unit in a random direction. A seller keeps its stock at 3 toys by
+    lowering its price by the factor 0.99 above it and raising it by 1.0101 below it (Gooding 2019, Section 8.2 and the
+    appendix). Money and toys are conserved and supply exceeds the demand for stocks, yet the price depends on the
+    market sight: it falls when traders see only their neighbours and rises when they see everyone, so supply and demand
+    alone do not set it (Section 10.1). Mutating pricing factors make the traders heterogeneous and raise prices and
+    inequality, and the imitation of the richest 5 percent by the poorest half under a fitness test of money or of
+    assets evolves the price patterns of speculation and asset markets (Sections 10.2 and 11). With `n_goods=3` the
+    traders also trade crayons and blackboards, starting with 30 and 15, which keep the fixed factors and the target
+    stocks of 10 to 15 and 5 to 8 of the Three-Goods Trader (Section 11.1).
 
     The system has the group `traders` and the market `market`, whose reporters are the average price of the toys traded
     `market.average_price`, the toys traded `market.trades`, and the Gini coefficients of money `market.money_gini` and

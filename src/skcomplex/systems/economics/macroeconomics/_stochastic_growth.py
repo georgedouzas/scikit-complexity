@@ -1,4 +1,7 @@
-"""Macroeconomics systems: Brock and Mirman's optimal growth of a representative agent under Markov productivity."""
+"""Macroeconomics systems: Brock and Mirman's optimal growth.
+
+A representative agent grows under Markov productivity.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,11 +19,12 @@ from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 
 class StochasticGrowthElement(Element):
-    """Representative economy with capital, a productivity regime, and a Cobb-Douglas technology `Y = z K^alpha`.
+    """Representative economy with capital and a productivity regime.
 
-    The productivity `z` is `z_low` in regime 0 and `z_high` in regime 1, and a Markov chain of the system moves the
-    regime. With logarithmic utility and full depreciation, the optimal consumption is `C = (1 - alpha beta) Y` and
-    the capital of the next period is the output saved, `K' = alpha beta z K^alpha`.
+    Its technology is the Cobb-Douglas `Y = z K^alpha`. The productivity `z` is `z_low` in regime 0 and `z_high` in
+    regime 1, and a Markov chain of the system moves the regime. With logarithmic utility and full depreciation, the
+    optimal consumption is `C = (1 - alpha beta) Y` and the capital of the next period is the output saved,
+    `K' = alpha beta z K^alpha`.
 
     Args:
         label:
@@ -117,15 +121,16 @@ class StochasticGrowthElement(Element):
 
 
 class BrockMirmanGrowthSystem(BaseSystem):
-    """The Brock-Mirman economy, the optimal growth of a representative agent whose productivity is Markov.
+    """The Brock-Mirman economy.
 
-    A representative consumer maximises `E_0 sum_t beta^t ln C_t` subject to `K_{t+1} = Y_t - C_t`, with full
-    depreciation and the output `Y_t = z_t K_t^alpha` of a representative firm, whose productivity `z_t` follows a
-    Markov chain. The solution is the linear consumption rule `C_t = (1 - alpha beta) Y_t`, `C = 0.68 Y` for
-    `alpha = 1/3` and `beta = 0.95`, so the capital follows `K_{t+1} = alpha beta z_t K_t^alpha` and `ln K` is a
-    stationary autoregression around `(ln(alpha beta) + E ln z) / (1 - alpha)`. This is the standard model that Caiani
-    et al. (2016, Section 1.1.4, Eqs. 1.3 to 1.9) compare with an agent-based economy. The source leaves the chain open,
-    so the productivity takes two levels that stay with the probability `persistence`.
+    It is the optimal growth of a representative agent whose productivity is Markov. A representative consumer maximises
+    `E_0 sum_t beta^t ln C_t` subject to `K_{t+1} = Y_t - C_t`, with full depreciation and the output
+    `Y_t = z_t K_t^alpha` of a representative firm, whose productivity `z_t` follows a Markov chain. The solution is the
+    linear consumption rule `C_t = (1 - alpha beta) Y_t`, `C = 0.68 Y` for `alpha = 1/3` and `beta = 0.95`, so the
+    capital follows `K_{t+1} = alpha beta z_t K_t^alpha` and `ln K` is a stationary autoregression around
+    `(ln(alpha beta) + E ln z) / (1 - alpha)`. This is the standard model that Caiani et al. (2016, Section 1.1.4, Eqs.
+    1.3 to 1.9) compare with an agent-based economy. The source leaves the chain open, so the productivity takes two
+    levels that stay with the probability `persistence`.
 
     The system has the capital `economy.K` and the regime `economy.regime`. The observables of the system are
     `economy.productivity`, `economy.output`, and `economy.consumption`.

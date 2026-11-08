@@ -29,7 +29,9 @@ from ....core.types import IntArray
 
 @dataclass(frozen=True)
 class _GameStateSpec(BaseSpec):
-    """History and strategy tables of a run, which the game keeps in the storage of the system.
+    """History and strategy tables of a run.
+
+    The game keeps them in the storage of the system.
 
     Args:
         history:
@@ -126,10 +128,10 @@ class MinorityPlayerElement(Element):
 
 
 def strategy_table(code: float, memory: int) -> IntArray:
-    """Return the table of a minority game strategy, the bit it plays after each of the `2^m` histories.
+    """Return the table of a minority game strategy.
 
-    A table has `2^m` bits, too many to store as one number beyond small memories, so a strategy is stored as the
-    integer code that seeds a generator of its table.
+    It holds the bit the strategy plays after each of the `2^m` histories. A table has `2^m` bits, too many to store as
+    one number beyond small memories, so a strategy is stored as the integer code that seeds a generator of its table.
 
     Args:
         code:
@@ -151,15 +153,15 @@ def strategy_table(code: float, memory: int) -> IntArray:
 
 
 class MinorityGameInteraction(Interaction):
-    """Rounds of the minority game of Challet and Zhang, where the agents on the minority side win.
+    """Rounds of the minority game of Challet and Zhang.
 
-    Every round each agent plays the action, `+1` or `-1`, that its chosen strategy assigns to the last `m` winning
-    sides, the strategy of higher virtual score that a `ChoiceInteraction` of rule `'best'` chooses before. The side
-    with fewer agents wins, and every agent on it gains one point and every other loses one. The game reports the
-    attendance `A = sum_i a_i` and the code of the history the strategies read, so a cumulative
-    `ReinforcementInteraction` gives every strategy one virtual point when it would have played the winning side, by
-    the payoff `payoff`. The volatility `sigma^2 / N` of the attendance has a minimum below the value of random play
-    near `alpha = 2^m / N ~ 0.34`.
+    The agents on the minority side win. Every round each agent plays the action, `+1` or `-1`, that its chosen strategy
+    assigns to the last `m` winning sides, the strategy of higher virtual score that a `ChoiceInteraction` of rule
+    `'best'` chooses before. The side with fewer agents wins, and every agent on it gains one point and every other
+    loses one. The game reports the attendance `A = sum_i a_i` and the code of the history the strategies read, so a
+    cumulative `ReinforcementInteraction` gives every strategy one virtual point when it would have played the winning
+    side, by the payoff `payoff`. The volatility `sigma^2 / N` of the attendance has a minimum below the value of random
+    play near `alpha = 2^m / N ~ 0.34`.
 
     Args:
         label:
@@ -219,7 +221,10 @@ class MinorityGameInteraction(Interaction):
         return state.tables[code]
 
     def _state(self, system: SystemView) -> _GameStateSpec:
-        """Return the state of the game in the storage of the system, starting a random history at the first round."""
+        """Return the state of the game in the storage of the system.
+
+        The first round starts a random history.
+        """
         state = system.storage.get('game')
         if not isinstance(state, _GameStateSpec):
             state = _GameStateSpec(int(system.rng.integers(2**self.memory)))
@@ -248,7 +253,9 @@ class MinorityGameInteraction(Interaction):
         system.report('history', float(history))
 
     def payoff(self, agent: MinorityPlayerView, system: SystemView, option: int) -> float:
-        """Return the virtual payoff of a strategy of an agent in the last round, `+1` if it played the winning side.
+        """Return the virtual payoff of a strategy of an agent in the last round.
+
+        It is `+1` if it played the winning side.
 
         Args:
             agent:

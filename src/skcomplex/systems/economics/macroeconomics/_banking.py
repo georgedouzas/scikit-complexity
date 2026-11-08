@@ -1,4 +1,7 @@
-"""Macroeconomics systems: fractional-reserve banking, where loans redeposited at banks multiply the base money."""
+"""Macroeconomics systems: fractional-reserve banking.
+
+Loans redeposited at banks multiply the base money.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,9 +24,10 @@ from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesSched
 
 
 class DepositorView(AgentView):
-    """Customer as the rules see it: the id of its `bank`, its `deposit`, its `loan`, and its shares of payments.
+    """Customer as the rules see it.
 
-    The parameters are the `spending` share of the deposit paid every step and the `repayment` share of the loan.
+    It holds the id of its `bank`, its `deposit`, its `loan`, and its shares of payments. The parameters are the
+    `spending` share of the deposit paid every step and the `repayment` share of the loan.
     """
 
     bank: float
@@ -34,11 +38,11 @@ class DepositorView(AgentView):
 
 
 class DepositorElement(Element):
-    """Customer of a bank, with a deposit at the bank its reference state `bank` names and a loan from it.
+    """Customer of a bank, with a deposit at the bank and a loan from it.
 
-    The system pays a share of the deposit to a random customer, which moves deposits and as many reserves from the
-    payer's bank to the payee's bank, and repays a share of the loan from the deposit, which cancels as much deposit
-    and loan at the customer's bank and destroys broad money.
+    Its reference state `bank` names the bank. The system pays a share of the deposit to a random customer, which moves
+    deposits and as many reserves from the payer's bank to the payee's bank, and repays a share of the loan from the
+    deposit, which cancels as much deposit and loan at the customer's bank and destroys broad money.
 
     Args:
         label:
@@ -114,7 +118,9 @@ class DepositorElement(Element):
 
     @staticmethod
     def get_repayment(customer: DepositorView, same: DepositorView, system: SystemView) -> float:
-        """Return the repayment of a customer, a share `repayment` of its loan, at most its deposit.
+        """Return the repayment of a customer.
+
+        It is a share `repayment` of its loan, at most its deposit.
 
         Args:
             customer:
@@ -145,10 +151,11 @@ TOLERANCE = 1e-9
 
 
 class ReserveBankElement(Element):
-    """Bank that lends its reserves in excess of the required share of its deposits to one of its customers.
+    """Bank that lends its excess reserves to one of its customers.
 
-    The borrower spends the loan at once, and the payee, a random customer, deposits it at its own bank, whose
-    reserves and deposits grow by the loan. The customers of a bank are those whose reference state `bank` names it.
+    The excess reserves are those beyond the required share of its deposits. The borrower spends the loan at once, and
+    the payee, a random customer, deposits it at its own bank, whose reserves and deposits grow by the loan. The
+    customers of a bank are those whose reference state `bank` names it.
 
     Args:
         label:
@@ -218,7 +225,9 @@ class ReserveBankElement(Element):
         return [RuleLaw(self.lend, phase='lend')]
 
     def lend(self, agent: ReserveBankView, system: SystemView) -> None:
-        """Lend the excess reserves to a random customer, whose payment is redeposited at a random customer's bank.
+        """Lend the excess reserves to a random customer.
+
+        The payment is redeposited at a random customer's bank.
 
         Args:
             agent:
@@ -246,9 +255,9 @@ class ReserveBankElement(Element):
 
 
 class PolicySwitchInteraction(FeedbackInteraction[SystemView]):
-    """Policy switch of a central bank, which moves the reserve ratio of the banks from `ratio` to `new_ratio`.
+    """Policy switch of a central bank.
 
-    The ratio switches at the time `change_at`.
+    It moves the reserve ratio of the banks from `ratio` to `new_ratio`. The ratio switches at the time `change_at`.
 
     Args:
         label:
@@ -310,14 +319,14 @@ class PolicySwitchInteraction(FeedbackInteraction[SystemView]):
 
 
 class FractionalReserveBankingSystem(BaseSystem):
-    """Customers and banks whose lending of excess reserves multiplies the base money by `1 / ratio`.
+    """Customers and banks whose lending of excess reserves multiplies the base money.
 
-    The base money starts as equal deposits of the customers, held as reserves by their banks, picked at random. Every
-    step the customers pay a share of their deposits to random customers and repay a share of their loans from their
-    deposits, and every bank lends its reserves above the
-    required share of its deposits. The loans are spent and redeposited at random banks. The reserves stay equal to the
-    base money, so the broad money, the sum of deposits, settles near `base_money / ratio`. A regulator changes the
-    reserve ratio to `new_ratio` at `change_at`, and the broad money moves to the new multiplier.
+    The multiplier is `1 / ratio`. The base money starts as equal deposits of the customers, held as reserves by their
+    banks, picked at random. Every step the customers pay a share of their deposits to random customers and repay a
+    share of their loans from their deposits, and every bank lends its reserves above the required share of its
+    deposits. The loans are spent and redeposited at random banks. The reserves stay equal to the base money, so the
+    broad money, the sum of deposits, settles near `base_money / ratio`. A regulator changes the reserve ratio to
+    `new_ratio` at `change_at`, and the broad money moves to the new multiplier.
 
     The system has the groups `customers` and `banks`, the institution `regulator`, and the observables `broad_money`,
     `reserves`, and `loans`.

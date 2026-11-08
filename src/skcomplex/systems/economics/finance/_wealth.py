@@ -1,4 +1,7 @@
-"""Finance systems: wealth that grows by random returns and flows between connected agents."""
+"""Finance systems: wealth that grows by random returns and flows between agents.
+
+The agents are connected.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,7 +22,9 @@ from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 
 class NetworkSaverElement(Element):
-    """Saver of Bouchaud and Mezard, whose wealth earns random returns and flows to and from its exchange partners.
+    """Saver of Bouchaud and Mezard, whose wealth earns random returns.
+
+    The wealth flows to and from its exchange partners.
 
     Args:
         label:
@@ -65,14 +70,14 @@ class NetworkSaverElement(Element):
 
 
 class BouchaudMezardWealthSystem(BaseSystem):
-    """Bouchaud and Mezard's wealth dynamics, random multiplicative returns with exchange between neighbours.
+    """Bouchaud and Mezard's wealth dynamics.
 
-    Agent `i` follows the Stratonovich equation `dW_i = sigma W_i dB_i + (J / c) sum_j (W_j - W_i) dt` over its
-    neighbours `j` on a network of mean degree `c`. Without a graph, the agents are the members of a group and every
-    agent exchanges with every other, `c = N - 1`, the complete graph at a cost linear in the number of agents. A given
-    graph keeps the agents on a field over its edges. Exchange conserves the total wealth, and on the complete graph
-    the relative wealth `W_i / <W>` approaches a stationary distribution with the Pareto tail
-    `P(W_i / <W> > w) ~ w^-mu` of exponent `mu = 1 + 2 J / sigma^2`.
+    Returns are random and multiplicative, with exchange between neighbours. Agent `i` follows the Stratonovich equation
+    `dW_i = sigma W_i dB_i + (J / c) sum_j (W_j - W_i) dt` over its neighbours `j` on a network of mean degree `c`.
+    Without a graph, the agents are the members of a group and every agent exchanges with every other, `c = N - 1`, the
+    complete graph at a cost linear in the number of agents. A given graph keeps the agents on a field over its edges.
+    Exchange conserves the total wealth, and on the complete graph the relative wealth `W_i / <W>` approaches a
+    stationary distribution with the Pareto tail `P(W_i / <W> > w) ~ w^-mu` of exponent `mu = 1 + 2 J / sigma^2`.
 
     The system has the wealth `agents.W` and the mean wealth `mean_wealth`.
 

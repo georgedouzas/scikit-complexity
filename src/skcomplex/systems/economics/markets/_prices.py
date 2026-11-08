@@ -16,7 +16,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class QuadraticSupplyMarketElement(Element):
-    """Market of one good whose price adjusts to the excess of a linear demand over a quadratic supply.
+    """Market of one good whose price adjusts to the excess demand.
+
+    The excess is that of a linear demand over a quadratic supply.
 
     Args:
         label:
@@ -76,12 +78,12 @@ class QuadraticSupplyMarketElement(Element):
 
 
 class RiccatiPricesSystem(BaseSystem):
-    """A price that moves with excess demand under linear demand and saturating quadratic supply.
+    """A price that moves with excess demand.
 
-    The price follows the Riccati equation `dP/dt = k (D - S)` with demand `D = beta - lam P` and supply `S = delta +
-    alpha P + gamma P^2`. When `(lam + alpha)^2 > 4 gamma (delta - beta)` there are two equilibrium prices, and prices
-    below the larger one converge to the smaller one. Otherwise the price blows up in finite time. The system has the
-    price `market.P`.
+    Demand is linear and supply is quadratic and saturating. The price follows the Riccati equation `dP/dt = k (D - S)`
+    with demand `D = beta - lam P` and supply `S = delta + alpha P + gamma P^2`. When
+    `(lam + alpha)^2 > 4 gamma (delta - beta)` there are two equilibrium prices, and prices below the larger one
+    converge to the smaller one. Otherwise the price blows up in finite time. The system has the price `market.P`.
 
     Args:
         price:
@@ -143,7 +145,10 @@ class RiccatiPricesSystem(BaseSystem):
 
     @staticmethod
     def _excess_demand(s: SimpleNamespace) -> Expression:
-        """Return the rate of the price, `k` times the demand `beta - lam P` less supply `delta + alpha P + g P^2`."""
+        """Return the rate of the price.
+
+        It is `k` times the demand `beta - lam P` less supply `delta + alpha P + g P^2`.
+        """
         market = s.target
         demand = market.beta - market.lam * market.P
         supply = market.delta + market.alpha * market.P + market.gamma * market.P**2

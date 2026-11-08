@@ -1,4 +1,7 @@
-"""Natural resources: harvesting, extracting, and cultivating renewable and nonrenewable stocks."""
+"""Natural resources: harvesting, extracting, and cultivating stocks.
+
+The stocks are renewable and nonrenewable.
+"""
 
 from ._commons import (
     CowElement,

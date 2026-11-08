@@ -1,4 +1,7 @@
-"""Forecasting realizations shared by the economics packages: the forecasting heuristics."""
+"""Forecasting realizations shared by the economics packages.
+
+They are the forecasting heuristics.
+"""
 
 from ._heuristics import heuristics
 

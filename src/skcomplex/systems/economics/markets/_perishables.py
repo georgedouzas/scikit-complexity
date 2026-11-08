@@ -1,4 +1,7 @@
-"""Markets systems: customers who choose between two shops of perishable goods by their past satisfaction."""
+"""Markets systems: customers who choose between two shops of perishable goods.
+
+They choose by their past satisfaction.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -27,7 +30,10 @@ from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesSched
 
 
 class CustomerView(AgentView):
-    """Customer as its rules see it: its satisfactions `s1` and `s2`, its `shop`, `freshness`, and temperature `T`."""
+    """Customer as its rules see it.
+
+    It holds its satisfactions `s1` and `s2`, its `shop`, `freshness`, and temperature `T`.
+    """
 
     s1: float
     s2: float
@@ -37,10 +43,10 @@ class CustomerView(AgentView):
 
 
 class CustomerElement(Element):
-    """Customer who remembers how satisfied it was with the products of each of two shops.
+    """Customer who remembers how satisfied it was with each of two shops.
 
-    The customer visits the shop `k` of larger satisfaction `S_k` more often, with the logit utility `S_k / T`, and
-    holds the freshness of the product it bought last.
+    The satisfaction is with the products of the shops. The customer visits the shop `k` of larger satisfaction `S_k`
+    more often, with the logit utility `S_k / T`, and holds the freshness of the product it bought last.
 
     Args:
         label:
@@ -91,7 +97,10 @@ class CustomerElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[CustomerView]:
-        """Return the view of a customer, with its satisfactions, shop, freshness, and temperature."""
+        """Return the view of a customer.
+
+        It holds its satisfactions, shop, freshness, and temperature.
+        """
         return CustomerView
 
     @staticmethod
@@ -133,7 +142,9 @@ class CustomerElement(Element):
 
     @staticmethod
     def payoff(agent: CustomerView, system: SystemView, option: int) -> float:
-        """Return the freshness of the product the customer bought last, the payoff of the shop it visited.
+        """Return the freshness of the product the customer bought last.
+
+        It is the payoff of the shop it visited.
 
         Args:
             agent:
@@ -153,7 +164,9 @@ class CustomerElement(Element):
 
     @staticmethod
     def preference(agent: CustomerView) -> float:
-        """Return `p_1 - p_2 = tanh((S_1 - S_2) / 2T)`, how much more likely the customer visits the first shop.
+        """Return `p_1 - p_2 = tanh((S_1 - S_2) / 2T)`.
+
+        It is how much more likely the customer visits the first shop.
 
         Args:
             agent:
@@ -167,14 +180,19 @@ class CustomerElement(Element):
 
 
 class ProductView(AgentView):
-    """Product as the purchase sees it: the time it was `shelved` and the time `tau_a` over which it ages."""
+    """Product as the purchase sees it.
+
+    It holds the time it was `shelved` and the time `tau_a` over which it ages.
+    """
 
     shelved: float
     tau_a: float
 
 
 class ProductElement(Element):
-    """Product on the shelf of a shop, which ages from the time it was shelved, its freshness `exp(-age / tau_a)`.
+    """Product on the shelf of a shop, which ages from the time it was shelved.
+
+    Its freshness is `exp(-age / tau_a)`.
 
     Args:
         label:
@@ -215,7 +233,9 @@ class ProductElement(Element):
 
     @staticmethod
     def restock(product: ProductView, customer: CustomerView, system: SystemView) -> float:
-        """Return the amount `shelved - t` that resets the shelving time of a sold product to the time of the sale.
+        """Return the amount `shelved - t` that resets the shelving time of a sold product.
+
+        The shelving time is reset to the time of the sale.
 
         Args:
             product:
@@ -235,7 +255,9 @@ class ProductElement(Element):
 
     @staticmethod
     def sell(product: ProductView, customer: CustomerView, system: SystemView) -> float:
-        """Return the amount that sets the freshness the customer holds to `exp(-(t - shelved) / tau_a)`.
+        """Return the amount that sets the freshness the customer holds.
+
+        The freshness becomes `exp(-(t - shelved) / tau_a)`.
 
         Args:
             product:
@@ -261,17 +283,17 @@ PHASE = 'visit'
 
 
 class PerishableGoodsDuopolySystem(BaseSystem):
-    """Customers who choose between two shops of perishable goods, preferring the one that sold fresher goods.
+    """Customers who choose between two shops of perishable goods.
 
-    Each shop holds `stock` products per customer, and every sale replaces a product with a fresh one, so the shop
-    with more customers sells fresher goods and attracts more customers. With the control parameter
-    `R = 2 stock / tau_a`, the symmetric state `m = p_1 - p_2 = 0` loses its stability below the temperature
-    `T_c = R / (1 + R)^2`, and one shop takes most customers. The transition is continuous for `R > sqrt(3) - 1` and
-    discontinuous below. One unit of time is `N` visits by customers drawn with replacement. A visited customer
-    chooses a shop with the probability `1 / (1 + exp(-(S_1 - S_2) / T))` for the first one, moves to it, buys a random
-    product of age `tau`, of freshness `h = exp(-tau / tau_a)`, which the shop replaces with a fresh one, and updates
-    its satisfaction with that shop alone to `alpha S + (1 - alpha) h`. The shops are the two nodes of a network on
-    which their products stand.
+    They prefer the one that sold fresher goods. Each shop holds `stock` products per customer, and every sale replaces
+    a product with a fresh one, so the shop with more customers sells fresher goods and attracts more customers. With
+    the control parameter `R = 2 stock / tau_a`, the symmetric state `m = p_1 - p_2 = 0` loses its stability below the
+    temperature `T_c = R / (1 + R)^2`, and one shop takes most customers. The transition is continuous for
+    `R > sqrt(3) - 1` and discontinuous below. One unit of time is `N` visits by customers drawn with replacement. A
+    visited customer chooses a shop with the probability `1 / (1 + exp(-(S_1 - S_2) / T))` for the first one, moves to
+    it, buys a random product of age `tau`, of freshness `h = exp(-tau / tau_a)`, which the shop replaces with a fresh
+    one, and updates its satisfaction with that shop alone to `alpha S + (1 - alpha) h`. The shops are the two nodes of
+    a network on which their products stand.
 
     The system has the groups `customers` and `products`, and the asymmetry `m` of the probabilities of visiting the two
     shops.

@@ -19,7 +19,10 @@ from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 
 class InvestingFirmView(AgentView):
-    """Firm as its rule sees it: its states `A`, `K`, `Z`, `B`, `Y`, `P` and parameters `gamma`, `phi`, `r`, `pbar`."""
+    """Firm as its rule sees it.
+
+    It holds its states `A`, `K`, `Z`, `B`, `Y`, `P` and parameters `gamma`, `phi`, `r`, `pbar`.
+    """
 
     A: float
     K: float
@@ -34,11 +37,12 @@ class InvestingFirmView(AgentView):
 
 
 class InvestingFirmElement(Element):
-    """Firm of the toy business-cycle system, which invests a share of its last profit and sells at a random price.
+    """Firm of the toy business-cycle system.
 
-    Every period the firm invests `I = gamma * Z`, accumulates capital `K = K + I`, produces `Y = phi * K`, borrows
-    `B = max(K - A, 0)`, sells at the price `P = pbar + 2 U(0, 1)`, earns `Z = P * Y - r * K`, and adds the profit to
-    its net worth `A`. A firm whose net worth turns negative is replaced by an entrant with `A = K = 1` and `Z = 0`.
+    It invests a share of its last profit and sells at a random price. Every period the firm invests `I = gamma * Z`,
+    accumulates capital `K = K + I`, produces `Y = phi * K`, borrows `B = max(K - A, 0)`, sells at the price
+    `P = pbar + 2 U(0, 1)`, earns `Z = P * Y - r * K`, and adds the profit to its net worth `A`. A firm whose net worth
+    turns negative is replaced by an entrant with `A = K = 1` and `Z = 0`.
 
     Args:
         label:
@@ -137,10 +141,11 @@ class InvestingFirmElement(Element):
 
     @staticmethod
     def get_steps() -> tuple[tuple[str, str, Callable[[InvestingFirmView, SystemView], float]], ...]:
-        """Return the steps of a period in their order, each a label, a state, and the function of its next value.
+        """Return the steps of a period in their order.
 
-        A firm invests, produces, borrows, sells, earns, adds the profit to its net worth, and, when the net worth
-        turns negative, is replaced by an entrant, whose profit, capital, and net worth the last three steps reset.
+        Each is a label, a state, and the function of its next value. A firm invests, produces, borrows, sells, earns,
+        adds the profit to its net worth, and, when the net worth turns negative, is replaced by an entrant, whose
+        profit, capital, and net worth the last three steps reset.
 
         Returns:
             steps:
@@ -161,11 +166,11 @@ class InvestingFirmElement(Element):
 
 
 class ToyFirmInvestmentSystem(BaseSystem):
-    """Heterogeneous firms that invest out of past profits and sell at random prices, with entry and exit.
+    """Heterogeneous firms that invest out of past profits and sell at random prices.
 
-    The firms start with net worth and capital 1 and a profit drawn from `pbar + 2 U(0, 1)`, as in the toy system of
-    Bargigli et al. in Caiani et al. (2016, sect. 2.1). Aggregate production fluctuates as bankrupt firms are replaced.
-    The system has the group `firms` and the aggregate production `production`.
+    Firms enter and exit. The firms start with net worth and capital 1 and a profit drawn from `pbar + 2 U(0, 1)`, as in
+    the toy system of Bargigli et al. in Caiani et al. (2016, sect. 2.1). Aggregate production fluctuates as bankrupt
+    firms are replaced. The system has the group `firms` and the aggregate production `production`.
 
     Args:
         n_firms:

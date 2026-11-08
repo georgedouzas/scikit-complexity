@@ -1,4 +1,7 @@
-"""Econophysics systems: El Farol patrons who form coalitions that share their best predictor of the attendance."""
+"""Econophysics systems: El Farol patrons who form coalitions.
+
+The coalitions share their best predictor of the attendance.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -28,7 +31,9 @@ class CoalitionPatronView(AgentView):
 
 
 class CoalitionPatronElement(Element):
-    """Patron of the El Farol bar who belongs to a coalition and keeps a smoothed return of its nights.
+    """Patron of the El Farol bar who belongs to a coalition.
+
+    It keeps a smoothed return of its nights.
 
     Args:
         label:
@@ -90,18 +95,18 @@ class CoalitionPatronElement(Element):
 
 
 class CoalitionBarInteraction(FeedbackInteraction[SystemView]):
-    """El Farol bar of Rand and Wilensky whose patrons share strategies within coalitions that split and merge.
+    """El Farol bar of Rand and Wilensky with coalitions of patrons.
 
-    A strategy `s` in `[-1, 1]^(m + 1)` predicts the attendance `n s_1 + sum_j s_(j + 1) h_j` from the last `m`
-    attendances `h`, and its error is the total absolute error of its predictions over the last `m` nights. Every night
-    every coalition uses the strategy of the lowest error among the strategies of its members, and every member goes
-    when the prediction is at most the capacity. Every member's return moves by `smoothing` towards 1 after a good
-    night and towards 0 after a bad one. With coalitions, after every night (Collins 2019, Section 3.2), every
-    coalition in random order that attended an overcrowded night within the memory, when the smallest excess `x` of
-    those nights is below its size `N`, splits off a random subgroup of at most `N - x` members that holds the owner of
-    its best strategy. Then, at most once per coalition and night, two coalitions that attended an uncrowded night
-    merge unless their joint size would have overcrowded an uncrowded night either attended within the memory. A merged
-    coalition keeps the longer history.
+    The patrons share strategies within coalitions that split and merge. A strategy `s` in `[-1, 1]^(m + 1)` predicts
+    the attendance `n s_1 + sum_j s_(j + 1) h_j` from the last `m` attendances `h`, and its error is the total absolute
+    error of its predictions over the last `m` nights. Every night every coalition uses the strategy of the lowest error
+    among the strategies of its members, and every member goes when the prediction is at most the capacity. Every
+    member's return moves by `smoothing` towards 1 after a good night and towards 0 after a bad one. With coalitions,
+    after every night (Collins 2019, Section 3.2), every coalition in random order that attended an overcrowded night
+    within the memory, when the smallest excess `x` of those nights is below its size `N`, splits off a random subgroup
+    of at most `N - x` members that holds the owner of its best strategy. Then, at most once per coalition and night,
+    two coalitions that attended an uncrowded night merge unless their joint size would have overcrowded an uncrowded
+    night either attended within the memory. A merged coalition keeps the longer history.
 
     Args:
         label:
@@ -159,7 +164,10 @@ class CoalitionBarInteraction(FeedbackInteraction[SystemView]):
 
     @staticmethod
     def _errors(strategies: Array, history: Array) -> Array:
-        """Return the total absolute error over the last `m` nights of every strategy, from the newest attendance."""
+        """Return the total absolute error over the last `m` nights of every strategy.
+
+        It starts from the newest attendance.
+        """
         memory = strategies.shape[-1] - 1
         size = len(strategies)
         features = np.array([[size, *history[night + 1 : night + 1 + memory]] for night in range(memory)])
@@ -173,7 +181,10 @@ class CoalitionBarInteraction(FeedbackInteraction[SystemView]):
         best: dict[int, int],
         records: dict[int, list[tuple[float, float]]],
     ) -> int:
-        """Split off subgroups of the coalitions that attended overcrowded nights, and return the number of splits."""
+        """Split off subgroups of the coalitions that attended overcrowded nights.
+
+        It returns the number of splits.
+        """
         rng, capacity, splits = system.rng, system.parameter('capacity'), 0
         for label in rng.permutation(np.unique(labels)):
             members = np.flatnonzero(labels == label)
@@ -196,7 +207,10 @@ class CoalitionBarInteraction(FeedbackInteraction[SystemView]):
         attended: Array,
         records: dict[int, list[tuple[float, float]]],
     ) -> int:
-        """Merge pairs of coalitions that attended an uncrowded night without risking crowding, and return the joins."""
+        """Merge pairs of coalitions that attended an uncrowded night safely.
+
+        Safely means without risking crowding, and it returns the joins.
+        """
         capacity, joins = system.parameter('capacity'), 0
         present = [int(label) for label in system.rng.permutation(np.unique(labels[attended]))]
         merged: set[int] = set()
@@ -268,17 +282,17 @@ class CoalitionBarInteraction(FeedbackInteraction[SystemView]):
 
 
 class ElFarolCoalitionsSystem(BaseSystem):
-    """Collins' El Farol bar with strategic group formation, whose coalitions share their best strategy.
+    """Collins' El Farol bar with strategic group formation.
 
-    Patrons of Rand and Wilensky's El Farol model predict the attendance with linear strategies of the last `memory`
-    attendances and go when they predict room. In Collins' version (Carmichael et al. 2019, chapter 9) patrons form
-    coalitions that use the best strategy of all their members, so a larger coalition has better predictions but adds
-    more to the crowd. Coalitions split off the members with the best strategy after overcrowded nights, the core
-    condition that no subgroup gains by leaving, and coalitions that attended together merge when it would not have
-    crowded an earlier good night. Without coalitions the mean attendance stays near the capacity and patrons enjoy
-    about half their nights, while coalitions make the attendance swing and lower the returns of all, because the
-    patrons are boundedly rational. The return of a patron is exponentially smoothed with the weight `smoothing`,
-    which the source leaves open.
+    Its coalitions share their best strategy. Patrons of Rand and Wilensky's El Farol model predict the attendance with
+    linear strategies of the last `memory` attendances and go when they predict room. In Collins' version (Carmichael et
+    al. 2019, chapter 9) patrons form coalitions that use the best strategy of all their members, so a larger coalition
+    has better predictions but adds more to the crowd. Coalitions split off the members with the best strategy after
+    overcrowded nights, the core condition that no subgroup gains by leaving, and coalitions that attended together
+    merge when it would not have crowded an earlier good night. Without coalitions the mean attendance stays near the
+    capacity and patrons enjoy about half their nights, while coalitions make the attendance swing and lower the returns
+    of all, because the patrons are boundedly rational. The return of a patron is exponentially smoothed with the weight
+    `smoothing`, which the source leaves open.
 
     The system has the group `patrons` and the bar `bar`, whose reporters are `bar.attendance`, the number of coalitions
     `bar.coalitions`, the mean return `bar.mean_score`, and the splits `bar.splits` and joins `bar.joins` of the night.

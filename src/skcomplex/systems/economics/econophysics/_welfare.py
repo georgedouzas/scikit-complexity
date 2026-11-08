@@ -1,4 +1,7 @@
-"""Econophysics systems: the kinetic theory of wealth classes, with welfare policies that act on the encounters."""
+"""Econophysics systems: the kinetic theory of wealth classes.
+
+Welfare policies act on the encounters.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -60,10 +63,10 @@ def exchange_table(classes: int, cooperation: object, competition: object) -> np
 
 
 class WealthExchangeInteraction(EncounterInteraction):
-    """Conservative encounters between wealth classes, with cooperation and competition.
+    """Conservative encounters between wealth classes.
 
-    A candidate of class `h` meets a field particle of class `k` at the rate `eta` and moves by the transition table
-    of `exchange_table`.
+    They include cooperation and competition. A candidate of class `h` meets a field particle of class `k` at the rate
+    `eta` and moves by the transition table of `exchange_table`.
 
     Args:
         label:
@@ -115,15 +118,18 @@ class WealthExchangeInteraction(EncounterInteraction):
         return s.eta
 
     def _get_kernel(self, s: SimpleNamespace) -> npt.NDArray[np.object_]:
-        """Return the transition table of the encounters, with the cooperation and competition parameters."""
+        """Return the transition table of the encounters.
+
+        It uses the cooperation and competition parameters.
+        """
         return exchange_table(int(self.classes), s.cooperation, s.competition)
 
 
 def policy_table(classes: int) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
-    """Return the rate pattern and the transition table of a welfare policy that taxes the rich and helps the poor.
+    """Return the rate pattern and the transition table of a welfare policy.
 
-    The policy moves a candidate of the richest third of the classes one class down, and a candidate of the poorest
-    third one class up, and leaves the middle classes alone.
+    The policy taxes the rich and helps the poor. The policy moves a candidate of the richest third of the classes one
+    class down, and a candidate of the poorest third one class up, and leaves the middle classes alone.
 
     Args:
         classes:
@@ -152,10 +158,11 @@ def policy_table(classes: int) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.
 
 
 class WelfarePolicyInteraction(EncounterInteraction):
-    """Welfare policy that taxes the richest classes and helps the poorest, a micro-scale external action.
+    """Welfare policy that taxes the richest classes and helps the poorest.
 
-    The policy is an encounter whose field role binds a group with a fixed density, so it acts on the transitions of
-    the population at the rate `tax` times that density, by the pattern and the table of `policy_table`.
+    It is a micro-scale external action. The policy is an encounter whose field role binds a group with a fixed density,
+    so it acts on the transitions of the population at the rate `tax` times that density, by the pattern and the table
+    of `policy_table`.
 
     Args:
         label:
@@ -207,7 +214,9 @@ WELFARE_REFERENCES = ('Bellomo et al. 2017', 'Dolfin and Lachowicz 2014', 'Berto
 
 
 def wealth_classes(classes: int) -> npt.NDArray[np.float64]:
-    """Return the wealth of every class, evenly spaced from 0 for the poorest to 1 for the richest.
+    """Return the wealth of every class.
+
+    The wealth is evenly spaced from 0 for the poorest to 1 for the richest.
 
     Args:
         classes:
@@ -226,9 +235,10 @@ def wealth_classes(classes: int) -> npt.NDArray[np.float64]:
 
 
 def gini_coefficient(s: SimpleNamespace, wealth: npt.NDArray[np.float64]) -> Expression:
-    """Return the Gini coefficient of a distribution over wealth classes, read by every member of its group.
+    """Return the Gini coefficient of a distribution over wealth classes.
 
-    The coefficient is `sum_ij f_i f_j |w_i - w_j| / (2 F M)`, with the density `F` and the total wealth `M`.
+    Every member of its group reads it. The coefficient is `sum_ij f_i f_j |w_i - w_j| / (2 F M)`, with the density `F`
+    and the total wealth `M`.
 
     Args:
         s:
@@ -285,7 +295,9 @@ def _classes_of(system: System) -> int:
 
 
 def wealth_observables(classes: int) -> list[ObservableSpec]:
-    """Return the density, the mean wealth, and the Gini coefficient of a distribution `wealth` over wealth classes.
+    """Return the density, the mean wealth, and the Gini coefficient of a distribution.
+
+    The distribution is `wealth`, over wealth classes.
 
     Args:
         classes:
@@ -309,14 +321,14 @@ def wealth_observables(classes: int) -> list[ObservableSpec]:
 
 
 class KineticWealthWelfareSystem(BaseSystem):
-    """The kinetic theory of wealth classes, with a welfare policy when the tax is positive.
+    """The kinetic theory of wealth classes.
 
-    The population is a distribution over wealth classes, a site group on a lattice of the classes. Encounters
-    between classes move particles one class up or down, with cooperation narrowing the gaps and competition widening
-    them, so the total density stays constant. When competition wins, wealth polarises toward the poorest and the
-    richest classes, and the Gini coefficient grows. A welfare policy is an encounter with a group of fixed density,
-    which moves the richest third of the classes down and the poorest third up and lowers the stationary Gini
-    coefficient.
+    A positive tax adds a welfare policy. The population is a distribution over wealth classes, a site group on a
+    lattice of the classes. Encounters between classes move particles one class up or down, with cooperation narrowing
+    the gaps and competition widening them, so the total density stays constant. When competition wins, wealth polarises
+    toward the poorest and the richest classes, and the Gini coefficient grows. A welfare policy is an encounter with a
+    group of fixed density, which moves the richest third of the classes down and the poorest third up and lowers the
+    stationary Gini coefficient.
 
     The system has the distribution `wealth`, the encounters `exchange`, and with a tax the group `state` and the policy
     `welfare`. Its standard observables are the density, the mean wealth, and the Gini coefficient of `wealth`.
@@ -412,7 +424,10 @@ class KineticWealthWelfareSystem(BaseSystem):
         )
 
     def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings, with the observables of the parts built from the model parameters."""
+        """Return the tuned run settings.
+
+        The observables of the parts are built from the model parameters.
+        """
         settings = super().get_run_settings()
         system = self._pass_parameters()
         settings['observables'] = wealth_observables(_classes_of(system))

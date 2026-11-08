@@ -1,4 +1,7 @@
-"""Innovation systems: the co-evolving combinatorial critical model of entities produced and destroyed by pairs."""
+"""Innovation systems: the co-evolving combinatorial critical model.
+
+Its entities are produced and destroyed by pairs.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -26,7 +29,9 @@ class CombinatorialEntityView(AgentView):
 
 
 class CombinatorialEntityElement(Element):
-    """Entity of a combinatorial evolution, a species, a good, or a technology, that exists or not.
+    """Entity of a combinatorial evolution, which exists or not.
+
+    It is a species, a good, or a technology.
 
     Args:
         label:
@@ -82,9 +87,9 @@ class CombinatorialEntityElement(Element):
 
 
 class CombinatorialUpdateInteraction(FeedbackInteraction[SystemView]):
-    """Random sequential update of the CCC model by the sign of the fitness, with spontaneous flips.
+    """Random sequential update of the CCC model by the sign of the fitness.
 
-    Every step every entity `i`, in random order, computes its fitness
+    Spontaneous flips are added. Every step every entity `i`, in random order, computes its fitness
     `f_i = sum_jk (M+_ijk - M-_ijk) sigma_j sigma_k` from the current states, exists when it is positive, disappears
     when it is negative, and keeps its state when it is zero (Eq. 5.61 of Thurner et al. 2018). Then it switches its
     state with the probability `p`.
@@ -173,19 +178,19 @@ class CombinatorialUpdateInteraction(FeedbackInteraction[SystemView]):
 
 
 class CccModelSystem(BaseSystem):
-    """The co-evolving combinatorial critical model, whose diversity shows punctuated equilibria.
+    """The co-evolving combinatorial critical model.
 
-    Every entity exists or not. Pairs of existing entities produce other entities through the production tensor `M+`
-    and destroy them through the destruction tensor `M-`, random tensors with on average `r+` productive and `r-`
-    destructive sets per entity, fixed during the run. Every step, in random sequential order, an entity exists when
-    its active productive sets outnumber its active destructive ones, disappears in the opposite case, and keeps its
-    state on a tie, and then switches spontaneously with a small probability `p` (Thurner et al. 2018, Section 5.6.4).
-    The diversity stays nearly constant for long quasi-equilibria, whose lifetimes and the sizes of the changes between
-    them have approximate power laws, and restructures in bursts. Mostly productive tensors fill the system, mostly
-    destructive ones keep it nearly empty, and the punctuated regime lies in between without fine-tuning. The source
-    leaves the initial state open, so every entity exists at the start with the probability `initial`. With the
-    tensors of this implementation the setting `r+ = 10` and `r- = 15` of Fig. 5.14 restructures almost every step,
-    so the defaults take `r+ = 5` and `r- = 10`, which is punctuated.
+    Its diversity shows punctuated equilibria. Every entity exists or not. Pairs of existing entities produce other
+    entities through the production tensor `M+` and destroy them through the destruction tensor `M-`, random tensors
+    with on average `r+` productive and `r-` destructive sets per entity, fixed during the run. Every step, in random
+    sequential order, an entity exists when its active productive sets outnumber its active destructive ones, disappears
+    in the opposite case, and keeps its state on a tie, and then switches spontaneously with a small probability `p`
+    (Thurner et al. 2018, Section 5.6.4). The diversity stays nearly constant for long quasi-equilibria, whose lifetimes
+    and the sizes of the changes between them have approximate power laws, and restructures in bursts. Mostly productive
+    tensors fill the system, mostly destructive ones keep it nearly empty, and the punctuated regime lies in between
+    without fine-tuning. The source leaves the initial state open, so every entity exists at the start with the
+    probability `initial`. With the tensors of this implementation the setting `r+ = 10` and `r- = 15` of Fig. 5.14
+    restructures almost every step, so the defaults take `r+ = 5` and `r- = 10`, which is punctuated.
 
     The system has the group `entities` and the update `update`, whose reporters are the number of existing entities
     `update.diversity` and the entities that changed state in the step `update.changes`.
@@ -244,7 +249,10 @@ class CccModelSystem(BaseSystem):
 
     @staticmethod
     def _random_sets(size: int, rate: float, rng: np.random.Generator) -> tuple[tuple[int, int, int], ...]:
-        """Return random sets, every entry `(i, j, k)` of the tensor present with probability `rate / size^2`."""
+        """Return random sets of tensor entries.
+
+        Every entry `(i, j, k)` of the tensor is present with probability `rate / size^2`.
+        """
         count = rng.binomial(size**3, min(1.0, rate / size**2))
         triples = rng.integers(size, size=(count, 3))
         return tuple((int(i), int(j), int(k)) for i, j, k in triples)

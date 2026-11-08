@@ -1,4 +1,7 @@
-"""Finance systems: default cascades through interbank exposures and the clearing of interbank payments."""
+"""Finance systems: default cascades and the clearing of interbank payments.
+
+The cascades run through interbank exposures.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,10 +22,11 @@ from ..common._balance_sheet import DEFAULTED, DEFAULTING, SOLVENT, BalanceSheet
 
 
 class DefaultCascadeInteraction(FeedbackInteraction[SystemView]):
-    """Synchronous cascade of defaults, in which the creditors of a defaulting bank write off their claims on it.
+    """Synchronous cascade of defaults.
 
-    Every step the banks that defaulted in the last step pass their losses on: every creditor `j` of a defaulting bank
-    `i` loses `(1 - recovery) L_ij` of its equity, and a solvent bank whose equity falls below the threshold defaults.
+    The creditors of a defaulting bank write off their claims on it. Every step the banks that defaulted in the last
+    step pass their losses on: every creditor `j` of a defaulting bank `i` loses `(1 - recovery) L_ij` of its equity,
+    and a solvent bank whose equity falls below the threshold defaults.
 
     Args:
         label:
@@ -72,7 +76,9 @@ class DefaultCascadeInteraction(FeedbackInteraction[SystemView]):
         self.recovery = recovery
 
     def act(self, system: SystemView) -> None:
-        """Pass on the losses of the defaulting banks and default the banks below the threshold.
+        """Pass on the losses of the defaulting banks.
+
+        Then default the banks below the threshold.
 
         Args:
             system:
@@ -93,12 +99,12 @@ class DefaultCascadeInteraction(FeedbackInteraction[SystemView]):
 
 
 class PaymentClearingInteraction(FeedbackInteraction[SystemView]):
-    """Clearing of interbank payments by the iteration `p <- min(p_bar, e + Pi^T p)` of Eisenberg and Noe.
+    """Clearing of interbank payments of Eisenberg and Noe.
 
-    Every step every bank pays the smaller of what it owes, `p_bar_i = sum_j L_ij`, and what it has, its external assets
-    plus the payments it receives, which its debtors make in proportion to their liabilities, `Pi_ij = L_ij / p_bar_i`.
-    From full payments the iteration falls to the greatest clearing vector, and a bank that pays less than it owes
-    defaults.
+    It iterates `p <- min(p_bar, e + Pi^T p)`. Every step every bank pays the smaller of what it owes,
+    `p_bar_i = sum_j L_ij`, and what it has, its external assets plus the payments it receives, which its debtors make
+    in proportion to their liabilities, `Pi_ij = L_ij / p_bar_i`. From full payments the iteration falls to the greatest
+    clearing vector, and a bank that pays less than it owes defaults.
 
     Args:
         label:
@@ -160,16 +166,17 @@ class PaymentClearingInteraction(FeedbackInteraction[SystemView]):
 
 
 class DefaultCascadeSystem(BaseSystem):
-    """A cascade of defaults through interbank exposures, from a shock to the external assets of some banks.
+    """A cascade of defaults through interbank exposures.
 
-    Banks are linked by contracts, `liabilities[i][j]` the amount bank `i` owes bank `j`. A bank whose equity falls
-    below the threshold `h` defaults, and its creditors write off their claims on it, losing `(1 - R) L_ij` of their
-    equity at the next step, which may default them in turn. This is the cascade of Thurner et al. (2018, Section
-    5.5.3.2), and with `h = 0` and the recovery rate `R = 0` it is the contagion on default of Gai and Kapadia (2010) as
-    Bardoscia et al. (2021, Section 3.1) review it. The shocked banks lose the share `shock` of their external assets at
-    the start. Without a given network, every bank has assets of 100, a fifth of them interbank claims split evenly over
-    a random number of debtors of mean `degree`, and capital of 4 percent, the network of Gai and Kapadia, whose
-    cascades are large in a window of intermediate degrees and rare for sparse or dense networks.
+    It starts from a shock to the external assets of some banks. Banks are linked by contracts, `liabilities[i][j]` the
+    amount bank `i` owes bank `j`. A bank whose equity falls below the threshold `h` defaults, and its creditors write
+    off their claims on it, losing `(1 - R) L_ij` of their equity at the next step, which may default them in turn. This
+    is the cascade of Thurner et al. (2018, Section 5.5.3.2), and with `h = 0` and the recovery rate `R = 0` it is the
+    contagion on default of Gai and Kapadia (2010) as Bardoscia et al. (2021, Section 3.1) review it. The shocked banks
+    lose the share `shock` of their external assets at the start. Without a given network, every bank has assets of 100,
+    a fifth of them interbank claims split evenly over a random number of debtors of mean `degree`, and capital of 4
+    percent, the network of Gai and Kapadia, whose cascades are large in a window of intermediate degrees and rare for
+    sparse or dense networks.
 
     The system has the group `banks` and the cascade `cascade`, whose reporters are the number of defaulted banks
     `cascade.defaults` and the losses written off in the step `cascade.losses`.
@@ -259,10 +266,11 @@ class DefaultCascadeSystem(BaseSystem):
         capital_ratio: float,
         rng: np.random.Generator,
     ) -> tuple[Array, Array, Array]:
-        """Return the liabilities, external assets, and capitals of the random network of Gai and Kapadia.
+        """Return the liabilities, external assets, and capitals of a random network.
 
-        Every bank has assets of 100, of which the share `interbank_share` are claims split evenly over its debtors,
-        links drawn with probability `degree / (n - 1)`, and capital of `capital_ratio` of its assets.
+        The network is that of Gai and Kapadia. Every bank has assets of 100, of which the share `interbank_share` are
+        claims split evenly over its debtors, links drawn with probability `degree / (n - 1)`, and capital of
+        `capital_ratio` of its assets.
         """
         links = rng.random((n_banks, n_banks)) < degree / (n_banks - 1)
         np.fill_diagonal(links, val=False)
@@ -310,14 +318,15 @@ class DefaultCascadeSystem(BaseSystem):
 
 
 class EisenbergNoeClearingSystem(BaseSystem):
-    """The clearing of interbank payments of Eisenberg and Noe, a fixed point of proportional payments.
+    """The clearing of interbank payments of Eisenberg and Noe.
 
-    Bank `i` owes `L_ij` to bank `j`, `p_bar_i` in all, and holds external assets `e_i`. A clearing vector pays
-    `p_i = min(p_bar_i, e_i + sum_j Pi_ji p_j)`, every bank paying in full or all it has, its debtors paying in
-    proportion `Pi_ij = L_ij / p_bar_i`, the liquidity contagion of Bardoscia et al. (2021, Section 3.1). Every step is
-    one round of the iteration from full payments, which falls monotonically to the greatest clearing vector, the
-    solution of the linear programme `max sum_i p_i` with `p <= p_bar` and `p <= e + Pi^T p`. Without a given network
-    the liabilities are random and the external assets are small for a few banks.
+    It is a fixed point of proportional payments. Bank `i` owes `L_ij` to bank `j`, `p_bar_i` in all, and holds external
+    assets `e_i`. A clearing vector pays `p_i = min(p_bar_i, e_i + sum_j Pi_ji p_j)`, every bank paying in full or all
+    it has, its debtors paying in proportion `Pi_ij = L_ij / p_bar_i`, the liquidity contagion of Bardoscia et al.
+    (2021, Section 3.1). Every step is one round of the iteration from full payments, which falls monotonically to the
+    greatest clearing vector, the solution of the linear programme `max sum_i p_i` with `p <= p_bar` and
+    `p <= e + Pi^T p`. Without a given network the liabilities are random and the external assets are small for a few
+    banks.
 
     The system has the group `banks` of the payments `banks.payment`, and the clearing `clearing`, whose reporters are
     the total unpaid liabilities `clearing.shortfall` and the number of defaulting banks `clearing.defaults`.

@@ -1,4 +1,7 @@
-"""Innovation systems: combinatorial growth of goods whose production functions catalyse each other."""
+"""Innovation systems: combinatorial growth of goods.
+
+Their production functions catalyse each other.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,17 +21,17 @@ from ....core.components.system import BaseSystem, System
 
 
 class TapCatalysisSystem(BaseSystem):
-    """The TAP growth of goods from combinations of goods, with random catalysis of their production functions.
+    """The TAP growth of goods from combinations of goods.
 
-    The TAP model with catalysis of Hordijk and Kauffman (2022, Algorithm 1), in continuous time. From `m0` goods,
-    new goods made from `i` parents drawn uniformly among the `M` goods appear at the rate `alpha^i C(M, i)`, for
-    every `i` up to `parents`, until there are `goods` goods. The production function of a new good is a hyperedge of
-    its parents and the good, its last member. A new good catalyses the production of every other good, and every
-    other good catalyses its production, each with the probability `pc`, as directed edges from the catalyst to the
-    good. Algorithm 1 draws a Poisson number of goods of every order per step from the rates at its start, and the
-    process here draws them one at a time from the rates at that time. The initial goods are the food set, and
-    `autocatalytic_sets` finds the largest autocatalytic set of the production functions, which exists in about
-    half the runs at `pc = 0.0044` and then tends to hold most of the network.
+    Their production functions are catalysed at random. The TAP model with catalysis of Hordijk and Kauffman (2022,
+    Algorithm 1), in continuous time. From `m0` goods, new goods made from `i` parents drawn uniformly among the `M`
+    goods appear at the rate `alpha^i C(M, i)`, for every `i` up to `parents`, until there are `goods` goods. The
+    production function of a new good is a hyperedge of its parents and the good, its last member. A new good catalyses
+    the production of every other good, and every other good catalyses its production, each with the probability `pc`,
+    as directed edges from the catalyst to the good. Algorithm 1 draws a Poisson number of goods of every order per step
+    from the rates at its start, and the process here draws them one at a time from the rates at that time. The initial
+    goods are the food set, and `autocatalytic_sets` finds the largest autocatalytic set of the production functions,
+    which exists in about half the runs at `pc = 0.0044` and then tends to hold most of the network.
 
     The system has the goods `goods`, the catalysis `catalysis`, and the production functions `functions`.
 
@@ -81,7 +84,10 @@ class TapCatalysisSystem(BaseSystem):
 
     @staticmethod
     def _combination_rate(order: int, alpha: float, goods: int) -> Callable[[SimpleNamespace], Expression]:
-        """Return the rate `alpha^i C(M, i)` of new goods of `i` parents, which stops at `goods` goods."""
+        """Return the rate `alpha^i C(M, i)` of new goods of `i` parents.
+
+        It stops at `goods` goods.
+        """
 
         def rate(namespace: SimpleNamespace) -> Expression:
             present = count(over=namespace.source)

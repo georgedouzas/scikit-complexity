@@ -1,4 +1,7 @@
-"""Resource realizations shared by the economics packages: renewable resources that grow back."""
+"""Resource realizations shared by the economics packages.
+
+They are renewable resources that grow back.
+"""
 
 from ._regrowth import RegrowthInteraction
 

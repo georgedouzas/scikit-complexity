@@ -1,4 +1,7 @@
-"""Markets systems: Sterman's beer distribution game, a supply chain of four echelons with delays."""
+"""Markets systems: Sterman's beer distribution game.
+
+It is a supply chain of four echelons with delays.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,13 +22,13 @@ from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, V
 
 
 class EchelonElement(Element):
-    """Echelon of a supply chain, which ships its backlog from its inventory and orders by anchoring and adjustment.
+    """Echelon of a supply chain.
 
-    It ships its backlog over the dispatch time, limited by its inventory. Its expected demand adapts to incoming
-    orders at the rate `theta`, and it orders its expected demand plus `alpha` times the gap between its desired stock
-    and its effective inventory, the inventory less the backlog, less `beta` times its supply line, never negative.
-    Its orders reach its supplier after the mail delay, and the beer its supplier ships arrives after the shipping
-    delay.
+    It ships its backlog from its inventory and orders by anchoring and adjustment. It ships its backlog over the
+    dispatch time, limited by its inventory. Its expected demand adapts to incoming orders at the rate `theta`, and it
+    orders its expected demand plus `alpha` times the gap between its desired stock and its effective inventory, the
+    inventory less the backlog, less `beta` times its supply line, never negative. Its orders reach its supplier after
+    the mail delay, and the beer its supplier ships arrives after the shipping delay.
 
     Args:
         label:
@@ -125,12 +128,18 @@ class EchelonElement(Element):
 
     @staticmethod
     def _shipments(echelon: SimpleNamespace) -> Expression:
-        """Return the shipments of an echelon, its backlog limited by its inventory over the dispatch time."""
+        """Return the shipments of an echelon.
+
+        They are its backlog limited by its inventory over the dispatch time.
+        """
         return minimum(echelon.backlog, echelon.inventory) / echelon.dispatch_time
 
     @staticmethod
     def _echelon_laws(s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of an echelon, the shipping of its backlog and the decay of its expectation."""
+        """Return the laws of an echelon.
+
+        They are the shipping of its backlog and the decay of its expectation.
+        """
         return [
             RateLaw(s.backlog, -EchelonElement._shipments(s)),
             RateLaw(s.expected, -s.theta * s.expected),
@@ -138,7 +147,9 @@ class EchelonElement(Element):
 
 
 class FactoryElement(EchelonElement):
-    """Factory of a supply chain, an echelon whose orders a brewery brews over the production delay.
+    """Factory of a supply chain.
+
+    It is an echelon whose orders a brewery brews over the production delay.
 
     Args:
         label:
@@ -231,7 +242,9 @@ class FactoryElement(EchelonElement):
 
 
 class RetailerElement(EchelonElement):
-    """Retailer of a supply chain, an echelon whose customers order their demand, which steps once.
+    """Retailer of a supply chain.
+
+    It is an echelon whose customers order their demand, which steps once.
 
     Args:
         label:
@@ -334,9 +347,10 @@ class RetailerElement(EchelonElement):
 
 
 class BreweryInteraction(TransferInteraction):
-    """Brewery of a supply chain, which brews the orders of the factory over its production delay.
+    """Brewery of a supply chain.
 
-    The brewing is a transfer from the brewery into the beer in production at the factory and on to its inventory.
+    It brews the orders of the factory over its production delay. The brewing is a transfer from the brewery into the
+    beer in production at the factory and on to its inventory.
 
     Args:
         label:
@@ -375,14 +389,20 @@ class BreweryInteraction(TransferInteraction):
 
     @staticmethod
     def _orders(echelon: SimpleNamespace) -> Expression:
-        """Return the orders of an echelon by Sterman's anchoring and adjustment rule, never negative."""
+        """Return the orders of an echelon by Sterman's anchoring and adjustment rule.
+
+        They are never negative.
+        """
         effective = echelon.inventory - echelon.backlog
         orders = echelon.expected + echelon.alpha * (echelon.desired - effective - echelon.beta * echelon.supply_line)
         return maximum(orders, 0)
 
     @staticmethod
     def _completions(factory: SimpleNamespace) -> Expression:
-        """Return the brews completed for the factory, its orders after a third-order production delay."""
+        """Return the brews completed for the factory.
+
+        They are its orders after a third-order production delay.
+        """
         return distributed_delay(BreweryInteraction._orders(factory), order=3, time=factory.production_delay)
 
 
@@ -427,11 +447,11 @@ class RetailDemandInteraction(TransferInteraction):
 
 
 class SupplyLinkInteraction(TransferInteraction):
-    """Link of a supply chain, which ships beer from the upstream echelon to the downstream echelon.
+    """Link of a supply chain.
 
-    The shipments and their arrivals, after a third-order delay of the shipping delay of the downstream echelon, are
-    the legs of one transfer, from the inventory of the upstream echelon to the beer in transit to the downstream
-    echelon and on to its inventory.
+    It ships beer from the upstream echelon to the downstream echelon. The shipments and their arrivals, after a
+    third-order delay of the shipping delay of the downstream echelon, are the legs of one transfer, from the inventory
+    of the upstream echelon to the beer in transit to the downstream echelon and on to its inventory.
 
     Args:
         label:
@@ -477,12 +497,18 @@ class SupplyLinkInteraction(TransferInteraction):
         self.upstream = upstream
 
     def _get_holders(self, namespace: SimpleNamespace) -> list[tuple[SimpleNamespace, SimpleNamespace]]:
-        """Return the upstream echelon, which ships, and the downstream echelon, which receives."""
+        """Return the upstream echelon and the downstream echelon.
+
+        The upstream echelon ships, and the downstream echelon receives.
+        """
         return [(namespace.upstream, namespace.downstream)]
 
     @staticmethod
     def _arrivals(upstream: SimpleNamespace, downstream: SimpleNamespace) -> Expression:
-        """Return the arrivals at the downstream echelon, the shipments after a third-order shipping delay."""
+        """Return the arrivals at the downstream echelon.
+
+        They are the shipments after a third-order shipping delay.
+        """
         return distributed_delay(EchelonElement._shipments(upstream), order=3, time=downstream.shipping_delay)
 
 
@@ -490,7 +516,10 @@ ECHELONS = ('retailer', 'wholesaler', 'distributor', 'factory')
 
 
 def _received(downstream: SimpleNamespace) -> Expression:
-    """Return the orders of the downstream echelon that reach its supplier, after a third-order mail delay."""
+    """Return the orders of the downstream echelon that reach its supplier.
+
+    They arrive after a third-order mail delay.
+    """
     return distributed_delay(BreweryInteraction._orders(downstream), order=3, time=downstream.mail_delay)
 
 
@@ -500,24 +529,27 @@ def _demand(retailer: SimpleNamespace, t: Expression) -> Expression:
 
 
 def _customer_orders(s: SimpleNamespace) -> Expression:
-    """Return the orders of the customers of the namespace of the system, which holds the retailer."""
+    """Return the orders of the customers of the namespace of the system.
+
+    The namespace holds the retailer.
+    """
     return _demand(s.retailer, s.t)
 
 
 class BeerGameSystem(BaseSystem):
-    """Sterman's beer distribution game, a supply chain whose orders swing wider at every echelon upstream.
+    """Sterman's beer distribution game.
 
-    A retailer, a wholesaler, a distributor, and a factory each hold an inventory of beer and a backlog of orders
-    waiting to ship. Each ships its backlog over the dispatch time, limited by its inventory, and the beer reaches the
-    next echelon downstream after the shipping delay. Orders reach the next echelon upstream after the mail delay, and
-    the factory brews its orders over the production delay. Customer demand steps from 4 to 8 cases a week in week 5.
-    Every echelon orders by Sterman's anchoring and adjustment rule, its expected demand plus `alpha` times the gap
-    between its desired stock `S'` and its effective inventory, the inventory less the backlog, plus `beta` times its
-    supply line, the beer it ordered and has not received. The expected demand adapts to incoming orders at the rate
-    `theta`. The defaults of `theta`, `alpha`, and `beta` are the median estimates of Sterman 1989, and `S'` is set so
-    the chain starts in equilibrium at 4 cases a week. The game is weekly and its delays are fixed, while this system is
-    a continuous approximation in which third-order delays stand in for the fixed ones. The amplitude of the orders
-    grows from the retailer to the factory, the bullwhip effect.
+    Its orders swing wider at every echelon upstream. A retailer, a wholesaler, a distributor, and a factory each hold
+    an inventory of beer and a backlog of orders waiting to ship. Each ships its backlog over the dispatch time, limited
+    by its inventory, and the beer reaches the next echelon downstream after the shipping delay. Orders reach the next
+    echelon upstream after the mail delay, and the factory brews its orders over the production delay. Customer demand
+    steps from 4 to 8 cases a week in week 5. Every echelon orders by Sterman's anchoring and adjustment rule, its
+    expected demand plus `alpha` times the gap between its desired stock `S'` and its effective inventory, the inventory
+    less the backlog, plus `beta` times its supply line, the beer it ordered and has not received. The expected demand
+    adapts to incoming orders at the rate `theta`. The defaults of `theta`, `alpha`, and `beta` are the median estimates
+    of Sterman 1989, and `S'` is set so the chain starts in equilibrium at 4 cases a week. The game is weekly and its
+    delays are fixed, while this system is a continuous approximation in which third-order delays stand in for the fixed
+    ones. The amplitude of the orders grows from the retailer to the factory, the bullwhip effect.
 
     The system has the stocks `<echelon>.inventory`, `<echelon>.in_transit`, `<echelon>.backlog`, `<echelon>.expected`,
     and `<echelon>.supply_line` of the echelons `retailer`, `wholesaler`, `distributor`, and `factory`, and the flows
@@ -612,7 +644,10 @@ class BeerGameSystem(BaseSystem):
 
     @staticmethod
     def _get_link_rates(downstream: str, upstream: str) -> list[RateInteraction]:
-        """Return the rates of a link, the supply line of the downstream echelon and the incoming orders upstream."""
+        """Return the rates of a link.
+
+        They are the supply line of the downstream echelon and the incoming orders upstream.
+        """
         return [
             RateInteraction(
                 f'{downstream}_supply_line',
@@ -640,7 +675,10 @@ class BeerGameSystem(BaseSystem):
 
     @staticmethod
     def _get_customer_rates() -> list[RateInteraction]:
-        """Return the rates of the customers, the demand that reaches the retailer and its expectation."""
+        """Return the rates of the customers.
+
+        They are the demand that reaches the retailer and its expectation.
+        """
         return [
             RateInteraction(
                 'retailer_backlog',
@@ -658,7 +696,10 @@ class BeerGameSystem(BaseSystem):
 
     @staticmethod
     def _get_brewery_rate() -> RateInteraction:
-        """Return the rate of the supply line of the factory, its orders less the brews completed."""
+        """Return the rate of the supply line of the factory.
+
+        It is its orders less the brews completed.
+        """
         return RateInteraction(
             'factory_supply_line',
             target='factory',

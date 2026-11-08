@@ -1,4 +1,7 @@
-"""Innovation systems: the diffusion of a new product through innovators and imitators."""
+"""Innovation systems: the diffusion of a new product.
+
+The product diffuses through innovators and imitators.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,9 +19,10 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class BassMarketElement(Element):
-    """Market of a new product, split into potential adopters and adopters, who adopt by innovation and imitation.
+    """Market of a new product, split into potential adopters and adopters.
 
-    The market holds the stocks and the coefficients, and a transfer within it moves the adopters from `P` to `A`.
+    People adopt by innovation and imitation. The market holds the stocks and the coefficients, and a transfer within it
+    moves the adopters from `P` to `A`.
 
     Args:
         label:
@@ -63,15 +67,15 @@ class BassMarketElement(Element):
 
 
 class BassDiffusionSystem(BaseSystem):
-    """The Bass diffusion system, people who adopt a new product through advertising and word of mouth.
+    """The Bass diffusion system, people who adopt a new product.
 
-    A market of `N` people splits into potential adopters `P` and adopters `A`. Potential adopters adopt at the rate
-    `(p + q A / N) P`, where the coefficient of innovation `p` captures adoption from external influence, such as
-    advertising, and the coefficient of imitation `q` adoption from contact with adopters. People are conserved, so
-    the adoption is a flow from `P` to `A`. With `q > p` the adoption rate rises to a peak at the time
-    `log(q / p) / (p + q)` and the adopters follow an S-shaped curve. Starting without adopters, the closed form is
-    `A(t) = N (1 - exp(-(p + q) t)) / (1 + (q / p) exp(-(p + q) t))`. The defaults are the mean coefficients that
-    Sultan, Farley and Lehmann (1990) estimated over many products, with time in years.
+    They adopt through advertising and word of mouth. A market of `N` people splits into potential adopters `P` and
+    adopters `A`. Potential adopters adopt at the rate `(p + q A / N) P`, where the coefficient of innovation `p`
+    captures adoption from external influence, such as advertising, and the coefficient of imitation `q` adoption from
+    contact with adopters. People are conserved, so the adoption is a flow from `P` to `A`. With `q > p` the adoption
+    rate rises to a peak at the time `log(q / p) / (p + q)` and the adopters follow an S-shaped curve. Starting without
+    adopters, the closed form is `A(t) = N (1 - exp(-(p + q) t)) / (1 + (q / p) exp(-(p + q) t))`. The defaults are the
+    mean coefficients that Sultan, Farley and Lehmann (1990) estimated over many products, with time in years.
 
     The system has the potential adopters `market.P`, the adopters `market.A`, and the adoption flow `market.adoption`
     in people per year, over years.
@@ -121,7 +125,10 @@ class BassDiffusionSystem(BaseSystem):
 
     @staticmethod
     def _adoption(s: SimpleNamespace) -> Expression:
-        """Return the adoption rate `(p + q A / (P + A)) P` of the market a transfer moves people within."""
+        """Return the adoption rate `(p + q A / (P + A)) P` of the market.
+
+        A transfer moves people within the market.
+        """
         market = s.source
         return (market.p + market.q * market.A / (market.P + market.A)) * market.P
 

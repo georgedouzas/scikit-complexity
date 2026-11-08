@@ -1,4 +1,7 @@
-"""Markets systems: double auctions of zero-intelligence traders with and without budget constraints."""
+"""Markets systems: double auctions of zero-intelligence traders.
+
+The traders trade with and without budget constraints.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -27,7 +30,7 @@ from ....core.specs import (
 
 
 class ZeroIntelligenceBuyerView(AgentView):
-    """Zero-intelligence buyer as the rules see it, with its value, bid, demand, profit, and price bounds.
+    """Zero-intelligence buyer as the rules see it.
 
     It reads its `value`, `bid`, `demand`, and `profit`, the price `ceiling`, and whether it is `constrained`.
     """
@@ -41,10 +44,11 @@ class ZeroIntelligenceBuyerView(AgentView):
 
 
 class ZeroIntelligenceBuyerElement(Element):
-    """Buyer of one unit per trading period who bids a random price, below its value under the budget constraint.
+    """Buyer of one unit per trading period who bids a random price.
 
-    In every round of a trading period, a buyer that has not bought yet bids a price drawn uniformly from 0 to its
-    value, or to the price ceiling without the constraint, the zero-intelligence traders of Gode and Sunder (1993).
+    Under the budget constraint, the bid is below its value. In every round of a trading period, a buyer that has not
+    bought yet bids a price drawn uniformly from 0 to its value, or to the price ceiling without the constraint, the
+    zero-intelligence traders of Gode and Sunder (1993).
 
     Args:
         label:
@@ -105,7 +109,9 @@ class ZeroIntelligenceBuyerElement(Element):
 
     @staticmethod
     def get_bid(agent: ZeroIntelligenceBuyerView, system: SystemView) -> float:
-        """Return a bid drawn uniformly from 0 to the value, or to the price ceiling without the constraint.
+        """Return a bid drawn uniformly from 0 to the value.
+
+        Without the constraint, the bid goes up to the price ceiling.
 
         Args:
             agent:
@@ -122,7 +128,7 @@ class ZeroIntelligenceBuyerElement(Element):
 
 
 class ZeroIntelligenceSellerView(AgentView):
-    """Zero-intelligence seller as the rules see it, with its cost, ask, supply, profit, and price bounds.
+    """Zero-intelligence seller as the rules see it.
 
     It reads its cost `value`, `ask`, `supply`, and `profit`, the price `ceiling`, and whether it is `constrained`.
     """
@@ -136,10 +142,10 @@ class ZeroIntelligenceSellerView(AgentView):
 
 
 class ZeroIntelligenceSellerElement(Element):
-    """Seller of one unit per trading period who asks a random price, above its cost under the budget constraint.
+    """Seller of one unit per trading period who asks a random price.
 
-    In every round of a trading period, a seller that has not sold yet asks a price drawn uniformly from its cost, or
-    from 0 without the constraint, to the price ceiling.
+    Under the budget constraint, the ask is above its cost. In every round of a trading period, a seller that has not
+    sold yet asks a price drawn uniformly from its cost, or from 0 without the constraint, to the price ceiling.
 
     Args:
         label:
@@ -200,7 +206,9 @@ class ZeroIntelligenceSellerElement(Element):
 
     @staticmethod
     def get_ask(agent: ZeroIntelligenceSellerView, system: SystemView) -> float:
-        """Return an ask drawn uniformly from the cost, or from 0 without the constraint, to the price ceiling.
+        """Return an ask drawn uniformly from the cost to the price ceiling.
+
+        Without the constraint, the ask starts from 0.
 
         Args:
             agent:
@@ -218,7 +226,9 @@ class ZeroIntelligenceSellerElement(Element):
 
 
 def maximum_surplus(values: np.ndarray, costs: np.ndarray) -> float:
-    """Return the largest total surplus of single units, the competitive surplus of the supply and demand schedules.
+    """Return the largest total surplus of single units.
+
+    It is the competitive surplus of the supply and demand schedules.
 
     Args:
         values:
@@ -243,10 +253,11 @@ def maximum_surplus(values: np.ndarray, costs: np.ndarray) -> float:
 
 
 class AuctionLedgerInteraction(FeedbackInteraction[SystemView]):
-    """Ledger that closes every trading period: it measures its surplus and gives every trader a new unit.
+    """Ledger that closes every trading period.
 
-    The realised surplus is the value of the units bought minus the cost of the units sold, and the allocative
-    efficiency is its ratio to the maximum surplus of the supply and demand schedules.
+    It measures its surplus and gives every trader a new unit. The realised surplus is the value of the units bought
+    minus the cost of the units sold, and the allocative efficiency is its ratio to the maximum surplus of the supply
+    and demand schedules.
 
     Args:
         label:
@@ -264,7 +275,9 @@ class AuctionLedgerInteraction(FeedbackInteraction[SystemView]):
     reports: ClassVar[tuple[str, ...]] = ('surplus', 'efficiency')
 
     def act(self, system: SystemView) -> None:
-        """Report the surplus and the efficiency of the trading period and open the next one.
+        """Report the surplus and the efficiency of the trading period.
+
+        It then opens the next one.
 
         Args:
             system:
@@ -289,13 +302,13 @@ PROTOCOLS = ('order_book', 'call_auction')
 
 
 class DoubleAuctionSystem(BaseSystem):
-    """Gode and Sunder's double auction of zero-intelligence traders, a step per trading period.
+    """Gode and Sunder's double auction of zero-intelligence traders.
 
-    Every buyer values one unit and every seller can produce one unit at a cost, both drawn uniformly below the price
-    ceiling. During a trading period of several rounds, every trader that has not traded yet quotes a random price and
-    the market matches the quotes, continuously in a limit order book or at one uniform price in a call auction. With
-    the budget constraint (ZI-C) no trader accepts a loss, and the market alone reaches nearly the whole competitive
-    surplus. Without it (ZI-U), traders make losing trades and the efficiency drops.
+    Each step is a trading period. Every buyer values one unit and every seller can produce one unit at a cost, both
+    drawn uniformly below the price ceiling. During a trading period of several rounds, every trader that has not traded
+    yet quotes a random price and the market matches the quotes, continuously in a limit order book or at one uniform
+    price in a call auction. With the budget constraint (ZI-C) no trader accepts a loss, and the market alone reaches
+    nearly the whole competitive surplus. Without it (ZI-U), traders make losing trades and the efficiency drops.
 
     The traders are the zero-intelligence traders of Gode and Sunder (1993). The double auction of Gooding (2019), whose
     traders adapt their bids and asks, is a different model. The system has the groups `buyers` and `sellers`, the

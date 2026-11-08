@@ -1,4 +1,7 @@
-"""Finance systems: goods moved by randomly walking traders who follow arbitrage opportunities."""
+"""Finance systems: goods moved by randomly walking traders.
+
+The traders follow arbitrage opportunities.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,7 +22,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class ArbitrageDensityElement(Element):
-    """Density of a good carried by random-walk traders, minimally coupled to an exchange rate connection.
+    """Density of a good carried by random-walk traders.
+
+    It is minimally coupled to an exchange rate connection.
 
     Args:
         label:
@@ -69,12 +74,13 @@ class ArbitrageDensityElement(Element):
 
 
 class ArbitrageTradersSystem(BaseSystem):
-    """Schwichtenberg's diffusion of a good by random-walk traders, minimally coupled to exchange rates.
+    """Schwichtenberg's diffusion of a good by random-walk traders.
 
-    The density of the good follows `(d_t - A_t) rho = D (d_x - A_x(t))^2 rho` on a periodic line, with the exchange
-    rate connection `A_x(t) = A_x + E t`. The arbitrage opportunity is the field strength `F_tx = E`. Without it, the
-    traders diffuse the good symmetrically, and with it, they drift at the velocity `2 D A_x(t)`. The system has the
-    density of the good `market.rho`.
+    It is minimally coupled to exchange rates. The density of the good follows
+    `(d_t - A_t) rho = D (d_x - A_x(t))^2 rho` on a periodic line, with the exchange rate connection
+    `A_x(t) = A_x + E t`. The arbitrage opportunity is the field strength `F_tx = E`. Without it, the traders diffuse
+    the good symmetrically, and with it, they drift at the velocity `2 D A_x(t)`. The system has the density of the good
+    `market.rho`.
 
     Args:
         n_sites:
@@ -131,7 +137,10 @@ class ArbitrageTradersSystem(BaseSystem):
 
     @staticmethod
     def _covariant_diffusion(s: SimpleNamespace) -> Expression:
-        """Return `D (d_x - A_x(t))^2 rho + A_t rho`, with the connection `A_x(t) = A_x + E t`."""
+        """Return `D (d_x - A_x(t))^2 rho + A_t rho`.
+
+        The connection is `A_x(t) = A_x + E t`.
+        """
         market = s.target
         connection = market.A_x + market.E * s.t
         return (

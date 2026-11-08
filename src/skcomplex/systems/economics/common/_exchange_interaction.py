@@ -1,4 +1,7 @@
-"""Bilateral barter between paired traders, a transfer whose trades repeat while both traders gain."""
+"""Bilateral barter between paired traders.
+
+It is a transfer whose trades repeat while both traders gain.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,14 +21,15 @@ GOODS = ('sugar', 'spice', 'salt')
 
 
 class ExchangeInteraction(TransferInteraction):
-    """Bilateral barter between paired traders, a transfer whose trades repeat while both traders gain.
+    """Bilateral barter between paired traders.
 
-    Every step the transfer pairs the traders, and every pair barters small quantities of every pair of goods at the
-    geometric mean of their marginal rates of substitution while both gain. A trader holds every good in the state of
-    its name and its Cobb-Douglas weight in the state `<good>_weight`. Every trade moves goods between the two traders,
-    so the total of every good stays the same, which the default run checks as invariants. The exchange reports the
-    mean `price` of the second good in units of the first, the standard deviation `dispersion` of its logarithm over
-    the trades of the step, and the number of trades `volume`.
+    It is a transfer whose trades repeat while both traders gain. Every step the transfer pairs the traders, and every
+    pair barters small quantities of every pair of goods at the geometric mean of their marginal rates of substitution
+    while both gain. A trader holds every good in the state of its name and its Cobb-Douglas weight in the state
+    `<good>_weight`. Every trade moves goods between the two traders, so the total of every good stays the same, which
+    the default run checks as invariants. The exchange reports the mean `price` of the second good in units of the
+    first, the standard deviation `dispersion` of its logarithm over the trades of the step, and the number of trades
+    `volume`.
 
     Args:
         label:
@@ -85,7 +89,9 @@ class ExchangeInteraction(TransferInteraction):
         self.quantity = quantity
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the barter of every pair of traders and the report of the trades of the step.
+        """Return the barter of every pair of traders and the trade report.
+
+        The report covers the trades of the step.
 
         Args:
             s:
@@ -98,7 +104,9 @@ class ExchangeInteraction(TransferInteraction):
         return [*super()._get_laws(s), RuleLaw(self.report_trades, phase=self.phase)]
 
     def transfer(self, source: AgentViewProtocol, target: AgentViewProtocol, system: SystemViewProtocol) -> bool:
-        """Barter between two traders while both gain, and keep the trades of the step for its report.
+        """Barter between two traders while both gain.
+
+        It keeps the trades of the step for its report.
 
         Args:
             source:
@@ -122,7 +130,9 @@ class ExchangeInteraction(TransferInteraction):
         return bool(trades)
 
     def report_trades(self, system: SystemViewProtocol) -> None:
-        """Report the mean price of the second good in the first, its dispersion, and the trades of the step.
+        """Report the mean price of the second good in the first, and the trades.
+
+        It also reports the dispersion of the price, and the trades are those of the step.
 
         Args:
             system:

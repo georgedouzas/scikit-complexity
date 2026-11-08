@@ -1,4 +1,7 @@
-"""Finance systems: a stock market whose fundamentalists and chartists trade in a limit order book and imitate."""
+"""Finance systems: a stock market of fundamentalists and chartists.
+
+They trade in a limit order book and imitate.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -35,9 +38,10 @@ from ..common.forecasting import heuristics
 
 
 class StockTraderView(AgentView):
-    """Stock trader as the rules see it, with its strategy, holdings, order, wealth, gain, and fundamental value.
+    """Stock trader as the rules see it.
 
-    The order is the limit prices `bid` and `ask` and the quantities `demand` and `supply`.
+    It holds its strategy, holdings, order, wealth, gain, and fundamental value. The order is the limit prices `bid` and
+    `ask` and the quantities `demand` and `supply`.
     """
 
     strategy: float
@@ -56,13 +60,14 @@ LOWEST_PRICE = 0.01
 
 
 class StockTraderElement(Element):
-    """Trader who forecasts the price as a fundamentalist or a chartist, quotes a limit order, and imitates.
+    """Trader who forecasts the price, quotes a limit order, and imitates.
 
-    A fundamentalist expects the price `p` to revert to the fundamental value `F`, `p + reversion (F - p)`, and a
-    chartist expects the last change to go on, `p + extrapolation (p - p')`, both with a relative noise. The trader
-    bids its expectation for one share when it is above the price and it can pay, and asks its expectation for one
-    share when it is below and it holds one. After trading, an `ImitationInteraction` of rule `'better'` lets a trader
-    whose wealth grew less than that of a random neighbour copy the neighbour's strategy.
+    It forecasts as a fundamentalist or a chartist. A fundamentalist expects the price `p` to revert to the fundamental
+    value `F`, `p + reversion (F - p)`, and a chartist expects the last change to go on, `p + extrapolation (p - p')`,
+    both with a relative noise. The trader bids its expectation for one share when it is above the price and it can pay,
+    and asks its expectation for one share when it is below and it holds one. After trading, an `ImitationInteraction`
+    of rule `'better'` lets a trader whose wealth grew less than that of a random neighbour copy the neighbour's
+    strategy.
 
     Args:
         label:
@@ -204,7 +209,9 @@ class StockTraderElement(Element):
 
     @staticmethod
     def get_gain(agent: StockTraderView, system: SystemView) -> float:
-        """Return the change of the wealth valued at the last price, zero before the first valuation.
+        """Return the change of the wealth valued at the last price.
+
+        It is zero before the first valuation.
 
         Args:
             agent:
@@ -239,12 +246,13 @@ class StockTraderElement(Element):
 
 
 class BookInteraction(MatchingInteraction[SystemView]):
-    """Limit order book that matches the orders of the traders and reports the last traded price.
+    """Limit order book that matches the orders of the traders.
 
-    The book is a matching of the traders with themselves, which binds the requesters' limit to their `bid` and the
-    providers' to their `ask`, and every trade is two transfers, money from buyer to seller and shares from seller to
-    buyer, so the total money and the total shares stay the same, which the default run checks as invariants. The book
-    reports the last traded `price`, the previous price when nothing trades, and the traded `volume`.
+    It reports the last traded price. The book is a matching of the traders with themselves, which binds the requesters'
+    limit to their `bid` and the providers' to their `ask`, and every trade is two transfers, money from buyer to seller
+    and shares from seller to buyer, so the total money and the total shares stay the same, which the default run checks
+    as invariants. The book reports the last traded `price`, the previous price when nothing trades, and the traded
+    `volume`.
 
     Args:
         label:
@@ -318,7 +326,9 @@ class BookInteraction(MatchingInteraction[SystemView]):
         self.opening = opening
 
     def _report_matches(self, matches: list[MatchSpec], unmatched: float, system: SystemView) -> None:
-        """Report the last traded price, the previous price when nothing trades, and the traded volume.
+        """Report the last traded price and the traded volume.
+
+        When nothing trades, it reports the previous price.
 
         Args:
             matches:
@@ -341,14 +351,14 @@ HOLDINGS = ('money', 'shares')
 
 
 class OrderBookSystem(BaseSystem):
-    """A stock market of fundamentalists and chartists on a grid who trade in a limit order book and imitate.
+    """A stock market of fundamentalists and chartists on a grid.
 
-    Every step every trader forecasts the price, as a fundamentalist who expects it to revert to the fundamental value
-    or as a chartist who expects the last change to go on, and quotes a limit order for one share at its forecast. The
-    order book matches the orders with price-time priority, and every trade moves money and a share between the two
-    traders. Then traders copy the strategy of a neighbour whose wealth grew more. Fundamentalists hold the price near
-    the fundamental value, chartists amplify its swings, and imitation lets the share of chartists wander, so the
-    returns come in bursts with fat tails.
+    They trade in a limit order book and imitate. Every step every trader forecasts the price, as a fundamentalist who
+    expects it to revert to the fundamental value or as a chartist who expects the last change to go on, and quotes a
+    limit order for one share at its forecast. The order book matches the orders with price-time priority, and every
+    trade moves money and a share between the two traders. Then traders copy the strategy of a neighbour whose wealth
+    grew more. Fundamentalists hold the price near the fundamental value, chartists amplify its swings, and imitation
+    lets the share of chartists wander, so the returns come in bursts with fat tails.
 
     The two strategies are the fundamentalists and chartists of Lux and Marchesi (1999), and imitating a wealthier
     neighbour on the grid stands in for their switching between strategies. The order book is the order-driven market of

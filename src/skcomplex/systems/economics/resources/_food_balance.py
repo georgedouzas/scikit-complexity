@@ -1,4 +1,7 @@
-"""Resources systems: rice land cultivated towards the land available against the food a growing population needs."""
+"""Resources systems: rice land cultivated towards the land available.
+
+It is set against the food a growing population needs.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -33,10 +36,11 @@ def _food_security(s: SimpleNamespace) -> Expression:
 
 
 class RiceBalanceElement(Element):
-    """Rice land and population of a region, with the land available for rice and the rice each person needs.
+    """Rice land and population of a region.
 
-    The area cultivated grows towards the land available over a planning time and loses a fraction to housing,
-    roads, and industry, and the population grows by births and falls by deaths, through transfers of the system.
+    It holds the land available for rice and the rice each person needs. The area cultivated grows towards the land
+    available over a planning time and loses a fraction to housing, roads, and industry, and the population grows by
+    births and falls by deaths, through transfers of the system.
 
     Args:
         label:
@@ -106,16 +110,16 @@ class RiceBalanceElement(Element):
 
 
 class RiceFoodBalanceSystem(BaseSystem):
-    """Bala's food security model, rice land that grows towards the land available against a growing population.
+    """Bala's food security model.
 
-    The area cultivated grows at `MAX((total_land_available - area_cultivated) / planning_time, 0)` and loses
-    `land_fraction_lost` of itself every year to housing, roads, and industry. The population grows by
-    `birth_fraction` per person and falls by one over the life expectancy. The food security level is the rice
-    available, the area times the yield, over the rice required, the population times the rice per capita, and below 1
-    the region is short of rice. The structure, the equations, and the defaults are those of the STELLA model of Bala
-    et al. (2017, Section 4.11.3), in hectares, people, tonnes, and years. The area rises for about fifty years
-    towards the land available, and the food security rises for about twenty-five years and then falls as the
-    population grows.
+    Rice land grows towards the land available against a growing population. The area cultivated grows at
+    `MAX((total_land_available - area_cultivated) / planning_time, 0)` and loses `land_fraction_lost` of itself every
+    year to housing, roads, and industry. The population grows by `birth_fraction` per person and falls by one over the
+    life expectancy. The food security level is the rice available, the area times the yield, over the rice required,
+    the population times the rice per capita, and below 1 the region is short of rice. The structure, the equations, and
+    the defaults are those of the STELLA model of Bala et al. (2017, Section 4.11.3), in hectares, people, tonnes, and
+    years. The area rises for about fifty years towards the land available, and the food security rises for about
+    twenty-five years and then falls as the population grows.
 
     The system has the stocks `region.area_cultivated` and `region.population`, and the flows
     `region.area_increase_rate`, `region.land_lost`, `region.birth_rate`, and `region.death_rate` per year. The
@@ -201,7 +205,10 @@ class RiceFoodBalanceSystem(BaseSystem):
 
     @staticmethod
     def _area_increase(s: SimpleNamespace) -> Expression:
-        """Return the area increase rate, `MAX((total_land_available - area_cultivated) / planning_time, 0)`."""
+        """Return the area increase rate.
+
+        It is `MAX((total_land_available - area_cultivated) / planning_time, 0)`.
+        """
         gap = (s.source.total_land_available - s.source.area_cultivated) / s.source.planning_time
         return where(gap > 0, gap, 0)
 

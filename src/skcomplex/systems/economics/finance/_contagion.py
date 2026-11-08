@@ -21,7 +21,10 @@ from ....core.types import Array
 
 
 class InterbankView(AgentView):
-    """Bank as the cascade sees it: its distress `h`, its `status`, and its economic `value`."""
+    """Bank as the cascade sees it.
+
+    It holds its distress `h`, its `status`, and its economic `value`.
+    """
 
     h: float
     status: float
@@ -32,7 +35,9 @@ UNDISTRESSED = 0
 
 
 class InterbankElement(Element):
-    """Bank of the DebtRank cascade, with its level of distress, its state, and its economic value.
+    """Bank of the DebtRank cascade.
+
+    It holds its level of distress, its state, and its economic value.
 
     Args:
         label:
@@ -99,10 +104,10 @@ INACTIVE = 2
 
 
 class DebtRankCascadeInteraction(Interaction):
-    """Synchronous spread of distress, `h_i = min(1, h_i + sum_j W_ji h_j)` over the distressed banks `j`.
+    """Synchronous spread of distress over the distressed banks `j`.
 
-    A bank whose distress becomes positive turns distressed, and a distressed bank turns inactive after one step, so
-    every bank passes its distress on once.
+    The distress follows `h_i = min(1, h_i + sum_j W_ji h_j)`. A bank whose distress becomes positive turns distressed,
+    and a distressed bank turns inactive after one step, so every bank passes its distress on once.
 
     Args:
         label:
@@ -170,12 +175,12 @@ def _value_at_risk(agent: InterbankView) -> float:
 
 
 class DebtrankSystem(BaseSystem):
-    """The DebtRank cascade of distress from a set of banks through their interbank loans.
+    """The DebtRank cascade of distress from a set of banks.
 
-    `liabilities[i][j]` is the loan from bank `j` to bank `i`, which `j` loses when `i` defaults, and the impact of `i`
-    on `j` is `min(1, liabilities[i][j] / capital[j])`. The banks in `distressed` start with distress `psi`. The
-    DebtRank is the final value at risk minus the initial one. The system has the group `banks` and the distress
-    weighted by economic value `value_at_risk`.
+    The distress spreads through their interbank loans. `liabilities[i][j]` is the loan from bank `j` to bank `i`, which
+    `j` loses when `i` defaults, and the impact of `i` on `j` is `min(1, liabilities[i][j] / capital[j])`. The banks in
+    `distressed` start with distress `psi`. The DebtRank is the final value at risk minus the initial one. The system
+    has the group `banks` and the distress weighted by economic value `value_at_risk`.
 
     Args:
         liabilities:

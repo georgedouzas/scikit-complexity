@@ -1,4 +1,7 @@
-"""Resources systems: a farming household whose wealth from crops buys livestock that it rears and sells."""
+"""Resources systems: a farming household that rears livestock.
+
+Its wealth from crops buys livestock that it rears and sells.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,7 +20,9 @@ from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 
 class CropLivestockElement(Element):
-    """Farming household with crop land, wealth, and livestock, whose purchases join the herd after a maturation delay.
+    """Farming household with crop land, wealth, and livestock.
+
+    Its purchases join the herd after a maturation delay.
 
     Every year the household sells `INT(livestock sale_fraction)` animals and buys `INT(wealth / purchase_price)`
     animals when that number is at most `max_livestock + sale - livestock`, and none otherwise. Its wealth grows by the
@@ -134,7 +139,9 @@ class CropLivestockElement(Element):
 
     @staticmethod
     def get_purchase(s: SimpleNamespace) -> Expression:
-        """Return the animals bought in the year, the affordable ones when the herd has room for them.
+        """Return the animals bought in the year.
+
+        They are the affordable ones when the herd has room for them.
 
         Args:
             s:
@@ -150,7 +157,9 @@ class CropLivestockElement(Element):
 
     @staticmethod
     def get_crop_production(s: SimpleNamespace) -> Expression:
-        """Return the crop production, the area times the normal yield times the yield multiplier.
+        """Return the crop production.
+
+        It is the area times the normal yield times the yield multiplier.
 
         Args:
             s:
@@ -191,7 +200,9 @@ class CropLivestockElement(Element):
         return CropLivestockElement.get_sale(s) * s.unit_price
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the yearly steps of the stocks, with purchases that join the herd three years later.
+        """Return the yearly steps of the stocks.
+
+        The purchases join the herd three years later.
 
         Args:
             s:
@@ -214,16 +225,16 @@ class CropLivestockElement(Element):
 
 
 class CropLivestockHouseholdSystem(BaseSystem):
-    """Bala's crop livestock model, a farming household that adds livestock rearing to its crop income.
+    """Bala's crop livestock model.
 
-    A household with a fixed crop area and a grant or loan to start rearing livestock earns the crop production times
-    the price and the sales of animals, and spends on its consumption and on buying animals. Every year it sells the
-    integer part of a fraction of its herd and buys as many animals as its wealth affords when the herd has room for
-    them, and the animals it buys join the herd after three years. The equations and the defaults are those of the
-    STELLA model of Bala et al. (2017, Section 4.11.6), whose `DELAY(purchase_of_livestock, 3)` is a pipeline of
-    three years and whose `INT` truncates, so the model is a yearly map. The effects of the cropping intensity and the
-    regeneration on the yield are zero. Livestock raises the income of the household considerably, but only after the
-    maturation delay.
+    A farming household adds livestock rearing to its crop income. A household with a fixed crop area and a grant or
+    loan to start rearing livestock earns the crop production times the price and the sales of animals, and spends on
+    its consumption and on buying animals. Every year it sells the integer part of a fraction of its herd and buys as
+    many animals as its wealth affords when the herd has room for them, and the animals it buys join the herd after
+    three years. The equations and the defaults are those of the STELLA model of Bala et al. (2017, Section 4.11.6),
+    whose `DELAY(purchase_of_livestock, 3)` is a pipeline of three years and whose `INT` truncates, so the model is a
+    yearly map. The effects of the cropping intensity and the regeneration on the yield are zero. Livestock raises the
+    income of the household considerably, but only after the maturation delay.
 
     The system has the stocks `household.wealth`, `household.livestock`, and `household.yield_multiplier`, and the
     purchases of the previous year `household.purchases`, over years. The observables of the system are

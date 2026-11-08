@@ -1,4 +1,7 @@
-"""Bank of an interbank network, with its external assets, its equity, its payments, and its state of default."""
+"""Bank of an interbank network.
+
+It holds its external assets, its equity, its payments, and its state of default.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -33,10 +36,11 @@ class BalanceSheetView(AgentView):
 
 
 class BalanceSheetElement(Element):
-    """Bank of an interbank network, with its external assets, its equity, its payments, and its state of default.
+    """Bank of an interbank network.
 
-    The bank is a passive agent that the contagion of the system updates, a solvency cascade through its equity or a
-    clearing of payments through its payment.
+    It holds its external assets, its equity, its payments, and its state of default. The bank is a passive agent that
+    the contagion of the system updates, a solvency cascade through its equity or a clearing of payments through its
+    payment.
 
     Args:
         label:

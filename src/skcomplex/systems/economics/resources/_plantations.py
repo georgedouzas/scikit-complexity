@@ -1,4 +1,7 @@
-"""Plantation systems: the area of a tree crop that expands with its profit and collapses with its pests."""
+"""Plantation systems: the area of a tree crop that expands and collapses.
+
+It expands with its profit and collapses with its pests.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -85,7 +88,10 @@ FULL_INDEX = 100.0
 
 
 def _cocoa_yield(s: SimpleNamespace) -> Expression:
-    """Return the yield of cocoa per area, which the insects and the removal of shade change."""
+    """Return the yield of cocoa per area.
+
+    The insects and the removal of shade change it.
+    """
     return s.yield_normal * lookup(s.insects, ECOLOGICAL_EFFECT) * lookup(s.shade_removal, INTENSIFICATION_EFFECT)
 
 
@@ -100,7 +106,10 @@ def _profitability(s: SimpleNamespace) -> Expression:
 
 
 def _planting(s: SimpleNamespace) -> Expression:
-    """Return the planting of forest towards the desired area, which grows with the profitability."""
+    """Return the planting of forest towards the desired area.
+
+    The desired area grows with the profitability.
+    """
     land = s.source
     desired = land.area * lookup(_profitability(land), PROFITABILITY_EFFECT)
     return clip(desired - land.area, 0) / land.adjustment_time * land.forest / (land.forest + land.area)
@@ -114,7 +123,10 @@ def _abandonment(s: SimpleNamespace) -> Expression:
 
 
 def _conversion(land: SimpleNamespace) -> Expression:
-    """Return the share of the abandoned land converted to oil palm, as cocoa pays less than palm."""
+    """Return the share of the abandoned land converted to oil palm.
+
+    It grows as cocoa pays less than palm.
+    """
     return clip(land.palm_margin - _profitability(land), 0) / land.palm_margin
 
 
@@ -132,12 +144,13 @@ def _cocoa_laws(s: SimpleNamespace) -> list[BaseLaw]:
 
 
 class PlantationElement(Element):
-    """Cocoa land in forest, planted, and abandoned stocks, with the shade thinned and the insects it lets in.
+    """Cocoa land in forest, planted, and abandoned stocks.
 
-    Farmers plant forest towards a desired area that grows with the profitability of cocoa, abandon plantations whose
-    yield and profit fall, and leave abandoned land to the forest or convert it to oil palm when cocoa pays less than
-    palm. Removing shade raises the yield and lets the insects grow logistically, and the subsidy keeps the shade and
-    controls the insects. The land flows are transfers within the plantation of the system.
+    The shade is thinned and lets the insects in. Farmers plant forest towards a desired area that grows with the
+    profitability of cocoa, abandon plantations whose yield and profit fall, and leave abandoned land to the forest or
+    convert it to oil palm when cocoa pays less than palm. Removing shade raises the yield and lets the insects grow
+    logistically, and the subsidy keeps the shade and controls the insects. The land flows are transfers within the
+    plantation of the system.
 
     Args:
         label:
@@ -262,18 +275,19 @@ class PlantationElement(Element):
 
 
 class CocoaSystem(BaseSystem):
-    """A cocoa production system, plantations that boom with their profit and bust with the insects they invite.
+    """A cocoa production system, plantations that boom and bust.
 
-    The planted area moves towards a desired area, the current area times a table function of the profit margin, so
-    a profitable crop expands it. Farmers thin the shading trees, which raises the yield through an intensification
-    table but lets the insects multiply. Insect attack lowers the yield through an ecological table, and the area is
-    abandoned at a rate that falls with the yield and the profit through two more tables. Abandoned land is converted
-    to oil palm. A subsidy for shade conservation and pest control slows the thinning and controls the insects. Land
-    is conserved, so the area booms while the yield is high and busts once the insects take over, unless a subsidy
-    keeps the shade. The structure and the five table functions follow the boom and bust of cocoa in Malaysia of
-    Bala, Arshad and Noh (2017, Chapter 8), and the rates, the price, and the costs are illustrative, with the area in
-    thousands of hectares, the yield in hundreds of kilograms per hectare, the money in ringgit per hundred
-    kilograms and per hectare, the shade removal and the insect attack as indices from 0 to 100, and time in years.
+    They boom with their profit and bust with the insects they invite. The planted area moves towards a desired area,
+    the current area times a table function of the profit margin, so a profitable crop expands it. Farmers thin the
+    shading trees, which raises the yield through an intensification table but lets the insects multiply. Insect attack
+    lowers the yield through an ecological table, and the area is abandoned at a rate that falls with the yield and the
+    profit through two more tables. Abandoned land is converted to oil palm. A subsidy for shade conservation and pest
+    control slows the thinning and controls the insects. Land is conserved, so the area booms while the yield is high
+    and busts once the insects take over, unless a subsidy keeps the shade. The structure and the five table functions
+    follow the boom and bust of cocoa in Malaysia of Bala, Arshad and Noh (2017, Chapter 8), and the rates, the price,
+    and the costs are illustrative, with the area in thousands of hectares, the yield in hundreds of kilograms per
+    hectare, the money in ringgit per hundred kilograms and per hectare, the shade removal and the insect attack as
+    indices from 0 to 100, and time in years.
 
     The system has the land stocks `cocoa.area` and `cocoa.abandoned`, the indices `cocoa.shade_removal` and
     `cocoa.insects`, and the flows `cocoa.planting`, `cocoa.abandonment`, and `cocoa.conversion` per year, over years.
@@ -334,7 +348,10 @@ class CocoaSystem(BaseSystem):
 
     @staticmethod
     def _land_use() -> TransferInteraction:
-        """Return the planting, abandonment, fallow, and conversion of cocoa land, reported under the plantation."""
+        """Return the planting, abandonment, fallow, and conversion of cocoa land.
+
+        They are reported under the plantation.
+        """
         return TransferInteraction(
             'land_use',
             source='cocoa',

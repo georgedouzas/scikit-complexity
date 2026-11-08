@@ -1,4 +1,7 @@
-"""Macroeconomics systems: physical capital that reinvests its output and depreciates."""
+"""Macroeconomics systems: physical capital that reinvests and depreciates.
+
+It reinvests its output.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,7 +19,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class CapitalStockElement(Element):
-    """Capital stock that reinvests a fraction of its output and depreciates over its lifetime.
+    """Capital stock that reinvests a fraction of its output and depreciates.
+
+    It depreciates over its lifetime.
 
     Args:
         label:

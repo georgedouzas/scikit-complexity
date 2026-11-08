@@ -1,4 +1,7 @@
-"""Market systems: consumers choosing between fair-trade and regular food under ethics, budget, and peer influence."""
+"""Market systems: consumers choosing between fair-trade and regular food.
+
+They choose under ethics, budget, and peer influence.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,10 +23,10 @@ from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 
 class ConsumerView(AgentView):
-    """Consumer as the shopping rule sees it: its choice `fair`, `ethics`, and `budget`, and its parameters.
+    """Consumer as the shopping rule sees it.
 
-    The parameters are the `premium` of fair food and the weights `ethics_weight`, `price_weight`, and `social_weight`
-    of the utility.
+    It holds its choice `fair`, `ethics`, and `budget`, and its parameters. The parameters are the `premium` of fair
+    food and the weights `ethics_weight`, `price_weight`, and `social_weight` of the utility.
     """
 
     fair: float
@@ -36,11 +39,12 @@ class ConsumerView(AgentView):
 
 
 class ConsumerElement(Element):
-    """Consumer who buys fair-trade or regular food, with an ethical concern, a budget, and the weights of its utility.
+    """Consumer who buys fair-trade or regular food.
 
-    The utility of fair food is `ethics_weight * ethics - price_weight * premium / budget + social_weight * share`,
-    where `share` is the share of neighbours who bought fair food in the last step, and the utility of regular food is
-    zero. A consumer whose budget does not cover the price `1 + premium` of fair food buys regular food.
+    It holds an ethical concern, a budget, and the weights of its utility. The utility of fair food is
+    `ethics_weight * ethics - price_weight * premium / budget + social_weight * share`, where `share` is the share of
+    neighbours who bought fair food in the last step, and the utility of regular food is zero. A consumer whose budget
+    does not cover the price `1 + premium` of fair food buys regular food.
 
     Args:
         label:
@@ -100,16 +104,19 @@ class ConsumerElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[ConsumerView]:
-        """Return the view of a consumer, with its states and the parameters of its utility."""
+        """Return the view of a consumer.
+
+        It holds its states and the parameters of its utility.
+        """
         return ConsumerView
 
 
 class FairFoodSystem(BaseSystem):
-    """The choice between fair-trade and regular food of consumers who influence their neighbours.
+    """The choice between fair-trade and regular food of consumers.
 
-    Every consumer, of uniform ethical concern and budget, sits on a cell of a grid and every step buys fair or
-    regular food, all at once from the choices of their neighbours in the last step. The share of fair food rises with
-    the weight of ethics and falls with the premium, and social influence raises it.
+    The consumers influence their neighbours. Every consumer, of uniform ethical concern and budget, sits on a cell of a
+    grid and every step buys fair or regular food, all at once from the choices of their neighbours in the last step.
+    The share of fair food rises with the weight of ethics and falls with the premium, and social influence raises it.
 
     The choice is the binary logit choice with social interactions of Brock and Durlauf (2001), with a private utility
     of ethics and price and a social utility of the share of neighbours who buy fair food. Neither Ajani's Choice nor
@@ -191,7 +198,10 @@ class FairFoodSystem(BaseSystem):
 
     @staticmethod
     def _get_utility(agent: ConsumerView, system: SystemView, option: float) -> float:
-        """Return the utility of fair food, option 1, or regular food, option 0, `-inf` for fair food over budget."""
+        """Return the utility of fair food, option 1, or regular food, option 0.
+
+        It is `-inf` for fair food over budget.
+        """
         if option == 0:
             return 0.0
         if agent.budget < 1 + agent.premium:

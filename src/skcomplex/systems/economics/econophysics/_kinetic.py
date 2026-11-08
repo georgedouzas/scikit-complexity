@@ -1,4 +1,7 @@
-"""Econophysics systems: kinetic wealth exchange with saving propensity or a debt limit."""
+"""Econophysics systems: kinetic wealth exchange.
+
+The exchange has a saving propensity or a debt limit.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,13 +20,18 @@ from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 
 class SavingTraderView(AgentView):
-    """Trader as the trading rules see it: its `wealth`, negative down to the debt limit."""
+    """Trader as the trading rules see it.
+
+    It holds its `wealth`, negative down to the debt limit.
+    """
 
     wealth: float
 
 
 class SavingTraderElement(Element):
-    """Agent of the kinetic wealth exchange systems, whose wealth changes only in pairwise trades.
+    """Agent of the kinetic wealth exchange systems.
+
+    Its wealth changes only in pairwise trades.
 
     Args:
         label:
@@ -60,11 +68,12 @@ class SavingTraderElement(Element):
 
 
 class DebtExchangeInteraction(TransferInteraction):
-    """Random pairwise trades of Dragulescu and Yakovenko of a fixed amount, allowing debt down to a limit.
+    """Random pairwise trades of Dragulescu and Yakovenko of a fixed amount.
 
-    In every trade an agent pays a fixed amount to another agent drawn at random, unless its wealth would fall below
-    minus the debt limit. Every step, every agent pays once, in random order. The stationary wealth distribution is
-    the exponential `P(w) = exp(-(w + d) / T) / T` shifted to the debt limit `d`, with temperature `T = <w> + d`.
+    Debt is allowed down to a limit. In every trade an agent pays a fixed amount to another agent drawn at random,
+    unless its wealth would fall below minus the debt limit. Every step, every agent pays once, in random order. The
+    stationary wealth distribution is the exponential `P(w) = exp(-(w + d) / T) / T` shifted to the debt limit `d`, with
+    temperature `T = <w> + d`.
 
     Args:
         label:
@@ -120,13 +129,14 @@ class DebtExchangeInteraction(TransferInteraction):
 
 
 class SavingExchangeInteraction(TransferInteraction):
-    """Random pairwise trades of Chakraborti and Chakrabarti, where every agent saves a fraction of its wealth.
+    """Random pairwise trades of Chakraborti and Chakrabarti.
 
-    A trade between agents `i` and `j` keeps total wealth and gives `w_i' = lambda w_i + eps (1 - lambda) (w_i + w_j)`
-    and `w_j' = lambda w_j + (1 - eps) (1 - lambda) (w_i + w_j)` with `eps` uniform on `[0, 1]`, so `i` transfers
-    `(1 - lambda) (w_i - eps (w_i + w_j))` to `j`, an amount of either sign. Every step, every agent trades once with
-    another agent drawn at random, in random order. Without saving the stationary wealth distribution is exponential,
-    and with saving propensity `lambda` it is close to a Gamma distribution of shape `n = 1 + 3 lambda / (1 - lambda)`.
+    Every agent saves a fraction of its wealth. A trade between agents `i` and `j` keeps total wealth and gives
+    `w_i' = lambda w_i + eps (1 - lambda) (w_i + w_j)` and `w_j' = lambda w_j + (1 - eps) (1 - lambda) (w_i + w_j)` with
+    `eps` uniform on `[0, 1]`, so `i` transfers `(1 - lambda) (w_i - eps (w_i + w_j))` to `j`, an amount of either sign.
+    Every step, every agent trades once with another agent drawn at random, in random order. Without saving the
+    stationary wealth distribution is exponential, and with saving propensity `lambda` it is close to a Gamma
+    distribution of shape `n = 1 + 3 lambda / (1 - lambda)`.
 
     Args:
         label:

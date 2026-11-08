@@ -1,4 +1,7 @@
-"""Markets systems: a labour market of firms posting wage offers and unemployed workers accepting the best one."""
+"""Markets systems: a labour market of firms and unemployed workers.
+
+Firms post wage offers and unemployed workers accept the best one.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -28,9 +31,10 @@ from ....core.specs import (
 
 
 class EmployerView(AgentView):
-    """Employer as the rules see it: its offer `bid`, vacancy `demand`, step `posted`, and its wage parameters.
+    """Employer as the rules see it.
 
-    The parameters are the `vacancy_rate` and the range `low_wage` to `high_wage` of the wage offers.
+    It holds its offer `bid`, vacancy `demand`, step `posted`, and its wage parameters. The parameters are the
+    `vacancy_rate` and the range `low_wage` to `high_wage` of the wage offers.
     """
 
     bid: float
@@ -42,7 +46,9 @@ class EmployerView(AgentView):
 
 
 class EmployerElement(Element):
-    """Firm that posts a vacancy with a random wage offer in some steps, filled by at most one worker.
+    """Firm that posts a vacancy with a random wage offer in some steps.
+
+    At most one worker fills the vacancy.
 
     Args:
         label:
@@ -98,7 +104,10 @@ class EmployerElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[EmployerView]:
-        """Return the view of an employer, with its vacancy and the parameters of its offers."""
+        """Return the view of an employer.
+
+        It holds its vacancy and the parameters of its offers.
+        """
         return EmployerView
 
     @staticmethod
@@ -125,7 +134,7 @@ class EmployerElement(Element):
 
 
 class JobseekerView(AgentView):
-    """Worker as the rules see it: its search and job states, and the parameters of separation and search.
+    """Worker as the rules see it.
 
     The states are the reservation wage `ask`, the search flag `supply`, the `employer`, the `wage`, the `duration` of
     search, and the steps `hired` and `offer` of the last hire. The parameters are the `separation` rate, the initial
@@ -145,10 +154,11 @@ class JobseekerView(AgentView):
 
 
 class JobseekerElement(Element):
-    """Worker who loses its job at the separation rate and, while unemployed, lowers its reservation wage.
+    """Worker who loses its job at the separation rate.
 
-    A worker who loses its job searches from the next step. An unemployed worker asks the reservation wage
-    `w_0 (1 - decline)^d`, where `d` is the number of steps of search, and is hired by the matching market.
+    While unemployed, it lowers its reservation wage. A worker who loses its job searches from the next step. An
+    unemployed worker asks the reservation wage `w_0 (1 - decline)^d`, where `d` is the number of steps of search, and
+    is hired by the matching market.
 
     Args:
         label:
@@ -224,15 +234,18 @@ class JobseekerElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[JobseekerView]:
-        """Return the view of a worker, with its search and job states and their parameters."""
+        """Return the view of a worker.
+
+        It holds its search and job states and their parameters.
+        """
         return JobseekerView
 
     @staticmethod
     def get_search() -> tuple[tuple[str, Callable[[JobseekerView, SystemView], float]], ...]:
-        """Return the states a worker sets in the phase of offers before the separations, in their order.
+        """Return the states a worker sets in the phase of offers before the separations.
 
-        A worker unemployed at the start of the step searches, with a reservation wage that falls with the duration of
-        its search.
+        They come in their order. A worker unemployed at the start of the step searches, with a reservation wage that
+        falls with the duration of its search.
 
         Returns:
             search:
@@ -250,9 +263,10 @@ class JobseekerElement(Element):
 
     @staticmethod
     def get_spell() -> tuple[tuple[str, Callable[[JobseekerView, SystemView], float]], ...]:
-        """Return the states a worker sets in the phase of offers after the separations, in their order.
+        """Return the states a worker sets in the phase of offers after the separations.
 
-        A worker who lost its job earns no wage, and the duration of a search grows while the worker searches.
+        They come in their order. A worker who lost its job earns no wage, and the duration of a search grows while the
+        worker searches.
 
         Returns:
             spell:
@@ -270,10 +284,11 @@ class JobseekerElement(Element):
 
 
 def hire(trade: MatchSpec, system: SystemView) -> None:
-    """Record the employer, the wage, and the steps of the hire and of its offer on the hired worker.
+    """Record the employer, the wage, and the steps of the hire on the hired worker.
 
-    The hired worker keeps its search flag `supply` until the next step, which the market lowered when it cleared, so
-    the observable `searching` counts every worker who searched in the step.
+    The steps are those of the hire and of its offer. The hired worker keeps its search flag `supply` until the next
+    step, which the market lowered when it cleared, so the observable `searching` counts every worker who searched in
+    the step.
 
     Args:
         trade:
@@ -296,13 +311,14 @@ def _unemployment(employers: object) -> float:
 
 
 class LabourMarketSystem(BaseSystem):
-    """Hamill and Gilbert's labour market of firms posting wage offers and unemployed workers searching.
+    """Hamill and Gilbert's labour market.
 
-    In the phase of offers, jobs are destroyed at the separation rate `s`, every firm posts a vacancy with a uniform
-    wage offer at the vacancy rate, and unemployed workers set reservation wages that fall with the duration of their
-    search. In the phase of matching, a deferred-acceptance market pairs vacancies with workers whose reservation wage
-    they cover, every worker getting the best offer of a stable matching. The unemployment rate settles at the
-    flow-balance value `s / (s + f)`, with `f` the share of searching workers hired in a step.
+    Firms post wage offers and unemployed workers search. In the phase of offers, jobs are destroyed at the separation
+    rate `s`, every firm posts a vacancy with a uniform wage offer at the vacancy rate, and unemployed workers set
+    reservation wages that fall with the duration of their search. In the phase of matching, a deferred-acceptance
+    market pairs vacancies with workers whose reservation wage they cover, every worker getting the best offer of a
+    stable matching. The unemployment rate settles at the flow-balance value `s / (s + f)`, with `f` the share of
+    searching workers hired in a step.
 
     The system has the groups `firms` and `workers`, the market `labour` with the reporters `labour.value` (the mean
     wage of the hires) and `labour.volume` (the hires), and the catalog observables of the unemployment rate

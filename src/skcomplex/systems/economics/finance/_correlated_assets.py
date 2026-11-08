@@ -11,11 +11,11 @@ from ..common._geometric_brownian_motion import GeometricBrownianMotionInteracti
 
 
 class CorrelatedGeometricBrownianMotionSystem(BaseSystem):
-    """Two assets whose prices follow geometric Brownian motions driven by correlated Wiener processes.
+    """Two assets whose prices follow geometric Brownian motions.
 
-    A `WienerProcessSpec` of dimension 2 with the covariance `[[1, rho], [rho, 1]]` drives the two prices, so their log
-    returns over a short time have the correlation `rho`. The system has the assets `first` and `second`, whose motions
-    share the Wiener processes `market`.
+    Correlated Wiener processes drive the motions. A `WienerProcessSpec` of dimension 2 with the covariance
+    `[[1, rho], [rho, 1]]` drives the two prices, so their log returns over a short time have the correlation `rho`. The
+    system has the assets `first` and `second`, whose motions share the Wiener processes `market`.
 
     Args:
         prices:

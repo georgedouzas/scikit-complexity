@@ -1,4 +1,7 @@
-"""Markets systems: barter of two goods in an Edgeworth box and among prisoners with Red Cross parcels."""
+"""Markets systems: barter of two goods.
+
+The barter is in an Edgeworth box and among prisoners with Red Cross parcels.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -36,11 +39,11 @@ def contract_curve(
     total_chocolate: float,
     total_cigarettes: float,
 ) -> npt.NDArray[np.float64]:
-    """Return the cigarettes of the first of two barterers on the contract curve, given its chocolate.
+    """Return the cigarettes of the first of two barterers on the contract curve.
 
-    On the contract curve of two Cobb-Douglas barterers the marginal rates of substitution are equal,
-    `a y / ((1 - a) x) = b (Y - y) / ((1 - b) (X - x))`, where `a` and `b` are the weights of chocolate, `x` and `y`
-    the chocolate and cigarettes of the first barterer, and `X` and `Y` the totals.
+    They are given its chocolate. On the contract curve of two Cobb-Douglas barterers the marginal rates of substitution
+    are equal, `a y / ((1 - a) x) = b (Y - y) / ((1 - b) (X - x))`, where `a` and `b` are the weights of chocolate, `x`
+    and `y` the chocolate and cigarettes of the first barterer, and `X` and `Y` the totals.
 
     Args:
         chocolate:
@@ -73,7 +76,9 @@ def contract_curve(
 
 
 class BartererElement(Element):
-    """Barterer who holds chocolate and cigarettes and values them with Cobb-Douglas weights.
+    """Barterer who holds chocolate and cigarettes.
+
+    It values them with Cobb-Douglas weights.
 
     Args:
         label:
@@ -133,14 +138,15 @@ class BartererElement(Element):
 
 
 class BarterSystem(BaseSystem):
-    """Barter of chocolate and cigarettes, in an Edgeworth box of two barterers or among many prisoners.
+    """Barter of chocolate and cigarettes.
 
-    Every step the barterers are paired at random, and every pair trades small quantities of one good for the other
-    at the geometric mean of their marginal rates of substitution while both gain, so the totals of both goods are
-    unchanged. Two barterers with the given endowments and weights of chocolate trade within the Edgeworth box until
-    no trade improves both, which is a point of the contract curve, where their marginal rates of substitution are
-    equal. More barterers are prisoners of war who receive random Red Cross parcels and random tastes, and their
-    trades settle on a common price, as Radford (1945) observed (Hamill and Gilbert 2016 ch. 5).
+    It happens in an Edgeworth box of two barterers or among many prisoners. Every step the barterers are paired at
+    random, and every pair trades small quantities of one good for the other at the geometric mean of their marginal
+    rates of substitution while both gain, so the totals of both goods are unchanged. Two barterers with the given
+    endowments and weights of chocolate trade within the Edgeworth box until no trade improves both, which is a point of
+    the contract curve, where their marginal rates of substitution are equal. More barterers are prisoners of war who
+    receive random Red Cross parcels and random tastes, and their trades settle on a common price, as Radford (1945)
+    observed (Hamill and Gilbert 2016 ch. 5).
 
     The system has the group `barterers` and the exchange `exchange`, whose reporters are the price of cigarettes in
     chocolate `exchange.price`, its `exchange.dispersion`, and `exchange.volume`.
