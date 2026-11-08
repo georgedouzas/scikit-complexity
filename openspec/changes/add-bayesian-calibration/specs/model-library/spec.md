@@ -14,10 +14,10 @@ al. (2023, arXiv 2310.02766, Eq. 1), drawn by a named draw that runs record.
 - **THEN** the trajectory holds one Bernoulli outcome per encounter, with its probability
 
 ### Requirement: Off-lattice tumour growth
-The library SHALL provide `OffLatticeTumourGrowthSystem` in `biology/oncology`, the biphasic Voronoi cell-based model
-of Wang et al. (2024, arXiv 2409.19675, section 2.1.1): cell centres in a square joined by springs along their Delaunay
-neighbours, cancer cells that divide with probability `p0 (1 - d / dmax)` once older than `g_age`, which switches at
-time `tau`, and invade healthy neighbours with probability `p_psc`. It SHALL declare the tumour area as an observable.
+The library SHALL provide `OffLatticeTumourGrowthSystem` in `biology/oncology`, the biphasic cell-based model of Wang
+et al. (2024, arXiv 2409.19675, section 2.1.1): cell centres in a square joined by springs along `DelaunayNeighborhood`,
+cancer cells that divide with probability `p0 (1 - d / dmax)` once older than `g_age`, which switches at time `tau`,
+and invade healthy neighbours with probability `p_psc`, with the tumour area as an observable.
 
 #### Scenario: Biphasic growth
 - **WHEN** the system runs 30 days with `g_age` 20 hours before `tau = 10` days and 5 hours after
@@ -43,13 +43,13 @@ next to a vacancy, run by Gillespie. It SHALL declare the cells per phase as obs
 
 ### Requirement: Differentiable COVID agents
 The library SHALL provide `DifferentiableCovidAbmSystem` in `biology/epidemiology`, after Quera-Bofarull et al. (2023,
-arXiv 2305.15340, Eq. 6): agents in households, schools, and companies, whose probability of infection per day is
-`1 - exp(-psi * sum_L beta_L * dt * I_L)` from the infectious members of their places, carried as real states by update
-laws, so the system holds the tag `differentiable`. It SHALL declare the daily infections as an observable.
+arXiv 2305.15340, Eq. 6): agents with discrete states in households, schools, and companies, infected by relaxed
+Bernoulli draws of probability `1 - exp(-psi * sum_L beta_L * dt * I_L)`, so it holds the tag `differentiable`, with the
+daily infections as an observable.
 
 #### Scenario: Gradient through the run
-- **WHEN** the gradient of the total infections over 30 days with respect to the three betas is compared with central
-  finite differences of step 1e-6
+- **WHEN** the gradient of the total infections over 30 days with respect to the three betas, at fixed uniform values
+  of the draws, is compared with central finite differences of step 1e-6
 - **THEN** they agree within 1e-5 relative error
 
 #### Scenario: No transmission

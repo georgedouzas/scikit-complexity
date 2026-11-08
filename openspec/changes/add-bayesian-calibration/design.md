@@ -25,6 +25,7 @@ noise, jump, rule, and callable laws as not differentiable.
 - Neural posterior, likelihood, or ratio estimation (sbi, 2508.12939, 2601.07413). It needs torch and goes in the later
   torch change.
 - Latent initial states inferred jointly with the parameters (the partly observed scenarios of 2310.02766).
+- Relaxations of other discrete draws, such as Poisson or binomial draws.
 - Normalizing-flow variational families. `add-generative-samplers` brings flowjax, and a flow guide can follow it.
 - Amortised inference across data sets.
 
@@ -96,19 +97,48 @@ noise, jump, rule, and callable laws as not differentiable.
 - **New arguments.** `method='local'`, `summary=None`, `n_samples=1000`, `budget=None` (a default per method), and
   `chains=4`. `replicates`, `dt`, `solver`, and `random_state` keep their meaning. `random_state` seeds Optuna, pyabc,
   and the JAX keys of numpyro.
+- **Domains of the other core parts.** Recorded draws and replay serve every stochastic model in any field (maps,
+  agent rules, and jump processes), the event likelihood every model that records them, and the calibration methods,
+  priors, and coverage every system with parameters. None serves one field only, and every realization of a field
+  (the tumour, the cell cycle, the COVID agents, the stochastic Deffuant outcome) lives in its system module.
 - **Probes.** Deffuant with steepness probes the event likelihood of agent rules. Stochastic SIR probes Gillespie
   firings and ABC-SMC. Brock-Hommes probes global fits and ABC-SMC on rough losses (in place of the sbi of
   2601.07413). `OffLatticeTumourGrowthSystem` and `CellCycleInvasionSystem` probe ABC-SMC with summaries on spatial
   agents (2409.19675). `DifferentiableCovidAbmSystem` probes variational calibration through a differentiable agent
   run (2305.15340).
-- **Differentiable COVID agents carry probabilities.** The agents hold real states, the probabilities of being
-  susceptible, infected, and recovered, updated by the expected infection of Eq. 6, so the run is a smooth map that the
-  learning compiler accepts. Places are membership matrices built by the module from a seeded synthetic population,
-  read through weighted reductions. GradABM uses relaxed Bernoulli draws instead, which would need reparameterised
-  draws in the JAX lowering, see the open questions.
-- **Off-lattice tumour.** A variable group of cells in a continuous square space. The module computes the Delaunay
-  neighbours with `scipy.spatial.Delaunay` each step and relaxes springs by the update of Eq. 2.2. Division and
-  invasion draw through named draws, so runs record them.
+- **Relaxed discrete draws.** `bernoulli(name, p, temperature=None, hard=False)` and `categorical(name, *weights,
+  temperature=None, hard=False)` record the two options in `DrawSpec`, so a relaxation is an option of the existing draw,
+  not a new kind. NumPy and Numba draw exactly from the uniform value of the step and ignore the options. The JAX
+  lowering, used by differentiable runs and the learning compiler, writes the concrete relaxation of the same uniform
+  value `u` in place of the exact threshold: `sigmoid((log p - log(1 - p) + log u - log(1 - u)) / T)` for a Bernoulli
+  draw, and `sum_k k softmax_k((log w_k + g_k) / T)` with `g_k = -log(-log u_k)` for a categorical draw, which draws
+  one uniform value per category. With `hard=True` the value is `exact + relaxed - stop_gradient(relaxed)`, so the
+  forward value is exact and the gradient is the relaxation's (Bengio et al. 2013). The relaxation is a private method
+  of `DrawLowering` that a JAX run selects, and `stop_gradient` is a symbolic function that the JAX printer lowers to
+  `jax.lax.stop_gradient` and every other printer to the identity. A Bernoulli or categorical draw without a
+  temperature has no gradient, so the JAX lowering reports a `not-differentiable` issue naming it. The differentiable
+  unroll of `JaxBackend` takes a JAX key, splits one key per step, and writes the uniform values of the step into the
+  extended parameter vector where the draw kernel writes them in NumPy runs. The name is the mathematical operation,
+  a relaxed draw, not a field quantity. Domains that use it: epidemic agents (infection and recovery draws), opinion
+  dynamics (stochastic adoption and Deffuant outcomes), ecology (birth and death draws of individuals), spin models
+  (Glauber flips), and discrete choice in economics, wherever a discrete stochastic model is calibrated by gradients.
+- **Delaunay neighbourhoods.** `DelaunayNeighborhood(center=False)` in a new module `_delaunay.py` of the package
+  `spaces`, beside `RadiusNeighborhood`, `NearestNeighborhood`, and `ConeNeighborhood`, so neighbourhoods stay with
+  spaces. The metric search of continuous spaces, which already finds radius, nearest, and cone neighbours every step,
+  gains a private method that triangulates the positions with `scipy.spatial.Delaunay` and returns the pairs joined by
+  an edge. In a periodic space it triangulates the positions with their eight (two dimensions) or twenty-six (three
+  dimensions) periodic images and maps the edges back to members, so neighbours connect across the boundary. The
+  search runs at every step, so the neighbours follow moving members and variable groups. Fewer than `dimension + 1`
+  members, or members in a degenerate position, give every member all the others. Domains that use it: tissues and
+  tumours (cell centres joined by springs), foams and granular packings, ecological territories and Voronoi
+  competition, spatial social models of neighbours in the plane, and meshes of moving particles.
+- **Differentiable COVID agents.** An ordinary agent group with discrete susceptible, infected, and recovered states,
+  updated by update laws that draw infection and recovery through relaxed Bernoulli draws of Eq. 6 of 2305.15340.
+  Places are membership matrices built by the module from a seeded synthetic population and read through weighted
+  reductions. The JAX lowering makes the run differentiable, and the NumPy run draws exact agents.
+- **Off-lattice tumour.** A variable group of cells in a continuous square space. Springs act along the edges of
+  `DelaunayNeighborhood` and relax by the update of Eq. 2.2. Division and invasion draw through named draws, so runs
+  record them.
 - **Dependencies.** Checked on PyPI on 2026-11-08: optuna 5.0.0 (2026-09-07, Python 3.9 or later), pyabc 0.13.1
   (2026-10-28, Python 3.11 or later), numpyro 0.22.0 (2026-09-18, Python 3.11 or later, needs only jax, jaxlib,
   multipledispatch, numpy, and tqdm). All are within the 24-month limit of `dependency-freshness` and support the
@@ -128,6 +158,10 @@ noise, jump, rule, and callable laws as not differentiable.
 - [Replay diverges when a candidate changes how many draws a step makes, such as a variable group that grows] → the
   recorder raises `ValidationError` naming the step and the draw when the recorded and the requested draws disagree,
   and the event loss treats it as an infinite loss in point fits.
+- [A relaxed draw is biased at a positive temperature] → document it, default to a low temperature in the probe, and
+  check the recovery of the betas, which is the end use.
+- [Delaunay triangulation of many members every step is costly] → it runs once per step for all members, in
+  `O(n log n)`, and only for interactions that read the neighbourhood.
 - [Variational calibration needs a JAX lowering of the whole system] → the method checks the tag `differentiable` and
   the learning compiler's report before any work.
 - [`CalibrationResult` gains fields] → breaking for positional construction only, recorded in the changelog.
@@ -142,5 +176,3 @@ Calls of `calibrate` without `method` keep their estimates. The changelog names 
 - `CellCycleInvasionSystem` is a cell biology model of melanoma cells. The brief names `biology/cell_biology`, which
   does not exist. The plan puts it in `biology/oncology`. A new subfield needs the user's approval and only changes the
   module path and the registered field.
-- Relaxed Bernoulli draws (Gumbel-softmax) in the JAX lowering would let `DifferentiableCovidAbmSystem` keep discrete
-  agents as GradABM does. It is a new core primitive that can follow without changing this change's specs.

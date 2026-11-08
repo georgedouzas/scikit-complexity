@@ -28,6 +28,11 @@ through differentiable runs are mature in libraries on the JAX and SciPy stack t
 - **Probes.** `DeffuantSystem` gains `steepness`, the stochastic outcome of Lenti et al. `SIRSystem`, `DeffuantSystem`,
   and `BrockHommesSystem` serve as probes. New systems `OffLatticeTumourGrowthSystem` and `CellCycleInvasionSystem`
   after 2409.19675, and `DifferentiableCovidAbmSystem` after 2305.15340.
+- **Relaxed discrete draws.** `bernoulli` and `categorical` take `temperature` and `hard`. The JAX lowering replaces a
+  draw with a temperature by its concrete (Gumbel-softmax) relaxation, with straight-through hard values as an option,
+  so gradients flow through discrete draws. Other backends draw exactly and ignore the relaxation.
+- **Delaunay neighbourhoods.** `DelaunayNeighborhood` joins the members of a continuous space along the edges of their
+  Delaunay triangulation, across periodic boundaries, recomputed as members move.
 - **Dependencies.** optuna, pyabc, and numpyro become runtime dependencies.
 
 ## Capabilities
@@ -42,6 +47,8 @@ None.
   and the coverage experiment.
 - `simulation`: runs record their draws and jump firings and replay them with their log-probability.
 - `model-library`: the stochastic Deffuant outcome and the three new probe systems, recorded in the inventory.
+- `stochastic-maps`: Bernoulli and categorical draws take a continuous relaxation in the JAX lowering.
+- `agent-spaces`: continuous spaces gain Delaunay neighbourhoods.
 
 ## Impact
 
@@ -50,6 +57,9 @@ None.
   replay), the draws of the NumPy backend and `GillespieSolver`, the system view protocol in
   `src/skcomplex/core/components/types.py`, and `JaxBackend`, which takes the differentiable unroll that
   `GradientDescentSolver` uses today.
+- Draws and neighbourhoods: `bernoulli` and `categorical` in `src/skcomplex/core/components/laws/utils`, `DrawSpec`, the
+  draw lowering and `JaxBackend`, a new module `_delaunay.py` in `src/skcomplex/core/components/spaces`, and the metric
+  search of `src/skcomplex/core/engine/problems/_metric_search.py`.
 - Systems: `social/opinion_dynamics/_bounded_confidence.py`, and new modules in `biology/oncology` and
   `biology/epidemiology`, with inventory entries and gallery examples.
 - API: `CalibrationResult` gains fields, `calibrate` gains `method`, `summary`, `n_samples`, and `budget`, and
