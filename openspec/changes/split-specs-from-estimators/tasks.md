@@ -1,8 +1,8 @@
 ## 1. Bases
 
-- [ ] 1.1 Make `BaseSpec` a frozen dataclass base with only `_check`, not a `BaseConfig`, and remove `prepare` and `run` from specs
-- [ ] 1.2 Remove `_check` and `_validated` from `BaseConfig`, and make `prepare` call `_prepare` and nothing else
-- [ ] 1.3 Move the label and declared-spec checks of `BasePart` to the start of its `_prepare`
+- [x] 1.1 Make `BaseSpec` a frozen dataclass base with only `_check`, not a `BaseConfig`, and remove `prepare` and `run` from specs
+- [x] 1.2 Remove `_check` and `_validated` from `BaseConfig`, and make `prepare` call `_prepare` and nothing else
+- [x] 1.3 Move the label and declared-spec checks of `BasePart` to the start of its `_prepare`
 
 ## 2. Estimators
 
