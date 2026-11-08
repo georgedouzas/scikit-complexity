@@ -1,4 +1,7 @@
-"""Define the types of celestial mechanics: the presets of orbits."""
+"""Define the types of celestial mechanics.
+
+The types are the presets of orbits.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
