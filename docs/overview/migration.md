@@ -5,7 +5,8 @@ estimator, and what you do to it is a function. It is one breaking release, and 
 
 In short:
 
-- every ready-made system is a class, such as `SIRSystem`, in place of a factory function and a catalog name,
+- every ready-made system is a class imported from its subfield, such as `SIRSystem` from
+  `skcomplex.systems.biology.epidemiology`, in place of a factory function and a catalog name,
 - `all_systems` finds the classes, in place of `catalog`, `describe`, and the registry,
 - `simulate(system, ...)` runs a system and returns its `Trajectory`, in place of `Simulation` and `create_simulation`,
 - every analysis is a function that returns a frozen result, in place of an analysis class,
@@ -21,7 +22,7 @@ the last keyword-only argument.
 
 Before:
 
-```python
+```python notest
 from skcomplex.systems import create_system, describe
 
 system = create_system('sir', beta=0.0004)
@@ -32,15 +33,14 @@ entry.description, entry.tags, entry.references, entry.defaults
 After:
 
 ```python
-from skcomplex.systems import all_systems
+from skcomplex.systems.biology.epidemiology import SIRSystem
 
-SIRSystem = dict(all_systems(field='biology/epidemiology'))['SIRSystem']
 system = SIRSystem(beta=0.0004)
 SIRSystem.__doc__.splitlines()[0], SIRSystem.topics, SIRSystem.references, system.get_run_settings()
 ```
 
-A class can also be imported from its subfield package, where the factory was, such as `SIRSystem` from the package of
-`biology/epidemiology` in place of `sir`.
+A system is imported from its subfield package, where the factory was, such as `SIRSystem` from
+`skcomplex.systems.biology.epidemiology` in place of `create_system('sir')`.
 
 The catalog name of a system is the snake case of its class without `System`, as the gallery and the inventory use it.
 For most systems the name and the factory stay as they were, `lotka_volterra` and `LotkaVolterraSystem`. These names
@@ -82,7 +82,7 @@ changed, because their class names do not round-trip:
 
 A system class builds its parts in `prepare`, and keeps them as `system_`, the `System` that the factory returned:
 
-```python
+```python continuation
 SIRSystem().prepare().system_.elements
 ```
 
@@ -93,7 +93,7 @@ SIRSystem().prepare().system_.elements
 
 Before:
 
-```python
+```python notest
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.systems import create_simulation, create_system
 
@@ -106,8 +106,9 @@ After:
 
 ```python
 from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+from skcomplex.systems.biology.epidemiology import SIRSystem
 
-LotkaVolterraSystem = dict(all_systems(field='biology/ecology'))['LotkaVolterraSystem']
 trajectory = simulate(SIRSystem())
 trajectory = simulate(LotkaVolterraSystem(), until=50, dt=0.1)
 ```
@@ -153,7 +154,7 @@ for `mode_decomposition`, `sparse_identification`, and `reservoir`, `shape` for 
 
 Before:
 
-```python
+```python notest
 from skcomplex.core.analysis import EntropyAnalysis, SymbolicAnalysis
 
 SymbolicAnalysis().prepare(system).run().equations_
@@ -166,6 +167,7 @@ After:
 import numpy as np
 
 from skcomplex.core.analysis import entropy, symbolic
+from skcomplex.systems.biology.epidemiology import SIRSystem
 
 values = np.sin(np.arange(500) * 0.1)
 symbolic(SIRSystem()).equations
@@ -259,7 +261,7 @@ frozen values.
 
 Before:
 
-```python
+```python notest
 from skcomplex.core.experiments import CalibrationExperiment, Experiment, GridDesign
 from skcomplex.systems import describe
 
@@ -272,7 +274,11 @@ fit.estimates_
 After:
 
 ```python
+import numpy as np
+
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.experiments import Calibration, sweep
+from skcomplex.systems.biology.epidemiology import SIRSystem
 
 result = sweep(SIRSystem(), {'gamma': [0.1, 0.2]}, until=60, outputs=['I.n'])
 times = np.arange(0.0, 60.0, 5.0)
@@ -310,5 +316,7 @@ page, which the generated pages under Parts replace. `simulate`, the analyses, a
 a `TagError` that names a tag they cannot use.
 
 ```python
+from skcomplex.systems.biology.epidemiology import SIRSystem
+
 SIRSystem().get_tags()
 ```

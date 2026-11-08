@@ -45,13 +45,12 @@ with a parameter.
 ```python
 from skcomplex.core.analysis import lyapunov, stability
 from skcomplex.core.experiments import orbit_diagram
-from skcomplex.systems import all_systems
+from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem, LorenzSystem
 
-LotkaVolterraSystem = dict(all_systems(field='biology/ecology'))['LotkaVolterraSystem']
-dynamical = dict(all_systems(field='mathematics/dynamical_systems'))
 stability(LotkaVolterraSystem()).classifications
-lyapunov(dynamical['LorenzSystem'](), until=200).exponents.round(2).tolist()
-logistic_map = dynamical['LogisticMapSystem']()
+lyapunov(LorenzSystem(), until=200).exponents.round(2).tolist()
+logistic_map = LogisticMapSystem()
 orbit_diagram(logistic_map, 'map.r', [2.9, 3.2, 3.5], 'map.x', transient=500, keep=32, dt=1).periods.tolist()
 ```
 
@@ -69,9 +68,8 @@ import math
 import numpy as np
 
 from skcomplex.core.analysis import section
-from skcomplex.systems import all_systems
+from skcomplex.systems.physics.nonlinear_oscillators import DuffingSystem
 
-DuffingSystem = dict(all_systems(field='physics/nonlinear_oscillators'))['DuffingSystem']
 points = section(DuffingSystem(), kind='stroboscopic', period=2 * math.pi / 1.2, n_points=200)
 len(np.unique(np.round(points.states, 4), axis=0))
 ```
@@ -162,9 +160,8 @@ import numpy as np
 
 from skcomplex.core.analysis import applicable_analyses, spectrum
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.systems import all_systems
+from skcomplex.systems.physics.statistical_mechanics import IsingSystem
 
-IsingSystem = dict(all_systems(field='physics/statistical_mechanics'))['IsingSystem']
 spins = simulate(IsingSystem(size=32), until=20)
 applicable_analyses(spins).kinds
 spectrum(spins, kind='structure-factor').wavenumbers[:3].round(3).tolist()
@@ -196,9 +193,8 @@ and measured values. The gallery draws it for every example that names no analys
 ```python
 from skcomplex.core.analysis import signatures
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.systems import all_systems
+from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
-LotkaVolterraSystem = dict(all_systems(field='biology/ecology'))['LotkaVolterraSystem']
 predation = simulate(LotkaVolterraSystem(), until=20.0)
 [(item.kind, item.title, item.xscale, list(item.values)) for item in signatures(predation).signatures]
 ```
@@ -538,9 +534,8 @@ Predict patterns before a run, and measure domains, wavelengths, clusters, and t
 import numpy as np
 
 from skcomplex.core.analysis import clusters, distribution, domains, stability
-from skcomplex.systems import all_systems
+from skcomplex.systems.chemistry.pattern_formation import BrusselatorSystem
 
-BrusselatorSystem = dict(all_systems(field='chemistry/pattern_formation'))['BrusselatorSystem']
 relation = stability(BrusselatorSystem(shape=(128,), b=1.9), kind='dispersion')
 relation.band.min().round(2), relation.band.max().round(2)
 
@@ -578,9 +573,8 @@ import numpy as np
 
 from skcomplex.core.analysis import alignment, coarse_grain, neighbors
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.systems import all_systems
+from skcomplex.systems.biology.collective_behaviour import BoidsSystem
 
-BoidsSystem = dict(all_systems(field='biology/collective_behaviour'))['BoidsSystem']
 flock = simulate(BoidsSystem(), until=5)
 alignment(flock, kind='mean-vector').order.shape
 positions = np.random.default_rng(4).random((1000, 2))

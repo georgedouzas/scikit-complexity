@@ -11,16 +11,15 @@ selection functions of scikit-learn run a model over folds and parameters.
 ```python
 from skcomplex.core.components.specs import ScenarioSpec
 from skcomplex.core.experiments import compare_scenarios, ensemble, sweep
-from skcomplex.systems import all_systems
+from skcomplex.systems.biology.epidemiology import SIRSystem
+from skcomplex.systems.economics.resources import HarvestingSystem
 
-SIRSystem = dict(all_systems(field='biology/epidemiology'))['SIRSystem']
 replicated = ensemble(SIRSystem(stochastic=True), replicates=10, until=60, random_state=0)
 round(float(replicated.summary()[0]['I.n.mean']), 1)
 
 swept = sweep(SIRSystem(), {'gamma': [0.1, 0.2]}, until=60, outputs=['I.n'])
 [row['gamma'] for row in swept.rows]
 
-HarvestingSystem = dict(all_systems(field='economics/resources'))['HarvestingSystem']
 policies = [ScenarioSpec('baseline'), ScenarioSpec('quota', schedule=[(50.0, 'harvest.effort', 0.025)])]
 stocks = compare_scenarios(HarvestingSystem(), policies, until=80, outputs=['land/stock.n'])
 [round(float(row['land/stock.n'])) for row in stocks.rows]
@@ -65,9 +64,8 @@ Fit the parameters of a system to observed data, and rank which inputs matter mo
 import numpy as np
 
 from skcomplex.core.experiments import Calibration, sensitivity
-from skcomplex.systems import all_systems
+from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 
-LogisticGrowthSystem = dict(all_systems(field='biology/ecology'))['LogisticGrowthSystem']
 times = np.arange(0.0, 21.0)
 observed = 500 / (1 + 49 * np.exp(-0.8 * times))
 bounds = {'r': (0.1, 2.0), 'K': (100, 1000)}

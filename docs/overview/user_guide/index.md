@@ -6,9 +6,8 @@ Each part builds only on the ones before it.
 
 ```python
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.systems import all_systems
+from skcomplex.systems.biology.epidemiology import SIRSystem
 
-SIRSystem = dict(all_systems(field='biology/epidemiology'))['SIRSystem']
 simulate(SIRSystem()).values('I.n').max().round()
 ```
 
@@ -35,8 +34,9 @@ never change it.
 
 ## Two ways in
 
-- **Select a ready-made system.** `all_systems` lists the system classes of the catalog by field, topic, or tag. You
-  build one with the parameters you choose and simulate it with `simulate`.
+- **Select a ready-made system.** You import a system class from its subfield, such as `SIRSystem` from
+  `skcomplex.systems.biology.epidemiology`, build it with the parameters you choose, and simulate it with `simulate`.
+  `all_systems` lists the system classes of the catalog by field, topic, or tag.
 - **Build a custom system.** You write elements and interactions with `skcomplex.core.components`, use specs from
   `skcomplex.core.specs`, simulate with `skcomplex.core.engine`, and study the results with `skcomplex.core.analysis`.
 

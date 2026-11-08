@@ -22,9 +22,8 @@ parameters of their own.
 ```python
 from skcomplex.core.components.mass_action import MassActionSystem
 from skcomplex.core.components.system import BaseSystem, System
-from skcomplex.systems import all_systems
+from skcomplex.systems.biology.epidemiology import SIRSystem
 
-SIRSystem = dict(all_systems(field='biology/epidemiology'))['SIRSystem']
 issubclass(SIRSystem, MassActionSystem), issubclass(MassActionSystem, BaseSystem), issubclass(System, BaseSystem)
 ```
 
@@ -127,9 +126,7 @@ susceptible individuals at the rate `nu` adds one parameter and one reaction:
 ```python
 from skcomplex.core.components.interactions import ReactionInteraction
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.systems import all_systems
-
-SIRSystem = dict(all_systems(field='biology/epidemiology'))['SIRSystem']
+from skcomplex.systems.biology.epidemiology import SIRSystem
 
 
 class VaccinatedSIRSystem(SIRSystem):
