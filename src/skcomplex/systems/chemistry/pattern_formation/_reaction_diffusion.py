@@ -1,4 +1,4 @@
-"""Pattern formation systems: reaction-diffusion fields whose sites react and whose states diffuse."""
+"""Reaction-diffusion fields whose sites react and whose states diffuse."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,7 +21,9 @@ from ..common.kinetics import BrusselatorReactionElement, CubicAutocatalysisInte
 
 
 class BrusselatorElement(BrusselatorReactionElement):
-    """Site of the Brusselator, the reactor of the Brusselator with the diffusion coefficients of its intermediates.
+    """Site of the Brusselator, its reactor with the diffusion coefficients.
+
+    The coefficients are those of its intermediates.
 
     The four reactions of `BrusselatorSystem` run at every site, and its diffusions read `Du` and `Dv`.
 
@@ -201,7 +203,10 @@ def _get_v_diffusion(s: SimpleNamespace) -> Expression:
 
 
 def _get_diffusions() -> list[DiffusionInteraction]:
-    """Return the diffusions of `u` and `v` on the field `cells`, at the coefficients `Du` and `Dv` of its sites."""
+    """Return the diffusions of `u` and `v` on the field `cells`.
+
+    They run at the coefficients `Du` and `Dv` of its sites.
+    """
     return [
         DiffusionInteraction('u_diffusion', target='cells', state='u', coefficient=_get_u_diffusion),
         DiffusionInteraction('v_diffusion', target='cells', state='v', coefficient=_get_v_diffusion),
@@ -214,7 +219,9 @@ def _noise(shape: tuple[int, ...], scale: float, random_state: int | np.random.G
 
 
 class GrayScottSystem(BaseSystem):
-    """The Gray-Scott reaction-diffusion system, seeded in its middle, which grows spots that replicate.
+    """The Gray-Scott reaction-diffusion system, seeded in its middle.
+
+    It grows spots that replicate.
 
     Every site of a periodic lattice runs the kinetics of `CubicAutocatalysisSystem`, the cubic autocatalysis of the
     activator on the substrate, the feed `F` of the substrate, and the removal `F + k` of the activator, and both
@@ -301,7 +308,9 @@ class GrayScottSystem(BaseSystem):
 
 
 class BrusselatorSystem(BaseSystem):
-    """The Brusselator reaction-diffusion system from small noise around its steady state `(a, b / a)`.
+    """The Brusselator reaction-diffusion system from noise around its steady state.
+
+    The noise is small and the steady state is `(a, b / a)`.
 
     Every site of a periodic lattice runs the kinetics of `BrusselatorODESystem`, and both intermediates diffuse. The
     concentrations are `cells.u` and `cells.v`.
@@ -395,7 +404,9 @@ class BrusselatorSystem(BaseSystem):
 
 
 class SchnakenbergSystem(BaseSystem):
-    """The Schnakenberg reaction-diffusion system, which forms Turing patterns from noise when `Dv >> Du`.
+    """The Schnakenberg reaction-diffusion system.
+
+    It forms Turing patterns from noise when `Dv >> Du`.
 
     The steady state `u = a + b`, `v = b / (a + b)^2` is stable without diffusion and unstable to perturbations of a
     band of wavelengths with it. The concentrations are `cells.u` and `cells.v`.

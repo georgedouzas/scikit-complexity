@@ -19,7 +19,9 @@ from ....core.types import Array
 
 
 class HodgepodgeCellElement(Element):
-    """Cell of the hodgepodge machine of Gerhardt and Schuster, healthy at 0, infected below `n`, and ill at `n`.
+    """Cell of the hodgepodge machine of Gerhardt and Schuster.
+
+    It is healthy at 0, infected below `n`, and ill at `n`.
 
     Healthy cells catch the infection from their infected and ill neighbours, infected cells worsen by the mean of their
     neighbourhood plus `g`, and ill cells heal, by the local rule of `HodgepodgeSystem`.
@@ -72,7 +74,7 @@ class HodgepodgeCellElement(Element):
 
 
 class HodgepodgeSystem(BaseSystem):
-    """The hodgepodge machine, a system of a chemical reaction whose waves form spirals.
+    """The hodgepodge machine, a chemical reaction whose waves form spirals.
 
     Every cell of a lattice holds a level of infection from 0 to `n`. Healthy cells catch the infection from their
     infected and ill Moore neighbours, infected cells worsen by the mean of their neighbourhood plus `g`, and ill cells
@@ -140,7 +142,10 @@ class HodgepodgeSystem(BaseSystem):
         k2: float | Array,
         g: float | Array,
     ) -> Array:
-        """Return the next levels: healthy cells catch the infection, infected cells worsen, and ill cells heal."""
+        """Return the next levels.
+
+        Healthy cells catch the infection, infected cells worsen, and ill cells heal.
+        """
         neighbours = np.stack(around)
         infected = ((neighbours > 0) & (neighbours < n)).sum(axis=0)
         ill = (neighbours >= n).sum(axis=0)
@@ -149,7 +154,7 @@ class HodgepodgeSystem(BaseSystem):
         return np.where(level <= 0, np.minimum(healthy, n), np.where(level >= n, 0.0, worsening))
 
     def _build_system(self) -> System:
-        """Return the lattice of cells with random levels and the local rule of the infection."""
+        """Return the lattice of cells with random levels and the rule of the infection."""
         shape = tuple(self.shape)
         levels = np.random.default_rng(self.random_state).integers(0, int(self.n) + 1, size=shape).astype(float)
         values = {'level': levels, 'n': self.n, 'k1': self.k1, 'k2': self.k2, 'g': self.g}

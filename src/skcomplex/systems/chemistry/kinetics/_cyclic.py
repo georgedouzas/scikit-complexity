@@ -19,7 +19,9 @@ from ....core.types import Array
 
 
 class CyclicCellElement(Element):
-    """Cell of Griffeath's cyclic cellular automaton, with `n` levels that follow each other in a cycle.
+    """Cell of Griffeath's cyclic cellular automaton, with `n` levels.
+
+    The levels follow each other in a cycle.
 
     A cell moves from level `k` to level `k + 1` modulo `n` when at least `threshold` of its neighbours hold that
     level, by the local rule of `CyclicCellularAutomatonSystem`, so every level eats its predecessor and random initial
@@ -63,7 +65,9 @@ class CyclicCellElement(Element):
 
 
 class CyclicCellularAutomatonSystem(BaseSystem):
-    """Griffeath's cyclic cellular automaton, whose random levels organize into spiral waves.
+    """Griffeath's cyclic cellular automaton.
+
+    Its random levels organize into spiral waves.
 
     Every cell of a lattice holds one of `n` levels, which follow each other in a cycle, and moves to the following
     level when at least `threshold` of its von Neumann neighbours hold it. The levels are `cells.level`.
@@ -113,13 +117,16 @@ class CyclicCellularAutomatonSystem(BaseSystem):
 
     @staticmethod
     def _advance_cyclically(level: Array, *around: Array, n: float | Array, threshold: float | Array) -> Array:
-        """Return the next levels, one step around the cycle where enough neighbours hold the following level."""
+        """Return the next levels, one step around the cycle.
+
+        A cell steps where enough neighbours hold the following level.
+        """
         following = np.mod(level + 1, n)
         successors = sum((item == following).astype(float) for item in around)
         return np.where(successors >= threshold, following, level)
 
     def _build_system(self) -> System:
-        """Return the lattice of cells with random levels and the local rule that advances them."""
+        """Return the lattice of cells with random levels and the rule that advances them."""
         shape = tuple(self.shape)
         levels = np.random.default_rng(self.random_state).integers(0, self.n, size=shape).astype(float)
         return System(

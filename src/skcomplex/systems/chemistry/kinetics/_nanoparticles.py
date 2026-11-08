@@ -15,7 +15,9 @@ LITRES_PER_NANOMOLE = 1e-9
 
 
 class NanoparticleCoronaSystem(BaseSystem):
-    """The corona that albumin, high-density lipoprotein, and fibrinogen form on a nanoparticle in plasma.
+    """The corona that plasma proteins form on a nanoparticle.
+
+    The proteins are albumin, high-density lipoprotein, and fibrinogen.
 
     Each protein `i` binds a free nanoparticle at the rate `n_i alpha_i U P_i` and leaves it at the rate
     `delta_i B_i`, where `n_i = 4 (R + r_i)^2 / r_i^2` is the number of its sites on a nanoparticle of radius `R`.
@@ -88,11 +90,17 @@ class NanoparticleCoronaSystem(BaseSystem):
 
     @staticmethod
     def _count_binding_sites(radius: float, protein_radius: float) -> float:
-        """Return the number of sites for a protein on a nanoparticle, `4 pi (R + r)^2 / (pi r^2)`."""
+        """Return the number of sites for a protein on a nanoparticle.
+
+        It is `4 pi (R + r)^2 / (pi r^2)`.
+        """
         return 4 * (radius + protein_radius) ** 2 / protein_radius**2
 
     def _build_system(self) -> System:
-        """Return the nanoparticles, the free and bound proteins, and the binding and the release of every protein."""
+        """Return the nanoparticles, the proteins, and the binding and release reactions.
+
+        The proteins are free and bound, and every protein binds and is released.
+        """
         elements = [CompartmentElement('nanoparticle', n=self.nanoparticle)]
         interactions: list[ReactionInteraction] = []
         rows = zip(

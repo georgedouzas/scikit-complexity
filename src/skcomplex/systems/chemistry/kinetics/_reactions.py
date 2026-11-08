@@ -1,4 +1,7 @@
-"""Elementary reactions as rate equations, jump processes, and chemical Langevin equations."""
+"""Elementary reactions as rate equations, jumps, and Langevin equations.
+
+The jumps are jump processes and the Langevin equations are chemical Langevin equations.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,7 +24,10 @@ X = ('reactor', 'x')
 
 
 def _get_enzyme_reactions(k_binding: float, k_unbinding: float, k_catalysis: float) -> ReactionTable:
-    """Return the binding, unbinding, and catalysis of the enzyme reaction `E + S <-> C -> E + P`."""
+    """Return the binding, unbinding, and catalysis of the enzyme reaction.
+
+    The reaction is `E + S <-> C -> E + P`.
+    """
     return {
         'binding': ({'E': 1, 'S': 1}, {'C': 1}, k_binding),
         'unbinding': ({'C': 1}, {'E': 1, 'S': 1}, k_unbinding),
@@ -30,7 +36,9 @@ def _get_enzyme_reactions(k_binding: float, k_unbinding: float, k_catalysis: flo
 
 
 class SchloglElement(Element):
-    """Reactor of Schlögl's reaction, the number of molecules of `X` with the buffered species `A` and `B`.
+    """Reactor of Schlögl's reaction, the number of molecules of `X`.
+
+    The buffered species are `A` and `B`.
 
     The reactions of `ChemicalLangevinEquationSystem` change `x` and read the rate constants and the constant numbers of
     molecules of `A` and `B` from the reactor.
@@ -93,7 +101,9 @@ class SchloglElement(Element):
 
 
 class MichaelisMentenSystem(MassActionSystem):
-    """The enzyme reaction `E + S <-> C -> E + P` of Michaelis and Menten, as rate equations or as jumps.
+    """The enzyme reaction `E + S <-> C -> E + P` of Michaelis and Menten.
+
+    It runs as rate equations or as jumps.
 
     The total enzyme `E + C` and the total substrate `S + C + P` are conserved. In stochastic mode the amounts are
     numbers of molecules and the reactions are the random events of Gillespie's algorithm. The amounts are `E.n`,
@@ -155,7 +165,7 @@ class MichaelisMentenSystem(MassActionSystem):
         self.stochastic = stochastic
 
     def _get_species(self) -> dict[str, float]:
-        """Return the initial amounts of the enzyme, the substrate, the complex, and the product."""
+        """Return the initial amounts of the enzyme, substrate, complex, and product."""
         return {'E': self.enzyme, 'S': self.substrate, 'C': 0.0, 'P': 0.0}
 
     def _get_reactions(self) -> ReactionTable:
@@ -163,12 +173,17 @@ class MichaelisMentenSystem(MassActionSystem):
         return _get_enzyme_reactions(self.k_binding, self.k_unbinding, self.k_catalysis)
 
     def _get_mode(self) -> str:
-        """Return the mode of the reactions, random events when stochastic and rate equations otherwise."""
+        """Return the mode of the reactions.
+
+        It is random events when stochastic and rate equations otherwise.
+        """
         return 'jump' if self.stochastic else 'rate'
 
 
 class ChemicalLangevinEquationSystem(BaseSystem):
-    """The chemical Langevin equation of Schlögl's bistable reaction, whose noise switches between two states.
+    """The chemical Langevin equation of Schlögl's bistable reaction.
+
+    Its noise switches between two states.
 
     The channels `A + 2X -> 3X`, `3X -> A + 2X`, `B -> X`, and `X -> B` have the propensities `c1 A x (x - 1) / 2`,
     `c2 x (x - 1) (x - 2) / 6`, `c3 B`, and `c4 x`. Every channel adds its propensity times its change of `x` to the
@@ -260,7 +275,10 @@ class ChemicalLangevinEquationSystem(BaseSystem):
         return reactor.c4 * reactor.x
 
     def _build_system(self) -> System:
-        """Return the reactor and the four channels of Schlögl's reaction as chemical Langevin equations."""
+        """Return the reactor and the four channels of Schlögl's reaction.
+
+        The channels are chemical Langevin equations.
+        """
         reactor = SchloglElement(
             'reactor',
             x=self.x,
@@ -353,7 +371,7 @@ class ChemicalLangevinNetworkSystem(MassActionSystem):
         self.k_catalysis = k_catalysis
 
     def _get_species(self) -> dict[str, float]:
-        """Return the initial amounts of the enzyme, the substrate, the complex, and the product."""
+        """Return the initial amounts of the enzyme, substrate, complex, and product."""
         return {'E': self.enzyme, 'S': self.substrate, 'C': 0.0, 'P': 0.0}
 
     def _get_reactions(self) -> ReactionTable:

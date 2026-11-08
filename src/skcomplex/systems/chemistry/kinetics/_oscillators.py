@@ -18,7 +18,9 @@ from ..common.kinetics import BrusselatorReactionElement, CubicAutocatalysisInte
 
 
 class CubicAutocatalysisElement(Element):
-    """Continuously fed reactor of cubic autocatalysis, the concentrations of the reactant `a` and the autocatalyst `b`.
+    """Continuously fed reactor of cubic autocatalysis.
+
+    It holds the concentrations of the reactant `a` and the autocatalyst `b`.
 
     The reactions and the flows of `CubicAutocatalysisSystem` change the concentrations and read the feed rate `F` and
     the decay rate `k` from the reactor.
@@ -66,7 +68,9 @@ class CubicAutocatalysisElement(Element):
 
 
 class OregonatorElement(Element):
-    """Reactor of the scaled Oregonator, the scaled concentrations of bromous acid, bromide, and the oxidized catalyst.
+    """Reactor of the scaled Oregonator.
+
+    It holds the scaled concentrations of bromous acid, bromide, and the oxidized catalyst.
 
     The scaled concentrations follow `epsilon dx/dt = q y - x y + x (1 - x)`, `delta dy/dt = -q y - x y + f z`, and
     `dz/dt = x - z`. The reactions of `OregonatorSystem` change the concentrations, with the time scales `epsilon` and
@@ -130,7 +134,9 @@ class OregonatorElement(Element):
 
 
 class BrusselatorODESystem(BaseSystem):
-    """The well-mixed Brusselator, which oscillates on a limit cycle when `b > 1 + a**2`.
+    """The well-mixed Brusselator.
+
+    It oscillates on a limit cycle when `b > 1 + a**2`.
 
     The reactions `A -> U`, `B + U -> V + D`, `2U + V -> 3U`, and `U -> E` with the buffered reactants `A` and `B`
     give `du/dt = a - (b + 1) u + u^2 v` and `dv/dt = b u - u^2 v`, with the fixed point `(a, b / a)`. The
@@ -200,7 +206,9 @@ class BrusselatorODESystem(BaseSystem):
 
 
 class OregonatorSystem(BaseSystem):
-    """The scaled Oregonator, the reduction of the FKN mechanism of the Belousov-Zhabotinsky reaction.
+    """The scaled Oregonator of the Belousov-Zhabotinsky reaction.
+
+    It is the reduction of the FKN mechanism of the reaction.
 
     The scaled concentrations of bromous acid `x`, bromide `y`, and the oxidized catalyst `z` follow
     `epsilon dx/dt = q y - x y + x (1 - x)`, `delta dy/dt = -q y - x y + f z`, and `dz/dt = x - z`. The five reactions
@@ -281,7 +289,10 @@ class OregonatorSystem(BaseSystem):
 
     @staticmethod
     def _get_y_yield(s: SimpleNamespace) -> Expression:
-        """Return the stoichiometric coefficient `f / delta` of the scaled bromide made from the oxidized catalyst."""
+        """Return the stoichiometric coefficient `f / delta` of the scaled bromide.
+
+        It is the bromide made from the oxidized catalyst.
+        """
         return s.target.f / s.target.delta
 
     @staticmethod
@@ -351,7 +362,9 @@ class OregonatorSystem(BaseSystem):
 
 
 class CubicAutocatalysisSystem(BaseSystem):
-    """Cubic autocatalysis `A + 2B -> 3B` with the decay `B -> C` in a continuously fed reactor.
+    """Cubic autocatalysis `A + 2B -> 3B` with the decay `B -> C`.
+
+    It runs in a continuously fed reactor.
 
     The flow through the reactor relaxes the reactant to its feed concentration 1 and washes out the autocatalyst at
     the rate `F`, so the dimensionless concentrations follow `da/dt = -a b^2 + F (1 - a)` and
@@ -407,7 +420,10 @@ class CubicAutocatalysisSystem(BaseSystem):
         return 1 / s.target.F
 
     def _build_system(self) -> System:
-        """Return the reactor, the autocatalysis, the decay, and the flows through the reactor."""
+        """Return the reactor, the autocatalysis, the decay, and the flows.
+
+        The flows run through the reactor.
+        """
         return System(
             self.label,
             elements=[CubicAutocatalysisElement('reactor', a=self.a, b=self.b, F=self.F, k=self.k)],

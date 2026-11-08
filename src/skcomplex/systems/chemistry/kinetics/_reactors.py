@@ -18,7 +18,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class CatalystPelletElement(Element):
-    """Catalyst pellet, the concentration `c` of the reactant at its surface relative to the bulk.
+    """Catalyst pellet, the concentration `c` of the reactant at its surface.
+
+    The concentration is relative to the bulk.
 
     The mass transfer and the surface reaction of `CatalystPelletSystem` change the concentration and read their
     constants from the pellet.
@@ -66,7 +68,9 @@ class CatalystPelletElement(Element):
 
 
 class PulsedElectrodeElement(Element):
-    """Electrode of a stirred electrochemical reactor, charged by a train of current pulses.
+    """Electrode of a stirred electrochemical reactor.
+
+    A train of current pulses charges it.
 
     In units of the exchange current and of the thermal voltage, the overpotential follows
     `C deta/dt = i(t) - i_F`, with the Butler-Volmer current `i_F = c exp(alpha eta) - exp(-(1 - alpha) eta)`, and the
@@ -160,7 +164,9 @@ class PulsedElectrodeElement(Element):
 
 
 class CatalystPelletSystem(BaseSystem):
-    """The surface concentration of a catalyst pellet, bistable through Langmuir-Hinshelwood kinetics.
+    """The surface concentration of a catalyst pellet.
+
+    It is bistable through Langmuir-Hinshelwood kinetics.
 
     The concentration at the surface, relative to the bulk, follows `dc/dt = h (1 - c) - k c / (1 + K c)^2`, where
     mass transfer from the bulk balances a reaction that the adsorbed reactant inhibits. For the default parameters a
@@ -212,17 +218,26 @@ class CatalystPelletSystem(BaseSystem):
 
     @staticmethod
     def _get_surface_reaction(s: SimpleNamespace) -> Expression:
-        """Return the Langmuir-Hinshelwood propensity `k c / (1 + K c)^2` of the reaction at the surface of a pellet."""
+        """Return the Langmuir-Hinshelwood propensity `k c / (1 + K c)^2`.
+
+        It is the propensity of the reaction at the surface of a pellet.
+        """
         pellet = s.reactants[0]
         return pellet.k * pellet.c / (1 + pellet.K * pellet.c) ** 2
 
     @staticmethod
     def _get_transfer_time(s: SimpleNamespace) -> Expression:
-        """Return the time `1 / h` of the mass transfer from the bulk to the surface of a pellet."""
+        """Return the time `1 / h` of the mass transfer to the surface of a pellet.
+
+        The transfer is from the bulk.
+        """
         return 1 / s.target.h
 
     def _build_system(self) -> System:
-        """Return the pellet, the mass transfer from the bulk, and the reaction at the surface."""
+        """Return the pellet, the mass transfer, and the reaction at the surface.
+
+        The mass transfer is from the bulk.
+        """
         return System(
             self.label,
             elements=[CatalystPelletElement('pellet', c=self.c, h=self.h, k=self.k, K=self.K)],
@@ -234,7 +249,9 @@ class CatalystPelletSystem(BaseSystem):
 
 
 class PulsedElectrochemicalReactorSystem(BaseSystem):
-    """A stirred electrochemical reactor whose electrode is driven by a train of current pulses.
+    """A stirred electrochemical reactor driven by current pulses.
+
+    A train of current pulses drives its electrode.
 
     Every pulse charges the double layer, the overpotential drives a Butler-Volmer current that consumes the reactant,
     and the feed restores it between pulses. The overpotential is `electrode.eta` and the concentration
@@ -311,7 +328,10 @@ class PulsedElectrochemicalReactorSystem(BaseSystem):
         self.width = width
 
     def _build_system(self) -> System:
-        """Return the electrode, whose own laws charge the double layer and balance the reactant."""
+        """Return the electrode.
+
+        Its own laws charge the double layer and balance the reactant.
+        """
         electrode = PulsedElectrodeElement(
             'electrode',
             eta=self.eta,
