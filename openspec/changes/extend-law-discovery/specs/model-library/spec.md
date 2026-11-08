@@ -18,5 +18,5 @@ fully mixed, and as its mean-field ODE, with a gallery example and an inventory 
 #### Scenario: Weak form from several initial states
 - **WHEN** weak-form sparse identification of degree 2 runs on five mean-field runs from different initial `E`, with
   Gaussian noise of 5%
-- **THEN** it keeps the terms `U E`, `U P`, `E`, and `P` of the true rates of `U`, `E`, and `P`, with coefficients within
-  5% of the rates of the system
+- **THEN** it keeps the terms `U E`, `U P`, `E`, and `P` of the true rates of `U`, `E`, and `P`, with coefficients
+  within 5% of the rates of the system

@@ -23,8 +23,8 @@ the median coefficients of the models.
 
 #### Scenario: Inclusion of the true terms
 - **WHEN** an ensemble of 50 models runs with a fixed `random_state` on a Lorenz trajectory with noise of 5%
-- **THEN** every true term has an inclusion of at least 0.9, every other term at most 0.1, and a second run with the same
-  `random_state` gives the same result
+- **THEN** every true term has an inclusion of at least 0.9, every other term at most 0.1, and a second run with the
+  same `random_state` gives the same result
 
 #### Scenario: Ensemble size not positive
 - **WHEN** `ensemble=0` is given
@@ -51,7 +51,8 @@ parameter that its rate laws read, as the system of `mode_decomposition` does.
 
 #### Scenario: Forced oscillator
 - **WHEN** it runs on runs of a damped oscillator forced by a random piecewise-constant input `u`, with `inputs=['u']`
-- **THEN** the rate of the velocity holds `u` with a coefficient within 1% of the true gain, and no rate is given for `u`
+- **THEN** the rate of the velocity holds `u` with a coefficient within 1% of the true gain, and no rate is given for
+  `u`
 
 #### Scenario: Input as a control
 - **WHEN** the `system` of the result is simulated with a schedule of its input parameter
@@ -63,8 +64,8 @@ point. With `replicates='mean'` a run is the mean of the replicates of its desig
 every replicate is a run.
 
 #### Scenario: Mean of stochastic replicates
-- **WHEN** the result of `ensemble` over five initial states with 20 replicates each of a stochastic system is given with
-  `replicates='mean'`
+- **WHEN** the result of `ensemble` over five initial states with 20 replicates each of a stochastic system is given
+  with `replicates='mean'`
 - **THEN** the fit uses five runs, each the mean over its 20 replicates at every frame
 
 #### Scenario: Unknown replicates option
@@ -106,8 +107,8 @@ declare the delayed copies as states of its system, so a series of fewer variabl
 - **THEN** it raises `AnalysisError` that names the argument
 
 ### Requirement: Dictionaries chosen by validation error
-`mode_decomposition` SHALL accept a list of candidate dictionaries, fit every candidate on the training samples, keep the
-one of smallest validation error, and record the validation error of every candidate.
+`mode_decomposition` SHALL accept a list of candidate dictionaries, fit every candidate on the training samples, keep
+the one of smallest validation error, and record the validation error of every candidate.
 
 #### Scenario: Polynomial chosen
 - **WHEN** the candidates `None` and `PolynomialFeatures(2)` are given on runs of the slow manifold

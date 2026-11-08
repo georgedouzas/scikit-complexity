@@ -58,9 +58,10 @@
 ### Mode decomposition
 
 - **Eigenfunctions.** The left eigenvectors come from `scipy.linalg.eig(operator, left=True)`, normalised against the
-  modes. The result gains `eigenfunctions` (one column per eigenfunction, one row per observable), `eigenfunction_errors`
-  on the held-out pairs, and `valid`, true where the error is below `eigenfunction_tolerance`. Evaluating an
-  eigenfunction on new states is `dictionary.transform(states) @ eigenfunctions`, so no callable is stored.
+  modes. The result gains `eigenfunctions` (one column per eigenfunction, one row per observable),
+  `eigenfunction_errors` on the held-out pairs, and `valid`, true where the error is below `eigenfunction_tolerance`.
+  Evaluating an eigenfunction on new states is `dictionary.transform(states) @ eigenfunctions`, so no callable is
+  stored.
 - **Readout.** With a dictionary, the readout `C` is fitted by least squares from the lifted training samples to the
   variables. `_surrogate_system` takes observables, and the element declares one observable per variable as `C g`.
 - **Delays.** `delays=d` stacks `d` past samples with every sample before lifting, as `pydmd.HankelDMD` does, and fits
@@ -75,12 +76,12 @@
 - **Library survey.** dACE.jl and ACEpotentials.jl are Julia packages, which the project does not call. No Python
   package expands vector laws over pairs of vectors per neighbour. e3nn is torch. So the basis is written in the core
   with NumPy, and the fit uses `sklearn.linear_model.BayesianRidge`, which maximises the evidence as the paper does.
-- **Basis in 2D.** Positions and velocities are complex numbers. One-particle functions are
-  `f_c(rho) P_n(y(rho)) P_l(2|u|^2 - 1) rhat^m_r u^m_u` with the cutoff `f_c(rho) = (1 - rho^2 / R^2)^2`, the transformed
-  distance `y` of the paper, and Legendre polynomials from `numpy.polynomial.legendre`. Centre functions are
-  `P_p(2|v|^2 - 1) v^m`. A product is kept only if its charges add to 1, which makes it equivariant. Real
-  coefficients make the law also equivariant under reflections, which is the default, and `chiral=True` keeps complex
-  coefficients by fitting real and imaginary parts as separate columns.
+- **Basis in 2D.** Positions and velocities are complex numbers. One-particle functions are `f_c(rho) P_n(y(rho))
+  P_l(2|u|^2 - 1) rhat^m_r u^m_u` with the cutoff `f_c(rho) = (1 - rho^2 / R^2)^2`, the transformed distance `y` of the
+  paper, and Legendre polynomials from `numpy.polynomial.legendre`. Centre functions are `P_p(2|v|^2 - 1) v^m`. A
+  product is kept only if its charges add to 1, which makes it equivariant. Real coefficients make the law also
+  equivariant under reflections, which is the default, and `chiral=True` keeps complex coefficients by fitting real and
+  imaginary parts as separate columns.
 - **Basis in 3D.** The heading frame of the paper: the velocity of the member gives `e3`, perpendicular parts are
   complex, and the same charge rule applies, with the perpendicular and axial accelerations fitted as two outputs. An
   agent at rest keeps the frame of its last nonzero velocity.
