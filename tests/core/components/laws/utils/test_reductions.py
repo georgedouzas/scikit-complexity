@@ -1085,6 +1085,27 @@ def test_validate_reports_a_hyperedge_reduction_in_a_lattice():
     assert 'hyperedges' in issues[0].message
 
 
+def test_hyperedges_over_a_neighbourhood_keeps_it():
+    """Test that a reduction over neighbour hyperedges records its neighbourhood and its size."""
+    (found,) = hyperedges_in(hyperedges(var('x'), size=3, over=RadiusNeighborhood(1.5)))
+    assert (found.size, repr(found.over)) == (3, "RadiusNeighborhood(radius=1.5)")
+    (network,) = hyperedges_in(hyperedges(var('x'), size=3))
+    assert network.over is None
+
+
+@pytest.mark.parametrize(
+    ('arguments', 'match'),
+    [
+        ({'over': RadiusNeighborhood(1.0)}, 'size of 2 or more'),
+        ({'size': 3, 'over': VonNeumannNeighborhood()}, 'continuous space'),
+    ],
+)
+def test_hyperedges_over_a_neighbourhood_needs_a_size_and_a_metric_neighbourhood(arguments, match):
+    """Test that neighbour hyperedges without a size, or over a lattice neighbourhood, raise an error."""
+    with pytest.raises(ValidationError, match=match):
+        hyperedges(var('x'), **arguments)
+
+
 class QuenchedEnergyElement(Element):
     """Member with a quenched energy."""
 

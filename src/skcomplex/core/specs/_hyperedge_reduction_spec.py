@@ -14,7 +14,7 @@ from ._base_spec import BaseSpec
 class HyperedgeReductionSpec(BaseSpec):
     """Reduction over the hyperedges around every member found in an expression.
 
-    It holds its kind, argument, and size.
+    It holds its kind, argument, size, and the neighbourhood whose neighbours form the hyperedges.
 
     Args:
         call:
@@ -31,6 +31,10 @@ class HyperedgeReductionSpec(BaseSpec):
 
         size:
             The number of members of the hyperedges reduced over, or `None` for every size.
+
+        over:
+            The neighbourhood of a continuous space whose current neighbours form the hyperedges with every member, or
+            `None` for the hyperedges of the network.
     """
 
     call: Expression
@@ -38,3 +42,4 @@ class HyperedgeReductionSpec(BaseSpec):
     argument: Expression
     weight: Expression | None
     size: int | None
+    over: object = None
