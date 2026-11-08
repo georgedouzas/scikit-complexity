@@ -58,7 +58,8 @@ spec from `skcomplex.core.specs`.
   its values.
 
 Inside `_get_laws`, `s.rate` is the symbol of the parameter, and `s.target.n` is the symbol of the state of the element
-bound to the role `target`. Parameters stay symbols, so a running simulation can change them without compiling again.
+bound to the role `target`. Parameters stay symbols, so the `schedule` of `simulate` can change them during a run
+without compiling again.
 
 ## Constructor settings
 
@@ -97,7 +98,7 @@ signature. `DeclaredElement` takes them in one argument instead.
 from skcomplex.core.components.elements import DeclaredElement
 from skcomplex.core.components.spaces import ContinuousTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import DeclaredVariableSpec
 
 
@@ -115,7 +116,7 @@ decay = DecayElement('decay', variables=declared)
 faster = clone(decay).set_params(k=1.0)
 decay.get_value('k'), faster.get_value('k')
 system = System(elements=[decay], time=ContinuousTime())
-Simulation(system, dt=0.1).prepare().run(until=1.0).trajectory_.values('decay.b')[-1]
+simulate(system, until=1.0, dt=0.1).values('decay.b')[-1]
 ```
 
 - `variables` maps every name to a `DeclaredVariableSpec`, which holds the initial value and a `StateSpec` or a
@@ -160,8 +161,8 @@ else.
 
 - A value that only names an expression is a Python expression in the laws, such as `leverage = s.debt / s.equity`. A
   function of the namespace shares it between laws.
-- What a run records or checks is an argument of the run. `Simulation(observables=[...])` records named values, and
-  `Simulation(invariants={name: tolerance})` checks that the observables it names stay constant.
+- What a run records or checks is an argument of the run. `simulate(system, observables=[...])` records named values,
+  and `simulate(system, invariants={name: tolerance})` checks that the observables it names stay constant.
 
 A law can also be a Python function of time and the current values, which covers rules that have no closed form. The
 values are keyed by dotted state and parameter name.
@@ -173,7 +174,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import RoleSpec, StateSpec
 
 
@@ -197,7 +198,7 @@ culled = System(
     elements=[PopulationElement('deer', n=60.0)],
     interactions=[CullInteraction('cull', target='deer')],
 )
-round(float(Simulation(culled, dt=1.0).prepare().run(until=20).trajectory_.values('deer.n')[-1]))
+round(float(simulate(culled, until=20, dt=1.0).values('deer.n')[-1]))
 ```
 
 ## Functions as laws
@@ -215,7 +216,7 @@ from skcomplex.core.components.laws import CrossingLaw, JumpLaw, RateLaw, Update
 from skcomplex.core.components.laws.utils import reduction
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import CallSpec, ObservableSpec, ParameterSpec, StateSpec
 
 
@@ -239,7 +240,7 @@ class TankElement(Element):
 
 
 tanks = System(elements=[TankElement('a')], systems=[System('plant', elements=[TankElement('b')])])
-trajectory = Simulation(tanks, dt=0.01).prepare().run(until=2).trajectory_
+trajectory = simulate(tanks, until=2, dt=0.01)
 len(trajectory.events) > 0, trajectory.values('a.level')[-1] == trajectory.values('plant/b.level')[-1]
 ```
 
@@ -262,7 +263,7 @@ This table lists the laws that take a function, and the form the function takes.
 - `relative=True` calls `f(t, values)` with the names of the component of the law, such as `x` for a state of the
   element and `target.x` for a state of the element bound to the role `target`. One element class then works under any
   label and inside any system, as the tanks `a` and `plant/b` above show.
-- `random=True` passes the random stream of the simulation as the keyword `rng`, so one seed repeats the run.
+- `random=True` passes the random stream of the run as the keyword `rng`, so one seed repeats the run.
 - `vectorized=True` calls the function once per evaluation with one array per argument, instead of once per member.
 
 `arguments=None` calls `f(t, values)` with the dotted names, like a plain function, and takes the options `random` and
@@ -278,7 +279,7 @@ class WalkerElement(TankElement):
 
 def walk(seed):
     system = System(elements=[WalkerElement('a')], time=DiscreteTime())
-    return Simulation(system, random_state=seed).prepare().run(until=5).trajectory_.values('a.level')
+    return simulate(system, until=5, random_state=seed).values('a.level')
 
 
 np.array_equal(walk(1), walk(1))
@@ -301,7 +302,7 @@ class MedianElement(TankElement):
 shapes = []
 for element in (HerdElement, MedianElement):
     herd = System(elements=[GroupElement('herd', element=element, size=3, values={'level': [1.0, 2.0, 4.0]})])
-    shapes.append(Simulation(herd, dt=0.01).prepare().run(until=1).trajectory_.values('herd.level').shape)
+    shapes.append(simulate(herd, until=1, dt=0.01).values('herd.level').shape)
 shapes
 ```
 
@@ -313,8 +314,8 @@ class DoublerElement(TankElement):
         return [JumpLaw(s.rate, {s.level: CallSpec(lambda t, values: values['level'], relative=True)})]
 
 
-doubling = Simulation(System(elements=[DoublerElement('a')]), random_state=0).prepare().run(until=10)
-float(np.log2(doubling.trajectory_.values('a.level')[-1])).is_integer()
+doubling = simulate(System(elements=[DoublerElement('a')]), until=10, random_state=0)
+float(np.log2(doubling.values('a.level')[-1])).is_integer()
 ```
 
 An observable can be a function of the time and the values too. The run records it at every frame.
@@ -325,8 +326,8 @@ def total_level(t, values):
 
 
 observables = [ObservableSpec('sum', function=total_level)]
-observed = Simulation(System(elements=[TankElement('a')]), dt=0.5, observables=observables)
-observed.prepare().run(until=1).trajectory_.values('sum').shape
+observed = simulate(System(elements=[TankElement('a')]), until=1, dt=0.5, observables=observables)
+observed.values('sum').shape
 ```
 
 Some laws need symbols by nature, and each says so when given a function.
@@ -426,8 +427,7 @@ PersonElement('ada').health, RotorElement('rotor').theta
 ```
 
 Values are stored as floats. Labels are stored as their index, and angles are wrapped into one turn after every frame.
-Trajectories return labels, and `Simulation(..., checked=True)` raises an error naming any state that leaves its
-domain.
+Trajectories return labels, so `trajectory.values('ada.health')` gives the names of the health states over time.
 
 ## Complex states
 
@@ -442,7 +442,7 @@ from sage.all__sagemath_symbolics import CC, I
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
 
@@ -462,7 +462,7 @@ class PhaseElement(Element):
         return [RateLaw(s.z, I * s.omega * s.z)]
 
 
-z = Simulation(System(elements=[PhaseElement('osc')]), dt=0.5).prepare().run(until=10).trajectory_.values('osc.z')
+z = simulate(System(elements=[PhaseElement('osc')]), until=10, dt=0.5).values('osc.z')
 z.dtype == np.complex128, bool(np.allclose(np.abs(z), 1.0, atol=1e-4))
 ```
 
@@ -538,6 +538,6 @@ solvers.
   current one, and an update law gives the next value. So `UpdateLaw(s.x, s.x + lag(s.x, 1))` with one lag is the
   Fibonacci recurrence.
 
-`SymbolicAnalysis('equations')` returns these equations in the order they were written.
-`SymbolicAnalysis('solve', use_initial_state=True)` takes the initial values of every derivative and returns a solution
-only when it has a closed form.
+`symbolic(system)` of `skcomplex.core.analysis` returns these equations in the order they were written.
+`symbolic(system, kind='solve', use_initial_state=True)` takes the initial values of every derivative and returns a
+solution only when it has a closed form.

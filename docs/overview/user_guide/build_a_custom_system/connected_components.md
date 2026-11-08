@@ -11,7 +11,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import ConnectionInteraction
 from skcomplex.core.components.laws import EquationLaw
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ConnectorSpec, ParameterSpec, StateSpec
 
 CHEMICAL = ConnectorSpec('chemical', potential='mu', flow='n')
@@ -41,7 +41,7 @@ system = System(
     elements=[ReservoirElement('first', level=1.0), ReservoirElement('second', level=3.0)],
     interactions=[ConnectionInteraction('node', members=['first', 'second'], ports=['a', 'a'])],
 )
-trajectory = Simulation(system, dt=0.5).prepare().run(until=1.0).trajectory_
+trajectory = simulate(system, until=1.0, dt=0.5)
 assert trajectory.values('first.a_mu')[-1] == 2.0
 assert trajectory.values('second.a_n')[-1] == -1.0
 trajectory.values('first.a_mu')[-1], trajectory.values('second.a_n')[-1]
@@ -59,7 +59,7 @@ every time.
 - Its initial value is the starting guess of a nonlinear solve.
 - A law other than an `EquationLaw` that targets it raises `AlgebraicStateError`.
 - The trajectory records it at every frame, so observables and visuals read it like any other state.
-- The simulation keeps it at its initial value in `state_`, since the solvers integrate only the other states.
+- The solvers integrate only the other states, so the state vector they advance keeps it at its initial value.
 - A law given as a function that reads values by name sees that initial value. Read it through a symbolic law instead.
 
 ## Ports and connections
@@ -87,7 +87,7 @@ from skcomplex.core.components.interactions import ConnectionInteraction
 from skcomplex.core.components.laws import EquationLaw
 from skcomplex.core.components.laws.utils import derivative
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ConnectorSpec, ParameterSpec, StateSpec
 
 ELECTRICAL = ConnectorSpec('electrical', potential='v', flow='i')
@@ -178,20 +178,21 @@ circuit = System(
         ConnectionInteraction('bottom', members=['tank', 'load', 'ground'], ports=['n', 'n', 'p']),
     ],
 )
-trajectory = Simulation(circuit, dt=0.1).prepare().run(until=1.0).trajectory_
+trajectory = simulate(circuit, until=1.0, dt=0.1)
 assert np.isclose(trajectory.values('tank.u')[-1], np.exp(-1.0), rtol=1e-3)
 assert np.allclose(trajectory.values('load.p_i').ravel(), trajectory.values('tank.u').ravel() / 2.0)
 trajectory.values('tank.u')[-1].round(4)
 ```
 
 The voltage of the capacitor decays as `exp(-t / RC)`, and the current through the load is that voltage over `R`. The
-systems of the field `engineering` in the catalog hold electrical and thermal components built in the same way. A port
-component drives a mechanism through an `EquationLaw` whose target is a coordinate of an `EulerLagrangeInteraction`,
-which adds to the equation of that coordinate, as `dc_motor` shows.
+ready-made systems of `skcomplex.systems.engineering` hold electrical and thermal components built in the same way. A
+port component drives a mechanism through an `EquationLaw` whose target is a coordinate of an
+`EulerLagrangeInteraction`, which adds to the equation of that coordinate, as `DcMotorSystem` of
+`skcomplex.systems.engineering.mechatronics` shows.
 
 ## The solve
 
-`OrdersPass` solves the equations of a system with algebraic states inside the right side of its differential
+The compiler solves the equations of a system with algebraic states inside the right side of its differential
 equations, so its solvers run unchanged.
 
 - The unknowns are the highest derivatives and the algebraic states.
@@ -207,7 +208,7 @@ The solve has no index reduction, so the structural check below reports a system
 
 ## Issues of connected systems
 
-`PassCompiler` reports these issues with the other issues of a system, before compilation.
+`simulate` reports these issues with the other issues of a system, before it compiles anything.
 
 - `port-connector`: the ports of one connection have different connectors, or a connection names a port that no single
   element declares. Connect declared ports of one connector.
