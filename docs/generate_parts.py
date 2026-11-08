@@ -1,4 +1,7 @@
-"""Generate one page per kind of part, with a table of the capability tags of its classes and executed examples."""
+"""Generate one page per kind of part.
+
+Each page has a table of the capability tags of its classes, and executed examples.
+"""
 
 import inspect
 import pkgutil
@@ -28,14 +31,20 @@ EXPERIMENT_NEEDS = {
 
 
 def _public_classes[T](package: ModuleType, base: type[T]) -> list[type[T]]:
-    """Return the public classes of a package that derive from a base and can be built, sorted by name."""
+    """Return the public classes of a package that derive from a base.
+
+    Only classes that can be built count, sorted by name.
+    """
     named = [getattr(package, name) for name in package.__all__]
     found = [item for item in named if isinstance(item, type) and issubclass(item, base)]
     return sorted((item for item in found if not inspect.isabstract(item)), key=lambda item: item.__name__)
 
 
 def _values(values: Iterable[str] | None, every: Iterable[str] = (), empty: str = 'any') -> str:
-    """Return tag values as a sorted list of code spans, `empty` for none, and `any` for all the values of the field."""
+    """Return tag values as a sorted list of code spans.
+
+    The list is `empty` for none, and `any` for all the values of the field.
+    """
     if values is None:
         return 'unknown until run'
     found = sorted(values)
@@ -53,13 +62,19 @@ def _table(header: list[str], rows: Iterable[list[str]]) -> list[str]:
 
 
 def _page(title: str, intro: str, header: list[str], rows: Iterable[list[str]], examples: str) -> str:
-    """Return a page of a kind of part: its title, its introduction, its table, and its examples."""
+    """Return a page of a kind of part.
+
+    It holds its title, its introduction, its table, and its examples.
+    """
     lines = [f'# {title}', '', intro.strip(), '', *_table(header, rows), '', examples.strip(), '']
     return '\n'.join(lines)
 
 
 def _supported_rows(runners: Iterable[type[BaseSolver] | type[BaseBackend]]) -> list[list[str]]:
-    """Return the supported time, space, and law kinds of solvers or backends, one row each."""
+    """Return the supported time, space, and law kinds of solvers or backends.
+
+    There is one row each.
+    """
     rows = []
     for runner in runners:
         tags = runner.get_supported_tags()
@@ -75,7 +90,10 @@ def _supported_rows(runners: Iterable[type[BaseSolver] | type[BaseBackend]]) -> 
 
 
 def _declares_support(runner: type[BaseSolver] | type[BaseBackend]) -> bool:
-    """Check whether a solver or a backend class declares what it supports, which generic classes do not."""
+    """Check whether a solver or a backend class declares what it supports.
+
+    Generic classes do not.
+    """
     try:
         runner.get_supported_tags()
     except NotImplementedError:
@@ -84,7 +102,10 @@ def _declares_support(runner: type[BaseSolver] | type[BaseBackend]) -> bool:
 
 
 def _elements_page() -> str:
-    """Return the page of elements, with the states, domains, and law kinds every element class declares."""
+    """Return the page of elements.
+
+    It shows the states, domains, and law kinds every element class declares.
+    """
     rows = []
     for element in _public_classes(elements, BaseElement):
         states = {name: spec for name, spec in element._get_specs().items() if isinstance(spec, StateSpec)}
@@ -164,7 +185,10 @@ def _role_cell(name: str, role: RoleSpec) -> str:
 
 
 def _interactions_page() -> str:
-    """Return the page of interactions, with the domains every role accepts and the law kinds of every class."""
+    """Return the page of interactions.
+
+    It shows the domains every role accepts and the law kinds of every class.
+    """
     rows = []
     for interaction in _public_classes(interactions, BaseInteraction):
         roles = [(name, spec) for name, spec in interaction._get_specs().items() if isinstance(spec, RoleSpec)]
@@ -223,7 +247,10 @@ assert "tag 'time'" in message
 
 
 def _laws_page() -> str:
-    """Return the page of laws, with the kind, time, space, and randomness every law class declares."""
+    """Return the page of laws.
+
+    It shows the kind, time, space, and randomness every law class declares.
+    """
     rows = []
     for law in _public_classes(laws, BaseLaw):
         tags = BasePart._get_law_tags([law])
@@ -282,7 +309,10 @@ assert 'laws jump' in message
 
 
 def _solvers_page() -> str:
-    """Return the page of solvers, with the form and the supported tags of every solver."""
+    """Return the page of solvers.
+
+    It shows the form and the supported tags of every solver.
+    """
     found = [solver for solver in _public_classes(solvers, BaseSolver) if _declares_support(solver)]
     ordered = sorted(found, key=lambda solver: (str(solver._get_form()).lower(), solver.__name__))
     rows = [
@@ -399,19 +429,28 @@ def _summary(item: object) -> str:
 
 
 def _analysis_functions() -> list[Callable[..., object]]:
-    """Return the analysis functions of the core, sorted by name, without the binding of settings."""
+    """Return the analysis functions of the core, sorted by name.
+
+    The binding of settings is left out.
+    """
     named = [getattr(analysis, name) for name in analysis.__all__ if name != 'bind_analysis']
     return sorted((item for item in named if inspect.isfunction(item)), key=lambda item: item.__name__)
 
 
 def _needs(tags: AnalysisTags) -> list[str]:
-    """Return the data kind and the time, space, and randomness an analysis needs, `any` where it needs nothing."""
+    """Return the data kind and the time, space, and randomness an analysis needs.
+
+    They are `any` where it needs nothing.
+    """
     randomness = 'any' if tags.randomness is None else f'`{tags.randomness}`'
     return [f'`{tags.data}`', _values(tags.time), _values(tags.space), randomness]
 
 
 def _kind_cell(tags: AnalysisTags, by_kind: dict[str, AnalysisTags]) -> str:
-    """Return the kinds of an analysis whose needs differ from those of the analysis, each with what it needs."""
+    """Return the kinds of an analysis whose needs differ from the analysis.
+
+    Each comes with what it needs.
+    """
     names = ('data', 'time', 'space', 'randomness')
     default = _needs(tags)
     cells = []
@@ -422,7 +461,10 @@ def _kind_cell(tags: AnalysisTags, by_kind: dict[str, AnalysisTags]) -> str:
 
 
 def _analyses_page() -> str:
-    """Return the page of analyses, with the data and the capability tags every analysis function needs."""
+    """Return the page of analyses.
+
+    It shows the data and the capability tags every analysis function needs.
+    """
     rows = []
     for function in _analysis_functions():
         module = sys.modules[function.__module__]
@@ -497,7 +539,10 @@ assert 'space network' in message
 
 
 def _experiments_page() -> str:
-    """Return the page of experiments, with what every experiment function and calibration need of a system."""
+    """Return the page of experiments.
+
+    It shows what every experiment function and calibration need of a system.
+    """
     named = [getattr(experiments, name) for name in experiments.__all__]
     found = [item for item in named if inspect.isfunction(item) or item is experiments.Calibration]
     rows = [
@@ -584,7 +629,10 @@ assert 'population.n' in message
 
 
 def _core_systems() -> list[type[BaseSystem]]:
-    """Return the system classes of the core that can be built, the generic composite and the general systems."""
+    """Return the system classes of the core that can be built.
+
+    They are the generic composite and the general systems.
+    """
     for module in pkgutil.iter_modules(components.__path__):
         import_module(f'{components.__name__}.{module.name}')
     found: list[type[BaseSystem]] = []
@@ -598,7 +646,10 @@ def _core_systems() -> list[type[BaseSystem]]:
 
 
 def _systems_page() -> str:
-    """Return the page of systems, with the system classes of the core and a link to the catalog of ready-made ones."""
+    """Return the page of systems.
+
+    It shows the system classes of the core and a link to the catalog of ready-made ones.
+    """
     rows = [
         [f'`{system.__name__}`', f'`from {system.__module__} import {system.__name__}`', _summary(system)]
         for system in _core_systems()

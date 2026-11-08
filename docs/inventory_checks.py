@@ -1,4 +1,7 @@
-"""Check the inventory of surveyed systems against the system classes, their tags, its vocabularies, and the changes."""
+"""Check the inventory of surveyed systems.
+
+It is checked against the system classes, their tags, its vocabularies, and the changes.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -29,7 +32,10 @@ type Entry = tuple[str, str, dict[str, Any]]
 
 
 def _load() -> tuple[dict[str, str], list[Entry], dict[str, Any], dict[str, Any]]:
-    """Return the source keys, the entries with their names and field paths, and the two vocabularies."""
+    """Return the source keys, the entries, and the two vocabularies.
+
+    The entries come with their names and field paths.
+    """
     data = tomllib.loads(INVENTORY.read_text())
     keys = data.pop('sources')
     primitives = data.pop('primitives')
@@ -44,15 +50,19 @@ def _load() -> tuple[dict[str, str], list[Entry], dict[str, Any], dict[str, Any]
 
 
 def _systems() -> dict[str, type[BaseSystem]]:
-    """Return the class of every ready-made system by its inventory name, its class name without `System` in snake case.
+    """Return the class of every ready-made system by its inventory name.
 
-    An acronym stays one word, so `GrayScottSystem` is `gray_scott` and `BrusselatorODESystem` is `brusselator_ode`.
+    The inventory name is its class name without `System` in snake case. An acronym stays one word, so `GrayScottSystem`
+    is `gray_scott` and `BrusselatorODESystem` is `brusselator_ode`.
     """
     return {CLASS_WORDS.sub('_', name.removesuffix('System')).lower(): cls for name, cls in all_systems()}
 
 
 def _changes() -> tuple[dict[str, str], set[str]]:
-    """Return the specs of every active OpenSpec change by name, and the names of the archived changes."""
+    """Return the specs of every active OpenSpec change, and the archived names.
+
+    The specs are given by name, with the names of the archived changes.
+    """
     active = {
         path.name: ' '.join(spec.read_text() for spec in sorted(path.glob('specs/**/*.md')))
         for path in CHANGES.iterdir()
@@ -63,7 +73,10 @@ def _changes() -> tuple[dict[str, str], set[str]]:
 
 
 def _shape_problems(entries: list[Entry], keys: dict[str, str]) -> list[str]:
-    """Return the entries with a repeated name, no title, an unknown status, or sources that do not resolve."""
+    """Return the entries of a bad shape.
+
+    They have a repeated name, no title, an unknown status, or sources that do not resolve.
+    """
     names = [name for name, _, _ in entries]
     problems = [f'{name} has more than one entry' for name in sorted({name for name in names if names.count(name) > 1})]
     for name, _, entry in entries:
@@ -98,7 +111,7 @@ def _catalog_problems(entries: list[Entry], systems: dict[str, type[BaseSystem]]
 
 
 def _change_problems(entries: list[Entry], active: dict[str, str], archived: set[str]) -> list[str]:
-    """Return the entries whose status does not name an existing change or lacks its details."""
+    """Return the entries whose status names no existing change or lacks details."""
     problems = []
     for name, _, entry in entries:
         status, _, change = entry['status'].partition(' ')
@@ -114,7 +127,10 @@ def _change_problems(entries: list[Entry], active: dict[str, str], archived: set
 
 
 def _primitive_problems(entries: list[Entry], primitives: dict[str, Any], changes: set[str]) -> list[str]:
-    """Return the entries whose primitives or priority the vocabulary does not support, and the unknown changes."""
+    """Return the entries of unsupported primitives or priority, and unknown changes.
+
+    The vocabulary does not support their primitives or priority.
+    """
     problems = [
         f'The primitive {primitive} is added by {item["change"]}, which is not an OpenSpec change'
         for primitive, item in primitives.items()
@@ -134,9 +150,10 @@ def _primitive_problems(entries: list[Entry], primitives: dict[str, Any], change
 
 
 def _priority_problems(entries: list[Entry], primitives: dict[str, Any]) -> list[str]:
-    """Return blocked entries without a core primitive of their change, and implemented entries with a wrong priority.
+    """Return the blocked and the implemented entries that break the priority rules.
 
-    The first implemented entry with a set of primitives is core, and later entries with the same set are examples.
+    Blocked entries lack a core primitive of their change, and implemented entries have a wrong priority. The first
+    implemented entry with a set of primitives is core, and later entries with the same set are examples.
     """
     problems, seen = [], set()
     for name, _, entry in entries:
@@ -158,10 +175,11 @@ def _priority_problems(entries: list[Entry], primitives: dict[str, Any]) -> list
 
 
 def _tag_problems(name: str, entry: dict[str, Any], system_class: type[BaseSystem] | None) -> list[str]:
-    """Return the problems of the categories an entry writes that the tags of its system class give.
+    """Return the problems of the categories an entry writes.
 
-    An implemented entry writes none of them, and its class must derive its tags with known law kinds. An entry that is
-    pending or blocked writes every one of them, with the values of the capability tags.
+    They are the categories that the tags of its system class give. An implemented entry writes none of them, and its
+    class must derive its tags with known law kinds. An entry that is pending or blocked writes every one of them, with
+    the values of the capability tags.
     """
     system = entry['system']
     if entry['status'] != 'implemented':
@@ -194,7 +212,10 @@ def _system_problems(
     vocabulary: dict[str, Any],
     systems: dict[str, type[BaseSystem]],
 ) -> list[str]:
-    """Return the entries that do not map to the system vocabulary, or that write what the tags of their class give."""
+    """Return the entries that do not fit the system vocabulary or the tags.
+
+    They do not map to the system vocabulary, or write what the tags of their class give.
+    """
     problems = []
     for name, _, entry in entries:
         system = entry.get('system')
@@ -222,7 +243,9 @@ def _system_problems(
 
 
 def inventory_problems() -> list[str]:
-    """Return every problem of the inventory, one sentence each, or nothing for a consistent inventory.
+    """Return every problem of the inventory, one sentence each.
+
+    A consistent inventory gives nothing.
 
     Returns:
         problems:
@@ -243,4 +266,7 @@ def inventory_problems() -> list[str]:
 
 
 class InventoryError(Exception):
-    """The inventory of surveyed systems disagrees with the system classes or breaks its own rules."""
+    """The inventory of surveyed systems is not consistent.
+
+    It disagrees with the system classes or breaks its own rules.
+    """
