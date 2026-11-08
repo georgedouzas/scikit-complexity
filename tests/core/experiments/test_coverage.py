@@ -46,8 +46,9 @@ def test_posterior_coverage_runs_on_processes():
         'budget': 200,
         'random_state': 0,
     }
-    serial = posterior_coverage(LogisticGrowthSystem(n=10.0), {'r': (0.5, 1.0)}, TIMES, **settings)
-    parallel = posterior_coverage(LogisticGrowthSystem(n=10.0), {'r': (0.5, 1.0)}, TIMES, executor='process', **settings)
+    bounds = {'r': (0.5, 1.0)}
+    serial = posterior_coverage(LogisticGrowthSystem(n=10.0), bounds, TIMES, **settings)
+    parallel = posterior_coverage(LogisticGrowthSystem(n=10.0), bounds, TIMES, executor='process', **settings)
     np.testing.assert_allclose(parallel.truths['r'], serial.truths['r'])
     np.testing.assert_allclose(parallel.ranks['r'], serial.ranks['r'])
 
