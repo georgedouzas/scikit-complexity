@@ -24,18 +24,18 @@
 
 **Goals:**
 - One primitive for neural terms, `neural_function`, used by every hybrid law, parameter map, and latent rate.
-- One fitting function for systems with learned terms, with shared and per-individual parameters, on JAX.
+- One fitting function for systems with learned terms, with shared and per-member parameters, on JAX.
 - The trained system is an ordinary system that every backend runs.
 
 **Non-Goals:**
 - Amortised encoders of variational autoencoders. The latent form of 2602.03215 is fitted here by maximum a posteriori
-  effects per individual, which is the empirical Bayes estimate that NLME practice uses. An encoder can be added later
-  as a network of the samples.
+  effects per patient, which is the empirical Bayes estimate that NLME practice uses. An encoder can be added later as
+  a network of the samples.
 - Estimating the variances of the random effects. They are given as priors. Their estimation belongs with the Bayesian
   methods of `calibrate` in `add-bayesian-calibration`.
-- New catalog systems. The tacrolimus model of 2602.03215 and the rat model of 2310.09167 need no core primitive
-  beyond those of this change, which catalog systems already exercise, so they are not added (see Probes).
-- Graph networks of chemical structure. Covariates are given as numbers per individual.
+- The PBPK surrogate of 2310.09167. The reference form of `oral_iv_pk_hybrid` is a reduced compartmental model, which
+  the paper names as an option.
+- Graph networks of chemical structure. Descriptors are given as numbers per compound.
 - torch, sbi, deepxde, and other torch libraries.
 
 ## Decisions
@@ -79,57 +79,57 @@
 
 ### Neural identification
 
-- `neural_identification(system, data, *, trained, settings=None, maps=None, covariates=None, individual=None,
-  loss='squares', optimizer='adam', learning_rate=1e-2, epochs=1000, validation=0.0, random_state=None)` lives in
+- `neural_identification(system, data, *, trained, individual=None, loss='squares', optimizer='adam',
+  learning_rate=1e-2, epochs=1000, validation=0.0, random_state=None)` lives in
   `core/analysis/_neural_identification.py` and returns `NeuralIdentificationResult`. It is an analysis because it
-  learns a system, as `sparse_identification` does.
-- **Individuals are runs.** The data of one individual is the format of `calibrate`, a mapping from paths to times and
-  values. A list of such mappings gives several individuals, and `settings` gives each its parameter values, such as
-  doses, applied through `set_params`. So any catalog system is a population model without a group, and no part needs
-  per-member parameters.
-- It compiles the system once with `JaxBackend`, takes `traced_`, and solves the ODEs of every individual with
-  `diffrax.diffeqsolve` and `SaveAt(ts=...)` at its sample times, vectorised over individuals with `jax.vmap` on their
-  parameter vectors, with the breakpoints of the doses as `jump_ts`. The solver, tolerances, and adjoint of Diffrax
-  are one fact with those of `GradientDescentSolver`, so they are lifted to the shared constants of the core and both
-  read them there.
-- **Covariate maps.** `maps` gives a parameter by an Equinox network of the covariates of each individual. The
-  network writes into the parameter vector of the individual before its solve, so the laws of the system do not
-  change. The result holds the trained networks in `maps`, which give the parameters of a new individual from its
-  covariates.
-- **Mixed effects.** `individual` gives a parameter the value `typical * exp(eta)` per individual, the log-normal
-  convention of NLME. `typical` is the value of the system, trained when it is also in `trained`. Each `eta` adds
-  `sum(eta^2) / (2 sigma^2)` divided by the number of samples to the loss, which makes the minimum the maximum a
-  posteriori estimate.
-- **Neural terms in laws.** Weights of `neural_function` are parameters like any other and are named in `trained`.
-  Universal differential equations and latent ODEs are systems the user writes with neural functions, from the parts of
-  a catalog system or from core parts.
+  learns a system, as `sparse_identification` does. It takes the data format of `calibrate`, a mapping from paths to
+  times and values, with one column per member for a group.
+- It compiles the system with `JaxBackend`, takes `traced_`, and solves the ODEs with `diffrax.diffeqsolve` and
+  `SaveAt(ts=...)` at the union of the sample times, with the breakpoints of the doses as `jump_ts`. The solver,
+  tolerances, and adjoint of Diffrax are one fact with those of `GradientDescentSolver`, so they are lifted to the
+  shared constants of the core and both read them there.
 - The loss is the mean squared error over the samples that are not NaN, or the squared error of logarithms with
-  `loss='log'` for concentrations.
-- `validation` holds out a share of the individuals, fits only their effects with the shared values fixed, and reports
-  the error on their samples.
-- The result holds `system`, `estimates` (path to fitted value), `maps`, `effects` (path to one value per individual),
-  `losses` (one per epoch), `training_error`, `validation_error`, and `samples`.
-- Prediction for new individuals is the same function with `trained=()`, which needs no method on the result.
+  `loss='log'` for concentrations. Each individual parameter adds `sum(eta^2) / (2 sigma^2)` divided by the number of
+  samples, which makes the minimum the maximum a posteriori estimate.
+- Shared parameters are those in `trained`. Individual parameters are per-member parameters of a group, declared with
+  `ParameterSpec(per=True, adaptive=True)`, with one value per member. A group compiles once for any size, so all
+  members solve in one call.
+- `validation` holds out a share of the members, fits only their individual effects with the shared values fixed, and
+  reports the error on their samples.
+- The result holds `system`, `estimates` (path to fitted value), `effects` (path to one value per member), `losses`
+  (one per epoch), `training_error`, `validation_error`, and `samples`.
+- Prediction for new patients is the same function with `trained=()`, which needs no method on the result.
 
-### Probes
+### Systems
 
-- A change adds a system only when supporting it needs a change to the core. No system is added here, and the methods
-  are tested and shown on catalog systems:
-  - `lotka_volterra`: its interaction terms replaced by a neural function, for universal differential equations
-  - `drug_toxicity`: weekly infusions through `DosingInteraction`, for doses on JAX and log-normal mixed effects on the
-    elimination rate
-  - `two_compartment_pharmacokinetics`: the elimination rate mapped from covariates, and a latent neural ODE with
-    individual effects fitted on its runs with random rates, standing in for the misspecified tacrolimus model of
-    2602.03215
+- **Placement.** Both systems go in `systems/biology/physiology`, where pharmacokinetics lives, each in its own
+  module, `_tacrolimus.py` and `_oral_iv_pharmacokinetics.py`. Both dose through `DosingInteraction` of
+  `biology/common/pharmacokinetics`. Parts that both new systems share, such as a first-order transfer chain of
+  compartments, go to `biology/common/pharmacokinetics` beside it, and parts that only one uses stay in its module.
+- **`tacrolimus_population_pk`.** One `BaseSystem` with `form='linear'`, `'saturable'`, or `'latent'`, `n_patients`,
+  `hematocrit`, and `random_state`. The group `patients` holds the states `A1` to `A4`, `Ac`, and `Ap`, and the
+  per-member covariates `CYP` and `ST` and effects `eta_Ktr`, `eta_CL`, `eta_Vc`, `eta_Q`, and `eta_Vp`, drawn at
+  construction from the values of the supplementary tables of 2602.03215. Doses are a `DosingInteraction` into `A1`
+  every 12 hours, an infusion of 0.1 hours with a per-member dose. The observable is `Cc = 1000 Ac / Vc`. The latent
+  form holds a depot that receives the doses, latent states with a neural rate of the latent states, the depot, the
+  covariates, and per-member effects, and a linear readout as `Cc`. Primitives: `rates`, `time-inputs`, `groups`,
+  `draws`, `observables`, and `neural-functions` for the latent form.
+- **`oral_iv_pk_hybrid`.** One `BaseSystem` with `form='reference'` or `'neural'`, `n_compounds`, and `random_state`.
+  The group `compounds` has per-member descriptors and two arms, intravenous (central and peripheral) and oral (gut,
+  liver, central, and peripheral). The absorption rate, the absorbed fraction, and the hepatic and renal clearances
+  follow from the descriptors through a fixed smooth map in the reference form and through one neural function in the
+  neural form, whose last layer at zero gives the typical rates. Areas under the curves are states with the
+  concentration as rate, and the observable `F` is their dose-scaled ratio. Primitives: `rates`, `time-inputs`,
+  `groups`, `observables`, and `neural-functions`.
 - The inventory gains the primitive `neural-functions`, "Neural networks called from laws, with weights as adaptive
-  parameters", with `change = "add-hybrid-neural-laws"`. No inventory entry lists it until a system needs it.
+  parameters", with `change = "add-hybrid-neural-laws"`.
 
 ## Risks / Trade-offs
 
 - [The registry of static modules makes a Sage expression depend on an object outside it] → The key is derived from
   the module structure, and `clone` and `set_params` of the part keep the module, so compiled caches stay valid. A test
   pickles a system with a neural law and runs it again.
-- [Fits of 200 individuals over many epochs are slow in tests] → Tests use fewer individuals and epochs with relaxed
+- [Fits of 200 patients over many epochs are slow in tests] → Tests use smaller groups and fewer epochs with relaxed
   thresholds, and the full scenarios run in the gallery examples, which the docs build caches.
 - [Maximum a posteriori effects ignore their uncertainty] → The result documents it, and the Bayesian methods of
   `calibrate` give posteriors when needed.
@@ -138,5 +138,5 @@
 
 ## Open Questions
 
-- Should a general latent ODE element join the core? Today latent systems are written from core parts in the tests and
-  the gallery, and a catalog system that needs one would decide it.
+- Should a general latent ODE element move to the core once a second system needs one? Today only the latent form of
+  tacrolimus uses it.

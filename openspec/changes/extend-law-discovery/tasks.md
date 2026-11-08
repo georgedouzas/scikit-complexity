@@ -48,14 +48,16 @@
   `docs/examples/biology/collective_behaviour/` that learns the law of a swarm and plots the contribution of each body
   order, and verify the gallery build runs it
 
-## 4. Probes and inventory
+## 4. Online and offline activity
 
-- [ ] 4.1 Verify the pooled noisy `sir` scenario and the `maki_thompson` replicate-mean scenario in
-  `tests/core/analysis/test_sparse_identification.py`
-- [ ] 4.2 Add a gallery example in `docs/examples/social/spreading/` beside the `maki_thompson` example that fits the
-  weak form to the means of stochastic replicates from several initial states, and verify the gallery build runs it
-- [ ] 4.3 Add the primitive `learned-interaction-laws` with `change = "extend-law-discovery"` to the inventory, and
-  verify the inventory check passes
+- [ ] 4.1 Add `OnlineOfflineActivityNetworkSystem` in `src/skcomplex/systems/social/spreading/_online_offline.py` with
+  its stochastic and mean-field forms, export it from the subfield, and verify the balance and fully mixed scenarios
+  in `tests/systems/social/spreading/`
+- [ ] 4.2 Verify the weak-form scenario of five noisy mean-field runs in the same tests
+- [ ] 4.3 Add `docs/examples/social/spreading/plot_online_offline_activity_network.py` with the stochastic runs, their
+  mean, and the weak-form fit, and verify the gallery build runs it
+- [ ] 4.4 Add the inventory entry `online_offline_activity_network` under `[social.spreading]` citing 2605.30432, add
+  the primitive `learned-interaction-laws` with `change = "extend-law-discovery"`, and verify the inventory check passes
 
 ## 5. Checks
 

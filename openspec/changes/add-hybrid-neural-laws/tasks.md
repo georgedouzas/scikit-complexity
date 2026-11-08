@@ -23,37 +23,42 @@
 
 - [ ] 3.1 Lift the Diffrax solver, tolerances, and adjoint of `GradientDescentSolver` to shared constants, pass the
   breakpoints of pulse inputs as `jump_ts`, and verify the existing learning-dynamics tests still pass
-- [ ] 3.2 Verify the dosing schedule and gradient-through-doses scenarios on `drug_toxicity` on the NumPy and JAX
-  backends
+- [ ] 3.2 Verify the dosing schedule and gradient-through-doses scenarios with `DosingInteraction` of
+  `biology/common/pharmacokinetics` on the NumPy and JAX backends
 
 ## 4. Neural identification
 
 - [ ] 4.1 Add `neural_identification` and `NeuralIdentificationResult` in
-  `src/skcomplex/core/analysis/_neural_identification.py` with shared parameters, the squares and log losses, and
-  Optax optimizers, and verify the universal differential equation, known rates, and reproducibility scenarios on
-  `lotka_volterra` in `tests/core/analysis/test_neural_identification.py`
-- [ ] 4.2 Add several individuals with `settings`, vectorised solves, and missing samples, and verify the sparse
-  samples, unknown path, and settings-length scenarios
-- [ ] 4.3 Add the checks of parameter names and differentiable tags before the fit, and verify the unknown parameter
-  and stochastic system scenarios
-- [ ] 4.4 Add `maps` and `covariates` with Equinox networks, and verify the covariate map and missing covariates
-  scenarios on `two_compartment_pharmacokinetics`
-- [ ] 4.5 Add `individual` with log-normal effects, Gaussian priors, refits with `trained=()`, and `validation` over
-  individuals, and verify the typical rate, prior, and three-sample scenarios on `drug_toxicity`
-- [ ] 4.6 Verify the latent neural ODE scenario on runs of `two_compartment_pharmacokinetics`, with a latent system
-  written from core parts in the test
-- [ ] 4.7 Export the function and result from `skcomplex.core.analysis`, declare their analysis tags, and document
-  hybrid laws, covariate maps, mixed effects, and refits of new individuals in the learned surrogates section of
+  `src/skcomplex/core/analysis/_neural_identification.py` with shared parameters, the squares and log losses, missing
+  samples, and Optax optimizers, and verify the universal differential equation, known rates, and reproducibility
+  scenarios on Lotka-Volterra in `tests/core/analysis/test_neural_identification.py`
+- [ ] 4.2 Verify the sparse-samples and unknown-path scenarios
+- [ ] 4.3 Add the checks of trained names, adaptivity, and differentiable tags before the fit, and verify the
+  not-adaptive and stochastic-system scenarios
+- [ ] 4.4 Add `individual` with Gaussian priors, per-member effects, and `validation` over members, and verify the
+  prior-not-positive scenario and the recovery of effects on a small group
+- [ ] 4.5 Export the function and result from `skcomplex.core.analysis`, declare their analysis tags, and document
+  hybrid laws, covariate maps, mixed effects, and refits of new members in the learned surrogates section of
   `docs/overview/user_guide/analyse.md` with runnable examples
 
-## 5. Gallery and inventory
+## 5. Pharmacokinetic systems
 
-- [ ] 5.1 Add a gallery example in `docs/examples/biology/ecology/` beside the `lotka_volterra` example that fits a
-  universal differential equation, and verify the gallery build runs it
-- [ ] 5.2 Add a gallery example in `docs/examples/biology/physiology/` beside the `drug_toxicity` example that fits
-  mixed effects to a population and predicts new individuals from three samples, and verify the gallery build runs it
-- [ ] 5.3 Add the primitive `neural-functions` with `change = "add-hybrid-neural-laws"` to the inventory, and verify
-  the inventory check passes
+- [ ] 5.1 Add `TacrolimusPopulationPKSystem` in `src/skcomplex/systems/biology/physiology/_tacrolimus.py` with the
+  linear and saturable forms, dosed by `DosingInteraction`, export it from the subfield, and verify the superposition,
+  covariate, and reproducible population scenarios in `tests/systems/biology/physiology/`
+- [ ] 5.2 Add the latent form of the tacrolimus system with its neural rate and readout, and verify it compiles on JAX
+  and runs on NumPy
+- [ ] 5.3 Add `OralIVPKHybridSystem` in `src/skcomplex/systems/biology/physiology/_oral_iv_pharmacokinetics.py` with
+  the reference and neural forms, moving any part shared with the tacrolimus system to
+  `biology/common/pharmacokinetics`, and verify the bioavailability and untrained neural form scenarios
+- [ ] 5.4 Verify the covariate map scenario on held-out compounds and the population clearance, three-sample exposure,
+  and misspecified elimination scenarios, with groups and epochs small enough for the test suite
+- [ ] 5.5 Add `docs/examples/biology/physiology/plot_tacrolimus_population_pk.py` with the population fit and the
+  exposure of new patients, and `plot_oral_iv_pk_hybrid.py` with the learned bioavailability, and verify the gallery
+  build runs them
+- [ ] 5.6 Add the inventory entries `tacrolimus_population_pk` and `oral_iv_pk_hybrid` under `[biology.physiology]`
+  citing 2602.03215 and 2310.09167, and the primitive `neural-functions` with `change = "add-hybrid-neural-laws"`, and
+  verify the inventory check passes
 
 ## 6. Checks
 
