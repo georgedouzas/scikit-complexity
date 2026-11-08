@@ -16,6 +16,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.spaces import BaseSpace
 from ....core.components.system import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
@@ -116,14 +117,18 @@ class BudgetHouseholdElement(Element):
         self.initial_price = initial_price
         self.kind = kind
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for an unknown demand.
+
+        Args:
+            context:
+                The space the element inherits from its system, which an element does not read.
 
         Raises:
             ValidationError:
                 The demand is unknown.
         """
-        super()._check()
+        super()._prepare(context)
         if self.kind not in DEMANDS:
             error_msg = f'The demand of {self.label!r} is {self.kind!r}. Use one of {DEMANDS}.'
             raise ValidationError(error_msg)

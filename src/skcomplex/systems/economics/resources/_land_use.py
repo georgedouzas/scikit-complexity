@@ -15,7 +15,7 @@ from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import EquationLaw
 from ....core.components.laws.utils import where
-from ....core.components.spaces import LatticeSpace, StaticTime
+from ....core.components.spaces import BaseSpace, LatticeSpace, StaticTime
 from ....core.components.system import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import RoleSpec, StateSpec
@@ -106,14 +106,18 @@ class BidRentInteraction(Interaction):
         self.costs = costs
         self.rates = rates
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for sequences without one value per crop.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The sequences have different lengths.
         """
-        super()._check()
+        super()._prepare(context)
         lengths = {len(self.yields), len(self.prices), len(self.costs), len(self.rates)}
         if len(lengths) != 1:
             error_msg = (

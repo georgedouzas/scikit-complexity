@@ -16,6 +16,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import FeedbackInteraction
 from ....core.components.laws import BaseLaw
+from ....core.components.spaces import BaseSpace
 from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
@@ -245,14 +246,18 @@ class ToyMarketInteraction(FeedbackInteraction[SystemView]):
         self.n_goods = n_goods
         self.fitness = fitness
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for an unknown fitness test or number of goods.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The fitness test or the number of goods is unknown.
         """
-        super()._check()
+        super()._prepare(context)
         if self.fitness not in FITNESS_TESTS:
             error_msg = f'The fitness test of {self.label!r} is {self.fitness!r}. Use one of {FITNESS_TESTS}.'
             raise ValidationError(error_msg)

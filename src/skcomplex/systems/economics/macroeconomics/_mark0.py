@@ -16,6 +16,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import FeedbackInteraction
 from ....core.components.laws import BaseLaw
+from ....core.components.spaces import BaseSpace
 from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
@@ -283,14 +284,18 @@ class Mark0EconomyInteraction(FeedbackInteraction[SystemView]):
         self.offset = offset
         self.credit = credit
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for an unknown credit policy.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The credit policy is unknown.
         """
-        super()._check()
+        super()._prepare(context)
         if self.credit not in CREDIT_POLICIES:
             error_msg = f'The credit policy of {self.label!r} is {self.credit!r}. Use one of {CREDIT_POLICIES}.'
             raise ValidationError(error_msg)
