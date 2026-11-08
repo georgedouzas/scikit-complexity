@@ -57,3 +57,20 @@ def test_draw_has_no_derivative():
     """Test that a draw differentiates to zero."""
     x = var('x')
     assert uniform('u', 0, x).diff(x) == 0
+
+
+def test_relaxed_draws_keep_their_relaxation():
+    """Test that a relaxed draw keeps its temperature and hard flag, and differs from the exact draw."""
+    (found,) = draws_in(bernoulli('flip', 0.5, temperature=0.2, hard=True))
+    assert (found.temperature, found.hard) == (0.2, True)
+    assert str(bernoulli('flip', 0.5) - bernoulli('flip', 0.5, temperature=0.2)) != '0'
+
+
+@pytest.mark.parametrize(
+    ('arguments', 'match'),
+    [({'temperature': 0.0}, 'positive temperature'), ({'hard': True}, 'only with a temperature')],
+)
+def test_relaxed_draws_reject_invalid_relaxations(arguments, match):
+    """Test that a relaxation needs a positive temperature, and `hard` needs a temperature."""
+    with pytest.raises(ValidationError, match=match):
+        categorical('k', [1, 2], **arguments)

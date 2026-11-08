@@ -590,3 +590,44 @@ def test_compiler_runs_compiled_chains_fast():
     flips = PassCompiler(backend=NumbaBackend()).prepare(system).run().problem_
     rng = np.random.default_rng(0)
     assert _elapsed(chains, rng) < 10 * _elapsed(flips, rng)
+
+
+@pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()])
+def test_compiler_draws_relaxed_draws_exactly(backend):
+    """Test that relaxed Bernoulli and categorical draws give exact values off JAX, as unrelaxed draws do."""
+
+    class RelaxedElement(Element):
+        """Relaxed element."""
+
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            b: Annotated[object, StateSpec()] = 0.0,
+            k: Annotated[object, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.b = b
+            self.k = k
+
+        def _get_laws(self, s):
+            """Return the laws of the relaxed element."""
+            return [
+                UpdateLaw(s.b, bernoulli('b', 0.3, temperature=0.5)),
+                UpdateLaw(s.k, categorical('k', [1, 2, 3], temperature=0.5, hard=True)),
+            ]
+
+    class ExactElement(RelaxedElement):
+        """Exact element."""
+
+        def _get_laws(self, s):
+            """Return the laws of the exact element."""
+            return [UpdateLaw(s.b, bernoulli('b', 0.3)), UpdateLaw(s.k, categorical('k', [1, 2, 3]))]
+
+    relaxed = _run(System(elements=[GroupElement('m', element=RelaxedElement, size=40)]), 50, backend)
+    exact = _run(System(elements=[GroupElement('m', element=ExactElement, size=40)]), 50, backend)
+    assert set(np.unique(relaxed.values('m.b'))) == {0.0, 1.0}
+    assert set(np.unique(relaxed.values('m.k'))) == {0.0, 1.0, 2.0}
+    for name in ('m.b', 'm.k'):
+        np.testing.assert_array_equal(relaxed.values(name), exact.values(name))
