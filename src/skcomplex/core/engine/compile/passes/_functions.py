@@ -33,6 +33,7 @@ from ...backends import BaseBackend, NumpyBackend
 from ...problems import ProblemSpec
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._draw_kernel import DrawKernel
+from ...problems._draw_recorder import DrawRecorder
 from ...problems._expression_printer import ExpressionPrinter
 from ...problems._kernel_spec import KernelSpec
 from ...problems._law_kernel import LawKernel
@@ -525,12 +526,22 @@ class FunctionsPass(BasePass):
 
         Returns:
             update:
-                The update `F(t, x, p, rng)`.
+                The update `F(t, x, p, rng, recorder=None)`, whose draws go through the recorder when one is given.
         """
 
-        def stochastic(t: float, x: Array, p: Array, rng: np.random.Generator) -> Array:
+        def stochastic(
+            t: float,
+            x: Array,
+            p: Array,
+            rng: np.random.Generator,
+            recorder: DrawRecorder | None = None,
+        ) -> Array:
             extended = draws.extend(p)
-            draws.run(RunStateSpec(t, x, extended, rng))
+            state = RunStateSpec(t, x, extended, rng)
+            if recorder is None:
+                draws.run(state)
+            else:
+                draws.record(state, recorder)
             return update(t, x, extended)
 
         return stochastic

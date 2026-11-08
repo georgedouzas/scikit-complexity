@@ -17,6 +17,7 @@ import shapely
 from mesa.discrete_space import CellAgent, Network, OrthogonalMooreGrid, OrthogonalVonNeumannGrid
 from mesa.experimental.continuous_space import ContinuousSpace as MesaContinuousSpace
 from mesa.experimental.continuous_space import ContinuousSpaceAgent
+from scipy import stats
 from shapely import Point, Polygon, STRtree
 
 from ...components.elements import BaseElement, GroupElement
@@ -25,11 +26,21 @@ from ...components.spaces import BaseSpace, ContinuousSpace, DiscreteTime, Latti
 from ...components.specs import CompiledAgentsSpec
 from ...components.system import System
 from ...errors import ConservationError, SimulationError, SpaceError, ValidationError
-from ...specs import DEFAULT_PHASE, AgentSnapshotSpec, AgentStateSpec, PhaseSpec, PhasesScheduleSpec, SupportSpec
+from ...specs import (
+    DEFAULT_PHASE,
+    AgentSnapshotSpec,
+    AgentStateSpec,
+    DrawSpec,
+    PhaseSpec,
+    PhasesScheduleSpec,
+    SupportSpec,
+)
 from ...types import Array, FormKind, OrderKind, VariableKind
 from .._utils import declarations_of, default_of
 from ..compile._observables import ObservableEvaluator
 from ..problems import ProblemSpec
+from ..problems._draw_kernel import DrawKernel
+from ..problems._draw_recorder import KEYWORDS
 from ..types import MesaSpace
 from ._external import ExternalSolver
 
@@ -151,6 +162,54 @@ class SystemView:
     def rng(self) -> np.random.Generator:
         """Random number generator of the system, seeded by the simulation's random state."""
         return self._stepper.system_.rng
+
+    def draw(self, name: str, distribution: str, **arguments: npt.ArrayLike) -> float:
+        """Return a value drawn by name from a distribution, which runs record and replay.
+
+        The value comes from the generator of the system. A run that records keeps it by the path of the owner and
+        the name, such as `meetings.outcome`, with the arguments of the distribution, and a run that replays returns
+        the recorded value instead and adds its log-probability.
+
+        Args:
+            name:
+                The name of the draw, unique among the draws of the owner.
+
+            distribution:
+                `'uniform'` with `low` and `high`, `'normal'` with `mean` and `deviation`, `'bernoulli'` with `p`,
+                `'categorical'` with `weights`, or the name of a `scipy.stats` distribution with its keywords.
+
+            **arguments:
+                The arguments of the distribution by keyword.
+
+        Returns:
+            value:
+                The drawn value.
+
+        Raises:
+            ValidationError:
+                The distribution is unknown or an argument is missing.
+        """
+        if distribution == 'categorical':
+            draw, values = DrawSpec('categorical', name), list(np.ravel(arguments.get('weights', [])))
+        elif distribution in KEYWORDS:
+            missing = [keyword for keyword in KEYWORDS[distribution] if keyword not in arguments]
+            if missing:
+                error_msg = f'A {distribution} draw takes the arguments {", ".join(KEYWORDS[distribution])}.'
+                raise ValidationError(error_msg)
+            draw, values = DrawSpec(distribution, name), [arguments[keyword] for keyword in KEYWORDS[distribution]]
+        elif isinstance(getattr(stats, distribution, None), stats.rv_continuous | stats.rv_discrete):
+            draw, values = DrawSpec('draw', name, distribution, tuple(arguments)), list(arguments.values())
+        else:
+            error_msg = (
+                f'The draw {name!r} takes the distribution {distribution!r}, which is neither uniform, normal, '
+                'bernoulli, categorical, nor a scipy.stats distribution.'
+            )
+            raise ValidationError(error_msg)
+        sampled = DrawKernel._sample_draw(draw, values, 1, self.rng)
+        recorder = self._stepper.draw_recorder_
+        if recorder is not None:
+            sampled = recorder.draw(f'{self._owner}.{name}' if self._owner else name, draw, values, sampled)
+        return float(sampled[0])
 
     @property
     def time(self) -> float:

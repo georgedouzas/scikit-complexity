@@ -13,9 +13,11 @@ import numpy as np
 import numpy.typing as npt
 from scipy import stats
 
-from ...specs import DrawSpec, RunStateSpec, SampledDrawSpec
+from ...errors import ValidationError
+from ...specs import DrawSpec, NamedDrawSpec, RunStateSpec, SampledDrawSpec
 from ...types import Array, Indices
 from ._base import BaseKernel
+from ._draw_recorder import DrawRecorder
 
 
 class DrawKernel(BaseKernel):
@@ -38,6 +40,9 @@ class DrawKernel(BaseKernel):
         orders:
             The orders of the members that gather tables read through, each drawn again in place as a random
             permutation after the other draws.
+
+        named:
+            Every draw by name, as runs record and replay them, in the order of the extended vector.
     """
 
     values_: None
@@ -48,11 +53,13 @@ class DrawKernel(BaseKernel):
         normal: npt.NDArray[np.bool_],
         sampled: tuple[SampledDrawSpec, ...] = (),
         orders: tuple[Indices, ...] = (),
+        named: tuple[NamedDrawSpec, ...] = (),
     ) -> None:
         self.offset = offset
         self.normal = normal
         self.sampled = sampled
         self.orders = orders
+        self.named = named
 
     @property
     def size(self) -> int:
@@ -94,6 +101,64 @@ class DrawKernel(BaseKernel):
             q[item.start : item.start + item.rows] = item.sample(t, x, q, rng)
         for order in self.orders:
             order[:] = rng.permutation(order.size)
+
+    def record(self, state: RunStateSpec, recorder: DrawRecorder) -> None:
+        """Draw values into the extended parameter vector through a recorder.
+
+        Every named draw samples from the distribution its arguments give at the state, and the recorder keeps the
+        values, or forces the recorded ones of a replay. The vector then holds the uniform or normal value that the
+        lowered law turns into the kept value. The orders are drawn last, in place.
+
+        Args:
+            state:
+                The state, with the extended parameter vector and the generator.
+
+            recorder:
+                The recorder.
+
+        Raises:
+            ValidationError:
+                A draw reads more than the states and parameters of its member, so it cannot be recorded.
+        """
+        q, rng, t, x = state.p, self._generator_of(state), state.t, state.x
+        for item in self.named:
+            if item.arguments is None:
+                error_msg = (
+                    f'The draw {item.label!r} has arguments that read more than the states and parameters of its '
+                    'member, so runs cannot record or replay it.'
+                )
+                raise ValidationError(error_msg)
+            arguments = item.arguments(t, x, q)
+            sampled = self._sample_draw(item.draw, arguments, item.rows, rng)
+            values = recorder.draw(item.label, item.draw, arguments, sampled)
+            q[item.start : item.start + item.rows] = self._slot_values(item.draw, arguments, values)
+        for order in self.orders:
+            order[:] = rng.permutation(order.size)
+
+    @staticmethod
+    def _slot_values(draw: DrawSpec, arguments: Sequence[npt.ArrayLike], values: Array) -> Array:
+        """Return the uniform or normal values that the lowered law turns into given values of a draw.
+
+        A draw from `scipy.stats` keeps its values.
+        """
+        size = values.size
+        columns = [np.broadcast_to(np.asarray(item, dtype=float), (size,)) for item in arguments]
+        with np.errstate(divide='ignore', invalid='ignore'):
+            if draw.kind == 'uniform':
+                low, high = columns
+                return np.where(high != low, (values - low) / (high - low), 0.0)
+            if draw.kind == 'normal':
+                mean, deviation = columns
+                return np.where(deviation != 0, (values - mean) / deviation, 0.0)
+        if draw.kind == 'bernoulli':
+            return np.where(values != 0, 0.0, 1.0)
+        if draw.kind == 'categorical':
+            cumulative = np.cumsum(np.stack(columns, axis=-1), axis=-1)
+            chosen = values.astype(int)
+            rows = np.arange(size)
+            lower = np.where(chosen > 0, cumulative[rows, np.maximum(chosen - 1, 0)], 0.0)
+            return (lower + cumulative[rows, chosen]) / 2 / cumulative[:, -1]
+        return values
 
     @staticmethod
     def _sample_draw(draw: DrawSpec, arguments: Sequence[npt.ArrayLike], size: int, rng: np.random.Generator) -> Array:

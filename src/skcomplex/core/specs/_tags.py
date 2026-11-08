@@ -17,6 +17,7 @@ LAWS = ('rate', 'noise', 'jump', 'update', 'equation', 'sampling')
 RANDOMNESS = ('deterministic', 'stochastic')
 STRUCTURES = ('variable membership', 'changing topology')
 STOCHASTIC_LAWS = frozenset({'noise', 'jump', 'sampling'})
+DIFFERENTIABLE_LAWS = frozenset({'rate', 'update', 'equation'})
 
 
 @dataclass(frozen=True)
@@ -59,6 +60,8 @@ class Tags(BaseSpec):
         >>> supported = Tags(time=frozenset({'continuous'}), laws=frozenset({'rate'}))
         >>> supported.missing(tags)
         {'laws': ['noise']}
+        >>> tags.differentiable, supported.differentiable
+        (False, True)
     """
 
     time: frozenset[str] = frozenset()
@@ -88,6 +91,19 @@ class Tags(BaseSpec):
             if unknown:
                 error_msg = f'The {name} tag {unknown[0]!r} is unknown. Use one of {", ".join(map(repr, known))}.'
                 raise ValidationError(error_msg)
+
+    @property
+    def differentiable(self) -> bool:
+        """Whether runs of the part can be differentiated in its parameters.
+
+        It holds for deterministic rate, update, and equation laws, which the JAX backend lowers to pure functions.
+        """
+        return (
+            self.randomness == 'deterministic'
+            and self.laws is not None
+            and bool(self.laws)
+            and self.laws <= DIFFERENTIABLE_LAWS
+        )
 
     def missing(self, tags: Tags) -> dict[str, list[str]]:
         """Return the tags of a system that these supported tags do not support, by field.

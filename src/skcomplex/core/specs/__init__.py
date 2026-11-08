@@ -29,6 +29,8 @@ from ._declared_variable_spec import DeclaredVariableSpec
 from ._dialect_spec import DialectSpec
 from ._differential_evolution_spec import DifferentialEvolutionSpec
 from ._direction_spec import DirectionSpec
+from ._draw_log_spec import DrawLogSpec
+from ._draw_record_spec import DrawRecordSpec
 from ._draw_spec import DrawSpec
 from ._entry_spec import EntrySpec
 from ._event_record_spec import EventRecordSpec
@@ -56,6 +58,7 @@ from ._matrix_group_spec import MatrixGroupSpec
 from ._matrix_law_spec import MatrixLawSpec
 from ._module_spec import Letters, ModuleSpec
 from ._move_spec import MOVES, MoveSpec
+from ._named_draw_spec import NamedDrawSpec
 from ._neighbor_read_spec import NeighborReadSpec
 from ._neighbor_reduction_spec import NeighborReductionSpec
 from ._network_rows_spec import NetworkRowsSpec
@@ -160,6 +163,8 @@ __all__ = [
     'DialectSpec',
     'DifferentialEvolutionSpec',
     'DirectionSpec',
+    'DrawLogSpec',
+    'DrawRecordSpec',
     'DrawSpec',
     'EntrySpec',
     'EventRecordSpec',
@@ -188,6 +193,7 @@ __all__ = [
     'MatrixLawSpec',
     'ModuleSpec',
     'MoveSpec',
+    'NamedDrawSpec',
     'NeighborReadSpec',
     'NeighborReductionSpec',
     'NetworkRowsSpec',

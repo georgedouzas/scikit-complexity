@@ -25,3 +25,4 @@ class _RequestSpec(BaseSpec):
     spec: KernelSpec
     draw: DrawSpec | None = None
     slots: Mapping[str, Expression] = field(default_factory=dict)
+    declared: DrawSpec | None = None

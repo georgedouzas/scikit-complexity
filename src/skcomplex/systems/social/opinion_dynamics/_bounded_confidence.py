@@ -13,6 +13,7 @@ import networkx as nx
 import numpy as np
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
+from scipy.special import expit
 
 from ....core.components.elements import Element, GroupElement, LatticeElement
 from ....core.components.interactions import CouplingInteraction
@@ -193,8 +194,11 @@ class ConfidenceCouplingInteraction(CouplingInteraction):
 class EncountersInteraction(RandomPairsInteraction):
     """Random binary encounters of the Deffuant system.
 
-    There are as many per step as there are agents. In every encounter two random agents whose opinions differ by less
-    than the confidence bound move towards each other by the convergence fraction of their difference.
+    There are as many per step as there are agents. In every encounter two random agents move towards each other by the
+    convergence fraction of their difference when a Bernoulli outcome, drawn by the name `outcome`, is 1. Without a
+    steepness the outcome is 1 when their opinions differ by less than the confidence bound. With a steepness `rho` it
+    is 1 with the probability `1 / (1 + exp(-rho * (confidence - |x_u - x_v|)))` of Lenti et al. (2023), which
+    approaches the threshold as `rho` grows. Runs record and replay the outcomes.
 
     Args:
         label:
@@ -206,16 +210,28 @@ class EncountersInteraction(RandomPairsInteraction):
         phase:
             The phase of the step the encounters run in, or `None` for the default phase.
 
+        steepness:
+            The steepness `rho` of the probability of a compromise, or `None` for the deterministic threshold.
+
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import EncountersInteraction
-        >>> EncountersInteraction('meetings', target='people').target
-        'people'
+        >>> EncountersInteraction('meetings', target='people', steepness=20.0).steepness
+        20.0
     """
 
-    def act_on(self, members: list[AgentViewProtocol], system: SystemViewProtocol) -> None:
-        """Move the opinions of a pair towards each other.
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        phase: str | None = None,
+        steepness: float | None = None,
+    ) -> None:
+        super().__init__(label, target=target, phase=phase)
+        self.steepness = steepness
 
-        They move when they differ by less than the confidence bound.
+    def act_on(self, members: list[AgentViewProtocol], system: SystemViewProtocol) -> None:
+        """Move the opinions of a pair towards each other when their drawn outcome is 1.
 
         Args:
             members:
@@ -226,7 +242,9 @@ class EncountersInteraction(RandomPairsInteraction):
         """
         first, second = [member for member in members if isinstance(member, DiscussantView)]
         difference = second.opinion - first.opinion
-        if abs(difference) < first.confidence:
+        gap = first.confidence - abs(difference)
+        probability = float(gap > 0) if self.steepness is None else float(expit(self.steepness * gap))
+        if system.draw('outcome', 'bernoulli', p=probability):
             first.opinion += first.convergence * difference
             second.opinion -= first.convergence * difference
 
@@ -249,6 +267,10 @@ class DeffuantSystem(BaseSystem):
         convergence:
             The fraction of the difference by which each agent of a compromising pair moves.
 
+        steepness:
+            The steepness of the probability that a pair compromises, after Lenti et al. (2023), or `None` for the
+            deterministic threshold of the confidence.
+
         random_state:
             The seed or generator of the uniform initial opinions.
 
@@ -263,7 +285,7 @@ class DeffuantSystem(BaseSystem):
 
     field = 'social/opinion_dynamics'
     topics = ('opinion', 'agents', 'bounded confidence', 'clusters')
-    references = ('Deffuant et al. 2000', 'Castellano, Fortunato, and Loreto 2009', 'Gros 2015')
+    references = ('Deffuant et al. 2000', 'Castellano, Fortunato, and Loreto 2009', 'Gros 2015', 'Lenti et al. 2023')
     until = 50
 
     def __init__(
@@ -272,6 +294,7 @@ class DeffuantSystem(BaseSystem):
         *,
         confidence: float = 0.2,
         convergence: float = 0.5,
+        steepness: float | None = None,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
     ) -> None:
@@ -279,6 +302,7 @@ class DeffuantSystem(BaseSystem):
         self.n_agents = n_agents
         self.confidence = confidence
         self.convergence = convergence
+        self.steepness = steepness
         self.random_state = random_state
 
     def _build_system(self) -> System:
@@ -292,7 +316,8 @@ class DeffuantSystem(BaseSystem):
             values={'opinion': opinions, 'confidence': self.confidence, 'convergence': self.convergence},
             visual=visual,
         )
-        return System(self.label, elements=[people], interactions=[EncountersInteraction('meetings', target='people')])
+        encounters = EncountersInteraction('meetings', target='people', steepness=self.steepness)
+        return System(self.label, elements=[people], interactions=[encounters])
 
 
 class HegselmannKrauseSystem(BaseSystem):

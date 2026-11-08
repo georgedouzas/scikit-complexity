@@ -85,6 +85,35 @@ trajectory.values('prey.n')[0], trajectory.times[-1]
 
 Every argument left out comes from `get_run_settings()` of the system, the settings its class tuned.
 
+### Recording and replaying draws
+
+Keep every random draw of a stochastic run, and score that run under other parameters by replaying it.
+`record_draws=True` stores in `trajectory.draws` every named draw by its owner and name, with the step it fell in and
+the arguments of its distribution, and every firing of a jump law under Gillespie with its time and law.
+`replay=trajectory` runs a system with those draws forced to their recorded values, while it computes the arguments of
+each distribution from its own parameters and states, and its trajectory holds the total log-probability of the forced
+draws as `log_probability`.
+
+```python
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.biology.epidemiology import SIRSystem
+
+recorded = simulate(SIRSystem(stochastic=True), until=30, random_state=0, record_draws=True)
+replayed = simulate(SIRSystem(stochastic=True, gamma=0.2), until=30, replay=recorded)
+bool((replayed.states == recorded.states).all()), replayed.log_probability < recorded.log_probability
+```
+
+- The draws of the laws of stochastic maps, such as `normal('kick', 0, s)`, and the named draws that agent rules make
+  through `system.draw(name, distribution, **arguments)` are recorded. A draw from `system.rng` is not, so rules draw
+  every random outcome that matters to a likelihood by name.
+- A replayed Gillespie run fires the recorded laws at the recorded times and adds the log propensity of every firing
+  minus the integral of the total propensity, the exact log-likelihood of the path.
+- A replay takes the same random numbers as the recorded run, so replay with its random state, and the draws that are
+  not named, such as the order of agents, stay the same.
+- A run that records or replays uses the NumPy backend unless one is given. A system whose draws differ from those of
+  the trajectory raises an error that names the draw and the step.
+- The event loss of calibration is this log-probability, as the page [Run experiments](run_experiments.md) shows.
+
 ## Backends and speed
 
 Run large systems fast by choosing the backend that turns their laws into numeric functions. Compiling a system
