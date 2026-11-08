@@ -1,4 +1,7 @@
-"""Trap systems: walkers that escape from traps of random depth after activated waiting times."""
+"""Trap systems.
+
+Walkers escape from traps of random depth after activated waiting times.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,7 +24,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class TrapWalkerElement(Element):
-    """Walker in a trap of depth `E`, which escapes after an exponential time of mean `tau0 exp(E / T)`.
+    """Walker in a trap of depth `E`.
+
+    The walker escapes after an exponential time of mean `tau0 exp(E / T)`.
 
     On escape the walker falls into a new trap of the fully connected landscape, at a uniformly random place in the
     unit square, whose depth is drawn from the density `exp(-E)`.
@@ -86,7 +91,9 @@ class TrapWalkerElement(Element):
 
 
 class TrapSystem(BaseSystem):
-    """The Bouchaud trap system, walkers that escape from traps of exponentially distributed depths.
+    """The Bouchaud trap system.
+
+    Walkers escape from traps of exponentially distributed depths.
 
     The escape times `tau0 exp(E / T)` of depths with the density `exp(-E)` have the tail `tau^(-1 - T)`. Below the
     glass temperature `T = 1` their mean diverges, so the walkers fall into ever deeper traps, the number of escapes
@@ -137,7 +144,10 @@ class TrapSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return the Bouchaud trap system, walkers that escape from traps of exponentially distributed depths."""
+        """Return the Bouchaud trap system.
+
+        Walkers escape from traps of exponentially distributed depths.
+        """
         rng = np.random.default_rng(self.random_state)
         walkers = GroupElement(
             'walkers',

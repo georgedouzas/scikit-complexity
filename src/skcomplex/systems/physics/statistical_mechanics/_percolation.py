@@ -40,7 +40,9 @@ class DiskElement(Element):
 
 
 class ContinuumPercolationSystem(BaseSystem):
-    """Overlapping disks at uniform positions in a square, whose clusters percolate near a filling of 1.13.
+    """Overlapping disks at uniform positions in a square.
+
+    Their clusters percolate near a filling of 1.13.
 
     The number of disks is `filling side^2 / (pi radius^2)`. The clusters of touching disks are read by
     `clusters(source, radius=radius)`, and a `sweep` varies `filling` and `random_state` for the spanning

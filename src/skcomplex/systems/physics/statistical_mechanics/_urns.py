@@ -1,4 +1,7 @@
-"""Urn systems: the Ehrenfest system of balls moved one at a time between two boxes."""
+"""Urn systems.
+
+The module holds the Ehrenfest system of balls moved one at a time between two boxes.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,7 +20,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class EhrenfestUrnElement(Element):
-    """First box of the Ehrenfest urn, which holds `n` of the `N` balls, one of which moves to the other box every step.
+    """First box of the Ehrenfest urn, which holds `n` of the `N` balls.
+
+    One of the balls moves to the other box every step.
 
     The count falls by one with the probability `n / N` that the drawn ball is in the box, and rises by one otherwise.
 
@@ -59,7 +64,9 @@ class EhrenfestUrnElement(Element):
         self.N = N
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the move of one ball, out of the box with probability `n / N` and into it otherwise.
+        """Return the move of one ball.
+
+        The ball moves out of the box with probability `n / N` and into it otherwise.
 
         Args:
             namespace:
@@ -74,7 +81,9 @@ class EhrenfestUrnElement(Element):
 
 
 class EhrenfestUrnSystem(BaseSystem):
-    """The Ehrenfest urn system, balls moved one at a time between two boxes, which relaxes to equal counts.
+    """The Ehrenfest urn system.
+
+    Balls move one at a time between two boxes, and the system relaxes to equal counts.
 
     At every step one of the `N` numbered balls is drawn at random and moved to the other box, so the count `n` of the
     first box falls by one with probability `n / N` and rises by one otherwise. Started with all balls in the first box,

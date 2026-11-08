@@ -1,4 +1,7 @@
-"""Driven lattice particles: zero-range processes, the energy cascade on a tree, and exclusion with open boundaries."""
+"""Driven lattice particles.
+
+The module covers zero-range processes, the energy cascade on a tree, and exclusion with open boundaries.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,7 +26,7 @@ from ....core.types import Array
 
 
 class ParticleSiteElement(Element):
-    """Site of a lattice of particles, holding the number `n` of particles or quanta on it.
+    """Site of a lattice of particles, holding the number `n` of particles or quanta.
 
     Args:
         label:
@@ -53,7 +56,9 @@ class ParticleSiteElement(Element):
 
 
 class TreeNodeElement(ParticleSiteElement):
-    """Node of a tree that holds a number `n` of energy quanta, drawn at a fixed position.
+    """Node of a tree that holds a number `n` of energy quanta.
+
+    The node is drawn at a fixed position.
 
     Args:
         label:
@@ -90,7 +95,9 @@ class TreeNodeElement(ParticleSiteElement):
 
 
 class ExclusionHopsInteraction(TransferInteraction):
-    """Hops of a particle from every site of a line to an empty neighbour, to the right at rate `p` and left at `q`.
+    """Hops of a particle from every site of a line to an empty neighbour.
+
+    The particle hops to the right at rate `p` and to the left at `q`.
 
     No particle hops past the ends of the line. It is a transfer of one particle along every edge of the line, to the
     right and back, from an occupied site to an empty one.
@@ -143,7 +150,7 @@ class ExclusionHopsInteraction(TransferInteraction):
 
     @staticmethod
     def _get_right_rate(s: SimpleNamespace) -> Expression:
-        """Return the rate of a hop to the right, `p` from an occupied site to an empty one."""
+        """Return the rate `p` of a hop to the right from an occupied site to an empty one."""
         return s.p * s.source.n * (1 - s.target.n)
 
     @staticmethod
@@ -153,7 +160,9 @@ class ExclusionHopsInteraction(TransferInteraction):
 
 
 class ReservoirInteraction(TransferInteraction):
-    """Reservoir that adds one particle to each of its sites at rate `inflow` and removes one at rate `outflow`.
+    """Reservoir that adds and removes particles at its sites.
+
+    The reservoir adds one particle to each of its sites at rate `inflow` and removes one at rate `outflow`.
 
     A particle leaves only an occupied site. With exclusion a particle enters only an empty site. It is a transfer of
     one particle from the environment into every site, with jumps back to the environment at the outflow rate.
@@ -209,7 +218,10 @@ class ReservoirInteraction(TransferInteraction):
         return [(site, site) for site in namespace.sites]
 
     def _get_entry_rate(self, s: SimpleNamespace) -> Expression:
-        """Return the rate at which a particle enters a site, only an empty one under exclusion."""
+        """Return the rate at which a particle enters a site.
+
+        Under exclusion a particle enters only an empty site.
+        """
         return s.inflow * (1 - s.target.n if self.exclusion else 1)
 
     @staticmethod
@@ -219,7 +231,9 @@ class ReservoirInteraction(TransferInteraction):
 
 
 class ZeroRangeHopInteraction(TransferInteraction):
-    """Hop of one particle along a link, forward at rate `p u(n)` and backward at rate `q u(n')`.
+    """Hop of one particle along a link.
+
+    The particle hops forward at rate `p u(n)` and backward at rate `q u(n')`.
 
     The rate depends only on the occupation of the departure site, through `u(n) = 1 + b / n`. It is a transfer of one
     particle from the first site to the second, with jumps back at the reverse rate.
@@ -270,7 +284,10 @@ class ZeroRangeHopInteraction(TransferInteraction):
         self.b = b
 
     def _get_holders(self, namespace: SimpleNamespace) -> list[tuple[SimpleNamespace, SimpleNamespace]]:
-        """Return the two sites of the link, the departure and the arrival of a forward hop."""
+        """Return the two sites of the link.
+
+        They are the departure and the arrival of a forward hop.
+        """
         first, second = namespace.link
         return [(first, second)]
 
@@ -286,12 +303,17 @@ class ZeroRangeHopInteraction(TransferInteraction):
 
     @staticmethod
     def _departure_rate(n: Expression, b: Expression) -> Expression:
-        """Return the zero-range rate `u(n) = 1 + b / n` of a site with `n` particles, or 0 for an empty site."""
+        """Return the zero-range rate `u(n) = 1 + b / n` of a site with `n` particles.
+
+        The rate is 0 for an empty site.
+        """
         return where(n > 0, 1 + b / where(n > 0, n, 1), 0)
 
 
 class ZeroRangeHopsInteraction(TransferInteraction):
-    """Hops of one particle from every site of a ring, to the right at rate `p u(n)` and to the left at rate `q u(n)`.
+    """Hops of one particle from every site of a ring.
+
+    The particle hops to the right at rate `p u(n)` and to the left at rate `q u(n)`.
 
     The rate depends only on the occupation `n` of the departure site, through `u(n) = 1 + b / n`. It is a transfer of
     one particle along every edge of the ring, to the right and back.
@@ -361,7 +383,9 @@ TREE_ASPECT = 0.7
 
 
 class ZeroRangeProcessSystem(BaseSystem):
-    """The zero-range process on a ring, which condenses above the critical density `1 / (b - 2)` for `b > 2`.
+    """The zero-range process on a ring.
+
+    The process condenses above the critical density `1 / (b - 2)` for `b > 2`.
 
     A particle leaves a site with `n` particles at rate `u(n) = 1 + b / n`, to the right with weight `p` and to the left
     with weight `q`. The stationary distribution factorizes with the weights `f(n) = prod_k 1 / u(k)`, which decay as
@@ -425,7 +449,10 @@ class ZeroRangeProcessSystem(BaseSystem):
 
     @staticmethod
     def _scatter(n_particles: int, n_sites: int, random_state: int | np.random.Generator | None) -> Array:
-        """Return the occupations of sites that received a number of particles one at a time on random sites."""
+        """Return the occupations of sites that received a number of particles.
+
+        The particles arrive one at a time on random sites.
+        """
         sites = np.random.default_rng(random_state).integers(0, n_sites, n_particles)
         return np.bincount(sites, minlength=n_sites).astype(float)
 
@@ -446,7 +473,9 @@ class ZeroRangeProcessSystem(BaseSystem):
 
 
 class DissipativeZeroRangeSystem(BaseSystem):
-    """The dissipative zero-range process on a tree, with energy injected at the root and lost at the leaves.
+    """The dissipative zero-range process on a tree.
+
+    Energy is injected at the root and lost at the leaves.
 
     Level `j` of the tree has `m^(j - 1)` nodes, each with `m` branches to the next level. A quantum `epsilon0` of
     energy crosses a branch between levels `j` and `j + 1` at rate `nu_j = nu k_j^alpha`, `k_j = m^(j - 1)`, in either
@@ -519,12 +548,18 @@ class DissipativeZeroRangeSystem(BaseSystem):
 
     @staticmethod
     def _level_start(level: int, branches: int) -> int:
-        """Return the index of the first node of a level of a tree, counted from level 1, in breadth-first order."""
+        """Return the index of the first node of a level of a tree.
+
+        The levels are counted from level 1, in breadth-first order.
+        """
         return (branches ** (level - 1) - 1) // (branches - 1)
 
     @staticmethod
     def _tree_layout(n_levels: int, branches: int) -> Array:
-        """Return the drawing positions of the nodes of a tree in breadth-first order, on ellipses around the root."""
+        """Return the drawing positions of the nodes of a tree in breadth-first order.
+
+        The positions lie on ellipses around the root.
+        """
         rings = []
         for level in range(1, n_levels + 1):
             width = branches ** (level - 1)
@@ -635,7 +670,10 @@ class ASEPSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return the asymmetric simple exclusion process on an open line, in continuous time."""
+        """Return the asymmetric simple exclusion process on an open line.
+
+        The process runs in continuous time.
+        """
         occupied = (np.random.default_rng(self.random_state).random(self.n_sites) < self.density).astype(float)
         lane = LatticeElement(
             'lane',

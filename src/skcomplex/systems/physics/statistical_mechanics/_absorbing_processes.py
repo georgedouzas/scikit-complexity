@@ -1,4 +1,7 @@
-"""Fully connected reaction processes with an absorbing state: branching, decay, and pair annihilation."""
+"""Fully connected reaction processes with an absorbing state.
+
+The reactions are branching, decay, and pair annihilation.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,7 +20,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class ReactingParticlesElement(Element):
-    """Number `n` of particles in a volume `V`, with the reactions `A -> 2A`, `A -> 0`, and `2A -> A`.
+    """Number `n` of particles in a volume `V`.
+
+    The particles react by `A -> 2A`, `A -> 0`, and `2A -> A`.
 
     A particle branches at rate `kappa`, decays at rate `nu`, and every pair annihilates at rate `lambda / V`, so
     `W(n + 1 | n) = kappa n + epsilon delta_n0` and `W(n - 1 | n) = nu n + lambda n (n - 1) / V`. The empty state
@@ -95,7 +100,9 @@ class ReactingParticlesElement(Element):
 
 
 class AbsorbingBirthDeathSystem(BaseSystem):
-    """The fully connected branching and annihilation process, active above `kappa = nu` until it dies out.
+    """The fully connected branching and annihilation process.
+
+    The process is active above `kappa = nu` until it dies out.
 
     The deterministic density obeys `d rho / dt = (kappa - nu) rho - lambda rho^2`, with the active fixed point `rho_0 =
     (kappa - nu) / lambda`. With fluctuations the empty state absorbs every run, but above the transition the active

@@ -16,7 +16,9 @@ from ....core.types import Array
 
 @dataclass(frozen=True)
 class SusceptibilityResult:
-    """Susceptibility of every series of samples of an order parameter, one per control value.
+    """Susceptibility of every series of samples of an order parameter.
+
+    There is one series per control value.
 
     Args:
         values:
@@ -64,7 +66,9 @@ def susceptibility(
     temperatures: Sequence[float] | None = None,
     parameters: Sequence[float] | None = None,
 ) -> SusceptibilityResult:
-    """Return the susceptibility `N (<m²> - <|m|>²)` of every series of samples of an order parameter.
+    """Return the susceptibility `N (<m²> - <|m|>²)` of every series of samples.
+
+    The samples are those of an order parameter.
 
     It is the distribution of kind `'moments'` of the absolute samples, whose variance it scales by the system size `N`
     and divides by the temperature when `temperatures` are given. Over a sweep of a control parameter, one series per
@@ -127,7 +131,10 @@ def susceptibility(
 
 
 def _refined_peak(grid: Array, values: Array) -> float:
-    """Return the abscissa of the vertex of the parabola through the largest value and its neighbours."""
+    """Return the abscissa of the vertex of the parabola through the largest value.
+
+    The parabola also runs through the neighbours of the largest value.
+    """
     index = int(np.argmax(values))
     if index in (0, values.size - 1):
         return float(grid[index])

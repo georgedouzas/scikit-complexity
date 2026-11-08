@@ -33,7 +33,9 @@ class KineticTemperatureResult:
 
 
 def kinetic_temperature(source: Source, *, group: str | None = None, mass: float = 1.0) -> KineticTemperatureResult:
-    """Return the kinetic temperature `m <|v|²> / d` of the agents of every frame in `d` dimensions, with `k_B = 1`.
+    """Return the kinetic temperature `m <|v|²> / d` of the agents of every frame.
+
+    The agents move in `d` dimensions, with `k_B = 1`.
 
     It is the second moment of the speeds of the agents scaled by the mass over the dimension, as equipartition gives
     `k_B T / 2` per degree of freedom. It reads the velocities of the agents or particles of a trajectory, as the
@@ -72,7 +74,10 @@ def kinetic_temperature(source: Source, *, group: str | None = None, mass: float
 
 
 def _read_velocities(source: Source, group: str | None, analysis: str) -> Array:
-    """Return the velocities of the agents of a trajectory, or an array of one snapshot or of frames."""
+    """Return the velocities of the agents of a trajectory.
+
+    The source is a trajectory, or an array of one snapshot or of frames.
+    """
     if not isinstance(source, Trajectory | np.ndarray | list | tuple):
         error_msg = f'{analysis} reads a trajectory or an array of velocities, not {source!r}.'
         raise AnalysisError(error_msg)
@@ -87,5 +92,8 @@ def _read_velocities(source: Source, group: str | None, analysis: str) -> Array:
 
 
 def _kinetic_temperature(velocities: Array, mass: float) -> Array:
-    """Return `m <|v|²> / d` of the velocities of the agents of every frame in `d` dimensions."""
+    """Return `m <|v|²> / d` of the velocities of the agents of every frame.
+
+    The agents move in `d` dimensions.
+    """
     return mass * np.mean(np.sum(velocities**2, axis=-1), axis=-1) / velocities.shape[-1]
