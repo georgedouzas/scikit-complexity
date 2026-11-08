@@ -18,6 +18,7 @@ from ...specs import StepSpec, SupportSpec, Tags
 from ...specs._base_record_spec import BaseRecordSpec
 from ...types import Array, FormKind
 from ..problems import BaseProblemSpec, ProblemSpec
+from ..problems._draw_recorder import DrawRecorder
 from ..types import BoundaryFunction, InterpolatingStepFunction
 from ._event_locator import EventLocator
 from ._history import _RESTART, History
@@ -76,6 +77,10 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
 
         state_:
             The state vector at the end time of the last step.
+
+        draw_recorder_:
+            The recorder that keeps or replays the named draws and jump firings of the run, which the simulation sets
+            after preparing the solver, or `None` for a run that neither records nor replays.
     """
 
     draws: ClassVar[bool] = False
@@ -89,6 +94,7 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
     snapshot_: object | None
     agents_: Mapping[str, list[object]]
     state_: Array
+    draw_recorder_: DrawRecorder | None
 
     def __init__(self, *, random_state: int | np.random.Generator | None = None, until: float = math.inf) -> None:
         self.random_state = random_state
@@ -210,6 +216,7 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
         self.stopped_at_ = None
         self.snapshot_ = None
         self.agents_ = {}
+        self.draw_recorder_ = None
 
     def _generator(self) -> np.random.Generator:
         """Return the generator of the random state.

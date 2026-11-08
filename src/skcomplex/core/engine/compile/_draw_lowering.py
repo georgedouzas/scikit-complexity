@@ -15,7 +15,7 @@ from scipy import stats
 from ...components.laws import BaseLaw, UpdateLaw
 from ...components.laws.utils import draws_in, where
 from ...errors import ValidationError
-from ...specs import CallSpec, DrawSpec, EntrySpec, NeighborReadSpec, SampledDrawSpec
+from ...specs import CallSpec, DrawSpec, EntrySpec, NamedDrawSpec, NeighborReadSpec, SampledDrawSpec
 from ...types import Array, Indices
 from .._utils import components_of, symbol, symbols_of, vector
 from ..problems._draw_kernel import DrawKernel
@@ -147,7 +147,17 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
             slot = symbol(f'{draw.kind}_{name}_{sanitized}')
             slots[name] = slot
             sampled = draw if draw.kind == 'draw' else None
-            request = _RequestSpec(owner, name, draw.kind in _NORMAL_KINDS, spec.rows, slot, spec, sampled, slots)
+            request = _RequestSpec(
+                owner,
+                name,
+                draw.kind in _NORMAL_KINDS,
+                spec.rows,
+                slot,
+                spec,
+                sampled,
+                slots,
+                draw,
+            )
             self.requests_.append(request)
         return slots
 
@@ -260,12 +270,67 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
                 flags.extend([request.normal] * request.rows)
             start += request.rows
         sampled: list[SampledDrawSpec] = []
-        position = self.offset_ + len(flags)
+        named: list[NamedDrawSpec] = []
+        position = self.offset_
+        for request in ordered:
+            if request.draw is None:
+                named.append(self._named(request, position))
+                position += request.rows
         for request in ordered:
             if request.draw is not None:
                 sampled.append(SampledDrawSpec(position, request.rows, self._sampler(request)))
+                named.append(self._named(request, position))
                 position += request.rows
-        self.draws_ = DrawKernel(self.offset_, np.array(flags, dtype=bool), tuple(sampled), orders).prepare()
+        self.draws_ = DrawKernel(
+            self.offset_,
+            np.array(flags, dtype=bool),
+            tuple(sampled),
+            orders,
+            tuple(named),
+        ).prepare()
+
+    def _named(self, request: _RequestSpec, start: int) -> NamedDrawSpec:
+        """Return a draw of a request as runs record and replay it.
+
+        Its arguments are evaluated from the states and parameters of the member.
+        """
+        draw = request.declared or request.draw
+        if draw is None:
+            error_msg = f'The draw {request.name!r} of {request.owner} declares no distribution.'
+            raise ValidationError(error_msg)
+        nested = draws_in(list(draw.arguments))
+        arguments = None if nested else self._arguments_of(request, draw)
+        return NamedDrawSpec(f'{request.owner}.{request.name}', draw, start, request.rows, arguments)
+
+    def _arguments_of(
+        self,
+        request: _RequestSpec,
+        draw: DrawSpec,
+    ) -> Callable[[float, Array, Array], list[Array]] | None:
+        """Return the function of the values of the arguments of a draw.
+
+        It is `None` when they read a symbol that is not a state or a parameter of the member.
+        """
+        time = self.time_
+        arguments = [DrawLowering._lowered(SR(item), request.slots) for item in draw.arguments]
+        symbols = sorted(symbols_of(arguments) - {time}, key=str)
+        found = [self._reference_of(item, request.spec) for item in symbols]
+        readers = [
+            reader for reader in found if reader is not None and reader.source in {ReadKind.SINGLE, ReadKind.MEMBER}
+        ]
+        if len(readers) < len(found):
+            return None
+        if not arguments:
+            return lambda t, x, q: []
+        function = ExpressionPrinter(time=time, compiled=True).prepare(symbols).run(arguments).code_
+        if not callable(function):
+            error_msg = f'A compiled printer returns a function, not a {type(function).__name__}.'
+            raise TypeError(error_msg)
+
+        def evaluate(t: float, x: Array, q: Array) -> list[Array]:
+            return list(function(t, *(reader.column_of(x, q) for reader in readers)))
+
+        return evaluate
 
     @staticmethod
     def _entry_name(request: _RequestSpec, names: dict[str, int]) -> str:
@@ -335,7 +400,6 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
 
         It samples from a `scipy.stats` distribution.
         """
-        time = self.time_
         draw = request.draw
         if draw is None:
             error_msg = f'The draw {request.name!r} of {request.owner} takes no distribution to sample from.'
@@ -347,27 +411,17 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
                 'draws.'
             )
             raise ValidationError(error_msg)
-        arguments = [DrawLowering._lowered(SR(item), request.slots) for item in draw.arguments]
-        symbols = sorted(symbols_of(arguments) - {time}, key=str)
-        found = [self._reference_of(item, request.spec) for item in symbols]
-        readers = [
-            reader for reader in found if reader is not None and reader.source in {ReadKind.SINGLE, ReadKind.MEMBER}
-        ]
-        if len(readers) < len(found):
+        evaluate = self._arguments_of(request, draw)
+        if evaluate is None:
             error_msg = (
                 f'The draw {draw.name!r} of {request.owner} reads a symbol that is not a state or a parameter of its '
                 'component. Give the arguments of draws as expressions of the states and parameters of the member.'
             )
             raise ValidationError(error_msg)
-        function = ExpressionPrinter(time=time, compiled=True).prepare(symbols).run(arguments).code_
-        if not callable(function):
-            error_msg = f'A compiled printer returns a function, not a {type(function).__name__}.'
-            raise TypeError(error_msg)
         rows = request.rows
 
         def sample(t: float, x: Array, q: Array, rng: np.random.Generator) -> Array:
-            values = function(t, *(reader.column_of(x, q) for reader in readers)) if arguments else []
-            return DrawKernel._sample_draw(draw, values, rows, rng)
+            return DrawKernel._sample_draw(draw, evaluate(t, x, q), rows, rng)
 
         return sample
 

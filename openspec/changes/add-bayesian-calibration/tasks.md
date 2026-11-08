@@ -17,16 +17,16 @@
 
 ## 4. Recorded draws and replay
 
-- [ ] 4.1 Add `draw(name, distribution, **arguments)` to the system view protocol and its implementations, and test that a rule's draw samples from `rng`
-- [ ] 4.2 Add `record_draws` to `simulate` and the draw recorder of the NumPy backend, store draws by name and step in `Trajectory`, and test the recorded `kick` draws of a noisy map
-- [ ] 4.3 Record the time and law of every firing in `GillespieSolver`, and test that the states rebuilt from the firings match the recorded states
-- [ ] 4.4 Add `replay` to `simulate` with forced draws and `log_probability`, and test replay at the recording parameters and the error for draws that do not match
-- [ ] 4.5 Add the Gillespie path log-likelihood to replay, and test it against the closed form on a recorded SIR run
-- [ ] 4.6 Document recording and replay in the user guide page on simulation, and verify the strict docs build runs its examples
+- [x] 4.1 Add `draw(name, distribution, **arguments)` to the system view protocol and its implementations, and test that a rule's draw samples from `rng`
+- [x] 4.2 Add `record_draws` to `simulate` and the draw recorder of the NumPy backend, store draws by name and step in `Trajectory`, and test the recorded `kick` draws of a noisy map
+- [x] 4.3 Record the time and law of every firing in `GillespieSolver`, and test that the states rebuilt from the firings match the recorded states
+- [x] 4.4 Add `replay` to `simulate` with forced draws and `log_probability`, and test replay at the recording parameters and the error for draws that do not match
+- [x] 4.5 Add the Gillespie path log-likelihood to replay, and test it against the closed form on a recorded SIR run
+- [x] 4.6 Document recording and replay in the user guide page on simulation, and verify the strict docs build runs its examples
 
 ## 5. Event likelihood
 
-- [ ] 5.1 Add `steepness` to `DeffuantSystem` with the outcome drawn through the view's named draw, and test that steepness 1e4 matches the deterministic run
+- [x] 5.1 Add `steepness` to `DeffuantSystem` with the outcome drawn through the view's named draw, and test that steepness 1e4 matches the deterministic run
 - [ ] 5.2 Add `loss='events'` that takes a recorded trajectory, and test the recovery of `confidence` of Deffuant within 0.02 and of `beta` and `gamma` of stochastic SIR within 10%
 
 ## 6. Posterior methods

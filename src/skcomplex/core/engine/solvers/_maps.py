@@ -17,7 +17,8 @@ from ._solver import Solver
 class IterationSolver(Solver):
     """Iteration of a discrete map, one application per unit of time.
 
-    A stochastic map takes its random draws from the stepper's random number generator at every step.
+    A stochastic map takes its random draws from the stepper's random number generator at every step, through the draw
+    recorder of a run that records or replays its draws.
 
     Examples:
         >>> import numpy as np
@@ -89,9 +90,11 @@ class IterationSolver(Solver):
         update = self.problem_.update
         if update is None:
             return x
-        drawn = (self.rng_,) if self.problem_.stochastic else ()
+        drawn: tuple[object, ...] = (self.rng_,) if self.problem_.stochastic else ()
+        if drawn and self.draw_recorder_ is not None:
+            drawn = (self.rng_, self.draw_recorder_)
         accelerated = self.problem_.accelerated
-        if accelerated is not None and accelerated.iterate is not None:
+        if accelerated is not None and accelerated.iterate is not None and self.draw_recorder_ is None:
             return accelerated.iterate(t, x, p, until, *drawn)
         state = x.copy()
         topology = self.problem_.topology
