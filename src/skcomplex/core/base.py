@@ -54,7 +54,9 @@ class BaseConfig[ContextT, InputT](BaseEstimator, ABC):
 
     @abstractmethod
     def _prepare(self, context: ContextT | None) -> None:
-        """Prepare the object against what it serves and set its attributes that end in `_`.
+        """Prepare the object against what it serves.
+
+        It sets its attributes that end in `_`.
 
         Args:
             context:
@@ -63,7 +65,9 @@ class BaseConfig[ContextT, InputT](BaseEstimator, ABC):
 
     @abstractmethod
     def _run(self, inputs: InputT | None) -> None:
-        """Perform the action of the object on its input and set what it produces as attributes that end in `_`.
+        """Perform the action of the object on its input.
+
+        It sets what it produces as attributes that end in `_`.
 
         Args:
             inputs:
@@ -71,7 +75,10 @@ class BaseConfig[ContextT, InputT](BaseEstimator, ABC):
         """
 
     def _release(self) -> None:
-        """Release what preparing acquired, such as a viewer or a process. By default, release nothing."""
+        """Release what preparing acquired.
+
+        Examples are a viewer or a process. By default, it releases nothing.
+        """
 
     def _is_prepared(self) -> None:
         """Raise an error for an object that was not prepared.
@@ -99,7 +106,9 @@ class BaseConfig[ContextT, InputT](BaseEstimator, ABC):
         return self
 
     def prepare(self, context: ContextT | None = None) -> Self:
-        """Validate the object and prepare it against the one thing it serves, setting its attributes that end in `_`.
+        """Validate the object and prepare it against the one thing it serves.
+
+        It sets its attributes that end in `_`.
 
         Args:
             context:
@@ -120,7 +129,9 @@ class BaseConfig[ContextT, InputT](BaseEstimator, ABC):
         return self
 
     def run(self, inputs: InputT | None = None, final: bool = False) -> Self:
-        """Perform the one action of the prepared object on its one input, keeping its results in attributes.
+        """Perform the one action of the prepared object on its one input.
+
+        It keeps its results in attributes.
 
         Args:
             inputs:
