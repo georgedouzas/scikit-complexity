@@ -11,9 +11,10 @@ from ._base import BaseLaw
 
 
 class BoundaryLaw(BaseLaw):
-    """Value a state takes after every solver step, such as a reflection at a wall or a wrap around a periodic box.
+    """Value a state takes after every solver step.
 
-    Boundaries leave the form of a system as is, so they combine with every other law in any time.
+    Examples are a reflection at a wall or a wrap around a periodic box. Boundaries leave the form of a system as is, so
+    they combine with every other law in any time.
 
     Args:
         target:
@@ -46,7 +47,10 @@ class BoundaryLaw(BaseLaw):
 
     @classmethod
     def _get_requirements(cls) -> RequirementSpec:
-        """Return what the law requires of a system: nothing, since it holds in any time."""
+        """Return what the law requires of a system: nothing.
+
+        It holds in any time.
+        """
         return RequirementSpec()
 
     def _check(self) -> None:

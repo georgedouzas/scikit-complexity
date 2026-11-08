@@ -1,4 +1,7 @@
-"""Flatten the system tree into the nodes of its elements, groups, and interactions, once per compilation."""
+"""Flatten the system tree into the nodes of its parts.
+
+The parts are its elements, groups, and interactions, and it runs once per compilation.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -43,7 +46,10 @@ class FlattenPass(BasePass):
 
     @staticmethod
     def _same_network(first: NetworkSpace, second: NetworkSpace) -> bool:
-        """Check whether two prepared network spaces have the same nodes, edges, and layers, like network clones."""
+        """Check whether two prepared network spaces are alike.
+
+        Like network clones, they have the same nodes, edges, and layers.
+        """
         if list(first.graphs_) != list(second.graphs_):
             return False
         if (first.capacity, first.fill, first.hyperedges_) != (second.capacity, second.fill, second.hyperedges_):
@@ -57,7 +63,10 @@ class FlattenPass(BasePass):
 
     @staticmethod
     def _same_process(first: WienerProcessSpec, second: WienerProcessSpec) -> bool:
-        """Check whether two Wiener processes of one label have the same dimension and covariance."""
+        """Check whether two Wiener processes of one label match.
+
+        They match when they have the same dimension and covariance.
+        """
         if first.dimension != second.dimension:
             return False
         return bool(
@@ -78,7 +87,10 @@ class FlattenPass(BasePass):
 
     @staticmethod
     def _check_network_lattice(space: NetworkSpace, size: int | None, where: str) -> None:
-        """Raise an error for a lattice group on a network with a capacity or a size other than its number of nodes."""
+        """Raise an error for a lattice group on a network of a wrong size.
+
+        The group has a capacity, or a size other than the number of nodes.
+        """
         if space.capacity is not None:
             error_msg = (
                 f'{where} has its sites on a network with capacity {space.capacity}, but sites hold states, not '
@@ -110,7 +122,10 @@ class FlattenPass(BasePass):
 
     @staticmethod
     def _check_part(part: Element | GroupElement | BaseInteraction, scope: str) -> None:
-        """Check the arguments of an element, group, or interaction, raising its error with the path of the part."""
+        """Check the arguments of an element, group, or interaction.
+
+        Its error is raised with the path of the part.
+        """
         try:
             part._validated()
         except SkcomplexError as error:
@@ -119,9 +134,10 @@ class FlattenPass(BasePass):
 
     @staticmethod
     def _bound_processes(interaction: BaseInteraction, scope: str) -> list[WienerProcessSpec]:
-        """Return the Wiener processes that the noise roles of an interaction bind, after checking every role.
+        """Return the Wiener processes that the noise roles of an interaction bind.
 
-        A noise or optional role bound to `None` binds nothing, so an interaction may leave it unbound.
+        Every role is checked first. A noise or optional role bound to `None` binds nothing, so an interaction may leave
+        it unbound.
         """
         processes = []
         for name, declaration in declarations_of(type(interaction), VariableKind.ROLE).items():
@@ -141,7 +157,10 @@ class FlattenPass(BasePass):
 
     @staticmethod
     def _check_processes(system: System, scope: str, labels: set[str]) -> None:
-        """Raise an error for differing Wiener processes of one label, or a label another child of a system takes."""
+        """Raise an error for conflicting Wiener processes of one label.
+
+        The processes differ, or another child of a system takes the label.
+        """
         found: dict[str, WienerProcessSpec] = {}
         for interaction in system.interactions:
             for process in FlattenPass._bound_processes(interaction, scope):
@@ -191,10 +210,11 @@ class FlattenPass(BasePass):
 
     @staticmethod
     def _canonical(space: BaseSpace | None, seen: list[BaseSpace]) -> BaseSpace | None:
-        """Return a prepared space, or the first network space seen that equals it, so clones of a network share one.
+        """Return a prepared space, or the first equal network space seen.
 
-        A space is prepared here unless it was prepared before, such as a group space whose ball was enumerated once. A
-        space whose arguments are not valid stays unprepared, and validation reports it from its check.
+        Clones of a network thus share one space. A space is prepared here unless it was prepared before, such as a
+        group space whose ball was enumerated once. A space whose arguments are not valid stays unprepared, and
+        validation reports it from its check.
         """
         if space is None:
             return None
@@ -219,7 +239,10 @@ class FlattenPass(BasePass):
 
     @staticmethod
     def _sized(element: Element | GroupElement, space: BaseSpace | None) -> Element | GroupElement:
-        """Return a group prepared with its size, a copy when the size counts the parts of the space it inherits."""
+        """Return a group prepared with its size.
+
+        It is a copy when the size counts the parts of the space it inherits.
+        """
         if not isinstance(element, GroupElement):
             return element
         if element.size is None and element.space is None:
@@ -228,10 +251,11 @@ class FlattenPass(BasePass):
 
     @staticmethod
     def _is_topology_group(component: object, space: BaseSpace | None) -> bool:
-        """Check whether a component is a variable group on the sites, edges, or hyperedges of a network, not of agents.
+        """Check whether a component is a variable group on a network.
 
-        Compiled backends run such a group with a capacity layout, whose rows hold the members present and room for new
-        ones, so laws that change the topology of the network add and remove its members.
+        It is on the sites, edges, or hyperedges of a network, not of agents. Compiled backends run such a group with a
+        capacity layout, whose rows hold the members present and room for new ones, so laws that change the topology of
+        the network add and remove its members.
 
         Args:
             component:
@@ -255,7 +279,10 @@ class FlattenPass(BasePass):
         element: Element | GroupElement,
         space: BaseSpace | None,
     ) -> tuple[Element | GroupElement, int | None]:
-        """Return a variable group on a network with its capacity as its size, and its initial size, or the element."""
+        """Return a variable group on a network with its capacity as its size.
+
+        It also returns its initial size, or the element otherwise.
+        """
         if not isinstance(element, GroupElement) or not FlattenPass._is_topology_group(element, space):
             return element, None
         group = element

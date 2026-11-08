@@ -1,4 +1,7 @@
-"""Advance the partitions of a co-simulation with their own solvers and exchange values at synchronisation points."""
+"""Advance the partitions of a co-simulation with their own solvers.
+
+Values are exchanged at synchronisation points.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -58,15 +61,15 @@ SCHEMES = ('gauss-seidel', 'jacobi')
 
 
 class CoSimulationSolver(Solver):
-    """Scheduler that advances every partition of a co-simulation to each synchronisation point with its own solver.
+    """Scheduler that advances every partition of a co-simulation with its own solver.
 
-    Between synchronisation points a partition holds the states of the other partitions at their last values, so a
-    split adds an error of the order of `sync_dt`. A discrete partition that holds a linear program takes one step per
-    synchronisation interval, whatever its length, so the program solves at every synchronisation point. A law of one
-    partition that reads a reduction of the agents of another, such as `count(s.farmers)`, reads the value the
-    scheduler computes at every synchronisation point and holds until the next. Gauss-Seidel advances the partitions in
-    system order, each reading the values the partitions before it already advanced. Jacobi advances every partition
-    from the same values.
+    Every partition is advanced to each synchronisation point. Between synchronisation points a partition holds the
+    states of the other partitions at their last values, so a split adds an error of the order of `sync_dt`. A discrete
+    partition that holds a linear program takes one step per synchronisation interval, whatever its length, so the
+    program solves at every synchronisation point. A law of one partition that reads a reduction of the agents of
+    another, such as `count(s.farmers)`, reads the value the scheduler computes at every synchronisation point and holds
+    until the next. Gauss-Seidel advances the partitions in system order, each reading the values the partitions before
+    it already advanced. Jacobi advances every partition from the same values.
 
     Args:
         solvers:
@@ -178,7 +181,9 @@ class CoSimulationSolver(Solver):
             raise SolverError(error_msg)
 
     def _prepare(self, context: ProblemSpec | None) -> None:
-        """Partition the problem when asked, and build and seed the stepper of every partition.
+        """Partition the problem when asked, and build and seed the partition steppers.
+
+        There is one stepper per partition.
 
         Args:
             context:
@@ -240,7 +245,9 @@ class CoSimulationSolver(Solver):
         reduction: _HeldReductionSpec,
         time: Expression,
     ) -> Callable[[float, Sequence[Array], Sequence[object] | Array], float]:
-        """Return the function of time, the values of the variables, and the members that computes a held reduction.
+        """Return the function that computes a held reduction.
+
+        The function takes time, the values of the variables, and the members.
 
         Args:
             reduction:
@@ -282,7 +289,10 @@ class CoSimulationSolver(Solver):
         return reduce_expression
 
     def _intervals(self, t: float, until: float) -> list[tuple[float, float]]:
-        """Return the synchronisation intervals of a frame after checking that `sync_dt` divides it."""
+        """Return the synchronisation intervals of a frame.
+
+        `sync_dt` is checked to divide the frame.
+        """
         duration = until - t
         interval = duration if self.sync_dt is None else self.sync_dt
         count = round(duration / interval) if interval > 0 else 0
@@ -330,7 +340,10 @@ class CoSimulationSolver(Solver):
         return None
 
     def _advance_partition(self, partition: PartitionSpec, source: Array, p: Array, start: float, end: float) -> Array:
-        """Advance one partition from the values of a source state vector and return its new state vector."""
+        """Advance one partition and return its new state vector.
+
+        It starts from the values of a source state vector.
+        """
         stepper = self.steppers_[partition.name]
         problem = partition.problem
         if problem.programs and problem.form in STEPWISE_FORMS and problem.update is not None:
@@ -345,14 +358,19 @@ class CoSimulationSolver(Solver):
         return state
 
     def _add_deposits(self, partition: PartitionSpec, state: Array) -> None:
-        """Add the amounts that the agents of a partition deposited into fields since the last synchronisation."""
+        """Add the amounts that the agents of a partition deposited into fields.
+
+        They are the amounts since the last synchronisation.
+        """
         deposits = getattr(self.steppers_[partition.name], 'deposits_', None)
         if deposits is not None and deposits.any():
             state += deposits
             deposits[:] = 0.0
 
     def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
-        """Advance every partition to `until`, exchanging values at every synchronisation point.
+        """Advance every partition to `until`.
+
+        Values are exchanged at every synchronisation point.
 
         Args:
             t:
@@ -393,7 +411,10 @@ class CoSimulationSolver(Solver):
         return state
 
     def _collect(self) -> None:
-        """Set the agents and reporters of every agent partition, merged, or no snapshot without agents."""
+        """Set the agents and reporters of every agent partition, merged.
+
+        Without agents, there is no snapshot.
+        """
         groups: dict[str, AgentSnapshotSpec] = {}
         reporters: dict[str, float] = {}
         agents: dict[str, list[object]] = {}

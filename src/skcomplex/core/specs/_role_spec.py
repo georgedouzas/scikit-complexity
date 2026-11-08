@@ -14,13 +14,13 @@ from ._state_spec import StateSpec
 
 @dataclass(frozen=True)
 class RoleSpec(BaseSpec):
-    """Spec of a role of an interaction, in the annotation of an argument of its constructor.
+    """Spec of a role of an interaction.
 
-    A plain role binds one element path, one group path, or one group member reference `<group>[<index>]`. A variadic
-    role binds a sequence of them, and a noise role binds a `WienerProcessSpec`. An optional role may be bound to
-    `None`, and then binds nothing. A role also states what it needs from what fills it: the kinds of element it accepts
-    and the names of the states it reads, where a name that is an argument of the constructor of the interaction means
-    the value of that argument.
+    It is given in the annotation of an argument of its constructor. A plain role binds one element path, one group
+    path, or one group member reference `<group>[<index>]`. A variadic role binds a sequence of them, and a noise role
+    binds a `WienerProcessSpec`. An optional role may be bound to `None`, and then binds nothing. A role also states
+    what it needs from what fills it: the kinds of element it accepts and the names of the states it reads, where a name
+    that is an argument of the constructor of the interaction means the value of that argument.
 
     Args:
         variadic:

@@ -12,7 +12,10 @@ from ._planned_partition_spec import _PlannedPartitionSpec
 
 @dataclass(frozen=True)
 class _PlanSpec(BaseSpec):
-    """Partitions of a system and the issues of its law mixes that no form or solver takes."""
+    """Partitions of a system and the issues of its law mixes.
+
+    The issues are those of the law mixes that no form or solver takes.
+    """
 
     partitions: tuple[_PlannedPartitionSpec, ...]
     issues: tuple[IssueSpec, ...]

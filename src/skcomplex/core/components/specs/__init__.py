@@ -1,4 +1,7 @@
-"""Specs that name classes of the core: the parts of a system as a compilation reads them."""
+"""Specs that name classes of the core.
+
+They describe the parts of a system as a compilation reads them.
+"""
 
 from ._census_record_spec import CensusRecordSpec
 from ._census_spec import CensusSpec

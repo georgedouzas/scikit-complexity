@@ -17,7 +17,9 @@ from ._network_snapshot_spec import NetworkSnapshotSpec
 
 @dataclass(frozen=True)
 class NetworkRowsSpec(BaseSpec):
-    """Variable groups of one network: the groups on its nodes, the edge group of every changing layer, and hyperedges.
+    """Variable groups of one network.
+
+    They are the groups on its nodes, the edge group of every changing layer, and hyperedges.
 
     Args:
         nodes:
@@ -71,7 +73,9 @@ class NetworkRowsSpec(BaseSpec):
         return (first, second) if self.directed[layer] else (min(first, second), max(first, second))
 
     def neighbours(self, layer: str | None, node: int, p: Array) -> Indices:
-        """Return the node rows a node joins in a layer, its successors on a directed layer.
+        """Return the node rows a node joins in a layer.
+
+        On a directed layer they are its successors.
 
         Args:
             layer:

@@ -1,4 +1,7 @@
-"""Pass that lowers the differential operators of laws to stencils and notes stable steps and linear terms."""
+"""Pass that lowers the differential operators of laws to stencils.
+
+It notes stable steps and linear terms.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,7 +25,10 @@ from .._field_lowering import FieldLowering
 
 
 class LowerFieldsPass(BasePass):
-    """Pass that lowers the differential operators of laws to stencils and notes stable steps and linear terms."""
+    """Pass that lowers the differential operators of laws to stencils.
+
+    It notes stable steps and linear terms.
+    """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
@@ -86,9 +92,10 @@ class LowerFieldsPass(BasePass):
         volume_limits: list[DiffusiveLimitSpec],
         linear: list[LinearTermSpec],
     ) -> list[BaseLaw]:
-        """Return laws whose differential operators are lowered, noting stable steps and the linear terms of rates.
+        """Return laws whose differential operators are lowered.
 
-        The spec is replaced by a copy with the references of the neighbour reads and derived values in the compilation.
+        The stable steps and the linear terms of rates are noted. The spec is replaced by a copy with the references of
+        the neighbour reads and derived values in the compilation.
         """
         places = FieldLowering._field_entries(Compilation._required(compilation.layout, 'layout'))
         linear += LowerFieldsPass._linear_terms_of(spec, laws, places)
@@ -139,7 +146,10 @@ class LowerFieldsPass(BasePass):
         operands: list[Expression],
         states: Mapping[Expression, ReferenceSpec],
     ) -> Terms | None:
-        """Return the linear terms of an operator applied to a linear expression, or `None`."""
+        """Return the linear terms of an operator applied to a linear expression.
+
+        It is `None` otherwise.
+        """
         inner = LowerFieldsPass._linear(operands[0], states)
         if inner is None or (name == 'inverse_helmholtz' and not SR(operands[1]).is_zero()):
             return None
@@ -148,7 +158,10 @@ class LowerFieldsPass(BasePass):
 
     @staticmethod
     def _linear(expression: object, states: Mapping[Expression, ReferenceSpec]) -> Terms | None:
-        """Return the linear terms of an expression in field states, or `None` when it is not linear."""
+        """Return the linear terms of an expression in field states.
+
+        It is `None` when the expression is not linear.
+        """
         value = SR(expression)
         if not any(item in states for item in value.variables()):
             return []

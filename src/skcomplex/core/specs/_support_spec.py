@@ -16,10 +16,11 @@ from ._tags import Tags
 
 @dataclass(frozen=True)
 class SupportSpec(BaseSpec):
-    """What a solver or a backend supports: the classes of time, space, and laws, and the kinds of noise and orders.
+    """What a solver or a backend supports.
 
-    An empty field supports any class or kind. A class is supported when it is one of the classes of its field or a
-    subclass of one, and `None` in the space field supports a system without a space.
+    It holds the classes of time, space, and laws, and the kinds of noise and orders. An empty field supports any class
+    or kind. A class is supported when it is one of the classes of its field or a subclass of one, and `None` in the
+    space field supports a system without a space.
 
     Args:
         time:
@@ -80,7 +81,9 @@ class SupportSpec(BaseSpec):
 
     @staticmethod
     def _get_class_tags(classes: AbstractSet[type | None], attribute: str) -> frozenset[str]:
-        """Return the tags that supported classes and their subclasses name in a class variable, `'none'` for `None`.
+        """Return the tags that supported classes and their subclasses name.
+
+        They name them in a class variable, and `None` gives `'none'`.
 
         Args:
             classes:
@@ -103,10 +106,11 @@ class SupportSpec(BaseSpec):
         return frozenset(found - {''})
 
     def get_tags(self) -> Tags:
-        """Return the capability tags supported: those of the supported classes of time, space, and laws.
+        """Return the capability tags supported.
 
-        A supported class supports its subclasses, so the tags of the subclasses count too, and an empty field of
-        the support gives an empty field of the tags, which supports any value.
+        They are those of the supported classes of time, space, and laws. A supported class supports its subclasses, so
+        the tags of the subclasses count too, and an empty field of the support gives an empty field of the tags, which
+        supports any value.
 
         Returns:
             tags:

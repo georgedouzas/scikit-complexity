@@ -1,4 +1,7 @@
-"""Name the forms that sets of law classes compile to, and infer the form of a set of components."""
+"""Name the forms of sets of law classes and infer the form of components.
+
+A set of law classes compiles to a form, and the form of a set of components is inferred.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

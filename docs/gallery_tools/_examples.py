@@ -1,4 +1,7 @@
-"""Scaffold, find, and check the gallery examples: one script per ready-made system, within a budget."""
+"""Scaffold, find, and check the gallery examples.
+
+There is one script per ready-made system, within a budget.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -116,7 +119,10 @@ class Coverage:
 
 
 def _system_of(path: Path) -> str | None:
-    """Return the value of the `SYSTEM` constant of a script, or `None` when it sets none."""
+    """Return the value of the `SYSTEM` constant of a script.
+
+    It returns `None` when the script sets none.
+    """
     for node in ast.parse(path.read_text()).body:
         if not isinstance(node, ast.Assign) or not isinstance(node.value, ast.Constant):
             continue
@@ -218,7 +224,9 @@ def _titles(inventory: Path) -> dict[str, str]:
 
 
 def gallery_interval(until: float, dt: float, max_frames: int) -> int:
-    """Return the logging interval that keeps a run within a number of frames and logs its last frame.
+    """Return the logging interval that keeps a run within a number of frames.
+
+    The interval also logs the last frame of the run.
 
     Args:
         until:
@@ -249,7 +257,10 @@ def gallery_interval(until: float, dt: float, max_frames: int) -> int:
 
 
 def _settings_of(system: type[BaseSystem]) -> tuple[float, float]:
-    """Return the simulated time and the time between frames of the tuned run of a system class."""
+    """Return the simulated time and the time between frames of a system class.
+
+    They are those of the tuned run of the class.
+    """
     built = system()
     settings = built.get_run_settings()
     until = DEFAULT_UNTIL if settings['until'] is None else settings['until']
@@ -268,7 +279,9 @@ def _description_of(system: type[BaseSystem]) -> str:
 
 
 def scaffold_example(name: str, system: type[BaseSystem], title: str, budget: Budget | None = None) -> str:
-    """Return the scaffold of the example of a system: its title, its caption, its run, and its blueprint.
+    """Return the scaffold of the example of a system.
+
+    It holds its title, its caption, its run, and its blueprint.
 
     Args:
         name:
@@ -329,7 +342,9 @@ def _write_readmes(folder: Path, field_path: str) -> None:
 
 
 def scaffold_examples(folder: Path, inventory: Path, *, overwrite: bool = False) -> list[Path]:
-    """Write the scaffold of the example of every ready-made system that has none, with the gallery headers.
+    """Write the scaffold of the example of every ready-made system that has none.
+
+    The scaffolds come with the gallery headers.
 
     Args:
         folder:
@@ -403,10 +418,10 @@ def check_budget(name: str, frames: int, size: int, seconds: float | None, budge
 
 
 def system_sources(system: str) -> list[Path]:
-    """Return the source files whose change can change the screenshots of a ready-made system's example.
+    """Return the source files that can change the screenshots of a system's example.
 
-    These are the files of the subfield package of the system, then the files of the core package, which compiles,
-    runs, and logs every system.
+    The system is a ready-made system. These are the files of the subfield package of the system, then the files of the
+    core package, which compiles, runs, and logs every system.
 
     Args:
         system:

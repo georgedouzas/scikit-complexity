@@ -1,4 +1,7 @@
-"""Run compiled problems in NumPy, the default backend, evaluating kernels as vectorised array operations."""
+"""Run compiled problems in NumPy, the default backend.
+
+It evaluates kernels as vectorised array operations.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -64,7 +67,10 @@ class NumpyBackend(BaseBackend):
 
     @classmethod
     def _get_support(cls) -> SupportSpec:
-        """Return the times, spaces, laws, noise, and orders the backend writes functions of."""
+        """Return what the backend writes functions of.
+
+        It is the times, spaces, laws, noise, and orders.
+        """
         return SupportSpec(
             time={ContinuousTime, DiscreteTime, StaticTime},
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
@@ -157,7 +163,9 @@ class NumpyBackend(BaseBackend):
         reductions: ReductionScheduleSpec | None,
         kernels: Mapping[type, list[LawKernel]] | None = None,
     ) -> LoweredFunctionsSpec:
-        """Return a lowering whose functions evaluate the reductions at the state they receive before their kernels.
+        """Return a lowering whose functions evaluate the reductions before their kernels.
+
+        The reductions are evaluated at the state they receive.
 
         Args:
             lowering:
@@ -192,7 +200,9 @@ class NumpyBackend(BaseBackend):
         reductions: ReductionScheduleSpec,
         kernels: Mapping[type, list[LawKernel]] | None,
     ) -> VectorFunction | None:
-        """Return a function that evaluates the reductions before it, or the function when its kernels read none.
+        """Return a function that evaluates the reductions before it.
+
+        It returns the function itself when its kernels read none.
 
         Args:
             function:

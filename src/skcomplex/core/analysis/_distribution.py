@@ -1,4 +1,7 @@
-"""Describe the distribution of a sample: histograms, survival functions, moments, inequality, tails, and records."""
+"""Describe the distribution of a sample.
+
+The descriptions are histograms, survival functions, moments, inequality, tails, and records.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -311,7 +314,10 @@ def _describe_samples(
 
 
 def _histogram(array: Array, bins: int, *, log: bool) -> tuple[Array, Array]:
-    """Return the edges and the probability density of a histogram, with bins equally spaced in the logarithm."""
+    """Return the edges and the probability density of a histogram.
+
+    The bins are equally spaced in the logarithm.
+    """
     if log:
         if np.any(array <= 0):
             error_msg = 'Logarithmic bins need positive values. Drop zeros or use linear bins with `log=False`.'
@@ -324,14 +330,20 @@ def _histogram(array: Array, bins: int, *, log: bool) -> tuple[Array, Array]:
 
 
 def _ccdf(values: npt.ArrayLike) -> tuple[Array, Array]:
-    """Return the sorted distinct values of a sample and the share of samples at or above each of them."""
+    """Return the sorted distinct values of a sample and the share above each.
+
+    The share counts the samples at or above each of them.
+    """
     array = np.sort(_read_real(values, 'values'))
     distinct, first = np.unique(array, return_index=True)
     return distinct, 1 - first / array.size
 
 
 def _moment_ratio(samples: Array, orders: tuple[int, int]) -> tuple[Array, Array]:
-    """Return the ratio `<x^p> / <x^q>^(p / q)` of every column and one minus it over its Gaussian value."""
+    """Return the ratio `<x^p> / <x^q>^(p / q)` of every column.
+
+    One minus it over its Gaussian value is returned too.
+    """
     high, low = orders
     power = high / low
     numerator = np.asarray([np.mean(column**high) for column in samples.T])
@@ -341,7 +353,10 @@ def _moment_ratio(samples: Array, orders: tuple[int, int]) -> tuple[Array, Array
 
 
 def _dispersion_index(values: npt.ArrayLike) -> float:
-    """Return the variance over the mean of counts, raising an error when the mean is 0."""
+    """Return the variance over the mean of counts.
+
+    An error is raised when the mean is 0.
+    """
     array = np.asarray(values, dtype=float)
     if array.mean() == 0:
         error_msg = 'The counts have mean 0, so their dispersion index is undefined. Use counts with a positive mean.'
@@ -368,7 +383,10 @@ def _tail_index(array: Array, tail: int) -> float:
 
 
 def _record_counts(sequences: Array) -> npt.NDArray[np.int64]:
-    """Return the number of records of every row, the values larger than every value before them."""
+    """Return the number of records of every row.
+
+    The records are the values larger than every value before them.
+    """
     previous = np.maximum.accumulate(sequences, axis=1)
     first = np.ones((sequences.shape[0], 1), dtype=bool)
     records = np.concatenate([first, sequences[:, 1:] > previous[:, :-1]], axis=1)
@@ -376,7 +394,10 @@ def _record_counts(sequences: Array) -> npt.NDArray[np.int64]:
 
 
 def _total_variation(groups: Array, units: Array) -> float:
-    """Return half the L1 distance between the distributions of two groups across units."""
+    """Return half the L1 distance between the distributions of two groups.
+
+    The distributions are across units.
+    """
     labels = np.unique(groups)
     if labels.size != GROUPS:
         error_msg = f'The total variation compares two groups, not {labels.size}. Give items of two groups.'

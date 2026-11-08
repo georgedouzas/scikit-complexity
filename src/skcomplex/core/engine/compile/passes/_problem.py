@@ -1,4 +1,7 @@
-"""Assemble the problem of a compilation from its layout, its numeric functions, and its compiled events."""
+"""Assemble the problem of a compilation.
+
+It comes from its layout, its numeric functions, and its compiled events.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -65,7 +68,10 @@ class ProblemPass(BasePass):
 
     @staticmethod
     def _companions(blocks: list[BlockSpec]) -> dict[str, tuple[str, str, int]]:
-        """Return every companion state by name, with its kind, the name of its state, and its index."""
+        """Return every companion state by name.
+
+        It comes with its kind, the name of its state, and its index.
+        """
         companions = {}
         for block in blocks:
             if block.node.interaction or block.node.is_agent:
@@ -85,7 +91,10 @@ class ProblemPass(BasePass):
 
     @staticmethod
     def _compiled_elements(blocks: list[BlockSpec]) -> tuple[CompiledElementSpec, ...]:
-        """Return the elements and groups that are not agents with the dotted names of their states and parameters."""
+        """Return the elements and groups that are not agents with their names.
+
+        The names are the dotted names of their states and parameters.
+        """
         return tuple(
             CompiledElementSpec(
                 path=block.node.path,
@@ -118,7 +127,10 @@ class ProblemPass(BasePass):
 
     @staticmethod
     def _lattice_shape(component: object) -> tuple[int, ...] | None:
-        """Return the number of sites along every dimension of the lattice an element lives on, or `None` off one."""
+        """Return the number of sites along every dimension of the lattice of an element.
+
+        It is `None` off a lattice.
+        """
         space = getattr(component, 'space', None)
         return space.shape_ if isinstance(space, LatticeSpace) else None
 
@@ -146,7 +158,10 @@ class ProblemPass(BasePass):
 
     @staticmethod
     def _unknowns_of(compilation: Compilation, form: FormKind) -> Indices:
-        """Return the positions of the states the residuals of a static problem target, and none for other forms."""
+        """Return the positions of the states the residuals of a static problem target.
+
+        It is none for other forms.
+        """
         rates = (
             Compilation._required(compilation.kernels, 'kernels').kernels[RateLaw] if form == FormKind.STATIC else []
         )
@@ -155,7 +170,10 @@ class ProblemPass(BasePass):
 
     @staticmethod
     def _problem_of(compilation: Compilation) -> ProblemSpec:
-        """Return the problem of the general parts of a compilation, which passes of formalisms add to."""
+        """Return the problem of the general parts of a compilation.
+
+        Passes of formalisms add to it.
+        """
         declarations = Compilation._required(compilation.layout, 'layout')
         blocks = list(declarations.blocks.values())
         form = Compilation._required(compilation.form, 'form')
@@ -219,12 +237,18 @@ class ProblemPass(BasePass):
 
     @staticmethod
     def _same_zeros(first: Expression, second: Expression) -> bool:
-        """Check that two conditions are the same expression or opposite ones, which switch at the same states."""
+        """Check that two conditions are the same expression or opposite ones.
+
+        Such conditions switch at the same states.
+        """
         return bool(first.is_trivially_equal(second) or (first + second).expand().is_trivially_equal(SR(0)))
 
     @staticmethod
     def _linear_root(expression: Expression, time: Expression) -> float | None:
-        """Return where an expression that is linear in time with numeric coefficients is zero, or `None`."""
+        """Return where a linear expression of time is zero, or `None`.
+
+        The expression has numeric coefficients.
+        """
         slope = expression.diff(time)
         if (
             not slope.is_numeric()
@@ -248,7 +272,10 @@ class ProblemPass(BasePass):
         function: ScalarsFunction,
         reductions: ReductionScheduleSpec,
     ) -> Callable[[float, Array, Array], float]:
-        """Return a function that gives the single value of a scalar function, reading the reductions at its state."""
+        """Return a function that gives the single value of a scalar function.
+
+        It reads the reductions at its state.
+        """
         if not reductions.steps:
             return ProblemPass._first_value(function)
 
@@ -259,7 +286,10 @@ class ProblemPass(BasePass):
 
     @staticmethod
     def _flat_sources(references: Mapping[Expression, ReferenceSpec], owner: str) -> dict[Expression, tuple[bool, int]]:
-        """Return the vector and flat index of every symbol of single components in a namespace."""
+        """Return the vector and flat index of every single component symbol.
+
+        The symbols are those in a namespace.
+        """
         del owner
         return {
             item: (reference.is_state, reference.entry.start + reference.column)
@@ -269,7 +299,10 @@ class ProblemPass(BasePass):
 
     @staticmethod
     def _reset_indices(reference: ReferenceSpec) -> npt.NDArray[np.intp]:
-        """Return the flat indices a reset of a single element's state or of every group member's state writes."""
+        """Return the flat indices a reset writes.
+
+        The reset is of the state of a single element or of every group member.
+        """
         if reference.entry.members is not None and reference.source in {ReadKind.MEMBER, ReadKind.REDUCED}:
             return reference.flat_indices.astype(np.intp)
         return np.asarray([reference.entry.start + reference.column], dtype=np.intp)
@@ -281,7 +314,10 @@ class ProblemPass(BasePass):
         time: Expression,
         owner: str,
     ) -> ScalarsFunction:
-        """Return a function of time, the state vector, and the parameter vector that evaluates scalar expressions."""
+        """Return a function that evaluates scalar expressions.
+
+        It takes time, the state vector, and the parameter vector.
+        """
         values = [SR(expression) for expression in expressions]
         arguments = sorted(symbols_of(values) - {time}, key=str)
         unknown = [item for item in arguments if item not in sources]
@@ -308,7 +344,10 @@ class ProblemPass(BasePass):
 
     @staticmethod
     def _reset_places(spec: KernelSpec, targets: Sequence[Expression]) -> list[npt.NDArray[np.intp]]:
-        """Return the flat indices every target of a reset writes, after checking that each is a state."""
+        """Return the flat indices every target of a reset writes.
+
+        It first checks that each target is a state.
+        """
         places = []
         for item in targets:
             reference = spec.references.get(item)
@@ -333,10 +372,10 @@ class ProblemPass(BasePass):
         *,
         members: bool = False,
     ) -> Callable[..., Array] | None:
-        """Return a function that sets the states an event resets, all from the state before the event.
+        """Return a function that sets the states an event resets.
 
-        The reset of an event of the members of a group takes the member as a fourth argument, and sets the states of
-        that member alone.
+        All are set from the state before the event. The reset of an event of the members of a group takes the member as
+        a fourth argument, and sets the states of that member alone.
         """
         reset = event.reset or {}
         targets = [item for target in reset for item in components_of(target)]
@@ -432,7 +471,10 @@ class ProblemPass(BasePass):
 
     @staticmethod
     def _state_conditions_of(expressions: Iterable[object], time: Expression) -> list[Expression]:
-        """Return the expressions whose sign switches a law, from conditions and steps that read more than time."""
+        """Return the expressions whose sign switches a law.
+
+        They come from conditions and steps that read more than time.
+        """
         found: list[Expression] = []
         stack = [SR(expression) for expression in expressions]
         while stack:
@@ -456,7 +498,10 @@ class ProblemPass(BasePass):
 
     @staticmethod
     def _breakpoints_of(expressions: Iterable[object], time: Expression) -> _BreakpointsSpec:
-        """Return the times where conditions on time in expressions change, as from step, pulse, and series inputs."""
+        """Return the times where conditions on time in expressions change.
+
+        Examples are step, pulse, and series inputs.
+        """
         fixed: set[float] = set()
         periodic: set[tuple[float, float]] = set()
         unresolved = False
@@ -496,7 +541,7 @@ class ProblemPass(BasePass):
         events: list[tuple[KernelSpec, CrossingLaw]],
         time: Expression,
     ) -> _BreakpointsSpec:
-        """Return the breakpoints of the time-dependent inputs in every law and event guard.
+        """Return the breakpoints of time-dependent inputs in every law and event guard.
 
         Args:
             specs:
@@ -566,7 +611,10 @@ class ProblemPass(BasePass):
         reductions: ReductionScheduleSpec,
         time: Expression,
     ) -> Callable[[float, Array, Array], object]:
-        """Return the function of time and both vectors of a symbolic guard or reset next to a function."""
+        """Return the function of time and both vectors of a symbolic guard or reset.
+
+        The guard or reset sits next to a function.
+        """
         expression = SR(value)
         arguments = sorted(symbols_of([expression]) - {time}, key=str)
         function = ExpressionPrinter(time=time, compiled=True).prepare(arguments).run([expression]).code_
@@ -594,7 +642,10 @@ class ProblemPass(BasePass):
         reductions: ReductionScheduleSpec,
         declarations: DeclarationsSpec,
     ) -> Callable[[float, Array, Array], object]:
-        """Return the function of time and both vectors of one guard or reset value of an event."""
+        """Return the function of time and both vectors of one guard or reset value.
+
+        The value is one of an event.
+        """
         if not BaseLaw._is_function(value):
             return ProblemPass._symbolic_value(spec, value, reductions, declarations.time)
         if isinstance(value, CallSpec) and (value.arguments or value.random or value.vectorized):
@@ -625,7 +676,10 @@ class ProblemPass(BasePass):
         reductions: ReductionScheduleSpec,
         declarations: DeclarationsSpec,
     ) -> EventKernel:
-        """Return an event whose guard or reset is a function, with one guard value per member over a group."""
+        """Return an event whose guard or reset is a function.
+
+        Over a group, there is one guard value per member.
+        """
         guard = ProblemPass._value_function(spec, event.guard, reductions, declarations)
         reset = event.reset or {}
         targets = list(reset)
@@ -663,7 +717,9 @@ class ProblemPass(BasePass):
         reductions: ReductionScheduleSpec,
         declarations: DeclarationsSpec,
     ) -> tuple[EventKernel, ...]:
-        """Return the events of a system compiled into guard and reset functions of the state vector.
+        """Return the events of a system compiled into guard and reset functions.
+
+        The functions are of the state vector.
 
         Args:
             events:
@@ -723,7 +779,9 @@ class ProblemPass(BasePass):
         time: Expression,
         reductions: ReductionScheduleSpec,
     ) -> tuple[EventKernel, ...]:
-        """Return one hidden event per condition on the states of single components that switches a law of a flow.
+        """Return one hidden event per single component condition that switches a flow.
+
+        The condition is on the states of single components and switches a law of a flow.
 
         Args:
             specs:
@@ -782,7 +840,10 @@ class ProblemPass(BasePass):
 
     @staticmethod
     def _visual_of(node: NodeSpec) -> VisualSpec:
-        """Return the visual of an element or a group: its own visual when it sets one, and its default otherwise."""
+        """Return the visual of an element or a group.
+
+        It is its own visual when it sets one, and its default otherwise.
+        """
         element = node.component
         if element.visual is not None:
             return element.visual

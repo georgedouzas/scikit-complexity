@@ -13,10 +13,11 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class LayerSpec(BaseSpec):
-    """Spec of a relation over the nodes of a network space, such as contacts or employment, held as a graph of its own.
+    """Spec of a relation over the nodes of a network space.
 
-    A network space holds several layers over the same nodes. Edge groups and interactions over neighbours name the
-    layer they bind to, and reductions reduce over its edges with `AdjacencyNeighborhood(layer=label)`.
+    Examples are contacts or employment. The relation is held as a graph of its own. A network space holds several
+    layers over the same nodes. Edge groups and interactions over neighbours name the layer they bind to, and reductions
+    reduce over its edges with `AdjacencyNeighborhood(layer=label)`.
 
     Args:
         label:

@@ -1,4 +1,7 @@
-"""Define drive laws, which change a whole lattice state at once."""
+"""Define drive laws.
+
+A drive law changes a whole lattice state at once.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,13 +19,13 @@ from ._base import BaseLaw
 
 
 class DriveLaw(BaseLaw):
-    """Change of a whole lattice state at once by a function of its array, such as adding 1 at a random site.
+    """Change of a whole lattice state at once by a function of its array.
 
-    The function receives the state as an array of the lattice shape, or of one row per member of a group on the edges
-    or hyperedges of a network, with the components of a state of several components per member, such as a matrix
-    group state, on a last axis. It also receives keyword arguments for the parameters of the element that it names,
-    and, when it names them, `random`, the random generator of the simulation, `time`, the time of the step, and
-    `space`, the space of the group, and returns the new array.
+    An example is adding 1 at a random site. The function receives the state as an array of the lattice shape, or of one
+    row per member of a group on the edges or hyperedges of a network, with the components of a state of several
+    components per member, such as a matrix group state, on a last axis. It also receives keyword arguments for the
+    parameters of the element that it names, and, when it names them, `random`, the random generator of the simulation,
+    `time`, the time of the step, and `space`, the space of the group, and returns the new array.
 
     Args:
         target:

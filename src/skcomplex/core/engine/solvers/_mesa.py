@@ -40,7 +40,10 @@ MIN_CONTINUOUS_ROOM = 2
 
 
 class _AgentSystem(mesa.Model):
-    """Mesa system whose step runs the agent and system rules of a stepper, so Mesa's clock moves with the run."""
+    """Mesa system whose step runs the agent and system rules of a stepper.
+
+    Mesa's clock thus moves with the run.
+    """
 
     def __init__(self, run_rules: Callable[[], None], rng: int) -> None:
         self._run_rules = run_rules
@@ -79,7 +82,10 @@ class SystemView:
         self._roles = dict(roles or {})
 
     def _paths(self, name: str) -> list[str]:
-        """Return the paths of the groups a role of the owner binds to, or of a group by relative or absolute path."""
+        """Return the paths of the groups a role of the owner binds to.
+
+        A group given by relative or absolute path is resolved too.
+        """
         bound = self._roles.get(name)
         if bound is not None:
             return [bound] if isinstance(bound, str) else list(bound)
@@ -91,7 +97,9 @@ class SystemView:
             raise SimulationError(error_msg) from error
 
     def parameter(self, name: str) -> float:
-        """Return the current value of a parameter of the owner, or of one component as `name[i]`.
+        """Return the current value of a parameter of the owner.
+
+        One component is read as `name[i]`.
 
         Args:
             name:
@@ -133,7 +141,10 @@ class SystemView:
 
     @property
     def inputs(self) -> Mapping[str, object]:
-        """Values of the states of other partitions at the last synchronisation point, by dotted name."""
+        """Values of the states of other partitions at the last synchronisation point.
+
+        They are keyed by dotted name.
+        """
         return self._stepper.inputs_
 
     @property
@@ -143,14 +154,20 @@ class SystemView:
 
     @property
     def time(self) -> float:
-        """Time of Mesa's clock, `k` during the step that produces frame `k`, plus `i / n` at visit `i` of `n`."""
+        """Time of Mesa's clock.
+
+        It is `k` during the step that produces frame `k`, plus `i / n` at visit `i` of `n`.
+        """
         stepper = self._stepper
         visit, visits = stepper.visit_
         return float(stepper.system_.time) + visit / max(visits, 1)
 
     @property
     def dimensions(self) -> tuple[float, ...] | None:
-        """Extent of the agent space per axis, cells of a grid or lengths of a continuous space, `None` otherwise."""
+        """Extent of the agent space per axis.
+
+        It is cells of a grid or lengths of a continuous space, and `None` otherwise.
+        """
         space = self._stepper.space_
         if isinstance(space, MesaContinuousSpace):
             return tuple(float(side) for side in space.size)
@@ -170,7 +187,9 @@ class SystemView:
     def agents[V: AgentView](self, name: str, view: type[V]) -> list[V]: ...
 
     def agents[V: AgentView](self, name: str, view: type[V] | None = None) -> list[V] | list['AgentView']:
-        """Return the views of the agents of a group bound to a role of the owner, or of a group by path.
+        """Return the views of the agents of a group bound to a role of the owner.
+
+        A group may also be named by path.
 
         Args:
             name:
@@ -200,7 +219,9 @@ class SystemView:
         return [item for item in views if isinstance(item, view)]
 
     def groups(self, name: str) -> list[str]:
-        """Return the paths of the groups a role of the owner binds, or of a group by relative or absolute path.
+        """Return the paths of the groups a role of the owner binds.
+
+        A group may also be named by relative or absolute path.
 
         Args:
             name:
@@ -217,7 +238,9 @@ class SystemView:
         return self._paths(name)
 
     def count(self, name: str) -> int:
-        """Return the number of agents of a group bound to a role of the owner, or of a group by path.
+        """Return the number of agents of a group bound to a role of the owner.
+
+        A group may also be named by path.
 
         Args:
             name:
@@ -234,10 +257,10 @@ class SystemView:
         return sum(len(self._stepper._group_agents(path)) for path in self._paths(name))
 
     def composition(self, name: str, state: str) -> dict[Hashable, int]:
-        """Return the number of agents of a group that hold every value of a state, for the values some agent holds.
+        """Return the number of agents of a group that hold every value of a state.
 
-        The stepper keeps the counts as agents are created, removed, and change the state, so reading them costs no
-        pass over the agents.
+        Only the values some agent holds are counted. The stepper keeps the counts as agents are created, removed, and
+        change the state, so reading them costs no pass over the agents.
 
         Args:
             name:
@@ -261,7 +284,9 @@ class SystemView:
         return {value: count for value, count in counts.items() if count}
 
     def occupancy(self, name: str) -> dict[Hashable, int]:
-        """Return the number of agents of a group in every cell or node that holds one, by the key of the location.
+        """Return the number of agents of a group in every cell or node that holds one.
+
+        The counts are keyed by the key of the location.
 
         Args:
             name:
@@ -301,7 +326,9 @@ class SystemView:
         return len(self._stepper._index_of(layer).geometries)
 
     def region(self, layer: str, index: int) -> Polygon:
-        """Return the polygon of a region of a layer of the continuous space, which a rule can pass to `move_to`.
+        """Return the polygon of a region of a layer of the continuous space.
+
+        A rule can pass the polygon to `move_to`.
 
         Args:
             layer:
@@ -325,7 +352,10 @@ class SystemView:
         return polygons[index]
 
     def _field_name(self, name: str) -> str:
-        """Return the path of a field state named by its path, or as `<role>.<state>` of a role of the owner."""
+        """Return the path of a field state.
+
+        The state is named by its path, or as `<role>.<state>` of a role of the owner.
+        """
         role, _, state = name.rpartition('.')
         bound = self._roles.get(role)
         return f'{bound}.{state}' if isinstance(bound, str) else name
@@ -349,7 +379,9 @@ class SystemView:
         return list(space.graph.nodes).index(cell)
 
     def field(self, name: str, cell: object) -> float:
-        """Return the value of a field at a cell, as it was at the last synchronisation point.
+        """Return the value of a field at a cell.
+
+        It is the value at the last synchronisation point.
 
         Args:
             name:
@@ -439,7 +471,10 @@ class SystemView:
 
     @property
     def storage(self) -> dict[str, object]:
-        """Mutable mapping private to the owner that persists across the steps of one run, such as an order book."""
+        """Mutable mapping private to the owner that persists across the steps of one run.
+
+        An example is an order book.
+        """
         return self._stepper.storage_.setdefault(self._owner, {})
 
     def _report_name(self, name: str) -> str:
@@ -447,10 +482,10 @@ class SystemView:
         return f'{self._owner}.{name}' if self._owner else name
 
     def report(self, name: str, value: float) -> None:
-        """Publish a value of the owner as the reporter `<owner>.<name>` and add it to the reporter's history.
+        """Publish a value of the owner as the reporter `<owner>.<name>`.
 
-        The owner declares the names it reports in its class variable `reports`, so every frame records them, `NaN`
-        before the first report.
+        The value is added to the reporter's history. The owner declares the names it reports in its class variable
+        `reports`, so every frame records them, `NaN` before the first report.
 
         Args:
             name:
@@ -475,7 +510,9 @@ class SystemView:
         self._stepper.reported_.setdefault(full, deque(maxlen=_HISTORY_LENGTH)).append(kept)
 
     def history(self, name: str, window: int | None = None) -> npt.NDArray[np.float64]:
-        """Return the past values of a reporter, or of an observable at the end of each earlier step, the last one last.
+        """Return the past values of a reporter, or of an observable.
+
+        An observable gives its values at the end of each earlier step, the last one last.
 
         Args:
             name:
@@ -500,7 +537,9 @@ class SystemView:
         return array if window is None else array[len(array) - min(window, len(array)) :]
 
     def observable(self, name: str) -> object:
-        """Return the current value of an observable of the system, such as an aggregate of a group.
+        """Return the current value of an observable of the system.
+
+        An example is an aggregate of a group.
 
         Args:
             name:
@@ -517,7 +556,9 @@ class SystemView:
         return self._stepper._observable(name)
 
     def set_parameter(self, name: str, value: float) -> None:
-        """Set a parameter of any group or interaction during the run, recorded in the trajectory like any parameter.
+        """Set a parameter of any group or interaction during the run.
+
+        The trajectory records it like any parameter.
 
         Args:
             name:
@@ -539,12 +580,12 @@ class SystemView:
 
 
 class AgentView:
-    """Agent as rules see it: its states as attributes, its group's parameters, its neighbours, and its location.
+    """Agent as rules see it.
 
-    The stepper gives every agent one view of the class of its group, whose states and parameters are properties, so
-    two views of an agent are the same object. Reading a state reads the agent, and setting it sets the agent, at
-    the end of the phase in a simultaneous phase. Parameters are read only, and an unknown name raises Python's own
-    `AttributeError`.
+    It shows its states as attributes, its group's parameters, its neighbours, and its location. The stepper gives every
+    agent one view of the class of its group, whose states and parameters are properties, so two views of an agent are
+    the same object. Reading a state reads the agent, and setting it sets the agent, at the end of the phase in a
+    simultaneous phase. Parameters are read only, and an unknown name raises Python's own `AttributeError`.
 
     Args:
         agent:
@@ -582,10 +623,11 @@ class AgentView:
 
     @property
     def location_key(self) -> Hashable:
-        """Location of the agent as a key: a tuple of integers for a cell, a tuple of floats for a position, or a node.
+        """Location of the agent as a key.
 
-        The key equals the coordinates `neighbor_cells` gives for the agent's cell or node, so rules compare the cells
-        around an agent with the places of other agents.
+        The key is a tuple of integers for a cell, a tuple of floats for a position, or a node. The key equals the
+        coordinates `neighbor_cells` gives for the agent's cell or node, so rules compare the cells around an agent with
+        the places of other agents.
         """
         location = self.location
         if isinstance(location, tuple | list | np.ndarray):
@@ -601,7 +643,9 @@ class AgentView:
         return not getattr(self._agent, 'removed_', False)
 
     def displacement_to(self, other: 'AgentView | object') -> npt.NDArray[np.float64]:
-        """Return the vector from the agent to another agent or a location, the shortest one on a torus.
+        """Return the vector from the agent to another agent or a location.
+
+        On a torus, it is the shortest one.
 
         Args:
             other:
@@ -631,7 +675,9 @@ class AgentView:
         return delta - size * np.round(delta / size)
 
     def distance_to(self, other: 'AgentView | object') -> float:
-        """Return the distance to another agent or a location, the number of hops on a network.
+        """Return the distance to another agent or a location.
+
+        On a network, it is the number of hops.
 
         Args:
             other:
@@ -666,11 +712,12 @@ class AgentView:
         layer: str | None = None,
         group: str | None = None,
     ) -> list['AgentView']:
-        """Return the agents in the cells or nodes around the agent, within a radius, or around it in a layer.
+        """Return the agents around the agent.
 
-        Agents of a variable group placed on the nodes of a network make a set of members per node that grows and
-        shrinks during a run, such as the balls of an urn on every node, and an agent on a node reads the sets of the
-        neighbouring nodes as the neighbours of one group.
+        They are the agents in the cells or nodes around it, within a radius, or around it in a layer. Agents of a
+        variable group placed on the nodes of a network make a set of members per node that grows and shrinks during a
+        run, such as the balls of an urn on every node, and an agent on a node reads the sets of the neighbouring nodes
+        as the neighbours of one group.
 
         Args:
             radius:
@@ -705,7 +752,9 @@ class AgentView:
         return [MesaSolver._view_of(agent) for agent in agents if path is None or stepper._spec_of(agent).path == path]
 
     def agents_here(self, group: str | None = None) -> list['AgentView']:
-        """Return the other agents in the agent's cell or node, of one group or of every group.
+        """Return the other agents in the agent's cell or node.
+
+        They are of one group or of every group.
 
         Args:
             group:
@@ -724,7 +773,9 @@ class AgentView:
         ]
 
     def regions_here(self, layer: str) -> list[int]:
-        """Return the indices of the regions of a layer that contain the agent, on their boundaries too.
+        """Return the indices of the regions of a layer that contain the agent.
+
+        Regions with the agent on their boundaries count too.
 
         Args:
             layer:
@@ -742,7 +793,9 @@ class AgentView:
         return sorted(int(index) for index in hits)
 
     def move_to(self, location: object) -> None:
-        """Move the agent to a cell, a node, or a position, or to a uniform point inside a polygon.
+        """Move the agent to a cell, a node, or a position.
+
+        It may also move to a uniform point inside a polygon.
 
         Args:
             location:
@@ -759,7 +812,9 @@ class AgentView:
         self._agent.cell = self._stepper._cell_at(location)
 
     def remove(self) -> None:
-        """Remove the agent from the system, after checking that it holds none of a conserved quantity.
+        """Remove the agent from the system.
+
+        The agent is first checked to hold none of a conserved quantity.
 
         Raises:
             ConservationError:
@@ -788,7 +843,9 @@ class AgentView:
             self._agent.remove()
 
     def create(self, group: str | None = None, location: object = None, **values: object) -> 'AgentView':
-        """Create an agent of a group, by default the agent's own group at the agent's location.
+        """Create an agent of a group.
+
+        By default, it is of the agent's own group at the agent's location.
 
         Args:
             group:
@@ -814,10 +871,10 @@ class AgentView:
         return MesaSolver._view_of(stepper._create_agent(target, place, values))
 
     def referenced(self, state: str) -> 'AgentView | None':
-        """Return the member of another group that a reference state of the agent names by its id.
+        """Return the member of another group that a reference state of the agent names.
 
-        A state declared with `StateSpec(reference=group)` holds the id of a member of the group, or a negative value
-        for none, such as the bank of a customer or the employer of a worker.
+        The state names it by its id. A state declared with `StateSpec(reference=group)` holds the id of a member of the
+        group, or a negative value for none, such as the bank of a customer or the employer of a worker.
 
         Args:
             state:
@@ -842,12 +899,12 @@ class AgentView:
         return MesaSolver._view_of(agent)
 
     def lags(self, state: str, window: int | None = None) -> npt.NDArray[np.float64]:
-        """Return the past values of a state of an agent, the values at the ends of the last steps, the last one last.
+        """Return the past values of a state of an agent.
 
-        An agent remembers a state declared with lags, `StateSpec(lags=m)`: the agent stepper keeps its last `m` values
-        in the companion states `<state>_lag1` to `<state>_lag<m>`, which rules may also read one by one. Before the
-        first steps the lags hold their initial values, the `initial` of the spec or else the initial value of the
-        state.
+        They are the values at the ends of the last steps, the last one last. An agent remembers a state declared with
+        lags, `StateSpec(lags=m)`: the agent stepper keeps its last `m` values in the companion states `<state>_lag1` to
+        `<state>_lag<m>`, which rules may also read one by one. Before the first steps the lags hold their initial
+        values, the `initial` of the spec or else the initial value of the state.
 
         Args:
             state:
@@ -948,7 +1005,10 @@ class MesaSolver(ExternalSolver):
         return 'Mesa'
 
     def _unsupported(self, problem: ProblemSpec) -> list[str]:
-        """Return a continuous space that is not a box of two or three sides, the only problem Mesa does not run."""
+        """Return a continuous space that is not a box of two or three sides.
+
+        It is the only problem Mesa does not run.
+        """
         space = problem.agent_space
         if not isinstance(space, ContinuousSpace) or len(space.extent_) in CONTINUOUS_SIDES:
             return []
@@ -1053,7 +1113,10 @@ class MesaSolver(ExternalSolver):
         )
 
         def step(agent: mesa.Agent) -> None:
-            """Run the rules of the agent's type and its member rules unless the agent was removed earlier."""
+            """Run the rules of the agent's type and its member rules.
+
+            They do not run if the agent was removed earlier.
+            """
             view = self._view_of(agent)
             for system, rule in self._agent_rules(spec):
                 if getattr(agent, 'removed_', False):
@@ -1066,12 +1129,18 @@ class MesaSolver(ExternalSolver):
         return agent_class
 
     def _agent_rules(self, spec: CompiledAgentsSpec) -> list[tuple[SystemView, RuleLaw]]:
-        """Return the rules of an agent with their views, those of its element and then its member rules."""
+        """Return the rules of an agent with their views.
+
+        Those of its element come first, then its member rules.
+        """
         own = [(self._views[spec.path], rule) for rule in self._rules_of(spec.rules)]
         return own + self._member_rules.get(spec.path, [])
 
     def _place(self, agent: mesa.Agent, location: object) -> None:
-        """Place a new agent at a location, or at a random place that respects the space's capacity."""
+        """Place a new agent at a location.
+
+        Without one, it goes to a random place that respects the space's capacity.
+        """
         space = self.problem_.agent_space
         if isinstance(space, ContinuousSpace):
             sides = len(space.extent_)
@@ -1087,7 +1156,9 @@ class MesaSolver(ExternalSolver):
                 agent.cell = cells.all_cells.select_random_cell()
 
     def _triangles_of(self, polygon: Polygon) -> tuple[Array, Array]:
-        """Return the corners of the constrained Delaunay triangles of a polygon and their areas, computed once.
+        """Return the corners of the constrained Delaunay triangles of a polygon.
+
+        Their areas are returned too, and both are computed once.
 
         Args:
             polygon:
@@ -1113,7 +1184,10 @@ class MesaSolver(ExternalSolver):
         return self._triangulations[polygon]
 
     def _draw_point(self, polygon: Polygon) -> Array:
-        """Return a uniform point of a polygon: a triangle by its area, then a uniform point of the triangle."""
+        """Return a uniform point of a polygon.
+
+        A triangle is drawn by its area, then a uniform point of the triangle.
+        """
         corners, areas = self._triangles_of(polygon)
         rng = self.system_.rng
         first, second, third = corners[int(rng.choice(len(areas), p=areas / areas.sum()))]
@@ -1123,7 +1197,9 @@ class MesaSolver(ExternalSolver):
         return first + along * (second - first) + across * (third - first)
 
     def _position_of(self, location: object, space: ContinuousSpace) -> Array:
-        """Return the position a location of a continuous space names, a point drawn inside a polygon.
+        """Return the position a location of a continuous space names.
+
+        A polygon names a point drawn inside it.
 
         Args:
             location:
@@ -1209,7 +1285,9 @@ class MesaSolver(ExternalSolver):
         return space
 
     def _resolve_group(self, group: str, scope: str = '') -> str:
-        """Return the path of a group named relative to the system of a component, or by its path.
+        """Return the path of a group named relative to the system of a component.
+
+        A group may also be named by its path.
 
         Args:
             group:
@@ -1234,7 +1312,9 @@ class MesaSolver(ExternalSolver):
         raise SimulationError(error_msg)
 
     def _create_agent(self, group: str, location: object, values: Mapping[str, object]) -> mesa.Agent:
-        """Create an agent of a group with initial state values, placed at a location or a random place.
+        """Create an agent of a group with initial state values.
+
+        It is placed at a location or a random place.
 
         Args:
             group:
@@ -1274,7 +1354,10 @@ class MesaSolver(ExternalSolver):
         return agent
 
     def _populate(self, spec: CompiledAgentsSpec) -> None:
-        """Create the initial agents of a group with their per-agent or shared initial values."""
+        """Create the initial agents of a group.
+
+        They take their per-agent or shared initial values.
+        """
         space = self.problem_.agent_space
         network_nodes = list(space.graph.nodes) if isinstance(space, NetworkSpace) else []
         group = spec.element if isinstance(spec.element, GroupElement) and spec.element.location is not None else None
@@ -1317,7 +1400,9 @@ class MesaSolver(ExternalSolver):
             return None
 
     def _resolve_references(self, spec: CompiledAgentsSpec) -> None:
-        """Turn the initial positions held by the reference states of a group into the ids of the members they name.
+        """Turn the initial positions of the reference states of a group into ids.
+
+        The ids are those of the members they name.
 
         Args:
             spec:
@@ -1358,7 +1443,10 @@ class MesaSolver(ExternalSolver):
         return self._classes[type(agent)]
 
     def _agents_of(self, group: str) -> list[AgentView] | None:
-        """Return the views of the alive agents of a group, or `None` when the system has no such group."""
+        """Return the views of the alive agents of a group.
+
+        It returns `None` when the system has no such group.
+        """
         if group not in self._specs:
             return None
         return [self._view_of(agent) for agent in self._group_agents(group)]
@@ -1384,7 +1472,9 @@ class MesaSolver(ExternalSolver):
         self.parameters_ = p.copy()
 
     def _composition(self, path: str, state: str) -> dict[Hashable, int]:
-        """Return the counts of the values of a state among the agents of a group, kept from their first reading.
+        """Return the counts of the values of a state among the agents of a group.
+
+        They are kept from their first reading.
 
         Args:
             path:
@@ -1415,7 +1505,10 @@ class MesaSolver(ExternalSolver):
         return counts
 
     def _recount(self, agent: mesa.Agent, change: int, names: Iterable[str] | None = None) -> None:
-        """Add a change to the counts of the values an agent holds, of the states named or of every counted state."""
+        """Add a change to the counts of the values an agent holds.
+
+        The change covers the states named or every counted state.
+        """
         if not self._compositions:
             return
         path = self._spec_of(agent).path
@@ -1431,7 +1524,10 @@ class MesaSolver(ExternalSolver):
         self._recount(agent, 1, (name,))
 
     def _observe(self) -> None:
-        """Add the scalar values of the observables of the run at the end of a step to their histories."""
+        """Add the scalar values of the observables of the run to their histories.
+
+        They are taken at the end of a step.
+        """
         if not self.problem_.observables:
             return
         if self._evaluator is None:
@@ -1448,7 +1544,10 @@ class MesaSolver(ExternalSolver):
                 history.append(value)
 
     def _run_rules(self) -> None:
-        """Run the phases due in a step, or activate the agents in random order and run the system rules once."""
+        """Run the phases due in a step.
+
+        Without phases, the agents are activated in random order and the system rules run once.
+        """
         if self._phases is None:
             self.system_.agents.shuffle_do('step')
             for system, rule in self._rules:
@@ -1483,7 +1582,10 @@ class MesaSolver(ExternalSolver):
         return [agents[index] for index in self.system_.rng.permutation(len(agents))]
 
     def _activate(self, agent: mesa.Agent, phase: PhaseSpec) -> None:
-        """Run the rules of an agent in a phase, those of its element and then its member rules, while it lives."""
+        """Run the rules of an agent in a phase while it lives.
+
+        Those of its element run first, then its member rules.
+        """
         view = self._view_of(agent)
         for system, rule in self._agent_rules(self._spec_of(agent)):
             if getattr(agent, 'removed_', False):
@@ -1492,7 +1594,10 @@ class MesaSolver(ExternalSolver):
                 rule.function(view, system)
 
     def _visit(self, phase: PhaseSpec) -> None:
-        """Activate agents of a phase drawn with replacement, `visits` times as many as there are at its start."""
+        """Activate agents of a phase drawn with replacement.
+
+        There are `visits` times as many as there are agents at its start.
+        """
         paths = self._phase_paths(phase)
         count = int(sum(len(self._group_agents(path)) for path in paths) * phase.visits)
         try:
@@ -1506,7 +1611,10 @@ class MesaSolver(ExternalSolver):
             self.visit_ = (0, 0)
 
     def _run_phase(self, phase: PhaseSpec) -> None:
-        """Run the agent rules of a phase under its activation policy, then the system rules of the phase."""
+        """Run the agent rules of a phase under its activation policy.
+
+        Then the system rules of the phase run.
+        """
         if phase.activation == 'simultaneous':
             self.buffer_ = {}
         try:
@@ -1524,7 +1632,10 @@ class MesaSolver(ExternalSolver):
                 rule.function(system)
 
     def _remember(self) -> None:
-        """Shift the past values of the states with lags of every agent, at the end of a step."""
+        """Shift the past values of the states with lags of every agent.
+
+        This happens at the end of a step.
+        """
         for agent in self.system_.agents:
             for name, lags in self._lags[self._spec_of(agent).path].items():
                 for index in range(lags, 1, -1):
@@ -1532,7 +1643,9 @@ class MesaSolver(ExternalSolver):
                 setattr(agent, f'{name}_lag1', getattr(agent, name))
 
     def _set_parameter(self, name: str, value: float) -> None:
-        """Set a parameter during a step, so the rules read it at once and the trajectory records it.
+        """Set a parameter during a step.
+
+        The rules read it at once and the trajectory records it.
 
         Args:
             name:
@@ -1628,7 +1741,10 @@ class MesaSolver(ExternalSolver):
 
     @staticmethod
     def _rules_of(laws: Iterable[BaseLaw]) -> list[RuleLaw]:
-        """Return the rules among laws, which the compiled agents and the system rules hold alone."""
+        """Return the rules among laws.
+
+        The compiled agents and the system rules hold them alone.
+        """
         return [law for law in laws if isinstance(law, RuleLaw)]
 
     @staticmethod
@@ -1638,7 +1754,10 @@ class MesaSolver(ExternalSolver):
 
     @staticmethod
     def _declared_phases(system: System) -> list[PhaseSpec]:
-        """Return the phases of the schedules of a system and its nested systems, the first of every name kept."""
+        """Return the phases of the schedules of a system and its nested systems.
+
+        The first phase of every name is kept.
+        """
         time = system.time
         schedule = time.prepare().schedule_ if isinstance(time, DiscreteTime) else None
         phases = list(schedule.phases) if isinstance(schedule, PhasesScheduleSpec) else []
@@ -1651,7 +1770,10 @@ class MesaSolver(ExternalSolver):
 
     @staticmethod
     def _phase_plan(phases: Sequence[PhaseSpec], problem: ProblemSpec) -> list[PhaseSpec] | None:
-        """Return the phases of a step with the default phase, or `None` when no phase is declared or named."""
+        """Return the phases of a step with the default phase.
+
+        It returns `None` when no phase is declared or named.
+        """
         rules = MesaSolver._rules_of(
             [*(rule for spec in problem.agents for rule in spec.rules), *(rule for _, rule in problem.system_rules)],
         )
@@ -1679,7 +1801,10 @@ class MesaSolver(ExternalSolver):
         reporters: Mapping[str, Callable[[mesa.Agent], object]],
         spec: CompiledAgentsSpec,
     ) -> AgentSnapshotSpec:
-        """Return the ids, reported values, and locations of agents, one value per agent for a state of objects."""
+        """Return the ids, reported values, and locations of agents.
+
+        A state of objects gives one value per agent.
+        """
         agents = sorted(agents, key=lambda agent: agent.unique_id)
         ids = np.array([agent.unique_id for agent in agents], dtype=np.int64)
         values = {
@@ -1701,7 +1826,10 @@ class MesaSolver(ExternalSolver):
 
     @staticmethod
     def _state_property(name: str) -> property:
-        """Return the property of a state of agents, which sets the agent at the end of a simultaneous phase."""
+        """Return the property of a state of agents.
+
+        The property sets the agent at the end of a simultaneous phase.
+        """
 
         def read(view: AgentView) -> object:
             return getattr(view._agent, name)
@@ -1727,7 +1855,10 @@ class MesaSolver(ExternalSolver):
 
     @staticmethod
     def _view_class(spec: CompiledAgentsSpec) -> type[AgentView]:
-        """Return the class of the views of a group's agents, with a property per state and parameter."""
+        """Return the class of the views of a group's agents.
+
+        The class has a property per state and parameter.
+        """
         names: dict[str, object] = {
             name: MesaSolver._parameter_property(name, entry)
             for name, entry in spec.parameters.items()
@@ -1743,7 +1874,10 @@ class MesaSolver(ExternalSolver):
 
     @staticmethod
     def _counted(value: object) -> Hashable:
-        """Return the key that counts a value of a state: a float for a number, and an object as it is."""
+        """Return the key that counts a value of a state.
+
+        It is a float for a number, and an object as it is.
+        """
         if isinstance(value, numbers.Real):
             return float(value)
         if not isinstance(value, Hashable):
@@ -1753,7 +1887,10 @@ class MesaSolver(ExternalSolver):
 
     @staticmethod
     def _member_of(spec: CompiledAgentsSpec, name: str, value: object, index: int) -> object:
-        """Return the initial value of one agent: of a list of one object per agent, or of one shared value."""
+        """Return the initial value of one agent.
+
+        It comes from a list of one object per agent, or from one shared value.
+        """
         if name not in spec.objects:
             return MesaSolver._member_value(value, index, spec.size)
         return value[index] if isinstance(value, list | np.ndarray) and len(value) == spec.size else value
@@ -1774,7 +1911,10 @@ class MesaSolver(ExternalSolver):
 
     @staticmethod
     def _cell_key(location: object) -> object:
-        """Return a location as a hashable cell key, a tuple of grid coordinates or a network node."""
+        """Return a location as a hashable cell key.
+
+        The key is a tuple of grid coordinates or a network node.
+        """
         if isinstance(location, np.ndarray | list | tuple):
             values = np.asarray(location).tolist()
             return tuple(values) if isinstance(values, list) else values
@@ -1782,7 +1922,10 @@ class MesaSolver(ExternalSolver):
 
     @staticmethod
     def _check_variable(spec: CompiledAgentsSpec, action: str) -> None:
-        """Raise an error when a rule changes the size of an agent element or of a group that is not variable."""
+        """Raise an error when a rule changes the size of a fixed agent element or group.
+
+        Groups that are not variable have a fixed size.
+        """
         if isinstance(spec.element, GroupElement) and spec.element.variable:
             return
         error_msg = (
@@ -1794,7 +1937,10 @@ class MesaSolver(ExternalSolver):
 
     @staticmethod
     def _location_of(agent: mesa.Agent) -> object:
-        """Return the location of a Mesa agent: grid coordinates, a network node, a position, or `None`."""
+        """Return the location of a Mesa agent.
+
+        It is grid coordinates, a network node, a position, or `None`.
+        """
         cell = getattr(agent, 'cell', None)
         if cell is not None:
             return cell.coordinate
@@ -1805,7 +1951,10 @@ class MesaSolver(ExternalSolver):
 
     @staticmethod
     def _view_of(agent: mesa.Agent) -> AgentView:
-        """Return the view of an agent, which the stepper creates with the agent."""
+        """Return the view of an agent.
+
+        The stepper creates the view with the agent.
+        """
         view = vars(agent)['view_']
         if not isinstance(view, AgentView):
             error_msg = f'The agent holds a {type(view).__name__}, not the view the stepper creates with it.'

@@ -1,4 +1,7 @@
-"""Quantify recurrences of embedded series: recurrence matrices, line structures, and their statistics."""
+"""Quantify recurrences of embedded series.
+
+The module gives recurrence matrices, line structures, and their statistics.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -190,7 +193,10 @@ def _radius_for_rate(array: Array, rate: float, random_state: int | None) -> flo
 
 
 def _recurrence_matrix(array: Array, radius: float) -> sparse.csr_array:
-    """Return the symmetric boolean recurrence matrix of points, true where two lie within a radius."""
+    """Return the symmetric boolean recurrence matrix of points.
+
+    It is true where two lie within a radius.
+    """
     tree = cKDTree(array)
     pairs = tree.query_pairs(radius, output_type='ndarray')
     size = array.shape[0]

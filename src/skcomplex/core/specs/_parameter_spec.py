@@ -13,10 +13,11 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class ParameterSpec(BaseSpec):
-    """Spec of a parameter of an element or an interaction, in the annotation of an argument of its constructor.
+    """Spec of a parameter of an element or an interaction.
 
-    The default of the argument is the default of the parameter. A parameter per entry of a variadic role holds one
-    value per entry of the role, and an adaptive parameter is a state that laws may change, such as a policy rate.
+    It is given in the annotation of an argument of its constructor. The default of the argument is the default of the
+    parameter. A parameter per entry of a variadic role holds one value per entry of the role, and an adaptive parameter
+    is a state that laws may change, such as a policy rate.
 
     Args:
         domain:
@@ -55,7 +56,9 @@ class ParameterSpec(BaseSpec):
     shape: tuple[str, ...] | None = None
 
     def _check(self) -> None:
-        """Raise an error for a parameter per role that is a vector or adaptive, for invalid bounds, or a bad shape.
+        """Raise an error for an invalid parameter per role, bad bounds, or a bad shape.
+
+        A parameter per role must not be a vector or adaptive.
 
         Raises:
             ValidationError:

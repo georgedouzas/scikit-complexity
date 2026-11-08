@@ -20,7 +20,9 @@ OPERATORS = ('laplacian', 'partial', 'inverse_helmholtz')
 
 @dataclass(frozen=True, eq=False)
 class LinearTermSpec(BaseSpec):
-    """Term of the rate of a field state that applies a chain of operators to a state, times a constant coefficient.
+    """Term of the rate of a field state that applies a chain of operators to a state.
+
+    The term is multiplied by a constant coefficient.
 
     Args:
         target:

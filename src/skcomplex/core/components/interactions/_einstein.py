@@ -1,4 +1,7 @@
-"""Define Einstein interactions, the field equations of a metric reduced by an ansatz to equations of its unknowns."""
+"""Define Einstein interactions.
+
+They are the field equations of a metric reduced by an ansatz to equations of its unknowns.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -26,13 +29,14 @@ MAX_ORDER = 2
 
 
 class EinsteinInteraction(Interaction):
-    """Einstein equations `G^mu_nu + Λ δ^mu_nu = κ T^mu_nu` of a metric ansatz, reduced to rate laws of its unknowns.
+    """Einstein equations `G^mu_nu + Λ δ^mu_nu = κ T^mu_nu` of a metric ansatz.
 
-    The metric of the space is an ansatz: a symmetric matrix whose unknowns are symbolic functions of the coordinates,
-    each named after a state or a parameter of the target, such as the scale factor `a(t)` of a homogeneous universe or
-    the areal radius `R(t, r)` of the shells of a spherical dust ball. The interaction takes the mixed Einstein tensor
-    `G^mu_nu = g^(mu lambda) G_(lambda nu)` the space derives, keeps one component `(mu, nu)` per state, and solves
-    these equations, linear in the second time derivatives, for them, which gives one rate law per state of order 2.
+    The equations are reduced to rate laws of the unknowns of the ansatz. The metric of the space is an ansatz: a
+    symmetric matrix whose unknowns are symbolic functions of the coordinates, each named after a state or a parameter
+    of the target, such as the scale factor `a(t)` of a homogeneous universe or the areal radius `R(t, r)` of the shells
+    of a spherical dust ball. The interaction takes the mixed Einstein tensor `G^mu_nu = g^(mu lambda) G_(lambda nu)`
+    the space derives, keeps one component `(mu, nu)` per state, and solves these equations, linear in the second time
+    derivatives, for them, which gives one rate law per state of order 2.
 
     The time coordinate becomes the time of the system, a derivative of an unknown along it the time derivative of its
     state, and a derivative along a coordinate that `axes` maps to an axis of the lattice of a field the derivative
@@ -152,7 +156,7 @@ class EinsteinInteraction(Interaction):
         return (self.states,) if isinstance(self.states, str) else tuple(self.states)
 
     def _check(self) -> None:
-        """Raise an error for states that are not names, components that do not match them, or a source.
+        """Raise an error for states not names, mismatched components, or a source.
 
         Raises:
             ValidationError:
@@ -218,7 +222,7 @@ class EinsteinInteraction(Interaction):
         member: SimpleNamespace,
         accelerations: Mapping[int, Mapping[str, Expression]],
     ) -> Expression:
-        """Return the state derivative that a derivative of a function of the ansatz stands for.
+        """Return the state derivative a derivative of a function of the ansatz stands for.
 
         Args:
             item:
@@ -276,7 +280,9 @@ class EinsteinInteraction(Interaction):
         namespace: SimpleNamespace,
         accelerations: Mapping[int, Mapping[str, Expression]],
     ) -> Expression:
-        """Return an entry of the Einstein tensor in the symbols of the namespace, checking that it reduces.
+        """Return an entry of the Einstein tensor in the symbols of the namespace.
+
+        It checks that the entry reduces.
 
         Args:
             expression:
@@ -329,7 +335,9 @@ class EinsteinInteraction(Interaction):
         return matrix(SR, self.source(namespace))
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
-        """Return the rate law of the second derivative of every state, solved from the chosen equations.
+        """Return the rate law of the second derivative of every state.
+
+        It is solved from the chosen equations.
 
         Args:
             namespace:

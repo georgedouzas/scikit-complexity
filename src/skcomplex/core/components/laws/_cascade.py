@@ -1,4 +1,7 @@
-"""Define cascade laws, a slow drive followed by fast updates until a lattice is stable."""
+"""Define cascade laws.
+
+A cascade is a slow drive followed by fast updates until a lattice is stable.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,11 +15,12 @@ from ._base import BaseLaw
 
 
 class CascadeLaw(BaseLaw):
-    """Cascade of a lattice: drive laws once per step, then the laws that relax it until it is stable.
+    """Cascade of a lattice.
 
-    Every cascade that changes the lattice is recorded as an event with its size, the number of site updates, its
-    duration, the number of iterations, and its area, the number of distinct sites updated. A site update is a site
-    that changes in an iteration, or a site that `activity` marks as active before it, such as a toppling site.
+    Drive laws run once per step, then the laws that relax it run until it is stable. Every cascade that changes the
+    lattice is recorded as an event with its size, the number of site updates, its duration, the number of iterations,
+    and its area, the number of distinct sites updated. A site update is a site that changes in an iteration, or a site
+    that `activity` marks as active before it, such as a toppling site.
 
     Args:
         drive:
@@ -74,7 +78,7 @@ class CascadeLaw(BaseLaw):
 
     @classmethod
     def _get_requirements(cls) -> RequirementSpec:
-        """Return what the cascade requires of a system: discrete time on a lattice or a network."""
+        """Return what the cascade requires: discrete time on a lattice or a network."""
         return RequirementSpec(time=(DiscreteTime,), space=(LatticeSpace, NetworkSpace))
 
     def _check(self) -> None:

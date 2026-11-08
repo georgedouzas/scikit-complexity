@@ -1,4 +1,7 @@
-"""Crank-Nicolson for the linear part with a Heun predictor-corrector for the remainder, of second order."""
+"""Crank-Nicolson for the linear part with a Heun predictor-corrector.
+
+The predictor-corrector handles the remainder, and the scheme is of second order.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -8,10 +11,11 @@ from ._split import SplitSolver
 
 
 class CrankNicolsonSolver(SplitSolver):
-    """Crank-Nicolson for the linear part with a Heun predictor-corrector for the remainder, of second order.
+    """Crank-Nicolson for the linear part with a Heun predictor-corrector.
 
-    The predictor takes a Crank-Nicolson step with the remainder at the start, and the corrector repeats it with the
-    remainder averaged over the start and the predicted end. For linear fields it is the trapezoidal rule.
+    The predictor-corrector handles the remainder, and the scheme is of second order. The predictor takes a
+    Crank-Nicolson step with the remainder at the start, and the corrector repeats it with the remainder averaged over
+    the start and the predicted end. For linear fields it is the trapezoidal rule.
 
     Args:
         dt:

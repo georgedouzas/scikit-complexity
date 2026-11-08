@@ -1,4 +1,7 @@
-"""Pass that gives an ODE problem with a state of a fractional order among its owners the fractional form."""
+"""Pass that gives an ODE problem with a fractional state the fractional form.
+
+The fractional state is a state of a fractional order among its owners.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,7 +22,10 @@ from .._forms import _FORMS
 
 
 class FractionalFormPass(BasePass):
-    """Pass that gives an ODE problem with a state of a fractional order among its owners the fractional form."""
+    """Pass that gives an ODE problem with a fractional state the fractional form.
+
+    The fractional state is a state of a fractional order among its owners.
+    """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
@@ -85,7 +91,10 @@ class FractionalFormPass(BasePass):
 
     @staticmethod
     def _owned_fractional(compilation: Compilation) -> list[FractionalStateSpec]:
-        """Return the fractional states of the owners of a compilation that its layout declares, leaving out agents."""
+        """Return the fractional states of the owners that the layout declares.
+
+        Agents are left out.
+        """
         declared = {entry.name for entry in Compilation._required(compilation.layout, 'layout').states}
         owners = compilation.owners
         return [
@@ -100,7 +109,7 @@ class FractionalFormPass(BasePass):
         solver: object,
         backend: BaseBackend | None,
     ) -> list[IssueSpec]:
-        """Return the fractional states that the solver or the backend passed does not integrate."""
+        """Return the fractional states the solver or backend passed does not integrate."""
         issues = []
         for item in states:
             if solver is not None and OrderKind.FRACTIONAL not in BaseCompiler._support_of(type(solver)).orders:
@@ -119,7 +128,10 @@ class FractionalFormPass(BasePass):
 
     @staticmethod
     def _law_issues(states: list[FractionalStateSpec], records: list[CensusRecordSpec]) -> list[IssueSpec]:
-        """Return the laws on fractional states of a class that takes the problem off the ODE and fractional forms."""
+        """Return the laws on fractional states that take the problem off its forms.
+
+        The class of the law takes the problem off the ODE and fractional forms.
+        """
         names = {item.name for item in states}
         ode = set().union(*(kinds for kinds, form in _FORMS.items() if form == FormKind.ODE))
         others = tuple(set().union(*(kinds for kinds, form in _FORMS.items() if form != FormKind.ODE)) - ode)
@@ -139,7 +151,9 @@ class FractionalFormPass(BasePass):
 
     @staticmethod
     def _order_issues(compilation: Compilation) -> list[IssueSpec]:
-        """Return the fractional states with an order outside `(0, 1)`, a time that is not continuous, or no support.
+        """Return the fractional states with a bad order, time, or support.
+
+        The order is outside `(0, 1)`, the time is not continuous, or there is no support.
 
         Args:
             compilation:

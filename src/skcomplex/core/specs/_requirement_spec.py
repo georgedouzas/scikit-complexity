@@ -10,9 +10,9 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class RequirementSpec(BaseSpec):
-    """What a part requires of the system it is part of: the classes of time and of space it runs in.
+    """What a part requires of the system it is part of.
 
-    An empty field accepts any class.
+    It holds the classes of time and of space it runs in. An empty field accepts any class.
 
     Args:
         time:

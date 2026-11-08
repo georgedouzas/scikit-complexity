@@ -1,4 +1,7 @@
-"""What runs a system: compilation, problems, solvers, backends, runtime, and visualization."""
+"""What runs a system.
+
+It holds compilation, problems, solvers, backends, runtime, and visualization.
+"""
 
 from . import problems
 

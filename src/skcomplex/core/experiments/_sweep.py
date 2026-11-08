@@ -1,4 +1,7 @@
-"""Run a system over values of its model parameters, initial states, and parameters of its parts."""
+"""Run a system over values of its parameters and initial states.
+
+The values are those of its model parameters, initial states, and parameters of its parts.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -33,11 +36,11 @@ def sweep(
     random_state: int | None = None,
     executor: str | Executor = 'serial',
 ) -> ExperimentResult:
-    """Return the runs of a system over rows of values, in the role of `validation_curve` of scikit-learn.
+    """Return the runs of a system over rows of values.
 
-    A name without a dot is a model parameter, set on a copy of the system with `set_params`, or passed to the
-    factory. A dotted path names an initial state or a parameter of a part, such as `population.n` or `growth.r`,
-    which keeps its value for the whole run. The rows come from the design:
+    It is in the role of `validation_curve` of scikit-learn. A name without a dot is a model parameter, set on a copy of
+    the system with `set_params`, or passed to the factory. A dotted path names an initial state or a parameter of a
+    part, such as `population.n` or `growth.r`, which keeps its value for the whole run. The rows come from the design:
 
     - `'grid'`: every combination of a sequence of values per name, the last name varying fastest.
     - `'random'`: `n` independent samples, uniform within a pair `(low, high)` or drawn from a SciPy distribution.

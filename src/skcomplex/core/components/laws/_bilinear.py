@@ -1,4 +1,7 @@
-"""Define bilinear laws, gains and losses of a density at the rate of the product of two densities."""
+"""Define bilinear laws.
+
+They are gains and losses of a density at the rate of the product of two densities.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,12 +17,12 @@ from ._base import BaseLaw
 
 
 class BilinearLaw(BaseLaw):
-    """Gain or loss of a target density at a signed rate of the product of two densities.
+    """Gain or loss of a target density at a signed rate of a product of densities.
 
-    The amount of the first density `f` in class `h` that meets the amount of the second density `g` in class `k` adds
-    to class `i` of the target at the rate `r[h, k]` with probability `B[h, k, i]`, so the law adds
-    `sum_hk r[h, k] B[h, k, i] f_h g_k` to the rate of the target at `i`. A positive rate gives a gain that leaves the
-    first density in place, and a negative rate with the first density as the target gives a loss.
+    The product is of two densities. The amount of the first density `f` in class `h` that meets the amount of the
+    second density `g` in class `k` adds to class `i` of the target at the rate `r[h, k]` with probability `B[h, k, i]`,
+    so the law adds `sum_hk r[h, k] B[h, k, i] f_h g_k` to the rate of the target at `i`. A positive rate gives a gain
+    that leaves the first density in place, and a negative rate with the first density as the target gives a loss.
 
     Args:
         target:
@@ -74,18 +77,23 @@ class BilinearLaw(BaseLaw):
 
     @classmethod
     def _get_requirements(cls) -> RequirementSpec:
-        """Return what the law requires of a system: continuous time on lattices of classes."""
+        """Return what the law requires: continuous time on lattices of classes."""
         return RequirementSpec(time=(ContinuousTime,), space=(LatticeSpace,))
 
     def _check(self) -> None:
-        """Raise an error for a rate or outcome table of the wrong dimensions, or whose class counts disagree."""
+        """Raise an error for a rate or outcome table of the wrong dimensions.
+
+        It also raises it when their class counts disagree.
+        """
         self._check_table('rate', (0, 2))
         if self.outcomes is not None:
             self._check_table('outcomes', (3,))
         self._check_outcomes('rate', 'outcomes')
 
     def _run(self, inputs: object) -> None:
-        """Set `value_` to the rate and the outcome table at given values of the symbols they read.
+        """Set `value_` to the rate and the outcome table at given symbol values.
+
+        The values are those of the symbols they read.
 
         Args:
             inputs:

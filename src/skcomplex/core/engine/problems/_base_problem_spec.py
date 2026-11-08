@@ -27,11 +27,11 @@ from ._transfer_network_spec import TransferNetworkSpec
 
 @dataclass(frozen=True)
 class BaseProblemSpec(BaseSpec):
-    """Base of the problems a system compiles to: what every solver, observer, and visual reads of one.
+    """Base of the problems a system compiles to.
 
-    A problem is a value. Its fields hold what the runtime reads, with trivial defaults for what a form does not have,
-    and its readers answer the runtime's questions, trivially by default. A formalism's problem adds the fields its
-    own solver reads.
+    It holds what every solver, observer, and visual reads of a problem. A problem is a value. Its fields hold what the
+    runtime reads, with trivial defaults for what a form does not have, and its readers answer the runtime's questions,
+    trivially by default. A formalism's problem adds the fields its own solver reads.
 
     Args:
         form:
@@ -125,21 +125,32 @@ class BaseProblemSpec(BaseSpec):
 
     @property
     def partition_problems(self) -> tuple[BaseProblemSpec, ...]:
-        """Problems of the partitions of a co-simulation problem, none for a problem of one form."""
+        """Problems of the partitions of a co-simulation problem.
+
+        A problem of one form has none.
+        """
         return ()
 
     @property
     def stochastic(self) -> bool:
-        """Whether the problem draws random values, so its solver takes the random number generator."""
+        """Whether the problem draws random values.
+
+        A problem that draws them has a solver that takes the random number generator.
+        """
         return False
 
     @property
     def adaptive_parameters(self) -> dict[str, VariableSpec]:
-        """Declarations of the adaptive parameters, states that a schedule may set, by dotted state name."""
+        """Declarations of the adaptive parameters, by dotted state name.
+
+        Adaptive parameters are states that a schedule may set.
+        """
         return {}
 
     def lattice_shape(self, name: str) -> tuple[int, ...] | None:
-        """Return the lattice shape of a state that lives on the sites of a lattice, or `None` for other states.
+        """Return the lattice shape of a state that lives on the sites of a lattice.
+
+        Other states return `None`.
 
         Args:
             name:

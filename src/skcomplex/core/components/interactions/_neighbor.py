@@ -13,14 +13,14 @@ from ._base import BaseInteraction
 
 
 class NeighborInteraction(BaseInteraction):
-    """Base class of interactions whose laws run once for every edge of the network of the nodes a role binds.
+    """Base class of interactions whose laws run once for every edge.
 
-    A role binds a group with one member per node or site, and a second role may bind a group on the edges of the same
-    network and layer. The laws are written for one edge and read `namespace.source` and `namespace.target`, the
-    members at both ends, `namespace.edge`, the member of the edge group, and the parameters. On a directed graph the
-    ends follow the direction of the edge, and on an undirected graph the source comes first in node order. Rate,
-    noise, and jump laws may target any of them, and update laws the edge member. `delayed` reads the past state of
-    either end.
+    The edges are those of the network of the nodes a role binds. A role binds a group with one member per node or site,
+    and a second role may bind a group on the edges of the same network and layer. The laws are written for one edge and
+    read `namespace.source` and `namespace.target`, the members at both ends, `namespace.edge`, the member of the edge
+    group, and the parameters. On a directed graph the ends follow the direction of the edge, and on an undirected graph
+    the source comes first in node order. Rate, noise, and jump laws may target any of them, and update laws the edge
+    member. `delayed` reads the past state of either end.
 
     On fixed edges, `namespace.source.degree` and `namespace.target.degree` are the degrees of the ends, the number of
     edges of the layer at every node, both ways on a directed graph. A law that reads no edge member and, outside its

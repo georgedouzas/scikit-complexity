@@ -86,7 +86,10 @@ class Trajectory:
         self.structures = structures
 
     def _present(self, name: str, values: AnyArray) -> AnyArray:
-        """Return the values of a variable with NaN in the rows of a variable group that hold no member at a frame."""
+        """Return the values of a variable with NaN where a group holds no member.
+
+        The NaN fill the rows of a variable group that hold no member at a frame.
+        """
         topology = self.problem.topology
         if topology is None or topology.presence(name, self.parameters[0]) is None:
             return values
@@ -131,7 +134,9 @@ class Trajectory:
         raise KeyError(error_msg)
 
     def member(self, index: int, problem: BaseProblemSpec) -> 'Trajectory':
-        """Return the trajectory of one member of a replicated system, as a trajectory of the original system.
+        """Return the trajectory of one member of a replicated system.
+
+        It is a trajectory of the original system.
 
         Args:
             index:
@@ -180,13 +185,18 @@ class Trajectory:
 
     @property
     def names(self) -> list[str]:
-        """Names of the states, parameters, reporters, and observables that `values` reads."""
+        """Names that `values` reads.
+
+        They are the names of the states, parameters, reporters, and observables.
+        """
         reporters = list(self.reporters[0]) if self.reporters else []
         observables = list(self.observables[0]) if self.observables else []
         return [*self.problem.states.names, *self.problem.parameters.names, *reporters, *observables]
 
     def agent_locations(self, group: str) -> list[AnyArray]:
-        """Return the locations of the agents of a group, one array per frame with one row per agent alive.
+        """Return the locations of the agents of a group.
+
+        There is one array per frame with one row per agent alive.
 
         Args:
             group:
@@ -232,7 +242,9 @@ class Trajectory:
         return self.values(name).reshape(len(self.times), *shape, *self.problem.states.entry(name).member_shape)
 
     def agents(self, group: str, frame: int) -> AgentSnapshotSpec:
-        """Return the agents of a group alive at a frame, with their ids, states, and locations.
+        """Return the agents of a group alive at a frame.
+
+        They come with their ids, states, and locations.
 
         Args:
             group:
@@ -256,7 +268,9 @@ class Trajectory:
         return groups[group]
 
     def network(self, frame: int, nodes: str | None = None, layer: str | None = None) -> NetworkSnapshotSpec:
-        """Return the nodes and edges of a network whose topology changes, as they are at a frame.
+        """Return the nodes and edges of a changing network at a frame.
+
+        The network is one whose topology changes.
 
         Args:
             frame:

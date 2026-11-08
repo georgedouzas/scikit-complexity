@@ -16,7 +16,9 @@ SCHEDULES = ('synchronous', 'random-sequential')
 
 
 class DiscreteTime(BaseTime):
-    """Discrete time, in which updates, rules, local rules, rewrites, and samples change the states every step.
+    """Discrete time, in which the states change every step.
+
+    They change by updates, rules, local rules, rewrites, and samples.
 
     Args:
         schedule:

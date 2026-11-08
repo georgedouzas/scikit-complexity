@@ -13,9 +13,10 @@ from ._base import BaseObserver
 
 
 class InvariantObserver(BaseObserver):
-    """Observer that checks at every frame that every named observable stays within its tolerance of its first value.
+    """Observer that checks that every named observable stays near its first value.
 
-    A simulation attaches one when it is given invariants.
+    At every frame each observable must stay within its tolerance of its first value. A simulation attaches one when it
+    is given invariants.
 
     Args:
         invariants:
@@ -45,7 +46,10 @@ class InvariantObserver(BaseObserver):
         self.invariants = invariants
 
     def _check(self) -> None:
-        """Raise an error unless every invariant names an observable with a nonnegative tolerance."""
+        """Raise an error for an invariant without observable or with a negative tolerance.
+
+        Every invariant must name an observable with a nonnegative tolerance.
+        """
         if not isinstance(self.invariants, Mapping):
             error_msg = f'invariants = {self.invariants!r} must map the path of every observable to its tolerance.'
             raise ValidationError(error_msg)

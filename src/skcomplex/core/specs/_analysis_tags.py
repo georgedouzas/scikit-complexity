@@ -1,4 +1,7 @@
-"""Define the tags an analysis needs: the kind of data it reads and the capability tags of the system behind it."""
+"""Define the tags an analysis needs.
+
+They are the kind of data it reads and the capability tags of the system behind it.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,11 +18,12 @@ from ._tags import RANDOMNESS, SPACES, TIMES, Tags
 
 @dataclass(frozen=True)
 class AnalysisTags(BaseSpec):
-    """Tags an analysis needs: the kind of data it reads and the capability tags of the system that produced it.
+    """Tags an analysis needs.
 
-    An analysis module declares its tags as the module constant `TAGS`, and a family of kinds declares the tags of the
-    kinds that differ in `KIND_TAGS`, by kind. The capability tags are checked against the tags of a system, or of the
-    system behind a trajectory, before the analysis does any work. A field that is empty or `None` needs nothing.
+    They are the kind of data it reads and the capability tags of the system that produced it. An analysis module
+    declares its tags as the module constant `TAGS`, and a family of kinds declares the tags of the kinds that differ in
+    `KIND_TAGS`, by kind. The capability tags are checked against the tags of a system, or of the system behind a
+    trajectory, before the analysis does any work. A field that is empty or `None` needs nothing.
 
     Args:
         data:

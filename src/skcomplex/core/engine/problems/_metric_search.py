@@ -1,4 +1,7 @@
-"""Neighbours in a continuous space found from the positions at every evaluation with a k-d tree."""
+"""Neighbours in a continuous space found from the positions with a k-d tree.
+
+They are found at every evaluation.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,7 +23,9 @@ from ._base import BaseSearch
 
 
 class MetricSearch(BaseSearch):
-    """Neighbours in a continuous space found from the positions at every evaluation with a k-d tree.
+    """Neighbours in a continuous space found from the positions with a k-d tree.
+
+    They are found at every evaluation.
 
     Args:
         neighbourhood:
@@ -73,7 +78,9 @@ class MetricSearch(BaseSearch):
         return np.where(wrapped >= periods, wrapped - periods, wrapped)
 
     def differences(self, x: Array, readers: Indices, others: Indices) -> Array:
-        """Return the displacement from every reader to its neighbour, the minimum image in a periodic box.
+        """Return the displacement from every reader to its neighbour.
+
+        In a periodic box, it is the minimum image.
 
         Args:
             x:
@@ -142,7 +149,10 @@ class MetricSearch(BaseSearch):
 
     @staticmethod
     def _rows(readers: Indices, others: Indices, size: int) -> Pairs:
-        """Return the row starts and the neighbours, sorted by reader and then by neighbour, of a list of pairs."""
+        """Return the row starts and the neighbours of a list of pairs.
+
+        They are sorted by reader and then by neighbour.
+        """
         order = np.lexsort((others, readers))
         counts = np.bincount(readers, minlength=size)
         indptr = np.concatenate([np.zeros(1, dtype=np.intp), np.cumsum(counts)]).astype(np.intp)

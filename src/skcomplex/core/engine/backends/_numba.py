@@ -1,4 +1,7 @@
-"""Generate, compile, and cache Numba kernels and stepper loops from the kernels of a problem."""
+"""Generate, compile, and cache Numba kernels and stepper loops.
+
+They are generated from the kernels of a problem.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -101,10 +104,10 @@ from skcomplex.core.engine.problems._steps import step_count
 
 
 class NumbaBackend(BaseBackend):
-    """Backend that generates fused Numba kernels and compiled stepper loops, cached on disk.
+    """Backend that generates fused Numba kernels and compiled stepper loops.
 
-    Kinds of laws that contain a plain Python callable fall back to the NumPy functions, and the problem then has no
-    compiled stepper loops.
+    They are cached on disk. Kinds of laws that contain a plain Python callable fall back to the NumPy functions, and
+    the problem then has no compiled stepper loops.
 
     Args:
         cache_dir:
@@ -130,7 +133,10 @@ class NumbaBackend(BaseBackend):
 
     @classmethod
     def _get_support(cls) -> SupportSpec:
-        """Return the times, spaces, laws, noise, and orders the backend writes functions of."""
+        """Return what the backend writes functions of.
+
+        It is the times, spaces, laws, noise, and orders.
+        """
         return SupportSpec(
             time={ContinuousTime, DiscreteTime, StaticTime},
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
@@ -173,7 +179,9 @@ class NumbaBackend(BaseBackend):
         self.parallel = parallel
 
     def _run(self, inputs: LoweredKernelsSpec | None) -> None:
-        """Set the numeric functions of the form of the kernels, compiled with Numba where every law compiles.
+        """Set the numeric functions of the form of the kernels.
+
+        They are compiled with Numba where every law compiles.
 
         Args:
             inputs:
@@ -272,10 +280,10 @@ class NumbaBackend(BaseBackend):
         layout: tuple[np.ndarray, list[tuple[int, np.ndarray]]],
         reductions: ReductionScheduleSpec,
     ) -> LoweredFunctionsSpec:
-        """Return the lowering that binds the compiled functions to the layout, with NumPy fallbacks.
+        """Return the lowering that binds the compiled functions to the layout.
 
-        The layout comes with the orders drawn at every step and the start of their data in it, which a bound function
-        copies into the layout before every call.
+        It has NumPy fallbacks. The layout comes with the orders drawn at every step and the start of their data in it,
+        which a bound function copies into the layout before every call.
         """
         data, orders = layout
 
@@ -393,7 +401,10 @@ class NumbaBackend(BaseBackend):
 
     @staticmethod
     def _search_entries(search: object) -> dict[str, EntrySpec]:
-        """Return the entries a neighbourhood search reads, a changing layer's edges or positions and directions."""
+        """Return the entries a neighbourhood search reads.
+
+        They are a changing layer's edges, or positions and directions.
+        """
         if isinstance(search, EdgeRowSearch):
             return {entry.name: entry for entry in (search.source, search.target, search.active)}
         if not isinstance(search, MetricSearch):
@@ -440,7 +451,10 @@ class NumbaBackend(BaseBackend):
 
     @staticmethod
     def _is_compilable(kernel: LawKernel) -> bool:
-        """Check whether every output of a kernel can be compiled, so it has no Python callable."""
+        """Check whether every output of a kernel can be compiled.
+
+        An output that can be compiled has no Python callable.
+        """
         lattice = all(
             (
                 reference.source is not ReadKind.NEIGHBOR
@@ -462,7 +476,10 @@ class NumbaBackend(BaseBackend):
 
     @staticmethod
     def _reductions_compile(reductions: ReductionScheduleSpec) -> bool:
-        """Check whether every reduction prints in Numba's dialect, and no reduction runs shortest paths in NetworkX."""
+        """Check whether every reduction compiles with Numba.
+
+        Every reduction must print in Numba's dialect, and no reduction may run shortest paths in NetworkX.
+        """
         if any(reduction.function is not None for reduction in reductions.reductions):
             return False
         if any(neighbourhood.kind.startswith('path-') for neighbourhood in reductions.neighbourhoods):
@@ -479,7 +496,10 @@ class NumbaBackend(BaseBackend):
 
     @staticmethod
     def _noise_arrays(lowering: LoweredFunctionsSpec) -> tuple[object, ...]:
-        """Return the rows, columns, process count, and flattened covariance blocks of the noise of a lowering."""
+        """Return the arrays of the noise of a lowering.
+
+        They are the rows, columns, process count, and flattened covariance blocks.
+        """
         blocks = lowering.noise_blocks
         sizes = np.asarray([block.size for block in blocks], dtype=np.int64)
         offsets = np.concatenate([np.zeros(1, dtype=np.int64), np.cumsum(sizes**2)])[:-1].astype(np.int64)
@@ -496,7 +516,10 @@ class NumbaBackend(BaseBackend):
 
     @staticmethod
     def _channel_arrays(lowering: LoweredFunctionsSpec) -> tuple[np.ndarray, np.ndarray]:
-        """Return the state targets and increments of every jump channel, padded with -1 targets."""
+        """Return the state targets and increments of every jump channel.
+
+        They are padded with -1 targets.
+        """
         n_channels = sum(channels.size for channels in lowering.jumps)
         width = max((len(channels.increments) for channels in lowering.jumps), default=0)
         targets = np.full((n_channels, width), -1, dtype=np.int64)
@@ -510,7 +533,10 @@ class NumbaBackend(BaseBackend):
 
     @staticmethod
     def _unprinted_reduction(reductions: ReductionScheduleSpec) -> str | None:
-        """Return the first reduction that does not print in the scalar dialect, or `None` when every one prints."""
+        """Return the first reduction that does not print in the scalar dialect.
+
+        It returns `None` when every one prints.
+        """
         for reduction in reductions.reductions:
             if reduction.function is not None:
                 return f'the function reduction {reduction.argument}'
@@ -535,7 +561,9 @@ class NumbaBackend(BaseBackend):
         compiled: Mapping[type, bool],
         reductions: ReductionScheduleSpec,
     ) -> dict[str, str]:
-        """Warn once about the law kinds whose kernels the backend runs in Python, and return every kind's runner.
+        """Warn once about the kinds run in Python, and return the runners.
+
+        It warns about the kinds whose kernels run in Python and returns every kind's runner.
 
         Args:
             name:
@@ -569,11 +597,12 @@ class NumbaBackend(BaseBackend):
 
     @staticmethod
     def _helpers_fingerprint() -> str:
-        """Return a digest of the compiled helpers that generated kernels import and of the Numba version.
+        """Return a digest of the compiled helpers and of the Numba version.
 
-        Numba caches a kernel with the compiled helpers it calls, but checks only the kernel's own source, so a kernel
-        cached against other helpers, such as those of another version of the library, would run stale code. The digest
-        keys the cached kernels on the helpers too, and on the module of the step count that the stepper loops call.
+        The helpers are those that generated kernels import. Numba caches a kernel with the compiled helpers it calls,
+        but checks only the kernel's own source, so a kernel cached against other helpers, such as those of another
+        version of the library, would run stale code. The digest keys the cached kernels on the helpers too, and on the
+        module of the step count that the stepper loops call.
         """
         modules = (_numba_components, _numba_neighbours, _numba_stencils, sys.modules[step_count.__module__])
         sources = [inspect.getsource(module).encode() for module in modules]
@@ -581,11 +610,11 @@ class NumbaBackend(BaseBackend):
 
     @staticmethod
     def _load(text: str, functions: Mapping[str, object], cache_dir: str | Path | None) -> ModuleType:
-        """Return the module of generated kernel source, imported from a file in the cache directory.
+        """Return the module of generated kernel source.
 
-        Source without injected functions is cached by Numba. Source with injected functions, which Numba cannot
-        cache, is compiled uncached. The file starts with the fingerprint of the compiled helpers, so kernels compiled
-        against other helpers are cached apart.
+        It is imported from a file in the cache directory. Source without injected functions is cached by Numba. Source
+        with injected functions, which Numba cannot cache, is compiled uncached. The file starts with the fingerprint of
+        the compiled helpers, so kernels compiled against other helpers are cached apart.
 
         Args:
             text:

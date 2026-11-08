@@ -1,4 +1,7 @@
-"""Hold the results of experiments as tidy rows, kept series, ensembles, and summaries across replicates."""
+"""Hold the results of experiments.
+
+They are tidy rows, kept series, ensembles, and summaries across replicates.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,10 +19,11 @@ from ..specs._run_result_spec import _RunResultSpec
 
 @dataclass(frozen=True)
 class ExperimentResult:
-    """Results of an experiment: one row per run, the kept series, ensembles, and summaries across replicates.
+    """Results of an experiment.
 
-    `sweep`, `ensemble`, and `compare_scenarios` return it. Its rows form a tidy table, one row per run and one column
-    per value of the run, scenario, replicate, seed, and scalar output, which `to_frame` returns as a data frame.
+    They hold one row per run, the kept series, ensembles, and summaries across replicates. `sweep`, `ensemble`, and
+    `compare_scenarios` return it. Its rows form a tidy table, one row per run and one column per value of the run,
+    scenario, replicate, seed, and scalar output, which `to_frame` returns as a data frame.
 
     Args:
         runs:
@@ -37,7 +41,10 @@ class ExperimentResult:
 
     @property
     def rows(self) -> list[dict[str, object]]:
-        """One row per run with its design values, scenario, replicate, seed, and scalar outputs."""
+        """One row per run with its values and outputs.
+
+        A row holds its design values, scenario, replicate, seed, and scalar outputs.
+        """
         return [
             {**run.row, 'scenario': run.scenario, 'replicate': run.replicate, 'seed': run.seed, **run.scalars}
             for run in self.runs
@@ -57,7 +64,9 @@ class ExperimentResult:
         return np.asarray([row[name] for row in self.rows])
 
     def series(self, name: str) -> npt.NDArray[np.generic]:
-        """Return a kept series of every run, stacked when all runs have the same number of frames.
+        """Return a kept series of every run.
+
+        The series are stacked when all runs have the same number of frames.
 
         Args:
             name:
@@ -78,7 +87,9 @@ class ExperimentResult:
         self,
         name: str,
     ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64], npt.NDArray[np.int64]]:
-        """Return a kept series of every run interpolated on the times of the shortest run, with the seeds of the runs.
+        """Return a kept series of every run on common times, with the seeds of the runs.
+
+        The series are interpolated on the times of the shortest run.
 
         Args:
             name:
@@ -113,7 +124,9 @@ class ExperimentResult:
         return times, values, seeds
 
     def summary(self, quantiles: Sequence[float] = (0.05, 0.5, 0.95)) -> list[dict[str, object]]:
-        """Return the mean, standard deviation, and quantiles of every numeric scalar output per row and scenario.
+        """Return statistics of every numeric scalar output per row and scenario.
+
+        They are the mean, the standard deviation, and the quantiles.
 
         Args:
             quantiles:

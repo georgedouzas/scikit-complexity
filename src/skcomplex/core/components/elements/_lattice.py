@@ -1,4 +1,7 @@
-"""Define lattice groups, groups of elements with one member per site of a lattice or node of a network."""
+"""Define lattice groups.
+
+A lattice group has one member per site of a lattice or node of a network.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -77,7 +80,10 @@ class LatticeElement(GroupElement):
         super().__init__(label, element=element, values=values, visual=visual, space=space, on='sites')
 
     def _flatten_values(self) -> dict[str, object]:
-        """Return the values with mappings from node to value and arrays of the lattice shape as one row per site."""
+        """Return the values as one row per site.
+
+        Mappings from node to value and arrays of the lattice shape become rows.
+        """
         values = dict(self.values or {})
         if isinstance(self.space, NetworkSpace):
             nodes = list(self.space.graph.nodes)
@@ -95,9 +101,10 @@ class LatticeElement(GroupElement):
         }
 
     def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Set `size_`, the number of sites, `values_`, with one row per site, and `default_visual_`.
+        """Set `size_`, `values_`, and `default_visual_`.
 
-        The default visual is the visual of a member, or the default visual of the space when the member sets none.
+        The size is the number of sites, and the values have one row per site. The default visual is the visual of a
+        member, or the default visual of the space when the member sets none.
 
         Args:
             context:

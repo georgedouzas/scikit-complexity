@@ -1,4 +1,7 @@
-"""Define the spec of a class axis, a uniform grid over an interval or a periodic range."""
+"""Define the spec of a class axis.
+
+A class axis is a uniform grid over an interval or a periodic range.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,7 +14,9 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class AxisSpec(BaseSpec):
-    """Spec of a class axis of a phase space, a uniform grid of cells over a range of values.
+    """Spec of a class axis of a phase space.
+
+    A class axis is a uniform grid of cells over a range of values.
 
     Args:
         name:
@@ -42,7 +47,7 @@ class AxisSpec(BaseSpec):
     periodic: bool = False
 
     def _check(self) -> None:
-        """Raise an error for a name that is no identifier, a size below one, or an empty range.
+        """Raise an error for an invalid name, size, or range.
 
         Raises:
             ValidationError:

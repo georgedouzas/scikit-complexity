@@ -1,4 +1,7 @@
-"""Define a cardinality constraint, a bound on how many literals of the Boolean states of a group hold."""
+"""Define a cardinality constraint.
+
+A cardinality constraint bounds how many literals of the Boolean states of a group hold.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -43,7 +46,7 @@ class CardinalitySpec(BaseSpec):
     sense: str = 'at-least'
 
     def _check(self) -> None:
-        """Raise an error for a literal 0, a bound outside the number of literals, or an unknown sense.
+        """Raise an error for a literal 0, a bound out of range, or an unknown sense.
 
         Raises:
             ValidationError:

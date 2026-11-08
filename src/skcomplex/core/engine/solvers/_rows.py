@@ -1,4 +1,7 @@
-"""Rows of values at consecutive grid steps, kept in one array that grows or keeps only the latest rows."""
+"""Rows of values at consecutive grid steps, kept in one array.
+
+The array grows or keeps only the latest rows.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,7 +15,10 @@ _INITIAL_ROWS = 64
 
 
 class _Rows:
-    """Rows of values at consecutive grid steps, kept in one array that grows or keeps only the latest rows."""
+    """Rows of values at consecutive grid steps, kept in one array.
+
+    The array grows or keeps only the latest rows.
+    """
 
     def __init__(self, first: Array, keep: int | None) -> None:
         self.keep = keep
@@ -22,7 +28,10 @@ class _Rows:
         self.stop = 1
 
     def _make_room(self, size: int) -> None:
-        """Double the array of a whole history, or move the kept rows of a window to its front."""
+        """Double the array of a whole history.
+
+        For a window, the kept rows move to its front instead.
+        """
         if self.keep is None:
             grown = np.zeros((2 * size, self.values.shape[1]))
             grown[:size] = self.values

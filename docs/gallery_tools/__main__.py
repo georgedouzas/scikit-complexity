@@ -48,7 +48,10 @@ def _coverage(arguments: argparse.Namespace) -> int:
 
 
 def _run(arguments: argparse.Namespace) -> int:
-    """Run the selected examples in parallel and capture their screenshots into the cache."""
+    """Run the selected examples in parallel.
+
+    Their screenshots are captured into the cache.
+    """
     build = GalleryBuild(EXAMPLES, GALLERY, run_all=arguments.all, backend=arguments.backend)
     examples = build.selected()
     if arguments.names:

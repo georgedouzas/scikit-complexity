@@ -1,4 +1,7 @@
-"""Place series and fields on the complexity-entropy plane of their ordinal patterns."""
+"""Place series and fields on the complexity-entropy plane.
+
+The plane is that of their ordinal patterns.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,7 +24,9 @@ TAGS = AnalysisTags(DataKind.SERIES)
 
 @dataclass(frozen=True)
 class ComplexityResult:
-    """Place of every series of a source, or of every frame of a field, on Rosso's complexity-entropy plane.
+    """Place of series or field frames on Rosso's complexity-entropy plane.
+
+    It covers every series of a source, or every frame of a field.
 
     Args:
         values:
@@ -60,11 +65,12 @@ def complexity(
     ties: str = 'order',
     random_state: int | None = None,
 ) -> ComplexityResult:
-    """Return the place of every series of a source, or of every frame of a field, on Rosso's complexity-entropy plane.
+    """Return the place of series or field frames on Rosso's complexity-entropy plane.
 
-    The entropy is the normalized permutation entropy of the ordinal patterns, and the complexity is that entropy times
-    the Jensen-Shannon divergence of the patterns from uniform ones, computed with `ordpy`. Noise has entropy near 1 and
-    complexity near 0, regular series both near 0, and chaos lies in between with high complexity.
+    It covers every series of a source, or every frame of a field. The entropy is the normalized permutation entropy of
+    the ordinal patterns, and the complexity is that entropy times the Jensen-Shannon divergence of the patterns from
+    uniform ones, computed with `ordpy`. Noise has entropy near 1 and complexity near 0, regular series both near 0, and
+    chaos lies in between with high complexity.
 
     Args:
         source:

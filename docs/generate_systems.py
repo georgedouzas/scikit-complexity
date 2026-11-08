@@ -1,4 +1,7 @@
-"""Generate one page per system with its pattern, one index per field, the catalog, and the navigation."""
+"""Generate the system pages, the field indexes, the catalog, and the navigation.
+
+There is one page per system with its pattern, and one index per field.
+"""
 
 import ast
 import inspect
@@ -29,7 +32,10 @@ TAG_FIELDS = ('time', 'space', 'laws', 'randomness', 'domains', 'structure')
 
 
 def _listing(field: str | None = None) -> list[tuple[str, type[BaseSystem]]]:
-    """Return the gallery name and the class of every ready-made system, optionally of a field, sorted by name."""
+    """Return the gallery name and the class of every ready-made system.
+
+    The systems are optionally of a field, sorted by name.
+    """
     return [
         (name, system)
         for name, system in sorted(library_systems().items())
@@ -41,7 +47,10 @@ _BUILT: dict[str, BaseSystem] = {}
 
 
 def _built(system: type[BaseSystem]) -> BaseSystem:
-    """Return the system a class builds with its default parameters, built once for its tags and its page."""
+    """Return the system a class builds with its default parameters.
+
+    It is built once for its tags and its page.
+    """
     key = f'{system.__module__}.{system.__qualname__}'
     if key not in _BUILT:
         _BUILT[key] = system()
@@ -49,7 +58,10 @@ def _built(system: type[BaseSystem]) -> BaseSystem:
 
 
 def _tags(system: type[BaseSystem]) -> Tags:
-    """Return the capability tags of a system class, those of the system it builds with its default parameters."""
+    """Return the capability tags of a system class.
+
+    They are those of the system it builds with its default parameters.
+    """
     return _built(system).get_tags()
 
 
@@ -59,7 +71,10 @@ def _import_line(system: type[BaseSystem]) -> str:
 
 
 def _parameters(system: type[BaseSystem]) -> list[tuple[str, str]]:
-    """Return the name and the default of every model parameter of a system class, its label left out."""
+    """Return the name and the default of every model parameter of a system class.
+
+    The label is left out.
+    """
     parameters = list(inspect.signature(system.__init__).parameters.values())[1:]
     variadic = (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD)
     return [
@@ -70,7 +85,10 @@ def _parameters(system: type[BaseSystem]) -> list[tuple[str, str]]:
 
 
 def _default(value: object) -> str:
-    """Return the default of a parameter as a code span of one line, shortened when it is long."""
+    """Return the default of a parameter as a code span of one line.
+
+    It is shortened when it is long.
+    """
     text = ' '.join(repr(value).split())
     if len(text) > DEFAULT_WIDTH:
         text = f'{text[: DEFAULT_WIDTH - 3]}...'
@@ -78,7 +96,10 @@ def _default(value: object) -> str:
 
 
 def _tag_values(values: Iterable[str] | str | None, empty: str = 'any') -> str:
-    """Return the values of a tag as sorted code spans, `empty` for none, and `unknown` when it is not declared."""
+    """Return the values of a tag as sorted code spans.
+
+    They are `empty` for none, and `unknown` when the tag is not declared.
+    """
     if values is None:
         return 'unknown'
     found = [values] if isinstance(values, str) else sorted(values)
@@ -130,12 +151,18 @@ def _examples() -> dict[str, Example]:
 
 
 def _page_of(example: Example) -> str:
-    """Return the path of the gallery page of an example, relative to the documentation folder."""
+    """Return the path of the gallery page of an example.
+
+    It is relative to the documentation folder.
+    """
     return (GALLERY.generated_dir(example) / f'{example.path.stem}.md').relative_to(DOCS).as_posix()
 
 
 def _gallery_lines(name: str, examples: dict[str, Example]) -> list[str]:
-    """Return the screenshot of a system and the link to its example, for a page three folders below the docs."""
+    """Return the screenshot of a system and the link to its example.
+
+    They are for a page three folders below the docs.
+    """
     example = examples.get(name)
     if example is None:
         return []
@@ -149,7 +176,10 @@ def _gallery_lines(name: str, examples: dict[str, Example]) -> list[str]:
 
 
 def _component_types(system: System) -> list[type]:
-    """Return the element and interaction types of a system and its subsystems, in order of first use."""
+    """Return the element and interaction types of a system and its subsystems.
+
+    They are in order of first use.
+    """
     types: list[type] = []
     for component in [*system.elements, *system.interactions]:
         kind = getattr(component, 'element', None) or type(component)
@@ -161,7 +191,10 @@ def _component_types(system: System) -> list[type]:
 
 
 def _component_lines(kinds: list[type]) -> list[str]:
-    """Return the element and interaction classes of a system, each with its nearest class of the core."""
+    """Return the element and interaction classes of a system.
+
+    Each comes with its nearest class of the core.
+    """
     lines = []
     for title, base in (('Elements', BaseElement), ('Interactions', BaseInteraction)):
         found = [kind for kind in kinds if issubclass(kind, base)]
@@ -175,7 +208,10 @@ def _component_lines(kinds: list[type]) -> list[str]:
 
 
 def _selection_lines(system: type[BaseSystem]) -> list[str]:
-    """Return the block that imports a system class and simulates it with its tuned run settings."""
+    """Return the block that imports a system class and simulates it.
+
+    It simulates it with its tuned run settings.
+    """
     return [
         '## Use this system',
         '',
@@ -190,7 +226,10 @@ def _selection_lines(system: type[BaseSystem]) -> list[str]:
 
 
 def _class_source(kind: type) -> str:
-    """Return the source of an element or interaction type, its class statement or the assignment that builds it."""
+    """Return the source of an element or interaction type.
+
+    It is its class statement or the assignment that builds it.
+    """
     try:
         return inspect.getsource(kind)
     except (OSError, TypeError):
@@ -205,7 +244,10 @@ def _class_source(kind: type) -> str:
 
 
 def _equations(system: BaseSystem) -> str | None:
-    """Return the equations of a system as the symbolic layer shows them, or `None` for forms without equations."""
+    """Return the equations of a system as the symbolic layer shows them.
+
+    It returns `None` for forms without equations.
+    """
     tags = system.get_tags()
     if tags.space != {'none'} or not tags.laws or not tags.laws <= EQUATION_LAWS:
         return None
@@ -217,7 +259,10 @@ def _equations(system: BaseSystem) -> str | None:
 
 
 def _parameter_lines(system: type[BaseSystem]) -> list[str]:
-    """Return the model parameters of a system class with their defaults, which `set_params` changes."""
+    """Return the model parameters of a system class with their defaults.
+
+    `set_params` changes them.
+    """
     parameters = _parameters(system)
     lines = ['## Parameters', '']
     if not parameters:
@@ -227,14 +272,20 @@ def _parameter_lines(system: type[BaseSystem]) -> list[str]:
 
 
 def _tag_lines(system: type[BaseSystem]) -> list[str]:
-    """Return the capability tags of a system class, which `get_tags()` returns and solvers and analyses check."""
+    """Return the capability tags of a system class.
+
+    `get_tags()` returns them, and solvers and analyses check them.
+    """
     tags = _tags(system)
     rows = ([name.capitalize(), _tag_cell(tags, name)] for name in TAG_FIELDS)
     return ['## Tags', '', *_table(['Tag', 'Values'], rows), '']
 
 
 def system_page(name: str, title: str, examples: dict[str, Example]) -> str:
-    """Return the page of one system: its screenshot, description, import, parameters, tags, class, and equations."""
+    """Return the page of one system.
+
+    It holds its screenshot, description, import, parameters, tags, class, and equations.
+    """
     system_class = library_systems()[name]
     built = _built(system_class)
     lines = [
@@ -270,7 +321,10 @@ def system_page(name: str, title: str, examples: dict[str, Example]) -> str:
 
 
 def field_page(field: str, titles: dict[str, str]) -> str:
-    """Return the index page of a field: the link and the description of every ready-made system, by subfield."""
+    """Return the index page of a field.
+
+    It holds the link and the description of every ready-made system, by subfield.
+    """
     entries = sorted(_listing(field), key=lambda entry: titles[entry[0]])
     lines = [
         f'# {_title(field)}',
@@ -290,7 +344,10 @@ def field_page(field: str, titles: dict[str, str]) -> str:
 
 
 def index_page(inventory: dict[str, Any]) -> str:
-    """Return the landing page of the systems: the link and the number of ready-made systems of every field."""
+    """Return the landing page of the systems.
+
+    It holds the link and the number of ready-made systems of every field.
+    """
     lines = [
         '# Systems',
         '',
@@ -307,12 +364,18 @@ def index_page(inventory: dict[str, Any]) -> str:
 
 
 def _catalog_entry(name: str, system: type[BaseSystem], titles: dict[str, str]) -> str:
-    """Return the line of a system in the catalog: its link, its class, and its description."""
+    """Return the line of a system in the catalog.
+
+    It holds its link, its class, and its description.
+    """
     return f'- [{titles[name]}]({system.field}/{name}.md) `{system.__name__}`: {_description(system)}'
 
 
 def _catalog_row(name: str, system: type[BaseSystem], titles: dict[str, str]) -> list[str]:
-    """Return the row of a system in the catalog: its link, its class, its parameters, and its capability tags."""
+    """Return the row of a system in the catalog.
+
+    It holds its link, its class, its parameters, and its capability tags.
+    """
     tags = _tags(system)
     parameters = ', '.join(f'`{parameter}`' for parameter, _ in _parameters(system)) or 'none'
     cells = [_tag_cell(tags, tag) for tag in ('time', 'space', 'laws', 'randomness')]
@@ -320,7 +383,9 @@ def _catalog_row(name: str, system: type[BaseSystem], titles: dict[str, str]) ->
 
 
 def catalog_page(inventory: dict[str, Any], titles: dict[str, str]) -> str:
-    """Return the catalog: every ready-made system by field and subfield, and again by topic.
+    """Return the catalog.
+
+    It lists every ready-made system by field and subfield, and again by topic.
 
     Args:
         inventory:
@@ -365,7 +430,9 @@ def catalog_page(inventory: dict[str, Any], titles: dict[str, str]) -> str:
 
 
 def main() -> None:
-    """Write the page of every system, the index of every field, the catalog, and the navigation, after the inventory.
+    """Write the system pages, field indexes, catalog, and navigation.
+
+    It writes the page of every system and the index of every field after the inventory.
 
     Raises:
         InventoryError:

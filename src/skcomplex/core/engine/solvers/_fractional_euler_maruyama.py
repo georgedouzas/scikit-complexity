@@ -1,4 +1,7 @@
-"""Euler-Maruyama integrator of stochastic differential equations driven by fractional and ordinary noise."""
+"""Euler-Maruyama integrator of SDEs driven by fractional and ordinary noise.
+
+SDEs are stochastic differential equations.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -38,12 +41,12 @@ _MAX_INCREMENTS = 100_000_000
 
 
 class FractionalEulerMaruyamaSolver(Solver):
-    """Euler-Maruyama integrator of stochastic differential equations driven by fractional and ordinary noise.
+    """Euler-Maruyama integrator of SDEs driven by fractional and ordinary noise.
 
-    The stepper draws the correlated increments of every fractional noise row for the whole run when it first advances,
-    on the grid `t0 + k dt` up to the horizon, and adds the stored increment of each step times the amplitude.
-    Ordinary noise rows take independent Wiener increments. A simulation passes the end time of its run as the
-    horizon when the stepper has none.
+    SDEs are stochastic differential equations. The stepper draws the correlated increments of every fractional noise
+    row for the whole run when it first advances, on the grid `t0 + k dt` up to the horizon, and adds the stored
+    increment of each step times the amplitude. Ordinary noise rows take independent Wiener increments. A simulation
+    passes the end time of its run as the horizon when the stepper has none.
 
     Args:
         dt:
@@ -159,7 +162,10 @@ class FractionalEulerMaruyamaSolver(Solver):
         return hurst
 
     def _draw(self, t: float, p: Array) -> npt.NDArray[np.float64]:
-        """Draw the scaled increments of every fractional noise row from a time up to the horizon."""
+        """Draw the scaled increments of every fractional noise row.
+
+        They are drawn from a time up to the horizon.
+        """
         horizon = self.horizon_
         if horizon is None or not math.isfinite(horizon):
             error_msg = (
@@ -193,7 +199,10 @@ class FractionalEulerMaruyamaSolver(Solver):
         return increments
 
     def _grid_index(self, time: float) -> int:
-        """Return the index of a time on the grid of the drawn increments, after checking that it lies on it."""
+        """Return the index of a time on the grid of the drawn increments.
+
+        The time is checked to lie on the grid.
+        """
         position = (time - self._origin) / self.dt
         index = round(position)
         if abs(position - index) > GRID_TOLERANCE * max(1.0, abs(position)):
@@ -206,7 +215,9 @@ class FractionalEulerMaruyamaSolver(Solver):
         return int(index)
 
     def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
-        """Integrate the drift and the noise from time `t` to time `until` on the grid of the drawn increments.
+        """Integrate the drift and the noise from time `t` to time `until`.
+
+        Integration runs on the grid of the drawn increments.
 
         Args:
             t:
@@ -271,11 +282,11 @@ class FractionalEulerMaruyamaSolver(Solver):
 
     @staticmethod
     def _fractional_gaussian_noise(n: int, hurst: float, size: int, rng: np.random.Generator) -> Array:
-        """Return paths of unit fractional Gaussian noise, the increments of fractional Brownian motion on a unit grid.
+        """Return paths of unit fractional Gaussian noise.
 
-        The paths come from the circulant embedding of Davies and Harte, whose only costly step is an FFT of
-        `scipy.fft`. When the embedding has a negative eigenvalue, the paths come from the Cholesky factor of the
-        covariance instead.
+        They are the increments of fractional Brownian motion on a unit grid. The paths come from the circulant
+        embedding of Davies and Harte, whose only costly step is an FFT of `scipy.fft`. When the embedding has a
+        negative eigenvalue, the paths come from the Cholesky factor of the covariance instead.
 
         Args:
             n:

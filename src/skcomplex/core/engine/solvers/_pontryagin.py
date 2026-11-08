@@ -1,4 +1,7 @@
-"""Solve optimal control problems by Pontryagin's principle, with symbolic costates and a forward-backward sweep."""
+"""Solve optimal control problems by Pontryagin's principle.
+
+It uses symbolic costates and a forward-backward sweep.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -31,15 +34,16 @@ _CONTROL_SUPPORT = SupportSpec(
 
 
 class PontryaginSolver(OptimalControlSolver):
-    """Optimal control by Pontryagin's principle, with costates and the stationarity condition derived symbolically.
+    """Optimal control by Pontryagin's principle.
 
-    The solver builds the Hamiltonian `H = L + λ · f` from the running cost `L` and the rates `f` of the states, and
-    derives the costate equations `λ' = -∂H/∂x` with `λ(T) = ∂φ/∂x` at the horizon `T` for the terminal cost `φ`. The
-    controls solve `∂H/∂u = 0`, projected onto their bounds, or take the bound that minimises `H` where `H` is linear
-    in them. A forward-backward sweep integrates the states forward and the costates backward with fourth-order
-    Runge-Kutta steps on a grid, and relaxes the controls towards their update until they converge. The weight of the
-    update halves whenever the distance of the controls to their update stops falling, which breaks the cycles of the
-    sweep. An objective to maximise is minimised with its sign changed. The solution holds the costates.
+    Its costates and the stationarity condition are derived symbolically. The solver builds the Hamiltonian `H = L + λ ·
+    f` from the running cost `L` and the rates `f` of the states, and derives the costate equations `λ' = -∂H/∂x` with
+    `λ(T) = ∂φ/∂x` at the horizon `T` for the terminal cost `φ`. The controls solve `∂H/∂u = 0`, projected onto their
+    bounds, or take the bound that minimises `H` where `H` is linear in them. A forward-backward sweep integrates the
+    states forward and the costates backward with fourth-order Runge-Kutta steps on a grid, and relaxes the controls
+    towards their update until they converge. The weight of the update halves whenever the distance of the controls to
+    their update stops falling, which breaks the cycles of the sweep. An objective to maximise is minimised with its
+    sign changed. The solution holds the costates.
 
     Args:
         objective:
@@ -138,7 +142,9 @@ class PontryaginSolver(OptimalControlSolver):
         self.until = until
 
     def _check(self) -> None:
-        """Raise an error for a missing objective, an unknown sense, too few nodes, or a bad relaxation.
+        """Raise an error for a missing objective, an unknown sense, or a bad setting.
+
+        Bad settings are too few nodes or a bad relaxation.
 
         Raises:
             SolverError:
@@ -156,7 +162,10 @@ class PontryaginSolver(OptimalControlSolver):
             raise ValidationError(error_msg)
 
     def _costates(self, times: Array, states: Array, controls: Array, p: Array) -> Array:
-        """Return the costates on a grid, integrated backward from the horizon by Runge-Kutta steps."""
+        """Return the costates on a grid.
+
+        They are integrated backward from the horizon by Runge-Kutta steps.
+        """
         costates = np.zeros_like(states)
         costates[-1] = self._final(times[-1], states[-1], controls[-1], p)
         for k in range(times.size - 1, 0, -1):
@@ -172,7 +181,10 @@ class PontryaginSolver(OptimalControlSolver):
         return costates
 
     def _update(self, times: Array, states: Array, controls: Array, costates: Array, p: Array) -> Array:
-        """Return the controls that minimise the Hamiltonian on a grid, within their bounds."""
+        """Return the controls that minimise the Hamiltonian on a grid.
+
+        They stay within their bounds.
+        """
         lower, upper = self.control_problem_.bounds
         values = self._law(times, states, controls, p, costates)
         if self._bang_bang:
@@ -180,7 +192,9 @@ class PontryaginSolver(OptimalControlSolver):
         return np.clip(values, lower, upper)
 
     def _set_up_control(self, control_problem: _ControlProblemSpec) -> None:
-        """Derive the costate equations, the terminal costates, and the control law symbolically.
+        """Derive the costate equations, the terminal costates, and the control law.
+
+        They are derived symbolically.
 
         Args:
             control_problem:
@@ -211,7 +225,9 @@ class PontryaginSolver(OptimalControlSolver):
         self._law: GridFunction = self._function(control_problem, law, costates)
 
     def _solve(self, x0: Array, p: Array, horizon: float) -> ControlSolutionSpec:
-        """Return the optimal solution by a forward-backward sweep with relaxed control updates.
+        """Return the optimal solution by a forward-backward sweep.
+
+        The sweep uses relaxed control updates.
 
         Args:
             x0:
@@ -268,12 +284,18 @@ class PontryaginSolver(OptimalControlSolver):
 
     @staticmethod
     def _is_linear(gradients: list[Expression], controls: list[Expression]) -> bool:
-        """Check whether no gradient of the Hamiltonian by a control depends on any control."""
+        """Check whether the Hamiltonian is linear in the controls.
+
+        It is when no gradient of the Hamiltonian by a control depends on any control.
+        """
         return all(gradient.diff(control).is_trivial_zero() for gradient in gradients for control in controls)
 
     @staticmethod
     def _stationary_controls(gradients: list[Expression], controls: list[Expression]) -> list[Expression]:
-        """Return the controls that make every gradient of the Hamiltonian vanish, solved symbolically."""
+        """Return the controls that make every gradient of the Hamiltonian vanish.
+
+        They are solved symbolically.
+        """
         solutions = solve([gradient == 0 for gradient in gradients], *controls, solution_dict=True)
         explicit = [
             solution
@@ -291,7 +313,10 @@ class PontryaginSolver(OptimalControlSolver):
 
     @staticmethod
     def _converged(tolerance: float, pairs: list[tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]]) -> bool:
-        """Check whether every new array differs from the old one by at most a relative tolerance in the sum norm."""
+        """Check whether every new array is close to the old one.
+
+        Close means a difference of at most a relative tolerance in the sum norm.
+        """
         return all(
             np.abs(new - old).sum() <= tolerance * max(np.abs(new).sum(), np.finfo(float).tiny) for new, old in pairs
         )

@@ -14,11 +14,12 @@ from ._problem_spec import ProblemSpec
 
 @dataclass(frozen=True)
 class LearningProblemSpec(BaseProblemSpec):
-    """Problem of a system that trains the adaptive parameters of a nested system by gradient steps, once per epoch.
+    """Problem of a system that trains the adaptive parameters of a nested system.
 
-    Its states are the trained parameters, named by their paths from the root, and its parameters are the
-    hyperparameters of the optimizer. The nested system is compiled to its own problem, a discrete map or ordinary
-    differential equations, which the solver unrolls over the sequences of the dataset.
+    It trains them by gradient steps, once per epoch. Its states are the trained parameters, named by their paths from
+    the root, and its parameters are the hyperparameters of the optimizer. The nested system is compiled to its own
+    problem, a discrete map or ordinary differential equations, which the solver unrolls over the sequences of the
+    dataset.
 
     Args:
         inner:

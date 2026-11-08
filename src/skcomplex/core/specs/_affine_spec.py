@@ -18,10 +18,11 @@ PLANE_DIMENSION = 2
 
 @dataclass(frozen=True)
 class AffineSpec(BaseSpec):
-    """Spec of an affine map of the plane: a reflection across the x axis, a rotation, a scale, and a translation.
+    """Spec of an affine map of the plane.
 
-    The scale, the rotation, and the translation can be expressions of the parameters of the element whose laws hold
-    the substitution, which are evaluated at every generation.
+    The map is a reflection across the x axis, a rotation, a scale, and a translation. The scale, the rotation, and the
+    translation can be expressions of the parameters of the element whose laws hold the substitution, which are
+    evaluated at every generation.
 
     Args:
         scale:
@@ -52,7 +53,9 @@ class AffineSpec(BaseSpec):
     matrix: npt.ArrayLike | None = None
 
     def _check(self) -> None:
-        """Raise an error for a translation that is not a point of the plane, or a matrix that is not 3 by 3.
+        """Raise an error for a translation or a matrix of the wrong shape.
+
+        The translation must be a point of the plane and the matrix must be 3 by 3.
 
         Raises:
             RewritingError:
@@ -68,9 +71,10 @@ class AffineSpec(BaseSpec):
             raise RewritingError(error_msg)
 
     def matrix_at(self, values: Mapping[object, float]) -> npt.NDArray[np.float64]:
-        """Return the homogeneous matrix of the map at values of the parameters its expressions read.
+        """Return the homogeneous matrix of the map at values of its parameters.
 
-        The map reflects across the x axis, rotates, scales, and translates, in this order.
+        The values are those of the parameters its expressions read. The map reflects across the x axis, rotates,
+        scales, and translates, in this order.
 
         Args:
             values:

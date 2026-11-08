@@ -1,4 +1,7 @@
-"""Neighbourhood reduction that laws read, one value per member, compiled into a function of its symbols."""
+"""Neighbourhood reduction that laws read, one value per member.
+
+It is compiled into a function of its symbols.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -52,7 +55,9 @@ _PLANE = 2
 
 
 class NeighborhoodKernel(BaseKernel):
-    """Neighbourhood reduction that laws read, one value per member, compiled into a function of its symbols.
+    """Neighbourhood reduction that laws read, one value per member.
+
+    It is compiled into a function of its symbols.
 
     Args:
         symbol:
@@ -135,7 +140,10 @@ class NeighborhoodKernel(BaseKernel):
 
     @property
     def symbols(self) -> list[Expression]:
-        """Symbols the argument and the weight read, in the order the compiled function takes them after time."""
+        """Symbols the argument and the weight read.
+
+        They come in the order the compiled function takes them after time.
+        """
         return list(self._symbols)
 
     @property
@@ -173,7 +181,10 @@ class NeighborhoodKernel(BaseKernel):
         return values
 
     def _run(self, inputs: RunStateSpec | None) -> None:
-        """Write the reduction of every member into the extended parameter vector of the state, the `p` of `inputs`."""
+        """Write the reduction of every member into the extended parameter vector.
+
+        The vector is the `p` of `inputs`.
+        """
         self.values_ = None
         state = self._state_of(inputs)
         t, x, q = state.t, state.x, state.p
@@ -197,7 +208,9 @@ class NeighborhoodKernel(BaseKernel):
         q[self.entry.indices] = self._reduce_pairs(self.kind, readers, weight, argument, counts)
 
     def _cached_paths(self, readers: Indices, others: Indices) -> Array:
-        """Return the shortest paths reduction of the active links, computed again only when the links changed.
+        """Return the shortest paths reduction of the active links.
+
+        It is computed again only when the links changed.
 
         Args:
             readers:
@@ -219,7 +232,9 @@ class NeighborhoodKernel(BaseKernel):
 
     @staticmethod
     def _paths_of(kind: str, readers: Indices, others: Indices, size: int) -> Array:
-        """Return the betweenness or the closeness of every member on the undirected graph of the active links.
+        """Return the betweenness or the closeness of every member.
+
+        They are taken on the undirected graph of the active links.
 
         Args:
             kind:
@@ -263,11 +278,11 @@ class NeighborhoodKernel(BaseKernel):
 
     @staticmethod
     def _components_of(kind: str, readers: Indices, others: Indices, size: int) -> Array:
-        """Return the label, the size, the largest size, or the membership of the giant component of every member.
+        """Return a giant component reduction of every member.
 
-        The components are those of the undirected graph of the active links. The label of a component is its smallest
-        member, and the giant component is the largest one, the one of the smallest label among components of equal
-        size.
+        The reduction is the label, the size, the largest size, or the membership of the giant component. The components
+        are those of the undirected graph of the active links. The label of a component is its smallest member, and the
+        giant component is the largest one, the one of the smallest label among components of equal size.
 
         Args:
             kind:
@@ -322,7 +337,9 @@ class NeighborhoodKernel(BaseKernel):
 
     @staticmethod
     def _reduce_pairs(kind: str, readers: Indices, weight: Array, argument: Array, counts: Indices) -> Array:
-        """Return the reduction of the weighted values of the pairs of every member, 0 for a member without neighbours.
+        """Return the reduction of the weighted values of the pairs of every member.
+
+        A member without neighbours gets 0.
 
         Args:
             kind:
@@ -385,7 +402,9 @@ class NeighborhoodKernel(BaseKernel):
 
     @staticmethod
     def _network_rows(space: NetworkSpace, neighborhood: AdjacencyNeighborhood) -> tuple[Indices, Indices, Indices]:
-        """Return the neighbours of every node of a layer in CSR form, successors on a directed graph, with their edges.
+        """Return the neighbours of every node of a layer in CSR form, with their edges.
+
+        On a directed graph, the neighbours are the successors.
 
         Args:
             space:
@@ -422,7 +441,9 @@ class NeighborhoodKernel(BaseKernel):
 
     @staticmethod
     def _lattice_rows(space: BaseSpace, neighborhood: LatticeNeighborhood | MemoryNeighborhood) -> Pairs:
-        """Return the neighbours of every site of a space in CSR form, in neighbourhood order, without outside sites.
+        """Return the neighbours of every site of a space in CSR form.
+
+        They come in neighbourhood order, without outside sites.
 
         Args:
             space:
@@ -452,7 +473,9 @@ class NeighborhoodKernel(BaseKernel):
     def _default_neighborhood(
         space: object,
     ) -> AdjacencyNeighborhood | LatticeNeighborhood | MemoryNeighborhood | None:
-        """Return the neighbourhood a reduction without one reads: a network's graph, or a lattice's or group's own.
+        """Return the neighbourhood that a reduction without one reads.
+
+        It is a network's graph, or a lattice's or group's own.
 
         Args:
             space:
@@ -479,7 +502,9 @@ class NeighborhoodKernel(BaseKernel):
 
     @staticmethod
     def _position_state(states: Mapping[str, VariableSpec]) -> str | None:
-        """Return the position state of an element type: the first vector state with the role position or site.
+        """Return the position state of an element type.
+
+        It is the first vector state with the role position or site.
 
         Args:
             states:
@@ -493,7 +518,9 @@ class NeighborhoodKernel(BaseKernel):
 
     @staticmethod
     def _cone_direction(cone: ConeNeighborhood, states: Mapping[str, VariableSpec], n_dim: int) -> str:
-        """Return the state that holds the direction of a cone: the named state, else the derivative of the position.
+        """Return the state that holds the direction of a cone.
+
+        It is the named state, else the derivative of the position.
 
         Args:
             cone:

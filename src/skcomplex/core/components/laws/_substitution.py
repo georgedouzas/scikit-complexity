@@ -1,4 +1,7 @@
-"""Define substitution laws, which replace the tiles of patches by placed pieces."""
+"""Define substitution laws.
+
+A substitution law replaces the tiles of patches by placed pieces.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,9 +18,10 @@ PIECE_SIZE = 2
 
 
 class SubstitutionLaw(BaseLaw):
-    """Substitution that replaces every tile of a prototile by pieces placed relative to the tile.
+    """Substitution that replaces every tile of a prototile by placed pieces.
 
-    A patch element returns its substitutions from `_get_laws`, and every generation applies all of them at once.
+    The pieces are placed relative to the tile. A patch element returns its substitutions from `_get_laws`, and every
+    generation applies all of them at once.
 
     Args:
         prototile:
@@ -50,7 +54,10 @@ class SubstitutionLaw(BaseLaw):
         self.pieces = pieces
 
     def _get_targets(self) -> tuple[object, ...]:
-        """Return no states, since a substitution rewrites the tiles of its element as a whole."""
+        """Return no states.
+
+        A substitution rewrites the tiles of its element as a whole.
+        """
         return ()
 
     @classmethod
@@ -59,7 +66,10 @@ class SubstitutionLaw(BaseLaw):
         return RequirementSpec(time=(DiscreteTime,))
 
     def _check(self) -> None:
-        """Raise an error for a piece that is not a pair of a prototile name and an affine map."""
+        """Raise an error for a piece that is not a pair of a prototile name and a map.
+
+        The map must be an affine map.
+        """
         for piece in self.pieces:
             if not (isinstance(piece, tuple) and len(piece) == PIECE_SIZE and isinstance(piece[1], AffineSpec)):
                 error_msg = f'A piece of a substitution is a prototile name and an `AffineSpec`, not {piece!r}.'
@@ -67,7 +77,9 @@ class SubstitutionLaw(BaseLaw):
             piece[1]._validated()
 
     def _run(self, inputs: object) -> None:
-        """Set `value_`, the pieces with the scale, the rotation, and the translation of their maps at given values.
+        """Set `value_` to the pieces with their maps at given values.
+
+        It gives the scale, the rotation, and the translation of their maps.
 
         Args:
             inputs:

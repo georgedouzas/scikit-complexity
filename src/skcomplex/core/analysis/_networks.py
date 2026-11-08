@@ -1,4 +1,7 @@
-"""Measure networks: degrees, mixing, centralities, communities, neighbour degrees, and summary measures."""
+"""Measure networks.
+
+The measures are degrees, mixing, centralities, communities, neighbour degrees, and summary measures.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -129,7 +132,9 @@ def network_measures(
     reference: Sequence[object] | str | None = None,
     random_state: int | None = None,
 ) -> NetworkMeasuresResult:
-    """Return measures of the network of every frame of a trajectory, or of a graph, of one kind.
+    """Return measures of a graph or of the network of every frame of a trajectory.
+
+    The measures are of one kind.
 
     The kinds read the graph of every frame:
 
@@ -263,7 +268,10 @@ def _degrees(graph: nx.Graph) -> npt.NDArray[np.int64]:
 
 
 def _degree_exponent(graph: nx.Graph) -> float:
-    """Return the fitted exponent of a heavy-tailed degree distribution, or `nan` for a small or narrow one."""
+    """Return the fitted exponent of a heavy-tailed degree distribution.
+
+    It is `nan` for a small or narrow one.
+    """
     values = _degrees(graph)
     if values.size < MIN_FIT_NODES or values.max() < HEAVY_TAIL * max(values.mean(), 1.0):
         return float('nan')
@@ -278,7 +286,10 @@ def _degree_exponent(graph: nx.Graph) -> float:
 
 
 def _summary(graph: nx.Graph) -> dict[str, float | int | list[int]]:
-    """Return the size, mean degree, clustering, path length, diameter, and components of a network."""
+    """Return the size, mean degree, clustering, path length, diameter, and components.
+
+    They are those of a network.
+    """
     undirected = graph.to_undirected()
     components = sorted((len(component) for component in nx.connected_components(undirected)), reverse=True)
     largest = undirected.subgraph(max(nx.connected_components(undirected), key=len)) if components else undirected
@@ -294,7 +305,10 @@ def _summary(graph: nx.Graph) -> dict[str, float | int | list[int]]:
 
 
 def _assortativity(graph: nx.Graph, attribute: str | None, *, numeric: bool) -> float:
-    """Return the assortativity of a network by degree, or by a categorical or numeric node attribute."""
+    """Return the assortativity of a network.
+
+    It is by degree, or by a categorical or numeric node attribute.
+    """
     if attribute is None:
         return float(nx.degree_assortativity_coefficient(graph))
     if numeric:
@@ -303,7 +317,10 @@ def _assortativity(graph: nx.Graph, attribute: str | None, *, numeric: bool) -> 
 
 
 def _centrality(graph: nx.Graph, measure: str) -> dict[object, float]:
-    """Return the degree, betweenness, closeness, eigenvector, or PageRank centrality of every node."""
+    """Return a centrality of every node.
+
+    The centrality is the degree, betweenness, closeness, eigenvector, or PageRank centrality.
+    """
     functions = {
         'degree': nx.degree_centrality,
         'betweenness': nx.betweenness_centrality,
@@ -315,7 +332,10 @@ def _centrality(graph: nx.Graph, measure: str) -> dict[object, float]:
 
 
 def _neighbor_degree(graph: nx.Graph) -> tuple[npt.NDArray[np.int64], npt.NDArray[np.float64]]:
-    """Return the distinct degrees and the mean degree of the neighbours of the nodes of every degree."""
+    """Return the distinct degrees and the mean degree of their nodes' neighbours.
+
+    The mean is over the neighbours of the nodes of every degree.
+    """
     connectivity = nx.average_degree_connectivity(graph)
     ordered = sorted(connectivity)
     return np.asarray(ordered, dtype=np.int64), np.asarray(
@@ -330,7 +350,10 @@ def _communities(
     reference: Sequence[object] | str | None,
     random_state: int | None,
 ) -> tuple[npt.NDArray[np.int64], float, float | None]:
-    """Return the community of every node, the modularity, and the agreement with a reference partition."""
+    """Return the community of every node, the modularity, and the agreement.
+
+    The agreement is with a reference partition.
+    """
     if method == 'louvain':
         partition = nx.community.louvain_communities(graph, seed=random_state)
     else:

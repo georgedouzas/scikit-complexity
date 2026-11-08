@@ -14,10 +14,11 @@ REDUCTIONS = ('sum', 'mean')
 
 @dataclass(frozen=True, eq=False)
 class RadiusSpec(BaseSpec):
-    """Term of the other agents within a radius of an agent, reduced by a sum or a mean, with a priority.
+    """Term of the other agents within a radius of an agent.
 
-    Every other agent within `radius` gives the vector `function(agent, other, system)`, and the terms reduce by
-    `reduce`. Among several radii, only the radii of the highest priority that hold another agent count.
+    It is reduced by a sum or a mean, with a priority. Every other agent within `radius` gives the vector
+    `function(agent, other, system)`, and the terms reduce by `reduce`. Among several radii, only the radii of the
+    highest priority that hold another agent count.
 
     Args:
         radius:
@@ -49,7 +50,9 @@ class RadiusSpec(BaseSpec):
     priority: int = 0
 
     def _check(self) -> None:
-        """Raise an error for an unknown reduction, a function that cannot be called, or a negative radius.
+        """Raise an error for an unknown reduction, a bad function, or a negative radius.
+
+        The function must be callable.
 
         Raises:
             ValidationError:

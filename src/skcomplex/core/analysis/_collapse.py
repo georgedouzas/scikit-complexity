@@ -1,4 +1,7 @@
-"""Measure collapses of curves: finite-size scaling, aging, distributions scaled by age, and crossings of curves."""
+"""Measure collapses of curves.
+
+The collapses are finite-size scaling, aging, distributions scaled by age, and crossings of curves.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -102,7 +105,9 @@ def data_collapse(
     lags: Sequence[float] | None = None,
     ratios: Sequence[float] | None = None,
 ) -> DataCollapseResult:
-    """Return the collapse of curves or distributions of several sizes or ages onto one, of one kind.
+    """Return the collapse of curves or distributions of several sizes or ages.
+
+    The curves or distributions collapse onto one, of one kind. The collapse is of one kind.
 
     The kinds read the curves or the samples of every size or age:
 
@@ -246,7 +251,10 @@ def data_collapse(
 
 
 def _curves_by_key(values: dict[float, Array] | Array, kind: str) -> dict[float, Array]:
-    """Return the curves or the samples by size or age, which the kinds scaling and distribution read."""
+    """Return the curves or the samples by size or age.
+
+    The kinds scaling and distribution read them.
+    """
     if not isinstance(values, dict):
         error_msg = f'data_collapse of kind {kind} reads a mapping from size or age to its values.'
         raise AnalysisError(error_msg)
@@ -267,7 +275,10 @@ def _scaled(
 
 
 def _quality(scaled: list[tuple[Array, Array]]) -> float:
-    """Return the mean squared relative distance of every point to the other curves where they overlap."""
+    """Return the mean squared relative distance of every point to the other curves.
+
+    The distance is taken where they overlap.
+    """
     residuals = []
     for (x, y), (u, v) in itertools.permutations(scaled, 2):
         inside = (x >= u.min()) & (x <= u.max())
@@ -285,7 +296,10 @@ def _scaling_collapse(
     values: dict[str, float],
     fit: Sequence[str],
 ) -> tuple[dict[str, float], float]:
-    """Return the critical value, `nu`, and the exponent, fitted by minimizing the quality, and the quality."""
+    """Return the critical value, `nu`, the exponent, and the quality.
+
+    The values are fitted by minimizing the quality.
+    """
 
     def objective(free: Array) -> float:
         """Return the quality with the fitted values replaced."""
@@ -306,7 +320,10 @@ def _scaling_collapse(
 
 
 def _spread(curves: list[tuple[Array, Array]]) -> float:
-    """Return the largest difference between curves interpolated on the overlap of their abscissas."""
+    """Return the largest difference between curves interpolated on their overlap.
+
+    The overlap is that of their abscissas.
+    """
     low = max(float(x.min()) for x, _ in curves)
     high = min(float(x.max()) for x, _ in curves)
     if low >= high:
@@ -317,7 +334,10 @@ def _spread(curves: list[tuple[Array, Array]]) -> float:
 
 
 def _scaled_densities(samples: Mapping[float, Array], edges: Array) -> tuple[Array, float]:
-    """Return the densities `t P(tau, t)` of samples at every age against `tau / t`, and their largest spread."""
+    """Return the densities `t P(tau, t)` of samples at every age against `tau / t`.
+
+    Their largest spread is returned too.
+    """
     ages = sorted(samples)
     densities = np.asarray(
         [np.histogram(samples[age] / age, bins=edges)[0] / (samples[age].size * np.diff(edges)) for age in ages],
@@ -331,7 +351,10 @@ def _scaled_densities(samples: Mapping[float, Array], edges: Array) -> tuple[Arr
 
 
 def _crossings(grid: Array, curves: Array) -> Array:
-    """Return the first crossing of every pair of consecutive curves, one per row, `nan` without one."""
+    """Return the first crossing of every pair of consecutive curves.
+
+    There is one per row, and `nan` without one.
+    """
     crossings = []
     for small, large in itertools.pairwise(curves):
         difference = large - small

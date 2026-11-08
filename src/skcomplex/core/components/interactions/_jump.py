@@ -22,14 +22,15 @@ CLOCKS = ('rate', 'probability', 'waiting')
 
 
 class JumpInteraction(Interaction):
-    """Random event that changes states of the target by signed amounts, at a rate, by a probability, or after a wait.
+    """Random event that changes states of the target by signed amounts.
 
-    With a `rate`, the event fires at the times of a Poisson process of that propensity in continuous time. With a
-    `probability`, it fires in a step of discrete time with that probability. With a `waiting` time, usually a draw from
-    a distribution with nonnegative support, it fires after a time drawn anew at every firing, as in renewal processes,
-    and every member of a bound group fires on its own clock. When the event fires it adds the `changes` to the states
-    and, with a waiting time, sets the states of `reset` to their new values. Every function reads `namespace.target`,
-    the states and parameters of the target, and the time `namespace.t`.
+    The event fires at a rate, by a probability, or after a wait. With a `rate`, the event fires at the times of a
+    Poisson process of that propensity in continuous time. With a `probability`, it fires in a step of discrete time
+    with that probability. With a `waiting` time, usually a draw from a distribution with nonnegative support, it fires
+    after a time drawn anew at every firing, as in renewal processes, and every member of a bound group fires on its own
+    clock. When the event fires it adds the `changes` to the states and, with a waiting time, sets the states of `reset`
+    to their new values. Every function reads `namespace.target`, the states and parameters of the target, and the time
+    `namespace.t`.
 
     Args:
         label:
@@ -74,7 +75,10 @@ class JumpInteraction(Interaction):
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (JumpLaw, UpdateLaw)
 
     def _get_tags(self) -> Tags:
-        """Return the tags of a jump law, or of updates that draw with a probability when the probability is given."""
+        """Return the tags of a jump law, or of updates that draw with a probability.
+
+        The updates apply when the probability is given.
+        """
         if self._get_argument('waiting') is None and self._get_argument('probability') is not None:
             return self._get_variant_tags((UpdateLaw,), stochastic=True)
         return self._get_variant_tags((JumpLaw,))
@@ -103,7 +107,7 @@ class JumpInteraction(Interaction):
         return [clock for clock in CLOCKS if getattr(self, clock) is not None]
 
     def _check_jump(self) -> None:
-        """Raise an error for an event without exactly one clock, without changes, or with a reset of no waiting time.
+        """Raise an error for an event without one clock, changes, or a reset's wait.
 
         Raises:
             ValidationError:
@@ -128,7 +132,7 @@ class JumpInteraction(Interaction):
             raise ValidationError(error_msg)
 
     def _check(self) -> None:
-        """Raise an error for an event without exactly one clock, without changes, or with a reset of no waiting time.
+        """Raise an error for an event without one clock, changes, or a reset's wait.
 
         Raises:
             ValidationError:
@@ -150,14 +154,19 @@ class JumpInteraction(Interaction):
         return SR(self.rate(namespace)) if self.rate is not None else SR(0)
 
     def _get_steps(self, namespace: SimpleNamespace, changes: dict[Expression, float]) -> list[BaseLaw]:
-        """Return the updates of the states by their amounts in a step, when one draw falls below the probability."""
+        """Return the updates of the states by their amounts in a step.
+
+        They apply when one draw falls below the probability.
+        """
         probability = SR(self.probability(namespace)) if self.probability is not None else SR(0)
         name = re.sub(r'\W', '_', f'jump_{self.label}')
         fired = where(uniform(name) < probability, 1, 0)
         return [UpdateLaw(state, state + amount * fired) for state, amount in changes.items()]
 
     def _get_reset(self, state: object, value: object) -> dict[Expression, Expression]:
-        """Return the new value of every component of a state, one per component of a vector state.
+        """Return the new value of every component of a state.
+
+        It returns one per component of a vector state.
 
         Args:
             state:
@@ -183,7 +192,10 @@ class JumpInteraction(Interaction):
         return {SR(item): SR(component) for item, component in zip(state, components, strict=True)}
 
     def _get_renewal(self, namespace: SimpleNamespace, changes: dict[Expression, float]) -> JumpLaw:
-        """Return the renewal of the event, which adds the changes and sets the reset states after every wait."""
+        """Return the renewal of the event.
+
+        The renewal adds the changes and sets the reset states after every wait.
+        """
         reset: dict[Expression, object] = {state: state + amount for state, amount in changes.items()}
         for name, function in (self.reset or {}).items():
             reset.update(self._get_reset(getattr(self._get_member(namespace, 'target'), name), function(namespace)))
@@ -191,7 +203,9 @@ class JumpInteraction(Interaction):
         return JumpLaw(waiting=waiting, reset=reset, label=self.label)
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the jump law of the event at a rate or after a wait, or the updates of a step with a probability.
+        """Return the jump law of the event, or the updates of a step with a probability.
+
+        The jump law is at a rate or after a wait.
 
         Args:
             namespace:

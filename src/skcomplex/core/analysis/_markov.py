@@ -1,4 +1,7 @@
-"""Analyse Markov chains: transition matrices of paths, stationary laws, spectral gaps, and Markov state models."""
+"""Analyse Markov chains.
+
+The analyses are transition matrices of paths, stationary laws, spectral gaps, and Markov state models.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -42,7 +45,9 @@ TAGS = AnalysisTags(DataKind.PATH)
 
 @dataclass(frozen=True)
 class MarkovResult:
-    """Markov chain of the paths of a source, or of a matrix, with the quantities of one kind.
+    """Markov chain of the paths of a source, or of a matrix.
+
+    It comes with the quantities of one kind.
 
     Args:
         path:
@@ -104,7 +109,9 @@ def markov(
     reversible: bool = True,
     dt: float = 1.0,
 ) -> MarkovResult:
-    """Return the Markov chain of the paths of a source, or of a matrix, with the quantities of one kind.
+    """Return the Markov chain of the paths of a source, or of a matrix.
+
+    It comes with the quantities of one kind.
 
     The kinds read the integer states of one path, or one row per path, or a matrix with `matrix`:
 
@@ -230,7 +237,10 @@ def _check(
     *,
     reversible: bool,
 ) -> None:
-    """Raise an error for lags, timescales, or a step out of range, or for metastable sets of an irreversible fit."""
+    """Raise an error for settings out of range, or for metastable sets of some fits.
+
+    The settings checked are lags, timescales, or a step, and the fits are irreversible ones.
+    """
     if lag < 1 or any(item < 1 for item in lags) or n_timescales < 1:
         error_msg = f'markov has lag={lag!r}, lags={lags!r}, and n_timescales={n_timescales!r}. Use 1 or more.'
         raise AnalysisError(error_msg)
@@ -243,7 +253,10 @@ def _check(
 
 
 def _of_matrix(matrix: Array, kind: str, dt: float, *, rates: bool) -> MarkovResult:
-    """Return the stationary law, or the spectral gap and the relaxation times, of a transition or rate matrix."""
+    """Return the stationary law, or spectral gap and relaxation times, of a matrix.
+
+    The matrix is a transition or rate matrix.
+    """
     if kind == 'stationary':
         return MarkovResult(matrix=matrix, stationary=_stationary_distribution(matrix, rates=rates))
     return MarkovResult(
@@ -283,7 +296,10 @@ def _paths(states: npt.ArrayLike) -> npt.NDArray[np.int64]:
 
 
 def _generator(matrix: npt.ArrayLike, *, rates: bool) -> Array:
-    """Return a rate matrix with diagonal minus the escape rates, or a transition matrix minus the identity."""
+    """Return the generator of a matrix.
+
+    It is a rate matrix with diagonal minus the escape rates, or a transition matrix minus the identity.
+    """
     array = np.asarray(matrix, dtype=float)
     if array.ndim != MATRIX_DIMENSIONS or array.shape[0] != array.shape[1]:
         error_msg = f'A transition or rate matrix is square, not of shape {array.shape}.'
@@ -295,13 +311,19 @@ def _generator(matrix: npt.ArrayLike, *, rates: bool) -> Array:
 
 
 def _eigenvalues(matrix: npt.ArrayLike, *, rates: bool) -> npt.NDArray[np.complex128]:
-    """Return the eigenvalues of the generator, the stationary 0 first, then by falling real part."""
+    """Return the eigenvalues of the generator.
+
+    The stationary 0 comes first, then the others by falling real part.
+    """
     values = linalg.eigvals(_generator(matrix, rates=rates))
     return values[np.argsort(-values.real)]
 
 
 def _transition_counts(states: npt.ArrayLike, n_states: int | None = None, lag: int = 1) -> npt.NDArray[np.int64]:
-    """Return the number of transitions from every state to every state after `lag` steps along discrete paths."""
+    """Return the number of transitions between every pair of states after `lag` steps.
+
+    The transitions are along discrete paths.
+    """
     paths = _paths(states)
     size = int(paths.max()) + 1 if n_states is None else n_states
     origins, destinations = paths[:, :-lag].ravel(), paths[:, lag:].ravel()
@@ -318,7 +340,10 @@ def _transition_matrix(states: npt.ArrayLike, n_states: int | None = None, lag: 
 
 
 def _stationary_distribution(matrix: npt.ArrayLike, *, rates: bool = False) -> Array:
-    """Return the stationary law `pi` of a transition matrix, `pi P = pi`, or of a rate matrix, `pi Q = 0`."""
+    """Return the stationary law `pi` of a transition matrix or of a rate matrix.
+
+    It solves `pi P = pi` for a transition matrix, or `pi Q = 0` for a rate matrix.
+    """
     generator = _generator(matrix, rates=rates)
     null = linalg.null_space(generator.T, rcond=TOLERANCE)
     vector = np.abs(null[:, 0]) if null.size else np.abs(linalg.eig(generator.T)[1][:, 0].real)
@@ -326,7 +351,10 @@ def _stationary_distribution(matrix: npt.ArrayLike, *, rates: bool = False) -> A
 
 
 def _spectral_gap(matrix: npt.ArrayLike, *, rates: bool = False) -> float:
-    """Return `1 - |lambda_2|` of a transition matrix or `-Re lambda_2` of a rate matrix."""
+    """Return the spectral gap of a transition matrix or of a rate matrix.
+
+    It is `1 - |lambda_2|` of a transition matrix or `-Re lambda_2` of a rate matrix.
+    """
     values = _eigenvalues(matrix, rates=rates)
     if rates:
         return float(-values[1].real)
@@ -343,7 +371,10 @@ def _relaxation_times(matrix: npt.ArrayLike, *, rates: bool = False, dt: float =
 
 
 def _reversible_matrix(counts: Array) -> Array:
-    """Return the reversible maximum-likelihood transition matrix of counts, by a fixed-point iteration on flows."""
+    """Return the reversible maximum-likelihood transition matrix of counts.
+
+    It is found by a fixed-point iteration on flows.
+    """
     symmetric = counts + counts.T
     totals = counts.sum(axis=1)
     flows = symmetric / symmetric.sum()
@@ -360,7 +391,10 @@ def _reversible_matrix(counts: Array) -> Array:
 
 
 def _fit(states: npt.ArrayLike, lag: int, *, reversible: bool) -> tuple[npt.NDArray[np.int64], Array]:
-    """Return the largest connected set of states and its maximum-likelihood transition matrix at a lag."""
+    """Return the largest connected set of states and its fitted transition matrix.
+
+    The matrix is the maximum-likelihood transition matrix at a lag.
+    """
     counts = _transition_counts(states, lag=lag).astype(float)
     labels = csgraph.connected_components(counts, connection='strong')[1]
     connected = np.flatnonzero(labels == np.bincount(labels).argmax())
@@ -374,7 +408,10 @@ def _fit(states: npt.ArrayLike, lag: int, *, reversible: bool) -> tuple[npt.NDAr
 
 
 def _implied_timescales(matrix: Array, lag: int) -> Array:
-    """Return the implied timescales in steps of every mode but the stationary one, slowest first."""
+    """Return the implied timescales in steps of every mode but the stationary one.
+
+    The slowest comes first.
+    """
     return np.asarray(MarkovChain(matrix).implied_timescales, dtype=float)[1:] * lag
 
 

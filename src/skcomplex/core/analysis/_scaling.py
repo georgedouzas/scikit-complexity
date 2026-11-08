@@ -1,4 +1,7 @@
-"""Measure scaling: fluctuation exponents, fractal dimensions, variance-mean laws, power laws, and allometry."""
+"""Measure scaling.
+
+The measures are fluctuation exponents, fractal dimensions, variance-mean laws, power laws, and allometry.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -59,7 +62,11 @@ KIND_TAGS = {
 
 @dataclass(frozen=True)
 class ScalingResult:
-    """Scaling exponent of every series, fractal dimension of a set of cells or points, or scaling law.
+    """Scaling exponent of series, fractal dimension of cells or points, or a law.
+
+    The law is a scaling law.
+
+    The exponent is that of every series, and the dimension that of a set of cells or points.
 
     Args:
         values:
@@ -131,7 +138,9 @@ def scaling(
     confidence: float = 0.95,
     resamples: int = 1000,
 ) -> ScalingResult:
-    """Return the scaling exponent of every series, the fractal dimension of cells or points, or a scaling law.
+    """Return the scaling exponent of series, fractal dimension of points, or a law.
+
+    The law is a scaling law. The exponent is that of every series, and the dimension that of cells or points.
 
     The kinds read series, fields, points, or samples at several sizes:
 
@@ -322,7 +331,10 @@ def _check(
     confidence: float,
     resamples: int,
 ) -> None:
-    """Validate the order, the settings the kind needs, the confidence level, and the number of resamples."""
+    """Validate the order, the kind's settings, the confidence level, and resamples.
+
+    The resamples are checked by their number.
+    """
     if order < 0:
         error_msg = f'scaling has order={order!r}. Use 0 or more.'
         raise AnalysisError(error_msg)
@@ -345,7 +357,10 @@ def _read(
     kind: str,
     variables: Sequence[str] | None,
 ) -> tuple[Array, dict[float, Array] | None, list[str]]:
-    """Return the series or the points as columns, the last frame or every frame of a field, or samples by size."""
+    """Return the series, points, field frames, or samples by size that a kind reads.
+
+    The series or the points come as columns, and the field as its last frame or every frame.
+    """
     if kind == 'allometric':
         return _read_pairs(source), None, ['size', 'samples']
     name = variables[0] if variables else None
@@ -363,7 +378,10 @@ def _read(
 
 
 def _read_pairs(source: object) -> Array:
-    """Return the pairs of sizes and samples of a mapping from size to samples or of two columns."""
+    """Return the pairs of sizes and samples.
+
+    They come from a mapping from size to samples or from two columns.
+    """
     if isinstance(source, Mapping):
         rows = [
             (float(size), float(sample))
@@ -399,7 +417,10 @@ def _fluctuation(
     *,
     method: str = 'dfa',
 ) -> tuple[Array, Array, float]:
-    """Return the window sizes, the fluctuations, and the exponent of a series by DFA or by the rescaled range."""
+    """Return the window sizes, the fluctuations, and the exponent of a series.
+
+    They come from DFA or from the rescaled range.
+    """
     array = _read_real(values, 'values')
     if array.size < MIN_FLUCTUATION_VALUES:
         error_msg = (
@@ -422,7 +443,10 @@ def _fluctuation(
 
 
 def _box_moments(grids: Array, boxes: npt.ArrayLike | None) -> tuple[Array, Array, Array]:
-    """Return the box sides and the mean and deviation of the counts in square boxes of every side."""
+    """Return the box sides and the mean and deviation of the counts in square boxes.
+
+    There is one mean and deviation for every side.
+    """
     smallest = min(grids.shape[1:])
     sides = 2 ** np.arange(int(np.log2(max(smallest // 4, 1))) + 1) if boxes is None else np.asarray(boxes, dtype=int)
     means, deviations = [], []
@@ -436,7 +460,10 @@ def _box_moments(grids: Array, boxes: npt.ArrayLike | None) -> tuple[Array, Arra
 
 
 def _size_moments(samples: Mapping[float, Array]) -> tuple[Array, Array, Array]:
-    """Return the sizes in increasing order and the mean and deviation of the samples at every size."""
+    """Return the sizes in increasing order and the mean and deviation at every size.
+
+    The mean and the deviation are those of the samples.
+    """
     sizes = np.asarray(sorted(samples), dtype=np.float64)
     means = np.asarray([samples[size].mean() for size in sorted(samples)], dtype=np.float64)
     deviations = np.asarray([samples[size].std() for size in sorted(samples)], dtype=np.float64)
@@ -444,14 +471,20 @@ def _size_moments(samples: Mapping[float, Array]) -> tuple[Array, Array, Array]:
 
 
 def _variance_mean_exponent(scales: Array, means: Array, deviations: Array, against: str) -> float:
-    """Return the slope of the log deviation against the log mean, or of the log ratio against the log size."""
+    """Return the slope of the log deviation against the log mean.
+
+    With ratios, it is the slope of the log ratio against the log size.
+    """
     if against == 'mean':
         return float(np.polyfit(np.log(means), np.log(deviations), 1)[0])
     return float(np.polyfit(np.log(scales), np.log(deviations / means), 1)[0])
 
 
 def _power_exponent(values: Array, parameters: Sequence[float] | None, critical: float, *, above: bool) -> float:
-    """Return the slope of the log values against the log distance to the critical value on the chosen side."""
+    """Return the slope of the log values against the log distance to the critical one.
+
+    The distance is taken on the chosen side.
+    """
     grid = np.asarray(parameters, dtype=float)
     distance = grid - critical if above else critical - grid
     inside = (distance > 0) & (values > 0)
@@ -465,7 +498,7 @@ def _power_exponent(values: Array, parameters: Sequence[float] | None, critical:
 
 
 def _box_counting(occupied: npt.ArrayLike, sizes: npt.ArrayLike | None = None) -> tuple[Array, Array, float]:
-    """Return the box sides, the box counts, and the box-counting dimension of a set of cells."""
+    """Return the box sides, the counts, and the box-counting dimension of a cell set."""
     grid = np.asarray(occupied, dtype=bool)
     sides = 2 ** np.arange(int(np.log2(min(grid.shape) // 8)) + 1) if sizes is None else np.asarray(sizes, dtype=int)
     counts = []
@@ -493,7 +526,10 @@ def _correlation_dimension(
     fit_sums: tuple[float, float] = (1e-4, 1e-2),
     random_state: int | None = 0,
 ) -> tuple[Array, Array, float, tuple[float, float]]:
-    """Return the radii, the correlation sums, the Grassberger-Procaccia dimension, and the fit range of points."""
+    """Return the radii, correlation sums, dimension, and fit range of points.
+
+    The dimension is the Grassberger-Procaccia dimension.
+    """
     array = np.asarray(points, dtype=float)
     array = array.reshape(array.shape[0], -1)
     size = array.shape[0]

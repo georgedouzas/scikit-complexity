@@ -1,4 +1,7 @@
-"""Diagnose ergodicity: time averages of ensembles of runs, and invariant densities of maps and flows."""
+"""Diagnose ergodicity.
+
+The diagnostics are time averages of ensembles of runs, and invariant densities of maps and flows.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -44,7 +47,9 @@ KIND_TAGS = {
 
 @dataclass(frozen=True)
 class ErgodicityResult:
-    """Diagnostic of the ergodicity of an ensemble of runs, of one run, or of a map, of one kind.
+    """Diagnostic of the ergodicity of an ensemble of runs, of one run, or of a map.
+
+    The diagnostic is of one kind.
 
     Args:
         values:
@@ -103,7 +108,9 @@ def ergodicity(
     edges: npt.ArrayLike | None = None,
     samples: int = 100,
 ) -> ErgodicityResult:
-    """Return a diagnostic of the ergodicity of an ensemble of runs, of one run, or of a map, of one kind.
+    """Return a diagnostic of the ergodicity of an ensemble of runs, one run, or a map.
+
+    The diagnostic is of one kind.
 
     The ensemble kinds read one row per run and one column per time, such as `ExperimentResult.ensemble` returns:
 

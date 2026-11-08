@@ -1,4 +1,7 @@
-"""Measure the domains of fields: their size, its growth in time, pattern wavelengths, and interface densities."""
+"""Measure the domains of fields.
+
+The measures are their size, its growth in time, pattern wavelengths, and interface densities.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -86,7 +89,9 @@ def domains(
     times: Sequence[float] | None = None,
     attribute: str = 'state',
 ) -> DomainsResult:
-    """Return the domains of every frame of a field, or of the states on a network, of one kind.
+    """Return the domains of every frame of a field, or of the states on a network.
+
+    The domains are of one kind.
 
     The kinds read frames of a field on a periodic grid:
 
@@ -207,7 +212,10 @@ def _read_frames(
 
 
 def _domain_size(field: npt.ArrayLike, method: str, spacing: float) -> float:
-    """Return `2 pi / <k>` over the structure factor of a frame, or the first zero of its correlation function."""
+    """Return the domain size of a frame.
+
+    It is `2 pi / <k>` over the structure factor, or the first zero of its correlation function.
+    """
     if method == 'zero':
         distances, values = _correlation_function(field)
         crossing = np.flatnonzero(values <= 0)
@@ -218,7 +226,10 @@ def _domain_size(field: npt.ArrayLike, method: str, spacing: float) -> float:
 
 
 def _growth_exponent(times: Array, sizes: Array, fit_range: tuple[float, float] | None) -> float:
-    """Return the slope of `log size` against `log time` over the frames of the fit range."""
+    """Return the slope of `log size` against `log time`.
+
+    The slope is over the frames of the fit range.
+    """
     low, high = (0.0, np.inf) if fit_range is None else fit_range
     inside = (times >= low) & (times <= high) & (times > 0) & (sizes > 0)
     if inside.sum() < MIN_LINE_POINTS:
@@ -231,7 +242,10 @@ def _growth_exponent(times: Array, sizes: Array, fit_range: tuple[float, float] 
 
 
 def _pattern(field: npt.ArrayLike, spacing: float) -> tuple[float, float, float]:
-    """Return the wavelength and the wavenumber of the structure factor peak and the order of its orientation."""
+    """Return the wavelength and the wavenumber of the structure factor peak.
+
+    The order of its orientation is returned too.
+    """
     grid = np.asarray(field, dtype=float)
     wavenumbers, shells = _structure_factor(grid[None], spacing)
     peak = float(wavenumbers[shells.argmax()])
@@ -247,6 +261,9 @@ def _pattern(field: npt.ArrayLike, spacing: float) -> tuple[float, float, float]
 
 
 def _interface_density(data: npt.ArrayLike | nx.Graph, attribute: str = 'state') -> float:
-    """Return the share of neighbouring pairs, on a periodic grid without corners or along edges, that differ."""
+    """Return the share of neighbouring pairs that differ.
+
+    The pairs lie on a periodic grid, without corners or along edges.
+    """
     own, other = _pairs(data, attribute, diagonal=False)
     return float(np.mean(own != other))

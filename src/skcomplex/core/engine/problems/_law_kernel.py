@@ -99,9 +99,10 @@ class LawKernel(BaseKernel):
 
     @functools.cached_property
     def _plan(self) -> tuple[list[tuple[int, int]], list[Expression]]:
-        """Return the slot of every output among the compiled expressions, and the expressions, found once.
+        """Return the slot of every output among the compiled expressions.
 
-        Outputs that call the same function on the same arguments share one slot.
+        The expressions are returned too, found once. Outputs that call the same function on the same arguments share
+        one slot.
         """
         slots: list[tuple[int, int]] = []
         expressions: list[Expression] = []
@@ -133,7 +134,10 @@ class LawKernel(BaseKernel):
 
     @functools.cached_property
     def _function(self) -> Callable[..., object] | None:
-        """NumPy function of the symbolic outputs and the arguments of calls, or `None` without expressions."""
+        """NumPy function of the symbolic outputs and the arguments of calls.
+
+        It is `None` without expressions.
+        """
         expressions = self._plan[1]
         if not expressions:
             return None
@@ -147,12 +151,18 @@ class LawKernel(BaseKernel):
 
     @functools.cached_property
     def _applied(self) -> dict[int, Array]:
-        """Values of the global operators applied in the current evaluation, cleared when an evaluation starts."""
+        """Values of the global operators applied in the current evaluation.
+
+        They are cleared when an evaluation starts.
+        """
         return {}
 
     @functools.cached_property
     def _source_values(self) -> dict[str, Array]:
-        """Values of the node of a topology request in the current evaluation, replaced when an evaluation starts."""
+        """Values of the node of a topology request in the current evaluation.
+
+        They are replaced when an evaluation starts.
+        """
         return {}
 
     @functools.cached_property
@@ -161,7 +171,9 @@ class LawKernel(BaseKernel):
         return [self._reader(item) for item in self._arguments]
 
     def _check(self) -> None:
-        """Check that the outputs read only declared symbols, and neighbour symbols only inside a reduction.
+        """Check that the outputs read only declared symbols.
+
+        Neighbour symbols are read only inside a reduction.
 
         Raises:
             ValidationError:
@@ -187,11 +199,16 @@ class LawKernel(BaseKernel):
 
     @property
     def arguments(self) -> list[Expression]:
-        """Symbols the outputs read, in the order the compiled function takes them after time."""
+        """Symbols the outputs read.
+
+        They come in the order the compiled function takes them after time.
+        """
         return list(self._arguments)
 
     def gather(self, t: float, x: Array, p: Array) -> list[object]:
-        """Return the values of the symbols the outputs read, for every evaluation index of a member kernel.
+        """Return the values of the symbols the outputs read.
+
+        There are values for every evaluation index of a member kernel.
 
         Args:
             t:
@@ -211,7 +228,9 @@ class LawKernel(BaseKernel):
         return [read(x, p, None, t) for read in self._argument_readers]
 
     def read(self, symbol: Expression, t: float, x: Array, p: Array) -> object:
-        """Return the values of one symbol the kernel knows, for every evaluation index of a member kernel.
+        """Return the values of one symbol the kernel knows.
+
+        There are values for every evaluation index of a member kernel.
 
         Args:
             symbol:
@@ -246,7 +265,10 @@ class LawKernel(BaseKernel):
         pairs: tuple[Indices, Indices] | None,
         t: float,
     ) -> object:
-        """Return the values of a symbol read at neighbouring sites or derived by a global operator."""
+        """Return the values of a symbol read at neighbouring sites.
+
+        Values derived by a global operator are returned too.
+        """
         if reference.source is ReadKind.NEIGHBOR:
             return reference.shifted.read(reference.column_of(x, p), p)
         read = reference.derived
@@ -257,7 +279,10 @@ class LawKernel(BaseKernel):
         return self._applied[id(read)]
 
     def _reader(self, symbol: Expression) -> ReadFunction:
-        """Return the function that reads the values of a symbol for every evaluation index, resolved once."""
+        """Return the function that reads the values of a symbol.
+
+        It reads them for every evaluation index, resolved once.
+        """
         if symbol in self._readers:
             return self._readers[symbol]
         reference = self.references[symbol]
@@ -281,7 +306,10 @@ class LawKernel(BaseKernel):
         return read
 
     def _source_reader(self, reference: ReferenceSpec) -> ReadFunction:
-        """Return the function that reads a component of the node a topology request starts from."""
+        """Return the function that reads a component of the node of a topology request.
+
+        It is the node the request starts from.
+        """
         name, column = reference.entry.name, reference.column
 
         def read(x: Array, p: Array, pairs: OptionalPairs, t: float) -> Array:
@@ -297,7 +325,10 @@ class LawKernel(BaseKernel):
         return read
 
     def _member_reader(self, reference: ReferenceSpec) -> ReadFunction:
-        """Return the function that reads a member symbol, indexed by the pairs of a pair kernel."""
+        """Return the function that reads a member symbol.
+
+        It is indexed by the pairs of a pair kernel.
+        """
         is_state, members, source = reference.is_state, reference.members, reference.source
         search = self.pairs if isinstance(self.pairs, PairSearch) else None
         images = search is not None and reference.entry == search.second and is_state
@@ -334,11 +365,17 @@ class LawKernel(BaseKernel):
 
     @property
     def reads_reductions(self) -> bool:
-        """Whether an output reads a reduction, directly or through the operand of a derived read."""
+        """Whether an output reads a reduction.
+
+        It reads one directly or through the operand of a derived read.
+        """
         return any(self._reads_reduction(item) for item in self.arguments)
 
     def _reads_reduction(self, item: Expression) -> bool:
-        """Check whether a symbol reads a reduction, directly or through the operand of a derived read."""
+        """Check whether a symbol reads a reduction.
+
+        It reads one directly or through the operand of a derived read.
+        """
         reference = self.references[item]
         if reference.source is ReadKind.REDUCED:
             return True
@@ -347,7 +384,10 @@ class LawKernel(BaseKernel):
         return False
 
     def _run(self, inputs: RunStateSpec | None) -> None:
-        """Set the number of evaluation indices, the pairs in pair mode, and one array of values per output."""
+        """Set the number of evaluation indices and one array of values per output.
+
+        In pair mode, the pairs are set too.
+        """
         state = self._state_of(inputs)
         t, x, p = state.t, state.x, state.p
         self._applied.clear()
@@ -377,14 +417,20 @@ class LawKernel(BaseKernel):
         self.values_ = size, pairs, values
 
     def _named_values(self, x: Array, p: Array, *, relative: bool) -> dict[str, object]:
-        """Return the value of every state and parameter, by dotted name or by the name in the component."""
+        """Return the value of every state and parameter.
+
+        Values are keyed by dotted name or by the name in the component.
+        """
         values: dict[str, object] = {**self.layout_states.values(x), **self.layout_parameters.values(p)}
         if not relative:
             return values
         return {name: values[path] for name, path in (self.names or {}).items() if path in values}
 
     def _keywords(self, output: OutputSpec) -> dict[str, np.random.Generator]:
-        """Return the keyword arguments of a function: the random stream when it asks for it."""
+        """Return the keyword arguments of a function.
+
+        The random stream is passed when the function asks for it.
+        """
         if not output.random:
             return {}
         if self.stream is None:
@@ -393,7 +439,10 @@ class LawKernel(BaseKernel):
         return {'rng': self.stream.generator}
 
     def _call(self, output: OutputSpec, t: float, x: Array, p: Array, *, size: int, arguments: list[Array]) -> Array:
-        """Return the result of a function as one row per evaluation index and one column per component."""
+        """Return the result of a function as an array.
+
+        It has one row per evaluation index and one column per component.
+        """
         function: Callable[..., object] | None = output.function
         if function is None:
             error_msg = f'The output of {self.owner} computed by a function holds no function.'
@@ -449,10 +498,11 @@ class LawKernel(BaseKernel):
 
     @staticmethod
     def _lower_noise(kernels: list['LawKernel']) -> tuple[Indices, Indices, int, tuple[WienerBlockSpec, ...]]:
-        """Return the state and the Wiener process of every amplitude of noise kernels, with the processes they draw.
+        """Return the state and the Wiener process of every amplitude of noise kernels.
 
-        Processes are numbered in order of first use. An output without a named process takes one new process per
-        evaluation index, so noise without named processes draws one process per amplitude in evaluation order.
+        The processes they draw are returned too. Processes are numbered in order of first use. An output without a
+        named process takes one new process per evaluation index, so noise without named processes draws one process per
+        amplitude in evaluation order.
 
         Args:
             kernels:
@@ -512,9 +562,10 @@ class LawKernel(BaseKernel):
         starts: dict[object, int],
         blocks: list[WienerBlockSpec],
     ) -> Indices:
-        """Return the process of every evaluation index of a noise output, numbering new processes in `counter`.
+        """Return the process of every evaluation index of a noise output.
 
-        `counter` holds the number of processes so far and the column of the silent process, -1 until one links.
+        New processes are numbered in `counter`. `counter` holds the number of processes so far and the column of the
+        silent process, -1 until one links.
         """
         if process is None:
             counter[0] += size
@@ -588,7 +639,9 @@ class LawKernel(BaseKernel):
 
     @staticmethod
     def _member_indices(reference: ReferenceSpec, rows: int, pairs: PairsSearch | None = None) -> Indices:
-        """Return the flat index of a target component for every evaluation index of a member or edge kernel.
+        """Return the flat index of a target component for every evaluation index.
+
+        The kernel is a member or edge kernel.
 
         Args:
             reference:

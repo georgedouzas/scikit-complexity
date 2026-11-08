@@ -13,7 +13,9 @@ from ._state_spec import StateSpec
 
 @dataclass(frozen=True)
 class DeclaredVariableSpec(BaseSpec):
-    """Spec of a state or a parameter that an element takes as data, with its initial value.
+    """Spec of a state or a parameter that an element takes as data.
+
+    It holds the initial value of the variable.
 
     Args:
         value:

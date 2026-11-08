@@ -16,11 +16,11 @@ RIEMANN_SOLVERS = ('rusanov', 'godunov')
 
 
 class FluxLaw(BaseLaw):
-    """Flux of a conserved state of a finite-volume field, `du/dt + divergence(flux) = 0`.
+    """Flux of a conserved state of a finite-volume field.
 
-    The flux is a symbolic expression of the field's states for one dimension, or one expression per dimension. The
-    states of a field with fluxes form a system of conservation laws, whose wave speeds come from the eigenvalues of
-    the flux Jacobians. Rate laws on the same states add sources.
+    The conservation law is `du/dt + divergence(flux) = 0`. The flux is a symbolic expression of the field's states for
+    one dimension, or one expression per dimension. The states of a field with fluxes form a system of conservation
+    laws, whose wave speeds come from the eigenvalues of the flux Jacobians. Rate laws on the same states add sources.
 
     Args:
         target:
@@ -76,11 +76,14 @@ class FluxLaw(BaseLaw):
 
     @classmethod
     def _get_requirements(cls) -> RequirementSpec:
-        """Return what the law requires of a system: continuous time on a lattice or a mesh."""
+        """Return what the law requires: continuous time on a lattice or a mesh."""
         return RequirementSpec(time=(ContinuousTime,), space=(LatticeSpace, MeshSpace))
 
     def _check(self) -> None:
-        """Raise an error for an unknown limiter or numerical flux, or for a flux or a speed it cannot take."""
+        """Raise an error for an unknown limiter or numerical flux, or a bad flux or speed.
+
+        A bad flux or speed is one the law cannot take.
+        """
         self._check_array('flux')
         if self._is_function(self.flux):
             error_msg = (

@@ -1,4 +1,4 @@
-"""Pass that compiles a system of words or patches into a problem of the rewriting form."""
+"""Pass that compiles a system of words or patches into a rewriting problem."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -53,7 +53,9 @@ class RewritingCompiler(BaseCompiler):
     """
 
     def _issues(self, system: System) -> list[IssueSpec]:
-        """Return the issue of a system the compiler does not compile, or whose tree cannot be flattened.
+        """Return the issue of a system the compiler cannot compile or flatten.
+
+        The tree of the system cannot be flattened, or the compiler does not compile it.
 
         Args:
             system:
@@ -127,7 +129,10 @@ class RewritingCompiler(BaseCompiler):
     def _parameters(
         nodes: list[NodeSpec],
     ) -> tuple[list[EntrySpec], list[float], dict[str, SimpleNamespace], dict[str, Expression]]:
-        """Return the parameter entries and values of the rewritten elements, with their namespaces and symbols."""
+        """Return the parameter entries and values of the rewritten elements.
+
+        Their namespaces and symbols are also returned.
+        """
         entries: list[EntrySpec] = []
         values: list[float] = []
         namespaces: dict[str, SimpleNamespace] = {}
@@ -155,7 +160,10 @@ class RewritingCompiler(BaseCompiler):
         parameters: ParametersSpec,
         values: npt.NDArray[np.float64],
     ) -> WordKernel | PatchKernel:
-        """Return the compiled rewriting system of one element from the laws that target it."""
+        """Return the compiled rewriting system of one element.
+
+        It is compiled from the laws that target the element.
+        """
         element = node.component
         kind = RewritingCompiler._structure_of(type(element))
         if kind is None:
@@ -185,14 +193,19 @@ class RewritingCompiler(BaseCompiler):
 
     @staticmethod
     def _structure_of(element_type: type) -> str | None:
-        """Return the kind of structure an element type rewrites, or `None` for a type that rewrites none."""
+        """Return the kind of structure an element type rewrites.
+
+        It is `None` for a type that rewrites none.
+        """
         if not isinstance(element_type, type):
             return None
         return next((kind for base, kind in _STRUCTURES.items() if issubclass(element_type, base)), None)
 
     @staticmethod
     def _compile_rewriting(system: System) -> 'RewritingProblemSpec':
-        """Compile a system of words or patches, each rewritten by the rewriting laws it returns.
+        """Compile a system of words or patches.
+
+        Each is rewritten by the rewriting laws it returns.
 
         Args:
             system:

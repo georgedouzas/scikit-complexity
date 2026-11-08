@@ -12,7 +12,9 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True, eq=False)
 class SectorSpec(BaseSpec):
-    """Sector of an operator system: the basis states whose eigenvalue of a conserved diagonal operator equals a value.
+    """Sector of an operator system.
+
+    It holds the basis states whose eigenvalue of a conserved diagonal operator equals a value.
 
     Args:
         operator:

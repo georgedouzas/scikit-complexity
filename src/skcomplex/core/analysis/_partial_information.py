@@ -1,4 +1,7 @@
-"""Decompose what two sources tell about a target into redundant, unique, and synergistic information."""
+"""Decompose what two sources tell about a target.
+
+The parts are redundant, unique, and synergistic information.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -72,7 +75,7 @@ def partial_information(
     redundancy: str = 'mmi',
     base: float = 2.0,
 ) -> PartialInformationResult:
-    """Return the partial information decomposition of what two sources give about a target.
+    """Return the partial information decomposition of two sources about a target.
 
     The source holds three series: the first source, the second source, and the target. The mutual information of the
     two sources together with the target splits into the information both give, the information only one of them

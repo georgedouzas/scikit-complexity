@@ -1,4 +1,7 @@
-"""Value of a global operator, a spectral multiplier or a finite element matrix, applied to an expression."""
+"""Value of a global operator applied to an expression.
+
+The operator is a spectral multiplier or a finite element matrix.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,7 +21,9 @@ from ._expression_printer import ExpressionPrinter
 
 
 class FieldOperatorKernel(BaseKernel):
-    """Value of a global operator, a spectral multiplier or a finite element matrix, applied to an expression.
+    """Value of a global operator applied to an expression.
+
+    The operator is a spectral multiplier or a finite element matrix.
 
     Args:
         operand:
@@ -77,7 +82,9 @@ class FieldOperatorKernel(BaseKernel):
         return ExpressionPrinter._function_of(printer.run([self.operand, *(self.displacement or [])]).code_)
 
     def operand_values(self, t: float, values: Sequence[object], size: int) -> npt.NDArray[np.float64]:
-        """Return the operand at every site, evaluated from the values of its symbols, stacked over the displacement.
+        """Return the operand at every site, stacked over the displacement.
+
+        The operand is evaluated from the values of its symbols.
 
         Args:
             t:
@@ -100,6 +107,9 @@ class FieldOperatorKernel(BaseKernel):
         return computed[0] if self.displacement is None else np.stack(computed)
 
     def _run(self, inputs: RunStateSpec | None) -> None:
-        """Set the operator applied to the operand values at every site, the `x` of `inputs`."""
+        """Set the operator applied to the operand values at every site.
+
+        The operand values are the `x` of `inputs`.
+        """
         state = self._state_of(inputs)
         self.values_ = self.apply(state.x) if self.displacement is None else self.apply(state.x[0], state.x[1:])

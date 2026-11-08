@@ -87,7 +87,10 @@ class ContinuousSpace(BaseSpace):
         self.regions = regions
 
     def _check(self) -> None:
-        """Raise an error for an unknown boundary, no dimension, a side that is not positive, or walls in `R^d`."""
+        """Raise an error for an unknown boundary, no dimension, a bad side, or bad walls.
+
+        The side must be positive, and there are no walls in `R^d`.
+        """
         extent = tuple(self.extent)
         n_dim = self.n_dim if self.n_dim is not None else len(extent)
         if self.boundary not in BOUNDARIES:
@@ -114,7 +117,10 @@ class ContinuousSpace(BaseSpace):
             raise SpaceError(error_msg)
 
     def _get_regions(self) -> dict[str, STRtree]:
-        """Return the index of every layer of regions, after checking the regions and the dimension of the space."""
+        """Return the index of every layer of regions.
+
+        It checks the regions and the dimension of the space first.
+        """
         layers = self.regions or {}
         if layers and self.n_dim_ != REGION_DIMENSIONS:
             error_msg = (
@@ -128,7 +134,10 @@ class ContinuousSpace(BaseSpace):
         return {layer: STRtree(list(regions)) for layer, regions in layers.items()}
 
     def _prepare(self, context: None = None) -> None:
-        """Set the extent of the box, its dimension, its boundary, and the index of its regions, with no sites."""
+        """Set the extent, the dimension, the boundary, and the region index of the box.
+
+        The box has no sites.
+        """
         self.extent_ = tuple(float(side) for side in self.extent)
         self.n_dim_ = int(self.n_dim) if self.n_dim is not None else len(self.extent_)
         self.size_ = None

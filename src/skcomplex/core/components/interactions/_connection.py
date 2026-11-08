@@ -1,4 +1,7 @@
-"""Define connection interactions, the node where the potentials of ports agree and their flows sum to zero."""
+"""Define connection interactions.
+
+A connection is the node where the potentials of ports agree and their flows sum to zero.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -104,7 +107,7 @@ class ConnectionInteraction(Interaction):
             raise ValidationError(error_msg)
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
-        """Return the equality of the potentials of the ports and the balance of their flows.
+        """Return the equality of the potentials of the ports and the balance of flows.
 
         Args:
             namespace:

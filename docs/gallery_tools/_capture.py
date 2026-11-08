@@ -1,4 +1,7 @@
-"""Capture screenshots of Rerun recordings with the headless native viewer or the web viewer in Chromium."""
+"""Capture screenshots of Rerun recordings.
+
+They are captured with the headless native viewer or the web viewer in Chromium.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -51,7 +54,10 @@ def _free_port() -> int:
 
 
 def _viewer_executable() -> str:
-    """Return the Rerun command installed next to the running interpreter, or the one on `PATH`."""
+    """Return the Rerun command installed next to the running interpreter.
+
+    Otherwise it returns the one on `PATH`.
+    """
     found = shutil.which('rerun', path=str(Path(sys.executable).parent)) or shutil.which('rerun')
     if found is None:
         error_msg = 'The `rerun` command is not installed. Install `rerun-sdk` in the environment of the build.'
@@ -60,7 +66,10 @@ def _viewer_executable() -> str:
 
 
 def _start_viewer(arguments: list[str], home: Path) -> subprocess.Popen[bytes]:
-    """Start the Rerun command in its own process group, with a fresh state directory and no info notifications."""
+    """Start the Rerun command in its own process group.
+
+    It starts with a fresh state directory and no info notifications.
+    """
     environment = {**os.environ, 'RUST_LOG': 'warn', 'HOME': str(home), 'RERUN_ANALYTICS': 'false'}
     return subprocess.Popen(
         [_viewer_executable(), *arguments],
@@ -110,7 +119,9 @@ def first_view(part: rrb.View | rrb.Container) -> rrb.View:
 
 
 def thumbnail_blueprint(blueprint: rrb.Blueprint) -> rrb.Blueprint:
-    """Return a blueprint with the primary view of a blueprint alone, without its title bar and the panels.
+    """Return a blueprint with the primary view of a blueprint alone.
+
+    It has no title bar and no panels.
 
     Args:
         blueprint:
@@ -155,7 +166,9 @@ class _QuietHandler(SimpleHTTPRequestHandler):
 
 
 class Capturer:
-    """Base class of capture backends, which turn a recording and a blueprint into an image of its views.
+    """Base class of capture backends.
+
+    A capture backend turns a recording and a blueprint into an image of its views.
 
     Args:
         size:
@@ -184,7 +197,9 @@ class Capturer:
         """Stop the viewer."""
 
     def capture(self, recording: Path, blueprint: rrb.Blueprint, application_id: str, wait: float) -> Image.Image:
-        """Return an image of the views of a recording at its last frame, laid out by a blueprint.
+        """Return an image of the views of a recording at its last frame.
+
+        The views are laid out by a blueprint.
 
         Args:
             recording:
@@ -211,11 +226,12 @@ class Capturer:
 
 
 class NativeCapturer(Capturer):
-    """Backend that drives the native Rerun viewer in headless mode through its viewer client.
+    """Backend that drives the native Rerun viewer in headless mode.
 
-    The viewer runs with a fresh state directory and logs only warnings, so it draws no info notifications. The capture
-    waits until the viewer reports no source loading and its timelines and views stop changing, sends the blueprint to
-    the loaded recording, moves the time cursor to the last frame, and saves a screenshot of the window.
+    It drives it through its viewer client. The viewer runs with a fresh state directory and logs only warnings, so it
+    draws no info notifications. The capture waits until the viewer reports no source loading and its timelines and
+    views stop changing, sends the blueprint to the loaded recording, moves the time cursor to the last frame, and saves
+    a screenshot of the window.
 
     Args:
         size:
@@ -266,7 +282,10 @@ class NativeCapturer(Capturer):
         self._close()
 
     def _wait_stable(self, wait: float, done: Callable[[ViewerState], bool]) -> ViewerState:
-        """Return the viewer state once nothing loads, a condition holds, and the timelines and views stop changing."""
+        """Return the viewer state once it is stable.
+
+        It is stable once nothing loads, a condition holds, and the timelines and views stop changing.
+        """
         deadline = time.monotonic() + wait
         previous: object = None
         stable = 0
@@ -286,7 +305,10 @@ class NativeCapturer(Capturer):
             time.sleep(POLL_SECONDS)
 
     def _send(self, blueprint: rrb.Blueprint, store_id: str) -> None:
-        """Send a blueprint for the recording the viewer loaded, under the ids the viewer gave it."""
+        """Send a blueprint for the recording the viewer loaded.
+
+        It is sent under the ids the viewer gave the recording.
+        """
         _, application_id, recording_id = store_id.split(':', 2)
         stream = rr.RecordingStream(application_id.replace('\\:', ':'), recording_id=recording_id)
         stream.connect_grpc(self._url)
@@ -306,7 +328,9 @@ class NativeCapturer(Capturer):
                     self._client.set_time(timeline.name, sequence=timeline.end, recording=store_id)
 
     def capture(self, recording: Path, blueprint: rrb.Blueprint, application_id: str, wait: float) -> Image.Image:
-        """Return an image of the views of a recording at its last frame, laid out by a blueprint.
+        """Return an image of the views of a recording at its last frame.
+
+        The views are laid out by a blueprint.
 
         Args:
             recording:
@@ -342,12 +366,12 @@ class NativeCapturer(Capturer):
 
 
 class WebCapturer(Capturer):
-    """Backend that loads the Rerun web viewer of the installed version in headless Chromium through Playwright.
+    """Backend that loads the Rerun web viewer in headless Chromium.
 
-    The recording and the blueprint are served over HTTP to the web viewer, which the Rerun command serves. The capture
-    waits for the page to load and for the canvas to stop changing, and takes a screenshot of the canvas. The page has a
-    device pixel ratio of 1, since the web viewer doubles its interface on denser pages, so both backends draw the views
-    at the same logical size.
+    It loads the web viewer of the installed version through Playwright. The recording and the blueprint are served over
+    HTTP to the web viewer, which the Rerun command serves. The capture waits for the page to load and for the canvas to
+    stop changing, and takes a screenshot of the canvas. The page has a device pixel ratio of 1, since the web viewer
+    doubles its interface on denser pages, so both backends draw the views at the same logical size.
 
     Args:
         size:
@@ -410,7 +434,9 @@ class WebCapturer(Capturer):
             time.sleep(self.settings.settle)
 
     def capture(self, recording: Path, blueprint: rrb.Blueprint, application_id: str, wait: float) -> Image.Image:
-        """Return an image of the views of a recording at its last frame, laid out by a blueprint.
+        """Return an image of the views of a recording at its last frame.
+
+        The views are laid out by a blueprint.
 
         Args:
             recording:
@@ -444,7 +470,10 @@ CAPTURERS: dict[str, type[Capturer]] = {'native': NativeCapturer, 'web': WebCapt
 
 
 def _fitted(image: Image.Image, size: tuple[int, int]) -> Image.Image:
-    """Return an image without background bands, scaled to fill a size and cropped to its ratio around the centre."""
+    """Return an image without background bands, scaled and cropped to a size.
+
+    It is scaled to fill the size and cropped to its ratio around the centre.
+    """
     return ImageOps.fit(trim_border(image), size, method=Image.Resampling.LANCZOS)
 
 
@@ -481,7 +510,9 @@ def capture_thumbnail(
     backend: str = 'native',
     settings: CaptureSettings | None = None,
 ) -> Path:
-    """Capture the primary view of a recording at its last frame, check it, and write it as the PNG thumbnail.
+    """Capture the primary view of a recording at its last frame as the thumbnail.
+
+    It checks the capture and writes it as the PNG thumbnail.
 
     Args:
         recording:

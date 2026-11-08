@@ -1,4 +1,7 @@
-"""Define rates, interactions that add a rate and a noise to the highest time derivative of a state."""
+"""Define rates.
+
+Rates are interactions that add a rate and a noise to the highest time derivative of a state.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,11 +26,12 @@ CONVENTIONS = ('ito', 'stratonovich', 'anti-ito')
 
 
 class RateInteraction(Interaction):
-    """Rate `rate(ns)` and noise `noise(ns) dW` added to the highest time derivative of a state of a target.
+    """Rate `rate(ns)` and noise `noise(ns) dW` of a state of a target.
 
-    On a state of order 1 the rate is its first derivative, and on a state of order `k` it adds to the `k`-th
-    derivative, so rates on one state superpose. With a divisor `d` the rate and the noise are divided by `d`, the name
-    of a state or parameter of the target, such as an inertia, a friction, or a capacitance, which backends can read.
+    They add to the highest time derivative of the state. On a state of order 1 the rate is its first derivative, and on
+    a state of order `k` it adds to the `k`-th derivative, so rates on one state superpose. With a divisor `d` the rate
+    and the noise are divided by `d`, the name of a state or parameter of the target, such as an inertia, a friction, or
+    a capacitance, which backends can read.
 
     A rate, a noise, or a divisor function takes the namespace of the interaction, with the namespaces `target` and
     `sources` of the bound elements, the time `t`, and the symbols of the parameters a subclass declares. A number
@@ -96,7 +100,10 @@ class RateInteraction(Interaction):
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RateLaw, NoiseLaw, FractionalNoiseLaw)
 
     def _get_tags(self) -> Tags:
-        """Return the tags of the rate law, with a noise law when the noise is given or a subclass writes its hook."""
+        """Return the tags of the rate law, with a noise law for a noise.
+
+        There is a noise law when the noise is given or a subclass writes its hook.
+        """
         given = self._get_argument('noise') is not None or type(self)._get_noise is not RateInteraction._get_noise
         noise: tuple[type[BaseLaw], ...] = (NoiseLaw,) if given else ()
         if noise and self._get_argument('hurst') is not None:
@@ -136,7 +143,10 @@ class RateInteraction(Interaction):
         self.conserved = conserved
 
     def _check_functions(self) -> None:
-        """Raise an error for a state that is not a name, or a function that is neither callable nor a number."""
+        """Raise an error for a state that is not a name, or a bad function.
+
+        A bad function is neither callable nor a number.
+        """
         if not isinstance(self.state, str) or not self.state.isidentifier():
             error_msg = (
                 f'{type(self).__name__} {self.label!r} changes the state {self.state!r}, which is not a name of a '
@@ -160,7 +170,10 @@ class RateInteraction(Interaction):
             raise ValidationError(error_msg)
 
     def _check_noise(self) -> None:
-        """Raise an error for an unknown convention, a Hurst index outside `(0, 1)`, or noise options that conflict."""
+        """Raise an error for an unknown convention, a bad Hurst index, or noise conflicts.
+
+        The Hurst index must be in `(0, 1)`.
+        """
         if self.convention not in CONVENTIONS:
             error_msg = f'Unknown noise convention {self.convention!r}. Use one of {", ".join(CONVENTIONS)}.'
             raise ValidationError(error_msg)
@@ -182,7 +195,7 @@ class RateInteraction(Interaction):
             raise ValidationError(error_msg)
 
     def _check(self) -> None:
-        """Raise an error for a state, functions, or noise options the interaction cannot take.
+        """Raise an error for a state, functions, or noise options it cannot take.
 
         Raises:
             ValidationError:
@@ -198,7 +211,10 @@ class RateInteraction(Interaction):
         return function(namespace) if callable(function) else function
 
     def _broadcast(self, value: object, state: object) -> object:
-        """Return a value with one component per component of a vector state, repeating a number."""
+        """Return a value with one component per component of a vector state.
+
+        It repeats a number.
+        """
         if isinstance(state, FreeModuleElement) and not isinstance(value, FreeModuleElement | list | tuple):
             return vector(SR, [value] * len(state))
         if isinstance(value, list | tuple):
@@ -206,7 +222,10 @@ class RateInteraction(Interaction):
         return value
 
     def _divide(self, value: object, namespace: SimpleNamespace) -> object:
-        """Return a value divided by the divisor of the target, or the value without a divisor."""
+        """Return a value divided by the divisor of the target.
+
+        Without a divisor, it returns the value.
+        """
         if self.divisor is None:
             return value
         divisor = (
@@ -217,15 +236,24 @@ class RateInteraction(Interaction):
         return operator.truediv(value, divisor)
 
     def _get_rate(self, namespace: SimpleNamespace) -> object:
-        """Return the rate before the divisor, the hook a subclass overrides to derive it from its parameters."""
+        """Return the rate before the divisor.
+
+        This is the hook a subclass overrides to derive it from its parameters.
+        """
         return self._evaluate(self.rate, namespace)
 
     def _get_noise(self, namespace: SimpleNamespace) -> object:
-        """Return the noise amplitude before the divisor, the hook a subclass overrides, or `None` for no noise."""
+        """Return the noise amplitude before the divisor, or `None` for no noise.
+
+        This is the hook a subclass overrides.
+        """
         return None if self.noise is None else self._evaluate(self.noise, namespace)
 
     def _get_noise_law(self, state: object, amplitude: object, namespace: SimpleNamespace) -> BasePart:
-        """Return the noise law of an amplitude, by the process, the convention, and the Hurst index."""
+        """Return the noise law of an amplitude.
+
+        It goes by the process, the convention, and the Hurst index.
+        """
         if self.hurst is not None:
             hurst = self._evaluate(self.hurst, namespace)
             return FractionalNoiseLaw(state, amplitude, hurst=hurst, convention=self.convention)

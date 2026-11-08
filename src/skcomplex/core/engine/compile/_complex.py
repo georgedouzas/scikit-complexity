@@ -1,4 +1,7 @@
-"""Split complex expressions and laws into real expressions of their real and imaginary parts."""
+"""Split complex expressions and laws into real expressions.
+
+The real expressions are those of their real and imaginary parts.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -61,7 +64,10 @@ def _is_zero(expression: Expression) -> bool:
 
 
 def _checked(part: Expression, expression: Expression, owner: str) -> Expression:
-    """Return a real or imaginary part with every modulus written out, after checking that no complex value is left."""
+    """Return a real or imaginary part with every modulus written out.
+
+    It first checks that no complex value is left.
+    """
     part = _modulus_form(part)
     left = sorted(_names_in(part) & _LEFTOVER)
     if not part.has(I) and not left:
@@ -75,7 +81,10 @@ def _checked(part: Expression, expression: Expression, owner: str) -> Expression
 
 
 def _stand_in(part: Expression, stand_ins: dict[Expression, Expression]) -> Expression:
-    """Return a real symbol that stands for a real part while Sage splits the function applied to it."""
+    """Return a real symbol that stands for a real part.
+
+    The symbol stands for the part while Sage splits the function applied to it.
+    """
     if part.operator() is None:
         return part
     item = SR.symbol(f'{_STAND_IN}{len(stand_ins)}')
@@ -85,7 +94,10 @@ def _stand_in(part: Expression, stand_ins: dict[Expression, Expression]) -> Expr
 
 
 def _real(parts: Parts, expression: Expression, owner: str) -> Expression:
-    """Return the real part of a value whose imaginary part must be zero, as an operand that only takes real values."""
+    """Return the real part of a value whose imaginary part must be zero.
+
+    The part is returned as an operand that only takes real values.
+    """
     real, imaginary = parts
     if _is_zero(imaginary):
         return real
@@ -112,7 +124,10 @@ def _split_relation(expression: Expression, owner: str) -> Expression:
 
 
 def _split_part(name: str, operand: Expression, owner: str) -> Parts:
-    """Return the parts of the modulus, argument, real part, imaginary part, or conjugate of a value."""
+    """Return the parts of a modulus, argument, part, or conjugate of a value.
+
+    The parts are those of the modulus, argument, real part, imaginary part, or conjugate.
+    """
     real, imaginary = _split_complex(operand, owner)
     if name == 'abs':
         return (abs(real) if _is_zero(imaginary) else sqrt(real**2 + imaginary**2)), SR(0)
@@ -126,14 +141,20 @@ def _split_part(name: str, operand: Expression, owner: str) -> Parts:
 
 
 def _split_where(function: Callable[..., Expression], operands: list[Expression], owner: str) -> Parts:
-    """Return the parts of a choice between two values, whose condition takes real values."""
+    """Return the parts of a choice between two values.
+
+    The condition of the choice takes real values.
+    """
     condition = _real(_split_complex(operands[0], owner), operands[0], owner)
     (real, imaginary), (other_real, other_imaginary) = (_split_complex(item, owner) for item in operands[1:])
     return function(condition, real, other_real), function(condition, imaginary, other_imaginary)
 
 
 def _split_function(expression: Expression, owner: str) -> Parts | None:
-    """Return the parts of a call of a modulus, argument, part, linear operator, or reduction, or `None` otherwise."""
+    """Return the parts of a call of a modulus, argument, part, operator, or reduction.
+
+    The operator is linear, and the result is `None` for any other call.
+    """
     name, operands, function = _name_of(expression), list(expression.operands()), expression.operator()
     if name in _UNSPLIT:
         return _split_part(name, operands[0], owner)
@@ -152,7 +173,9 @@ def _split_function(expression: Expression, owner: str) -> Parts | None:
 
 
 def _modulus_form(expression: Expression) -> Expression:
-    """Return an expression with every modulus of a complex value written with its real and imaginary parts.
+    """Return an expression with every modulus of a complex value written out.
+
+    Every modulus is written with the real and imaginary parts of its value.
 
     Args:
         expression:
@@ -171,11 +194,11 @@ def _modulus_form(expression: Expression) -> Expression:
 
 
 def _split_complex(expression: object, owner: str) -> Parts:
-    """Return the real and imaginary parts of an expression of real symbols as real expressions.
+    """Return the real and imaginary parts of an expression of real symbols.
 
-    Sage writes the parts of arithmetic and of the elementary functions. The modulus, argument, parts, and conjugate,
-    the linear operators of fields and companions, sums and means over groups, and member offset reads are split
-    term by term, and relations and the other functions take real operands.
+    The parts are real expressions. Sage writes the parts of arithmetic and of the elementary functions. The modulus,
+    argument, parts, and conjugate, the linear operators of fields and companions, sums and means over groups, and
+    member offset reads are split term by term, and relations and the other functions take real operands.
 
     Args:
         expression:

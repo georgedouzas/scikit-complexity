@@ -1,4 +1,7 @@
-"""Sparse matrix on the whole Hilbert space with a symbolic coefficient and its lowered function."""
+"""Sparse matrix on the whole Hilbert space with a symbolic coefficient.
+
+It holds the lowered function of the coefficient.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,7 +19,9 @@ from ._base import BaseKernel
 
 
 class OperatorKernel(BaseKernel):
-    """Sparse matrix on the whole Hilbert space with a symbolic coefficient and its lowered function.
+    """Sparse matrix on the whole Hilbert space with a symbolic coefficient.
+
+    It holds the lowered function of the coefficient.
 
     Args:
         matrix:
@@ -51,7 +56,9 @@ class OperatorKernel(BaseKernel):
         return bool(self.coefficient.has(symbol('t')))
 
     def _run(self, inputs: RunStateSpec | None) -> None:
-        """Set the coefficient at the time and the parameters of the state, 1 for a constant matrix.
+        """Set the coefficient at the time and the parameters of the state.
+
+        A constant matrix has coefficient 1.
 
         Args:
             inputs:
@@ -62,7 +69,9 @@ class OperatorKernel(BaseKernel):
 
     @staticmethod
     def _coefficient_of(value: object) -> complex:
-        """Return the value a lowered coefficient function computed as a complex coefficient.
+        """Return the value a lowered coefficient function computed.
+
+        The value is returned as a complex coefficient.
 
         Args:
             value:

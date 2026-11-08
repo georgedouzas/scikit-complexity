@@ -1,4 +1,7 @@
-"""Implicit-explicit Euler: the linear part implicit and the nonlinear remainder explicit, of first order."""
+"""Implicit-explicit Euler of first order.
+
+The linear part is implicit and the nonlinear remainder explicit.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -8,10 +11,11 @@ from ._split import SplitSolver
 
 
 class IMEXEulerSolver(SplitSolver):
-    """Implicit-explicit Euler: the linear part implicit and the nonlinear remainder explicit, of first order.
+    """Implicit-explicit Euler of first order.
 
-    Every step solves `(I - h L) x_{n+1} = x_n + h N(x_n)`, with sparse solves for finite differences and finite
-    elements and division per Fourier mode for spectral fields.
+    The linear part is implicit and the nonlinear remainder explicit. Every step solves `(I - h L) x_{n+1} = x_n + h
+    N(x_n)`, with sparse solves for finite differences and finite elements and division per Fourier mode for spectral
+    fields.
 
     Args:
         dt:

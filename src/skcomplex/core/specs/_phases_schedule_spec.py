@@ -16,7 +16,9 @@ DEFAULT_PHASE = 'default'
 
 @dataclass(frozen=True)
 class PhasesScheduleSpec(ScheduleSpec):
-    """Spec of a schedule of discrete time that runs named phases in order in every step.
+    """Spec of a schedule of discrete time that runs named phases in every step.
+
+    The phases run in order.
 
     Args:
         phases:
@@ -31,7 +33,9 @@ class PhasesScheduleSpec(ScheduleSpec):
     phases: Sequence[PhaseSpec]
 
     def _check(self) -> None:
-        """Raise an error for a phase with an unknown activation, no round, negative visits, or no period, or a repeat.
+        """Raise an error for an invalid phase or a repeated name.
+
+        A phase is invalid with an unknown activation, no round, negative visits, or no period.
 
         Raises:
             ValidationError:

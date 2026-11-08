@@ -1,4 +1,7 @@
-"""Give the rows of values an experiment runs: grids, random and quasi-random samples, and sensitivity designs."""
+"""Give the rows of values an experiment runs.
+
+They are grids, random and quasi-random samples, and sensitivity designs.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,7 +28,9 @@ def _get_rows(
     n: int,
     random_state: int | None,
 ) -> list[Row]:
-    """Return the rows of a sweep: the rows given, every combination of values, or samples within bounds.
+    """Return the rows of a sweep.
+
+    They are the rows given, every combination of values, or samples within bounds.
 
     Args:
         parameters:
@@ -86,7 +91,9 @@ def _get_rows(
 
 
 def _get_grid_rows(values: Bounds) -> list[Row]:
-    """Return one row per combination of the values of every name, the last name varying fastest.
+    """Return one row per combination of the values of every name.
+
+    The last name varies fastest.
 
     Args:
         values:
@@ -111,7 +118,9 @@ def _get_grid_rows(values: Bounds) -> list[Row]:
 
 
 def _check_bounds(bounds: Bounds, *, distributions: bool = True) -> dict[str, object]:
-    """Return the bounds by name, raising an error for one that is neither a pair nor an allowed distribution.
+    """Return the bounds by name.
+
+    It raises an error for one that is neither a pair nor an allowed distribution.
 
     Args:
         bounds:
@@ -159,7 +168,9 @@ def _get_pairs(bounds: Bounds) -> dict[str, tuple[float, float]]:
 
 
 def _scale(bounds: Mapping[str, object], uniform: npt.NDArray[np.float64]) -> list[Row]:
-    """Return rows of uniform samples in the unit cube mapped to pairs of bounds or through quantile functions.
+    """Return rows of uniform samples in the unit cube mapped to bounds.
+
+    They are mapped to pairs of bounds or through quantile functions.
 
     Args:
         bounds:
@@ -183,11 +194,11 @@ def _scale(bounds: Mapping[str, object], uniform: npt.NDArray[np.float64]) -> li
 
 
 def _get_sensitivity_rows(bounds: Bounds, method: str, n: int, random_state: int | None) -> list[Row]:
-    """Return the rows a sensitivity method reads, from SALib for Morris trajectories and Saltelli's sample.
+    """Return the rows a sensitivity method reads.
 
-    - `'oat'`: two rows per name, at its lower and then at its upper bound, with the others at their midpoints.
-    - `'morris'`: `n` Morris trajectories on four levels, `n * (names + 1)` rows.
-    - `'sobol'`: Saltelli's sample of `n` base points, best a power of 2, `n * (names + 2)` rows.
+    SALib gives Morris trajectories and Saltelli's sample. - `'oat'`: two rows per name, at its lower and then at its
+    upper bound, with the others at their midpoints. - `'morris'`: `n` Morris trajectories on four levels, `n * (names +
+    1)` rows. - `'sobol'`: Saltelli's sample of `n` base points, best a power of 2, `n * (names + 2)` rows.
 
     Args:
         bounds:

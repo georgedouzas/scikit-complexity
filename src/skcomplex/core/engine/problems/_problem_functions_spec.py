@@ -20,7 +20,9 @@ from ._draw_kernel import DrawKernel
 
 @dataclass(frozen=True)
 class _ProblemFunctionsSpec(BaseSpec):
-    """Numeric functions, equations, and backends of a problem, which the passes lower and the problem takes.
+    """Numeric functions, equations, and backends of a problem.
+
+    The passes lower them and the problem takes them.
 
     Args:
         equations:

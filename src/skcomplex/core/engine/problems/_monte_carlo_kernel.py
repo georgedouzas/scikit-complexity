@@ -1,4 +1,7 @@
-"""Monte Carlo sampling of a lattice state compiled from its local objective, move, and sampler."""
+"""Monte Carlo sampling of a lattice state.
+
+It is compiled from its local objective, move, and sampler.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,7 +20,9 @@ from ._expression_printer import ExpressionPrinter
 
 
 class MonteCarloKernel(BaseKernel):
-    """Monte Carlo sampling of a lattice state compiled from its local objective, move, and sampler.
+    """Monte Carlo sampling of a lattice state.
+
+    It is compiled from its local objective, move, and sampler.
 
     Args:
         owner:
@@ -130,7 +135,10 @@ class MonteCarloKernel(BaseKernel):
         return values + rng.uniform(-self.move.width, self.move.width, size=values.size)
 
     def _intensity_of(self, keywords: Mapping[str, object]) -> Array:
-        """Return the intensity at some sites, infinite where it divides by zero, after checking it is positive."""
+        """Return the intensity at some sites after checking it is positive.
+
+        It is infinite where it divides by zero.
+        """
         arguments = [np.asarray(value, dtype=float) for value in keywords.values()]
         with np.errstate(divide='ignore'):
             value = ExpressionPrinter._values_of(self.intensity(self.time_, *arguments))[0]
@@ -142,7 +150,10 @@ class MonteCarloKernel(BaseKernel):
 
     @staticmethod
     def _scaled(change: Array, intensity: Array) -> Array:
-        """Return a change of the objective times the intensity, 0 for no change at an infinite intensity."""
+        """Return a change of the objective times the intensity.
+
+        It is 0 for no change at an infinite intensity.
+        """
         return np.where(change == 0.0, 0.0, change * np.where(change == 0.0, 1.0, intensity))
 
     def _grow(self, x: Array, p: Array, values: Array, sites: Indices, rng: np.random.Generator) -> Indices:
@@ -165,7 +176,10 @@ class MonteCarloKernel(BaseKernel):
         return np.unique(rows[added])
 
     def _flip_cluster(self, x: Array, p: Array, rng: np.random.Generator) -> int:
-        """Flip the values of a cluster grown by Wolff bonds from a random site, and return its size."""
+        """Flip the values of a cluster and return its size.
+
+        The cluster is grown by Wolff bonds from a random site.
+        """
         start, size = self.target.start, self.target.size
         values = x[start : start + size].copy()
         inside = np.zeros(size, dtype=bool)

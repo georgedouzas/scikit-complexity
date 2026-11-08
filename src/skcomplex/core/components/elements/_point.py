@@ -13,10 +13,11 @@ from ._element import Element
 
 
 class PointElement(Element):
-    """Point of a continuous space, a member with a vector state `x` of order 2 that locates it.
+    """Point of a continuous space.
 
-    The laws that act on the point give the second derivative of `x`, and the companion state `x_d1` holds its first
-    derivative. The boundary of the space acts on `x`.
+    The point is a member with a vector state `x` of order 2 that locates it. The laws that act on the point give the
+    second derivative of `x`, and the companion state `x_d1` holds its first derivative. The boundary of the space acts
+    on `x`.
 
     Args:
         label:

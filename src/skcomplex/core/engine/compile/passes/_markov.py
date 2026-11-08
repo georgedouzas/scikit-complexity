@@ -1,4 +1,7 @@
-"""Take the Markov laws out of the laws of every component and check their matrices."""
+"""Take the Markov laws out of the component laws and check their matrices.
+
+The laws are taken out of the laws of every component.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -31,7 +34,10 @@ MEMBER_NDIM = 3
 
 
 class MarkovPass(BasePass):
-    """Pass that rewrites transition and emission laws into Markov matrices checked at the initial values."""
+    """Pass that rewrites transition and emission laws into Markov matrices.
+
+    The matrices are checked at the initial values.
+    """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
@@ -59,7 +65,10 @@ class MarkovPass(BasePass):
         markov: list[tuple[KernelSpec, MatrixLawSpec]],
         declarations: DeclarationsSpec,
     ) -> tuple[MarkovKernel, ...]:
-        """Return the matrices of the Markov laws after checking them at the initial parameter values."""
+        """Return the matrices of the Markov laws.
+
+        They are checked at the initial parameter values first.
+        """
         initial = np.concatenate([np.zeros(0), *declarations.initial_parameters])
         matrices: list[MarkovKernel] = []
         for spec, law in markov:
@@ -76,7 +85,10 @@ class MarkovPass(BasePass):
 
     @staticmethod
     def _alphabet_size(description: str, reference: ReferenceSpec | None) -> int | None:
-        """Return the number of values of a state over a finite alphabet, or `None` for the integers."""
+        """Return the number of values of a state over a finite alphabet.
+
+        It is `None` for the integers.
+        """
         if reference is None or not reference.is_state:
             error_msg = f'The {description} must target a scalar state of its component.'
             raise ValidationError(error_msg)
@@ -101,7 +113,7 @@ class MarkovPass(BasePass):
         rows: int | None,
         columns: int | None,
     ) -> None:
-        """Raise an error when a matrix does not have the rows and columns its alphabets need."""
+        """Raise an error for a matrix without the rows and columns its alphabets need."""
         shape = (len(matrix), len(matrix[0]))
         if (rows is None or shape[0] == rows) and (columns is None or shape[1] == columns):
             return
@@ -116,7 +128,10 @@ class MarkovPass(BasePass):
 
     @staticmethod
     def _draw_name(kind: str, target: Expression) -> str:
-        """Return the draw name of a Markov law, which no user draw name starts with."""
+        """Return the draw name of a Markov law.
+
+        No user draw name starts with it.
+        """
         return f'_{kind}_{re.sub(r"[^0-9A-Za-z]", "_", str(target))}'
 
     @staticmethod
@@ -130,7 +145,10 @@ class MarkovPass(BasePass):
 
     @staticmethod
     def _selected_row(selector: Expression, matrix: Sequence[Sequence[object]]) -> list[Expression]:
-        """Return the row of a matrix that the value of a selecting expression picks, as nested conditions."""
+        """Return the row of a matrix that the value of a selecting expression picks.
+
+        It is written as nested conditions.
+        """
         weights = []
         for column in range(len(matrix[0])):
             weight = SR(matrix[-1][column])
@@ -212,7 +230,10 @@ class MarkovPass(BasePass):
         references: Mapping[Expression, ReferenceSpec],
         updates: dict[str, object],
     ) -> tuple[UpdateLaw, MatrixLawSpec]:
-        """Return the update law an emission law becomes, reading the hidden state's next value, and its matrix."""
+        """Return the update law an emission law becomes, and its matrix.
+
+        The update law reads the next value of the hidden state.
+        """
         description = f'emission law of {owner}.{law._get_targets()[0]}'
         columns = MarkovPass._alphabet_size(description, references.get(law._get_targets()[0]))
         rows = MarkovPass._alphabet_size(description, references.get(law.source))
@@ -232,7 +253,10 @@ class MarkovPass(BasePass):
 
     @staticmethod
     def _transition(spec: KernelSpec, law: TransitionLaw) -> tuple[UpdateLaw, MatrixLawSpec | None]:
-        """Return the update law a transition law becomes, and its matrix unless a function gives it."""
+        """Return the update law a transition law becomes, and its matrix.
+
+        The matrix is left out when a function gives it.
+        """
         owner, references = spec.owner, spec.references
         if isinstance(law.matrix, CallSpec) or callable(law.matrix):
             return MarkovPass._function_transition(spec, law, law.matrix), None
@@ -248,7 +272,10 @@ class MarkovPass(BasePass):
 
     @staticmethod
     def _next_values(rows: Array, draws: Array, description: str) -> npt.NDArray[np.intp]:
-        """Return the next value of every member from the row of its matrix, after checking the rows."""
+        """Return the next value of every member from the row of its matrix.
+
+        It first checks the rows.
+        """
         if np.any(rows < 0) or not np.allclose(rows.sum(axis=1), 1.0):
             error_msg = (
                 f'The {description} returned {rows}. Give a matrix with nonnegative entries whose rows sum to 1.'
@@ -262,7 +289,10 @@ class MarkovPass(BasePass):
         law: TransitionLaw,
         given: CallSpec | Callable[..., object],
     ) -> UpdateLaw:
-        """Return the update law of a transition whose matrix is a function, which draws from the random stream."""
+        """Return the update law of a transition whose matrix is a function.
+
+        The law draws from the random stream.
+        """
         target = law._get_targets()[0]
         reference = spec.references.get(target)
         description = f'transition law of {spec.owner}.{target}'
@@ -296,7 +326,9 @@ class MarkovPass(BasePass):
         spec: KernelSpec,
         laws: list[BaseLaw],
     ) -> tuple[list[BaseLaw], list[MatrixLawSpec]]:
-        """Return the laws of a component with transition and emission laws rewritten as update laws with draws.
+        """Return the laws of a component with transition and emission laws rewritten.
+
+        They are rewritten as update laws with draws.
 
         Args:
             spec:

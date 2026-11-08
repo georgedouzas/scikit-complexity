@@ -11,7 +11,9 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class RunSettingsSpec(BaseSpec):
-    """Run settings of a system file: where its time starts, how long it runs, its step, and its saving interval.
+    """Run settings of a system file.
+
+    They hold where its time starts, how long it runs, its step, and its saving interval.
 
     Args:
         start:
@@ -42,7 +44,7 @@ class RunSettingsSpec(BaseSpec):
     save_every: float
 
     def _check(self) -> None:
-        """Raise an error for a run length, a time step, or a saving interval that is not positive.
+        """Raise an error for a run length, time step, or saving interval not positive.
 
         Raises:
             ValidationError:

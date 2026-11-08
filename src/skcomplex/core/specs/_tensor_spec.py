@@ -1,4 +1,7 @@
-"""Define the tensor spec, the independent components of a rank-2 tensor of one symmetry."""
+"""Define the tensor spec.
+
+It holds the independent components of a rank-2 tensor of one symmetry.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,7 +26,9 @@ AXIS_NAMES = 'xyz'
 
 @dataclass(frozen=True)
 class TensorSpec(BaseSpec):
-    """Independent components of a rank-2 tensor of one symmetry in a space of two or three dimensions.
+    """Independent components of a rank-2 tensor of one symmetry.
+
+    The tensor lives in a space of two or three dimensions.
 
     Args:
         symmetry:
@@ -49,7 +54,10 @@ class TensorSpec(BaseSpec):
     n_dim: int
 
     def _check(self) -> None:
-        """Raise an error for an unknown symmetry or a space without two or three dimensions."""
+        """Raise an error for an unknown symmetry or a space of the wrong dimension.
+
+        The space must have two or three dimensions.
+        """
         if self.symmetry not in TENSOR_SYMMETRIES:
             error_msg = f'The tensor symmetry is {self.symmetry!r}. Use one of {", ".join(TENSOR_SYMMETRIES)}.'
             raise ValidationError(error_msg)
@@ -58,7 +66,10 @@ class TensorSpec(BaseSpec):
             raise ValidationError(error_msg)
 
     def _unit(self, row: int, column: int) -> IntArray:
-        """Return the tensor whose independent component at an index is 1 and whose other ones are 0."""
+        """Return the tensor whose independent component at an index is 1.
+
+        Its other independent components are 0.
+        """
         unit = np.zeros((self.n_dim, self.n_dim), dtype=np.int64)
         unit[row, column] = 1
         if self.symmetry == 'antisymmetric':
@@ -87,11 +98,16 @@ class TensorSpec(BaseSpec):
 
     @functools.cached_property
     def basis(self) -> IntArray:
-        """Tensors of the independent components, with one tensor per component on the first axis."""
+        """Tensors of the independent components.
+
+        There is one tensor per component on the first axis.
+        """
         return np.stack([self._unit(row, column) for row, column in self.indices])
 
     def matrix_of(self, components: Iterable[object]) -> Matrix:
-        """Return the symbolic matrix of independent components, with the dependent entries written in terms of them.
+        """Return the symbolic matrix of independent components.
+
+        The dependent entries are written in terms of them.
 
         Args:
             components:
@@ -132,10 +148,11 @@ class TensorSpec(BaseSpec):
         return np.tensordot(np.asarray(components, dtype=float), self.basis, axes=1)
 
     def principal_of(self, components: npt.ArrayLike) -> tuple[Array, Array]:
-        """Return the principal axis and the scalar order of symmetric tensors of independent components.
+        """Return the principal axis and the scalar order of symmetric tensors.
 
-        The principal axis is the eigenvector of the largest eigenvalue of the traceless part. The scalar order is that
-        eigenvalue times `n_dim / (n_dim - 1)`, so a tensor `S (n n - I / n_dim)` has the order `S`.
+        The tensors are given by their independent components. The principal axis is the eigenvector of the largest
+        eigenvalue of the traceless part. The scalar order is that eigenvalue times `n_dim / (n_dim - 1)`, so a tensor
+        `S (n n - I / n_dim)` has the order `S`.
 
         Args:
             components:

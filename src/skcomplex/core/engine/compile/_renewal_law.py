@@ -13,11 +13,11 @@ from ...specs import RequirementSpec
 
 
 class RenewalLaw(BaseLaw):
-    """Renewal of states after waiting times drawn anew at every renewal, which the compiler runs for a waiting jump.
+    """Renewal of states after waiting times drawn anew at every renewal.
 
-    Every member of a group renews on its own clock. A renewal applies its reset to the states all at once, then draws
-    the next waiting time from the states after the reset. Renewals combine with rate and noise laws, which evolve the
-    states between renewals.
+    The compiler runs it for a waiting jump. Every member of a group renews on its own clock. A renewal applies its
+    reset to the states all at once, then draws the next waiting time from the states after the reset. Renewals combine
+    with rate and noise laws, which evolve the states between renewals.
 
     Args:
         waiting:
@@ -54,11 +54,17 @@ class RenewalLaw(BaseLaw):
         return tuple(self.reset or {})
 
     def _check(self) -> None:
-        """Accept the waiting time and the reset, which the jump the law is run for checked."""
+        """Accept the waiting time and the reset.
+
+        The jump the law is run for checked them.
+        """
 
     @classmethod
     def _get_requirements(cls) -> RequirementSpec:
-        """Return what the law requires of a system: continuous time."""
+        """Return what the law requires of a system.
+
+        The law requires continuous time.
+        """
         return RequirementSpec(time=(ContinuousTime,))
 
     def _run(self, inputs: object) -> None:

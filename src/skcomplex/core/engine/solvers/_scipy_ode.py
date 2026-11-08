@@ -1,4 +1,7 @@
-"""Integrator of ordinary differential equations based on the step solvers of `scipy.integrate`."""
+"""Integrator of ordinary differential equations based on `scipy.integrate`.
+
+It uses the step solvers of `scipy.integrate`.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -91,12 +94,13 @@ _FALLBACK_STEP = 1e-6
 
 
 class ScipyODESolver(Solver):
-    """Integrator of ordinary differential equations based on the step solvers of `scipy.integrate`.
+    """Integrator of ordinary differential equations based on `scipy.integrate`.
 
-    One integrator runs across the frames of a run, and every frame reads its state from the dense output of the step
-    that covers the frame's time, and it restarts at every frame when a condition on time jumps at a time that depends
-    on parameters. With delays, steps are at most the shortest delay, or a hundredth of the frame when
-    the delay is shorter, and a delay shorter than the step reads the extension of the previous step.
+    It uses the step solvers of `scipy.integrate`. One integrator runs across the frames of a run, and every frame reads
+    its state from the dense output of the step that covers the frame's time, and it restarts at every frame when a
+    condition on time jumps at a time that depends on parameters. With delays, steps are at most the shortest delay, or
+    a hundredth of the frame when the delay is shorter, and a delay shorter than the step reads the extension of the
+    previous step.
 
     The implicit methods `BDF`, `Radau`, and `LSODA` receive the structure of the Jacobian that the compiler derives
     from the laws, at every start and restart of the integrator. `BDF` and `Radau` estimate the Jacobian by finite
@@ -261,7 +265,10 @@ class ScipyODESolver(Solver):
         return size <= _LSODA_LARGEST_SIZE or 'lband' in self.jacobian_options_
 
     def _prepare_jacobian(self, problem: ProblemSpec) -> None:
-        """Derive the Jacobian structure an implicit method receives, or check that the exact Jacobian exists."""
+        """Derive the Jacobian structure an implicit method receives.
+
+        Otherwise, check that the exact Jacobian exists.
+        """
         jacobian = problem.jacobian
         assert jacobian is not None
         if self.jacobian == 'exact':
@@ -300,7 +307,10 @@ class ScipyODESolver(Solver):
         return {'jac': exact}
 
     def _choose_for_span(self, span: float) -> None:
-        """Choose RK45 or BDF for a large diffusive system by how many stable steps the first call spans."""
+        """Choose RK45 or BDF for a large diffusive system.
+
+        The choice depends on how many stable steps the first call spans.
+        """
         if not self._choosing:
             return
         self._choosing = False
@@ -310,7 +320,10 @@ class ScipyODESolver(Solver):
             self._prepare_jacobian(self.problem_)
 
     def _warn_stiff(self, t: float, until: float) -> None:
-        """Warn once when an explicit method spans many stable steps of the diffusion of a field in one call."""
+        """Warn once when an explicit method spans many stable steps in one call.
+
+        The steps are those of the diffusion of a field.
+        """
         limit = self.problem_.stable_step
         if self._warned or self.method_ in _IMPLICIT or limit is None or until - t <= _STIFF_SPAN * limit:
             return
@@ -324,7 +337,10 @@ class ScipyODESolver(Solver):
         warnings.warn(warning_msg, UserWarning, stacklevel=3)
 
     def _continues(self, t: float, x: Array, p: Array) -> bool:
-        """Check whether a call continues the state, time, and parameters the integrator returned last."""
+        """Check whether a call continues where the integrator stopped last.
+
+        It continues when it has the state, time, and parameters the integrator returned last.
+        """
         return (
             self._solver is not None
             and abs(t - self._time) <= _RESTART * max(1.0, abs(t))
@@ -333,7 +349,10 @@ class ScipyODESolver(Solver):
         )
 
     def _next_discontinuity(self, time: float) -> float:
-        """Return the first time after a time where a delay carries the jump in slope at the start of the run."""
+        """Return the first time after a time where a delay carries a jump in slope.
+
+        The jump is the one at the start of the run.
+        """
         history = self.history_
         if history is None:
             return math.inf
@@ -384,7 +403,10 @@ class ScipyODESolver(Solver):
         self._time, self._state, self._parameters = t, x.copy(), p.copy()
 
     def _next_segment(self, p: Array) -> _SegmentSpec:
-        """Return the step that covers the current time, taking a new step or restarting at a breakpoint."""
+        """Return the step that covers the current time.
+
+        A new step is taken, or the integrator restarts at a breakpoint.
+        """
         segment = self._segment
         while segment is None or segment.end <= self._time:
             solver = self._solver
@@ -424,7 +446,9 @@ class ScipyODESolver(Solver):
         return segment
 
     def _stalls(self, start: float, end: float) -> bool:
-        """Check whether LSODA has taken many consecutive steps too short to advance the run, or too many in a frame.
+        """Check whether LSODA stalls.
+
+        It stalls with many consecutive steps too short to advance the run, or too many in a frame.
 
         Args:
             start:
@@ -460,7 +484,10 @@ class ScipyODESolver(Solver):
         return self._stalled >= _STALL_STEPS
 
     def _leave_lsoda(self, t: float, x: Array, p: Array) -> None:
-        """Continue with `RK45` after LSODA stalls on a default method, or raise the named error on an explicit one."""
+        """Continue with `RK45` after LSODA stalls on a default method.
+
+        On an explicit method, the named error is raised.
+        """
         cause = (
             f'{_MAX_FRAME_STEPS} steps in one frame'
             if self._frame_steps >= _MAX_FRAME_STEPS
@@ -482,7 +509,10 @@ class ScipyODESolver(Solver):
         self._restart(t, x, p)
 
     def _first_change(self, dense: Callable[[float], Array], end: float, p: Array) -> float:
-        """Return the first time of a step, up to its end, at which the boundary laws change the state, by bisection."""
+        """Return the first time of a step at which the boundary laws change the state.
+
+        It is found up to the end of the step by bisection.
+        """
 
         def changed(time: float) -> bool:
             state = np.asarray(dense(time), dtype=float)
@@ -497,11 +527,12 @@ class ScipyODESolver(Solver):
         return high
 
     def _to_event(self, p: Array, until: float) -> None:
-        """Integrate the current step up to a time or to its first event, and apply the event or the boundary.
+        """Integrate the current step up to a time or to its first event.
 
-        The integrator restarts where a boundary law first changes the state. When that happens at once after a restart,
-        the state rests on the boundary while the drift pushes it out, as for a clipped state under a constant inflow,
-        so the step runs to its end and the boundary projects the state there instead.
+        The event or the boundary is then applied. The integrator restarts where a boundary law first changes the state.
+        When that happens at once after a restart, the state rests on the boundary while the drift pushes it out, as for
+        a clipped state under a constant inflow, so the step runs to its end and the boundary projects the state there
+        instead.
         """
         segment = self._next_segment(p)
         end = min(segment.end, until)
@@ -525,10 +556,10 @@ class ScipyODESolver(Solver):
         self._restart(time, self._bounded(time, np.asarray(segment.dense(time), dtype=float), p), p)
 
     def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
-        """Integrate the drift from time `t` to time `until`, continuing the integrator of the previous call.
+        """Integrate the drift from time `t` to time `until`.
 
-        The integrator restarts when the parameters change, when the state or time is not the one it returned, at
-        breakpoints, at events, and when a boundary law changes the state.
+        The integrator of the previous call continues. The integrator restarts when the parameters change, when the
+        state or time is not the one it returned, at breakpoints, at events, and when a boundary law changes the state.
 
         Args:
             t:
@@ -580,13 +611,13 @@ class ScipyODESolver(Solver):
         rtol: float,
         atol: float,
     ) -> float | None:
-        """Return the first step of LSODA when the drift vanishes at the start, or `None` to let LSODA choose.
+        """Return the first step of LSODA when the drift vanishes at the start.
 
-        LSODA guesses its first step from the distance to the end when the drift vanishes at the start, and without a
-        largest step it fails before its first step on a far end. The step then comes from the drift's change over a
-        trial step, as in SciPy's other solvers (Hairer, Norsett, and Wanner, II.4). Elsewhere LSODA's own guess is
-        kept, since a trial step across a discontinuous drift, such as stick-slip friction, gives needlessly small
-        steps.
+        Otherwise, `None` lets LSODA choose. LSODA guesses its first step from the distance to the end when the drift
+        vanishes at the start, and without a largest step it fails before its first step on a far end. The step then
+        comes from the drift's change over a trial step, as in SciPy's other solvers (Hairer, Norsett, and Wanner,
+        II.4). Elsewhere LSODA's own guess is kept, since a trial step across a discontinuous drift, such as stick-slip
+        friction, gives needlessly small steps.
         """
         span = abs(end - t)
         with np.errstate(all='ignore'):

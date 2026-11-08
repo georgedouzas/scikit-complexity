@@ -14,7 +14,10 @@ from ._reference_spec import ReferenceSpec
 
 @dataclass(frozen=True)
 class _CompiledDelaySpec(BaseSpec):
-    """Delay or smoothing of a compiled system, its call in the laws and its output read from hidden states."""
+    """Delay or smoothing of a compiled system.
+
+    It holds its call in the laws and its output, read from hidden states.
+    """
 
     call: Expression
     output: Expression

@@ -1,4 +1,7 @@
-"""Pass that adds the agents with their rules, the rules of other components, and the agent space to the problem."""
+"""Pass that adds the agents, the rules, and the agent space to the problem.
+
+The rules are those of the agents and of other components.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -51,7 +54,10 @@ AGENT_RESERVED_NAMES = _AGENT_VIEW_NAMES | _MESA_AGENT_NAMES
 
 
 class AgentsProblemPass(BasePass):
-    """Pass that adds the agents with their rules, the rules of other components, and the agent space to the problem."""
+    """Pass that adds the agents, the rules, and the agent space to the problem.
+
+    The rules are those of the agents and of other components.
+    """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
@@ -76,7 +82,10 @@ class AgentsProblemPass(BasePass):
 
     @staticmethod
     def _check_agent_names(node: NodeSpec) -> None:
-        """Raise an error for a state or parameter of an agent named like an attribute of the agent view or of Mesa."""
+        """Raise an error for an agent state or parameter named like an attribute.
+
+        The attribute is one of the agent view or of Mesa.
+        """
         declared = [
             *declarations_of(node.component_type, VariableKind.STATE),
             *declarations_of(node.component_type, VariableKind.PARAMETER),
@@ -91,13 +100,19 @@ class AgentsProblemPass(BasePass):
 
     @staticmethod
     def _agent_visual(node: NodeSpec) -> VisualSpec:
-        """Return the visual of agents, their own or their element type's, and the agents' points without one."""
+        """Return the visual of agents and the points of the agents without one.
+
+        The visual is their own or that of their element type.
+        """
         visual = ProblemPass._visual_of(node)
         return VisualSpec('agents') if visual == VisualSpec() else visual
 
     @staticmethod
     def _agent_space(blocks: list[BlockSpec]) -> BaseSpace | None:
-        """Return the one space every agent group lives in, or raise an error when groups live in different spaces."""
+        """Return the one space every agent group lives in.
+
+        Groups that live in different spaces raise an error.
+        """
         spaces = {id(block.node.space): block.node.space for block in blocks if block.node.is_agent}
         if len(spaces) > 1:
             error_msg = 'Agent groups of one system must live in the same space.'
@@ -109,7 +124,10 @@ class AgentsProblemPass(BasePass):
         blocks: list[BlockSpec],
         rules: list[tuple[KernelSpec, tuple[RuleLaw, ...]]],
     ) -> tuple[CompiledAgentsSpec, ...]:
-        """Return the agent elements and groups with their states, initial values, parameters, and rules."""
+        """Return the agent elements and groups with their states, values, and rules.
+
+        The values are the initial values and the parameters.
+        """
         by_owner = {spec.owner: items for spec, items in rules}
         agents = []
         for block in blocks:

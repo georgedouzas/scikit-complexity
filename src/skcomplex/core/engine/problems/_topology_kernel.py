@@ -1,4 +1,7 @@
-"""Apply the topology requests of laws to the capacity rows of the groups of a network between the steps of a run."""
+"""Apply the topology requests of laws to the capacity rows of network groups.
+
+They apply between the steps of a run.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -31,21 +34,21 @@ type Fired = tuple[int, int, Mapping[str, object] | None, Array | None]
 
 
 class TopologyKernel(BaseKernel):
-    """Topology requests of a problem, applied between steps to the rows of the variable groups of its networks.
+    """Topology requests of a problem, applied between steps.
 
-    `run(state)` fires the requests of update laws at the state and keeps the state after them in `values_`. The solver
-    of jump laws applies the request of every jump channel that fires. The weights of a request read the node its new
-    ends join as the source, and a condition that reads the source of an addition draws the new node before it decides,
-    so a node that does not fire is never added and a node that fires keeps those values. A new node of a request with
-    a hyperedge forms a new member of the variable group on the hyperedges, with the ends of an edge it draws and
-    further nodes drawn by the weights of the request, and joins each of them by an edge, or, without edges to draw or
-    with independent ends, with nodes drawn by the weights alone. A node of `'add-hyperedge'` forms a new hyperedge
-    with nodes drawn by the weights, and `'remove-hyperedge'` frees the row of a hyperedge. A removed node takes its
-    hyperedges with it. Independent ends join every candidate on its own with the weight as its probability. A request
-    with `one` fires for one row drawn uniformly among the rows present, with the probability of its law there. An
-    edge request with candidates adds the candidate of the smallest score, and without a target joins pairs of nodes
-    drawn uniformly. Further requests replace a node, close a triangle around it, contract its edge with a neighbour,
-    or duplicate it.
+    They apply to the rows of the variable groups of its networks. `run(state)` fires the requests of update laws at the
+    state and keeps the state after them in `values_`. The solver of jump laws applies the request of every jump channel
+    that fires. The weights of a request read the node its new ends join as the source, and a condition that reads the
+    source of an addition draws the new node before it decides, so a node that does not fire is never added and a node
+    that fires keeps those values. A new node of a request with a hyperedge forms a new member of the variable group on
+    the hyperedges, with the ends of an edge it draws and further nodes drawn by the weights of the request, and joins
+    each of them by an edge, or, without edges to draw or with independent ends, with nodes drawn by the weights alone.
+    A node of `'add-hyperedge'` forms a new hyperedge with nodes drawn by the weights, and `'remove-hyperedge'` frees
+    the row of a hyperedge. A removed node takes its hyperedges with it. Independent ends join every candidate on its
+    own with the weight as its probability. A request with `one` fires for one row drawn uniformly among the rows
+    present, with the probability of its law there. An edge request with candidates adds the candidate of the smallest
+    score, and without a target joins pairs of nodes drawn uniformly. Further requests replace a node, close a triangle
+    around it, contract its edge with a neighbour, or duplicate it.
 
     Args:
         networks:
@@ -81,11 +84,16 @@ class TopologyKernel(BaseKernel):
 
     @property
     def layers(self) -> tuple[tuple[str, str | None], ...]:
-        """Path of the first group on the nodes and the layer of every network layer with a variable edge group."""
+        """Path of the first group on the nodes and the layer of every network layer.
+
+        Only layers with a variable edge group are listed.
+        """
         return tuple((network.nodes[0].path, layer) for network in self.networks for layer in network.edges)
 
     def _decide(self, t: float, x: Array, p: Array, rng: np.random.Generator) -> list[Fired]:
-        """Return the requests of update laws that fire at a state, as an index, a row, and values drawn to decide.
+        """Return the requests of update laws that fire at a state.
+
+        Each comes as an index, a row, and values drawn to decide.
 
         Args:
             t:
@@ -129,10 +137,10 @@ class TopologyKernel(BaseKernel):
 
     @staticmethod
     def _draw_one(item: CompiledRequestSpec, chances: Array, p: Array, rng: np.random.Generator) -> list[int]:
-        """Return the row drawn uniformly among the rows present of a request if it fires there, or no row.
+        """Return the row drawn uniformly among the rows present of a request.
 
-        The row is drawn among the rows present when the request applies, after the requests before it, with the
-        probability of the law at the start of the step.
+        No row is returned if the request does not fire there. The row is drawn among the rows present when the request
+        applies, after the requests before it, with the probability of the law at the start of the step.
 
         Args:
             item:
@@ -168,17 +176,20 @@ class TopologyKernel(BaseKernel):
         return [row] if rng.random() < chance else []
 
     def _run(self, inputs: RunStateSpec | None) -> None:
-        """Fire the requests of update laws at the state, apply them, and set the state after them.
+        """Fire the requests of update laws at the state and apply them.
 
-        The requests decide at the state which rows fire, and the fired requests change a copy of the state vector and
-        the parameter vector of the state in place.
+        The state after them is set. The requests decide at the state which rows fire, and the fired requests change a
+        copy of the state vector and the parameter vector of the state in place.
         """
         state = self._state_of(inputs)
         t, x, p, rng = state.t, state.x, state.p, self._generator_of(state)
         self.values_ = self._apply(self._decide(t, x, p, rng), t, x, p, rng)
 
     def _apply(self, fired: list[Fired], t: float, x: Array, p: Array, rng: np.random.Generator) -> Array:
-        """Apply fired requests of update laws to a copy of a state and to the parameters in place."""
+        """Apply fired requests of update laws to a copy of a state.
+
+        The parameters change in place.
+        """
         state = x.copy()
         for index, row, drawn, chances in fired:
             item = self.requests[index]
@@ -242,7 +253,10 @@ class TopologyKernel(BaseKernel):
 
     @property
     def variable_names(self) -> frozenset[str]:
-        """Dotted names of the states and parameters of the variable groups, whose rows hold no fixed member."""
+        """Dotted names of the states and parameters of the variable groups.
+
+        The rows of variable groups hold no fixed member.
+        """
         return frozenset(
             entry.name
             for network in self.networks
@@ -255,7 +269,9 @@ class TopologyKernel(BaseKernel):
         )
 
     def presence(self, name: str, p: Array) -> npt.NDArray[np.bool_] | None:
-        """Return whether every row of the group of a variable holds a member, or `None` for a fixed group.
+        """Return whether every row of the group of a variable holds a member.
+
+        A fixed group returns `None`.
 
         Args:
             name:
@@ -276,7 +292,10 @@ class TopologyKernel(BaseKernel):
         return None
 
     def _weights(self, item: CompiledRequestSpec, end: int, t: float, x: Array, p: Array) -> Array:
-        """Return the weight of every node row as a new end of a request whose edges start from a node row."""
+        """Return the weight of every node row as a new end of a request.
+
+        The request has edges that start from a node row.
+        """
         nodes = item.network.nodes[0]
         size = nodes.active.rows
         if item.toward is None:
@@ -287,7 +306,10 @@ class TopologyKernel(BaseKernel):
         return np.where(np.isfinite(weights) & (weights > 0), weights, 0.0)
 
     def _scores(self, item: CompiledRequestSpec, end: int, t: float, x: Array, p: Array) -> Array:
-        """Return the score of every node row as the other end of a candidate edge that starts from a node row."""
+        """Return the score of every node row as the other end of a candidate edge.
+
+        The candidate edge starts from a node row.
+        """
         nodes = item.network.nodes[0]
         size = nodes.active.rows
         if item.score is None:
@@ -298,7 +320,10 @@ class TopologyKernel(BaseKernel):
 
     @staticmethod
     def _draw(weights: Array, allowed: npt.NDArray[np.bool_], count: int, rng: np.random.Generator) -> list[int]:
-        """Return up to `count` distinct allowed rows drawn with probabilities proportional to their weights."""
+        """Return up to `count` distinct allowed rows drawn by weight.
+
+        Probabilities are proportional to the weights.
+        """
         candidates = np.flatnonzero(allowed)
         if not candidates.size or count <= 0:
             return []
@@ -319,9 +344,10 @@ class TopologyKernel(BaseKernel):
         incoming: bool = False,
         excluded: tuple[int, ...] = (),
     ) -> npt.NDArray[np.bool_]:
-        """Return the node rows present that a node may join, other than itself, its neighbours, and excluded rows.
+        """Return the node rows present that a node may join.
 
-        On a directed layer the neighbours are the successors of the node, or its predecessors for edges into it.
+        Itself, its neighbours, and excluded rows are left out. On a directed layer the neighbours are the successors of
+        the node, or its predecessors for edges into it.
         """
         network, layer = item.network, item.request.layer
         allowed = network.present(p).copy()
@@ -336,7 +362,9 @@ class TopologyKernel(BaseKernel):
 
     @staticmethod
     def _independent(weights: Array, allowed: npt.NDArray[np.bool_], rng: np.random.Generator) -> list[int]:
-        """Return the allowed rows that each join on their own with their weight, clipped to `[0, 1]`, as probability.
+        """Return the allowed rows that each join on their own with their weight.
+
+        The weight is clipped to `[0, 1]` and taken as probability.
 
         Args:
             weights:
@@ -374,11 +402,12 @@ class TopologyKernel(BaseKernel):
         rng: np.random.Generator,
         excluded: tuple[int, ...] = (),
     ) -> None:
-        """Join a node to new ends drawn by the weights of a request, with the values of an edge request.
+        """Join a node to new ends drawn by the weights of a request.
 
-        The new edges leave the node, enter it, or go both ways on a directed layer, by the direction of the request.
-        Independent ends join every candidate on its own, apart for each way. With candidates or a score, every new end
-        is the candidate of the smallest score among the candidates drawn by the weights.
+        An edge request gives the values of the new edges. The new edges leave the node, enter it, or go both ways on a
+        directed layer, by the direction of the request. Independent ends join every candidate on its own, apart for
+        each way. With candidates or a score, every new end is the candidate of the smallest score among the candidates
+        drawn by the weights.
         """
         request, network = item.request, item.network
         weights = self._weights(item, end, t, x, p)
@@ -418,7 +447,9 @@ class TopologyKernel(BaseKernel):
         allowed: npt.NDArray[np.bool_],
         rng: np.random.Generator,
     ) -> list[int]:
-        """Return the new ends of a node, each the candidate of the smallest score among candidates drawn by weight.
+        """Return the new ends of a node.
+
+        Each is the candidate of the smallest score among candidates drawn by weight.
 
         Args:
             item:
@@ -463,11 +494,11 @@ class TopologyKernel(BaseKernel):
         return chosen
 
     def _join_pairs(self, item: CompiledRequestSpec, t: float, x: Array, p: Array, *, rng: np.random.Generator) -> None:
-        """Add the edges of a request that runs once per step, each the candidate pair of the smallest score.
+        """Add the edges of a request that runs once per step.
 
-        Every candidate joins two distinct nodes not yet joined, drawn uniformly by rejection, and the score of a pair
-        is the score of its second node read from the first. A network where no unjoined pair turns up in a bounded
-        number of draws gets no edge.
+        Each edge is the candidate pair of the smallest score. Every candidate joins two distinct nodes not yet joined,
+        drawn uniformly by rejection, and the score of a pair is the score of its second node read from the first. A
+        network where no unjoined pair turns up in a bounded number of draws gets no edge.
 
         Args:
             item:
@@ -497,7 +528,9 @@ class TopologyKernel(BaseKernel):
 
     @staticmethod
     def _pair(item: CompiledRequestSpec, p: Array, rng: np.random.Generator, tries: int = 100) -> Pair | None:
-        """Return two distinct present nodes not yet joined in the layer of a request, drawn uniformly, or `None`.
+        """Return two distinct present nodes not yet joined in the layer of a request.
+
+        They are drawn uniformly, and `None` is returned when there are none.
 
         Args:
             item:
@@ -536,10 +569,11 @@ class TopologyKernel(BaseKernel):
         *,
         rng: np.random.Generator,
     ) -> None:
-        """Join two neighbours of a node that are not yet joined, or join the node to new ends without such a pair.
+        """Join two neighbours of a node that are not yet joined.
 
-        The pair is drawn uniformly by rejection among the pairs of neighbours, after counting the pairs already
-        joined. A node with fewer than two neighbours, or whose neighbours are all joined, joins new ends instead.
+        Without such a pair, the node joins new ends. The pair is drawn uniformly by rejection among the pairs of
+        neighbours, after counting the pairs already joined. A node with fewer than two neighbours, or whose neighbours
+        are all joined, joins new ends instead.
 
         Args:
             item:
@@ -596,10 +630,11 @@ class TopologyKernel(BaseKernel):
         *,
         rng: np.random.Generator,
     ) -> None:
-        """Merge a neighbour drawn by the weights of a request into a node, which keeps the union of their links.
+        """Merge a neighbour drawn by the weights of a request into a node.
 
-        The edges of the neighbour move to the node on every layer, an edge that would join the node to itself or
-        repeat one of its links is freed, and the neighbour then leaves with its hyperedges.
+        The node keeps the union of their links. The edges of the neighbour move to the node on every layer, an edge
+        that would join the node to itself or repeat one of its links is freed, and the neighbour then leaves with its
+        hyperedges.
 
         Args:
             item:
@@ -652,10 +687,11 @@ class TopologyKernel(BaseKernel):
         *,
         rng: np.random.Generator,
     ) -> None:
-        """Add a copy of a node that inherits its links with a probability, may join it, and joins new ends.
+        """Add a copy of a node.
 
-        The copy takes the values of the node, overridden by the values of the request, and every inherited edge
-        takes the values of the edge it copies. New ends are drawn among the nodes joined to neither.
+        The copy inherits its links with a probability, may join it, and joins new ends. The copy takes the values of
+        the node, overridden by the values of the request, and every inherited edge takes the values of the edge it
+        copies. New ends are drawn among the nodes joined to neither.
 
         Args:
             item:
@@ -718,12 +754,13 @@ class TopologyKernel(BaseKernel):
         *,
         rng: np.random.Generator,
     ) -> None:
-        """Form a hyperedge of a node with other nodes, drawn by the weights of a request, after the ends of an edge.
+        """Form a hyperedge of a node with other nodes drawn by the weights of a request.
 
-        A new node with edges to draw and no independent ends joins every other member of the hyperedge by an edge,
-        and the hyperedge lists the ends of a drawn edge first and the new node last, so an edge joins its first two
-        members. Otherwise every other member is drawn by the weights, the node is the last member, and a new node
-        draws its edges apart. A network with too few nodes for the hyperedge forms none.
+        The hyperedge is formed after the ends of an edge. A new node with edges to draw and no independent ends joins
+        every other member of the hyperedge by an edge, and the hyperedge lists the ends of a drawn edge first and the
+        new node last, so an edge joins its first two members. Otherwise every other member is drawn by the weights, the
+        node is the last member, and a new node draws its edges apart. A network with too few nodes for the hyperedge
+        forms none.
 
         Args:
             item:
@@ -767,7 +804,9 @@ class TopologyKernel(BaseKernel):
             self._join(item, node, t, x, p, rng=rng)
 
     def _add_hyperedge(self, item: CompiledRequestSpec, members: list[int], x: Array, p: Array) -> None:
-        """Write a new hyperedge of member node rows into the first free row of the variable group on hyperedges.
+        """Write a new hyperedge of member node rows into the variable group on hyperedges.
+
+        It goes into the first free row of the group.
 
         Args:
             item:
@@ -834,7 +873,10 @@ class TopologyKernel(BaseKernel):
         rng: np.random.Generator,
         drawn: Mapping[str, object] | None = None,
     ) -> None:
-        """Apply one request for one row, skipping a row whose node, edge, or hyperedge is no longer present."""
+        """Apply one request for one row.
+
+        A row whose node, edge, or hyperedge is no longer present is skipped.
+        """
         request, network = item.request, item.network
         if not self._holds(item, row, p):
             return
@@ -884,7 +926,9 @@ class TopologyKernel(BaseKernel):
 
     @staticmethod
     def _holds(item: CompiledRequestSpec, row: int, p: Array) -> bool:
-        """Return whether the node, edge, or hyperedge of the row a request runs for is present, `True` for one run.
+        """Return whether the node, edge, or hyperedge of the row of a request is present.
+
+        A request of one run returns `True`.
 
         Args:
             item:
@@ -911,7 +955,10 @@ class TopologyKernel(BaseKernel):
 
     @staticmethod
     def _initial_values(request: TopologyRequestSpec, rng: np.random.Generator) -> dict[str, object]:
-        """Return the values of a new node or edge of a request, drawing those given as functions of the generator."""
+        """Return the values of a new node or edge of a request.
+
+        Values given as functions of the generator are drawn.
+        """
         return {name: value(rng) if callable(value) else value for name, value in request.values}
 
     @staticmethod
@@ -925,7 +972,10 @@ class TopologyKernel(BaseKernel):
 
     @staticmethod
     def _new_values(group: CapacityRowsSpec, values: Mapping[str, object]) -> dict[str, Array]:
-        """Return the values a new member of a group would take by dotted name, given values or the defaults."""
+        """Return the values a new member of a group would take by dotted name.
+
+        They are the given values or the defaults.
+        """
         return {
             entry.name: np.broadcast_to(np.asarray(values.get(name, group.defaults[name]), dtype=float), entry.columns)
             for name, (entry, _) in group.variables.items()
@@ -933,7 +983,9 @@ class TopologyKernel(BaseKernel):
 
     @staticmethod
     def _write(group: CapacityRowsSpec, row: int, x: Array, p: Array, values: Mapping[str, object]) -> None:
-        """Start a member in a row with given values or the defaults, and mark the row present.
+        """Start a member in a row and mark the row present.
+
+        The member takes the given values or the defaults.
 
         Args:
             group:
@@ -1089,7 +1141,9 @@ class TopologyKernel(BaseKernel):
 
     @staticmethod
     def _request_of(law: object) -> TopologyRequestSpec | None:
-        """Return the checked topology request an update or jump law targets, or `None` for a law that targets states.
+        """Return the checked topology request an update or jump law targets.
+
+        A law that targets states returns `None`.
 
         Args:
             law:
@@ -1119,7 +1173,9 @@ class TopologyKernel(BaseKernel):
 
     @staticmethod
     def _changes_edges(request: TopologyRequestSpec) -> bool:
-        """Check whether a request changes the edges of its layer: an edge request, or a new node that joins others.
+        """Check whether a request changes the edges of its layer.
+
+        Edge requests and new nodes that join others change them.
 
         Args:
             request:

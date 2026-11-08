@@ -1,4 +1,7 @@
-"""Compile a system that trains a nested system into a learning problem around the problem of that system."""
+"""Compile a system that trains a nested system into a learning problem.
+
+The learning problem wraps the problem of the nested system.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -39,11 +42,11 @@ type TracedRead = Callable[[TracedArray, TracedArray], TracedArray]
 
 
 class _LearningCompiler(BaseCompiler):
-    """Compiler of a system whose training interaction trains a nested system, into a `LearningProblemSpec`.
+    """Compiler of a system whose training interaction trains a nested system.
 
-    It compiles the nested system with the compiler `inner` on the JAX backend, checks the trained parameters, the
-    dataset, the loss, and the metrics against the problem of that system, and lowers the loss and the metrics to pure
-    JAX functions of its states and parameters.
+    It compiles into a `LearningProblemSpec`. It compiles the nested system with the compiler `inner` on the JAX
+    backend, checks the trained parameters, the dataset, the loss, and the metrics against the problem of that system,
+    and lowers the loss and the metrics to pure JAX functions of its states and parameters.
 
     Args:
         inner:
@@ -98,7 +101,10 @@ class _LearningCompiler(BaseCompiler):
 
     @staticmethod
     def _find_training(system: System) -> TrainingInteraction | None:
-        """Return the training interaction of a system, or `None` for a system that does not train."""
+        """Return the training interaction of a system.
+
+        It is `None` for a system that does not train.
+        """
         return next((item for item in system.interactions if isinstance(item, TrainingInteraction)), None)
 
     @staticmethod
@@ -163,10 +169,11 @@ class _LearningCompiler(BaseCompiler):
         return []
 
     def _phased_step(self, compiler: BaseCompiler) -> TracedFunction:
-        """Return the pure JAX function of the inner problem, running the phases of a step of a discrete map in order.
+        """Return the pure JAX function of the inner problem.
 
-        A phase runs in the steps `k`, counted from one, for which `k - offset` is a multiple of its period, and reads
-        the states the phases before it set, as the update of the problem does.
+        It runs the phases of a step of a discrete map in order. A phase runs in the steps `k`, counted from one, for
+        which `k - offset` is a multiple of its period, and reads the states the phases before it set, as the update of
+        the problem does.
         """
         compilation = getattr(compiler, 'compilation_', None)
         lowered = compilation.kernels if isinstance(compilation, Compilation) else None
@@ -200,7 +207,10 @@ class _LearningCompiler(BaseCompiler):
 
     @staticmethod
     def _adaptive_names(problem: ProblemSpec) -> set[str]:
-        """Return the names of the adaptive parameters of the elements and interactions of a problem."""
+        """Return the names of the adaptive parameters of a problem.
+
+        The parameters are those of its elements and interactions.
+        """
         names = set(problem.adaptive_parameters)
         for compiled in problem.interactions:
             for name, spec in compiled.interaction._get_specs().items():
@@ -209,7 +219,10 @@ class _LearningCompiler(BaseCompiler):
         return names
 
     def _trained_issues(self, problem: ProblemSpec, training: TrainingInteraction) -> list[IssueSpec]:
-        """Return the trained paths that are not parameters, or not adaptive parameters, of the nested system."""
+        """Return the trained paths that are not adaptive parameters of the nested system.
+
+        This includes the paths that are not parameters at all.
+        """
         adaptive = self._adaptive_names(problem)
         parameters = sorted(adaptive | set(problem.parameters.names))
         issues = []
@@ -237,7 +250,10 @@ class _LearningCompiler(BaseCompiler):
         return IssueSpec('learning-data-shape', training.label, message, fix)
 
     def _data_issues(self, problem: ProblemSpec, training: TrainingInteraction) -> list[IssueSpec]:
-        """Return the dataset arrays whose path, number of sequences and steps, or trailing shape do not fit."""
+        """Return the dataset arrays that do not fit.
+
+        An array does not fit by its path, number of sequences and steps, or trailing shape.
+        """
         data = training.data
         sequences, steps = data.sequences, data.steps
         issues = []
@@ -271,7 +287,10 @@ class _LearningCompiler(BaseCompiler):
 
     @staticmethod
     def _scalar_reads(problem: ProblemSpec) -> dict[Expression, TracedRead]:
-        """Return the readers of the symbols of the single elements and interactions of a problem."""
+        """Return the readers of the symbols of the single elements and interactions.
+
+        They are the elements and interactions of a problem.
+        """
         reads: dict[Expression, TracedRead] = {}
         for is_state, layout in ((True, problem.states), (False, problem.parameters)):
             for entry in layout.entries:
@@ -282,7 +301,10 @@ class _LearningCompiler(BaseCompiler):
 
     @staticmethod
     def _member_reads(problem: ProblemSpec, names: Mapping[str, str]) -> dict[Expression, TracedRead]:
-        """Return the readers of the scalar variables of the members of a group, one array of members each."""
+        """Return the readers of the scalar variables of the members of a group.
+
+        Each reader returns one array of members.
+        """
         reads: dict[Expression, TracedRead] = {}
         for name in names.values():
             entry = ObservableEvaluator._entry_of(problem, name)
@@ -317,7 +339,10 @@ class _LearningCompiler(BaseCompiler):
 
     @staticmethod
     def _evaluated(observable: ObservableSpec, namespace: SimpleNamespace) -> object:
-        """Return the expression of an observable in a namespace, or raise naming the variable it misses."""
+        """Return the expression of an observable in a namespace.
+
+        It raises an error that names the variable it misses.
+        """
         if not callable(observable.expression):
             return observable.expression
         try:
@@ -327,7 +352,10 @@ class _LearningCompiler(BaseCompiler):
             raise ValidationError(error_msg) from error
 
     def _measure_of(self, problem: ProblemSpec, observable: ObservableSpec) -> TracedFunction:
-        """Return the pure JAX function of an observable of the nested system, a value of its states and parameters."""
+        """Return the pure JAX function of an observable of the nested system.
+
+        The function is a value of its states and parameters.
+        """
         if observable.group is None:
             namespace = ObservableEvaluator._namespace_of(problem)
             expression = self._evaluated(observable, namespace)
@@ -362,7 +390,10 @@ class _LearningCompiler(BaseCompiler):
         return reduced
 
     def _measure_issues(self, problem: ProblemSpec, training: TrainingInteraction) -> list[IssueSpec]:
-        """Lower the loss and the metrics into `measures_`, and return the observables that read missing variables."""
+        """Lower the loss and metrics into `measures_` and return the failing observables.
+
+        They are the observables that read missing variables.
+        """
         self.measures_ = {}
         issues = []
         for label, observable in (('loss', training.loss), *((item.label, item) for item in training.metrics)):
@@ -374,7 +405,9 @@ class _LearningCompiler(BaseCompiler):
         return issues
 
     def _issues(self, system: System) -> list[IssueSpec]:
-        """Return the issues of a system that trains, compiling its nested system as far as it can.
+        """Return the issues of a system that trains.
+
+        It compiles the nested system as far as it can.
 
         Args:
             system:
@@ -414,7 +447,10 @@ class _LearningCompiler(BaseCompiler):
         problem: ProblemSpec,
         training: TrainingInteraction,
     ) -> tuple[LayoutSpec, LayoutSpec, tuple[str, ...]]:
-        """Return the layouts of the trained parameters and of the hyperparameters, and the trained inner names."""
+        """Return the layouts of the trained parameters and hyperparameters.
+
+        It also returns the trained inner names.
+        """
         trained = tuple(name for name in problem.states.names if name in set(training.trained))
         states, start = [], 0
         for name in trained:

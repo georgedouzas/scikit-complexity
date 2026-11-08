@@ -1,4 +1,7 @@
-"""Count network motifs of three and four nodes and score them against degree-preserving null ensembles."""
+"""Count network motifs of three and four nodes and score them.
+
+The scores are against degree-preserving null ensembles.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -48,7 +51,9 @@ TAGS = AnalysisTags(DataKind.NETWORK, space=frozenset({'network'}))
 
 @dataclass(frozen=True)
 class MotifsResult:
-    """Motifs of three or four nodes of the network of every frame of a trajectory, or of a graph.
+    """Motifs of three or four nodes of a graph or of the network of every frame.
+
+    The networks are those of a trajectory.
 
     Args:
         graphs:
@@ -83,7 +88,9 @@ def motifs(
     samples: int = 100,
     random_state: int | None = None,
 ) -> MotifsResult:
-    """Return the motifs of three or four nodes of the network of every frame of a trajectory, or of a graph.
+    """Return the motifs of three or four nodes of a graph or of every frame's network.
+
+    The networks are those of a trajectory.
 
     The kinds count or score motifs:
 
@@ -167,7 +174,10 @@ def motifs(
 
 
 def _directed_code(adjacency: npt.NDArray[np.int64]) -> str:
-    """Return a name of the isomorphism class of a directed motif of four nodes, its smallest adjacency code."""
+    """Return a name of the isomorphism class of a directed motif of four nodes.
+
+    The name is its smallest adjacency code.
+    """
     codes = []
     for permutation in PERMUTATIONS:
         permuted = adjacency[np.ix_(permutation, permutation)]
@@ -176,7 +186,10 @@ def _directed_code(adjacency: npt.NDArray[np.int64]) -> str:
 
 
 def _motif_name(adjacency: npt.NDArray[np.int64], directed: bool) -> str:
-    """Return the name of the connected motif of an adjacency matrix of three or four nodes."""
+    """Return the name of the connected motif of an adjacency matrix.
+
+    The matrix has three or four nodes.
+    """
     if directed and len(adjacency) == TRIAD_SIZE:
         census = nx.triadic_census(nx.from_numpy_array(adjacency, create_using=nx.DiGraph))
         return next(name for name, count in census.items() if count)
@@ -190,7 +203,10 @@ def _motif_name(adjacency: npt.NDArray[np.int64], directed: bool) -> str:
 
 @functools.cache
 def _motif_names(size: int, directed: bool) -> tuple[str | None, ...]:
-    """Return the name of every isomorphism class of igraph of a size, `None` for the classes not connected."""
+    """Return the name of every isomorphism class of igraph of a size.
+
+    The classes not connected get `None`.
+    """
     graph = _import('igraph').Graph
     names: list[str | None] = []
     for isoclass in range(ISOCLASSES[(size, directed)]):
@@ -201,9 +217,10 @@ def _motif_names(size: int, directed: bool) -> tuple[str | None, ...]:
 
 
 def _motif_counts(graph: nx.Graph, size: int) -> dict[str, int]:
-    """Return the number of connected induced subgraphs of every kind of three or four nodes.
+    """Return the number of connected induced subgraphs of every kind.
 
-    Every kind of three nodes is counted, and only the kinds of four nodes that occur.
+    The kinds have three or four nodes. Every kind of three nodes is counted, and only the kinds of four nodes that
+    occur.
     """
     names = _motif_names(size, graph.is_directed())
     counts = _import('igraph').Graph.from_networkx(graph).motifs_randesu(size=size)
@@ -215,7 +232,10 @@ def _motif_counts(graph: nx.Graph, size: int) -> dict[str, int]:
 
 
 def _null_graph(graph: nx.Graph, null: str, rng: np.random.Generator) -> nx.Graph:
-    """Return a random graph with the degrees of a graph, by edge switches or by the configuration system."""
+    """Return a random graph with the degrees of a graph.
+
+    It is drawn by edge switches or by the configuration system.
+    """
     seed = int(rng.integers(2**31))
     swaps = SWAPS_PER_EDGE * graph.number_of_edges()
     if null == 'switch' and graph.is_directed():
@@ -240,7 +260,7 @@ def _motif_scores(
     samples: int,
     random_state: int | None,
 ) -> tuple[dict[str, int], dict[str, float], dict[str, float], dict[str, float]]:
-    """Return the counts, the null means and deviations, and the z-scores of the motifs of a graph."""
+    """Return the counts, null means, deviations, and z-scores of a graph's motifs."""
     counts = _motif_counts(graph, size)
     rng = np.random.default_rng(random_state)
     ensemble = [_motif_counts(_null_graph(graph, null, rng), size) for _ in range(samples)]

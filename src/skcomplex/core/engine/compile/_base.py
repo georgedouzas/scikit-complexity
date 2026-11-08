@@ -1,4 +1,7 @@
-"""Define the bases of compilation: the compiler of a system, the passes of a compilation, and the lowerings of laws."""
+"""Define the bases of compilation.
+
+They are the compiler of a system, the passes of a compilation, and the lowerings of laws.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -103,7 +106,9 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
         self.observables = observables
 
     def _check(self) -> None:
-        """Raise an error for a backend that is not a backend or an observable that is not an observable spec.
+        """Raise an error for a wrong backend or observable.
+
+        The backend must be a backend and every observable an observable spec.
 
         Raises:
             ValidationError:
@@ -173,9 +178,10 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
         raise NotImplementedError
 
     def _get_solver(self, problem: BaseProblemSpec) -> object:
-        """Return the solver of a compiled problem, or `None` for the default solver of its form.
+        """Return the solver of a compiled problem.
 
-        A compiler of a form the engine does not know, such as one defined in a system package, names its solver here.
+        It is `None` for the default solver of its form. A compiler of a form the engine does not know, such as one
+        defined in a system package, names its solver here.
 
         Args:
             problem:
@@ -189,7 +195,9 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
         return None
 
     def _run(self, inputs: Mapping[str, object] | None) -> None:
-        """Raise the errors of the report, compile the prepared system into `problem_`, and set `solver_`.
+        """Raise the errors of the report and compile the prepared system.
+
+        The compiled problem goes to `problem_` and its solver to `solver_`.
 
         Args:
             inputs:
@@ -211,7 +219,9 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
 
     @staticmethod
     def _support_of(runner: type) -> SupportSpec:
-        """Return the support of a solver or backend class, which names what it runs.
+        """Return the support of a solver or backend class.
+
+        The support names what the class runs.
 
         Args:
             runner:
@@ -257,10 +267,10 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
 
     @staticmethod
     def _resolve_backend(backend: BaseBackend | None, members: int) -> BaseBackend:
-        """Return the backend passed, or the backend that suits the size of a system when none is passed.
+        """Return the backend passed, or the one that suits the size of a system.
 
-        Without a backend, `NumbaBackend` runs systems whose groups hold at least 1000 members in total, and
-        `NumpyBackend` the others.
+        The second applies when no backend is passed. Without a backend, `NumbaBackend` runs systems whose groups hold
+        at least 1000 members in total, and `NumpyBackend` the others.
 
         Args:
             backend:
@@ -284,12 +294,18 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
 
     @staticmethod
     def _element_value(element: str, expression: Callable[[object], object], namespace: SimpleNamespace) -> object:
-        """Return the value of an expression of an element's namespace and the time, read from its system."""
+        """Return the value of an expression of an element's namespace and the time.
+
+        The value is read from the system of the element.
+        """
         return expression(SimpleNamespace(**vars(getattr(namespace, element)), t=namespace.t))
 
     @staticmethod
     def _of_root(observable: ObservableSpec) -> ObservableSpec:
-        """Return an observable of an element as the observable of the root system labelled `<element>.<label>`."""
+        """Return an observable of an element as an observable of the root system.
+
+        The observable of the root system is labelled `<element>.<label>`.
+        """
         if observable.element is None or not callable(observable.expression):
             return observable
         expression = functools.partial(BaseCompiler._element_value, observable.element, observable.expression)
@@ -302,7 +318,9 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
 
     @staticmethod
     def _observables_of(system: System, scope: str = '') -> Iterator[tuple[str, ObservableSpec]]:
-        """Yield every observable of a system tree, with the path of the system that declares it.
+        """Yield every observable of a system tree.
+
+        Each comes with the path of the system that declares it.
 
         Args:
             system:
@@ -330,7 +348,10 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
 
     @staticmethod
     def _attached(system: System, by_scope: dict[str, list[ObservableSpec]], scope: str) -> System:
-        """Return a copy of a system that holds the observables of its scope, with its nested systems attached."""
+        """Return a copy of a system that holds the observables of its scope.
+
+        The copy has its nested systems attached.
+        """
         copied = copy.copy(system)
         copied.systems = [
             BaseCompiler._attached(child, by_scope, f'{scope}/{child.label}' if scope else child.label)
@@ -341,7 +362,9 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
 
     @staticmethod
     def _with_observables(system: System, observables: Sequence[ObservableSpec]) -> System:
-        """Return a copy of a system tree that declares observables in the systems their labels name.
+        """Return a copy of a system tree with observables in the systems they name.
+
+        Every observable is declared in the system its label names.
 
         Args:
             system:
@@ -377,7 +400,9 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
 
     @staticmethod
     def _issue_of(error: SkcomplexError, path: str, code: str, fix: str) -> IssueSpec:
-        """Return the issue of an error, with the code and fix of its class or the ones given.
+        """Return the issue of an error.
+
+        The issue holds the code and fix of the error class, or the ones given.
 
         Args:
             error:
@@ -416,14 +441,23 @@ class BasePass(BaseConfig[Compilation, None]):
     compilation_: Compilation
 
     def _check(self) -> None:
-        """Accept every setting, since a pass has none to validate. A pass with settings validates them."""
+        """Accept every setting, since a pass has none to validate.
+
+        A pass with settings validates them.
+        """
 
     def _get_reads(self) -> tuple[str, ...]:
-        """Return the fields of the compilation the pass reads. By default, none."""
+        """Return the fields of the compilation the pass reads.
+
+        By default, none.
+        """
         return ()
 
     def _get_writes(self) -> tuple[str, ...]:
-        """Return the fields of the compilation the pass writes. By default, none."""
+        """Return the fields of the compilation the pass writes.
+
+        By default, none.
+        """
         return ()
 
     def _prepare(self, context: Compilation | None) -> None:
@@ -443,7 +477,9 @@ class BasePass(BaseConfig[Compilation, None]):
         self.compilation_ = context
 
     def _run(self, inputs: None = None) -> None:
-        """Read the fields of the compilation the pass reads and write the fields it writes.
+        """Read and write the fields of the compilation the pass uses.
+
+        The pass reads some fields of its compilation and writes others.
 
         Args:
             inputs:
@@ -507,10 +543,11 @@ class BasePass(BaseConfig[Compilation, None]):
 
 
 class BaseLowering[LoweredT](BaseConfig[Compilation, LoweredT]):
-    """Lowering of one family of laws, which one pass creates, later passes finish, and the compilation keeps.
+    """Lowering of one family of laws.
 
-    The constructor stores what the lowering reads, `prepare(compilation)` sets the prepared attributes the lowering
-    gathers, and `run(laws)` sets `lowered_`, the laws lowered. A subclass implements the hooks `_prepare` and `_run`.
+    One pass creates the lowering, later passes finish it, and the compilation keeps it. The constructor stores what the
+    lowering reads, `prepare(compilation)` sets the prepared attributes the lowering gathers, and `run(laws)` sets
+    `lowered_`, the laws lowered. A subclass implements the hooks `_prepare` and `_run`.
 
     A lowering that reads new symbols into laws notes their references with `_add_reference`, reads them back with
     `_reference_of`, and `_apply_references` replaces every spec it noted references for by a copy that holds them, in
@@ -532,7 +569,10 @@ class BaseLowering[LoweredT](BaseConfig[Compilation, LoweredT]):
     lowered_: LoweredT
 
     def _check(self) -> None:
-        """Accept every setting, since a lowering has none to validate. A lowering with settings validates them."""
+        """Accept every setting, since a lowering has none to validate.
+
+        A lowering with settings validates them.
+        """
 
     def _prepare(self, context: Compilation | None) -> None:
         """Take the compilation the lowering serves, with no reference added yet.
@@ -552,16 +592,25 @@ class BaseLowering[LoweredT](BaseConfig[Compilation, LoweredT]):
         self.added_ = {}
 
     def _add_reference(self, spec: KernelSpec, item: Expression, reference: ReferenceSpec) -> None:
-        """Note the reference of a symbol the lowering adds to a spec, which `_apply_references` gives the spec."""
+        """Note the reference of a symbol the lowering adds to a spec.
+
+        `_apply_references` gives the spec the references noted.
+        """
         self.added_.setdefault(id(spec), (spec, {}))[1][item] = reference
 
     def _reference_of(self, item: object, spec: KernelSpec) -> ReferenceSpec | None:
-        """Return the reference of a symbol of a spec, the references the lowering added included, or `None`."""
+        """Return the reference of a symbol of a spec, or `None`.
+
+        The references the lowering added are included.
+        """
         _, added = self.added_.get(id(spec), (spec, {}))
         return added[item] if item in added else spec.references.get(item)
 
     def _apply_references(self) -> None:
-        """Replace every spec the lowering added references to by a copy that holds them, in the compilation."""
+        """Replace every spec the lowering added references to by a copy with them.
+
+        The copies replace the specs in the compilation.
+        """
         replaced = {
             key: dataclasses.replace(spec, references={**spec.references, **added})
             for key, (spec, added) in self.added_.items()

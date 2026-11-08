@@ -1,4 +1,7 @@
-"""Hold the Numba stepper loops of every form, which call the step count."""
+"""Hold the Numba stepper loops of every form.
+
+The loops call the step count.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

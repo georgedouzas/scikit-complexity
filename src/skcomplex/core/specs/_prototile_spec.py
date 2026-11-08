@@ -17,7 +17,9 @@ SEGMENT_VERTICES = 2
 
 @dataclass(frozen=True)
 class PrototileSpec(BaseSpec):
-    """Spec of a shape that tiles of a patch are placed copies of, a segment or a polygon in its own frame.
+    """Spec of a shape that tiles of a patch are placed copies of.
+
+    The shape is a segment or a polygon in its own frame.
 
     Args:
         name:

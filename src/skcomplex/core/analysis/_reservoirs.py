@@ -1,4 +1,7 @@
-"""Fit reservoir surrogates to series: next-generation reservoirs and echo state networks with ridge readouts."""
+"""Fit reservoir surrogates to series.
+
+The surrogates are next-generation reservoirs and echo state networks with ridge readouts.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -36,7 +39,10 @@ TAGS = AnalysisTags(DataKind.SERIES)
 
 
 class _ReservoirStep:
-    """Map from the variables and the memory of a reservoir to their values one sample later."""
+    """Map of the variables and the memory of a reservoir to their next values.
+
+    The next values are those one sample later.
+    """
 
     def __init__(
         self,
@@ -60,7 +66,9 @@ class _ReservoirStep:
         self.node.state = {'out': np.asarray(memory, dtype=float).copy()}
 
     def memory(self) -> Array:
-        """Return the memory of the node, its window of past inputs or the activities of its units.
+        """Return the memory of the node.
+
+        It is its window of past inputs or the activities of its units.
 
         Returns:
             memory:
@@ -71,7 +79,9 @@ class _ReservoirStep:
         return np.asarray(self.node.state['out'], dtype=float).ravel()
 
     def monomials(self) -> npt.NDArray[np.int_]:
-        """Return the monomials of a next-generation reservoir, as the linear features that every one multiplies.
+        """Return the monomials of a next-generation reservoir.
+
+        They are given as the linear features that every one multiplies.
 
         Returns:
             monomials:
@@ -80,7 +90,9 @@ class _ReservoirStep:
         return np.asarray(self.node._monomial_idx, dtype=int)
 
     def initialize(self, variables: Array) -> None:
-        """Initialize the node for inputs of the size of the variables and clear its memory.
+        """Initialize the node for inputs of the size of the variables.
+
+        Its memory is cleared.
 
         Args:
             variables:
@@ -91,7 +103,9 @@ class _ReservoirStep:
         self._set_memory(np.zeros_like(self.memory()))
 
     def features(self, values: Array) -> Array:
-        """Return the features of the node driven by the series of the variables, from its current memory.
+        """Return the features of the node driven by the series of the variables.
+
+        They start from its current memory.
 
         Args:
             values:
@@ -143,7 +157,9 @@ class _ReservoirStep:
 
 @dataclass(frozen=True)
 class ReservoirResult:
-    """Reservoir system whose ridge readout gives the increments of the variables over one sample.
+    """Reservoir system whose ridge readout gives the increments of the variables.
+
+    The increments are over one sample.
 
     Args:
         samples:
@@ -212,15 +228,14 @@ def reservoir(
     random_state: int | None = 0,
     label: str = 'surrogate',
 ) -> ReservoirResult:
-    """Return the reservoir system whose ridge readout gives the increments of the variables, from ReservoirPy.
+    """Return the reservoir system whose ridge readout gives the variable increments.
 
-    The reservoir is driven by the variables, standardized unless `standardize` is false, and a ridge regression from
-    its features to the increments of the variables over one sample is fitted on the training samples. A
-    next-generation reservoir takes as features the variables at `delay` consecutive samples and their monomials of
-    degree `order`. An echo state network takes
-    the activities of `units` leaky tanh units with random recurrent weights. The fitted system runs under discrete
-    time, one step per sample, and starts at the last sample of the last run with the memory the runs left, so a run of
-    the system is the autonomous forecast.
+    The reservoir comes from ReservoirPy. The reservoir is driven by the variables, standardized unless `standardize` is
+    false, and a ridge regression from its features to the increments of the variables over one sample is fitted on the
+    training samples. A next-generation reservoir takes as features the variables at `delay` consecutive samples and
+    their monomials of degree `order`. An echo state network takes the activities of `units` leaky tanh units with
+    random recurrent weights. The fitted system runs under discrete time, one step per sample, and starts at the last
+    sample of the last run with the memory the runs left, so a run of the system is the autonomous forecast.
 
     Args:
         source:
@@ -363,7 +378,10 @@ def _reservoir_node(
     input_scaling: float,
     random_state: int | None,
 ) -> ReservoirNodeProtocol:
-    """Return the ReservoirPy node of a kind of reservoir, a nonlinear vector autoregression or a unit reservoir."""
+    """Return the ReservoirPy node of a kind of reservoir.
+
+    The kinds are a nonlinear vector autoregression or a unit reservoir.
+    """
     nodes = _import('reservoirpy.nodes')
     if kind == 'next_generation':
         return nodes.NVAR(delay=delay, order=order, strides=1)
@@ -382,7 +400,10 @@ def _fit_readout(
     training: list[Array],
     skipped: int,
 ) -> tuple[float, float]:
-    """Fit the readout of a reservoir driven by every series, and return its training and validation errors."""
+    """Fit the readout of a reservoir driven by every series, and return its errors.
+
+    The errors are the training and validation errors.
+    """
     features = []
     for values in series:
         step.initialize(values[0])
@@ -405,7 +426,10 @@ def _fit_readout(
 
 
 def _reservoir_laws(names: Sequence[str], step: _ReservoirStep) -> Callable[[SimpleNamespace], list[BaseLaw]]:
-    """Return the function that gives the one update law of every state, which calls the reservoir map once."""
+    """Return the function that gives the one update law of every state.
+
+    It calls the reservoir map once.
+    """
 
     def laws(s: SimpleNamespace) -> list[BaseLaw]:
         """Return the update law."""

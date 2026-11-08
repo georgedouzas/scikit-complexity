@@ -1,4 +1,7 @@
-"""Name the law classes the compiler treats alike, and read the values the arguments of a law hold."""
+"""Name the law classes the compiler treats alike and read law arguments.
+
+The values the arguments of a law hold are read.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

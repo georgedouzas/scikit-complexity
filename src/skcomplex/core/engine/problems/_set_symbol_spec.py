@@ -21,7 +21,10 @@ _EDGE_NAMES = ('source', 'target', 'edge')
 
 @dataclass(frozen=True)
 class SetSymbolSpec(BaseSpec):
-    """Symbol of one element of an element set, with the same symbol of every element of the set."""
+    """Symbol of one element of an element set.
+
+    It holds the same symbol of every element of the set.
+    """
 
     canonical: Expression
     references: tuple[ReferenceSpec, ...]

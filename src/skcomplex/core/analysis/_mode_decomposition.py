@@ -1,4 +1,7 @@
-"""Fit linear surrogates to series by dynamic mode decomposition, on the variables or on a dictionary of observables."""
+"""Fit linear surrogates to series by dynamic mode decomposition.
+
+The fit is on the variables or on a dictionary of observables.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -126,13 +129,13 @@ def mode_decomposition(
     dt: float = 1.0,
     label: str = 'surrogate',
 ) -> ModeDecompositionResult:
-    """Return the linear system fitted to series by dynamic mode decomposition, computed with PyDMD.
+    """Return the linear system fitted to series by dynamic mode decomposition.
 
-    The decomposition fits the exact DMD of the one-sample map `g(t + dt) = A g(t)` to the pairs of consecutive samples
-    of every run. With a dictionary, `g` holds the observables the dictionary computes from the variables, which is
-    extended DMD, and the dictionary should keep the variables among its observables. The fitted system follows the
-    rate law `dg/dt = L g` with `L = Phi diag(ln(mu) / dt) Phi^+` under continuous time and starts at the first sample
-    of the first run. The forecast iterates the map from the last sample of the last run.
+    It is computed with PyDMD. The decomposition fits the exact DMD of the one-sample map `g(t + dt) = A g(t)` to the
+    pairs of consecutive samples of every run. With a dictionary, `g` holds the observables the dictionary computes from
+    the variables, which is extended DMD, and the dictionary should keep the variables among its observables. The fitted
+    system follows the rate law `dg/dt = L g` with `L = Phi diag(ln(mu) / dt) Phi^+` under continuous time and starts at
+    the first sample of the first run. The forecast iterates the map from the last sample of the last run.
 
     With inputs, the decomposition is dynamic mode decomposition with control, `g(t + dt) = A g(t) + B u(t)`, where `g`
     holds the variables that are not inputs or their observables. The fitted system follows `dg/dt = L g + M u`, where
@@ -247,7 +250,7 @@ def mode_decomposition(
 
 
 def _split_inputs(samples: SamplesSpec, inputs: Sequence[str] | None) -> tuple[SamplesSpec, list[str], list[Array]]:
-    """Return the samples without the inputs, the labels of the inputs, and their series.
+    """Return the samples without the inputs, and the labels and series of the inputs.
 
     Args:
         samples:
@@ -286,7 +289,9 @@ def _fit_operators(
     controls: Array,
     rank: float | None,
 ) -> tuple[Array, Array, ComplexArray, ComplexArray]:
-    """Return the matrices `A` and `B` of the one-sample map, the modes, and the eigenvalues, fitted with PyDMD.
+    """Return the matrices `A` and `B`, modes, and eigenvalues of the one-sample map.
+
+    They are fitted with PyDMD.
 
     Args:
         before:
@@ -323,7 +328,10 @@ def _fit_operators(
 
 
 def _forecast(last_state: Array, operator: Array, input_matrix: Array, last_input: Array, horizon: int) -> Array:
-    """Return the states at the samples of the horizon, with the inputs held at their last values."""
+    """Return the states at the samples of the horizon.
+
+    The inputs are held at their last values.
+    """
     current = last_state
     rows = []
     for _ in range(horizon):
@@ -339,7 +347,10 @@ def _input_generator(
     input_matrix: Array,
     dt: float,
 ) -> Array:
-    """Return the matrix `M` of the rate law whose flow over a sample under a held input gives the matrix `B`."""
+    """Return the matrix `M` of the rate law that gives the matrix `B`.
+
+    The flow of the rate law over a sample under a held input gives `B`.
+    """
     slow = np.abs(eigenvalues) * dt < SMALL_EXPONENT
     safe = np.where(slow, 1.0, eigenvalues)
     weights = np.where(slow, dt, (multipliers - 1.0) / safe)
@@ -348,7 +359,10 @@ def _input_generator(
 
 
 def _input_names(labels: Sequence[str], states: Sequence[str]) -> list[str]:
-    """Return the parameter names of the inputs, which differ from the names of the states."""
+    """Return the parameter names of the inputs.
+
+    They differ from the names of the states.
+    """
     names = _state_names(labels)
     return [f'{name}_input' if name in states else name for name in names]
 
@@ -366,7 +380,10 @@ def _input_declarations(
 
 
 def _lift(samples: SamplesSpec, fitted: TransformerMixin | None) -> tuple[list[Array], list[str], list[str]]:
-    """Return the series, labels, and state names of the observables: the variables without a dictionary."""
+    """Return the series, labels, and state names of the observables.
+
+    Without a dictionary, the observables are the variables.
+    """
     names = _state_names(samples.labels)
     if fitted is None:
         return samples.series, samples.labels, names
@@ -385,7 +402,10 @@ def _increments(
     parts: list[Array],
     controls: list[Array],
 ) -> tuple[list[Array], list[Array]]:
-    """Return the increments over one sample that the one-sample map predicts and those of the series."""
+    """Return the increments over one sample that the map predicts and the series has.
+
+    The map is the one-sample map.
+    """
     predicted = [
         values[:-1] @ (operator - np.eye(len(operator))).T + driven[:-1] @ input_matrix.T
         for values, driven in zip(parts, controls, strict=True)
@@ -399,7 +419,10 @@ def _linear_laws(
     inputs: Sequence[str],
     input_generator: Array,
 ) -> Callable[[SimpleNamespace], list[BaseLaw]]:
-    """Return the function that gives the rate law `dg/dt = L g + M u` of the states named."""
+    """Return the function that gives the rate law `dg/dt = L g + M u`.
+
+    The rate law is that of the states named.
+    """
     matrix = np.hstack([generator, input_generator])
 
     def laws(s: SimpleNamespace) -> list[BaseLaw]:

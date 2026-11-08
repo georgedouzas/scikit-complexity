@@ -1,4 +1,7 @@
-"""Base class of explicit schemes that weigh the displacements of the states from the start of a run."""
+"""Base class of explicit schemes that weigh the displacements of the states.
+
+The displacements are taken from the start of a run.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,10 +26,11 @@ _MODE_SPACING = 0.35
 
 
 class ConvolutionSolver(CaputoSolver):
-    """Base class of explicit schemes that weigh the displacements of the states from the start of a run.
+    """Base class of explicit schemes that weigh the displacements of the states.
 
-    A step sets `g dt^alpha f(t_(k-1), x_(k-1)) = sum_(j=0)^k c_j (x_(k-j) - x_0)` with `c_0 = 1`. With a memory
-    window, the displacements older than the window enter through exponential modes fitted to the weights.
+    The displacements are taken from the start of a run. A step sets `g dt^alpha f(t_(k-1), x_(k-1)) = sum_(j=0)^k c_j
+    (x_(k-j) - x_0)` with `c_0 = 1`. With a memory window, the displacements older than the window enter through
+    exponential modes fitted to the weights.
     """
 
     def __init__(
@@ -65,7 +69,9 @@ class ConvolutionSolver(CaputoSolver):
 
     @abstractmethod
     def _tail(self, alpha: Array, rates: Array, window: int) -> Array:
-        """Return the coefficients of the exponential modes that give the weights past a window, one column per order.
+        """Return the coefficients of the exponential modes past a window.
+
+        The modes give the weights past the window, with one column per order.
 
         Args:
             alpha:
@@ -106,7 +112,10 @@ class ConvolutionSolver(CaputoSolver):
         raise NotImplementedError
 
     def _restart(self, t: float, x: Array) -> None:
-        """Start the history of displacements, the weights, and the exponential modes of the tail."""
+        """Start the history of displacements, the weights, and the tail modes.
+
+        The tail modes are the exponential modes of the tail.
+        """
         del t
         if self.memory is not None and not self.memory > 0:
             error_msg = f'memory = {self.memory!r} must be positive or None.'
@@ -128,7 +137,10 @@ class ConvolutionSolver(CaputoSolver):
         self._rows.row(self._step_index)[ordinary] = x[ordinary] - self._initial[ordinary]
 
     def _history_sum(self, step: int) -> Array:
-        """Return the weighted sum of the displacements before a step, with the tail of a memory window."""
+        """Return the weighted sum of the displacements before a step.
+
+        It includes the tail of a memory window.
+        """
         window = self._window
         lags = step - 1 if window is None else min(step - 1, window)
         if lags >= self._table.shape[0]:
@@ -150,6 +162,9 @@ class ConvolutionSolver(CaputoSolver):
 
     @staticmethod
     def _tail_rates(window: int) -> Array:
-        """Return the decay rates per step of the exponential modes that hold the history older than a window."""
+        """Return the decay rates per step of the exponential modes of the tail.
+
+        These modes hold the history older than a window.
+        """
         exponents = np.arange(math.log(_SLOWEST_MODE), math.log(_FASTEST_MODE / (window + 1)), _MODE_SPACING)
         return np.exp(exponents)

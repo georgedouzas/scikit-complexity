@@ -1,4 +1,7 @@
-"""Define the pointwise functions of laws, written with Sage arithmetic and `where` so every backend lowers them."""
+"""Define the pointwise functions of laws.
+
+They are written with Sage arithmetic and `where` so every backend lowers them.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -43,10 +46,10 @@ def _largest(values: tuple[object, ...]) -> Expression:
 
 
 def hill(x: object, half: object, n: object = 1) -> Expression:
-    """Return the Hill function `x^n / (half^n + x^n)`, which rises from 0 to 1 and is one half at `x = half`.
+    """Return the Hill function `x^n / (half^n + x^n)`.
 
-    The order `n = 1` gives the saturating function `x / (half + x)`, and `1 - hill(x, half, n)` is the decreasing
-    Hill function.
+    It rises from 0 to 1 and is one half at `x = half`. The order `n = 1` gives the saturating function `x / (half +
+    x)`, and `1 - hill(x, half, n)` is the decreasing Hill function.
 
     Args:
         x:
@@ -75,11 +78,12 @@ def hill(x: object, half: object, n: object = 1) -> Expression:
 
 
 def logistic(x: object, center: object = 0, width: object = 1) -> Expression:
-    """Return the logistic sigmoid `1 / (1 + exp(-(x - center) / width))`, which rises from 0 to 1 through `center`.
+    """Return the logistic sigmoid `1 / (1 + exp(-(x - center) / width))`.
 
-    It is written as `(1 + tanh((x - center) / (2 width))) / 2`, which stays accurate for every argument. Sage rewrites
-    the exponential of some arguments, such as a multiple of the logarithm of a constant, as `cosh(u) - sinh(u)`, whose
-    terms cancel for a large `u`, so the sigmoid would hold rounding noise of the size of 1, or divide by zero.
+    It rises from 0 to 1 through `center`. It is written as `(1 + tanh((x - center) / (2 width))) / 2`, which stays
+    accurate for every argument. Sage rewrites the exponential of some arguments, such as a multiple of the logarithm of
+    a constant, as `cosh(u) - sinh(u)`, whose terms cancel for a large `u`, so the sigmoid would hold rounding noise of
+    the size of 1, or divide by zero.
 
     Args:
         x:
@@ -108,7 +112,9 @@ def logistic(x: object, center: object = 0, width: object = 1) -> Expression:
 
 
 def clip(x: object, low: object = None, high: object = None) -> Expression:
-    """Return an expression limited to an interval, `low` below it, `high` above it, and the expression inside.
+    """Return an expression limited to an interval.
+
+    It is `low` below it, `high` above it, and the expression inside.
 
     Args:
         x:

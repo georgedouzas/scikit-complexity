@@ -1,4 +1,7 @@
-"""Define fractional noise laws, amplitudes of the fractional Brownian motions that drive states."""
+"""Define fractional noise laws.
+
+They are amplitudes of the fractional Brownian motions that drive states.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -10,11 +13,11 @@ from ._noise import NoiseLaw
 
 
 class FractionalNoiseLaw(NoiseLaw):
-    """Amplitude of a fractional Brownian motion of a Hurst index that drives the highest time derivative of a state.
+    """Amplitude of a fractional Brownian motion of a Hurst index.
 
-    The increments are fractional Gaussian noise, correlated over the whole run. A Hurst index of 1/2 gives the
-    process of a `NoiseLaw`, below 1/2 the increments anticorrelate, and above 1/2 they correlate. For other indices
-    than 1/2 the amplitude must not depend on any state.
+    The motion drives the highest time derivative of a state. The increments are fractional Gaussian noise, correlated
+    over the whole run. A Hurst index of 1/2 gives the process of a `NoiseLaw`, below 1/2 the increments anticorrelate,
+    and above 1/2 they correlate. For other indices than 1/2 the amplitude must not depend on any state.
 
     Args:
         target:

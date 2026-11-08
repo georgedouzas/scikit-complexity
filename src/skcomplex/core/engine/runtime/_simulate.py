@@ -24,7 +24,7 @@ from ._trajectories import Trajectory
 
 
 def _check_support(runner: BaseConfig, kind: str, tags: Tags) -> None:
-    """Raise an error for a solver or a backend that does not support the tags of a system.
+    """Raise an error for a solver or a backend that does not support a system's tags.
 
     Args:
         runner:
@@ -56,7 +56,9 @@ def _check_support(runner: BaseConfig, kind: str, tags: Tags) -> None:
 
 
 def _clone_setting[ConfigT: BaseConfig](setting: ConfigT | None) -> ConfigT | None:
-    """Return an unfitted copy of a solver, a backend, or a compiler, so a run never changes the one it was given.
+    """Return an unfitted copy of a solver, a backend, or a compiler.
+
+    A run thus never changes the one it was given.
 
     Args:
         setting:
@@ -70,13 +72,13 @@ def _clone_setting[ConfigT: BaseConfig](setting: ConfigT | None) -> ConfigT | No
 
 
 def _choose_solver(tags: Tags) -> BaseSolver | None:
-    """Return the default solver the tags choose, or `None` for the compiled form of the system to choose it.
+    """Return the default solver the tags choose.
 
-    The tags choose the default solver when it is the only default solver of a form that supports them. When law
-    kinds are unknown, or the tags fit the default solvers of several forms, such as an update law that a map, a
-    lattice, or an agent-based solver runs, the form the compiler infers from the law classes chooses. The compiled
-    problem also chooses for noise laws, whose tags do not tell fractional noise, which `FractionalEulerMaruyamaSolver`
-    runs, from ordinary noise.
+    It returns `None` for the compiled form of the system to choose it. The tags choose the default solver when it is
+    the only default solver of a form that supports them. When law kinds are unknown, or the tags fit the default
+    solvers of several forms, such as an update law that a map, a lattice, or an agent-based solver runs, the form the
+    compiler infers from the law classes chooses. The compiled problem also chooses for noise laws, whose tags do not
+    tell fractional noise, which `FractionalEulerMaruyamaSolver` runs, from ordinary noise.
 
     Args:
         tags:
@@ -231,11 +233,11 @@ def _prepare_runners(
     compiler: BaseCompiler | None,
     observables: Sequence[ObservableSpec],
 ) -> tuple[System, BaseSolver | None, BaseBackend | None, BaseCompiler | None, Sequence[ObservableSpec]]:
-    """Return the composite of a system with copies of the solver, the backend, and the compiler, and the observables.
+    """Return the composite of a system with copies of its runners, and observables.
 
-    A setting left out comes from the tuned run settings of the system. The tags are read before any compiling, so a
-    solver or a backend that does not support them is rejected first, and without a solver the tags choose the default
-    one, unless the compiled form chooses it.
+    The runners are the solver, the backend, and the compiler. A setting left out comes from the tuned run settings of
+    the system. The tags are read before any compiling, so a solver or a backend that does not support them is rejected
+    first, and without a solver the tags choose the default one, unless the compiled form chooses it.
 
     Args:
         system:
@@ -296,10 +298,11 @@ def _compile_problem(
     solver: BaseSolver | None = None,
     observables: Sequence[ObservableSpec] = (),
 ) -> tuple[BaseProblemSpec, BaseSolver]:
-    """Return the problem compiled from a system, and the solver of its runs, for runs that change only values.
+    """Return the problem compiled from a system, and the solver of its runs.
 
-    Runs of the problem through `_simulate` set their own initial states, parameter schedules, and seeds without
-    compiling again, so an experiment compiles a system once per structure and keeps the problem for that call.
+    They serve runs that change only values. Runs of the problem through `_simulate` set their own initial states,
+    parameter schedules, and seeds without compiling again, so an experiment compiles a system once per structure and
+    keeps the problem for that call.
 
     Args:
         system:
@@ -341,7 +344,9 @@ def _simulate(
     checked: bool = False,
     clock: BaseClock | None = None,
 ) -> Trajectory:
-    """Simulate a system as `simulate` does, from a problem compiled from it by `_compile_problem` when one is given.
+    """Simulate a system as `simulate` does.
+
+    It starts from a problem compiled from the system by `_compile_problem` when one is given.
 
     Args:
         system:

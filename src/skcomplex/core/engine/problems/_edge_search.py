@@ -1,4 +1,7 @@
-"""Edges of a network layer that an interaction over neighbours runs its laws on, one evaluation index per edge."""
+"""Edges of a network layer that an interaction over neighbours runs its laws on.
+
+There is one evaluation index per edge.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,10 +15,11 @@ from ._base import BaseSearch
 
 
 class EdgeSearch(BaseSearch):
-    """Edges of a network layer that an interaction over neighbours runs its laws on, one evaluation index per edge.
+    """Edges of a network layer that an interaction over neighbours runs its laws on.
 
-    The edges are fixed node index arrays, or on a network whose topology changes, hidden parameters of its variable
-    edge group that topology requests rewrite, read as node indices at every evaluation.
+    There is one evaluation index per edge. The edges are fixed node index arrays, or on a network whose topology
+    changes, hidden parameters of its variable edge group that topology requests rewrite, read as node indices at every
+    evaluation.
 
     Args:
         sources:

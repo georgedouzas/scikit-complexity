@@ -1,4 +1,7 @@
-"""Integrate stochastic differential equations with fixed steps of the Euler-Maruyama, Milstein, and Heun schemes."""
+"""Integrate stochastic differential equations with fixed steps.
+
+The schemes are Euler-Maruyama, Milstein, and Heun.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,10 +19,10 @@ from ._solver import Solver
 
 
 class SDESolver(Solver):
-    """Base class of fixed-step schemes of stochastic differential equations, which take one increment per step.
+    """Base class of fixed-step schemes of stochastic differential equations.
 
-    Subclasses set `supports` and implement `_increment`. The steps stop at breakpoints, read delays by linear
-    interpolation of the steps, and locate events in them.
+    They take one increment per step. Subclasses set `supports` and implement `_increment`. The steps stop at
+    breakpoints, read delays by linear interpolation of the steps, and locate events in them.
 
     Args:
         dt:
@@ -59,7 +62,9 @@ class SDESolver(Solver):
         noise: Array,
         end: float,
     ) -> Array:
-        """Return the state after one step with given Wiener increments, before the boundary laws.
+        """Return the state after one step with given Wiener increments.
+
+        The state is taken before the boundary laws.
 
         Args:
             time:
@@ -91,10 +96,10 @@ class SDESolver(Solver):
         raise NotImplementedError
 
     def _draw_increments(self, scale: float) -> Array:
-        """Return the Wiener increment that every noise amplitude of the problem multiplies, drawn for one step.
+        """Return the Wiener increment every noise amplitude of the problem multiplies.
 
-        The increments of the processes are normal with the standard deviation `scale`, correlated within every block
-        by its covariance factor. Amplitudes that share a process take its increment.
+        It is drawn for one step. The increments of the processes are normal with the standard deviation `scale`,
+        correlated within every block by its covariance factor. Amplitudes that share a process take its increment.
 
         Args:
             scale:
@@ -112,7 +117,10 @@ class SDESolver(Solver):
         return increments[problem.noise_columns]
 
     def _advance_hybrid(self, t: float, x: Array, p: Array, until: float) -> Array:
-        """Integrate with fixed steps, reading delays and locating events by linear interpolation of every step."""
+        """Integrate with fixed steps.
+
+        Delays are read and events located by linear interpolation of every step.
+        """
         problem = self.problem_
         history = self.history_ = History._open_history(problem, self.history_, t, x)
 

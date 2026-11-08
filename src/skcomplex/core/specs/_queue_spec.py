@@ -13,10 +13,10 @@ ORDERS = ('random', 'limit', 'sequential')
 
 @dataclass(frozen=True)
 class QueueSpec(BaseSpec):
-    """Queue of requesters served by the lowest providers until the quantities run out, so the last are rationed.
+    """Queue of requesters served by the lowest providers until the quantities run out.
 
-    Requesters queue in random order, by decreasing limit, or in order of creation, and each matches at the limit of
-    the lowest providers whose limit it accepts.
+    The last requesters are therefore rationed. Requesters queue in random order, by decreasing limit, or in order of
+    creation, and each matches at the limit of the lowest providers whose limit it accepts.
 
     Args:
         order:

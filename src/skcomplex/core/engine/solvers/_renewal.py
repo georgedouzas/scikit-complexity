@@ -1,4 +1,7 @@
-"""Exact stepper of renewal processes, which jumps from renewal to renewal without a time grid."""
+"""Exact stepper of renewal processes.
+
+It jumps from renewal to renewal without a time grid.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,9 +15,10 @@ from ._solver import Solver
 
 
 class RenewalSolver(Solver):
-    """Exact stepper of renewal processes, which jumps from renewal to renewal without a time grid.
+    """Exact stepper of renewal processes.
 
-    Every member renews on its own clock, and a frame holds the states the last renewal at or before its time set.
+    It jumps from renewal to renewal without a time grid. Every member renews on its own clock, and a frame holds the
+    states the last renewal at or before its time set.
 
     Examples:
         >>> from typing import Annotated

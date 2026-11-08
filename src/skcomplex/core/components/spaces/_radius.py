@@ -1,4 +1,7 @@
-"""Define radius neighbourhoods, the members of a continuous space within a distance."""
+"""Define radius neighbourhoods.
+
+They are the members of a continuous space within a distance.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -8,9 +11,10 @@ from ._base import BaseNeighborhood
 
 
 class RadiusNeighborhood(BaseNeighborhood):
-    """Members of a continuous space within a distance of a member, the metric neighbourhood.
+    """Members of a continuous space within a distance of a member.
 
-    Distances are measured between the position states of the members, by the minimum image in a periodic box.
+    This is the metric neighbourhood. Distances are measured between the position states of the members, by the minimum
+    image in a periodic box.
 
     Args:
         radius:

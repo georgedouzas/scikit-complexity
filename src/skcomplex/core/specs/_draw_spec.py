@@ -15,7 +15,9 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class DrawSpec(BaseSpec):
-    """Random draw: its kind, its name, and, for a distribution of `scipy.stats`, the distribution and its keywords.
+    """Random draw, with its kind and its name.
+
+    For a distribution of `scipy.stats`, it also holds the distribution and its keywords.
 
     Args:
         kind:
@@ -65,7 +67,10 @@ def _call(
     distribution: str | None = None,
     keywords: tuple[str, ...] = (),
 ) -> Expression:
-    """Return the symbolic call of a draw of a kind under a name, after checking the name."""
+    """Return the symbolic call of a draw of a kind under a name.
+
+    The name is checked first.
+    """
     if not isinstance(name, str) or not name.isidentifier():
         error_msg = f'A {kind} draw takes a name that is a Python identifier, such as `turn`, but got {name!r}.'
         raise ValidationError(error_msg)
@@ -167,7 +172,9 @@ def bernoulli(name: str, p: object) -> Expression:
 
 
 def categorical(name: str, weights: Sequence[object]) -> Expression:
-    """Return the index of a category drawn with probabilities proportional to weights at every step.
+    """Return the index of a category drawn at every step.
+
+    The probabilities of the categories are proportional to the weights.
 
     Args:
         name:
@@ -197,10 +204,11 @@ def categorical(name: str, weights: Sequence[object]) -> Expression:
 
 
 def draw(name: str, distribution: str, **parameters: object) -> Expression:
-    """Return a value drawn from a distribution of `scipy.stats` at every step or renewal.
+    """Return a value drawn from a distribution of `scipy.stats`.
 
-    The compiler checks the distribution name against `scipy.stats` and the keywords against the distribution's shape
-    parameters, `loc`, and `scale`, and samples with the distribution's `rvs` and the simulation's random stream.
+    A new value is drawn at every step or renewal. The compiler checks the distribution name against `scipy.stats` and
+    the keywords against the distribution's shape parameters, `loc`, and `scale`, and samples with the distribution's
+    `rvs` and the simulation's random stream.
 
     Args:
         name:
@@ -237,7 +245,9 @@ def draw(name: str, distribution: str, **parameters: object) -> Expression:
 
 
 def draws_in(expression: object) -> list[DrawSpec]:
-    """Return every draw of an expression with its arguments, including draws in the arguments of other draws.
+    """Return every draw of an expression with its arguments.
+
+    Draws in the arguments of other draws are included.
 
     Args:
         expression:

@@ -1,4 +1,7 @@
-"""Base class of steppers of Caputo fractional differential equations on a fixed grid from the start of a run."""
+"""Base class of steppers of Caputo fractional differential equations.
+
+They step on a fixed grid from the start of a run.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,11 +26,12 @@ _CHANGE_TOLERANCE = 1e-12
 
 
 class CaputoSolver(Solver):
-    """Base class of steppers of Caputo fractional differential equations on a fixed grid from the start of a run.
+    """Base class of steppers of Caputo fractional differential equations.
 
-    A state of order `alpha` follows `D^alpha x = f(t, x)`, and a state of order 1 follows `dx/dt = f(t, x)`. The
-    stepper keeps the history of the run on the grid `t0 + k dt`. A change of a fractional state between frames starts
-    a new history from the changed state, and a change of a state of order 1 carries on.
+    They step on a fixed grid from the start of a run. A state of order `alpha` follows `D^alpha x = f(t, x)`, and a
+    state of order 1 follows `dx/dt = f(t, x)`. The stepper keeps the history of the run on the grid `t0 + k dt`. A
+    change of a fractional state between frames starts a new history from the changed state, and a change of a state of
+    order 1 carries on.
     """
 
     @classmethod
@@ -75,7 +79,10 @@ class CaputoSolver(Solver):
         self._initial = np.zeros(0)
 
     def _index(self, time: float) -> int:
-        """Return the index of a time on the grid of the run, after checking that it lies on it."""
+        """Return the index of a time on the grid of the run.
+
+        The time is checked to lie on the grid.
+        """
         position = (time - self._origin) / self.dt
         index = round(position)
         if abs(position - index) > GRID_TOLERANCE * max(1.0, abs(position)):

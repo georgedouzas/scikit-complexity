@@ -10,7 +10,9 @@ from ...specs._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class PrintedSpec(BaseSpec):
-    """Code of an expression and how tightly it binds, which decides whether an operator around it needs parentheses.
+    """Code of an expression and how tightly it binds.
+
+    How tightly it binds decides whether an operator around it needs parentheses.
 
     Args:
         code:

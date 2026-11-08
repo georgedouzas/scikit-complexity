@@ -1,4 +1,7 @@
-"""Measure large deviations: generating functions, rate functions, cloning, and exponential reweighting."""
+"""Measure large deviations.
+
+The methods are generating functions, rate functions, cloning, and exponential reweighting.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -45,7 +48,9 @@ KIND_TAGS = {
 
 @dataclass(frozen=True)
 class LargeDeviationsResult:
-    """Large deviations of a time-additive observable: its generating function and rate function.
+    """Large deviations of a time-additive observable.
+
+    They are its generating function and rate function.
 
     Args:
         rates:
@@ -338,7 +343,10 @@ def _clone(
     random_state: int | None,
     simulation: Mapping[str, object] | None,
 ) -> tuple[float, float]:
-    """Return the generating function at one tilt and the smallest effective population, by cloning."""
+    """Return the generating function at one tilt and the least effective population.
+
+    They are found by cloning.
+    """
     if observable is None:
         error_msg = 'large_deviations of method cloning needs the observable whose increments it tilts.'
         raise AnalysisError(error_msg)
@@ -377,7 +385,10 @@ def _histogram(
     bins: int | npt.ArrayLike,
     value_range: tuple[float, float] | None,
 ) -> tuple[Array, Array]:
-    """Return the centres of the bins and the rate function from the histograms of the sizes."""
+    """Return the centres of the bins and the rate function.
+
+    The rate function comes from the histograms of the sizes.
+    """
     sizes = list(samples)
     if len(sizes) < MIN_SIZES:
         error_msg = f'A rate function from histograms needs at least {MIN_SIZES} sizes, not {len(sizes)}.'
@@ -405,7 +416,10 @@ def _increment(observable: str | Callable[[Trajectory], float], trajectory: Traj
 
 
 def _legendre_transform(tilts: Array, function: Array, values: Array) -> Array:
-    """Return the rate function `I(a) = max_k (k a - lambda(k))` of a generating function sampled on a grid."""
+    """Return the rate function `I(a) = max_k (k a - lambda(k))`.
+
+    The generating function is sampled on a grid.
+    """
     return np.max(np.outer(values, tilts) - function[None, :], axis=1)
 
 

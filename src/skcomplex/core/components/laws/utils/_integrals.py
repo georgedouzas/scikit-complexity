@@ -1,4 +1,7 @@
-"""Define the integrals of fields against two-point kernels and along one axis, which the compiler lowers."""
+"""Define the integrals of fields against two-point kernels and along one axis.
+
+The compiler lowers them.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,7 +19,9 @@ CUMULATIVE_INTEGRAL = function('cumulative_integral', nargs=3)
 
 
 def integration_variable(name: str) -> Expression:
-    """Return the coordinate along a named class axis of the point an integral transform integrates over.
+    """Return the coordinate along a named class axis of an integration point.
+
+    The point is the one an integral transform integrates over.
 
     Args:
         name:
@@ -42,12 +47,12 @@ def integration_variable(name: str) -> Expression:
 
 
 def integral_transform(expression: object, kernel: object, axes: Sequence[str]) -> Expression:
-    """Return the integral of an expression over named class axes against a kernel of two points.
+    """Return the integral of an expression over named class axes against a kernel.
 
-    The value at the point `c` is the integral of `K(c, c') u(c')` over the points `c'` of the named axes, at the
-    same position and the same coordinates of the other class axes. The kernel is written in the coordinates
-    `coordinate(name)` of `c`, the variables `integration_variable(name)` of `c'`, and the parameters, so it need not
-    be a function of `c - c'`.
+    The kernel is a kernel of two points. The value at the point `c` is the integral of `K(c, c') u(c')` over the points
+    `c'` of the named axes, at the same position and the same coordinates of the other class axes. The kernel is written
+    in the coordinates `coordinate(name)` of `c`, the variables `integration_variable(name)` of `c'`, and the
+    parameters, so it need not be a function of `c - c'`.
 
     Args:
         expression:
@@ -74,11 +79,11 @@ def integral_transform(expression: object, kernel: object, axes: Sequence[str]) 
 
 
 def cumulative_integral(expression: object, axis: int, *, reverse: bool = False) -> Expression:
-    """Return the integral of an expression along one axis of a lattice up to every site, or from it to the end.
+    """Return the integral of an expression along one axis of a lattice.
 
-    The integral runs over the cells from the start of the domain to the site, or from the site to the end of the
-    domain when reversed, and counts half of the cell of the site itself. Every cell is weighted by its width and its
-    volume.
+    It runs up to every site, or from it to the end. The integral runs over the cells from the start of the domain to
+    the site, or from the site to the end of the domain when reversed, and counts half of the cell of the site itself.
+    Every cell is weighted by its width and its volume.
 
     Args:
         expression:

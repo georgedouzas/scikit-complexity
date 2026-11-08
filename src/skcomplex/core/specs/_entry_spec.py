@@ -81,7 +81,10 @@ class EntrySpec(BaseSpec):
     tensor: TensorSpec | None = None
 
     def _parts(self, names: list[str]) -> list[str]:
-        """Return names with the suffixes of the real and imaginary parts for a complex variable."""
+        """Return names with the suffixes of the real and imaginary parts.
+
+        The suffixes are added for a complex variable.
+        """
         if not self.is_complex:
             return names
         return [f'{name}.{part}' for name in names for part in _PART_NAMES]
@@ -98,7 +101,10 @@ class EntrySpec(BaseSpec):
 
     @property
     def member_shape(self) -> tuple[int, ...]:
-        """Shape of the variable of one member, `()` for a scalar and `(n_dim,)` for a vector."""
+        """Shape of the variable of one member.
+
+        It is `()` for a scalar and `(n_dim,)` for a vector.
+        """
         return self.shape[1:] if self.members is not None else self.shape
 
     @functools.cached_property
@@ -113,7 +119,10 @@ class EntrySpec(BaseSpec):
 
     @property
     def component_names(self) -> list[str]:
-        """Names of the components, with an index suffix for vectors, a member index for groups, and complex parts."""
+        """Names of the components.
+
+        They carry an index suffix for vectors, a member index for groups, and complex parts.
+        """
         components = math.prod(self.member_shape)
         if self.tensor is not None:
             names = [f'{self.name}_{name}' for name in self.tensor.names]
@@ -142,7 +151,9 @@ class EntrySpec(BaseSpec):
         return self._parts([f'{self.name}[i, {index}]' for index in range(math.prod(self.member_shape))])
 
     def view(self, vector: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
-        """Return the variable's components of a flat vector as a view with one row per member.
+        """Return the variable's components of a flat vector as a view.
+
+        The view has one row per member.
 
         Args:
             vector:
@@ -155,7 +166,9 @@ class EntrySpec(BaseSpec):
         return vector[self.indices].reshape(self.rows, self.columns)
 
     def encode(self, value: object) -> npt.NDArray[np.float64]:
-        """Return a value broadcast to the shape of the variable as flat floats, in pairs for a complex variable.
+        """Return a value broadcast to the shape of the variable as flat floats.
+
+        A complex variable gives the floats in pairs.
 
         Args:
             value:
@@ -181,7 +194,9 @@ class EntrySpec(BaseSpec):
         return values.ravel().copy()
 
     def decode(self, values: Array) -> Array | ComplexArray:
-        """Return the stored components of the variable, the last axis of an array, with complex parts joined.
+        """Return the stored components of the variable, with complex parts joined.
+
+        The components are the last axis of an array.
 
         Args:
             values:
@@ -197,7 +212,10 @@ class EntrySpec(BaseSpec):
 
     @property
     def kind(self) -> DomainKind:
-        """Kind of value the variable takes, an angle for a periodic variable and a tensor for a tensor component."""
+        """Kind of value the variable takes.
+
+        It is an angle for a periodic variable and a tensor for a tensor component.
+        """
         if self.tensor is not None:
             return DomainKind.TENSOR
         return EntrySpec._domain_kind(self.domain, self.period)
@@ -216,7 +234,9 @@ class EntrySpec(BaseSpec):
         return EntrySpec._contains(self.domain, value)
 
     def read(self, values: npt.ArrayLike) -> npt.NDArray[np.generic]:
-        """Return stored numbers as values of the domain: labels for a categorical domain, booleans for a boolean one.
+        """Return stored numbers as values of the domain.
+
+        They are labels for a categorical domain and booleans for a boolean one.
 
         Args:
             values:
@@ -236,7 +256,9 @@ class EntrySpec(BaseSpec):
 
     @staticmethod
     def _wrap_angle(values: npt.ArrayLike) -> npt.NDArray[np.float64]:
-        """Return angles in `(-pi, pi]`, with `-pi` moved to `pi` and angles already inside left exactly as they are.
+        """Return angles in `(-pi, pi]`.
+
+        An angle of `-pi` moves to `pi`, and angles already inside are left exactly as they are.
 
         Args:
             values:
@@ -252,14 +274,18 @@ class EntrySpec(BaseSpec):
 
     @staticmethod
     def _is_number(item: object) -> bool:
-        """Check whether an element of a finite set is a number, which a state stores as it is."""
+        """Check whether an element of a finite set is a number.
+
+        A state stores a number as it is.
+        """
         return isinstance(item, int | float) or getattr(item, 'is_numeric', lambda: False)()
 
     @staticmethod
     def _labels_of(domain: object) -> tuple[object, ...] | None:
-        """Return the labels of a finite domain stored as indices, or `None` for a numeric or a boolean domain.
+        """Return the labels of a finite domain stored as indices.
 
-        A finite set of numbers, such as the spins `FiniteEnumeratedSet([-1, 1])`, stores its values as they are.
+        It returns `None` for a numeric or a boolean domain. A finite set of numbers, such as the spins
+        `FiniteEnumeratedSet([-1, 1])`, stores its values as they are.
 
         Args:
             domain:
@@ -277,7 +303,10 @@ class EntrySpec(BaseSpec):
 
     @staticmethod
     def _cell_domain(domain: object) -> object:
-        """Return the Sage set of one component: the alphabet of a subshift or a power series, or the domain itself."""
+        """Return the Sage set of one component.
+
+        It is the alphabet of a subshift or a power series, or the domain itself.
+        """
         return domain.alphabet if isinstance(domain, SubshiftSpec | PowerSeriesSpec) else domain
 
     @staticmethod
@@ -310,7 +339,9 @@ class EntrySpec(BaseSpec):
 
     @staticmethod
     def _sage_assumption(domain: object) -> str:
-        """Return the Sage domain of the symbols of a Sage set: real, positive, integer, or complex.
+        """Return the Sage domain of the symbols of a Sage set.
+
+        The domain is real, positive, integer, or complex.
 
         Args:
             domain:
@@ -363,7 +394,9 @@ class EntrySpec(BaseSpec):
 
     @staticmethod
     def _decode(domain: object, values: npt.ArrayLike) -> npt.NDArray[np.generic]:
-        """Return stored numbers as values of a Sage set: labels for a categorical domain, booleans for a boolean one.
+        """Return stored numbers as values of a Sage set.
+
+        They are labels for a categorical domain and booleans for a boolean one.
 
         Args:
             domain:
@@ -386,10 +419,11 @@ class EntrySpec(BaseSpec):
 
     @staticmethod
     def _contains_numbers(domain: object, value: object) -> bool | None:
-        """Check at once that real numbers belong to the real line or to a union of intervals, as Sage checks each.
+        """Check at once that real numbers belong to the real line or to intervals.
 
-        A large array, such as a tensor parameter of an experiment, is checked in one pass instead of one Sage call per
-        component. Not a number belongs to neither, and infinities belong to the real line alone.
+        The check is the one Sage makes for each number, against the real line or a union of intervals. A large array,
+        such as a tensor parameter of an experiment, is checked in one pass instead of one Sage call per component. Not
+        a number belongs to neither, and infinities belong to the real line alone.
 
         Args:
             domain:

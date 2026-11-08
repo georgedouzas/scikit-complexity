@@ -16,7 +16,10 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class _DelaySpec(BaseSpec):
-    """Delayed state read by laws through a hidden parameter that solvers fill from the run's history."""
+    """Delayed state read by laws through a hidden parameter.
+
+    Solvers fill the parameter from the run's history.
+    """
 
     parameters: npt.NDArray[np.intp]
     states: npt.NDArray[np.intp]

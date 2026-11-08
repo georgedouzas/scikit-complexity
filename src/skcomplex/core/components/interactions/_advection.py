@@ -1,4 +1,7 @@
-"""Define advection, the conservation law whose flux is a drift field times the state."""
+"""Define advection.
+
+Advection is the conservation law whose flux is a drift field times the state.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,13 +22,13 @@ from ._conservation import ConservationInteraction
 
 
 class AdvectionInteraction(ConservationInteraction):
-    """Advection `du/dt + divergence(a u) = source(ns)` of a state `u` of a field by a drift field `a(ns)`.
+    """Advection `du/dt + divergence(a u) = source(ns)` of a state `u` of a field.
 
-    The flux of the conservation law is the drift times the state, written in conservative form, so the total of the
-    state on a periodic field stays constant and, on a spectral field, the dealiasing of products applies to it. The
-    drift is one expression for a field of one dimension, or one per dimension, of the states and parameters of the
-    field, and may read other states than the one it carries, such as the flow of a fluid derived from a
-    streamfunction, or the drift of a probability density in a Fokker-Planck equation.
+    The drift field is `a(ns)`. The flux of the conservation law is the drift times the state, written in conservative
+    form, so the total of the state on a periodic field stays constant and, on a spectral field, the dealiasing of
+    products applies to it. The drift is one expression for a field of one dimension, or one per dimension, of the
+    states and parameters of the field, and may read other states than the one it carries, such as the flow of a fluid
+    derived from a streamfunction, or the drift of a probability density in a Fokker-Planck equation.
 
     Args:
         label:
@@ -109,7 +112,9 @@ class AdvectionInteraction(ConservationInteraction):
         self.drift = drift
 
     def _check(self) -> None:
-        """Raise an error for a state that is not a name, a drift that is not callable, or an unknown scheme.
+        """Raise an error for an invalid state, drift, or scheme.
+
+        It raises it for a state that is not a name, a drift that is not callable, or an unknown scheme.
 
         Raises:
             ValidationError:

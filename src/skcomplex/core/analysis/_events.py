@@ -1,4 +1,7 @@
-"""Detect events in series, count them in windows, time laminar phases, find excursions, and estimate branching."""
+"""Detect and measure events in series.
+
+The module detects events, counts them in windows, times laminar phases, finds excursions, and estimates branching.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -257,7 +260,10 @@ def _step(clock: Array) -> float:
 
 
 def _detect_events(array: Array, clock: Array, threshold: float) -> tuple[Array, Array, Array, Array, Array]:
-    """Return the starts, sizes, durations, peaks, and waiting times of the runs of values above a threshold."""
+    """Return the starts, sizes, durations, peaks, and waiting times of events.
+
+    The events are the runs of values above a threshold.
+    """
     step = _step(clock)
     active = np.concatenate([[False], array > threshold, [False]])
     edges = np.diff(active.astype(int))
@@ -278,7 +284,10 @@ def _event_counts(times: Array, window: float, start: float, end: float | None) 
 
 
 def _laminar_durations(values: Array, clock: Array, threshold: float) -> Array:
-    """Return the durations of the complete runs of values within a threshold of 0, between two bursts."""
+    """Return the durations of the complete runs of values within a threshold of 0.
+
+    The runs lie between two bursts.
+    """
     array = np.abs(values)
     step = _step(clock)
     laminar = np.concatenate([[False], array <= threshold, [False]]).astype(int)
@@ -288,7 +297,10 @@ def _laminar_durations(values: Array, clock: Array, threshold: float) -> Array:
 
 
 def _records(source: object) -> list[CascadeRecordSpec]:
-    """Return the records of excursions of a source, each with a size and a duration, or nothing for values."""
+    """Return the records of excursions of a source.
+
+    Each record has a size and a duration, and values give nothing.
+    """
     if isinstance(source, np.ndarray | Trajectory) or not isinstance(source, Sequence):
         return []
     records = [item for item in source if isinstance(item, CascadeRecordSpec)]
@@ -296,7 +308,10 @@ def _records(source: object) -> list[CascadeRecordSpec]:
 
 
 def _excursions(values: Array, threshold: float) -> list[Array]:
-    """Return the profile of every maximal run of values above a threshold, its values minus the threshold."""
+    """Return the profile of every maximal run of values above a threshold.
+
+    The profile is its values minus the threshold.
+    """
     excess = values - threshold
     active = np.concatenate([[False], excess > 0, [False]]).astype(int)
     starts, ends = np.flatnonzero(np.diff(active) == 1), np.flatnonzero(np.diff(active) == -1)
@@ -304,7 +319,10 @@ def _excursions(values: Array, threshold: float) -> list[Array]:
 
 
 def _branching_ratio(values: Array, max_step: int, dt: float) -> float:
-    """Return the branching ratio of trials, one per column, by the multistep regression of `mrestimator`."""
+    """Return the branching ratio of trials, one per column.
+
+    It is found by the multistep regression of `mrestimator`.
+    """
     mrestimator = _import('mrestimator')
     coefficients = mrestimator.coefficients(
         values.T,

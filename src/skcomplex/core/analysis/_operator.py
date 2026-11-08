@@ -1,4 +1,7 @@
-"""Analyse an operator system: its spectrum, its ground state, and the purity and entanglement of its trajectories."""
+"""Analyse an operator system.
+
+The analyses are its spectrum, its ground state, and the purity and entanglement of its trajectories.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -40,7 +43,9 @@ TAGS = AnalysisTags(DataKind.SYSTEM)
 
 @dataclass(frozen=True)
 class OperatorMeasuresResult:
-    """Spectrum or ground state of an operator system, or the purity or entanglement of the states of its trajectory.
+    """Spectrum or ground state of an operator system, or purity or entanglement.
+
+    The purity or the entanglement is that of the states of its trajectory.
 
     Args:
         problem:
@@ -87,7 +92,9 @@ def operator_measures(
     sector: SectorSpec | None = None,
     subsystems: Sequence[str] | None = None,
 ) -> OperatorMeasuresResult:
-    """Return the spectrum or ground state of an operator system, or the purity or entanglement of its trajectory.
+    """Return a spectrum, ground state, purity, or entanglement of an operator system.
+
+    The purity and the entanglement are those of its trajectory.
 
     The kinds read a system or a trajectory:
 
@@ -233,7 +240,10 @@ def _sector_basis(
     sector: SectorSpec,
     p: Array,
 ) -> npt.NDArray[np.intp]:
-    """Return the basis states whose eigenvalue of a conserved diagonal operator equals a value."""
+    """Return the basis states with a value as eigenvalue of a conserved operator.
+
+    The operator is diagonal.
+    """
     if problem.lowering is None:
         error_msg = 'The operator problem has no lowering of operators, so its sectors cannot be read.'
         raise AnalysisError(error_msg)
@@ -271,7 +281,10 @@ def _lowest_states(
     k: int,
     basis: npt.NDArray[np.intp] | None,
 ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.complex128]]:
-    """Return the lowest eigenvalues and eigenstates of the generator at time 0 through QuTiP, within a basis."""
+    """Return the lowest eigenvalues and eigenstates of the generator at time 0.
+
+    They are found through QuTiP, within a basis.
+    """
     dimension = math.prod(problem.dimensions)
     matrix = problem._generator_at(0.0, p)
     indices = np.arange(dimension) if basis is None else np.asarray(basis, dtype=np.intp)
@@ -290,7 +303,10 @@ def _entanglement(
     states: npt.NDArray[np.complex128],
     subsystems: Sequence[str],
 ) -> Array:
-    """Return the von Neumann entropy of the reduced state of some subsystems at every frame, in nats."""
+    """Return the von Neumann entropy of the reduced state of some subsystems.
+
+    It is given at every frame, in nats.
+    """
     keep = []
     for name in subsystems:
         found = [index for index, key in enumerate(problem.subsystems) if key == name or key.startswith(f'{name}[')]

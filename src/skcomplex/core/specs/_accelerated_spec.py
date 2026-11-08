@@ -12,10 +12,10 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class AcceleratedSpec(BaseSpec):
-    """Compiled stepper loops of a problem, which run every internal step of a frame in compiled code.
+    """Compiled stepper loops of a problem.
 
-    Every loop takes `(t, x, p, until, ...)` and returns the state at `until`. A loop is `None` when the problem's form
-    does not use it.
+    They run every internal step of a frame in compiled code. Every loop takes `(t, x, p, until, ...)` and returns the
+    state at `until`. A loop is `None` when the problem's form does not use it.
 
     Args:
         rk4:

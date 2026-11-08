@@ -1,4 +1,7 @@
-"""Measure statistics of series in rolling windows: the variance, the lag-one autocorrelation, and the skewness."""
+"""Measure statistics of series in rolling windows.
+
+The statistics are the variance, the lag-one autocorrelation, and the skewness.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -54,10 +57,11 @@ def rolling(
     window: int | None = None,
     detrend: bool = False,
 ) -> RollingResult:
-    """Return the statistic of every series of a source in rolling windows, of one kind, and its trend.
+    """Return the statistic of every series in rolling windows, and its trend.
 
-    Every window holds the `window` values that end at a sample, possibly with a linear trend removed first, and the
-    statistic of the window is set at that sample. The trend of the statistic is Kendall's tau against time.
+    The statistic is of one kind, for every series of a source. Every window holds the `window` values that end at a
+    sample, possibly with a linear trend removed first, and the statistic of the window is set at that sample. The trend
+    of the statistic is Kendall's tau against time.
 
     - `'variance'`: the variance of the window.
     - `'autocorrelation'`: the lag-one autocorrelation of the window.
@@ -133,7 +137,9 @@ def _rolling(
     *,
     detrend: bool,
 ) -> Array:
-    """Return a statistic of every window of a series, set at the last sample of the window.
+    """Return a statistic of every window of a series.
+
+    It is set at the last sample of the window.
 
     Args:
         values:

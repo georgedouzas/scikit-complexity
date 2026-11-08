@@ -1,4 +1,7 @@
-"""Linearise a system into state-space matrices, with its controllability, observability, and optimal gain."""
+"""Linearise a system into state-space matrices.
+
+The module also gives its controllability, observability, and optimal gain.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -24,7 +27,9 @@ TAGS = AnalysisTags(DataKind.SYSTEM)
 
 @dataclass(frozen=True)
 class LinearizationResult:
-    """Linear state-space system of a system near an operating point, with its ranks and optimal gain.
+    """Linear state-space system of a system near an operating point.
+
+    It comes with its ranks and optimal gain.
 
     Args:
         problem:
@@ -83,14 +88,14 @@ def linearization(
     state_weights: npt.ArrayLike | None = None,
     control_weights: npt.ArrayLike | None = None,
 ) -> LinearizationResult:
-    """Return the linear state-space system `x' = A x + B u`, `y = C x + D u` of a system near an operating point.
+    """Return the linear state-space system of a system near an operating point.
 
-    The matrices are the Jacobians of the rates and of the outputs, derived symbolically and evaluated at the
-    operating point. The controls are adaptive parameters, named by their dotted names, and the outputs are states or
-    controls. The system is controllable when the rank of `[B, AB, ..., A^(n-1) B]` equals the number of states, and
-    observable when the rank of `[C; CA; ...; C A^(n-1)]` does. With weights of the states and the controls, the gain
-    `K` of the linear-quadratic regulator `u = -K x` minimises `∫ (x' Q x + u' R u) dt` over an infinite horizon, from
-    the continuous algebraic Riccati equation that SciPy solves.
+    The system is `x' = A x + B u`, `y = C x + D u`. The matrices are the Jacobians of the rates and of the outputs,
+    derived symbolically and evaluated at the operating point. The controls are adaptive parameters, named by their
+    dotted names, and the outputs are states or controls. The system is controllable when the rank of `[B, AB, ...,
+    A^(n-1) B]` equals the number of states, and observable when the rank of `[C; CA; ...; C A^(n-1)]` does. With
+    weights of the states and the controls, the gain `K` of the linear-quadratic regulator `u = -K x` minimises `∫ (x' Q
+    x + u' R u) dt` over an infinite horizon, from the continuous algebraic Riccati equation that SciPy solves.
 
     Args:
         source:
@@ -236,7 +241,10 @@ def _controllability(state: Array, inputs: Array) -> int:
 
 
 def _lqr(state: Array, inputs: Array, state_weights: npt.ArrayLike, control_weights: npt.ArrayLike) -> Array:
-    """Return the gain `K = R^-1 B' P` of the linear-quadratic regulator, from the Riccati solution `P` of SciPy."""
+    """Return the gain `K = R^-1 B' P` of the linear-quadratic regulator.
+
+    `P` is the Riccati solution of SciPy.
+    """
     weights = np.atleast_2d(np.asarray(control_weights, dtype=float))
     riccati = solve_continuous_are(state, inputs, np.atleast_2d(np.asarray(state_weights, dtype=float)), weights)
     gain: Array = np.linalg.solve(weights, inputs.T @ riccati)

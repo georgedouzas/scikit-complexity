@@ -1,4 +1,7 @@
-"""Derive the feedback loops of the signed dependency graph of a system, their dominance, and its flow matrices."""
+"""Derive the feedback loops of the signed dependency graph of a system.
+
+The module also gives their dominance and its flow matrices.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -41,10 +44,11 @@ TAGS = AnalysisTags(DataKind.SYSTEM)
 
 
 class _Graph:
-    """Edges of the signed dependency graph of a problem with the expressions of their partial derivatives.
+    """Edges of the signed dependency graph of a problem.
 
-    The nodes are the state variables and the flows. A state whose rate the flows and rate laws of single elements give
-    is linked through them, and every other state through its row of the Jacobian.
+    They come with the expressions of their partial derivatives. The nodes are the state variables and the flows. A
+    state whose rate the flows and rate laws of single elements give is linked through them, and every other state
+    through its row of the Jacobian.
     """
 
     def __init__(self, problem: ProblemSpec) -> None:
@@ -62,7 +66,10 @@ class _Graph:
             self._add_jacobian(hidden)
 
     def _reads_group(self, term: LoopTermSpec) -> bool:
-        """Check whether a term reads or changes a variable of a group, which its expression does not resolve."""
+        """Check whether a term reads or changes a variable of a group.
+
+        Its expression does not resolve such a variable.
+        """
         entries = [term.references[item].entry for item in symbols_of([term.expression]) if item in term.references]
         entries += [self.problem.states.entry(name) for name in self._holders(term)]
         return any(entry.members is not None for entry in entries)
@@ -79,7 +86,7 @@ class _Graph:
         return changed - unresolved - higher
 
     def _hidden(self) -> set[str]:
-        """Return the states the compiler adds for the boundary flows and for delays and smoothings."""
+        """Return the states the compiler adds for boundary flows, delays, and smoothings."""
         transfer_network = self.problem.transfer_network
         if transfer_network is None:
             return set()
@@ -109,10 +116,10 @@ class _Graph:
                 self.edges[(term.path, term.source)] -= 1
 
     def _add_jacobian(self, hidden: set[str]) -> None:
-        """Add the edges into every state the terms do not describe, from its row of the Jacobian.
+        """Add the edges into every state the terms do not describe.
 
-        The row of a map is that of the change of every state in one step, its next value minus itself, so that its
-        edges and those of flows per step have the same meaning.
+        The edges come from its row of the Jacobian. The row of a map is that of the change of every state in one step,
+        its next value minus itself, so that its edges and those of flows per step have the same meaning.
         """
         dynamics = _dynamics_of(self.problem)
         nodes = {}
@@ -157,7 +164,10 @@ class _Graph:
 
     @staticmethod
     def _without_delays(expression: Expression) -> Expression:
-        """Return an expression with every delay and smoothing replaced by its input, which it follows with gain one."""
+        """Return an expression with every delay and smoothing replaced by its input.
+
+        A delay or a smoothing follows its input with gain one.
+        """
         calls = {
             item: item.operands()[0]
             for item in _Graph._operations(expression)
@@ -167,7 +177,12 @@ class _Graph:
 
     @staticmethod
     def _derivative(expression: Expression, item: Expression) -> Expression:
-        """Return the partial derivative of an expression, without the Dirac deltas of steps, zero off their jump."""
+        """Return the partial derivative of an expression without the deltas of steps.
+
+        The deltas are Dirac deltas.
+
+        A step's derivative is zero off its jump.
+        """
         return SR(expression).diff(item).subs(dirac_delta(SR.wild(0)) == 0)
 
     @staticmethod
@@ -189,7 +204,9 @@ class _Graph:
 
 @dataclass(frozen=True)
 class LoopsResult:
-    """Feedback loops of the signed dependency graph of a system, their dominance in time, or its flow matrix.
+    """Feedback loops of the signed dependency graph of a system.
+
+    They come with their dominance in time, or its flow matrix.
 
     Args:
         problem:
@@ -251,17 +268,17 @@ def loops(
     frame: int = -1,
     quantity: str | None = None,
 ) -> LoopsResult:
-    """Return the feedback loops of the signed dependency graph of a system, their dominance, or its flow matrix.
+    """Return the feedback loops of the signed dependency graph of a system.
 
-    The signed dependency graph of a system has the state variables as nodes and an edge from `x_j` to `x_i` when the
-    rate of `x_i` depends on `x_j`, with the sign of the partial derivative `df_i/dx_j`, the entry of the Jacobian. The
-    rate of a map is the change of its state in one step, its next value minus itself. When a system declares flows,
-    the flows are nodes too: an edge goes from each state to every flow whose amount depends on it, with the sign of
-    the partial derivative, and from each flow to its sink with sign `+` and to its source with sign `-`, so the
-    graph shows the path of every influence through the flows. Rate laws of single elements give the edges into the
-    states they change, and the Jacobian, as `stability` derives it with the parameters at their values,
-    gives the edges into every other state, such as the members of a group or the velocity of a state of second
-    order. Delays and smoothings pass their input with gain one.
+    They come with their dominance, or its flow matrix. The signed dependency graph of a system has the state variables
+    as nodes and an edge from `x_j` to `x_i` when the rate of `x_i` depends on `x_j`, with the sign of the partial
+    derivative `df_i/dx_j`, the entry of the Jacobian. The rate of a map is the change of its state in one step, its
+    next value minus itself. When a system declares flows, the flows are nodes too: an edge goes from each state to
+    every flow whose amount depends on it, with the sign of the partial derivative, and from each flow to its sink with
+    sign `+` and to its source with sign `-`, so the graph shows the path of every influence through the flows. Rate
+    laws of single elements give the edges into the states they change, and the Jacobian, as `stability` derives it with
+    the parameters at their values, gives the edges into every other state, such as the members of a group or the
+    velocity of a state of second order. Delays and smoothings pass their input with gain one.
 
     The kinds read a system or a trajectory:
 
@@ -350,7 +367,10 @@ def loops(
 
 
 def _dominance(problem: ProblemSpec, trajectory: Trajectory) -> LoopsResult:
-    """Return the gains of the loops along a trajectory and the dominant loop at every frame."""
+    """Return the gains of the loops along a trajectory.
+
+    The dominant loop at every frame is returned too.
+    """
     graph = _Graph(problem)
     states, parameters = np.atleast_2d(trajectory.states), np.atleast_2d(trajectory.parameters)
     times = np.asarray(trajectory.times, dtype=float)

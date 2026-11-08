@@ -1,8 +1,8 @@
-"""Define the reductions and reads across the members of a group, as Sage symbolic functions the compiler lowers.
+"""Define the reductions and reads across the members of a group.
 
-Sage has no reduction over the members of a group, so each reduction is a Sage function made by `function`, kept
-unevaluated in expressions. Arguments that are not symbolic, such as a constant weight matrix or a neighbourhood, ride
-in the expression as a symbol named after a digest of their value.
+They are Sage symbolic functions the compiler lowers. Sage has no reduction over the members of a group, so each
+reduction is a Sage function made by `function`, kept unevaluated in expressions. Arguments that are not symbolic, such
+as a constant weight matrix or a neighbourhood, ride in the expression as a symbol named after a digest of their value.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -48,7 +48,10 @@ NEIGHBORHOODS: dict[str, object] = {}
 
 
 def _is_placeholder(item: Expression, value: int) -> bool:
-    """Check whether an operand is the number that stands for an absent condition, weights, group, or neighbourhood."""
+    """Check whether an operand is the number that stands for an absent operand.
+
+    The absent operand is a condition, weights, a group, or a neighbourhood.
+    """
     item = SR(item)
     return bool(item.is_numeric() and item == value)
 
@@ -60,7 +63,10 @@ def _print_reduction(
     weights: Expression,
     over: Expression,
 ) -> str:
-    """Return a reduction call with its keywords, leaving out the absent condition, weights, and group."""
+    """Return a reduction call with its keywords.
+
+    It leaves out the absent condition, weights, and group.
+    """
     name = self.name()
     parts = [] if name == 'count' else [str(argument)]
     if not _is_placeholder(over, 0):
@@ -73,7 +79,10 @@ def _print_reduction(
 
 
 def _print_neighbors(self: object, argument: Expression, weight: Expression, over: Expression, kind: Expression) -> str:
-    """Return a neighbourhood reduction call with its keywords, leaving out the own neighbourhood and unit weight."""
+    """Return a neighbourhood reduction call with its keywords.
+
+    It leaves out the own neighbourhood and unit weight.
+    """
     del self
     parts = [str(argument)]
     if not _is_placeholder(over, 0):
@@ -91,7 +100,10 @@ def _print_hyperedges(
     size: Expression,
     kind: Expression,
 ) -> str:
-    """Return a hyperedge reduction call with its keywords, leaving out every size and unit weight."""
+    """Return a hyperedge reduction call with its keywords.
+
+    It leaves out every size and unit weight.
+    """
     del self
     parts = [str(argument), f'reduce={NEIGHBOR_REDUCTIONS[int(SR(kind))]!r}']
     if not _is_placeholder(size, 0):
@@ -102,7 +114,10 @@ def _print_hyperedges(
 
 
 def _print_components(self: object, active: Expression, over: Expression, kind: Expression) -> str:
-    """Return a components reduction call with its keywords, leaving out the own neighbourhood."""
+    """Return a components reduction call with its keywords.
+
+    It leaves out the own neighbourhood.
+    """
     del self
     parts = [str(active)]
     if not _is_placeholder(over, 0):
@@ -112,7 +127,10 @@ def _print_components(self: object, active: Expression, over: Expression, kind: 
 
 
 def _print_paths(self: object, active: Expression, over: Expression, kind: Expression) -> str:
-    """Return a shortest paths reduction call with its keywords, leaving out the own neighbourhood."""
+    """Return a shortest paths reduction call with its keywords.
+
+    It leaves out the own neighbourhood.
+    """
     del self
     parts = [str(active)]
     if not _is_placeholder(over, 0):
@@ -128,7 +146,10 @@ def _eval_shift(
     boundary: Expression,
     fill: Expression,
 ) -> Expression | None:
-    """Return the expression itself for an offset of 0 or an expression without symbols or draws, or `None`."""
+    """Return the expression itself for a trivial shift, or `None`.
+
+    A shift is trivial for an offset of 0 or an expression without symbols or draws.
+    """
     del self, boundary, fill
     if _is_placeholder(offset, 0) or not (SR(expression).variables() or draws_in(expression)):
         return expression
@@ -145,7 +166,10 @@ SHIFT_MEMBER = function('shift_member', nargs=4, eval_func=_eval_shift)
 
 
 def _over_symbol(over: object) -> Expression:
-    """Return a symbol that names the group of a reduction, from a namespace or a symbol, or 0 for none."""
+    """Return a symbol that names the group of a reduction, or 0 for none.
+
+    It comes from a namespace or a symbol.
+    """
     if over is None:
         return SR(0)
     if isinstance(over, SimpleNamespace):
@@ -166,7 +190,10 @@ def _over_symbol(over: object) -> Expression:
 
 
 def _weights_symbol(weights: object) -> Expression:
-    """Return the symbol that stands for a constant weight matrix, the symbol of a shaped parameter, or 0 for none."""
+    """Return the symbol that stands for a constant weight matrix, or 0 for none.
+
+    It is the symbol of a shaped parameter for one.
+    """
     if weights is None:
         return SR(0)
     if isinstance(weights, Expression) and weights.is_symbol():
@@ -189,7 +216,10 @@ def _weights_symbol(weights: object) -> Expression:
 
 
 def _keyed(over: object, where: object, by: str | None) -> object:
-    """Return the condition of a reduction, with the members that share the reading member's value of a state."""
+    """Return the condition of a reduction with the members sharing a state value.
+
+    They share the reading member's value of the state.
+    """
     if by is None:
         return where
     reduced = getattr(getattr(over, 'other', None), by, None) if isinstance(over, SimpleNamespace) else None
@@ -212,7 +242,10 @@ def _reduce(
     *,
     by: str | None = None,
 ) -> Expression:
-    """Return the unevaluated call of a reduction, with placeholders for the absent condition, weights, and group."""
+    """Return the unevaluated call of a reduction.
+
+    It has placeholders for the absent condition, weights, and group.
+    """
     where = _keyed(over, where, by)
     condition = SR(1) if where is None else SR(where)
     return REDUCTIONS[name](SR(expression), condition, _weights_symbol(weights), _over_symbol(over))
@@ -271,9 +304,10 @@ def total(
     weights: object = None,
     by: str | None = None,
 ) -> Expression:
-    """Return the sum of an expression over the members of a group, `sum_j a_j`, or `sum_j W_ij a_j` with weights.
+    """Return the sum of an expression over the members of a group.
 
-    Inside the reduction, the symbols of a member stand for the reduced member, and outside it for the reading member.
+    It is `sum_j a_j`, or `sum_j W_ij a_j` with weights. Inside the reduction, the symbols of a member stand for the
+    reduced member, and outside it for the reading member.
 
     Args:
         expression:
@@ -322,7 +356,9 @@ def mean(
     weights: object = None,
     by: str | None = None,
 ) -> Expression:
-    """Return the mean of an expression over the selected members of a group, the total divided by their count.
+    """Return the mean of an expression over the selected members of a group.
+
+    It is the total divided by their count.
 
     Args:
         expression:
@@ -359,10 +395,11 @@ def mean(
 
 
 def maximum(*expressions: object, over: object = None, where: object = None) -> Expression:
-    """Return the largest value of an expression over the selected members of a group, or the largest of expressions.
+    """Return the largest value of an expression over selected members, or of several.
 
-    With one expression it reduces over the members of a group, as `max` over an array. With several it compares
-    them member by member, as `max` over its arguments, with no group or condition.
+    It returns the largest value over the selected members of a group, or the largest of expressions. With one
+    expression it reduces over the members of a group, as `max` over an array. With several it compares them member by
+    member, as `max` over its arguments, with no group or condition.
 
     Args:
         *expressions:
@@ -406,10 +443,11 @@ def maximum(*expressions: object, over: object = None, where: object = None) -> 
 
 
 def minimum(*expressions: object, over: object = None, where: object = None) -> Expression:
-    """Return the smallest value of an expression over the selected members of a group, or the smallest of expressions.
+    """Return the smallest value of an expression over selected members, or of several.
 
-    With one expression it reduces over the members of a group, as `min` over an array. With several it compares
-    them member by member, as `min` over its arguments, with no group or condition.
+    It returns the smallest value over the selected members of a group, or the smallest of expressions. With one
+    expression it reduces over the members of a group, as `min` over an array. With several it compares them member by
+    member, as `min` over its arguments, with no group or condition.
 
     Args:
         *expressions:
@@ -453,7 +491,7 @@ def minimum(*expressions: object, over: object = None, where: object = None) -> 
 
 
 def variance(expression: object, over: object = None, where: object = None) -> Expression:
-    """Return the population variance of an expression over the selected members of a group.
+    """Return the population variance of an expression over selected group members.
 
     Args:
         expression:
@@ -483,7 +521,9 @@ def variance(expression: object, over: object = None, where: object = None) -> E
 
 
 def log_sum_exp(expression: object, over: object = None, where: object = None) -> Expression:
-    """Return the logarithm of the sum of the exponentials of an expression over the selected members of a group.
+    """Return the log of the sum of the exponentials of an expression over members.
+
+    The members are the selected members of a group.
 
     Args:
         expression:
@@ -513,7 +553,7 @@ def log_sum_exp(expression: object, over: object = None, where: object = None) -
 
 
 def count(over: object = None, where: object = None, by: str | None = None) -> Expression:
-    """Return the number of members of a group that a condition selects, or of all members.
+    """Return the number of members of a group a condition selects, or of all members.
 
     Args:
         over:
@@ -556,9 +596,10 @@ def circular_mean(
     weights: object = None,
     by: str | None = None,
 ) -> Expression:
-    """Return the circular mean of an angle over the members of a group, `arctan2(sum_j sin a_j, sum_j cos a_j)`.
+    """Return the circular mean of an angle over the members of a group.
 
-    The mean is the direction of the sum of the unit vectors at the angles, 0 when no member is selected.
+    It is `arctan2(sum_j sin a_j, sum_j cos a_j)`. The mean is the direction of the sum of the unit vectors at the
+    angles, 0 when no member is selected.
 
     Args:
         angle:
@@ -597,7 +638,10 @@ def circular_mean(
 
 
 def _neighborhood_symbol(over: object) -> Expression:
-    """Return the symbol that stands for a neighbourhood, registered by its value, or 0 for the space's own."""
+    """Return the symbol that stands for a neighbourhood, or 0 for the space's own.
+
+    It is registered by its value.
+    """
     if over is None:
         return SR(0)
     if isinstance(over, LayerSpec):
@@ -616,15 +660,16 @@ def neighbors(
     reduce: str = 'sum',
     weight: object = None,
 ) -> Expression | FreeModuleElement:
-    """Return the reduction of an expression over the neighbours of every member of a group.
+    """Return the reduction of an expression over the neighbours of group members.
 
-    The expression is written for one neighbour: the namespace `namespace.other` holds the symbols of the neighbour,
-    and `namespace` those of the member that reads the reduction, so `sin(namespace.other.theta - namespace.theta)` is
-    the phase difference to one neighbour. The neighbourhood is the graph of a network space by default,
-    `AdjacencyNeighborhood()`, a layer of the network, `AdjacencyNeighborhood(layer=label)` or the `LayerSpec` itself, a
-    lattice neighbourhood, or in a continuous space the members within a distance, `RadiusNeighborhood(r)`, the nearest
-    members, `NearestNeighborhood(k)`, or the members within a distance inside a cone around a direction,
-    `ConeNeighborhood(r, angle)`. A reduction over no neighbours is 0.
+    It is over the neighbours of every member of a group. The expression is written for one neighbour: the namespace
+    `namespace.other` holds the symbols of the neighbour, and `namespace` those of the member that reads the reduction,
+    so `sin(namespace.other.theta - namespace.theta)` is the phase difference to one neighbour. The neighbourhood is the
+    graph of a network space by default, `AdjacencyNeighborhood()`, a layer of the network,
+    `AdjacencyNeighborhood(layer=label)` or the `LayerSpec` itself, a lattice neighbourhood, or in a continuous space
+    the members within a distance, `RadiusNeighborhood(r)`, the nearest members, `NearestNeighborhood(k)`, or the
+    members within a distance inside a cone around a direction, `ConeNeighborhood(r, angle)`. A reduction over no
+    neighbours is 0.
 
     The reductions with the weight `w_j` of every neighbour `j` of the value `f_j` are `'sum'`, `sum_j w_j f_j`,
     `'mean'`, the sum divided by the number of neighbours, `'count'`, `sum_j w_j [f_j != 0]`, `'max'` and `'min'`, the
@@ -703,14 +748,15 @@ def hyperedges(
     size: int | None = None,
     weight: object = None,
 ) -> Expression | FreeModuleElement:
-    """Return the reduction of an expression over the hyperedges around every member of a group on a network.
+    """Return the reduction of an expression over the hyperedges around group members.
 
-    The expression is written for one hyperedge around the member that reads the reduction: the namespaces
-    `namespace.others` hold the symbols of the other members of the hyperedge in its order, `namespace.members` those
-    of all its members, which `total`, `mean`, `count`, `maximum`, and `minimum` reduce with `over=namespace.members`,
-    and `namespace` those of the reading member. So `sin(s.others[0].theta + s.others[1].theta - 2 * s.theta)` with
-    `size=3` is the three-body phase coupling over the triangles around a member. The hyperedges are those of the
-    network space of the group, and a reduction over no hyperedges is 0.
+    It is over the hyperedges around every member of a group on a network. The expression is written for one hyperedge
+    around the member that reads the reduction: the namespaces `namespace.others` hold the symbols of the other members
+    of the hyperedge in its order, `namespace.members` those of all its members, which `total`, `mean`, `count`,
+    `maximum`, and `minimum` reduce with `over=namespace.members`, and `namespace` those of the reading member. So
+    `sin(s.others[0].theta + s.others[1].theta - 2 * s.theta)` with `size=3` is the three-body phase coupling over the
+    triangles around a member. The hyperedges are those of the network space of the group, and a reduction over no
+    hyperedges is 0.
 
     The reductions are those of `neighbors` with the weight `w_e` of every hyperedge `e` of the value `f_e`: `'sum'`,
     `'mean'`, `'count'`, `'max'`, `'min'`, `'normalized-mean'`, `'argmax'`, and `'circular-mean'`. Without a size, the
@@ -770,11 +816,12 @@ def hyperedges(
 
 
 def shift_member(expression: Expression, offset: int, *, boundary: str = 'periodic', fill: float = 0.0) -> Expression:
-    """Return an expression of a group's members read at the member a number of places along the group order.
+    """Return an expression of a group's members read some places along the order.
 
-    The order of a group is the member index, so member `i` reads the expression at member `i + offset`. Past the
-    ends, `'periodic'` wraps around to close a ring, `'reflecting'` mirrors the order so the end member reads itself
-    for an offset of 1, and `'fixed'` reads `fill`. The compiler lowers the read to an index table of the group.
+    It is read at the member a number of places along the group order. The order of a group is the member index, so
+    member `i` reads the expression at member `i + offset`. Past the ends, `'periodic'` wraps around to close a ring,
+    `'reflecting'` mirrors the order so the end member reads itself for an offset of 1, and `'fixed'` reads `fill`. The
+    compiler lowers the read to an index table of the group.
 
     Args:
         expression:
@@ -816,7 +863,10 @@ def shift_member(expression: Expression, offset: int, *, boundary: str = 'period
 
 
 def _calls_in(expression: object, names: set[str]) -> list[Expression]:
-    """Return the outermost calls of the named functions in an expression or a vector, each listed once."""
+    """Return the outermost calls of the named functions in an expression or a vector.
+
+    Each is listed once.
+    """
     if not isinstance(expression, Expression | FreeModuleElement | int | float):
         return []
     found: dict[str, Expression] = {}
@@ -834,7 +884,9 @@ def _calls_in(expression: object, names: set[str]) -> list[Expression]:
 
 
 def reductions_in(expression: object) -> list[ReductionSpec]:
-    """Return the outermost reduction calls of an expression, which may hold further reductions in their arguments.
+    """Return the outermost reduction calls of an expression.
+
+    They may hold further reductions in their arguments.
 
     Args:
         expression:
@@ -873,7 +925,10 @@ def reductions_in(expression: object) -> list[ReductionSpec]:
 
 
 def _component_reduction(call: Expression) -> NeighborReductionSpec:
-    """Return the neighbourhood reduction of the links of a components call, of the kind `'component-'` and its name."""
+    """Return the neighbourhood reduction of the links of a components call.
+
+    It is of the kind `'component-'` and its name.
+    """
     active, over, kind = call.operands()
     return NeighborReductionSpec(
         call=call,
@@ -885,7 +940,10 @@ def _component_reduction(call: Expression) -> NeighborReductionSpec:
 
 
 def _path_reduction(call: Expression) -> NeighborReductionSpec:
-    """Return the neighbourhood reduction of the links of a shortest paths call, of the kind `'path-'` and its name."""
+    """Return the neighbourhood reduction of the links of a shortest paths call.
+
+    It is of the kind `'path-'` and its name.
+    """
     active, over, kind = call.operands()
     return NeighborReductionSpec(
         call=call,
@@ -897,10 +955,11 @@ def _path_reduction(call: Expression) -> NeighborReductionSpec:
 
 
 def neighborhoods_in(expression: object) -> list[NeighborReductionSpec]:
-    """Return the outermost neighbourhood reductions of an expression, the components reductions included.
+    """Return the outermost neighbourhood reductions of an expression.
 
-    A components reduction has the kind `'component-'` followed by its reduction, a shortest paths reduction the kind
-    `'path-'` followed by its reduction, and both the activity of one link as their argument.
+    They include the components reductions. A components reduction has the kind `'component-'` followed by its
+    reduction, a shortest paths reduction the kind `'path-'` followed by its reduction, and both the activity of one
+    link as their argument.
 
     Args:
         expression:

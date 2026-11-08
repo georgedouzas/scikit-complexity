@@ -15,13 +15,14 @@ from ._base import BaseLaw
 
 
 class JumpLaw(BaseLaw):
-    """Random event that changes states, on an exponential clock of a given rate or on a clock of drawn waiting times.
+    """Random event that changes states.
 
-    With a `rate`, the event fires at the times of a Poisson process of that propensity and changes states by fixed
-    increments, as in continuous-time Markov chains. With a `waiting` time instead, it fires after a waiting time drawn
-    anew at every firing, and applies its `reset`, as in renewal processes such as the jumps of a random walk. Every
-    member of a group then fires on its own clock, and the trajectory records every firing and counts them in
-    `<label>.renewals`. Jumps combine with rate and noise laws, which evolve the states between firings.
+    The event fires on an exponential clock of a given rate or on a clock of drawn waiting times. With a `rate`, the
+    event fires at the times of a Poisson process of that propensity and changes states by fixed increments, as in
+    continuous-time Markov chains. With a `waiting` time instead, it fires after a waiting time drawn anew at every
+    firing, and applies its `reset`, as in renewal processes such as the jumps of a random walk. Every member of a group
+    then fires on its own clock, and the trajectory records every firing and counts them in `<label>.renewals`. Jumps
+    combine with rate and noise laws, which evolve the states between firings.
 
     Args:
         rate:
@@ -73,7 +74,10 @@ class JumpLaw(BaseLaw):
         self.reset = reset
 
     def _get_targets(self) -> tuple[object, ...]:
-        """Return the states the jump changes: the states of its increments, or of its reset."""
+        """Return the states the jump changes.
+
+        They are the states of its increments, or of its reset.
+        """
         return tuple(self.changes or {}) if self.waiting is None else tuple(self.reset or {})
 
     @classmethod
@@ -82,7 +86,10 @@ class JumpLaw(BaseLaw):
         return RequirementSpec(time=(ContinuousTime,))
 
     def _check_clock(self) -> None:
-        """Raise an error for a jump with both or neither clock, or with an option of the clock it does not use."""
+        """Raise an error for a jump with both or neither clock, or an unused clock option.
+
+        The unused option is an option of the clock it does not use.
+        """
         if (self.rate is None) == (self.waiting is None):
             error_msg = 'A jump fires at a rate or after a waiting time. Give exactly one of them.'
             raise ValidationError(error_msg)
@@ -101,7 +108,10 @@ class JumpLaw(BaseLaw):
         raise ValidationError(error_msg)
 
     def _check_reset(self) -> None:
-        """Raise an error for a function in the reset of a renewal, whose values lower with its symbolic draws."""
+        """Raise an error for a function in the reset of a renewal.
+
+        The values of the reset lower with its symbolic draws.
+        """
         if isinstance(self.waiting, CallSpec):
             error_msg = 'The waiting time of a jump takes a function `f(rng, size=, t=, **values)`, not a `CallSpec`.'
             raise ValidationError(error_msg)
@@ -123,7 +133,10 @@ class JumpLaw(BaseLaw):
                 raise ValidationError(error_msg)
 
     def _check(self) -> None:
-        """Raise an error for a jump with an invalid clock, a rate that is a NumPy array, or a symbolic increment."""
+        """Raise an error for an invalid clock, an array rate, or a symbolic increment.
+
+        The array rate is a rate that is a NumPy array.
+        """
         self._check_clock()
         self._check_reset()
         self._check_array('rate')
@@ -131,7 +144,9 @@ class JumpLaw(BaseLaw):
         self._check_changes()
 
     def _run(self, inputs: object) -> None:
-        """Set `value_` to the increments of the jump, or its reset at given values of the symbols it reads.
+        """Set `value_` to the increments or the reset of the jump at given symbol values.
+
+        The symbols are those it reads.
 
         Args:
             inputs:

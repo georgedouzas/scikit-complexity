@@ -1,4 +1,7 @@
-"""Compile conservation laws of finite-volume fields into flux differences with limited reconstruction."""
+"""Compile conservation laws of finite-volume fields into flux differences.
+
+The flux differences use limited reconstruction.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -144,11 +147,17 @@ class FiniteVolumeKernel(BaseKernel):
 
     @property
     def closed_form(self) -> bool:
-        """Whether the wave speeds come from closed-form eigenvalues instead of numerical ones."""
+        """Whether the wave speeds come from closed-form eigenvalues.
+
+        Otherwise they come from numerical eigenvalues.
+        """
         return bool(self.speeds)
 
     def _window(self, axis: int, first: int, last: int) -> tuple[slice, ...]:
-        """Return the index that selects the positions from first to last, excluded, along an axis."""
+        """Return the index that selects positions along an axis.
+
+        The positions run from first to last, excluded.
+        """
         index = [slice(None)] * len(self.dimensions)
         index[axis] = slice(first, last)
         return tuple(index)
@@ -158,7 +167,10 @@ class FiniteVolumeKernel(BaseKernel):
         return [np.reshape(x[start : start + self.size], self.dimensions) for start in self.starts]
 
     def _parameters(self, x: Array, p: Array, t: float = 0.0) -> list[float | Array]:
-        """Return the other values the fluxes read, a number when uniform and the values of the cells otherwise."""
+        """Return the other values the fluxes read.
+
+        A value is a number when uniform and the values of the cells otherwise.
+        """
         values: list[float | Array] = []
         reads = self.reads or (None,) * len(self.parameters)
         for reference, read in zip(self.parameters, reads, strict=True):
@@ -170,7 +182,10 @@ class FiniteVolumeKernel(BaseKernel):
         return values
 
     def _sides(self, parameters: list[float | Array], axis: int) -> tuple[list[float | Array], list[float | Array]]:
-        """Return the parameters of the cells left and right of every interface along an axis, numbers as they are."""
+        """Return the parameters of the cells around every interface along an axis.
+
+        Numbers stay as they are.
+        """
         n = self.dimensions[axis]
         width = [(0, 0)] * len(self.dimensions)
         width[axis] = (2, 2)
@@ -189,7 +204,9 @@ class FiniteVolumeKernel(BaseKernel):
         return left, right
 
     def _closed_speed(self, axis: int, states: Sequence[Array], parameters: Sequence[float | Array]) -> Array:
-        """Return the largest absolute closed-form eigenvalue of the flux Jacobian of every cell or interface.
+        """Return the largest absolute closed-form eigenvalue of the flux Jacobian.
+
+        There is one value for every cell or interface.
 
         Args:
             axis:
@@ -225,7 +242,10 @@ class FiniteVolumeKernel(BaseKernel):
         return speed
 
     def _speed(self, axis: int, states: Sequence[Array], parameters: Sequence[float | Array]) -> Array:
-        """Return the largest wave speed of every cell or interface, the spectral radius of the flux Jacobian."""
+        """Return the largest wave speed of every cell or interface.
+
+        It is the spectral radius of the flux Jacobian.
+        """
         if self.speeds:
             return self._closed_speed(axis, states, parameters)
         entries = ExpressionPrinter._values_of(self.jacobians[axis](0.0, *states, *parameters))
@@ -244,7 +264,9 @@ class FiniteVolumeKernel(BaseKernel):
         return [np.broadcast_to(np.asarray(item, dtype=float), shape) for item in values]
 
     def _godunov(self, axis: int, left: Array, right: Array, parameters: list[float | Array]) -> Array:
-        """Return the exact Godunov flux of one state: the minimum flux between rising states, else the maximum.
+        """Return the exact Godunov flux of one state.
+
+        It is the minimum flux between rising states, else the maximum.
 
         Args:
             axis:
@@ -281,7 +303,10 @@ class FiniteVolumeKernel(BaseKernel):
         return np.where(left <= right, stacked.min(axis=0), stacked.max(axis=0))
 
     def _kind(self, axis: int, given: str) -> str:
-        """Return the boundary of a state along an axis, which on a class axis of a phase space is that of the axis."""
+        """Return the boundary of a state along an axis.
+
+        On a class axis of a phase space, it is the boundary of the axis.
+        """
         edge = self.edges[axis] if self.edges else None
         if edge is None:
             return given
@@ -303,7 +328,10 @@ class FiniteVolumeKernel(BaseKernel):
         return padded
 
     def _run(self, inputs: RunStateSpec | None) -> None:
-        """Set the rates of the conserved states, minus the divergence of the numerical fluxes, as a full vector."""
+        """Set the rates of the conserved states as a full vector.
+
+        The rates are minus the divergence of the numerical fluxes.
+        """
         state = self._state_of(inputs)
         x, p = state.x, state.p
         states = self._states(x)
@@ -343,7 +371,10 @@ class FiniteVolumeKernel(BaseKernel):
         self.values_ = rates
 
     def _walled(self, flux: Array, axis: int, n: int) -> Array:
-        """Return the flux through the interfaces of an axis, zero at the two ends of an interval class axis."""
+        """Return the flux through the interfaces of an axis.
+
+        It is zero at the two ends of an interval class axis.
+        """
         if not self.edges or self.edges[axis] != 'reflecting':
             return flux
         result = np.array(flux)
@@ -352,7 +383,9 @@ class FiniteVolumeKernel(BaseKernel):
         return result
 
     def max_speed(self, x: Array, p: Array) -> float:
-        """Return the largest wave speed over the cells and the dimensions, divided by the smallest cell volume.
+        """Return the largest wave speed over the cells and the dimensions.
+
+        It is divided by the smallest cell volume.
 
         Args:
             x:
@@ -399,7 +432,9 @@ class FiniteVolumeKernel(BaseKernel):
         return [np.asarray(item, dtype=float) for item in values]
 
     def pattern(self, size: int) -> scipy.sparse.csr_array:
-        """Return the band of the reconstruction stencil, which couples all the conserved states.
+        """Return the band of the reconstruction stencil.
+
+        The band couples all the conserved states.
 
         Args:
             size:
@@ -431,7 +466,10 @@ class FiniteVolumeKernel(BaseKernel):
 
     @staticmethod
     def _limited(backward: Array, forward: Array, limiter: str | None) -> Array:
-        """Return the limited slope of every cell from its backward and forward differences."""
+        """Return the limited slope of every cell.
+
+        It comes from the backward and forward differences of the cell.
+        """
         if limiter is None:
             return np.zeros_like(forward)
         same = backward * forward > 0

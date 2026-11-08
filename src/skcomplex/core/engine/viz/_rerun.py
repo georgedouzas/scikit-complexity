@@ -76,14 +76,15 @@ _VISUALS: dict[str, type[BaseVisual]] = {
 
 
 class RerunObserver(BaseObserver):
-    """Observer that logs frames to Rerun, with entity paths that follow the system tree.
+    """Observer that logs frames to Rerun.
 
-    `prepare(problem)` creates the recording, builds the visual of every element and agent group from the visual its
-    type declares, lays out their views, and sends the recording to its sinks. `run(frame)` logs a frame, and
-    `run(final=True)` flushes the recording. Each logged frame sets the `sim_time` and `step` timelines, logs every
-    element with its visual, logs every parameter up to a matrix under `parameters/<name>`, leaving out coupling
-    tensors, whose entries no view can draw, and logs the renewals of renewal laws since the previous frame as text
-    entries under `renewals/<label>`. A subclass logs entities of its own apart from the system's with `_log_extra`.
+    Its entity paths follow the system tree. `prepare(problem)` creates the recording, builds the visual of every
+    element and agent group from the visual its type declares, lays out their views, and sends the recording to its
+    sinks. `run(frame)` logs a frame, and `run(final=True)` flushes the recording. Each logged frame sets the `sim_time`
+    and `step` timelines, logs every element with its visual, logs every parameter up to a matrix under
+    `parameters/<name>`, leaving out coupling tensors, whose entries no view can draw, and logs the renewals of renewal
+    laws since the previous frame as text entries under `renewals/<label>`. A subclass logs entities of its own apart
+    from the system's with `_log_extra`.
 
     The default blueprint puts spatial views first and side by side, with time series views below them. Scalar elements
     of one type share a time series view with at most six series, and time series views show the whole run. The side
@@ -184,7 +185,9 @@ class RerunObserver(BaseObserver):
         self.parameters = parameters
 
     def _check(self) -> None:
-        """Raise an error for a blueprint other than `None`, `'default'`, or a Rerun blueprint, or an unused setting.
+        """Raise an error for an unknown blueprint or an unused setting.
+
+        A known blueprint is `None`, `'default'`, or a Rerun blueprint.
 
         Raises:
             ValidationError:
@@ -202,7 +205,9 @@ class RerunObserver(BaseObserver):
             raise ValidationError(error_msg)
 
     def _prepare(self, context: BaseProblemSpec | None) -> None:
-        """Create the recording, build a visual for every element and agent group, and send the recording to its sinks.
+        """Create the recording, build the visuals, and send the recording to its sinks.
+
+        There is one visual for every element and agent group.
 
         Args:
             context:
@@ -254,18 +259,27 @@ class RerunObserver(BaseObserver):
 
     @staticmethod
     def _display_is_missing() -> bool:
-        """Return whether this is a Linux machine without a display, where the viewer exits and Rerun waits for it."""
+        """Return whether this is a Linux machine without a display.
+
+        There the viewer exits and Rerun waits for it.
+        """
         names = ('DISPLAY', 'WAYLAND_DISPLAY', 'WAYLAND_SOCKET')
         return sys.platform == 'linux' and not any(os.environ.get(name) for name in names)
 
     def _visual_of(self, element: CompiledElementSpec | CompiledAgentsSpec) -> BaseVisual:
-        """Return the visual the spec of an element names, built with the options of the spec."""
+        """Return the visual the spec of an element names.
+
+        It is built with the options of the spec.
+        """
         spec = element.visual
         visual = _VISUALS[spec.kind] if isinstance(spec.kind, str) else spec.kind
         return visual(**dict(spec.options), path=element.path, recording=self.recording_)
 
     def _agents_visual_of(self, agents: CompiledAgentsSpec, problem: BaseProblemSpec) -> AgentsVisual:
-        """Return the visual of an agent group: its declared agents visual, or the histogram visual without a space."""
+        """Return the visual of an agent group.
+
+        It is its declared agents visual, or the histogram visual without a space.
+        """
         visual = self._visual_of(agents)
         if not isinstance(visual, AgentsVisual):
             visual = AgentsVisual(path=agents.path, recording=self.recording_)
@@ -279,7 +293,10 @@ class RerunObserver(BaseObserver):
         return visual
 
     def _scalar_views(self, problem: BaseProblemSpec) -> list[rrb.View]:
-        """Return the time series views of the scalar elements, one per element type and at most six series each."""
+        """Return the time series views of the scalar elements.
+
+        There is one per element type with at most six series each.
+        """
         groups: dict[str, list[tuple[CompiledElementSpec, rrb.View]]] = {}
         for visual in self.visuals_:
             if isinstance(visual, ScalarsVisual):
@@ -294,7 +311,7 @@ class RerunObserver(BaseObserver):
         return views
 
     def _element_views(self) -> tuple[list[rrb.View], list[rrb.View]]:
-        """Return the spatial views and the time series views of the elements drawn by other visuals.
+        """Return the spatial and time series views of the elements of other visuals.
 
         Points share one spatial view per dimension, since the elements of a system share its space.
         """
@@ -314,7 +331,10 @@ class RerunObserver(BaseObserver):
         return [*spatial, *(self._merged(views, 'points') for views in points.values())], series
 
     def _agent_views(self, problem: BaseProblemSpec) -> list[rrb.View]:
-        """Return the views of the agents, merged into one per view class when the groups share a space."""
+        """Return the views of the agents.
+
+        They are merged into one per view class when the groups share a space.
+        """
         agents = [visual for visual in self.visuals_ if isinstance(visual.element_, CompiledAgentsSpec)]
         views = [view for visual in agents for view in visual.views_]
         if problem.agent_space is None:
@@ -325,7 +345,10 @@ class RerunObserver(BaseObserver):
         return [self._merged(group, 'agents') for group in by_class.values()]
 
     def _summary_views(self, problem: BaseProblemSpec) -> list[rrb.View]:
-        """Return the time series views of the observables, the agent reporters, and optionally the parameters."""
+        """Return the time series views of the observables and the agent reporters.
+
+        Optionally, the parameters get views too.
+        """
         views: list[rrb.View] = []
         paths = [f'{scope}/{item.label}' if scope else item.label for scope, item in problem.observables]
         problems = (problem, *problem.partition_problems)
@@ -339,7 +362,10 @@ class RerunObserver(BaseObserver):
         return views
 
     def _matrix_visuals(self, problem: BaseProblemSpec) -> list[BaseVisual]:
-        """Return the heat maps of the trained matrices of a system that trains, none for other problems."""
+        """Return the heat maps of the trained matrices of a system that trains.
+
+        Other problems get none.
+        """
         if not isinstance(problem, LearningProblemSpec):
             return []
         matrices = [entry.name for entry in problem.states.entries if len(entry.shape) == MATRIX_RANK]
@@ -351,14 +377,18 @@ class RerunObserver(BaseObserver):
         ]
 
     def _learning_views(self, problem: LearningProblemSpec) -> list[rrb.View]:
-        """Return the time series view of the loss and the metrics over epochs, then the heat maps of the matrices."""
+        """Return the time series view of the loss and the metrics over epochs.
+
+        The heat maps of the matrices follow it.
+        """
         loss = rrb.TimeSeriesView(origin=f'/reporters/{problem.training}', name='loss')
         return [loss, *(view for visual in self.visuals_ for view in visual.views_)]
 
     def _ordered_views(self, problem: BaseProblemSpec) -> tuple[list[rrb.View], list[rrb.View]]:
-        """Return the spatial views and the time series views of a problem, each in order of importance.
+        """Return the spatial views and the time series views of a problem.
 
-        A system that trains has no spatial view of its own, and its loss leads the heat maps of its matrices.
+        Each comes in order of importance. A system that trains has no spatial view of its own, and its loss leads the
+        heat maps of its matrices.
         """
         if isinstance(problem, LearningProblemSpec):
             return [], [self._whole_run(view) for view in self._learning_views(problem)]
@@ -368,7 +398,10 @@ class RerunObserver(BaseObserver):
         return [self._whole_run(view) for view in spatial], [self._whole_run(view) for view in series]
 
     def _default_blueprint(self, rows: list[list[rrb.View]], spatial: list[rrb.View]) -> rrb.Blueprint:
-        """Return the blueprint of rows of views, a row of spatial views taller than a row of time series views."""
+        """Return the blueprint of rows of views.
+
+        A row of spatial views is taller than a row of time series views.
+        """
         containers = [self._row(views) for views in rows if views]
         if len(containers) > 1:
             shares = [_SPATIAL_ROW_SHARE, _SERIES_ROW_SHARE] if rows[0] is spatial else [_SERIES_ROW_SHARE] * 2
@@ -383,7 +416,10 @@ class RerunObserver(BaseObserver):
         )
 
     def _run(self, frame: FrameSpec | None = None) -> None:
-        """Log a frame when its step is a multiple of the interval, and nothing for the call that ends the run."""
+        """Log a frame when its step is a multiple of the interval.
+
+        It logs nothing for the call that ends the run.
+        """
         if frame is None or frame.step % self.interval:
             return
         self.recording_.set_time('step', sequence=frame.step)
@@ -406,11 +442,12 @@ class RerunObserver(BaseObserver):
         self.logged_frames_ += 1
 
     def _batcher_config(self) -> rr.ChunkBatcherConfig:
-        """Return the batching of the recording, by size alone when no viewer waits for the frames.
+        """Return the batching of the recording.
 
-        Rerun flushes its batches every 200 ms by default, which writes a chunk per entity at each flush, so on a slower
-        machine a recording of many entities splits into more chunks and its file grows several times. A recording that
-        only goes to a file flushes when its batch is large enough, so its size does not depend on the machine.
+        It batches by size alone when no viewer waits for the frames. Rerun flushes its batches every 200 ms by default,
+        which writes a chunk per entity at each flush, so on a slower machine a recording of many entities splits into
+        more chunks and its file grows several times. A recording that only goes to a file flushes when its batch is
+        large enough, so its size does not depend on the machine.
         """
         config = rr.ChunkBatcherConfig.DEFAULT()
         if not (self.spawn or self.connect):
@@ -418,7 +455,10 @@ class RerunObserver(BaseObserver):
         return config
 
     def _release(self) -> None:
-        """Flush the recording, and warn after a while rather than wait forever for a viewer that cannot be reached."""
+        """Flush the recording, and warn after a while about an unreachable viewer.
+
+        It does not wait forever for a viewer that cannot be reached.
+        """
         if not (self.spawn or self.connect):
             self.recording_.flush()
             return
@@ -429,10 +469,11 @@ class RerunObserver(BaseObserver):
             warnings.warn(warning_msg, UserWarning, stacklevel=2)
 
     def _log_extra(self, path: str, archetype: rr.AsComponents, *, static: bool = False) -> None:
-        """Log an archetype of a subclass's own under `extra/<path>`, apart from the paths of the system's entities.
+        """Log an archetype of a subclass's own under `extra/<path>`.
 
-        Characters that Rerun would escape, such as spaces, become underscores, so a name such as `chain angle` needs
-        no escaping and the entity never merges into the view of an element.
+        It stays apart from the paths of the system's entities. Characters that Rerun would escape, such as spaces,
+        become underscores, so a name such as `chain angle` needs no escaping and the entity never merges into the view
+        of an element.
 
         Args:
             path:
@@ -448,25 +489,37 @@ class RerunObserver(BaseObserver):
 
     @staticmethod
     def _sanitised(path: str) -> str:
-        """Return an entity path with every character Rerun would escape, such as a space, replaced by an underscore."""
+        """Return an entity path with every character Rerun would escape replaced.
+
+        Such a character, like a space, is replaced by an underscore.
+        """
         return _UNSAFE.sub('_', path)
 
     @staticmethod
     def _entity_path(name: str, owners: set[str]) -> str:
-        """Return the entity path of an observable, under its element when it is an element's dotted output."""
+        """Return the entity path of an observable.
+
+        It is under its element when it is an element's dotted output.
+        """
         owner, _, leaf = name.rpartition('.')
         return RerunObserver._sanitised(f'{owner}/{leaf}' if owner in owners else name)
 
     @staticmethod
     def _renewal_text(record: RenewalRecordSpec) -> str:
-        """Return the text log entry of the renewals of one pass, with the members that renewed."""
+        """Return the text log entry of the renewals of one pass.
+
+        It names the members that renewed.
+        """
         shown = ', '.join(str(member) for member in record.members[:_RENEWAL_MEMBERS].tolist())
         more = f' and {record.members.size - _RENEWAL_MEMBERS} more' if record.members.size > _RENEWAL_MEMBERS else ''
         return f'{record.members.size} renewals up to t = {record.time:.6g} of members {shown}{more}'
 
     @staticmethod
     def _viewer_executable() -> str | None:
-        """Return the Rerun viewer installed next to the running interpreter, or `None` to search `PATH`."""
+        """Return the Rerun viewer installed next to the running interpreter.
+
+        It returns `None` to search `PATH`.
+        """
         for name in ('rerun', 'rerun.exe'):
             candidate = Path(sys.executable).parent / name
             if candidate.is_file():
@@ -483,7 +536,10 @@ class RerunObserver(BaseObserver):
 
     @staticmethod
     def _merged(views: list[rrb.View], name: str) -> rrb.View:
-        """Return one view of the class of the first view that shows the contents of every view."""
+        """Return one view that shows the contents of every view.
+
+        It is of the class of the first view.
+        """
         if len(views) == 1:
             return views[0]
         contents = [expression for view in views for expression in RerunObserver._contents(view)]
@@ -492,7 +548,10 @@ class RerunObserver(BaseObserver):
 
     @staticmethod
     def _series_view(views: list[rrb.View], name: str) -> rrb.TimeSeriesView:
-        """Return a time series view of several time series views over the whole run, with lines wide enough to read."""
+        """Return a time series view of several time series views over the whole run.
+
+        Its lines are wide enough to read.
+        """
         contents = [expression for view in views for expression in RerunObserver._contents(view)]
         return rrb.TimeSeriesView(
             origin='/',
@@ -504,7 +563,10 @@ class RerunObserver(BaseObserver):
 
     @staticmethod
     def _whole_run(view: rrb.View) -> rrb.View:
-        """Return a time series view with the whole-run time axis and readable lines, and any other view unchanged."""
+        """Return a time series view with the whole-run time axis and readable lines.
+
+        Any other view is returned unchanged.
+        """
         if not isinstance(view, rrb.TimeSeriesView) or 'TimeAxis' in view.properties:
             return view
         legend = view.properties.get('PlotLegend')
@@ -528,7 +590,10 @@ class RerunObserver(BaseObserver):
         elements: list[tuple[CompiledElementSpec, rrb.View]],
         problem: BaseProblemSpec,
     ) -> Iterator[list[tuple[CompiledElementSpec, rrb.View]]]:
-        """Yield consecutive runs of elements whose series fit in one view, leaving out lag states."""
+        """Yield consecutive runs of elements whose series fit in one view.
+
+        Lag states are left out.
+        """
         chunk: list[tuple[CompiledElementSpec, rrb.View]] = []
         count = 0
         for element, view in elements:
@@ -544,7 +609,10 @@ class RerunObserver(BaseObserver):
 
     @staticmethod
     def _with_primary(spatial: list[rrb.View], series: list[rrb.View], primary: str) -> list[list[rrb.View]]:
-        """Return the rows of views with the view of a name or an origin first in the first row."""
+        """Return the rows of views with the view of a name or an origin first.
+
+        It comes first in the first row.
+        """
         for row, other in ((spatial, series), (series, spatial)):
             found = [view for view in row if primary.strip('/') in {str(view.name), str(view.origin).strip('/')}]
             if found:

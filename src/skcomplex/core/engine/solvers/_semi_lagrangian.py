@@ -1,4 +1,7 @@
-"""Advance fields whose fluxes are linear drifts by shifting each slice along its characteristics."""
+"""Advance fields whose fluxes are linear drifts.
+
+Each slice shifts along its characteristics.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -24,12 +27,13 @@ SPLINE_MODES = {'zero-flux': 'nearest', 'fixed': 'constant'}
 
 
 class SemiLagrangianSolver(Solver):
-    """Directional splitting of Cheng and Knorr, which shifts every slice of a field along each axis in turn.
+    """Directional splitting of Cheng and Knorr.
 
-    Every flux of the field must be a linear drift `a u`, with `a` free of the state and constant along its own axis. A
-    shift along a periodic axis multiplies the Fourier modes of the slices through `scipy.fft`, which conserves the
-    total, and a shift along an interval evaluates a cubic spline through `scipy.ndimage.map_coordinates`. The solver is
-    stable at any Courant number. Rate laws advance by one midpoint step between two half transport steps.
+    It shifts every slice of a field along each axis in turn. Every flux of the field must be a linear drift `a u`, with
+    `a` free of the state and constant along its own axis. A shift along a periodic axis multiplies the Fourier modes of
+    the slices through `scipy.fft`, which conserves the total, and a shift along an interval evaluates a cubic spline
+    through `scipy.ndimage.map_coordinates`. The solver is stable at any Courant number. Rate laws advance by one
+    midpoint step between two half transport steps.
 
     Args:
         dt:
@@ -81,7 +85,10 @@ class SemiLagrangianSolver(Solver):
 
     @classmethod
     def _is_implicit(cls) -> bool:
-        """Return whether explicit stability limits do not apply, as for shifts along characteristics."""
+        """Return whether explicit stability limits do not apply.
+
+        They do not apply to shifts along characteristics.
+        """
         return True
 
     def __init__(
@@ -126,7 +133,10 @@ class SemiLagrangianSolver(Solver):
                 raise SolverError(error_msg)
 
     def _shifted_periodic(self, values: Array, displacement: Array, axis: int, spacing: float) -> Array:
-        """Return slices of an axis shifted by a displacement per slice through the Fourier shift theorem."""
+        """Return slices of an axis shifted by a displacement per slice.
+
+        The shift uses the Fourier shift theorem.
+        """
         length = values.shape[axis]
         waves = 2 * np.pi * np.fft.rfftfreq(length, d=spacing)
         shape = [1] * values.ndim
@@ -138,7 +148,10 @@ class SemiLagrangianSolver(Solver):
         return np.asarray(scipy.fft.irfft(scipy.fft.rfft(values, axis=axis) * modes, n=length, axis=axis))
 
     def _shifted_spline(self, values: Array, displacement: Array, axis: int, *, spacing: float, kind: str) -> Array:
-        """Return slices of an axis shifted by a displacement per slice through a cubic spline, slice by slice."""
+        """Return slices of an axis shifted by a displacement per slice.
+
+        The shift uses a cubic spline, slice by slice.
+        """
         moved = np.moveaxis(values, axis, -1)
         steps = np.moveaxis(displacement, axis, -1)[..., 0] / spacing
         sites = np.arange(moved.shape[-1], dtype=float)
@@ -153,7 +166,10 @@ class SemiLagrangianSolver(Solver):
         return np.moveaxis(result, -1, axis)
 
     def _shifted_state(self, volume: FiniteVolumeKernel, x: Array, p: Array, *, t: float, h: float, axis: int) -> Array:
-        """Return the state vector after the states of one field shift along one axis for a time."""
+        """Return the state vector after one field shifts along one axis.
+
+        The states of the field shift for a time.
+        """
         result = x.copy()
         states = volume._states(x)
         drifts = volume.drift_of(axis, states, x, p, t)
@@ -171,7 +187,10 @@ class SemiLagrangianSolver(Solver):
         return result
 
     def _sweep(self, x: Array, p: Array, t: float, h: float) -> Array:
-        """Return the state after a symmetric sweep over all the axes of all the fields for a time."""
+        """Return the state after a symmetric sweep over all the axes of all the fields.
+
+        The sweep lasts a time.
+        """
         state = x
         for volume in self.problem_.volumes:
             axes = range(len(volume.dimensions))

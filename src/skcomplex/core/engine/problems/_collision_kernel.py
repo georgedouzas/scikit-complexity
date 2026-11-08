@@ -1,4 +1,7 @@
-"""Compile the binary collision integral of a density over two velocity axes by the fast spectral method."""
+"""Compile the binary collision integral of a density over two velocity axes.
+
+The integral is computed by the fast spectral method.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,14 +23,14 @@ PLANE = 2
 
 
 class CollisionKernel(BaseKernel):
-    """Binary collision integral of a density over two uniform velocity axes, by the method of Mouhot and Pareschi.
+    """Binary collision integral of a density over two uniform velocity axes.
 
-    The integral is `Q(f, f)(v) = int int B(|g|, cos t) (f(v') f(v'*) - f(v) f(v*)) ds dv*` in the Carleman form, an
-    integral over the two orthogonal displacements `x = v' - v` and `y = v'* - v`, each up to twice the half-width of
-    the grid. The weight of the pair `(|x|, |y|)` is split into terms of `|x|` times terms of `|y|` by a singular value
-    decomposition, one term for Maxwell molecules, and the directions take a trapezoidal rule, so the integral is a set
-    of FFT products on a grid padded by `(3 + sqrt(2)) / 2`. The mean rate is removed at every position, which conserves
-    the density exactly.
+    It is computed by the method of Mouhot and Pareschi. The integral is `Q(f, f)(v) = int int B(|g|, cos t) (f(v')
+    f(v'*) - f(v) f(v*)) ds dv*` in the Carleman form, an integral over the two orthogonal displacements `x = v' - v`
+    and `y = v'* - v`, each up to twice the half-width of the grid. The weight of the pair `(|x|, |y|)` is split into
+    terms of `|x|` times terms of `|y|` by a singular value decomposition, one term for Maxwell molecules, and the
+    directions take a trapezoidal rule, so the integral is a set of FFT products on a grid padded by `(3 + sqrt(2)) /
+    2`. The mean rate is removed at every position, which conserves the density exactly.
 
     Args:
         dimensions:
@@ -85,7 +88,10 @@ class CollisionKernel(BaseKernel):
         self.angles = angles
 
     def _check(self) -> None:
-        """Raise an error for dimensions without two velocity axes or a cross-section that is no function."""
+        """Raise an error for dimensions or a cross-section that a collision cannot take.
+
+        An error is raised for dimensions without two velocity axes, or a cross-section that is no function.
+        """
         if len(self.dimensions) < PLANE or len(self.spacings) != PLANE:
             error_msg = f'A collision integral reads two velocity axes, but the shape is {self.dimensions}.'
             raise ValidationError(error_msg)
@@ -94,7 +100,10 @@ class CollisionKernel(BaseKernel):
             raise ValidationError(error_msg)
 
     def _split_weight(self, nodes: Array) -> tuple[Array, Array, Array]:
-        """Return the terms of `|x|` and of `|y|` and the singular values of the weight of the Carleman form."""
+        """Return the terms of `|x|` and of `|y|` of the weight of the Carleman form.
+
+        The singular values of the weight are returned too.
+        """
         first, second = np.meshgrid(nodes, nodes, indexing='ij')
         squared = first**2 + second**2
         values = self.cross_section(np.sqrt(squared), (second**2 - first**2) / squared)
@@ -129,7 +138,10 @@ class CollisionKernel(BaseKernel):
         self.loss_ = np.sum(terms_x * terms_y * repeated, axis=0)
 
     def _run(self, inputs: RunStateSpec | None) -> None:
-        """Set the collision integral at every site from the density at every site, the `x` of `inputs`."""
+        """Set the collision integral at every site from the density at every site.
+
+        The density is the `x` of `inputs`.
+        """
         state = self._state_of(inputs)
         sizes = self.dimensions[-PLANE:]
         grid = np.reshape(state.x, self.dimensions)

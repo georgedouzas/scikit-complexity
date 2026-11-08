@@ -1,4 +1,7 @@
-"""Rank the inputs of a system by their effect on an output, one at a time, by Morris screening, or by Sobol."""
+"""Rank the inputs of a system by their effect on an output.
+
+The methods are one at a time, Morris screening, and Sobol.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -95,10 +98,10 @@ def sensitivity(
     random_state: int | None = None,
     executor: str | Executor = 'serial',
 ) -> SensitivityResult:
-    """Return the sensitivity of a scalar output of a system to its inputs within bounds, with SALib.
+    """Return the sensitivity of a scalar output of a system to its inputs, with SALib.
 
-    The function runs the system once per row of the design the method reads, as `sweep` does, and analyses the
-    output of the runs:
+    The inputs vary within bounds. The function runs the system once per row of the design the method reads, as `sweep`
+    does, and analyses the output of the runs:
 
     - `'oat'` moves every input from its lower to its upper bound with the others at their midpoints, and gives the
       change of the output.

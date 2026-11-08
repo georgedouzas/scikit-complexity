@@ -1,4 +1,7 @@
-"""Define lattice neighbourhoods, the ordered offsets of the sites a local rule reads."""
+"""Define lattice neighbourhoods.
+
+They are the ordered offsets of the sites a local rule reads.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,7 +15,9 @@ from ._base import BaseNeighborhood
 
 
 class LatticeNeighborhood(BaseNeighborhood):
-    """Ordered offsets of the sites a local rule reads, with the site itself as the zero offset when included.
+    """Ordered offsets of the sites a local rule reads.
+
+    The site itself is the zero offset when included.
 
     Args:
         offsets:

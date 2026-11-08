@@ -19,10 +19,11 @@ from ..specs import STOCHASTIC_LAWS, DeclaredVariableSpec, ParameterSpec, RoleSp
 
 
 class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
-    """Base of every part of a system: its elements, its interactions, the laws they return, and the system itself.
+    """Base of every part of a system.
 
-    Every part has a label, returns the laws it contributes from `_get_laws`, and implements three hooks that the
-    main public methods `prepare` and `run` call:
+    The parts of a system are its elements, its interactions, the laws they return, and the system itself. Every part
+    has a label, returns the laws it contributes from `_get_laws`, and implements three hooks that the main public
+    methods `prepare` and `run` call:
 
     - `_check()` validates the arguments of the part, after `check` validates the label.
     - `_prepare(context)` prepares the part against its context and sets its attributes that end in `_`.
@@ -93,11 +94,11 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
     @classmethod
     @functools.cache
     def _get_specs(cls) -> dict[str, Spec]:
-        """Return the spec of every argument of the constructor annotated with one, in the order of the constructor.
+        """Return the spec of every argument of the constructor annotated with one.
 
-        The annotations of the constructors of the bases count too, and a subclass wins, so a subclass that takes an
-        argument of its base again without annotating it keeps the spec of the base. The specs of a class are read
-        once, since compiling a system reads them for every part.
+        The specs come in the order of the constructor. The annotations of the constructors of the bases count too, and
+        a subclass wins, so a subclass that takes an argument of its base again without annotating it keeps the spec of
+        the base. The specs of a class are read once, since compiling a system reads them for every part.
 
         Returns:
             specs:
@@ -116,10 +117,11 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
 
     @classmethod
     def _get_declared_laws(cls) -> tuple[type, ...] | None:
-        """Return the law classes the class lists in `law_classes`, or `None` when it writes laws it does not list.
+        """Return the law classes the class lists in `law_classes`.
 
-        The nearest class of the method resolution order that lists `law_classes` or writes `_get_laws` decides: a list
-        gives the classes, and a method without a list leaves them unknown.
+        The result is `None` when the class writes laws it does not list. The nearest class of the method resolution
+        order that lists `law_classes` or writes `_get_laws` decides: a list gives the classes, and a method without a
+        list leaves them unknown.
 
         Returns:
             classes:
@@ -136,10 +138,10 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
 
     @staticmethod
     def _get_law_tags(classes: Sequence[type] | None) -> Tags:
-        """Return the tags of laws of some classes: their kinds, the times they all run in, and their randomness.
+        """Return the tags of laws of some classes.
 
-        The laws are stochastic when one of them has a kind that draws, such as noise or jumps, or its class declares
-        that it draws.
+        The tags are their kinds, the times they all run in, and their randomness. The laws are stochastic when one of
+        them has a kind that draws, such as noise or jumps, or its class declares that it draws.
 
         Args:
             classes:
@@ -168,11 +170,16 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
         return Tags(laws=None, randomness=None)
 
     def _draws(self) -> bool:
-        """Return whether the run of the part draws random numbers its law kinds do not show, `draws` by default."""
+        """Return whether the part draws random numbers its law kinds do not show.
+
+        The default is `draws`.
+        """
         return self.draws
 
     def get_tags(self) -> Tags:
-        """Return the capability tags of the part, from its declarations and its arguments alone.
+        """Return the capability tags of the part.
+
+        They come from its declarations and its arguments alone.
 
         Returns:
             tags:
@@ -205,12 +212,18 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
         return {}
 
     def _get_part_specs(self) -> dict[str, Spec]:
-        """Return the specs of this part: those of its class, then those it declares from data."""
+        """Return the specs of this part.
+
+        They are those of its class, then those it declares from data.
+        """
         return {**self._get_specs(), **{name: item.spec for name, item in self._get_declared().items()}}
 
     @abstractmethod
     def _check(self) -> None:
-        """Validate the arguments of the part, raising a named error for one it cannot take."""
+        """Validate the arguments of the part.
+
+        A named error is raised for an argument the part cannot take.
+        """
 
     @abstractmethod
     def _prepare(self, context: ContextT | None) -> None:
@@ -218,7 +231,10 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
 
     @abstractmethod
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
-        """Return the laws the part contributes for a namespace of symbols: a law contributes itself."""
+        """Return the laws the part contributes for a namespace of symbols.
+
+        A law contributes itself.
+        """
 
     def _laws_of(self, inputs: object) -> Sequence[BasePart]:
         """Return the laws of the part for a namespace of symbols.

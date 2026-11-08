@@ -1,4 +1,7 @@
-"""Measure chaos with Lyapunov exponents: the spectrum of a system from its tangent dynamics, or the largest of data."""
+"""Measure chaos with Lyapunov exponents.
+
+They are the spectrum of a system from its tangent dynamics, or the largest of data.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -50,7 +53,10 @@ def _flow_spectrum(
     steps: int,
     skip: int,
 ) -> Array:
-    """Integrate a flow and its tangent vectors with RK4, re-orthonormalising every step, and average the growth."""
+    """Integrate a flow and its tangent vectors with RK4, and average the growth.
+
+    The tangent vectors are re-orthonormalised every step.
+    """
     q = np.eye(x.size)[:, :n].copy()
     sums = np.zeros(n)
     t = 0.0
@@ -75,7 +81,10 @@ def _flow_spectrum(
 
 @numba.njit
 def _map_spectrum(f: VectorFunction, jac: VectorFunction, x: Array, p: Array, n: int, steps: int, skip: int) -> Array:
-    """Iterate a map and its tangent vectors, re-orthonormalising every step, and average the growth."""
+    """Iterate a map and its tangent vectors, and average the growth.
+
+    The tangent vectors are re-orthonormalised every step.
+    """
     q = np.eye(x.size)[:, :n].copy()
     sums = np.zeros(n)
     for step in range(skip + steps):
@@ -90,7 +99,9 @@ def _map_spectrum(f: VectorFunction, jac: VectorFunction, x: Array, p: Array, n:
 
 @dataclass(frozen=True)
 class LyapunovResult:
-    """Lyapunov exponents of a system, or the largest exponent of every recorded series.
+    """Lyapunov exponents of a system, or the largest exponent of every series.
+
+    The series are those recorded.
 
     Args:
         problem:
@@ -143,7 +154,9 @@ def lyapunov(
     trajectory_length: int = 20,
     skip: int = 0,
 ) -> LyapunovResult:
-    """Return the Lyapunov exponents of a system from its tangent dynamics, or the largest exponent of series.
+    """Return the Lyapunov exponents of a system, or the largest exponent of series.
+
+    The exponents of a system come from its tangent dynamics.
 
     The kinds read a system or data:
 
@@ -313,13 +326,19 @@ def _compute_spectrum(
 
 
 def _without_kinks(expression: Expression) -> Expression:
-    """Return an expression with each `abs(u)` as `u sgn(u)`, whose derivative is `sgn(u)`, not `u / |u|`."""
+    """Return an expression with each `abs(u)` as `u sgn(u)`.
+
+    Its derivative is then `sgn(u)`, not `u / |u|`.
+    """
     wild = SR.wild(0)
     return SR(expression).subs({abs(wild): wild * sgn(wild)})
 
 
 def _jacobian(dynamics: _DynamicsSpec) -> list[Expression]:
-    """Return the entries of the Jacobian of the rates row by row, with the kinks of absolute values as signs."""
+    """Return the entries of the Jacobian of the rates row by row.
+
+    The kinks of absolute values become signs.
+    """
     wild = SR.wild(0)
     rates = [_without_kinks(rate) for rate in dynamics.rates]
     return [rate.diff(item).subs({dirac_delta(wild): 0}) for rate in rates for item in dynamics.symbols]
@@ -331,10 +350,10 @@ def _function(
     expressions: list[Expression],
     shape: tuple[int, ...],
 ) -> VectorFunction:
-    """Return a Numba function `f(t, x, p)` that fills an array of a shape, compiled once per printed source.
+    """Return a Numba function `f(t, x, p)` that fills an array of a shape.
 
-    The parameters are read from `p` in the order of `dynamics.parameters`, so systems of one structure share the
-    compiled function whatever their parameter values.
+    It is compiled once per printed source. The parameters are read from `p` in the order of `dynamics.parameters`, so
+    systems of one structure share the compiled function whatever their parameter values.
     """
     names = (
         {item: f'x[{index}]' for index, item in enumerate(dynamics.symbols)}
@@ -363,7 +382,10 @@ def _function(
 
 
 def _kaplan_yorke(exponents: Array) -> float:
-    """Return the Kaplan-Yorke dimension `j + Σ_{i<=j} λ_i / |λ_{j+1}|` of a Lyapunov spectrum."""
+    """Return the Kaplan-Yorke dimension of a Lyapunov spectrum.
+
+    It is `j + Σ_{i<=j} λ_i / |λ_{j+1}|`.
+    """
     ordered = np.sort(np.asarray(exponents, dtype=float))[::-1]
     sums = np.cumsum(ordered)
     nonnegative = np.flatnonzero(sums >= 0)

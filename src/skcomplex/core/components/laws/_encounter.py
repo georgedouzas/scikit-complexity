@@ -1,4 +1,7 @@
-"""Define encounter laws, bilinear transfers between the classes of a density that conserve its total."""
+"""Define encounter laws.
+
+They are bilinear transfers between the classes of a density that conserve its total.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,10 +17,11 @@ from ._base import BaseLaw
 
 
 class EncounterLaw(BaseLaw):
-    """Bilinear transfer of a density between its classes at the rate of its product with a second density.
+    """Bilinear transfer of a density between its classes.
 
-    The amount of the candidate density `f` in class `h` meets the amount of the field density `g` in class `k` at the
-    rate `eta[h, k]`, and moves to class `i` with the probability `A[h, k, i]`. The law adds the gain and the loss
+    The rate is that of its product with a second density. The amount of the candidate density `f` in class `h` meets
+    the amount of the field density `g` in class `k` at the rate `eta[h, k]`, and moves to class `i` with the
+    probability `A[h, k, i]`. The law adds the gain and the loss
 
     `df_i/dt = sum_hk eta[h, k] A[h, k, i] f_h g_k - f_i sum_k eta[i, k] g_k`,
 
@@ -80,17 +84,22 @@ class EncounterLaw(BaseLaw):
 
     @classmethod
     def _get_requirements(cls) -> RequirementSpec:
-        """Return what the law requires of a system: continuous time on lattices of classes."""
+        """Return what the law requires: continuous time on lattices of classes."""
         return RequirementSpec(time=(ContinuousTime,), space=(LatticeSpace,))
 
     def _check(self) -> None:
-        """Raise an error for a rate or transition table of the wrong dimensions, or whose class counts disagree."""
+        """Raise an error for a rate or transition table of the wrong dimensions.
+
+        It also raises it when their class counts disagree.
+        """
         self._check_table('rate', (0, 2))
         self._check_table('transition', (3,))
         self._check_outcomes('rate', 'transition')
 
     def _run(self, inputs: object) -> None:
-        """Set `value_` to the rate and the transition table at given values of the symbols they read.
+        """Set `value_` to the rate and the transition table at given symbol values.
+
+        The symbols are those they read.
 
         Args:
             inputs:

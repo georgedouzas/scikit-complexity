@@ -1,4 +1,7 @@
-"""Define extremal laws, which update the site with the smallest or largest value of a state and its neighbours."""
+"""Define extremal laws.
+
+An extremal law updates the site with the smallest or largest value of a state and its neighbours.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,11 +20,12 @@ EXTREMA = ('min', 'max')
 
 
 class ExtremalLaw(BaseLaw):
-    """Rule applied to the site with the smallest or largest value of a key state and to its neighbours.
+    """Rule applied to the extremal site of a key state and to its neighbours.
 
-    Every application finds the extremal site, with ties broken by the random stream of the simulation, gathers the
-    site and its neighbours without duplicates, the site first, and calls `f(*values, random, **parameters)` with one
-    array per target and a uniform random array of the same length. Every application is recorded as an event.
+    The extremal site is the site with the smallest or largest value of the key state. Every application finds the
+    extremal site, with ties broken by the random stream of the simulation, gathers the site and its neighbours without
+    duplicates, the site first, and calls `f(*values, random, **parameters)` with one array per target and a uniform
+    random array of the same length. Every application is recorded as an event.
 
     Args:
         targets:
@@ -87,7 +91,7 @@ class ExtremalLaw(BaseLaw):
 
     @classmethod
     def _get_requirements(cls) -> RequirementSpec:
-        """Return what the law requires of a system: discrete time on a lattice or a network."""
+        """Return what the law requires: discrete time on a lattice or a network."""
         return RequirementSpec(time=(DiscreteTime,), space=(LatticeSpace, NetworkSpace))
 
     def _check(self) -> None:

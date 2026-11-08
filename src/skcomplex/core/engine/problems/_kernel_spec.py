@@ -22,7 +22,9 @@ from ._set_symbol_spec import SetSymbolSpec
 
 @dataclass(frozen=True)
 class KernelSpec(BaseSpec):
-    """Namespace, references, and evaluation indices that the laws of one component are lowered with.
+    """Namespace, references, and evaluation indices of the laws of one component.
+
+    The laws of the component are lowered with them.
 
     Args:
         owner:
@@ -125,6 +127,9 @@ class KernelSpec(BaseSpec):
         }
 
     def _state_name(self, target: Expression) -> str:
-        """Return the dotted name of the state a target symbol of the namespace stands for, or the symbol itself."""
+        """Return the dotted name of the state a target symbol of the namespace stands for.
+
+        Other symbols return themselves.
+        """
         reference = self.references.get(target)
         return reference.entry.name if reference is not None else str(target)

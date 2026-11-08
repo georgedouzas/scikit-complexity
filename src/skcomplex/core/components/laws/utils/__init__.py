@@ -1,4 +1,7 @@
-"""Define what laws are written with besides Sage: reductions, pointwise functions, draws, delays, and calls."""
+"""Define what laws are written with besides Sage.
+
+They are reductions, pointwise functions, draws, delays, and calls.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

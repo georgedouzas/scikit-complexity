@@ -1,4 +1,7 @@
-"""Define geodesic interactions, the free fall of a test particle along the geodesics of a pseudo-Riemannian space."""
+"""Define geodesic interactions.
+
+They describe the free fall of a test particle along the geodesics of a pseudo-Riemannian space.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,13 +23,14 @@ from ._interaction import Interaction
 
 
 class GeodesicInteraction(Interaction):
-    """Geodesic equation `x''^mu = -Γ^mu_(alpha beta)(x) x'^alpha x'^beta` of a point of a pseudo-Riemannian space.
+    """Geodesic equation `x''^mu = -Γ^mu_(alpha beta)(x) x'^alpha x'^beta` of a point.
 
-    The state is a vector of order 2 with one component per coordinate of the space, the position `x^mu` of a test
-    particle, and its companion holds the tangent `x'^mu`. The time of the system is the affine parameter of the
-    geodesic, the proper time of a timelike geodesic when the tangent starts with `g_(mu nu) x'^mu x'^nu = -1`. A
-    tangent that starts null, with `g_(mu nu) x'^mu x'^nu = 0`, follows a light ray. Either norm is conserved along the
-    geodesic, so it measures the error of a run. The Christoffel symbols are those the space derives from its metric.
+    The point is a point of a pseudo-Riemannian space. The state is a vector of order 2 with one component per
+    coordinate of the space, the position `x^mu` of a test particle, and its companion holds the tangent `x'^mu`. The
+    time of the system is the affine parameter of the geodesic, the proper time of a timelike geodesic when the tangent
+    starts with `g_(mu nu) x'^mu x'^nu = -1`. A tangent that starts null, with `g_(mu nu) x'^mu x'^nu = 0`, follows a
+    light ray. Either norm is conserved along the geodesic, so it measures the error of a run. The Christoffel symbols
+    are those the space derives from its metric.
 
     Args:
         label:
@@ -119,7 +123,9 @@ class GeodesicInteraction(Interaction):
         self.space_ = self.space.prepare()
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
-        """Return the rate law of the second derivative of the position, minus the connection on the tangent.
+        """Return the rate law of the second derivative of the position.
+
+        It is minus the connection on the tangent.
 
         Args:
             namespace:

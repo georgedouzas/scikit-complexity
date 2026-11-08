@@ -22,7 +22,10 @@ from ._kernels import KernelsPass
 
 
 class LowerComplexPass(BasePass):
-    """Pass that splits every law of a complex state into the laws of its real and imaginary parts."""
+    """Pass that splits every law of a complex state into laws of its parts.
+
+    The parts are the real and imaginary parts.
+    """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
@@ -51,7 +54,10 @@ class LowerComplexPass(BasePass):
         description: str,
         state_of: Callable[[Expression], str],
     ) -> tuple[list[Expression], list[Expression]]:
-        """Return the real targets and real values of a law, two of each for every complex target."""
+        """Return the real targets and real values of a law.
+
+        There are two of each for every complex target.
+        """
         real_targets, real_values = [], []
         for target, value in zip(targets, values, strict=True):
             real, imaginary = _split_complex(value, description)
@@ -76,7 +82,10 @@ class LowerComplexPass(BasePass):
         owner: str,
         state_of: Callable[[Expression], str],
     ) -> list[BaseLaw]:
-        """Return the laws of one real target component each that a rate, noise, update, or boundary law stands for."""
+        """Return the laws of one real target component each that a law stands for.
+
+        The law is a rate, noise, update, or boundary law.
+        """
         description = f'{type(law).__name__} of {owner}'
         targets = components_of(law._get_targets()[0])
         values = (
@@ -156,11 +165,11 @@ class LowerComplexPass(BasePass):
 
     @staticmethod
     def _split_law(law: BaseLaw, owner: str, state_of: Callable[[Expression], str]) -> list[BaseLaw]:
-        """Return the laws of real states and real values that a law of complex states and values stands for.
+        """Return the laws of real states and values that a complex law stands for.
 
-        A law with no complex value is returned unchanged. A law with a complex value becomes one law per real component
-        of its target, two for every complex component, and an equation with complex sides becomes the equations of
-        their parts.
+        The complex law has complex states and values. A law with no complex value is returned unchanged. A law with a
+        complex value becomes one law per real component of its target, two for every complex component, and an equation
+        with complex sides becomes the equations of their parts.
 
         Args:
             law:

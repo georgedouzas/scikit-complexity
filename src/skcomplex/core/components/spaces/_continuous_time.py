@@ -1,4 +1,7 @@
-"""Define continuous time, in which rates, noise, equations, jumps, and crossings change the states."""
+"""Define continuous time.
+
+In continuous time, rates, noise, equations, jumps, and crossings change the states.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -9,7 +12,9 @@ from ._base import BaseTime
 
 
 class ContinuousTime(BaseTime):
-    """Continuous time, in which rates, noise, implicit equations, jumps, and crossings change the states.
+    """Continuous time, in which rates and other continuous laws change the states.
+
+    The laws are rates, noise, implicit equations, jumps, and crossings.
 
     Args:
         label:

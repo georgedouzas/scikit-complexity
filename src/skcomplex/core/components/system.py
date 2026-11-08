@@ -1,4 +1,7 @@
-"""Define systems, which compose elements, interactions, and nested systems on a space, in a time."""
+"""Define systems.
+
+A system composes elements, interactions, and nested systems on a space, in a time.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -27,7 +30,10 @@ from .spaces import BaseSpace, BaseTime
 
 
 class RunSettings(TypedDict):
-    """Tuned run settings of a system, which `simulate` uses for every argument a call leaves out."""
+    """Tuned run settings of a system.
+
+    `simulate` uses them for every argument a call leaves out.
+    """
 
     until: float | None
     dt: float | None
@@ -41,10 +47,11 @@ class RunSettings(TypedDict):
 
 
 class BaseSystem(BasePart[BaseSpace, SimpleNamespace]):
-    """Base of every system: it builds its parts from its model parameters, prepares them, and derives its tags.
+    """Base of every system.
 
-    A subclass takes the parameters of its model as arguments of its own `__init__`, which stores each under its own
-    name, as in scikit-learn, so `get_params`, `set_params`, and `clone` work on them. It builds its parts in the hook
+    A system builds its parts from its model parameters, prepares them, and derives its tags. A subclass takes the
+    parameters of its model as arguments of its own `__init__`, which stores each under its own name, as in
+    scikit-learn, so `get_params`, `set_params`, and `clone` work on them. It builds its parts in the hook
     `_build_system`, which returns the generic composite `System` of its elements, interactions, nested systems, space,
     and time, written in terms of the model parameters. `prepare` passes the current model parameters down to the parts
     by building them again when a parameter differs by value from those of the last build, and prepares them as
@@ -114,7 +121,10 @@ class BaseSystem(BasePart[BaseSpace, SimpleNamespace]):
 
     @abstractmethod
     def _build_system(self) -> System:
-        """Return the composite of the parts of the system, built from its model parameters."""
+        """Return the composite of the parts of the system.
+
+        The parts are built from its model parameters.
+        """
 
     def _is_equal(self, old: object, new: object) -> bool:
         """Return whether two values of a model parameter are equal by value.
@@ -219,11 +229,11 @@ class BaseSystem(BasePart[BaseSpace, SimpleNamespace]):
         return self._pass_parameters()._get_tags()
 
     def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings that `simulate` uses for every argument a call leaves out.
+        """Return the tuned run settings of the system.
 
-        The settings are the class attributes `until`, `dt`, `solver`, `observables`, `initial_state`, `invariants`,
-        `schedule`, `compiler`, and `backend`. A system whose settings depend on its model parameters or on its built
-        parts overrides this method.
+        `simulate` uses them for every argument a call leaves out. The settings are the class attributes `until`, `dt`,
+        `solver`, `observables`, `initial_state`, `invariants`, `schedule`, `compiler`, and `backend`. A system whose
+        settings depend on its model parameters or on its built parts overrides this method.
 
         Returns:
             settings:
@@ -248,11 +258,12 @@ class BaseSystem(BasePart[BaseSpace, SimpleNamespace]):
 
 
 class System(BaseSystem):
-    """Composition of elements and the interactions between them, with nested systems, on a space, in a time.
+    """Composition of elements and the interactions between them, with nested systems.
 
-    A system is defined by its parts and by nothing about how it runs. An interaction refers to an element by its path
-    relative to the system that holds the interaction, so `forest/foxes` names the element `foxes` of the nested system
-    `forest`. Groups and nested systems without a space of their own live on the space of the system.
+    The system lives on a space, in a time. A system is defined by its parts and by nothing about how it runs. An
+    interaction refers to an element by its path relative to the system that holds the interaction, so `forest/foxes`
+    names the element `foxes` of the nested system `forest`. Groups and nested systems without a space of their own live
+    on the space of the system.
 
     The tags of a system come from its parts: its own time, or else the times its parts agree on, every space of its
     parts and nested systems, or `'none'` without any, the union of the domains, law kinds, and structures of its
@@ -337,7 +348,10 @@ class System(BaseSystem):
         return self
 
     def _get_parts(self) -> list[BasePart]:
-        """Return the parts of the system: its space, its time, its elements, its interactions, and its systems."""
+        """Return the parts of the system.
+
+        They are its space, its time, its elements, its interactions, and its systems.
+        """
         around = [part for part in (self.space, self.time) if part is not None]
         return [*around, *self.elements, *self.interactions, *self.systems]
 
@@ -347,7 +361,9 @@ class System(BaseSystem):
             part._validated()
 
     def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Prepare the space and the time, then the elements and the nested systems on the space, then the interactions.
+        """Prepare the space, the time, the elements, the nested systems, and interactions.
+
+        The space and the time come first, then the elements and the nested systems on the space, then the interactions.
 
         Args:
             context:
@@ -369,11 +385,14 @@ class System(BaseSystem):
         self.system_ = self._get_composite()
 
     def _nests_classes(self) -> bool:
-        """Return whether a nested system, at any depth, is a system class rather than a composite."""
+        """Return whether a nested system, at any depth, is a system class.
+
+        The alternative is a composite.
+        """
         return any(not isinstance(system, System) or system._nests_classes() for system in self.systems)
 
     def _get_composite(self) -> System:
-        """Return the system with the prepared composite of every nested system in place of the nested system.
+        """Return the system with the prepared composite of every nested system in place.
 
         A nested system class, such as a ready-made system of the catalog, is replaced by the composite it builds from
         its model parameters, so the compilers, the solvers, and the trajectory read the elements, the interactions,
@@ -412,7 +431,9 @@ class System(BaseSystem):
 
     @staticmethod
     def _get_bound_labels(value: object) -> list[str]:
-        """Return the paths of the elements a role binds, without the index of a group member.
+        """Return the paths of the elements a role binds.
+
+        The paths leave out the index of a group member.
 
         Args:
             value:
@@ -428,7 +449,10 @@ class System(BaseSystem):
         return [label.partition('[')[0] for label in labels if isinstance(label, str)]
 
     def _find_element(self, path: str) -> BaseElement | None:
-        """Return the element at a path relative to the system, or `None` when no element of a system has the path."""
+        """Return the element at a path relative to the system.
+
+        The result is `None` when no element of a system has the path.
+        """
         *scopes, label = path.split('/')
         system: System | None = self
         for scope in scopes:
@@ -438,9 +462,10 @@ class System(BaseSystem):
         return next((element for element in system.elements if element.label == label), None)
 
     def _check_roles(self) -> None:
-        """Raise an error for a role bound to an element with a state of a domain the role does not accept.
+        """Raise an error for a role bound to a state of a domain the role does not accept.
 
-        The states checked are those the role reads, or every state of the element when the role reads none.
+        The state belongs to the element the role binds. The states checked are those the role reads, or every state of
+        the element when the role reads none.
 
         Raises:
             RoleElementError:
@@ -470,10 +495,11 @@ class System(BaseSystem):
 
     @staticmethod
     def _join_tag(name: str, tags: Mapping[str, Tags], joining: frozenset[str]) -> frozenset[str]:
-        """Return the values of the time or the space that parts agree on, raising an error when they disagree.
+        """Return the values of the time or the space that parts agree on.
 
-        Parts that disagree are joined by the nested systems when each of them shares a value with one, as in a
-        co-simulation where interactions of a discrete and of a continuous time act on nested systems of each time.
+        An error is raised when they disagree. Parts that disagree are joined by the nested systems when each of them
+        shares a value with one, as in a co-simulation where interactions of a discrete and of a continuous time act on
+        nested systems of each time.
 
         Args:
             name:
@@ -516,7 +542,9 @@ class System(BaseSystem):
         raise TagError(error_msg)
 
     def _get_tags(self) -> Tags:
-        """Return the tags derived from the parts, with the space `'none'` for a system without any space.
+        """Return the tags derived from the parts.
+
+        The space is `'none'` for a system without any space.
 
         Returns:
             tags:
@@ -530,7 +558,7 @@ class System(BaseSystem):
         return tags if tags.space else replace(tags, space=frozenset({'none'}))
 
     def _get_joined_tags(self) -> Tags:
-        """Return the tags derived from the parts, without a space for a system without any.
+        """Return the tags derived from the parts, without a space for a spaceless system.
 
         Returns:
             tags:

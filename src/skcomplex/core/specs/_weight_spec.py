@@ -11,7 +11,10 @@ from ._topology_request_spec import TopologyRequestSpec
 
 @dataclass(frozen=True, eq=False)
 class _WeightSpec(BaseSpec):
-    """Target of the weight or the score of the candidate nodes of a topology request, lowered like laws."""
+    """Target of the weight or the score of the candidate nodes of a topology request.
+
+    It is lowered like laws.
+    """
 
     request: TopologyRequestSpec
     score: bool = False

@@ -17,7 +17,9 @@ from ._census_record_spec import CensusRecordSpec
 
 @dataclass(frozen=True)
 class CensusSpec(BaseSpec):
-    """Laws of every component of a system, and the errors of the components that fail to declare or collect.
+    """Laws of every component of a system, and the errors of failing components.
+
+    The errors are those of the components that fail to declare or collect.
 
     Args:
         system:

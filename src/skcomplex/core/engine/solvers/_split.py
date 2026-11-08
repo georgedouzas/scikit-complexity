@@ -1,4 +1,7 @@
-"""Base of steppers that treat the linear part of the rates of fields apart from the nonlinear remainder."""
+"""Base of steppers that treat the linear part of the rates of fields apart.
+
+The linear part is treated apart from the nonlinear remainder.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -40,11 +43,11 @@ TIME = symbol('t')
 
 
 class SplitSolver(Solver):
-    """Base of steppers that treat the linear part of the rates of fields apart from the nonlinear remainder.
+    """Base of steppers that treat the linear part of the rates of fields apart.
 
-    The linear part is held in Fourier blocks for spectral fields, a small matrix per Fourier mode, and in a sparse
-    matrix over the whole state vector for the other fields. Every block is the shape of the field, the state indices
-    of its states, and its matrices.
+    The linear part is treated apart from the nonlinear remainder. The linear part is held in Fourier blocks for
+    spectral fields, a small matrix per Fourier mode, and in a sparse matrix over the whole state vector for the other
+    fields. Every block is the shape of the field, the state indices of its states, and its matrices.
 
     Args:
         dt:
@@ -81,7 +84,10 @@ class SplitSolver(Solver):
 
     @classmethod
     def _is_implicit(cls) -> bool:
-        """Return whether the solver treats diffusion implicitly, so explicit stability limits do not apply."""
+        """Return whether the solver treats diffusion implicitly.
+
+        Explicit stability limits then do not apply.
+        """
         return True
 
     def __init__(
@@ -129,7 +135,10 @@ class SplitSolver(Solver):
         return abs(t - time) <= tolerance and abs(h - step) <= tolerance and np.array_equal(x, state)
 
     def _forget(self) -> None:
-        """Hook that forgets the steps of earlier calls, which multistep schemes override."""
+        """Hook that forgets the steps of earlier calls.
+
+        Multistep schemes override it.
+        """
 
     def _build_operator(self, p: Array) -> None:
         """Build the linear part for parameter values when they change."""
@@ -174,7 +183,9 @@ class SplitSolver(Solver):
         return out
 
     def _solve_linear(self, factor: float, rhs: Array) -> Array:
-        """Return the solution `y` of `(I - factor L) y = rhs`, for the linear part `L` of the rates.
+        """Return the solution `y` of `(I - factor L) y = rhs`.
+
+        `L` is the linear part of the rates.
 
         Args:
             factor:
@@ -202,7 +213,9 @@ class SplitSolver(Solver):
 
     @staticmethod
     def _apply_block(block: SpectralBlock, operator: ComplexArray, x: Array, out: Array) -> None:
-        """Write a matrix of every Fourier mode of a spectral block applied to the states of the block.
+        """Write a matrix of every Fourier mode of a spectral block applied to its states.
+
+        The states are those of the block.
 
         Args:
             block:
@@ -266,7 +279,10 @@ class SplitSolver(Solver):
 
     @staticmethod
     def _lattice_operator(name: str, axis: int, place: FieldElement, reference: ReferenceSpec) -> csr_matrix:
-        """Return the stencil matrix of a finite-difference operator on a field state, without its boundary values."""
+        """Return the stencil matrix of a finite-difference operator on a field state.
+
+        Its boundary values are left out.
+        """
         space = place.space
         size = place.size_
         kind, _ = place._get_boundary(reference.entry.name.rpartition('.')[2])
@@ -302,7 +318,10 @@ class SplitSolver(Solver):
 
     @staticmethod
     def _term_matrix(term: LinearTermSpec, coefficient: float | Array) -> csr_matrix:
-        """Return the sparse matrix of a linear term of a finite-difference or finite element field."""
+        """Return the sparse matrix of a linear term of a field.
+
+        The field is a finite-difference or finite element field.
+        """
         place = term.place
         matrix = identity(place.size_, format='csr')
         for name, axis in reversed(term.chain):
@@ -319,7 +338,10 @@ class SplitSolver(Solver):
         triplets: list[tuple[ReferenceSpec, ReferenceSpec, csr_matrix]],
         problem: ProblemSpec,
     ) -> csr_matrix | None:
-        """Return the sparse matrix of linear terms over the whole state vector, without rows of fixed nodes."""
+        """Return the sparse matrix of linear terms over the whole state vector.
+
+        Rows of fixed nodes are left out.
+        """
         if not triplets:
             return None
         size = problem.states.size
@@ -341,7 +363,10 @@ class SplitSolver(Solver):
 
     @staticmethod
     def _spectral_block(terms: list[tuple[LinearTermSpec, complex]]) -> SpectralBlock:
-        """Return the Fourier block of the linear terms of the states of one spectral field."""
+        """Return the Fourier block of the linear terms of one spectral field.
+
+        The terms are those of the states of the field.
+        """
         place = terms[0][0].place
         states: dict[tuple[str, int], ReferenceSpec] = {}
         for term, _ in terms:
@@ -373,7 +398,10 @@ class SplitSolver(Solver):
 
     @staticmethod
     def _coefficient(term: LinearTermSpec, p: Array) -> float | Array:
-        """Return the value of a linear term's coefficient, a number or one value per member."""
+        """Return the value of a linear term's coefficient.
+
+        It is a number or one value per member.
+        """
         symbols = sorted(term.references, key=str)
         values = []
         for item in symbols:

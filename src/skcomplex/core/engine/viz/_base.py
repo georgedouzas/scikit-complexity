@@ -1,4 +1,7 @@
-"""Define the base class of visuals, which log one element or agent group to a Rerun recording."""
+"""Define the base class of visuals.
+
+A visual logs one element or agent group to a Rerun recording.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -73,14 +76,15 @@ _PHASE_PALETTE = (
 
 
 class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
-    """Base class of visuals, which log the state of one element or agent group to a Rerun recording.
+    """Base class of visuals.
 
-    A visual follows the common API of the engine. `prepare(problem)` finds the element or agent group of the problem
-    at the entity path `path`, forgets what earlier frames left, and sets the Rerun views that show what the visual
-    logs. `run(frame)` logs the element at one frame to the recording `recording`: a compiled element through the hook
-    `_log`, and agents through the hook `_log_agents` with the snapshot of the frame. Subclasses implement `_log`,
-    `_log_agents`, or both, declare their views with `_views`, and are named by the kind of a `VisualSpec`.
-    `RerunObserver` builds the visual of every element and agent group with their path and its recording.
+    A visual logs the state of one element or agent group to a Rerun recording. A visual follows the common API of the
+    engine. `prepare(problem)` finds the element or agent group of the problem at the entity path `path`, forgets what
+    earlier frames left, and sets the Rerun views that show what the visual logs. `run(frame)` logs the element at one
+    frame to the recording `recording`: a compiled element through the hook `_log`, and agents through the hook
+    `_log_agents` with the snapshot of the frame. Subclasses implement `_log`, `_log_agents`, or both, declare their
+    views with `_views`, and are named by the kind of a `VisualSpec`. `RerunObserver` builds the visual of every element
+    and agent group with their path and its recording.
 
     Args:
         path:
@@ -126,7 +130,9 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
             raise ValidationError(error_msg)
 
     def _prepare(self, context: BaseProblemSpec | None) -> None:
-        """Find the element at the path, keep the recording and the space of the agents, and set the views.
+        """Find the element at the path, keep the recording and space, and set the views.
+
+        The space kept is that of the agents.
 
         Args:
             context:
@@ -154,7 +160,9 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
         self.views_ = self._views(self.element_, problem)
 
     def _run(self, inputs: FrameSpec | None) -> None:
-        """Log the element at a frame, or the agents of the frame when the element is an agent group.
+        """Log the element at a frame.
+
+        When the element is an agent group, it logs the agents of the frame.
 
         Args:
             inputs:
@@ -212,11 +220,17 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
         return self
 
     def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
-        """Return the Rerun views that show what the visual logs for an element, none by default."""
+        """Return the Rerun views that show what the visual logs for an element.
+
+        By default there are none.
+        """
         return []
 
     def _log(self, recording: rr.RecordingStream, element: CompiledElementSpec, frame: FrameSpec) -> None:
-        """Log the state of a compiled element at one frame. A subclass that logs elements implements it."""
+        """Log the state of a compiled element at one frame.
+
+        A subclass that logs elements implements it.
+        """
         raise NotImplementedError
 
     def _log_agents(
@@ -226,7 +240,10 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
         snapshot: AgentSnapshotSpec,
         space: BaseSpace | None,
     ) -> None:
-        """Log the agents of a group at one frame. By default, log nothing."""
+        """Log the agents of a group at one frame.
+
+        By default, log nothing.
+        """
 
     def _colors(
         self,
@@ -234,7 +251,10 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
         low: float | None,
         high: float | None,
     ) -> npt.NDArray[np.uint8]:
-        """Return the colors of values over the given range, or over the extremes of the values for a missing end."""
+        """Return the colors of values over the given range.
+
+        A missing end of the range is the extreme of the values.
+        """
         low = float(values.min()) if low is None else float(low)
         high = float(values.max()) if high is None else float(high)
         return self._palette_colors(values, low, high)
@@ -247,19 +267,27 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
 
     @staticmethod
     def _phase_colors(phases: npt.NDArray[np.float64]) -> npt.NDArray[np.uint8]:
-        """Return the colors of phases in `(-pi, pi]` from a cyclic palette, so `-pi` and `pi` share one color."""
+        """Return the colors of phases in `(-pi, pi]` from a cyclic palette.
+
+        `-pi` and `pi` thus share one color.
+        """
         levels = np.mod(phases + np.pi, 2 * np.pi) * (255.0 / (2 * np.pi))
         return _PHASE_PALETTE[np.clip(levels, 0.0, 255.0).astype(np.uint8)]
 
     @staticmethod
     def _widened(span: tuple[float, float] | None, values: npt.NDArray[np.float64]) -> tuple[float, float]:
-        """Return a color range widened to cover values, starting from their extremes when there is no range yet."""
+        """Return a color range widened to cover values.
+
+        Without a range yet, it starts from their extremes.
+        """
         low, high = float(np.min(values)), float(np.max(values))
         return (low, high) if span is None else (min(span[0], low), max(span[1], high))
 
     @staticmethod
     def _colors_of(values: npt.NDArray[np.float64], low: float, high: float) -> npt.NDArray[np.uint8]:
-        """Return one color per value on a scale from blue at `low` to yellow at `high`, bright enough to see on black.
+        """Return one color per value on a scale from blue at `low` to yellow at `high`.
+
+        The colors are bright enough to see on black.
 
         Args:
             values:
@@ -289,7 +317,9 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
 
     @staticmethod
     def _palette_colors(values: npt.NDArray[np.float64], low: float, high: float) -> npt.NDArray[np.uint8]:
-        """Return the colors of an array of values from a palette of 256 levels, fast enough for large images.
+        """Return the colors of an array of values from a palette of 256 levels.
+
+        It is fast enough for large images.
 
         Args:
             values:
@@ -318,10 +348,10 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
 
     @staticmethod
     def _network_layout(graph: nx.Graph) -> dict[str, npt.NDArray[np.float64]]:
-        """Return fixed positions of the nodes of a network, with neighbours about a spacing apart.
+        """Return fixed positions of the nodes of a network.
 
-        The positions are the `pos` attributes of the nodes when every node has one, and a seeded spring layout
-        otherwise.
+        Neighbours lie about a spacing apart. The positions are the `pos` attributes of the nodes when every node has
+        one, and a seeded spring layout otherwise.
         """
         scale = _NODE_SPACING * float(np.sqrt(max(graph.number_of_nodes(), 1))) / 2
         given = nx.get_node_attributes(graph, 'pos')
@@ -335,12 +365,17 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
 
     @staticmethod
     def _radius_of(extent: float, count: int) -> float:
-        """Return a point radius that is a share of the extent of a view, smaller for crowds so they do not overlap."""
+        """Return a point radius that is a share of the extent of a view.
+
+        It is smaller for crowds so they do not overlap.
+        """
         return _POINT_SHARE * (extent if extent > 0 else 1.0) / max(count / _CROWD_SIZE, 1.0) ** _CROWD_EXPONENT
 
     @staticmethod
     def _log_scalars(recording: rr.RecordingStream, path: str, value: object) -> None:
-        """Log the components of a value as scalar series, the real and imaginary parts of a complex value apart.
+        """Log the components of a value as scalar series.
+
+        The real and imaginary parts of a complex value are logged apart.
 
         Args:
             recording:

@@ -18,7 +18,7 @@ NOISE_CONVENTIONS = {'ito': 0.0, 'stratonovich': 0.5, 'anti-ito': 1.0}
 
 
 class NoiseLaw(BaseLaw):
-    """Amplitude of a Wiener process that drives the highest time derivative of a state.
+    """Amplitude of a Wiener process that drives a state's highest time derivative.
 
     Without a process, every component of the target and every member of a group gets its own independent Wiener
     process. Laws of one component, or of one member, that name the same local process share its increment. Laws that
@@ -93,7 +93,10 @@ class NoiseLaw(BaseLaw):
         return RequirementSpec(time=(ContinuousTime,))
 
     def _check_process(self) -> None:
-        """Raise an error for a process that is not a label, a tuple of labels, or a handle, or a conserved one."""
+        """Raise an error for a process that is not a label, labels, or a handle.
+
+        It also raises it for a conserved process, and the labels are a tuple of labels.
+        """
         process = self.process
         valid = process is None or isinstance(process, str | Expression | FreeModuleElement)
         if isinstance(process, tuple):
@@ -112,7 +115,10 @@ class NoiseLaw(BaseLaw):
             raise ValidationError(error_msg)
 
     def _check(self) -> None:
-        """Raise an error for a value that is a NumPy array, an unknown convention, or an invalid process."""
+        """Raise an error for an array value, an unknown convention, or an invalid process.
+
+        The array is a NumPy array.
+        """
         self._check_array('value')
         if self.convention not in NOISE_CONVENTIONS:
             error_msg = f'Unknown noise convention {self.convention!r}. Use one of {", ".join(NOISE_CONVENTIONS)}.'

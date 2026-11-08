@@ -11,9 +11,10 @@ from ._lattice_neighborhood import LatticeNeighborhood
 
 
 class VonNeumannNeighborhood(LatticeNeighborhood):
-    """Sites within a Manhattan distance, the 4 adjacent cells in two dimensions for radius 1.
+    """Sites within a Manhattan distance.
 
-    The offsets come in lexicographic order, after the site itself when it is included.
+    In two dimensions and for radius 1 they are the 4 adjacent cells. The offsets come in lexicographic order, after the
+    site itself when it is included.
 
     Args:
         radius:
@@ -41,7 +42,10 @@ class VonNeumannNeighborhood(LatticeNeighborhood):
         self.center = center
 
     def _get_offsets(self) -> tuple[IntTuple, ...]:
-        """Return the offsets within the Manhattan distance, after the site itself when included."""
+        """Return the offsets within the Manhattan distance.
+
+        They come after the site itself when included.
+        """
         steps = range(-self.radius, self.radius + 1)
         offsets = tuple(
             offset

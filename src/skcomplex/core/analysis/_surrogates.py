@@ -1,4 +1,7 @@
-"""Test a measure of dependence against surrogates whose variables are shuffled independently."""
+"""Test a measure of dependence against surrogates.
+
+The variables of the surrogates are shuffled independently.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,7 +24,9 @@ TAGS = AnalysisTags(DataKind.SERIES)
 
 @dataclass(frozen=True)
 class SurrogateTestResult:
-    """Test of an analysis of many variables against surrogates that shuffle every variable independently.
+    """Test of an analysis of many variables against surrogates.
+
+    The surrogates shuffle every variable independently.
 
     Args:
         values:
@@ -53,10 +58,11 @@ def surrogate_test(
     alternative: str = 'two-sided',
     random_state: int | None = None,
 ) -> SurrogateTestResult:
-    """Return the test of an analysis of many variables against surrogates that shuffle every variable independently.
+    """Return the test of an analysis of many variables against surrogates.
 
-    The analysis runs on the data and on `n` surrogates, and the field of its result gives the value of each. The
-    p-value is the fraction of surrogates, with the data counted among them, at least as extreme as the data.
+    The surrogates shuffle every variable independently. The analysis runs on the data and on `n` surrogates, and the
+    field of its result gives the value of each. The p-value is the fraction of surrogates, with the data counted among
+    them, at least as extreme as the data.
 
     Args:
         source:

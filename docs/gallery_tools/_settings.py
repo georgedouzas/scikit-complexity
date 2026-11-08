@@ -1,4 +1,7 @@
-"""Hold the settings of the gallery: image sizes, waits, encoding, and the recording budget."""
+"""Hold the settings of the gallery.
+
+They are image sizes, waits, encoding, and the recording budget.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,7 +16,9 @@ MAX_SECONDS_VARIABLE = 'SKCOMPLEX_GALLERY_MAX_SECONDS'
 
 @dataclass(frozen=True)
 class CaptureSettings:
-    """Settings of a screenshot capture, which are part of the cache key.
+    """Settings of a screenshot capture.
+
+    They are part of the cache key.
 
     Args:
         thumbnail_size:
@@ -63,7 +68,9 @@ class CaptureSettings:
 
 @dataclass(frozen=True)
 class Budget:
-    """Limits every example runs within, so the capture loads the whole recording.
+    """Limits every example runs within.
+
+    The capture thus loads the whole recording.
 
     Args:
         max_frames:

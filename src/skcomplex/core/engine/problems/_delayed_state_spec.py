@@ -16,7 +16,9 @@ from ._kernel_spec import KernelSpec
 
 @dataclass(frozen=True)
 class _DelayedStateSpec(BaseSpec):
-    """State a law reads with a delay, through the hidden parameter that solvers fill from its history.
+    """State a law reads with a delay.
+
+    The law reads it through the hidden parameter that solvers fill from its history.
 
     Args:
         entry:

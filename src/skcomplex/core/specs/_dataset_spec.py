@@ -17,12 +17,12 @@ MIN_DIMENSIONS = 2
 
 @dataclass(frozen=True)
 class DatasetSpec(BaseSpec):
-    """Sequences of values of the parameters of a system, one value per sequence and inner step, with step weights.
+    """Sequences of values of the parameters of a system, with step weights.
 
-    Every array has the shape `(sequences, steps)` followed by the shape of its parameter. At inner step `k` of
-    sequence `i` every parameter takes its value at `[i, k]` before the laws of the step are evaluated, as a schedule
-    sets a parameter in a simulation, and the loss reads the states the step gives. Every sequence starts from the
-    initial states of the system.
+    There is one value per sequence and inner step. Every array has the shape `(sequences, steps)` followed by the shape
+    of its parameter. At inner step `k` of sequence `i` every parameter takes its value at `[i, k]` before the laws of
+    the step are evaluated, as a schedule sets a parameter in a simulation, and the loss reads the states the step
+    gives. Every sequence starts from the initial states of the system.
 
     Args:
         values:
@@ -54,7 +54,7 @@ class DatasetSpec(BaseSpec):
     times: AnyArray | None = None
 
     def _check(self) -> None:
-        """Raise an error for empty values, a path that is not a string, or an array with fewer than two dimensions.
+        """Raise an error for empty values, a path that is no string, or a flat array.
 
         Raises:
             ValidationError:
@@ -81,5 +81,8 @@ class DatasetSpec(BaseSpec):
 
     @property
     def steps(self) -> int:
-        """Number of inner steps of every sequence, the length of the second axis of the first array."""
+        """Number of inner steps of every sequence.
+
+        It is the length of the second axis of the first array.
+        """
         return int(np.shape(next(iter(self.values.values())))[1])

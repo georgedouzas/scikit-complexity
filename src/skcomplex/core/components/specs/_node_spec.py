@@ -62,5 +62,8 @@ class NodeSpec(BaseSpec):
 
     @property
     def is_agent(self) -> bool:
-        """Whether the node is an agent element or an agent group, which runs on the agent stepper."""
+        """Whether the node is an agent element or an agent group.
+
+        Such a node runs on the agent stepper.
+        """
         return self.agent

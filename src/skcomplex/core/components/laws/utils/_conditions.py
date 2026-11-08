@@ -1,4 +1,7 @@
-"""Define the symbolic conditions and remainders that laws use, which every backend lowers."""
+"""Define the symbolic conditions and remainders that laws use.
+
+Every backend lowers them.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -10,7 +13,10 @@ from ....specs._draw_spec import draws_in
 
 
 def _is_number(argument: object) -> bool:
-    """Check that an expression, or both sides of a relation, evaluate to numbers, so no call stays unevaluated."""
+    """Check that an expression, or both sides of a relation, evaluate to numbers.
+
+    So no call stays unevaluated.
+    """
     value = SR(argument)
     sides = [value.lhs(), value.rhs()] if value.is_relational() else [value]
     try:
@@ -22,7 +28,10 @@ def _is_number(argument: object) -> bool:
 
 
 def _is_decided(*arguments: object) -> bool:
-    """Check that arguments hold no symbols, no random draws, and no unevaluated calls, so a condition is decided."""
+    """Check that arguments hold no symbols, random draws, or unevaluated calls.
+
+    So the condition is decided.
+    """
     return all(
         not SR(argument).variables() and not draws_in(argument) and _is_number(argument) for argument in arguments
     )
@@ -35,7 +44,10 @@ class _Where(BuiltinFunction):
         super().__init__('where', nargs=3)
 
     def _eval_(self, condition: Expression, then: Expression, otherwise: Expression) -> Expression | None:
-        """Return the chosen value when the condition is decided or both values are equal, or `None` otherwise."""
+        """Return the chosen value when it is decided, or `None` otherwise.
+
+        The value is decided when the condition is decided or both values are equal.
+        """
         if SR(then).is_trivially_equal(SR(otherwise)):
             return SR(then)
         if _is_decided(condition):
@@ -49,7 +61,10 @@ class _Where(BuiltinFunction):
         otherwise: Expression,
         diff_param: Expression,
     ) -> Expression:
-        """Return the derivative of the chosen value, which is zero at the switch in the sense of distributions."""
+        """Return the derivative of the chosen value.
+
+        It is zero at the switch in the sense of distributions.
+        """
         return self(condition, SR(then).diff(diff_param), SR(otherwise).diff(diff_param))
 
 
@@ -86,13 +101,19 @@ class _Mod(BuiltinFunction):
         super().__init__('mod', nargs=2)
 
     def _eval_(self, value: Expression, divisor: Expression) -> Expression | None:
-        """Return the remainder when both arguments are numbers, or `None` to stay unevaluated."""
+        """Return the remainder when both arguments are numbers.
+
+        It returns `None` to stay unevaluated.
+        """
         if _is_decided(value, divisor):
             return value - divisor * floor(value / divisor)
         return None
 
     def _tderivative_(self, value: Expression, divisor: Expression, diff_param: Expression) -> Expression:
-        """Return the derivative away from the jumps, `d(value) - floor(value / divisor) d(divisor)`."""
+        """Return the derivative away from the jumps.
+
+        It is `d(value) - floor(value / divisor) d(divisor)`.
+        """
         return SR(value).diff(diff_param) - floor(value / divisor) * SR(divisor).diff(diff_param)
 
 

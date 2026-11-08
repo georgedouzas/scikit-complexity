@@ -1,4 +1,7 @@
-"""Plot the signature analyses of a run as the analysis figure of a gallery example."""
+"""Plot the signature analyses of a run.
+
+They form the analysis figure of a gallery example.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,7 +25,9 @@ def _caption(signature: SignatureSpec) -> str:
 
 
 def plot_signature(signature: SignatureSpec, axes: Axes) -> Axes:
-    """Draw one signature on axes: its curves, its scales, its labels, and its title with values.
+    """Draw one signature on axes.
+
+    It draws its curves, its scales, its labels, and its title with values.
 
     Args:
         signature:
@@ -51,7 +56,9 @@ def plot_signature(signature: SignatureSpec, axes: Axes) -> Axes:
 
 
 def plot_signatures(result: SignaturesResult) -> Figure:
-    """Return a figure with one panel per signature of the signatures of a run, side by side.
+    """Return a figure with one panel per signature of a run.
+
+    The panels are side by side.
 
     Args:
         result:

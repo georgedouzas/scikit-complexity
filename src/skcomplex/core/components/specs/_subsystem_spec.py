@@ -15,7 +15,10 @@ from ._operator_view_spec import OperatorViewSpec
 
 @dataclass(frozen=True)
 class _SubsystemSpec(BaseSpec):
-    """Subsystem with its key, its element, its index in the tensor product, its state symbol, and operators."""
+    """Subsystem of a tensor product.
+
+    It holds its key, its element, its index in the tensor product, its state symbol, and operators.
+    """
 
     key: str
     element: OperatorViewSpec

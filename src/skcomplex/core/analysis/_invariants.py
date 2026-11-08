@@ -1,4 +1,7 @@
-"""Derive the Poisson brackets, conserved quantities, symmetries, and Noether charges of a system with Sage."""
+"""Derive the invariants of a system with Sage.
+
+They are the Poisson brackets, conserved quantities, symmetries, and Noether charges.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -41,7 +44,9 @@ TAGS = AnalysisTags(DataKind.SYSTEM)
 
 @dataclass(frozen=True)
 class InvariantsResult:
-    """Poisson brackets, conserved quantities, or a symmetry with its Noether charge, of a system.
+    """Poisson brackets, conserved quantities, or a symmetry of a system.
+
+    A symmetry comes with its Noether charge.
 
     Args:
         problem:
@@ -103,12 +108,13 @@ def invariants(
     samples: int = 16,
     random_state: int | np.random.Generator | None = None,
 ) -> InvariantsResult:
-    """Return the Poisson brackets, conserved quantities, or a symmetry with its Noether charge, of a system.
+    """Return the Poisson brackets, conserved quantities, or a symmetry of a system.
 
-    The canonical pairs and the Hamiltonian `H` are those of the system's `HamiltonianInteraction`s, whose
-    Hamiltonians sum, and the Lagrangian `L` is the sum of those of its `EulerLagrangeInteraction`s. The expressions are
-    `ObservableSpec`s whose expression is a function of the namespace of the system, where `s.<element>.<state>` is the
-    symbol of a state, or a symbolic expression of those symbols. The kinds:
+    A symmetry comes with its Noether charge. The canonical pairs and the Hamiltonian `H` are those of the system's
+    `HamiltonianInteraction`s, whose Hamiltonians sum, and the Lagrangian `L` is the sum of those of its
+    `EulerLagrangeInteraction`s. The expressions are `ObservableSpec`s whose expression is a function of the namespace
+    of the system, where `s.<element>.<state>` is the symbol of a state, or a symbolic expression of those symbols. The
+    kinds:
 
     - `'brackets'`: the Poisson bracket `{f, g} = sum df/dq dg/dp - df/dp dg/dq` of every pair of expressions, summed
       over the canonical pairs.
@@ -249,7 +255,10 @@ def _check_inputs(
     symmetry: SymmetrySpec | None,
     samples: int,
 ) -> None:
-    """Raise an error for an expression that is not one of the system, a missing symmetry, or bad samples."""
+    """Raise an error for a foreign expression, a missing symmetry, or bad samples.
+
+    A foreign expression is not one of the system.
+    """
     for expression in expressions:
         if not isinstance(expression, ObservableSpec) or expression.group is not None:
             error_msg = f'{expression!r} is not an expression of the system. Give an ObservableSpec without group.'
@@ -265,7 +274,10 @@ def _check_inputs(
 
 
 def _resolve(namespace: SimpleNamespace, path: str) -> object:
-    """Return the namespace of the element or state at a path of the system, or raise an error."""
+    """Return the namespace of the element or state at a path of the system.
+
+    An error is raised when there is none.
+    """
     value: object = namespace
     for part in path.replace('/', '.').split('.'):
         if not hasattr(value, part):
@@ -280,7 +292,10 @@ def _get_interaction_namespace(
     dynamics: _DynamicsSpec,
     interaction: BaseInteraction,
 ) -> SimpleNamespace:
-    """Return the namespace an interaction reads, with the namespaces of its roles and its parameters."""
+    """Return the namespace an interaction reads.
+
+    It includes the namespaces of its roles and its parameters.
+    """
     roles: dict[str, object] = {}
     for name in declarations_of(type(interaction), VariableKind.ROLE):
         value = getattr(interaction, name)
@@ -302,7 +317,10 @@ def _get_pairs(
     namespace: SimpleNamespace,
     dynamics: _DynamicsSpec,
 ) -> list[tuple[Expression, Expression]]:
-    """Return the canonical pairs of the components of the system's Hamiltonian interactions, each once."""
+    """Return the canonical pairs of the components of the Hamiltonian interactions.
+
+    The interactions are the system's, and every pair comes once.
+    """
     pairs: list[tuple[Expression, Expression]] = []
     for interaction in _get_hamiltonians(system):
         for q, p in interaction._get_pairs(_get_interaction_namespace(namespace, dynamics, interaction)):
@@ -319,7 +337,10 @@ def _get_pairs(
 
 
 def _get_hamiltonian(system: System, namespace: SimpleNamespace, dynamics: _DynamicsSpec) -> Expression:
-    """Return the Hamiltonian of the system, the sum of those of its Hamiltonian interactions."""
+    """Return the Hamiltonian of the system.
+
+    It is the sum of those of its Hamiltonian interactions.
+    """
     return sum(
         (
             SR(interaction._get_hamiltonian(_get_interaction_namespace(namespace, dynamics, interaction)))
@@ -334,7 +355,10 @@ def _get_lagrangian(
     namespace: SimpleNamespace,
     dynamics: _DynamicsSpec,
 ) -> tuple[Expression, dict[Expression, Expression]]:
-    """Return the Lagrangian of the system in the symbols of its states, and the velocity of every coordinate."""
+    """Return the Lagrangian of the system in the symbols of its states.
+
+    The velocity of every coordinate is returned too.
+    """
     lagrangian, velocities = SR(0), {}
     for interaction in system.interactions:
         if not isinstance(interaction, EulerLagrangeInteraction):
@@ -381,7 +405,10 @@ def _get_bracket_terms(
 
 
 def _is_hamiltonian(system: System, namespace: SimpleNamespace, dynamics: _DynamicsSpec) -> bool:
-    """Check whether the vector field of the system is that of Hamilton's equations of its Hamiltonian."""
+    """Check whether the vector field of the system follows Hamilton's equations.
+
+    The equations are those of its Hamiltonian.
+    """
     if not _get_hamiltonians(system):
         return False
     pairs = _get_pairs(system, namespace, dynamics)
@@ -401,7 +428,10 @@ def _get_rate_terms(
     *,
     hamiltonian: bool,
 ) -> list[Expression]:
-    """Return the terms of the rate of an expression, of its bracket with the Hamiltonian or its Lie derivative."""
+    """Return the terms of the rate of an expression.
+
+    The rate is its bracket with the Hamiltonian or its Lie derivative.
+    """
     terms = [expression.diff(SR(dynamics.problem.time))]
     if hamiltonian:
         return terms + _get_bracket_terms(
@@ -413,7 +443,10 @@ def _get_rate_terms(
 
 
 def _vanishes(dynamics: _DynamicsSpec, terms: list[Expression], rng: np.random.Generator, samples: int) -> bool:
-    """Check whether a sum of terms vanishes relative to the size of its terms at random states."""
+    """Check whether a sum of terms vanishes.
+
+    It vanishes relative to the size of its terms at random states.
+    """
     found = False
     for _ in range(samples):
         draws = rng.uniform(-1, 1, len(dynamics.symbols))
@@ -434,7 +467,7 @@ def _decide(
     rng: np.random.Generator,
     samples: int,
 ) -> tuple[Expression, bool, str]:
-    """Return the simplified sum of terms, whether it is zero, and the method that decided."""
+    """Return the simplified sum of terms, whether it is zero, and the deciding method."""
     total = sum(terms, SR(0)).simplify_full()
     if total.is_zero():
         return total, True, 'symbolic'
@@ -464,7 +497,10 @@ def _get_lagrangian_change(
     dynamics: _DynamicsSpec,
     variations: dict[Expression, Expression],
 ) -> tuple[list[Expression], Expression]:
-    """Return the terms of the first-order change of the Lagrangian under variations, and the Noether charge."""
+    """Return the terms of the first-order change of the Lagrangian under variations.
+
+    The Noether charge is returned too.
+    """
     lagrangian, velocities = _get_lagrangian(system, namespace, dynamics)
     terms, charge = [], SR(0)
     for item, dq in variations.items():

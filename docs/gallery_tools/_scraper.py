@@ -27,7 +27,10 @@ EMBED_CLASS = 'skcomplex-rerun'
 
 @dataclass
 class _Redirect:
-    """Folder an example runs in, and the folder of its run that its relative recording paths resolve against."""
+    """Folder an example runs in, and the folder of its run.
+
+    The relative recording paths of the example resolve against the folder of its run.
+    """
 
     source: Path | None = None
     target: Path | None = None
@@ -38,7 +41,10 @@ _PREPARE = RerunObserver._prepare
 
 
 def _prepare(observer: RerunObserver, problem: BaseProblemSpec) -> None:
-    """Fit an observer, moving the relative recording path of an example that runs in its folder to its run."""
+    """Fit an observer, moving the relative recording path of an example to its run.
+
+    This applies to an example that runs in its folder.
+    """
     path, target = observer.save_path, _REDIRECT.target
     in_example = Path.cwd().resolve() == _REDIRECT.source
     if target is not None and path is not None and not Path(path).is_absolute() and in_example:
@@ -48,10 +54,10 @@ def _prepare(observer: RerunObserver, problem: BaseProblemSpec) -> None:
 
 
 def images_markdown(paths: list[Path], script: GalleryScript) -> str:
-    """Return the Markdown of images of an example page, one below the other, in the order of the paths.
+    """Return the Markdown of images of an example page, one below the other.
 
-    Each image is rendered by `figure_md_or_html` of `mkdocs-gallery` with a single path, since its branch for several
-    paths leaves a raw HTML list with Markdown inside that is never rendered.
+    The images are in the order of the paths. Each image is rendered by `figure_md_or_html` of `mkdocs-gallery` with a
+    single path, since its branch for several paths leaves a raw HTML list with Markdown inside that is never rendered.
 
     Args:
         paths:
@@ -68,13 +74,14 @@ def images_markdown(paths: list[Path], script: GalleryScript) -> str:
 
 
 class RerunScraper:
-    """Image scraper of `mkdocs-gallery` that returns the Rerun screenshot of an example's primary view.
+    """Image scraper of `mkdocs-gallery` for the Rerun screenshot of an example.
 
-    After each code block, the scraper looks for an observer that finished saving a recording. It takes the screenshot
-    from the cache or captures it, and copies it to the example's images. The configuration runs this scraper before the
-    Matplotlib one, so the screenshot is the first image of the example and becomes its gallery thumbnail. The scraper
-    publishes the recording and its blueprint next to the screenshot for the interactive viewer, and writes the cache
-    key of the screenshot next to the example's page, so a later build knows which screenshot the page shows.
+    It returns the screenshot of the example's primary view. After each code block, the scraper looks for an observer
+    that finished saving a recording. It takes the screenshot from the cache or captures it, and copies it to the
+    example's images. The configuration runs this scraper before the Matplotlib one, so the screenshot is the first
+    image of the example and becomes its gallery thumbnail. The scraper publishes the recording and its blueprint next
+    to the screenshot for the interactive viewer, and writes the cache key of the screenshot next to the example's page,
+    so a later build knows which screenshot the page shows.
 
     The configuration runs `begin` before every example. It starts the clock of the whole script, whose run time
     without the captures must stay within the budget at every code block, and it gives the run a temporary folder of
@@ -118,11 +125,16 @@ class RerunScraper:
         self._folder: Path | None = None
 
     def __repr__(self) -> str:
-        """Return the backend, which `mkdocs-gallery` shows in its configuration."""
+        """Return the backend.
+
+        `mkdocs-gallery` shows it in its configuration.
+        """
         return f'RerunScraper(backend={self.backend!r})'
 
     def begin(self, gallery_conf: dict[str, object], file: Path | None) -> None:
-        """Start the clock and the recording folder of an example, as a module resetter of `mkdocs-gallery`.
+        """Start the clock and the recording folder of an example.
+
+        This method is a module resetter of `mkdocs-gallery`.
 
         Args:
             gallery_conf:
@@ -141,11 +153,17 @@ class RerunScraper:
         self._start, self._captured = time.perf_counter(), 0.0
 
     def _seconds(self) -> float | None:
-        """Return the run time of the current example without its captures, or `None` when no example began."""
+        """Return the run time of the current example without its captures.
+
+        It returns `None` when no example began.
+        """
         return None if self._start is None else time.perf_counter() - self._start - self._captured
 
     def _publish(self, observer: RerunObserver, folder: Path, stem: str) -> Path:
-        """Move the recording and its blueprint next to the example's images, and return the recording."""
+        """Move the recording and its blueprint next to the example's images.
+
+        It returns the recording.
+        """
         recording = Path(str(observer.save_path)).absolute()
         target = folder / f'{stem}.rrd'
         shutil.move(recording, target)
@@ -155,7 +173,9 @@ class RerunScraper:
         return target
 
     def __call__(self, block: object, script: GalleryScript) -> str:
-        """Return the Markdown of the screenshot of the recording a code block finished, or nothing.
+        """Return the Markdown of the screenshot of the recording a code block finished.
+
+        It returns nothing when the block finished no recording.
 
         Args:
             block:

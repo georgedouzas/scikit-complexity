@@ -1,4 +1,7 @@
-"""Estimate the basin stability of the attractors of a system over random initial states."""
+"""Estimate the basin stability of the attractors of a system.
+
+It is estimated over random initial states.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -56,11 +59,11 @@ def basin_stability(
     executor: str | Executor = 'serial',
     vectorized: bool = False,
 ) -> BasinStabilityResult:
-    """Return the fractions of random initial states, drawn uniformly within bounds, that end in each attractor.
+    """Return the fractions of random initial states that end in each attractor.
 
-    Every initial state is run to `until` and its trajectory is labelled by the classifier. With `vectorized`, all
-    initial states run as the members of one simulation of the replicated system, and the classifier receives every
-    member as a trajectory of the original system.
+    The initial states are drawn uniformly within bounds. Every initial state is run to `until` and its trajectory is
+    labelled by the classifier. With `vectorized`, all initial states run as the members of one simulation of the
+    replicated system, and the classifier receives every member as a trajectory of the original system.
 
     Args:
         system:

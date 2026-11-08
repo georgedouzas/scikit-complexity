@@ -14,7 +14,9 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class OuterTotalisticSpec(BaseSpec):
-    """Rule given by the next value of every pair of the cell's value and the sum of its neighbours' values.
+    """Rule given by the next value of every pair of a value and a neighbour sum.
+
+    The pair is the cell's value and the sum of its neighbours' values.
 
     Args:
         rule:

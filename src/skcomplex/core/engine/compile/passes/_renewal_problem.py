@@ -1,4 +1,4 @@
-"""Pass that adds the compiled renewal laws and the symbols of their counts to the problem."""
+"""Pass that adds the compiled renewal laws and their count symbols to the problem."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -30,7 +30,7 @@ from .._renewal_law import RenewalLaw
 
 
 class RenewalProblemPass(BasePass):
-    """Pass that adds the compiled renewal laws and the symbols of their counts to the problem."""
+    """Pass that adds the compiled renewal laws and their count symbols to the problem."""
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
@@ -62,7 +62,10 @@ class RenewalProblemPass(BasePass):
         time: Expression,
         owners: frozenset[str] | None,
     ) -> tuple[RenewalKernel, ...]:
-        """Return the renewal laws of the components a problem holds, compiled for their members."""
+        """Return the renewal laws of the components a problem holds.
+
+        They are compiled for their members.
+        """
         return tuple(
             RenewalProblemPass._compile_renewal(
                 item.spec.owner,
@@ -80,7 +83,10 @@ class RenewalProblemPass(BasePass):
 
     @staticmethod
     def _declared(owner: str, found: list[DrawSpec]) -> dict[str, DrawSpec]:
-        """Return the draws of a renewal law by name, after checking that each name has one declaration."""
+        """Return the draws of a renewal law by name.
+
+        It first checks that each name has one declaration.
+        """
         declared: dict[str, DrawSpec] = {}
         for item in found:
             known = declared.setdefault(item.name, item)
@@ -99,7 +105,10 @@ class RenewalProblemPass(BasePass):
 
     @staticmethod
     def _lowest_value(owner: str, description: str, waiting: Expression) -> float:
-        """Return the lowest value a waiting time that is a single draw can take, or 0 when it is not known."""
+        """Return the lowest value a waiting time that is a single draw can take.
+
+        It is 0 when the value is not known.
+        """
         operator = waiting.operator()
         if operator is None or getattr(operator, 'name', lambda: '')() not in DRAWS:
             return 0.0
@@ -132,7 +141,10 @@ class RenewalProblemPass(BasePass):
         slots: dict[Expression, str],
         time: Expression,
     ) -> MemberFunction:
-        """Return the function of renewing members that evaluates expressions, after checking the symbols they read."""
+        """Return the function of renewing members that evaluates expressions.
+
+        It first checks the symbols they read.
+        """
         arguments = sorted(symbols_of(list(expressions)) - {time}, key=str)
         readers: list[ReferenceSpec | str] = []
         for item in arguments:
@@ -180,7 +192,10 @@ class RenewalProblemPass(BasePass):
         references: Mapping[Expression, ReferenceSpec],
         rows: int,
     ) -> tuple[Indices, tuple[str, ...]]:
-        """Return the flat indices and the names of the states of every member of the group a renewal law renews."""
+        """Return the flat indices and names of the states of every renewed member.
+
+        The members are those of the group a renewal law renews.
+        """
         columns: dict[int, tuple[Indices, str]] = {}
         for reference in references.values():
             owned = reference.entry.name.rpartition('.')[0] == group
@@ -204,7 +219,10 @@ class RenewalProblemPass(BasePass):
         references: Mapping[Expression, ReferenceSpec],
         rows: int,
     ) -> Indices:
-        """Return the flat indices every reset component writes, one row per component and one column per member."""
+        """Return the flat indices every reset component writes.
+
+        There is one row per component and one column per member.
+        """
         places = []
         for item in targets:
             reference = references.get(item)
@@ -229,7 +247,10 @@ class RenewalProblemPass(BasePass):
         references: Mapping[Expression, ReferenceSpec],
         sampler: object,
     ) -> dict[str, ReferenceSpec]:
-        """Return the scalar states and parameters of the renewing members by name, for a function of the wait."""
+        """Return the scalar states and parameters of the renewing members by name.
+
+        They serve a function of the wait.
+        """
         if sampler is None:
             return {}
         return {

@@ -17,7 +17,9 @@ from ._problem_spec import ProblemSpec
 
 @dataclass(frozen=True)
 class _ControlProblemSpec(BaseSpec):
-    """Optimal control problem of a compiled system, with its cost written to be minimised.
+    """Optimal control problem of a compiled system.
+
+    Its cost is written to be minimised.
 
     Args:
         problem:

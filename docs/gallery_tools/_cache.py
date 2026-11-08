@@ -1,4 +1,7 @@
-"""Cache thumbnails under a key computed from the example, its system's and the core's code, Rerun, and the settings."""
+"""Cache thumbnails under a key computed from what they depend on.
+
+The key is computed from the example, its system's and the core's code, Rerun, and the settings.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

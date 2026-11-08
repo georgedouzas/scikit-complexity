@@ -15,10 +15,11 @@ from ._base import BaseSolver
 
 
 class RewritingSolver(BaseSolver[RewritingProblemSpec]):
-    """Solver of rewriting systems, which rewrites every structure in parallel once per generation.
+    """Solver of rewriting systems.
 
-    The structures live next to the state vector, whose components are their symbol, prototile, or label counts and
-    sizes. Stochastic productions draw from the simulation's random stream.
+    It rewrites every structure in parallel once per generation. The structures live next to the state vector, whose
+    components are their symbol, prototile, or label counts and sizes. Stochastic productions draw from the simulation's
+    random stream.
 
     Examples:
         >>> from skcomplex.core.components.spaces import DiscreteTime
@@ -108,7 +109,10 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
         return self._state()
 
     def _collect(self) -> None:
-        """Set the snapshot of the current structures, which later generations do not change, and their measures."""
+        """Set the snapshot of the current structures and their measures.
+
+        Later generations do not change the snapshot.
+        """
         reporters: dict[str, float] = {}
         for path, structure in self.structures_.items():
             if structure.has_geometry:

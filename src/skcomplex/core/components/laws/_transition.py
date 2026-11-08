@@ -14,10 +14,11 @@ from ._base import BaseLaw
 
 
 class TransitionLaw(BaseLaw):
-    """Step of a discrete-time Markov chain, a state over a finite alphabet drawn from a row of a transition matrix.
+    """Step of a discrete-time Markov chain.
 
-    The state's current value selects the row, and the next value is drawn from it. The state takes a categorical
-    domain or the integers from 0 to `n - 1`. A transition is a kind of update, so it combines with update laws.
+    The state is over a finite alphabet and drawn from a row of a transition matrix. The state's current value selects
+    the row, and the next value is drawn from it. The state takes a categorical domain or the integers from 0 to `n -
+    1`. A transition is a kind of update, so it combines with update laws.
 
     Args:
         target:
@@ -63,7 +64,10 @@ class TransitionLaw(BaseLaw):
         return RequirementSpec(time=(DiscreteTime,))
 
     def _check(self) -> None:
-        """Raise an error for a matrix that is neither a function nor a nonempty sequence of rows of equal length."""
+        """Raise an error for a matrix that is not a function or a nonempty matrix.
+
+        A nonempty matrix is a sequence of rows of equal length.
+        """
         if not self._is_function(self.matrix):
             self._check_matrix('matrix')
 

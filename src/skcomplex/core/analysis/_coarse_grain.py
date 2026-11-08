@@ -1,4 +1,7 @@
-"""Coarse-grain agents into fields on a grid, or the members of a group into a density over the values of a state."""
+"""Coarse-grain agents into fields, or members into densities.
+
+Agents become fields on a grid, or the members of a group a density over the values of a state.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,7 +24,9 @@ TAGS = AnalysisTags(DataKind.AGENTS)
 
 @dataclass(frozen=True)
 class CoarseGrainResult:
-    """Agents coarse-grained into a field on a grid, or members into a density over the values of a state.
+    """Agents coarse-grained into a field, or members into a density.
+
+    The field lies on a grid, and the density is over the values of a state.
 
     Args:
         positions:
@@ -50,10 +55,11 @@ def coarse_grain(
     over: npt.ArrayLike | None = None,
     state: str | None = None,
 ) -> CoarseGrainResult:
-    """Return agents coarse-grained into a field on a grid, or members into a density over the values of a state.
+    """Return agents coarse-grained into a field, or members into a density.
 
-    An array holds one snapshot, one row per agent in the box. A trajectory gives the positions of its first agent or
-    particle group at every frame, in the box of its space unless `box` is set, and one grid per frame.
+    The field lies on a grid, and the density is over the values of a state. An array holds one snapshot, one row per
+    agent in the box. A trajectory gives the positions of its first agent or particle group at every frame, in the box
+    of its space unless `box` is set, and one grid per frame.
 
     With `over`, the function coarse-grains in state space instead: every member counts at the given value nearest to
     its value of a state, and the field is the fraction of members at every value, which sums to 1. An array holds the
@@ -135,7 +141,7 @@ def _check(
     over: npt.ArrayLike | None,
     state: str | None,
 ) -> None:
-    """Validate the shape against a given box, or the values a state is coarse-grained over."""
+    """Validate the shape against a given box, or the values of a coarse-grained state."""
     if over is not None:
         grid = np.asarray(over, dtype=float)
         if grid.ndim != 1 or not grid.size or np.any(np.diff(grid) <= 0):
@@ -157,7 +163,10 @@ def _check(
 
 
 def _read_state(source: Source, state: str | None) -> Array:
-    """Return the values of the state of every member, from an array or from a trajectory."""
+    """Return the values of the state of every member.
+
+    They come from an array or from a trajectory.
+    """
     if isinstance(source, Trajectory):
         if state is None:
             error_msg = 'coarse_grain reads a trajectory with `over` at the state it names. Set `state`.'
@@ -173,7 +182,10 @@ def _read_state(source: Source, state: str | None) -> Array:
 
 
 def _get_density(values: Array, grid: Array) -> Array:
-    """Return the fraction of members at the value of the grid nearest to their value, ties to the lower value."""
+    """Return the fraction of members at the value of the grid nearest to their value.
+
+    Ties go to the lower value.
+    """
     if grid.size == 1:
         return np.ones(1)
     nearest = np.clip(np.searchsorted(grid, values), 1, grid.size - 1)

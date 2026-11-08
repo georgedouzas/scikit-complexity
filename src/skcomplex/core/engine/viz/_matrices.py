@@ -16,12 +16,12 @@ MATRIX_RANK = 2
 
 
 class MatrixVisual(BaseVisual):
-    """Visual that logs a matrix-valued state or parameter as an image colored by value, one image per frame.
+    """Visual that logs a matrix-valued state or parameter as an image.
 
-    The visual draws the variable `variable` of the element at `path`, or the state or parameter named
-    `<path>.<variable>` of a problem without such an element, such as a trained matrix of a system that trains, under
-    the entity path `<path>/<variable>`. The colors span the fixed range `color_range` when it is given and the range
-    of the frame otherwise.
+    The image is colored by value. It logs one image per frame. The visual draws the variable `variable` of the element
+    at `path`, or the state or parameter named `<path>.<variable>` of a problem without such an element, such as a
+    trained matrix of a system that trains, under the entity path `<path>/<variable>`. The colors span the fixed range
+    `color_range` when it is given and the range of the frame otherwise.
 
     Args:
         variable:
@@ -79,7 +79,9 @@ class MatrixVisual(BaseVisual):
             raise ValidationError(error_msg)
 
     def _prepare(self, context: BaseProblemSpec | None) -> None:
-        """Find the matrix of the element at the path, or the matrix named by the path and the variable, and the view.
+        """Find the matrix the visual draws, and the view.
+
+        The matrix is that of the element at the path, or the one named by the path and the variable.
 
         Args:
             context:

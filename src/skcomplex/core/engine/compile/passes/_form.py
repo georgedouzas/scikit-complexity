@@ -64,11 +64,12 @@ class FormPass(BasePass):
 
     @staticmethod
     def _form_kinds(owners: Iterable[set[type]]) -> frozenset[type]:
-        """Return the law classes that decide the form of components with their own law classes.
+        """Return the law classes that decide the form of components.
 
-        A combined class, such as a renewal, drops out of the classes when the rest are its companions and no component
-        has laws of that class alone. A component with laws of that class alone next to components with other laws keeps
-        it, so the system does not fit one form and runs as partitions.
+        They are the components with their own law classes. A combined class, such as a renewal, drops out of the
+        classes when the rest are its companions and no component has laws of that class alone. A component with laws of
+        that class alone next to components with other laws keeps it, so the system does not fit one form and runs as
+        partitions.
         """
         owned = [{kind for kind in kinds if not issubclass(kind, _FORMLESS_LAWS)} for kinds in owners]
         kinds: set[type] = set().union(*owned)

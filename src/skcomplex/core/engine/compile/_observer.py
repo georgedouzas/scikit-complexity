@@ -1,4 +1,7 @@
-"""Values of the observables that laws read at the current state, built from the blocks of a system."""
+"""Values of the observables that laws read at the current state.
+
+They are built from the blocks of a system.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -34,10 +37,11 @@ _REDUCERS: dict[str, Callable[..., Expression]] = {
 
 
 class Observer(BaseConfig[None, tuple[NodeSpec, object]]):
-    """Values of the observables that laws read at the current state, built from the blocks of a system.
+    """Values of the observables that laws read at the current state.
 
-    `prepare()` starts with no observable evaluated, and `run((node, label))` sets `observed_`, the namespace of the
-    observable a role of a component binds to, evaluating every observable once.
+    They are built from the blocks of a system. `prepare()` starts with no observable evaluated, and `run((node,
+    label))` sets `observed_`, the namespace of the observable a role of a component binds to, evaluating every
+    observable once.
 
     Args:
         declarations:
@@ -75,7 +79,9 @@ class Observer(BaseConfig[None, tuple[NodeSpec, object]]):
         self.values_ = {}
 
     def _run(self, inputs: tuple[NodeSpec, object] | None) -> None:
-        """Set the namespace of the observable a role binds to, or `None` for a role bound to no live observable.
+        """Set the namespace of the observable a role binds to.
+
+        It is `None` for a role bound to no live observable.
 
         Args:
             inputs:
@@ -103,7 +109,10 @@ class Observer(BaseConfig[None, tuple[NodeSpec, object]]):
         scope: str,
         observable: ObservableSpec,
     ) -> tuple[object, dict[Expression, ReferenceSpec]]:
-        """Return an expression of the symbols of a system's elements, with earlier observables by label."""
+        """Return an expression of the symbols of a system's elements.
+
+        Earlier observables are read by label.
+        """
         prefix = f'{scope}/' if scope else ''
         items: dict[str, object] = {}
         references: dict[Expression, ReferenceSpec] = {}
@@ -148,12 +157,18 @@ class Observer(BaseConfig[None, tuple[NodeSpec, object]]):
 
     @staticmethod
     def _source_of(block: BlockSpec) -> ReadKind:
-        """Return how laws read the variables of a block from outside it, per member for a group."""
+        """Return how laws read the variables of a block from outside it.
+
+        A group is read per member.
+        """
         return ReadKind.MEMBER if block.node.members is not None else ReadKind.SINGLE
 
     @staticmethod
     def _namespace_of(block: BlockSpec) -> SimpleNamespace:
-        """Return the namespace of the variables of a block, with tuples for per-entry parameters and tensor states."""
+        """Return the namespace of the variables of a block.
+
+        Per-entry parameters and tensor states are tuples.
+        """
         symbols: dict[str, object] = {}
         for name, value in block.symbols.items():
             entry = block.entries.get(name)
@@ -165,7 +180,7 @@ class Observer(BaseConfig[None, tuple[NodeSpec, object]]):
 
     @staticmethod
     def _reduced_value(path: str, observable: ObservableSpec, block: BlockSpec) -> object:
-        """Return an observable that reduces a group as a reduction over the group's member symbols."""
+        """Return an observable that reduces a group over its member symbols."""
         namespace = Observer._namespace_of(block)
         if observable.reduce == 'count':
             return count(over=namespace)

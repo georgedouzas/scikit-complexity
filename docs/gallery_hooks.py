@@ -1,4 +1,7 @@
-"""Check after the gallery is generated that every example it ran has a screenshot as its thumbnail."""
+"""Check that every example the gallery ran has a screenshot as its thumbnail.
+
+The check runs after the gallery is generated.
+"""
 
 import ast
 import contextlib
@@ -44,7 +47,10 @@ EMPTY_SUBSECTION = re.compile(r'^## [^\n]*\n\s*<div class="mkd-glr-clear"></div>
 
 
 def _without_empty_sections(nav: list[object]) -> list[object]:
-    """Return a navigation without the sections that hold no page, those of the subfields a sample build leaves out."""
+    """Return a navigation without the sections that hold no page.
+
+    They are those of the subfields a sample build leaves out.
+    """
     kept: list[object] = []
     for item in nav:
         if isinstance(item, dict):
@@ -68,7 +74,9 @@ def _systems_of_examples() -> dict[str, str]:
 
 
 def _show_expression(value: object) -> None:
-    """Print the value of an expression of a block, as a Python prompt does, except for a step that returns its object.
+    """Print the value of an expression of a block, as a Python prompt does.
+
+    A step that returns its object is not printed.
 
     Args:
         value:
@@ -82,7 +90,9 @@ def _show_expression(value: object) -> None:
 
 
 def _with_shown_expressions(code: str) -> str:
-    """Return the source of a block with the value of every expression statement at its top level shown.
+    """Return the source of a block with the values of its expressions shown.
+
+    The values shown are those of every expression statement at its top level.
 
     Args:
         code:
@@ -100,11 +110,11 @@ def _with_shown_expressions(code: str) -> str:
 
 
 def _with_executed_code(markdown: str, page: str) -> str:
-    """Return the Markdown of a guide or parts page with the values of the expressions of its Python blocks below them.
+    """Return the Markdown of a guide or parts page with the values of its expressions.
 
-    A block runs in a module of its own, registered as a real one because observables pickle the functions of a block,
-    and a block that continues another runs in the module of that block. The source stays plain, so it reads and tests
-    as it is.
+    The values of the expressions of its Python blocks are shown below them. A block runs in a module of its own,
+    registered as a real one because observables pickle the functions of a block, and a block that continues another
+    runs in the module of that block. The source stays plain, so it reads and tests as it is.
 
     Args:
         markdown:
@@ -147,7 +157,9 @@ def _with_executed_code(markdown: str, page: str) -> str:
 
 
 def on_page_markdown(markdown: str, page: Page, **kwargs: object) -> str:
-    """Run the blocks of a guide or parts page, or tidy a gallery page and describe the system of an example page.
+    """Run the blocks of a guide or parts page, or tidy a gallery page.
+
+    For an example page, it also describes the system.
 
     Args:
         markdown:
@@ -177,9 +189,10 @@ def on_page_markdown(markdown: str, page: Page, **kwargs: object) -> str:
 
 @event_priority(-200)
 def on_files(files: Files, **kwargs: object) -> Files:
-    """Remove the navigation file of the systems, so the build does not publish it as a page.
+    """Remove the navigation file of the systems.
 
-    The low priority runs this after `literate-nav`, which reads the file at priority -100.
+    The build thus does not publish it as a page. The low priority runs this after `literate-nav`, which reads the file
+    at priority -100.
 
     Args:
         files:
@@ -197,10 +210,10 @@ def on_files(files: Files, **kwargs: object) -> Files:
 
 
 def on_pre_build(config: MkDocsConfig, **kwargs: object) -> None:
-    """Fail the build on a failed example, a run example without a screenshot, or an orphan, and on any gap if strict.
+    """Fail the build on a failed, unscreenshotted, or orphan example.
 
-    The checksums of the failed examples and of those without a screenshot are removed first, so the next build runs
-    them again.
+    A run example without a screenshot fails it too, and with strict any gap does. The checksums of the failed examples
+    and of those without a screenshot are removed first, so the next build runs them again.
 
     Args:
         config:

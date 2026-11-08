@@ -30,12 +30,12 @@ def ensemble(
     random_state: int | None = None,
     executor: str | Executor = 'serial',
 ) -> ExperimentResult:
-    """Return the runs of a system with independent random streams, in the role of repeated cross-validation.
+    """Return the runs of a system with independent random streams.
 
-    The streams are spawned from `random_state`, so the runs of a stochastic system are independent and reproducible,
-    and the result reads them as an ensemble, one row per run and one column per common time. The system needs the
-    randomness `stochastic`, or a solver that draws, such as `KineticSolver`, since the runs of a deterministic system
-    by a deterministic solver repeat one another.
+    It is in the role of repeated cross-validation. The streams are spawned from `random_state`, so the runs of a
+    stochastic system are independent and reproducible, and the result reads them as an ensemble, one row per run and
+    one column per common time. The system needs the randomness `stochastic`, or a solver that draws, such as
+    `KineticSolver`, since the runs of a deterministic system by a deterministic solver repeat one another.
 
     Args:
         system:

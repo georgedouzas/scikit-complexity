@@ -1,4 +1,7 @@
-"""Find autocatalytic sets, the maximal reflexively autocatalytic and food-generated subset."""
+"""Find autocatalytic sets.
+
+An autocatalytic set is the maximal reflexively autocatalytic and food-generated subset.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -56,16 +59,17 @@ def autocatalytic_sets(
     food: Sequence[int] | None = None,
     frames: Sequence[int] | None = None,
 ) -> AutocatalyticSetsResult:
-    """Return the maximal autocatalytic set of a catalytic reaction network at every frame, by Hordijk and Steel.
+    """Return the maximal autocatalytic set of a catalytic reaction network.
 
-    The network is a network snapshot whose hyperedges are the reactions and whose directed edges are the catalysis.
-    Every hyperedge produces its last member from its other members, the reactants, and an edge from a node `c` to a
-    node `p` makes `c` a catalyst of every reaction that produces `p`, as goods catalyse the production of other goods
-    in the TAP model of Hordijk and Kauffman (2022). A set of reactions is reflexively autocatalytic and food-generated,
-    a RAF, when every reaction has a catalyst produced by the set or in the food set, and every reactant is reachable
-    from the food set by reactions of the set. The algorithm of Hordijk and Steel (2004) finds the largest RAF, the
-    union of every RAF: it removes the reactions with a reactant outside the closure of the food set, or without a
-    catalyst in it, until no reaction is removed, and returns the reactions left, an empty set when there is no RAF.
+    The set is found at every frame. The method is that of Hordijk and Steel. The network is a network snapshot whose
+    hyperedges are the reactions and whose directed edges are the catalysis. Every hyperedge produces its last member
+    from its other members, the reactants, and an edge from a node `c` to a node `p` makes `c` a catalyst of every
+    reaction that produces `p`, as goods catalyse the production of other goods in the TAP model of Hordijk and Kauffman
+    (2022). A set of reactions is reflexively autocatalytic and food-generated, a RAF, when every reaction has a
+    catalyst produced by the set or in the food set, and every reactant is reachable from the food set by reactions of
+    the set. The algorithm of Hordijk and Steel (2004) finds the largest RAF, the union of every RAF: it removes the
+    reactions with a reactant outside the closure of the food set, or without a catalyst in it, until no reaction is
+    removed, and returns the reactions left, an empty set when there is no RAF.
 
     Args:
         source:
@@ -130,7 +134,7 @@ def autocatalytic_sets(
 
 
 def _largest_raf(snapshot: NetworkSnapshotSpec, food: Sequence[int] | None) -> tuple[Indices, Indices]:
-    """Return the reactions of the largest RAF of a snapshot and the nodes they produce.
+    """Return the reactions of the largest RAF of a snapshot and the nodes they make.
 
     Args:
         snapshot:
@@ -169,19 +173,27 @@ def _largest_raf(snapshot: NetworkSnapshotSpec, food: Sequence[int] | None) -> t
 
 
 def _reactions_of(snapshot: NetworkSnapshotSpec) -> Indices:
-    """Return the hyperedges of a snapshot, one row of member nodes per reaction, padded with -1."""
+    """Return the hyperedges of a snapshot, one row of member nodes per reaction.
+
+    The rows are padded with -1.
+    """
     return np.zeros((0, 2), dtype=np.intp) if snapshot.hyperedges is None else snapshot.hyperedges
 
 
 def _food(snapshot: NetworkSnapshotSpec, products: list[int], food: Sequence[int] | None) -> set[int]:
-    """Return the food set: the given node rows, or the nodes present that no reaction produces."""
+    """Return the food set.
+
+    It is the given node rows, or the nodes present that no reaction produces.
+    """
     if food is not None:
         return {int(node) for node in food}
     return set(snapshot.nodes.tolist()) - set(products)
 
 
 def _closure(food: set[int], reactions: list[tuple[list[int], int]]) -> set[int]:
-    """Return the nodes reachable from the food set by reactions whose reactants are all reachable.
+    """Return the nodes reachable from the food set by reactions.
+
+    A reaction counts when its reactants are all reachable.
 
     Args:
         food:

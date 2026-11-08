@@ -1,4 +1,7 @@
-"""Find the point defects of a two-dimensional field of axes or vectors by the winding of their angles."""
+"""Find the point defects of a two-dimensional field of axes or vectors.
+
+The defects are found by the winding of their angles.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,7 +26,9 @@ TAGS = AnalysisTags(DataKind.FIELD)
 
 @dataclass(frozen=True)
 class DefectsResult:
-    """Point defects of a two-dimensional field of angles, with their topological charges, at every frame.
+    """Point defects of a two-dimensional field of angles at every frame.
+
+    They come with their topological charges.
 
     Args:
         angles:
@@ -48,11 +53,11 @@ def defects(
     variables: Sequence[str] | None = None,
     periodic: bool = True,
 ) -> DefectsResult:
-    """Return the point defects of a two-dimensional field of angles, with their topological charges, at every frame.
+    """Return the point defects of a two-dimensional field of angles at every frame.
 
-    The winding around a plaquette of four neighbouring sites is the sum of the differences of the angles along its
-    edges, each wrapped to one period around 0, over `2 pi`. A plaquette with a winding that is not 0 holds a defect of
-    that charge. The charges of a periodic lattice sum to 0.
+    They come with their topological charges. The winding around a plaquette of four neighbouring sites is the sum of
+    the differences of the angles along its edges, each wrapped to one period around 0, over `2 pi`. A plaquette with a
+    winding that is not 0 holds a defect of that charge. The charges of a periodic lattice sum to 0.
 
     An array of two dimensions holds one snapshot, and an array of three dimensions one frame per row of its first axis.
 

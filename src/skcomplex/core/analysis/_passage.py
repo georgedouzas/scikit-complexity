@@ -39,7 +39,9 @@ KIND_TAGS = {
 
 @dataclass(frozen=True)
 class PassageResult:
-    """Passages of paths to a level or a set of states, or of a Markov chain between two sets.
+    """Passages of paths to a level or a set, or of a Markov chain between two sets.
+
+    The set is a set of states.
 
     Args:
         values:
@@ -91,7 +93,9 @@ def passage(
     lag: int = 1,
     dt: float = 1.0,
 ) -> PassageResult:
-    """Return the passages of paths to a level or a set of states, or of a Markov chain between two sets, of one kind.
+    """Return the passages of paths to a level or a set, or of a Markov chain.
+
+    The set is a set of states, the passages of a Markov chain are between two sets, and they are of one kind.
 
     The kinds read paths, one row per path on common times, or a transition matrix:
 
@@ -216,7 +220,7 @@ def _check(
     lag: int,
     dt: float,
 ) -> None:
-    """Raise an error for a set a kind needs that is missing, or a lag or a step that is not positive."""
+    """Raise an error for a missing set of a kind, or a lag or step not positive."""
     if kind == 'first-passage' and threshold is None and target is None:
         error_msg = 'passage needs a threshold or the target states that end the passage.'
         raise AnalysisError(error_msg)
@@ -246,7 +250,7 @@ def _first_passage(
     target: Sequence[float] | None,
     direction: str,
 ) -> PassageResult:
-    """Return the first passage of every path to the threshold or into the target states."""
+    """Return the first passage of every path to the threshold or the target states."""
     level = float('nan') if threshold is None else threshold
     if target is not None:
         hits = np.isin(values, np.asarray(target, dtype=float))
@@ -276,7 +280,10 @@ def _mean_first_passage(
     lag: int,
     dt: float,
 ) -> float:
-    """Return the mean first-passage time to the target states, from the origin in its stationary weights."""
+    """Return the mean first-passage time to the target states.
+
+    It starts from the origin in its stationary weights.
+    """
     times = MarkovChain(matrix).first_passage_times_to('mean', _get_indices(target))
     if times is None:
         error_msg = 'passage needs a transition matrix with one stationary law, not a reducible one.'

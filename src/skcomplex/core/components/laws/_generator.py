@@ -1,4 +1,7 @@
-"""Define generator laws, the Hermitian operators that add up to the generator of a linear evolution."""
+"""Define generator laws.
+
+They are the Hermitian operators that add up to the generator of a linear evolution.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,7 +18,9 @@ from .utils import has_operator
 
 
 class GeneratorLaw(BaseLaw):
-    """Hermitian operator that adds to the generator `H` of the linear evolution `dx/dt = -i H x` on a tensor product.
+    """Hermitian operator that adds to the generator `H` of a linear evolution.
+
+    The evolution is `dx/dt = -i H x` on a tensor product.
 
     Args:
         operator:
@@ -40,7 +45,10 @@ class GeneratorLaw(BaseLaw):
         self.operator = operator
 
     def _get_targets(self) -> tuple[object, ...]:
-        """Return no states, since the generator changes the operator state of the whole system."""
+        """Return no states.
+
+        The generator changes the operator state of the whole system.
+        """
         return ()
 
     @classmethod
@@ -49,7 +57,7 @@ class GeneratorLaw(BaseLaw):
         return RequirementSpec(time=(ContinuousTime,))
 
     def _check(self) -> None:
-        """Raise an error for a function as the operator, or an operator without local operators."""
+        """Raise an error for a function as the operator, or one without local operators."""
         if callable(self.operator) and not isinstance(self.operator, Expression):
             error_msg = (
                 'Generators need symbolic operators, so a generator cannot be a function. Give the coefficient '
@@ -61,7 +69,9 @@ class GeneratorLaw(BaseLaw):
             raise ValidationError(error_msg)
 
     def _run(self, inputs: object) -> None:
-        """Set `value_` to the operator with its coefficients at given values of the symbols they read.
+        """Set `value_` to the operator with its coefficients at given symbol values.
+
+        The symbols are those the coefficients read.
 
         Args:
             inputs:

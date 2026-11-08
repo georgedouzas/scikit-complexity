@@ -73,7 +73,10 @@ class BaseElement(BasePart[BaseSpace, SimpleNamespace]):
         self.visual = visual
 
     def _check(self) -> None:
-        """Accept the element, which has nothing to check besides its label."""
+        """Accept the element.
+
+        An element has nothing to check besides its label.
+        """
 
     def _prepare(self, context: BaseSpace | None = None) -> None:
         """Set `default_visual_`, the plain visual of an element.
@@ -90,11 +93,16 @@ class BaseElement(BasePart[BaseSpace, SimpleNamespace]):
         return frozenset(domain for domain in domains if domain is not None)
 
     def _get_tags(self) -> Tags:
-        """Return the tags of the element: the domains of its states and the laws its class lists."""
+        """Return the tags of the element.
+
+        The tags are the domains of its states and the laws its class lists.
+        """
         return replace(self._get_law_tags(self._get_declared_laws()), domains=self._get_domain_tags())
 
     def get_states(self) -> dict[str, StateSpec]:
-        """Return the states the element carries with their specs, those of its class and those it declares from data.
+        """Return the states the element carries with their specs.
+
+        They are those of its class and those it declares from data.
 
         Returns:
             states:

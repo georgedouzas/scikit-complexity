@@ -1,4 +1,7 @@
-"""Add to the drift the correction of every noise law of a convention other than Itô."""
+"""Add to the drift the correction of every non-Itô noise law.
+
+A non-Itô noise law has a convention other than Itô.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -27,7 +30,10 @@ from .._compilation import Compilation
 
 
 class NoisePass(BasePass):
-    """Pass that adds the drift correction of every noise law of a convention after it, in the Itô form."""
+    """Pass that adds the drift correction of every noise law of a convention.
+
+    The correction follows the law, in the Itô form.
+    """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
@@ -61,7 +67,10 @@ class NoisePass(BasePass):
         terms: list[_NoiseTermSpec],
         wieners: Mapping[str, WienerProcessSpec],
     ) -> BaseLaw | None:
-        """Return the drift correction `alpha sum C_jl G_kl dG_ij/dx_k` of a noise term of a convention, or `None`."""
+        """Return the drift correction `alpha sum C_jl G_kl dG_ij/dx_k` of a noise term.
+
+        The noise term is of a convention, and the result is `None` without a correction.
+        """
         alpha = NOISE_CONVENTIONS[term.law.convention]
         if not alpha:
             return None
@@ -109,7 +118,10 @@ class NoisePass(BasePass):
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
         declarations: DeclarationsSpec,
     ) -> list[tuple[KernelSpec, list[BaseLaw]]]:
-        """Return laws with the drift correction of every noise law of a convention after it, in the Itô form."""
+        """Return laws with the drift correction of every noise law of a convention.
+
+        The correction follows the law, in the Itô form.
+        """
         terms = NoisePass._noise_terms(specs, declarations)
         by_law: dict[int, list[_NoiseTermSpec]] = defaultdict(list)
         for term in terms:
@@ -131,7 +143,10 @@ class NoisePass(BasePass):
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
         declarations: DeclarationsSpec,
     ) -> list[_NoiseTermSpec]:
-        """Return every component of every noise law, an independent process standing for itself alone."""
+        """Return every component of every noise law.
+
+        An independent process stands for itself alone.
+        """
         terms = []
         for spec, laws in specs:
             for law in laws:
@@ -154,7 +169,10 @@ class NoisePass(BasePass):
 
     @staticmethod
     def _process_key(spec: KernelSpec, item: object, declarations: DeclarationsSpec) -> ProcessKey:
-        """Return the process a label or a handle of a noise law names, as a local label or a Wiener process."""
+        """Return the process a label or a handle of a noise law names.
+
+        It is a local label or a Wiener process.
+        """
         if isinstance(item, str):
             return ('local', spec.owner, item)
         found = declarations.handles.get(item) if isinstance(item, Expression) else None
@@ -168,7 +186,10 @@ class NoisePass(BasePass):
 
     @staticmethod
     def _process_keys(spec: KernelSpec, law: NoiseLaw, declarations: DeclarationsSpec) -> list[ProcessKey | None]:
-        """Return the process of every component of the target of a noise law, `None` for an independent process."""
+        """Return the process of every component of the target of a noise law.
+
+        It is `None` for an independent process.
+        """
         count = len(components_of(law._get_targets()[0]))
         process = law.process
         if process is None:
@@ -186,7 +207,10 @@ class NoisePass(BasePass):
 
     @staticmethod
     def _process_covariance(first: object, second: object, wieners: Mapping[str, WienerProcessSpec]) -> float:
-        """Return the covariance per unit time of the increments of two processes, keys or independent markers."""
+        """Return the covariance per unit time of the increments of two processes.
+
+        The processes are keys or independent markers.
+        """
         if not (isinstance(first, tuple) and isinstance(second, tuple) and first[0] == 'wiener' == second[0]):
             return 1.0 if first == second else 0.0
         if first[1] != second[1]:

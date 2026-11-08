@@ -22,14 +22,14 @@ LOSSES = ('squares', 'likelihood')
 
 
 class Calibration(BaseConfig[None, None]):
-    """Fit of the model parameters of a system so that it reproduces observed time series, with SciPy.
+    """Fit of the model parameters of a system to observed time series, with SciPy.
 
-    Calibration is an estimator in the role of `GridSearchCV` of scikit-learn: `run` fits the model parameters and
-    sets `system_`, the system with the fitted parameters, a copy of the system with `set_params` applied or what the
-    factory builds from them. Every evaluation runs the system through `simulate` to the last data time and
-    interpolates its states or observables at the data times. Stochastic systems average `replicates` runs with fixed
-    streams, so the loss is smooth in the parameters. Least squares use `scipy.optimize.least_squares`, and the
-    Gaussian likelihood with an unknown variance uses `scipy.optimize.minimize`.
+    The fitted system reproduces the observed time series. Calibration is an estimator in the role of `GridSearchCV` of
+    scikit-learn: `run` fits the model parameters and sets `system_`, the system with the fitted parameters, a copy of
+    the system with `set_params` applied or what the factory builds from them. Every evaluation runs the system through
+    `simulate` to the last data time and interpolates its states or observables at the data times. Stochastic systems
+    average `replicates` runs with fixed streams, so the loss is smooth in the parameters. Least squares use
+    `scipy.optimize.least_squares`, and the Gaussian likelihood with an unknown variance uses `scipy.optimize.minimize`.
 
     Args:
         system:
@@ -125,7 +125,11 @@ class Calibration(BaseConfig[None, None]):
         self.random_state = random_state
 
     def _check(self) -> None:
-        """Raise an error for a system name, an unknown loss, no data, bad replicates, or a dotted path of bounds."""
+        """Raise an error for an invalid system, loss, data, replicates, or bounds.
+
+        The system is a system name, the loss is unknown, there is no data, the replicates are bad, or a bound has a
+        dotted path.
+        """
         _check_source(self.system)
         if self.loss not in LOSSES:
             error_msg = f'Unknown loss {self.loss!r}. Use one of {", ".join(LOSSES)}.'
@@ -151,7 +155,10 @@ class Calibration(BaseConfig[None, None]):
         self.seeds_ = np.random.SeedSequence(self.random_state).spawn(self.replicates)
 
     def _simulate(self, values: Sequence[float]) -> dict[str, Array]:
-        """Return the simulated series at the data times, averaged over the replicates, for parameter values."""
+        """Return the simulated series at the data times for parameter values.
+
+        They are averaged over the replicates.
+        """
         candidate = self._fitted_system(values)
         until = max(float(times.max()) for times, _ in self.series_.values())
         runs = []
@@ -181,7 +188,10 @@ class Calibration(BaseConfig[None, None]):
         return np.concatenate([simulated[path] - observed for path, (_, observed) in self.series_.items()])
 
     def _run(self, inputs: None = None) -> None:
-        """Fit the parameters and set the estimates, their covariance, and the fit statistics."""
+        """Fit the parameters and set the estimates and their covariance.
+
+        It also sets the fit statistics.
+        """
         names = list(self.bounds)
         start = np.asarray([(self.initial or {}).get(name, sum(self.bounds[name]) / 2) for name in names], dtype=float)
         low = np.asarray([self.bounds[name][0] for name in names], dtype=float)

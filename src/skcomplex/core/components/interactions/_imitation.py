@@ -1,4 +1,7 @@
-"""Define imitation of a discrete state of the neighbours, by a random neighbour, the majority, the best, or Fermi."""
+"""Define imitation of a discrete state of the neighbours.
+
+A member imitates a random neighbour, the majority, the best, or by the Fermi rule.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -28,15 +31,15 @@ TIES = ('first', 'random')
 
 
 class ImitationInteraction(NeighborInteraction):
-    """Imitation of a discrete state of the neighbours of every member, at a rate or with a probability per step.
+    """Imitation of a discrete state of the neighbours of every member.
 
-    By the rule `'random'` a member copies a neighbour chosen at random, by `'majority'` it takes the option that more
-    of its neighbours hold than any other, and by `'best'` it copies the neighbour whose payoff is largest, when that
-    payoff is larger than its own. By `'better'` it picks a neighbour at random and copies it when the neighbour's
-    payoff is larger than its own. By `'fermi'` it picks a neighbour at random and copies it with probability
-    `1 / (1 + exp(-beta (P_j - P_i)))`, where `P_j` and `P_i` are the payoffs of the neighbour and of the member and
-    `beta` is the intensity. A member without such a neighbour keeps its state. The rules read the neighbourhood of
-    the space, the graph of a network or the neighbourhood of a lattice.
+    The imitation happens at a rate or with a probability per step. By the rule `'random'` a member copies a neighbour
+    chosen at random, by `'majority'` it takes the option that more of its neighbours hold than any other, and by
+    `'best'` it copies the neighbour whose payoff is largest, when that payoff is larger than its own. By `'better'` it
+    picks a neighbour at random and copies it when the neighbour's payoff is larger than its own. By `'fermi'` it picks
+    a neighbour at random and copies it with probability `1 / (1 + exp(-beta (P_j - P_i)))`, where `P_j` and `P_i` are
+    the payoffs of the neighbour and of the member and `beta` is the intensity. A member without such a neighbour keeps
+    its state. The rules read the neighbourhood of the space, the graph of a network or the neighbourhood of a lattice.
 
     In the `'rate'` form every member imitates at the rate `rate`, by jumps between every pair of options in continuous
     time. In the `'probability'` form every member imitates with probability `probability` in every step of a
@@ -113,7 +116,10 @@ class ImitationInteraction(NeighborInteraction):
     draws = True
 
     def _get_tags(self) -> Tags:
-        """Return the tags of the rules, the updates that draw with a probability, or the jumps of the rate form."""
+        """Return the tags of the rules, the updates, or the jumps of the rate form.
+
+        The updates draw with a probability.
+        """
         form = self._get_argument('form')
         if form == 'agent':
             return self._get_variant_tags((RuleLaw,))
@@ -154,7 +160,10 @@ class ImitationInteraction(NeighborInteraction):
         self.ties = ties
 
     def _check_agent_options(self) -> None:
-        """Raise an error for an unknown schedule or ties, or either of them not default outside the agent form."""
+        """Raise an error for an unknown schedule or ties, or non-default ones off agents.
+
+        It also raises it for either of them not default outside the agent form.
+        """
         self._check_variant('schedule', self.schedule, SCHEDULES)
         self._check_variant('ties', self.ties, TIES)
         if self.form != 'agent' and (self.schedule != 'synchronous' or self.ties != 'first'):
@@ -165,7 +174,7 @@ class ImitationInteraction(NeighborInteraction):
             raise ValidationError(error_msg)
 
     def _check(self) -> None:
-        """Raise an error for an unknown rule, form, schedule, or ties, or options that are not distinct.
+        """Raise an error for unknown rule, form, schedule, or ties, or repeated options.
 
         Raises:
             ValidationError:
@@ -186,7 +195,10 @@ class ImitationInteraction(NeighborInteraction):
             raise ValidationError(error_msg)
 
     def _get_neighborhood(self) -> AdjacencyNeighborhood | None:
-        """Return the neighbourhood of the layer, or `None` for the neighbourhood of the space."""
+        """Return the neighbourhood of the layer.
+
+        It returns `None` for the neighbourhood of the space.
+        """
         return None if self.layer is None else AdjacencyNeighborhood(layer=self.layer)
 
     def _get_fermi(self, member: SimpleNamespace, other: SimpleNamespace, intensity: Expression) -> Expression:
@@ -201,7 +213,10 @@ class ImitationInteraction(NeighborInteraction):
         }
 
     def _get_majority(self, namespace: SimpleNamespace) -> dict[float, Expression]:
-        """Return the indicator of every option that more of the neighbours of the target hold than any other."""
+        """Return the indicator of every option most neighbours of the target hold.
+
+        More of the neighbours hold that option than any other.
+        """
         counts = self._get_counts(namespace)
         leads = {}
         for option, count in counts.items():
@@ -213,7 +228,10 @@ class ImitationInteraction(NeighborInteraction):
         return leads
 
     def _get_best(self, namespace: SimpleNamespace) -> tuple[Expression, Expression]:
-        """Return the option of the neighbour of largest payoff and whether that payoff is larger than the target's."""
+        """Return the option of the neighbour of largest payoff and if it beats the target.
+
+        It returns whether that payoff is larger than the target's.
+        """
         source, over = self._get_member(namespace, 'source'), self._get_neighborhood()
         payoff = getattr(source, self.payoff)
         best = neighbors(getattr(source, self.state), over=over, reduce='argmax', weight=payoff)
@@ -221,14 +239,20 @@ class ImitationInteraction(NeighborInteraction):
         return best, where(largest > getattr(self._get_member(namespace, 'target'), self.payoff), 1, 0)
 
     def _switches(self, value: Expression, rate: Expression, chosen: Expression) -> list[BaseLaw]:
-        """Return the jumps of a state from every option to the chosen option, at a rate when it is chosen."""
+        """Return the jumps of a state from every option to the chosen option.
+
+        A jump happens at a rate when the option is chosen.
+        """
         return [
             JumpLaw(rate * where(value == first, 1, 0) * where(chosen == second, 1, 0), {value: second - first})
             for first, second in itertools.permutations(self.options, 2)
         ]
 
     def _copies(self, member: SimpleNamespace, other: SimpleNamespace, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the copies of the state of the other end of an edge by a member, chosen among its neighbours."""
+        """Return the copies by a member of the state of the other end of an edge.
+
+        The other end is chosen among its neighbours.
+        """
         value, rate = getattr(member, self.state), self._get_parameter_symbol('rate', namespace) / member.degree
         if self.rule == 'fermi':
             rate = rate * self._get_fermi(member, other, self._get_parameter_symbol('intensity', namespace))
@@ -255,7 +279,10 @@ class ImitationInteraction(NeighborInteraction):
         return [*self._copies(target, source, namespace), *self._copies(source, target, namespace)]
 
     def _draw_copy(self, namespace: SimpleNamespace) -> Expression:
-        """Return the next state of the target by the random or the Fermi rule, from the option it copies or its own."""
+        """Return the next state of the target by the random or the Fermi rule.
+
+        It comes from the option it copies or its own.
+        """
         source, target = self._get_member(namespace, 'source'), self._get_member(namespace, 'target')
         value = getattr(target, self.state)
         probability, over = self._get_parameter_symbol('probability', namespace), self._get_neighborhood()
@@ -277,7 +304,10 @@ class ImitationInteraction(NeighborInteraction):
         )
 
     def _get_update(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the update of the state of the target with the probability of imitation, in discrete time."""
+        """Return the update of the state of the target with the probability of imitation.
+
+        It is for discrete time.
+        """
         value = getattr(self._get_member(namespace, 'target'), self.state)
         if self.rule in ('random', 'fermi'):
             return [UpdateLaw(value, self._draw_copy(namespace), phase=self.phase)]
@@ -326,7 +356,10 @@ class ImitationInteraction(NeighborInteraction):
         neighbours: Sequence[AgentViewProtocol],
         system: SystemViewProtocol,
     ) -> float | None:
-        """Return the option an agent copies from its neighbours by the rule, or `None` to keep its own."""
+        """Return the option an agent copies from its neighbours by the rule.
+
+        It returns `None` for the agent to keep its own.
+        """
         rng = system.rng
         if self.rule == 'majority':
             counts = [sum(getattr(other, self.state) == option for other in neighbours) for option in self.options]
@@ -349,7 +382,10 @@ class ImitationInteraction(NeighborInteraction):
         return float(getattr(other, self.state)) if rng.random() < fermi else None
 
     def _get_choice(self, agent: AgentViewProtocol, system: SystemViewProtocol) -> float | None:
-        """Return the option an agent copies with the probability of imitation, or `None` to keep its own."""
+        """Return the option an agent copies with the probability of imitation.
+
+        It returns `None` for the agent to keep its own.
+        """
         groups = set(system.groups(self._get_role('target')))
         neighbours = [other for other in agent.neighbors(layer=self.layer) if other.group in groups]
         if not neighbours or system.rng.random() >= self._get_parameter_value('probability', system):
@@ -362,10 +398,16 @@ class ImitationInteraction(NeighborInteraction):
             setattr(agent, self.state, choice)
 
     def _imitate_member(self, agent: AgentViewProtocol, system: SystemViewProtocol) -> None:
-        """Let one agent imitate its neighbours with the probability of imitation, in its own activation."""
+        """Let one agent imitate its neighbours with the probability of imitation.
+
+        This happens in its own activation.
+        """
         if agent.alive:
             self._set_choice(agent, self._get_choice(agent, system))
 
     def _imitate(self, system: SystemViewProtocol) -> None:
-        """Let every agent imitate its neighbours with the probability of imitation, by the schedule."""
+        """Let every agent imitate its neighbours with the probability of imitation.
+
+        The agents follow the schedule.
+        """
         self._update_agents(system, self.schedule, self._get_choice, self._set_choice)

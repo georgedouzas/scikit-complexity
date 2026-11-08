@@ -1,4 +1,7 @@
-"""Coarse-grain networks across scales by their Laplacian or by the angles of their nodes."""
+"""Coarse-grain networks across scales.
+
+The coarse-graining is by their Laplacian or by the angles of their nodes.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -41,7 +44,9 @@ TAGS = AnalysisTags(DataKind.NETWORK, space=frozenset({'network'}))
 
 @dataclass(frozen=True)
 class RenormalizationResult:
-    """Network at every scale of a coarse-graining of a graph, or of the last frame of a trajectory.
+    """Network at every scale of a coarse-graining of a graph or of a trajectory.
+
+    The graph of a trajectory is that of its last frame.
 
     Args:
         graph:
@@ -78,7 +83,9 @@ def renormalization(
     angle: str = 'angle',
     beta: float = 1.0,
 ) -> RenormalizationResult:
-    """Return the network at every scale of a coarse-graining of a graph, or of the last frame of a trajectory.
+    """Return the network at every scale of a coarse-graining of a graph or trajectory.
+
+    The graph of a trajectory is that of its last frame.
 
     The kinds merge nodes into supernodes, and two supernodes link when any of their nodes link:
 
@@ -186,7 +193,10 @@ def renormalization(
 
 
 def _read_frame(trajectory: Trajectory) -> nx.Graph:
-    """Return the network of the last frame of a trajectory with the values of the group on its nodes."""
+    """Return the network of the last frame of a trajectory.
+
+    The values of the group lie on its nodes.
+    """
     topology = trajectory.problem.topology
     if topology is None:
         return _read_networks(trajectory)[-1]
@@ -208,7 +218,10 @@ def _coarsen(graph: nx.Graph, time: float | None) -> nx.Graph:
 
 
 def _merge_by_angle(graph: nx.Graph, angle: str, block: int, beta: float) -> nx.Graph:
-    """Return the network of the blocks of consecutive nodes by angle, at their angles weighted by the degrees."""
+    """Return the network of the blocks of consecutive nodes by angle.
+
+    The blocks lie at their angles weighted by the degrees.
+    """
     missing = [node for node in graph if angle not in graph.nodes[node]]
     if missing:
         error_msg = f'The nodes {missing[:5]} have no attribute {angle!r}. Give it, or set `angle`.'
@@ -222,7 +235,10 @@ def _merge_by_angle(graph: nx.Graph, angle: str, block: int, beta: float) -> nx.
 
 
 def _supernode_angle(graph: nx.Graph, block: list[object], angle: str, beta: float) -> float:
-    """Return the angle of a supernode, the plain mean when none of its nodes has an edge."""
+    """Return the angle of a supernode.
+
+    It is the plain mean when none of its nodes has an edge.
+    """
     angles = np.asarray([graph.nodes[node][angle] for node in block], dtype=float)
     degrees = np.asarray([graph.degree(node) for node in block], dtype=float)
     weights = degrees ** max(1.0, beta)
@@ -230,7 +246,10 @@ def _supernode_angle(graph: nx.Graph, block: list[object], angle: str, beta: flo
 
 
 def _diffusion_labels(graph: nx.Graph, nodes: list[object], time: float | None) -> npt.NDArray[np.int64]:
-    """Return the supernode of every node, at the given time or at the first peak of the heat that merges nodes."""
+    """Return the supernode of every node.
+
+    The nodes merge at the given time or at the first peak of the heat.
+    """
     laplacian = nx.laplacian_matrix(graph, nodelist=nodes).astype(float).tocsc()
     if time is not None:
         return _join_labels(_diffuse(laplacian, time))
@@ -243,7 +262,10 @@ def _diffusion_labels(graph: nx.Graph, nodes: list[object], time: float | None) 
 
 
 def _diffuse(laplacian: sparse.csc_matrix, time: float) -> Array:
-    """Return the diffusion operator, with the dense exponential below a few thousand nodes."""
+    """Return the diffusion operator.
+
+    It uses the dense exponential below a few thousand nodes.
+    """
     size = laplacian.shape[0]
     if size < DENSE_NODES:
         return np.asarray(expm(-time * laplacian.toarray()), dtype=float)
@@ -251,14 +273,20 @@ def _diffuse(laplacian: sparse.csc_matrix, time: float) -> Array:
 
 
 def _join_labels(operator: Array) -> npt.NDArray[np.int64]:
-    """Return the connected component of every node, where an entry at least the smaller diagonal entry joins."""
+    """Return the connected component of every node.
+
+    An entry at least the smaller diagonal entry joins two nodes.
+    """
     diagonal = np.diag(operator)
     joins = operator >= np.minimum.outer(diagonal, diagonal)
     return np.asarray(connected_components(sparse.csr_matrix(joins), directed=False)[1], dtype=np.int64)
 
 
 def _heat_peaks(eigenvalues: Array) -> list[float]:
-    """Return the diffusion times of the local peaks of the specific heat, smallest first."""
+    """Return the diffusion times of the local peaks of the specific heat.
+
+    The smallest comes first.
+    """
     positive = eigenvalues[eigenvalues > SMALLEST_EIGENVALUE]
     if not positive.size:
         return []

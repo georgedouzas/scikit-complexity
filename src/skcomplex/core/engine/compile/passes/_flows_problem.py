@@ -1,4 +1,7 @@
-"""Pass that adds the quantities, flows, and records of the transfer network to the problem."""
+"""Pass that adds the transfer network to the problem.
+
+It adds the quantities, flows, and records of the network.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -10,7 +13,10 @@ from .._compilation import Compilation
 
 
 class FlowsProblemPass(BasePass):
-    """Pass that adds the quantities, flows, and records of the transfer network to the problem."""
+    """Pass that adds the transfer network to the problem.
+
+    It adds the quantities, flows, and records of the network.
+    """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
