@@ -131,8 +131,8 @@ class LogisticCouplingInteraction(CouplingInteraction):
         >>> from skcomplex.core.components.elements import LatticeElement
         >>> from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.systems.physics.synchronization import LogisticCouplingInteraction, LogisticNodeElement
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> maps = LatticeElement(
         ...     'maps',
         ...     element=LogisticNodeElement,
@@ -141,7 +141,7 @@ class LogisticCouplingInteraction(CouplingInteraction):
         ... )
         >>> coupling = LogisticCouplingInteraction('coupling', target='maps')
         >>> system = System(elements=[maps], interactions=[coupling], time=DiscreteTime())
-        >>> Simulation(system).prepare().run(until=1).trajectory_.values('maps.x')[-1].tolist()
+        >>> simulate(system, until=1).values('maps.x')[-1].tolist()
         [0.875, 0.875]
     """
 

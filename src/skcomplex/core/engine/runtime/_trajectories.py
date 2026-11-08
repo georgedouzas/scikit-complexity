@@ -50,12 +50,12 @@ class Trajectory:
     Examples:
         >>> from skcomplex.core.components.system import System
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
-        >>> from skcomplex.core.engine.runtime import Simulation
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> system = System(
         ...     elements=[PopulationElement('a', n=1)],
         ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
         ... )
-        >>> trajectory = Simulation(system, dt=0.5).prepare().run(until=1).trajectory_
+        >>> trajectory = simulate(system, until=1, dt=0.5)
         >>> trajectory.times.tolist()
         [0.0, 0.5, 1.0]
         >>> trajectory.values('a.n').round(3).tolist()
@@ -147,12 +147,12 @@ class Trajectory:
         Examples:
             >>> import numpy as np
             >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-            >>> from skcomplex.core.engine.runtime import Simulation
             >>> from skcomplex.core.experiments._replicate import _replicate
             >>> from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
+            >>> from skcomplex.core.engine.runtime import simulate
             >>> system = LogisticMapSystem().prepare().system_
             >>> ensemble = _replicate(system, 3, {'map.x': [0.1, 0.2, 0.3]})
-            >>> trajectory = Simulation(ensemble, dt=1).prepare().run(until=2).trajectory_
+            >>> trajectory = simulate(ensemble, until=2, dt=1)
             >>> float(trajectory.member(1, PassCompiler().prepare(system).run().problem_).values('map.x')[0])
             0.2
         """
@@ -198,9 +198,9 @@ class Trajectory:
                 The locations at every frame, empty arrays for frames without locations.
 
         Examples:
-            >>> from skcomplex.core.engine.runtime import Simulation
-            >>> from skcomplex.systems import create_system
-            >>> trajectory = Simulation(create_system('boids'), random_state=0).prepare().run(until=2).trajectory_
+            >>> from skcomplex.core.engine.runtime import simulate
+            >>> from skcomplex.systems.biology.collective_behaviour import BoidsSystem
+            >>> trajectory = simulate(BoidsSystem().prepare().system_, until=2, random_state=0)
             >>> [locations.shape[1] for locations in trajectory.agent_locations('flock')]
             [2, 2, 2]
         """
@@ -302,8 +302,9 @@ class Trajectory:
                 The path is not a rewritten element of the system.
 
         Examples:
-            >>> from skcomplex.systems import create_simulation
-            >>> trajectory = create_simulation('cantor_set').prepare().run(until=4).trajectory_
+            >>> from skcomplex.core.engine.runtime import simulate
+            >>> from skcomplex.systems.mathematics.fractals import CantorSetSystem
+            >>> trajectory = simulate(CantorSetSystem(), until=4, random_state=0)
             >>> trajectory.structure('cantor', 2).parts
             4
         """

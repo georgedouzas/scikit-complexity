@@ -143,7 +143,7 @@ def operator_measures(
         >>> from skcomplex.core.specs import HilbertSpec, StateSpec
         >>> from skcomplex.core.components.system import System
         >>> from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
-        >>> from skcomplex.core.engine.runtime import Simulation
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> operators = {'z': (np.diag([1, -1]), True), 'minus': (np.array([[0, 0], [1, 0]]), False)}
         >>> QUBIT = HilbertSpec(2, operators, basis={'up': 0, 'down': 1})
         >>> class TwoLevelElement(Element):
@@ -161,9 +161,7 @@ def operator_measures(
         [-1.0, 1.0]
         >>> singlet = np.array([0, 1, -1, 0]) / np.sqrt(2)
         >>> pair = System(elements=[GroupElement('pair', element=TwoLevelElement, size=2)])
-        >>> trajectory = Simulation(
-        ...     pair, compiler=OperatorCompiler(), dt=1.0, initial_state={'system.state': singlet},
-        ... ).prepare().run(until=1.0).trajectory_
+        >>> trajectory = simulate(pair, until=1.0, dt=1.0, initial_state={'system.state': singlet})
         >>> result = operator_measures(trajectory, kind='entanglement', subsystems=['pair[0]'])
         >>> bool(np.allclose(result.entropy, np.log(2)))
         True

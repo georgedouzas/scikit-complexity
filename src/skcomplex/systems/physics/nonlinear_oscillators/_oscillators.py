@@ -417,10 +417,10 @@ class VanDerPolElement(Element):
 
     Examples:
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.systems.physics.nonlinear_oscillators import VanDerPolElement
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> system = System(elements=[VanDerPolElement('oscillator', x=0.1)])
-        >>> trajectory = Simulation(system, dt=0.1).prepare().run(until=50.0).trajectory_
+        >>> trajectory = simulate(system, until=50.0, dt=0.1)
         >>> round(float(abs(trajectory.values('oscillator.x')[-300:]).max()), 1)
         2.0
     """

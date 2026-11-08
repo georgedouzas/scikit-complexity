@@ -900,8 +900,8 @@ class MesaSolver(ExternalSolver):
         >>> from skcomplex.core.components.laws import RuleLaw
         >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.core.engine.solvers import MesaSolver
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> class CounterElement(Element):
         ...     def __init__(self, label, count: Annotated[float, StateSpec()] = 0.0):
         ...         super().__init__(label)
@@ -913,7 +913,7 @@ class MesaSolver(ExternalSolver):
         ...     def tick(self, agent, system):
         ...         agent.count += 1
         >>> system = System(elements=[GroupElement('counters', element=CounterElement, size=3)])
-        >>> trajectory = Simulation(system, solver=MesaSolver()).prepare().run(until=4).trajectory_
+        >>> trajectory = simulate(system, until=4, solver=MesaSolver())
         >>> trajectory.agents('counters', 4).values['count'].tolist()
         [4.0, 4.0, 4.0]
     """

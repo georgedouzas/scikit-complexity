@@ -44,10 +44,10 @@ class LorenzElement(Element):
 
     Examples:
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.systems.mathematics.common.flows import LorenzElement
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> system = System(elements=[LorenzElement('lorenz', x=0.0, y=0.0, z=2.0, beta=0.5)])
-        >>> trajectory = Simulation(system, dt=0.5).prepare().run(until=1.0).trajectory_
+        >>> trajectory = simulate(system, until=1.0, dt=0.5)
         >>> [round(float(value), 4) for value in trajectory.values('lorenz.z')]
         [2.0, 1.5576, 1.2131]
     """

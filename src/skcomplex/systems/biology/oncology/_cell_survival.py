@@ -147,10 +147,10 @@ class LQCellSurvivalSystem(BaseSystem):
             The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.systems.biology.oncology import LQCellSurvivalSystem
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> system = LQCellSurvivalSystem(60.0, fractions=30.0).prepare().system_
-        >>> trajectory = Simulation(system).prepare().run(1.0).trajectory_
+        >>> trajectory = simulate(system, until=1.0)
         >>> round(float(trajectory.values('cells.effective_dose')[0]), 1)
         72.0
     """

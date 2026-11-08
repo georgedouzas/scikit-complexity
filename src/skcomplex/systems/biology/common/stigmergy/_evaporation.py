@@ -40,9 +40,9 @@ class EvaporationInteraction(RateInteraction):
         >>> from typing import Annotated
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.systems.biology.common.stigmergy import EvaporationInteraction
         >>> from skcomplex.core.specs import ParameterSpec, StateSpec
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> class ScentElement(Element):
         ...     def __init__(
         ...         self, label, level: Annotated[float, StateSpec()] = 8.0, e: Annotated[float, ParameterSpec()] = 0.5
@@ -52,7 +52,7 @@ class EvaporationInteraction(RateInteraction):
         ...         self.e = e
         >>> evaporation = EvaporationInteraction('evaporation', target='scent', state='level', evaporation='e')
         >>> system = System(elements=[ScentElement('scent')], interactions=[evaporation])
-        >>> trajectory = Simulation(system, dt=0.01).prepare().run(until=2.0).trajectory_
+        >>> trajectory = simulate(system, until=2.0, dt=0.01)
         >>> round(float(trajectory.values('scent.level')[-1]), 3)
         2.943
     """

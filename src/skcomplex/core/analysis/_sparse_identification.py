@@ -14,12 +14,11 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
-from skcomplex.core.engine.runtime import simulate
-
 from ..components.elements import DeclaredElement
 from ..components.laws import BaseLaw, RateLaw
 from ..components.spaces import BaseTime, ContinuousTime
 from ..components.system import System
+from ..engine.runtime import simulate
 from ..errors import AnalysisError
 from ..specs import AnalysisTags, DeclaredVariableSpec, ParameterSpec, SamplesSpec, StateSpec, VisualSpec
 from ..types import Array, DataKind
@@ -206,10 +205,12 @@ def sparse_identification(
 def _forecast(system: System, label: str, states: list[str], last_state: Array, *, dt: float, horizon: int) -> Array:
     """Return the variables of the fitted system simulated from the last sample, one row per sample."""
     names = [f'{label}.{name}' for name in states]
-    simulation = simulate(
-        system, until=horizon * dt, dt=dt, initial_state=dict(zip(names, map(float, last_state), strict=True))
+    trajectory = simulate(
+        system,
+        until=horizon * dt,
+        dt=dt,
+        initial_state=dict(zip(names, map(float, last_state), strict=True)),
     )
-    trajectory = simulation
     values = np.column_stack([np.asarray(trajectory.values(name), dtype=np.float64) for name in names])
     return values[1 : horizon + 1].reshape(horizon, len(names))
 

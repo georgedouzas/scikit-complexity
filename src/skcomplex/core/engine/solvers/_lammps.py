@@ -111,8 +111,8 @@ class LammpsSolver(ExternalSolver):
         >>> from skcomplex.core.components.interactions import PairCouplingInteraction
         >>> from skcomplex.core.components.spaces import ContinuousSpace
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.core.engine.solvers import LammpsSolver
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> potential = lambda namespace, r: 4 * (r**-12 - r**-6)
         >>> system = System(
         ...     elements=[
@@ -122,7 +122,7 @@ class LammpsSolver(ExternalSolver):
         ...     space=ContinuousSpace(n_dim=2),
         ... )
         >>> solver = LammpsSolver(dt=0.005)
-        >>> trajectory = Simulation(system, solver=solver, dt=0.1).prepare().run(until=0.5).trajectory_
+        >>> trajectory = simulate(system, until=0.5, solver=solver, dt=0.1)
         >>> positions = trajectory.values('gas.x')
         >>> bool(positions[-1, 1, 0] - positions[-1, 0, 0] < 1.5)
         True

@@ -146,12 +146,12 @@ class TopologyInteraction(NeighborInteraction):
         >>> from skcomplex.core.components.interactions import TopologyInteraction
         >>> from skcomplex.core.components.spaces import NetworkSpace
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> nodes = GroupElement('nodes', element=Element, on='sites', variable=True, capacity=20)
         >>> links = GroupElement('links', element=Element, on='edges', variable=True, capacity=20)
         >>> expiry = TopologyInteraction('expiry', target='nodes', action='remove-edge')
         >>> system = System(elements=[nodes, links], interactions=[expiry], space=NetworkSpace(nx.cycle_graph(5)))
-        >>> trajectory = Simulation(system, random_state=0).prepare().run(until=1).trajectory_
+        >>> trajectory = simulate(system, until=1, random_state=0)
         >>> len(trajectory.network(0).sources), len(trajectory.network(1).sources)
         (5, 0)
 
@@ -159,13 +159,14 @@ class TopologyInteraction(NeighborInteraction):
 
         >>> import xgi
         >>> from skcomplex.core.components.spaces import DiscreteTime
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> triangles = GroupElement('triangles', element=Element, on='hyperedges', variable=True, capacity=8)
         >>> growth = TopologyInteraction('growth', action='add-node', hyperedge=3)
         >>> space = NetworkSpace(nx.complete_graph(3), hyperedges=[[0, 1, 2]])
         >>> system = System(
         ...     elements=[nodes, links, triangles], interactions=[growth], space=space, time=DiscreteTime()
         ... )
-        >>> trajectory = Simulation(system, random_state=0).prepare().run(until=5).trajectory_
+        >>> trajectory = simulate(system, until=5, random_state=0)
         >>> trajectory.network(-1).hyperedges.shape
         (6, 3)
     """

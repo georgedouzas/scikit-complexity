@@ -95,7 +95,7 @@ class CoSimulationSolver(Solver):
     Examples:
         >>> from skcomplex.core.components.system import System
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
-        >>> from skcomplex.core.engine.runtime import Simulation
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.solvers import CoSimulationSolver
         >>> system = System(
         ...     systems=[
@@ -111,10 +111,9 @@ class CoSimulationSolver(Solver):
         ...         ),
         ...     ],
         ... )
-        >>> simulation = Simulation(system, solver=CoSimulationSolver(split=True), dt=0.5)
-        >>> simulation = simulation.prepare().run(until=1)
-        >>> sorted(simulation.stepper_.steppers_)
-        ['a', 'b']
+        >>> trajectory = simulate(system, until=1, solver=CoSimulationSolver(split=True), dt=0.5)
+        >>> [round(float(trajectory.values(name)[-1]), 2) for name in ('a.x.n', 'b.y.n')]
+        [2.72, 2.72]
     """
 
     @classmethod

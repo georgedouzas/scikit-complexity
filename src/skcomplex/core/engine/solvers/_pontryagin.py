@@ -88,7 +88,7 @@ class PontryaginSolver(OptimalControlSolver):
         >>> from skcomplex.core.components.laws import RateLaw
         >>> from skcomplex.core.specs import ParameterSpec, StateSpec
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.solvers import PontryaginSolver
         >>> class PlantElement(Element):
         ...     def __init__(
@@ -104,9 +104,8 @@ class PontryaginSolver(OptimalControlSolver):
         ...     def _get_laws(self, s):
         ...         return [RateLaw(s.x, s.u)]
         >>> solver = PontryaginSolver(objective=lambda s: (s.plant.x**2 + s.plant.u**2) / 2)
-        >>> simulation = Simulation(System(elements=[PlantElement('plant')]), solver=solver)
-        >>> simulation = simulation.prepare().run(until=1.0)
-        >>> float(round(simulation.trajectory_.values('plant.u')[0], 3))
+        >>> trajectory = simulate(System(elements=[PlantElement('plant')]), until=1.0, solver=solver)
+        >>> float(round(trajectory.values('plant.u')[0], 3))
         -0.762
     """
 

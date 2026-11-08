@@ -48,7 +48,7 @@ class DiffusionInteraction(ConservationInteraction):
         >>> from skcomplex.core.components.interactions import DiffusionInteraction
         >>> from skcomplex.core.components.spaces import LatticeSpace
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.specs import StateSpec
         >>> class CellElement(Element):
         ...     def __init__(self, label, u: Annotated[float, StateSpec()] = 0.0):
@@ -57,8 +57,8 @@ class DiffusionInteraction(ConservationInteraction):
         >>> space = LatticeSpace((40,), spacing=0.1, boundary='periodic')
         >>> field = FieldElement('rod', element=CellElement, space=space, values={'u': np.eye(40)[20]})
         >>> heat = DiffusionInteraction('heat', target='rod', state='u', coefficient=0.1)
-        >>> trajectory = Simulation(System(elements=[field], interactions=[heat]), dt=0.01).prepare()
-        >>> round(float(trajectory.run(until=1.0).trajectory_.values('rod.u')[-1].sum()), 6)
+        >>> trajectory = simulate(System(elements=[field], interactions=[heat]), until=1.0, dt=0.01)
+        >>> round(float(trajectory.values('rod.u')[-1].sum()), 6)
         1.0
     """
 

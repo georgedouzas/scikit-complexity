@@ -69,12 +69,12 @@ class GrowthInteraction(RateInteraction):
         >>> from skcomplex.core.components.elements import CompartmentElement
         >>> from skcomplex.systems.biology.common.populations import GrowthInteraction
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> system = System(
         ...     elements=[CompartmentElement('population', n=1.0)],
         ...     interactions=[GrowthInteraction('growth', target='population', r=1.0, K=100.0, form='logistic')],
         ... )
-        >>> trajectory = Simulation(system, dt=1.0).prepare().run(until=30).trajectory_
+        >>> trajectory = simulate(system, until=30, dt=1.0)
         >>> round(float(trajectory.values('population.n')[-1]), 2)
         100.0
     """

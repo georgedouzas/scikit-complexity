@@ -25,10 +25,9 @@ class RecorderObserver(BaseObserver):
     Examples:
         >>> from skcomplex.core.components.system import System
         >>> from skcomplex.systems.biology.common.populations import PopulationElement
-        >>> from skcomplex.core.engine.runtime import RecorderObserver, Simulation
+        >>> from skcomplex.core.engine.runtime import RecorderObserver, simulate
         >>> recorder = RecorderObserver()
-        >>> simulation = Simulation(System(elements=[PopulationElement('a')]), dt=1, observers=[recorder])
-        >>> _ = simulation.prepare().run(until=2)
+        >>> _ = simulate(System(elements=[PopulationElement('a')]), until=2, dt=1, observers=[recorder])
         >>> len(recorder.trajectory_.times)
         3
     """

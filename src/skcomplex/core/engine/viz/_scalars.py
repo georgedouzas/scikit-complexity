@@ -103,8 +103,8 @@ class ScalarsVisual(BaseVisual):
         Examples:
             >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
             >>> from skcomplex.core.engine.viz import ScalarsVisual
-            >>> from skcomplex.systems import create_system
-            >>> problem = PassCompiler().prepare(create_system('lotka_volterra')).run().problem_
+            >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+            >>> problem = PassCompiler().prepare(LotkaVolterraSystem().prepare().system_).run().problem_
             >>> view = ScalarsVisual(path=problem.elements[0].path).prepare(problem).views_[0]
             >>> type(view).__name__, str(view.origin)
             ('TimeSeriesView', 'prey')

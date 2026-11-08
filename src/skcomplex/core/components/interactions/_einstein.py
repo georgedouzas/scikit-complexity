@@ -100,8 +100,8 @@ class EinsteinInteraction(Interaction):
         >>> from skcomplex.core.components.interactions import EinsteinInteraction
         >>> from skcomplex.core.components.spaces import PseudoRiemannianSpace
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> class UniverseElement(Element):
         ...     def __init__(self, label, a: Annotated[float, StateSpec(order=2)] = 1.0, a_d1: float = 0.0):
         ...         super().__init__(label)
@@ -115,7 +115,7 @@ class EinsteinInteraction(Interaction):
         ...     'vacuum', target='universe', states='a', space=flat, components=[(1, 1)], cosmological_constant=3.0
         ... )
         >>> system = System(elements=[UniverseElement('universe', a_d1=1.0)], interactions=[vacuum])
-        >>> trajectory = Simulation(system, dt=0.001).prepare().run(until=1.0).trajectory_
+        >>> trajectory = simulate(system, until=1.0, dt=0.001)
         >>> round(float(trajectory.values('universe.a')[-1]), 4)
         2.7183
     """

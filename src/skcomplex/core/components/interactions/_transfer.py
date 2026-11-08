@@ -186,9 +186,9 @@ class TransferInteraction(Interaction):
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.interactions import TransferInteraction
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.core.specs import StateSpec
         >>> from typing import Annotated
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> class TankElement(Element):
         ...     def __init__(self, label, visual=None, *, level: Annotated[float, StateSpec()] = 0.0):
         ...         super().__init__(label, visual=visual)
@@ -197,7 +197,7 @@ class TransferInteraction(Interaction):
         ...     'flow', source='upper', target='lower', state='level', amount=lambda s: s.source.level / 2
         ... )
         >>> system = System(elements=[TankElement('upper', level=4.0), TankElement('lower')], interactions=[flow])
-        >>> trajectory = Simulation(system).prepare().run(until=1.0).trajectory_
+        >>> trajectory = simulate(system, until=1.0)
         >>> round(float(trajectory.values('upper.level')[-1] + trajectory.values('lower.level')[-1]), 6)
         4.0
     """

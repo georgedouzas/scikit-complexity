@@ -109,11 +109,11 @@ class TrailChoiceInteraction(ReactionInteraction):
 
     Examples:
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.systems.biology.collective_behaviour import BranchElement, TrailChoiceInteraction
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> choice = TrailChoiceInteraction('choice', chosen='left', other='right', stochastic=False)
         >>> system = System(elements=[BranchElement('left'), BranchElement('right')], interactions=[choice])
-        >>> trajectory = Simulation(system, dt=0.1).prepare().run(until=2.0).trajectory_
+        >>> trajectory = simulate(system, until=2.0, dt=0.1)
         >>> round(float(trajectory.values('left.n')[-1]), 3)
         1.025
     """
@@ -194,12 +194,12 @@ class AlarmInteraction(ReactionInteraction):
 
     Examples:
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.systems.biology.collective_behaviour import AlarmInteraction, RatsElement
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> alarm = AlarmInteraction('alarm', calm='calm', nervous='nervous', stochastic=False)
         >>> rats = [RatsElement('calm', n=90.0), RatsElement('nervous', n=10.0)]
         >>> system = System(elements=rats, interactions=[alarm])
-        >>> trajectory = Simulation(system, dt=0.1).prepare().run(until=5.0).trajectory_
+        >>> trajectory = simulate(system, until=5.0, dt=0.1)
         >>> round(float(trajectory.values('calm.n')[-1] + trajectory.values('nervous.n')[-1]), 6)
         100.0
     """

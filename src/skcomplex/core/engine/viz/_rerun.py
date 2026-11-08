@@ -139,27 +139,26 @@ class RerunObserver(BaseObserver):
         >>> from pathlib import Path
         >>> from skcomplex.core.components.system import System
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
-        >>> from skcomplex.core.engine.runtime import Simulation
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.viz import RerunObserver
         >>> system = System(
         ...     elements=[PopulationElement('a', n=1)],
         ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
         ... )
         >>> path = Path(tempfile.mkdtemp()) / 'growth.rrd'
-        >>> simulation = Simulation(system, dt=0.1, observers=[RerunObserver('growth', save_path=path)])
-        >>> _ = simulation.prepare().run(until=1)
+        >>> _ = simulate(system, until=1, dt=0.1, observers=[RerunObserver('growth', save_path=path)])
         >>> path.exists()
         True
         >>> observer = RerunObserver('growth', save_path=path, blueprint='default')
-        >>> _ = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=1)
+        >>> _ = simulate(system, until=1, dt=0.1, observers=[observer])
         >>> path.with_suffix('.rbl').exists()
         True
 
         The default blueprint of a compiled problem, with a chosen view first:
 
         >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-        >>> from skcomplex.systems import create_system
-        >>> problem = PassCompiler().prepare(create_system('gray_scott', shape=(16, 16))).run().problem_
+        >>> from skcomplex.systems.chemistry.pattern_formation import GrayScottSystem
+        >>> problem = PassCompiler().prepare(GrayScottSystem(shape=(16, 16)).prepare().system_).run().problem_
         >>> observer = RerunObserver(blueprint='default', primary='cells/v').prepare(problem)
         >>> [str(view.origin) for view in observer.blueprint_.root_container.contents]
         ['cells/v', 'cells/u']

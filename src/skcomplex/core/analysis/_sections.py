@@ -9,10 +9,9 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
-
 from ..engine.problems import ProblemSpec
 from ..engine.problems._event_kernel import EventKernel
+from ..engine.runtime._simulations import Simulation
 from ..engine.solvers import Solver
 from ..errors import AnalysisError
 from ..specs import AnalysisTags, EventRecordSpec
@@ -113,7 +112,7 @@ def section(
             The number of points of a stroboscopic section.
 
         solver:
-            The solver, as in `Simulation`.
+            The solver, as in `simulate`.
 
         random_state:
             The seed of stochastic solvers.
@@ -222,7 +221,8 @@ def _crossings(
     start = transient if transient is not None else 0.0
     event = EventKernel(SECTION, guard, None, int(direction), False).prepare()
     sectioned = dataclasses.replace(problem, events=(*problem.events, event))
-    trajectory = simulate(sectioned, until=until, solver=solver, dt=until / 100, random_state=random_state)
+    simulation = Simulation(sectioned, solver=solver, dt=until / 100, random_state=random_state)
+    trajectory = simulation.prepare().run(until).trajectory_
     crossings = [
         record
         for record in trajectory.events
@@ -250,6 +250,6 @@ def _samples(
     step = float(period)
     skipped = int(transient if transient is not None else 100)
     until = step * (skipped + n_points - 1)
-    simulation = simulate(problem, until=until, solver=solver, dt=step, random_state=random_state)
-    trajectory = simulation
+    simulation = Simulation(problem, solver=solver, dt=step, random_state=random_state)
+    trajectory = simulation.prepare().run(until).trajectory_
     return trajectory.times[skipped:], trajectory.states[skipped:]

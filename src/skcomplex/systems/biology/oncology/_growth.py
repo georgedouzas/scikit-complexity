@@ -259,13 +259,13 @@ class GompertzGrowthInteraction(GrowthInteraction):
     Examples:
         >>> from skcomplex.core.components.elements import CompartmentElement
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.systems.biology.oncology import GompertzGrowthInteraction
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> system = System(
         ...     elements=[CompartmentElement('tumour', n=1.0)],
         ...     interactions=[GompertzGrowthInteraction('growth', target='tumour', r=1.0, K=20.0)],
         ... )
-        >>> trajectory = Simulation(system, dt=0.1).prepare().run(until=30.0).trajectory_
+        >>> trajectory = simulate(system, until=30.0, dt=0.1)
         >>> round(float(trajectory.values('tumour.n')[-1]), 3)
         20.0
     """
@@ -318,13 +318,13 @@ class PowerLawGrowthInteraction(GrowthInteraction):
     Examples:
         >>> from skcomplex.core.components.elements import CompartmentElement
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.systems.biology.oncology import PowerLawGrowthInteraction
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> system = System(
         ...     elements=[CompartmentElement('tumour', n=1.0)],
         ...     interactions=[PowerLawGrowthInteraction('growth', target='tumour', r=1.0, p=0.5)],
         ... )
-        >>> trajectory = Simulation(system, dt=0.01).prepare().run(until=2.0).trajectory_
+        >>> trajectory = simulate(system, until=2.0, dt=0.01)
         >>> round(float(trajectory.values('tumour.n')[-1]), 3)
         4.0
     """

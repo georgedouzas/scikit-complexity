@@ -79,10 +79,10 @@ class GradientInteraction(Interaction):
         >>> from skcomplex.core.components.elements import CompartmentElement
         >>> from skcomplex.core.components.interactions import GradientInteraction
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> well = GradientInteraction('well', target='walker', states='n', potential=lambda s: s.target.n**2 / 2)
         >>> system = System(elements=[CompartmentElement('walker', n=1.0)], interactions=[well])
-        >>> trajectory = Simulation(system, dt=0.01).prepare().run(until=1.0).trajectory_
+        >>> trajectory = simulate(system, until=1.0, dt=0.01)
         >>> round(float(trajectory.values('walker.n')[-1]), 4)
         0.3679
     """

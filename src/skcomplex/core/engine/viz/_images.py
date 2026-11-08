@@ -256,12 +256,12 @@ class ImageVisual(BaseVisual):
         Examples:
             >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
             >>> from skcomplex.core.engine.viz import ImageVisual
-            >>> from skcomplex.systems import create_system
-            >>> problem = PassCompiler().prepare(create_system('gray_scott', shape=(16, 16))).run().problem_
+            >>> from skcomplex.systems.chemistry.pattern_formation import GrayScottSystem
+            >>> problem = PassCompiler().prepare(GrayScottSystem(shape=(16, 16)).prepare().system_).run().problem_
             >>> views = ImageVisual(path=problem.elements[0].path).prepare(problem).views_
             >>> [str(view.origin) for view in views]
             ['cells/u', 'cells/v']
-            >>> problem = PassCompiler().prepare(create_system('elementary_automaton')).run().problem_
+            >>> problem = PassCompiler().prepare(ElementaryAutomatonSystem().prepare().system_).run().problem_
             >>> views = ImageVisual(path=problem.elements[0].path).prepare(problem).views_
             >>> [str(view.origin) for view in views]
             ['cells/space_time/alive', 'cells/alive']

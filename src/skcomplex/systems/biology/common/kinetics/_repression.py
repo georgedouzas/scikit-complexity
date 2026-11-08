@@ -58,14 +58,14 @@ class RepressionInteraction(ReactionInteraction):
 
     Examples:
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.biology.systems_biology import RepressionInteraction, SpeciesElement
         >>> repression = RepressionInteraction(
         ...     'repression', products={('mRNA', 'x'): 1}, modifiers={('repressor', 'x'): 1}, alpha=2.0, K=1.0
         ... )
         >>> species = [SpeciesElement('mRNA'), SpeciesElement('repressor', x=1.0)]
-        >>> trajectory = Simulation(System(elements=species, interactions=[repression]), dt=0.1).prepare()
-        >>> round(float(trajectory.run(until=1.0).trajectory_.values('mRNA.x')[-1]), 3)
+        >>> trajectory = simulate(System(elements=species, interactions=[repression]), until=1.0, dt=0.1)
+        >>> round(float(trajectory.values('mRNA.x')[-1]), 3)
         1.0
     """
 

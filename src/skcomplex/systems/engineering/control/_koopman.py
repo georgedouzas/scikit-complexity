@@ -16,14 +16,12 @@ from scipy.optimize import lsq_linear
 from sklearn.base import TransformerMixin
 from sklearn.preprocessing import PolynomialFeatures
 
-from skcomplex.core.engine.runtime import simulate
-
 from ....core.analysis import ModeDecompositionResult, mode_decomposition
 from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction, RateInteraction
 from ....core.components.spaces import ContinuousTime, DiscreteTime
 from ....core.components.system import BaseSystem, RunSettings, System
-from ....core.engine.runtime import Trajectory
+from ....core.engine.runtime import Trajectory, simulate
 from ....core.errors import ValidationError
 from ....core.specs import CallSpec, ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -288,7 +286,10 @@ def _run_training(case: _PlantCase, duration: int, rng: np.random.Generator) -> 
     )
     values = rng.choice((-1.0, 1.0), duration + 1)
     return simulate(
-        system, until=float(duration), dt=1.0, schedule={'input.u': functools.partial(_held_value, values=values)}
+        system,
+        until=float(duration),
+        dt=1.0,
+        schedule={'input.u': functools.partial(_held_value, values=values)},
     )
 
 

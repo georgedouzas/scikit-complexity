@@ -7,7 +7,6 @@ from ._invariants import InvariantObserver
 from ._real_time import RealTimeClock
 from ._recorder import RecorderObserver
 from ._simulate import simulate
-from ._simulations import Simulation
 from ._trajectories import Trajectory
 
 __all__: list[str] = [
@@ -18,7 +17,6 @@ __all__: list[str] = [
     'InvariantObserver',
     'RealTimeClock',
     'RecorderObserver',
-    'Simulation',
     'Trajectory',
     'simulate',
 ]

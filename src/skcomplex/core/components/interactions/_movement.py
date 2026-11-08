@@ -121,12 +121,12 @@ class MovementInteraction(Interaction):
         >>> from skcomplex.core.components.interactions import MovementInteraction
         >>> from skcomplex.core.components.spaces import LatticeSpace
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> walkers = GroupElement('walkers', element=Element, size=2, location=[(2, 2), (2, 2)])
         >>> walk = MovementInteraction('walk', target='walkers', step='neighbor')
         >>> space = LatticeSpace((5, 5), neighborhood='von_neumann')
         >>> system = System(elements=[walkers], interactions=[walk], space=space)
-        >>> trajectory = Simulation(system, random_state=0).prepare().run(until=1).trajectory_
+        >>> trajectory = simulate(system, until=1, random_state=0)
         >>> [bool(abs(cell - 2).sum() == 1) for cell in trajectory.agents('walkers', 1).locations]
         [True, True]
     """

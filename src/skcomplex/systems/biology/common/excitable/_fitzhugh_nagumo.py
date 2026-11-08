@@ -54,9 +54,9 @@ class FitzHughNagumoInteraction(Interaction):
         >>> from typing import Annotated
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.systems.biology.common.excitable import FitzHughNagumoInteraction
         >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> class CellElement(Element):
         ...     def __init__(
         ...         self, label, visual=None, *, v: Annotated[float, StateSpec()] = -1.2,
@@ -67,7 +67,7 @@ class FitzHughNagumoInteraction(Interaction):
         ...         self.w = w
         >>> kinetics = FitzHughNagumoInteraction('kinetics', target='cell', I=0.5)
         >>> system = System(elements=[CellElement('cell')], interactions=[kinetics])
-        >>> trajectory = Simulation(system, dt=0.1).prepare().run(until=100.0).trajectory_
+        >>> trajectory = simulate(system, until=100.0, dt=0.1)
         >>> bool(trajectory.values('cell.v').max() > 1.5)
         True
     """

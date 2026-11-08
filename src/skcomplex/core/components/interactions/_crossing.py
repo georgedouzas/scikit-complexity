@@ -56,8 +56,8 @@ class CrossingInteraction(Interaction):
         >>> from skcomplex.core.components.interactions import CrossingInteraction
         >>> from skcomplex.core.components.laws import RateLaw
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> class ClockElement(Element):
         ...     def __init__(self, label, x: Annotated[float, StateSpec()] = 0.0):
         ...         super().__init__(label)
@@ -69,7 +69,7 @@ class CrossingInteraction(Interaction):
         ...     'wrap', target='clock', guard=lambda s: s.target.x - 1, reset={'x': lambda s: 0}, direction=1
         ... )
         >>> system = System(elements=[ClockElement('clock')], interactions=[wrap])
-        >>> trajectory = Simulation(system, dt=0.5).prepare().run(until=2.2).trajectory_
+        >>> trajectory = simulate(system, until=2.2, dt=0.5)
         >>> [round(event.time, 6) for event in trajectory.events]
         [1.0, 2.0]
     """

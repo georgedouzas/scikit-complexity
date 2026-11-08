@@ -30,3 +30,15 @@ def test_kernel_search_and_printer_bases_are_configurable():
     """The kernel, search, and printer bases speak the two verbs of every configurable class."""
     for base in (BaseKernel, BaseSearch, BasePrinter):
         assert all(callable(getattr(base, verb)) for verb in ('prepare', 'run'))
+
+
+def test_problems_of_the_forms_are_private():
+    """The bases, the problem of the shared pass core, and the frames are public, and the other problems are not."""
+    assert set(package.__all__) == {
+        'BaseKernel',
+        'BasePrinter',
+        'BaseProblemSpec',
+        'BaseSearch',
+        'FrameSpec',
+        'ProblemSpec',
+    }

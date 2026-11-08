@@ -13,7 +13,8 @@ from scipy import linalg, special
 
 from ..components.system import System
 from ..engine.problems import ProblemSpec
-from ..engine.runtime import Simulation, Trajectory
+from ..engine.runtime import Trajectory
+from ..engine.runtime._simulations import Simulation
 from ..errors import AnalysisError
 from ..specs import AnalysisTags
 from ..types import Array, DataKind
@@ -188,7 +189,7 @@ def large_deviations(
             The seed of the clones and of the selection.
 
         simulation:
-            Other settings of `Simulation`, such as `solver` or `dt`.
+            Other run settings, such as `solver` or `dt`.
 
         bins:
             The number of bins or their edges of `'histogram'`.

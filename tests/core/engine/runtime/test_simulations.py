@@ -17,7 +17,8 @@ from skcomplex.core.components.laws import RateLaw, RuleLaw, TransitionLaw, Upda
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.runtime import BaseObserver, ConservationObserver, RealTimeClock, Simulation, simulate
+from skcomplex.core.engine.runtime import BaseObserver, ConservationObserver, RealTimeClock, simulate
+from skcomplex.core.engine.runtime._simulations import Simulation
 from skcomplex.core.engine.solvers import GillespieSolver, RK4Solver, ScipyODESolver
 from skcomplex.core.engine.solvers._defaults import DEFAULT_SOLVERS
 from skcomplex.core.engine.viz import RerunObserver

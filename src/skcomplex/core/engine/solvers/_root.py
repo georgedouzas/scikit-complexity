@@ -47,8 +47,8 @@ class RootSolver(Solver):
         >>> from skcomplex.core.components.laws import EquationLaw
         >>> from skcomplex.core.components.spaces import StaticTime
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> class FixedPointElement(Element):
         ...     def __init__(self, label, x: Annotated[float, StateSpec()] = 1.0):
         ...         super().__init__(label)
@@ -57,7 +57,7 @@ class RootSolver(Solver):
         ...     def _get_laws(self, s):
         ...         return [EquationLaw(s.x == cos(s.x), target=s.x)]
         >>> system = System(elements=[FixedPointElement('a')], time=StaticTime())
-        >>> trajectory = Simulation(system).prepare().run(1.0).trajectory_
+        >>> trajectory = simulate(system, until=1.0)
         >>> round(float(trajectory.values('a.x')[0]), 7)
         0.7390851
     """

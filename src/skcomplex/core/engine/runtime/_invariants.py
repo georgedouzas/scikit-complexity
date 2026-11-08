@@ -29,14 +29,14 @@ class InvariantObserver(BaseObserver):
         >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.core.specs import ObservableSpec
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import InvariantObserver, Simulation
+        >>> from skcomplex.core.engine.runtime import InvariantObserver, simulate
         >>> from skcomplex.systems.biology.common.populations import PopulationElement
         >>> system = System(
         ...     elements=[GroupElement('herd', element=PopulationElement, size=2, values={'n': [2.0, 6.0]})]
         ... )
         >>> total = ObservableSpec('total', group='herd', reduce='sum', variable='n')
         >>> monitor = InvariantObserver({'total': 1e-9})
-        >>> _ = Simulation(system, dt=1, observables=[total], observers=[monitor]).prepare().run(3)
+        >>> _ = simulate(system, until=3, dt=1, observables=[total], observers=[monitor])
         >>> monitor.initial_
         {'total': 8.0}
     """

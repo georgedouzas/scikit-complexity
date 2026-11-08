@@ -43,10 +43,10 @@ class ConservationObserver(BaseObserver):
             The largest absolute total of every quantity seen so far.
 
     Examples:
-        >>> from skcomplex.core.engine.runtime import ConservationObserver, Simulation
-        >>> from skcomplex.systems import create_system
+        >>> from skcomplex.core.engine.runtime import ConservationObserver, simulate
+        >>> from skcomplex.systems.engineering.processes import BathtubSystem
         >>> monitor = ConservationObserver()
-        >>> _ = Simulation(create_system('bathtub'), dt=1, observers=[monitor]).prepare().run(10)
+        >>> _ = simulate(BathtubSystem().prepare().system_, until=10, dt=1, observers=[monitor])
         >>> round(monitor.totals_['water'], 6)
         25.0
     """

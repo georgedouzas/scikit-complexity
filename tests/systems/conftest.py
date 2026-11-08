@@ -35,7 +35,7 @@ def _peak(trajectory: Trajectory, name: str) -> float:
 
 
 def _series(system: BaseSystem, until: float) -> Trajectory:
-    """Return the trajectory of the composite of a ready-made system run with frames at every step and its observables."""
+    """Return the trajectory of the composite of a ready-made system with frames at every step and its observables."""
     observables = _observables(system)
     return simulate(system.prepare().system_, until=until, dt=1, random_state=0, observables=observables)
 

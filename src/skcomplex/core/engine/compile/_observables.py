@@ -947,8 +947,8 @@ class ObservableEvaluator:
         Examples:
             >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
             >>> from skcomplex.core.engine.compile._observables import ObservableEvaluator
-            >>> from skcomplex.systems import create_system
-            >>> problem = PassCompiler().prepare(create_system('harvesting')).run().problem_
+            >>> from skcomplex.systems.economics.resources import HarvestingSystem
+            >>> problem = PassCompiler().prepare(HarvestingSystem().prepare().system_).run().problem_
             >>> [path for path, _ in ObservableEvaluator._held_reductions_of(problem)]
             ['village/farmers_count']
         """

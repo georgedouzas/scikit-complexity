@@ -47,7 +47,7 @@ class JumpTrajectoriesSolver(OperatorSolver):
         >>> from skcomplex.core.components.laws.utils import local_operator
         >>> from skcomplex.core.specs import HilbertSpec, ObservableSpec, StateSpec
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.solvers import JumpTrajectoriesSolver
         >>> operators = {'x': (np.array([[0, 1], [1, 0]]), True), 'z': (np.diag([1, -1]), True)}
         >>> operators['minus'] = (np.array([[0, 0], [1, 0]]), False)
@@ -63,11 +63,8 @@ class JumpTrajectoriesSolver(OperatorSolver):
         >>> z = [ObservableSpec('z', element='q', variable='z')]
         >>> system = System(elements=[TwoLevelElement('q')])
         >>> solver = JumpTrajectoriesSolver()
-        >>> from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
-        >>> simulation = Simulation(
-        ...     system, compiler=OperatorCompiler(), solver=solver, dt=1.0, random_state=0, observables=z,
-        ... ).prepare().run(until=20.0)
-        >>> float(simulation.trajectory_.values('q.z')[-1])
+        >>> trajectory = simulate(system, until=20.0, solver=solver, dt=1.0, random_state=0, observables=z)
+        >>> float(trajectory.values('q.z')[-1])
         -1.0
     """
 

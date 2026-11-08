@@ -65,8 +65,8 @@ class AdvectionInteraction(ConservationInteraction):
         >>> from skcomplex.core.components.interactions import AdvectionInteraction
         >>> from skcomplex.core.components.spaces import LatticeSpace
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> class CellElement(Element):
         ...     def __init__(self, label, u: Annotated[float, StateSpec()] = 0.0):
         ...         super().__init__(label)
@@ -77,7 +77,7 @@ class AdvectionInteraction(ConservationInteraction):
         >>> field = FieldElement('tracer', element=CellElement, space=space, values=values, discretization=volumes)
         >>> drift = AdvectionInteraction('drift', target='tracer', state='u', drift=lambda s: 1.0)
         >>> system = System(elements=[field], interactions=[drift])
-        >>> trajectory = Simulation(system, dt=0.01).prepare().run(until=1.0).trajectory_
+        >>> trajectory = simulate(system, until=1.0, dt=0.01)
         >>> total = trajectory.values('tracer.u')[-1].sum()
         >>> round(float(total), 6) == round(float(values['u'].sum()), 6)
         True

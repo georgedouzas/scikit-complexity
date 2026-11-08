@@ -88,8 +88,8 @@ class SignAdjustmentInteraction(Interaction):
         >>> from skcomplex.core.components.interactions import SignAdjustmentInteraction
         >>> from skcomplex.core.components.spaces import DiscreteTime
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> class QuoteElement(Element):
         ...     def __init__(self, label, x: Annotated[float, StateSpec()] = 1.0):
         ...         super().__init__(label)
@@ -98,7 +98,7 @@ class SignAdjustmentInteraction(Interaction):
         ...     'search', target='quote', state='x', signal=lambda s: 2 - s.target.x, step=0.5, upper=2.0
         ... )
         >>> system = System(elements=[QuoteElement('quote')], interactions=[search], time=DiscreteTime())
-        >>> Simulation(system).prepare().run(until=3).trajectory_.values('quote.x').tolist()
+        >>> simulate(system, until=3).values('quote.x').tolist()
         [1.0, 1.5, 2.0, 2.0]
     """
 

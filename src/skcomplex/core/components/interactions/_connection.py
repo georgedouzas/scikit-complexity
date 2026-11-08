@@ -44,8 +44,8 @@ class ConnectionInteraction(Interaction):
         >>> from skcomplex.core.components.interactions import ConnectionInteraction
         >>> from skcomplex.core.components.laws import EquationLaw
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.core.specs import ConnectorSpec, ParameterSpec, StateSpec
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> PIN = ConnectorSpec('pin', potential='v', flow='i')
         >>> class ConductanceElement(Element):
         ...     ports: ClassVar = {'a': PIN}
@@ -70,7 +70,7 @@ class ConnectionInteraction(Interaction):
         ...     elements=[ConductanceElement('first', e=1.0), ConductanceElement('second', e=3.0)],
         ...     interactions=[ConnectionInteraction('node', members=['first', 'second'], ports=['a', 'a'])],
         ... )
-        >>> trajectory = Simulation(system, dt=1.0).prepare().run(until=1.0).trajectory_
+        >>> trajectory = simulate(system, until=1.0, dt=1.0)
         >>> float(trajectory.values('first.a_v')[-1])
         2.0
     """

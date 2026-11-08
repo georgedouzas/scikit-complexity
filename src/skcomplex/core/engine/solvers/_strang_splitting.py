@@ -56,9 +56,9 @@ class StrangSplittingSolver(Solver):
         >>> from skcomplex.core.components.laws.utils import coordinate, maximum_entropy
         >>> from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.core.engine.solvers import RK4Solver, SemiLagrangianSolver, StrangSplittingSolver
         >>> from skcomplex.core.specs import AxisSpec
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> space = PhaseSpace(LatticeSpace((8,)), [AxisSpec('v', 16, -6.0, 6.0)]).prepare()
         >>> start = np.outer(2 + np.sin(2 * np.pi * np.arange(8) / 8), np.exp(-space.coordinates_['v'] ** 2))
         >>> gas = FieldElement(
@@ -70,7 +70,7 @@ class StrangSplittingSolver(Solver):
         ... )
         >>> system = System(elements=[gas], interactions=[stream, relax])
         >>> solver = StrangSplittingSolver(SemiLagrangianSolver(dt=0.1), RK4Solver(dt=0.1), dt=0.1)
-        >>> final = Simulation(system, solver=solver).prepare().run(until=0.2).trajectory_.values('gas.f')[-1]
+        >>> final = simulate(system, until=0.2, solver=solver).values('gas.f')[-1]
         >>> abs(float(final.sum() / start.sum()) - 1.0) < 1e-12
         True
     """

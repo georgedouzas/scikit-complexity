@@ -158,12 +158,12 @@ class ContourUptakeInteraction(CouplingInteraction):
         >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.core.components.spaces import DiscreteTime
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.systems.biology.physiology import ContourCellElement, ContourUptakeInteraction
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> cells = GroupElement('cells', element=ContourCellElement, size=2, values={'x': [0.25, 1.0], 'c': 0.5})
         >>> uptake = ContourUptakeInteraction('uptake', target='cells')
         >>> system = System(elements=[cells], interactions=[uptake], time=DiscreteTime())
-        >>> Simulation(system).prepare().run(until=1).trajectory_.values('cells.x')[-1].round(4).tolist()
+        >>> simulate(system, until=1).values('cells.x')[-1].round(4).tolist()
         [0.7344, 0.25]
     """
 

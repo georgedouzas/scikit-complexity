@@ -141,8 +141,8 @@ class LifeCycleInteraction(Interaction):
         >>> from skcomplex.core.components.interactions import LifeCycleInteraction
         >>> from skcomplex.core.components.spaces import LatticeSpace
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> class CellElement(Element):
         ...     def __init__(self, label, visual=None, *, size: Annotated[float, StateSpec()] = 0.0):
         ...         super().__init__(label, visual=visual)
@@ -150,7 +150,7 @@ class LifeCycleInteraction(Interaction):
         >>> cells = GroupElement('cells', element=CellElement, size=1, values={'size': 8.0}, variable=True)
         >>> division = LifeCycleInteraction('division', target='cells', birth=1.0, split=('size',))
         >>> system = System(elements=[cells], interactions=[division], space=LatticeSpace((3, 3)))
-        >>> trajectory = Simulation(system, random_state=0).prepare().run(until=2).trajectory_
+        >>> trajectory = simulate(system, until=2, random_state=0)
         >>> trajectory.agents('cells', 2).values['size'].tolist()
         [2.0, 2.0, 2.0, 2.0]
     """

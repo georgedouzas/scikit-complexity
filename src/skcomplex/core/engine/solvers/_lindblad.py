@@ -36,7 +36,7 @@ class LindbladSolver(OperatorSolver):
         >>> from skcomplex.core.components.laws.utils import local_operator
         >>> from skcomplex.core.specs import HilbertSpec, ObservableSpec, StateSpec
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.solvers import LindbladSolver
         >>> operators = {'x': (np.array([[0, 1], [1, 0]]), True), 'z': (np.diag([1, -1]), True)}
         >>> operators['minus'] = (np.array([[0, 0], [1, 0]]), False)
@@ -51,11 +51,7 @@ class LindbladSolver(OperatorSolver):
         ...         return [DissipatorLaw(local_operator(s.psi, SR.symbol('minus')), 0.5)]
         >>> z = [ObservableSpec('z', element='q', variable='z')]
         >>> system = System(elements=[TwoLevelElement('q')])
-        >>> from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
-        >>> compiler = OperatorCompiler()
-        >>> simulation = Simulation(system, compiler=compiler, solver=LindbladSolver(), dt=1.0, observables=z)
-        >>> simulation = simulation.prepare()
-        >>> values = simulation.run(until=2.0).trajectory_.values('q.z')
+        >>> values = simulate(system, until=2.0, solver=LindbladSolver(), dt=1.0, observables=z).values('q.z')
         >>> bool(abs((1 + values[-1]) / 2 - np.exp(-1.0)) < 1e-6)
         True
     """

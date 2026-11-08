@@ -138,8 +138,8 @@ class ConfidenceCouplingInteraction(CouplingInteraction):
         >>> from skcomplex.core.components.elements import LatticeElement
         >>> from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.systems.social.opinion_dynamics import ConfidenceCouplingInteraction, ConfidentElement
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> people = LatticeElement(
         ...     'people',
         ...     element=ConfidentElement,
@@ -148,7 +148,7 @@ class ConfidenceCouplingInteraction(CouplingInteraction):
         ... )
         >>> coupling = ConfidenceCouplingInteraction('compromise', target='people')
         >>> system = System(elements=[people], interactions=[coupling], time=DiscreteTime())
-        >>> opinions = Simulation(system).prepare().run(until=1).trajectory_.values('people.opinion')
+        >>> opinions = simulate(system, until=1).values('people.opinion')
         >>> np.round(opinions[-1], 6).tolist()
         [0.15, 0.15, 0.9]
     """

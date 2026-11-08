@@ -42,13 +42,13 @@ class InfectionInteraction(ReactionInteraction):
     Examples:
         >>> from skcomplex.core.components.elements import CompartmentElement
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.systems.biology.epidemiology import InfectionInteraction
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> system = System(
         ...     elements=[CompartmentElement('S', n=99.0), CompartmentElement('I', n=1.0)],
         ...     interactions=[InfectionInteraction('infection', susceptible='S', infected='I', beta=0.01)],
         ... )
-        >>> trajectory = Simulation(system, dt=0.1).prepare().run(until=5.0).trajectory_
+        >>> trajectory = simulate(system, until=5.0, dt=0.1)
         >>> round(float(trajectory.values('S.n')[-1] + trajectory.values('I.n')[-1]), 6)
         100.0
     """
@@ -188,13 +188,13 @@ class RecoveryInteraction(ReactionInteraction):
     Examples:
         >>> from skcomplex.core.components.elements import CompartmentElement
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.systems.biology.epidemiology import RecoveryInteraction
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> system = System(
         ...     elements=[CompartmentElement('I', n=10.0), CompartmentElement('R')],
         ...     interactions=[RecoveryInteraction('recovery', infected='I', recovered='R', gamma=0.5)],
         ... )
-        >>> trajectory = Simulation(system, dt=0.01).prepare().run(until=2.0).trajectory_
+        >>> trajectory = simulate(system, until=2.0, dt=0.01)
         >>> round(float(trajectory.values('I.n')[-1]), 3)
         3.679
     """

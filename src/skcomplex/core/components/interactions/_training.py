@@ -27,7 +27,7 @@ class TrainingInteraction(Interaction):
     from its initial states, inside one step of the discrete time of the system that holds the interaction. That step
     is one epoch of shuffled batches, each followed by one update of the optimizer, and the interaction returns the
     `GradientStepLaw` that takes it. The hyperparameters of the optimizer are parameters of the interaction, so a
-    schedule or `Simulation.update_parameters` changes them between epochs. `'sgd'` reads the learning rate,
+    schedule of `simulate` changes them between epochs. `'sgd'` reads the learning rate,
     `'momentum'` also the momentum, `'rmsprop'` the learning rate and `beta2`, the decay of its mean squared gradient,
     and `'adam'` the learning rate, `beta1`, and `beta2`. It differs from `GradientInteraction`, which moves states
     down the gradient of a potential in the system's own time.

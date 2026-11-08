@@ -108,8 +108,8 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
     Examples:
         >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
         >>> from skcomplex.core.engine.viz import ScalarsVisual
-        >>> from skcomplex.systems import create_system
-        >>> problem = PassCompiler().prepare(create_system('lotka_volterra')).run().problem_
+        >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+        >>> problem = PassCompiler().prepare(LotkaVolterraSystem().prepare().system_).run().problem_
         >>> visual = ScalarsVisual(path='prey').prepare(problem)
         >>> visual.element_.path, str(visual.views_[0].origin)
         ('prey', 'prey')

@@ -83,9 +83,10 @@ class MapInteraction(Interaction):
         >>> from skcomplex.core.components.interactions import MapInteraction
         >>> from skcomplex.core.components.spaces import DiscreteTime
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.specs import StateSpec
         >>> from typing import Annotated, SupportsFloat
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> class ValueElement(Element):
         ...     def __init__(self, label, x: Annotated[float, StateSpec()] = 0.5):
         ...         super().__init__(label)
@@ -94,7 +95,7 @@ class MapInteraction(Interaction):
         ...     'map', target='value', state='x', function=lambda s: 3 * s.target.x * (1 - s.target.x)
         ... )
         >>> system = System(elements=[ValueElement('value')], interactions=[logistic], time=DiscreteTime())
-        >>> Simulation(system).prepare().run(until=2).trajectory_.values('value.x').tolist()
+        >>> simulate(system, until=2).values('value.x').tolist()
         [0.5, 0.75, 0.5625]
         >>> agents = MapInteraction('map', target='walkers', state='x', function=lambda a, m: a.x + 1, form='agent')
         >>> type(agents.prepare().run(SimpleNamespace()).laws_[0]).__name__
@@ -108,8 +109,8 @@ class MapInteraction(Interaction):
         >>> doubling = MapInteraction(
         ...     'double', target='weights', state='w', function=lambda a, m: [2 * x for x in a.w], form='agent'
         ... )
-        >>> trajectory = Simulation(System(elements=[group], interactions=[doubling])).prepare().run(until=2)
-        >>> trajectory.trajectory_.agents('weights', 2).values['w'].tolist()
+        >>> trajectory = simulate(System(elements=[group], interactions=[doubling]), until=2)
+        >>> trajectory.agents('weights', 2).values['w'].tolist()
         [[4.0, 8.0]]
     """
 

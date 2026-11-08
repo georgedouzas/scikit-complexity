@@ -287,8 +287,8 @@ class MobilityInteraction(Interaction):
         >>> from skcomplex.core.components.interactions import MobilityInteraction
         >>> from skcomplex.core.components.spaces import ContinuousSpace
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> class SphereElement(Element):
         ...     def __init__(self, label, *, x: Annotated[list, StateSpec(vector=True, role='position')] = 0.0):
         ...         super().__init__(label)
@@ -296,7 +296,7 @@ class MobilityInteraction(Interaction):
         >>> pull = MobilityInteraction('stokes', target='spheres', force=lambda s: vector([1.0, 0.0, 0.0]))
         >>> spheres = GroupElement('spheres', element=SphereElement, size=2, values={'x': [[0, 0, 0], [0, 4, 0]]})
         >>> system = System(elements=[spheres], interactions=[pull], space=ContinuousSpace(n_dim=3))
-        >>> trajectory = Simulation(system, dt=1.0).prepare().run(until=1.0).trajectory_
+        >>> trajectory = simulate(system, until=1.0, dt=1.0)
         >>> (trajectory.values('spheres.x')[-1, :, 0] * 6 * math.pi).round(4).tolist()
         [1.1953, 1.1953]
     """

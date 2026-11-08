@@ -32,10 +32,16 @@ def test_no_catalog_in_the_engine():
     assert not CATALOG_NAMES & set(dir(package))
 
 
-def test_simulation_rejects_a_system_name():
-    """A simulation of a system name raises an error that says to create the system with the catalog."""
-    with pytest.raises(ValidationError, match=r'takes a system or a compiled problem, not .sir.\. Create a system'):
-        package.Simulation('sir').prepare()
+def test_simulation_is_private():
+    """The simulation that `simulate` runs is not public."""
+    assert 'Simulation' not in package.__all__
+    assert not hasattr(package, 'Simulation')
+
+
+def test_simulate_rejects_a_system_name():
+    """Simulating a system name raises an error that names what it took."""
+    with pytest.raises(ValidationError, match=r"simulate takes a system, not 'sir'"):
+        package.simulate('sir', until=1)
 
 
 def test_classes_derive_from_a_base_of_the_package():

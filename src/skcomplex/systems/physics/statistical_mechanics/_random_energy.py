@@ -167,10 +167,10 @@ class RandomEnergySystem(BaseSystem):
             The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.systems.physics.statistical_mechanics import RandomEnergySystem
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> system = RandomEnergySystem(12, temperature=2.0).prepare().system_
-        >>> trajectory = Simulation(system).prepare().run(1.0).trajectory_
+        >>> trajectory = simulate(system, until=1.0)
         >>> bool(abs(trajectory.values('ensemble.entropy')[0] - (np.log(2) - 1 / 16)) < 0.05)
         True
     """

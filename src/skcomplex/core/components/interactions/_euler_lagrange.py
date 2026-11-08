@@ -65,8 +65,8 @@ class EulerLagrangeInteraction(Interaction):
         >>> from skcomplex.core.components.interactions import EulerLagrangeInteraction
         >>> from skcomplex.core.components.laws.utils import derivative
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> class AngleElement(Element):
         ...     def __init__(self, label, q: Annotated[float, StateSpec(order=2)] = 0.1, q_d1: float = 0.0):
         ...         super().__init__(label)
@@ -79,7 +79,7 @@ class EulerLagrangeInteraction(Interaction):
         ...     lagrangian=lambda s: derivative(s.target.q, 1) ** 2 / 2 + cos(s.target.q),
         ... )
         >>> system = System(elements=[AngleElement('bob')], interactions=[swing])
-        >>> trajectory = Simulation(system, dt=0.01).prepare().run(until=3.2).trajectory_
+        >>> trajectory = simulate(system, until=3.2, dt=0.01)
         >>> round(float(trajectory.values('bob.q')[-1]), 2)
         -0.1
     """

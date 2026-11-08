@@ -12,14 +12,13 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
-from skcomplex.core.engine.runtime import simulate
-
 from ....core.analysis import ReservoirResult, reservoir
 from ....core.components.elements import DeclaredElement, Element
 from ....core.components.interactions import MapInteraction, RateInteraction
 from ....core.components.laws.utils import lag
 from ....core.components.spaces import ContinuousTime, DiscreteTime
 from ....core.components.system import BaseSystem, System
+from ....core.engine.runtime import simulate
 from ....core.engine.solvers import ScipyODESolver
 from ....core.errors import ValidationError
 from ....core.specs import DeclaredVariableSpec, StateSpec
@@ -177,8 +176,7 @@ class NextGenerationReservoirSystem(BaseSystem):
             time=ContinuousTime(),
         )
         solver = ScipyODESolver(method='RK23', rtol=LORENZ_RTOL, atol=LORENZ_ATOL)
-        simulation = simulate(system, until=LORENZ_TRANSIENT + step * (samples - 1), solver=solver, dt=step)
-        trajectory = simulation
+        trajectory = simulate(system, until=LORENZ_TRANSIENT + step * (samples - 1), solver=solver, dt=step)
         values: Array = np.column_stack(
             [np.asarray(trajectory.values(f'flow.{name}'), dtype=np.float64) for name in LORENZ_VARIABLES],
         )

@@ -20,7 +20,7 @@ class BaseObserver(BaseConfig[BaseProblemSpec, FrameSpec]):
 
     Examples:
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import BaseObserver, Simulation
+        >>> from skcomplex.core.engine.runtime import BaseObserver, simulate
         >>> from skcomplex.systems.biology.common.populations import PopulationElement
         >>> class CountingObserver(BaseObserver):
         ...     def _prepare(self, context):
@@ -29,8 +29,7 @@ class BaseObserver(BaseConfig[BaseProblemSpec, FrameSpec]):
         ...     def _run(self, inputs):
         ...         self.count_ += inputs is not None
         >>> observer = CountingObserver()
-        >>> simulation = Simulation(System(elements=[PopulationElement('a')]), dt=1, observers=[observer])
-        >>> _ = simulation.prepare().run(until=3)
+        >>> _ = simulate(System(elements=[PopulationElement('a')]), until=3, dt=1, observers=[observer])
         >>> observer.count_
         4
     """

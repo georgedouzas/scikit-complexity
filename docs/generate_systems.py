@@ -245,9 +245,9 @@ def catalog_page(inventory: dict[str, Any], titles: dict[str, str]) -> str:
     lines = [
         '# Catalog',
         '',
-        'Every ready-made system, by field and by topic. Import a system class from its subfield, or list the classes',
-        'with `all_systems` of `skcomplex.systems`. The search box of the site finds a system by its name, description,',
-        'or topic.',
+        'Every ready-made system, by field and by topic. Import a system class from its subfield, or list the',
+        'classes with `all_systems` of `skcomplex.systems`. The search box of the site finds a system by its name,',
+        'description, or topic.',
         '',
         '```python',
         'from skcomplex.systems import all_systems',

@@ -227,9 +227,9 @@ class SamplingInteraction(Interaction):
         >>> from skcomplex.core.components.laws.utils import neighbors
         >>> from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.core.specs import StateSpec
         >>> from typing import Annotated
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> class SpinElement(Element):
         ...     def __init__(self, label, s: Annotated[float, StateSpec()] = 1.0):
         ...         super().__init__(label)
@@ -238,13 +238,14 @@ class SamplingInteraction(Interaction):
         >>> ising = SamplingInteraction('ising', target='spins', state='s', objective=objective, intensity=1.0)
         >>> spins = LatticeElement('spins', element=SpinElement, space=LatticeSpace((8, 8)))
         >>> system = System(elements=[spins], interactions=[ising], time=DiscreteTime())
-        >>> states = Simulation(system, random_state=0).prepare().run(until=20).trajectory_.states
+        >>> states = simulate(system, until=20, random_state=0).states
         >>> bool(abs(states[-1].mean()) > 0.9)
         True
         >>> from sage.all__sagemath_symbolics import cos
         >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.core.components.laws.utils import exterior_derivative
         >>> from skcomplex.core.components.spaces import CellComplexSpace, CofaceNeighborhood
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> class LinkElement(Element):
         ...     def __init__(self, label, theta: Annotated[float, StateSpec()] = 0.0):
         ...         super().__init__(label)
@@ -255,10 +256,11 @@ class SamplingInteraction(Interaction):
         ... )
         >>> links = GroupElement('links', element=LinkElement, space=CellComplexSpace(LatticeSpace((4, 4))), on='edges')
         >>> system = System(elements=[links], interactions=[gauge], time=DiscreteTime())
-        >>> Simulation(system, random_state=0).prepare().run(until=2).trajectory_.states.shape
+        >>> simulate(system, until=2, random_state=0).states.shape
         (3, 32)
         >>> import numpy as np
         >>> from skcomplex.core.specs import RowScoreSpec
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> def flip_one(row, random):
         ...     row[random.integers(row.size)] *= -1
         ...     return row
@@ -267,9 +269,10 @@ class SamplingInteraction(Interaction):
         ... )
         >>> spins = LatticeElement('spins', element=SpinElement, space=LatticeSpace((2, 8)))
         >>> system = System(elements=[spins], interactions=[walk], time=DiscreteTime())
-        >>> Simulation(system, random_state=0).prepare().run(until=3).trajectory_.values('walk.score').shape
+        >>> simulate(system, until=3, random_state=0).values('walk.score').shape
         (4, 2)
         >>> from skcomplex.core.specs import HolonomyScoreSpec, MatrixGroupSpec
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> group = MatrixGroupSpec('SU', 2)
         >>> class MatrixLinkElement(Element):
         ...     def __init__(self, label, U: Annotated[object, StateSpec(group=group)] = tuple(group.identity)):
@@ -283,9 +286,10 @@ class SamplingInteraction(Interaction):
         >>> space = CellComplexSpace(LatticeSpace((4, 4)))
         >>> links = GroupElement('links', element=MatrixLinkElement, space=space, on='edges')
         >>> system = System(elements=[links], interactions=[wilson], time=DiscreteTime())
-        >>> Simulation(system, random_state=0).prepare().run(until=2).trajectory_.values('links.U').shape
+        >>> simulate(system, until=2, random_state=0).values('links.U').shape
         (3, 32, 8)
         >>> from skcomplex.core.specs import RegionScoreSpec
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> class SiteElement(Element):
         ...     def __init__(self, label, region: Annotated[float, StateSpec()] = 0.0):
         ...         super().__init__(label)
@@ -298,7 +302,7 @@ class SamplingInteraction(Interaction):
         >>> regions = np.kron(np.arange(4).reshape(2, 2), np.ones((4, 4)))
         >>> sites = LatticeElement('sites', element=SiteElement, space=LatticeSpace((8, 8)), values={'region': regions})
         >>> system = System(elements=[sites], interactions=[copies], time=DiscreteTime())
-        >>> final = Simulation(system, random_state=0).prepare().run(until=20).state_
+        >>> final = simulate(system, until=20, random_state=0).states[-1]
         >>> sorted(np.unique(final).tolist())
         [0.0, 1.0, 2.0, 3.0]
     """

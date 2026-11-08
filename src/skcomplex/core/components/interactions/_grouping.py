@@ -111,7 +111,7 @@ class GroupingInteraction(Interaction):
         >>> from skcomplex.core.components.elements import Element, GroupElement
         >>> from skcomplex.core.components.interactions import GroupingInteraction
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.specs import StateSpec
         >>> class VoterElement(Element):
         ...     def __init__(self, label, visual=None, *, s: Annotated[float, StateSpec()] = 0.0):
@@ -123,8 +123,8 @@ class GroupingInteraction(Interaction):
         ...         member.s = majority
         >>> voters = GroupElement('voters', element=VoterElement, size=3, values={'s': [1.0, 1.0, 0.0]})
         >>> galam = GroupingInteraction('galam', target='voters', groups='partition', size=3, act=adopt_majority)
-        >>> trajectory = Simulation(System(elements=[voters], interactions=[galam])).prepare().run(until=1)
-        >>> trajectory.trajectory_.agents('voters', 1).values['s'].tolist()
+        >>> trajectory = simulate(System(elements=[voters], interactions=[galam]), until=1)
+        >>> trajectory.agents('voters', 1).values['s'].tolist()
         [1.0, 1.0, 1.0]
 
         In the symbolic form every group of the partition takes the opinion of its majority:
@@ -139,8 +139,8 @@ class GroupingInteraction(Interaction):
         ...     write='s',
         ...     function=lambda g: where(mean(g.members.s, over=g.members) > 1 / 2, 1, 0),
         ... )
-        >>> simulation = Simulation(System(elements=[voters], interactions=[galam]), random_state=0)
-        >>> simulation.prepare().run(until=1).trajectory_.values('voters.s')[-1].tolist()
+        >>> trajectory = simulate(System(elements=[voters], interactions=[galam]), until=1, random_state=0)
+        >>> trajectory.values('voters.s')[-1].tolist()
         [1.0, 1.0, 1.0]
     """
 

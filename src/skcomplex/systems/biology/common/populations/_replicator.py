@@ -43,15 +43,15 @@ class ReplicatorInteraction(RateInteraction):
         >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.core.components.laws.utils import total
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.runtime import Simulation
         >>> from skcomplex.systems.biology.evolution import ReplicatorInteraction, StrategyElement
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> population = GroupElement('population', element=StrategyElement, size=2, values={'x': [0.5, 0.5]})
         >>> payoff = ((1.0, 1.0), (0.0, 0.0))
         >>> replication = ReplicatorInteraction(
         ...     'replication', target='population', fitness=lambda s: total(s.target.x, weights=payoff)
         ... )
         >>> system = System(elements=[population], interactions=[replication])
-        >>> trajectory = Simulation(system, dt=0.1).prepare().run(until=20.0).trajectory_
+        >>> trajectory = simulate(system, until=20.0, dt=0.1)
         >>> [round(float(share), 3) for share in trajectory.values('population.x')[-1]]
         [1.0, 0.0]
     """
