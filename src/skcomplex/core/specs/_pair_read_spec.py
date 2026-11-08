@@ -30,9 +30,14 @@ class PairReadSpec(BaseSpec):
         table:
             The member that every neighbour stands for, for an `'other'` read whose neighbours are rows of a table,
             such as one other member of the hyperedges around the reader, or `None` for the neighbour itself.
+
+        position:
+            The place among the other members of a set of current neighbours of the reader, for an `'other'` read of
+            a reduction over neighbour hyperedges, or `None` for a reduction over single neighbours.
     """
 
     read: ReadSpec
     side: str
     image: bool = False
     table: Indices | None = field(default=None, compare=False)
+    position: int | None = None

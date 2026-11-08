@@ -37,6 +37,7 @@ from ._paths import shortest_paths
 from ._phase import COORDINATE_PREFIX, coordinate, coordinates_of, maximum_entropy, reduce_axes
 from ._pointwise import clip, hill, logistic, sign
 from ._reductions import (
+    MAX_NEIGHBOR_HYPEREDGE_SIZE,
     NEIGHBOR_REDUCTIONS,
     circular_mean,
     count,
@@ -67,6 +68,7 @@ from ._tensors import (
 __all__: list[str] = [
     'COORDINATE_PREFIX',
     'INVERSION_BOUNDARIES',
+    'MAX_NEIGHBOR_HYPEREDGE_SIZE',
     'NEIGHBOR_REDUCTIONS',
     'advection',
     'antisymmetric_part',

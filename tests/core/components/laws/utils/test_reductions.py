@@ -1,5 +1,6 @@
 """Test the `_reductions` module of `skcomplex.core.components.laws.utils`."""
 
+import itertools
 import math
 from types import SimpleNamespace
 from typing import Annotated
@@ -9,7 +10,7 @@ import numpy as np
 import pytest
 import scipy.sparse
 import scipy.special
-from sage.all__sagemath_symbolics import RR, atan2, cos, exp, pi, sin, tanh, var, vector
+from sage.all__sagemath_symbolics import RR, SR, atan2, cos, exp, pi, sin, sqrt, tanh, var, vector
 
 from skcomplex.core.components.base import BasePart
 from skcomplex.core.components.elements import Element, GroupElement, LatticeElement
@@ -44,7 +45,7 @@ from skcomplex.core.components.spaces import (
     VonNeumannNeighborhood,
 )
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
+from skcomplex.core.engine.backends import JaxBackend, NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems._reduction_kernel import ReductionKernel
 from skcomplex.core.engine.runtime import simulate
@@ -1083,6 +1084,126 @@ def test_validate_reports_a_hyperedge_reduction_in_a_lattice():
     issues = PassCompiler().prepare(system).report_.issues
     assert [issue.code for issue in issues] == ['law-space']
     assert 'hyperedges' in issues[0].message
+
+
+def test_hyperedges_over_a_neighbourhood_keeps_it():
+    """Test that a reduction over neighbour hyperedges records its neighbourhood and its size."""
+    (found,) = hyperedges_in(hyperedges(var('x'), size=3, over=RadiusNeighborhood(1.5)))
+    assert (found.size, repr(found.over)) == (3, 'RadiusNeighborhood(radius=1.5)')
+    (network,) = hyperedges_in(hyperedges(var('x'), size=3))
+    assert network.over is None
+
+
+@pytest.mark.parametrize(
+    ('arguments', 'match'),
+    [
+        ({'over': RadiusNeighborhood(1.0)}, 'size of 2 or more'),
+        ({'size': 3, 'over': VonNeumannNeighborhood()}, 'continuous space'),
+    ],
+)
+def test_hyperedges_over_a_neighbourhood_needs_a_size_and_a_metric_neighbourhood(arguments, match):
+    """Test that neighbour hyperedges without a size, or over a lattice neighbourhood, raise an error."""
+    with pytest.raises(ValidationError, match=match):
+        hyperedges(var('x'), **arguments)
+
+
+class NeighbourSetElement(Element):
+    """Element in a continuous space whose rate of `y` is a reduction over its neighbour hyperedges."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec(vector=True, role='position')] = 0.0,
+        y: Annotated[object, StateSpec()] = 0.0,
+        term: str = 'flank',
+        radius: float = 1.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.term = term
+        self.radius = radius
+
+    def _get_laws(self, s):
+        """Return the rate of `y`, a reduction over the sets of neighbours of the member."""
+        over = RadiusNeighborhood(self.radius)
+        terms = {
+            'flank': lambda: hyperedges(self._flank(s), size=3, over=over),
+            'count': lambda: hyperedges(SR(1), reduce='count', size=4, over=over),
+            'pairs': lambda: hyperedges(SR(1), size=3, over=over),
+        }
+        return [RateLaw(s.y, terms[self.term]())]
+
+    @staticmethod
+    def _flank(s):
+        """Return the flanking term of one pair of neighbours, half of one minus the cosine of their angle."""
+        first, second = s.others[0].x - s.x, s.others[1].x - s.x
+        return (1 - first * second / sqrt((first * first) * (second * second))) / 2
+
+
+def _neighbour_set_drift(positions, term, side, backend, radius=1.5):
+    """Return the drift of `y` of members at positions under a reduction over neighbour hyperedges."""
+    space = ContinuousSpace(extent=(side, side), boundary='periodic')
+    values = {'x': positions, 'term': term, 'radius': radius}
+    group = GroupElement('g', element=NeighbourSetElement, size=len(positions), values=values)
+    problem = PassCompiler(backend=backend).prepare(System(elements=[group], space=space)).run().problem_
+    return problem.states.read(problem.drift(0.0, problem.initial_state, problem.initial_parameters), 'g.y')
+
+
+@pytest.mark.parametrize('backend', BACKENDS, ids=['numpy', 'numba'])
+def test_neighbour_hyperedges_match_a_loop_over_pairs_of_neighbours(backend):
+    """Test that a three-body term over pairs of neighbours equals a loop over every member and pair."""
+    side, radius = 5.0, 1.5
+    positions, _, _ = _scattered(30, side, 7)
+    difference = _minimum_image(positions[None, :, :] - positions[:, None, :], side)
+    distance = np.linalg.norm(difference, axis=2)
+    expected = np.zeros(30)
+    for member in range(30):
+        around = [other for other in range(30) if other != member and distance[member, other] <= radius]
+        for first, second in itertools.combinations(around, 2):
+            one, two = difference[member, first], difference[member, second]
+            expected[member] += (1 - one @ two / (np.linalg.norm(one) * np.linalg.norm(two))) / 2
+    drift = _neighbour_set_drift(positions, 'flank', side, backend, radius)
+    assert np.abs(expected).sum() > 0
+    assert np.allclose(drift, expected, rtol=0.0, atol=1e-12)
+
+
+@pytest.mark.parametrize('backend', BACKENDS, ids=['numpy', 'numba'])
+def test_neighbour_hyperedges_of_four_members_are_the_triples_of_neighbours(backend):
+    """Test that a member with four neighbours has four hyperedges of size four."""
+    positions = np.array([[5.0, 5.0], [5.5, 5.0], [4.5, 5.0], [5.0, 5.5], [5.0, 4.5]])
+    drift = _neighbour_set_drift(positions, 'count', 10.0, backend, radius=0.6)
+    assert drift.tolist() == [4.0, 0.0, 0.0, 0.0, 0.0]
+
+
+@pytest.mark.parametrize('backend', BACKENDS, ids=['numpy', 'numba'])
+def test_neighbour_hyperedges_need_enough_neighbours(backend):
+    """Test that a member with one neighbour has a zero sum over hyperedges of size three."""
+    positions = np.array([[1.0, 1.0], [1.5, 1.0], [8.0, 8.0]])
+    drift = _neighbour_set_drift(positions, 'pairs', 10.0, backend, radius=1.0)
+    assert drift.tolist() == [0.0, 0.0, 0.0]
+
+
+def test_validate_reports_neighbour_hyperedges_on_a_network():
+    """Test that a reduction over neighbour hyperedges in a network space has a law-space issue."""
+    group = GroupElement('g', element=NeighbourSetElement, size=5, values={'term': 'pairs'})
+    system = System(elements=[group], space=NetworkSpace(nx.cycle_graph(5)))
+    issues = [issue for issue in PassCompiler().prepare(system).report_.issues if issue.code == 'law-space']
+    assert len(issues) == 1
+    assert 'continuous space' in issues[0].message
+
+
+def test_validate_reports_neighbour_hyperedges_on_the_jax_backend():
+    """Test that a reduction over neighbour hyperedges on the JAX backend names the backends that run it."""
+    positions = np.array([[1.0, 1.0], [1.5, 1.0], [1.0, 1.5]])
+    group = GroupElement('g', element=NeighbourSetElement, size=3, values={'x': positions, 'term': 'pairs'})
+    system = System(elements=[group], space=ContinuousSpace(extent=(4.0, 4.0)))
+    issues = PassCompiler(backend=JaxBackend()).prepare(system).report_.issues
+    (issue,) = [issue for issue in issues if issue.code == 'backend-unsupported']
+    assert 'NumpyBackend' in issue.fix
+    assert 'NumbaBackend' in issue.fix
 
 
 class QuenchedEnergyElement(Element):

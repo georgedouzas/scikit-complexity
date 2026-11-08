@@ -66,6 +66,7 @@ from ...components.specs import CensusRecordSpec, CensusSpec, NodeSpec
 from ...components.system import System
 from ...errors import (
     AlgebraicStateError,
+    BackendError,
     ContextError,
     ParameterError,
     PhaseSpaceTooLargeError,
@@ -136,6 +137,7 @@ POLYGON_COORDINATES = 2
 NONLOCAL_OPERATORS = ('convolve', 'shifted', 'inverse_helmholtz', 'integral_transform', 'cumulative_integral')
 LOCAL_OPERATORS = ('laplacian', 'partial', 'upwind')
 KERNEL_OPERATORS = ('convolve', 'integral_transform')
+NEIGHBOR_SET_BACKENDS = ('numpy', 'numba')
 _PLANNING = frozenset({'nodes', 'census', 'plan'})
 _FIELDS = (
     'system',
@@ -706,7 +708,7 @@ class PassCompiler(BaseCompiler):
         issues += PassCompiler._equation_issues(compilation)
         issues += PassCompiler._satisfiability_issues(nodes)
         issues += PassCompiler._neighborhood_issues(records, nodes)
-        issues += PassCompiler._around_issues(records)
+        issues += PassCompiler._around_issues(records, compilation.backend)
         issues += PassCompiler._degree_issues(records)
         issues += PassCompiler._nonlocal_issues(records, nodes)
         issues += PassCompiler._coordinate_issues(records, nodes)
@@ -1356,10 +1358,11 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _around_issues(records: list[CensusRecordSpec]) -> list[IssueSpec]:
-        """Return the reductions over hyperedges of a component outside a fitting network.
+    def _around_issues(records: list[CensusRecordSpec], backend: BaseBackend | None) -> list[IssueSpec]:
+        """Return the reductions over hyperedges of a component outside a fitting space or backend.
 
-        The network must have hyperedges of their size.
+        The network must have hyperedges of their size. The hyperedges of current neighbours need a continuous space and
+        a backend with the neighbour search.
         """
         issues = []
         for record in records:
@@ -1370,6 +1373,12 @@ class PassCompiler(BaseCompiler):
             space = record.space
             sizes = sorted({len(item) for item in getattr(space, 'hyperedges_', ())})
             for reduction in reductions.values():
+                if reduction.over is not None:
+                    issue = PassCompiler._neighbor_set_issue(name, record, reduction.over, backend)
+                    if issue is not None:
+                        issues.append(issue)
+                        break
+                    continue
                 if not isinstance(space, NetworkSpace) or not sizes:
                     lives = type(space).__name__ if space is not None else 'no space'
                     message = (
@@ -1598,6 +1607,51 @@ class PassCompiler(BaseCompiler):
         )
         fix = f'Reduce over one of the layers {known}, or add the layer to the network space.'
         return IssueSpec('binding', path, message, fix)
+
+    @staticmethod
+    def _neighbor_set_issue(
+        name: str,
+        record: CensusRecordSpec,
+        over: object,
+        backend: BaseBackend | None,
+    ) -> IssueSpec | None:
+        """Return the issue of a reduction over the hyperedges of current neighbours, or `None`.
+
+        It needs a continuous space and the NumPy or Numba backend.
+
+        Args:
+            name:
+                The name of the law in messages.
+
+            record:
+                The census record of the law.
+
+            over:
+                The neighbourhood of the reduction.
+
+            backend:
+                The backend passed, or `None` for the default one.
+
+        Returns:
+            issue:
+                The issue, or `None` when the reduction runs.
+        """
+        if not isinstance(record.space, ContinuousSpace):
+            lives = type(record.space).__name__ if record.space is not None else 'no space'
+            message = (
+                f'The {name} reduces over the hyperedges of current neighbours in {over!r}, which needs a continuous '
+                f'space, but the component lives on {lives}.'
+            )
+            fix = 'Give the group a continuous space, or reduce over the hyperedges of a network without `over`.'
+            return IssueSpec('law-space', record.path, message, fix)
+        if backend is not None and backend._get_name() not in NEIGHBOR_SET_BACKENDS:
+            message = (
+                f'The {name} reduces over the hyperedges of current neighbours in {over!r}, which the backend '
+                f'{type(backend).__name__} does not search.'
+            )
+            fix = 'Pass the NumpyBackend or the NumbaBackend.'
+            return IssueSpec('backend-unsupported', record.path, message, fix, error=BackendError)
+        return None
 
     @staticmethod
     def _neighborhood_issues(records: list[CensusRecordSpec], nodes: list[NodeSpec]) -> list[IssueSpec]:

@@ -34,6 +34,7 @@ from ....components.spaces import (
     CellComplexSpace,
     CofaceNeighborhood,
     ConeNeighborhood,
+    ContinuousSpace,
     LatticeNeighborhood,
     MemoryNeighborhood,
     NearestNeighborhood,
@@ -54,8 +55,10 @@ from ....specs._capacity_rows_spec import ACTIVE_THRESHOLD
 from ....specs._held_reduction_spec import _HeldReductionSpec
 from ....types import Indices, VariableKind
 from ..._utils import declarations_of, domain_of, symbol, symbols_of, vector
+from ...problems._block_spec import BlockSpec
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._kernel_spec import KernelSpec
+from ...problems._metric_search import MetricSearch
 from ...problems._neighborhood_kernel import NeighborhoodKernel
 from ...problems._reduction_kernel import ReductionKernel
 from ...problems._reference_spec import ReferenceSpec
@@ -1236,9 +1239,10 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
     def _hyperedges(self, reduction: HyperedgeReductionSpec, spec: KernelSpec) -> Expression:
         """Return the placeholder of a reduction over the hyperedges around every member.
 
-        It is the sum of one reduction per size. Without a size, the reduction runs over the hyperedges of every size of
-        the network: the sum and the count add the reductions of every size, and the mean divides their sum by the
-        number of hyperedges around the member.
+        It is the sum of one reduction per size. Over a neighbourhood, the hyperedges are the sets of current neighbours
+        of one size. Without a size, the reduction runs over the hyperedges of every size of the network: the sum and
+        the count add the reductions of every size, and the mean divides their sum by the number of hyperedges around
+        the member.
 
         Args:
             reduction:
@@ -1256,13 +1260,23 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
                 The network has no hyperedge of the size of the reduction.
 
             ValidationError:
-                The members do not live on a network with hyperedges, or a reduction other than the sum, the mean, or
-                the count runs over hyperedges of several sizes.
+                The members do not live on a network with hyperedges, or in a continuous space for a reduction over
+                neighbours, or a reduction other than the sum, the mean, or the count runs over hyperedges of several
+                sizes.
         """
         argument = SR(reduction.argument)
         weight = SR(1) if reduction.weight is None else SR(reduction.weight)
         group = self._neighbor_group(reduction, spec, symbols_of([argument, weight]) - {self.declarations_.time})
         space = self.declarations_.blocks[group].node.space
+        if reduction.over is not None and reduction.size is not None:
+            if not isinstance(space, ContinuousSpace) or group in self.declarations_.capacity:
+                error_msg = (
+                    f'The hyperedge reduction {reduction.call} of {spec.owner} reads {group}, which lives on '
+                    f'{space!r}. A reduction over the hyperedges of current neighbours needs a group of fixed members '
+                    'in a continuous space.'
+                )
+                raise ValidationError(error_msg)
+            return self._hyperedge_kernel(reduction, spec, group, (reduction.kind, argument, weight), reduction.size)
         if not isinstance(space, NetworkSpace) or not space.hyperedges_:
             error_msg = (
                 f'The hyperedge reduction {reduction.call} of {spec.owner} reads {group}, which lives on {space!r}. '
@@ -1360,10 +1374,9 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             )
             raise ValidationError(error_msg)
         block = self.declarations_.blocks[group]
-        key = ('hyperedges', kind, str(argument), str(weight), size, group)
+        key = ('hyperedges', kind, str(argument), str(weight), size, repr(reduction.over), group)
         if key not in self.neighbourhoods_:
-            indptr, tables = HyperedgeTables._incidences(cast(NetworkSpace, block.node.space), size)
-            search = StaticSearch(indptr, np.arange(indptr[-1], dtype=np.intp)).prepare()
+            search, tables = self._hyperedge_search(reduction, block, size)
             sources = {value: item for item, value in focal.items()}
             reads = {
                 item: self._hyperedge_read(item, spec, group, search, (sources, positions, tables))
@@ -1381,6 +1394,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
                 search=search,
                 reads=reads,
                 time=self.declarations_.time,
+                hyperedge=None if tables is not None else size,
             ).prepare()
             self.neighbourhoods_[key] = compiled
             self.sequence_.append(compiled)
@@ -1390,17 +1404,52 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         self._add_reference(spec, compiled.symbol, ReferenceSpec(compiled.entry, False, 0, ReadKind.REDUCED))
         return compiled.symbol
 
+    def _hyperedge_search(
+        self,
+        reduction: HyperedgeReductionSpec,
+        block: BlockSpec,
+        size: int,
+    ) -> tuple[StaticSearch | MetricSearch, list[Indices] | None]:
+        """Return the search of the hyperedges around every member and the tables of their other members.
+
+        On a network, the search runs over the incidences of the hyperedges of the size, and the tables give the other
+        member at every position. Over a neighbourhood, the search finds the current neighbours, which the kernel forms
+        into sets, and there are no tables.
+
+        Args:
+            reduction:
+                The reduction over the hyperedges around every member.
+
+            block:
+                The block of the group of the members.
+
+            size:
+                The size of the hyperedges.
+
+        Returns:
+            search:
+                The search, and the tables of the other members, or `None` over a neighbourhood.
+        """
+        if reduction.over is None:
+            indptr, tables = HyperedgeTables._incidences(cast(NetworkSpace, block.node.space), size)
+            return StaticSearch(indptr, np.arange(indptr[-1], dtype=np.intp)).prepare(), tables
+        states = declarations_of(block.node.component_type, VariableKind.STATE)
+        over = cast(RadiusNeighborhood | NearestNeighborhood | ConeNeighborhood, reduction.over).prepare()
+        search = NeighborhoodKernel._neighbor_search(over, block.node.space, block.rows, block.entries, states)
+        return cast(MetricSearch, search), None
+
     def _hyperedge_read(
         self,
         item: Expression,
         spec: KernelSpec,
         group: str,
-        search: StaticSearch,
-        slots: tuple[dict[Expression, Expression], dict[Expression, int], list[Indices]],
+        search: StaticSearch | MetricSearch,
+        slots: tuple[dict[Expression, Expression], dict[Expression, int], list[Indices] | None],
     ) -> PairReadSpec:
         """Return how a reduction over hyperedges reads one symbol.
 
-        It reads it of the member, of another member, or shared.
+        It reads it of the member, of another member, or shared. Another member of a set of neighbours is read at its
+        position in the set, by its minimum image for a position in a periodic space.
 
         Args:
             item:
@@ -1416,7 +1465,8 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
                 The search of the symbols of the system.
 
             slots:
-                The sources of the slots, their positions, and the tables of the positions.
+                The sources of the slots, their positions, and the tables of the positions, or `None` for sets of
+                neighbours.
 
         Returns:
             read:
@@ -1442,4 +1492,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         read = ReadSpec(reference.is_state, indices, entry, reference.column, entry.columns)
         if item in sources:
             return PairReadSpec(read, 'reader')
+        if tables is None:
+            image = getattr(search, 'periods', None) is not None and entry == getattr(search, 'positions', None)
+            return PairReadSpec(read, 'other', image, position=positions[item])
         return PairReadSpec(read, 'other', table=tables[positions[item]])
