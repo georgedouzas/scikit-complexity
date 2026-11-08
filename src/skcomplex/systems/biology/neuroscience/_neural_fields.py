@@ -1,4 +1,7 @@
-"""Neural fields: the potential of a continuum of neurons that excite near and inhibit distant neighbours."""
+"""Neural fields: the potential of a continuum of neurons.
+
+The neurons excite near and inhibit distant neighbours.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,7 +22,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class NeuralFieldSiteElement(Element):
-    """Site of a neural field, the mean membrane potential of the neurons at one position.
+    """Site of a neural field.
+
+    The site holds the mean membrane potential of the neurons at one position.
 
     The site holds the potential `u`, its time constant `tau`, the resting level `h`, and the amplitude `A` and the
     range `sigma` of the lateral-inhibition kernel `w(x) = A (1 - |x| / sigma) exp(-|x| / sigma)`, which excites near
@@ -73,7 +78,9 @@ class NeuralFieldSiteElement(Element):
 
 
 class AmariNeuralFieldSystem(BaseSystem):
-    """The Amari neural field, whose lateral inhibition holds a stationary bump of activity.
+    """The Amari neural field.
+
+    Its lateral inhibition holds a stationary bump of activity.
 
     The potential follows `tau u_t = -u + integral w(x - y) H(u(y)) dy + h` on a periodic line, where `H` is the
     Heaviside firing rate, `h < 0` the resting level, and `w(x) = A (1 - |x| / sigma) exp(-|x| / sigma)` the
@@ -141,7 +148,10 @@ class AmariNeuralFieldSystem(BaseSystem):
 
     @staticmethod
     def _amari_rate(s: SimpleNamespace) -> Expression:
-        """Return the rate of the Amari field, the leak, the input of firing sites through the kernel, and the rest."""
+        """Return the rate of the Amari field.
+
+        The rate is the leak, the input of firing sites through the kernel, and the rest.
+        """
         site = s.target
         distance = abs(displacement(0)) / site.sigma
         kernel = site.A * (1 - distance) * exp(-distance)
@@ -149,7 +159,10 @@ class AmariNeuralFieldSystem(BaseSystem):
         return rate
 
     def _build_system(self) -> System:
-        """Return the parts of the Amari neural field, whose lateral inhibition holds a stationary bump of activity."""
+        """Return the parts of the Amari neural field.
+
+        Its lateral inhibition holds a stationary bump of activity.
+        """
         spacing = self.length / self.n_sites
         positions = (np.arange(self.n_sites) + 0.5) * spacing - self.length / 2
         values = {

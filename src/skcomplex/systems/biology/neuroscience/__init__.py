@@ -1,4 +1,7 @@
-"""Neuroscience: spiking and conductance-based neurons, populations, networks, excitable networks, and synapses."""
+"""Neuroscience systems.
+
+They cover spiking and conductance-based neurons, populations, networks, excitable networks, and synapses.
+"""
 
 from ..common.excitable import SpikeResetInteraction, ThetaNeuronElement
 from ._associative import AssociativeSiteElement, AssociativeThoughtProcessSystem, CliqueCompetitionInteraction

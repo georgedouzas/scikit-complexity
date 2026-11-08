@@ -1,4 +1,7 @@
-"""Excitable networks: cyclic excitable elements that excite their neighbours with a transmission probability."""
+"""Excitable networks of cyclic excitable elements.
+
+The elements excite their neighbours with a transmission probability.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -28,7 +31,9 @@ def _excited_fraction(phases: AnyArray) -> float:
 
 
 class ExcitableElement(Element):
-    """Cyclic excitable element of the Kinouchi-Copelli network: quiescent at 0, excited at 1, refractory up to `m - 1`.
+    """Cyclic excitable element of the Kinouchi-Copelli network.
+
+    The element is quiescent at 0, excited at 1, and refractory up to `m - 1`.
 
     Transitions move its phase every step. A quiescent element is excited by the external stimulus with probability
     `1 - exp(-r)`, where `r` is the stimulus rate per step, or by each excited neighbour with the transmission
@@ -73,7 +78,9 @@ class ExcitableElement(Element):
 
 
 class KinouchiCopelliSystem(BaseSystem):
-    """The Kinouchi-Copelli network of excitable elements, whose dynamic range peaks at the critical point.
+    """The Kinouchi-Copelli network of excitable elements.
+
+    Its dynamic range peaks at the critical point.
 
     Every element excites each quiescent neighbour with the transmission probability `p = sigma / K`, where `K` is the
     mean degree of the graph, so `sigma` is the branching ratio, the mean number of elements one excitation excites.
@@ -142,14 +149,20 @@ class KinouchiCopelliSystem(BaseSystem):
 
     @staticmethod
     def _get_excitation(s: SimpleNamespace) -> Expression:
-        """Return the probability that the stimulus or an excited neighbour excites a quiescent element in a step."""
+        """Return the probability that a quiescent element is excited in a step.
+
+        The stimulus or an excited neighbour excites it.
+        """
         excited = neighbors(where(s.target.other.phase == EXCITED, 1, 0))
         probability: Expression = 1 - exp(-s.target.stimulus) * (1 - s.target.p) ** excited
         return probability
 
     @staticmethod
     def _get_cycle(n_states: int) -> list[TransitionInteraction]:
-        """Return the moves of an excited or refractory element to the next state of its cycle, the last to rest."""
+        """Return the moves of an excited or refractory element to the next state.
+
+        The element moves to the next state of its cycle, and the last state moves to rest.
+        """
         return [
             TransitionInteraction(
                 f'cycle_{phase}',

@@ -24,7 +24,9 @@ from ..common.excitable import ThetaNeuronElement
 
 
 class PolyhomeostaticNeuronElement(Element):
-    """Rate neuron that adapts its gain and threshold so that its firing rate becomes exponentially distributed.
+    """Rate neuron that adapts its gain and threshold.
+
+    The adaptation makes its firing rate exponentially distributed.
 
     The membrane potential `x` integrates the input `I0 + A sin(omega t)` with rate `Gamma`, and the neuron fires at
     rate `y = 1 / (1 + exp(a (b - x)))`. Stochastic gradient descent on the Kullback-Leibler divergence between the
@@ -105,7 +107,9 @@ class PolyhomeostaticNeuronElement(Element):
 
 
 class RateUnitElement(Element):
-    """Neural unit of a competitive network, whose activity grows with its input and saturates, `tau x' = x (I - x)`.
+    """Neural unit of a competitive network, `tau x' = x (I - x)`.
+
+    Its activity grows with its input and saturates.
 
     Args:
         label:
@@ -160,7 +164,9 @@ class RateUnitElement(Element):
 
 
 class WilsonCowanElement(Element):
-    """Excitatory and inhibitory populations of Wilson and Cowan, as fractions of active cells.
+    """Excitatory and inhibitory populations of Wilson and Cowan.
+
+    The populations are fractions of active cells.
 
     The excitatory activity follows `tau_e E' = -E + (k_e - r_e E) S_e(c1 E - c2 I + P)` and the inhibitory activity
     `tau_i I' = -I + (k_i - r_i I) S_i(c3 E - c4 I + Q)`, where `S(x) = 1 / (1 + exp(-a (x - theta))) - 1 / (1 +
@@ -270,7 +276,9 @@ class WilsonCowanElement(Element):
 
 
 class MutualInhibitionInteraction(CouplingInteraction):
-    """Inhibition of every unit by the summed activity of all the other units, `-beta x_i sum_{j != i} x_j / tau_i`.
+    """Inhibition of every unit by the summed activity of all the other units.
+
+    The inhibition is `-beta x_i sum_{j != i} x_j / tau_i`.
 
     It is the coupling of the units to each other, as separate elements or as the members of a group, with the term
     `-beta x_i x_j / tau_i` of every other unit `j`.
@@ -310,7 +318,9 @@ class MutualInhibitionInteraction(CouplingInteraction):
 
 
 class PulseCouplingInteraction(Interaction):
-    """Global coupling of theta neurons through the mean of the smooth pulses that every neuron emits.
+    """Global coupling of theta neurons through the mean of their pulses.
+
+    Every neuron emits smooth pulses.
 
     Every neuron receives the current `(1 + cos theta) kappa I`, where `I = mean_j a_n (1 - cos theta_j)^n` is the mean
     pulse of all neurons at the current state. The pulse peaks when a neuron fires, and `a_n` gives it a unit mean over
@@ -368,7 +378,9 @@ class PulseCouplingInteraction(Interaction):
 
 
 class WilsonCowanSystem(BaseSystem):
-    """The Wilson-Cowan system of interacting excitatory and inhibitory populations of neurons.
+    """The Wilson-Cowan system of interacting excitatory and inhibitory populations.
+
+    The populations are made of neurons.
 
     With the published couplings, a moderate excitatory input `P = 1.25` gives a limit cycle of population activity, and
     no input lets the activity decay to rest. The system has the activities `cortex.E` and `cortex.I`.
@@ -438,7 +450,10 @@ class WilsonCowanSystem(BaseSystem):
 
     @staticmethod
     def _response(x: Expression, gain: Expression, threshold: Expression) -> Expression:
-        """Return the response `logistic(x) - logistic(0)` of a sigmoid of a gain and a threshold, 0 at no input."""
+        """Return the response `logistic(x) - logistic(0)` of a sigmoid.
+
+        The sigmoid has a gain and a threshold, and the response is 0 at no input.
+        """
         response: Expression = logistic(x, threshold, 1 / gain) - logistic(0, threshold, 1 / gain)
         return response
 
@@ -449,7 +464,7 @@ class WilsonCowanSystem(BaseSystem):
         return saturation
 
     def _excitation(self, s: SimpleNamespace) -> Expression:
-        """Return the response of the excitatory population of Wilson and Cowan to its input."""
+        """Return the response of the Wilson-Cowan excitatory population to its input."""
         c = s.target
         excitation: Expression = (self._saturation(c.a_e, c.theta_e) - c.r_e * c.E) * self._response(
             c.c1 * c.E - c.c2 * c.I + c.P,
@@ -459,7 +474,7 @@ class WilsonCowanSystem(BaseSystem):
         return excitation
 
     def _inhibition(self, s: SimpleNamespace) -> Expression:
-        """Return the response of the inhibitory population of Wilson and Cowan to its input."""
+        """Return the response of the Wilson-Cowan inhibitory population to its input."""
         c = s.target
         inhibition: Expression = (self._saturation(c.a_i, c.theta_i) - c.r_i * c.I) * self._response(
             c.c3 * c.E - c.c4 * c.I + c.Q,
@@ -501,7 +516,9 @@ class WilsonCowanSystem(BaseSystem):
 
 
 class ThetaNeuronsSystem(BaseSystem):
-    """A network of theta neurons, equivalently quadratic integrate-and-fire neurons, coupled all to all.
+    """A network of theta neurons coupled all to all.
+
+    Theta neurons are equivalently quadratic integrate-and-fire neurons.
 
     Neuron `i` follows `theta_i' = (1 - cos theta_i) + (1 + cos theta_i)(eta_i + kappa I)`, where `I` is the mean pulse
     `a_n (1 - cos theta_j)^n` of all neurons at the current state. The excitabilities are evenly spaced quantiles of a
@@ -588,7 +605,9 @@ class ThetaNeuronsSystem(BaseSystem):
 
 
 class WinnersTakeAllSystem(BaseSystem):
-    """A winner-take-all network of units with self-limited growth and mutual inhibition.
+    """A winner-take-all network of units.
+
+    The units have self-limited growth and mutual inhibition.
 
     Unit `i` follows `tau x_i' = x_i (I_i - x_i - beta sum_{j != i} x_j)`, the competitive network of Fukai and Tanaka.
     One inhibition interaction binds every unit as an element set and reads the total activity of the set, so the
@@ -641,7 +660,10 @@ class WinnersTakeAllSystem(BaseSystem):
         self.x = x
 
     def _build_system(self) -> System:
-        """Return the parts of a winner-take-all network of units with self-limited growth and mutual inhibition."""
+        """Return the parts of a winner-take-all network of units.
+
+        The units have self-limited growth and mutual inhibition.
+        """
         units = [
             RateUnitElement(f'unit_{index}', x=self.x, I=value, tau=self.tau) for index, value in enumerate(self.inputs)
         ]
@@ -650,7 +672,9 @@ class WinnersTakeAllSystem(BaseSystem):
 
 
 class PolyhomeostaticNeuronSystem(BaseSystem):
-    """A neuron that adapts its gain and threshold so its firing rate approaches an exponential distribution.
+    """A neuron that adapts its gain and threshold.
+
+    The adaptation makes its firing rate approach an exponential distribution.
 
     Polyhomeostatic optimization targets the whole distribution of the firing rate, the one of maximal entropy for a
     given mean `mu`, rather than its mean alone. The neuron is driven by a periodic input, and the time average of its
@@ -712,7 +736,10 @@ class PolyhomeostaticNeuronSystem(BaseSystem):
 
     @staticmethod
     def _kl_gradient(s: SimpleNamespace) -> Expression:
-        """Return the factor `d = 1 - (2 + 1/mu) y + y²/mu` of the gradient of the polyhomeostatic neuron."""
+        """Return the factor `d = 1 - (2 + 1/mu) y + y²/mu` of the gradient.
+
+        The gradient is the one of the polyhomeostatic neuron.
+        """
         neuron = s.target
         rate = logistic(neuron.x, neuron.b, 1 / neuron.a)
         gradient: Expression = 1 - (2 + 1 / neuron.mu) * rate + rate**2 / neuron.mu

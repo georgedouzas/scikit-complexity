@@ -1,4 +1,7 @@
-"""Neuroscience systems: associative thought processes as transient attractors of clique-encoding networks."""
+"""Neuroscience systems: associative thought processes.
+
+Thoughts are transient attractors of clique-encoding networks.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,7 +28,9 @@ CLIQUES = ((0, 1), (0, 6), (3, 6), (1, 2, 3), (4, 5, 6), (1, 2, 4, 5))
 
 
 class AssociativeSiteElement(Element):
-    """Site of a dense homogeneous associative network, an activity coupled to a slow reservoir.
+    """Site of a dense homogeneous associative network.
+
+    The site holds an activity coupled to a slow reservoir.
 
     The reservoir `phi` of an active site, `x > x_c`, depletes as `dphi/dt = -gamma_minus phi`, and the reservoir of an
     inactive site recovers as `dphi/dt = gamma_plus (1 - phi) (1 - x / x_c)`. The network couples the activities.
@@ -94,7 +99,9 @@ class AssociativeSiteElement(Element):
 
 
 class CliqueCompetitionInteraction(Interaction):
-    """Competition of the cliques of a winners-take-all network, gated by the reservoirs of the sites.
+    """Competition of the cliques of a winners-take-all network.
+
+    The reservoirs of the sites gate the competition.
 
     Site `i` grows by `dx_i/dt = (1 - x_i) r_i` for a positive input `r_i` and decays by `dx_i/dt = x_i r_i` for a
     negative one, with `r_i = sum_j [f_w(phi_i) w_ij + z_ij f_z(phi_j)] x_j`. The excitatory links `w_ij > 0` join the
@@ -189,7 +196,9 @@ class CliqueCompetitionInteraction(Interaction):
 
 
 class AssociativeThoughtProcessSystem(BaseSystem):
-    """The dense homogeneous associative network of Gros, whose memories become active one after the other.
+    """The dense homogeneous associative network of Gros.
+
+    Its memories become active one after the other.
 
     Every memory is a clique of sites joined by excitatory links of strength `w`, and every other pair of sites inhibits
     each other with strength `z`. Without reservoirs the network is a winners-take-all network whose cliques are stable

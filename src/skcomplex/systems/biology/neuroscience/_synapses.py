@@ -17,7 +17,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class AdaptrodeElement(Element):
-    """Adaptrode of Mobus, a synaptic weight with three levels of memory that learn on increasing time scales.
+    """Adaptrode of Mobus, a synaptic weight with three levels of memory.
+
+    The levels learn on increasing time scales.
 
     At every step the fast weight `w0` rises toward `w_max` in proportion to the input `x` and decays toward the slower
     weight `w1`, which rises toward `w0` and decays toward the slowest weight `w2`, which rises toward `w1` and decays
@@ -190,7 +192,10 @@ class AdaptrodeSystem(BaseSystem):
 
     @staticmethod
     def _input(s: SimpleNamespace) -> Expression:
-        """Return the input pulse train of the Adaptrode, `amplitude` for `width` steps every `period` until `stop`."""
+        """Return the input pulse train of the Adaptrode.
+
+        The train is `amplitude` for `width` steps every `period` until `stop`.
+        """
         synapse = s.target
         pulse: Expression = where(
             mod(s.t, synapse.period) < synapse.width,
@@ -200,7 +205,10 @@ class AdaptrodeSystem(BaseSystem):
         return pulse
 
     def _build_system(self) -> System:
-        """Return the parts of an Adaptrode synapse driven by a train of input pulses that stops after a while."""
+        """Return the parts of an Adaptrode synapse driven by a train of input pulses.
+
+        The train stops after a while.
+        """
         synapse = AdaptrodeElement(
             'synapse',
             alpha0=self.alpha0,

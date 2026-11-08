@@ -38,7 +38,9 @@ TRACE_TIME = 2.0
 
 
 class InhibitorElement(Element):
-    """Global inhibitor of a LEGION network, whose activity `z` decays at rate `phi` without drive.
+    """Global inhibitor of a LEGION network.
+
+    Its activity `z` decays at rate `phi` without drive.
 
     Args:
         label:
@@ -88,7 +90,9 @@ class InhibitorElement(Element):
 
 
 class SpikingNeuronElement(Element):
-    """Leaky integrate-and-fire neuron with an exponential synaptic trace of its own spikes.
+    """Leaky integrate-and-fire neuron with a synaptic trace of its own spikes.
+
+    The trace is exponential.
 
     The potential follows `tau v' = -v + mu` plus synaptic input, and the trace decays as `s' = -s / tau_s`. A spike
     reset sets the potential back and raises the trace by `1 / tau_s`, so every spike carries a unit area of trace.
@@ -143,7 +147,9 @@ class SpikingNeuronElement(Element):
 
 
 class TermanWangElement(Element):
-    """Relaxation oscillator of Terman and Wang, the dynamics of one site of a LEGION lattice.
+    """Relaxation oscillator of Terman and Wang.
+
+    It is the dynamics of one site of a LEGION lattice.
 
     The fast variable follows `x' = 3x - x³ + 2 - y + I` and the slow one `y' = epsilon (gamma (1 + tanh(x / beta)) -
     y)`. A positive input `I` makes the oscillator oscillate and a negative one makes it excitable. The parameters `m`,
@@ -242,7 +248,9 @@ class TermanWangElement(Element):
 
 
 class DelayedSynapseInteraction(RateInteraction):
-    """Synapse that adds the presynaptic trace from a transmission delay ago to the postsynaptic potential.
+    """Synapse that adds the delayed presynaptic trace to the postsynaptic potential.
+
+    The trace is the one from a transmission delay ago.
 
     The target gains `J s_source(t - D)`, so every presynaptic spike moves the postsynaptic potential by `J` in
     total, spread over the decay time of the trace and arriving after the delay `D`.
@@ -298,7 +306,9 @@ class DelayedSynapseInteraction(RateInteraction):
 
 
 class GlobalInhibitionInteraction(CouplingInteraction):
-    """Inhibition of every oscillator of a lattice by a global inhibitor, once the inhibitor exceeds its threshold.
+    """Inhibition of every oscillator of a lattice by a global inhibitor.
+
+    The inhibition acts once the inhibitor exceeds its threshold.
 
     Every oscillator gets `-W_z H(z - theta_z)` from the inhibitor, a smooth step of width `kappa` of the oscillator.
     It is the coupling of the members of a group to a hub element, and `InhibitorDriveInteraction` drives the hub.
@@ -354,7 +364,9 @@ class GlobalInhibitionInteraction(CouplingInteraction):
 
 
 class InhibitorDriveInteraction(CouplingInteraction):
-    """Drive of a global inhibitor by the largest activity `m H(x - theta_x)` of the oscillators of a lattice.
+    """Drive of a global inhibitor by the largest activity of the lattice oscillators.
+
+    The activity is `m H(x - theta_x)`.
 
     The inhibitor gets `phi max_j m_j H(x_j - theta_x)`, with the rate `phi` of the inhibitor and a smooth step of
     width `kappa` of every oscillator, so it is driven when at least one stimulated oscillator is active. It is the
@@ -403,7 +415,9 @@ class InhibitorDriveInteraction(CouplingInteraction):
 
 
 class DelayedLIFNetworkSystem(BaseSystem):
-    """A random network of leaky integrate-and-fire neurons whose spikes reach their targets after a delay.
+    """A random network of leaky integrate-and-fire neurons with delayed spikes.
+
+    The spikes reach their targets after a delay.
 
     Every neuron is driven above threshold and fires on its own with period `tau ln((mu - reset) / (mu - threshold))`.
     Each directed link exists with a probability and moves the target's potential by `J` per spike, after the delay `D`.
@@ -520,7 +534,9 @@ class DelayedLIFNetworkSystem(BaseSystem):
 
 
 class LegionSystem(BaseSystem):
-    """A LEGION network, a lattice of relaxation oscillators that segments a stimulus into its objects.
+    """A LEGION network, a lattice of relaxation oscillators.
+
+    The network segments a stimulus into its objects.
 
     Stimulated oscillators excite their stimulated neighbours, so each connected object synchronizes, and a global
     inhibitor lets only one object be active at a time, so different objects take turns. The inhibitor is driven by the
@@ -582,14 +598,20 @@ class LegionSystem(BaseSystem):
 
     @staticmethod
     def _excitation(s: SimpleNamespace) -> Expression:
-        """Return the excitation of an oscillator by a stimulated neighbour in its active phase."""
+        """Return the excitation of an oscillator by a stimulated neighbour.
+
+        The neighbour excites it in its active phase.
+        """
         active = s.other.m * logistic(s.other.x - s.other.theta_x, 0, s.other.kappa)
         excitation: Expression = s.member.W * s.member.m * active
         return excitation
 
     @staticmethod
     def _link_weights(stimulus: Array, total: float) -> Array:
-        """Return the weight of each link into every site, a total weight shared among its stimulated neighbours."""
+        """Return the weight of each link into every site.
+
+        A total weight is shared among the stimulated neighbours of the site.
+        """
         neighbours = convolve(stimulus, NEAREST, mode='constant')
         return total / np.maximum(neighbours, 1.0)
 

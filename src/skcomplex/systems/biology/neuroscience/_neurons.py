@@ -88,7 +88,9 @@ class IzhikevichElement(Element):
 
 
 class LeakyIntegrateAndFireElement(Element):
-    """Leaky integrate-and-fire neuron, whose potential relaxes to `rest + resistance I` over the time `tau`.
+    """Leaky integrate-and-fire neuron.
+
+    Its potential relaxes to `rest + resistance I` over the time `tau`.
 
     The potential follows `tau v' = -(v - rest) + resistance I`. A spike reset fires the neuron. Units are mV, ms, MΩ,
     and nA.
@@ -156,7 +158,9 @@ class LeakyIntegrateAndFireElement(Element):
 
 
 class IntegrateAndFireSystem(BaseSystem):
-    """The leaky integrate-and-fire neuron, `tau v' = -(v - rest) + R I`, which spikes and resets at a threshold.
+    """The leaky integrate-and-fire neuron, `tau v' = -(v - rest) + R I`.
+
+    It spikes and resets at a threshold.
 
     With `R I` above `threshold - rest` it fires periodically with period `tau ln(R I / (R I - threshold + rest))` when
     `reset = rest`. The system has the membrane potential `neuron.v` and its spikes recorded as `spike` events.
@@ -236,7 +240,9 @@ class IntegrateAndFireSystem(BaseSystem):
 
 
 class IzhikevichSystem(BaseSystem):
-    """The Izhikevich neuron, whose four parameters give regular spiking, bursting, chattering, and more.
+    """The Izhikevich neuron.
+
+    Its four parameters give regular spiking, bursting, chattering, and more.
 
     The potential follows `v' = 0.04 v² + 5 v + 140 - u + I` and the recovery `u' = a (b v - u)`. When `v` reaches 30 mV
     the neuron spikes, `v` resets to `c`, and `u` grows by `d`. The defaults give regular spiking. The system has the

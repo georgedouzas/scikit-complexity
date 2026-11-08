@@ -56,7 +56,9 @@ class FitzHughNagumoNeuronElement(Element):
 
 
 class HodgkinHuxleyElement(Element):
-    """Squid giant axon membrane of Hodgkin and Huxley, with sodium, potassium, and leak currents.
+    """Squid giant axon membrane of Hodgkin and Huxley.
+
+    The membrane has sodium, potassium, and leak currents.
 
     The potential follows `C v' = I - g_Na m³ h (v - E_Na) - g_K n⁴ (v - E_K) - g_L (v - E_L)`, and each gate `x` of
     `n`, `m`, and `h` relaxes as `x' = alpha_x(v) (1 - x) - beta_x(v) x`, in the modern convention with rest near -65
@@ -147,7 +149,9 @@ class HodgkinHuxleyElement(Element):
 
 
 class HodgkinHuxleySystem(BaseSystem):
-    """The Hodgkin-Huxley neuron, whose sodium and potassium channels produce action potentials.
+    """The Hodgkin-Huxley neuron.
+
+    Its sodium and potassium channels produce action potentials.
 
     The gates start at their steady state at the initial potential, and the current is switched on at the start. A
     constant current above about 6.2 µA/cm² makes the neuron fire periodically, and a weaker one gives at most a few
@@ -209,7 +213,10 @@ class HodgkinHuxleySystem(BaseSystem):
 
     @staticmethod
     def _gate_rates(v: Expression) -> GateRates:
-        """Return the opening and closing rates per ms of the gates `n`, `m`, and `h` at a potential in mV."""
+        """Return the opening and closing rates per ms of the gates `n`, `m`, and `h`.
+
+        The rates are at a potential in mV.
+        """
         return {
             'n': (0.01 * (v + 55) / (1 - exp(-(v + 55) / 10)), 0.125 * exp(-(v + 65) / 80)),
             'm': (0.1 * (v + 40) / (1 - exp(-(v + 40) / 10)), 4 * exp(-(v + 65) / 18)),
@@ -217,7 +224,10 @@ class HodgkinHuxleySystem(BaseSystem):
         }
 
     def _gate_kinetics(self, gate: str) -> Callable[[SimpleNamespace], Expression]:
-        """Return the rate `alpha(v) (1 - x) - beta(v) x` of a gate `x` as a function of the namespace of the neuron."""
+        """Return the rate `alpha(v) (1 - x) - beta(v) x` of a gate `x`.
+
+        The rate is a function of the namespace of the neuron.
+        """
 
         def kinetics(s: SimpleNamespace) -> Expression:
             opening, closing = self._gate_rates(s.target.v)[gate]
@@ -283,7 +293,9 @@ class HodgkinHuxleySystem(BaseSystem):
 
 
 class FitzhughNagumoODESystem(BaseSystem):
-    """The FitzHugh-Nagumo neuron, the two-variable reduction of Hodgkin and Huxley's excitable membrane.
+    """The FitzHugh-Nagumo neuron.
+
+    It is the two-variable reduction of Hodgkin and Huxley's excitable membrane.
 
     Without current the neuron rests on a stable fixed point and answers a large enough kick with one spike. A current
     `I` between about 0.33 and 1.42 destabilizes the rest and the neuron fires periodically. The system has the

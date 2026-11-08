@@ -1,4 +1,7 @@
-"""Neuroscience systems: exact neural masses of quadratic integrate-and-fire populations under theta forcing."""
+"""Neuroscience systems: exact neural masses under theta forcing.
+
+The neural masses are those of quadratic integrate-and-fire populations.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,7 +25,9 @@ SETUPS = ('ping', 'ing')
 
 
 class NeuralMassElement(Element):
-    """Population of quadratic integrate-and-fire neurons in the exact mean field of Montbrió, Pazó, and Roxin.
+    """Population of quadratic integrate-and-fire neurons in an exact mean field.
+
+    The mean field is the one of Montbrió, Pazó, and Roxin.
 
     The excitabilities of the neurons follow a Lorentzian distribution of median `H` and half-width `delta`, so the
     firing rate `r` and the mean membrane potential `v` of the population follow `dr/dt = delta / (tau^2 pi) + 2 r v
@@ -107,7 +112,9 @@ class NeuralMassElement(Element):
 
 
 class SynapticDriveInteraction(Interaction):
-    """Synaptic drive of a population by the rate or the synaptic field of another, `dv/dt += J x`.
+    """Synaptic drive of a population by another, `dv/dt += J x`.
+
+    The drive is by the rate or the synaptic field of the other population.
 
     Instantaneous synapses pass the firing rate `r` of the source, and exponential synapses its synaptic field `s`. A
     negative strength `J` is inhibition.
@@ -182,7 +189,9 @@ class SynapticDriveInteraction(Interaction):
 
 
 class ThetaForcingInteraction(Interaction):
-    """Theta forcing of a population by the current `I0 (1 - cos(2 pi nu t)) / 2`, as in optogenetic stimulation.
+    """Theta forcing of a population by the current `I0 (1 - cos(2 pi nu t)) / 2`.
+
+    The forcing is as in optogenetic stimulation.
 
     The current enters the potential of the population as its excitabilities do, `dv/dt += I(t) / tau`. Time is in
     milliseconds and the frequency `nu` in hertz.
@@ -237,7 +246,9 @@ class ThetaForcingInteraction(Interaction):
 
 
 class NextGenerationNeuralMassSystem(BaseSystem):
-    """The exact neural mass of quadratic integrate-and-fire neurons whose gamma rhythm nests in a theta drive.
+    """The exact neural mass of quadratic integrate-and-fire neurons.
+
+    Its gamma rhythm nests in a theta drive.
 
     In the `'ping'` setup an excitatory and an inhibitory population, with membrane time constants of 20 and 10 ms,
     couple through instantaneous synapses, and the theta current drives the excitatory one. In the `'ing'` setup a
@@ -326,7 +337,7 @@ class NextGenerationNeuralMassSystem(BaseSystem):
         self.nu = nu
 
     def _build_system(self) -> System:
-        """Return the parts of the exact neural mass of quadratic integrate-and-fire neurons."""
+        """Return the parts of the exact quadratic integrate-and-fire neural mass."""
         if self.setup not in SETUPS:
             error_msg = f'The setup must be one of {", ".join(SETUPS)}, not {self.setup!r}.'
             raise ValidationError(error_msg)

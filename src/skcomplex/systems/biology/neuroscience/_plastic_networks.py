@@ -1,4 +1,7 @@
-"""Neuroscience systems: networks whose synapses adapt to the activity of the neurons they join."""
+"""Neuroscience systems: networks with adaptive synapses.
+
+The synapses adapt to the activity of the neurons they join.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -58,7 +61,9 @@ class AxonElement(Element):
 
 
 class PhaseUnitElement(Element):
-    """Neural unit reduced to a phase that turns at its natural frequency, `theta' = omega`.
+    """Neural unit reduced to a phase.
+
+    The phase turns at its natural frequency, `theta' = omega`.
 
     Couplings to other units add to the rate of the phase.
 
@@ -140,7 +145,9 @@ class SynapseElement(Element):
 
 
 class TracedThetaNeuronElement(ThetaNeuronElement):
-    """Theta neuron that keeps traces of its own spikes, which spike-timing-dependent plasticity reads.
+    """Theta neuron that keeps traces of its own spikes.
+
+    Spike-timing-dependent plasticity reads the traces.
 
     A spike is the smooth pulse `P(theta) = (1 - cos theta)^2 * 2 / 3`, of unit mean over the phase, which peaks as the
     phase passes π. The presynaptic trace `a` and the postsynaptic trace `b` rise with every pulse and decay with the
@@ -218,7 +225,9 @@ class TracedThetaNeuronElement(ThetaNeuronElement):
 
 
 class DelayAdaptationInteraction(Interaction):
-    """Phase coupling through conduction delays that adapt to the phase differences of the units they join.
+    """Phase coupling through adaptive conduction delays.
+
+    The delays adapt to the phase differences of the units they join.
 
     The target unit reads the phase of the source unit along the axon as it was one conduction delay ago,
     `dtheta_i/dt += kappa sin(theta_j(t - tau_ij) - theta_i)`. The delay relaxes to its baseline and is pushed by the
@@ -305,7 +314,9 @@ class DelayAdaptationInteraction(Interaction):
 
 
 class SpikeTimingPlasticityInteraction(NeighborInteraction):
-    """Pulse coupling along plastic synapses whose efficacy follows the timing of the spikes at both ends.
+    """Pulse coupling along plastic synapses.
+
+    The efficacy of a synapse follows the timing of the spikes at both ends.
 
     The presynaptic neuron at the source of an edge drives the postsynaptic neuron at its target with the current
     `(1 + cos theta_post) kappa P(theta_pre) / k`, where `k` is the mean in-degree. The efficacy grows when the
@@ -370,7 +381,9 @@ class SpikeTimingPlasticityInteraction(NeighborInteraction):
         self.kappa_max = kappa_max
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the pulse current into the postsynaptic neuron and the plasticity of the efficacy.
+        """Return the pulse current and the plasticity of the efficacy.
+
+        The current flows into the postsynaptic neuron.
 
         Args:
             s:
@@ -392,7 +405,9 @@ class SpikeTimingPlasticityInteraction(NeighborInteraction):
 
 
 class STDPNetworkSystem(BaseSystem):
-    """Theta neurons on a random directed network whose synapses learn by spike-timing-dependent plasticity.
+    """Theta neurons on a random directed network with plastic synapses.
+
+    The synapses learn by spike-timing-dependent plasticity.
 
     The neurons fire periodically with excitabilities spread around `eta`, and every synapse is potentiated when its
     presynaptic neuron fires shortly before its postsynaptic neuron and depressed when it fires shortly after. Spikes of
@@ -510,7 +525,9 @@ class STDPNetworkSystem(BaseSystem):
 
 
 class AdaptiveDelayNetworkSystem(BaseSystem):
-    """Phase units coupled all to all through conduction delays that adapt to their activity, as myelination.
+    """Phase units coupled all to all through adaptive conduction delays.
+
+    The delays adapt to the activity of the units, as myelination.
 
     Unit `i` follows `dtheta_i/dt = omega_i + (kappa / N) sum_j sin(theta_j(t - tau_ij) - theta_i)`, and every delay
     `dtau_ij/dt = epsilon H(tau_ij) (-(tau_ij - tau0) + rho sin(theta_j - theta_i))` relaxes to its baseline `tau0` and
@@ -582,7 +599,10 @@ class AdaptiveDelayNetworkSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> System:
-        """Return the parts of phase units coupled all to all through conduction delays that adapt to their activity."""
+        """Return the parts of phase units coupled all to all through adaptive delays.
+
+        The conduction delays adapt to the activity of the units.
+        """
         rng = np.random.default_rng(self.seed)
         phases, frequencies = rng.uniform(0, 2 * np.pi, self.n_units), rng.normal(self.omega, self.spread, self.n_units)
         units = [
