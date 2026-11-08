@@ -18,7 +18,9 @@ def _neighbor_value(
     offset: tuple[tuple[int, ...], tuple[int, ...]],
     edges: tuple[int, float],
 ) -> float:
-    """Return a field component at the site at an offset from a member's site of a row-major lattice.
+    """Return a field component at the site at an offset from a member's site.
+
+    The lattice is row-major.
 
     Args:
         values:
