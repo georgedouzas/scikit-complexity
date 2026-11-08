@@ -1,4 +1,7 @@
-"""Cosmology: the expansion of a homogeneous universe and the gravitational collapse of matter."""
+"""Cosmology systems.
+
+The package covers the expansion of a homogeneous universe and the gravitational collapse of matter.
+"""
 
 from ._expansion import FriedmannExpansionSystem, ScaleFactorElement
 from ._metric_cosmologies import (

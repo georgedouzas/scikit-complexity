@@ -1,4 +1,7 @@
-"""Cosmologies from the Einstein equations of a metric ansatz: a homogeneous universe and a collapsing ball of dust."""
+"""Cosmologies from the Einstein equations of a metric ansatz.
+
+The module covers a homogeneous universe and a collapsing ball of dust.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -28,7 +31,9 @@ COORDINATES = ('t', 'r', 'theta', 'phi')
 
 
 class RobertsonWalkerSpace(PseudoRiemannianSpace):
-    """Homogeneous and isotropic spacetime of the Robertson-Walker ansatz with the unknown scale factor `a(t)`.
+    """Homogeneous and isotropic spacetime of the Robertson-Walker ansatz.
+
+    The scale factor `a(t)` is unknown.
 
     The line element in the comoving coordinates `(t, r, theta, phi)` is
     `ds² = -dt² + a(t)² (dr² / (1 - k r²) + r² (dθ² + sin²θ dφ²))`, with the spatial curvature `k`. The scale factor
@@ -64,7 +69,9 @@ class RobertsonWalkerSpace(PseudoRiemannianSpace):
 
 
 class LemaitreTolmanBondiSpace(PseudoRiemannianSpace):
-    """Spherical spacetime of dust in comoving coordinates, the Lemaître-Tolman-Bondi ansatz.
+    """Spherical spacetime of dust in comoving coordinates.
+
+    This is the Lemaître-Tolman-Bondi ansatz.
 
     The line element in `(t, r, theta, phi)` is
     `ds² = -dt² + (∂R/∂r)² dr² / (1 + 2 E(r)) + R(t, r)² (dθ² + sin²θ dφ²)`, where the areal radius `R(t, r)` of the
@@ -90,7 +97,10 @@ class LemaitreTolmanBondiSpace(PseudoRiemannianSpace):
         return tuple(SR.var(name) for name in COORDINATES)
 
     def _get_metric(self) -> Matrix:
-        """Return the Lemaître-Tolman-Bondi metric of the areal radius `R(t, r)` and the energy `E(r)`."""
+        """Return the Lemaître-Tolman-Bondi metric.
+
+        The metric is that of the areal radius `R(t, r)` and the energy `E(r)`.
+        """
         t, r, theta, _ = self._get_coordinates()
         radius = function('R')(t, r)
         energy = function('energy')(r)
@@ -101,7 +111,9 @@ class LemaitreTolmanBondiSpace(PseudoRiemannianSpace):
 
 
 class HomogeneousUniverseElement(Element):
-    """Homogeneous universe of matter, radiation, and vacuum energy, with the scale factor `a` of order 2.
+    """Homogeneous universe of matter, radiation, and vacuum energy.
+
+    The universe has the scale factor `a` of order 2.
 
     The densities are measured by their parameters `Ω` today, at `a = 1`, relative to the critical density
     `3 H0² / κ`: matter dilutes as `a⁻³`, radiation as `a⁻⁴`, and the vacuum energy of a cosmological constant stays.
@@ -159,7 +171,9 @@ class HomogeneousUniverseElement(Element):
 
 
 class DustShellElement(Element):
-    """Shell of a spherical ball of dust, with the areal radius `R` of order 2 and the energy per unit mass `energy`.
+    """Shell of a spherical ball of dust.
+
+    The shell has the areal radius `R` of order 2 and the energy per unit mass `energy`.
 
     Args:
         label:
@@ -199,7 +213,9 @@ class DustShellElement(Element):
 
 
 class FLRWCosmologySystem(BaseSystem):
-    """A homogeneous universe whose expansion follows from the Einstein equations of the Robertson-Walker metric.
+    """A homogeneous universe whose expansion follows from the Einstein equations.
+
+    The equations are those of the Robertson-Walker metric.
 
     The metric of `RobertsonWalkerSpace` gives, through its Einstein tensor, the two Friedmann equations of a perfect
     fluid of density `rho` and pressure `p`. The space-space component `G^r_r = -(2 a a'' + a'² + k) / a² = κ p` is the
@@ -264,7 +280,10 @@ class FLRWCosmologySystem(BaseSystem):
 
     @staticmethod
     def _get_perfect_fluid(s: SimpleNamespace) -> Matrix:
-        """Return the mixed energy-momentum tensor `diag(-rho, p, p, p)` of matter, radiation, and vacuum at rest."""
+        """Return the mixed energy-momentum tensor `diag(-rho, p, p, p)`.
+
+        The tensor is that of matter, radiation, and vacuum at rest.
+        """
         universe = s.target
         critical = 3 * universe.H0**2 / COUPLING
         matter = universe.omega_matter / universe.a**3
@@ -307,7 +326,9 @@ class FLRWCosmologySystem(BaseSystem):
 
 
 class OppenheimerSnyderCollapseSystem(BaseSystem):
-    """A ball of dust at rest that collapses under its own gravity into a black hole, as Oppenheimer and Snyder.
+    """A ball of dust at rest that collapses under its own gravity into a black hole.
+
+    The collapse follows Oppenheimer and Snyder.
 
     The ball is a field of comoving shells on a radial lattice, the Lemaître-Tolman-Bondi ansatz of
     `LemaitreTolmanBondiSpace` in units with `G = c = 1`. Dust has no pressure, so the radial component of the Einstein
