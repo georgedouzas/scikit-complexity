@@ -24,7 +24,6 @@ so a spec has two public methods that do nothing. Owners call `_validated()` on 
   ├── BasePart      tags, laws, roles, nesting       → elements, interactions, laws, spaces, times, systems
   ├── BaseSolver, BaseBackend, BaseCompiler, BasePass, BaseLowering
   ├── BaseObserver, BaseVisual, BaseClock, BaseKernel, BasePrinter, BaseSearch
-  └── Calibration
   BaseSpec          frozen dataclass, hook _check   → StateSpec, RoleSpec, Tags, ProblemSpec, FrameSpec, …
   ```
 - **`BaseSpec`** is a plain frozen dataclass base with `_check`, which its owner calls, through one private helper of
@@ -40,6 +39,10 @@ so a spec has two public methods that do nothing. Owners call `_validated()` on 
   first two parts prepared when the error is raised. The requirement "Preparing validates first" changes to the
   object itself: an estimator raises before it sets any attribute of its own. Re-preparing replaces the attributes, so
   a partly prepared system is harmless.
+
+- **Calibration as a function.** `calibrate` takes the arguments of the former constructor and returns
+  `CalibrationResult`. A meta-system that fits lazily, in the role of `GridSearchCV` composed in a pipeline, can be
+  added later on top of `calibrate` if a need appears. Today every caller runs it once and reads the fitted system.
 
 ## Risks / Trade-offs
 

@@ -1,4 +1,20 @@
+## RENAMED Requirements
+
+- FROM: `### Requirement: Estimators are the parts and calibration`
+- TO: `### Requirement: Estimators are the parts and the engine`
+
 ## MODIFIED Requirements
+
+### Requirement: Estimators are the parts and the engine
+The classes with `prepare` and `run` SHALL be the parts a modeler defines, which are elements, interactions, laws,
+spaces, times, and systems, and the engine that runs them, which is solvers, backends, compilers and their passes,
+observers, visuals, clocks, kernels, and printers. Simulating, analysing, running experiments, and calibrating SHALL be
+functions of a system or of its results.
+
+#### Scenario: Listing estimators
+- **WHEN** a test lists the public classes of `skcomplex.core` that have `prepare` and `run`
+- **THEN** every one is a part or a class of the engine, and none is an experiment or a calibration
+
 
 ### Requirement: Configurable bases share two main public methods
 Every base class of an estimator of the library SHALL derive from `BaseConfig` in `skcomplex.core.base`, which defines
@@ -11,8 +27,7 @@ implement each hook itself or inherit it from the base of its family. Specs SHAL
 beyond its constructors and the extension hooks a user implements.
 
 #### Scenario: One vocabulary
-- **WHEN** a user calls `prepare(...)` and `run(...)` on a space, a solver, a backend, a visual, an observer, and a
-  calibration
+- **WHEN** a user calls `prepare(...)` and `run(...)` on a space, a solver, a backend, a visual, and an observer
 - **THEN** every call works, every class is a `BaseConfig`, and none of `check`, `initialize`, `advance`, `lower`,
   `on_frame`, `compile`, or `forecast` exists
 
@@ -65,8 +80,8 @@ reads the spec, and preparing a system SHALL check every law and spec it holds.
 method SHALL prepare an object on its own: a simulation runs only once its system is compiled.
 
 #### Scenario: Running before preparing
-- **WHEN** a user runs `Calibration(system, data, bounds).run()` without preparing it
-- **THEN** the run raises `NotPreparedError`, which names the calibration and asks for `prepare`
+- **WHEN** a user runs an `RK4Solver()` without preparing it
+- **THEN** the run raises `NotPreparedError`, which names the solver and asks for `prepare`
 
 #### Scenario: A spec runs without preparing
 - **WHEN** a user looks for `run` on a spec

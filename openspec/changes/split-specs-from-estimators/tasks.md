@@ -10,6 +10,8 @@
 - [ ] 2.2 Do the same in every system module of `skcomplex.systems`, by field
 - [ ] 2.3 Make owners prepare the parts they own and call `_check` on the specs they read, instead of `_validated`
 
+- [ ] 2.4 Replace `Calibration` with `calibrate` returning a frozen `CalibrationResult`, and migrate its users
+
 ## 3. Callers and docs
 
 - [ ] 3.1 Replace every `spec.prepare()` and `spec.run()` call in src, tests, docs, and gallery examples

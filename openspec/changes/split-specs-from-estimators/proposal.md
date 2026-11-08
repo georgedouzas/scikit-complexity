@@ -15,8 +15,11 @@ spec is a value that is validated by its owner. An estimator is configured, prep
   `_prepare`, before it derives anything, and a subclass chains with `super()._prepare(context)` as it chains
   `super()._check()` today.
 - **One root for everything that acts.** Parts, solvers, backends, compilers, passes, observers, visuals, clocks,
-  printers, kernels, and `Calibration` stay on `BaseConfig`. What each family adds stays on its own base: `BasePart`
+  printers, and kernels stay on `BaseConfig`. What each family adds stays on its own base: `BasePart`
   adds tags, laws, roles, and nesting, `BaseSolver` and `BaseBackend` add supported tags. No third root is added.
+- **BREAKING: calibration is a function.** `Calibration` prepares against nothing and fits in `run`, so it becomes
+  `calibrate(system, data, bounds, ...)`, which returns a frozen `CalibrationResult` with the fitted `system`, the
+  `estimates`, and `r2`, `rmse`, `mae`, and `mape`, like every other experiment function.
 - **Owners prepare what they own.** An owner that validated a part without preparing it now prepares it, or reads the
   specs it holds, whose `_check` it calls.
 
@@ -28,6 +31,7 @@ None.
 
 ### Modified Capabilities
 
+- `experiments`: calibration is the function `calibrate`.
 - `base-interfaces`: two bases, `BaseConfig` for estimators with `prepare` and `run` and `BaseSpec` for frozen values
   with `_check` only, and validation at the start of `_prepare`.
 
