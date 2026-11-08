@@ -54,7 +54,7 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
 
     Examples:
         >>> from typing import Annotated
-        >>> from skcomplex.core.components.interactions._base import BaseInteraction
+        >>> from skcomplex.core.components.interactions import BaseInteraction
         >>> from skcomplex.core.specs import ParameterSpec, RoleSpec
         >>> class GrowthInteraction(BaseInteraction):
         ...     def __init__(

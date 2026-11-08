@@ -42,7 +42,10 @@ def _observed(system_class):
     """Return a system with its observables, and the paths of those that laws read at the current state."""
     system = system_class().prepare().system_
     observables = list(system_class().get_run_settings()['observables'])
-    compilation = PassCompiler(observables=observables).prepare(system).compilation_
+    compiler = PassCompiler(observables=observables).prepare(system)
+    if compiler.learning_ is not None:
+        pytest.skip('A system that trains a nested system records no observables of its own.')
+    compilation = compiler.compilation_
     nodes = {node.path: node for node in compilation.nodes}
     found, blocked = [], set()
     for observable in observables:

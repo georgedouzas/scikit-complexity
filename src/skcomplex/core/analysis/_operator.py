@@ -142,7 +142,6 @@ def operator_measures(
         >>> from skcomplex.core.components.laws.utils import local_operator
         >>> from skcomplex.core.specs import HilbertSpec, StateSpec
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
         >>> from skcomplex.core.engine.runtime import simulate
         >>> operators = {'z': (np.diag([1, -1]), True), 'minus': (np.array([[0, 0], [1, 0]]), False)}
         >>> QUBIT = HilbertSpec(2, operators, basis={'up': 0, 'down': 1})

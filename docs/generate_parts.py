@@ -1,22 +1,30 @@
 """Generate one page per kind of part, with a table of the capability tags of its classes and executed examples."""
 
 import inspect
-from collections.abc import Iterable
+import pkgutil
+import sys
+from collections.abc import Callable, Iterable
+from importlib import import_module
 from types import ModuleType
 
 import mkdocs_gen_files
 
+from skcomplex.core import analysis, components, experiments
 from skcomplex.core.components import elements, interactions, laws
 from skcomplex.core.components.base import BasePart
 from skcomplex.core.components.elements import BaseElement
 from skcomplex.core.components.interactions import BaseInteraction
 from skcomplex.core.components.laws import BaseLaw
+from skcomplex.core.components.system import BaseSystem, System
 from skcomplex.core.engine import backends, solvers
 from skcomplex.core.engine.backends import BaseBackend
 from skcomplex.core.engine.solvers import BaseSolver
-from skcomplex.core.specs import LAWS, SPACES, TIMES, RoleSpec, StateSpec
+from skcomplex.core.specs import LAWS, SPACES, TIMES, AnalysisTags, RoleSpec, StateSpec
 
 PARTS = 'parts'
+EXPERIMENT_NEEDS = {
+    'ensemble': 'the randomness `stochastic`, or a solver that draws',
+}
 
 
 def _public_classes[T](package: ModuleType, base: type[T]) -> list[type[T]]:
@@ -385,6 +393,279 @@ assert 'laws noise' in message
     return _page('Backends', intro, ['Backend', 'Time', 'Space', 'Law kinds'], rows, examples)
 
 
+def _summary(item: object) -> str:
+    """Return the first line of the docstring of a function or a class."""
+    return (inspect.getdoc(item) or '').split('\n', maxsplit=1)[0]
+
+
+def _analysis_functions() -> list[Callable[..., object]]:
+    """Return the analysis functions of the core, sorted by name, without the binding of settings."""
+    named = [getattr(analysis, name) for name in analysis.__all__ if name != 'bind_analysis']
+    return sorted((item for item in named if inspect.isfunction(item)), key=lambda item: item.__name__)
+
+
+def _needs(tags: AnalysisTags) -> list[str]:
+    """Return the data kind and the time, space, and randomness an analysis needs, `any` where it needs nothing."""
+    randomness = 'any' if tags.randomness is None else f'`{tags.randomness}`'
+    return [f'`{tags.data}`', _values(tags.time), _values(tags.space), randomness]
+
+
+def _kind_cell(tags: AnalysisTags, by_kind: dict[str, AnalysisTags]) -> str:
+    """Return the kinds of an analysis whose needs differ from those of the analysis, each with what it needs."""
+    names = ('data', 'time', 'space', 'randomness')
+    default = _needs(tags)
+    cells = []
+    for kind, needed in sorted(by_kind.items()):
+        differ = zip(names, _needs(needed), default, strict=True)
+        cells.append(f'`{kind}`: ' + ', '.join(f'{name} {value}' for name, value, base in differ if value != base))
+    return '<br>'.join(cells) or 'none'
+
+
+def _analyses_page() -> str:
+    """Return the page of analyses, with the data and the capability tags every analysis function needs."""
+    rows = []
+    for function in _analysis_functions():
+        module = sys.modules[function.__module__]
+        tags: AnalysisTags | None = getattr(module, 'TAGS', None)
+        if tags is None:
+            rows.append([f'`{function.__name__}`', 'any source', 'any', 'any', 'any', 'none'])
+            continue
+        by_kind: dict[str, AnalysisTags] = getattr(module, 'KIND_TAGS', {})
+        rows.append([f'`{function.__name__}`', *_needs(tags), _kind_cell(tags, by_kind)])
+    intro = """
+An analysis is a function of a source: a system, a trajectory, or measured data. It returns a frozen result. Each
+analysis reads one kind of data, such as a series, a field, or a network, and may need a capability tag of the system
+behind the source, such as a deterministic randomness for Lyapunov exponents. The analysis checks the tags of the
+system, or of the system behind a trajectory, before it does any work, and raises a `TagError` that names the tag it
+lacks. Measured data carries no tags, so only its kind is checked. The table lists what every analysis needs, and the
+kinds of an analysis whose needs differ from its own.
+"""
+    examples = """
+## A compatible analysis
+
+The logistic map at `r=4` is deterministic, so `lyapunov` measures its largest exponent, close to `log 2`.
+
+```python
+from skcomplex.core.analysis import lyapunov
+from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
+
+system = LogisticMapSystem(r=4.0)
+system.get_tags().randomness
+round(float(lyapunov(system, until=20000).exponents[0]), 2)
+```
+
+## An incompatible analysis
+
+The stochastic SIR epidemic has random events, so nearby runs do not separate at a rate of their own. `lyapunov`
+rejects it and names the randomness it needs.
+
+```python
+from skcomplex.core.analysis import lyapunov
+from skcomplex.core.errors import TagError
+from skcomplex.systems.biology.epidemiology import SIRSystem
+
+system = SIRSystem(stochastic=True)
+system.get_tags().randomness
+try:
+    lyapunov(system)
+except TagError as error:
+    message = str(error)
+message
+assert 'randomness deterministic' in message
+```
+
+A network measure needs a system on a network. A trajectory of the SIR epidemic carries the tags of its system, whose
+space is `none`.
+
+```python
+from skcomplex.core.analysis import network_measures
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.errors import TagError
+from skcomplex.systems.biology.epidemiology import SIRSystem
+
+trajectory = simulate(SIRSystem(), until=10)
+try:
+    network_measures(trajectory)
+except TagError as error:
+    message = str(error)
+message
+assert 'space network' in message
+```
+"""
+    header = ['Analysis', 'Data', 'Time', 'Space', 'Randomness', 'Kinds that differ']
+    return _page('Analyses', intro, header, rows, examples)
+
+
+def _experiments_page() -> str:
+    """Return the page of experiments, with what every experiment function and calibration need of a system."""
+    named = [getattr(experiments, name) for name in experiments.__all__]
+    found = [item for item in named if inspect.isfunction(item) or item is experiments.Calibration]
+    rows = [
+        [f'`{item.__name__}`', _summary(item), EXPERIMENT_NEEDS.get(item.__name__, 'any system')]
+        for item in sorted(found, key=lambda item: item.__name__.lower())
+    ]
+    intro = """
+An experiment runs a system many times through `simulate`: over values of its parameters, over random streams, over
+scenarios, or over initial states. Experiments are functions of a system that return frozen results, and `Calibration`
+is an estimator that fits the model parameters of a system to observed series and sets `system_`. An experiment that
+repeats a system needs randomness to repeat, and the analyses an experiment applies to its runs check their own tags,
+as the [analyses](analyses.md) page lists. The table lists what every experiment needs of a system.
+"""
+    examples = """
+## A compatible experiment
+
+The stochastic SIR epidemic draws its events from random streams, so `ensemble` runs it once per stream.
+
+```python
+from skcomplex.core.experiments import ensemble
+from skcomplex.systems.biology.epidemiology import SIRSystem
+
+result = ensemble(SIRSystem(stochastic=True), replicates=3, until=10, random_state=0)
+result.column('seed').tolist()
+```
+
+## An incompatible experiment
+
+The deterministic SIR epidemic repeats one run, so `ensemble` rejects it and names the randomness it needs.
+
+```python
+from skcomplex.core.errors import TagError
+from skcomplex.core.experiments import ensemble
+from skcomplex.systems.biology.epidemiology import SIRSystem
+
+try:
+    ensemble(SIRSystem(), replicates=3, until=10)
+except TagError as error:
+    message = str(error)
+message
+assert 'randomness stochastic' in message
+```
+
+## A compatible calibration
+
+`Calibration` fits the model parameters of a logistic growth to a series it generates.
+
+```python
+import numpy as np
+
+from skcomplex.core.experiments import Calibration
+from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+
+times = np.arange(0, 21.0)
+values = 100 / (1 + 9 * np.exp(-0.5 * times))
+bounds = {'r': (0.1, 2.0), 'K': (50, 200)}
+fitted = Calibration(LogisticGrowthSystem(), {'population.n': (times, values)}, bounds).prepare().run().system_
+round(fitted.r, 2), round(fitted.K)
+```
+
+## An incompatible calibration
+
+Calibration fits model parameters, which `set_params` takes. An initial state is a dotted path, not a model
+parameter, so `prepare` rejects it.
+
+```python
+import numpy as np
+
+from skcomplex.core.errors import ValidationError
+from skcomplex.core.experiments import Calibration
+from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+
+times = np.arange(0, 21.0)
+values = 100 / (1 + 9 * np.exp(-0.5 * times))
+try:
+    Calibration(LogisticGrowthSystem(), {'population.n': (times, values)}, {'population.n': (1, 20)}).prepare()
+except ValidationError as error:
+    message = str(error)
+message
+assert 'population.n' in message
+```
+"""
+    return _page('Experiments', intro, ['Experiment', 'What it does', 'What it needs'], rows, examples)
+
+
+def _core_systems() -> list[type[BaseSystem]]:
+    """Return the system classes of the core that can be built, the generic composite and the general systems."""
+    for module in pkgutil.iter_modules(components.__path__):
+        import_module(f'{components.__name__}.{module.name}')
+    found: list[type[BaseSystem]] = []
+    pending = list(BaseSystem.__subclasses__())
+    while pending:
+        system = pending.pop()
+        pending += system.__subclasses__()
+        if system.__module__.startswith('skcomplex.core.') and not inspect.isabstract(system):
+            found.append(system)
+    return sorted(set(found), key=lambda system: (system is not System, system.__name__))
+
+
+def _systems_page() -> str:
+    """Return the page of systems, with the system classes of the core and a link to the catalog of ready-made ones."""
+    rows = [
+        [f'`{system.__name__}`', f'`from {system.__module__} import {system.__name__}`', _summary(system)]
+        for system in _core_systems()
+    ]
+    intro = """
+A system is a part that holds elements, interactions, nested systems, a space, and a time. `BaseSystem` is the base
+of every system: a subclass takes the parameters of its model in `__init__`, builds its parts from them in
+`_build_system`, and derives its capability tags from its parts, which `get_tags()` returns. `System` is the generic
+composite you build from parts. A general system of the core, such as `MassActionSystem`, builds the parts of a
+structure that several fields share from a table of parameters. The ready-made systems of `skcomplex.systems` are
+subclasses of these, one class per model. The [catalog](../systems/catalog.md) lists them by field and by topic, with
+their import paths, their model parameters, and their capability tags, and `all_systems` of `skcomplex.systems` lists
+them by field, topic, or tag. The table lists the system classes of the core.
+"""
+    examples = """
+## A compatible system
+
+A mass-action system in the mode `jump` has random reaction events, which `GillespieSolver` draws.
+
+```python
+from skcomplex.core.components.mass_action import MassActionSystem
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.engine.solvers import GillespieSolver
+
+reactions = {'forth': ({'A': 1}, {'B': 1}, 0.3), 'back': ({'B': 1}, {'A': 1}, 0.1)}
+isomerization = MassActionSystem(species={'A': 10.0, 'B': 0.0}, reactions=reactions, mode='jump')
+sorted(isomerization.get_tags().laws), isomerization.get_tags().randomness
+trajectory = simulate(isomerization, until=5, solver=GillespieSolver(), random_state=0)
+trajectory.values('A.n')[-1]
+```
+
+## An incompatible system
+
+In the default mode `rate` the same reactions are rate equations, which `GillespieSolver` does not draw, so `simulate`
+names the law kind.
+
+```python
+from skcomplex.core.components.mass_action import MassActionSystem
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.engine.solvers import GillespieSolver
+from skcomplex.core.errors import TagError
+
+reactions = {'forth': ({'A': 1}, {'B': 1}, 0.3), 'back': ({'B': 1}, {'A': 1}, 0.1)}
+isomerization = MassActionSystem(species={'A': 10.0, 'B': 0.0}, reactions=reactions)
+try:
+    simulate(isomerization, until=5, solver=GillespieSolver())
+except TagError as error:
+    message = str(error)
+message
+assert 'laws rate' in message
+```
+
+## Find ready-made systems by tag
+
+`all_systems` takes the values of capability tags, so it finds the ready-made systems that a solver or an analysis
+accepts.
+
+```python
+from skcomplex.systems import all_systems
+
+stochastic = all_systems(field='biology/epidemiology', tags={'randomness': 'stochastic'})
+[name for name, _ in stochastic][:3]
+```
+"""
+    return _page('Systems', intro, ['System', 'Import', 'Description'], rows, examples)
+
+
 def main() -> None:
     """Write the page of every kind of part into the documentation."""
     pages = {
@@ -393,6 +674,9 @@ def main() -> None:
         'laws': _laws_page,
         'solvers': _solvers_page,
         'backends': _backends_page,
+        'systems': _systems_page,
+        'analyses': _analyses_page,
+        'experiments': _experiments_page,
     }
     for name, page in pages.items():
         with mkdocs_gen_files.open(f'{PARTS}/{name}.md', 'w') as file:

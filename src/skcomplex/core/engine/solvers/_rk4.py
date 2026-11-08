@@ -48,7 +48,7 @@ class RK4Solver(Solver):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.components.system import System
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> from skcomplex.core.engine.solvers import RK4Solver
@@ -57,7 +57,7 @@ class RK4Solver(Solver):
         ...     elements=[PopulationElement('a', n=1)],
         ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
         ... )
-        >>> problem = PassCompiler().prepare(system).run().problem_
+        >>> problem = simulate(system, until=0).problem
         >>> stepper = RK4Solver(dt=0.001, random_state=0).prepare(problem)
         >>> step = StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)
         >>> round(float(stepper.run(step).state_[0]), 10)

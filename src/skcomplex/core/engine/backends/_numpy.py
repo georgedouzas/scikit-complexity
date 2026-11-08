@@ -54,13 +54,11 @@ class NumpyBackend(BaseBackend):
     """Reference backend that evaluates every kernel with NumPy array operations.
 
     Examples:
-        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.backends import NumpyBackend
         >>> from skcomplex.core.components.system import System
         >>> from skcomplex.systems.biology.common.populations import PopulationElement
-        >>> PassCompiler(backend=NumpyBackend()).prepare(
-        ...     System(elements=[PopulationElement('a')])
-        ... ).run().problem_.backend
+        >>> simulate(System(elements=[PopulationElement('a')]), until=0, backend=NumpyBackend()).problem.backend
         'numpy'
     """
 

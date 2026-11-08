@@ -23,10 +23,11 @@ class ValidationReportSpec(BaseSpec):
             The issues, in the order they were found.
 
     Examples:
-        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-        >>> from skcomplex.core.components.system import System
-        >>> PassCompiler().prepare(System()).report_.ok
+        >>> from skcomplex.core.specs import IssueSpec, ValidationReportSpec
+        >>> ValidationReportSpec().ok
         True
+        >>> ValidationReportSpec((IssueSpec('empty', 'system', 'It has no element.', 'Add one.'),)).ok
+        False
     """
 
     issues: tuple[IssueSpec, ...] = ()
