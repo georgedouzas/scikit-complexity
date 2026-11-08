@@ -20,7 +20,7 @@ from ...specs import BaseSpec, ParameterSpec, RoleSpec, Tags
 from ...types import ElementKind
 from ..laws import BaseLaw, JumpLaw, RuleLaw, UpdateLaw
 from ..laws.utils import categorical, neighbors, uniform, where
-from ..spaces import AdjacencyNeighborhood
+from ..spaces import AdjacencyNeighborhood, BaseSpace
 from ..types import AgentViewProtocol, SystemViewProtocol
 from ._base import SCHEDULES
 from ._neighbor import NeighborInteraction
@@ -173,15 +173,19 @@ class ImitationInteraction(NeighborInteraction):
             )
             raise ValidationError(error_msg)
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for unknown rule, form, schedule, or ties, or repeated options.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The rule, the form, the schedule, or the ties are unknown, a schedule or ties other than the defaults
                 are given outside the agent form, or the options are not distinct.
         """
-        super()._check()
+        super()._prepare(context)
         self._check_variant('rule', self.rule, RULES, (BaseSpec,))
         if self.form not in FORMS:
             error_msg = f'The form of imitation is {self.form!r}. Use one of {", ".join(FORMS)}.'

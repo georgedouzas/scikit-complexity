@@ -302,27 +302,24 @@ class CayleySpace(BaseSpace):
             frontier, depth = found, depth + 1
         return words, rows, sizes
 
-    def _check(self) -> None:
-        """Raise an error for a group not a Sage or GAP group, or a negative ball radius.
+    def _prepare(self, context: None = None) -> None:
+        """Enumerate the sites and set their words, neighbours, edges, and positions.
+
+        It first raises an error for a group not a Sage or GAP group, or a negative ball radius.
+
+        The neighbours are by generator.
 
         Raises:
             ValidationError:
                 The group is neither a Sage nor a GAP group, or the ball has a negative radius.
         """
+        super()._prepare(context)
         if not isinstance(self.group, GapElement) and not hasattr(self.group, '_libgap_'):
             error_msg = f'A Cayley space takes a Sage or GAP group, but it was given {type(self.group).__name__}.'
             raise ValidationError(error_msg)
         if self.ball is not None and (isinstance(self.ball, bool) or not isinstance(self.ball, int) or self.ball < 0):
             error_msg = f'The radius of a ball is a nonnegative integer, but it is {self.ball!r}.'
             raise ValidationError(error_msg)
-
-    def _prepare(self, context: None = None) -> None:
-        """Enumerate the sites and set their words, neighbours, edges, and positions.
-
-        The neighbours are by generator.
-        """
-        # GAP caches its current directory on first use, and a change of directory in Python does not update it. Loading
-        # a package and running KBMAG both use it, so it would point to a removed folder after that folder is deleted.
         libgap.ChangeDirectoryCurrent(str(Path.cwd()))
         group = self._get_gap_group()
         names = [str(generator) for generator in libgap.GeneratorsOfGroup(group)]

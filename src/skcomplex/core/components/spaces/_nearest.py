@@ -37,11 +37,12 @@ class NearestNeighborhood(BaseNeighborhood):
         self.k = k
         self.center = center
 
-    def _check(self) -> None:
+    def _prepare(self, context: None = None) -> None:
         """Raise an error for a number of neighbours that is not a whole number above 0.
 
         The number must be at least 1.
         """
+        super()._prepare(context)
         if int(self.k) != self.k or int(self.k) < 1:
             error_msg = f'A nearest neighbourhood needs a whole number of neighbours of at least 1, but got {self.k!r}.'
             raise ValidationError(error_msg)

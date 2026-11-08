@@ -14,7 +14,7 @@ from ...errors import ValidationError
 from ...specs import RoleSpec
 from ...types import ElementKind
 from ..laws import BaseLaw, LocalRuleLaw
-from ..spaces import BaseNeighborhood
+from ..spaces import BaseNeighborhood, BaseSpace
 from ._interaction import Interaction
 
 
@@ -105,14 +105,18 @@ class LocalRuleInteraction(Interaction):
         """Return the names of the states the rule sets."""
         return (self.state,) if isinstance(self.state, str) else tuple(self.state)
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for states that are not names, or a bad neighbourhood.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The state or the read states are not names, or the neighbourhood is not a neighbourhood.
         """
-        super()._check()
+        super()._prepare(context)
         names = [*self._get_names(), *(self.reads or ())]
         if not names or not all(isinstance(name, str) and name.isidentifier() for name in names):
             error_msg = f'The local rule {self.label!r} sets {self.state!r} and reads {self.reads!r}. Give state names.'

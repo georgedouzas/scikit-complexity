@@ -38,12 +38,6 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
 
     functions_: LoweredFunctionsSpec
 
-    def _check(self) -> None:
-        """Accept every setting.
-
-        A backend has none to validate. A backend with settings validates them.
-        """
-
     def _prepare(self, context: None) -> None:
         """Derive nothing from the context.
 

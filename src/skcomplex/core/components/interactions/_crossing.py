@@ -16,6 +16,7 @@ from ...errors import ValidationError
 from ...specs import RoleSpec
 from ...types import ElementKind
 from ..laws import BaseLaw, CrossingLaw
+from ..spaces import BaseSpace
 from ._interaction import Interaction
 
 DIRECTIONS = (-1, 0, 1)
@@ -97,14 +98,18 @@ class CrossingInteraction(Interaction):
         self.direction = direction
         self.terminal = terminal
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for an invalid direction, guard, or new value.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The direction is not -1, 0, or 1, or the guard or a new value is not a function.
         """
-        super()._check()
+        super()._prepare(context)
         if self.direction not in DIRECTIONS:
             error_msg = f'The direction of crossing {self.label!r} is {self.direction!r}. Use -1, 0, or 1.'
             raise ValidationError(error_msg)

@@ -176,20 +176,24 @@ class RewritingCompiler(BaseCompiler):
                 f'{type(element).__name__} {node.path!r} is rewritten by {expected.__name__}s, but got {wrong[0]!r}.'
             )
             raise RewritingError(error_msg)
+        kernel: WordKernel | PatchKernel
         if kind == 'sequence':
-            return WordKernel(
+            kernel = WordKernel(
                 node.path,
                 element,
                 [law for law in laws if isinstance(law, ProductionLaw)],
                 parameters,
                 values,
-            )._validated()
-        return PatchKernel(
-            node.path,
-            element,
-            [law for law in laws if isinstance(law, SubstitutionLaw)],
-            parameters,
-        )._validated()
+            )
+        else:
+            kernel = PatchKernel(
+                node.path,
+                element,
+                [law for law in laws if isinstance(law, SubstitutionLaw)],
+                parameters,
+            )
+        kernel._compile()
+        return kernel
 
     @staticmethod
     def _structure_of(element_type: type) -> str | None:

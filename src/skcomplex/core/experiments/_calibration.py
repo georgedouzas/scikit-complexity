@@ -124,11 +124,11 @@ class Calibration(BaseConfig[None, None]):
         self.solver = solver
         self.random_state = random_state
 
-    def _check(self) -> None:
-        """Raise an error for an invalid system, loss, data, replicates, or bounds.
+    def _prepare(self, context: None = None) -> None:
+        """Read the data and set the random streams.
 
-        The system is a system name, the loss is unknown, there is no data, the replicates are bad, or a bound has a
-        dotted path.
+        It first raises an error for an invalid system, loss, data, replicates, or bounds. The system is a system name,
+        the loss is unknown, there is no data, the replicates are bad, or a bound has a dotted path.
         """
         _check_source(self.system)
         if self.loss not in LOSSES:
@@ -145,9 +145,6 @@ class Calibration(BaseConfig[None, None]):
                 f'{", ".join(dotted)}.'
             )
             raise ValidationError(error_msg)
-
-    def _prepare(self, context: None = None) -> None:
-        """Read the data and set the random streams."""
         self.series_ = {
             path: (np.asarray(times, dtype=float), np.asarray(values, dtype=float))
             for path, (times, values) in self.data.items()

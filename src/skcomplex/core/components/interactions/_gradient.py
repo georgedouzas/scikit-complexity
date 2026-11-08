@@ -22,6 +22,7 @@ from ...types import ElementKind
 from ..base import BasePart
 from ..laws import BaseLaw, RateLaw
 from ..laws.utils import distribute_operators, laplacian, partial
+from ..spaces import BaseSpace
 from ..types import Target
 from ._interaction import Interaction
 
@@ -120,15 +121,19 @@ class GradientInteraction(Interaction):
         """Return the names of the states the interaction moves."""
         return (self.states,) if isinstance(self.states, str) else tuple(self.states)
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for a state or divisor that is not a name, or a bad potential.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The type declares states, a state is not a name, a divisor is neither a name nor a function, or the
                 potential is not callable.
         """
-        super()._check()
+        super()._prepare(context)
         names = self._get_names()
         if not names or not all(isinstance(name, str) and name.isidentifier() for name in names):
             error_msg = f'{type(self).__name__} {self.label!r} moves the states {self.states!r}. Give names of states.'

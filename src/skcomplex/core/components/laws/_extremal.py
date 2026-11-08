@@ -94,8 +94,14 @@ class ExtremalLaw(BaseLaw):
         """Return what the law requires: discrete time on a lattice or a network."""
         return RequirementSpec(time=(DiscreteTime,), space=(LatticeSpace, NetworkSpace))
 
-    def _check(self) -> None:
-        """Raise an error for an unknown extremum or fewer than one application per step."""
+    def _prepare(self, context: str | None = None) -> None:
+        """Raise an error for an unknown extremum or fewer than one application per step.
+
+        Args:
+            context:
+                The path of the element or interaction that returns the law, or `None`.
+        """
+        super()._prepare(context)
         if self.extremum not in EXTREMA:
             error_msg = f'Unknown extremum {self.extremum!r}. Use one of {", ".join(EXTREMA)}.'
             raise ValidationError(error_msg)

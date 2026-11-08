@@ -18,6 +18,7 @@ from ...types import ElementKind
 from ..base import BasePart
 from ..laws import BaseLaw, FluxLaw, RateLaw
 from ..laws.utils import divergence
+from ..spaces import BaseSpace
 from ._base import RATE_DOMAINS
 from ._interaction import Interaction
 
@@ -124,17 +125,21 @@ class ConservationInteraction(Interaction):
         self.riemann = riemann
         self.sources = sources
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for an invalid state, function, or scheme.
 
         It raises it for a state that is not a name, a function that is not callable, or an unknown scheme.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The type declares states, the state is not a name, a function is not callable, or the limiter or the
                 numerical flux is unknown.
         """
-        super()._check()
+        super()._prepare(context)
         if not isinstance(self.state, str) or not self.state.isidentifier():
             error_msg = f'{type(self).__name__} {self.label!r} conserves the state {self.state!r}, which is no name.'
             raise ValidationError(error_msg)

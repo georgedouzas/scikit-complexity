@@ -71,17 +71,11 @@ class MatrixVisual(BaseVisual):
         self.variable = variable
         self.color_range = color_range
 
-    def _check(self) -> None:
-        """Raise an error unless the path and the variable are strings."""
-        super()._check()
-        if not isinstance(self.variable, str):
-            error_msg = f'variable = {self.variable!r} must be the name of a matrix-valued state or parameter.'
-            raise ValidationError(error_msg)
-
     def _prepare(self, context: BaseProblemSpec | None) -> None:
         """Find the matrix the visual draws, and the view.
 
-        The matrix is that of the element at the path, or the one named by the path and the variable.
+        The matrix is that of the element at the path, or the one named by the path and the variable. It first raises
+        an error unless the path and the variable are strings.
 
         Args:
             context:
@@ -89,8 +83,12 @@ class MatrixVisual(BaseVisual):
 
         Raises:
             ValidationError:
-                No problem is passed, or it has no matrix of that name.
+                The path or the variable is not a string, no problem is passed, or it has no matrix of that name.
         """
+        self._check_path()
+        if not isinstance(self.variable, str):
+            error_msg = f'variable = {self.variable!r} must be the name of a matrix-valued state or parameter.'
+            raise ValidationError(error_msg)
         if context is None:
             error_msg = 'A visual prepares on a compiled problem. Pass the problem to `prepare`.'
             raise ValidationError(error_msg)

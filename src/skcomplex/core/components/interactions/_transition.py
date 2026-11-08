@@ -18,7 +18,7 @@ from ...types import ElementKind
 from ..base import BasePart
 from ..laws import BaseLaw, EmissionLaw, JumpLaw, RuleLaw, TransitionLaw, UpdateLaw
 from ..laws.utils import both, neighbors, residence, uniform, where
-from ..spaces import BaseNeighborhood
+from ..spaces import BaseNeighborhood, BaseSpace
 from ..types import AgentViewProtocol, SystemViewProtocol
 from ._interaction import Interaction
 
@@ -273,8 +273,12 @@ class TransitionInteraction(Interaction):
         """Raise an error for arguments the transition cannot take."""
         self._check_form()
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for a transition without one kind, or with ignored arguments.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
@@ -283,7 +287,7 @@ class TransitionInteraction(Interaction):
                 form, the residence time is negative or goes with a rate or a matrix, the form is unknown, or a
                 function is not callable.
         """
-        super()._check()
+        super()._prepare(context)
         self._check_transition()
 
     def _get_moving(self, value: Expression, source: SourceValues) -> Expression:

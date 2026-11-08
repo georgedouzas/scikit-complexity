@@ -18,6 +18,7 @@ from ...specs import DatasetSpec, ObservableSpec, ParameterSpec, RoleSpec
 from ...types import ElementKind
 from ..base import BasePart
 from ..laws import BaseLaw, GradientStepLaw
+from ..spaces import BaseSpace
 from ._interaction import Interaction
 
 OPTIMIZERS = ('sgd', 'momentum', 'rmsprop', 'adam')
@@ -169,15 +170,19 @@ class TrainingInteraction(Interaction):
             )
             raise ValidationError(error_msg)
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for an optimizer, counts, parameters, or observables it rejects.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The optimizer is unknown, the batch size or the truncation is not a positive integer, no parameter is
                 trained, or the loss, the data, or a metric has the wrong type or label.
         """
-        super()._check()
+        super()._prepare(context)
         self._check_counts()
         self._check_observables()
         self.data._check()

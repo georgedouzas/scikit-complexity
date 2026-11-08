@@ -19,6 +19,7 @@ from ...specs import RoleSpec, Tags, WienerProcessSpec
 from ...types import ElementKind
 from ..base import BasePart
 from ..laws import BaseLaw, FractionalNoiseLaw, NoiseLaw, RateLaw
+from ..spaces import BaseSpace
 from ._base import RATE_DOMAINS
 from ._interaction import Interaction
 
@@ -194,15 +195,19 @@ class RateInteraction(Interaction):
             error_msg = f'The noise of {self.label!r} takes {" and ".join(options)}. Give at most one of them.'
             raise ValidationError(error_msg)
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for a state, functions, or noise options it cannot take.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The type declares states, the state is not a name, a function is neither callable nor a number, the
                 convention is unknown, the Hurst index is outside `(0, 1)`, or the noise options cannot combine.
         """
-        super()._check()
+        super()._prepare(context)
         self._check_functions()
         self._check_noise()
 

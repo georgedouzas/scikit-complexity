@@ -70,8 +70,14 @@ class RuleLaw(BaseLaw):
         """Return what the rule requires of a system: discrete time."""
         return RequirementSpec(time=(DiscreteTime,))
 
-    def _check(self) -> None:
-        """Raise an error for an uncallable function, or members that name no role."""
+    def _prepare(self, context: str | None = None) -> None:
+        """Raise an error for an uncallable function, or members that name no role.
+
+        Args:
+            context:
+                The path of the element or interaction that returns the law, or `None`.
+        """
+        super()._prepare(context)
         if not callable(self.function):
             error_msg = f'The function of a rule must be callable, but it is {self.function!r}.'
             raise ValidationError(error_msg)

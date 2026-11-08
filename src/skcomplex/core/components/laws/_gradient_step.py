@@ -95,9 +95,3 @@ class GradientStepLaw(BaseLaw):
         One step is one epoch.
         """
         return RequirementSpec(time=(DiscreteTime,))
-
-    def _check(self) -> None:
-        """Accept the arguments.
-
-        The interaction that returns the law validates them.
-        """

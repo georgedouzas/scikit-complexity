@@ -72,12 +72,6 @@ class BaseElement(BasePart[BaseSpace, SimpleNamespace]):
         super().__init__(label)
         self.visual = visual
 
-    def _check(self) -> None:
-        """Accept the element.
-
-        An element has nothing to check besides its label.
-        """
-
     def _prepare(self, context: BaseSpace | None = None) -> None:
         """Set `default_visual_`, the plain visual of an element.
 
@@ -85,6 +79,7 @@ class BaseElement(BasePart[BaseSpace, SimpleNamespace]):
             context:
                 The space the element inherits from its system, which an element does not read.
         """
+        super()._prepare(context)
         self.default_visual_ = VisualSpec()
 
     def _get_domain_tags(self) -> frozenset[str]:

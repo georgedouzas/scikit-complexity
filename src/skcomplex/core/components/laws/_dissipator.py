@@ -58,11 +58,16 @@ class DissipatorLaw(BaseLaw):
         """Return what the law requires of a system: continuous time."""
         return RequirementSpec(time=(ContinuousTime,))
 
-    def _check(self) -> None:
+    def _prepare(self, context: str | None = None) -> None:
         """Raise an error for a function as operator or rate, or a bad operator or rate.
 
         It raises it for no local operators, or a rate of another type.
+
+        Args:
+            context:
+                The path of the element or interaction that returns the law, or `None`.
         """
+        super()._prepare(context)
         if any(callable(item) and not isinstance(item, Expression) for item in (self.operator, self.rate)):
             error_msg = (
                 'Dissipators need symbolic operators and rates, so neither can be a function. Give the rate as '

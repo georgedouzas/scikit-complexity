@@ -18,6 +18,7 @@ from ...specs import RoleSpec
 from ...types import ElementKind
 from ..base import BasePart
 from ..laws import BaseLaw, RateLaw
+from ..spaces import BaseSpace
 from ..types import Target
 from ._interaction import Interaction
 
@@ -98,15 +99,19 @@ class HamiltonianInteraction(Interaction):
         """Return the names of the states of one side of the canonical pairs."""
         return (names,) if isinstance(names, str) else tuple(names)
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for a state not a name, an unpaired state, or a bad Hamiltonian.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The type declares states, a state is not a name, the coordinates and the momenta differ in count, or
                 the Hamiltonian is not callable.
         """
-        super()._check()
+        super()._prepare(context)
         for side in ('coordinates', 'momenta'):
             names = self._get_names(getattr(self, side))
             if not names or not all(isinstance(name, str) and name.isidentifier() for name in names):

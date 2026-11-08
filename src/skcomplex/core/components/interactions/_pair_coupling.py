@@ -18,6 +18,7 @@ from ...errors import ValidationError
 from ...specs import ParameterSpec, RoleSpec
 from ...types import ElementKind
 from ..laws import BaseLaw, RateLaw
+from ..spaces import BaseSpace
 from ..types import NamespaceFunction, PairPotential, Target
 from ._pair import PairInteraction
 
@@ -106,17 +107,21 @@ class PairCouplingInteraction(PairInteraction):
         self.divisor = divisor
         self.period = period
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error unless one of the function and the potential is a callable.
 
         Exactly one of them must be.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The function and the potential are both given or both missing, the given one is not callable, or the
                 potential has several states to write.
         """
-        super()._check()
+        super()._prepare(context)
         given = [item for item in (self.function, self.potential) if item is not None]
         if len(given) != 1 or not callable(given[0]):
             error_msg = (

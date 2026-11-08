@@ -98,8 +98,12 @@ class LatticeSpace(BaseSpace):
         self.neighborhood = neighborhood
         self.capacity = capacity
 
-    def _check(self) -> None:
-        """Raise an error when the shape, the geometry, or the boundary is not valid."""
+    def _prepare(self, context: None = None) -> None:
+        """Set the shape, the size, the spacings, and the position of every site.
+
+        It first raises an error when the shape, the geometry, or the boundary is not valid.
+        """
+        super()._prepare(context)
         shape = tuple(np.ravel(self.shape).tolist())
         if not shape or any(int(size) != size or size < 1 for size in shape):
             error_msg = (
@@ -115,9 +119,6 @@ class LatticeSpace(BaseSpace):
         if self.geometry == 'triangular' and len(shape) != TRIANGULAR_DIMENSIONS:
             error_msg = f'A triangular lattice has two dimensions, but its shape is {self.shape}.'
             raise ValidationError(error_msg)
-
-    def _prepare(self, context: None = None) -> None:
-        """Set the shape, the size, the spacings, and the position of every site."""
         self.shape_ = tuple(int(size) for size in np.ravel(self.shape).tolist())
         self.n_dim_ = len(self.shape_)
         self.size_ = int(np.prod(self.shape_))

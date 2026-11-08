@@ -21,6 +21,7 @@ from ...types import ElementKind
 from ..base import BasePart
 from ..laws import BaseLaw, RuleLaw, UpdateLaw
 from ..laws.utils import uniform
+from ..spaces import BaseSpace
 from ..types import AgentViewProtocol, SystemViewProtocol
 from ._base import SCHEDULES
 from ._interaction import Interaction
@@ -147,15 +148,19 @@ class MapInteraction(Interaction):
         self.form = form
         self.phase = phase
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for an unknown mode, schedule, or form, or a bad function.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The mode, the schedule, or the form is unknown, the symbolic form has the schedule `'member'`, or the
                 function is not callable.
         """
-        super()._check()
+        super()._prepare(context)
         self._check_variant('mode', self.mode, MODES, (BaseSpec,))
         for name, value, variants in (
             ('schedule', self.schedule, SCHEDULES),

@@ -20,6 +20,7 @@ from ...types import Array, ElementKind
 from ..base import BasePart
 from ..laws import BaseLaw, RuleLaw, UpdateLaw
 from ..laws.utils import where
+from ..spaces import BaseSpace
 from ..types import AgentViewProtocol, SystemViewProtocol
 from ._base import SCHEDULES
 from ._interaction import Interaction
@@ -135,15 +136,19 @@ class ReinforcementInteraction(Interaction):
         self.chosen = chosen
         self.schedule = schedule
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for an unknown variant, no scores, or an uncallable payoff.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The type declares states, the form, the rule, or the schedule is unknown, the symbolic form runs member
                 by member, there are no scores, or the payoff is not callable.
         """
-        super()._check()
+        super()._prepare(context)
         for name, value, variants in (
             ('form', self.form, FORMS),
             ('rule', self.rule, RULES),

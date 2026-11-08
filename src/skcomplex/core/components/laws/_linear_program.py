@@ -99,14 +99,19 @@ class LinearProgramLaw(BaseLaw):
         """Return what the law requires of a system: continuous, discrete, or static time."""
         return RequirementSpec(time=(ContinuousTime, DiscreteTime, StaticTime))
 
-    def _check(self) -> None:
+    def _prepare(self, context: str | None = None) -> None:
         """Raise an error for no variables, a bad constraint or objective, or a bad policy.
+
+        Args:
+            context:
+                The path of the element or interaction that returns the law, or `None`.
 
         Raises:
             ValidationError:
                 The program has no variables, a constraint is not a relation, an objective is not a
                 `LinearObjectiveSpec`, or the policy is unknown.
         """
+        super()._prepare(context)
         if not len(self.variables):
             error_msg = 'A linear program law sets at least one variable, but it has none.'
             raise ValidationError(error_msg)

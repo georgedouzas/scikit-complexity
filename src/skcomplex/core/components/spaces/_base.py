@@ -40,14 +40,9 @@ class BaseNeighborhood(BasePart[None, SimpleNamespace]):
         """Return no laws, since a neighbourhood only tells laws which members they read."""
         return []
 
-    def _check(self) -> None:
-        """Accept the neighbourhood.
-
-        By default it has nothing to check besides its label.
-        """
-
     def _prepare(self, context: None = None) -> None:
         """Leave the neighbourhood as it is, since it has nothing to prepare by default."""
+        super()._prepare(context)
 
 
 class BaseSpace(BasePart[None, SimpleNamespace]):
@@ -101,12 +96,6 @@ class BaseSpace(BasePart[None, SimpleNamespace]):
         There are none by default.
         """
         return []
-
-    def _check(self) -> None:
-        """Accept the space.
-
-        By default it has nothing to check besides its label.
-        """
 
     def _get_lacks(self) -> frozenset[str]:
         """Return the options lattices offer that the space does not.
@@ -259,12 +248,6 @@ class BaseTime(BasePart[None, SimpleNamespace]):
         The time decides which laws a system may hold but contributes none.
         """
         return []
-
-    def _check(self) -> None:
-        """Accept the time.
-
-        By default it has nothing to check besides its label.
-        """
 
     def _get_frames(self, until: float) -> npt.NDArray[np.float64]:
         """Return the times of the frames of a run up to a time.

@@ -55,8 +55,16 @@ class SourceLoader(BaseConfig[str | Path | None, str]):
         self.prefix = prefix
         self.functions = functions
 
-    def _check(self) -> None:
-        """Raise an error for a prefix that is not a Python identifier.
+    def _prepare(self, context: str | Path | None) -> None:
+        """Set the directory of the generated files.
+
+        It first raises an error for a prefix that is not a Python identifier.
+
+        Without one, it is the default cache directory.
+
+        Args:
+            context:
+                The directory of the generated files, or `None` for `~/.cache/skcomplex/kernels`.
 
         Raises:
             ValidationError:
@@ -65,16 +73,6 @@ class SourceLoader(BaseConfig[str | Path | None, str]):
         if not self.prefix.isidentifier():
             error_msg = f'The prefix of a source loader is a Python identifier, not {self.prefix!r}.'
             raise ValidationError(error_msg)
-
-    def _prepare(self, context: str | Path | None) -> None:
-        """Set the directory of the generated files.
-
-        Without one, it is the default cache directory.
-
-        Args:
-            context:
-                The directory of the generated files, or `None` for `~/.cache/skcomplex/kernels`.
-        """
         self.directory_ = Path(context) if context is not None else CACHE_DIR
 
     def _run(self, inputs: str | None) -> None:

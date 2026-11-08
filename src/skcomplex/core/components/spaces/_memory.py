@@ -45,4 +45,5 @@ class MemoryNeighborhood(BaseNeighborhood):
 
     def _prepare(self, context: None = None) -> None:
         """Set `elements_`, the words of the memory set as strings."""
+        super()._prepare(context)
         self.elements_ = self._get_elements()

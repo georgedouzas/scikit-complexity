@@ -17,6 +17,7 @@ from sage.symbolic.function import BuiltinFunction, SymbolicFunction
 from sage.symbolic.operators import FDerivativeOperator
 
 from ...errors import ValidationError
+from ..base import BasePart
 from ._continuous import ContinuousSpace
 
 type Christoffel = tuple[tuple[tuple[Expression, ...], ...], ...]
@@ -131,35 +132,6 @@ class PseudoRiemannianSpace(ContinuousSpace):
             raise ValidationError(error_msg)
         return matrix(SR, self.metric)
 
-    def _check(self) -> None:
-        """Raise an error for an invalid metric or coordinates that clash.
-
-        Raises:
-            ValidationError:
-                The metric is not a symmetric square matrix of one row per coordinate, a coordinate is not a variable,
-                two coordinates coincide, or the metric is degenerate.
-        """
-        coordinates = self._get_coordinates()
-        if not coordinates or not all(item.is_symbol() for item in coordinates):
-            error_msg = f'The coordinates {self.coordinates!r} are not variables. Give Sage variables or their names.'
-            raise ValidationError(error_msg)
-        if len(set(coordinates)) != len(coordinates):
-            error_msg = f'The coordinates {self.coordinates!r} repeat a variable. Give distinct coordinates.'
-            raise ValidationError(error_msg)
-        metric = self._get_metric()
-        if metric.nrows() != len(coordinates) or not metric.is_square():
-            error_msg = (
-                f'The metric has {metric.nrows()} rows and {metric.ncols()} columns for {len(coordinates)} '
-                'coordinates. Give a square matrix of one row per coordinate.'
-            )
-            raise ValidationError(error_msg)
-        if not all(SR(entry).expand().is_trivial_zero() for entry in (metric - metric.transpose()).list()):
-            error_msg = 'The metric is not symmetric. Give a symmetric matrix.'
-            raise ValidationError(error_msg)
-        if SR(metric.det()).expand().is_trivial_zero():
-            error_msg = 'The metric is degenerate, its determinant is identically zero. Give a nondegenerate metric.'
-            raise ValidationError(error_msg)
-
     def _walk(self, expression: Expression) -> Iterator[Expression]:
         """Yield an expression and every subexpression of it."""
         yield expression
@@ -212,7 +184,40 @@ class PseudoRiemannianSpace(ContinuousSpace):
         The tensors are derived again only when their source changed. A space is prepared again whenever a part that
         reads it is prepared, so the derivation, the slow step, runs only for a metric, coordinates, or a curvature flag
         that differ by value from those of the last derivation.
+
+        It first raises an error for an invalid metric or coordinates that clash. It checks its label through the base
+        of the parts, not the box of a continuous space, which it does not have.
+
+        Args:
+            context:
+                Nothing, since a space is prepared alone.
+
+        Raises:
+            ValidationError:
+                The metric is not a symmetric square matrix of one row per coordinate, a coordinate is not a variable,
+                two coordinates coincide, or the metric is degenerate.
         """
+        BasePart._prepare(self, context)
+        coordinates = self._get_coordinates()
+        if not coordinates or not all(item.is_symbol() for item in coordinates):
+            error_msg = f'The coordinates {self.coordinates!r} are not variables. Give Sage variables or their names.'
+            raise ValidationError(error_msg)
+        if len(set(coordinates)) != len(coordinates):
+            error_msg = f'The coordinates {self.coordinates!r} repeat a variable. Give distinct coordinates.'
+            raise ValidationError(error_msg)
+        metric = self._get_metric()
+        if metric.nrows() != len(coordinates) or not metric.is_square():
+            error_msg = (
+                f'The metric has {metric.nrows()} rows and {metric.ncols()} columns for {len(coordinates)} '
+                'coordinates. Give a square matrix of one row per coordinate.'
+            )
+            raise ValidationError(error_msg)
+        if not all(SR(entry).expand().is_trivial_zero() for entry in (metric - metric.transpose()).list()):
+            error_msg = 'The metric is not symmetric. Give a symmetric matrix.'
+            raise ValidationError(error_msg)
+        if SR(metric.det()).expand().is_trivial_zero():
+            error_msg = 'The metric is degenerate, its determinant is identically zero. Give a nondegenerate metric.'
+            raise ValidationError(error_msg)
         self.coordinates_ = self._get_coordinates()
         self.metric_ = self._get_metric()
         self.inverse_metric_ = self.metric_.inverse()

@@ -105,8 +105,10 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
         self.path = path
         self.name = name
 
-    def _check(self) -> None:
-        """Raise an error for a path of an unknown format, or a name that is no identifier.
+    def _prepare(self, context: None) -> None:
+        """Read the abstract system of the file with the translator of PySD for its format.
+
+        It first raises an error for a path of an unknown format, or a name that is no identifier.
 
         Raises:
             ValidationError:
@@ -124,9 +126,6 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
         if self.name is not None and not self.name.isidentifier():
             error_msg = f'The name {self.name!r} is not an identifier. Give a snake-case name, or None.'
             raise ValidationError(error_msg)
-
-    def _prepare(self, context: None) -> None:
-        """Read the abstract system of the file with the translator of PySD for its format."""
         path = Path(self.path)
         reader = VensimFile(path) if path.suffix.lower() == VENSIM_SUFFIX else XmileFile(path)
         reader.parse()

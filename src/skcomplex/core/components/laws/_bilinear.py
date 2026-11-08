@@ -80,11 +80,16 @@ class BilinearLaw(BaseLaw):
         """Return what the law requires: continuous time on lattices of classes."""
         return RequirementSpec(time=(ContinuousTime,), space=(LatticeSpace,))
 
-    def _check(self) -> None:
+    def _prepare(self, context: str | None = None) -> None:
         """Raise an error for a rate or outcome table of the wrong dimensions.
 
         It also raises it when their class counts disagree.
+
+        Args:
+            context:
+                The path of the element or interaction that returns the law, or `None`.
         """
+        super()._prepare(context)
         self._check_table('rate', (0, 2))
         if self.outcomes is not None:
             self._check_table('outcomes', (3,))

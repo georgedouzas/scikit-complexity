@@ -60,9 +60,14 @@ class FractionalNoiseLaw(NoiseLaw):
         super().__init__(target, value, order, convention=convention, label=label)
         self.hurst = hurst
 
-    def _check(self) -> None:
-        """Raise an error for an invalid noise or a numeric Hurst index outside `(0, 1)`."""
-        super()._check()
+    def _prepare(self, context: str | None = None) -> None:
+        """Raise an error for an invalid noise or a numeric Hurst index outside `(0, 1)`.
+
+        Args:
+            context:
+                The path of the element or interaction that returns the law, or `None`.
+        """
+        super()._prepare(context)
         if isinstance(self.hurst, int | float) and not 0 < self.hurst < 1:
             error_msg = f'The Hurst index of the noise of {self.target} is {self.hurst}. Give a number in (0, 1).'
             raise ValidationError(error_msg)

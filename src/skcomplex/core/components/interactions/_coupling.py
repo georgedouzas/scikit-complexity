@@ -22,7 +22,7 @@ from ...specs import BaseSpec, ClampSpec, ParameterSpec, RadiusSpec, RoleSpec, T
 from ...types import Array, ElementKind
 from ..laws import BaseLaw, RateLaw, RuleLaw, UpdateLaw
 from ..laws.utils import count, delayed, hyperedges, maximum, minimum, neighbors, shift_member, total
-from ..spaces import BaseNeighborhood
+from ..spaces import BaseNeighborhood, BaseSpace
 from ..types import AgentCombination, AgentViewProtocol, Combination, NamespaceFunction, SystemViewProtocol, Target
 from ._neighbor import NeighborInteraction
 
@@ -349,15 +349,19 @@ class CouplingInteraction(NeighborInteraction):
         if self.clamp is not None:
             self.clamp._check()
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for unknown variants, bad functions, or unsuitable weights.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 A variant is unknown, the function or the combination is not callable, or the weights, the source, the
                 reduction, or the neighbourhood do not suit the mode and the form.
         """
-        super()._check()
+        super()._prepare(context)
         self._check_variants()
         self._check_reduction()
         self._check_structure()

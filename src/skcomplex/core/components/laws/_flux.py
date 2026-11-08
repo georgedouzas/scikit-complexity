@@ -79,11 +79,16 @@ class FluxLaw(BaseLaw):
         """Return what the law requires: continuous time on a lattice or a mesh."""
         return RequirementSpec(time=(ContinuousTime,), space=(LatticeSpace, MeshSpace))
 
-    def _check(self) -> None:
+    def _prepare(self, context: str | None = None) -> None:
         """Raise an error for an unknown limiter or numerical flux, or a bad flux or speed.
 
         A bad flux or speed is one the law cannot take.
+
+        Args:
+            context:
+                The path of the element or interaction that returns the law, or `None`.
         """
+        super()._prepare(context)
         self._check_array('flux')
         if self._is_function(self.flux):
             error_msg = (

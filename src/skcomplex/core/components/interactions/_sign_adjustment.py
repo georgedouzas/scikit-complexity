@@ -19,6 +19,7 @@ from ...types import ElementKind
 from ..base import BasePart
 from ..laws import BaseLaw, RuleLaw, UpdateLaw
 from ..laws.utils import clip, sign
+from ..spaces import BaseSpace
 from ..types import AgentViewProtocol, SystemViewProtocol
 from ._base import SCHEDULES
 from ._interaction import Interaction
@@ -138,15 +139,19 @@ class SignAdjustmentInteraction(Interaction):
         self.phase = phase
         self.schedule = schedule
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for an unknown mode, form, or schedule, or an uncallable signal.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The mode, the form, or the schedule is unknown, the symbolic form is not synchronous, or the signal is
                 not callable.
         """
-        super()._check()
+        super()._prepare(context)
         for name, value, variants in (('mode', self.mode, MODES), ('form', self.form, FORMS)):
             if value not in variants:
                 error_msg = f'The {name} of {self.label!r} is {value!r}. Use one of {", ".join(variants)}.'

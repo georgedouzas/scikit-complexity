@@ -85,11 +85,17 @@ class EquationLaw(BaseLaw):
             return self.lhs.lhs(), self.lhs.rhs()
         return SR(self.lhs), SR(self.rhs)
 
-    def _check(self) -> None:
-        """Raise an error for a function as a side, or a missing right side.
+    def _prepare(self, context: str | None = None) -> None:
+        """Set `lhs_` and `rhs_`, the two sides, besides the attributes of every law.
 
-        An equation without a right side must be a relation.
+        It first raises an error for a function as a side, or a missing right side. An equation without a right side
+        must be a relation.
+
+        Args:
+            context:
+                The path of the element or interaction that returns the law, or `None`.
         """
+        super()._prepare(context)
         if any(callable(item) and not isinstance(item, Expression) for item in (self.lhs, self.rhs)):
             error_msg = (
                 'Equations are solved symbolically, so a side of an equation cannot be a function. Use a `RateLaw` of '
@@ -99,15 +105,6 @@ class EquationLaw(BaseLaw):
         if self.rhs is None and not (isinstance(self.lhs, Expression) and self.lhs.is_relational()):
             error_msg = 'An equation takes a left and a right side, or one relation `lhs == rhs`.'
             raise ValidationError(error_msg)
-
-    def _prepare(self, context: str | None = None) -> None:
-        """Set `lhs_` and `rhs_`, the two sides, besides the attributes of every law.
-
-        Args:
-            context:
-                The path of the element or interaction that returns the law, or `None`.
-        """
-        super()._prepare(context)
         self.lhs_, self.rhs_ = self._get_sides()
 
     def _run(self, inputs: object) -> None:

@@ -789,14 +789,18 @@ class SamplingInteraction(Interaction):
             return {}
         return {name: value for name, value in parameters.items() if name in names}
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for an unknown move, rule, or schedule, or a bad objective.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The move, the rule, or the schedule is unknown, or the objective or the cooling is not callable.
         """
-        super()._check()
+        super()._prepare(context)
         if self.cooling is not None and not callable(self.cooling):
             error_msg = f'The cooling of sampling {self.label!r} must be a function of the time symbol.'
             raise ValidationError(error_msg)

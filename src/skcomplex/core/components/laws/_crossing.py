@@ -76,8 +76,14 @@ class CrossingLaw(BaseLaw):
         """Return what the law requires of a system: continuous time."""
         return RequirementSpec(time=(ContinuousTime,))
 
-    def _check(self) -> None:
-        """Raise an error for a direction that is not -1, 0, or 1."""
+    def _prepare(self, context: str | None = None) -> None:
+        """Raise an error for a direction that is not -1, 0, or 1.
+
+        Args:
+            context:
+                The path of the element or interaction that returns the law, or `None`.
+        """
+        super()._prepare(context)
         if self.direction not in {-1, 0, 1}:
             error_msg = f'The direction of a crossing is -1, 0, or 1, but got {self.direction!r}.'
             raise ValidationError(error_msg)

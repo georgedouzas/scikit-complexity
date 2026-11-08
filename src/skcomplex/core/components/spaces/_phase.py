@@ -93,13 +93,18 @@ class PhaseSpace(LatticeSpace):
         self.axes = axes
         self.limit = limit
 
-    def _check(self) -> None:
-        """Raise an error for a bad position, no class axes, or axes sharing a name.
+    def _prepare(self, context: None = None) -> None:
+        """Set the shape, the size, the spacings, the coordinates, and the site positions.
 
-        The position must be a square lattice.
+        It first raises an error for a bad position, no class axes, or axes sharing a name. The position must be a
+        square lattice, which preparing it checks. The lattice base checks the shape, the geometry, and the boundary
+        the space takes from its position, and its facts are replaced by those of the phase space.
+
+        Args:
+            context:
+                Nothing, since a space is prepared alone.
         """
-        super()._check()
-        self.position._validated()
+        super()._prepare(context)
         if type(self.position) is not LatticeSpace or self.position.geometry != 'square':
             error_msg = f'The position of a phase space is a square lattice, but it is {self.position!r}.'
             raise ValidationError(error_msg)
@@ -110,9 +115,6 @@ class PhaseSpace(LatticeSpace):
         if len(set(names)) != len(names):
             error_msg = f'The class axes of a phase space have distinct names, but they are {names}.'
             raise ValidationError(error_msg)
-
-    def _prepare(self, context: None = None) -> None:
-        """Set the shape, the size, the spacings, the coordinates, and the site positions."""
         position = self.position.prepare()
         self.position_size_ = position.size_
         self.position_axes_ = tuple(range(position.n_dim_))

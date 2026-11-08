@@ -72,9 +72,14 @@ class AxisVisual(BaseVisual):
         self.scalar = scalar
         self.every = every
 
-    def _check(self) -> None:
-        """Raise an error for a spacing of sites that is not positive."""
-        super()._check()
+    def _prepare(self, context: BaseProblemSpec | None) -> None:
+        """Raise an error for a spacing of sites that is not positive.
+
+        Args:
+            context:
+                The compiled problem.
+        """
+        super()._prepare(context)
         if self.every < 1:
             error_msg = f'every = {self.every!r} must be a positive number of sites.'
             raise ValidationError(error_msg)

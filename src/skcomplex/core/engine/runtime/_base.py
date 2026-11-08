@@ -37,12 +37,6 @@ class BaseObserver(BaseConfig[BaseProblemSpec, FrameSpec]):
         4
     """
 
-    def _check(self) -> None:
-        """Accept every setting.
-
-        An observer has none to validate. An observer with settings validates them.
-        """
-
     def _prepare(self, context: BaseProblemSpec | None) -> None:
         """Prepare for a run of the compiled problem.
 
@@ -102,12 +96,6 @@ class BaseClock(BaseConfig[None, float]):
         max_lag_:
             The largest delay of a frame behind its due time, in seconds.
     """
-
-    def _check(self) -> None:
-        """Accept every setting.
-
-        A clock has none to validate. A clock with settings validates them.
-        """
 
     def _prepare(self, context: None) -> None:
         """Mark the wall time at which the run starts."""

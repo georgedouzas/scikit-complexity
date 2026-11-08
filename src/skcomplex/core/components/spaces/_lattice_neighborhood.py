@@ -44,12 +44,13 @@ class LatticeNeighborhood(BaseNeighborhood):
         """Return the offsets as tuples of integers."""
         return tuple(tuple(int(step) for step in np.atleast_1d(offset)) for offset in self.offsets)
 
-    def _check(self) -> None:
-        """Raise an error for offsets of different numbers of dimensions."""
+    def _prepare(self, context: None = None) -> None:
+        """Set `offsets_`, the offsets as tuples of integers.
+
+        It first raises an error for offsets of different numbers of dimensions.
+        """
+        super()._prepare(context)
         if len({len(offset) for offset in self._get_offsets()}) > 1:
             error_msg = 'Every offset of a neighbourhood has the same number of dimensions.'
             raise ValidationError(error_msg)
-
-    def _prepare(self, context: None = None) -> None:
-        """Set `offsets_`, the offsets as tuples of integers."""
         self.offsets_ = self._get_offsets()

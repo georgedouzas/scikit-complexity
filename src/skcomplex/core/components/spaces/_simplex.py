@@ -60,12 +60,13 @@ class SimplexSpace(PhaseSpace):
         [0.0, 0.5, 1.0]
     """
 
-    def _check(self) -> None:
-        """Raise an error for class axes that are not intervals on `[0, 1]` of equal cells.
+    def _prepare(self, context: None = None) -> None:
+        """Set the sites of the phase space and the cell volumes and face apertures.
 
-        They must have the same number of cells.
+        It first raises an error for class axes that are not intervals on `[0, 1]` of equal cells. They must have the
+        same number of cells.
         """
-        super()._check()
+        super()._prepare(context)
         sizes = {int(axis.size) for axis in self.axes}
         unit = all(axis.low == 0.0 and axis.high == 1.0 and not axis.periodic for axis in self.axes)
         if len(sizes) != 1 or not unit:
@@ -74,10 +75,6 @@ class SimplexSpace(PhaseSpace):
                 f"`AxisSpec('x', 30, 0.0, 1.0)`, but they are {list(self.axes)!r}."
             )
             raise ValidationError(error_msg)
-
-    def _prepare(self, context: None = None) -> None:
-        """Set the sites of the phase space and the cell volumes and face apertures."""
-        super()._prepare(context)
         dimensions = len(self.axes)
         cells = int(self.axes[0].size)
         positions = (1,) * len(self.position_axes_)

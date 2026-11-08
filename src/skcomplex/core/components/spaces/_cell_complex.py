@@ -536,12 +536,21 @@ class CellComplexSpace(NetworkSpace):
             return self._lattice_links(self.space)[:2]
         return super()._get_edges(graph)
 
-    def _check(self) -> None:
-        """Raise an error for a space, faces, or a dimension the complex cannot take.
+    def _prepare(self, context: None = None) -> None:
+        """Set the graph, the hyperedges, and the incidence of the cells, then the network.
+
+        It first raises an error for a space, faces, or a dimension the complex cannot take, and preparing the space
+        checks the space. It then sets the attributes of the network, whose base checks the label and the graph it
+        derived.
+
+        Args:
+            context:
+                Nothing, since a cell complex derives all it holds from its arguments.
 
         Raises:
             SpaceError:
-                The space is neither a square lattice nor a network, or a lattice is given faces.
+                The space is neither a square lattice nor a network, a lattice is given faces, a face uses a pair of
+                nodes that the graph does not join, or the network has a loop.
 
             ValidationError:
                 The dimension is below 2, or the faces are not known.
@@ -549,7 +558,6 @@ class CellComplexSpace(NetworkSpace):
         if not isinstance(self.space, LatticeSpace | NetworkSpace):
             error_msg = f'A cell complex derives from a lattice or a network space, not {self.space!r}.'
             raise SpaceError(error_msg)
-        self.space._validated()
         if isinstance(self.space, LatticeSpace) and (self.space.geometry != 'square' or self.faces is not None):
             error_msg = 'A cell complex of a lattice takes a square lattice and no faces, which the lattice gives.'
             raise SpaceError(error_msg)
@@ -559,20 +567,6 @@ class CellComplexSpace(NetworkSpace):
         if isinstance(self.faces, str) and self.faces not in FACES:
             error_msg = f'Unknown faces {self.faces!r}. Use None, one of {", ".join(FACES)}, or a sequence of cycles.'
             raise ValidationError(error_msg)
-
-    def _prepare(self, context: None = None) -> None:
-        """Set the graph, the hyperedges, and the incidence of the cells, then the network.
-
-        It then sets the attributes of the network.
-
-        Args:
-            context:
-                Nothing, since a cell complex derives all it holds from its arguments.
-
-        Raises:
-            SpaceError:
-                A face uses a pair of nodes that the graph does not join, or the network has a loop.
-        """
         place = self.space.prepare()
         if isinstance(place, LatticeSpace):
             self._prepare_lattice(place)

@@ -59,6 +59,7 @@ class MeshSpace(BaseSpace):
 
     def _prepare(self, context: None = None) -> None:
         """Set the nodes, the scikit-fem mesh, and the boundary nodes."""
+        super()._prepare(context)
         points = np.asarray(self.points, dtype=float)
         kind = skfem.MeshTri if points.shape[0] == TRIANGLE_DIMENSIONS else skfem.MeshTet
         self.mesh_ = kind(points, np.asarray(self.cells, dtype=np.int64))

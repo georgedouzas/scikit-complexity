@@ -16,6 +16,7 @@ from ...specs import RoleSpec, Tags
 from ...types import ElementKind
 from ..laws import BaseLaw, JumpLaw, UpdateLaw
 from ..laws.utils import uniform, where
+from ..spaces import BaseSpace
 from ._interaction import Interaction
 
 CLOCKS = ('rate', 'probability', 'waiting')
@@ -131,15 +132,19 @@ class JumpInteraction(Interaction):
             error_msg = f'The reset of the jump {self.label!r} maps states to {self.reset!r}. Give functions.'
             raise ValidationError(error_msg)
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for an event without one clock, changes, or a reset's wait.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The event has not exactly one clock, changes nothing, or resets states without a waiting time, or a
                 function is not callable.
         """
-        super()._check()
+        super()._prepare(context)
         self._check_jump()
 
     def _get_changes(self, namespace: SimpleNamespace) -> dict[Expression, float]:

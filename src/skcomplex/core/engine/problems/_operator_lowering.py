@@ -55,9 +55,6 @@ class OperatorLowering(BaseConfig[None, tuple[object, str]]):
 
     kernels_: tuple[OperatorKernel, ...]
 
-    def _check(self) -> None:
-        """Accept every setting, since an operator lowering has none to validate."""
-
     def _prepare(self, context: None) -> None:
         """Derive nothing from the context, since an operator lowering prepares nothing."""
 

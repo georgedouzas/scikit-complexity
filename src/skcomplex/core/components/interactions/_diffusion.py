@@ -16,6 +16,7 @@ from ...types import ElementKind
 from ..base import BasePart
 from ..laws import BaseLaw, FluxLaw, RateLaw
 from ..laws.utils import laplacian
+from ..spaces import BaseSpace
 from ._base import RATE_DOMAINS
 from ._conservation import ConservationInteraction
 
@@ -83,14 +84,18 @@ class DiffusionInteraction(ConservationInteraction):
         super().__init__(label, target=target, state=state)
         self.coefficient = coefficient
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for a state that is not a name, or an invalid coefficient.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The type declares states, the state is not a name, or the coefficient is neither callable nor a number.
         """
-        super()._check()
+        super()._prepare(context)
         if not (callable(self.coefficient) or isinstance(self.coefficient, int | float)):
             error_msg = f'The coefficient of {self.label!r} is {self.coefficient!r}. Give a function or a number.'
             raise ValidationError(error_msg)

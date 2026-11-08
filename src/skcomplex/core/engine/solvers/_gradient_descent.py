@@ -89,17 +89,6 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
         super().__init__(random_state=random_state, until=until)
         self.precision = precision
 
-    def _check(self) -> None:
-        """Raise an error for an unknown precision.
-
-        Raises:
-            ValidationError:
-                The precision is unknown.
-        """
-        if self.precision not in PRECISIONS:
-            error_msg = f'The precision is {self.precision!r}. Choose one of {", ".join(map(repr, PRECISIONS))}.'
-            raise ValidationError(error_msg)
-
     @classmethod
     def _get_form(cls) -> FormKind:
         """Return the learning form."""
@@ -304,6 +293,8 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
     def _prepare(self, context: LearningProblemSpec | None) -> None:
         """Prepare the solver for a learning problem.
 
+        It first raises an error for an unknown precision.
+
         It gets a new optimizer state and the measures of frame 0.
 
         Args:
@@ -312,12 +303,15 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
 
         Raises:
             ValidationError:
-                No problem is passed.
+                No problem is passed. The precision is unknown.
 
             SolverError:
                 The problem is not a learning problem.
         """
         super()._prepare(context)
+        if self.precision not in PRECISIONS:
+            error_msg = f'The precision is {self.precision!r}. Choose one of {", ".join(map(repr, PRECISIONS))}.'
+            raise ValidationError(error_msg)
         if not isinstance(self.problem_, LearningProblemSpec):
             error_msg = f'GradientDescentSolver solves learning problems, not a {type(self.problem_).__name__}.'
             raise SolverError(error_msg)

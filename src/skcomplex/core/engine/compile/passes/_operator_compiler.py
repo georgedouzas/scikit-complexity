@@ -87,14 +87,18 @@ class OperatorCompiler(BaseCompiler):
         super().__init__(backend, solver, observables)
         self.max_dimension = max_dimension
 
-    def _check(self) -> None:
+    def _prepare(self, context: System | None) -> None:
         """Raise an error for a largest dimension that is not a positive integer.
+
+        Args:
+            context:
+                The system.
 
         Raises:
             ValidationError:
                 A setting is invalid.
         """
-        super()._check()
+        super()._prepare(context)
         if not isinstance(self.max_dimension, int) or isinstance(self.max_dimension, bool) or self.max_dimension < 1:
             error_msg = f'The largest dimension is {self.max_dimension!r}. Give a positive integer.'
             raise ValidationError(error_msg)

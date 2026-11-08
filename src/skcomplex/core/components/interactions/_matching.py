@@ -760,17 +760,21 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         """
         self._check_partners(self.rule, space)
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for a bad declaration, an unsigned transfer, or a bad rule.
 
         A bad declaration is one the matching cannot take.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 A transfer has a sign other than `-1` or `1`, the rule is neither a matching spec nor a function, or
                 it is invalid.
         """
-        super()._check()
+        super()._prepare(context)
         for state, sign in self.transfers:
             if sign not in SIGNS:
                 error_msg = f'The transfer of {state!r} has the sign {sign!r}. Use one of {SIGNS}.'

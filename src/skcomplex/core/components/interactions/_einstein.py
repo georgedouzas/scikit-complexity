@@ -155,15 +155,23 @@ class EinsteinInteraction(Interaction):
         """Return the names of the states the equations determine."""
         return (self.states,) if isinstance(self.states, str) else tuple(self.states)
 
-    def _check(self) -> None:
-        """Raise an error for states not names, mismatched components, or a source.
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Set the prepared space and the mixed Einstein tensor of its metric.
+
+        It first raises an error for states not names, mismatched components, or a source.
+
+        Args:
+            context:
+                The space the interaction inherits from its system, which the equations do not read.
 
         Raises:
+            SpaceError:
+                The space is not a pseudo-Riemannian space with curvature.
             ValidationError:
                 The type declares states, a state is not a name, the components do not give one index pair per state,
                 or the source is not callable.
         """
-        super()._check()
+        super()._prepare(context)
         names = self._get_names()
         if not names or not all(isinstance(name, str) and name.isidentifier() for name in names):
             error_msg = f'{type(self).__name__} {self.label!r} solves for the states {self.states!r}. Give names.'
@@ -178,19 +186,6 @@ class EinsteinInteraction(Interaction):
         if self.source is not None and not callable(self.source):
             error_msg = f'The source of {self.label!r} is {self.source!r}. Give a function of the namespace.'
             raise ValidationError(error_msg)
-
-    def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Set the prepared space and the mixed Einstein tensor of its metric.
-
-        Args:
-            context:
-                The space the interaction inherits from its system, which the equations do not read.
-
-        Raises:
-            SpaceError:
-                The space is not a pseudo-Riemannian space with curvature.
-        """
-        super()._prepare(context)
         if not isinstance(self.space, PseudoRiemannianSpace) or not self.space.curvature:
             error_msg = (
                 f'{type(self).__name__} {self.label!r} reads the curvature of {self.space!r}. Give a '

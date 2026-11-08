@@ -67,8 +67,14 @@ class SampleLaw(BaseLaw):
         """Return what the sweep requires: discrete time on a lattice or a network."""
         return RequirementSpec(time=(DiscreteTime,), space=(LatticeSpace, NetworkSpace))
 
-    def _check(self) -> None:
-        """Check the objective, the move, and the sampler."""
+    def _prepare(self, context: str | None = None) -> None:
+        """Check the objective, the move, and the sampler.
+
+        Args:
+            context:
+                The path of the element or interaction that returns the law, or `None`.
+        """
+        super()._prepare(context)
         for spec in (self.objective, self.move, self.sampler):
             if spec is not None:
                 spec._check()

@@ -18,6 +18,7 @@ from ...specs import RoleSpec, Tags
 from ...types import ElementKind
 from ..laws import BaseLaw, BilinearLaw, EncounterLaw, RateLaw
 from ..laws.utils import collision
+from ..spaces import BaseSpace
 from ._interaction import Interaction
 
 OUTCOMES = ('conservative', 'destructive', 'proliferative')
@@ -150,8 +151,12 @@ class EncounterInteraction(Interaction):
             error_msg = f'The cross-section of {self.label!r} sets the rate. Give no rate, kernel, field, or outcome.'
             raise ValidationError(error_msg)
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for an unknown outcome, a bad function, or a missing kernel.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
@@ -159,7 +164,7 @@ class EncounterInteraction(Interaction):
                 no kernel, an encounter without a field is not conservative, an encounter has neither a rate nor a
                 cross-section, or a cross-section comes with a rate, a kernel, a field, or an outcome.
         """
-        super()._check()
+        super()._prepare(context)
         if not isinstance(self.state, str) or not self.state.isidentifier():
             error_msg = f'{type(self).__name__} {self.label!r} reads the state {self.state!r}, which is no name.'
             raise ValidationError(error_msg)

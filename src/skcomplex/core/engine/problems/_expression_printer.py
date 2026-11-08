@@ -114,8 +114,10 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
         self.shared = shared
         self.compiled = compiled
 
-    def _check(self) -> None:
-        """Raise an error for an unknown dialect or a compiled printer it cannot make.
+    def _prepare(self, context: Sequence[Expression] | None) -> None:
+        """Set the dialect, the symbols the code reads, and the code name of every symbol.
+
+        It first raises an error for an unknown dialect or a compiled printer it cannot make.
 
         Raises:
             ValidationError:
@@ -127,9 +129,6 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
         if self.compiled and (self.dialect not in IMPORTS or self.time is None):
             error_msg = 'A compiled printer prints NumPy or JAX code and needs the time symbol, `time=...`.'
             raise ValidationError(error_msg)
-
-    def _prepare(self, context: Sequence[Expression] | None) -> None:
-        """Set the dialect, the symbols the code reads, and the code name of every symbol."""
         self.dialect_ = DIALECTS[self.dialect]
         self.symbols_ = list(context or ())
         if self.compiled:

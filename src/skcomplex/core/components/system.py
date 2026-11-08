@@ -168,7 +168,7 @@ class BaseSystem(BasePart[BaseSpace, SimpleNamespace]):
 
         The parts are built again only when a model parameter differs by value from those of the last build, so a
         system that fits or generates data when it builds its parts does so once per set of parameters, however often
-        `get_tags`, `_check`, and `prepare` read them.
+        `get_tags` and `prepare` read them.
 
         Returns:
             system:
@@ -189,17 +189,16 @@ class BaseSystem(BasePart[BaseSpace, SimpleNamespace]):
         self._built_from = (params, system)
         return system
 
-    def _check(self) -> None:
-        """Check the parts built from the model parameters."""
-        self._pass_parameters()._validated()
-
     def _prepare(self, context: BaseSpace | None = None) -> None:
         """Pass the model parameters down to the parts, and prepare them as `system_`.
+
+        Preparing the composite of the parts checks every part.
 
         Args:
             context:
                 The space a nested system inherits from the system that holds it, or `None`.
         """
+        super()._prepare(context)
         self.system_ = self._pass_parameters().prepare(context)
 
     def _run(self, inputs: SimpleNamespace | None) -> None:
@@ -355,11 +354,6 @@ class System(BaseSystem):
         around = [part for part in (self.space, self.time) if part is not None]
         return [*around, *self.elements, *self.interactions, *self.systems]
 
-    def _check(self) -> None:
-        """Check every part of the system."""
-        for part in self._get_parts():
-            part._validated()
-
     def _prepare(self, context: BaseSpace | None = None) -> None:
         """Prepare the space, the time, the elements, the nested systems, and interactions.
 
@@ -369,10 +363,15 @@ class System(BaseSystem):
             context:
                 The space a nested system inherits from the system that holds it, or `None`.
 
+        Every part checks its arguments when it is prepared, so a part that fails may leave the parts before it
+        prepared, and preparing again replaces their attributes. The system checks its label through the base of the
+        parts, since it is its own composite.
+
         Raises:
             RoleElementError:
                 A role is bound to an element with a state of a domain the role does not accept.
         """
+        BasePart._prepare(self, context)
         space = self.space if self.space is not None else context
         for part in (self.space, self.time):
             if part is not None:

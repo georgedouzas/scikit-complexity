@@ -255,15 +255,19 @@ class LifeCycleInteraction(Interaction):
         if self.placement == 'neighbor':
             self._check_grid('placement', self.placement, space, "placement='here', or a placement function")
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for an unknown placement, a doubled birth, or a bad function.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The placement, the schedule, or the pick is unknown, both a birth probability and a rate are given,
                 a value is neither a number nor a function, or the schedule `'member'` has arrivals.
         """
-        super()._check()
+        super()._prepare(context)
         self._check_variants()
         if self.birth is not None and self.rate is not None:
             error_msg = f'{self.label!r} gives births by a probability and by a rate. Give one of them.'

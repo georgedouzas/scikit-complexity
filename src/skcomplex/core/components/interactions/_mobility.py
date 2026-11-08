@@ -21,6 +21,7 @@ from ...errors import ValidationError
 from ...specs import CallSpec, ParameterSpec, RoleSpec, Tags
 from ...types import Array, ElementKind
 from ..laws import BaseLaw, RateLaw, UpdateLaw
+from ..spaces import BaseSpace
 from ..types import NamespaceFunction, PairPotential, Target
 from ._interaction import Interaction
 
@@ -362,16 +363,20 @@ class MobilityInteraction(Interaction):
         self.temperature = temperature
         self.dt = dt
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for an unknown variant, a bad function, or continuous noise.
 
         The noise may not run in continuous time.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 A variant is unknown, a function is not callable, or the rate form has a positive temperature.
         """
-        super()._check()
+        super()._prepare(context)
         self._check_variant('tensor', self.tensor, TENSORS)
         self._check_variant('form', self.form, FORMS)
         self._check_variant('root', self.root, ROOTS)

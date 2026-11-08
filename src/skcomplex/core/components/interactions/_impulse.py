@@ -14,6 +14,7 @@ from ...specs import RoleSpec
 from ...types import ElementKind
 from ..laws import BaseLaw, CrossingLaw
 from ..laws.utils import where
+from ..spaces import BaseSpace
 from ._interaction import Interaction
 
 
@@ -82,15 +83,19 @@ class ImpulseInteraction(Interaction):
         self.start = start
         self.count = count
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for impulses without states or times, or a bad period or count.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The impulses set no state, a new value is not a function, the impulses have no time, the period is not
                 positive, or the count is not a positive integer.
         """
-        super()._check()
+        super()._prepare(context)
         if not self.reset or not all(callable(function) for function in self.reset.values()):
             error_msg = (
                 f'The impulses {self.label!r} set {self.reset!r}. Map state names to functions of the namespace.'

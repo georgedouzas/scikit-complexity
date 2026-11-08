@@ -65,11 +65,16 @@ class SubstitutionLaw(BaseLaw):
         """Return what the law requires of a system: discrete time."""
         return RequirementSpec(time=(DiscreteTime,))
 
-    def _check(self) -> None:
+    def _prepare(self, context: str | None = None) -> None:
         """Raise an error for a piece that is not a pair of a prototile name and a map.
 
         The map must be an affine map.
+
+        Args:
+            context:
+                The path of the element or interaction that returns the law, or `None`.
         """
+        super()._prepare(context)
         for piece in self.pieces:
             if not (isinstance(piece, tuple) and len(piece) == PIECE_SIZE and isinstance(piece[1], AffineSpec)):
                 error_msg = f'A piece of a substitution is a prototile name and an `AffineSpec`, not {piece!r}.'

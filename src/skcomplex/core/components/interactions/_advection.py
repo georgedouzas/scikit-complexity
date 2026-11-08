@@ -17,6 +17,7 @@ from ...errors import ValidationError
 from ...specs import RoleSpec
 from ...types import ElementKind
 from ..laws import BaseLaw, FluxLaw, RateLaw
+from ..spaces import BaseSpace
 from ._base import RATE_DOMAINS
 from ._conservation import ConservationInteraction
 
@@ -111,17 +112,21 @@ class AdvectionInteraction(ConservationInteraction):
         )
         self.drift = drift
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for an invalid state, drift, or scheme.
 
         It raises it for a state that is not a name, a drift that is not callable, or an unknown scheme.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The type declares states, the state is not a name, a function is not callable, or the limiter or the
                 numerical flux is unknown.
         """
-        super()._check()
+        super()._prepare(context)
         if not callable(self.drift):
             error_msg = f'The drift of {self.label!r} is {self.drift!r}. Give a function of the namespace.'
             raise ValidationError(error_msg)

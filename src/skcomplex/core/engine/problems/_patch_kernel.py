@@ -58,7 +58,7 @@ class PatchKernel(BaseKernel):
         self.substitutions = substitutions
         self.parameters = parameters
 
-    def _check(self) -> None:
+    def _compile(self) -> None:
         """Compile the prototiles, the tiles, and the substitutions.
 
         Every name is checked to be a prototile.
@@ -103,7 +103,16 @@ class PatchKernel(BaseKernel):
         return dict(zip(self.parameters.symbols, values.tolist(), strict=True))
 
     def _prepare(self, context: object) -> None:
-        """Start the structure at generation 0 for a run of the problem, as `values_`."""
+        """Start the structure at generation 0 for a run of the problem, as `values_`.
+
+        It first compiles the structure and its laws, which checks them, so the compiler that reads the compiled tables
+        before any run calls `_compile` alone.
+
+        Args:
+            context:
+                The problem whose initial parameters the run starts from.
+        """
+        self._compile()
         if not isinstance(context, BaseProblemSpec):
             error_msg = f'Patch {self.path!r} starts from the initial parameters of a problem, but got none.'
             raise RewritingError(error_msg)

@@ -132,11 +132,16 @@ class JumpLaw(BaseLaw):
                 )
                 raise ValidationError(error_msg)
 
-    def _check(self) -> None:
+    def _prepare(self, context: str | None = None) -> None:
         """Raise an error for an invalid clock, an array rate, or a symbolic increment.
 
         The array rate is a rate that is a NumPy array.
+
+        Args:
+            context:
+                The path of the element or interaction that returns the law, or `None`.
         """
+        super()._prepare(context)
         self._check_clock()
         self._check_reset()
         self._check_array('rate')

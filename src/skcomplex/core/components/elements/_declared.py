@@ -13,6 +13,7 @@ from typing import Self
 
 from ...errors import ValidationError
 from ...specs import DeclaredVariableSpec, VisualSpec
+from ..spaces import BaseSpace
 from ._element import Element
 
 
@@ -80,14 +81,18 @@ class DeclaredElement(Element):
         self._declared = (arguments, declared)
         return declared
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for a name a law cannot read or a constructor argument takes.
+
+        Args:
+            context:
+                The space the element inherits from its system, which an element does not read.
 
         Raises:
             ValidationError:
                 A name is not an identifier or is an argument of the constructor.
         """
-        super()._check()
+        super()._prepare(context)
         arguments = inspect.signature(type(self)).parameters
         for name in self._get_declared():
             if not name.isidentifier() or name in arguments:

@@ -61,9 +61,6 @@ class _MemberReductions(BaseConfig[None, object]):
     found_: dict[str, ReductionKernel]
     expression_: object
 
-    def _check(self) -> None:
-        """Accept every setting, since a member reduction has none to validate."""
-
     def __init__(
         self,
         *,

@@ -10,6 +10,7 @@ from types import SimpleNamespace
 
 from ...errors import ValidationError
 from ..base import BasePart
+from ..spaces import BaseSpace
 from ._base import BaseInteraction
 
 MIN_SIZE = 2
@@ -79,14 +80,18 @@ class HyperedgeInteraction(BaseInteraction):
         """
         return []
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for declared states or a size below two.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The type declares states, or the size is not a whole number of at least two.
         """
-        super()._check()
+        super()._prepare(context)
         if self.size is None:
             return
         if isinstance(self.size, bool) or not isinstance(self.size, int) or self.size < MIN_SIZE:

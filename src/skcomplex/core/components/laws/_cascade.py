@@ -81,7 +81,13 @@ class CascadeLaw(BaseLaw):
         """Return what the cascade requires: discrete time on a lattice or a network."""
         return RequirementSpec(time=(DiscreteTime,), space=(LatticeSpace, NetworkSpace))
 
-    def _check(self) -> None:
-        """Check every drive law and every law that relaxes the lattice."""
+    def _prepare(self, context: str | None = None) -> None:
+        """Check every drive law and every law that relaxes the lattice.
+
+        Args:
+            context:
+                The path of the element or interaction that returns the law, or `None`.
+        """
+        super()._prepare(context)
         for law in (*self.drive, *self.relax):
             law._validated()

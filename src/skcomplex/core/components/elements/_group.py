@@ -296,31 +296,11 @@ class GroupElement(BaseElement):
             error_msg = f'Group {self.label!r} has rank {self.rank!r}. A hyperedge holds a whole number of at least 2.'
             raise ValidationError(error_msg)
 
-    def _check(self) -> None:
-        """Raise an error for arguments the group cannot take.
-
-        They are a part, an element type, a size, a rank, or values.
-
-        Raises:
-            SpaceError:
-                The part is unknown.
-
-            ValueError:
-                A value names an argument the constructor of the element type does not take.
-
-            ValidationError:
-                The element type is not an element class, the size is not a positive integer, or the rank does not
-                belong to a variable group on hyperedges or is below 2.
-        """
-        super()._check()
-        self._check_on()
-        self._check_element()
-        self._check_size()
-        self._check_rank()
-        self._get_member()
-
     def _prepare(self, context: BaseSpace | None = None) -> None:
         """Set `default_visual_`, `size_`, and `values_`.
+
+        It first raises an error for arguments the group cannot take. They are a part, an element type, a size, a rank,
+        or values.
 
         `default_visual_` is the visual of the group when it sets none. The default visual of a group is the visual of a
         member, or the plain visual when the member sets none. The size of a group on parts of a space without a size of
@@ -332,12 +312,22 @@ class GroupElement(BaseElement):
 
         Raises:
             SpaceError:
-                The group lives on parts but has neither a size nor a space, or the space does not have the part.
+                The group lives on parts but has neither a size nor a space, or the space does not have the part. The
+                part is unknown.
 
             ValidationError:
-                A per-member value does not have one row per member.
+                A per-member value does not have one row per member. The element type is not an element class, the size
+                is not a positive integer, or the rank does not belong to a variable group on hyperedges or is below 2.
+
+            ValueError:
+                A value names an argument the constructor of the element type does not take.
         """
         super()._prepare(context)
+        self._check_on()
+        self._check_element()
+        self._check_size()
+        self._check_rank()
+        self._get_member()
         member = self._get_member()
         if member.visual is not None:
             self.default_visual_ = member.visual

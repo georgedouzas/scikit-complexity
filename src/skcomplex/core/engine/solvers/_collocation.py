@@ -16,6 +16,7 @@ from ...components.spaces import ContinuousTime
 from ...errors import SolverError, ValidationError
 from ...specs import ControlSolutionSpec, SupportSpec
 from ...types import Array, OrderKind
+from ..problems import ProblemSpec
 from ..problems._control_problem_spec import _ControlProblemSpec
 from ..types import Cost, GridFunction
 from ._optimal_control import OptimalControlSolver
@@ -143,10 +144,14 @@ class CollocationSolver(OptimalControlSolver):
         self.random_state = random_state
         self.until = until
 
-    def _check(self) -> None:
+    def _prepare(self, context: ProblemSpec | None) -> None:
         """Raise an error for a missing objective, an unknown setting, or too few nodes.
 
         The unknown setting is a sense, scheme, or method.
+
+        Args:
+            context:
+                The compiled problem.
 
         Raises:
             SolverError:
@@ -155,7 +160,7 @@ class CollocationSolver(OptimalControlSolver):
             ValidationError:
                 The sense, the scheme, or the method is unknown, or the grid has fewer than 2 nodes.
         """
-        super()._check()
+        super()._prepare(context)
         if self.scheme not in SCHEMES:
             error_msg = f'Unknown collocation scheme {self.scheme!r}. Use one of {", ".join(SCHEMES)}.'
             raise ValidationError(error_msg)

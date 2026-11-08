@@ -65,26 +65,6 @@ class OptimalControlSolver(Solver):
     terminal: Cost
     sense: str
 
-    def _check(self) -> None:
-        """Raise an error for a missing objective or an unknown sense.
-
-        Raises:
-            SolverError:
-                The solver has no objective.
-
-            ValidationError:
-                The sense is neither `'min'` nor `'max'`.
-        """
-        if self.objective is None:
-            error_msg = (
-                f'{type(self).__name__} has no objective. Pass the running cost as `objective`, a function of the '
-                'namespace of the system such as `lambda s: s.plant.x**2`.'
-            )
-            raise SolverError(error_msg)
-        if self.sense not in _SENSES:
-            error_msg = f'Unknown sense {self.sense!r} of the objective. Use one of {", ".join(_SENSES)}.'
-            raise ValidationError(error_msg)
-
     def _integrate(self, x0: Array, controls: Array, times: Array, p: Array) -> Array:
         """Return the steered states on a grid from their initial values.
 
@@ -141,16 +121,30 @@ class OptimalControlSolver(Solver):
     def _prepare(self, context: ProblemSpec | None) -> None:
         """Prepare the solver for a problem and read its optimal control problem.
 
+        It first raises an error for a missing objective or an unknown sense.
+
         Args:
             context:
                 The compiled problem.
 
         Raises:
             SolverError:
-                The problem is not an ODE, or has no bounded adaptive parameter or laws the solver cannot
-                differentiate symbolically, or the run has no end.
+                The problem is not an ODE, or has no bounded adaptive parameter or laws the solver cannot differentiate
+                symbolically, or the run has no end. The solver has no objective.
+
+            ValidationError:
+                The sense is neither `'min'` nor `'max'`.
         """
         super()._prepare(context)
+        if self.objective is None:
+            error_msg = (
+                f'{type(self).__name__} has no objective. Pass the running cost as `objective`, a function of the '
+                'namespace of the system such as `lambda s: s.plant.x**2`.'
+            )
+            raise SolverError(error_msg)
+        if self.sense not in _SENSES:
+            error_msg = f'Unknown sense {self.sense!r} of the objective. Use one of {", ".join(_SENSES)}.'
+            raise ValidationError(error_msg)
         problem = self.problem_
         control_problem = self._control_problem(problem)
         if not math.isfinite(self.until):

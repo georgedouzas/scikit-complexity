@@ -18,6 +18,7 @@ from ...errors import ValidationError
 from ...specs import CardinalitySpec, ClauseSpec, RoleSpec
 from ...types import ElementKind
 from ..laws import BaseLaw, RuleLaw
+from ..spaces import BaseSpace
 from ..types import SystemViewProtocol
 from ._interaction import Interaction
 
@@ -90,14 +91,18 @@ class SatisfiabilityInteraction(Interaction):
         self.solver = solver
         self.phase = phase
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for a constraint not a spec, or a bad number revealed per step.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 A constraint is not a spec or the number revealed per step is not positive.
         """
-        super()._check()
+        super()._prepare(context)
         if self.reveal < 1:
             error_msg = f'The satisfiability {self.label!r} has reveal={self.reveal!r}. Reveal at least 1 per step.'
             raise ValidationError(error_msg)

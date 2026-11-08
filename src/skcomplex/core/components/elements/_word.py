@@ -77,22 +77,20 @@ class WordElement(Element):
         self.max_size = max_size
         self.bounds = bounds
 
-    def _check(self) -> None:
-        """Raise an error for an invalid geometry or a maximum size that is not positive.
-
-        The maximum size must be a positive integer.
-        """
-        if self.geometry is not None:
-            self.geometry._check()
-        if isinstance(self.max_size, bool) or not isinstance(self.max_size, int) or self.max_size < 1:
-            error_msg = f'The maximum size of {self.label} must be a positive integer, but it is {self.max_size!r}.'
-            raise RewritingError(error_msg)
-
     def _prepare(self, context: object = None) -> None:
         """Set `default_visual_`, the geometry of the word.
+
+        It first raises an error for an invalid geometry or a maximum size that is not positive. The maximum size must
+        be a positive integer.
 
         Args:
             context:
                 The space the element inherits from its system, which the element does not read.
         """
+        super()._prepare(context)
+        if self.geometry is not None:
+            self.geometry._check()
+        if isinstance(self.max_size, bool) or not isinstance(self.max_size, int) or self.max_size < 1:
+            error_msg = f'The maximum size of {self.label} must be a positive integer, but it is {self.max_size!r}.'
+            raise RewritingError(error_msg)
         self.default_visual_ = VisualSpec('geometry')

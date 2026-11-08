@@ -396,15 +396,6 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
             )
             raise ValidationError(error_msg)
 
-    def _check(self) -> None:
-        """Raise an error for declarations the interaction cannot take.
-
-        Raises:
-            ValidationError:
-                The type declares states.
-        """
-        self._check_states()
-
     def _check_grid(self, name: str, value: object, space: BaseSpace | None, alternative: str) -> None:
         """Raise an error for a variant that needs cells or nodes in a continuous space.
 
@@ -492,6 +483,8 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
     def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for a variant the space of the system cannot run.
 
+        It first raises an error for declarations the interaction cannot take.
+
         Args:
             context:
                 The space the interaction inherits from its system.
@@ -499,7 +492,11 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
         Raises:
             SpaceError:
                 A variant needs a kind of space the system does not have.
+            ValidationError:
+                The type declares states.
         """
+        super()._prepare(context)
+        self._check_states()
         self._check_space(context)
 
     def get_requirements(self) -> InteractionRequirementSpec:

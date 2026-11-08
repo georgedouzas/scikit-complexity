@@ -18,6 +18,7 @@ from ...errors import SimulationError, ValidationError
 from ...specs import BaseSpec, ParameterSpec, RoleSpec
 from ...types import Array, ElementKind
 from ..laws import BaseLaw, RuleLaw
+from ..spaces import BaseSpace
 from ..types import AgentViewProtocol, SystemViewProtocol
 from ._interaction import Interaction
 
@@ -229,15 +230,19 @@ class EvolutionInteraction(Interaction):
                 error_msg = f'The {name} probability of {self.label!r} is {value!r}. Give a value in [0, 1].'
                 raise ValidationError(error_msg)
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for an unknown variant, a bad probability, or an invalid count.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The type declares states, a variant is unknown, a probability is outside `[0, 1]`, the mutation is
                 neither a probability nor a function, a count is invalid, or the evaluation is not callable.
         """
-        super()._check()
+        super()._prepare(context)
         self._check_variant('selection', self.selection, SELECTIONS, (BaseSpec,))
         self._check_variant('replacement', self.replacement, REPLACEMENTS, (BaseSpec,))
         for name, value, variants in (

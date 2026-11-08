@@ -161,15 +161,23 @@ class FieldElement(LatticeElement):
             return str(condition[0]), condition[1] if callable(condition[1]) else float(condition[1])
         return str(condition), 0.0
 
-    def _check(self) -> None:
-        """Raise an error for an unknown discretization or boundary condition.
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Set `size_`, `values_`, and `default_visual_`.
+
+        It first raises an error for an unknown discretization or boundary condition.
+
+        The default visual is an image on a lattice and a colored mesh on a mesh.
+
+        Args:
+            context:
+                The space the field inherits from its system, unused since a field has a space of its own.
 
         Raises:
             ValidationError:
                 The discretization or a boundary condition is unknown, or the matrix of a tensor state does not have
                 its symmetry.
         """
-        super()._check()
+        super()._prepare(context)
         if self.discretization not in DISCRETIZATIONS:
             error_msg = f'Unknown discretization {self.discretization!r} of {self.label}. Use one of {DISCRETIZATIONS}.'
             raise ValidationError(error_msg)
@@ -185,17 +193,6 @@ class FieldElement(LatticeElement):
                     "('fixed', value)."
                 )
                 raise ValidationError(error_msg)
-
-    def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Set `size_`, `values_`, and `default_visual_`.
-
-        The default visual is an image on a lattice and a colored mesh on a mesh.
-
-        Args:
-            context:
-                The space the field inherits from its system, unused since a field has a space of its own.
-        """
-        super()._prepare(context)
         if isinstance(self.space, LatticeSpace):
             self.default_visual_ = VisualSpec('image')
         elif isinstance(self.space, MeshSpace):

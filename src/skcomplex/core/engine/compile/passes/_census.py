@@ -478,7 +478,7 @@ class CensusPass(BasePass):
         if not isinstance(substituted, BaseLaw):
             error_msg = f'The law {law!r} of {edges.owner} is not a law once written for the member.'
             raise TypeError(error_msg)
-        return substituted._validated()
+        return substituted.prepare(edges.owner)
 
     @staticmethod
     def _own_end(edges: KernelSpec, law: BaseLaw) -> str | None:
@@ -585,7 +585,7 @@ class CensusPass(BasePass):
         for axis, step in enumerate(space.spacings_):
             offset = [sign * step if index == axis else 0 for index in range(dimensions)]
             total += value.subs({other: shifted(member, offset) for other, member in ends.items()})
-        return BasePass._replaced(law, value=total)._validated()
+        return BasePass._replaced(law, value=total).prepare(edges.owner)
 
     @staticmethod
     def _field_laws(edges: KernelSpec, laws: list[BaseLaw]) -> tuple[list[BaseLaw], list[BaseLaw]]:
@@ -634,7 +634,7 @@ class CensusPass(BasePass):
             if index in taken or partner is None or difference is None or scale is None:
                 continue
             coefficient, member = difference
-            lowered.append(BasePass._replaced(law, value=coefficient * scale * laplacian(member))._validated())
+            lowered.append(BasePass._replaced(law, value=coefficient * scale * laplacian(member)).prepare(edges.owner))
             taken |= {index, partner}
         if isinstance(place.space, LatticeSpace):
             lowered += [
@@ -690,7 +690,7 @@ class CensusPass(BasePass):
             if not isinstance(expanded, BaseLaw):
                 error_msg = f'The law {law!r} of {spec.owner} is not a law once its reductions are written out.'
                 raise TypeError(error_msg)
-            kept.append(HyperedgeTables._masked(spec, expanded._validated()))
+            kept.append(HyperedgeTables._masked(spec, expanded.prepare(spec.owner)))
         return kept
 
     @staticmethod
@@ -936,7 +936,7 @@ class CensusPass(BasePass):
         """Return the part whose laws describe a node, a representative member for a group."""
         if isinstance(node.component, GroupElement):
             group = node.component
-            return group.element(group.label).set_params(**(group.values or {}))._validated()
+            return group.element(group.label).set_params(**(group.values or {})).prepare()
         if not isinstance(node.component, BasePart):
             error_msg = f'The node {node.path} holds a {type(node.component).__name__}, which declares no laws.'
             raise TypeError(error_msg)

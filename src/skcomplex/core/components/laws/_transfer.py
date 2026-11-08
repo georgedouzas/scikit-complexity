@@ -165,11 +165,16 @@ class TransferLaw(BaseLaw):
             )
             raise ValidationError(error_msg)
 
-    def _check(self) -> None:
+    def _prepare(self, context: str | None = None) -> None:
         """Raise an error for bad holders, an array amount, a symbolic jump, or bad owner.
 
         The jump size may not be symbolic, and the owner must be a string.
+
+        Args:
+            context:
+                The path of the element or interaction that returns the law, or `None`.
         """
+        super()._prepare(context)
         self._check_holders()
         if not isinstance(self.owner, str):
             error_msg = f'The owner of the transfer {self.label} is {self.owner!r}. Give a path, or an empty string.'

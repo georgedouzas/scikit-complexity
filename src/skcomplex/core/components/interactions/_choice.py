@@ -22,6 +22,7 @@ from ...types import ElementKind
 from ..base import BasePart
 from ..laws import BaseLaw, RuleLaw, UpdateLaw
 from ..laws.utils import categorical, uniform, where
+from ..spaces import BaseSpace
 from ..types import AgentViewProtocol, SystemViewProtocol
 from ._base import SCHEDULES
 from ._interaction import Interaction
@@ -187,8 +188,12 @@ class ChoiceInteraction(Interaction):
             )
             raise ValidationError(error_msg)
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for an unknown variant, fewer than two options, or a bad utility.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
@@ -196,7 +201,7 @@ class ChoiceInteraction(Interaction):
                 schedule is not synchronous in the symbolic form, there are fewer than two options, or the utility is
                 not callable.
         """
-        super()._check()
+        super()._prepare(context)
         self._check_variants()
         if len(self.options) < MIN_OPTIONS:
             error_msg = f'{self.label!r} chooses among {list(self.options)}. Give at least {MIN_OPTIONS} options.'

@@ -17,7 +17,7 @@ from ...errors import ValidationError
 from ...specs import BaseSpec, RoleSpec
 from ...types import Array, ElementKind
 from ..laws import BaseLaw, CascadeLaw, DriveLaw, LocalRuleLaw
-from ..spaces import BaseNeighborhood, LatticeNeighborhood, VonNeumannNeighborhood
+from ..spaces import BaseNeighborhood, BaseSpace, LatticeNeighborhood, VonNeumannNeighborhood
 from ._neighbor import NeighborInteraction
 
 MODES = ('redistribute', 'reset', 'random')
@@ -131,15 +131,19 @@ class CascadeInteraction(NeighborInteraction):
             )
             raise ValidationError(error_msg)
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for a mode, drive, neighbourhood, or parcels it cannot take.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The mode is unknown, the drive is not callable, the neighbourhood leaves out the member itself, or the
                 mode `'random'` has no lattice neighbourhood or a threshold that is not a whole number of parcels.
         """
-        super()._check()
+        super()._prepare(context)
         self._check_variant('mode', self.mode, MODES, (BaseSpec,))
         if self.drive is not None and not callable(self.drive):
             error_msg = f'The drive of the cascade must be callable, but it is {self.drive!r}.'

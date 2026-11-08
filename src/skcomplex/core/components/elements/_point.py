@@ -64,4 +64,5 @@ class PointElement(Element):
             context:
                 The space the element inherits from its system, which the element does not read.
         """
+        super()._prepare(context)
         self.default_visual_ = VisualSpec('points', {'position': 'x'})

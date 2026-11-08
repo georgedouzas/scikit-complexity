@@ -86,26 +86,6 @@ class ContinuousSpace(BaseSpace):
         self.boundary = boundary
         self.regions = regions
 
-    def _check(self) -> None:
-        """Raise an error for an unknown boundary, no dimension, a bad side, or bad walls.
-
-        The side must be positive, and there are no walls in `R^d`.
-        """
-        extent = tuple(self.extent)
-        n_dim = self.n_dim if self.n_dim is not None else len(extent)
-        if self.boundary not in BOUNDARIES:
-            error_msg = f'Unknown boundary {self.boundary!r}. Use one of {", ".join(BOUNDARIES)}.'
-            raise ValidationError(error_msg)
-        if not n_dim:
-            error_msg = 'A continuous space needs the sides of its box or a number of dimensions.'
-            raise ValidationError(error_msg)
-        if extent and (len(extent) != n_dim or min(extent) <= 0):
-            error_msg = f'The box {extent} needs one positive side for each of its {n_dim} dimensions.'
-            raise ValidationError(error_msg)
-        if not extent and self.boundary != 'open':
-            error_msg = f'An unbounded space has no walls for its boundary {self.boundary!r}. Give the sides of a box.'
-            raise ValidationError(error_msg)
-
     def _check_region(self, layer: str, index: int, region: object) -> None:
         """Raise an error for a region that is not a valid polygon in two dimensions."""
         name = f'The region {index} of the layer {layer!r}'
@@ -136,8 +116,26 @@ class ContinuousSpace(BaseSpace):
     def _prepare(self, context: None = None) -> None:
         """Set the extent, the dimension, the boundary, and the region index of the box.
 
+        It first raises an error for an unknown boundary, no dimension, a bad side, or bad walls. The side must be
+        positive, and there are no walls in `R^d`.
+
         The box has no sites.
         """
+        super()._prepare(context)
+        extent = tuple(self.extent)
+        n_dim = self.n_dim if self.n_dim is not None else len(extent)
+        if self.boundary not in BOUNDARIES:
+            error_msg = f'Unknown boundary {self.boundary!r}. Use one of {", ".join(BOUNDARIES)}.'
+            raise ValidationError(error_msg)
+        if not n_dim:
+            error_msg = 'A continuous space needs the sides of its box or a number of dimensions.'
+            raise ValidationError(error_msg)
+        if extent and (len(extent) != n_dim or min(extent) <= 0):
+            error_msg = f'The box {extent} needs one positive side for each of its {n_dim} dimensions.'
+            raise ValidationError(error_msg)
+        if not extent and self.boundary != 'open':
+            error_msg = f'An unbounded space has no walls for its boundary {self.boundary!r}. Give the sides of a box.'
+            raise ValidationError(error_msg)
         self.extent_ = tuple(float(side) for side in self.extent)
         self.n_dim_ = int(self.n_dim) if self.n_dim is not None else len(self.extent_)
         self.size_ = None

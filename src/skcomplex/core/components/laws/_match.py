@@ -89,11 +89,16 @@ class MatchLaw(BaseLaw):
         """
         return RuleLaw(self.run, phase=self.phase)
 
-    def _check(self) -> None:
+    def _prepare(self, context: str | None = None) -> None:
         """Raise an error for a bad capacity or an invalid selection of partners.
 
         The capacity must be a positive integer.
+
+        Args:
+            context:
+                The path of the element or interaction that returns the law, or `None`.
         """
+        super()._prepare(context)
         if isinstance(self.pairing, PartnerSpec):
             self.pairing._check()
         if isinstance(self.capacity, bool) or not isinstance(self.capacity, int) or self.capacity < 1:

@@ -210,12 +210,21 @@ class Simulation(BaseConfig[None, float]):
             raise ValidationError(error_msg)
         return float(dt)
 
-    def _check(self) -> None:
-        """Validate the system against the solver, the backend, and the observables.
+    def _prepare(self, context: None) -> None:
+        """Compile the system and choose the solver.
 
-        A compiled problem is not validated.
+        It first validates the system against the solver, the backend, and the observables. A compiled problem is not
+        validated.
+
+        It also gathers the clock and the observers of a run.
+
+        Args:
+            context:
+                Nothing: a simulation prepares on its own system.
 
         Raises:
+            TypeError:
+                The compiler names an object that is not a solver.
             ValidationError:
                 The system is not a system or a compiled problem, such as a system name, or it cannot be compiled or
                 run, with every problem found.
@@ -228,20 +237,6 @@ class Simulation(BaseConfig[None, float]):
             raise ValidationError(error_msg)
         if not isinstance(self.system, BaseProblemSpec):
             self._compiler().prepare(self.system).report_._check()
-
-    def _prepare(self, context: None) -> None:
-        """Compile the system and choose the solver.
-
-        It also gathers the clock and the observers of a run.
-
-        Args:
-            context:
-                Nothing: a simulation prepares on its own system.
-
-        Raises:
-            TypeError:
-                The compiler names an object that is not a solver.
-        """
         initial = dict(self.initial_state or {})
         named: object = None
         if isinstance(self.system, BaseProblemSpec):

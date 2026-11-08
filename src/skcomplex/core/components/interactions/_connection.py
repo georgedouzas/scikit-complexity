@@ -17,6 +17,7 @@ from ...specs import RoleSpec
 from ...types import ElementKind
 from ..base import BasePart
 from ..laws import BaseLaw, EquationLaw
+from ..spaces import BaseSpace
 from ._interaction import Interaction
 
 
@@ -91,14 +92,18 @@ class ConnectionInteraction(Interaction):
         self.members = members
         self.ports = ports
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for members and ports that are empty or differ in length.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The type declares states, or the members and the ports are empty or differ in length.
         """
-        super()._check()
+        super()._prepare(context)
         if not self.members or len(self.members) != len(self.ports):
             error_msg = (
                 f'{self.label!r} connects {len(self.members)} members through {len(self.ports)} ports. Name one port '

@@ -63,11 +63,16 @@ class TransitionLaw(BaseLaw):
         """Return what the law requires of a system: discrete time."""
         return RequirementSpec(time=(DiscreteTime,))
 
-    def _check(self) -> None:
+    def _prepare(self, context: str | None = None) -> None:
         """Raise an error for a matrix that is not a function or a nonempty matrix.
 
         A nonempty matrix is a sequence of rows of equal length.
+
+        Args:
+            context:
+                The path of the element or interaction that returns the law, or `None`.
         """
+        super()._prepare(context)
         if not self._is_function(self.matrix):
             self._check_matrix('matrix')
 

@@ -36,6 +36,7 @@ class StaticTime(BaseTime):
 
     def _prepare(self, context: None = None) -> None:
         """Set no schedule."""
+        super()._prepare(context)
         self.schedule_ = None
 
     def _get_frames(self, until: float) -> npt.NDArray[np.float64]:

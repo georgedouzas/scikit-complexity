@@ -15,6 +15,7 @@ from ...specs import BaseSpec, RoleSpec, Tags, TopologyRequestSpec
 from ...types import ElementKind
 from ..laws import BaseLaw, JumpLaw, UpdateLaw
 from ..laws.utils import where
+from ..spaces import BaseSpace
 from ._neighbor import NeighborInteraction
 
 ACTIONS = (
@@ -238,8 +239,12 @@ class TopologyInteraction(NeighborInteraction):
         self.inherit = inherit
         self.parent = parent
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for unknown options, a rate with a probability, or bad edges.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
@@ -248,7 +253,7 @@ class TopologyInteraction(NeighborInteraction):
                 action other than `'add-node'` and `'add-edge'` has no target, a hyperedge is given to an action other
                 than `'add-node'` and `'add-hyperedge'`, or `'add-hyperedge'` has none, or the request is invalid.
         """
-        super()._check()
+        super()._prepare(context)
         self._check_variant('action', self.action, ACTIONS, (BaseSpec,))
         if self.rate is not None and self.probability is not None:
             error_msg = f'{self.label!r} fires at a rate and with a probability. Give one of them.'

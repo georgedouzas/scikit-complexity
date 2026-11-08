@@ -220,16 +220,20 @@ class PassCompiler(BaseCompiler):
         self.passes = passes
         self.partition = partition
 
-    def _check(self) -> None:
+    def _prepare(self, context: System | None) -> None:
         """Raise an error for passes that are not passes or an unknown partition.
 
         The partition must be one of the choices.
+
+        Args:
+            context:
+                The system.
 
         Raises:
             ValidationError:
                 A setting is invalid.
         """
-        super()._check()
+        super()._prepare(context)
         if self.passes is not None and not all(isinstance(item, BasePass) for item in self.passes):
             error_msg = 'The passes hold an object that is not a pass. Pass instances of BasePass.'
             raise ValidationError(error_msg)

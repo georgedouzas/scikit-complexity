@@ -169,19 +169,10 @@ class CoSimulationSolver(Solver):
         self.random_state = random_state
         self.until = until
 
-    def _check(self) -> None:
-        """Raise an error for an unknown coupling scheme.
-
-        Raises:
-            SolverError:
-                The scheme is unknown.
-        """
-        if self.scheme not in SCHEMES:
-            error_msg = f'scheme = {self.scheme!r} must be one of {", ".join(SCHEMES)}.'
-            raise SolverError(error_msg)
-
     def _prepare(self, context: ProblemSpec | None) -> None:
         """Partition the problem when asked, and build and seed the partition steppers.
+
+        It first raises an error for an unknown coupling scheme.
 
         There is one stepper per partition.
 
@@ -194,11 +185,14 @@ class CoSimulationSolver(Solver):
                 No problem is passed.
 
             SolverError:
-                The problem is not a co-simulation and `split` is false.
+                The problem is not a co-simulation and `split` is false. The scheme is unknown.
 
             TypeError:
                 The compiler of the partitions does not return a problem of the compiler.
         """
+        if self.scheme not in SCHEMES:
+            error_msg = f'scheme = {self.scheme!r} must be one of {", ".join(SCHEMES)}.'
+            raise SolverError(error_msg)
         if context is None:
             error_msg = 'A solver prepares on a compiled problem. Pass the problem to `prepare`.'
             raise ValidationError(error_msg)

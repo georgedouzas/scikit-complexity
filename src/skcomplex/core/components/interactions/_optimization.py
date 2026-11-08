@@ -30,6 +30,7 @@ from ...specs import (
 )
 from ...types import Array, ElementKind
 from ..laws import BaseLaw, RuleLaw
+from ..spaces import BaseSpace
 from ..types import SystemViewProtocol
 from ._interaction import Interaction
 
@@ -106,14 +107,18 @@ class OptimizationInteraction(Interaction):
         self.algorithm = algorithm
         self.phase = phase
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for an algorithm that is not a spec, or an uncallable objective.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The algorithm is not an algorithm spec, or the objective is not callable.
         """
-        super()._check()
+        super()._prepare(context)
         if not isinstance(self.algorithm, ALGORITHMS):
             names = ', '.join(item.__name__ for item in ALGORITHMS)
             error_msg = f'The algorithm {self.algorithm!r} of {self.label!r} is no algorithm spec. Use one of {names}.'

@@ -105,14 +105,19 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
         self.solver = solver
         self.observables = observables
 
-    def _check(self) -> None:
-        """Raise an error for a wrong backend or observable.
+    def _prepare(self, context: System | None) -> None:
+        """Attach the observables to a system and set the issues it finds.
 
-        The backend must be a backend and every observable an observable spec.
+        It first raises an error for a wrong backend or observable. The backend must be a backend and every observable
+        an observable spec.
+
+        Args:
+            context:
+                The system.
 
         Raises:
             ValidationError:
-                A setting has the wrong type.
+                The context is not a system. A setting has the wrong type.
         """
         if self.backend is not None and not isinstance(self.backend, BaseBackend):
             error_msg = f'The backend is a {type(self.backend).__name__}. Pass a backend instance or `None`.'
@@ -121,18 +126,6 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
         if wrong:
             error_msg = f'The observables hold a {type(wrong[0]).__name__}. Pass observable specs.'
             raise ValidationError(error_msg)
-
-    def _prepare(self, context: System | None) -> None:
-        """Attach the observables to a system and set the issues it finds.
-
-        Args:
-            context:
-                The system.
-
-        Raises:
-            ValidationError:
-                The context is not a system.
-        """
         if not isinstance(context, System):
             error_msg = f'A compiler prepares on a system, not on a {type(context).__name__}.'
             raise ValidationError(error_msg)
@@ -441,12 +434,6 @@ class BasePass(BaseConfig[Compilation, None]):
 
     compilation_: Compilation
 
-    def _check(self) -> None:
-        """Accept every setting, since a pass has none to validate.
-
-        A pass with settings validates them.
-        """
-
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads.
 
@@ -568,12 +555,6 @@ class BaseLowering[LoweredT](BaseConfig[Compilation, LoweredT]):
     compilation_: Compilation
     added_: dict[int, tuple[KernelSpec, dict[Expression, ReferenceSpec]]]
     lowered_: LoweredT
-
-    def _check(self) -> None:
-        """Accept every setting, since a lowering has none to validate.
-
-        A lowering with settings validates them.
-        """
 
     def _prepare(self, context: Compilation | None) -> None:
         """Take the compilation the lowering serves, with no reference added yet.

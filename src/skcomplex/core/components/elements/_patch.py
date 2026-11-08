@@ -67,11 +67,17 @@ class PatchElement(Element):
         self.max_size = max_size
         self.bounds = bounds
 
-    def _check(self) -> None:
-        """Raise an error for no prototiles, an invalid prototile, or an unknown one.
+    def _prepare(self, context: object = None) -> None:
+        """Set `default_visual_`, the geometry of the tiles.
 
-        An unknown prototile is one a tile names.
+        It first raises an error for no prototiles, an invalid prototile, or an unknown one. An unknown prototile is one
+        a tile names.
+
+        Args:
+            context:
+                The space the element inherits from its system, which the element does not read.
         """
+        super()._prepare(context)
         if not self.prototiles:
             error_msg = f'The patch {self.label} needs at least one prototile.'
             raise RewritingError(error_msg)
@@ -81,12 +87,4 @@ class PatchElement(Element):
                 error_msg = f'The patch {self.label} has a tile of the unknown prototile {name!r}.'
                 raise RewritingError(error_msg)
             placement._check()
-
-    def _prepare(self, context: object = None) -> None:
-        """Set `default_visual_`, the geometry of the tiles.
-
-        Args:
-            context:
-                The space the element inherits from its system, which the element does not read.
-        """
         self.default_visual_ = VisualSpec('geometry')

@@ -89,11 +89,16 @@ class ProductionLaw(BaseLaw):
         """Return what the law requires of a system: discrete time."""
         return RequirementSpec(time=(DiscreteTime,))
 
-    def _check(self) -> None:
+    def _prepare(self, context: str | None = None) -> None:
         """Raise an error for a predecessor not one module, or a bad numeric probability.
 
         A numeric probability must be in `[0, 1]`.
+
+        Args:
+            context:
+                The path of the element or interaction that returns the law, or `None`.
         """
+        super()._prepare(context)
         if len(ModuleSpec.parse_word(self.predecessor)) != 1:
             error_msg = f'The predecessor of a production is one symbol or module, not {self.predecessor!r}.'
             raise RewritingError(error_msg)

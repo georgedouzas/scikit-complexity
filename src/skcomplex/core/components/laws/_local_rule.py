@@ -129,8 +129,14 @@ class LocalRuleLaw(BaseLaw):
         """
         return RequirementSpec(time=(DiscreteTime,), space=(LatticeSpace, NetworkSpace, CayleySpace))
 
-    def _check(self) -> None:
-        """Raise an error for an unknown schedule or an invalid rule spec."""
+    def _prepare(self, context: str | None = None) -> None:
+        """Raise an error for an unknown schedule or an invalid rule spec.
+
+        Args:
+            context:
+                The path of the element or interaction that returns the law, or `None`.
+        """
+        super()._prepare(context)
         if self.schedule not in SCHEDULES:
             error_msg = f'Unknown schedule {self.schedule!r}. Use one of {", ".join(SCHEDULES)}.'
             raise ValidationError(error_msg)

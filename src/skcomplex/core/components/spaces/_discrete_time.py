@@ -41,17 +41,21 @@ class DiscreteTime(BaseTime):
         super().__init__(label)
         self.schedule = schedule
 
-    def _check(self) -> None:
-        """Raise an error for a schedule that is neither known nor a `ScheduleSpec`."""
+    def _prepare(self, context: None = None) -> None:
+        """Set the schedule.
+
+        It first raises an error for a schedule that is neither known nor a `ScheduleSpec`.
+
+        Args:
+            context:
+                Nothing, since a time is prepared alone.
+        """
+        super()._prepare(context)
         if isinstance(self.schedule, ScheduleSpec):
             self.schedule._check()
-            return
-        if self.schedule not in SCHEDULES:
+        elif self.schedule not in SCHEDULES:
             error_msg = f'Unknown schedule {self.schedule!r}. Use one of {", ".join(SCHEDULES)}, or a ScheduleSpec.'
             raise ValidationError(error_msg)
-
-    def _prepare(self, context: None = None) -> None:
-        """Set the schedule."""
         self.schedule_ = self.schedule
 
     def _get_frames(self, until: float) -> npt.NDArray[np.float64]:

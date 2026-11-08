@@ -87,11 +87,16 @@ class EncounterLaw(BaseLaw):
         """Return what the law requires: continuous time on lattices of classes."""
         return RequirementSpec(time=(ContinuousTime,), space=(LatticeSpace,))
 
-    def _check(self) -> None:
+    def _prepare(self, context: str | None = None) -> None:
         """Raise an error for a rate or transition table of the wrong dimensions.
 
         It also raises it when their class counts disagree.
+
+        Args:
+            context:
+                The path of the element or interaction that returns the law, or `None`.
         """
+        super()._prepare(context)
         self._check_table('rate', (0, 2))
         self._check_table('transition', (3,))
         self._check_outcomes('rate', 'transition')

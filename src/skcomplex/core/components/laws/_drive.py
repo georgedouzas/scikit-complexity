@@ -78,8 +78,14 @@ class DriveLaw(BaseLaw):
             return self._get_requirements()
         return RequirementSpec(time=(DiscreteTime,), space=(LatticeSpace,))
 
-    def _check(self) -> None:
-        """Raise an error for a function that cannot be called."""
+    def _prepare(self, context: str | None = None) -> None:
+        """Raise an error for a function that cannot be called.
+
+        Args:
+            context:
+                The path of the element or interaction that returns the law, or `None`.
+        """
+        super()._prepare(context)
         if not callable(self.function):
             error_msg = f'The function of a drive must be callable, but it is {self.function!r}.'
             raise ValidationError(error_msg)

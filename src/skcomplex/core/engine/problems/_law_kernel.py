@@ -170,7 +170,7 @@ class LawKernel(BaseKernel):
         """Readers of the arguments of the compiled function, in order."""
         return [self._reader(item) for item in self._arguments]
 
-    def _check(self) -> None:
+    def _prepare(self, context: object | None) -> None:
         """Check that the outputs read only declared symbols.
 
         Neighbour symbols are read only inside a reduction.
@@ -179,6 +179,7 @@ class LawKernel(BaseKernel):
             ValidationError:
                 If an output reads an undeclared symbol, or a neighbour symbol outside a neighbourhood reduction.
         """
+        super()._prepare(context)
         used = set(self._arguments)
         unknown = used - set(self.references)
         if unknown:

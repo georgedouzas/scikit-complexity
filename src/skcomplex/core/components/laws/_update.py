@@ -100,13 +100,18 @@ class UpdateLaw(BaseLaw):
         """Return what the law requires of a system: discrete time."""
         return RequirementSpec(time=(DiscreteTime,))
 
-    def _check(self) -> None:
+    def _prepare(self, context: str | None = None) -> None:
         """Raise an error for a value that is a NumPy array, or an increment with a source.
+
+        Args:
+            context:
+                The path of the element or interaction that returns the law, or `None`.
 
         Raises:
             ValidationError:
                 The value is a NumPy array, or an increment law has a source.
         """
+        super()._prepare(context)
         self._check_array('value')
         if self.increment and self.source is not None:
             error_msg = (

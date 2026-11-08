@@ -53,12 +53,6 @@ class RenewalLaw(BaseLaw):
         """Return the states the renewal resets."""
         return tuple(self.reset or {})
 
-    def _check(self) -> None:
-        """Accept the waiting time and the reset.
-
-        The jump the law is run for checked them.
-        """
-
     @classmethod
     def _get_requirements(cls) -> RequirementSpec:
         """Return what the law requires of a system.

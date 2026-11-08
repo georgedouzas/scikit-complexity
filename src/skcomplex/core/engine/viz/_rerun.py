@@ -184,7 +184,7 @@ class RerunObserver(BaseObserver):
         self.primary = primary
         self.parameters = parameters
 
-    def _check(self) -> None:
+    def _check_settings(self) -> None:
         """Raise an error for an unknown blueprint or an unused setting.
 
         A known blueprint is `None`, `'default'`, or a Rerun blueprint.
@@ -207,7 +207,8 @@ class RerunObserver(BaseObserver):
     def _prepare(self, context: BaseProblemSpec | None) -> None:
         """Create the recording, build the visuals, and send the recording to its sinks.
 
-        There is one visual for every element and agent group.
+        It first raises an error for an unknown blueprint or an unused setting. There is one visual for every element
+        and agent group.
 
         Args:
             context:
@@ -215,8 +216,9 @@ class RerunObserver(BaseObserver):
 
         Raises:
             ValidationError:
-                No problem is passed, or no view has the name or the origin of `primary`.
+                A setting is invalid, no problem is passed, or no view has the name or the origin of `primary`.
         """
+        self._check_settings()
         if context is None:
             error_msg = 'A Rerun observer prepares on a compiled problem. Pass the problem to `prepare`.'
             raise ValidationError(error_msg)

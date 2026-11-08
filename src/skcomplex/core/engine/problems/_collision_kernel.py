@@ -87,18 +87,6 @@ class CollisionKernel(BaseKernel):
         self.cross_section = cross_section
         self.angles = angles
 
-    def _check(self) -> None:
-        """Raise an error for dimensions or a cross-section that a collision cannot take.
-
-        An error is raised for dimensions without two velocity axes, or a cross-section that is no function.
-        """
-        if len(self.dimensions) < PLANE or len(self.spacings) != PLANE:
-            error_msg = f'A collision integral reads two velocity axes, but the shape is {self.dimensions}.'
-            raise ValidationError(error_msg)
-        if not callable(self.cross_section):
-            error_msg = f'The cross-section of a collision integral is a function, not {self.cross_section!r}.'
-            raise ValidationError(error_msg)
-
     def _split_weight(self, nodes: Array) -> tuple[Array, Array, Array]:
         """Return the terms of `|x|` and of `|y|` of the weight of the Carleman form.
 
@@ -113,7 +101,17 @@ class CollisionKernel(BaseKernel):
         return left[:, :rank], right[:rank], singular[:rank]
 
     def _prepare(self, context: object | None = None) -> None:
-        """Assemble the Fourier weights of the gain and the loss terms on the padded grid."""
+        """Assemble the Fourier weights of the gain and the loss terms on the padded grid.
+
+        It first raises an error for dimensions or a cross-section that a collision cannot take. An error is raised for
+        dimensions without two velocity axes, or a cross-section that is no function.
+        """
+        if len(self.dimensions) < PLANE or len(self.spacings) != PLANE:
+            error_msg = f'A collision integral reads two velocity axes, but the shape is {self.dimensions}.'
+            raise ValidationError(error_msg)
+        if not callable(self.cross_section):
+            error_msg = f'The cross-section of a collision integral is a function, not {self.cross_section!r}.'
+            raise ValidationError(error_msg)
         sizes = self.dimensions[-PLANE:]
         first_size, second_size = (scipy.fft.next_fast_len(math.ceil(size * PADDING), real=True) for size in sizes)
         self.padded_ = (first_size, second_size)

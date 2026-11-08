@@ -56,8 +56,14 @@ class GeneratorLaw(BaseLaw):
         """Return what the law requires of a system: continuous time."""
         return RequirementSpec(time=(ContinuousTime,))
 
-    def _check(self) -> None:
-        """Raise an error for a function as the operator, or one without local operators."""
+    def _prepare(self, context: str | None = None) -> None:
+        """Raise an error for a function as the operator, or one without local operators.
+
+        Args:
+            context:
+                The path of the element or interaction that returns the law, or `None`.
+        """
+        super()._prepare(context)
         if callable(self.operator) and not isinstance(self.operator, Expression):
             error_msg = (
                 'Generators need symbolic operators, so a generator cannot be a function. Give the coefficient '

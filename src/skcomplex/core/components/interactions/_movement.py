@@ -200,15 +200,19 @@ class MovementInteraction(Interaction):
         if isinstance(self.step, str) and self.step in GRID_STEPS:
             self._check_grid('step', self.step, space, "step='gaussian' or step='levy', or a step function")
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for an unknown step, a rate not positive, or a bad function.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The step, the schedule, or the ties are unknown, the rate is not positive, a function is not callable,
                 or the step `'best'` has no score.
         """
-        super()._check()
+        super()._prepare(context)
         self._check_variant('step', self.step, STEPS, functions=True)
         if self.rate is not None and (isinstance(self.rate, bool) or not self.rate > 0):
             error_msg = f'The rate of {self.label!r} is {self.rate!r}. Give a positive number, or None.'

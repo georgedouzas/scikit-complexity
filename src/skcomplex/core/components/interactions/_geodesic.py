@@ -88,22 +88,10 @@ class GeodesicInteraction(Interaction):
         self.state = state
         self.space = space
 
-    def _check(self) -> None:
-        """Raise an error for a state that is not a name.
-
-        Raises:
-            ValidationError:
-                The type declares states, or the state is not a name.
-        """
-        super()._check()
-        if not isinstance(self.state, str) or not self.state.isidentifier():
-            error_msg = (
-                f'{type(self).__name__} {self.label!r} moves the state {self.state!r}. Give the name of a state.'
-            )
-            raise ValidationError(error_msg)
-
     def _prepare(self, context: BaseSpace | None = None) -> None:
         """Set `space_`, the prepared pseudo-Riemannian space.
+
+        It first raises an error for a state that is not a name.
 
         Args:
             context:
@@ -112,8 +100,15 @@ class GeodesicInteraction(Interaction):
         Raises:
             SpaceError:
                 The space is not a pseudo-Riemannian space.
+            ValidationError:
+                The type declares states, or the state is not a name.
         """
         super()._prepare(context)
+        if not isinstance(self.state, str) or not self.state.isidentifier():
+            error_msg = (
+                f'{type(self).__name__} {self.label!r} moves the state {self.state!r}. Give the name of a state.'
+            )
+            raise ValidationError(error_msg)
         if not isinstance(self.space, PseudoRiemannianSpace):
             error_msg = (
                 f'{type(self).__name__} {self.label!r} moves a point along the geodesics of {self.space!r}. Give a '

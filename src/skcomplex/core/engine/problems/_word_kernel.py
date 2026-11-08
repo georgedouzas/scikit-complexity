@@ -106,7 +106,7 @@ class WordKernel(BaseKernel):
         self.parameters = parameters
         self.values = values
 
-    def _check(self) -> None:
+    def _compile(self) -> None:
         """Compile the alphabet, the axiom, and the productions.
 
         They are checked, with the probabilities of stochastic productions.
@@ -292,7 +292,16 @@ class WordKernel(BaseKernel):
             self._weights(group, values, 0)
 
     def _prepare(self, context: object) -> None:
-        """Start the word at generation 0 for a run of the problem, as `values_`."""
+        """Start the word at generation 0 for a run of the problem, as `values_`.
+
+        It first compiles the word and its laws, which checks them, so the compiler that reads the compiled tables
+        before any run calls `_compile` alone.
+
+        Args:
+            context:
+                The problem whose initial parameters the run starts from.
+        """
+        self._compile()
         if not isinstance(context, BaseProblemSpec):
             error_msg = f'Word {self.path!r} starts from the initial parameters of a problem, but got none.'
             raise RewritingError(error_msg)

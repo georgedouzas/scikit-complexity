@@ -221,8 +221,12 @@ class GroupingInteraction(Interaction):
             self._check_grid('groups', self.groups, space, "groups='pairs', 'partition', 'state', or a radius")
         self._check_partners(self.groups, space)
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for an unknown kind, a small size, no state, or a small capacity.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
@@ -230,7 +234,7 @@ class GroupingInteraction(Interaction):
                 have no state, the capacity is not positive, the symbolic form has no state or function, or a setting
                 of one form is given to the other.
         """
-        super()._check()
+        super()._prepare(context)
         if self.form not in FORMS:
             error_msg = f'Unknown form {self.form!r} of {self.label!r}. Use one of {", ".join(FORMS)}.'
             raise ValidationError(error_msg)

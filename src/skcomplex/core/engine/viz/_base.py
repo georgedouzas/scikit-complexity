@@ -123,8 +123,13 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
         self.path = path
         self.recording = recording
 
-    def _check(self) -> None:
-        """Raise an error unless the path is a string."""
+    def _check_path(self) -> None:
+        """Raise an error unless the path is a string.
+
+        Raises:
+            ValidationError:
+                The path is not a string.
+        """
         if not isinstance(self.path, str):
             error_msg = f'path = {self.path!r} must be the entity path of the element or agent group to draw.'
             raise ValidationError(error_msg)
@@ -132,7 +137,7 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
     def _prepare(self, context: BaseProblemSpec | None) -> None:
         """Find the element at the path, keep the recording and space, and set the views.
 
-        The space kept is that of the agents.
+        It first raises an error unless the path is a string. The space kept is that of the agents.
 
         Args:
             context:
@@ -142,6 +147,7 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
             ValidationError:
                 No problem is passed, or no element or agent group of the problem has the path of the visual.
         """
+        self._check_path()
         if context is None:
             error_msg = 'A visual prepares on a compiled problem. Pass the problem to `prepare`.'
             raise ValidationError(error_msg)

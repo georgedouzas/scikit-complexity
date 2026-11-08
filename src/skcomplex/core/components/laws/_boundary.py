@@ -53,8 +53,14 @@ class BoundaryLaw(BaseLaw):
         """
         return RequirementSpec()
 
-    def _check(self) -> None:
-        """Raise an error for a value that is a NumPy array."""
+    def _prepare(self, context: str | None = None) -> None:
+        """Raise an error for a value that is a NumPy array.
+
+        Args:
+            context:
+                The path of the element or interaction that returns the law, or `None`.
+        """
+        super()._prepare(context)
         self._check_array('value')
 
     def _run(self, inputs: object) -> None:

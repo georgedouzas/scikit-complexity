@@ -18,6 +18,7 @@ from ...components.spaces import ContinuousTime
 from ...errors import SolverError, ValidationError
 from ...specs import ControlSolutionSpec, SupportSpec
 from ...types import Array, OrderKind
+from ..problems import ProblemSpec
 from ..problems._control_problem_spec import _ControlProblemSpec
 from ..types import Cost, GridFunction
 from ._optimal_control import OptimalControlSolver
@@ -141,10 +142,14 @@ class PontryaginSolver(OptimalControlSolver):
         self.random_state = random_state
         self.until = until
 
-    def _check(self) -> None:
+    def _prepare(self, context: ProblemSpec | None) -> None:
         """Raise an error for a missing objective, an unknown sense, or a bad setting.
 
         Bad settings are too few nodes or a bad relaxation.
+
+        Args:
+            context:
+                The compiled problem.
 
         Raises:
             SolverError:
@@ -153,7 +158,7 @@ class PontryaginSolver(OptimalControlSolver):
             ValidationError:
                 The sense is unknown, the grid has fewer than 2 nodes, or the relaxation is not in `(0, 1]`.
         """
-        super()._check()
+        super()._prepare(context)
         if not (isinstance(self.nodes, int) and self.nodes >= MIN_NODES):
             error_msg = f'nodes = {self.nodes!r} must be an integer of at least {MIN_NODES}.'
             raise ValidationError(error_msg)

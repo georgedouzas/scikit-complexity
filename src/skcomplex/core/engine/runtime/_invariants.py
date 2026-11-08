@@ -45,10 +45,15 @@ class InvariantObserver(BaseObserver):
     def __init__(self, invariants: Mapping[str, float]) -> None:
         self.invariants = invariants
 
-    def _check(self) -> None:
-        """Raise an error for an invariant without observable or with a negative tolerance.
+    def _prepare(self, context: BaseProblemSpec | None) -> None:
+        """Forget the values of the invariants of an earlier run.
 
-        Every invariant must name an observable with a nonnegative tolerance.
+        It first raises an error for an invariant without observable or with a negative tolerance. Every invariant must
+        name an observable with a nonnegative tolerance.
+
+        Args:
+            context:
+                The compiled problem the run advances.
         """
         if not isinstance(self.invariants, Mapping):
             error_msg = f'invariants = {self.invariants!r} must map the path of every observable to its tolerance.'
@@ -60,14 +65,6 @@ class InvariantObserver(BaseObserver):
             if not tolerance >= 0:
                 error_msg = f'The tolerance {tolerance!r} of the invariant {path} must be nonnegative.'
                 raise ValidationError(error_msg)
-
-    def _prepare(self, context: BaseProblemSpec | None) -> None:
-        """Forget the values of the invariants of an earlier run.
-
-        Args:
-            context:
-                The compiled problem the run advances.
-        """
         del context
         self.initial_: dict[str, float] = {}
 

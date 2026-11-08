@@ -193,8 +193,12 @@ class NetworkSpace(BaseSpace):
             return len(self.hyperedges_)
         return super()._count_parts(on, layer)
 
-    def _check(self) -> None:
-        """Raise an error for a hyperedge or a layer that does not fit the graph nodes."""
+    def _prepare(self, context: None = None) -> None:
+        """Set the graph, the edges, the adjacency of every layer, and the node positions.
+
+        It first raises an error for a hyperedge or a layer that does not fit the graph nodes.
+        """
+        super()._prepare(context)
         nodes = set(self.graph.nodes)
         for hyperedge in self._get_hyperedges():
             if len(hyperedge) < MIN_HYPEREDGE_NODES or not set(hyperedge) <= nodes:
@@ -213,9 +217,6 @@ class NetworkSpace(BaseSpace):
             if set(layer.graph.nodes) != nodes:
                 error_msg = f'The layer {layer.label!r} has other nodes than the graph. Give it the nodes of the graph.'
                 raise ValidationError(error_msg)
-
-    def _prepare(self, context: None = None) -> None:
-        """Set the graph, the edges, the adjacency of every layer, and the node positions."""
         self.size_ = int(self.graph.number_of_nodes())
         self.n_dim_ = 1
         self.shape_ = (self.size_,)

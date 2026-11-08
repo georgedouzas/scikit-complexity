@@ -56,13 +56,6 @@ class ConservationObserver(BaseObserver):
         self.rtol = rtol
         self.atol = atol
 
-    def _check(self) -> None:
-        """Raise an error unless both tolerances are nonnegative numbers."""
-        for name, value in (('rtol', self.rtol), ('atol', self.atol)):
-            if isinstance(value, bool) or not isinstance(value, int | float) or not value >= 0:
-                error_msg = f'{name} = {value!r} must be a nonnegative number.'
-                raise ValidationError(error_msg)
-
     def _totals(self, state: Array) -> dict[str, float]:
         """Return the total of every quantity minus its accumulated inflow.
 
@@ -80,6 +73,8 @@ class ConservationObserver(BaseObserver):
     def _prepare(self, context: BaseProblemSpec | None) -> None:
         """Keep the quantities of the problem.
 
+        It first raises an error unless both tolerances are nonnegative numbers.
+
         Args:
             context:
                 The compiled problem the run advances.
@@ -88,6 +83,10 @@ class ConservationObserver(BaseObserver):
             SimulationError:
                 No problem is passed, or the problem has no transfer network, such as a partitioned problem.
         """
+        for name, value in (('rtol', self.rtol), ('atol', self.atol)):
+            if isinstance(value, bool) or not isinstance(value, int | float) or not value >= 0:
+                error_msg = f'{name} = {value!r} must be a nonnegative number.'
+                raise ValidationError(error_msg)
         if context is None:
             error_msg = 'The conservation monitor prepares on a compiled problem. Pass the problem to `prepare`.'
             raise SimulationError(error_msg)

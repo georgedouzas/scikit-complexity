@@ -36,7 +36,8 @@ class RadiusSpec(BaseSpec):
 
     Raises:
         ValidationError:
-            The reduction is unknown, the function is not callable, or the radius is negative, raised when its owner checks it.
+            The reduction is unknown, the function is not callable, or the radius is negative, raised when its owner
+            checks it.
 
     Examples:
         >>> from skcomplex.core.specs import RadiusSpec

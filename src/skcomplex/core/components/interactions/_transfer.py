@@ -336,8 +336,12 @@ class TransferInteraction(Interaction):
             self._check_grid('pairing', self.pairing, space, alternative)
         self._check_partners(self.pairing, space)
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for an unknown form or pairing, a bad leg, or a bad option.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
@@ -347,7 +351,7 @@ class TransferInteraction(Interaction):
                 an offset is not a whole number or pairs two groups, or the schedule `'member'` has a pairing it
                 cannot draw.
         """
-        super()._check()
+        super()._prepare(context)
         if self.form not in FORMS:
             error_msg = f'Unknown form {self.form!r} of {self.label!r}. Use one of {", ".join(FORMS)}.'
             raise ValidationError(error_msg)
