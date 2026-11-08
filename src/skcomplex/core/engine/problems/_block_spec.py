@@ -17,7 +17,9 @@ from ._reference_spec import ReferenceSpec
 
 @dataclass(frozen=True)
 class BlockSpec(BaseSpec):
-    """Variables of a component with the symbols of one member and the components they stand for.
+    """Variables of a component with the symbols of one member.
+
+    The variables hold the components the symbols stand for.
 
     Args:
         node:

@@ -12,7 +12,10 @@ from ..types import Arrays
 
 @dataclass(frozen=True)
 class _GroupSpec(BaseSpec):
-    """Productions of one predecessor, context, and condition, one of which a matching module takes."""
+    """Productions of one predecessor, context, and condition.
+
+    A matching module takes one of them.
+    """
 
     code: int
     left: tuple[int, ...]

@@ -15,7 +15,9 @@ from ._law_kernel import LawKernel
 
 @dataclass(frozen=True)
 class CompiledRequestSpec(BaseSpec):
-    """Topology request of a law with the rows it runs for and the kernels that decide and direct it.
+    """Topology request of a law with the rows it runs for.
+
+    It also holds the kernels that decide and direct the request.
 
     Args:
         request:

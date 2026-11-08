@@ -1,4 +1,7 @@
-"""Print Sage expressions as code of a target language, with common subexpressions computed once."""
+"""Print Sage expressions as code of a target language.
+
+Common subexpressions are computed once.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -43,15 +46,15 @@ IMPORTS = {
 
 
 class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]]):
-    """Printer of Sage expressions as code of NumPy, scalar Python for Numba, or LAMMPS Lepton.
+    """Printer of Sage expressions as code of a target.
 
-    `prepare(symbols)` takes the symbols the code reads, in order, and `run(expressions)` keeps in `code_` the
-    assignments of the repeated compound subexpressions, bound to numbered names, and the code of every expression.
-    Sage orders the operands of sums and products differently in every process, so the printer orders them by their
-    canonical form, and a law prints the same code in every process, which lets the Numba backend reuse the kernels it
-    cached by their source. A compiled printer keeps instead the NumPy or JAX function `f(t, *symbols)` of the
-    expressions. A NumPy function runs in a NumPy error state that ignores division, invalid, and overflow warnings when
-    the expressions hold conditions.
+    The targets are NumPy, scalar Python for Numba, and LAMMPS Lepton. `prepare(symbols)` takes the symbols the code
+    reads, in order, and `run(expressions)` keeps in `code_` the assignments of the repeated compound subexpressions,
+    bound to numbered names, and the code of every expression. Sage orders the operands of sums and products differently
+    in every process, so the printer orders them by their canonical form, and a law prints the same code in every
+    process, which lets the Numba backend reuse the kernels it cached by their source. A compiled printer keeps instead
+    the NumPy or JAX function `f(t, *symbols)` of the expressions. A NumPy function runs in a NumPy error state that
+    ignores division, invalid, and overflow warnings when the expressions hold conditions.
 
     Lepton has neither comparisons nor a remainder, so conditions become `step` and `select` and remainders `floor`.
 
@@ -112,7 +115,7 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
         self.compiled = compiled
 
     def _check(self) -> None:
-        """Raise an error for an unknown dialect, or a compiled printer of a dialect without functions or of no time.
+        """Raise an error for an unknown dialect or a compiled printer it cannot make.
 
         Raises:
             ValidationError:
@@ -136,7 +139,9 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
             self.names_ = self.names or str
 
     def _run(self, inputs: Sequence[Expression] | None) -> None:
-        """Set the assignments and the code of the expressions, or the NumPy function of a compiled printer.
+        """Set the assignments and the code of the expressions.
+
+        A compiled printer sets the NumPy function instead.
 
         Args:
             inputs:
@@ -199,7 +204,7 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
 
     @staticmethod
     def _values_of(computed: object) -> list[npt.ArrayLike]:
-        """Return the values of the expressions that the function of a compiled printer computed.
+        """Return the values of the expressions that a compiled printer computed.
 
         Args:
             computed:
@@ -219,7 +224,10 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
         return computed
 
     def _function(self, assignments: list[tuple[str, str]], codes: list[str]) -> Callable[..., list[npt.ArrayLike]]:
-        """Return the NumPy or JAX function `f(t, *symbols)` that runs printed assignments and returns the codes."""
+        """Return the NumPy or JAX function `f(t, *symbols)` of the printed assignments.
+
+        The function runs the printed assignments and returns the codes.
+        """
         body = [*(f'{name} = {code}' for name, code in assignments), f'return [{", ".join(codes)}]']
         conditions = any(_CONDITION in code for _, code in assignments) or any(_CONDITION in code for code in codes)
         if self.dialect == 'numpy' and conditions:
@@ -232,7 +240,7 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
         return function
 
     def _wrap(self, printed: PrintedSpec, precedence: int) -> str:
-        """Return printed code, in parentheses when it binds less tightly than a precedence."""
+        """Return code, in parentheses when it binds less tightly than a precedence."""
         return printed.code if printed.precedence >= precedence else f'({printed.code})'
 
     def _number(self, value: Number) -> PrintedSpec:
@@ -267,7 +275,10 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
         return PrintedSpec(templates[name].format(*codes), ATOM)
 
     def _product(self, item: Expression) -> PrintedSpec:
-        """Return the code of a product, with factors of negative powers in its denominator."""
+        """Return the code of a product.
+
+        Factors of negative powers go in its denominator.
+        """
         coefficient: Number = 1
         numerator: list[str] = []
         denominator: list[str] = []
@@ -309,7 +320,10 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
         return PrintedSpec(code, POWER)
 
     def _total(self, item: Expression) -> PrintedSpec:
-        """Return the code of a sum, its terms in canonical order with the negated ones last."""
+        """Return the code of a sum.
+
+        Its terms come in canonical order, with the negated ones last.
+        """
         terms = [self._print(term) for term in self._operands(item)]
         terms.sort(key=lambda term: term.precedence == NEGATION and term.code.startswith('-'))
         code = self._wrap(terms[0], SUM)
@@ -351,10 +365,11 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
         return self._template(name, item.operands())
 
     def _canonical(self, item: Expression) -> str:
-        """Return the canonical form of an expression, its printed form with the operands of sums and products sorted.
+        """Return the canonical form of an expression.
 
-        Sage prints the operands of sums and products in an order that depends on the process, such as on the order the
-        symbols were created in, while the canonical form depends only on the expression.
+        It is the printed form of the expression with the operands of sums and products sorted. Sage prints the operands
+        of sums and products in an order that depends on the process, such as on the order the symbols were created in,
+        while the canonical form depends only on the expression.
         """
         if item.operator() is None:
             return str(item)
@@ -369,7 +384,10 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
         return self.canonical_[key]
 
     def _operands(self, item: Expression) -> list[Expression]:
-        """Return the operands of an expression, those of a sum or a product in canonical order with numbers last."""
+        """Return the operands of an expression.
+
+        Those of a sum or a product come in canonical order, with numbers last.
+        """
         operands = list(item.operands())
         if self._is_sum(item) or self._is_product(item):
             operands.sort(key=lambda operand: (bool(operand.is_numeric()), self._canonical(operand)))
@@ -387,7 +405,10 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
 
     @staticmethod
     def _is_negative(value: Number) -> bool:
-        """Check whether a number is real and negative, so complex numbers are never negated."""
+        """Check whether a number is real and negative.
+
+        Complex numbers are thus never negated.
+        """
         number = None if isinstance(value, complex) else ExpressionPrinter._real(value)
         return number is not None and number < 0
 
@@ -406,7 +427,10 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
 
     @staticmethod
     def _is_reciprocal(item: Expression) -> bool:
-        """Check whether an expression is a power with a negative number as exponent, printed as a denominator."""
+        """Check whether an expression is a power with a negative number as exponent.
+
+        Such a power is printed as a denominator.
+        """
         if item.operator() is not operator.pow:
             return False
         exponent = item.operands()[1]
@@ -414,10 +438,11 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
 
     @staticmethod
     def _key(item: Expression) -> PrintedKey:
-        """Return the key of an expression in tables, equal to the keys of structurally identical expressions.
+        """Return the key of an expression in tables.
 
-        Sage's `==` builds a relation whose truth Maxima may be asked to prove, so tables of expressions are keyed by
-        the structural hash and the printed form of an expression instead.
+        The key equals the keys of structurally identical expressions. Sage's `==` builds a relation whose truth Maxima
+        may be asked to prove, so tables of expressions are keyed by the structural hash and the printed form of an
+        expression instead.
         """
         return hash(item), str(item)
 

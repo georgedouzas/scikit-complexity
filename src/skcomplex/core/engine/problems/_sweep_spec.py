@@ -12,7 +12,9 @@ from ...types import Array, Indices
 
 @dataclass(frozen=True)
 class _SweepSpec(BaseSpec):
-    """Update law whose members update one after the other, each reading the values set before it.
+    """Update law whose members update one after the other.
+
+    Each member reads the values set before it.
 
     Args:
         indices:

@@ -1,4 +1,7 @@
-"""Define the spec of a linear program lowered from the laws that share its variables."""
+"""Define the spec of a linear program lowered from laws.
+
+The laws share the variables of the program.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -41,7 +44,9 @@ class LinearProgramSideSpec(BaseSpec):
 
 @dataclass(frozen=True)
 class LinearProgramEntrySpec(BaseSpec):
-    """Coefficient of the matrix or of an objective that a compiled value gives at every solve.
+    """Coefficient of the matrix or of an objective.
+
+    A compiled value gives it at every solve.
 
     Args:
         row:

@@ -282,12 +282,18 @@ class ProblemSpec(BaseProblemSpec):
 
     @property
     def partition_problems(self) -> tuple[BaseProblemSpec, ...]:
-        """Problems of the partitions of a co-simulation problem, none for a problem of one form."""
+        """Problems of the partitions of a co-simulation problem.
+
+        A problem of one form has none.
+        """
         return tuple(partition.problem for partition in self.partitions)
 
     @property
     def adaptive_parameters(self) -> dict[str, VariableSpec]:
-        """Declarations of the adaptive parameters of the elements and groups, by dotted state name."""
+        """Declarations of the adaptive parameters of the elements and groups.
+
+        They are keyed by dotted state name.
+        """
         return {
             compiled.states[name]: declaration
             for compiled in self.elements
@@ -297,21 +303,32 @@ class ProblemSpec(BaseProblemSpec):
 
     @property
     def stochastic(self) -> bool:
-        """Whether the update draws random values, so it takes the random number generator."""
+        """Whether the update draws random values.
+
+        An update that draws them takes the random number generator.
+        """
         return self.draws is not None
 
     @property
     def state_symbols(self) -> list[Expression]:
-        """Symbols of the state components of single elements and of one member of every group."""
+        """Symbols of the state components of single elements and of group members.
+
+        Groups contribute the symbols of one member each.
+        """
         return self._flatten_symbols(self.states)
 
     @property
     def parameter_symbols(self) -> list[Expression]:
-        """Symbols of the parameter components of interactions, single elements, and one member of every group."""
+        """Symbols of the parameter components of interactions, elements, and groups.
+
+        Elements contribute when single, and groups the symbols of one member each.
+        """
         return self._flatten_symbols(self.parameters)
 
     def lattice_shape(self, name: str) -> tuple[int, ...] | None:
-        """Return the lattice shape of a state that lattice laws read or change, or `None` for other states.
+        """Return the lattice shape of a state that lattice laws read or change.
+
+        Other states return `None`.
 
         Args:
             name:
@@ -348,7 +365,9 @@ class ProblemSpec(BaseProblemSpec):
 
     @staticmethod
     def _real_components_of(value: object) -> list[object]:
-        """Return the components of a value with every complex component split into its real and imaginary parts.
+        """Return the components of a value with complex components split.
+
+        Every complex component is split into its real and imaginary parts.
 
         Args:
             value:

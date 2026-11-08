@@ -77,9 +77,10 @@ class CascadeKernel(BaseKernel):
         return bool(self.stable(*self._arrays(x)))
 
     def _run(self, inputs: RunStateSpec | None) -> None:
-        """Apply the drive, then relax until stable, and set the record of a cascade that changed the lattice.
+        """Apply the drive, then relax until stable, and set the record of a cascade.
 
-        The state vector of the state is updated in place, and the record holds the time of the state.
+        A record is set only for a cascade that changed the lattice. The state vector of the state is updated in place,
+        and the record holds the time of the state.
 
         Args:
             inputs:
@@ -88,7 +89,9 @@ class CascadeKernel(BaseKernel):
         self.values_ = self._relax(self._state_of(inputs))
 
     def _relax(self, state: RunStateSpec) -> CascadeRecordSpec | None:
-        """Apply the drive, then relax until stable, and return the record of a cascade that changed the lattice.
+        """Apply the drive, then relax until stable, and return the record of a cascade.
+
+        A record is returned only for a cascade that changed the lattice.
 
         Args:
             state:

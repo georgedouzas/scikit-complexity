@@ -17,7 +17,9 @@ from ._reference_spec import ReferenceSpec
 
 @dataclass(frozen=True, eq=False)
 class DiffusiveLimitSpec(BaseSpec):
-    """Stability limit of explicit steps for the diffusion of a finite-volume field, at the current parameters.
+    """Stability limit of explicit steps for the diffusion of a finite-volume field.
+
+    The limit holds at the current parameters.
 
     Args:
         coefficient:
@@ -35,7 +37,9 @@ class DiffusiveLimitSpec(BaseSpec):
     stiffness: float
 
     def step(self, p: npt.NDArray[np.float64]) -> float:
-        """Return the largest stable step of explicit Euler for the diffusion at parameter values.
+        """Return the largest stable step of explicit Euler for the diffusion.
+
+        The step holds at the parameter values.
 
         Args:
             p:

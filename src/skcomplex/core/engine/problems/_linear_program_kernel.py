@@ -1,4 +1,7 @@
-"""Solve the linear program of a problem with HiGHS, warm-started, once per evaluation and per member."""
+"""Solve the linear program of a problem with HiGHS.
+
+The program is warm-started and solved once per evaluation and per member.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,11 +28,12 @@ INFEASIBLE_STATUSES = (highspy.HighsModelStatus.kInfeasible, highspy.HighsModelS
 
 
 class LinearProgramKernel(BaseKernel):
-    """Linear program lowered for a problem, solved with one warm-started HiGHS system per member.
+    """Linear program lowered for a problem.
 
-    `prepare(state)` evaluates the bounds and coefficients at a state without solving. `run(state)` keeps in `values_`
-    a copy of the state vector with the variables, objective values, and duals of every member set. The solve of a
-    time and of the values the program reads runs once, so another run at them only copies its values.
+    It is solved with one warm-started HiGHS system per member. `prepare(state)` evaluates the bounds and coefficients
+    at a state without solving. `run(state)` keeps in `values_` a copy of the state vector with the variables, objective
+    values, and duals of every member set. The solve of a time and of the values the program reads runs once, so another
+    run at them only copies its values.
 
     Args:
         program:
@@ -98,7 +102,9 @@ class LinearProgramKernel(BaseKernel):
         self.program = program
 
     def _prepare(self, context: object | None) -> None:
-        """Forget the systems and the last solve, and evaluate the bounds and coefficients at a state when one is given.
+        """Forget the systems and the last solve.
+
+        When a state is given, the bounds and coefficients are evaluated at it.
 
         Args:
             context:
@@ -156,7 +162,10 @@ class LinearProgramKernel(BaseKernel):
         return matrix.tocsr()
 
     def _new_system(self) -> highspy.Highs:
-        """Return a HiGHS system of the program with its parts of absolute values and its rows that fix objectives."""
+        """Return a HiGHS system of the program.
+
+        The system holds its parts of absolute values and its rows that fix objectives.
+        """
         program = self.program
         size, count = len(program.names), len(program.parts)
         extended = sparse.hstack([program.matrix, sparse.csr_array((program.matrix.shape[0], 2 * count))])
@@ -191,7 +200,10 @@ class LinearProgramKernel(BaseKernel):
         return system
 
     def _system_of(self, member: int) -> highspy.Highs:
-        """Return the system of a member, which keeps its basis from one solve to the next."""
+        """Return the system of a member.
+
+        The system keeps its basis from one solve to the next.
+        """
         system = self._systems.get(member)
         if system is None:
             system = self._systems[member] = self._new_system()
@@ -214,7 +226,10 @@ class LinearProgramKernel(BaseKernel):
             system.changeRowBounds(row, -INFINITY, INFINITY)
 
     def _costs_of(self, member: int, values: Sequence[Array]) -> Array:
-        """Return the cost of every column per objective for a member, in the minimising sense."""
+        """Return the cost of every column per objective for a member.
+
+        Costs are in the minimising sense.
+        """
         program = self.program
         if not program.cost_entries:
             return program.costs
@@ -224,7 +239,10 @@ class LinearProgramKernel(BaseKernel):
         return costs
 
     def _set_coefficients(self, system: highspy.Highs, costs: Array, values: Sequence[Array], member: int) -> None:
-        """Change the coefficients that compiled values give, in the matrix and in the rows that fix objectives."""
+        """Change the coefficients that compiled values give.
+
+        They change in the matrix and in the rows that fix objectives.
+        """
         program = self.program
         for entry in program.entries:
             system.changeCoeff(entry.row, entry.column, float(values[entry.value][member]))
@@ -234,7 +252,10 @@ class LinearProgramKernel(BaseKernel):
                 system.changeCoeff(start + entry.row, entry.column, float(costs[entry.row, entry.column]))
 
     def _describe_subset(self, system: highspy.Highs) -> str:
-        """Return the constraints and variables of an irreducible infeasible subset of a system."""
+        """Return the constraints and variables of an irreducible infeasible subset.
+
+        The subset is one of a system.
+        """
         program = self.program
         _, subset = system.getIis()
         rows = [program.constraints[item] for item in subset.row_index_ if item < len(program.constraints)]
@@ -242,7 +263,10 @@ class LinearProgramKernel(BaseKernel):
         return f'the constraints {"; ".join(rows) or "none"} and the variables {", ".join(columns) or "none"}'
 
     def _raise_infeasible(self, system: highspy.Highs, t: float, member: int) -> None:
-        """Raise the error of an infeasible solve, naming the program, the time, the member, and a subset."""
+        """Raise the error of an infeasible solve.
+
+        The error names the program, the time, the member, and a subset.
+        """
         program = self.program
         place = f' for member {member}' if program.members > 1 else ''
         error_msg = (
@@ -254,7 +278,10 @@ class LinearProgramKernel(BaseKernel):
 
     @staticmethod
     def _solved_status(system: highspy.Highs) -> highspy.HighsModelStatus:
-        """Run a system, and when a warm start ends without an answer, run it from no basis, then also with presolve."""
+        """Run a system, retrying when a warm start ends without an answer.
+
+        The retry runs it from no basis, then also with presolve.
+        """
         system.run()
         status = system.getModelStatus()
         for presolve in ('off', 'on'):
@@ -268,7 +295,10 @@ class LinearProgramKernel(BaseKernel):
         return status
 
     def _objective_values(self, system: highspy.Highs, costs: Array) -> list[float] | None:
-        """Solve the objectives in order, each kept near its optimum, and return their values, or `None` for none."""
+        """Solve the objectives in order and return their values.
+
+        Each objective is kept near its optimum. Without objectives, `None` is returned.
+        """
         program = self.program
         columns = len(program.names) + 2 * len(program.parts)
         positions = np.arange(columns)
@@ -297,7 +327,10 @@ class LinearProgramKernel(BaseKernel):
         return found
 
     def _dual_values(self, member: int, solution: highspy.HighsSolution | None) -> list[float]:
-        """Return the dual of every recorded constraint, the change of the first objective with its right side."""
+        """Return the dual of every recorded constraint.
+
+        It is the change of the first objective with its right side.
+        """
         program = self.program
         sign = program.signs[0] if program.signs else 1.0
         if solution is None:
@@ -305,7 +338,10 @@ class LinearProgramKernel(BaseKernel):
         return [self._dual_of(item, member, solution, sign) for item in program.duals]
 
     def _dual_of(self, item: LinearProgramDualSpec, member: int, solution: highspy.HighsSolution, sign: float) -> float:
-        """Return the dual of one constraint, a row dual, or the reduced cost of a variable at its bound."""
+        """Return the dual of one constraint.
+
+        It is a row dual, or the reduced cost of a variable at its bound.
+        """
         if item.row >= 0:
             return sign * float(solution.row_dual[item.row])
         value = float(solution.col_value[item.column])
@@ -322,7 +358,10 @@ class LinearProgramKernel(BaseKernel):
         return sign * float(solution.col_dual[item.column]) * item.scale
 
     def _solve_member(self, member: int, values: Sequence[Array], t: float) -> Array | None:
-        """Return the values of a member after its solve, or `None` for the policy to decide on an infeasible one."""
+        """Return the values of a member after its solve.
+
+        An infeasible solve returns `None` for the policy to decide.
+        """
         program = self.program
         system = self._system_of(member)
         self._set_bounds(system, member)
@@ -367,12 +406,17 @@ class LinearProgramKernel(BaseKernel):
         return following
 
     def _key_of(self, state: RunStateSpec) -> tuple[float, bytes]:
-        """Return what decides a solve: the time and the values the program reads."""
+        """Return what decides a solve.
+
+        It is the time and the values the program reads.
+        """
         columns = [reference.column_of(state.x, state.p) for reference in self.program.arguments]
         return state.t, b''.join(item.tobytes() for item in columns)
 
     def _run(self, inputs: RunStateSpec | None) -> None:
-        """Solve the program at a state unless the last solve read the same values, and set `values_`.
+        """Solve the program at a state and set `values_`.
+
+        The solve is skipped when the last solve read the same values.
 
         Args:
             inputs:

@@ -20,7 +20,9 @@ from ._reference_spec import ReferenceSpec
 
 @dataclass(frozen=True)
 class LoweredKernelsSpec(BaseSpec):
-    """Kernels of every law kind, with the changes of every jump output and the law of every output.
+    """Kernels of every law kind.
+
+    They come with the changes of every jump output and the law of every output.
 
     Args:
         kernels:

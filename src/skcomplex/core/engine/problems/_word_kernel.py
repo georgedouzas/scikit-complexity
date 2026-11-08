@@ -1,4 +1,7 @@
-"""String rewriting system of one word: its alphabet, productions, and geometry, compiled to array passes."""
+"""String rewriting system of one word, compiled to array passes.
+
+It holds its alphabet, productions, and geometry.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -59,7 +62,9 @@ _TURNS = (LEFT, RIGHT, REVERSE, PITCH_DOWN, PITCH_UP, ROLL_LEFT, ROLL_RIGHT)
 
 
 class WordKernel(BaseKernel):
-    """String rewriting system of one word: its alphabet, productions, and geometry, compiled to array passes.
+    """String rewriting system of one word, compiled to array passes.
+
+    It holds its alphabet, productions, and geometry.
 
     Args:
         path:
@@ -102,7 +107,9 @@ class WordKernel(BaseKernel):
         self.values = values
 
     def _check(self) -> None:
-        """Compile the alphabet, the axiom, and the productions, checking them and the probabilities of stochastic ones.
+        """Compile the alphabet, the axiom, and the productions.
+
+        They are checked, with the probabilities of stochastic productions.
 
         Raises:
             RewritingError:
@@ -173,7 +180,9 @@ class WordKernel(BaseKernel):
         expressions: Sequence[object],
         owner: str,
     ) -> Callable[..., Arrays]:
-        """Return a NumPy function of the generation, the variables, and the parameters that evaluates expressions.
+        """Return a NumPy function that evaluates expressions.
+
+        The function takes the generation, the variables, and the parameters.
 
         Args:
             variables:
@@ -262,7 +271,10 @@ class WordKernel(BaseKernel):
         return sorted(found, key=lambda group: group.rank)
 
     def _weights(self, group: _GroupSpec, values: npt.NDArray[np.float64], generation: int) -> npt.NDArray[np.float64]:
-        """Return the probabilities of the productions of a group, after checking that they sum to one."""
+        """Return the probabilities of the productions of a group.
+
+        They are checked to sum to one.
+        """
         weights = np.array(
             [1.0 if item is None else float(item(generation, *values)[0]) for item in group.probabilities],
         )
@@ -287,7 +299,10 @@ class WordKernel(BaseKernel):
         self.values_ = self._initial(context.initial_parameters)
 
     def _run(self, inputs: RunStateSpec | None) -> None:
-        """Rewrite the current word once, every module in parallel, with the parameters and the random stream."""
+        """Rewrite the current word once, every module in parallel.
+
+        The rewrite reads the parameters and the random stream.
+        """
         if inputs is None or inputs.rng is None:
             error_msg = f'Word {self.path!r} rewrites at a state with a random stream, but got {inputs!r}.'
             raise RewritingError(error_msg)
@@ -319,7 +334,10 @@ class WordKernel(BaseKernel):
         rows: npt.NDArray[np.intp],
         context: Sequence[int],
     ) -> npt.NDArray[np.bool_]:
-        """Return which rows have neighbours that spell a context, following the neighbour links."""
+        """Return which rows have neighbours that spell a context.
+
+        The neighbour links are followed.
+        """
         index = rows.astype(np.int64)
         matched = np.ones(len(rows), dtype=bool)
         for code in context:
@@ -444,7 +462,10 @@ class WordKernel(BaseKernel):
 
     @staticmethod
     def _alphabet_of(word: WordElement, productions: Sequence[ProductionLaw]) -> dict[str, int]:
-        """Return the arity of every symbol, declared or taken from the axiom and the productions."""
+        """Return the arity of every symbol.
+
+        It is declared, or taken from the axiom and the productions.
+        """
         if isinstance(word.alphabet, Mapping):
             return {str(name): int(arity) for name, arity in word.alphabet.items()}
         declared = dict.fromkeys(word.alphabet, 0) if isinstance(word.alphabet, str) else {}
@@ -493,7 +514,9 @@ class WordKernel(BaseKernel):
         table: npt.NDArray[np.float64],
         generation: int,
     ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.int64]]:
-        """Return the segments and branch depths a word geometry draws for the actions of the modules of a word.
+        """Return the segments and branch depths a word geometry draws for a word.
+
+        They are drawn for the actions of the modules of the word.
 
         Args:
             geometry:

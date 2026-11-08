@@ -26,7 +26,9 @@ REAL_TOLERANCE = 1e-10
 
 @dataclass(frozen=True)
 class OperatorProblemSpec(BaseProblemSpec):
-    """Problem of the operator form, whose state is a pure state or a density matrix stored as complex pairs.
+    """Problem of the operator form.
+
+    Its state is a pure state or a density matrix stored as complex pairs.
 
     Args:
         dimensions:
@@ -80,7 +82,9 @@ class OperatorProblemSpec(BaseProblemSpec):
         )
 
     def _state_of(self, x: Array) -> npt.NDArray[np.complex128]:
-        """Return the complex state of an operator problem, a vector or a density matrix, from a state vector.
+        """Return the complex state of an operator problem from a state vector.
+
+        The complex state is a vector or a density matrix.
 
         Args:
             x:
@@ -122,7 +126,9 @@ class OperatorProblemSpec(BaseProblemSpec):
         return total
 
     def _generator_at(self, t: float, p: Array) -> sp.csr_array:
-        """Return the generator matrix of an operator problem at a time and a parameter vector.
+        """Return the generator matrix of an operator problem.
+
+        It is taken at a time and a parameter vector.
 
         Args:
             t:

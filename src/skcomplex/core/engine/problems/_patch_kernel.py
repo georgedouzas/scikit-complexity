@@ -1,4 +1,7 @@
-"""Substitution system of one patch, compiled to batched products of affine matrices."""
+"""Substitution system of one patch.
+
+It is compiled to batched products of affine matrices.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,7 +22,9 @@ from ._word_kernel import IDENTIFIER
 
 
 class PatchKernel(BaseKernel):
-    """Substitution system of one patch, compiled to batched products of affine matrices.
+    """Substitution system of one patch.
+
+    It is compiled to batched products of affine matrices.
 
     Args:
         path:
@@ -54,7 +59,9 @@ class PatchKernel(BaseKernel):
         self.parameters = parameters
 
     def _check(self) -> None:
-        """Compile the prototiles, the tiles, and the substitutions, checking that every name is a prototile.
+        """Compile the prototiles, the tiles, and the substitutions.
+
+        Every name is checked to be a prototile.
 
         Raises:
             RewritingError:
@@ -103,7 +110,10 @@ class PatchKernel(BaseKernel):
         self.values_ = self._initial(context.initial_parameters)
 
     def _run(self, inputs: RunStateSpec | None) -> None:
-        """Rewrite the current structure once, in parallel, with the parameters of the state."""
+        """Rewrite the current structure once, in parallel.
+
+        The rewrite reads the parameters of the state.
+        """
         if inputs is None:
             error_msg = f'Patch {self.path!r} rewrites at a state, but got none.'
             raise RewritingError(error_msg)
@@ -147,7 +157,9 @@ class PatchKernel(BaseKernel):
         patch: PatchStructureSpec,
         values: npt.NDArray[np.float64],
     ) -> PatchStructureSpec:
-        """Return the patch of the next generation, every tile replaced by its pieces in parallel.
+        """Return the patch of the next generation.
+
+        Every tile is replaced by its pieces in parallel.
 
         Args:
             patch:

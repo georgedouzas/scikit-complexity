@@ -151,7 +151,10 @@ class RuleKernel(BaseKernel):
         return scipy.sparse.csr_matrix((ones, (rows[real], columns[real])), shape=(size, size))
 
     def _table_of(self, x: Array, sites: Indices | None) -> Indices:
-        """Return the neighbour table of some sites, read at the values of the first read state when translated."""
+        """Return the neighbour table of some sites.
+
+        When translated, it is read at the values of the first read state.
+        """
         if self.translations is None:
             return self.table if sites is None else self.table[sites]
         size = self.translations.shape[0]
@@ -162,7 +165,10 @@ class RuleKernel(BaseKernel):
         return np.where(named[:, None], table, size)
 
     def _gather(self, x: Array, state: LatticeStateSpec, table: Indices) -> list[Array]:
-        """Return the values of a state at every neighbour, with the components of every member on a last axis."""
+        """Return the values of a state at every neighbour.
+
+        The components of every member lie on a last axis.
+        """
         values = x[state.sites].reshape(-1, state.components)
         padded = np.vstack([values, np.full((1, state.components), self.space.fill)])[table]
         return [
@@ -170,7 +176,10 @@ class RuleKernel(BaseKernel):
         ]
 
     def _next(self, x: Array, p: Array, sites: Indices | None, rng: np.random.Generator) -> list[Array]:
-        """Return the next values of the targets at some sites, read from the current state."""
+        """Return the next values of the targets at some sites.
+
+        They are read from the current state.
+        """
         space = self.space
         table = self._table_of(x, sites)
         if self.lookup is not None:
@@ -225,7 +234,10 @@ class RuleKernel(BaseKernel):
         ]
 
     def _assign(self, x: Array, values: list[Array], sites: Indices | None) -> None:
-        """Write the next values of the targets at some sites, the components of every member together."""
+        """Write the next values of the targets at some sites.
+
+        The components of every member are written together.
+        """
         for state, value in zip(self.targets, values, strict=True):
             if sites is None:
                 x[state.sites] = np.ravel(value)
@@ -235,7 +247,10 @@ class RuleKernel(BaseKernel):
                 x[indices.ravel()] = np.ravel(value)
 
     def _run_near(self, inputs: RunStateSpec, active: npt.NDArray[np.bool_]) -> None:
-        """Update the state in place, synchronously, at the active sites and the sites that read one of them."""
+        """Update the state in place, synchronously, near the active sites.
+
+        The update covers the active sites and the sites that read one of them.
+        """
         x, p, rng = inputs.x, inputs.p, self._generator_of(inputs)
         readers = active | (self.reading @ active.astype(np.float64) > 0)
         sites = np.flatnonzero(readers)
@@ -243,7 +258,10 @@ class RuleKernel(BaseKernel):
             self._assign(x, self._next(x, p, sites, rng), sites)
 
     def _run(self, inputs: RunStateSpec | None) -> None:
-        """Update the state vector of the state in place by one application of the rule on its schedule."""
+        """Update the state vector of the state in place by one application of the rule.
+
+        The rule applies on its schedule.
+        """
         self.values_ = None
         state = self._state_of(inputs)
         x, p, rng = state.x, state.p, self._generator_of(state)

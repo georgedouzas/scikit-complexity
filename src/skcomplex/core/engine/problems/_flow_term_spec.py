@@ -15,7 +15,9 @@ from ._kernel_spec import KernelSpec
 
 @dataclass(frozen=True)
 class _FlowTermSpec(BaseSpec):
-    """Flow or rate of a spec, with its source and sink, which becomes a node of the feedback graph.
+    """Flow or rate of a spec, with its source and sink.
+
+    It becomes a node of the feedback graph.
 
     Args:
         spec:

@@ -16,7 +16,9 @@ _NO_ARGUMENTS = ArgumentsSpec()
 
 
 class DriveKernel(BaseKernel):
-    """Drive compiled for a lattice state, whose components of every member lie on a last axis when it has several.
+    """Drive compiled for a lattice state.
+
+    The components of every member lie on a last axis when the state has several.
 
     Args:
         owner:
@@ -73,7 +75,10 @@ class DriveKernel(BaseKernel):
         return (self.target,)
 
     def _keywords(self, x: Array, p: Array) -> dict[str, object]:
-        """Return the parameters the functions receive by keyword, those of one value per site in lattice shape."""
+        """Return the parameters the functions receive by keyword.
+
+        Those of one value per site come in lattice shape.
+        """
         shape = self.target.shape
         return {
             name: np.reshape(value, shape) if np.size(value) == self.target.size and np.ndim(value) else value

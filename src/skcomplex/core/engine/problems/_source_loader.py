@@ -19,12 +19,13 @@ CACHE_DIR = Path.home() / '.cache' / 'skcomplex' / 'kernels'
 
 
 class SourceLoader(BaseConfig[str | Path | None, str]):
-    """Loader of generated source, imported from a file of the cache directory named by its digest.
+    """Loader of generated source.
 
-    `prepare(cache_dir)` sets the directory of the generated files, `~/.cache/skcomplex/kernels` by default, and
-    `run(source)` writes the source there once and imports it into `module_`. Source without injected functions is
-    kept in `sys.modules`, so the same source is imported once. Source with injected functions is imported afresh,
-    with the functions set on the module before its code runs.
+    The source is imported from a file of the cache directory named by its digest. `prepare(cache_dir)` sets the
+    directory of the generated files, `~/.cache/skcomplex/kernels` by default, and `run(source)` writes the source there
+    once and imports it into `module_`. Source without injected functions is kept in `sys.modules`, so the same source
+    is imported once. Source with injected functions is imported afresh, with the functions set on the module before its
+    code runs.
 
     Args:
         prefix:
@@ -66,7 +67,9 @@ class SourceLoader(BaseConfig[str | Path | None, str]):
             raise ValidationError(error_msg)
 
     def _prepare(self, context: str | Path | None) -> None:
-        """Set the directory of the generated files, the default cache directory when none is given.
+        """Set the directory of the generated files.
+
+        Without one, it is the default cache directory.
 
         Args:
             context:
