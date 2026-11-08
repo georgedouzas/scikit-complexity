@@ -1,4 +1,7 @@
-"""Lattice Yang-Mills theory: SU(2) and SU(3) link matrices sampled by the Wilson action, pure lattice QCD for SU(3)."""
+"""Lattice Yang-Mills theory.
+
+SU(2) and SU(3) link matrices are sampled by the Wilson action, pure lattice QCD for SU(3).
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,7 +28,9 @@ COLOR = MatrixGroupSpec('SU', 3)
 
 
 class ColorLinkElement(Element):
-    """Link of a lattice with an SU(3) matrix `U`, the parallel transport of color along the link.
+    """Link of a lattice with an SU(3) matrix `U`.
+
+    The matrix is the parallel transport of color along the link.
 
     Args:
         label:
@@ -62,7 +67,9 @@ ISOSPIN = MatrixGroupSpec('SU', 2)
 
 
 class IsospinLinkElement(Element):
-    """Link of a lattice with an SU(2) matrix `U`, the parallel transport of isospin along the link.
+    """Link of a lattice with an SU(2) matrix `U`.
+
+    The matrix is the parallel transport of isospin along the link.
 
     Args:
         label:
@@ -127,7 +134,9 @@ def gauge_observables(
     charges: Sequence[float] | None = None,
     group: MatrixGroupSpec | None = None,
 ) -> GaugeObservablesResult:
-    """Return a gauge observable of a link state on the cell complex of a periodic lattice, one value per frame.
+    """Return a gauge observable of a link state on a periodic lattice's cell complex.
+
+    There is one value per frame.
 
     The kind `'wilson'` is the mean cosine of the oriented sum of the link angles around the rectangles of given extents
     in every plane. The kind `'polyakov'` is the mean cosine of the sum of the link angles along the last axis. The kind
@@ -234,7 +243,10 @@ def _angle_observable(
 
 
 def _rectangles_of(space: CellComplexSpace, extents: tuple[int, int], first: int, second: int, sums: Array) -> Array:
-    """Return the oriented sums around the rectangles of a plane, with the frame first and the sites next."""
+    """Return the oriented sums around the rectangles of a plane.
+
+    The frame comes first and the sites next.
+    """
     shape = space.space.shape_
     faces = np.flatnonzero(np.all(space.face_planes_ == (first, second), axis=1))
     corners = np.asarray([space.hyperedges_[face][0] for face in faces], dtype=np.intp)
@@ -248,7 +260,10 @@ def _rectangles_of(space: CellComplexSpace, extents: tuple[int, int], first: int
 
 
 def _get_paths(space: CellComplexSpace, moves: Sequence[tuple[int, int]]) -> tuple[Indices, Array]:
-    """Return the links and signs of the path of steps along axes, forward 1 or backward -1, from every site."""
+    """Return the links and signs of the path of steps along axes from every site.
+
+    A step is forward 1 or backward -1.
+    """
     place = space.space
     sites = np.arange(place.size_).reshape(place.shape_)
     forward = np.stack([np.roll(sites, -1, axis=axis).ravel() for axis in range(place.n_dim_)])
@@ -268,7 +283,10 @@ def _get_paths(space: CellComplexSpace, moves: Sequence[tuple[int, int]]) -> tup
 
 
 def _get_traces(values: Array, group: MatrixGroupSpec, edges: Indices, signs: Array) -> Array:
-    """Return the trace over `N` of the path-ordered product along every path, with one row per frame."""
+    """Return the trace over `N` of the path-ordered product along every path.
+
+    There is one row per frame.
+    """
     return np.stack(
         [
             np.trace(group.holonomy_of(group.matrices_of(frame), edges, signs), axis1=-2, axis2=-1) / group.degree
@@ -289,7 +307,10 @@ def _matrix_wilson(space: CellComplexSpace, values: Array, group: MatrixGroupSpe
 
 
 def _matrix_polyakov(space: CellComplexSpace, values: Array, group: MatrixGroupSpec) -> Array:
-    """Return the modulus of the mean of `tr P / N` over the loops that wind along the last axis."""
+    """Return the modulus of the mean of `tr P / N` over the loops along the last axis.
+
+    The loops wind along the last axis.
+    """
     place = space.space
     last = place.n_dim_ - 1
     traces = _get_traces(values, group, *_get_paths(space, [(last, 1)] * place.shape_[last]))
@@ -328,14 +349,19 @@ def _mean_plaquette(space: CellComplexSpace, group: MatrixGroupSpec, t: float, v
 
 
 def _polyakov_loop(space: CellComplexSpace, group: MatrixGroupSpec, t: float, values: Mapping[str, object]) -> float:
-    """Return the modulus of the mean of `tr P / N` over the loops that wind along the last axis."""
+    """Return the modulus of the mean of `tr P / N` over the loops along the last axis.
+
+    The loops wind along the last axis.
+    """
     del t
     links = np.reshape(np.asarray(values['links.U'], dtype=float), (-1, group.size))
     return float(gauge_observables(links, kind='polyakov', space=space, group=group).value[0])
 
 
 class LatticeYangMillsSystem(BaseSystem):
-    """SU(2) or SU(3) matrices on the links of a periodic lattice, sampled by the Wilson action.
+    """SU(2) or SU(3) matrices on the links of a periodic lattice.
+
+    The matrices are sampled by the Wilson action.
 
     The link matrices sample the Wilson action `-(beta / N) sum_p Re tr U_p` under discrete time, where `U_p` is the
     ordered product of the link matrices around the plaquette `p`, with the inverse of a link traversed against its
@@ -432,13 +458,19 @@ class LatticeYangMillsSystem(BaseSystem):
         ]
 
     def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings, with the observables of the parts built from the model parameters."""
+        """Return the tuned run settings.
+
+        The observables of the parts are built from the model parameters.
+        """
         settings = super().get_run_settings()
         settings['observables'] = tuple(self._yang_mills_observables(self._build_system()))
         return settings
 
     def _build_system(self) -> System:
-        """Return SU(2) or SU(3) matrices on the links of a periodic lattice, sampled by the Wilson action."""
+        """Return SU(2) or SU(3) matrices on the links of a periodic lattice.
+
+        The matrices are sampled by the Wilson action.
+        """
         if self.colors not in LINKS:
             error_msg = f'The lattice gauge group is SU(2) or SU(3), so colors is 2 or 3, but got {self.colors!r}.'
             raise ValidationError(error_msg)

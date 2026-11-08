@@ -1,4 +1,7 @@
-"""Waves: strings, chains of springs, quantum wave packets, and abelian and non-abelian lattice gauge fields."""
+"""Wave systems.
+
+The package covers strings, chains of springs, quantum wave packets, and abelian and non-abelian lattice gauge fields.
+"""
 
 from ..common.fields import WilsonSamplingInteraction
 from ._charged import ChargedSchrodingerSystem, ChargedWaveFunctionElement
