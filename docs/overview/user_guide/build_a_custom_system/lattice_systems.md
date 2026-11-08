@@ -38,7 +38,7 @@ from skcomplex.core.components.elements import Element, LatticeElement
 from skcomplex.core.components.laws import LocalRuleLaw
 from skcomplex.core.components.spaces import LatticeSpace, MooreNeighborhood
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import OuterTotalisticSpec, StateSpec
 
 
@@ -55,7 +55,7 @@ glider = np.zeros((20, 20))
 glider[1, 2] = glider[2, 3] = glider[3, 1] = glider[3, 2] = glider[3, 3] = 1
 space = LatticeSpace((20, 20))
 cells = System(elements=[LatticeElement('cells', element=LifeElement, space=space, values={'alive': glider})])
-trajectory = Simulation(cells, dt=1).prepare().run(until=4).trajectory_
+trajectory = simulate(cells, until=4, dt=1)
 np.array_equal(trajectory.lattice('cells.alive')[-1], np.roll(glider, (1, 1), axis=(0, 1)))
 ```
 
@@ -76,14 +76,14 @@ np.array_equal(trajectory.lattice('cells.alive')[-1], np.roll(glider, (1, 1), ax
 ## Cascades
 
 Use a cascade when a slow drive builds up stress and a fast relaxation releases it in avalanches, as in
-self-organised criticality. The sandpile of the catalog records the size of every avalanche:
+self-organised criticality. The ready-made `SandpileSystem` records the size of every avalanche:
 
 ```python
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.systems import create_system
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.physics.criticality import SandpileSystem
 
-sandpile = create_system('sandpile', shape=(20, 20))
-trajectory = Simulation(sandpile, dt=100, random_state=0).prepare().run(until=2000).trajectory_
+sandpile = SandpileSystem(shape=(20, 20))
+trajectory = simulate(sandpile, until=2000, dt=100, random_state=0)
 max(event.size for event in trajectory.events)
 ```
 
@@ -106,7 +106,7 @@ from skcomplex.core.components.laws import SampleLaw
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import LatticeSpace, VonNeumannNeighborhood
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import MoveSpec, ObjectiveSpec, ParameterSpec, SamplerSpec, StateSpec
 
 nearest = VonNeumannNeighborhood()
@@ -133,7 +133,7 @@ class SpinElement(Element):
 
 
 spins = System(elements=[LatticeElement('spins', element=SpinElement, space=LatticeSpace((32, 32)))])
-abs(Simulation(spins, dt=50, random_state=0).prepare().run(until=200).state_.mean()) > 0.9
+abs(simulate(spins, until=200, dt=50, random_state=0).states[-1].mean()) > 0.9
 ```
 
 A `SampleLaw(objective, move, sampler)` samples states.
@@ -144,7 +144,7 @@ A `SampleLaw(objective, move, sampler)` samples states.
 - `SamplerSpec('metropolis' | 'glauber' | 'heat-bath', intensity)` accepts them.
 
 The change of the objective is derived symbolically, and sweeps update the two sublattices in turn. The intensity is
-an expression of parameters, so it can change while the simulation runs.
+an expression of parameters, so the `schedule` of `simulate` can change it during a run.
 
 ## Triangular lattices
 
@@ -160,7 +160,7 @@ from skcomplex.core.components.elements import Element, LatticeElement
 from skcomplex.core.components.laws import LocalRuleLaw
 from skcomplex.core.components.spaces import LatticeSpace, TriangularNeighborhood
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
 
@@ -181,7 +181,7 @@ fire = np.zeros((40, 40))
 fire[20, 20] = 1
 space = LatticeSpace((40, 40), geometry='triangular')
 forest = System(elements=[LatticeElement('forest', element=BurnElement, space=space, values={'fire': fire})])
-burning = Simulation(forest, dt=1).prepare().run(until=3).trajectory_.lattice('forest.fire')
+burning = simulate(forest, until=3, dt=1).lattice('forest.fire')
 [int(item.sum()) for item in burning]
 ```
 
@@ -208,7 +208,7 @@ from skcomplex.core.components.laws import SampleLaw
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import AdjacencyNeighborhood, NetworkSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import MoveSpec, ObjectiveSpec, ParameterSpec, SamplerSpec, StateSpec
 
 
@@ -234,7 +234,7 @@ class GraphSpinElement(Element):
 
 graph = nx.random_regular_graph(4, 200, seed=0)
 spins = System(elements=[LatticeElement('spins', element=GraphSpinElement, space=NetworkSpace(graph))])
-abs(Simulation(spins, dt=50, random_state=0).prepare().run(until=200).state_.mean()) > 0.9
+abs(simulate(spins, until=200, dt=50, random_state=0).states[-1].mean()) > 0.9
 ```
 
 `LatticeElement` also takes a `NetworkSpace`, with one site per node in the order of `graph.nodes`. Initial values are
@@ -262,7 +262,7 @@ from skcomplex.core.components.elements import Element, LatticeElement
 from skcomplex.core.components.interactions import SamplingInteraction
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import RegionScoreSpec, StateSpec
 
 
@@ -287,7 +287,7 @@ copies = SamplingInteraction(
 )
 sites = LatticeElement('sites', element=SiteElement, space=LatticeSpace((12, 12)), values={'region': regions})
 system = System(elements=[sites], interactions=[copies], time=DiscreteTime())
-labels = Simulation(system, random_state=0).prepare().run(until=200).trajectory_.values('sites.region')
+labels = simulate(system, until=200, random_state=0).values('sites.region')
 abs((labels[50:].reshape(-1, 144) == 1).sum(axis=1).mean() - 30) < 2
 ```
 
@@ -309,7 +309,7 @@ move `'copy'`. The state holds integer labels from 0, and the objective is
   `'weight'` weighs a contact and the node attribute `'volume'` the volume of a site, so a Voronoi tessellation of
   irregular points is a disordered lattice.
 
-The catalog system `cellular_potts` sorts cells of two kinds by differential adhesion on square, triangular, and
+The ready-made `CellularPottsSystem` of `skcomplex.systems.biology.physiology` sorts cells of two kinds by differential adhesion on square, triangular, and
 disordered lattices.
 
 ## Reads that follow the state, and series in the cells
@@ -336,7 +336,7 @@ from skcomplex.core.components.spaces import (
     StateTranslationNeighborhood,
 )
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import PowerSeriesSpec, StateSpec
 
 RING = PowerSeriesSpec(order=4, field='QQ')
@@ -367,7 +367,7 @@ shift = System(
         ),
     ],
 )
-Simulation(shift).prepare().run(until=1).trajectory_.values('cells.value')[-1].tolist()
+simulate(shift, until=1).values('cells.value')[-1].tolist()
 
 start = np.zeros((6, 4))
 start[3, 0] = 1
@@ -383,7 +383,7 @@ series = System(
         ),
     ],
 )
-final = Simulation(series).prepare().run(until=3).trajectory_.values('cells.value')[-1]
+final = simulate(series, until=3).values('cells.value')[-1]
 RING.series_of(final[2])
 ```
 
@@ -422,7 +422,7 @@ from skcomplex.core.components.elements import Element, LatticeElement
 from skcomplex.core.components.laws import ExtremalLaw
 from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
 
@@ -442,12 +442,12 @@ class SpeciesElement(Element):
 fitness = np.random.default_rng(0).random(100)
 space = LatticeSpace(100)
 ring = System(elements=[LatticeElement('ring', element=SpeciesElement, space=space, values={'fitness': fitness})])
-trajectory = Simulation(ring, dt=10, random_state=0).prepare().run(until=100).trajectory_
+trajectory = simulate(ring, until=100, dt=10, random_state=0)
 len(trajectory.events), trajectory.events[0].label
 ```
 
 `ExtremalLaw(targets, over, rule, key=None, extremum='min', repeat=1)` finds the site with the smallest or largest
-value of a key state. It breaks ties with the simulation's random stream, and applies
+value of a key state. It breaks ties with the random stream of the run, and applies
 `rule(*values, random, **parameters)` to the site and its real neighbours, `repeat` times per step.
 
 - Every application is recorded among the trajectory's events as an `ExtremalRecord` with its time, site, and
@@ -461,17 +461,20 @@ value of a key state. It breaks ties with the simulation's random stream, and ap
 Square lattice groups stream to Rerun as images colored by value. Triangular lattices and graph lattices stream as
 sites with `SiteVisual`: hexagonal cells at the site positions, or nodes colored by state with their edges logged once.
 
-The catalog holds ready-made lattice systems, each under the field path of its science, such as
-`computer_science/automata` for `game_of_life` and `physics/statistical_mechanics` for `ising`:
+`all_systems` of `skcomplex.systems` lists the ready-made lattice systems by their topic `lattice`, optionally of one
+field or subfield:
 
 ```python
-from skcomplex.systems import catalog
+from skcomplex.systems import all_systems
 
-lattice_systems = [
-    'elementary_automaton', 'game_of_life', 'majority_rule', 'langtons_ant', 'nagel_schreckenberg', 'hodgepodge',
-    'sandpile', 'forest_fire', 'hexagonal_forest_fire', 'earthquakes', 'ising', 'graph_ising', 'potts', 'xy',
-    'fhp_lattice_gas', 'bak_sneppen',
-]
-fields = {entry.name: entry.field for entry in catalog()}
-{name: fields[name] for name in lattice_systems}
+[name for name, _ in all_systems(field='physics/criticality', topics='lattice')]
 ```
+
+Among them, by subfield of `skcomplex.systems`:
+
+- `computer_science.automata`: `ElementaryAutomatonSystem`, `GameOfLifeSystem`, and `LangtonsAntSystem`.
+- `physics.statistical_mechanics`: `IsingSystem`, `GraphIsingSystem`, `PottsSystem`, and `XYSystem`.
+- `physics.criticality`: `SandpileSystem`, `ForestFireSystem`, and `HexagonalForestFireSystem`.
+- `physics.seismology`: `EarthquakesSystem`, and `physics.fluids`: `FHPLatticeGasSystem`.
+- `social.opinion_dynamics`: `MajorityRuleSystem`, `engineering.traffic`: `NagelSchreckenbergSystem`,
+  `chemistry.kinetics`: `HodgepodgeSystem`, and `biology.evolution`: `BakSneppenSystem`.
