@@ -11,9 +11,8 @@ scores.
 
 ```python
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.systems import all_systems
+from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
-LotkaVolterraSystem = dict(all_systems(field='biology/ecology'))['LotkaVolterraSystem']
 trajectory = simulate(LotkaVolterraSystem(), until=10, dt=0.1)
 trajectory.values('prey.n')[-1].round(3)
 ```
@@ -35,9 +34,8 @@ next one from its last frame.
 
 ```python
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.systems import all_systems
+from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
-LotkaVolterraSystem = dict(all_systems(field='biology/ecology'))['LotkaVolterraSystem']
 first = simulate(LotkaVolterraSystem(), until=10, dt=0.1)
 last = {name: first.values(name)[-1] for name in ('prey.n', 'predators.n')}
 second = simulate(LotkaVolterraSystem(), until=10, dt=0.1, initial_state=last, schedule={'predation.a': lambda t: 0.0})
@@ -56,9 +54,8 @@ Set how a run starts and evolves with the arguments of `simulate`.
 
 ```python
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.systems import all_systems
+from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
-LotkaVolterraSystem = dict(all_systems(field='biology/ecology'))['LotkaVolterraSystem']
 trajectory = simulate(
     LotkaVolterraSystem(),
     until=10,
@@ -97,9 +94,8 @@ produces these functions with a backend.
 from skcomplex.core.engine.backends import NumbaBackend
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
-from skcomplex.systems import all_systems
+from skcomplex.systems.physics.statistical_mechanics import IdealGasSystem
 
-IdealGasSystem = dict(all_systems(field='physics/statistical_mechanics'))['IdealGasSystem']
 gas = IdealGasSystem(n_molecules=50_000, random_state=0)
 trajectory = simulate(gas, until=0.5, dt=0.01, solver=RK4Solver(dt=0.01), backend=NumbaBackend())
 trajectory.values('gas.x').shape
@@ -282,9 +278,8 @@ boundaries, and each partition runs with its own solver.
 
 ```python
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.systems import all_systems
+from skcomplex.systems.economics.resources import HarvestingSystem
 
-HarvestingSystem = dict(all_systems(field='economics/resources'))['HarvestingSystem']
 trajectory = simulate(HarvestingSystem(farmers=10, effort=0.05), until=50, random_state=0)
 round(trajectory.values('land/stock.n')[-1]), trajectory.agents('village/farmers', 50).values['wealth'].size
 trajectory.values('village/farmers_count.value')[-1]

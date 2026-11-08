@@ -148,8 +148,9 @@ of `skcomplex.core.components`.
 
 ### Select a ready-made system
 
-Every ready-made system is a class with a field, topics, references, and parameters, and `all_systems` finds them, as
-`all_estimators` does in scikit-learn.
+Every ready-made system is a class with a field, topics, references, and parameters. You import it from its subfield,
+the package `skcomplex.systems.<field>.<subfield>`, and `all_systems` finds them, as `all_estimators` does in
+scikit-learn.
 
 List the systems of a field:
 
@@ -166,10 +167,11 @@ oscillators = [name for name, _ in all_systems(topics='oscillation')]
 stochastic = [name for name, _ in all_systems(field='chemistry', tags={'randomness': 'stochastic'})]
 ```
 
-Take the class you chose and read what it is:
+Import the class you chose from its subfield and read what it is:
 
 ```python continuation
-LotkaVolterraSystem = dict(all_systems(field='biology/ecology'))['LotkaVolterraSystem']
+from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+
 LotkaVolterraSystem.topics, LotkaVolterraSystem.references, LotkaVolterraSystem().get_params()
 ```
 
