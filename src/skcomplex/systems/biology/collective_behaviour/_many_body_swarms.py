@@ -4,7 +4,7 @@
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 import numpy as np
 import numpy.typing as npt
@@ -52,6 +52,8 @@ class SwarmAgentElement(Element):
         >>> SwarmAgentElement('agent', alpha=2.0).alpha
         2.0
     """
+
+    law_classes: ClassVar[tuple[type, ...]] = (RateLaw,)
 
     def __init__(
         self,
