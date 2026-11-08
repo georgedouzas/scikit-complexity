@@ -134,3 +134,30 @@ round(posterior.estimates['r'], 2), posterior.diagnostics['sampler'], posterior.
   points inside the band.
 - MCMC runs NUTS through the JAX run of a system with the tag `differentiable` and the Gaussian likelihood, and the
   gradient-free affine invariant ensemble sampler otherwise, which is slower and mixes poorly in many dimensions.
+
+Check that a posterior method gives credible intervals that can be trusted with `posterior_coverage`. It draws true
+parameters from the priors, simulates data at each with Gaussian noise, calibrates every data set, and reports how
+often the central interval of every level holds the truth, with the rank of every truth among its samples, the check
+of simulation-based calibration. A calibrated method covers the truth at about the rate of the level, and its ranks
+are uniform.
+
+```python
+import numpy as np
+
+from skcomplex.core.experiments import posterior_coverage
+from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+
+coverage = posterior_coverage(
+    LogisticGrowthSystem(n=10.0),
+    {'r': (0.5, 1.0)},
+    np.arange(0.0, 11.0),
+    method='variational',
+    n=4,
+    levels=(0.5, 0.9),
+    noise=5.0,
+    n_samples=100,
+    budget=300,
+    random_state=0,
+)
+coverage.coverage[0.9]['r'], coverage.ranks['r'].shape
+```

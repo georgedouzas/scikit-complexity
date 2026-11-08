@@ -41,8 +41,8 @@
 
 ## 7. Coverage
 
-- [ ] 7.1 Add `posterior_coverage` and `CoverageResult` in `src/skcomplex/core/experiments/_coverage.py`, export them, and test the coverage of the logistic posterior at levels 0.5 and 0.9
-- [ ] 7.2 Document `posterior_coverage` with a runnable docstring example and a paragraph in the user guide, and verify both run
+- [x] 7.1 Add `posterior_coverage` and `CoverageResult` in `src/skcomplex/core/experiments/_coverage.py`, export them, and test the coverage of the logistic posterior at levels 0.5 and 0.9
+- [x] 7.2 Document `posterior_coverage` with a runnable docstring example and a paragraph in the user guide, and verify both run
 
 ## 8. Relaxed draws and Delaunay neighbourhoods
 

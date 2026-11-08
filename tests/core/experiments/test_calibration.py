@@ -102,6 +102,7 @@ def _brock_hommes_data():
     return {'pricing.deviation': (truth.times[1:], truth.values('pricing.deviation')[1:])}
 
 
+@pytest.mark.slow
 def test_global_fit_is_reproducible_and_beats_the_midpoints():
     """Test that two seeded global fits of Brock-Hommes agree and beat the midpoints of the bounds."""
     data, bounds = _brock_hommes_data(), {'intensity': (0.5, 8.0), 'strength': (1.0, 1.6)}
@@ -169,6 +170,7 @@ def test_mcmc_rejects_an_unsupported_prior_family():
         calibrate(LogisticGrowthSystem(n=10.0), _logistic_data(), bounds, method='mcmc', loss='likelihood')
 
 
+@pytest.mark.slow
 def test_mcmc_samples_the_logistic_posterior_with_converged_chains():
     """Test that four NUTS chains of 500 samples give a split R-hat below 1.05 and an ESS above 200."""
     result = calibrate(
@@ -190,6 +192,7 @@ def test_mcmc_samples_the_logistic_posterior_with_converged_chains():
     assert result.success
 
 
+@pytest.mark.slow
 def test_mcmc_with_a_normal_prior_narrows_it():
     """Test that MCMC under the prior norm(0.8, 0.05) on r gives samples narrower than the prior near 0.8."""
     bounds = {'r': stats.norm(0.8, 0.05), 'K': (100.0, 1000.0)}
@@ -206,6 +209,7 @@ def test_mcmc_with_a_normal_prior_narrows_it():
     assert abs(np.mean(result.samples['r']) - 0.8) < 0.1
 
 
+@pytest.mark.slow
 def test_mcmc_of_the_event_likelihood_runs_the_ensemble_sampler():
     """Test that MCMC of a recorded Gillespie run uses the gradient-free ensemble sampler and recovers the rates."""
     system = SIRSystem(198, 2, beta=0.0015, gamma=0.1, stochastic=True)
@@ -233,6 +237,7 @@ def _weighted_interval(values, weights, level=0.9):
     return values[order][np.searchsorted(cumulative, tail)], values[order][np.searchsorted(cumulative, 1 - tail)]
 
 
+@pytest.mark.slow
 def test_abc_smc_covers_the_rates_of_a_stochastic_epidemic():
     """Test that the 90% intervals of ABC-SMC of the infected counts of one run hold the true rates.
 
@@ -309,6 +314,7 @@ def test_variational_calibration_recovers_the_logistic_parameters(loss):
     assert result.success
 
 
+@pytest.mark.slow
 def test_predictive_band_covers_a_well_specified_model():
     """Test that the 90% predictive band of MCMC on logistic data with 5% noise holds 75% to 100% of the data."""
     result = calibrate(
