@@ -9,7 +9,13 @@ import pytest
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RuleLaw
-from skcomplex.core.components.spaces import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
+from skcomplex.core.components.spaces import (
+    ContinuousSpace,
+    DelaunayNeighborhood,
+    DiscreteTime,
+    LatticeSpace,
+    NetworkSpace,
+)
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.compile.passes._agents import AgentsPass
@@ -322,6 +328,25 @@ def test_continuous_neighbours_within_radius():
     )
     snapshot = simulate(system, until=1).agents('drifters', 1)
     assert snapshot.values['near'].tolist() == [1.0, 1.0, 0.0]
+
+
+class TriangulatedElement(DrifterElement):
+    """Agent in a continuous space that counts its Delaunay neighbours."""
+
+    def count(self, agent, system):
+        """Count the agents joined to the agent by an edge of the Delaunay triangulation."""
+        agent.near = len(agent.neighbors(over=DelaunayNeighborhood()))
+
+
+def test_continuous_neighbours_of_a_delaunay_triangulation():
+    """Test that the centre of a square of agents has four Delaunay neighbours and every corner three."""
+    corners = [(2.0, 2.0), (6.0, 2.0), (6.0, 6.0), (2.0, 6.0), (4.0, 4.0)]
+    system = System(
+        elements=[GroupElement('cells', element=TriangulatedElement, size=5, location=corners)],
+        space=ContinuousSpace(extent=(10.0, 10.0)),
+    )
+    snapshot = simulate(system, until=1).agents('cells', 1)
+    assert snapshot.values['near'].tolist() == [3.0, 3.0, 3.0, 3.0, 4.0]
 
 
 def test_agent_runs_are_reproducible():

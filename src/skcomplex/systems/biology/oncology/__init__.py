@@ -105,6 +105,12 @@ from ._immunotherapy import (
     TumourImmuneSuppressionSystem,
     VaccinatedTumourElement,
 )
+from ._off_lattice_tumour import (
+    OffLatticeTumourGrowthSystem,
+    SpringCellElement,
+    SpringCellView,
+    TumourGrowthInteraction,
+)
 from ._optimal_therapy import (
     OptimalChemotherapyElement,
     OptimalChemotherapySystem,
@@ -189,6 +195,7 @@ __all__: list[str] = [
     'MultidrugResistanceElement',
     'MultidrugResistanceSystem',
     'NortonSimonSystem',
+    'OffLatticeTumourGrowthSystem',
     'OncolyticVirusDendriticElement',
     'OncolyticVirusDendriticSystem',
     'OncolyticVirusElement',
@@ -210,6 +217,8 @@ __all__: list[str] = [
     'SirnaTGFBetaSystem',
     'SirnaTgfBetaElement',
     'SkipperLogKillSystem',
+    'SpringCellElement',
+    'SpringCellView',
     'SproutElement',
     'StemCellDifferentiationElement',
     'StemCellDifferentiationSystem',
@@ -222,6 +231,7 @@ __all__: list[str] = [
     'TissueElement',
     'TumourAngiogenesisSystem',
     'TumourCellElement',
+    'TumourGrowthInteraction',
     'TumourImmuneChemotherapyElement',
     'TumourImmuneSuppressionSystem',
     'VaccinatedTumourElement',

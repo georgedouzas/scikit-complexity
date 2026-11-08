@@ -29,7 +29,7 @@ from ..specs import (
     StableMatchingSpec,
 )
 from ..types import Array
-from .spaces import LatticeNeighborhood, MemoryNeighborhood
+from .spaces import DelaunayNeighborhood, LatticeNeighborhood, MemoryNeighborhood
 
 type Target = Expression | FreeModuleElement
 type Process = str | tuple[str, ...] | Expression | FreeModuleElement | None
@@ -115,8 +115,9 @@ class AgentViewProtocol(Protocol):
         radius: float | None = None,
         layer: str | None = None,
         group: str | None = None,
+        over: DelaunayNeighborhood | None = None,
     ) -> Sequence[AgentViewProtocol]:
-        """Return the other agents in the neighbouring cells or nodes.
+        """Return the other agents in the neighbouring cells or nodes, or in a neighbourhood of a continuous space.
 
         They are of every group or of the group of a path.
         """

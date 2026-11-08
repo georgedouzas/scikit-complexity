@@ -114,7 +114,7 @@ class MetricSearch(BaseSearch):
         tree = cKDTree(positions, boxsize=np.asarray(self.periods) if self.periods is not None else None)
         neighbourhood = self.neighbourhood
         if isinstance(neighbourhood, DelaunayNeighborhood):
-            readers, others = self._delaunay(positions)
+            readers, others = self._delaunay(positions, self.periods)
         elif isinstance(neighbourhood, NearestNeighborhood):
             readers, others = self._nearest(tree, positions, neighbourhood.k)
         else:
@@ -141,18 +141,20 @@ class MetricSearch(BaseSearch):
         own[~own.any(axis=1), -1] = True
         return np.repeat(np.arange(size, dtype=np.intp), k), found[~own].astype(np.intp)
 
-    def _delaunay(self, positions: Array) -> tuple[Indices, Indices]:
+    @staticmethod
+    def _delaunay(positions: Array, periods: tuple[float, ...] | None) -> tuple[Indices, Indices]:
         """Return the pairs of members joined by an edge of the Delaunay triangulation of the positions.
 
-        In a periodic box the positions are triangulated with their periodic images, and every edge joins the members
-        of its two ends. Too few members, or members in a degenerate position, give every member all the others.
+        In a periodic box of the periods the positions are triangulated with their periodic images, and every edge
+        joins the members of its two ends. Too few members, or members in a degenerate position, give every member all
+        the others.
         """
         size, dimension = positions.shape
-        if self.periods is None:
+        if periods is None:
             points, owners = positions, np.arange(size, dtype=np.intp)
         else:
             grid = np.meshgrid(*([[-1.0, 0.0, 1.0]] * dimension), indexing='ij')
-            shifts = np.stack(grid, axis=-1).reshape(-1, dimension) * np.asarray(self.periods)
+            shifts = np.stack(grid, axis=-1).reshape(-1, dimension) * np.asarray(periods)
             points = (positions[None, :, :] + shifts[:, None, :]).reshape(-1, dimension)
             owners = np.tile(np.arange(size, dtype=np.intp), len(shifts))
         try:
