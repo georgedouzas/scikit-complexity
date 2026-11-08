@@ -48,7 +48,7 @@ def test_origins_of_a_valid_map():
 def test_check_names_an_unbalanced_letter():
     """Test that a product letter no reactant carries raises an error that names the reaction and the letter."""
     with pytest.raises(ValidationError, match=r"reaction v1.*'z'"):
-        AtomMapSpec('v1', [('A', 'ab')], [('B', 'az')]).prepare()
+        AtomMapSpec('v1', [('A', 'ab')], [('B', 'az')])._check()
 
 
 BOUND = 300.0

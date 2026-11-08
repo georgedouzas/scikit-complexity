@@ -13,7 +13,7 @@ from typing import ClassVar
 import numpy as np
 
 from ...base import BaseConfig
-from ...errors import SolverError, ValidationError
+from ...errors import ContextError, SolverError, ValidationError
 from ...specs import StepSpec, SupportSpec, Tags
 from ...specs._base_record_spec import BaseRecordSpec
 from ...types import Array, FormKind
@@ -187,7 +187,7 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
                 The problem.
 
         Raises:
-            ValidationError:
+            ContextError:
                 No problem is passed.
 
             SolverError:
@@ -195,7 +195,7 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
         """
         if context is None:
             error_msg = 'A solver prepares on a compiled problem. Pass the problem to `prepare`.'
-            raise ValidationError(error_msg)
+            raise ContextError(error_msg)
         problem = context
         form = self._get_form()
         if problem.form != form and problem.form not in self._get_forms():

@@ -1206,7 +1206,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
                     'neighbourhood. Reduce over a lattice, network, memory, Radius, Nearest, or Cone neighbourhood.'
                 )
                 raise ValidationError(error_msg)
-            over = over._validated()
+            over = over.prepare()
             search = NeighborhoodKernel._neighbor_search(
                 over,
                 block.node.space,

@@ -300,7 +300,7 @@ def test_group_on_edges_outside_a_network_is_reported():
     system = System(elements=[GroupElement('weights', element=StockElement, on='edges')], space=LatticeSpace(4))
     report = PassCompiler().prepare(system).report_
     (issue,) = report.errors
-    assert (issue.code, issue.message) == ('space-missing', 'LatticeSpace has no edges.')
+    assert (issue.code, issue.message) == ('space-missing', 'weights: LatticeSpace has no edges.')
 
 
 def test_element_with_hilbert_state_runs_unitary_dynamics():

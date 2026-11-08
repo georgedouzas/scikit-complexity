@@ -135,7 +135,6 @@ class OptimalControlSolver(Solver):
             ValidationError:
                 The sense is neither `'min'` nor `'max'`.
         """
-        super()._prepare(context)
         if self.objective is None:
             error_msg = (
                 f'{type(self).__name__} has no objective. Pass the running cost as `objective`, a function of the '
@@ -145,6 +144,7 @@ class OptimalControlSolver(Solver):
         if self.sense not in _SENSES:
             error_msg = f'Unknown sense {self.sense!r} of the objective. Use one of {", ".join(_SENSES)}.'
             raise ValidationError(error_msg)
+        super()._prepare(context)
         problem = self.problem_
         control_problem = self._control_problem(problem)
         if not math.isfinite(self.until):

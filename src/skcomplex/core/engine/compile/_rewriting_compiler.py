@@ -123,7 +123,7 @@ class RewritingCompiler(BaseCompiler):
                 'changes by its productions only. Return ProductionLaw or SubstitutionLaw laws.'
             )
             raise RewritingError(error_msg)
-        return [law._validated() for law in productions]
+        return [law.prepare(node.path) for law in productions]
 
     @staticmethod
     def _parameters(

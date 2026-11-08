@@ -33,14 +33,12 @@ class PopulationElement(BaseElement):
 
 
 def test_element_stores_its_states_parameters_and_visual():
-    """Test that an element stores its arguments, which scikit-learn lists with the fields of its visual spec."""
+    """Test that an element stores its arguments, and its visual spec is one value, not a nested estimator."""
     assert PopulationElement('rabbits', n=40).get_params() == {
         'label': 'rabbits',
         'n': 40,
         'r': 0.5,
         'visual': VisualSpec('line'),
-        'visual__kind': 'line',
-        'visual__options': {},
     }
 
 

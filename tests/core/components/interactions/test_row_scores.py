@@ -222,7 +222,7 @@ def test_row_score_rejects_a_function_that_is_not_callable():
 def test_row_score_rejects_too_few_proposals():
     """Test that a row score proposes at least one move."""
     with pytest.raises(ValidationError, match='at least one'):
-        RowScoreSpec(np.sum, proposals=0).prepare()
+        RowScoreSpec(np.sum, proposals=0)._check()
 
 
 @pytest.mark.parametrize(('settings'), [{'rule': 'heat-bath'}, {'move': 'cluster'}])

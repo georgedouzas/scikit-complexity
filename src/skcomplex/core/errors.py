@@ -16,6 +16,10 @@ class ValidationError(SkcomplexError):
     """A system, a value, or a system with its solver and backend is not valid."""
 
 
+class ContextError(ValidationError):
+    """A configurable object is prepared without the context it needs, such as a solver without its problem."""
+
+
 class AlgebraicStateError(ValidationError):
     """A law integrates a state that the equations of its system determine."""
 

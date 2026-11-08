@@ -158,13 +158,13 @@ class PontryaginSolver(OptimalControlSolver):
             ValidationError:
                 The sense is unknown, the grid has fewer than 2 nodes, or the relaxation is not in `(0, 1]`.
         """
-        super()._prepare(context)
         if not (isinstance(self.nodes, int) and self.nodes >= MIN_NODES):
             error_msg = f'nodes = {self.nodes!r} must be an integer of at least {MIN_NODES}.'
             raise ValidationError(error_msg)
         if not 0 < self.relaxation <= 1:
             error_msg = f'relaxation = {self.relaxation!r} must lie in (0, 1].'
             raise ValidationError(error_msg)
+        super()._prepare(context)
 
     def _costates(self, times: Array, states: Array, controls: Array, p: Array) -> Array:
         """Return the costates on a grid.

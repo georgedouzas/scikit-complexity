@@ -79,7 +79,7 @@ class BatchElement(BaseCountElement):
 def test_call_rejects_relative_names_next_to_arguments():
     """Test that a relative call takes no arguments."""
     with pytest.raises(ValidationError, match='remove the arguments'):
-        CallSpec(lambda t, n: n, (SR(1),), relative=True).prepare()
+        CallSpec(lambda t, n: n, (SR(1),), relative=True)._check()
 
 
 def test_relative_call_reads_its_own_values_under_every_label():

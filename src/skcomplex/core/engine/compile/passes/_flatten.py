@@ -121,13 +121,13 @@ class FlattenPass(BasePass):
                 raise ValidationError(error_msg)
 
     @staticmethod
-    def _check_part(part: Element | GroupElement | BaseInteraction, scope: str) -> None:
-        """Check the arguments of an element, group, or interaction.
+    def _prepare_part(part: Element | GroupElement | BaseInteraction, place: BaseSpace | None, scope: str) -> None:
+        """Prepare an element, group, or interaction on its place, which checks its arguments.
 
         Its error is raised with the path of the part.
         """
         try:
-            part._validated()
+            part.prepare(place)
         except SkcomplexError as error:
             error_msg = f'{scope}{part.label}: {error}'
             raise type(error)(error_msg) from error
@@ -182,8 +182,11 @@ class FlattenPass(BasePass):
             raise LabelError(error_msg)
 
     @staticmethod
-    def _check_children(system: System, scope: str) -> None:
-        """Raise an error for a child of the wrong type or a duplicated label."""
+    def _check_children(system: System, scope: str, places: dict[int, BaseSpace | None]) -> None:
+        """Raise an error for a child of the wrong type or a duplicated label.
+
+        Every element and interaction is prepared on its place, by the identity of the part, which checks it.
+        """
         children: list[tuple[Element | GroupElement | BaseInteraction | System, type | tuple[type, ...]]] = [
             *((element, (Element, GroupElement)) for element in system.elements),
             *((interaction, BaseInteraction) for interaction in system.interactions),
@@ -199,7 +202,7 @@ class FlattenPass(BasePass):
                 raise ValidationError(error_msg)
             FlattenPass._check_label(child.label, scope)
             if not isinstance(child, System):
-                FlattenPass._check_part(child, scope)
+                FlattenPass._prepare_part(child, places.get(id(child)), scope)
             if isinstance(child, GroupElement):
                 FlattenPass._check_group(child, scope)
             if child.label in labels:
@@ -312,10 +315,13 @@ class FlattenPass(BasePass):
         seen = [] if seen is None else seen
         space = FlattenPass._canonical(system.space if system.space is not None else space, seen)
         places = [FlattenPass._canonical(getattr(element, 'space', None) or space, seen) for element in system.elements]
-        FlattenPass._check_children(system, scope)
+        FlattenPass._check_children(
+            system,
+            scope,
+            {id(element): place for element, place in zip(system.elements, places, strict=True)},
+        )
         nodes = []
         for element, place in zip(system.elements, places, strict=True):
-            element.prepare(place)
             sized, active = FlattenPass._with_capacity(FlattenPass._sized(element, space), place)
             if isinstance(sized, GroupElement):
                 path, members = f'{scope}{element.label}', sized.size_
@@ -328,7 +334,7 @@ class FlattenPass(BasePass):
             NodeSpec(
                 f'{scope}{interaction.label}',
                 scope,
-                interaction.prepare(),
+                interaction,
                 space,
                 type(interaction),
                 interaction=True,

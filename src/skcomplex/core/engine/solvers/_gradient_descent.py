@@ -303,15 +303,18 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
 
         Raises:
             ValidationError:
-                No problem is passed. The precision is unknown.
+                The precision is unknown.
+
+            ContextError:
+                No problem is passed.
 
             SolverError:
                 The problem is not a learning problem.
         """
-        super()._prepare(context)
         if self.precision not in PRECISIONS:
             error_msg = f'The precision is {self.precision!r}. Choose one of {", ".join(map(repr, PRECISIONS))}.'
             raise ValidationError(error_msg)
+        super()._prepare(context)
         if not isinstance(self.problem_, LearningProblemSpec):
             error_msg = f'GradientDescentSolver solves learning problems, not a {type(self.problem_).__name__}.'
             raise SolverError(error_msg)

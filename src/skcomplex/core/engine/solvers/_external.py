@@ -8,7 +8,7 @@ They translate it into a third-party library.
 
 from abc import abstractmethod
 
-from ...errors import BackendError, ValidationError
+from ...errors import BackendError, ContextError, ValidationError
 from ..problems import ProblemSpec
 from ._solver import Solver
 
@@ -80,7 +80,7 @@ class ExternalSolver(Solver):
                 The compiled problem.
 
         Raises:
-            ValidationError:
+            ContextError:
                 No problem is passed.
 
             BackendError:
@@ -88,7 +88,7 @@ class ExternalSolver(Solver):
         """
         if context is None:
             error_msg = 'A solver prepares on a compiled problem. Pass the problem to `prepare`.'
-            raise ValidationError(error_msg)
+            raise ContextError(error_msg)
         problem = context
         forms = {self._get_form(), *self._get_forms()}
         unsupported = [] if problem.form in forms else [f'the {problem.form} form']

@@ -79,10 +79,10 @@ class AxisVisual(BaseVisual):
             context:
                 The compiled problem.
         """
-        super()._prepare(context)
         if self.every < 1:
             error_msg = f'every = {self.every!r} must be a positive number of sites.'
             raise ValidationError(error_msg)
+        super()._prepare(context)
 
     def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return the 2D spatial view of the axes and the image.

@@ -327,7 +327,6 @@ class GroupElement(BaseElement):
         self._check_element()
         self._check_size()
         self._check_rank()
-        self._get_member()
         member = self._get_member()
         if member.visual is not None:
             self.default_visual_ = member.visual

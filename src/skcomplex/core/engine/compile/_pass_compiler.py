@@ -66,6 +66,7 @@ from ...components.specs import CensusRecordSpec, CensusSpec, NodeSpec
 from ...components.system import System
 from ...errors import (
     AlgebraicStateError,
+    ContextError,
     ParameterError,
     PhaseSpaceTooLargeError,
     PipelineError,
@@ -233,13 +234,13 @@ class PassCompiler(BaseCompiler):
             ValidationError:
                 A setting is invalid.
         """
-        super()._prepare(context)
         if self.passes is not None and not all(isinstance(item, BasePass) for item in self.passes):
             error_msg = 'The passes hold an object that is not a pass. Pass instances of BasePass.'
             raise ValidationError(error_msg)
         if self.partition not in _PARTITIONS:
             error_msg = f'The partition is {self.partition!r}. Choose one of {", ".join(map(repr, _PARTITIONS))}.'
             raise ValidationError(error_msg)
+        super()._prepare(context)
 
     def _issues(self, system: System) -> list[IssueSpec]:
         """Return every issue of a system, of its solver, and of its backend.
@@ -1668,10 +1669,11 @@ class PassCompiler(BaseCompiler):
         issues = []
         try:
             if isinstance(solver, BaseConfig):
-                solver._validated()
+                clone(solver).prepare()
         except SkcomplexError as error:
-            fix = f'Correct the arguments of {stepper.__name__} as the message describes.'
-            issues.append(IssueSpec('solver-argument', system.label, str(error), fix, error=type(error)))
+            if not isinstance(error, ContextError):
+                fix = f'Correct the arguments of {stepper.__name__} as the message describes.'
+                issues.append(IssueSpec('solver-argument', system.label, str(error), fix, error=type(error)))
         support = BaseCompiler._support_of(stepper)
         for category, terms in needs.items():
             missing = support.missing(category, terms)

@@ -101,9 +101,9 @@ def test_read_structure_rejects_an_unknown_source():
 def test_structure_spec_rejects_wrong_shapes():
     """Test that coordinates of another shape, and names of another length, raise errors."""
     with pytest.raises(ValidationError, match='systems by atoms'):
-        StructureSpec(np.zeros((2, 3)), (), (), (), ()).prepare()
+        StructureSpec(np.zeros((2, 3)), (), (), (), ())._check()
     with pytest.raises(ValidationError, match='one entry'):
-        StructureSpec(np.zeros((1, 2, 3)), ('N',), ('GLY',), (1,), ('A',)).prepare()
+        StructureSpec(np.zeros((1, 2, 3)), ('N',), ('GLY',), (1,), ('A',))._check()
 
 
 def test_read_trajectory_reads_a_dcd_file(tmp_path):

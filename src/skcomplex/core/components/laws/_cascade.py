@@ -90,4 +90,4 @@ class CascadeLaw(BaseLaw):
         """
         super()._prepare(context)
         for law in (*self.drive, *self.relax):
-            law._validated()
+            law.prepare(context)

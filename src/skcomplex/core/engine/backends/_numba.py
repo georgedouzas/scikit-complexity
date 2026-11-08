@@ -228,7 +228,7 @@ class NumbaBackend(BaseBackend):
             for kind in needed
             if compiled[kind]
         ]
-        printer = NumbaPrinter(parallel=self.parallel and form not in _EVENT_FORMS)._validated()
+        printer = NumbaPrinter(parallel=self.parallel and form not in _EVENT_FORMS)
         lines = printer.prepare(reductions if reduced and fused else None).run(parts).code_
         accelerated_loop = {
             FormKind.ODE: 'rk4',

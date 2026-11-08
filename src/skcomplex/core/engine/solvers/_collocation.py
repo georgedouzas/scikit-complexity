@@ -160,7 +160,6 @@ class CollocationSolver(OptimalControlSolver):
             ValidationError:
                 The sense, the scheme, or the method is unknown, or the grid has fewer than 2 nodes.
         """
-        super()._prepare(context)
         if self.scheme not in SCHEMES:
             error_msg = f'Unknown collocation scheme {self.scheme!r}. Use one of {", ".join(SCHEMES)}.'
             raise ValidationError(error_msg)
@@ -170,6 +169,7 @@ class CollocationSolver(OptimalControlSolver):
         if not (isinstance(self.nodes, int) and self.nodes >= MIN_NODES):
             error_msg = f'nodes = {self.nodes!r} must be an integer of at least {MIN_NODES}.'
             raise ValidationError(error_msg)
+        super()._prepare(context)
 
     def _unpack(self, z: Array, points: int) -> tuple[Array, Array]:
         """Return the states and the controls of the points from the vector of variables."""

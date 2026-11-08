@@ -423,12 +423,10 @@ class _LearningCompiler(BaseCompiler):
             message = f'The system {system.label} holds no training interaction.'
             return [IssueSpec('compiler', system.label, message, 'Compile it with PassCompiler.')]
         try:
-            training._validated()
+            training.prepare()
         except ValidationError as error:
             return [self._issue_of(error, training.label, 'value', 'Correct the training interaction.')]
-        self.law_ = next(
-            item for item in training.prepare().run(SimpleNamespace()).laws_ if isinstance(item, GradientStepLaw)
-        )
+        self.law_ = next(item for item in training.run(SimpleNamespace()).laws_ if isinstance(item, GradientStepLaw))
         issues = self._setting_issues(system, training)
         trained = self._find_system(system, training.system)
         if trained is None:

@@ -40,7 +40,7 @@ from ...components.spaces import (
     MeshSpace,
     NetworkSpace,
 )
-from ...errors import SolverError, ValidationError
+from ...errors import ContextError, SolverError, ValidationError
 from ...specs import AgentSnapshotSpec, AgentStateSpec, EntrySpec, StepSpec, SupportSpec
 from ...specs._held_reduction_spec import _HeldReductionSpec
 from ...types import Array, FormKind, NoiseKind, OrderKind
@@ -181,7 +181,7 @@ class CoSimulationSolver(Solver):
                 The co-simulation problem, or a problem of one form with `split=True`.
 
         Raises:
-            ValidationError:
+            ContextError:
                 No problem is passed.
 
             SolverError:
@@ -195,7 +195,7 @@ class CoSimulationSolver(Solver):
             raise SolverError(error_msg)
         if context is None:
             error_msg = 'A solver prepares on a compiled problem. Pass the problem to `prepare`.'
-            raise ValidationError(error_msg)
+            raise ContextError(error_msg)
         problem = context
         initial_state = problem.initial_state.copy()
         if problem.form != FormKind.COUPLED:

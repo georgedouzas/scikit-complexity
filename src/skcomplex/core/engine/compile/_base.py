@@ -274,7 +274,7 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
 
         Returns:
             backend:
-                The checked backend passed, or a new checked backend.
+                The backend passed, or a new backend, which checks its settings when it is prepared.
 
         Examples:
             >>> from skcomplex.core.engine.compile import BaseCompiler
@@ -282,8 +282,8 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
             'NumpyBackend'
         """
         if backend is not None:
-            return backend._validated()
-        return (NumbaBackend() if members >= _AUTO_MEMBERS else NumpyBackend())._validated()
+            return backend
+        return NumbaBackend() if members >= _AUTO_MEMBERS else NumpyBackend()
 
     @staticmethod
     def _element_value(element: str, expression: Callable[[object], object], namespace: SimpleNamespace) -> object:

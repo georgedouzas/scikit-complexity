@@ -142,7 +142,7 @@ class FunctionsPass(BasePass):
         requested = BaseCompiler._resolve_backend(compilation.backend, members)
         if not FunctionsPass._is_stepwise(form):
             return requested
-        chosen = NumpyBackend()._validated()
+        chosen = NumpyBackend()
         name, asked = chosen._get_name(), requested._get_name()
         if compilation.backend is not None and asked != name:
             message = (

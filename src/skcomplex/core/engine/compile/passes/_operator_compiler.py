@@ -98,10 +98,10 @@ class OperatorCompiler(BaseCompiler):
             ValidationError:
                 A setting is invalid.
         """
-        super()._prepare(context)
         if not isinstance(self.max_dimension, int) or isinstance(self.max_dimension, bool) or self.max_dimension < 1:
             error_msg = f'The largest dimension is {self.max_dimension!r}. Give a positive integer.'
             raise ValidationError(error_msg)
+        super()._prepare(context)
 
     def _issues(self, system: System) -> list[IssueSpec]:
         """Return the issue of a system the compiler cannot compile or flatten.
@@ -333,7 +333,7 @@ class OperatorCompiler(BaseCompiler):
                 name: OperatorCompiler._member_value(value, member, size)
                 for name, value in (component.values or {}).items()
             }
-            element = component.element(f'{component.label}_{member}').set_params(**values)._validated()
+            element = component.element(f'{component.label}_{member}').set_params(**values).prepare()
             members.append((f'{node.path}[{member}]', OperatorCompiler._view_of(element)))
         return members
 

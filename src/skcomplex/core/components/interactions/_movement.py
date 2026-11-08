@@ -190,7 +190,7 @@ class MovementInteraction(Interaction):
                 error_msg = f'The {name} of {self.label!r} is {value!r}. Give a function, or None.'
                 raise ValidationError(error_msg)
         if isinstance(self.cost, TransferInteraction):
-            self.cost._validated()
+            self.cost.prepare()
         elif self.cost is not None and not callable(self.cost):
             error_msg = f'The cost of {self.label!r} is {self.cost!r}. Give a TransferInteraction, a function, or None.'
             raise ValidationError(error_msg)
