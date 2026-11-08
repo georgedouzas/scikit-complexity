@@ -386,4 +386,8 @@ value, and a system with a compiler of its own compiles per run.
 
 ## Public results and private machinery
 
-What a user receives is public: `Trajectory`, the compiled problem a trajectory holds (`Problem`, on the base `BaseProblem`), the frames of a run (`Frame`), and the results of analyses and experiments. The machinery that makes them is private, except the bases a system package needs to bring its own form (`BaseCompiler`, `BasePass`, `BaseLowering`, `BaseKernel`, `BasePrinter`). Only the declarations of `skcomplex.core.specs` end in `Spec`, so the compiled results drop the suffix.
+What a user receives is public: `Trajectory`, the compiled problem a trajectory holds (`ProblemSpec`, on the base
+`BaseProblemSpec`), the frames of a run (`FrameSpec`), and the results of analyses and experiments. The machinery that
+makes them is private, except the bases a system package needs to bring its own form (`BaseCompiler`, `BasePass`,
+`BaseLowering`, `BaseKernel`, `BasePrinter`). Names follow the rule of `base-interfaces`: every frozen value object is a
+spec and ends in `Spec`, wherever it lives, so the compiled results keep their names.
