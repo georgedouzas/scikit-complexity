@@ -48,6 +48,7 @@ KINDS = {
 }
 NEIGHBOR_REDUCTIONS = ('sum', 'mean', 'count', 'max', 'min', 'normalized-mean', 'argmax')
 MIN_HYPEREDGE_SIZE = 2
+MAX_NEIGHBOR_HYPEREDGE_SIZE = 5
 COMPONENT_REDUCTIONS = ('label', 'size', 'largest', 'giant')
 PATH_REDUCTIONS = ('betweenness', 'closeness')
 WEIGHTS: dict[str, object] = {}
@@ -767,8 +768,8 @@ def hyperedges(
     The hyperedges are those of the network space of the group by default. In a continuous space, `over` is a
     neighbourhood, `RadiusNeighborhood(r)`, `NearestNeighborhood(k)`, or `ConeNeighborhood(r, angle)`, and the
     hyperedges around a member are the member with every set of `size - 1` of its current neighbours, the other members
-    in increasing member order. The sets follow the motion of the members, found again at every evaluation, and their
-    number grows as `d^(size - 1)` for `d` neighbours.
+    in increasing member order, for a size of at most 5. The sets follow the motion of the members, found again at
+    every evaluation, and their number grows as `d^(size - 1)` for `d` neighbours.
 
     The reductions are those of `neighbors` with the weight `w_e` of every hyperedge `e` of the value `f_e`: `'sum'`,
     `'mean'`, `'count'`, `'max'`, `'min'`, `'normalized-mean'`, `'argmax'`, and `'circular-mean'`. Without a size, the
@@ -799,8 +800,8 @@ def hyperedges(
 
     Raises:
         ValidationError:
-            The reduction or the neighbourhood is unknown, or the size is not a whole number of at least two, or is
-            missing with a neighbourhood.
+            The reduction or the neighbourhood is unknown, or the size is not a whole number of at least two, or with
+            a neighbourhood is missing or above 5.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import sin, var

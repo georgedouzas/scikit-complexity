@@ -23,6 +23,7 @@ from ....components.interactions import (
     PairInteraction,
     TopologyInteraction,
 )
+from ....components.laws.utils import MAX_NEIGHBOR_HYPEREDGE_SIZE
 from ....components.spaces import (
     BaseSpace,
     CayleySpace,
@@ -479,21 +480,22 @@ class SpecsPass(BasePass):
     ) -> SimpleNamespace:
         """Return the namespace of a hyperedge member with the slots of one hyperedge.
 
-        The member is a member of a group on a network with hyperedges.
+        The member is a member of a group on a network with hyperedges or in a continuous space.
 
         The slots are `others`, the other members of a hyperedge around the member in its order, as many as the largest
         hyperedge has, and `members`, all its members, which only the reductions over the hyperedges around a member
-        read. A group that declares a variable named like a slot keeps it.
+        read. In a continuous space the hyperedges are sets of current neighbours, of at most the largest size a
+        reduction over them takes. A group that declares a variable named like a slot keeps it.
         """
         space = SpecsPass._group_space(block)
-        if (
-            block.node.members is None
-            or not isinstance(space, NetworkSpace)
-            or not space.hyperedges_
-            or {'others', 'members'} & set(vars(namespace))
-        ):
+        if block.node.members is None or {'others', 'members'} & set(vars(namespace)):
             return namespace
-        size = max(len(item) for item in space.hyperedges_)
+        if isinstance(space, ContinuousSpace):
+            size = MAX_NEIGHBOR_HYPEREDGE_SIZE
+        elif isinstance(space, NetworkSpace) and space.hyperedges_:
+            size = max(len(item) for item in space.hyperedges_)
+        else:
+            return namespace
         others = []
         for position in range(size - 1):
             other, other_references = SpecsPass._namespace(block, ReadKind.OTHER, alias=f'__others{position}')
