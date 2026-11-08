@@ -17,6 +17,7 @@ from sage.sets.real_set import RealSet
 from .....core.components.interactions import CrossingInteraction
 from .....core.components.laws import BaseLaw, CrossingLaw
 from .....core.components.laws.utils import where
+from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
 from .....core.specs import ParameterSpec, RoleSpec
 
@@ -107,16 +108,20 @@ class ReflectionInteraction(CrossingInteraction):
             components += list(value) if isinstance(value, FreeModuleElement) else [SR(value)]
         return components
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for invalid positions, velocities, or functions.
 
         The error is raised for positions and velocities of different numbers of names, or a function not callable.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The positions and the velocities have different numbers of names, or a function is not callable.
         """
-        super()._check()
+        super()._prepare(context)
         if self.region is not None and not callable(self.region):
             error_msg = f'The region of reflection {self.label!r} must be a function of the namespace.'
             raise ValidationError(error_msg)

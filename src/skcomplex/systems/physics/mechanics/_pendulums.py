@@ -18,7 +18,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import CrossingInteraction, EulerLagrangeInteraction
 from ....core.components.laws.utils import derivative
-from ....core.components.spaces import ContinuousSpace
+from ....core.components.spaces import BaseSpace, ContinuousSpace
 from ....core.components.system import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -648,14 +648,18 @@ class ParametricPendulumInteraction(EulerLagrangeInteraction):
         super().__init__(label, target=target, states='theta', dissipation=self._get_friction)
         self.direction = direction
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for an unknown direction of the suspension point.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The direction is unknown.
         """
-        super()._check()
+        super()._prepare(context)
         if self.direction not in DIRECTIONS:
             error_msg = f'Unknown direction {self.direction!r}. Use one of {", ".join(DIRECTIONS)}.'
             raise ValidationError(error_msg)
