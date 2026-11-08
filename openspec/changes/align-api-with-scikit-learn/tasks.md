@@ -35,8 +35,9 @@
 - [ ] 6.1 Rewrite the README and the user guide to the new API, keeping the task order
 - [ ] 6.2 Replace the compatibility page with generated pages per kind of part, each with executed compatible and incompatible examples
   - Done: elements, interactions, laws, solvers, and backends. Analyses, experiments, and systems remain.
-- [ ] 6.3 Add the migration page from 0.6 to 0.7
-- [ ] 6.4 Add the systems page, and catalog pages with class, import path, parameters, and tags
+- [x] 6.3 Add the migration page from 0.6 to 0.7
+- [x] 6.4 Add the systems page, and catalog pages with class, import path, parameters, and tags
+  - The systems page is `docs/overview/user_guide/system_classes.md`, in the guide after "Change it".
 - [ ] 6.5 Update every docstring example
 
 ## 8. Follow-ups found while converting systems
