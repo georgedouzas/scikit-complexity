@@ -46,8 +46,7 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import EncounterLaw
 from skcomplex.core.components.spaces import ContinuousTime, LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, RoleSpec
 
 
@@ -79,9 +78,8 @@ economy = System(
     space=LatticeSpace(9, boundary='fixed'),
     time=ContinuousTime(),
 )
-densities = Simulation(economy, dt=10.0).prepare().run(until=100).trajectory_.values('wealth.f')
+densities = simulate(economy, until=100, dt=10.0).values('wealth.f')
 densities.sum(axis=1)[[0, -1]].round(12).tolist(), densities[-1].round(3).tolist()
-PassCompiler().prepare(economy).report_.ok
 ```
 
 `EncounterLaw(candidate, field, rate, transition, test=None)` declares that a candidate particle at activity `h` meets a
@@ -149,7 +147,7 @@ welfare = System(
     space=LatticeSpace(9, boundary='fixed'),
     time=ContinuousTime(),
 )
-Simulation(welfare, dt=10.0).prepare().run(until=100).trajectory_.values('wealth.f')[-1].round(3).tolist()
+simulate(welfare, until=100, dt=10.0).values('wealth.f')[-1].round(3).tolist()
 ```
 
 ## Moments
@@ -173,7 +171,7 @@ observables = [
     ObservableSpec('mean_wealth', mean_wealth, group='wealth'),
     ObservableSpec('wealth_variance', wealth_variance, group='wealth'),
 ]
-trajectory = Simulation(economy, dt=10.0, observables=observables).prepare().run(until=100).trajectory_
+trajectory = simulate(economy, until=100, dt=10.0, observables=observables)
 variance = trajectory.values('wealth_variance')
 round(float(trajectory.values('mean_wealth')[-1]), 3), variance[[0, -1]].round(3).tolist()
 ```
@@ -196,9 +194,10 @@ Run the same declarations with individual particles instead of densities, and co
 ```python continuation
 from skcomplex.core.engine.solvers import KineticSolver
 
-sampled = Simulation(economy, dt=10.0, solver=KineticSolver(n=20_000), random_state=0).prepare().run(until=100)
-round(float(np.abs(sampled.trajectory_.values('wealth.f')[-1] - densities[-1]).sum()), 2)
-PassCompiler(solver=KineticSolver()).prepare(welfare).report_.ok
+sampled = simulate(economy, until=100, dt=10.0, solver=KineticSolver(n=20_000), random_state=0)
+round(float(np.abs(sampled.values('wealth.f')[-1] - densities[-1]).sum()), 2)
+policed = simulate(welfare, until=100, dt=10.0, solver=KineticSolver(n=20_000), random_state=0)
+policed.values('wealth.f')[-1].round(2).tolist()
 ```
 
 `KineticSolver(n, dt)` runs the declarations by direct simulation Monte Carlo. It holds every density as counts of
@@ -209,7 +208,8 @@ particles of one mass, with `n` particles for the largest initial density. In ev
 - a proliferation adds a Poisson number of particles, and a destruction removes a binomial number.
 
 The state holds the empirical densities, so trajectories match the ODE form, and the error against the ODE solution
-falls as one over the square root of `n`. The solver supports continuous time, lattice spaces, site groups, and
+falls as one over the square root of `n`. The welfare system, whose policy is an encounter too, runs on it as well, as the
+last line shows. The solver supports continuous time, lattice spaces, site groups, and
 encounter laws only. Validation reports a rate law with it and lists the solvers that run it.
 
 ## Levels
@@ -217,7 +217,7 @@ encounter laws only. Validation reports a rate law with it and lists the solvers
 Move between individual agents and their distribution, so one level of a system can feed another:
 
 ```python continuation
-from skcomplex.core.analysis import CoarseGrainAnalysis
+from skcomplex.core.analysis import coarse_grain
 
 
 class TraderElement(Element):
@@ -229,20 +229,20 @@ class TraderElement(Element):
 profile = densities[-1] / densities[-1].sum()
 wealths = classes[np.random.default_rng(0).choice(classes.size, size=1000, p=profile)]
 traders = GroupElement('traders', element=TraderElement, size=1000, values={'w': wealths}, variable=True)
-density = CoarseGrainAnalysis(over=classes).prepare(traders.values['w']).run().field_
+density = coarse_grain(traders.values['w'], over=classes).field
 binned = GroupElement('wealth', element=WealthDensityElement, size=classes.size, on='sites', values={'f': density})
 round(float(density.sum()), 6), round(float(density @ classes), 3), round(float(traders.values['w'].mean()), 3)
 ```
 
-- `CoarseGrainAnalysis(over=values)` coarse-grains in state space. It bins the values of a state of a group's members,
+- `coarse_grain(source, over=values)` coarse-grains in state space. It bins the values of a state of a group's members,
   from their initial values or from a frame of a trajectory, over given values. Every member counts at the nearest
   value, so the densities sum to 1 and start a distribution site group.
 - The other way round, members drawn from a distribution are values sampled with NumPy in proportion to the densities,
   and the group's constructor builds them.
 - A system can then run one level in a partition of a co-simulation and feed another level its moments.
 
-The library has `kinetic_wealth_welfare`, `immune_competition`, `kinetic_opinion`, `evacuation`, and `criminality`.
-`evacuation` holds a crowd on a network of rooms as a site group on a two-dimensional lattice indexed by room and speed
+The library has `KineticWealthWelfareSystem`, `ImmuneCompetitionSystem`, `KineticOpinionSystem`, `EvacuationSystem`,
+and `CriminalitySystem`. `EvacuationSystem` holds a crowd on a network of rooms as a site group on a two-dimensional lattice indexed by room and speed
 class, whose walking encounters read the doors of the building.
 
 ## Automata on groups
@@ -261,7 +261,7 @@ from skcomplex.core.components.elements import Element, LatticeElement
 from skcomplex.core.components.laws import LocalRuleLaw
 from skcomplex.core.components.spaces import CayleySpace, GeneratorNeighborhood
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec, TotalisticSpec
 
 tree = CayleySpace(libgap.FreeGroup(['a', 'b']), ball=4).prepare()
@@ -279,7 +279,7 @@ class MajorityElement(Element):
 
 cells = (np.random.default_rng(0).random(tree.size_) < 0.5).astype(float)
 majority = System(elements=[LatticeElement('cells', element=MajorityElement, space=tree, values={'alive': cells})])
-tree.ball_sizes_, Simulation(majority, dt=1).prepare().run(until=3).trajectory_.values('cells.alive').shape
+tree.ball_sizes_, simulate(majority, until=3, dt=1).values('cells.alive').shape
 CayleySpace(PermutationGroup([[(1, 2)], [(1, 2, 3)]])).prepare().words_
 ```
 
@@ -309,8 +309,8 @@ The group is a native Sage or GAP group. So any presentation works whose word pr
 - A Sage `PermutationGroup` or `MatrixGroup` compares its elements directly.
 
 GAP comes with the `passagemath-gap` dependency, and starts on the first ball that needs it. A ball whose size bound
-exceeds `max_sites`, 100,000 by default, raises `SpaceTooLargeError` before GAP is called. The compiler reports it as
-`space-too-large`, with the largest radius that fits.
+exceeds `max_sites`, 100,000 by default, raises `SpaceTooLargeError` before GAP is called. `simulate` reports it with the
+issue `space-too-large`, which names the largest radius that fits.
 
 A group space lacks the regular geometry of a square lattice and an image layout. So validation reports a checkerboard
 schedule as `schedule-unsupported` and an image visual as `visual-unsupported`. Groups on group spaces stream to Rerun
@@ -342,13 +342,13 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import var
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
-from skcomplex.core.analysis import AutomatonAnalysis
+from skcomplex.core.analysis import automaton
 from skcomplex.core.components.elements import Element, LatticeElement
 from skcomplex.core.components.interactions import LocalRuleInteraction
 from skcomplex.core.components.laws import LocalRuleLaw
 from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace, MooreNeighborhood
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import OuterTotalisticSpec, StateSpec, TableSpec
 
 
@@ -358,19 +358,20 @@ class CellElement(Element):
         self.alive = alive
 
 
-def automaton(space, neighborhood, rule):
+def cellular_automaton(space, neighborhood, rule):
     cells = LatticeElement('cells', element=CellElement, space=space)
     interaction = LocalRuleInteraction('rule', target='cells', state='alive', rule=rule, neighborhood=neighborhood)
     return System(elements=[cells], interactions=[interaction])
 
 
-life = automaton(LatticeSpace((6, 6)), MooreNeighborhood(), OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1}))
-AutomatonAnalysis('surjective').prepare(life).run().surjective_
-AutomatonAnalysis('garden-of-eden', random_state=0).prepare(life).run().pattern_ is not None
+life_rule = OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1})
+life = cellular_automaton(LatticeSpace((6, 6)), MooreNeighborhood(), life_rule)
+automaton(life, kind='surjective').surjective
+automaton(life, kind='garden-of-eden', random_state=0).pattern is not None
 ring = LatticeSpace(8)
-shift = automaton(ring, LatticeNeighborhood(((1,),)), TableSpec({(1,): 1}))
-back = AutomatonAnalysis('inverse').prepare(shift).run().inverse_
-composition = AutomatonAnalysis('compose', second=back).prepare(shift).run().composition_.interactions[0]
+shift = cellular_automaton(ring, LatticeNeighborhood(((1,),)), TableSpec({(1,): 1}))
+back = automaton(shift, kind='inverse').inverse
+composition = automaton(shift, kind='compose', second=back).composition.interactions[0]
 law = LocalRuleLaw(var('alive'), composition.neighborhood, composition.rule).prepare()
 law.run({'space': ring, 'alive': [1, 0, 1, 1, 0, 0, 0, 1]}).value_.tolist()
 
@@ -380,15 +381,15 @@ for _ in range(2):
     cells = step.run({'space': ring, 'alive': cells}).value_
 start = LatticeElement('cells', element=CellElement, space=ring, values={'alive': [1, 0, 1, 1, 0, 0, 0, 0]})
 started = System(elements=[start], interactions=shift.interactions)
-frames = Simulation(started, dt=1).prepare().run(until=2).trajectory_.values('cells.alive')
+frames = simulate(started, until=2, dt=1).values('cells.alive')
 cells.tolist() == frames[-1].astype(int).tolist()
 ```
 
 `skcomplex.core.analysis` decides the properties the theory studies on finite universes, where they are decidable:
 periodic configurations on a torus or a finite quotient, and patterns on windows. The checks do not decide them on
-infinite groups. A cellular automaton is a `System` with a `LocalRuleInteraction`, and `AutomatonAnalysis` prepares on
+infinite groups. A cellular automaton is a `System` with a `LocalRuleInteraction`, and the analysis `automaton` reads
 the system. The `run` of a `LocalRuleLaw` is one step of the map on configurations, so several steps are a loop over
-that `run` or a `Simulation` of the system. The two give the same configuration, as the last line shows.
+that `run` or a `simulate` of the system. The two give the same configuration, as the last line shows.
 
 - The kinds `'injective'` and `'surjective'`, which agree on a finite universe, enumerate the configurations of small
   universes and solve a SAT encoding with PySAT on larger ones.
@@ -405,12 +406,12 @@ from typing import Annotated
 
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
-from skcomplex.core.analysis import AutomatonAnalysis
+from skcomplex.core.analysis import automaton
 from skcomplex.core.components.elements import Element, LatticeElement
 from skcomplex.core.components.interactions import LocalRuleInteraction
 from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import LinearRuleSpec, StateSpec, SubshiftSpec, TableSpec
 
 
@@ -446,15 +447,12 @@ laplacian = System(
         ),
     ],
 )
-AutomatonAnalysis('injective').prepare(laplacian).run().injective_
-AutomatonAnalysis('surjective', infinite=True).prepare(laplacian).run().surjective_
-[
-    AutomatonAnalysis('count').prepare(golden(LatticeSpace(length, boundary='fixed'))).run().count_
-    for length in range(1, 8)
-]
+automaton(laplacian, kind='injective').injective
+automaton(laplacian, kind='surjective', infinite=True).surjective
+[automaton(golden(LatticeSpace(length, boundary='fixed')), kind='count').count for length in range(1, 8)]
 windows = [LatticeSpace(24, boundary='fixed')]
 system = golden(windows[0])
-AutomatonAnalysis('entropy', windows=windows).prepare(system).run().entropy_.round(3)
+automaton(system, kind='entropy', windows=windows).entropy.round(3)
 
 forbidden = [1, 1, 0, 0, 0]
 cells = LatticeElement('cells', element=GoldenCellElement, space=LatticeSpace(5), values={'alive': forbidden})
@@ -466,8 +464,8 @@ keep = LocalRuleInteraction(
     neighborhood=LatticeNeighborhood(((0,),)),
 )
 held = System(elements=[cells], interactions=[keep])
-AutomatonAnalysis('admissible', configuration=forbidden).prepare(held).run().admissible_
-Simulation(held, dt=1).prepare().run(until=2).trajectory_.values('cells.alive')[-1].astype(int).tolist()
+automaton(held, kind='admissible', configuration=forbidden).admissible
+simulate(held, until=2, dt=1).values('cells.alive')[-1].astype(int).tolist()
 ```
 
 The rule `LinearRuleSpec(coefficients, field)` is the element `sum_s a_s s` of the group ring over `'GF(p)'` or
@@ -476,7 +474,7 @@ The rule `LinearRuleSpec(coefficients, field)` is the element `sum_s a_s s` of t
 - On a finite universe it is a matrix, whose rank decides injectivity, surjectivity, and pre-injectivity together.
 - On `Z^d`, with `infinite=True`, its Laurent polynomial decides them. It is invertible when the polynomial is a
   monomial, and surjective when it is not zero.
-- The kinds `'matrix'` and `'polynomial'` of `AutomatonAnalysis` give them.
+- The kinds `'matrix'` and `'polynomial'` of `automaton` give them.
 
 `SubshiftSpec(neighborhood, forbidden)` is the domain of a state whose configurations hold no forbidden pattern.
 Admissibility is an analysis kind, and a run does not enforce it. A run checks only that every cell holds a value of
@@ -485,11 +483,11 @@ the alphabet, so it runs from a configuration with a forbidden pattern, as the l
 - The kinds `'admissible'` and `'violations'` check a configuration.
 - `'count'` counts the admissible configurations of a window, and `'sample'` samples them by a Markov chain of
   single-cell moves.
-- `AutomatonAnalysis('entropy', windows=windows)` gives `log |X_F| / |F|` along windows `F`.
-- `AutomatonAnalysis('difference')` gives the cells where two runs differ after one cell changes.
-- `EntropyAnalysis('rate')` of the frames of a run as columns gives the spatial entropy rate of every frame, which never
+- `automaton(system, kind='entropy', windows=windows)` gives `log |X_F| / |F|` along windows `F`.
+- `automaton(system, kind='difference')` gives the cells where two runs differ after one cell changes.
+- `entropy(frames, kind='rate')` of the frames of a run as columns gives the spatial entropy rate of every frame, which never
   increases under an automaton.
 
-The library has `free_group_automaton`, `lamplighter_automaton`, `heisenberg_automaton`, `baumslag_solitar_automaton`,
-`grigorchuk_automaton`, the Laplacian `linear_ring_automaton`, and the golden mean shift `subshifts`, under the field
-path `computer_science/automata`. Their groups are written in the forms above.
+The library has `FreeGroupAutomatonSystem`, `LamplighterAutomatonSystem`, `HeisenbergAutomatonSystem`,
+`BaumslagSolitarAutomatonSystem`, `GrigorchukAutomatonSystem`, the Laplacian `LinearRingAutomatonSystem`, and the golden
+mean shift `SubshiftsSystem`, in `skcomplex.systems.computer_science.automata`. Their groups are written in the forms above.
