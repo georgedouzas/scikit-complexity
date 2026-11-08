@@ -1,4 +1,7 @@
-"""Measure the entropy of series, symbols, and fields: of distributions, blocks, ordinal patterns, and regularity."""
+"""Measure the entropy of series, symbols, and fields.
+
+The entropies are of distributions, blocks, ordinal patterns, and regularity.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -62,7 +65,9 @@ KIND_TAGS = {
 
 @dataclass(frozen=True)
 class EntropyResult:
-    """Entropy of every series of a source, of every frame of a field, or of every frame of an ensemble.
+    """Entropy of the series of a source, or of the frames of a field or an ensemble.
+
+    It covers every series and every frame.
 
     Args:
         values:
@@ -111,7 +116,9 @@ def entropy(
     random_state: int | None = None,
     reference: npt.ArrayLike | None = None,
 ) -> EntropyResult:
-    """Return the entropy of every series of a source, or of every frame of a field, of one kind.
+    """Return the entropy of every series of a source, or of every frame of a field.
+
+    The entropy is of one kind.
 
     The kinds read symbols, patterns, or real values:
 
@@ -268,7 +275,10 @@ def entropy(
 
 @dataclass(frozen=True)
 class _EntropySpec(BaseSpec):
-    """Settings of one call of `entropy` that the computation of one series or frame reads."""
+    """Settings of one call of `entropy`.
+
+    The computation of one series or frame reads them.
+    """
 
     kind: str
     order: float
@@ -286,7 +296,10 @@ class _EntropySpec(BaseSpec):
 
 
 def _ensemble_entropy(source: Source, law: Array) -> EntropyResult:
-    """Return the entropy of every frame of an ensemble and its divergence from the reference law."""
+    """Return the entropy of every frame of an ensemble.
+
+    Its divergence from the reference law is returned too.
+    """
     values = np.asarray(source, dtype=np.int64)
     if values.min() < 0 or values.max() >= law.size:
         error_msg = f'Outcomes must lie between 0 and {law.size - 1}, the outcomes of the reference law.'
@@ -317,7 +330,10 @@ def _compute(values: npt.NDArray[np.generic], settings: _EntropySpec) -> float |
 
 
 def _compute_distribution(values: npt.NDArray[np.generic], settings: _EntropySpec) -> float:
-    """Return the Shannon, Rényi, or Tsallis entropy of symbols or of a probability vector."""
+    """Return the Shannon, Rényi, or Tsallis entropy of symbols or of probabilities.
+
+    The probabilities come as a probability vector.
+    """
     if settings.kind == 'renyi':
         return _renyi(values, settings.order, base=settings.base, probabilities=settings.probabilities)
     if settings.kind == 'tsallis':
@@ -326,7 +342,10 @@ def _compute_distribution(values: npt.NDArray[np.generic], settings: _EntropySpe
 
 
 def _get_length(settings: _EntropySpec) -> int:
-    """Return the length of patterns or the largest block length, raising an error for the window of a field."""
+    """Return the length of patterns or the largest block length.
+
+    An error is raised for the window of a field.
+    """
     if not isinstance(settings.dimension, int):
         error_msg = f'entropy of kind {settings.kind!r} takes one length as dimension, not a window.'
         raise AnalysisError(error_msg)
@@ -344,7 +363,7 @@ def _compute_blocks(symbols: npt.NDArray[np.generic], settings: _EntropySpec) ->
 
 
 def _compute_permutation(values: npt.NDArray[np.generic], settings: _EntropySpec) -> float:
-    """Return the entropy of the ordinal patterns of a series or of the windows of a field."""
+    """Return the entropy of the ordinal patterns of a series or of a field's windows."""
     dx, dy = (settings.dimension, 1) if isinstance(settings.dimension, int) else settings.dimension
     array = _break_ties(values, settings.ties, settings.random_state)
     _, probabilities = ordpy.ordinal_distribution(array, dx=dx, dy=dy, taux=settings.delay, tauy=settings.delay)
@@ -355,7 +374,10 @@ def _compute_permutation(values: npt.NDArray[np.generic], settings: _EntropySpec
 
 
 def _compute_regularity(array: Array, settings: _EntropySpec) -> float | Array:
-    """Return the sample, approximate, multiscale, or spectral entropy of a real series."""
+    """Return the sample, approximate, multiscale, or spectral entropy of a series.
+
+    The series is real.
+    """
     antropy = _import('antropy')
     dimension = _get_length(settings)
     if settings.kind == 'sample':
@@ -392,7 +414,10 @@ def _shannon(values: npt.ArrayLike, *, base: float = 2.0, probabilities: bool = 
 
 
 def _renyi(values: npt.ArrayLike, order: float, *, base: float = 2.0, probabilities: bool = False) -> float:
-    """Return the Rényi entropy `log(Σ p^a) / (1 - a)`, the Shannon entropy at order 1 and `-log max p` at `inf`."""
+    """Return the Rényi entropy `log(Σ p^a) / (1 - a)`.
+
+    It is the Shannon entropy at order 1 and `-log max p` at `inf`.
+    """
     p = _distribution(values, probabilities=probabilities)
     if order == 1:
         return _shannon(p, base=base, probabilities=True)
@@ -402,7 +427,10 @@ def _renyi(values: npt.ArrayLike, order: float, *, base: float = 2.0, probabilit
 
 
 def _tsallis(values: npt.ArrayLike, index: float, *, probabilities: bool = False) -> float:
-    """Return the Tsallis entropy `(1 - Σ p^q) / (q - 1)`, the Shannon entropy in nats at index 1."""
+    """Return the Tsallis entropy `(1 - Σ p^q) / (q - 1)`.
+
+    It is the Shannon entropy in nats at index 1.
+    """
     p = _distribution(values, probabilities=probabilities)
     if index == 1:
         return _shannon(p, base=math.e, probabilities=True)
@@ -410,7 +438,10 @@ def _tsallis(values: npt.ArrayLike, index: float, *, probabilities: bool = False
 
 
 def _block_entropy(symbols: npt.ArrayLike, m: int, *, base: float = 2.0) -> float:
-    """Return the entropy of the blocks of `m` consecutive symbols, or of square patches of side `m` of lattices."""
+    """Return the entropy of the blocks of `m` consecutive symbols.
+
+    For lattices, the blocks are square patches of side `m`.
+    """
     array = np.asarray(symbols)
     if m == 0:
         return 0.0
@@ -429,7 +460,10 @@ def _block_entropies(symbols: npt.ArrayLike, max_m: int, *, base: float = 2.0) -
 
 
 def _entropy_rate(symbols: npt.ArrayLike, max_m: int, *, base: float = 2.0) -> float:
-    """Return the entropy rate, the limit of `S_m - S_{m-1}`, estimated at the largest block length."""
+    """Return the entropy rate, the limit of `S_m - S_{m-1}`.
+
+    It is estimated at the largest block length.
+    """
     entropies = _block_entropies(symbols, max_m, base=base)
     return float(max(entropies[-1] - entropies[-2], 0.0))
 
@@ -441,7 +475,10 @@ def _excess_entropy(symbols: npt.ArrayLike, max_m: int, *, base: float = 2.0) ->
 
 
 def _break_ties(values: npt.ArrayLike, ties: str, random_state: int | None) -> Array:
-    """Return values with ties kept in order, or broken by random offsets below a quarter of the smallest gap."""
+    """Return values with ties kept in order, or broken by random offsets.
+
+    The offsets stay below a quarter of the smallest gap.
+    """
     array = np.asarray(values, dtype=float)
     if ties == 'order':
         return array
@@ -451,7 +488,10 @@ def _break_ties(values: npt.ArrayLike, ties: str, random_state: int | None) -> A
 
 
 def _measure_of(probabilities: Array, measure: str, order: float) -> float:
-    """Return the Shannon or Rényi entropy in bits, or the Tsallis entropy, of probabilities."""
+    """Return the Shannon or Rényi entropy in bits, or the Tsallis entropy.
+
+    The entropies are those of probabilities.
+    """
     if measure == 'renyi':
         return _renyi(probabilities, order, probabilities=True)
     if measure == 'tsallis':
@@ -472,7 +512,10 @@ def _tolerance(array: Array, tolerance: float) -> float:
 
 
 def _sample(values: npt.ArrayLike, dimension: int, tolerance: float) -> float:
-    """Return the sample entropy `-ln(A / B)` of a series, with the tolerance a fraction of its deviation."""
+    """Return the sample entropy `-ln(A / B)` of a series.
+
+    The tolerance is a fraction of its deviation.
+    """
     array = np.ascontiguousarray(values, dtype=float)
     radius = _tolerance(array, tolerance)
     return float(_import('antropy').sample_entropy(array, order=dimension, tolerance=radius)) + 0.0

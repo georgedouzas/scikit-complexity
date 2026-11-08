@@ -1,4 +1,7 @@
-"""Measure information among series: mutual information, transfer, storage, total correlations, and divergences."""
+"""Measure information among series.
+
+The measures are mutual information, transfer, storage, total correlations, and divergences.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -274,7 +277,10 @@ def _compute_pair(
     base: float,
     same: bool,
 ) -> float:
-    """Return the mutual information, the transfer entropy, or the divergence from one series to another."""
+    """Return the mutual information, transfer entropy, or divergence of two series.
+
+    They go from one series to another.
+    """
     if kind == 'transfer' and same:
         return math.nan
     if kind == 'mutual':
@@ -293,7 +299,10 @@ def _compute_series(
     dimension: int,
     base: float,
 ) -> float | Array:
-    """Return the auto mutual information, the storage, or the correlation information of one series."""
+    """Return the auto mutual information, storage, or correlation information.
+
+    They are those of one series.
+    """
     if kind == 'auto-mutual':
         return _delayed_information(symbols, max_delay, base=base)
     if kind == 'active-storage':
@@ -302,7 +311,10 @@ def _compute_series(
 
 
 def _compute_joint(kind: str, columns: AnyArray, estimator: str, k: int, base: float) -> float | Array:
-    """Return the total correlations, the O-information, or its gradients of all series together."""
+    """Return the total correlations, the O-information, or its gradients.
+
+    They are those of all series together.
+    """
     scale = math.log(base)
     if kind == 'total-correlation':
         return _total(columns, estimator, k) / scale
@@ -316,7 +328,10 @@ def _compute_joint(kind: str, columns: AnyArray, estimator: str, k: int, base: f
 
 
 def _rank_index(patterns: npt.NDArray[np.int64]) -> npt.NDArray[np.int64]:
-    """Return the lexicographic rank of every permutation, one per row, as its Lehmer code."""
+    """Return the lexicographic rank of every permutation, one per row.
+
+    The rank is its Lehmer code.
+    """
     order = patterns.shape[1]
     later_smaller = np.triu(patterns[:, None, :] < patterns[:, :, None], k=1).sum(axis=2)
     weights = np.asarray([math.factorial(order - 1 - position) for position in range(order)], dtype=np.int64)
@@ -324,7 +339,10 @@ def _rank_index(patterns: npt.NDArray[np.int64]) -> npt.NDArray[np.int64]:
 
 
 def _ordinal_patterns(values: npt.ArrayLike, order: int = 3, *, delay: int = 1) -> npt.NDArray[np.int64]:
-    """Return the ordinal pattern of every window of a series as the lexicographic rank of its permutation."""
+    """Return the ordinal pattern of every window of a series.
+
+    It is the lexicographic rank of its permutation.
+    """
     array = np.asarray(values, dtype=float)
     patterns = np.asarray(ordpy.ordinal_sequence(array, dx=order, taux=delay), dtype=np.int64)
     return _rank_index(patterns.reshape(-1, order))
@@ -338,7 +356,10 @@ def _symbolize(
     order: int = 3,
     delay: int = 1,
 ) -> npt.NDArray[np.int64]:
-    """Return a series as `n` equal-width bins, `n` equally filled bins, or ordinal patterns of length `order`."""
+    """Return a series as bins or ordinal patterns.
+
+    The bins are `n` equal-width or `n` equally filled bins, and the patterns have length `order`.
+    """
     array = _read_real(values, 'values')
     if method == 'bins':
         edges = np.linspace(array.min(), array.max(), n + 1)[1:-1]
@@ -366,25 +387,37 @@ def _histories(values: npt.NDArray[np.generic], history: int, start: int) -> lis
 
 
 def _kl_divergence(p: npt.ArrayLike, q: npt.ArrayLike, *, base: float = 2.0) -> float:
-    """Return the Kullback-Leibler divergence of a distribution `p` from a reference `q`, infinite off support."""
+    """Return the Kullback-Leibler divergence of `p` from a reference `q`.
+
+    Here `p` is a distribution. It is infinite off support.
+    """
     return float(stats.entropy(np.asarray(p, dtype=float), np.asarray(q, dtype=float), base=base))
 
 
 def _correlation_information(symbols: npt.ArrayLike, max_m: int = 8, *, base: float = 2.0) -> Array:
-    """Return Lindgren's correlation information `k_m = ΔS_{m-1} - ΔS_m` for block lengths 2 to `max_m`."""
+    """Return Lindgren's correlation information `k_m = ΔS_{m-1} - ΔS_m`.
+
+    The block lengths run from 2 to `max_m`.
+    """
     differences = np.diff(_block_entropies(symbols, max_m, base=base))
     return -np.diff(differences)
 
 
 def _mutual_information(first: npt.ArrayLike, second: npt.ArrayLike, *, base: float = 2.0) -> float:
-    """Return the mutual information `H(X) + H(Y) - H(X, Y)` of two symbol sequences by plug-in counts."""
+    """Return the mutual information `H(X) + H(Y) - H(X, Y)` of two symbol sequences.
+
+    It uses plug-in counts.
+    """
     x, y = list(np.asarray(first).ravel()), list(np.asarray(second).ravel())
     joint = list(zip(x, y, strict=True))
     return _shannon(x, base=base) + _shannon(y, base=base) - _shannon(_codes(joint), base=base)
 
 
 def _delayed_information(symbols: npt.NDArray[np.generic], max_delay: int, *, base: float) -> Array:
-    """Return the mutual information of symbols with themselves delayed by 0 to `max_delay` steps."""
+    """Return the mutual information of symbols with themselves delayed.
+
+    The delays run from 0 to `max_delay` steps.
+    """
     return np.asarray(
         [
             _mutual_information(symbols[: symbols.size - delay], symbols[delay:], base=base)
@@ -394,7 +427,10 @@ def _delayed_information(symbols: npt.NDArray[np.generic], max_delay: int, *, ba
 
 
 def _active_information_storage(symbols: npt.ArrayLike, history: int = 1, *, base: float = 2.0) -> float:
-    """Return `I(X_t ; X_{t-history}, ..., X_{t-1})`, the information the past symbols hold about the next one."""
+    """Return `I(X_t ; X_{t-history}, ..., X_{t-1})`.
+
+    It is the information the past symbols hold about the next one.
+    """
     x = np.asarray(symbols).ravel()
     future = [(value,) for value in x[history:]]
     past = _histories(x, history, history)
@@ -404,7 +440,10 @@ def _active_information_storage(symbols: npt.ArrayLike, history: int = 1, *, bas
 
 
 def _knn_transfer(x: Array, y: Array, history: int, lag: int, k: int) -> float:
-    """Return the transfer entropy in nats by the nearest-neighbour conditional mutual information."""
+    """Return the transfer entropy in nats.
+
+    It uses the nearest-neighbour conditional mutual information.
+    """
     start = max(history, lag)
     past = np.column_stack([y[start - step : y.size - step] for step in range(1, history + 1)])
     estimate = ennemi.estimate_mi(y[start:], x[start - lag : x.size - lag], cond=past, k=k)
@@ -421,7 +460,10 @@ def _transfer_entropy(
     estimator: str = 'plugin',
     k: int = 3,
 ) -> float:
-    """Return `H(Y_t | Y_past) - H(Y_t | Y_past, X_{t-lag})` by plug-in counts or nearest neighbours."""
+    """Return the transfer entropy by plug-in counts or nearest neighbours.
+
+    It is `H(Y_t | Y_past) - H(Y_t | Y_past, X_{t-lag})`.
+    """
     if estimator == 'knn':
         x, y = np.asarray(source, dtype=float).ravel(), np.asarray(target, dtype=float).ravel()
         return _knn_transfer(x, y, history, lag, k) / math.log(base)
@@ -453,7 +495,10 @@ def _log_determinant(columns: Array) -> float:
 
 
 def _knn_chain(target: Array, others: Array, k: int, given: Array | None = None) -> float:
-    """Return `I(target ; others | given)` in nats as a chain of k-nearest-neighbour conditional informations."""
+    """Return `I(target ; others | given)` in nats.
+
+    It is a chain of k-nearest-neighbour conditional informations.
+    """
     condition = np.empty((target.size, 0)) if given is None else given
     total = 0.0
     for column in range(others.shape[1]):
@@ -487,7 +532,10 @@ def _total(columns: AnyArray, estimator: str, k: int) -> float:
 
 
 def _dual(columns: AnyArray, estimator: str, k: int) -> float:
-    """Return the dual total correlation `H(X) - Σ H(X_i | X_-i)` of the columns in nats."""
+    """Return the dual total correlation of the columns in nats.
+
+    It is `H(X) - Σ H(X_i | X_-i)`.
+    """
     if estimator == 'plugin':
         return float(
             _import('dit').multivariate.dual_total_correlation(
@@ -503,5 +551,8 @@ def _dual(columns: AnyArray, estimator: str, k: int) -> float:
 
 
 def _o_information(columns: AnyArray, estimator: str, k: int, base: float) -> float:
-    """Return the O-information, total minus dual total correlation, in the base of the logarithm."""
+    """Return the O-information in the base of the logarithm.
+
+    It is the total minus the dual total correlation.
+    """
     return (_total(columns, estimator, k) - _dual(columns, estimator, k)) / math.log(base)

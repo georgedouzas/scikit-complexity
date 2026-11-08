@@ -1,4 +1,7 @@
-"""Define the base of the analyses: the binding of settings, the checks of settings, and the readers of sources."""
+"""Define the base of the analyses.
+
+The base holds the binding of settings, the checks of settings, and the readers of sources.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -41,10 +44,10 @@ KIND_ORDER = (DataKind.AGENTS, DataKind.FIELD, DataKind.NETWORK, DataKind.PATH, 
 
 
 def bind_analysis[ResultT](analysis: Callable[..., ResultT], **settings: object) -> partial[ResultT]:
-    """Return an analysis with fixed settings, a callable that takes the source alone, in the role of `make_scorer`.
+    """Return an analysis with fixed settings, in the role of `make_scorer`.
 
-    The bound analysis keeps the function in `func` and the settings in `keywords`, so experiments name their outputs
-    after the function and pass it to other processes.
+    The bound analysis is a callable that takes the source alone. The bound analysis keeps the function in `func` and
+    the settings in `keywords`, so experiments name their outputs after the function and pass it to other processes.
 
     Args:
         analysis:
@@ -80,7 +83,9 @@ def bind_analysis[ResultT](analysis: Callable[..., ResultT], **settings: object)
 
 
 def _get_analysis_tags(analysis: Callable[..., object], kind: str | None = None) -> AnalysisTags:
-    """Return the tags an analysis needs, those of its kind when its module declares them, or else its module's.
+    """Return the tags an analysis needs.
+
+    They are those of its kind when its module declares them, or else its module's.
 
     Args:
         analysis:
@@ -106,7 +111,9 @@ def _get_analysis_tags(analysis: Callable[..., object], kind: str | None = None)
 
 
 def _get_source_tags(source: object) -> Tags | None:
-    """Return the tags of a system, or of the system behind a trajectory or a problem, or `None` for other sources.
+    """Return the tags of a system, or of the system behind a trajectory or a problem.
+
+    The result is `None` for other sources.
 
     Args:
         source:
@@ -124,7 +131,9 @@ def _get_source_tags(source: object) -> Tags | None:
 
 
 def _check_tags(analysis: Callable[..., object], source: object, kind: str | None = None) -> None:
-    """Raise an error when the system of a source lacks a capability tag the analysis needs.
+    """Raise an error when the system of a source lacks a tag the analysis needs.
+
+    The tag is a capability tag. The tag is one the analysis needs.
 
     Args:
         analysis:
@@ -164,7 +173,9 @@ def _check_choice(analysis: str, name: str, value: object, choices: tuple[object
 
 
 def _check_settings(analysis: Callable[..., object], name: str, read: Set[str], **settings: object) -> None:
-    """Raise an error for a setting changed from its default that the choice of the setting `name` does not read.
+    """Raise an error for a changed setting that the choice of `name` ignores.
+
+    A changed setting differs from its default, and the choice of `name` does not read it.
 
     Args:
         analysis:
@@ -198,7 +209,10 @@ def _check_settings(analysis: Callable[..., object], name: str, read: Set[str], 
 
 
 def _is_changed(value: object, default: object) -> bool:
-    """Return whether a setting differs from its default, comparing arrays and sequences by their items."""
+    """Return whether a setting differs from its default.
+
+    Arrays and sequences are compared by their items.
+    """
     if value is None or default is None:
         return value is not default
     try:
@@ -208,7 +222,9 @@ def _is_changed(value: object, default: object) -> bool:
 
 
 def _composite(source: Source) -> Source:
-    """Return the composite of the parts of a system class, such as a ready-made system, or any other source as it is.
+    """Return the composite of the parts of a system class, or another source as is.
+
+    An example of a system class is a ready-made system.
 
     Args:
         source:
@@ -233,7 +249,9 @@ def _get_problem(source: Trajectory | System | BaseProblemSpec) -> BaseProblemSp
 
 
 def _compiled_problem(system: System | BaseProblemSpec, purpose: str) -> ProblemSpec:
-    """Return the general compiler's problem of a system, or the problem itself, for work that reads its fields.
+    """Return the general compiler's problem of a system, or the problem itself.
+
+    It serves work that reads its fields.
 
     Args:
         system:
@@ -266,7 +284,10 @@ def _get_lattice_names(problem: BaseProblemSpec) -> list[str]:
 
 
 def _get_path_names(problem: BaseProblemSpec) -> list[str]:
-    """Return the discrete states that are not lattice states, or every state of a jump process."""
+    """Return the discrete states that are not lattice states.
+
+    For a jump process, every state is returned.
+    """
     lattice = set(_get_lattice_names(problem))
     names = [name for name in problem.states.names if name not in lattice]
     if problem.form == FormKind.JUMP:
@@ -304,11 +325,11 @@ def _get_graph_observables(trajectory: Trajectory) -> list[str]:
 
 
 def _get_series_states(problem: BaseProblemSpec) -> list[str]:
-    """Return the states that count as series: the scalars of single elements and of the members of groups.
+    """Return the states that count as series.
 
-    A scalar state of a group is one series per member, unless the group is read as particles, the state as a jump
-    path, or the group is variable, whose rows hold no fixed member. A state of a lattice is read as a field
-    instead.
+    They are the scalars of single elements and of the members of groups. A scalar state of a group is one series per
+    member, unless the group is read as particles, the state as a jump path, or the group is variable, whose rows hold
+    no fixed member. A state of a lattice is read as a field instead.
 
     Args:
         problem:
@@ -339,7 +360,10 @@ def _get_phase_states(problem: BaseProblemSpec) -> list[str]:
 
 
 def _get_scalar_series(trajectory: Trajectory) -> list[str]:
-    """Return the scalar observables and reporters, or the states that count as series without them."""
+    """Return the scalar observables and reporters.
+
+    Without them, the states that count as series are returned.
+    """
     first = trajectory.observables[0] if trajectory.observables else {}
     observed = [
         name for name, value in first.items() if not isinstance(value, nx.Graph) and np.ndim(np.asarray(value)) == 0
@@ -349,7 +373,10 @@ def _get_scalar_series(trajectory: Trajectory) -> list[str]:
 
 
 def _has_series(source: Trajectory | System | BaseProblemSpec, problem: BaseProblemSpec) -> bool:
-    """Check whether a source records scalar series: observables, reporters, or states that count as series."""
+    """Check whether a source records scalar series.
+
+    The series are observables, reporters, or states that count as series.
+    """
     if isinstance(source, Trajectory):
         return bool(_get_scalar_series(source))
     return bool(problem.observables or _get_series_states(problem))
@@ -388,14 +415,20 @@ def _get_data_kinds(source: Source | BaseProblemSpec) -> list[DataKind]:
 
 
 def _get_missing_error(trajectory: Trajectory, wanted: str) -> AnalysisError:
-    """Return the error that a trajectory lacks a kind of data, listing the kinds it has."""
+    """Return the error that a trajectory lacks a kind of data.
+
+    The error lists the kinds it has.
+    """
     kinds = ', '.join(kind.value for kind in _get_data_kinds(trajectory)) or 'none'
     error_msg = f'The trajectory has no {wanted}. Its data kinds are: {kinds}.'
     return AnalysisError(error_msg)
 
 
 def _unwrap(positions: Array, box: Array | None, *, periodic: bool) -> Array:
-    """Return positions unwrapped across periodic sides by accumulating minimum-image steps."""
+    """Return positions unwrapped across periodic sides.
+
+    The positions are unwrapped by accumulating minimum-image steps.
+    """
     if box is None or not periodic:
         return positions
     steps = np.diff(positions, axis=0)
@@ -421,7 +454,10 @@ def _get_columns(ids: npt.NDArray[np.int64], wanted: npt.NDArray[np.int64]) -> n
 
 
 def _refuse_objects(trajectory: Trajectory, group: str, names: Sequence[str]) -> None:
-    """Raise an error for a state of objects of an agent group that an analysis reads as numbers."""
+    """Raise an error for a state of objects of an agent group read as numbers.
+
+    An analysis reads the state as numbers.
+    """
     for spec in trajectory.problem.agents:
         found = [name for name in names if spec.path == group and name in spec.objects]
         if found:
@@ -433,7 +469,10 @@ def _refuse_objects(trajectory: Trajectory, group: str, names: Sequence[str]) ->
 
 
 def _read_agent_snapshots(trajectory: Trajectory, group: str) -> SnapshotsSpec:
-    """Return the snapshots of an agent group, aligned on the agents present in every frame."""
+    """Return the snapshots of an agent group.
+
+    The snapshots are aligned on the agents present in every frame.
+    """
     frames = [trajectory.agents(group, frame) for frame in range(len(trajectory.times))]
     common = set(frames[0].ids.tolist()).intersection(*(set(frame.ids.tolist()) for frame in frames[1:]))
     ids = np.asarray(sorted(common), dtype=np.int64)
@@ -470,7 +509,10 @@ def _get_role_states(element: CompiledElementSpec, role: str) -> list[str]:
 
 
 def _read_axes(trajectory: Trajectory, states: Sequence[str]) -> Array:
-    """Return states as frames by members by dimensions, where a scalar state is one dimension."""
+    """Return states as frames by members by dimensions.
+
+    A scalar state is one dimension.
+    """
     values = [np.asarray(trajectory.values(name), dtype=float) for name in states]
     return np.concatenate(
         [item[..., None] if item.ndim == SNAPSHOT_DIMENSIONS else item for item in values],
@@ -479,7 +521,10 @@ def _read_axes(trajectory: Trajectory, states: Sequence[str]) -> Array:
 
 
 def _read_particle_snapshots(trajectory: Trajectory, group: str) -> SnapshotsSpec:
-    """Return the snapshots of a particle group from the roles of its states, unwrapped in a periodic box."""
+    """Return the snapshots of a particle group from the roles of its states.
+
+    They are unwrapped in a periodic box.
+    """
     element = next(item for item in trajectory.problem.elements if item.path == group)
     system = trajectory.problem.system
     space = system.space if system is not None else None
@@ -509,13 +554,13 @@ def _read_particle_snapshots(trajectory: Trajectory, group: str) -> SnapshotsSpe
 
 
 def _read_series(source: Source, names: Sequence[str] | None = None) -> SeriesSpec:
-    """Return named series of a trajectory, or the columns of an array, one series per column.
+    """Return named series of a trajectory, or the columns of an array.
 
-    A trajectory gives its states, parameters, reporters, or observables, and a vector or group variable gives one
-    column per component, labelled `name[i]`. Without names, a trajectory gives its scalar observables and
-    reporters, or else the scalar states of its elements and of its groups, one column per member, leaving out the
-    states of lattices, of particle groups, of variable groups, and of groups of jump paths. A variable group read
-    by name has NaN in the rows that hold no member at a frame.
+    An array gives one series per column. A trajectory gives its states, parameters, reporters, or observables, and a
+    vector or group variable gives one column per component, labelled `name[i]`. Without names, a trajectory gives its
+    scalar observables and reporters, or else the scalar states of its elements and of its groups, one column per
+    member, leaving out the states of lattices, of particle groups, of variable groups, and of groups of jump paths. A
+    variable group read by name has NaN in the rows that hold no member at a frame.
 
     Args:
         source:
@@ -552,7 +597,7 @@ def _read_series(source: Source, names: Sequence[str] | None = None) -> SeriesSp
 
 
 def _read_path(source: Source, name: str | None = None) -> JumpPathSpec:
-    """Return the jump path of a discrete state of a trajectory, or of a series of states.
+    """Return the jump path of a discrete state of a trajectory or of a state series.
 
     The frames where the state did not change are dropped.
 
@@ -590,7 +635,9 @@ def _read_path(source: Source, name: str | None = None) -> JumpPathSpec:
 
 
 def _read_fields(source: Source, name: str | None = None) -> Array:
-    """Return the frames of a lattice or grid state of a trajectory, or an array of frames as it is.
+    """Return the frames of a lattice or grid state of a trajectory.
+
+    An array of frames is returned as it is.
 
     Args:
         source:
@@ -653,10 +700,11 @@ def _read_snapshots(source: Source, group: str | None = None) -> SnapshotsSpec:
 
 
 def _read_samples_of(source: Source, names: Sequence[str] | None, group: str | None) -> SeriesSpec:
-    """Return samples as columns: the series of a source, or the speeds of agents with one column per frame.
+    """Return samples as columns.
 
-    A trajectory gives the speeds of the agents of a group when `group` is set, or when no names are given and it
-    has agents but no scalar series. Any other source gives its series.
+    They are the series of a source, or the speeds of agents with one column per frame. A trajectory gives the speeds of
+    the agents of a group when `group` is set, or when no names are given and it has agents but no scalar series. Any
+    other source gives its series.
 
     Args:
         source:
@@ -689,7 +737,9 @@ def _read_samples_of(source: Source, names: Sequence[str] | None, group: str | N
 
 
 def _read_velocities(source: Source, group: str | None = None) -> Array:
-    """Return the velocities of the agents of a group, or an array of one snapshot or of frames.
+    """Return the velocities of the agents of a group.
+
+    An array of one snapshot or of frames is also accepted.
 
     Args:
         source:
@@ -718,9 +768,10 @@ def _read_velocities(source: Source, group: str | None = None) -> Array:
 
 
 def _read_networks(source: Source) -> list[nx.Graph]:
-    """Return the network of every frame of a trajectory, or a graph or a network snapshot as the only frame.
+    """Return the network of every frame of a trajectory.
 
-    A trajectory gives the graphs it records as observables, or the network space of its problem at every frame.
+    A graph or a network snapshot is the only frame. A trajectory gives the graphs it records as observables, or the
+    network space of its problem at every frame.
 
     Args:
         source:
@@ -771,7 +822,9 @@ def _import(name: str) -> ModuleType:
 
 
 def _read_system(source: object) -> System | BaseProblemSpec:
-    """Return the system or the problem of a source: the problem of a trajectory, or a system or problem as it is.
+    """Return the system or the problem of a source.
+
+    It is the problem of a trajectory, or a system or problem as it is.
 
     Args:
         source:
@@ -798,7 +851,9 @@ def _read_system(source: object) -> System | BaseProblemSpec:
 
 
 def _read_real(values: npt.ArrayLike, argument: str) -> npt.NDArray[np.float64]:
-    """Return values as a float array after rejecting complex values, whose imaginary part a cast would drop.
+    """Return values as a float array after rejecting complex values.
+
+    A cast would drop their imaginary part.
 
     Args:
         values:
@@ -827,7 +882,9 @@ def _read_real(values: npt.ArrayLike, argument: str) -> npt.NDArray[np.float64]:
 
 
 def _runs_of(source: Runs) -> list[Run]:
-    """Return the runs of a source: a list of trajectories or arrays, the first axis of a 3-D array, or itself.
+    """Return the runs of a source.
+
+    They are a list of trajectories or arrays, the first axis of a 3-D array, or the source itself.
 
     Args:
         source:
@@ -859,7 +916,10 @@ def _runs_of(source: Runs) -> list[Run]:
 
 
 def _step_of(series: SeriesSpec) -> float:
-    """Return the time between the samples of a series, after checking that it is uniform."""
+    """Return the time between the samples of a series.
+
+    It is checked to be uniform.
+    """
     steps = np.diff(np.asarray(series.times, dtype=float))
     if steps.size == 0 or not np.allclose(steps, steps[0], rtol=STEP_TOLERANCE, atol=0.0):
         error_msg = (
@@ -875,7 +935,9 @@ def _read_samples(
     variables: Sequence[str] | None,
     dt: float,
 ) -> SamplesSpec:
-    """Return the uniformly sampled series of the runs of a source, with common variables and step.
+    """Return the uniformly sampled series of the runs of a source.
+
+    The series have common variables and step.
 
     Args:
         source:

@@ -1,4 +1,7 @@
-"""Fit sparse symbolic surrogates to series by sparse identification of nonlinear dynamics."""
+"""Fit sparse symbolic surrogates to series by SINDy.
+
+SINDy is the sparse identification of nonlinear dynamics.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -46,13 +49,18 @@ class _SurrogateElement(DeclaredElement):
         self.laws = laws
 
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseLaw]:
-        """Return the laws of the fitted function for a namespace of symbols, or none without a function."""
+        """Return the laws of the fitted function for a namespace of symbols.
+
+        Without a function, there are none.
+        """
         return [] if self.laws is None else self.laws(namespace)
 
 
 @dataclass(frozen=True)
 class SparseIdentificationResult:
-    """Sparse symbolic system fitted to series by sparse identification of nonlinear dynamics.
+    """Sparse symbolic system fitted to series by SINDy.
+
+    SINDy is the sparse identification of nonlinear dynamics.
 
     Args:
         samples:
@@ -115,12 +123,13 @@ def sparse_identification(
     dt: float = 1.0,
     label: str = 'surrogate',
 ) -> SparseIdentificationResult:
-    """Return the sparse symbolic system fitted to series by sparse identification of nonlinear dynamics, with PySINDy.
+    """Return the sparse symbolic system fitted to series by SINDy, with PySINDy.
 
-    SINDy writes the derivative of every variable as a sparse sum of the monomials of the variables up to a degree. It
-    estimates the derivatives by centred finite differences and selects the terms by sequentially thresholded least
-    squares. The fitted system holds one rate law per variable under continuous time and starts at the first sample of
-    the first run, and the forecast simulates it from the last sample of the last run.
+    SINDy is the sparse identification of nonlinear dynamics. SINDy writes the derivative of every variable as a sparse
+    sum of the monomials of the variables up to a degree. It estimates the derivatives by centred finite differences and
+    selects the terms by sequentially thresholded least squares. The fitted system holds one rate law per variable under
+    continuous time and starts at the first sample of the first run, and the forecast simulates it from the last sample
+    of the last run.
 
     Args:
         source:
@@ -203,7 +212,10 @@ def sparse_identification(
 
 
 def _forecast(system: System, label: str, states: list[str], last_state: Array, *, dt: float, horizon: int) -> Array:
-    """Return the variables of the fitted system simulated from the last sample, one row per sample."""
+    """Return the variables of the fitted system simulated from the last sample.
+
+    There is one row per sample.
+    """
     names = [f'{label}.{name}' for name in states]
     trajectory = simulate(
         system,
@@ -225,7 +237,10 @@ def _sparse_laws(
     coefficients: Array,
     powers: npt.NDArray[np.int_],
 ) -> Callable[[SimpleNamespace], list[BaseLaw]]:
-    """Return the function that gives one rate law per state, a sum of the monomials with nonzero coefficients."""
+    """Return the function that gives one rate law per state.
+
+    Each law is a sum of the monomials with nonzero coefficients.
+    """
 
     def laws(s: SimpleNamespace) -> list[BaseLaw]:
         """Return the sparse rate laws."""
@@ -245,7 +260,10 @@ def _derivatives(
     parts: list[Array],
     dt: float,
 ) -> tuple[list[Array], list[Array]]:
-    """Return the derivatives a system predicts and those its differentiation method estimates from the series."""
+    """Return the derivatives a system predicts and those estimated from the series.
+
+    The estimate comes from its differentiation method.
+    """
     usable = [values for values in parts if len(values) >= DIFFERENCE_POINTS]
     predicted = [np.asarray(predict(values), dtype=np.float64) for values in usable]
     measured = [np.asarray(differentiate(values, dt), dtype=np.float64) for values in usable]
@@ -253,7 +271,10 @@ def _derivatives(
 
 
 def _identifier(text: str) -> str:
-    """Return a valid state name made from a label, which is neither a keyword nor a name an element reserves."""
+    """Return a valid state name made from a label.
+
+    The name is neither a keyword nor a name an element reserves.
+    """
     cleaned = re.sub(r'\W+', '_', text).strip('_') or 'v'
     cleaned = f'v_{cleaned}' if cleaned[0].isdigit() else cleaned
     return f'{cleaned}_' if keyword.iskeyword(cleaned) or cleaned in RESERVED_NAMES else cleaned
@@ -292,7 +313,7 @@ def _check_horizon(horizon: int) -> None:
 
 
 def _split_samples(series: list[Array], validation: float) -> tuple[list[Array], list[Array]]:
-    """Return the leading training part and the trailing validation part of every series.
+    """Return the leading training part and the trailing validation part of the series.
 
     Args:
         series:
@@ -317,7 +338,9 @@ def _split_samples(series: list[Array], validation: float) -> tuple[list[Array],
 
 
 def _relative_error(predicted: Sequence[Array], actual: Sequence[Array]) -> float:
-    """Return the relative error `||predicted - actual|| / ||actual||` over every row of every array.
+    """Return the relative error `||predicted - actual|| / ||actual||`.
+
+    It is taken over every row of every array.
 
     Args:
         predicted:
@@ -339,7 +362,9 @@ def _relative_error(predicted: Sequence[Array], actual: Sequence[Array]) -> floa
 
 
 def _state_names(labels: Sequence[str]) -> list[str]:
-    """Return state names for variables: the last part of every dotted label, or the whole label where those clash.
+    """Return state names for variables.
+
+    A name is the last part of every dotted label, or the whole label where those clash.
 
     Args:
         labels:
@@ -364,7 +389,9 @@ def _surrogate_system(
     *,
     inputs: Mapping[str, tuple[float, tuple[float, float]]] | None = None,
 ) -> System:
-    """Return a system of one surrogate element with the given states, laws, time, and control inputs.
+    """Return a system of one surrogate element.
+
+    It has the given states, laws, time, and control inputs.
 
     Args:
         label:

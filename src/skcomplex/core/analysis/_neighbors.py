@@ -1,4 +1,7 @@
-"""Measure the neighbours of agents: nearest-neighbour distances, the Clark-Evans ratio, `g(r)`, and like shares."""
+"""Measure the neighbours of agents.
+
+The measures are nearest-neighbour distances, the Clark-Evans ratio, `g(r)`, and like shares.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -87,7 +90,9 @@ def neighbors(
     empty: float | None = None,
     diagonal: bool = True,
 ) -> NeighborsResult:
-    """Return the neighbours of agents in space, or of cells of a grid or nodes of a network, of one kind.
+    """Return the neighbours of agents in space, of grid cells, or of network nodes.
+
+    The neighbours are of one kind.
 
     The kinds read positions, or states on grids and networks:
 
@@ -202,7 +207,10 @@ def _read_states(source: Source, variables: Sequence[str] | None) -> list[Array]
 
 
 def _read_positions(source: Source, group: str | None, box: Sequence[float] | None) -> tuple[Array, Array | None]:
-    """Return the positions and the box of the agents of a trajectory, or of an array of positions."""
+    """Return the positions and the box of the agents of a trajectory.
+
+    An array of positions is also accepted.
+    """
     sides = None if box is None else np.asarray(box, dtype=float)
     if isinstance(source, Trajectory):
         snapshots = _read_snapshots(source, group)
@@ -248,7 +256,10 @@ def _graph_pairs(graph: nx.Graph, attribute: str) -> tuple[Array, Array]:
 
 
 def _pairs(data: npt.ArrayLike | nx.Graph, attribute: str, *, diagonal: bool) -> tuple[Array, Array]:
-    """Return the states of every agent and of each of its neighbours, on a grid or a network."""
+    """Return the states of every agent and of each of its neighbours.
+
+    The agents lie on a grid or a network.
+    """
     if isinstance(data, nx.Graph):
         return _graph_pairs(data, attribute)
     return _grid_pairs(np.asarray(data, dtype=float), diagonal=diagonal)
@@ -265,13 +276,19 @@ def _tree(positions: npt.ArrayLike, box: npt.ArrayLike | None) -> tuple[Array, c
 
 
 def _nearest_neighbor_distances(positions: npt.ArrayLike, box: npt.ArrayLike | None = None) -> Array:
-    """Return the distance from every agent of one snapshot to its nearest neighbour, across periodic edges."""
+    """Return the distance from every agent of one snapshot to its nearest neighbour.
+
+    The distances go across periodic edges.
+    """
     array, tree = _tree(positions, box)
     return tree.query(array, k=2)[0][:, 1]
 
 
 def _clark_evans_ratio(positions: npt.ArrayLike, box: npt.ArrayLike) -> float:
-    """Return the mean nearest-neighbour distance of one snapshot over its value for uniform random points."""
+    """Return the mean nearest-neighbour distance of a snapshot over its random value.
+
+    The random value is that of uniform random points.
+    """
     sides = np.asarray(box, dtype=float)
     distances = _nearest_neighbor_distances(positions, sides)
     dimension = sides.size
@@ -287,7 +304,10 @@ def _radial_distribution(
     bins: int,
     r_max: float | None,
 ) -> tuple[Array, Array]:
-    """Return the bin centres and `g(r)` of frames of positions in a periodic box, averaged over frames."""
+    """Return the bin centres and `g(r)` of frames of positions in a periodic box.
+
+    The values are averaged over frames.
+    """
     sides = np.asarray(box, dtype=float)
     reach = float(sides.min() / 2) if r_max is None else r_max
     edges = np.linspace(0, reach, bins + 1)
@@ -312,7 +332,10 @@ def _like_neighbor_share(
     empty: float | None = None,
     diagonal: bool = True,
 ) -> float:
-    """Return the mean share of an agent's occupied neighbours that share its state, on a grid or a network."""
+    """Return the mean share of an agent's occupied neighbours that share its state.
+
+    The agents lie on a grid or a network.
+    """
     own, other = _pairs(data, attribute, diagonal=diagonal)
     occupied = np.ones(own.size, dtype=bool) if empty is None else (own != empty) & (other != empty)
     agents = own[occupied]

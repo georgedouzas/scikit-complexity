@@ -1,4 +1,7 @@
-"""Measure the geometry of chains of points: radius of gyration, end-to-end distance, and deviation from a reference."""
+"""Measure the geometry of chains of points.
+
+The measures are radius of gyration, end-to-end distance, and deviation from a reference.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -46,7 +49,9 @@ def chain_shape(
     group: str | None = None,
     reference: npt.ArrayLike | None = None,
 ) -> ChainShapeResult:
-    """Return the geometry of a chain of points per frame, from the positions of the members of a group in member order.
+    """Return the geometry of a chain of points per frame.
+
+    The chain is made of the positions of the members of a group in member order.
 
     Args:
         source:
@@ -112,6 +117,9 @@ def _read_positions(source: Trajectory, group: str | None) -> npt.ArrayLike:
 
 
 def _deviation(frame: Array, reference: Array) -> float:
-    """Return the root mean square deviation of centred points from a centred reference after superposition."""
+    """Return the root mean square deviation of centred points from a reference.
+
+    The reference is centred too. It is taken after superposition.
+    """
     rotation, _ = Rotation.align_vectors(reference, frame)
     return float(np.sqrt(np.mean(np.sum((rotation.apply(frame) - reference) ** 2, axis=1))))

@@ -1,4 +1,7 @@
-"""Measure information sample by sample: local entropy, local mutual information, and local transfer entropy."""
+"""Measure information sample by sample.
+
+The measures are local entropy, local mutual information, and local transfer entropy.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -62,7 +65,9 @@ def local_information(
     estimator: str = 'plugin',
     base: float = 2.0,
 ) -> LocalInformationResult:
-    """Return the local information of every series or of every pair of series of a source, of one kind.
+    """Return the local information of every series or every pair of series.
+
+    The series are those of a source. The information is of one kind.
 
     The kinds measure every series or every pair of series:
 
@@ -155,7 +160,10 @@ def _compute_pair(
     estimator: str,
     same: bool,
 ) -> Array:
-    """Return the local mutual information or the local transfer entropy from one series to another in nats."""
+    """Return the local mutual information or transfer entropy between two series.
+
+    It goes from one series to another, in nats.
+    """
     if same:
         size = first.size - max(history, lag) if kind == 'transfer' else first.size
         return np.full(size, np.nan)
@@ -167,7 +175,10 @@ def _compute_pair(
 
 
 def _log_probabilities(columns: AnyArray, estimator: str) -> Array:
-    """Return the logarithm of the probability, or of the fitted Gaussian density, of every row in nats."""
+    """Return the logarithm of the probability of every row in nats.
+
+    The probability can also be the fitted Gaussian density.
+    """
     if estimator == 'plugin':
         codes = _row_codes(columns)
         counts = np.bincount(codes).astype(float)
@@ -179,7 +190,10 @@ def _log_probabilities(columns: AnyArray, estimator: str) -> Array:
 
 
 def _local_transfer_entropy(x: AnyArray, y: AnyArray, history: int, lag: int, estimator: str) -> Array:
-    """Return `log p(y_t | y_past, x_{t-lag}) / p(y_t | y_past)` in nats at each time from `max(history, lag)`."""
+    """Return the local transfer entropy in nats at each time.
+
+    It is `log p(y_t | y_past, x_{t-lag}) / p(y_t | y_past)`, and the times start at `max(history, lag)`.
+    """
     start = max(history, lag)
     future = y[start:, None]
     past = np.column_stack([y[start - step : y.size - step] for step in range(1, history + 1)])

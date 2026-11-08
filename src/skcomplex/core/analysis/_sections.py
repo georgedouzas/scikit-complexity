@@ -1,4 +1,7 @@
-"""Take sections of a system: Poincaré sections and stroboscopic samples."""
+"""Take sections of a system.
+
+The sections are Poincaré sections and stroboscopic samples.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -34,7 +37,9 @@ TAGS = AnalysisTags(DataKind.SYSTEM, time=frozenset({'continuous'}))
 
 @dataclass(frozen=True)
 class SectionResult:
-    """Section of a system: the states where a flow crosses a value, or at multiples of a period.
+    """Section of a system.
+
+    It holds the states where a flow crosses a value, or at multiples of a period.
 
     Args:
         problem:
@@ -72,7 +77,9 @@ def section(
     solver: Solver | None = None,
     random_state: int | None = None,
 ) -> SectionResult:
-    """Return the section of a system: the states where a flow crosses a value, or at multiples of a period.
+    """Return the section of a system.
+
+    It holds the states where a flow crosses a value, or at multiples of a period.
 
     The kinds run the system:
 
@@ -209,7 +216,10 @@ def _crossings(
     solver: Solver | None,
     random_state: int | None,
 ) -> tuple[Array, Array]:
-    """Return the times and the states where the state crosses the value of the Poincaré section."""
+    """Return the times and the states where the state crosses the section value.
+
+    The section is the Poincaré section.
+    """
     if state is None:
         error_msg = 'A Poincaré section needs a state. Give one.'
         raise AnalysisError(error_msg)

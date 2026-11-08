@@ -1,4 +1,7 @@
-"""Estimate the Kramers-Moyal drift and diffusion of a series as functions of its value."""
+"""Estimate the Kramers-Moyal drift and diffusion of a series.
+
+They are functions of its value.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -54,10 +57,10 @@ def kramers_moyal(
     bins: int = 50,
     bandwidth: float | None = None,
 ) -> KramersMoyalResult:
-    """Return the drift and the diffusion of one series, estimated from the moments of its increments.
+    """Return the drift and the diffusion of one series.
 
-    The increments are binned by the value they start from, and an Epanechnikov kernel smooths the bins. This is the
-    estimator of Lamouroux and Lehnertz.
+    They are estimated from the moments of its increments. The increments are binned by the value they start from, and
+    an Epanechnikov kernel smooths the bins. This is the estimator of Lamouroux and Lehnertz.
 
     Args:
         source:

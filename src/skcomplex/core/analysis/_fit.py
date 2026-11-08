@@ -1,4 +1,7 @@
-"""Fit laws to samples: power-law tails, stable laws, extreme-value laws, and named laws."""
+"""Fit laws to samples.
+
+The laws are power-law tails, stable laws, extreme-value laws, and named laws.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -304,7 +307,10 @@ def _fit_bootstrap(
     candidates: int,
     random_state: int | None,
 ) -> float:
-    """Return the share of synthetic samples, a power-law tail and a resampled body, farther from their fit."""
+    """Return the share of synthetic samples farther from their fit.
+
+    A synthetic sample is a power-law tail and a resampled body.
+    """
     alpha, cutoff, distance = float(fit.power_law.alpha), float(fit.xmin), float(fit.power_law.D)
     rng = np.random.default_rng(random_state)
     body = array[array < cutoff]
@@ -337,7 +343,10 @@ def _fit_power(
     compare_with: Sequence[str],
     random_state: int | None,
 ) -> FitLawResult:
-    """Fit a power law to the tail of the positive samples, test it, and compare it with the alternatives."""
+    """Fit a power law to the tail of the positive samples, and test and compare it.
+
+    It is compared with the alternatives.
+    """
     array = values[values > 0]
     upper = np.inf if maximum is None else maximum
     if minimum is None:
@@ -422,7 +431,10 @@ def _fit_at(array: Array, minimum: float, maximum: float | None, *, discrete: bo
 
 
 def _cutoffs(array: Array, maximum: float | None, candidates: int) -> Array:
-    """Return up to `candidates` lower cutoffs that leave at least `MIN_TAIL` samples in the tail."""
+    """Return up to `candidates` lower cutoffs.
+
+    Every cutoff leaves at least `MIN_TAIL` samples in the tail.
+    """
     inside = np.sort(array if maximum is None else array[array <= maximum])
     distinct = np.unique(inside)
     above = inside.size - np.searchsorted(inside, distinct)
@@ -433,7 +445,10 @@ def _cutoffs(array: Array, maximum: float | None, candidates: int) -> Array:
 
 
 def _best_fit(array: Array, maximum: float | None, *, discrete: bool, candidates: int) -> powerlaw.Fit:
-    """Return the power law whose lower cutoff minimises the Kolmogorov-Smirnov distance over the candidates."""
+    """Return the power law of the candidate cutoff with the least KS distance.
+
+    The lower cutoff minimises the Kolmogorov-Smirnov distance over the candidates.
+    """
     cutoffs = _cutoffs(array, maximum, candidates)
     if cutoffs.size == 0:
         error_msg = f'No cutoff leaves at least {MIN_TAIL} samples in the tail. Give more samples.'
@@ -450,7 +465,10 @@ def _sample_power_law(
     *,
     discrete: bool,
 ) -> Array:
-    """Return samples of a power law above `minimum`, rounded with Clauset's approximation when discrete."""
+    """Return samples of a power law above `minimum`.
+
+    They are rounded with Clauset's approximation when discrete.
+    """
     uniform = rng.random(size)
     if discrete:
         return np.floor((minimum - 0.5) * (1 - uniform) ** (-1 / (alpha - 1)) + 0.5)
@@ -458,5 +476,8 @@ def _sample_power_law(
 
 
 def _starting_point(_: object, start: Array, *__: object, **___: object) -> Array:
-    """Return SciPy's starting point of a fit, McCulloch's quantile estimate for stable laws, unchanged."""
+    """Return SciPy's starting point of a fit.
+
+    For stable laws it is McCulloch's quantile estimate, unchanged.
+    """
     return start

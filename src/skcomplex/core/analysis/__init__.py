@@ -1,4 +1,7 @@
-"""Analyse systems, trajectories, and measured data by kind of data: series, paths, fields, agents, and networks."""
+"""Analyse systems, trajectories, and measured data by kind of data.
+
+The kinds of data are series, paths, fields, agents, and networks.
+"""
 
 from ._alignment import AlignmentResult, alignment
 from ._autocatalytic import AutocatalyticSetsResult, autocatalytic_sets

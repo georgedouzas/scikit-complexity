@@ -1,4 +1,7 @@
-"""Embed series in delay coordinates and choose the delay and the dimension from the data."""
+"""Embed series in delay coordinates.
+
+The delay and the dimension are chosen from the data.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -79,7 +82,9 @@ def embedding(
     ratio: float = 10.0,
     escape: float = 2.0,
 ) -> EmbeddingResult:
-    """Return the delay embedding of one series, with the delay and the dimension chosen from the data unless given.
+    """Return the delay embedding of one series.
+
+    The delay and the dimension are chosen from the data unless given.
 
     The kinds read one series:
 
@@ -209,13 +214,19 @@ def embedding(
 
 
 def _first_minimum(values: Array) -> int:
-    """Return the index of the first local minimum, or of the global minimum without one."""
+    """Return the index of the first local minimum.
+
+    Without one, the index of the global minimum is returned.
+    """
     falls = np.flatnonzero((values[1:-1] <= values[:-2]) & (values[1:-1] < values[2:]))
     return int(falls[0] + 1) if falls.size else int(values.argmin())
 
 
 def _delay_embedding(values: npt.ArrayLike, dimension: int, delay: int = 1) -> Array:
-    """Return the delay vectors `(x_t, x_{t+delay}, ..., x_{t+(dimension-1) delay})` of a series, one per row."""
+    """Return the delay vectors of a series, one per row.
+
+    The vectors are `(x_t, x_{t+delay}, ..., x_{t+(dimension-1) delay})`.
+    """
     array = np.asarray(values, dtype=float)
     size = array.size - (dimension - 1) * delay
     if size < 1:
@@ -235,7 +246,10 @@ def _false_nearest_neighbors(
     ratio: float = 10.0,
     escape: float = 2.0,
 ) -> Array:
-    """Return Kennel's share of false nearest neighbours of the delay embeddings of dimension 1 to the largest."""
+    """Return Kennel's share of false nearest neighbours of the delay embeddings.
+
+    The dimensions run from 1 to the largest.
+    """
     array = np.asarray(values, dtype=float)
     spread = array.std()
     fractions = []
@@ -251,6 +265,9 @@ def _false_nearest_neighbors(
 
 
 def _auto_mutual_information(values: npt.ArrayLike, max_delay: int = 100, bins: int = 16) -> Array:
-    """Return the mutual information in bits of a series in `bins` equally populated bins with itself delayed."""
+    """Return the mutual information in bits of a series with itself delayed.
+
+    The series is binned in `bins` equally populated bins.
+    """
     symbols = _symbolize(values, 'quantiles', bins)
     return _delayed_information(symbols, max_delay, base=2.0)

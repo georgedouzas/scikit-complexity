@@ -1,4 +1,7 @@
-"""Measure correlations: autocorrelations of series, two-time correlations, spatial correlations, and overlaps."""
+"""Measure correlations.
+
+The correlations are autocorrelations of series, two-time correlations, spatial correlations, and overlaps.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -43,7 +46,9 @@ KIND_TAGS = {
 
 @dataclass(frozen=True)
 class CorrelationResult:
-    """Correlation of every series of a source, of an ensemble at two times, or of a field in space.
+    """Correlation of series, of an ensemble at two times, or of a field in space.
+
+    It covers every series of a source.
 
     Args:
         values:
@@ -97,7 +102,9 @@ def correlation(
     spacing: float = 1.0,
     frames: bool = False,
 ) -> CorrelationResult:
-    """Return the correlation of every series of a source, of an ensemble at two times, or of a field in space.
+    """Return the correlation of series, of an ensemble at two times, or of a field.
+
+    The correlation of a field is in space. It covers every series of a source.
 
     The kinds read series, ensembles, or fields:
 
@@ -228,7 +235,10 @@ def correlation(
 
 
 def _read_replicas(source: Source, name: str | None) -> Array:
-    """Return the fields of two trajectories, or two configurations stacked on the first axis of an array."""
+    """Return the fields of two trajectories, or two configurations of an array.
+
+    The two configurations are stacked on the first axis of the array.
+    """
     replicas: list[Source] = list(source) if isinstance(source, list | tuple | np.ndarray) else [source]
     if len(replicas) != REPLICAS:
         error_msg = (
@@ -240,7 +250,10 @@ def _read_replicas(source: Source, name: str | None) -> Array:
 
 
 def _autocorrelation(values: npt.ArrayLike, max_lag: int | None = None) -> Array:
-    """Return the autocorrelation of a series at lags 0 to `max_lag`, or to half its length, by the FFT."""
+    """Return the autocorrelation of a series by the FFT.
+
+    The lags run from 0 to `max_lag`, or to half its length.
+    """
     array = _read_real(values, 'values')
     array = array - array.mean()
     size = array.size
@@ -251,7 +264,10 @@ def _autocorrelation(values: npt.ArrayLike, max_lag: int | None = None) -> Array
 
 
 def _autocorrelation_time(values: npt.ArrayLike, dt: float = 1.0) -> float:
-    """Return the integrated autocorrelation time `dt (1/2 + Σ r(k))`, summed to the first negative correlation."""
+    """Return the integrated autocorrelation time `dt (1/2 + Σ r(k))`.
+
+    The sum runs to the first negative correlation.
+    """
     correlation = _autocorrelation(values)
     negative = np.flatnonzero(correlation <= 0)
     end = int(negative[0]) if negative.size else correlation.size
@@ -265,7 +281,10 @@ def _two_time_correlation(
     *,
     connected: bool,
 ) -> Array:
-    """Return `<x(t_w) x(t_w + tau)>` of an ensemble, one row per waiting time and one column per lag."""
+    """Return `<x(t_w) x(t_w + tau)>` of an ensemble.
+
+    There is one row per waiting time and one column per lag.
+    """
     array = ensemble.reshape(ensemble.shape[0], ensemble.shape[1], -1)
     if max(waiting) + max(lags) >= array.shape[1]:
         error_msg = (
@@ -284,7 +303,10 @@ def _two_time_correlation(
 
 
 def _correlation_function(field: npt.ArrayLike, max_distance: int | None = None) -> tuple[Array, Array]:
-    """Return the distances and the radially averaged spatial correlation of a field on a periodic grid."""
+    """Return the distances and the radially averaged spatial correlation of a field.
+
+    The field lies on a periodic grid.
+    """
     grid = _read_real(field, 'field')
     grid = grid - grid.mean()
     spectrum = np.fft.fftn(grid)
@@ -302,7 +324,10 @@ def _correlation_function(field: npt.ArrayLike, max_distance: int | None = None)
 
 
 def _ornstein_zernike_length(hat: Array, power: Array, limit: float) -> float:
-    """Return `sqrt(slope / intercept)` of a fit of `1 / S` against `q̂²` over the modes of `q̂²` to `limit`."""
+    """Return `sqrt(slope / intercept)` of a fit of `1 / S` against `q̂²`.
+
+    The fit runs over the modes of `q̂²` to `limit`.
+    """
     inside = (hat <= limit) & (power > 0)
     if inside.sum() < MIN_LINE_POINTS:
         return float('nan')
@@ -315,7 +340,10 @@ def _ornstein_zernike_length(hat: Array, power: Array, limit: float) -> float:
 
 
 def _moment_length(grids: Array, spacing: float) -> float:
-    """Return the second-moment length from fits of `1 / S(q) ∝ 1 + xi² q̂²` over the modes with `q̂² xi² <= 1`."""
+    """Return the second-moment length from fits of `1 / S(q) ∝ 1 + xi² q̂²`.
+
+    The fits run over the modes with `q̂² xi² <= 1`.
+    """
     shape = grids.shape[1:]
     axes = tuple(range(1, grids.ndim))
     fluctuations = grids - (grids.mean() if grids.shape[0] > 1 else grids.mean(axis=axes, keepdims=True))
@@ -336,7 +364,10 @@ def _moment_length(grids: Array, spacing: float) -> float:
 
 
 def _fitted_length(grids: Array, spacing: float) -> float:
-    """Return the length `xi` of a fit of `C(r) = r^-a exp(-r / xi)` to the correlation function."""
+    """Return the length `xi` of a fit of `C(r) = r^-a exp(-r / xi)`.
+
+    The fit is to the correlation function.
+    """
     curves = [_correlation_function(grid) for grid in grids]
     distances = curves[0][0][1:] * spacing
     values = np.mean([curve[1][1:] for curve in curves], axis=0)
@@ -364,7 +395,10 @@ def _fitted_length(grids: Array, spacing: float) -> float:
 
 
 def _correlation_length(grids: Array, method: str, spacing: float) -> float:
-    """Return the correlation length of frames of a field by the second moment or by a fit."""
+    """Return the correlation length of frames of a field.
+
+    It is found by the second moment or by a fit.
+    """
     if method == 'fit':
         return _fitted_length(grids, spacing)
     return _moment_length(grids, spacing)

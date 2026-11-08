@@ -70,10 +70,11 @@ def epsilon_machine(
     max_length: int = 3,
     significance: float = 0.001,
 ) -> EpsilonMachineResult:
-    """Return the epsilon-machine of a discrete series reconstructed by causal-state splitting (CSSR).
+    """Return the epsilon-machine of a discrete series.
 
-    Histories up to `max_length` symbols join the state whose law of the next symbol they share by a chi-square
-    test, and states are then split until their transitions are deterministic.
+    It is reconstructed by causal-state splitting (CSSR). Histories up to `max_length` symbols join the state whose law
+    of the next symbol they share by a chi-square test, and states are then split until their transitions are
+    deterministic.
 
     Args:
         source:
@@ -144,7 +145,10 @@ def epsilon_machine(
 
 
 def _history_counts(codes: IntArray, length: int, size: int) -> dict[IntTuple, IntArray]:
-    """Return the counts of the next symbol after every observed history of a length, oldest symbol first."""
+    """Return the counts of the next symbol after every observed history of a length.
+
+    Histories are read oldest symbol first.
+    """
     windows = np.lib.stride_tricks.sliding_window_view(codes, length + 1)
     weights = size ** np.arange(length, -1, -1, dtype=np.int64)
     table = np.bincount(windows @ weights, minlength=size ** (length + 1)).reshape(-1, size)
@@ -156,7 +160,10 @@ def _history_counts(codes: IntArray, length: int, size: int) -> dict[IntTuple, I
 
 
 def _is_same_law(first: IntArray, second: IntArray, significance: float) -> bool:
-    """Return whether two counts of next symbols come from one law by a chi-square test of homogeneity."""
+    """Return whether two counts of next symbols come from one law.
+
+    The test is a chi-square test of homogeneity.
+    """
     table = np.vstack([first, second])
     table = table[:, table.sum(axis=0) > 0]
     if table.shape[1] <= 1:
@@ -176,7 +183,10 @@ def _assign(
     counts: list[dict[IntTuple, IntArray]],
     significance: float,
 ) -> None:
-    """Add a history to its parent's state, to the first other state with its law, or to a new state."""
+    """Add a history to a state.
+
+    The state is its parent's, the first other state with its law, or a new one.
+    """
     child_counts = counts[len(child)][child]
     for state in [parent, *(state for state in states if state is not parent)]:
         if _is_same_law(
@@ -190,7 +200,10 @@ def _assign(
 
 
 def _homogenize(counts: list[dict[IntTuple, IntArray]], size: int, significance: float) -> list[list[IntTuple]]:
-    """Return the states of histories with the same law of the next symbol, grown one past symbol at a time."""
+    """Return the states of histories with the same law of the next symbol.
+
+    They are grown one past symbol at a time.
+    """
     states: list[list[IntTuple]] = [[()]]
     for length in range(len(counts) - 1):
         for state in list(states):
@@ -203,7 +216,10 @@ def _homogenize(counts: list[dict[IntTuple, IntArray]], size: int, significance:
 
 
 def _successors(history: IntTuple, counts: IntArray, index: dict[IntTuple, int]) -> tuple[int, ...]:
-    """Return the state reached from a history on every symbol, -1 for symbols it never emits."""
+    """Return the state reached from a history on every symbol.
+
+    It is -1 for symbols the history never emits.
+    """
     return tuple(index.get((*history[1:], symbol), -1) if count else -1 for symbol, count in enumerate(counts.tolist()))
 
 
@@ -225,7 +241,10 @@ def _determinize(states: list[list[IntTuple]], counts: dict[IntTuple, IntArray])
 
 
 def _transitions(state: list[IntTuple], counts: dict[IntTuple, IntArray], index: dict[IntTuple, int]) -> list[int]:
-    """Return the state most histories of a state reach on every symbol, -1 for symbols none of them emits."""
+    """Return the state most histories of a state reach on every symbol.
+
+    It is -1 for symbols none of them emits.
+    """
     signatures = [_successors(history, counts[history], index) for history in state]
     reached = [
         Counter(signature[symbol] for signature in signatures if signature[symbol] >= 0)

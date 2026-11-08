@@ -1,4 +1,7 @@
-"""Derive the fixed points and their stability, or the dispersion relation of a field around a uniform state."""
+"""Derive the stability of a system.
+
+The module derives the fixed points and their stability, or the dispersion relation of a field around a uniform state.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -47,7 +50,9 @@ TAGS = AnalysisTags(DataKind.SYSTEM)
 
 @dataclass(frozen=True)
 class StabilityResult:
-    """Linear stability of a system: its fixed points and their classes, or its dispersion relation.
+    """Linear stability of a system.
+
+    It is its fixed points and their classes, or its dispersion relation.
 
     Args:
         problem:
@@ -245,7 +250,10 @@ def _find_points(dynamics: _DynamicsSpec, *, substitute: bool) -> list[dict[str,
 
 
 def _eigenvalues_at(dynamics: _DynamicsSpec, jacobian: Matrix, point: Point) -> npt.NDArray[np.complex128]:
-    """Return the eigenvalues of the Jacobian at a point, with the parameters at their values."""
+    """Return the eigenvalues of the Jacobian at a point.
+
+    The parameters are at their values.
+    """
     location = {item: SR(point[name]) for name, item in zip(dynamics.names, dynamics.symbols, strict=True)}
     numbers = {**location, **dynamics.parameters}
     values = jacobian.subs(location)
@@ -257,7 +265,10 @@ def _eigenvalues_at(dynamics: _DynamicsSpec, jacobian: Matrix, point: Point) -> 
 
 
 def _check_groups(problem: ProblemSpec) -> None:
-    """Raise an error for a group above the member limit or a weighted reduction read by an element set."""
+    """Raise an error for a group above the member limit or a weighted reduction.
+
+    The weighted reduction is one read by an element set.
+    """
     for element in problem.elements:
         if element.members is not None and element.members > MEMBER_LIMIT:
             error_msg = (
@@ -278,7 +289,9 @@ def _expand_groups(
     problem: ProblemSpec,
     parameter_values: npt.NDArray[np.float64],
 ) -> tuple[list[str], list[Expression], list[Expression], dict[Expression, float]]:
-    """Return the equations of a problem with every group member and every reduction written out.
+    """Return the equations of a problem with group members and reductions expanded.
+
+    Every member and every reduction is written out.
 
     Args:
         problem:
@@ -327,7 +340,9 @@ def _expand_groups(
 
 
 def _dynamics_of(system: System | ProblemSpec, parameters: Mapping[str, float] | None = None) -> _DynamicsSpec:
-    """Return the first-order equations of a system with the current values of its parameters.
+    """Return the first-order equations of a system.
+
+    The parameters are at their current values.
 
     Args:
         system:
@@ -383,7 +398,10 @@ def _dynamics_of(system: System | ProblemSpec, parameters: Mapping[str, float] |
 
 
 def _is_point(solution: Mapping[Expression, Expression], symbols: list[Expression]) -> bool:
-    """Check that a solution fixes every state, without the free parameters `r1`, `r2` of solution families."""
+    """Check that a solution fixes every state.
+
+    The free parameters `r1`, `r2` of solution families do not count.
+    """
     free = {str(item) for value in solution.values() for item in SR(value).variables()}
     return all(item in solution for item in symbols) and not any(re.fullmatch(r'r\d+', name) for name in free)
 
@@ -431,7 +449,10 @@ def _classify(eigenvalues: npt.NDArray[np.complex128], *, discrete: bool) -> str
 
 
 def _with_eigenvalue(expression: Expression, eigenvalue: Expression) -> Expression:
-    """Return an expression with every Laplacian, nested ones included, as a multiplication by its eigenvalue."""
+    """Return an expression with every Laplacian as a multiplication by its eigenvalue.
+
+    Nested Laplacians are included.
+    """
     operator = expression.operator()
     if operator is None:
         return expression
@@ -445,7 +466,10 @@ def _with_eigenvalue(expression: Expression, eigenvalue: Expression) -> Expressi
 
 
 def _laplacian_eigenvalues(field: FieldElement, lattice: LatticeSpace, waves: Array) -> Array:
-    """Return the eigenvalue of the field's Laplacian at every wave vector, for its discretization."""
+    """Return the eigenvalue of the field's Laplacian at every wave vector.
+
+    It is that of its discretization.
+    """
     spacings = np.asarray(lattice.spacings_, dtype=float)
     if field.discretization == 'spectral':
         return -np.sum(waves**2, axis=1)
@@ -453,7 +477,10 @@ def _laplacian_eigenvalues(field: FieldElement, lattice: LatticeSpace, waves: Ar
 
 
 def _bound_interactions(system: System, field: FieldElement) -> list[BaseInteraction]:
-    """Return the interactions of a system whose every role binds one field, or raise an error for another."""
+    """Return the interactions of a system whose every role binds one field.
+
+    An error is raised for another.
+    """
     bound = []
     for interaction in system.interactions:
         labels = [
@@ -469,7 +496,10 @@ def _bound_interactions(system: System, field: FieldElement) -> list[BaseInterac
 
 
 def _single_field(system: System) -> tuple[FieldElement, LatticeSpace, list[BaseInteraction]]:
-    """Return the one field of a system, its periodic lattice, and its bound interactions, or raise an error."""
+    """Return the one field of a system, its periodic lattice, and its interactions.
+
+    The interactions are those bound to the field. An error is raised when there is none.
+    """
     fields = [element for element in system.elements if isinstance(element, FieldElement)]
     if len(fields) != 1 or len(system.elements) != 1 or system.systems:
         error_msg = 'The dispersion relation takes a system of one field on a lattice.'
@@ -483,7 +513,10 @@ def _single_field(system: System) -> tuple[FieldElement, LatticeSpace, list[Base
 
 
 def _add_rate(rates: dict[str, Expression], names: dict[str, Expression], law: object, label: str) -> None:
-    """Add a rate law of a state of a field to the rates, with its Laplacians as eigenvalues, or raise an error."""
+    """Add a rate law of a state of a field to the rates.
+
+    Its Laplacians become eigenvalues, and an error is raised when it cannot be added.
+    """
     targets = law._get_targets() if isinstance(law, RateLaw) else ()
     target = next((name for name, item in names.items() if targets and targets[0] is item), None)
     if not isinstance(law, RateLaw) or target is None:
@@ -496,9 +529,10 @@ def _linearised_rates(
     field: FieldElement,
     interactions: Sequence[BaseInteraction],
 ) -> tuple[dict[str, Expression], dict[str, Expression], dict[str, object]]:
-    """Return the rate of each state with its Laplacians as eigenvalues, the state symbols, and the field values.
+    """Return the rate of each state, the state symbols, and the field values.
 
-    The rates add the laws of the field's element and of the interactions bound to the field.
+    The Laplacians of the rates become eigenvalues. The rates add the laws of the field's element and of the
+    interactions bound to the field.
     """
     part = field.get_declaring_part()
     member = field._get_member() if isinstance(part, BaseElement) else field.element(field.label)
@@ -531,7 +565,10 @@ def _uniform_point(
     rates: dict[str, Expression],
     variables: list[Expression],
 ) -> Callable[[list[float]], list[float]]:
-    """Return the function that finds the uniform fixed point of the rates nearest a starting point."""
+    """Return the function that finds the uniform fixed point of the rates.
+
+    It finds the one nearest a starting point.
+    """
     local = [rate.subs({EIGENVALUE: 0}) for rate in rates.values()]
 
     def residual(point: Array) -> list[float]:
@@ -542,7 +579,10 @@ def _uniform_point(
 
 
 def _eigenvalue_terms(entry: Expression, name: str) -> list[tuple[float, int]]:
-    """Return the coefficients and powers of the Laplacian eigenvalue in an entry of the linearisation."""
+    """Return the coefficients and powers of the Laplacian eigenvalue in an entry.
+
+    The entry is one of the linearisation.
+    """
     try:
         return [(float(coefficient), int(power)) for coefficient, power in entry.coefficients(EIGENVALUE)]
     except (TypeError, ValueError) as error:
@@ -554,7 +594,10 @@ def _dispersion_relation(
     system: System,
     at: Mapping[str, float] | None = None,
 ) -> tuple[Array, Array, Array, Array, dict[str, float]]:
-    """Return the wave vectors, their lengths, growth rates, and frequencies, and the uniform state of a field."""
+    """Return the wave vectors, lengths, growth rates, frequencies, and uniform state.
+
+    They are those of a field.
+    """
     field, lattice, interactions = _single_field(system)
     rates, names, values = _linearised_rates(field, interactions)
     order = list(rates)

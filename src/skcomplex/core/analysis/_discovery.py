@@ -1,4 +1,7 @@
-"""List the analyses that apply to a trajectory, a system, or an array, by the tags each analysis needs."""
+"""List the analyses that apply to a trajectory, a system, or an array.
+
+They are found by the tags each analysis needs.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -154,13 +157,14 @@ class ApplicableAnalysesResult:
 
 
 def applicable_analyses(source: Source) -> ApplicableAnalysesResult:
-    """Return the analyses that apply to a trajectory, a system, or an array, listed under the kind of data they read.
+    """Return the analyses that apply to a trajectory, a system, or an array.
 
-    The kinds of data the source holds are read first. Every analysis of the library that takes no required setting is
-    bound once per kind of a family, and those whose data kind the source holds are kept, as the tags the module of
-    every analysis declares give it. When the source is a system, or a trajectory of one, an analysis whose capability
-    tags the system lacks, such as `lyapunov` of a stochastic system, is left out. A one-dimensional array is one
-    series, and an array of more dimensions is one field and a set of series, one per column.
+    They are listed under the kind of data they read. The kinds of data the source holds are read first. Every analysis
+    of the library that takes no required setting is bound once per kind of a family, and those whose data kind the
+    source holds are kept, as the tags the module of every analysis declares give it. When the source is a system, or a
+    trajectory of one, an analysis whose capability tags the system lacks, such as `lyapunov` of a stochastic system, is
+    left out. A one-dimensional array is one series, and an array of more dimensions is one field and a set of series,
+    one per column.
 
     Args:
         source:

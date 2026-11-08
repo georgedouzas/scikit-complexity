@@ -1,4 +1,7 @@
-"""Measure the alignment of angles or vectors: mean vector, mean rotation, axial order, and mean phase."""
+"""Measure the alignment of angles or vectors.
+
+The measures are the mean vector, the mean rotation, the axial order, and the mean phase.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -197,7 +200,10 @@ def alignment(
 
 
 def _principal_axis(tensors: Array | None) -> tuple[Array, Array]:
-    """Return the principal axis and the scalar order of every site of every frame of symmetric tensors."""
+    """Return the principal axis and the scalar order of symmetric tensors.
+
+    They are given for every site of every frame.
+    """
     if tensors is None:
         error_msg = 'alignment of kind principal-axis reads a field or an array of tensor components.'
         raise AnalysisError(error_msg)
@@ -214,7 +220,10 @@ def _read_array(
     *,
     vectors: bool,
 ) -> tuple[Array | None, Array | None, Array | None, Array | None]:
-    """Return the angles, vectors, positions, and tensors of one snapshot or of every frame of an array."""
+    """Return the angles, vectors, positions, and tensors of an array.
+
+    The array holds one snapshot or every frame.
+    """
     array = np.asarray(source, dtype=float)
     if kind == 'principal-axis':
         return None, None, None, (array[None] if array.ndim == VECTOR_DIMENSIONS else array)
@@ -237,7 +246,10 @@ def _read_trajectory(
     *,
     vectors: bool,
 ) -> tuple[Array | None, Array | None, Array | None, Array | None]:
-    """Return the agents of a trajectory, or else its field or its series, as angles, vectors, positions, tensors."""
+    """Return the agents of a trajectory, or else its field or its series.
+
+    They come as angles, vectors, positions, and tensors.
+    """
     kinds = _get_data_kinds(source)
     name = variables[0] if variables else None
     if DataKind.AGENTS in kinds and (group is not None or variables is None):
@@ -258,7 +270,10 @@ def _read_trajectory(
 
 
 def _unit_vectors(values: npt.ArrayLike, *, vectors: bool) -> Array:
-    """Return unit vectors from angles, or normalized vectors, with members on the second to last axis."""
+    """Return unit vectors from angles, or normalized vectors.
+
+    The members lie on the second to last axis.
+    """
     array = np.asarray(values, dtype=float)
     if not vectors:
         return np.stack([np.cos(array), np.sin(array)], axis=-1)
@@ -267,7 +282,10 @@ def _unit_vectors(values: npt.ArrayLike, *, vectors: bool) -> Array:
 
 
 def _mean_vector_length(values: npt.ArrayLike, *, vectors: bool = False) -> Array:
-    """Return the length of the mean unit vector of angles or vectors, over the members of every frame."""
+    """Return the length of the mean unit vector of angles or vectors.
+
+    The mean is over the members of every frame.
+    """
     units = _unit_vectors(values, vectors=vectors)
     return np.linalg.norm(units.mean(axis=-2), axis=-1)
 
@@ -283,7 +301,10 @@ def _mean_phase(angles: npt.ArrayLike) -> npt.NDArray[np.complex128]:
 
 
 def _mean_rotation(positions: npt.ArrayLike, velocities: npt.ArrayLike) -> Array:
-    """Return the mean normalized angular momentum of agents in a plane about their centre, for every frame."""
+    """Return the mean normalized angular momentum of agents about their centre.
+
+    The agents move in a plane. It is given for every frame.
+    """
     places = np.asarray(positions, dtype=float)
     moving = _unit_vectors(velocities, vectors=True)
     relative = _unit_vectors(places - places.mean(axis=-2, keepdims=True), vectors=True)

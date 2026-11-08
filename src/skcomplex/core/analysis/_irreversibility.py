@@ -1,4 +1,7 @@
-"""Measure irreversibility: entropy production, detailed balance, fluctuation theorems, and responses."""
+"""Measure irreversibility.
+
+The measures are entropy production, detailed balance, fluctuation theorems, and responses.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -66,7 +69,9 @@ KIND_TAGS = {
 
 @dataclass(frozen=True)
 class IrreversibilityResult:
-    """Irreversibility of a process: its entropy production, detailed balance, fluctuation relations, or response.
+    """Irreversibility of a process.
+
+    It is its entropy production, detailed balance, fluctuation relations, or response.
 
     Args:
         values:
@@ -335,7 +340,10 @@ def _check(
     dt: float,
     field: float,
 ) -> None:
-    """Raise an error for a setting the kind needs that is not given, or an intensity, step, or field out of range."""
+    """Raise an error for a missing setting of the kind, or for a value out of range.
+
+    The values checked are an intensity, a step, or a field.
+    """
     needed = {
         'rates': kind == 'jump-entropy-production',
         'unperturbed': kind in ('response', 'fluctuation-dissipation'),
@@ -395,7 +403,10 @@ def _read_values(
     variables: Sequence[str] | None,
     duration: float | None,
 ) -> tuple[npt.NDArray[np.int64] | Array, float | None]:
-    """Return the rate matrix, the paths as rows, the samples, or the ensemble the kind measures, and the duration."""
+    """Return the data the kind measures and the duration.
+
+    The data are the rate matrix, the paths as rows, the samples, or the ensemble.
+    """
     name = variables[0] if variables else None
     if isinstance(source, Trajectory) and kind in PATH_KINDS:
         path = _read_path(source, name)
@@ -481,7 +492,7 @@ def _fluctuation_theorem(
 
 
 def _get_product(sample: Array, entropy: float) -> float:
-    """Return the squared relative fluctuation of a sample of currents times the entropy."""
+    """Return the squared relative fluctuation of sampled currents times the entropy."""
     return float(sample.var(ddof=1) / sample.mean() ** 2 * entropy)
 
 
@@ -519,7 +530,10 @@ def _uncertainty_relation(
 
 
 def _entropy_production(rates: npt.ArrayLike) -> float:
-    """Return `Σ_{i<j} (p_i k_ij - p_j k_ji) ln(p_i k_ij / (p_j k_ji))` with `p` the stationary law of the rates."""
+    """Return the entropy production of a rate matrix.
+
+    It is `Σ_{i<j} (p_i k_ij - p_j k_ji) ln(p_i k_ij / (p_j k_ji))` with `p` the stationary law of the rates.
+    """
     matrix = np.asarray(rates, dtype=float)
     matrix = matrix - np.diag(np.diag(matrix))
     if np.any((matrix > 0) != (matrix.T > 0)):
@@ -531,7 +545,10 @@ def _entropy_production(rates: npt.ArrayLike) -> float:
 
 
 def _count_entropy_production(states: npt.ArrayLike, n_states: int | None, dt: float) -> float:
-    """Return `Σ_{i<j} (N_ij - N_ji) ln(N_ij / N_ji)` over the pairs visited both ways, per unit time."""
+    """Return `Σ_{i<j} (N_ij - N_ji) ln(N_ij / N_ji)` per unit time.
+
+    The sum is over the pairs visited both ways.
+    """
     counts = _transition_counts(states, n_states).astype(float)
     upper = np.triu(np.ones_like(counts, dtype=bool), k=1)
     both = upper & (counts > 0) & (counts.T > 0)
@@ -540,13 +557,19 @@ def _count_entropy_production(states: npt.ArrayLike, n_states: int | None, dt: f
 
 
 def _response(perturbed: npt.ArrayLike, unperturbed: npt.ArrayLike, field: float) -> Array:
-    """Return the integrated response `chi(t) = (<x(t)>_h - <x(t)>_0) / h` of ensembles with and without a field."""
+    """Return the integrated response `chi(t) = (<x(t)>_h - <x(t)>_0) / h`.
+
+    It compares ensembles with and without a field.
+    """
     first, second = np.asarray(perturbed, dtype=float), np.asarray(unperturbed, dtype=float)
     return (first.mean(axis=0) - second.mean(axis=0)) / field
 
 
 def _fluctuation_dissipation_ratio(correlation: npt.ArrayLike, susceptibility: Array, intensity: float) -> float:
-    """Return the slope of `chi / b` against `C(t_w, t_w) - C(t, t_w)`, with `b` the intensity."""
+    """Return the slope of `chi / b` against `C(t_w, t_w) - C(t, t_w)`.
+
+    Here `b` is the intensity.
+    """
     values = np.asarray(correlation, dtype=float)
     decay = values[0] - values
     scaled = susceptibility / intensity

@@ -1,4 +1,7 @@
-"""Measure the mean squared displacement of particles, its scaling exponent, and their diffusion coefficient."""
+"""Measure the mean squared displacement of particles.
+
+The module also measures its scaling exponent and their diffusion coefficient.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -26,7 +29,9 @@ TAGS = AnalysisTags(DataKind.AGENTS)
 
 @dataclass(frozen=True)
 class DisplacementResult:
-    """Mean squared displacement of particles over all lags, its scaling exponent, and the diffusion coefficient.
+    """Mean squared displacement of particles over all lags.
+
+    It comes with its scaling exponent and the diffusion coefficient.
 
     Args:
         positions:
@@ -61,10 +66,10 @@ def displacement(
     lags: Sequence[int] | None = None,
     fit_range: tuple[float, float] | None = None,
 ) -> DisplacementResult:
-    """Return the mean squared displacement of particles over all lags, its scaling exponent, and the diffusion.
+    """Return the mean squared displacement of particles over all lags.
 
-    The displacement of every particle is computed for all lags at once with an FFT, so positions must be unwrapped
-    across periodic boundaries, as a trajectory gives them.
+    It comes with its scaling exponent and the diffusion. The displacement of every particle is computed for all lags at
+    once with an FFT, so positions must be unwrapped across periodic boundaries, as a trajectory gives them.
 
     Args:
         source:
@@ -125,10 +130,11 @@ def displacement(
 
 
 def _get_msd(positions: Array) -> Array:
-    """Return the mean squared displacement of one particle at every lag from 1, by fast correlation.
+    """Return the mean squared displacement of one particle at every lag from 1.
 
-    The displacement `<(r[t + m] - r[t])²>` splits into the mean of `r[t]² + r[t + m]²`, from cumulative sums, and
-    twice the autocorrelation at lag `m`, from an FFT of the positions padded against circular wrapping.
+    It is computed by fast correlation. The displacement `<(r[t + m] - r[t])²>` splits into the mean of `r[t]² + r[t +
+    m]²`, from cumulative sums, and twice the autocorrelation at lag `m`, from an FFT of the positions padded against
+    circular wrapping.
     """
     frames = positions.shape[0]
     size = fft.next_fast_len(2 * frames, real=True)

@@ -1,4 +1,7 @@
-"""Measure emergence across scales: effective information, causal emergence, integrated criteria, and closure."""
+"""Measure emergence across scales.
+
+The measures are effective information, causal emergence, integrated criteria, and closure.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -288,7 +291,7 @@ def emergence(
 
 
 def _causal(micro: Array, partition: Partition | None, weighting: str, search: str) -> EmergenceResult:
-    """Find or take the partition, and compare the micro and macro effective information."""
+    """Find or take the partition, and compare micro and macro effective information."""
     weights = _weights(micro, weighting)
     if partition is not None:
         labels = _blocks_of(partition, micro.shape[0])
@@ -351,7 +354,7 @@ def _closure(
     history: int,
     base: float,
 ) -> EmergenceResult:
-    """Compute the entropies of the macro future given the macro past and the micro past."""
+    """Compute the entropies of the macro future given the macro and the micro past."""
     future = v[history:]
     scale = math.log(base)
     macro_uncertainty = _conditional_entropy(future, _lagged(v, history)) / scale
@@ -366,7 +369,9 @@ def _closure(
 
 
 def _read_columns(data: npt.ArrayLike) -> AnyArray:
-    """Return data as one row per sample and one column per variable, a series as a single column.
+    """Return data as one row per sample and one column per variable.
+
+    A series is a single column.
 
     Args:
         data:
@@ -381,7 +386,10 @@ def _read_columns(data: npt.ArrayLike) -> AnyArray:
 
 
 def _labels_of(partition: Partition, states: npt.NDArray[np.int64]) -> IntArray:
-    """Return the macro label of every micro state, from a label array or a function of an array of states."""
+    """Return the macro label of every micro state.
+
+    It comes from a label array or a function of an array of states.
+    """
     if callable(partition):
         return np.asarray(partition(states), dtype=np.int64).reshape(states.shape)
     labels = np.asarray(partition, dtype=np.int64)
@@ -395,7 +403,10 @@ def _labels_of(partition: Partition, states: npt.NDArray[np.int64]) -> IntArray:
 
 
 def _blocks_of(partition: Partition, n_states: int) -> IntArray:
-    """Return the label of every state of a matrix, after checking that the labels number the blocks from 0."""
+    """Return the label of every state of a matrix.
+
+    The labels are checked to number the blocks from 0.
+    """
     if not callable(partition) and np.size(partition) != n_states:
         error_msg = f'A partition of {n_states} states holds one label per state, not {np.size(partition)}.'
         raise AnalysisError(error_msg)
@@ -430,7 +441,10 @@ def _weights(matrix: Array, weighting: str) -> Array:
 
 
 def _coarse_matrix(matrix: Array, labels: IntArray, weights: Array) -> Array:
-    """Return the macro transition matrix of a partition, the weighted micro rows summed within every block."""
+    """Return the macro transition matrix of a partition.
+
+    The weighted micro rows are summed within every block.
+    """
     n_blocks = int(labels.max()) + 1
     membership = np.eye(n_blocks)[labels]
     flows = membership.T @ (weights[:, None] * matrix) @ membership
@@ -445,7 +459,10 @@ def _canonical(labels: npt.ArrayLike) -> IntArray:
 
 
 def _effective_information(matrix: Array) -> tuple[float, float, float, npt.NDArray[np.int64]]:
-    """Return the effective information, the determinism, the degeneracy, and the observed states of a matrix."""
+    """Return the effective information, determinism, degeneracy, and observed states.
+
+    They are those of a matrix.
+    """
     totals = matrix.sum(axis=1)
     observed = np.flatnonzero(totals > 0)
     if observed.size == 0:
@@ -466,7 +483,10 @@ def _effective_information(matrix: Array) -> tuple[float, float, float, npt.NDAr
 
 
 def _macro_information(matrix: Array, labels: IntArray, weights: Array) -> float:
-    """Return the effective information of the macro matrix of a partition, without warning on unobserved blocks."""
+    """Return the effective information of the macro matrix of a partition.
+
+    Unobserved blocks raise no warning.
+    """
     macro = _coarse_matrix(matrix, labels, weights)
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', UnobservedStatesWarning)
@@ -474,7 +494,10 @@ def _macro_information(matrix: Array, labels: IntArray, weights: Array) -> float
 
 
 def _greedy(matrix: Array, weights: Array) -> IntArray:
-    """Return the partition reached by merging the pair of blocks with the largest gain until no merge gains."""
+    """Return the partition reached by greedy merges of blocks.
+
+    The pair of blocks with the largest gain is merged until no merge gains.
+    """
     labels = np.arange(matrix.shape[0], dtype=np.int64)
     best = _macro_information(matrix, labels, weights)
     while int(labels.max()) > 0:
@@ -507,7 +530,10 @@ def _set_partitions(n_states: int) -> Iterator[IntArray]:
 
 
 def _exhaustive(matrix: Array, weights: Array) -> IntArray:
-    """Return the partition with the largest macro effective information, the finest of equal ones."""
+    """Return the partition with the largest macro effective information.
+
+    Of equal ones, the finest is returned.
+    """
     if matrix.shape[0] > MAX_EXHAUSTIVE_STATES:
         error_msg = (
             f'The exhaustive search covers at most {MAX_EXHAUSTIVE_STATES} states, not {matrix.shape[0]}. '
@@ -524,7 +550,10 @@ def _exhaustive(matrix: Array, weights: Array) -> IntArray:
 
 
 def _macro_series(micro: npt.NDArray[np.generic], partition: Partition) -> npt.NDArray[np.generic]:
-    """Return the macro series of a micro series under a partition given as labels or as a function."""
+    """Return the macro series of a micro series under a partition.
+
+    The partition is given as labels or as a function.
+    """
     if callable(partition):
         return _read_columns(partition(micro))
     return _read_columns(np.asarray(partition)[np.asarray(micro).ravel().astype(np.int64)])
@@ -549,7 +578,10 @@ def _plugin_entropy(columns: AnyArray) -> float:
 
 
 def _estimated_information(first: AnyArray, second: AnyArray, estimator: str, k: int) -> float:
-    """Return the mutual information of two groups of columns in nats by plug-in, Gaussian, or kNN estimates."""
+    """Return the mutual information of two groups of columns in nats.
+
+    It uses plug-in, Gaussian, or kNN estimates.
+    """
     if estimator == 'plugin':
         joint = np.column_stack([_row_codes(first), _row_codes(second)])
         return _plugin_entropy(first) + _plugin_entropy(second) - _plugin_entropy(joint)

@@ -1,4 +1,8 @@
-"""Decompose the flows on the edges of a cell complex, count its holes, and find the curved faces of an angle field."""
+"""Analyse flows, holes, and curved faces of cell complexes.
+
+The module decomposes the flows on the edges of a cell complex, counts its holes, and finds the curved faces of an angle
+field.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -27,7 +31,10 @@ TAGS = AnalysisTags(DataKind.FIELD)
 
 @dataclass(frozen=True)
 class CellComplexResult:
-    """Hodge decomposition of an edge state, Betti numbers of a complex, or curved faces of an angle state.
+    """Hodge decomposition, Betti numbers, or curved faces of a cell complex.
+
+    They are the Hodge decomposition of an edge state, the Betti numbers of a complex, or the curved faces of an angle
+    state.
 
     Args:
         complex:
@@ -81,11 +88,11 @@ def cell_complex(
     space: CellComplexSpace | None = None,
     variables: str | None = None,
 ) -> CellComplexResult:
-    """Return the Hodge decomposition of an edge state, the Betti numbers of a complex, or the curved faces of angles.
+    """Return the Hodge decomposition, Betti numbers, or curved faces of a complex.
 
-    It reads a state of a group on a cell complex from a trajectory, or an array with the complex passed as `space`. An
-    array of one dimension holds one snapshot, and an array of two dimensions one frame per row. Every result has one
-    row per frame.
+    The decomposition is of an edge state and the curved faces are those of angles. It reads a state of a group on a
+    cell complex from a trajectory, or an array with the complex passed as `space`. An array of one dimension holds one
+    snapshot, and an array of two dimensions one frame per row. Every result has one row per frame.
 
     The kind `'hodge'` writes an edge state as the sum of the exterior derivative of a site potential, the transposed
     incidence of a face potential, and a remainder that both incidences map to 0. The three parts are orthogonal. The
@@ -159,7 +166,10 @@ def _space_of(trajectory: Trajectory, variables: str | None) -> CellComplexSpace
 
 
 def _read_values(source: Source, variables: str | None) -> tuple[Array, float]:
-    """Return the values of a source with one row per frame, and the period they read."""
+    """Return the values of a source with one row per frame.
+
+    The period they read is returned too.
+    """
     if isinstance(source, Trajectory):
         if variables is None:
             error_msg = 'cell_complex reads a trajectory by the dotted name of a state. Give `variables`.'
@@ -175,7 +185,7 @@ def _solve(matrix: scipy.sparse.csr_array, values: Array) -> Array:
 
 
 def _hodge(complex_space: CellComplexSpace, values: Array, period: float) -> CellComplexResult:
-    """Return the gradient, the curl, the harmonic part, and the site potential of every frame."""
+    """Return the gradient, curl, harmonic part, and site potential of every frame."""
     edges, faces = complex_space.incidences_[:2]
     potentials = np.stack([_solve(edges, flow) for flow in values])
     gradient = (edges @ potentials.T).T
@@ -202,7 +212,10 @@ def _betti(complex_space: CellComplexSpace, values: Array, period: float) -> Cel
 
 
 def _curvature(complex_space: CellComplexSpace, values: Array, period: float) -> CellComplexResult:
-    """Return the share of the curved faces of every frame, and the energy of their oriented sums."""
+    """Return the share of the curved faces of every frame.
+
+    The energy of their oriented sums is returned too.
+    """
     faces = complex_space.incidences_[1]
     angles = (faces @ values.T).T * (2 * np.pi / period)
     wrapped = np.angle(np.exp(1j * angles))

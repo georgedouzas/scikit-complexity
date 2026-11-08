@@ -1,4 +1,7 @@
-"""Measure spectra: power spectra of series and structure factors of fields."""
+"""Measure spectra.
+
+The spectra are power spectra of series and structure factors of fields.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -145,7 +148,10 @@ def spectrum(
 
 
 def _power_spectrum(values: npt.ArrayLike, dt: float = 1.0) -> tuple[Array, Array]:
-    """Return the frequencies and the power spectral density of a series by Welch's method."""
+    """Return the frequencies and the power spectral density of a series.
+
+    They come from Welch's method.
+    """
     array = _read_real(values, 'values')
     return signal.welch(array, fs=1 / dt, nperseg=min(array.size, 1024))
 
@@ -157,14 +163,20 @@ def _wavenumbers(shape: tuple[int, ...], spacing: float) -> Array:
 
 
 def _mode_power(grids: Array) -> Array:
-    """Return the power of every Fourier mode of the fluctuations, averaged over frames."""
+    """Return the power of every Fourier mode of the fluctuations.
+
+    It is averaged over frames.
+    """
     fluctuations = grids - grids.mean(axis=tuple(range(1, grids.ndim)), keepdims=True)
     axes = tuple(range(1, grids.ndim))
     return np.mean(np.abs(np.fft.fftn(fluctuations, axes=axes)) ** 2, axis=0) / np.prod(grids.shape[1:])
 
 
 def _structure_factor(grids: Array, spacing: float = 1.0) -> tuple[Array, Array]:
-    """Return the wavenumbers and the radially averaged structure factor of frames, in shells of `2 pi / side`."""
+    """Return the wavenumbers and the radially averaged structure factor of frames.
+
+    The shells have a width of `2 pi / side`.
+    """
     power = _mode_power(grids)
     moduli = _wavenumbers(grids.shape[1:], spacing)
     width = 2 * np.pi / (max(grids.shape[1:]) * spacing)

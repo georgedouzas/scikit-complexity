@@ -1,4 +1,7 @@
-"""Enumerate the elementary modes and extreme pathways of the steady-state cone of a linear program."""
+"""Enumerate the elementary modes and extreme pathways of a steady-state cone.
+
+The cone is the steady-state cone of a linear program.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -34,7 +37,10 @@ TAGS = AnalysisTags(DataKind.SERIES)
 
 @dataclass(frozen=True)
 class _ConeSpec(BaseSpec):
-    """Steady-state cone: a matrix over the variables kept, their directions, and which of them are exchanges."""
+    """Steady-state cone.
+
+    It holds a matrix over the variables kept, their directions, and which of them are exchanges.
+    """
 
     matrix: Array
     labels: tuple[str, ...]
@@ -46,7 +52,9 @@ class _ConeSpec(BaseSpec):
 
 @dataclass(frozen=True)
 class ElementaryModesResult:
-    """Generators of the steady-state cone of a linear program, the elementary modes or the extreme pathways.
+    """Generators of the steady-state cone of a linear program.
+
+    They are the elementary modes or the extreme pathways.
 
     Args:
         labels:
@@ -75,11 +83,12 @@ def elementary_modes(
     irreversible: Sequence[int] | None = None,
     sort: str | None = None,
 ) -> ElementaryModesResult:
-    """Return the exact generators of the steady-state cone `{v : S v = 0, v_irr >= 0}` of a linear program.
+    """Return the exact generators of the steady-state cone of a linear program.
 
-    A system gives the program of its linear program law at its initial values, whose bounds give the directions: a
-    negative lower bound makes a variable reversible, a nonpositive upper bound reverses its column, and a variable
-    fixed at zero is removed. A matrix gives the cone directly, with the indices of its irreversible columns.
+    The cone is `{v : S v = 0, v_irr >= 0}`. A system gives the program of its linear program law at its initial values,
+    whose bounds give the directions: a negative lower bound makes a variable reversible, a nonpositive upper bound
+    reverses its column, and a variable fixed at zero is removed. A matrix gives the cone directly, with the indices of
+    its irreversible columns.
 
     - `'modes'`: the steady-state vectors of minimal support in which every irreversible variable runs in its declared
       direction. Every reversible column splits in two, the extreme rays of the split cone come from the Parma
@@ -212,7 +221,10 @@ def _check_steady(rows: Sequence[str], lower: Array, upper: Array) -> None:
 
 
 def _exchanges_of(matrix: Array, labels: Sequence[str], exchanges: Sequence[str] | None) -> frozenset[int]:
-    """Return the columns of the exchanges: those named, or the variables in one row."""
+    """Return the columns of the exchanges.
+
+    They are those named, or the variables in one row.
+    """
     if exchanges is not None:
         named = set(exchanges)
         return frozenset(position for position, name in enumerate(labels) if name in named)
@@ -240,7 +252,10 @@ def _matrix_cone(
 
 
 def _exact_matrix(cone: _ConeSpec) -> list[list[Fraction]]:
-    """Return the matrix as fractions of small denominators, with reversed columns negated."""
+    """Return the matrix as fractions of small denominators.
+
+    The reversed columns are negated.
+    """
     rows = []
     for row, values in enumerate(cone.matrix):
         items = []
@@ -258,12 +273,18 @@ def _exact_matrix(cone: _ConeSpec) -> list[list[Fraction]]:
 
 
 def _is_free(cone: _ConeSpec, column: int, kind: str) -> bool:
-    """Check whether a column stays one column of either sign, a reversible exchange of the pathways."""
+    """Check whether a column stays one column of either sign.
+
+    Such a column is a reversible exchange of the pathways.
+    """
     return kind == 'pathways' and column in cone.exchanges and column not in cone.irreversible
 
 
 def _split_columns(cone: _ConeSpec, kind: str) -> list[tuple[int, int]]:
-    """Return every column of the split cone: the column it comes from and its sign."""
+    """Return every column of the split cone.
+
+    Each comes with the column it comes from and its sign.
+    """
     split: list[tuple[int, int]] = []
     for column in range(len(cone.labels)):
         split.append((column, 1))
@@ -310,7 +331,10 @@ def _limit_error(cone: _ConeSpec, timeout: float) -> EnumerationLimitError:
 
 
 def _independent(cone: _ConeSpec, rows: np.ndarray, timeout: float) -> np.ndarray:
-    """Return the rows that no non-negative combination of the other rows gives, under the time limit."""
+    """Return the rows that no non-negative combination of the other rows gives.
+
+    The search runs under the time limit.
+    """
     kept = [tuple(row) for row in rows]
     try:
         alarm(timeout)
@@ -331,7 +355,10 @@ def _mapped_rays(
     kind: str,
     timeout: float,
 ) -> list[list[Fraction]]:
-    """Return the generators mapped back to the columns of the cone, without the two-cycles of split pairs."""
+    """Return the generators mapped back to the columns of the cone.
+
+    The two-cycles of split pairs are dropped.
+    """
     size = len(cone.labels)
     found = []
     for ray in _rays_of(cone, fractions, columns, kind, timeout):
@@ -344,7 +371,10 @@ def _mapped_rays(
 
 
 def _scaled(cone: _ConeSpec, vector: Sequence[Fraction], normalize: str | None) -> list[Fraction]:
-    """Return a generator with `normalize` at one, or as the smallest integer vector, in declared directions."""
+    """Return a generator with `normalize` at one, or as the smallest integer vector.
+
+    The generator is in declared directions.
+    """
     directed = [-item if column in cone.reversed else item for column, item in enumerate(vector)]
     if normalize is not None and normalize in cone.labels:
         pivot = directed[cone.labels.index(normalize)]

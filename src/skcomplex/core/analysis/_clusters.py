@@ -1,4 +1,7 @@
-"""Measure clusters and percolation: clusters of grids, graphs, and points, the largest cluster, and spanning."""
+"""Measure clusters and percolation.
+
+The clusters are those of grids, graphs, and points, with the largest cluster and spanning.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -35,7 +38,9 @@ TAGS = AnalysisTags(DataKind.FIELD)
 
 @dataclass(frozen=True)
 class ClustersResult:
-    """Clusters of the occupied cells of a grid, the components of a graph, or the contacts of points.
+    """Clusters of a grid, a graph, or points.
+
+    They are the occupied cells of a grid, the components of a graph, or the contacts of points.
 
     Args:
         points:
@@ -94,10 +99,11 @@ def clusters(
     axis: int = 0,
     radius: float | None = None,
 ) -> ClustersResult:
-    """Return the clusters of the occupied cells of a grid, the components of a graph, or the contacts of points.
+    """Return the clusters of a grid, a graph, or points.
 
-    The grid is a boolean array of any dimension, the last frame of a field of a trajectory, or a graph, the last
-    network of a trajectory. Cells are connected through shared faces, or also corners with `diagonal=True`.
+    They are the occupied cells of a grid, the components of a graph, or the contacts of points. The grid is a boolean
+    array of any dimension, the last frame of a field of a trajectory, or a graph, the last network of a trajectory.
+    Cells are connected through shared faces, or also corners with `diagonal=True`.
 
     With a `radius`, the source holds points instead, an array with one row per point, a stack of such arrays for the
     kind `'spanning'`, or the positions of a group of a trajectory in its last frame. Points closer than twice the
@@ -206,7 +212,10 @@ def clusters(
 
 
 def _of_graph(graph: nx.Graph, kind: str) -> ClustersResult:
-    """Return the sizes of the components of a graph, and for percolation the strength and the mean size."""
+    """Return the sizes of the components of a graph.
+
+    For percolation, the strength and the mean size are returned too.
+    """
     components = nx.connected_components(graph.to_undirected(as_view=True))
     sizes = np.sort(np.asarray([len(component) for component in components], dtype=np.int64))[::-1]
     if kind == 'sizes':
@@ -216,7 +225,10 @@ def _of_graph(graph: nx.Graph, kind: str) -> ClustersResult:
 
 
 def _strength(sizes: IntArray, total: int) -> tuple[float, float]:
-    """Return the share in a total of the largest of sizes, largest first, and the mean size of the others."""
+    """Return the share in a total of the largest of sizes.
+
+    The sizes come largest first, and the mean size of the others is returned too.
+    """
     rest = sizes[1:].astype(float)
     strength = float(sizes[0] / total) if sizes.size else 0.0
     return strength, float(np.sum(rest**2) / rest.sum()) if rest.size else 0.0
@@ -227,7 +239,10 @@ def _read_points(
     kind: str,
     variables: Sequence[str] | None,
 ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64] | None]:
-    """Return the arrays of points of the source and the faces of the space that holds them."""
+    """Return the arrays of points of the source and the faces of the space.
+
+    The space is the one that holds them.
+    """
     if not isinstance(source, Trajectory):
         points = np.asarray(source, dtype=float)
         return (points if kind == 'spanning' else points[None]), None
@@ -242,7 +257,10 @@ def _read_points(
 
 
 def _contacts(points: npt.NDArray[np.float64], radius: float) -> IntArray:
-    """Return the label of every point, from 0, in the graph of the points closer than twice the radius."""
+    """Return the label of every point in the graph of close points.
+
+    Labels start from 0, and two points are close when they are closer than twice the radius.
+    """
     pairs = cKDTree(points).query_pairs(2 * radius, output_type='ndarray')
     size = len(points)
     graph = sparse.coo_array((np.ones(len(pairs)), (pairs[:, 0], pairs[:, 1])), shape=(size, size))
@@ -256,7 +274,10 @@ def _spans_points(
     axis: int,
     radius: float,
 ) -> bool:
-    """Return whether one cluster holds points within the radius of both faces along the axis."""
+    """Return whether one cluster holds points within the radius of both faces.
+
+    The faces are those along the axis.
+    """
     along = points[:, axis]
     lower, upper = (0.0, float(faces[axis])) if faces is not None else (along.min(), along.max())
     return bool(set(labels[along <= lower + radius]) & set(labels[along >= upper - radius]))
@@ -290,7 +311,10 @@ def _of_points(
 
 
 def _merge(labels: IntArray, structure: npt.NDArray[np.bool_]) -> IntArray:
-    """Return the labels with the clusters joined by a neighbour of the structure across the periodic edges."""
+    """Return the labels with the clusters joined across the periodic edges.
+
+    They are joined by a neighbour of the structure.
+    """
     centre = np.ones(structure.ndim, dtype=int)
     sources, targets = [], []
     for offset in np.argwhere(structure) - centre:
@@ -306,7 +330,10 @@ def _merge(labels: IntArray, structure: npt.NDArray[np.bool_]) -> IntArray:
 
 
 def _label(grid: npt.ArrayLike, *, periodic: bool, diagonal: bool) -> tuple[IntArray, IntArray]:
-    """Return the label of each cell, 0 for empty cells and 1 onwards for clusters, and the size of each cluster."""
+    """Return the label of each cell and the size of each cluster.
+
+    The label is 0 for empty cells and 1 onwards for clusters.
+    """
     occupied = np.asarray(grid, dtype=bool)
     structure = ndimage.generate_binary_structure(occupied.ndim, occupied.ndim if diagonal else 1)
     labels, _ = ndimage.label(occupied, structure=structure)

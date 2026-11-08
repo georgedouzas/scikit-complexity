@@ -1,4 +1,7 @@
-"""Decide injectivity and surjectivity of cellular automata and subshifts, and measure their entropy."""
+"""Decide injectivity and surjectivity of cellular automata and subshifts.
+
+The module also measures their entropy.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -47,7 +50,10 @@ class _Clauses:
         self.count = 0
 
     def one_hot(self, sites: int, states: int, *, exactly: bool = True) -> npt.NDArray[np.int64]:
-        """Return one variable per site and value, with exactly one, or at most one, true per site."""
+        """Return one variable per site and value.
+
+        Exactly one, or at most one, is true per site.
+        """
         variables = np.arange(self.count + 1, self.count + 1 + sites * states, dtype=np.int64).reshape(sites, states)
         self.count += sites * states
         for row in variables.tolist():
@@ -126,7 +132,9 @@ SOURCES = {
 
 @dataclass(frozen=True)
 class AutomatonResult:
-    """Decision or measure of a system that is a cellular automaton on a finite universe or holds a subshift.
+    """Decision or measure of a cellular automaton or a subshift of a system.
+
+    The cellular automaton is on a finite universe.
 
     Args:
         automaton:
@@ -195,7 +203,10 @@ class AutomatonResult:
 
 @dataclass(frozen=True)
 class _AutomatonSpec(BaseSpec):
-    """Automaton read from a system: its rule, law, state, space, number of sites and of values, and local map."""
+    """Automaton read from a system.
+
+    It holds its rule, law, state, space, number of sites and of values, and local map.
+    """
 
     system: System
     rule: LocalRuleInteraction
@@ -225,7 +236,7 @@ def automaton(
     base: float = 2.0,
     sweeps: int = 100,
 ) -> AutomatonResult:
-    """Return a decision or a measure of a system that is a cellular automaton or holds a subshift.
+    """Return a decision or a measure of a cellular automaton or subshift of a system.
 
     The function reads a `System`. An automaton is a group of cells with one synchronous and deterministic
     `LocalRuleInteraction`, and it is linear when the rule is a `LinearRuleSpec`. The number of values of a cell comes
@@ -472,7 +483,10 @@ def _run_pair(
     site: int,
     steps: int,
 ) -> AutomatonResult:
-    """Return the composition with the second automaton, or the difference pattern of a changed configuration."""
+    """Return the composition with the second automaton, or a difference pattern.
+
+    The difference pattern is that of a changed configuration.
+    """
     if kind == 'compose':
         if second is None:
             error_msg = 'automaton of kind compose needs second. Give it.'
@@ -495,7 +509,10 @@ def _measure(
     windows: Sequence[BaseSpace] | None,
     base: float,
 ) -> AutomatonResult:
-    """Return a Garden of Eden pattern, the inverse, the matrix, the polynomial, or the entropy of the automaton."""
+    """Return a Garden of Eden pattern, inverse, matrix, polynomial, or entropy.
+
+    They are those of the automaton.
+    """
     system = automaton.system
     if kind == 'garden-of-eden':
         return AutomatonResult(
@@ -524,7 +541,10 @@ def _run_subshift(
     sweeps: int,
     random_state: int | np.random.Generator | None,
 ) -> AutomatonResult:
-    """Return whether a configuration is admissible, its violations, the count, a sample, or a subshift entropy."""
+    """Return admissibility, violations, count, sample, or entropy of a subshift.
+
+    The admissibility and the violations are those of a configuration.
+    """
     if kind == 'entropy':
         entropies = [np.log(_count_configurations(subshift, window)) / _size_of(window) for window in windows or ()]
         return AutomatonResult(system, entropy=np.asarray(entropies) / np.log(base))
@@ -542,7 +562,10 @@ def _run_subshift(
 
 
 def _get_space(system: System, element: GroupElement) -> BaseSpace:
-    """Return the prepared space of a group of a system, its own or the space of the system."""
+    """Return the prepared space of a group of a system.
+
+    It is its own space or the space of the system.
+    """
     space = element.space if element.space is not None else system.space
     if space is None:
         error_msg = f'The group {element.label!r} of the system lives on no space. Give it a lattice or a group.'
@@ -551,7 +574,10 @@ def _get_space(system: System, element: GroupElement) -> BaseSpace:
 
 
 def _find_rule(system: System) -> LocalRuleInteraction | None:
-    """Return the local rule of a system, `None` without one, or raise an error for several."""
+    """Return the local rule of a system.
+
+    The result is `None` without one, and an error is raised for several.
+    """
     rules = [item for item in system.interactions if isinstance(item, LocalRuleInteraction)]
     if len(rules) > 1:
         names = ', '.join(rule.label for rule in rules)
@@ -561,7 +587,10 @@ def _find_rule(system: System) -> LocalRuleInteraction | None:
 
 
 def _find_subshift(system: System) -> tuple[GroupElement, SubshiftSpec] | None:
-    """Return the first group of a system with a state whose domain is a subshift, with its spec, or `None`."""
+    """Return the first group of a system with a state whose domain is a subshift.
+
+    It comes with its spec, or is `None`.
+    """
     for element in system.elements:
         if not isinstance(element, GroupElement):
             continue
@@ -572,14 +601,20 @@ def _find_subshift(system: System) -> tuple[GroupElement, SubshiftSpec] | None:
 
 
 def _get_rule_source(rule: LocalRuleInteraction | None) -> str | None:
-    """Return what a local rule makes of its system, a linear automaton or an automaton, or `None` without one."""
+    """Return what a local rule makes of its system.
+
+    It is a linear automaton or an automaton, or `None` without one.
+    """
     if rule is None:
         return None
     return LINEAR if isinstance(rule.rule, LinearRuleSpec) else AUTOMATON
 
 
 def _get_states(domain: object, rule: object) -> int | None:
-    """Return the number of values of a cell, from a finite domain of a state or else from a rule, or `None`."""
+    """Return the number of values of a cell.
+
+    It comes from a finite domain of a state or else from a rule, or is `None`.
+    """
     if isinstance(domain, SubshiftSpec):
         return domain.states
     if isinstance(domain, FiniteEnumeratedSet):
@@ -596,7 +631,10 @@ def _get_states(domain: object, rule: object) -> int | None:
 
 
 def _read_automaton(system: System, rule: LocalRuleInteraction) -> _AutomatonSpec:
-    """Return the law, the space, the size, the number of states, and the local map of the automaton of a system."""
+    """Return the law, space, size, number of states, and local map of an automaton.
+
+    The automaton is that of a system.
+    """
     target = getattr(rule, rule._get_role('target'))
     element = next((item for item in system.elements if item.label == target), None)
     if not isinstance(element, GroupElement) or not isinstance(rule.state, str) or rule.reads is not None:
@@ -624,7 +662,10 @@ def _read_automaton(system: System, rule: LocalRuleInteraction) -> _AutomatonSpe
 
 
 def _get_local_map(automaton: _AutomatonSpec) -> IntArray:
-    """Return the next value of every pattern of the cells the rule reads, indexed by the code of the pattern."""
+    """Return the next value of every pattern of the cells the rule reads.
+
+    The values are indexed by the code of the pattern.
+    """
     law = automaton.law
     if isinstance(law._get_rule(), LinearRuleSpec):
         return np.empty(0, dtype=np.int64)
@@ -649,12 +690,18 @@ def _get_local_map(automaton: _AutomatonSpec) -> IntArray:
 
 
 def _get_table(automaton: _AutomatonSpec, space: BaseSpace) -> Indices:
-    """Return the site of every cell the rule reads at every site of a space, with the sites outside it."""
+    """Return the site of every cell the rule reads at every site of a space.
+
+    The table includes the sites outside it.
+    """
     return _fitted(space)._index_table(automaton.law._get_neighborhood())
 
 
 def _step(automaton: _AutomatonSpec, configuration: npt.ArrayLike, space: BaseSpace | None = None) -> IntArray:
-    """Return the image of a configuration, or of one configuration per row, by one run of the law."""
+    """Return the image of a configuration by one run of the law.
+
+    It also takes one configuration per row.
+    """
     inputs = {'space': automaton.space if space is None else space, automaton.state: np.asarray(configuration)}
     return np.asarray(automaton.law.run(inputs).value_, dtype=np.int64)
 
@@ -685,7 +732,10 @@ def _size_of(space: BaseSpace) -> int:
 
 
 def _patterns(states: int, width: int) -> IntArray:
-    """Return every pattern of values of a number of cells, in the order of their codes."""
+    """Return every pattern of values of a number of cells.
+
+    The patterns come in the order of their codes.
+    """
     if states**width > MAX_PATTERNS:
         error_msg = f'A rule on {width} cells with {states} values has more than {MAX_PATTERNS} patterns.'
         raise AnalysisError(error_msg)
@@ -693,13 +743,19 @@ def _patterns(states: int, width: int) -> IntArray:
 
 
 def _codes(values: IntArray, states: int) -> IntArray:
-    """Return the code of every row of values, read as digits in the base of the number of states."""
+    """Return the code of every row of values.
+
+    The values are read as digits in the base of the number of states.
+    """
     weights = states ** np.arange(values.shape[-1] - 1, -1, -1, dtype=np.int64)
     return values @ weights
 
 
 def _configurations(states: int, size: int) -> IntArray:
-    """Return every configuration of a number of sites, or raise an error when there are too many."""
+    """Return every configuration of a number of sites.
+
+    An error is raised when there are too many.
+    """
     if states**size > MAX_CONFIGURATIONS:
         error_msg = (
             f'{states}^{size} configurations exceed the enumeration limit of {MAX_CONFIGURATIONS}. Use the SAT '
@@ -718,7 +774,10 @@ def _check_method(method: str, enumerable: bool) -> bool:
 
 
 def _shifted(element: Item, base: Item) -> Item:
-    """Return the composite of an element of a memory set after an element of another, as a word or an offset."""
+    """Return the composite of an element of a memory set after an element of another.
+
+    The composite is a word or an offset.
+    """
     if isinstance(element, str) and isinstance(base, str):
         parts = [part for part in (base, element) if part.strip() not in {'', IDENTITY}]
         return '*'.join(parts) or IDENTITY
@@ -735,7 +794,10 @@ def _rule_clauses(
     sites: Sequence[int],
     output: Callable[[int, int], list[int] | None],
 ) -> None:
-    """Add, for every site and pattern of its cells, the clause that the pattern implies the output of the rule."""
+    """Add the clause that a pattern implies the output of the rule.
+
+    There is one clause for every site and pattern of its cells.
+    """
     table = _get_table(automaton, automaton.space)
     patterns = _patterns(_get_states_count(automaton), table.shape[1])
     fill = int(getattr(automaton.space, 'fill', 0))
@@ -764,7 +826,10 @@ def _decode(system: list[int], variables: npt.NDArray[np.int64]) -> IntArray:
 
 
 def _collision(automaton: _AutomatonSpec, window: Sequence[int]) -> tuple[IntArray, IntArray] | None:
-    """Return two configurations that differ inside a window, agree outside it, and have the same image, by SAT."""
+    """Return two distinct configurations with the same image, by SAT.
+
+    They differ inside a window and agree outside it.
+    """
     clauses = _Clauses()
     states = _get_states_count(automaton)
     first = clauses.one_hot(automaton.size, states)
@@ -789,12 +854,18 @@ def _collision(automaton: _AutomatonSpec, window: Sequence[int]) -> tuple[IntArr
 
 
 def _preimage(automaton: _AutomatonSpec, target: IntArray, window: Sequence[int]) -> IntArray | None:
-    """Return a configuration whose image equals a target on a window, or `None`, by SAT."""
+    """Return a configuration whose image equals a target on a window, by SAT.
+
+    The result is `None` when there is none.
+    """
     clauses = _Clauses()
     cells = clauses.one_hot(automaton.size, _get_states_count(automaton))
 
     def forbid(site: int, value: int) -> list[int] | None:
-        """Return an empty consequence, which forbids the pattern, when the rule misses the target."""
+        """Return an empty consequence when the rule misses the target.
+
+        The empty consequence forbids the pattern.
+        """
         return None if value == target[site] else []
 
     _rule_clauses(automaton, clauses, cells, window, forbid)
@@ -810,7 +881,10 @@ def _images(automaton: _AutomatonSpec) -> tuple[IntArray, IntArray]:
 
 
 def _ball_neighborhood(automaton: _AutomatonSpec, radius: int) -> Reach:
-    """Return the neighbourhood of every cell within a radius, a box of offsets or a ball of group elements."""
+    """Return the neighbourhood of every cell within a radius.
+
+    It is a box of offsets or a ball of group elements.
+    """
     if isinstance(automaton.space, LatticeSpace) and not isinstance(automaton.law.over, LatticeNeighborhood):
         error_msg = 'An inverse is searched on a lattice with a neighbourhood of offsets or on a group space.'
         raise AnalysisError(error_msg)
@@ -835,7 +909,7 @@ def _is_injective(automaton: _AutomatonSpec, *, method: str = 'auto') -> bool:
 
 
 def _is_pre_injective(automaton: _AutomatonSpec, window: Sequence[int] | None = None, *, method: str = 'auto') -> bool:
-    """Check whether two configurations that differ only inside a window never have the same image."""
+    """Check whether configurations that differ inside a window never share an image."""
     sites = list(range(automaton.size)) if window is None else [int(site) for site in window]
     if not _check_method(method, _is_enumerable(automaton)):
         return _collision(automaton, sites) is None
@@ -869,7 +943,10 @@ def _garden_of_eden(
 
 
 def _get_system(automaton: _AutomatonSpec, neighborhood: Reach, rule: object, name: str) -> System:
-    """Return the system with the elements of the analysed one and a new local rule on the same state."""
+    """Return the system with the elements of the analysed one and a new local rule.
+
+    The rule acts on the same state.
+    """
     system = automaton.system
     source = automaton.rule
     interaction = LocalRuleInteraction(
@@ -883,7 +960,10 @@ def _get_system(automaton: _AutomatonSpec, neighborhood: Reach, rule: object, na
 
 
 def _inverse(automaton: _AutomatonSpec, max_radius: int = 2) -> System | None:
-    """Return the system of the automaton whose composition with a reversible one is the identity, or `None`."""
+    """Return the system of the inverse of a reversible automaton.
+
+    Its composition with the automaton is the identity, and it is `None` when there is none.
+    """
     configurations, codes = _images(automaton)
     if np.unique(codes).size != codes.size:
         return None
@@ -905,7 +985,10 @@ def _inverse(automaton: _AutomatonSpec, max_radius: int = 2) -> System | None:
 
 
 def _get_reach(automaton: _AutomatonSpec) -> Reach:
-    """Return the neighbourhood the rule of the automaton reads, of offsets or of group elements."""
+    """Return the neighbourhood the rule of the automaton reads.
+
+    It is made of offsets or of group elements.
+    """
     reach = automaton.law._get_neighborhood()
     if not isinstance(reach, LatticeNeighborhood | MemoryNeighborhood):
         error_msg = f'An automaton reads offsets or a memory set, not {reach!r}.'
@@ -914,7 +997,10 @@ def _get_reach(automaton: _AutomatonSpec) -> Reach:
 
 
 def _compose(automaton: _AutomatonSpec, second: System) -> System:
-    """Return the system of the automaton that applies this automaton and then a second one on the same space."""
+    """Return the system of the automaton that applies this one then a second one.
+
+    Both act on the same space.
+    """
     rule = _find_rule(second)
     if rule is None or isinstance(rule.rule, LinearRuleSpec):
         error_msg = 'Composed automata are systems with a local rule that is not linear.'
@@ -946,7 +1032,10 @@ def _compose(automaton: _AutomatonSpec, second: System) -> System:
 
 
 def _composed_rule(composed: _ComposedRuleSpec, *values: npt.ArrayLike) -> IntArray:
-    """Return the value of the second rule of a composition on the values of the first rule around every cell."""
+    """Return the value of the second rule of a composition on the first rule's values.
+
+    The values of the first rule are those around every cell.
+    """
     cells = np.stack([np.asarray(value, dtype=np.int64) for value in values], axis=-1)
     inner = [composed.first[_codes(cells[..., list(columns)], composed.states)] for columns in composed.columns]
     return composed.second[_codes(np.stack(inner, axis=-1), composed.states)]
@@ -958,7 +1047,10 @@ def _difference_pattern(
     site: int,
     steps: int,
 ) -> npt.NDArray[np.bool_]:
-    """Return where two runs differ when one starts with one cell changed to its next value."""
+    """Return where two runs differ when one starts with one cell changed.
+
+    The cell is changed to its next value.
+    """
     initial = np.asarray(configuration, dtype=np.int64)
     changed = initial.copy()
     changed[site] = (changed[site] + 1) % _get_states_count(automaton)
@@ -984,7 +1076,10 @@ def _get_linear_rule(automaton: _AutomatonSpec) -> LinearRuleSpec:
 
 
 def _get_matrix(automaton: _AutomatonSpec) -> Matrix:
-    """Return the matrix of a linear automaton over its field, whose row `g` gives the image at `g`."""
+    """Return the matrix of a linear automaton over its field.
+
+    Its row `g` gives the image at `g`.
+    """
     rule = _get_linear_rule(automaton)
     table = _get_table(automaton, automaton.space)
     if (table >= automaton.size).any():
@@ -999,7 +1094,10 @@ def _get_matrix(automaton: _AutomatonSpec) -> Matrix:
 
 
 def _get_polynomial(automaton: _AutomatonSpec) -> LaurentPolynomial:
-    """Return the Laurent polynomial `sum a_s x^s` of a linear automaton on a lattice, its symbol on `Z^d`."""
+    """Return the Laurent polynomial `sum a_s x^s` of a linear automaton on a lattice.
+
+    It is its symbol on `Z^d`.
+    """
     rule = _get_linear_rule(automaton)
     if not isinstance(automaton.law.over, LatticeNeighborhood):
         error_msg = 'A Laurent polynomial describes a linear automaton on a lattice, with offsets.'
@@ -1015,21 +1113,27 @@ def _get_polynomial(automaton: _AutomatonSpec) -> LaurentPolynomial:
 
 
 def _linear_injective(automaton: _AutomatonSpec, *, infinite: bool) -> bool:
-    """Check whether a linear automaton is invertible: its matrix on its universe, or a monomial on `Z^d`."""
+    """Check whether a linear automaton is invertible.
+
+    It is when its matrix on its universe is, or when its symbol on `Z^d` is a monomial.
+    """
     if infinite:
         return len(_get_polynomial(automaton).exponents()) == 1
     return bool(_get_matrix(automaton).is_invertible())
 
 
 def _linear_surjective(automaton: _AutomatonSpec, *, infinite: bool) -> bool:
-    """Check whether a linear automaton is surjective: invertible on its universe, or not zero on `Z^d`."""
+    """Check whether a linear automaton is surjective.
+
+    It is when it is invertible on its universe, or when its symbol on `Z^d` is not zero.
+    """
     if infinite:
         return not _get_polynomial(automaton).is_zero()
     return _linear_injective(automaton, infinite=False)
 
 
 def _get_complete(subshift: SubshiftSpec, space: BaseSpace) -> tuple[Indices, npt.NDArray[np.bool_]]:
-    """Return the neighbour table of a space and the sites whose patterns lie inside it."""
+    """Return the neighbour table of a space and the sites whose patterns lie in it."""
     neighborhood = subshift.neighborhood
     if not isinstance(neighborhood, LatticeNeighborhood | MemoryNeighborhood):
         error_msg = f'A subshift covers offsets or a memory set, not {neighborhood!r}.'
@@ -1039,7 +1143,10 @@ def _get_complete(subshift: SubshiftSpec, space: BaseSpace) -> tuple[Indices, np
 
 
 def _get_violations(subshift: SubshiftSpec, space: BaseSpace, configuration: npt.ArrayLike) -> npt.NDArray[np.bool_]:
-    """Return the sites of the space at which a forbidden pattern appears in a configuration."""
+    """Return the sites at which a forbidden pattern appears in a configuration.
+
+    The sites are those of the space.
+    """
     table, complete = _get_complete(subshift, space)
     values = np.append(np.asarray(configuration, dtype=np.int64), 0)
     forbidden = np.asarray([tuple(pattern) for pattern in subshift.forbidden], dtype=np.int64)
@@ -1048,7 +1155,10 @@ def _get_violations(subshift: SubshiftSpec, space: BaseSpace, configuration: npt
 
 
 def _count_configurations(subshift: SubshiftSpec, space: BaseSpace) -> int:
-    """Return the number of admissible configurations of a space, by dynamic programming over its sites."""
+    """Return the number of admissible configurations of a space.
+
+    It is computed by dynamic programming over its sites.
+    """
     size = _size_of(space)
     table, complete = _get_complete(subshift, space)
     forbidden = {tuple(int(item) for item in pattern) for pattern in subshift.forbidden}
@@ -1090,7 +1200,10 @@ def _sample(
     sweeps: int,
     random_state: int | np.random.Generator | None,
 ) -> IntArray:
-    """Return an admissible configuration drawn by a Markov chain of single-cell moves that keep it admissible."""
+    """Return an admissible configuration drawn by a Markov chain.
+
+    The chain makes single-cell moves that keep it admissible.
+    """
     rng = np.random.default_rng(random_state)
     size = _size_of(space)
     values = (

@@ -84,7 +84,10 @@ def _evaluate_mittag_leffler(
     parent: Parent | None = None,
     algorithm: str | None = None,
 ) -> Element | complex | float:
-    """Return the numeric value of the symbolic Mittag-Leffler function in the field of its arguments."""
+    """Return the numeric value of the symbolic Mittag-Leffler function.
+
+    The value lies in the field of its arguments.
+    """
     del self, algorithm
     if any(isinstance(item, Expression) and not item.is_numeric() for item in (alpha, beta, z)):
         error_msg = 'The Mittag-Leffler function has a numeric value only at numeric arguments.'
@@ -99,7 +102,9 @@ MITTAG_LEFFLER = formal_function('mittag_leffler', nargs=3, evalf_func=_evaluate
 
 @dataclass(frozen=True)
 class SymbolicResult:
-    """Symbolic form of a system: its equations, their exact solution, its Hamiltonian, or its boundary flows.
+    """Symbolic form of a system.
+
+    It is its equations, their exact solution, its Hamiltonian, or its boundary flows.
 
     Args:
         problem:
@@ -128,7 +133,9 @@ class SymbolicResult:
 
 
 def symbolic(source: Source, *, kind: str = 'equations', use_initial_state: bool = False) -> SymbolicResult:
-    """Return the symbolic form of a system: its equations, their solution, its Hamiltonian, or its boundary flows.
+    """Return the symbolic form of a system.
+
+    It is its equations, their solution, its Hamiltonian, or its boundary flows.
 
     The kinds read the equations of a system:
 
@@ -217,10 +224,10 @@ def symbolic(source: Source, *, kind: str = 'equations', use_initial_state: bool
 
 
 def _declare_domains(items: Iterable[Expression], values: Mapping[Expression, float] | None = None) -> None:
-    """Give Maxima the domains of symbols, once per symbol, so exact solutions use them.
+    """Give Maxima the domains of symbols, once per symbol.
 
-    A symbol of a real domain with a nonzero value also gets the sign of its value, which replaces the sign of an
-    earlier value.
+    Exact solutions then use them. A symbol of a real domain with a nonzero value also gets the sign of its value, which
+    replaces the sign of an earlier value.
 
     Args:
         items:
@@ -256,7 +263,10 @@ def _declare_domains(items: Iterable[Expression], values: Mapping[Expression, fl
 
 
 def _reciprocal_gamma(argument: RealNumber) -> RealNumber:
-    """Return `1 / Gamma(argument)` of a real number of a Sage field, which is 0 at the poles of gamma."""
+    """Return `1 / Gamma(argument)` of a real number of a Sage field.
+
+    It is 0 at the poles of gamma.
+    """
     if argument <= 0 and argument == argument.round():
         return argument.parent()(0)
     return 1 / argument.gamma()
@@ -264,14 +274,20 @@ def _reciprocal_gamma(argument: RealNumber) -> RealNumber:
 
 @cache
 def _mittag_leffler_coefficients(alpha: float, beta: float, bits: int, count: int) -> tuple[RealNumber, ...]:
-    """Return the coefficients `1 / Gamma(alpha k + beta)` of the power series for `k < count` in a Sage field."""
+    """Return the coefficients `1 / Gamma(alpha k + beta)` of the power series.
+
+    The coefficients are those for `k < count`, in a Sage field.
+    """
     reals = RealField(bits)
     a, b = reals(alpha), reals(beta)
     return tuple(_reciprocal_gamma(a * index + b) for index in range(count))
 
 
 def _mittag_leffler_series(alpha: float, beta: float, z: complex, scale: float) -> complex:
-    """Return the Mittag-Leffler function by its power series, summed precisely enough for the cancellations."""
+    """Return the Mittag-Leffler function by its power series.
+
+    The series is summed precisely enough for the cancellations.
+    """
     extra = math.ceil(scale / math.log(2) + 2 * math.log2(1 + abs(z)))
     bits = 53 + GUARD_BITS * (1 + extra // GUARD_BITS)
     complexes = ComplexField(bits)
@@ -293,12 +309,12 @@ def _mittag_leffler_series(alpha: float, beta: float, z: complex, scale: float) 
 
 
 def _mittag_leffler_asymptotic(alpha: float, beta: float, z: complex, scale: float) -> complex:
-    """Return the Mittag-Leffler function by its asymptotic expansion for large `|z|`, with `0 < alpha < 2`.
+    """Return the Mittag-Leffler function by its asymptotic expansion for large `|z|`.
 
-    The expansion `E(z) = (1 / alpha) z^((1 - beta) / alpha) exp(z^(1 / alpha)) - sum_k z^(-k) / Gamma(beta - alpha
-    k)` holds for `|arg z| < alpha pi`, and the exponential term drops out of it for larger arguments. The sum stops
-    where the bound `|z|^(-k) Gamma(1 + alpha k - beta) / pi` of its terms falls below the precision or starts to
-    grow.
+    The expansion holds with `0 < alpha < 2`. The expansion `E(z) = (1 / alpha) z^((1 - beta) / alpha) exp(z^(1 /
+    alpha)) - sum_k z^(-k) / Gamma(beta - alpha k)` holds for `|arg z| < alpha pi`, and the exponential term drops out
+    of it for larger arguments. The sum stops where the bound `|z|^(-k) Gamma(1 + alpha k - beta) / pi` of its terms
+    falls below the precision or starts to grow.
     """
     reals, complexes = RealField(53 + GUARD_BITS), ComplexField(53 + GUARD_BITS)
     a, b, w = reals(alpha), reals(beta), complexes(z.real, z.imag)
@@ -315,7 +331,10 @@ def _mittag_leffler_asymptotic(alpha: float, beta: float, z: complex, scale: flo
 
 
 def _mittag_leffler_scalar(alpha: float, beta: float, z: complex) -> complex:
-    """Return the Mittag-Leffler function at one point by its series or its asymptotic expansion."""
+    """Return the Mittag-Leffler function at one point.
+
+    It uses its series or its asymptotic expansion.
+    """
     if alpha == 1 and beta == 1:
         return complex(np.exp(z))
     scale = abs(z) ** (1 / alpha)
@@ -333,12 +352,12 @@ def _mittag_leffler_scalar(alpha: float, beta: float, z: complex) -> complex:
 
 
 def _mittag_leffler(alpha: float, beta: float, z: npt.ArrayLike) -> Array | ComplexArray:
-    """Return the two-parameter Mittag-Leffler function `E_(alpha, beta)(z) = sum_k z^k / Gamma(alpha k + beta)`.
+    """Return the two-parameter Mittag-Leffler function `E_(alpha, beta)(z)`.
 
-    `E_(1, 1)(z)` is `exp(z)`, and `x_0 E_(alpha, 1)(-lambda t^alpha)` solves the fractional relaxation `D^alpha x =
-    -lambda x` of a Caputo derivative of order `alpha`, which decays as the power law `t^(-alpha)` at long times.
-    The function sums its power series in arbitrary precision with Sage for `|z|^(1/alpha) <= 50`, and takes its
-    asymptotic expansion beyond.
+    It is `sum_k z^k / Gamma(alpha k + beta)`. `E_(1, 1)(z)` is `exp(z)`, and `x_0 E_(alpha, 1)(-lambda t^alpha)` solves
+    the fractional relaxation `D^alpha x = -lambda x` of a Caputo derivative of order `alpha`, which decays as the power
+    law `t^(-alpha)` at long times. The function sums its power series in arbitrary precision with Sage for
+    `|z|^(1/alpha) <= 50`, and takes its asymptotic expansion beyond.
 
     Args:
         alpha:
@@ -394,7 +413,10 @@ def _delayed_functions(
     problem: ProblemSpec,
     substitution: dict[Expression, Expression],
 ) -> dict[Expression, Expression]:
-    """Return the substitution of every delayed state by its unknown function at the delayed time."""
+    """Return the substitution of every delayed state by its unknown function.
+
+    The function is taken at the delayed time.
+    """
     delayed = {}
     for delay in problem.delays:
         lag = SR(delay.delay).subs(substitution)
@@ -403,7 +425,10 @@ def _delayed_functions(
 
 
 def _left_side(problem: ProblemSpec, unknown: _UnknownSpec) -> Expression:
-    """Return the left side of the equation of an unknown: its next value, highest derivative, or Caputo one."""
+    """Return the left side of the equation of an unknown.
+
+    It is its next value, highest derivative, or Caputo one.
+    """
     if problem.form == FormKind.DISCRETE:
         return function(str(problem.equation_symbols[unknown.name]))(problem.time + 1)
     order = float(problem.orders[unknown.indices[0]]) if problem.orders.size else 1.0
@@ -415,7 +440,10 @@ def _left_side(problem: ProblemSpec, unknown: _UnknownSpec) -> Expression:
 def _written(
     problem: ProblemSpec,
 ) -> tuple[dict[str, Expression], list[_UnknownSpec], dict[Expression, Expression]]:
-    """Return the equations in their written order, the unknown functions, and the substitution of symbols."""
+    """Return the equations in their written order, the unknown functions, and symbols.
+
+    The symbols come as their substitution.
+    """
     components = _components(problem)
     by_entry = {(entry, column): name for name, (entry, column, _) in components.items()}
     orders: dict[str, int] = {}
@@ -455,7 +483,10 @@ def _written(
 
 
 def _equations_of_problem(problem: ProblemSpec) -> dict[str, Expression]:
-    """Return the equations of a compiled problem as relations between functions of time, in their written order."""
+    """Return the equations of a compiled problem as relations of functions of time.
+
+    They come in their written order.
+    """
     if problem.form == FormKind.JUMP:
         error_msg = 'A jump process has no symbolic equations. Use a deterministic version of its interactions.'
         raise AnalysisError(error_msg)
@@ -463,7 +494,10 @@ def _equations_of_problem(problem: ProblemSpec) -> dict[str, Expression]:
 
 
 def _first_order(problem: ProblemSpec) -> tuple[list[Expression], list[Expression]]:
-    """Return the first-order equations of every state component, companions included, and their functions."""
+    """Return the first-order equations of every state component and their functions.
+
+    Companions are included.
+    """
     functions = {item: function(str(item))(problem.time) for item in problem.equation_symbols.values()}
     equations = [
         diff(functions[item], problem.time) == SR(problem.equations[name]).subs(functions)
@@ -473,16 +507,20 @@ def _first_order(problem: ProblemSpec) -> tuple[list[Expression], list[Expressio
 
 
 def _forget_initial_values(functions: list[Expression], time: Expression) -> None:
-    """Reset the values at `t = 0` that `desolve_system` leaves in Maxima for every function but the first."""
+    """Reset the values at `t = 0` that `desolve_system` leaves in Maxima.
+
+    They are reset for every function but the first.
+    """
     for item in functions:
         maxima_function = item._maxima_()
         maxima_function.atvalue(time == 0, maxima_function)
 
 
 def _is_closed(expression: Expression, functions: list[Expression], time: Expression) -> bool:
-    """Check that an expression has no unevaluated transform or integral and no unknown function of time.
+    """Check that an expression has no unevaluated transform, integral, or unknown.
 
-    Values of the unknown functions at fixed times, such as `x(0)`, are integration constants and are allowed.
+    An unknown is an unknown function of time. Values of the unknown functions at fixed times, such as `x(0)`, are
+    integration constants and are allowed.
     """
     names = {str(item.operator()) for item in functions}
     stack = [SR(expression)]
@@ -498,7 +536,10 @@ def _is_closed(expression: Expression, functions: list[Expression], time: Expres
 
 
 def _parameter_values(problem: ProblemSpec) -> dict[Expression, float]:
-    """Return the current value of every parameter component of single elements and interactions by symbol."""
+    """Return the current value of every parameter component by symbol.
+
+    The parameters are those of single elements and interactions.
+    """
     values = {}
     for entry in problem.parameters.entries:
         if entry.members is not None or entry.name not in problem.symbols:
@@ -509,7 +550,10 @@ def _parameter_values(problem: ProblemSpec) -> dict[Expression, float]:
 
 
 def _sign_error(error: Exception) -> AnalysisError:
-    """Return the error of a sign question that Maxima asks, naming the parameters it involves."""
+    """Return the error of a sign question that Maxima asks.
+
+    The error names the parameters it involves.
+    """
     match = re.search(r'Is (.+?) (positive|negative|zero)', str(error))
     expression = match.group(1) if match else 'an expression'
     names = sorted(set(re.findall(r'[A-Za-z_][A-Za-z0-9_]*', expression))) if match else []
@@ -522,7 +566,10 @@ def _sign_error(error: Exception) -> AnalysisError:
 
 
 def _check_solvable(problem: ProblemSpec) -> None:
-    """Raise an error when a problem is not of the ODE or fractional form, or has callable laws or groups."""
+    """Raise an error for a problem an exact solution cannot take.
+
+    Such a problem is not of the ODE or fractional form, or has callable laws or groups.
+    """
     if problem.form not in {FormKind.ODE, FormKind.FRACTIONAL}:
         error_msg = f'Only ODE systems can be solved symbolically, but the system is a {problem.form}.'
         raise AnalysisError(error_msg)
@@ -535,7 +582,10 @@ def _check_solvable(problem: ProblemSpec) -> None:
 
 
 def _fractional_solution(problem: ProblemSpec, *, use_initial_state: bool) -> dict[str, Expression]:
-    """Return the solution `x(t) = x(0) E_alpha(c t^alpha)` of a linear fractional relaxation `D^alpha x = c x`."""
+    """Return the solution `x(t) = x(0) E_alpha(c t^alpha)` of a fractional relaxation.
+
+    The relaxation is the linear `D^alpha x = c x`.
+    """
     _, unknowns, _ = _written(problem)
     unknown = unknowns[0]
     item = problem.equation_symbols[unknown.name]
@@ -557,7 +607,10 @@ def _fractional_solution(problem: ProblemSpec, *, use_initial_state: bool) -> di
 
 
 def _solve(problem: ProblemSpec, *, use_initial_state: bool) -> dict[str, Expression]:
-    """Return the exact solution of the equations of a problem as functions of time, with Maxima through Sage."""
+    """Return the exact solution of the equations of a problem as functions of time.
+
+    It is found with Maxima through Sage.
+    """
     _check_solvable(problem)
     if problem.form == FormKind.FRACTIONAL:
         return _fractional_solution(problem, use_initial_state=use_initial_state)
@@ -616,7 +669,10 @@ def _solve(problem: ProblemSpec, *, use_initial_state: bool) -> dict[str, Expres
 
 
 def _transfer_network(problem: ProblemSpec) -> TransferNetworkSpec:
-    """Return the transfer network of a problem, or raise an error for problems without one."""
+    """Return the transfer network of a problem.
+
+    An error is raised for problems without one.
+    """
     if problem.transfer_network is None:
         error_msg = 'The problem has no transfer network. Compile the system as one partition with `PassCompiler`.'
         raise AnalysisError(error_msg)
@@ -624,7 +680,10 @@ def _transfer_network(problem: ProblemSpec) -> TransferNetworkSpec:
 
 
 def _conservation(problem: ProblemSpec) -> dict[str, Expression]:
-    """Return the net inflow from the environment of every quantity, after checking that internal flows cancel."""
+    """Return the net inflow from the environment of every quantity.
+
+    The internal flows are checked to cancel.
+    """
     transfer_network = _transfer_network(problem)
     amounts = {record.path: record.expression for record in transfer_network.recorded}
     net: dict[str, Expression] = defaultdict(lambda: SR(0))
