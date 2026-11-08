@@ -8,7 +8,7 @@ from skcomplex.core.analysis import scaling
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import GeometryVisual, RerunObserver
 from skcomplex.core.errors import ValidationError
-from skcomplex.systems import describe
+from skcomplex.core.types import FormKind
 from skcomplex.systems.mathematics.fractals import CantorSetSystem, KochCurveSystem, SierpinskiSubstitutionSystem
 
 
@@ -21,7 +21,7 @@ def test_koch_curve():
     grid = curve.raster(2048)
     dimension = scaling(grid, kind='box-counting', scales=[16, 32, 64, 128, 256]).exponent
     assert dimension == pytest.approx(np.log(4) / np.log(3), abs=0.05)
-    assert describe('koch_curve').formalism == 'rewriting system'
+    assert trajectory.problem.form == FormKind.REWRITING
 
 
 def test_cantor_set():

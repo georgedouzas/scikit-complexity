@@ -1,6 +1,6 @@
 """Test the `_alignment` module of `skcomplex.systems.physics.active_matter`."""
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.systems.physics.active_matter import AligningActiveBrownianParticlesSystem
 
@@ -16,18 +16,15 @@ def test_aligning_active_brownian_particles_alignment_transition() -> None:
             .prepare()
             .system_
         )
-        simulation = (
-            Simulation(
-                system,
-                dt=1.0,
-                solver=EulerMaruyamaSolver(dt=0.05),
-                random_state=0,
-                observables=AligningActiveBrownianParticlesSystem.observables,
-            )
-            .prepare()
-            .run(until=200)
+        trajectory = simulate(
+            system,
+            until=200,
+            dt=1.0,
+            solver=EulerMaruyamaSolver(dt=0.05),
+            random_state=0,
+            observables=AligningActiveBrownianParticlesSystem.observables,
         )
-        polarizations.append(_stationary_polarization(simulation.trajectory_, 100))
+        polarizations.append(_stationary_polarization(trajectory, 100))
     low, high = polarizations
     assert low < 0.2
     assert high > 0.6

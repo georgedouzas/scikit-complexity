@@ -21,7 +21,6 @@ from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.laws import ProductionLaw
 from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
 from ....core.components.system import BaseSystem, System
-from ....core.engine.compile import RewritingCompiler
 from ....core.errors import ParameterError
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -428,7 +427,6 @@ class MorseSubshiftSystem(BaseSystem):
     references = ('Ceccherini-Silberstein and Coornaert 2023',)
     until = 10
     dt = 1
-    compiler = RewritingCompiler()
 
     def __init__(self, axiom: str = '0', *, label: str = 'system') -> None:
         super().__init__(label)

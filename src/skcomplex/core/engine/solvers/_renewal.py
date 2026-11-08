@@ -21,7 +21,7 @@ class RenewalSolver(Solver):
         >>> import numpy as np
         >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.core.engine.compile import PassCompiler
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.laws import JumpLaw
         >>> from skcomplex.core.components.laws.utils import draw

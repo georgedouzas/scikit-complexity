@@ -6,8 +6,8 @@ import pytest
 from skcomplex.core.components.elements import GroupElement, PointElement
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import LammpsSolver, VelocityVerletSolver
 from skcomplex.systems.physics.common.particles import LAMMPS_FIXES, LAMMPS_PAIRS, LennardJonesInteraction
 
@@ -29,7 +29,7 @@ def _pair(interaction, distance):
 def test_lennard_jones_force_vanishes_at_minimum(solver):
     """Test that two particles at `2 ** (1 / 6)` stay at rest."""
     system = _pair(LennardJonesInteraction('lj', first='pair', second='pair', cutoff=2.5), 2 ** (1 / 6))
-    velocities = Simulation(system, solver=solver, dt=0.1).prepare().run(until=1).trajectory_.values('pair.x_d1')
+    velocities = simulate(system, until=1, solver=solver, dt=0.1).values('pair.x_d1')
     assert np.allclose(velocities, 0.0, atol=1e-10)
 
 

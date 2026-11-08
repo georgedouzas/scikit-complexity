@@ -36,19 +36,15 @@ from ....errors import LabelError, RoleError, ValidationError
 from ....specs import EntrySpec, NeighborReadSpec, WienerProcessSpec
 from ....types import Indices, VariableKind
 from ..._utils import bound_labels, declarations_of, domain_of, symbol, vector
-from ...problems import (
-    BlockSpec,
-    DeclarationsSpec,
-    KernelSpec,
-    ObservedSpec,
-    ProblemSpec,
-    ReferenceSpec,
-    SetSymbolSpec,
-)
-from ...problems._declarations_spec import _ACTIVE, ENDS, MEMBERS
+from ...problems import ProblemSpec
+from ...problems._block_spec import BlockSpec
+from ...problems._declarations_spec import _ACTIVE, ENDS, MEMBERS, DeclarationsSpec
 from ...problems._edge_search import EdgeSearch
+from ...problems._kernel_spec import KernelSpec
+from ...problems._observed_spec import ObservedSpec
 from ...problems._pair_search import PairSearch
-from ...problems._set_symbol_spec import _EDGE_NAMES, _MEMBER_REFERENCE
+from ...problems._reference_spec import ReferenceSpec
+from ...problems._set_symbol_spec import _EDGE_NAMES, _MEMBER_REFERENCE, SetSymbolSpec
 from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import Compilation

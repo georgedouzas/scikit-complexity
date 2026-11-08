@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.systems_biology import GeneralizedLogicalNetworkSystem, PetriNetSystem
 from skcomplex.systems.biology.systems_biology._logical_networks import POSITIVE_CIRCUIT
 
@@ -15,12 +15,13 @@ def test_negative_circuit_cycles_and_positive_circuit_settles():
     assert levels[:, 0].max() == 2
     assert levels[:, 1].max() == 1
     assert len({tuple(state) for state in levels[100:]}) >= 3
-    switch = (
-        Simulation(GeneralizedLogicalNetworkSystem(POSITIVE_CIRCUIT).prepare().system_, dt=0.5, random_state=0)
-        .prepare()
-        .run(until=50)
+    switch = simulate(
+        GeneralizedLogicalNetworkSystem(POSITIVE_CIRCUIT).prepare().system_,
+        until=50,
+        dt=0.5,
+        random_state=0,
     )
-    final = switch.trajectory_
+    final = switch
     assert (final.values('x.level')[-20:] == final.values('x.level')[-1]).all()
     assert (final.values('x.level')[-1], final.values('y.level')[-1]) in {(0.0, 1.0), (2.0, 0.0)}
 

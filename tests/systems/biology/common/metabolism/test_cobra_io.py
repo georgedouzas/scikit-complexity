@@ -85,13 +85,13 @@ def test_load_network_downloads_a_bigg_system():
 
 
 def test_default_install_stays_importable():
-    """Test that the catalog imports without the extra, lists its systems, and the toy network runs."""
+    """Test that the systems import and list without the extra, and that the toy network runs."""
     code = HIDE_EXTRA + (
         'from skcomplex.core.engine.runtime import simulate\n'
-        'from skcomplex.systems import catalog\n'
+        'from skcomplex.systems import all_systems\n'
         'from skcomplex.systems.biology.systems_biology import DynamicFBASystem, FluxBalanceSystem\n'
-        'names = {item.name for item in catalog()}\n'
-        "assert {'dynamic_fba', 'comets', 'community_fba'} <= names\n"
+        "names = {name for field in ('biology/systems_biology', 'biology/ecology') for name, _ in all_systems(field)}\n"
+        "assert {'DynamicFBASystem', 'CometsSystem', 'CommunityFBASystem'} <= names\n"
         "trajectory = simulate(FluxBalanceSystem(), until=0.0)\n"
         "assert abs(float(trajectory.values('cell.v_vbio')[0]) - 50) < 1e-9\n"
         "assert not {'cobra', 'straindesign', 'micom'} & set(sys.modules)\n"

@@ -16,7 +16,6 @@ from ....core.components.laws import BaseLaw, DissipatorLaw, GeneratorLaw
 from ....core.components.laws.utils import local_operator
 from ....core.components.spaces import LatticeSpace
 from ....core.components.system import BaseSystem, RunSettings, System
-from ....core.engine.compile import OperatorCompiler
 from ....core.errors import ValidationError
 from ....core.specs import HilbertSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
@@ -337,7 +336,6 @@ class QuantumHeisenbergSystem(BaseSystem):
     references = ('Heisenberg 1928', 'Mihailović et al. 2023')
     until = 8.0
     dt = 0.05
-    compiler = OperatorCompiler()
     observables = (
         ObservableSpec('sz', local_magnetization, group='chain', reduce=_sites),
         ObservableSpec('magnetization', total_magnetization),

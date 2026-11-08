@@ -4,8 +4,11 @@ import numpy as np
 import pytest
 
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.systems import create_simulation
-from skcomplex.systems.physics.criticality import FixedEnergySandpileSystem, ZhangSandpileSystem
+from skcomplex.systems.physics.criticality import (
+    FixedEnergySandpileSystem,
+    SelfOrganizedBranchingSystem,
+    ZhangSandpileSystem,
+)
 
 
 @pytest.mark.parametrize(('density', 'active'), [(1.9, False), (2.5, True)])
@@ -33,6 +36,5 @@ def test_zhang_sandpile_relaxes_below_the_threshold_with_avalanches_of_many_size
 def test_self_organized_branching_tunes_itself_to_the_critical_probability():
     """Test that the branching probability organizes itself to `p_c = 1 / 2` from below and from above."""
     for start in (0.3, 0.7):
-        simulation = create_simulation('self_organized_branching', p=start).set_params(random_state=0)
-        p = np.asarray(simulation.prepare().run().trajectory_.values('tree.p'))
+        p = np.asarray(simulate(SelfOrganizedBranchingSystem(p=start), random_state=0).values('tree.p'))
         assert p[-10000:].mean() == pytest.approx(0.5, abs=0.02)

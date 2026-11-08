@@ -32,7 +32,7 @@ def test_success_to_the_successful_gives_everything_to_the_initially_larger():
 
 def test_shifting_the_burden_lets_the_quick_fix_take_over():
     """Test that the quick fix replaces the capability of the system, which builds up to the goal without it."""
-    addicted = _run_seeded(ShiftingTheBurdenSystem().prepare().system_, 40.0, 1.0, 'shifting_the_burden')
+    addicted = _run_seeded(ShiftingTheBurdenSystem().prepare().system_, 40.0, 1.0, ShiftingTheBurdenSystem())
     assert addicted.values('burden.capability')[-1] < 0.01
     assert addicted.values('burden.intervention')[-1] == pytest.approx(1.0, abs=0.01)
     assert abs(addicted.values('burden.symptom')[-1]) < 0.01
@@ -52,7 +52,7 @@ def test_escalation_grows_both_stocks_exponentially():
 
 def test_policy_resistance_holds_the_stock_where_no_actor_wants_it():
     """Test that the stock settles at the weighted mean of the goals while the efforts escalate in opposite ways."""
-    standoff = _run_seeded(PolicyResistanceSystem().prepare().system_, 100.0, 5.0, 'policy_resistance')
+    standoff = _run_seeded(PolicyResistanceSystem().prepare().system_, 100.0, 5.0, PolicyResistanceSystem())
     assert standoff.values('standoff.stock')[-1] == pytest.approx(50.0, abs=0.1)
     assert standoff.values('standoff.compromise')[-1] == pytest.approx(50.0)
     assert standoff.values('standoff.effort_a')[-1] > 20.0

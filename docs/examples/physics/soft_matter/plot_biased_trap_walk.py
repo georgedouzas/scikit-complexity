@@ -14,7 +14,7 @@ grow in bursts and end at very different lengths.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.soft_matter import BiasedTrapWalkSystem
 
@@ -35,13 +35,13 @@ simulation = simulate(system, until=1495, dt=5, observers=[observer], random_sta
 fig, (scaling, spread) = plt.subplots(1, 2, figsize=(10, 4))
 for alpha in (0.3, 0.5, 0.7):
     system_system = BiasedTrapWalkSystem(n_walkers=100, n_sites=400, alpha=alpha, random_state=1)
-    run = Simulation(
+    trajectory = simulate(
         system_system.prepare().system_,
+        until=3000,
         dt=10,
         random_state=0,
         observables=BiasedTrapWalkSystem.observables,
-    ).prepare()
-    trajectory = run.run(until=3000).trajectory_
+    )
     times, position = trajectory.times[1:], trajectory.values('position')[1:]
     (line,) = scaling.loglog(times, position, label=f'alpha = {alpha}')
     prediction = times**alpha * np.sin(np.pi * alpha) / (np.pi * alpha)

@@ -5,7 +5,7 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.physics.climate import LeadingFollowingCascadeSystem
@@ -13,8 +13,7 @@ from skcomplex.systems.physics.climate import LeadingFollowingCascadeSystem
 
 def _final(system):
     """Return the trajectory of a cascade run with a fixed seed to time 500."""
-    simulation = Simulation(system, dt=0.5, solver=EulerMaruyamaSolver(dt=0.01), random_state=0)
-    return simulation.prepare().run(until=500.0).trajectory_
+    return simulate(system, until=500.0, dt=0.5, solver=EulerMaruyamaSolver(dt=0.01), random_state=0)
 
 
 @pytest.mark.parametrize(('coupling', 'tips'), [(0.4, True), (0.2, False)])

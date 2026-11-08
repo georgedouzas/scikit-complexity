@@ -9,7 +9,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import CrossingInteraction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 
@@ -38,7 +38,7 @@ class LeakyElement(Element):
 def _events(crossing, until, **values):
     """Return the times and labels of the events of a leaky integrator with a crossing."""
     system = System(elements=[LeakyElement('cell', **values)], interactions=[crossing])
-    trajectory = Simulation(system, dt=0.1).prepare().run(until=until).trajectory_
+    trajectory = simulate(system, until=until, dt=0.1)
     return trajectory, [event.time for event in trajectory.events]
 
 
@@ -70,8 +70,8 @@ def test_integrate_and_fire_group_fires_every_member_with_its_own_period():
         reset={'v': lambda s: 0.0},
         direction=1,
     )
-    trajectory = Simulation(System(elements=[cells], interactions=[fire]), dt=0.05).prepare().run(until=8.0)
-    events = trajectory.trajectory_.events
+    trajectory = simulate(System(elements=[cells], interactions=[fire]), until=8.0, dt=0.05)
+    events = trajectory.events
     for member, drive in enumerate(drives):
         times = [event.time for event in events if event.member == member]
         np.testing.assert_allclose(np.diff(times), np.log(drive / (drive - 1.0)), rtol=1e-3)

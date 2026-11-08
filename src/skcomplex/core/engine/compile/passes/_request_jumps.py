@@ -6,7 +6,7 @@
 
 from ....components.laws import BaseLaw, JumpLaw
 from ....specs import TopologyRequestSpec
-from ...problems import KernelSpec
+from ...problems._kernel_spec import KernelSpec
 from ...problems._topology_kernel import TopologyKernel
 from .._base import BasePass
 from .._compilation import Compilation, Laws

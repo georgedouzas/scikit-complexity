@@ -68,7 +68,8 @@ class LinearProgramKernel(BaseKernel):
     Examples:
         >>> import numpy as np
         >>> from scipy import sparse
-        >>> from skcomplex.core.engine.problems import LinearProgramKernel, LinearProgramSpec
+        >>> from skcomplex.core.engine.problems._linear_program_kernel import LinearProgramKernel
+        >>> from skcomplex.core.engine.problems._linear_program_spec import LinearProgramSpec
         >>> from skcomplex.core.specs import RunStateSpec
         >>> program = LinearProgramSpec(
         ...     path='flows',

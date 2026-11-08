@@ -8,8 +8,8 @@ from skcomplex.core.components.interactions import TrainingInteraction
 from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import JaxBackend
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.problems import LearningProblemSpec
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.problems._learning_problem_spec import LearningProblemSpec
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.specs import DatasetSpec, ObservableSpec
 from skcomplex.systems.computer_science.neural_networks import ElmanNetworkSystem

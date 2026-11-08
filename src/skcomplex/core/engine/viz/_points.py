@@ -241,7 +241,7 @@ class PointsVisual(BaseVisual):
             >>> from skcomplex.core.components.elements import GroupElement, PointElement
             >>> from skcomplex.core.components.spaces import ContinuousSpace
             >>> from skcomplex.core.components.system import System
-            >>> from skcomplex.core.engine.compile import PassCompiler
+            >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
             >>> from skcomplex.core.engine.viz import PointsVisual
             >>> gas = GroupElement('gas', element=PointElement, size=10, values={'x': [[0.0, 0.0, 0.0]] * 10})
             >>> problem = PassCompiler().prepare(System(elements=[gas], space=ContinuousSpace(n_dim=3))).run().problem_

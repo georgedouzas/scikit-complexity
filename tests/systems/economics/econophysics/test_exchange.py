@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.economics.econophysics import BoltzmannWealthSystem
 
 from ..conftest import _agents, _run
@@ -11,9 +11,7 @@ from ..conftest import _agents, _run
 
 def test_boltzmann_wealth_stays_constant():
     """Test that the total wealth of all traders equals its initial value at every frame."""
-    trajectory = (
-        Simulation(BoltzmannWealthSystem(100).prepare().system_, random_state=0).prepare().run(until=50).trajectory_
-    )
+    trajectory = simulate(BoltzmannWealthSystem(100).prepare().system_, until=50, random_state=0)
     totals = {float(trajectory.agents('traders', frame).values['wealth'].sum()) for frame in range(51)}
     assert totals == {100.0}
 

@@ -3,7 +3,7 @@
 import networkx as nx
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.social.opinion_dynamics import (
     MajorityRuleSystem,
     VoterSystem,
@@ -16,18 +16,13 @@ from ..conftest import _run, _values
 def test_voter_system_reaches_consensus():
     """Test that 20 voters on a connected network end with one opinion."""
     graph = nx.connected_watts_strogatz_graph(20, 4, 0.2, seed=0)
-    trajectory = (
-        Simulation(VoterSystem(graph, random_state=0).prepare().system_, random_state=0)
-        .prepare()
-        .run(until=500)
-        .trajectory_
-    )
+    trajectory = simulate(VoterSystem(graph, random_state=0).prepare().system_, until=500, random_state=0)
     assert len(set(trajectory.agents('voters', 500).values['opinion'].tolist())) == 1
 
 
 def test_majority_rule_settles():
     """Test that synchronous majority voting settles into domains that are fixed or blink with period two."""
-    trajectory = Simulation(MajorityRuleSystem((50, 50)).prepare().system_, dt=1).prepare().run(until=50).trajectory_
+    trajectory = simulate(MajorityRuleSystem((50, 50)).prepare().system_, until=50, dt=1)
     opinions = trajectory.values('voters.opinion')
     changes = np.abs(np.diff(opinions, axis=0)).sum(axis=1)
     assert changes[0] > 100

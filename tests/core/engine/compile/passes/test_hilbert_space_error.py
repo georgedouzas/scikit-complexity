@@ -4,8 +4,8 @@ import pytest
 
 from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import OperatorCompiler
-from skcomplex.core.engine.compile.passes import HilbertSpaceError
+from skcomplex.core.engine.compile.passes._hilbert_space_error import HilbertSpaceError
+from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
 from skcomplex.core.engine.solvers import LindbladSolver
 
 from .....conftest import SpinElement

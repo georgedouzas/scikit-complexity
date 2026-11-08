@@ -24,7 +24,7 @@ from skcomplex.core.components.spaces import (
     MooreNeighborhood,
 )
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import (
     DeclaredVariableSpec,
@@ -422,7 +422,7 @@ def test_composition_runs_in_a_simulation():
     start = np.array([1, 0, 1, 1, 0, 0, 0, 1])
     cells = LatticeElement('cells', element=CellElement, space=shift.elements[0].space, values={'alive': start})
     system = System(elements=[cells], interactions=composition.interactions)
-    trajectory = Simulation(system, dt=1).prepare().run(until=1).trajectory_
+    trajectory = simulate(system, until=1, dt=1)
     np.testing.assert_array_equal(trajectory.values('cells.alive')[-1].astype(int), start)
 
 

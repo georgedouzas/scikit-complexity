@@ -10,7 +10,7 @@ from sage.all__sagemath_symbolics import SR, Expression
 from ....components.elements import FieldElement
 from ....errors import PipelineError
 from ....specs import LayoutSpec, ObservableSpec
-from ...problems import KernelSpec
+from ...problems._kernel_spec import KernelSpec
 from ...problems._law_kernel import LawKernel
 from ...problems._output_spec import OutputSpec
 from .._base import BaseCompiler, BasePass

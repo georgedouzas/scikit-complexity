@@ -48,8 +48,10 @@ from ....errors import RoleElementError, SkcomplexError, TensorShapeError, Tenso
 from ....specs import CallSpec, EntrySpec, TensorSpec
 from ....types import ElementKind, ProcessKey, VariableKind
 from ..._utils import components_of, declarations_of, symbol, symbols_of, vector
-from ...problems import BlockSpec, DeclarationsSpec, KernelSpec
+from ...problems._block_spec import BlockSpec
+from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._edge_search import EdgeSearch
+from ...problems._kernel_spec import KernelSpec
 from ...problems._pair_search import PairSearch
 from ...problems._topology_kernel import TopologyKernel
 from ...types import ReadKind

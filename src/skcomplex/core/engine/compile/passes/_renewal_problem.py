@@ -18,7 +18,8 @@ from ....specs import DrawSpec
 from ....specs._draw_spec import DRAWS
 from ....types import Indices
 from ..._utils import components_of, symbol, symbols_of
-from ...problems import ExpressionPrinter, ReferenceSpec
+from ...problems._expression_printer import ExpressionPrinter
+from ...problems._reference_spec import ReferenceSpec
 from ...problems._renewal_kernel import _READ_SOURCES, MemberFunction, RenewalKernel, Sampler
 from ...types import ReadKind
 from .._base import BasePass

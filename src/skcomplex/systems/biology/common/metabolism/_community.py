@@ -19,8 +19,8 @@ from .....core.components.elements import DeclaredElement
 from .....core.components.laws import LinearProgramLaw
 from .....core.components.spaces import StaticTime
 from .....core.components.system import BaseSystem, System
-from .....core.engine.compile import PassCompiler
-from .....core.engine.problems import LinearProgramKernel, ProblemSpec
+from .....core.engine.problems import ProblemSpec
+from .....core.engine.runtime import simulate
 from .....core.errors import AnalysisError
 from .....core.specs import (
     DeclaredVariableSpec,
@@ -222,7 +222,7 @@ def _community_problem(members: list[MetabolicNetworkElement], medium: Mapping[s
     variables['rate'] = DeclaredVariableSpec(0.0, ParameterSpec())
     law = partial(_community_law, members, medium)
     element = _SteadyComElement(ELEMENT_LABEL, variables=variables, law=law)
-    problem = PassCompiler().prepare(System(elements=[element], time=StaticTime())).run().problem_
+    problem = simulate(System(elements=[element], time=StaticTime()), until=0).problem
     if not isinstance(problem, ProblemSpec):
         error_msg = f'The community compiles to a {type(problem).__name__}, not a linear program.'
         raise AnalysisError(error_msg)
@@ -232,13 +232,12 @@ def _community_problem(members: list[MetabolicNetworkElement], medium: Mapping[s
 def _abundances_at(
     members: list[MetabolicNetworkElement],
     problem: ProblemSpec,
-    kernel: LinearProgramKernel,
     rate: float,
 ) -> dict[str, float] | None:
     """Return the abundances at a common rate, or `None` when they cannot reach a sum of 1."""
     parameters = problem.initial_parameters.copy()
     parameters[problem.parameters.names.index(f'{ELEMENT_LABEL}.rate')] = rate
-    solved = kernel.run(RunStateSpec(rate, problem.initial_state, parameters)).values_
+    solved = problem.programs[0].run(RunStateSpec(rate, problem.initial_state, parameters)).values_
     found = {
         member.label: float(np.real(np.ravel(problem.states.read(solved, f'{ELEMENT_LABEL}.x_{position}'))[0]))
         for position, member in enumerate(members)
@@ -266,12 +265,11 @@ def _steadycom(
 ) -> tuple[float, dict[str, float]]:
     """Return the largest common growth rate and the abundances, by a bisection on the rate."""
     problem = _community_problem(members, medium)
-    kernel = problem.programs[0]
     low, high = 0.0, _largest_rate(members)
-    best = _abundances_at(members, problem, kernel, low) or {member.label: 0.0 for member in members}
+    best = _abundances_at(members, problem, low) or {member.label: 0.0 for member in members}
     while high - low > RATE_TOLERANCE * max(1.0, high):
         middle = 0.5 * (low + high)
-        found = _abundances_at(members, problem, kernel, middle)
+        found = _abundances_at(members, problem, middle)
         if found is None:
             high = middle
         else:

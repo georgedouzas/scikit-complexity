@@ -25,7 +25,7 @@ class MilsteinSolver(SDESolver):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.engine.compile import PassCompiler
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
         >>> from skcomplex.systems.economics.finance import GeometricBrownianMotionSystem
         >>> from skcomplex.core.engine.solvers import MilsteinSolver
         >>> from skcomplex.core.specs import StepSpec

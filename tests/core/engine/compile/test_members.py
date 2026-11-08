@@ -14,8 +14,8 @@ from skcomplex.core.components.laws.utils import shift_member
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -120,9 +120,9 @@ def test_shift_member_runs_the_same_on_both_backends():
             elements=[GroupElement('cars', element=CarElement, size=1000, values={'x': x})],
             interactions=[RingInteraction('ring', cars='cars')],
         )
-        simulation = Simulation(system, solver=RK4Solver(dt=0.01), dt=0.5, backend=backend).prepare().run(until=2.0)
-        assert simulation.problem_.backend == backend._get_name()
-        trajectories.append(simulation.trajectory_.values('cars.x'))
+        trajectory = simulate(system, until=2.0, solver=RK4Solver(dt=0.01), dt=0.5, backend=backend)
+        assert trajectory.problem.backend == backend._get_name()
+        trajectories.append(trajectory.values('cars.x'))
     np.testing.assert_allclose(trajectories[1], trajectories[0], rtol=1e-10)
 
 
@@ -217,11 +217,12 @@ def _hopping(occupations, boundary='periodic'):
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
 def test_jump_at_member_offset_conserves_particles_on_a_ring(backend):
     """Test that a hop to the next member of a ring keeps every particle and moves one per event."""
-    problem = PassCompiler(backend=backend()).prepare(_hopping(np.full(50, 3.0))).run().problem_
+    system = _hopping(np.full(50, 3.0))
+    problem = PassCompiler(backend=backend()).prepare(system).run().problem_
     assert problem.jumps[0].size == 50
     np.testing.assert_array_equal(problem.stoichiometry, np.roll(np.eye(50), 1, axis=1) - np.eye(50))
     for seed in range(3):
-        trajectory = Simulation(problem, dt=1.0, random_state=seed).prepare().run(until=20).trajectory_
+        trajectory = simulate(system, until=20, dt=1.0, backend=backend(), random_state=seed)
         totals = np.asarray(trajectory.values('sites.n')).sum(axis=1)
         assert (totals == 150).all()
 
@@ -232,7 +233,7 @@ def test_jump_at_member_offset_leaves_past_a_fixed_end(backend):
     system = _hopping([0.0, 0.0, 0.0, 0.0, 1.0], boundary='fixed')
     problem = PassCompiler(backend=backend()).prepare(system).run().problem_
     assert problem.stoichiometry[4].tolist() == [0.0, 0.0, 0.0, 0.0, -1.0]
-    trajectory = Simulation(problem, dt=10.0, random_state=0).prepare().run(until=100).trajectory_
+    trajectory = simulate(system, until=100, dt=10.0, backend=backend(), random_state=0)
     assert np.asarray(trajectory.values('sites.n'))[-1].tolist() == [0.0] * 5
 
 
@@ -252,18 +253,8 @@ def test_jump_at_member_offset_matches_per_link_interactions(backend):
     ]
     profiles = []
     for system in systems:
-        problem = PassCompiler(backend=backend()).prepare(system).run().problem_
         finals = [
-            np.asarray(
-                Simulation(
-                    problem,
-                    dt=2.0,
-                    random_state=seed,
-                )
-                .prepare()
-                .run(until=2)
-                .trajectory_.values('sites.n'),
-            )[-1]
+            np.asarray(simulate(system, until=2, dt=2.0, backend=backend(), random_state=seed).values('sites.n'))[-1]
             for seed in range(200)
         ]
         profiles.append((np.mean(finals, axis=0), np.std(finals, axis=0) / np.sqrt(200)))
@@ -275,11 +266,12 @@ def test_jump_at_member_offset_matches_per_link_interactions(backend):
 def test_jump_at_member_offset_compiles_many_sites_fast():
     """Test that a zero-range process of 1000 sites compiles one group law and runs until 5 within 10 seconds."""
     start = time.perf_counter()
-    simulation = (
-        Simulation(ZeroRangeProcessSystem(1000).prepare().system_, backend=NumbaBackend(), random_state=0)
-        .prepare()
-        .run(until=5)
+    trajectory = simulate(
+        ZeroRangeProcessSystem(1000).prepare().system_,
+        until=5,
+        backend=NumbaBackend(),
+        random_state=0,
     )
     assert time.perf_counter() - start < 10
-    assert len(simulation.problem_.interactions) == 1
-    assert [channels.size for channels in simulation.problem_.jumps] == [1000, 1000]
+    assert len(trajectory.problem.interactions) == 1
+    assert [channels.size for channels in trajectory.problem.jumps] == [1000, 1000]

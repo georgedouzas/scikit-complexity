@@ -18,7 +18,10 @@ from ...errors import IncompatibleLawsError, RewritingError, SkcomplexError, Val
 from ...specs import EntrySpec, IssueSpec, LayoutSpec, ParametersSpec
 from ...types import FormKind, VariableKind
 from .._utils import declarations_of, symbol
-from ..problems import BaseProblemSpec, PatchKernel, RewritingProblemSpec, WordKernel
+from ..problems import BaseProblemSpec
+from ..problems._patch_kernel import PatchKernel
+from ..problems._rewriting_problem_spec import RewritingProblemSpec
+from ..problems._word_kernel import WordKernel
 from ._base import BaseCompiler
 from .passes._flatten import FlattenPass
 from .passes._layout import LayoutPass
@@ -43,7 +46,7 @@ class RewritingCompiler(BaseCompiler):
 
     Examples:
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.compile import RewritingCompiler
+        >>> from skcomplex.core.engine.compile._rewriting_compiler import RewritingCompiler
         >>> from skcomplex.systems.biology.common.populations import PopulationElement
         >>> RewritingCompiler().prepare(System(elements=[PopulationElement('rabbits')])).report_.ok
         False
@@ -210,7 +213,7 @@ class RewritingCompiler(BaseCompiler):
         Examples:
             >>> from skcomplex.core.components.spaces import DiscreteTime
             >>> from skcomplex.core.components.system import System
-            >>> from skcomplex.core.engine.compile import RewritingCompiler
+            >>> from skcomplex.core.engine.compile._rewriting_compiler import RewritingCompiler
             >>> from skcomplex.core.components.laws import ProductionLaw
             >>> from skcomplex.core.components.elements import WordElement
             >>> class AlgaeElement(WordElement):

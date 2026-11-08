@@ -19,8 +19,9 @@ from ....errors import RoleError, ValidationError
 from ....specs import ReductionSpec
 from ....types import Indices
 from ..._utils import vector
-from ...problems import BlockSpec, KernelSpec
+from ...problems._block_spec import BlockSpec
 from ...problems._declarations_spec import _ACTIVE, MEMBERS
+from ...problems._kernel_spec import KernelSpec
 from ...types import ReadKind
 from .._base import BasePass
 

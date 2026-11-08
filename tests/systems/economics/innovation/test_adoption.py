@@ -2,7 +2,6 @@
 
 import numpy as np
 
-from skcomplex.systems import describe
 from skcomplex.systems.economics.innovation import (
     PhoneAdoptionSystem,
 )
@@ -13,9 +12,9 @@ from ..conftest import _agents, _run
 def test_phone_adoption_spreads_among_households_that_can_afford_it():
     """Test that adoption never falls, spreads, and reaches only households above the income threshold."""
     trajectory = _run(
-        built := PhoneAdoptionSystem((20, 20)).prepare().system_,
+        PhoneAdoptionSystem((20, 20)).prepare().system_,
         50,
-        observables=describe('phone_adoption').observables_of(built),
+        observables=PhoneAdoptionSystem().get_run_settings()['observables'],
     )
     share = trajectory.values('share')
     assert np.all(np.diff(share) >= 0)
@@ -23,8 +22,8 @@ def test_phone_adoption_spreads_among_households_that_can_afford_it():
     households = _agents(trajectory, 'households', 50)
     assert np.all(households['income'][households['phone'] == 1] >= 1.2)
     stuck = _run(
-        built := PhoneAdoptionSystem((20, 20), threshold=100.0).prepare().system_,
+        PhoneAdoptionSystem((20, 20), threshold=100.0).prepare().system_,
         20,
-        observables=describe('phone_adoption').observables_of(built),
+        observables=PhoneAdoptionSystem().get_run_settings()['observables'],
     ).values('share')
     assert set(stuck.tolist()) == {0.0}

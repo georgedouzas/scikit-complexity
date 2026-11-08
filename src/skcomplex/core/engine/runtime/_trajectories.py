@@ -146,7 +146,7 @@ class Trajectory:
 
         Examples:
             >>> import numpy as np
-            >>> from skcomplex.core.engine.compile import PassCompiler
+            >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
             >>> from skcomplex.core.engine.runtime import Simulation
             >>> from skcomplex.core.experiments._replicate import _replicate
             >>> from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem

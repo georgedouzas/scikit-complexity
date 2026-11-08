@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import SSPRKSolver
 from skcomplex.systems.engineering.traffic import (
     GktTrafficSystem,
@@ -15,12 +15,7 @@ from skcomplex.systems.engineering.traffic import (
 
 def test_lighthill_whitham_richards_shock_speed():
     """Test that the shock between free and queued traffic moves at the Rankine-Hugoniot speed."""
-    trajectory = (
-        Simulation(LighthillWhithamRichardsSystem().prepare().system_, dt=0.05, solver=SSPRKSolver())
-        .prepare()
-        .run(until=1.0)
-        .trajectory_
-    )
+    trajectory = simulate(LighthillWhithamRichardsSystem().prepare().system_, until=1.0, dt=0.05, solver=SSPRKSolver())
     density = trajectory.values('road.rho')[-1]
     centers = (np.arange(200) + 0.5) / 200
     assert centers[np.argmax(np.diff(density))] == pytest.approx(0.5 + (1 - 1.1), abs=0.01)
@@ -28,29 +23,17 @@ def test_lighthill_whitham_richards_shock_speed():
 
 def test_payne_conserves_cars_and_keeps_equilibrium():
     """Test that the Payne system conserves the cars and keeps uniform flow at the equilibrium speed."""
-    trajectory = (
-        Simulation(PayneSystem(50).prepare().system_, dt=0.1, solver=SSPRKSolver()).prepare().run(until=0.5).trajectory_
-    )
+    trajectory = simulate(PayneSystem(50).prepare().system_, until=0.5, dt=0.1, solver=SSPRKSolver())
     assert trajectory.values('road.rho').sum(axis=1) == pytest.approx(
         np.full(6, trajectory.values('road.rho')[0].sum()),
     )
-    uniform = (
-        Simulation(PayneSystem(50, bump=0.0).prepare().system_, dt=0.1, solver=SSPRKSolver())
-        .prepare()
-        .run(until=0.5)
-        .trajectory_
-    )
+    uniform = simulate(PayneSystem(50, bump=0.0).prepare().system_, until=0.5, dt=0.1, solver=SSPRKSolver())
     assert np.ptp(uniform.values('road.q')[-1]) < 1e-12
 
 
 def test_kerner_konhauser_forms_a_cluster():
     """Test that a small bump of density grows into a dense cluster while the cars are conserved."""
-    trajectory = (
-        Simulation(KernerKonhauserSystem().prepare().system_, dt=10.0, solver=SSPRKSolver(cfl=0.15))
-        .prepare()
-        .run(until=40)
-        .trajectory_
-    )
+    trajectory = simulate(KernerKonhauserSystem().prepare().system_, until=40, dt=10.0, solver=SSPRKSolver(cfl=0.15))
     density = trajectory.values('road.rho')
     assert density[-1].max() > 0.35
     assert density.sum(axis=1)[-1] == pytest.approx(density.sum(axis=1)[0])

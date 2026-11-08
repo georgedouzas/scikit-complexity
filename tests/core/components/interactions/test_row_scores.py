@@ -12,8 +12,8 @@ from skcomplex.core.components.interactions import SamplingInteraction
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace, NetworkSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, RowScoreSpec, StateSpec
 from skcomplex.systems.physics.common.spins import ThermalSamplingInteraction
@@ -86,7 +86,7 @@ def test_row_score_never_grows_and_reaches_zero_at_infinite_intensity():
     """Test that the number of ones never grows and reaches 0 before time 2000 in more than 99 of 100 seeds."""
     reached = 0
     for seed in range(100):
-        trajectory = Simulation(_bits(), random_state=seed).prepare().run(until=500).trajectory_
+        trajectory = simulate(_bits(), until=500, random_state=seed)
         scores = trajectory.values('walk.score')[:, 0]
         assert np.all(np.diff(scores) <= 0)
         reached += scores[-1] == 0
@@ -95,14 +95,14 @@ def test_row_score_never_grows_and_reaches_zero_at_infinite_intensity():
 
 def test_row_score_at_unit_intensity_matches_the_boltzmann_mean():
     """Test that the mean number of ones at intensity 1 matches `20 / (1 + e)` within 3%."""
-    trajectory = Simulation(_bits(intensity=1.0), random_state=0).prepare().run(until=20000).trajectory_
+    trajectory = simulate(_bits(intensity=1.0), until=20000, random_state=0)
     assert trajectory.values('walk.score')[2000:].mean() == pytest.approx(20 / (1 + np.e), rel=0.03)
 
 
 def test_row_score_glauber_rule_matches_the_boltzmann_mean():
     """Test that the Glauber rule samples the same mean number of ones."""
     system = _bits(intensity=1.0, rule='glauber')
-    trajectory = Simulation(system, random_state=0).prepare().run(until=20000).trajectory_
+    trajectory = simulate(system, until=20000, random_state=0)
     assert trajectory.values('walk.score')[2000:].mean() == pytest.approx(20 / (1 + np.e), rel=0.03)
 
 
@@ -112,12 +112,7 @@ def test_row_score_keeps_a_neutral_walk_on_its_target():
     def score(row):
         return float(row[:3].sum() != 3)
 
-    trajectory = (
-        Simulation(_bits((4, 10), RowScoreSpec(score), neighborhood=None), random_state=0)
-        .prepare()
-        .run(until=200)
-        .trajectory_
-    )
+    trajectory = simulate(_bits((4, 10), RowScoreSpec(score), neighborhood=None), until=200, random_state=0)
     states = trajectory.lattice('bits.s').astype(float)
     assert np.all(states[:, :, :3] == 1)
     assert np.any(states[-1] != 1)
@@ -126,7 +121,7 @@ def test_row_score_keeps_a_neutral_walk_on_its_target():
 
 def test_row_score_gives_every_row_its_own_draws():
     """Test that independent rows take different walks."""
-    trajectory = Simulation(_bits((3, 20)), random_state=0).prepare().run(until=5).trajectory_
+    trajectory = simulate(_bits((3, 20)), until=5, random_state=0)
     states = trajectory.lattice('bits.s').astype(float)[-1]
     assert not np.array_equal(states[0], states[1])
 
@@ -134,7 +129,7 @@ def test_row_score_gives_every_row_its_own_draws():
 def test_row_score_proposes_its_declared_number_of_moves():
     """Test that a row score takes its number of proposals per unit of time."""
     system = _bits((1, 20), RowScoreSpec(np.sum, proposals=5), intensity=1e-9)
-    trajectory = Simulation(system, random_state=0).prepare().run(until=1).trajectory_
+    trajectory = simulate(system, until=1, random_state=0)
     changed = np.abs(np.diff(trajectory.lattice('bits.s').astype(float), axis=0)).sum()
     assert 1 <= changed <= 5
     assert changed % 2 == 5 % 2
@@ -156,7 +151,7 @@ def test_row_score_reads_the_parameters_it_names():
     )
     sampling = SamplingInteraction('walk', target='bits', state='s', objective=RowScoreSpec(score), move=_flip_site)
     system = System(elements=[bits], interactions=[sampling], time=DiscreteTime())
-    Simulation(system, random_state=0).prepare().run(until=1)
+    simulate(system, until=1, random_state=0)
     assert set(seen) == {(4,)}
 
 
@@ -176,14 +171,14 @@ def test_row_score_takes_named_moves_at_one_site(move, settings):
         **settings,
     )
     system = System(elements=[spins], interactions=[sampling], time=DiscreteTime())
-    trajectory = Simulation(system, random_state=0).prepare().run(until=4).trajectory_
+    trajectory = simulate(system, until=4, random_state=0)
     assert np.all(np.sum(np.diff(trajectory.lattice('spins.s'), axis=0) != 0, axis=2) <= 1)
 
 
 def test_row_score_cools_with_time():
     """Test that a cooling that grows with time heats a row score, which then accepts raising moves."""
     system = _bits(intensity=1e6, cooling=lambda t: 1e9 * (1 + t))
-    trajectory = Simulation(system, random_state=0).prepare().run(until=50).trajectory_
+    trajectory = simulate(system, until=50, random_state=0)
     assert np.any(np.diff(trajectory.values('walk.score')[:, 0]) > 0)
 
 
@@ -211,7 +206,7 @@ def test_row_score_samples_a_categorical_state_with_labels():
         move=_mutate,
     )
     system = System(elements=[letters], interactions=[sampling], time=DiscreteTime())
-    trajectory = Simulation(system, random_state=0).prepare().run(until=5).trajectory_
+    trajectory = simulate(system, until=5, random_state=0)
     assert set(trajectory.values('letters.letter').ravel()) <= set(LETTERS)
 
 
@@ -240,14 +235,14 @@ def test_row_score_rejects_a_heat_bath_without_values_and_clusters(settings):
 def test_row_score_heat_bath_matches_the_boltzmann_mean():
     """Test that the heat-bath rule on a row samples the mean number of ones at intensity 1."""
     system = _bits(intensity=1.0, rule='heat-bath', move='random-value', values=(0.0, 1.0))
-    trajectory = Simulation(system, random_state=0).prepare().run(until=20000).trajectory_
+    trajectory = simulate(system, until=20000, random_state=0)
     assert trajectory.values('walk.score')[2000:].mean() == pytest.approx(20 / (1 + np.e), rel=0.03)
 
 
 def test_row_score_heat_bath_at_infinite_intensity_never_raises_the_score():
     """Test that the heat-bath rule on a row at infinite intensity keeps only values of the lowest score."""
     system = _bits(rule='heat-bath', move='random-value', values=(0.0, 1.0))
-    trajectory = Simulation(system, random_state=0).prepare().run(until=300).trajectory_
+    trajectory = simulate(system, until=300, random_state=0)
     scores = trajectory.values('walk.score')[:, 0]
     assert np.all(np.diff(scores) <= 0)
     assert scores[-1] == 0
@@ -280,7 +275,7 @@ def _spins_at(sampling):
     values = {'s': np.random.default_rng(0).choice([-1.0, 1.0], size=(16, 16))}
     spins = LatticeElement('spins', element=SpinElement, space=LatticeSpace((16, 16)), values=values)
     system = System(elements=[spins], interactions=[sampling], time=DiscreteTime())
-    return Simulation(system, random_state=0).prepare().run(until=60).trajectory_.lattice('spins.s')
+    return simulate(system, until=60, random_state=0).lattice('spins.s')
 
 
 @pytest.mark.parametrize('rule', ['metropolis', 'glauber', 'heat-bath'])
@@ -325,7 +320,7 @@ def test_thermal_sampling_takes_a_row_score_at_zero_temperature():
         temperature=0.0,
     )
     system = System(elements=[bits], interactions=[sampling], time=DiscreteTime())
-    trajectory = Simulation(system, random_state=0).prepare().run(until=100).trajectory_
+    trajectory = simulate(system, until=100, random_state=0)
     assert np.all(np.diff(trajectory.values('walk.score')[:, 0]) <= 0)
 
 

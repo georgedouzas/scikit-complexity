@@ -5,7 +5,6 @@ import pytest
 
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ParameterError
-from skcomplex.systems import create_simulation
 from skcomplex.systems.computer_science.automata import LeniaSystem
 
 
@@ -60,12 +59,12 @@ def test_lenia_expanded_universe_with_several_channels_and_kernels():
         (1, 0, 0.5, 3.0, (1.0,), 0.2, 0.05),
         (0, 1, 1.0, 1.0, (1.0,), 0.1, 0.02),
     ]
-    trajectory = (
-        create_simulation('lenia', shape=(32, 32), initial=initial, R=6.0, channels=2, kernels=kernels)
-        .prepare()
-        .run(until=1)
+    trajectory = simulate(
+        LeniaSystem(shape=(32, 32), initial=initial, R=6.0, channels=2, kernels=kernels),
+        until=1,
+        random_state=0,
     )
-    first, second = trajectory.trajectory_.lattice('world.A'), trajectory.trajectory_.lattice('world.B')
+    first, second = trajectory.lattice('world.A'), trajectory.lattice('world.B')
     growth_a = (_growth(initial[0], 6.0, 0.15, 0.03) + 3 * _growth(initial[1], 3.0, 0.2, 0.05)) / 4
     np.testing.assert_allclose(first[1], np.clip(initial[0] + growth_a / 10, 0, 1), atol=1e-9)
     growth_b = _growth(initial[0], 6.0, 0.1, 0.02)
@@ -77,8 +76,8 @@ def test_lenia_runs_in_three_dimensions():
     rng = np.random.default_rng(1)
     initial = np.zeros((10, 10, 10))
     initial[3:7, 3:7, 3:7] = rng.random((4, 4, 4))
-    trajectory = create_simulation('lenia', shape=(10, 10, 10), initial=initial, R=3.0).prepare().run(until=2)
-    world = trajectory.trajectory_.lattice('world.A')
+    trajectory = simulate(LeniaSystem(shape=(10, 10, 10), initial=initial, R=3.0), until=2, random_state=0)
+    world = trajectory.lattice('world.A')
     assert world.shape == (3, 10, 10, 10)
     assert world.min() >= 0
     assert world.max() <= 1

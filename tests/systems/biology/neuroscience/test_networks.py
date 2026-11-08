@@ -11,8 +11,8 @@ from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import laplacian, logistic
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.neuroscience import (
     DelayedLIFNetworkSystem,
     InhibitorDriveInteraction,
@@ -40,15 +40,11 @@ def test_delayed_lif_network_rates():
     period = 20.0 * math.log((25.0 - 10.0) / (25.0 - 20.0))
     counts = []
     for J in (0.0, -2.0):
-        simulation = (
-            Simulation(DelayedLIFNetworkSystem(5, J=J, probability=0.5).prepare().system_, dt=1.0)
-            .prepare()
-            .run(until=60)
-        )
-        events = simulation.trajectory_.events
+        trajectory = simulate(DelayedLIFNetworkSystem(5, J=J, probability=0.5).prepare().system_, until=60, dt=1.0)
+        events = trajectory.events
         counts.append(len(events))
         if J == 0.0:
-            index = list(simulation.problem_.states.names).index('neuron_0.v')
+            index = list(trajectory.problem.states.names).index('neuron_0.v')
             times = [event.time for event in events if event.before[index] != event.after[index]]
             assert np.diff(times) == pytest.approx(period, rel=1e-3)
     assert counts[1] < counts[0]

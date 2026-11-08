@@ -10,7 +10,6 @@ from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.systems import create_system
 from skcomplex.systems.mathematics.fractals import ChaosGameSystem, ChaosPointElement, RandomAffineMapInteraction
 
 from ..conftest import _final
@@ -29,7 +28,7 @@ def test_chaos_game_draws_the_sierpinski_triangle():
 def test_chaos_game_agrees_across_backends():
     """Test that the NumPy and Numba backends give equal trajectories of the chaos game from one seed."""
     runs = [
-        (simulate(create_system('chaos_game', n_points=20), until=1000, dt=1, random_state=0, backend=backend))
+        (simulate(ChaosGameSystem(n_points=20).prepare().system_, until=1000, dt=1, random_state=0, backend=backend))
         for backend in (NumpyBackend(), NumbaBackend())
     ]
     assert np.allclose(runs[0].values('points.p'), runs[1].values('points.p'), atol=1e-12)
@@ -38,7 +37,7 @@ def test_chaos_game_agrees_across_backends():
 def test_chaos_game_rejects_unknown_presets():
     """Test that an unknown preset raises an error that names the presets."""
     with pytest.raises(ValidationError, match='sierpinski, barnsley'):
-        create_system('chaos_game', preset='dragon')
+        ChaosGameSystem(preset='dragon').prepare()
 
 
 def test_random_affine_map_with_one_map_applies_it():

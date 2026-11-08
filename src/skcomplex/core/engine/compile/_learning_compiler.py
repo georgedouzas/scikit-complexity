@@ -22,7 +22,9 @@ from ...specs import EntrySpec, IssueSpec, LayoutSpec, ObservableSpec, Parameter
 from ...types import FormKind
 from .._utils import symbol, symbols_of
 from ..backends import BaseBackend, JaxBackend
-from ..problems import BaseProblemSpec, ExpressionPrinter, LearningProblemSpec, ProblemSpec
+from ..problems import BaseProblemSpec, ProblemSpec
+from ..problems._expression_printer import ExpressionPrinter
+from ..problems._learning_problem_spec import LearningProblemSpec
 from ..types import TracedArray, TracedFunction
 from ._base import BaseCompiler
 from ._compilation import Compilation

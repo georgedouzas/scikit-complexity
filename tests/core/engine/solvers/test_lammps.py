@@ -15,8 +15,8 @@ from skcomplex.core.components.interactions import PairCouplingInteraction
 from skcomplex.core.components.laws.utils import where
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import RealTimeClock, Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import BaseSolver, ExternalSolver, LammpsSolver, VelocityVerletSolver
 from skcomplex.core.errors import BackendError, SolverError
 from skcomplex.core.specs import ParameterSpec, StepSpec
@@ -126,7 +126,7 @@ def _lennard_jones_gas(n=100, interactions=(), space=None):
 
 def _run(system, solver, until, dt=0.05):
     """Return the trajectory of a run."""
-    return Simulation(system, solver=solver, dt=dt).prepare().run(until=until).trajectory_
+    return simulate(system, until=until, solver=solver, dt=dt)
 
 
 def test_lammps_starts_mpi_without_infiniband_by_default():
@@ -159,7 +159,7 @@ def test_lammps_rejects_population_system():
         ],
     )
     with pytest.raises(BackendError, match='LAMMPS') as error:
-        Simulation(system, solver=LammpsSolver()).prepare().run(until=1)
+        simulate(system, until=1, solver=LammpsSolver())
     for name in ('rabbits', 'foxes', 'growth', 'hunt', 'death'):
         assert name in str(error.value)
 
@@ -172,7 +172,7 @@ def test_lammps_rejects_pair_energy_without_lepton_form():
         space=ContinuousSpace(n_dim=2),
     )
     with pytest.raises(BackendError, match='arcsinh has no Lepton'):
-        Simulation(system, solver=LammpsSolver()).prepare().run(until=0.1)
+        simulate(system, until=0.1, solver=LammpsSolver())
 
 
 def test_lammps_rejects_groups_with_different_masses():
@@ -183,7 +183,7 @@ def test_lammps_rejects_groups_with_different_masses():
         space=ContinuousSpace(n_dim=2),
     )
     with pytest.raises(BackendError, match='different values of m'):
-        Simulation(system, solver=LammpsSolver()).prepare().run(until=0.1)
+        simulate(system, until=0.1, solver=LammpsSolver())
 
 
 def test_lammps_custom_pair_energy_matches_native_forces():
@@ -284,18 +284,14 @@ def test_lammps_thermostat_temperature_changes_live():
         ],
         space=gas.space,
     )
-    simulation = Simulation(
+    trajectory = simulate(
         system,
+        until=20,
         solver=LammpsSolver(dt=0.01, fixes=LAMMPS_FIXES),
         dt=0.5,
-        clock=RealTimeClock(speed=10.0),
         random_state=0,
-    ).prepare()
-    simulation.start(until=20)
-    time.sleep(1.0)
-    simulation.update_parameters({'bath.temperature': 3.0})
-    simulation.wait()
-    trajectory = simulation.trajectory_
+        schedule={'bath.temperature': lambda t: 1.0 if t < 10 else 3.0},
+    )
     temperature = (trajectory.values('gas.x_d1') ** 2).sum(axis=2).mean(axis=1) / 2
     changed = int(np.argmax(trajectory.values('bath.temperature') == 3.0))
     assert temperature[:changed].mean() == pytest.approx(1.0, rel=0.1)
@@ -320,15 +316,15 @@ def test_lammps_runs_10000_atoms_in_real_time():
         ],
         space=ContinuousSpace(extent=(121.0, 121.0), boundary='reflecting'),
     )
-    simulation = Simulation(
-        system,
-        solver=LammpsSolver(dt=0.005),
-        dt=0.05,
-        clock=RealTimeClock(speed=1.0),
-        record=False,
-    ).prepare()
-    simulation.run(until=5)
-    assert simulation.clock_.max_lag_ <= 0.2
+    problem = PassCompiler().prepare(system).run().problem_
+    solver = LammpsSolver(dt=0.005, until=5.0).prepare(problem)
+    state, lags = solver.initial_state_, []
+    start = time.perf_counter()
+    for frame in range(100):
+        step = StepSpec(frame * 0.05, state, problem.initial_parameters, (frame + 1) * 0.05)
+        state = solver.run(step, final=frame == 99).state_
+        lags.append(time.perf_counter() - start - (frame + 1) * 0.05)
+    assert max(lags) <= 0.2
 
 
 def test_lammps_solver_is_an_external_solver():
@@ -340,9 +336,11 @@ def test_lammps_solver_is_an_external_solver():
 def test_lammps_final_run_closes_the_instance():
     """Test that the last frame of a run closes the LAMMPS instance, which runs again only once refitted."""
     problem = PassCompiler().prepare(_lennard_jones_gas()).run().problem_
-    simulation = Simulation(problem, solver=LammpsSolver(dt=0.005), dt=0.05).prepare().run(until=0.1)
-    assert simulation.stepper_.released_
+    solver = LammpsSolver(dt=0.005, until=0.1).prepare(problem)
+    step = StepSpec(0.0, problem.initial_state, problem.initial_parameters, 0.1)
+    state = solver.run(step, final=True).state_
+    assert solver.released_
     with pytest.raises(SolverError, match='closed its LAMMPS instance'):
-        simulation.extend(until=0.2)
-    solver = simulation.stepper_.set_params(random_state=np.random.default_rng(0)).prepare(problem)
+        solver.run(StepSpec(0.1, state, problem.initial_parameters, 0.2))
+    solver = solver.set_params(random_state=np.random.default_rng(0)).prepare(problem)
     assert not solver.released_

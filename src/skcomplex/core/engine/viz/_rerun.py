@@ -21,7 +21,8 @@ from ...components.spaces import NetworkSpace
 from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
 from ...errors import ValidationError
 from ...specs import RenewalRecordSpec
-from ..problems import BaseProblemSpec, FrameSpec, LearningProblemSpec
+from ..problems import BaseProblemSpec, FrameSpec
+from ..problems._learning_problem_spec import LearningProblemSpec
 from ..runtime import BaseObserver
 from ._agents import AgentsVisual
 from ._axes import AxisVisual
@@ -156,7 +157,7 @@ class RerunObserver(BaseObserver):
 
         The default blueprint of a compiled problem, with a chosen view first:
 
-        >>> from skcomplex.core.engine.compile import PassCompiler
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
         >>> from skcomplex.systems import create_system
         >>> problem = PassCompiler().prepare(create_system('gray_scott', shape=(16, 16))).run().problem_
         >>> observer = RerunObserver(blueprint='default', primary='cells/v').prepare(problem)

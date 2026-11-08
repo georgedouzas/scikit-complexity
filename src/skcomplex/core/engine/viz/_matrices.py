@@ -48,7 +48,7 @@ class MatrixVisual(BaseVisual):
             The variable is not a name, or the problem has no matrix of that name.
 
     Examples:
-        >>> from skcomplex.core.engine.compile import PassCompiler
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
         >>> from skcomplex.core.engine.viz import MatrixVisual
         >>> from skcomplex.systems.computer_science.neural_networks import ElmanNetworkSystem
         >>> problem = PassCompiler().prepare(ElmanNetworkSystem(n_bits=30).prepare().system_).run().problem_

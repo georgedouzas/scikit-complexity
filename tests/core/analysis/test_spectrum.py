@@ -4,8 +4,9 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import SpectrumResult, spectrum
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
-from skcomplex.systems import create_simulation
+from skcomplex.systems.physics.statistical_mechanics import IsingSystem
 
 
 def _spectrum(kind: str, source: object, **settings: object) -> SpectrumResult:
@@ -29,7 +30,7 @@ def test_structure_factor_of_stripes():
 
 def test_structure_factor_same_on_a_trajectory_and_its_last_frame():
     """Test that an Ising trajectory and the array of its last frame give the same structure factor."""
-    spins = create_simulation('ising', size=32).prepare().run(until=5).trajectory_
+    spins = simulate(IsingSystem(size=32), until=5, random_state=0)
     np.testing.assert_array_equal(
         _spectrum('structure-factor', spins).power,
         _spectrum('structure-factor', spins.lattice('spins.spin')[-1]).power,

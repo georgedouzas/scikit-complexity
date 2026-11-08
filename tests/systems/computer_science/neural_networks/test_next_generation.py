@@ -9,7 +9,6 @@ from skcomplex.core.analysis import reservoir
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.systems import create_system
 from skcomplex.systems.computer_science.neural_networks import NextGenerationReservoirSystem
 
 STEP = 0.025
@@ -118,7 +117,7 @@ def test_next_generation_reservoir_fits_the_lorenz_flow_by_default():
     trajectory = simulate(NextGenerationReservoirSystem(), random_state=0)
     assert np.ptp(trajectory.values('reservoir.z')) > 20.0
     assert np.abs(trajectory.values('reservoir.x')).max() < 40.0
-    assert isinstance(create_system('next_generation_reservoir', samples=400), System)
+    assert isinstance(NextGenerationReservoirSystem(samples=400).prepare().system_, System)
 
 
 def test_next_generation_reservoir_rejects_echo_state_analysis():

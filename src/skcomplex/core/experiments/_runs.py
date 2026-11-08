@@ -15,7 +15,7 @@ from sklearn.base import clone
 
 from ..components.specs import ScenarioSpec
 from ..components.system import BaseSystem
-from ..engine.compile import PassCompiler
+from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.problems import BaseProblemSpec
 from ..engine.runtime import Trajectory, simulate
 from ..engine.solvers import BaseSolver

@@ -2,9 +2,9 @@
 
 import numpy as np
 
-from skcomplex.core.engine.compile import PassCompiler
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.solvers import IMEXEulerSolver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.ecology import CometsSystem
 from skcomplex.systems.physics.fluids import RayleighBenardSystem
 
 
@@ -21,7 +21,7 @@ def test_split_solver_linear_part_matches_linear_rates():
 
 def test_split_solver_keeps_the_rates_of_a_linear_program_in_the_remainder():
     """Test that a solver prepares on linear programs and that only diffusion enters the linear part of their rates."""
-    problem = PassCompiler().prepare(create_system('comets', shape=(3, 3))).run().problem_
+    problem = PassCompiler().prepare(CometsSystem(shape=(3, 3)).prepare().system_).run().problem_
     solver = IMEXEulerSolver().prepare(problem)
     solver._build_operator(problem.initial_parameters)
     assert abs(solver._linear(problem.initial_state).sum()) < 1e-9

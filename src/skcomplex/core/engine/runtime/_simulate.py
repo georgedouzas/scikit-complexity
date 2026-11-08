@@ -153,8 +153,10 @@ def simulate(
             at the frame's time.
 
         compiler:
-            The compiler of the system, or `None` for the tuned compiler of the system, or else `PassCompiler`. A
-            system that brings a form of its own, such as a rewriting system, tunes the compiler of that form.
+            The compiler of the system, or `None` for the tuned compiler of the system, or else the compiler of the
+            library's form the system holds, such as the rewriting form of words and patches or the operator form of
+            quantum elements. A system package that brings a form of its own tunes a compiler it defines on
+            `BaseCompiler`, the one documented hook to the compiled form.
 
         random_state:
             The seed or generator of stochastic solvers.
@@ -199,6 +201,7 @@ def simulate(
     if runner is not None:
         _check_support(runner, 'backend', tags)
     composite = system.prepare().system_
+    form = Simulation._default_compiler(composite) if form is None else form
     tuned_observables = () if composite is system else settings['observables']
     if stepper is None and form is None and not composite.systems:
         stepper = _choose_solver(tags)

@@ -8,12 +8,13 @@ from dataclasses import dataclass, replace
 
 import numpy as np
 import pandas as pd
+from sklearn.base import clone
 
 from .....core.analysis.types import Source
 from .....core.components.spaces import StaticTime
 from .....core.components.system import BaseSystem, System
-from .....core.engine.compile import PassCompiler
-from .....core.engine.problems import LinearProgramKernel, ProblemSpec
+from .....core.engine.problems import ProblemSpec
+from .....core.engine.runtime import simulate
 from .....core.errors import AnalysisError
 from .....core.specs import RunStateSpec
 from .....core.types import Array
@@ -518,7 +519,7 @@ def _compiled_network(
     kept = (
         [] if floor is None else [ObjectiveFloorInteraction('kept', cell=element.label, weights=weights, floor=floor)]
     )
-    problem = PassCompiler().prepare(System(elements=[element], interactions=kept, time=StaticTime())).run().problem_
+    problem = simulate(System(elements=[element], interactions=kept, time=StaticTime()), until=0).problem
     if not isinstance(problem, ProblemSpec):
         error_msg = f'The network compiles to a {type(problem).__name__}, not a linear program.'
         raise AnalysisError(error_msg)
@@ -582,7 +583,7 @@ def _solved(
         for reaction, weight in weights.items():
             column = list(network.reactions).index(reaction)
             costs[0, column] = sense * float(weight)
-        kernel = LinearProgramKernel(replace(program, costs=costs, signs=(sense, *program.signs[1:])))._validated()
+        kernel = clone(kernel).set_params(program=replace(program, costs=costs, signs=(sense, *program.signs[1:])))
         kernel.prepare()
     state = RunStateSpec(0.0, problem.initial_state, _parameter_values(problem, network, bounds or {}))
     solved = kernel.run(state).values_

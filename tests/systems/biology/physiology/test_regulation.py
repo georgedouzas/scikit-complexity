@@ -5,7 +5,7 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.physiology import (
     CoagulationPositiveFeedbackSystem,
     GlucoseDualHormoneControlSystem,
@@ -45,8 +45,6 @@ def test_steering_signal_shifts_the_set_point_and_releases_it():
 
 def test_a_long_transmission_delay_makes_the_loop_oscillate():
     """Test that a transmission delay long against the response of the loop turns regulation into oscillations."""
-    trajectory = (
-        Simulation(SteerableFeedbackLoopSystem(tau=3.0, steering=0.0).prepare().system_, dt=0.5).prepare().run(until=60)
-    )
-    late = trajectory.trajectory_.values('loop.x')[60:]
+    trajectory = simulate(SteerableFeedbackLoopSystem(tau=3.0, steering=0.0).prepare().system_, until=60, dt=0.5)
+    late = trajectory.values('loop.x')[60:]
     assert np.ptp(late) > 0.8

@@ -9,7 +9,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import FeedbackInteraction
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import SimulationError, ValidationError
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
@@ -76,9 +76,9 @@ def test_act_changes_a_parameter_only_above_the_target():
         interactions=[ControllerInteraction('controller')],
     )
     observables = [ObservableSpec('total', group='counters', variable='level', reduce='sum')]
-    simulation = Simulation(system, random_state=0, observables=observables).prepare().run(until=10)
-    totals = simulation.trajectory_.values('controller.total')[1:]
-    changes = np.diff(simulation.trajectory_.values('controller.rate'))
+    trajectory = simulate(system, until=10, random_state=0, observables=observables)
+    totals = trajectory.values('controller.total')[1:]
+    changes = np.diff(trajectory.values('controller.rate'))
     np.testing.assert_array_equal(changes, (totals > 5.0).astype(float))
 
 
@@ -89,7 +89,7 @@ def test_act_raises_for_an_undeclared_report():
         interactions=[FeedbackInteraction('reader', rule=_report_total)],
     )
     with pytest.raises(SimulationError, match='declare'):
-        Simulation(system).prepare().run(until=1)
+        simulate(system, until=1)
 
 
 def test_act_raises_without_a_rule():
@@ -99,4 +99,4 @@ def test_act_raises_without_a_rule():
         interactions=[FeedbackInteraction('reader')],
     )
     with pytest.raises(ValidationError, match='no rule'):
-        Simulation(system).prepare().run(until=1)
+        simulate(system, until=1)

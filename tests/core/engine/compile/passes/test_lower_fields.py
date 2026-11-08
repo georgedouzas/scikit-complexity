@@ -11,7 +11,7 @@ from skcomplex.core.components.interactions import DiffusionInteraction, Interac
 from skcomplex.core.components.laws import BaseLaw, LinearProgramLaw, RateLaw
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.specs import LinearObjectiveSpec, RoleSpec, StateSpec
 
 RATE = 2.0

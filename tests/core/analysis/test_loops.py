@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import loops
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
 from skcomplex.systems.biology.ecology import GeneralizedLotkaVolterraSystem, LotkaVolterraSystem
 from skcomplex.systems.biology.epidemiology import SIRSystem
@@ -98,10 +98,10 @@ def test_members_of_a_group_are_nodes_with_the_signs_of_the_jacobian():
 
 def test_dominance_follows_the_gains_of_any_system():
     """Test that the gains of an oscillator stay `-k / m` and those of predation start at the gains of its loops."""
-    trajectory = Simulation(HarmonicOscillatorSystem().prepare().system_, dt=0.1).prepare().run(1).trajectory_
+    trajectory = simulate(HarmonicOscillatorSystem().prepare().system_, until=1, dt=0.1)
     dominance = _loops(trajectory, kind='dominance')
     assert dominance.gains == pytest.approx(np.full((len(trajectory.times), 1), -1.0))
-    trajectory = Simulation(LotkaVolterraSystem().prepare().system_, dt=0.1).prepare().run(1).trajectory_
+    trajectory = simulate(LotkaVolterraSystem().prepare().system_, until=1, dt=0.1)
     dominance = _loops(trajectory, kind='dominance')
     assert dominance.gains[0] == pytest.approx(_loops(LotkaVolterraSystem().prepare().system_).gains)
     assert dominance.polarities[int(dominance.dominant[0])] == 'balancing'
@@ -109,6 +109,6 @@ def test_dominance_follows_the_gains_of_any_system():
 
 def test_flow_matrix_needs_flows():
     """Test that the flow matrix of a system without flows raises an error that names the Jacobian instead."""
-    trajectory = Simulation(LotkaVolterraSystem().prepare().system_, dt=0.1).prepare().run(1).trajectory_
+    trajectory = simulate(LotkaVolterraSystem().prepare().system_, until=1, dt=0.1)
     with pytest.raises(AnalysisError, match='declares no flows'):
         _loops(trajectory, kind='flow-matrix')

@@ -12,10 +12,10 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws.utils import moment
 from skcomplex.core.components.spaces import ContinuousTime, LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import ObservableSpec, StateSpec, VisualSpec
-from skcomplex.systems import create_simulation
+from skcomplex.systems.physics.active_matter import RunAndTumbleSystem
 
 CLASSES = np.arange(9.0)
 
@@ -71,7 +71,7 @@ def test_coarse_grain_density():
 
 def test_coarse_grain_agents_of_a_trajectory():
     """Test that the walkers of a trajectory give one grid per frame in the box of their space."""
-    trajectory = create_simulation('run_and_tumble', n_agents=50).prepare().run(until=3).trajectory_
+    trajectory = simulate(RunAndTumbleSystem(n_agents=50), until=3, random_state=0)
     field = _coarse_grain(trajectory, [5, 5])
     assert field.shape == (4, 5, 5)
     assert np.all(field.sum(axis=(1, 2)) == 50)
@@ -105,7 +105,7 @@ def test_density_over_a_state_starts_a_distribution():
         ObservableSpec('density', density, group='wealth'),
         ObservableSpec('mean', mean_class, group='wealth'),
     ]
-    trajectory = Simulation(system, observables=observables, dt=1.0).prepare().run(until=0).trajectory_
+    trajectory = simulate(system, until=0, observables=observables, dt=1.0)
     assert trajectory.values('density')[0] == pytest.approx(1.0)
     assert trajectory.values('mean')[0] == pytest.approx(wealth.mean())
 
@@ -114,7 +114,7 @@ def test_density_over_a_state_of_a_trajectory():
     """Test that the members of a group of a trajectory give one density per frame over the values of a state."""
     wealth = np.random.default_rng(1).integers(0, 9, size=50).astype(float)
     traders = GroupElement('traders', element=TraderElement, size=50, values={'wealth': wealth})
-    trajectory = Simulation(System(elements=[traders]), dt=1.0).prepare().run(until=2).trajectory_
+    trajectory = simulate(System(elements=[traders]), until=2, dt=1.0)
     analysis = coarse_grain(trajectory, over=CLASSES, state='traders.wealth')
     assert analysis.field.shape == (3, 9)
     np.testing.assert_allclose(analysis.field.sum(axis=1), 1.0)

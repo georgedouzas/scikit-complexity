@@ -13,7 +13,7 @@ from ....components.spaces import DiscreteTime
 from ....errors import IncompatibleLawsError, RoleError
 from ....specs._matrix_law_spec import _RANDOM_FIELDS
 from ..._utils import components_of
-from ...problems import KernelSpec
+from ...problems._kernel_spec import KernelSpec
 from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import Compilation

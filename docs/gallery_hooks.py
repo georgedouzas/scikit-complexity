@@ -3,6 +3,7 @@
 import ast
 import contextlib
 import functools
+import inspect
 import io
 import logging
 import pprint
@@ -16,7 +17,7 @@ from tempfile import TemporaryDirectory
 from types import ModuleType
 
 import numpy as np
-from gallery_tools import build_from_environment, check_coverage, find_examples
+from gallery_tools import build_from_environment, check_coverage, find_examples, library_systems
 from mkdocs.config.defaults import MkDocsConfig
 from mkdocs.exceptions import PluginError
 from mkdocs.plugins import event_priority
@@ -25,7 +26,6 @@ from mkdocs.structure.pages import Page
 from mkdocs_gallery import glr_path_static
 
 from skcomplex.core.base import BaseConfig
-from skcomplex.systems import describe
 
 # mkdocs-gallery 0.10.4, its latest release, still reads docstrings through `ast.Str` and `.s`, which Python 3.12
 # deprecates, so every parsed example logs two warnings. Silence only those, only from mkdocs-gallery.
@@ -147,7 +147,7 @@ def _with_executed_code(markdown: str, page: str) -> str:
 
 
 def on_page_markdown(markdown: str, page: Page, **kwargs: object) -> str:
-    """Run the blocks of a guide or parts page, or tidy a gallery page and add its catalog entry to an example page.
+    """Run the blocks of a guide or parts page, or tidy a gallery page and describe the system of an example page.
 
     Args:
         markdown:
@@ -168,10 +168,11 @@ def on_page_markdown(markdown: str, page: Page, **kwargs: object) -> str:
     system = _systems_of_examples().get(Path(page.file.src_uri).stem)
     if system is None or not page.file.src_uri.startswith(GALLERY_PAGES):
         return EMPTY_SUBSECTION.sub('', markdown)
-    entry = describe(system)
-    references = '\n'.join(f'- {reference}' for reference in entry.references)
+    system_class = library_systems()[system]
+    description = (inspect.getdoc(system_class) or '').split('\n', maxsplit=1)[0]
+    references = '\n'.join(f'- {reference}' for reference in system_class.references)
     head, marker, tail = markdown.partition(RUNNING_TIME)
-    return f'{head}## About the system\n\n{entry.description}\n\n## References\n\n{references}\n\n{marker}{tail}'
+    return f'{head}## About the system\n\n{description}\n\n## References\n\n{references}\n\n{marker}{tail}'
 
 
 @event_priority(-200)

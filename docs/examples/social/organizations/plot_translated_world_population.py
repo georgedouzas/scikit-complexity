@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import loops
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.translators import SystemDynamicsTranslator
 from skcomplex.core.engine.viz import RerunObserver
 
@@ -54,8 +54,8 @@ module = importlib.import_module('translated_world')
 
 system = module.create_system()
 observer = RerunObserver('translated_world_population', save_path='translated_world_population.rrd', interval=1)
-simulation = Simulation(system, dt=module.DT, observers=[observer], observables=module.observables(system))
-trajectory = simulation.prepare().run(until=module.UNTIL).trajectory_
+observables = module.observables(system)
+trajectory = simulate(system, until=module.UNTIL, dt=module.DT, observers=[observer], observables=observables)
 
 # %%
 # Shifting dominance

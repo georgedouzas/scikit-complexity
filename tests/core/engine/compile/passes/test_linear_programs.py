@@ -13,8 +13,8 @@ from skcomplex.core.components.laws.utils import either
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace, StaticTime
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import CoSimulationSolver, RK4Solver
 from skcomplex.core.errors import InfeasibleError, ValidationError
 from skcomplex.core.specs import LinearObjectiveSpec, ParameterSpec, RoleSpec, RunStateSpec, StateSpec
@@ -191,7 +191,7 @@ class UptakeInteraction(Interaction):
 
 def _toy_values(system):
     """Return the values of the program of a system at its one frame."""
-    trajectory = Simulation(system).prepare().run(1.0).trajectory_
+    trajectory = simulate(system, until=1.0)
     return {name: float(trajectory.values(f'net.{name}')[0]) for name in TOY_NAMES}, trajectory
 
 
@@ -228,9 +228,9 @@ def test_lowered_flow_network_equals_the_maximum_flow_of_networkx():
             ]
             return [LinearProgramLaw([s.sa, s.ab, s.sb], constraints, [LinearObjectiveSpec(s.ab + s.sb)])]
 
-    trajectory = Simulation(System(elements=[RoutesElement('n')], time=StaticTime())).prepare().run(1.0)
+    trajectory = simulate(System(elements=[RoutesElement('n')], time=StaticTime()), until=1.0)
     expected, _ = nx.maximum_flow(graph, 's', 'b')
-    assert float(trajectory.trajectory_.values('n.objective_0')[0]) == pytest.approx(expected)
+    assert float(trajectory.values('n.objective_0')[0]) == pytest.approx(expected)
 
 
 def test_lowered_lexicographic_objectives_keep_the_first_optimum():
@@ -318,7 +318,7 @@ def test_merged_laws_use_the_smaller_of_two_upper_bounds():
         interactions=[UpperBoundInteraction('a', bound=8.0), UpperBoundInteraction('b', bound=6.0)],
         time=StaticTime(),
     )
-    trajectory = Simulation(system).prepare().run(1.0).trajectory_
+    trajectory = simulate(system, until=1.0)
     assert float(trajectory.values('flows.v')[0]) == pytest.approx(6)
 
 
@@ -338,18 +338,18 @@ def test_switches_keep_a_reaction_with_one_isozyme():
     time = StaticTime()
     one_off = System(elements=[FlowElement('flows', capacity=20.0, g1=0.0)], time=time)
     both_off = System(elements=[FlowElement('flows', capacity=20.0, g1=0.0, g2=0.0)], time=time)
-    kept = Simulation(one_off).prepare().run(1.0).trajectory_.values('flows.v')[0]
-    gone = Simulation(both_off).prepare().run(1.0).trajectory_.values('flows.v')[0]
+    kept = simulate(one_off, until=1.0).values('flows.v')[0]
+    gone = simulate(both_off, until=1.0).values('flows.v')[0]
     assert float(kept) == pytest.approx(20)
     assert float(gone) == pytest.approx(0)
 
 
 def test_switches_set_between_two_runs_change_the_objective():
     """Test that switching off an essential reaction between two runs makes the second objective zero."""
-    simulation = Simulation(System(elements=[FlowElement('flows')], time=StaticTime())).prepare()
-    first = float(simulation.run(1.0).trajectory_.values('flows.objective_0')[0])
-    simulation.update_parameters({'flows.g1': 0.0, 'flows.g2': 0.0})
-    second = float(simulation.run(1.0).trajectory_.values('flows.objective_0')[0])
+    flows = FlowElement('flows')
+    first = float(simulate(System(elements=[flows], time=StaticTime()), until=1.0).values('flows.objective_0')[0])
+    flows.set_params(g1=0.0, g2=0.0)
+    second = float(simulate(System(elements=[flows], time=StaticTime()), until=1.0).values('flows.objective_0')[0])
     assert first == pytest.approx(10)
     assert second == pytest.approx(0, abs=1e-9)
 
@@ -397,7 +397,7 @@ def test_switches_follow_a_repressing_node_through_an_update_law():
         interactions=[RepressionInteraction('r')],
         time=DiscreteTime(),
     )
-    trajectory = Simulation(system).prepare().run(3).trajectory_
+    trajectory = simulate(system, until=3)
     values = trajectory.values('cell.v')
     assert float(values[0]) == pytest.approx(0)
     assert float(values[-1]) == pytest.approx(5)
@@ -424,9 +424,9 @@ def test_infeasible_program_raises_with_the_program_time_and_subset():
 
     system = System(elements=[MaintenanceElement('cell')], time=StaticTime())
     with pytest.raises(InfeasibleError, match=r'cell.*time 0\.0.*cell\.maintenance.*cell\.uptake'):
-        Simulation(system).prepare().run(1.0)
+        simulate(system, until=1.0)
     zero = System(elements=[MaintenanceElement('cell', infeasible='zero')], time=StaticTime())
-    trajectory = Simulation(zero).prepare().run(1.0).trajectory_
+    trajectory = simulate(zero, until=1.0)
     assert float(trajectory.values('cell.maintenance')[0]) == 0.0
     assert float(trajectory.values('cell.objective_0')[0]) == 0.0
 
@@ -447,7 +447,7 @@ def test_infeasible_program_with_the_hold_policy_keeps_the_last_values():
 def test_recorded_duals_give_the_change_of_the_objective():
     """Test that the dual of the binding constraint is the change of the optimum with its right side."""
     system = System(elements=[ToyNetworkElement('net', duals=True)], time=StaticTime())
-    trajectory = Simulation(system).prepare().run(1.0).trajectory_
+    trajectory = simulate(system, until=1.0)
     relations = list(PassCompiler().prepare(system).run().problem_.programs[0].program.relations)
     shared = [relations.index(f'{name}_net <= 1000') for name in ('v6', 'b2')]
     assert sum(float(trajectory.values(f'net.dual_{item}')[0]) for item in shared) == pytest.approx(0.05)
@@ -502,9 +502,8 @@ def test_drift_solves_the_program_once_per_evaluation(backend):
 
 def test_static_program_solves_once_per_frame():
     """Test that a program alone under static time solves once for its one frame."""
-    simulation = Simulation(System(elements=[FlowElement('flows')], time=StaticTime())).prepare()
-    simulation.run(1.0)
-    assert simulation.problem_.programs[0].solves_ == 1
+    trajectory = simulate(System(elements=[FlowElement('flows')], time=StaticTime()), until=1.0)
+    assert trajectory.problem.programs[0].solves_ == 1
 
 
 def _culture(*, nested: bool, biomass: float = 0.01, glucose: float = 10.0):
@@ -589,8 +588,7 @@ def test_cosimulated_program_matches_the_closed_form_of_raman():
     """Test one synchronisation interval against the closed form of Raman's Eqs. 9.8 and 9.9."""
     interval = 0.1
     solver = CoSimulationSolver(sync_dt=interval, solvers={'medium': RK4Solver(dt=0.001)})
-    simulation = Simulation(_culture(nested=True), solver=solver, dt=interval).prepare().run(interval)
-    trajectory = simulation.trajectory_
+    trajectory = simulate(_culture(nested=True), until=interval, solver=solver, dt=interval)
     uptake = 10 * 10.0 / (0.015 + 10.0)
     mu = 0.1 * uptake
     biomass = 0.01 * np.exp(mu * interval)
@@ -604,10 +602,13 @@ def test_cosimulated_program_approaches_the_direct_approach():
     errors = []
     for interval in (0.1, 0.05, 0.025):
         solver = CoSimulationSolver(sync_dt=interval, solvers={'medium': RK4Solver(dt=0.001)})
-        simulation = Simulation(_culture(nested=True, glucose=0.5), solver=solver, dt=0.1).prepare()
-        errors.append(simulation.run(0.5).trajectory_.values('medium/culture.x')[-1])
-    direct_low = Simulation(_culture(nested=False, glucose=0.5), solver=RK4Solver(dt=0.001), dt=0.1).prepare()
-    reference = float(direct_low.run(0.5).trajectory_.values('culture.x')[-1])
+        errors.append(
+            simulate(_culture(nested=True, glucose=0.5), until=0.5, solver=solver, dt=0.1).values('medium/culture.x')[
+                -1
+            ],
+        )
+    direct_low = simulate(_culture(nested=False, glucose=0.5), until=0.5, solver=RK4Solver(dt=0.001), dt=0.1)
+    reference = float(direct_low.values('culture.x')[-1])
     gaps = [abs(float(item) - reference) for item in errors]
     assert gaps[1] <= gaps[0] * 0.75
     assert gaps[2] <= gaps[1] * 0.75
@@ -645,8 +646,8 @@ def test_group_program_on_a_single_site_matches_the_well_mixed_culture():
         interactions=[UptakeInteraction('u')],
     )
     single = _lattice_system(1, np.array([0]))
-    first = Simulation(mixed, solver=RK4Solver(dt=0.01), dt=0.1).prepare().run(0.5).trajectory_
-    second = Simulation(single, solver=RK4Solver(dt=0.01), dt=0.1).prepare().run(0.5).trajectory_
+    first = simulate(mixed, until=0.5, solver=RK4Solver(dt=0.01), dt=0.1)
+    second = simulate(single, until=0.5, solver=RK4Solver(dt=0.01), dt=0.1)
     assert float(np.ravel(second.values('cells.biomass'))[-1]) == pytest.approx(
         float(first.values('cell.biomass')[-1]),
         rel=1e-6,
@@ -656,7 +657,7 @@ def test_group_program_on_a_single_site_matches_the_well_mixed_culture():
 def test_recorded_exchange_is_zero_after_depletion():
     """Test that a trajectory holds the uptake at every frame, and that it is zero once the substrate is gone."""
     system = _culture(nested=False, biomass=1.0, glucose=0.1)
-    trajectory = Simulation(system, solver=RK4Solver(dt=0.001), dt=0.1).prepare().run(2.0).trajectory_
+    trajectory = simulate(system, until=2.0, solver=RK4Solver(dt=0.001), dt=0.1)
     uptake = trajectory.values('fluxes.uptake')
     assert len(uptake) == len(trajectory.times)
     assert float(uptake[0]) > 0

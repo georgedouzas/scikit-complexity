@@ -7,7 +7,7 @@ import pytest
 
 from skcomplex.core.components.spaces import StaticTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import MissingExtraError
 from skcomplex.core.specs import RunStateSpec

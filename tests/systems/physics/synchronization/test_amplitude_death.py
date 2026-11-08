@@ -5,7 +5,7 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.physics.synchronization import HeterogeneousGlobalCouplingSystem, OscillatorDeathSystem
 
@@ -33,18 +33,10 @@ def test_oscillator_death_follows_quartic_threshold():
     above = OscillatorDeathSystem(100, K=2.0, width=1.2 * critical, distribution='quartic').prepare().system_
     below = OscillatorDeathSystem(100, K=2.0, width=0.8 * critical, distribution='quartic').prepare().system_
     assert (
-        Simulation(above, dt=0.5, observables=OscillatorDeathSystem.observables)
-        .prepare()
-        .run(until=40)
-        .trajectory_.values('amplitude')[-1]
-        < 1e-3
+        simulate(above, until=40, dt=0.5, observables=OscillatorDeathSystem.observables).values('amplitude')[-1] < 1e-3
     )
     assert (
-        Simulation(below, dt=0.5, observables=OscillatorDeathSystem.observables)
-        .prepare()
-        .run(until=40)
-        .trajectory_.values('amplitude')[-1]
-        > 0.3
+        simulate(below, until=40, dt=0.5, observables=OscillatorDeathSystem.observables).values('amplitude')[-1] > 0.3
     )
 
 
@@ -73,12 +65,7 @@ def test_heterogeneous_global_coupling_decays_as_order_parameters_predict():
     nu, variance = complex(0.1, 2.0), float(np.var(taus))
     roots = [nu - 2.0 + sign * np.sqrt(4.0 + variance * nu**2) for sign in (1, -1)]
     predicted = max(root.real for root in roots)
-    trajectory = (
-        Simulation(system, dt=0.5, observables=HeterogeneousGlobalCouplingSystem.observables)
-        .prepare()
-        .run(until=60)
-        .trajectory_
-    )
+    trajectory = simulate(system, until=60, dt=0.5, observables=HeterogeneousGlobalCouplingSystem.observables)
     rate = _decay_rate(np.asarray(trajectory.times), np.asarray(trajectory.values('amplitude')), start=20.0)
     assert predicted < 0
     assert rate == pytest.approx(predicted, rel=0.15)

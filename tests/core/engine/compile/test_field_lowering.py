@@ -25,8 +25,8 @@ from skcomplex.core.components.laws.utils import (
 from skcomplex.core.components.spaces import LatticeSpace, MeshSpace, NetworkSpace, PhaseSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import AxisSpec, ParameterSpec, StateSpec, VisualSpec
@@ -115,27 +115,17 @@ def _heat_kernel(backend):
     initial = np.zeros(n)
     initial[n // 2] = 1 / spacing
     rod = FieldElement('rod', element=HeatElement, space=LatticeSpace(n, spacing=spacing), values={'u': initial})
-    values = (
-        Simulation(System(elements=[rod]), dt=0.5, solver=RK4Solver(dt=0.001), backend=backend)
-        .prepare()
-        .run(until=0.5)
-        .state_
-    )
+    values = simulate(System(elements=[rod]), until=0.5, dt=0.5, solver=RK4Solver(dt=0.001), backend=backend).states[-1]
     kernel = np.exp(-((positions - positions[n // 2]) ** 2) / 2) / np.sqrt(2 * np.pi)
     return values, kernel
 
 
 def test_uniform_decay():
     """Test that every site of a 50 x 50 field follows the exponential decay of the single-site equation."""
-    trajectory = (
-        (
-            Simulation(
-                System(elements=[FieldElement('grid', element=DecayElement, space=LatticeSpace((50, 50)))]),
-                dt=0.5,
-            ).prepare()
-        )
-        .run(2)
-        .trajectory_
+    trajectory = simulate(
+        System(elements=[FieldElement('grid', element=DecayElement, space=LatticeSpace((50, 50)))]),
+        until=2,
+        dt=0.5,
     )
     expected = 2 * np.exp(-0.5 * trajectory.times)[:, None] * np.ones(2500)
     assert trajectory.values('grid.u') == pytest.approx(expected, rel=1e-5)
@@ -155,7 +145,7 @@ def test_diffusion_on_network():
     system = System(
         elements=[FieldElement('net', element=HeatElement, space=NetworkSpace(graph), values={'u': initial})],
     )
-    values = Simulation(system, dt=1).prepare().run(until=60).trajectory_.values('net.u')
+    values = simulate(system, until=60, dt=1).values('net.u')
     assert values.sum(axis=1) == pytest.approx(np.full(len(values), initial.sum()))
     assert np.abs(values[-1] - initial.mean()).max() < 1e-4
 
@@ -168,7 +158,7 @@ def test_diffusion_on_network_without_edges():
             FieldElement('net', element=HeatElement, space=NetworkSpace(nx.empty_graph(2)), values={'u': initial}),
         ],
     )
-    values = Simulation(system, dt=1).prepare().run(until=3).trajectory_.values('net.u')
+    values = simulate(system, until=3, dt=1).values('net.u')
     assert values[-1] == pytest.approx(initial)
 
 
@@ -183,13 +173,7 @@ def test_zero_flux_conserves_mass(backend):
         boundary={'u': 'zero-flux'},
         values={'u': initial},
     )
-    totals = (
-        Simulation(System(elements=[plate]), dt=1, backend=backend())
-        .prepare()
-        .run(until=30)
-        .trajectory_.values('plate.u')
-        .sum(1)
-    )
+    totals = simulate(System(elements=[plate]), until=30, dt=1, backend=backend()).values('plate.u').sum(1)
     assert np.abs(totals - initial.sum()).max() < 1e-10 * initial.sum()
     assert totals.std() < 1e-10 * initial.sum()
 
@@ -197,7 +181,7 @@ def test_zero_flux_conserves_mass(backend):
 def test_fixed_boundary_holds_edge_value():
     """Test that a fixed boundary drives a line towards the linear profile between its two edge values."""
     rod = FieldElement('rod', element=HeatElement, space=LatticeSpace(20), boundary={'u': ('fixed', 1.0)})
-    values = Simulation(System(elements=[rod]), dt=50).prepare().run(until=500).state_
+    values = simulate(System(elements=[rod]), until=500, dt=50).states[-1]
     assert values == pytest.approx(np.ones(20), abs=1e-3)
 
 
@@ -206,27 +190,18 @@ def test_advection_and_divergence():
     positions = np.arange(200) * 0.05
     profile = np.exp(-((positions - 3) ** 2))
     space = LatticeSpace(200, spacing=0.05)
-    moved = (
-        (
-            Simulation(
-                System(elements=[FieldElement('a', element=DriftElement, space=space, values={'u': profile})]),
-                dt=1,
-            ).prepare()
-        )
-        .run(2)
-        .state_
-    )
+    moved = simulate(
+        System(elements=[FieldElement('a', element=DriftElement, space=space, values={'u': profile})]),
+        until=2,
+        dt=1,
+    ).states[-1]
     assert positions[np.argmax(moved)] == pytest.approx(5.0)
     assert moved.sum() == pytest.approx(profile.sum())
-    spread = (
-        Simulation(
-            System(elements=[FieldElement('d', element=SpreadElement, space=space, values={'u': profile})]),
-            dt=1,
-        )
-        .prepare()
-        .run(1)
-        .state_
-    )
+    spread = simulate(
+        System(elements=[FieldElement('d', element=SpreadElement, space=space, values={'u': profile})]),
+        until=1,
+        dt=1,
+    ).states[-1]
     assert spread.max() < profile.max()
     assert spread.sum() == pytest.approx(profile.sum())
 
@@ -257,10 +232,10 @@ def test_too_large_step_warns():
     problem = PassCompiler().prepare(system).run().problem_
     assert problem.stable_step == pytest.approx(0.25)
     with pytest.warns(UserWarning, match='stability limit 0.25'):
-        Simulation(problem, dt=1.0, solver=RK4Solver(dt=1.0)).prepare().run(until=0)
+        simulate(system, until=0, dt=1.0, solver=RK4Solver(dt=1.0))
     with warnings.catch_warnings():
         warnings.simplefilter('error')
-        Simulation(problem, dt=1.0, solver=RK4Solver(dt=0.2)).prepare().run(until=1)
+        simulate(system, until=1, dt=1.0, solver=RK4Solver(dt=0.2))
 
 
 class MarkerElement(Element):
@@ -316,11 +291,11 @@ def test_agents_read_and_deposit_fields():
             System('ground', elements=[FieldElement('level', element=StillElement, space=LatticeSpace((4, 3)))]),
         ],
     )
-    simulation = Simulation(system, dt=1).prepare().run(until=5)
-    level = simulation.trajectory_.lattice('ground/level.u')[-1]
+    trajectory = simulate(system, until=5, dt=1)
+    level = trajectory.lattice('ground/level.u')[-1]
     assert level[1, 2] == pytest.approx(5.0)
     assert level.sum() == pytest.approx(5.0)
-    assert simulation.trajectory_.agents('walkers/markers', 5).values['seen'][0] == pytest.approx(4.0)
+    assert trajectory.agents('walkers/markers', 5).values['seen'][0] == pytest.approx(4.0)
 
 
 class GrowthElement(Element):
@@ -354,13 +329,7 @@ def test_laplacian_damps_the_checkerboard_mode(discretization):
         discretization=discretization,
     )
     final = np.asarray(
-        Simulation(
-            System(elements=[field]),
-            dt=0.01,
-        )
-        .prepare()
-        .run(until=0.5)
-        .trajectory_.values('m.u'),
+        simulate(System(elements=[field]), until=0.5, dt=0.01).values('m.u'),
     )[-1]
     expected = (
         0.01 * np.exp((1 - 8) * 0.5)

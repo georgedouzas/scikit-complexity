@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.engine.backends import NumpyBackend
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.specs import ObservableSpec
 from skcomplex.systems.computer_science.neural_networks import ElmanNetworkSystem
@@ -50,8 +50,8 @@ def errors_by_position(frame, bits):
     net.elements[2].set_params(values={'c': trajectory.values('net/outputs.c')[frame]})
     schedule = {'inputs.x': lambda t: bits[round(t)], 'outputs.target': lambda t: bits[round(t)]}
     error = ObservableSpec('error', group='outputs', reduce='sum', expression=squared_error)
-    simulation = Simulation(net, backend=NumpyBackend(), schedule=schedule, observables=[error])
-    values = simulation.prepare().run(until=len(bits) - 1).trajectory_.values('error')
+    run = simulate(net, until=len(bits) - 1, backend=NumpyBackend(), schedule=schedule, observables=[error])
+    values = run.values('error')
     steps = np.arange(len(bits))
     return [values[(steps % 3 == position) & (steps > 3)].mean() for position in range(3)]
 

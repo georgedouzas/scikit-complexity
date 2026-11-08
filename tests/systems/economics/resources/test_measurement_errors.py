@@ -3,7 +3,6 @@
 import numpy as np
 import pytest
 
-from skcomplex.systems import describe
 from skcomplex.systems.economics.resources import FisheryMeasurementErrorsSystem
 
 from ..conftest import _run
@@ -22,7 +21,7 @@ def test_fishery_measurement_errors_extinction_grows_with_the_noise():
 
     def extinct(**settings):
         system = FisheryMeasurementErrorsSystem(100, **settings).prepare().system_
-        observables = describe('fishery_measurement_errors').observables_of(system)
+        observables = FisheryMeasurementErrorsSystem().get_run_settings()['observables']
         return float(_run(system, 2000, observables=observables).values('extinct')[-1])
 
     assert extinct(sigma_r=0.0) == 0.0

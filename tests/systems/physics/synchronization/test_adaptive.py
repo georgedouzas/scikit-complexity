@@ -4,7 +4,7 @@ import math
 
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.physics.synchronization import AdaptiveKuramotoSystem
 
 
@@ -24,7 +24,7 @@ def test_adaptive_kuramoto_splits_identical_oscillators_into_frequency_clusters(
 def test_adaptive_kuramoto_weights_follow_the_phases_inside_a_cluster():
     """Test that the weights between members of the largest cluster approach `-sin(theta_i - theta_j + beta)`."""
     system = AdaptiveKuramotoSystem(20).prepare().system_
-    trajectory = Simulation(system, dt=1.0).prepare().run(until=2000.0).trajectory_
+    trajectory = simulate(system, until=2000.0, dt=1.0)
     theta = np.asarray(trajectory.values('nodes.theta'))
     kappa = np.asarray(trajectory.values('links.kappa'))[-1]
     frequencies = (theta[-1] - theta[-201]) / 200

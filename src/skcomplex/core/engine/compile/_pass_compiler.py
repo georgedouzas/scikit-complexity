@@ -87,8 +87,9 @@ from ...specs._issue_spec import _ERROR
 from ...types import Array, DomainKind, ElementKind, FormKind, NoiseKind, ProcessKey, VariableKind, VectorFunction
 from .._utils import bound_labels, declarations_of, default_of, symbol
 from ..backends import BaseBackend
-from ..problems import BaseProblemSpec, PartitionSpec, ProblemSpec
+from ..problems import BaseProblemSpec, ProblemSpec
 from ..problems._neighborhood_kernel import NeighborhoodKernel
+from ..problems._partition_spec import PartitionSpec
 from ..problems._topology_kernel import TopologyKernel
 from ._base import _FIXES, BaseCompiler, BasePass
 from ._compilation import Compilation
@@ -186,7 +187,7 @@ class PassCompiler(BaseCompiler):
 
     Examples:
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.compile import PassCompiler
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> system = System(
         ...     elements=[PopulationElement('rabbits', n=10)],
@@ -762,7 +763,8 @@ class PassCompiler(BaseCompiler):
                 field, or the passes read each other's fields in a cycle.
 
         Examples:
-            >>> from skcomplex.core.engine.compile import BasePass, PassCompiler
+            >>> from skcomplex.core.engine.compile import BasePass
+            >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
             >>> class LowerPass(BasePass):
             ...     def _get_reads(self):
             ...         return ('layout',)

@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.economics.resources import VonThunenSystem
 
 YIELDS = (4.0, 2.0, 1.0)
@@ -13,7 +13,7 @@ RATES = (0.2, 0.2, 0.2)
 
 def _land_use(rates: tuple[float, ...] = RATES) -> tuple[np.ndarray, np.ndarray]:
     """Return the crop and the distance of every cell of the default plain at given transport rates."""
-    trajectory = Simulation(VonThunenSystem(rates=rates).prepare().system_).prepare().run(1.0).trajectory_
+    trajectory = simulate(VonThunenSystem(rates=rates).prepare().system_, until=1.0)
     return trajectory.values('plain.crop')[0].ravel(), trajectory.values('plain.distance')[0].ravel()
 
 

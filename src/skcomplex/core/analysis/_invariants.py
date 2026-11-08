@@ -16,7 +16,7 @@ from ..components.interactions import BaseInteraction, EulerLagrangeInteraction,
 from ..components.laws.utils import derivative
 from ..components.system import System
 from ..engine._utils import declarations_of
-from ..engine.compile import ObservableEvaluator
+from ..engine.compile._observables import ObservableEvaluator
 from ..engine.problems import ProblemSpec
 from ..engine.problems._dynamics_spec import _DynamicsSpec
 from ..errors import AnalysisError

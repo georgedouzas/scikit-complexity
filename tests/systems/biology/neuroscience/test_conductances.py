@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.neuroscience import FitzhughNagumoODESystem, HodgkinHuxleySystem
 
 from ..conftest import TOLERANCE
@@ -21,18 +21,18 @@ def test_hodgkin_huxley_spikes():
     intervals = np.diff(_spike_times(trajectory))[1:]
     assert len(intervals) >= 4
     assert np.ptp(intervals) < 0.01 * intervals.mean()
-    below = (
-        Simulation(HodgkinHuxleySystem(I=(1 - TOLERANCE) * HODGKIN_HUXLEY_THRESHOLD).prepare().system_, dt=0.5)
-        .prepare()
-        .run(until=150)
+    below = simulate(
+        HodgkinHuxleySystem(I=(1 - TOLERANCE) * HODGKIN_HUXLEY_THRESHOLD).prepare().system_,
+        until=150,
+        dt=0.5,
     )
-    above = (
-        Simulation(HodgkinHuxleySystem(I=(1 + TOLERANCE) * HODGKIN_HUXLEY_THRESHOLD).prepare().system_, dt=0.5)
-        .prepare()
-        .run(until=150)
+    above = simulate(
+        HodgkinHuxleySystem(I=(1 + TOLERANCE) * HODGKIN_HUXLEY_THRESHOLD).prepare().system_,
+        until=150,
+        dt=0.5,
     )
-    assert len(_spike_times(below.trajectory_)) <= 1
-    assert len(_spike_times(above.trajectory_)) >= 6
+    assert len(_spike_times(below)) <= 1
+    assert len(_spike_times(above)) >= 6
 
 
 def test_fitzhugh_nagumo_neuron_needs_current_to_oscillate():

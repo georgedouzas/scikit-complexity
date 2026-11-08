@@ -4,9 +4,8 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.systems import create_system
-from skcomplex.systems.social.opinion_dynamics import CoevolvingVoterSystem, JoinAClubSystem
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.social.opinion_dynamics import CoevolvingVoterSystem, HegselmannKrauseSystem, JoinAClubSystem
 
 
 def _discordant(trajectory, frame):
@@ -18,13 +17,10 @@ def _discordant(trajectory, frame):
 
 def test_coevolving_voter_fragments_fast_when_rewiring_dominates():
     """Test that fast rewiring removes discordant edges at once and splits opinions, while slow rewiring keeps them."""
-    runs = {
-        rewiring: Simulation(CoevolvingVoterSystem(200, rewiring=rewiring).prepare().system_, dt=20, random_state=0)
-        .prepare()
-        .run(until=200)
+    slow, fast = (
+        simulate(CoevolvingVoterSystem(200, rewiring=rewiring).prepare().system_, until=200, dt=20, random_state=0)
         for rewiring in (0.1, 0.8)
-    }
-    slow, fast = (runs[rewiring].trajectory_ for rewiring in (0.1, 0.8))
+    )
     assert _discordant(slow, 2) > 0.15
     assert _discordant(fast, 2) < 0.02
     graph = fast.network(-1).graph()
@@ -37,30 +33,15 @@ def test_coevolving_voter_fragments_fast_when_rewiring_dominates():
 
 def test_coevolving_voter_keeps_the_number_of_edges():
     """Test that rewiring moves edges without creating or destroying them."""
-    trajectory = (
-        Simulation(CoevolvingVoterSystem(100, rewiring=0.5).prepare().system_, dt=10, random_state=1)
-        .prepare()
-        .run(until=50)
-        .trajectory_
-    )
+    trajectory = simulate(CoevolvingVoterSystem(100, rewiring=0.5).prepare().system_, until=50, dt=10, random_state=1)
     sizes = {trajectory.network(frame).sources.size for frame in range(len(trajectory.times))}
     assert len(sizes) == 1
 
 
 def test_join_a_club_separates_members_from_outsiders_at_strong_coupling():
     """Test that strong coupling cuts the acquaintances across the club boundary, and zero coupling keeps many."""
-    strong = (
-        Simulation(JoinAClubSystem(200, beta=1.0).prepare().system_, dt=10, random_state=0)
-        .prepare()
-        .run(until=150)
-        .trajectory_
-    )
-    free = (
-        Simulation(JoinAClubSystem(200, beta=0.0).prepare().system_, dt=10, random_state=0)
-        .prepare()
-        .run(until=150)
-        .trajectory_
-    )
+    strong = simulate(JoinAClubSystem(200, beta=1.0).prepare().system_, until=150, dt=10, random_state=0)
+    free = simulate(JoinAClubSystem(200, beta=0.0).prepare().system_, until=150, dt=10, random_state=0)
     assert _discordant(strong, -1) < 0.02
     assert _discordant(free, -1) > 0.25
     members = strong.values('voters.opinion')[-1]
@@ -69,7 +50,7 @@ def test_join_a_club_separates_members_from_outsiders_at_strong_coupling():
     assert 0 < members.mean() < 1
 
 
-@pytest.mark.parametrize('name', ['hegselmann_krause', 'coevolving_voter', 'join_a_club'])
-def test_opinion_network_systems_are_created_by_name(name):
-    """Test that the systems are registered under their names."""
-    assert create_system(name).elements
+@pytest.mark.parametrize('system', [HegselmannKrauseSystem, CoevolvingVoterSystem, JoinAClubSystem])
+def test_opinion_network_systems_build_their_parts(system):
+    """Test that the systems build their parts with their default parameters."""
+    assert system().prepare().system_.elements

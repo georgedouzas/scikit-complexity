@@ -28,7 +28,7 @@ from ...errors import ConservationError, SimulationError, SpaceError, Validation
 from ...specs import DEFAULT_PHASE, AgentSnapshotSpec, AgentStateSpec, PhaseSpec, PhasesScheduleSpec, SupportSpec
 from ...types import Array, FormKind, OrderKind, VariableKind
 from .._utils import declarations_of, default_of
-from ..compile import ObservableEvaluator
+from ..compile._observables import ObservableEvaluator
 from ..problems import ProblemSpec
 from ..types import MesaSpace
 from ._external import ExternalSolver

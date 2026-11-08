@@ -10,8 +10,8 @@ from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import AxisVisual, RerunObserver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import StateSpec, VisualSpec
@@ -68,7 +68,7 @@ def _logged(state, scalar, every):
             if inputs is not None:
                 frames.append(inputs)
 
-    Simulation(system, dt=0.1, observers=[FrameObserver()]).prepare().run(until=0.2)
+    simulate(system, until=0.2, dt=0.1, observers=[FrameObserver()])
     for frame in frames:
         visual.run(frame)
     return recording.logged, len(frames), visual
@@ -89,7 +89,7 @@ def test_run_writes_a_recording_in_the_viewer_stream(tmp_path):
     """The nematic with a visual of axes writes a recording of its frames."""
     system = _film(VisualSpec('axes', {'state': 'Q', 'scalar': 'rho', 'every': 2}))
     observer = RerunObserver('test', save_path=tmp_path / 'run.rrd')
-    Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=0.2)
+    simulate(system, until=0.2, dt=0.1, observers=[observer])
     assert isinstance(observer.visuals_[0], AxisVisual)
     assert observer.logged_frames_ >= 2
     assert (tmp_path / 'run.rrd').stat().st_size > 0

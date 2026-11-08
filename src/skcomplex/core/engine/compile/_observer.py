@@ -16,7 +16,11 @@ from ...components.specs import NodeSpec
 from ...errors import ValidationError
 from ...specs import ObservableSpec
 from .._utils import vector
-from ..problems import BlockSpec, DeclarationsSpec, ObservedSpec, ProblemSpec, ReferenceSpec
+from ..problems import ProblemSpec
+from ..problems._block_spec import BlockSpec
+from ..problems._declarations_spec import DeclarationsSpec
+from ..problems._observed_spec import ObservedSpec
+from ..problems._reference_spec import ReferenceSpec
 from ..types import ReadKind
 from ._observables import Declared, ObservableEvaluator
 

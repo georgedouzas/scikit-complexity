@@ -10,7 +10,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ObservableSpec, StateSpec, VisualSpec
 
@@ -45,7 +45,7 @@ def _queue_run(until=3):
     """Return the trajectory of two queues."""
     group = GroupElement('queues', element=QueueElement, size=2, values={'orders': [(), (7,)]})
     system = System(elements=[group], time=DiscreteTime())
-    return Simulation(system, random_state=0).prepare().run(until=until).trajectory_
+    return simulate(system, until=until, random_state=0)
 
 
 def test_snapshots_keep_tuples_as_they_were():
@@ -71,7 +71,7 @@ def test_composition_counts_agents_by_tuple():
             super()._step(agent, system)
 
     group = GroupElement('queues', element=CountingElement, size=2, values={'orders': [(), (7,)]})
-    Simulation(System(elements=[group], time=DiscreteTime()), random_state=0).prepare().run(until=1)
+    simulate(System(elements=[group], time=DiscreteTime()), until=1, random_state=0)
     assert seen[0] == {(): 1, (7,): 1}
     assert sum(seen[1].values()) == 2
 
@@ -113,9 +113,7 @@ class PhasedElement(Element):
 def test_snapshots_read_headings_from_roles_alone():
     """Test that a state named `phase` stays a state, and the state with the role is the heading."""
     group = GroupElement('walkers', element=PhasedElement, size=3)
-    trajectory = (
-        Simulation(System(elements=[group], time=DiscreteTime()), random_state=0).prepare().run(until=2).trajectory_
-    )
+    trajectory = simulate(System(elements=[group], time=DiscreteTime()), until=2, random_state=0)
     snapshots = _read_snapshots(trajectory, 'walkers')
     assert np.all(snapshots.directions == 0.5)
     assert np.all(snapshots.states['phase'] == 3.0)
@@ -132,7 +130,7 @@ def test_observable_keeps_a_hashable_value():
     observables = [ObservableSpec('lengths', group='queues', variable='orders', reduce=_lengths)]
     group = GroupElement('queues', element=QueueElement, size=2, values={'orders': [(), (7,)]})
     system = System(elements=[group], time=DiscreteTime())
-    trajectory = Simulation(system, observables=observables, random_state=0).prepare().run(until=2).trajectory_
+    trajectory = simulate(system, until=2, observables=observables, random_state=0)
     assert trajectory.values('lengths')[0] == pytest.approx([0, 1])
 
 

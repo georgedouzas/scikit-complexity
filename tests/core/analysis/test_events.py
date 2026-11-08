@@ -4,8 +4,9 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import EventsResult, FitLawResult, distribution, events, fit_law
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
-from skcomplex.systems import create_simulation
+from skcomplex.systems.mathematics.stochastic_processes import PoissonProcessSystem
 
 MAX_GENERATIONS = 5000
 
@@ -61,7 +62,7 @@ def test_avalanche_sizes():
 
 def test_events_of_a_trajectory_use_its_times():
     """Test that the events of a trajectory start at its times."""
-    trajectory = create_simulation('poisson_process', n_processes=1).prepare().run(until=50.0).trajectory_
+    trajectory = simulate(PoissonProcessSystem(n_processes=1), until=50.0, random_state=0)
     events = _events('detect', trajectory, variables=['counters.count'])
     assert set(events.starts) <= set(trajectory.times)
 

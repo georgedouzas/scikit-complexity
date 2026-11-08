@@ -20,7 +20,7 @@ class LatticeSolver(Solver):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.engine.compile import PassCompiler
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
         >>> from skcomplex.systems.computer_science.automata import ElementaryAutomatonSystem
         >>> from skcomplex.core.engine.solvers import LatticeSolver
         >>> from skcomplex.core.specs import StepSpec

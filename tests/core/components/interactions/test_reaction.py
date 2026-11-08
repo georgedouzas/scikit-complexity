@@ -13,7 +13,7 @@ from skcomplex.core.components.interactions import JumpInteraction, ReactionInte
 from skcomplex.core.components.laws import JumpLaw, NoiseLaw, RateLaw
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
@@ -60,8 +60,7 @@ def _epidemic(mode):
 
 def _states(mode, random_state=None):
     """Return the amounts of `S`, `I`, and `R` over 40 time units, one row per time."""
-    simulation = Simulation(_epidemic(mode), dt=1.0, random_state=random_state).prepare()
-    trajectory = simulation.run(until=40).trajectory_
+    trajectory = simulate(_epidemic(mode), until=40, dt=1.0, random_state=random_state)
     return np.column_stack([trajectory.values(f'{name}.n') for name in ('S', 'I', 'R')])
 
 
@@ -119,7 +118,7 @@ def test_reaction_reads_modifiers_without_changing_them():
             ),
         ],
     )
-    trajectory = Simulation(system, dt=0.5).prepare().run(until=2).trajectory_
+    trajectory = simulate(system, until=2, dt=0.5)
     assert trajectory.values('E.n').tolist() == [1.0] * 5
     np.testing.assert_allclose(trajectory.values('S.n'), np.exp(-np.asarray(trajectory.times)), rtol=1e-4)
 
@@ -132,7 +131,7 @@ def test_reaction_moves_states_of_one_element_with_real_coefficients():
             ReactionInteraction('dimerization', reactants={('cell', 'x'): 2}, products={('cell', 'y'): 1.5}, k=0.5),
         ],
     )
-    trajectory = Simulation(system, dt=0.5).prepare().run(until=4).trajectory_
+    trajectory = simulate(system, until=4, dt=0.5)
     x, y = trajectory.values('cell.x'), trajectory.values('cell.y')
     times = np.asarray(trajectory.times)
     np.testing.assert_allclose(x, 1 / (1 + times), rtol=1e-4)
@@ -148,7 +147,7 @@ def test_reaction_sources_and_sinks_reach_their_balance():
             ReactionInteraction('degradation', reactants={('X', 'x'): 1}, k=0.5),
         ],
     )
-    trajectory = Simulation(system, dt=1.0).prepare().run(until=40).trajectory_
+    trajectory = simulate(system, until=40, dt=1.0)
     assert trajectory.values('X.x')[-1] == pytest.approx(4.0, rel=1e-4)
 
 
@@ -166,7 +165,7 @@ def test_reaction_takes_a_propensity_function():
             ),
         ],
     )
-    trajectory = Simulation(system, dt=0.001).prepare().run(until=0.001).trajectory_
+    trajectory = simulate(system, until=0.001, dt=0.001)
     rate = (trajectory.values('B.n')[-1] - trajectory.values('B.n')[0]) / 0.001
     assert rate == pytest.approx(8 / 9, rel=1e-3)
 
@@ -238,8 +237,7 @@ def test_reaction_runs_at_every_site_of_a_field():
     values = {'x': np.array([1.0, 2.0, 4.0])}
     cells = FieldElement('cells', element=ConcentrationElement, space=LatticeSpace((3,)), values=values)
     dimerization = ReactionInteraction('dimerization', target='cells', reactants={'x': 2}, products={'y': 1.5}, k=0.5)
-    trajectory = Simulation(System(elements=[cells], interactions=[dimerization]), dt=0.5).prepare()
-    trajectory = trajectory.run(until=4).trajectory_
+    trajectory = simulate(System(elements=[cells], interactions=[dimerization]), until=4, dt=0.5)
     x, y = trajectory.lattice('cells.x')[-1], trajectory.lattice('cells.y')[-1]
     np.testing.assert_allclose(x, values['x'] / (1 + values['x'] * 4), rtol=1e-4)
     np.testing.assert_allclose(y, 0.75 * (values['x'] - x), rtol=1e-4)
@@ -250,8 +248,7 @@ def test_reaction_jumps_in_every_member_of_a_group():
     values = {'x': np.array([50.0, 100.0])}
     group = GroupElement('cells', element=ConcentrationElement, size=2, values=values)
     conversion = ReactionInteraction('conversion', target='cells', reactants={'x': 1}, products={'y': 1}, mode='jump')
-    simulation = Simulation(System(elements=[group], interactions=[conversion]), dt=0.5, random_state=0)
-    states = simulation.prepare().run(until=1).trajectory_.states
+    states = simulate(System(elements=[group], interactions=[conversion]), until=1, dt=0.5, random_state=0).states
     totals = states[:, :2] + states[:, 2:]
     assert np.all(totals == values['x'])
     assert np.all(states == np.round(states))
@@ -264,7 +261,7 @@ def test_reaction_subclass_reads_species_under_its_own_roles():
         elements=[CompartmentElement('A', n=8.0), CompartmentElement('B')],
         interactions=[ConversionInteraction('conversion', source='A', sink='B', c=0.5)],
     )
-    trajectory = Simulation(system, dt=0.5).prepare().run(until=2).trajectory_
+    trajectory = simulate(system, until=2, dt=0.5)
     times = np.asarray(trajectory.times)
     np.testing.assert_allclose(trajectory.values('A.n'), 8 * np.exp(-0.5 * times), rtol=1e-4)
     np.testing.assert_allclose(trajectory.values('A.n') + trajectory.values('B.n'), 8.0)
@@ -301,7 +298,7 @@ def test_reaction_scales_changes_by_parametric_coefficients(epsilon, delta):
         propensity=lambda s: s.target.x,
     )
     system = System(elements=[ScaledElement('box', epsilon=epsilon, delta=delta)], interactions=[conversion])
-    trajectory = Simulation(system, dt=0.01).prepare().run(until=1).trajectory_
+    trajectory = simulate(system, until=1, dt=0.01)
     x = np.exp(-np.asarray(trajectory.times) / epsilon)
     np.testing.assert_allclose(trajectory.values('box.x'), x, rtol=1e-4)
     np.testing.assert_allclose(trajectory.values('box.y'), epsilon / delta * (1 - x), rtol=1e-4, atol=1e-8)
@@ -316,13 +313,13 @@ def _agent_decay(mode, size=2000):
 
 def test_reaction_agent_form_steps_every_member_by_its_rate():
     """Test that the agent form in the mode `rate` adds the changes times the propensity of every member per step."""
-    trajectory = Simulation(_agent_decay('rate', size=3)).prepare().run(until=3).trajectory_
+    trajectory = simulate(_agent_decay('rate', size=3), until=3)
     np.testing.assert_allclose(trajectory.agents('cells', 3).values['n'], 3 * 0.9**3)
 
 
 def test_reaction_agent_form_jumps_whole_units_at_the_step_probability():
     """Test that the agent form in the mode `jump` moves one unit with the probability `1 - exp(-propensity)`."""
-    trajectory = Simulation(_agent_decay('jump'), random_state=0).prepare().run(until=1).trajectory_
+    trajectory = simulate(_agent_decay('jump'), until=1, random_state=0)
     counts = trajectory.agents('cells', 1).values['n']
     assert set(counts.tolist()) <= {2.0, 3.0}
     assert np.mean(counts == 2.0) == pytest.approx(1 - np.exp(-0.3), abs=0.03)
@@ -333,11 +330,11 @@ def test_reaction_agent_schedules_react_in_every_member_once(schedule):
     """Test that every agent schedule reacts once in every member per step, by its rate or at the step probability."""
     rate = _agent_decay('rate', size=3)
     rate.interactions[0].set_params(schedule=schedule)
-    trajectory = Simulation(rate).prepare().run(until=3).trajectory_
+    trajectory = simulate(rate, until=3)
     np.testing.assert_allclose(trajectory.agents('cells', 3).values['n'], 3 * 0.9**3)
     jump = _agent_decay('jump')
     jump.interactions[0].set_params(schedule=schedule)
-    counts = Simulation(jump, random_state=0).prepare().run(until=1).trajectory_.agents('cells', 1).values['n']
+    counts = simulate(jump, until=1, random_state=0).agents('cells', 1).values['n']
     assert np.mean(counts == 2.0) == pytest.approx(1 - np.exp(-0.3), abs=0.03)
 
 
@@ -358,7 +355,8 @@ def test_get_laws_reads_a_renamed_target(mode):
         ReactionInteraction('dimerization', target='cells', **arguments),
         SiteReactionInteraction('dimerization', sites='cells', **arguments),
     ):
-        simulation = Simulation(System(elements=[cells], interactions=[dimerization]), dt=0.5, random_state=0)
-        states.append(simulation.prepare().run(until=2).trajectory_.states)
+        states.append(
+            simulate(System(elements=[cells], interactions=[dimerization]), until=2, dt=0.5, random_state=0).states,
+        )
     np.testing.assert_allclose(states[1], states[0])
     assert not np.allclose(states[0][-1], states[0][0])

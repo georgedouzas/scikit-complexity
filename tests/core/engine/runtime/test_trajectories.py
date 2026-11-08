@@ -2,16 +2,15 @@
 
 import pytest
 
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.experiments._replicate import _replicate
-from skcomplex.systems import create_system
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 
 def test_trajectory_reads_values_by_name():
     """Test that a trajectory returns the values of a state by name and is not indexed."""
-    trajectory = Simulation(create_system('lotka_volterra'), dt=0.1).prepare().run(until=1.0).trajectory_
+    trajectory = simulate(LotkaVolterraSystem().prepare().system_, until=1.0, dt=0.1)
     values = trajectory.values('prey.n')
     assert values.shape[0] == trajectory.times.size
     with pytest.raises(TypeError):
@@ -21,7 +20,7 @@ def test_trajectory_reads_values_by_name():
 def test_member_keeps_the_parameters_of_interactions():
     """Test that a member of a replicated system reads its own states and the shared parameters of interactions."""
     ensemble = _replicate(LotkaVolterraSystem().prepare().system_, 2, {'prey.n': [20.0, 40.0]})
-    trajectory = Simulation(ensemble, dt=0.1).prepare().run(until=1.0).trajectory_
+    trajectory = simulate(ensemble, until=1.0, dt=0.1)
     member = trajectory.member(1, PassCompiler().prepare(LotkaVolterraSystem().prepare().system_).run().problem_)
     assert float(member.values('prey.n')[0]) == 40.0
     assert float(member.values('growth.r')[0]) == 1.1

@@ -16,7 +16,7 @@ class MonteCarloSolver(LatticeSolver):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.engine.compile import PassCompiler
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
         >>> from skcomplex.systems.physics.statistical_mechanics import IsingSystem
         >>> from skcomplex.core.engine.solvers import MonteCarloSolver
         >>> from skcomplex.core.specs import StepSpec

@@ -15,18 +15,15 @@ from ....specs import CapacityRowsSpec, EntrySpec, LayoutSpec, NetworkRowsSpec, 
 from ....specs._weight_spec import _WeightSpec
 from ....types import Array, VariableKind
 from ..._utils import declarations_of, declared_variables, default_of
-from ...problems import (
-    BlockSpec,
-    CompiledRequestSpec,
-    DeclarationsSpec,
-    KernelSpec,
-    LoweredKernelsSpec,
-    OutputSpec,
-    ReductionScheduleSpec,
-)
-from ...problems._declarations_spec import _ACTIVE, ENDS, MEMBERS
+from ...problems._block_spec import BlockSpec
+from ...problems._compiled_request_spec import CompiledRequestSpec
+from ...problems._declarations_spec import _ACTIVE, ENDS, MEMBERS, DeclarationsSpec
 from ...problems._edge_search import EdgeSearch
+from ...problems._kernel_spec import KernelSpec
 from ...problems._law_kernel import LawKernel
+from ...problems._lowered_kernels_spec import LoweredKernelsSpec
+from ...problems._output_spec import OutputSpec
+from ...problems._reduction_schedule_spec import ReductionScheduleSpec
 from ...problems._topology_kernel import TopologyKernel
 from .._base import BasePass
 from .._compilation import Compilation, Laws

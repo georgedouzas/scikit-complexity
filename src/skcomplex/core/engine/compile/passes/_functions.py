@@ -27,18 +27,16 @@ from ....specs import (
 from ....types import Array, FormKind, Indices, VectorFunction
 from ..._utils import symbols_of
 from ...backends import BaseBackend, NumpyBackend
-from ...problems import (
-    DeclarationsSpec,
-    ExpressionPrinter,
-    KernelSpec,
-    LoweredKernelsSpec,
-    OutputSpec,
-    ProblemSpec,
-    ReductionScheduleSpec,
-)
+from ...problems import ProblemSpec
+from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._draw_kernel import DrawKernel
+from ...problems._expression_printer import ExpressionPrinter
+from ...problems._kernel_spec import KernelSpec
 from ...problems._law_kernel import LawKernel
+from ...problems._lowered_kernels_spec import LoweredKernelsSpec
+from ...problems._output_spec import OutputSpec
 from ...problems._problem_functions_spec import _ProblemFunctionsSpec
+from ...problems._reduction_schedule_spec import ReductionScheduleSpec
 from ...problems._sweep_spec import _SweepSpec
 from ...types import ReadKind
 from .._algebraic_law import AlgebraicLaw

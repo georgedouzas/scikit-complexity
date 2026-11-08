@@ -4,10 +4,12 @@ import pytest
 
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumpyBackend
-from skcomplex.core.engine.compile import BasePass, Compilation, PassCompiler
+from skcomplex.core.engine.compile import BasePass
+from skcomplex.core.engine.compile._compilation import Compilation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.compile.passes._flatten import FlattenPass
 from skcomplex.core.errors import PipelineError
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 
 def _pass(name, reads, writes, log=None):
@@ -98,7 +100,7 @@ def test_passes_run_only_what_a_field_needs():
 
 def test_pass_is_prepared_on_its_compilation_and_runs_on_it():
     """Test that a pass takes its compilation in `prepare` and changes it in `run`."""
-    compilation = Compilation(create_system('lotka_volterra'))
+    compilation = Compilation(LotkaVolterraSystem().prepare().system_)
     flatten = FlattenPass().prepare(compilation)
     assert flatten.compilation_ is compilation
     assert flatten.run() is flatten
@@ -115,5 +117,5 @@ def test_compiler_flattens_the_system_once(monkeypatch):
         return flatten(*args, **kwargs)
 
     monkeypatch.setattr(FlattenPass, '_flatten_system', staticmethod(counted))
-    PassCompiler(backend=NumpyBackend()).prepare(create_system('lotka_volterra')).run()
+    PassCompiler(backend=NumpyBackend()).prepare(LotkaVolterraSystem().prepare().system_).run()
     assert len(calls) == 1

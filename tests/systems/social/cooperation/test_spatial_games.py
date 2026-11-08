@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.social.cooperation import (
     IteratedDilemmaInteraction,
@@ -74,7 +74,7 @@ def test_iterated_dilemma_with_two_strategies_has_three_regimes():
     shares = {}
     for reward in (0.82, 0.84, 0.86):
         system = IteratedLatticeDilemmaSystem(reward=reward, extremes=True).prepare().system_
-        strategies = Simulation(system, random_state=0).prepare().run(until=100).trajectory_.values('players.strategy')
+        strategies = simulate(system, until=100, random_state=0).values('players.strategy')
         shares[reward] = np.mean(strategies[-20:] == 7)
         assert set(np.unique(strategies)) <= {0.0, 7.0}
     assert shares[0.82] > 0.8
@@ -85,7 +85,7 @@ def test_iterated_dilemma_with_two_strategies_has_three_regimes():
 def test_iterated_dilemma_with_every_strategy_cycles():
     """Test that in the coexistence regime cooperative and defecting strategies alternate in dominance."""
     system = IteratedLatticeDilemmaSystem().prepare().system_
-    strategies = Simulation(system, random_state=0).prepare().run(until=200).trajectory_.values('players.strategy')
+    strategies = simulate(system, until=200, random_state=0).values('players.strategy')
     means = strategies.reshape(len(strategies), -1).mean(axis=1)
     assert means[50:].max() - means[50:].min() > 2.0
     assert len(np.unique(strategies[-1])) > 3

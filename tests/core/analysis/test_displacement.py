@@ -14,11 +14,11 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import BaseLaw, RuleLaw
 from skcomplex.core.components.spaces import ContinuousSpace, LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import AgentView, SystemView
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import StateSpec, VisualSpec
-from skcomplex.systems import create_simulation
+from skcomplex.systems.biology.evolution import ReplicatorDynamicsSystem
 
 
 def _displacement(source: object, **settings: object) -> DisplacementResult:
@@ -57,7 +57,7 @@ def test_displacement_keeps_its_reference_values():
 
 def test_displacement_refuses_states_that_are_no_positions():
     """Test that a group whose states are series has no displacement, and the error names what it holds."""
-    trajectory = create_simulation('replicator_dynamics').prepare().run(until=1.0).trajectory_
+    trajectory = simulate(ReplicatorDynamicsSystem(), until=1.0, random_state=0)
     with pytest.raises(AnalysisError, match='Its data kinds are: series'):
         _displacement(trajectory)
 
@@ -132,7 +132,7 @@ def test_mean_squared_displacement_diffusion_on_two_kinds_of_space():
         space=LatticeSpace((20, 20), boundary='periodic', neighborhood='von_neumann'),
     )
     for system in (continuous, grid):
-        trajectory = Simulation(system, dt=1, random_state=0).prepare().run(until=600).trajectory_
+        trajectory = simulate(system, until=600, dt=1, random_state=0)
         displacement = _displacement(trajectory, fit_range=(1, 150))
         assert displacement.exponent == pytest.approx(1, abs=0.05)
         assert displacement.msd[-1] > 20.0**2

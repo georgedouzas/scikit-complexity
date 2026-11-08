@@ -6,7 +6,7 @@ import numpy as np
 import numpy.typing as npt
 
 from skcomplex.core.components.system import BaseSystem
-from skcomplex.core.engine.runtime import Simulation, Trajectory, simulate
+from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.engine.solvers import BaseSolver, ScipyODESolver
 from skcomplex.core.specs import ObservableSpec
 
@@ -34,11 +34,11 @@ def _run(
     observables: Sequence[ObservableSpec] = (),
     schedule: Mapping[str, Callable[[float], float]] | None = None,
 ) -> Trajectory:
-    """Return the trajectory of a system run to a time, with a schedule of its parameters through `Simulation`."""
+    """Return the trajectory of a system run to a time, or of its parts under a schedule of their parameters."""
     if schedule is None:
         return simulate(system, until=until, dt=dt, solver=solver, observables=observables)
-    simulation = Simulation(system.prepare().system_, dt=dt, solver=solver, observables=observables, schedule=schedule)
-    return simulation.prepare().run(until=until).trajectory_
+    composite = system.prepare().system_
+    return simulate(composite, until=until, dt=dt, solver=solver, observables=observables, schedule=schedule)
 
 
 def _series(trajectory: Trajectory, *names: str) -> list[npt.NDArray[np.float64]]:

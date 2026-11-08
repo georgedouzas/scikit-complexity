@@ -5,15 +5,15 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.systems import create_simulation
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.physics.active_matter import ActivePolymerSystem
 
 DURATION = 600.0
 
 
 def _chain(v0):
     """Return the coordinates of the beads of a run of an active polymer, with frames every half time unit."""
-    simulation = create_simulation('active_polymer', v0=v0).set_params(random_state=0)
-    trajectory = simulation.prepare().run(until=DURATION).trajectory_
+    trajectory = simulate(ActivePolymerSystem(v0=v0), until=DURATION, random_state=0)
     return np.asarray(trajectory.values('chain.x')), np.asarray(trajectory.values('chain.y'))
 
 

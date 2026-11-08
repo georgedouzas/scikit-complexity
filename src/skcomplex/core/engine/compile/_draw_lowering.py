@@ -18,8 +18,10 @@ from ...errors import ValidationError
 from ...specs import CallSpec, DrawSpec, EntrySpec, NeighborReadSpec, SampledDrawSpec
 from ...types import Array, Indices
 from .._utils import components_of, symbol, symbols_of, vector
-from ..problems import ExpressionPrinter, KernelSpec, ReferenceSpec
 from ..problems._draw_kernel import DrawKernel
+from ..problems._expression_printer import ExpressionPrinter
+from ..problems._kernel_spec import KernelSpec
+from ..problems._reference_spec import ReferenceSpec
 from ..problems._request_spec import _RequestSpec
 from ..types import ReadKind
 from ._base import BaseLowering, BasePass

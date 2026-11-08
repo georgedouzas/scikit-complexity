@@ -3,8 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.systems import describe
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.economics.econophysics import (
     KineticWealthExchangeSystem,
 )
@@ -12,15 +11,11 @@ from skcomplex.systems.economics.econophysics import (
 
 def _final_wealth(until, **options):
     """Return the wealth of every trader at the end of a kinetic exchange run."""
-    trajectory = (
-        Simulation(
-            built := KineticWealthExchangeSystem(500, **options).prepare().system_,
-            random_state=0,
-            observables=describe('kinetic_wealth_exchange').observables_of(built),
-        )
-        .prepare()
-        .run(until=until)
-        .trajectory_
+    trajectory = simulate(
+        KineticWealthExchangeSystem(500, **options).prepare().system_,
+        until=until,
+        random_state=0,
+        observables=KineticWealthExchangeSystem().get_run_settings()['observables'],
     )
     return trajectory.agents('traders', until).values['wealth']
 

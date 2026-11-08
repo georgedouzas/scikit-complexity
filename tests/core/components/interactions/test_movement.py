@@ -11,7 +11,7 @@ from skcomplex.core.components.interactions import MovementInteraction, Transfer
 from skcomplex.core.components.laws import Sink
 from skcomplex.core.components.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation, Trajectory
+from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
@@ -51,7 +51,7 @@ class SureWalkInteraction(MovementInteraction):
 
 def _run(system: System, until: int) -> Trajectory:
     """Return the trajectory of a system run to a time."""
-    return Simulation(system, random_state=0).prepare().run(until=until).trajectory_
+    return simulate(system, until=until, random_state=0)
 
 
 def _lattice_walk(until: int, walk: MovementInteraction, size: int = 4) -> Trajectory:

@@ -12,9 +12,10 @@ from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import LatticeSpace, StaticTime
 from skcomplex.core.components.system import BaseSystem, System
 from skcomplex.core.engine.backends import JaxBackend
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import RecorderObserver, Simulation, Trajectory, _simulate, simulate
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import RecorderObserver, Trajectory, _simulate, simulate
 from skcomplex.core.engine.runtime._simulate import _choose_solver
+from skcomplex.core.engine.runtime._simulations import Simulation
 from skcomplex.core.engine.solvers import GillespieSolver, MonteCarloSolver, RootSolver, ScipyODESolver
 from skcomplex.core.errors import ConservationError, TagError, ValidationError
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, StateSpec, Tags

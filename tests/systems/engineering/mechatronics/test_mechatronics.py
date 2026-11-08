@@ -3,17 +3,14 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import Simulation, simulate
-from skcomplex.systems import describe
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.engineering.mechatronics import DcMotorSystem, QuarterCarSystem
 
 
 def test_dc_motor_settles_at_its_closed_form_speed():
     """Test that the angular velocity settles within 1% of `k V / (R b + k^2)`."""
     V, R, k, b = 12.0, 1.0, 0.5, 0.2
-    trajectory = (
-        Simulation(DcMotorSystem(V, R=R, k=k, b=b).prepare().system_, dt=0.05).prepare().run(until=40.0).trajectory_
-    )
+    trajectory = simulate(DcMotorSystem(V, R=R, k=k, b=b).prepare().system_, until=40.0, dt=0.05)
     speed = k * V / (R * b + k**2)
     assert trajectory.values('rotor.phi_d1')[-1] == pytest.approx(speed, rel=0.01)
     assert trajectory.values('winding.p_i')[-1] == pytest.approx(b * speed / k, rel=0.01)
@@ -24,14 +21,12 @@ def test_dc_motor_records_its_observables():
     trajectory = simulate(DcMotorSystem(), until=20.0, dt=0.1)
     assert trajectory.values('speed')[-1] == pytest.approx(trajectory.values('rotor.phi_d1')[-1])
     assert trajectory.values('current')[-1] == pytest.approx(trajectory.values('winding.p_i')[-1])
-    assert describe('dc_motor').field == 'engineering/mechatronics'
+    assert DcMotorSystem.field == 'engineering/mechatronics'
 
 
 def test_quarter_car_settles_at_the_step_height():
     """Test that the body and the wheel settle at the step height and the energy of the springs decays."""
-    trajectory = (
-        Simulation(QuarterCarSystem(height=0.05).prepare().system_, dt=0.01).prepare().run(until=10.0).trajectory_
-    )
+    trajectory = simulate(QuarterCarSystem(height=0.05).prepare().system_, until=10.0, dt=0.01)
     assert trajectory.values('car.y1')[-1] == pytest.approx(0.05, abs=1e-4)
     assert trajectory.values('car.y2')[-1] == pytest.approx(0.05, abs=1e-4)
     settled = trajectory.times > 0.5

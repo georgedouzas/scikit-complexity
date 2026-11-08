@@ -3,11 +3,12 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import KineticSolver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.oncology import ImmuneCompetitionSystem
 from skcomplex.systems.economics.econophysics import KineticWealthWelfareSystem
+from skcomplex.systems.social.crowds import EvacuationSystem
+from skcomplex.systems.social.opinion_dynamics import KineticOpinionSystem
 
 
 def test_welfare_policy_lowers_the_gini_coefficient():
@@ -30,7 +31,11 @@ def test_wealth_gini_matches_its_definition():
     assert trajectory.values('gini')[-1] == pytest.approx(expected, rel=1e-9)
 
 
-@pytest.mark.parametrize('name', ['kinetic_wealth_welfare', 'immune_competition', 'kinetic_opinion', 'evacuation'])
-def test_kinetic_systems_run_with_the_particle_solver(name):
-    """Test that the kinetic systems of encounters alone validate with the particle solver."""
-    assert PassCompiler(solver=KineticSolver()).prepare(create_system(name)).report_.ok
+@pytest.mark.parametrize(
+    'system',
+    [KineticWealthWelfareSystem, ImmuneCompetitionSystem, KineticOpinionSystem, EvacuationSystem],
+)
+def test_kinetic_systems_run_with_the_particle_solver(system):
+    """Test that the kinetic systems of encounters alone validate and start with the particle solver."""
+    trajectory = simulate(system().prepare().system_, until=0, solver=KineticSolver(), random_state=0)
+    assert trajectory.times.tolist() == [0.0]

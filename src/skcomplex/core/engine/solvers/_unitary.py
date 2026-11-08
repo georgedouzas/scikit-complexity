@@ -8,7 +8,7 @@ import qutip
 from qutip.solver import solver_base
 
 from ...types import Array
-from ..problems import OperatorProblemSpec
+from ..problems._operator_problem_spec import OperatorProblemSpec
 from ._operator import OperatorSolver
 
 
@@ -49,7 +49,7 @@ class UnitarySolver(OperatorSolver):
         ...         return [GeneratorLaw(local_operator(s.psi, SR.symbol('x')) / 2)]
         >>> z = [ObservableSpec('z', element='q', variable='z')]
         >>> system = System(elements=[TwoLevelElement('q')])
-        >>> from skcomplex.core.engine.compile import OperatorCompiler
+        >>> from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
         >>> compiler = OperatorCompiler()
         >>> simulation = Simulation(system, compiler=compiler, solver=UnitarySolver(), dt=np.pi, observables=z)
         >>> simulation = simulation.prepare()

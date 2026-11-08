@@ -5,8 +5,9 @@ import math
 from skcomplex.core.components.elements import LatticeElement
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import OperatorCompiler
-from skcomplex.core.engine.problems import BaseProblemSpec, OperatorProblemSpec, ProblemSpec
+from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
+from skcomplex.core.engine.problems import BaseProblemSpec, ProblemSpec
+from skcomplex.core.engine.problems._operator_problem_spec import OperatorProblemSpec
 from skcomplex.core.types import FormKind
 from skcomplex.systems.physics.common.quantum import ModeElement, mode_space
 

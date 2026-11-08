@@ -27,9 +27,9 @@ from skcomplex.core.components.laws.utils import (
 from skcomplex.core.components.spaces import ContinuousSpace, LatticeSpace, MeshSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumpyBackend
-from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.compile._field_lowering import FieldLowering
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import IMEXEulerSolver, ScipyODESolver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, RunStateSpec, StateSpec, VisualSpec
@@ -363,10 +363,13 @@ def test_implicit_solver_agrees_with_explicit_on_screened_diffusion():
         values={'u': np.sin(np.pi * positions) + 0.3 * np.sin(4 * np.pi * positions)},
     )
     finals = [
-        Simulation(system, dt=0.5, solver=ScipyODESolver(method, rtol=1e-10, atol=1e-12), backend=NumpyBackend())
-        .prepare()
-        .run(until=0.5)
-        .state_
+        simulate(
+            system,
+            until=0.5,
+            dt=0.5,
+            solver=ScipyODESolver(method, rtol=1e-10, atol=1e-12),
+            backend=NumpyBackend(),
+        ).states[-1]
         for method in ('BDF', 'RK45')
     ]
     assert np.abs(finals[0] - finals[1]).max() < 1e-6

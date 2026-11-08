@@ -3,7 +3,7 @@
 import numpy as np
 from sklearn.base import clone
 
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.epidemiology import SIRVaccinationSystem
 
 
@@ -20,8 +20,5 @@ def test_sir_vaccination_records_its_running_cost():
     """Test that the observable `cost` records the running cost of the objective of the default solver."""
     solver = clone(SIRVaccinationSystem.solver).set_params(nodes=51)
     system = SIRVaccinationSystem().prepare().system_
-    simulation = (
-        Simulation(system, solver=solver, observables=SIRVaccinationSystem.observables).prepare().run(until=5.0)
-    )
-    assert np.all(simulation.trajectory_.values('cost') > 0)
-    assert simulation.stepper_.solution_.cost > 0
+    trajectory = simulate(system, until=5.0, solver=solver, observables=SIRVaccinationSystem.observables)
+    assert np.all(trajectory.values('cost') > 0)

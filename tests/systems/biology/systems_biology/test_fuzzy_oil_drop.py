@@ -8,7 +8,7 @@ import pytest
 from rerun.chunk import RrdReader
 
 from skcomplex.core.analysis import chain_shape
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.biology.evolution import RNANeutralNetworksSystem
@@ -137,7 +137,7 @@ def test_protein_chain_streams_points_and_one_strip(tmp_path):
     path = tmp_path / 'run.rrd'
     system = FuzzyOilDropSystem().prepare().system_
     observer = RerunObserver('fuzzy_oil_drop', save_path=path)
-    Simulation(system, observers=[observer], random_state=0).prepare().run(until=4)
+    simulate(system, until=4, observers=[observer], random_state=0)
     points = _column_of(path, '/chain', ':positions')
     strips = _column_of(path, '/chain/strip', ':strips')
     assert len(points) == 5
@@ -153,7 +153,7 @@ def test_folding_chain_streams_rebuilt_points(tmp_path):
     path = tmp_path / 'run.rrd'
     system = FuzzyOilDropSystem(dynamics='folding').prepare().system_
     observer = RerunObserver('fuzzy_oil_drop', save_path=path)
-    Simulation(system, observers=[observer], random_state=0).prepare().run(until=2)
+    simulate(system, until=2, observers=[observer], random_state=0)
     points = _column_of(path, '/chain', ':positions')
     assert len(points) == 3
     assert np.shape(points[0]) == (20, 3)
@@ -164,7 +164,7 @@ def test_sequences_stream_as_an_image_of_four_colors(tmp_path):
     path = tmp_path / 'run.rrd'
     observer = RerunObserver('rna_neutral_networks', save_path=path)
     system = RNANeutralNetworksSystem(start='GGGGAAACCCCAUCGAUAGCGGGAAACCGC').prepare().system_
-    Simulation(system, observers=[observer], random_state=0).prepare().run(until=40)
+    simulate(system, until=40, observers=[observer], random_state=0)
     frames = _column_of(path, '/walkers/base', ':buffer')
     assert len(frames) == 41
     colors = set()
@@ -188,13 +188,13 @@ def test_protein_system_without_the_extra_names_it(system, name):
 
 
 def test_default_install_lists_every_system_without_the_extras():
-    """Test that importing the package and its catalog without the extras imports none, and lists every system."""
+    """Test that importing the package and listing its systems without the extras imports none of the extras."""
     code = HIDE + """
 import skcomplex.core.analysis, skcomplex.core.components, skcomplex.core.engine
-from skcomplex.systems import catalog, describe
-names = {item.name for item in catalog()}
-assert {'fuzzy_oil_drop', 'rna_neutral_networks', 'early_stage_folding_intermediate'} <= names
-assert describe('fuzzy_oil_drop').observables is not None
+from skcomplex.systems import all_systems
+names = {name for name, _ in all_systems(field='biology/systems_biology')}
+names |= {name for name, _ in all_systems(field='biology/evolution')}
+assert {'FuzzyOilDropSystem', 'RNANeutralNetworksSystem', 'EarlyStageFoldingIntermediateSystem'} <= names
 loaded = [name for name in sys.modules if name.split('.')[0] in EXTRAS and sys.modules[name] is not None]
 assert loaded == [], loaded
 """

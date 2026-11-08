@@ -19,14 +19,16 @@ from skcomplex.core.components.laws.utils import delayed, laplacian, mean, step,
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumpyBackend
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import CrankNicolsonSolver, RK4Solver, ScipyODESolver, _scipy_ode
 from skcomplex.core.errors import SolverError, ValidationError
 from skcomplex.core.specs import ParameterSpec, RoleSpec, RunStateSpec, StateSpec, StepSpec, VisualSpec
-from skcomplex.systems import create_simulation, create_system
 from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
 from skcomplex.systems.biology.ecology import FisherKPPElement, FisherKPPSystem
+from skcomplex.systems.biology.physiology import FitzhughNagumoSystem
+from skcomplex.systems.chemistry.kinetics import NanoparticleCoronaSystem
+from skcomplex.systems.mathematics.dynamical_systems import FiniteTimeBlowUpSystem, TakensBogdanovFormSystem
 from skcomplex.systems.physics.heat import HeatDiffusionSystem
 from skcomplex.systems.physics.mechanics import HarmonicOscillatorSystem
 
@@ -80,16 +82,16 @@ def test_scipy_ode_failure_raises_error():
 def test_simulation_runs_stiff_system_with_default_solver():
     """Test that a stiff system built directly runs fast with the default solver and matches its registered solver."""
     start = time.perf_counter()
-    default = Simulation(create_system('nanoparticle_corona')).prepare().run(until=10800)
+    default = simulate(NanoparticleCoronaSystem().prepare().system_, until=10800)
     assert time.perf_counter() - start < 5
-    registered = create_simulation('nanoparticle_corona').prepare().run(until=10800)
-    np.testing.assert_allclose(default.state_, registered.state_, rtol=1e-4, atol=1e-12)
+    registered = simulate(NanoparticleCoronaSystem(), until=10800, random_state=0)
+    np.testing.assert_allclose(default.states[-1], registered.states[-1], rtol=1e-4, atol=1e-12)
 
 
 def test_simulation_default_solver_keeps_accuracy_of_non_stiff_system():
     """Test that a harmonic oscillator run with the default solver matches the analytic solution within 1e-5."""
-    simulation = Simulation(HarmonicOscillatorSystem().prepare().system_).prepare().run(until=10)
-    np.testing.assert_allclose(simulation.state_, [np.cos(10), -np.sin(10)], rtol=1e-5)
+    trajectory = simulate(HarmonicOscillatorSystem().prepare().system_, until=10)
+    np.testing.assert_allclose(trajectory.states[-1], [np.cos(10), -np.sin(10)], rtol=1e-5)
 
 
 def _relaxing_group(size):
@@ -117,20 +119,29 @@ def _relaxing_group(size):
     )
 
 
+def _stepped_solver(problem, until, dt):
+    """Return the default ODE solver after it advanced a problem frame by frame until a time."""
+    solver = ScipyODESolver(until=until).prepare(problem)
+    state, frames = solver.initial_state_, round(until / dt)
+    for frame in range(frames):
+        step = StepSpec(frame * dt, state, problem.initial_parameters, (frame + 1) * dt)
+        state = solver.run(step, final=frame + 1 == frames).state_
+    return solver
+
+
 def test_default_solver_leaves_lsoda_for_states_its_dense_matrix_cannot_hold():
     """Test that 10^4 coupled states leave LSODA, a banded field of 6400 states keeps it, and LSODA names the limit."""
-    simulation = Simulation(_relaxing_group(10_000), dt=0.5).prepare().run(until=1)
-    assert simulation.stepper_.method_ != 'LSODA'
+    trajectory = simulate(_relaxing_group(10_000), until=1, dt=0.5)
+    assert _stepped_solver(trajectory.problem, 1, 0.5).method_ != 'LSODA'
     start = np.linspace(0.0, 1.0, 10_000)
-    np.testing.assert_allclose(simulation.state_, 0.5 + (start - 0.5) * np.exp(-1), atol=1e-5)
-    assert Simulation(_relaxing_group(10), dt=0.5).prepare().run(until=1).stepper_.method_ == 'LSODA'
-    banded = Simulation(HeatDiffusionSystem(shape=(80, 80)).prepare().system_, dt=0.1).prepare().run(until=0.2)
-    assert banded.stepper_.method_ == 'LSODA'
-    assert 'lband' in banded.stepper_.jacobian_options_
+    np.testing.assert_allclose(trajectory.states[-1], 0.5 + (start - 0.5) * np.exp(-1), atol=1e-5)
+    assert _stepped_solver(PassCompiler().prepare(_relaxing_group(10)).run().problem_, 1, 0.5).method_ == 'LSODA'
+    heat = PassCompiler().prepare(HeatDiffusionSystem(shape=(80, 80)).prepare().system_).run().problem_
+    banded = _stepped_solver(heat, 0.2, 0.1)
+    assert banded.method_ == 'LSODA'
+    assert 'lband' in banded.jacobian_options_
     with pytest.raises(SolverError, match='dense 10000 x 10000 matrix'):
-        Simulation(_relaxing_group(10_000), dt=0.5, solver=ScipyODESolver(method='LSODA')).prepare().run(
-            until=1,
-        )
+        simulate(_relaxing_group(10_000), until=1, dt=0.5, solver=ScipyODESolver(method='LSODA'))
 
 
 class TubElement(Element):
@@ -160,8 +171,8 @@ def test_default_solver_finishes_a_state_resting_on_a_discontinuity():
     """Test that a tub resting empty on its drain switch keeps the right values, whichever method carries the run."""
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', UserWarning)
-        simulation = Simulation(_tubs(), dt=1).prepare().run(until=6)
-    np.testing.assert_allclose(np.ravel(simulation.trajectory_.values('tubs.water'))[:5], [20, 15, 10, 5, 0], atol=1e-3)
+        trajectory = simulate(_tubs(), until=6, dt=1)
+    np.testing.assert_allclose(np.ravel(trajectory.values('tubs.water'))[:5], [20, 15, 10, 5, 0], atol=1e-3)
 
 
 def test_default_solver_leaves_lsoda_when_it_stalls(monkeypatch):
@@ -169,10 +180,10 @@ def test_default_solver_leaves_lsoda_when_it_stalls(monkeypatch):
     monkeypatch.setattr(_scipy_ode, '_STALL_STEP', math.inf)
     monkeypatch.setattr(_scipy_ode, '_STALL_STEPS', 1)
     with pytest.warns(UserWarning, match='LSODA stalled'):
-        simulation = Simulation(_tubs(), dt=1).prepare().run(until=6)
-    assert simulation.stepper_.method_ == 'RK45'
+        solver = _stepped_solver(PassCompiler().prepare(_tubs()).run().problem_, 6, 1)
+    assert solver.method_ == 'RK45'
     with pytest.raises(SolverError, match='stalled'):
-        Simulation(_tubs(), dt=1, solver=ScipyODESolver(method='LSODA')).prepare().run(until=6)
+        simulate(_tubs(), until=6, dt=1, solver=ScipyODESolver(method='LSODA'))
 
 
 def test_default_solver_starts_from_rest_with_a_vanishing_drift():
@@ -197,10 +208,10 @@ def test_default_solver_starts_from_rest_with_a_vanishing_drift():
             """Return the laws of the forced element."""
             return [RateLaw(s.x, s.v), RateLaw(s.v, -4 * s.x + sin(s.t))]
 
-    simulation = Simulation(System(elements=[ForcedElement('oscillator')]), dt=0.01).prepare().run(until=5)
-    times = simulation.trajectory_.times
+    trajectory = simulate(System(elements=[ForcedElement('oscillator')]), until=5, dt=0.01)
+    times = trajectory.times
     expected = (np.sin(times) - np.sin(2 * times) / 2) / 3
-    np.testing.assert_allclose(simulation.trajectory_.values('oscillator.x'), expected, atol=1e-6)
+    np.testing.assert_allclose(trajectory.values('oscillator.x'), expected, atol=1e-6)
 
 
 def _decay():
@@ -220,21 +231,23 @@ def test_scipy_ode_keeps_integrator_across_frames():
         calls.append(t)
         return problem.drift(t, x, p)
 
-    trajectory = Simulation(dataclasses.replace(problem, drift=counted), dt=0.01).prepare().run(until=10).trajectory_
+    p = problem.initial_parameters
+    solver = ScipyODESolver(until=10.0).prepare(dataclasses.replace(problem, drift=counted))
+    state = solver.initial_state_
+    for frame in range(1000):
+        state = solver.run(StepSpec(frame * 0.01, state, p, (frame + 1) * 0.01), final=frame == 999).state_
     frames = len(calls)
     calls.clear()
-    p = problem.initial_parameters
     solve_ivp(lambda t, x: counted(t, x, p), (0.0, 10.0), problem.initial_state, rtol=1e-6, atol=1e-9)
-    assert len(trajectory.times) == 1001
     assert frames <= 2 * len(calls)
-    assert trajectory.values('a.n')[-1] == pytest.approx(np.exp(-10.0), rel=1e-4)
+    assert float(problem.states.read(state, 'a.n')) == pytest.approx(np.exp(-10.0), rel=1e-4)
 
 
 def test_scipy_ode_restarts_on_parameter_change():
     """Test that a decay rate set to zero at time 5 keeps the state constant from then on."""
-    simulation = Simulation(_decay(), dt=0.01).prepare().run(until=5)
-    simulation.update_parameters({'g.r': 0.0})
-    values = simulation.extend(until=10).trajectory_.values('a.n')
+    values = simulate(_decay(), until=10, dt=0.01, schedule={'g.r': lambda t: -1.0 if t < 5 - 1e-9 else 0.0}).values(
+        'a.n',
+    )
     assert values[500] == pytest.approx(np.exp(-5.0), rel=1e-5)
     assert np.all(values[500:] == values[500])
 
@@ -260,26 +273,26 @@ class ChatterElement(Element):
 def test_default_solver_names_a_state_sliding_along_a_discontinuity():
     """Test that a state sliding along a switch no event sees ends in a named error instead of a run without end."""
     with pytest.warns(UserWarning, match='LSODA stalled'), pytest.raises(SolverError, match='slides along'):
-        Simulation(System(elements=[ChatterElement('tub')]), dt=1).prepare().run(until=6)
+        simulate(System(elements=[ChatterElement('tub')]), until=6, dt=1)
 
 
 def test_default_solver_names_a_blow_up():
     """Test that a solution that diverges in finite time ends in an error that names the blow-up."""
     with pytest.raises(SolverError, match='blows up'):
-        Simulation(create_system('finite_time_blow_up'), dt=0.01).prepare().run(until=2)
+        simulate(FiniteTimeBlowUpSystem().prepare().system_, until=2, dt=0.01)
 
 
 def test_default_solver_follows_fast_exponential_growth():
     """Test that a state on a fast manifold, growing exponentially without a blow-up, stays close to its growth rate."""
-    system = create_system('takens_bogdanov_form', x=5.0, y=5.0, beta1=0.1, beta2=-1.0)
-    values = Simulation(system, dt=0.1).prepare().run(until=20).trajectory_.values('form.x')
+    system = TakensBogdanovFormSystem(x=5.0, y=5.0, beta1=0.1, beta2=-1.0).prepare().system_
+    values = simulate(system, until=20, dt=0.1).values('form.x')
     assert np.log(values[-1] / values[-11]) == pytest.approx(1.0, rel=0.01)
 
 
 def test_default_solver_steps_large_diffusive_fields_explicitly():
     """Test that a large field whose frames span a few stable steps runs with RK45, not a costly implicit method."""
-    simulation = Simulation(create_system('fitzhugh_nagumo'), dt=2.0).prepare().run(until=4)
-    assert simulation.stepper_.method_ == 'RK45'
+    problem = PassCompiler().prepare(FitzhughNagumoSystem().prepare().system_).run().problem_
+    assert _stepped_solver(problem, 4, 2.0).method_ == 'RK45'
 
 
 STIFF_SIZE = 4000
@@ -341,14 +354,15 @@ def _event_run(jacobian):
     line = FisherKPPSystem(STIFF_SIZE, D=1.0, spacing=0.05).prepare().system_.elements[0]
     level = 1.5 * line.values['u'].sum()
     system = System(elements=[line], interactions=[StiffThresholdInteraction('threshold', line='line', level=level)])
-    simulation = Simulation(
+    start = time.perf_counter()
+    trajectory = simulate(
         system,
+        until=10.0,
         solver=ScipyODESolver(method='BDF', jacobian=jacobian),
         dt=1.0,
         backend=NumpyBackend(),
-    ).prepare()
-    start = time.perf_counter()
-    times = simulation.run(until=10.0).trajectory_.times
+    )
+    times = trajectory.times
     return time.perf_counter() - start, times[-1]
 
 
@@ -384,14 +398,15 @@ def _hutchinson_run(jacobian):
         space=LatticeSpace(size, spacing=0.05),
         values={'u': initial},
     )
-    simulation = Simulation(
+    start = time.perf_counter()
+    trajectory = simulate(
         System(elements=[field]),
+        until=5.0,
         solver=ScipyODESolver(method='BDF', jacobian=jacobian),
         dt=1.0,
         backend=NumpyBackend(),
-    ).prepare()
-    start = time.perf_counter()
-    state = simulation.run(until=5.0).trajectory_.states[-1]
+    )
+    state = trajectory.states[-1]
     return time.perf_counter() - start, state
 
 
@@ -473,15 +488,16 @@ def _event_time(size, jacobian):
         boundary={'u': 'zero-flux'},
         values={'u': initial},
     )
-    simulation = Simulation(
+    trajectory = simulate(
         System(
             elements=[field],
             interactions=[LevelInteraction('threshold', line='line', level=1.5 * initial.sum())],
         ),
+        until=10,
         solver=ScipyODESolver(method='BDF', jacobian=jacobian),
         dt=1.0,
-    ).prepare()
-    return simulation.run(until=10).trajectory_.times[-1], simulation
+    )
+    return trajectory.times[-1], ScipyODESolver(method='BDF', jacobian=jacobian, until=10).prepare(trajectory.problem)
 
 
 def _hutchinson(size, jacobian):
@@ -494,12 +510,13 @@ def _hutchinson(size, jacobian):
         boundary={'u': 'zero-flux'},
         values={'u': initial, 'r': 1.2},
     )
-    simulation = Simulation(
+    trajectory = simulate(
         System(elements=[field]),
+        until=4,
         solver=ScipyODESolver(method='BDF', jacobian=jacobian),
         dt=1.0,
-    ).prepare()
-    return simulation.run(until=4).trajectory_.states[-1]
+    )
+    return trajectory.states[-1]
 
 
 @pytest.mark.benchmark
@@ -511,9 +528,9 @@ def test_sparse_jacobians_speed_up_stiff_fields(record_property):
     dense, dense_state, _, _ = _timed_scipy(problem, 'BDF', 'dense')
     radau, radau_state, _, _ = _timed_scipy(problem, 'Radau', 'auto')
     exact, exact_state, exact_calls, exact_stepper = _timed_scipy(problem, 'BDF', 'exact')
-    split = Simulation(problem, solver=CrankNicolsonSolver(dt=0.01), dt=10.0, record=False).prepare()
+    split = CrankNicolsonSolver(dt=0.01, until=10.0).prepare(problem)
     start = time.perf_counter()
-    split.run(until=10.0)
+    split.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 10.0), final=True)
     crank_nicolson = time.perf_counter() - start
     for name, value in [('pattern', pattern), ('radau', radau), ('exact', exact), ('crank_nicolson', crank_nicolson)]:
         record_property(f'dense_over_{name}', dense / value)
@@ -706,11 +723,11 @@ def test_exact_jacobian_follows_parameter_changes():
 
 def test_event_on_stiff_field_keeps_the_pattern():
     """Test that BDF with the pattern finds the event of a stiff field at the time of the dense path."""
-    time, simulation = _event_time(SIZE, 'auto')
+    time, solver = _event_time(SIZE, 'auto')
     dense, _ = _event_time(SIZE, 'dense')
     assert 0 < time < 10
     assert abs(time - dense) < 1e-6
-    assert 'jac_sparsity' in simulation.stepper_.jacobian_options_
+    assert 'jac_sparsity' in solver.jacobian_options_
 
 
 def test_delayed_stiff_field_keeps_the_pattern():

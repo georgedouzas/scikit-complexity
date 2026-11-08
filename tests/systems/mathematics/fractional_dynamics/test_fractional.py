@@ -6,10 +6,9 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.types import FormKind
-from skcomplex.systems import create_system
 from skcomplex.systems.mathematics.fractional_dynamics import (
     FractionalLorenzSystem,
     FractionalOscillatorSystem,
@@ -69,7 +68,7 @@ def test_fractional_lorenz_stays_on_bounded_attractor():
 def test_element_types_of_orders_pickle_by_reference():
     """Test that the element types of every order are cached and pickle by reference."""
     assert relaxation_type(0.3) is relaxation_type(0.3)
-    element_type = type(create_system('fractional_relaxation', order=0.37).elements[0])
+    element_type = type(FractionalRelaxationSystem(order=0.37).prepare().system_.elements[0])
     assert element_type is relaxation_type(0.37)
     assert getattr(importlib.import_module(element_type.__module__), element_type.__qualname__) is element_type
 

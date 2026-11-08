@@ -18,8 +18,8 @@ from ...errors import SolverError
 from ...specs import RunStateSpec, SupportSpec
 from ...types import Array, FormKind, OrderKind
 from ..compile.passes._operator_compiler import DEFAULT_MAX_DIMENSION
-from ..problems import OperatorProblemSpec
 from ..problems._operator_kernel import OperatorKernel
+from ..problems._operator_problem_spec import OperatorProblemSpec
 from ._base import BaseSolver
 
 

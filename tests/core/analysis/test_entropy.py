@@ -8,9 +8,12 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import entropy, markov
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
-from skcomplex.systems import create_simulation, create_system
+from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+from skcomplex.systems.chemistry.pattern_formation import GrayScottSystem
+from skcomplex.systems.physics.nonlinear_oscillators import VanDerPolSystem
+from skcomplex.systems.physics.statistical_mechanics import IsingSystem
 
 RUNS = 20_000
 
@@ -102,9 +105,9 @@ def test_permutation_entropy_matches_previous_values():
 def test_permutation_entropy_of_fields_of_two_domains():
     """Test that a hot Ising lattice gives above 0.98 and a Gray-Scott pattern at least 0.1 less."""
     settings = {'dimension': (2, 2), 'ties': 'random', 'random_state': 0}
-    spins = create_simulation('ising', size=64, temperature=10.0).prepare().run(until=20).trajectory_
+    spins = simulate(IsingSystem(size=64, temperature=10.0), until=20, random_state=0)
     hot = _entropy('permutation', spins, **settings)[-1]
-    spots = create_simulation('gray_scott').prepare().run().trajectory_
+    spots = simulate(GrayScottSystem(), random_state=0)
     pattern = _entropy('permutation', spots, **settings)[-1]
     assert hot > 0.98
     assert pattern < hot - 0.1
@@ -139,7 +142,7 @@ def test_sample_entropy_of_white_noise():
 
 def test_sample_entropy_of_periodic_orbits_on_two_domains():
     """Test that the Van der Pol limit cycle and the logistic map at r = 3.2 give sample entropies below 0.05."""
-    trajectory = Simulation(create_system('van_der_pol'), dt=0.01).prepare().run(until=100.0).trajectory_
+    trajectory = simulate(VanDerPolSystem().prepare().system_, until=100.0, dt=0.01)
     cycle = trajectory.values('oscillator.x')[len(trajectory.times) // 2 :]
     assert _entropy('sample', cycle, dimension=2)[0] < 0.05
     assert _entropy('sample', _logistic(3.2, 3000), dimension=2)[0] < 0.05
@@ -163,7 +166,7 @@ def test_spectral_entropy_of_a_tone_and_of_noise():
 
 def test_every_series_of_a_trajectory_gets_an_entropy():
     """Test that the named series of a trajectory each get an entropy, labelled by name."""
-    trajectory = create_simulation('lotka_volterra').prepare().run(until=5.0).trajectory_
+    trajectory = simulate(LotkaVolterraSystem(), until=5.0, random_state=0)
     analysis = entropy(trajectory, kind='sample', variables=['prey.n', 'predators.n'], dimension=2)
     assert analysis.labels == ['prey.n', 'predators.n']
     assert analysis.entropy.shape == (2,)

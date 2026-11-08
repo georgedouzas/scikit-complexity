@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.systems.biology.physiology import TwoCompartmentPharmacokineticsSystem
 
@@ -43,12 +43,12 @@ def test_two_compartment_pharmacokinetics_matches_bi_exponential():
 
 def test_two_compartment_pharmacokinetics_conserves_drug_without_elimination():
     """Test that without elimination the drug only moves between compartments, to the split `k21 : k12`."""
-    trajectory = Simulation(
+    trajectory = simulate(
         TwoCompartmentPharmacokineticsSystem(c0=1.0, k10=0.0).prepare().system_,
+        until=3000.0,
         dt=10.0,
         solver=PRECISE,
-    ).prepare()
-    trajectory = trajectory.run(until=3000.0).trajectory_
+    )
     total = trajectory.values('patient.Uc') + trajectory.values('patient.Up')
     assert np.allclose(total, 1.0, rtol=1e-9)
     assert abs(trajectory.values('patient.Uc')[-1] - 0.00125 / (0.00125 + 0.0475)) < 1e-6

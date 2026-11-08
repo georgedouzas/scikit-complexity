@@ -9,7 +9,7 @@ from skcomplex.core.components.interactions import SignAdjustmentInteraction
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.system import System
 from skcomplex.core.components.types import AgentViewProtocol, SystemViewProtocol
-from skcomplex.core.engine.runtime import Simulation, Trajectory
+from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import StateSpec, VisualSpec
 
@@ -33,7 +33,7 @@ class QuoteElement(Element):
 def _run(element: Element, adjustment: SignAdjustmentInteraction, until: int) -> Trajectory:
     """Return the trajectory of an element whose quote a sign adjustment steps."""
     system = System(elements=[element], interactions=[adjustment], time=DiscreteTime())
-    return Simulation(system, random_state=0).prepare().run(until=until).trajectory_
+    return simulate(system, until=until, random_state=0)
 
 
 def test_sign_adjustment_steps_multiplicatively_up_to_the_bound():

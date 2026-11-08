@@ -10,7 +10,7 @@ from skcomplex.core.components.elements import Element, LatticeElement
 from skcomplex.core.components.interactions import SamplingInteraction
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace, MooreNeighborhood, NetworkSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import RegionScoreSpec, RowScoreSpec, StateSpec
 
@@ -50,7 +50,7 @@ def _run(space, regions, score, *, until=200, intensity=1.0, neighborhood=None, 
     )
     sites = LatticeElement('sites', element=SiteElement, space=space, values={'region': regions})
     system = System(elements=[sites], interactions=[copies], time=DiscreteTime())
-    values = Simulation(system, random_state=seed).prepare().run(until=until).trajectory_.values('sites.region')
+    values = simulate(system, until=until, random_state=seed).values('sites.region')
     return np.rint(values.reshape(values.shape[0], -1)).astype(int)
 
 

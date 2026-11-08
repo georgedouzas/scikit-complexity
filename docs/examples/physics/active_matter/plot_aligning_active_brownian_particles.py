@@ -17,7 +17,7 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.active_matter import AligningActiveBrownianParticlesSystem
@@ -55,14 +55,15 @@ strengths = np.array([0.02, 0.05, 0.1, 0.15, 0.2, 0.3, 0.5, 1.0])
 polarizations = []
 for gamma in strengths:
     system_system = AligningActiveBrownianParticlesSystem(gamma=gamma, random_state=1)
-    run = Simulation(
+    run = simulate(
         system_system.prepare().system_,
+        until=150,
         dt=1.0,
         solver=EulerMaruyamaSolver(dt=0.05),
         random_state=1,
         observables=AligningActiveBrownianParticlesSystem.observables,
-    ).prepare()
-    polarizations.append(np.abs(run.run(until=150).trajectory_.values('polarization')[75:]).mean())
+    )
+    polarizations.append(np.abs(run.values('polarization')[75:]).mean())
 fig, (series, transition) = plt.subplots(1, 2, figsize=(10, 4))
 series.plot(trajectory.times, np.abs(trajectory.values('polarization')))
 series.set_ylim(0, 1)

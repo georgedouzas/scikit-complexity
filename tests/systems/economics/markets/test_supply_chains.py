@@ -11,7 +11,7 @@ from ...conftest import _run_seeded
 
 def test_beer_game_amplifies_orders_upstream():
     """Test that the chain rests until demand steps up, and the order amplitude grows from retailer to factory."""
-    trajectory = _run_seeded(BeerGameSystem().prepare().system_, 36.0, 0.5, 'beer_game')
+    trajectory = _run_seeded(BeerGameSystem().prepare().system_, 36.0, 0.5, BeerGameSystem())
     echelons = ('retailer', 'wholesaler', 'distributor', 'factory')
     for echelon in echelons:
         assert np.allclose(trajectory.values(f'{echelon}.orders')[:11], 4.0)

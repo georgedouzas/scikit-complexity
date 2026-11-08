@@ -1,5 +1,6 @@
 """Test the `VelocityVerletSolver` class."""
 
+import time
 from typing import Annotated
 
 import numpy as np
@@ -11,11 +12,11 @@ from skcomplex.core.components.elements import GroupElement, PointElement
 from skcomplex.core.components.interactions import PairCouplingInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import RealTimeClock, Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import (
     VelocityVerletSolver,
 )
-from skcomplex.core.specs import ParameterSpec
+from skcomplex.core.specs import ParameterSpec, StepSpec
 
 
 class SoftSphereInteraction(PairCouplingInteraction):
@@ -68,12 +69,12 @@ def test_interacting_gas_of_100000_runs_in_real_time():
         ],
         space=ContinuousSpace(extent=(size, size), boundary='reflecting'),
     )
-    simulation = Simulation(
-        system,
-        solver=VelocityVerletSolver(dt=0.01),
-        dt=0.01,
-        clock=RealTimeClock(speed=1.0),
-        record=False,
-    ).prepare()
-    simulation.run(until=2)
-    assert simulation.clock_.max_lag_ <= 0.2
+    problem = simulate(system, until=0, solver=VelocityVerletSolver(dt=0.01)).problem
+    solver = VelocityVerletSolver(dt=0.01, until=2.0).prepare(problem)
+    state, lags = solver.initial_state_, []
+    start = time.perf_counter()
+    for frame in range(200):
+        step = StepSpec(frame * 0.01, state, problem.initial_parameters, (frame + 1) * 0.01)
+        state = solver.run(step, final=frame == 199).state_
+        lags.append(time.perf_counter() - start - (frame + 1) * 0.01)
+    assert max(lags) <= 0.2

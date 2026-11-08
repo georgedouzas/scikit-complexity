@@ -15,8 +15,9 @@ from sage.all__sagemath_polyhedra import Polyhedron
 from sage.rings.rational_field import QQ
 
 from ..components.system import System
-from ..engine.compile import PassCompiler
-from ..engine.problems import LinearProgramKernel, ProblemSpec
+from ..engine.compile._pass_compiler import PassCompiler
+from ..engine.problems import ProblemSpec
+from ..engine.problems._linear_program_kernel import LinearProgramKernel
 from ..errors import AnalysisError, EnumerationLimitError
 from ..specs import AnalysisTags, RunStateSpec
 from ..specs._base_spec import BaseSpec

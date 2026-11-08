@@ -4,9 +4,11 @@ import numpy as np
 
 from skcomplex.core.analysis import ApplicableAnalysesResult, applicable_analyses, markov
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.systems import create_simulation, create_system
+from skcomplex.systems.biology.collective_behaviour import PheromoneForagingSystem
 from skcomplex.systems.biology.ecology import LogisticGrowthSystem
-from skcomplex.systems.mathematics.stochastic_processes import OnOffIntermittencySystem
+from skcomplex.systems.mathematics.stochastic_processes import OnOffIntermittencySystem, PoissonProcessSystem
+from skcomplex.systems.physics.active_matter import VicsekSystem
+from skcomplex.systems.physics.statistical_mechanics import IsingSystem
 
 
 def _discover(source: object) -> ApplicableAnalysesResult:
@@ -21,7 +23,7 @@ def _names(analyses: list) -> set[tuple[str, str | None]]:
 
 def test_discovery_of_a_lattice_system():
     """Test that an Ising system lists the structure factor, correlation length, clusters, and variance-mean law."""
-    discovery = _discover(create_system('ising', size=16))
+    discovery = _discover(IsingSystem(size=16).prepare().system_)
     assert discovery.kinds == ['field']
     assert {
         ('spectrum', 'structure-factor'),
@@ -35,7 +37,7 @@ def test_discovery_of_a_lattice_system():
 
 def test_discovery_of_a_system_with_several_kinds():
     """Test that an agent system on a lattice that records reporters lists agent, field, and series analyses."""
-    discovery = _discover(create_simulation('pheromone_foraging').prepare().run(until=2).trajectory_)
+    discovery = _discover(simulate(PheromoneForagingSystem(), until=2, random_state=0))
     assert discovery.kinds == ['agents', 'field', 'series']
     assert ('spectrum', 'structure-factor') in _names(discovery.analyses['field'])
     assert ('spectrum', 'power') in _names(discovery.analyses['series'])
@@ -43,7 +45,7 @@ def test_discovery_of_a_system_with_several_kinds():
 
 def test_discovery_of_an_agent_system():
     """Test that a Vicsek trajectory lists the alignment, nearest-neighbour, and displacement analyses under agents."""
-    discovery = _discover(create_simulation('vicsek').prepare().run(until=3).trajectory_)
+    discovery = _discover(simulate(VicsekSystem(), until=3, random_state=0))
     agents = discovery.analyses['agents']
     assert {('alignment', 'mean-vector'), ('neighbors', 'distances'), ('displacement', None)} <= _names(agents)
 
@@ -72,7 +74,7 @@ def test_discovered_analyses_run_on_arrays_without_a_simulation():
 
 def test_discovery_of_a_jump_path():
     """Test that a jump path lists Markov analyses, which run on its states."""
-    trajectory = create_simulation('poisson_process', n_processes=1).prepare().run(until=30.0).trajectory_
+    trajectory = simulate(PoissonProcessSystem(n_processes=1), until=30.0, random_state=0)
     discovery = _discover(trajectory)
     assert 'path' in discovery.kinds
     assert any(item.func is markov for item in discovery.analyses['path'])

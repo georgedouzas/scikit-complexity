@@ -12,7 +12,7 @@ from skcomplex.core.components.laws import DissipatorLaw, GeneratorLaw
 from skcomplex.core.components.laws.utils import local_operator
 from skcomplex.core.components.spaces import LatticeSpace, NetworkSpace
 from skcomplex.core.engine._utils import symbol
-from skcomplex.core.engine.compile import OperatorCompiler
+from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import HilbertSpec, LocalOperatorSpec, OperatorSpec
 from skcomplex.systems.physics.common.quantum import ModeElement, QubitElement, mode_space

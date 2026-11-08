@@ -9,14 +9,21 @@ from skcomplex.core.components.elements import Element, GroupElement, LatticeEle
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import ContinuousSpace, LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems import FrameSpec
-from skcomplex.core.engine.runtime import BaseObserver, Simulation
+from skcomplex.core.engine.runtime import BaseObserver, simulate
 from skcomplex.core.engine.viz import AgentsVisual, ImageVisual, PointsVisual, ScalarsVisual
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import AgentSnapshotSpec
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.epidemiology import DelayedSIRSSystem
+from skcomplex.systems.chemistry.pattern_formation import GrayScottSystem
+from skcomplex.systems.computer_science.automata import ElementaryAutomatonSystem
+from skcomplex.systems.physics.climate import DaisyworldSystem, Lorenz96System
+from skcomplex.systems.physics.fluids import BoltzmannEquationSystem, VlasovEquationSystem
+from skcomplex.systems.physics.mechanics import CoupledPendulumsSystem
 from skcomplex.systems.physics.statistical_mechanics import XYSpinElement
+from skcomplex.systems.physics.waves import SpringChainSystem
+from skcomplex.systems.social.organizations import ObesitySystem
 
 
 class RestingElement(Element):
@@ -60,16 +67,15 @@ def _frames(system, steps, dt=0.1):
             if inputs is not None:
                 frames.append(inputs)
 
-    simulation = Simulation(system, dt=dt, observers=[KeepObserver()], random_state=0).prepare()
-    simulation.run(until=steps * dt)
-    return simulation.problem_, frames
+    trajectory = simulate(system, until=steps * dt, dt=dt, observers=[KeepObserver()], random_state=0)
+    return trajectory.problem, frames
 
 
 def _first_frame(system):
     """Return the problem and the first frame of a system."""
-    simulation = Simulation(system).prepare().run(until=0.0)
-    problem = simulation.problem_
-    return problem, FrameSpec(0, 0.0, simulation.state_, simulation.parameters_, problem)
+    trajectory = simulate(system, until=0.0)
+    problem = trajectory.problem
+    return problem, FrameSpec(0, 0.0, trajectory.states[-1], trajectory.parameters[-1], problem)
 
 
 def _format(archetype):
@@ -85,7 +91,7 @@ def _radius(archetype):
 
 def test_image_visual_logs_space_time_of_one_dimensional_lattice():
     """Test that a one-dimensional lattice logs a space-time image that grows by one row per frame."""
-    problem, frames = _frames(create_system('elementary_automaton', size=21), steps=5, dt=1.0)
+    problem, frames = _frames(ElementaryAutomatonSystem(size=21).prepare().system_, steps=5, dt=1.0)
     logs = Logs()
     visual = ImageVisual(path=problem.elements[0].path, recording=logs).prepare(problem)
     for frame in frames:
@@ -97,7 +103,7 @@ def test_image_visual_logs_space_time_of_one_dimensional_lattice():
 
 def test_image_visual_bounds_space_time_rows():
     """Test that the space-time image keeps only the most recent rows."""
-    problem, frames = _frames(create_system('elementary_automaton', size=21), steps=5, dt=1.0)
+    problem, frames = _frames(ElementaryAutomatonSystem(size=21).prepare().system_, steps=5, dt=1.0)
     logs = Logs()
     visual = ImageVisual(history=3, path=problem.elements[0].path, recording=logs).prepare(problem)
     for frame in frames:
@@ -107,7 +113,7 @@ def test_image_visual_bounds_space_time_rows():
 
 def test_image_visual_logs_one_row_as_rgb_image():
     """Test that the current row of a one-dimensional lattice is an image one pixel high, not a column of grey."""
-    problem, frame = _first_frame(create_system('elementary_automaton', size=21))
+    problem, frame = _first_frame(ElementaryAutomatonSystem(size=21).prepare().system_)
     logs = Logs()
     ImageVisual(history=0, path=problem.elements[0].path, recording=logs).prepare(problem).run(frame)
     assert [path for path, _ in logs.logs] == ['cells/alive']
@@ -173,7 +179,7 @@ def test_points_visual_leaves_out_trail(count, trail):
 
 def test_agents_visual_radius_scales_with_continuous_space(log_agents):
     """Test that agents in a continuous space take a share of its side, and agents on a grid 0.4 cells."""
-    problem, frames = _frames(create_system('obesity', n_people=10, n_places=4, random_state=0), steps=1, dt=1.0)
+    problem, frames = _frames(ObesitySystem(n_people=10, n_places=4, random_state=0).prepare().system_, steps=1, dt=1.0)
     space = problem.agent_space
     assert isinstance(space, ContinuousSpace)
     logs = Logs()
@@ -224,7 +230,7 @@ def _series_color(archetype):
 
 def test_scalars_visual_gives_states_distinct_colors():
     """Test that the white and black daisies of Daisyworld get distinct static series colors."""
-    problem, frame = _first_frame(create_system('daisyworld'))
+    problem, frame = _first_frame(DaisyworldSystem().prepare().system_)
     logs = Logs()
     visual = ScalarsVisual(path=problem.elements[0].path, recording=logs).prepare(problem)
     visual.run(frame)
@@ -238,7 +244,7 @@ def test_scalars_visual_gives_states_distinct_colors():
 
 def test_scalars_visual_colors_elements_apart():
     """Test that the first states of two elements get distinct series colors."""
-    problem, frame = _first_frame(create_system('coupled_pendulums'))
+    problem, frame = _first_frame(CoupledPendulumsSystem().prepare().system_)
     logs = Logs()
     for element in problem.elements:
         ScalarsVisual(path=element.path, recording=logs).prepare(frame.problem).run(frame)
@@ -288,7 +294,7 @@ def test_points_visual_keeps_given_color_range():
 
 def test_points_visual_sizes_single_particles_by_the_whole_drawing():
     """Test that the masses of a spring chain, one particle per element, take a radius from the extent of the chain."""
-    problem, frame = _first_frame(create_system('spring_chain'))
+    problem, frame = _first_frame(SpringChainSystem().prepare().system_)
     logs = Logs()
     (PointsVisual(position='x', states=(), path=problem.elements[0].path, recording=logs).prepare(problem).run(frame))
     assert _radius(logs.of('mass_0')[0]) > 0.01
@@ -296,7 +302,7 @@ def test_points_visual_sizes_single_particles_by_the_whole_drawing():
 
 def test_scalars_visual_leaves_out_lag_companions():
     """Test that the past values a delayed system keeps as lag states are not logged as series."""
-    problem, frame = _first_frame(create_system('delayed_sirs'))
+    problem, frame = _first_frame(DelayedSIRSSystem().prepare().system_)
     logs = Logs()
     ScalarsVisual(path=problem.elements[0].path, recording=logs).prepare(problem).run(frame)
     paths = {path for path, _ in logs.logs}
@@ -306,7 +312,7 @@ def test_scalars_visual_leaves_out_lag_companions():
 
 def test_scalars_visual_logs_chosen_components():
     """Test that a scalars visual with chosen components logs only those components of a vector state."""
-    problem, frame = _first_frame(create_system('lorenz96'))
+    problem, frame = _first_frame(Lorenz96System().prepare().system_)
     logs = Logs()
     (ScalarsVisual(components=[0, 1, 2], path=problem.elements[0].path, recording=logs).prepare(problem).run(frame))
     scalars = [item for item in logs.of('ring/x') if type(item).__name__ == 'Scalars']
@@ -320,7 +326,7 @@ def test_agents_visual_draws_continuous_spaces_with_vertical_axis_up(log_agents)
     logs = Logs()
     log_agents(AgentsVisual(), logs, 'birds', [snapshot], space)
     assert logs.of('birds')[0].positions.as_arrow_array().to_pylist() == [[3.0, -4.0]]
-    problem, _ = _frames(create_system('obesity', n_people=10, n_places=4, random_state=0), steps=1, dt=1.0)
+    problem, _ = _frames(ObesitySystem(n_people=10, n_places=4, random_state=0).prepare().system_, steps=1, dt=1.0)
     view = AgentsVisual(path=problem.agents[0].path).prepare(problem).views_[0]
     bounds = view.properties['VisualBounds2D']
     assert bounds is not None
@@ -395,7 +401,7 @@ def test_colors_start_bright_enough_to_see_on_black():
 
 def test_image_visual_logs_position_velocity_image_and_density_of_two_stream():
     """Test that a two-stream system logs its position-velocity image and its density over position every frame."""
-    system = create_system('vlasov_equation', positions=8, velocities=16, setup='two-stream')
+    system = VlasovEquationSystem(positions=8, velocities=16, setup='two-stream').prepare().system_
     problem, frames = _frames(system, steps=3, dt=0.1)
     logs = Logs()
     visual = ImageVisual(moments=(0,), history=0, path='gas', recording=logs).prepare(problem)
@@ -411,7 +417,7 @@ def test_image_visual_logs_position_velocity_image_and_density_of_two_stream():
 
 def test_image_visual_logs_a_plane_of_a_phase_space():
     """Test that a phase space of three axes logs the plane its slices leave."""
-    system = create_system('boltzmann_equation', positions=4, velocities=8)
+    system = BoltzmannEquationSystem(positions=4, velocities=8).prepare().system_
     problem, frame = _first_frame(system)
     logs = Logs()
     visual = ImageVisual(slices={'vy': 2}, moments=(0,), path='gas', recording=logs).prepare(problem)
@@ -422,10 +428,10 @@ def test_image_visual_logs_a_plane_of_a_phase_space():
 
 def test_image_visual_rejects_slices_that_leave_other_than_two_axes():
     """Test that slices must leave two axes, and that they need a phase space."""
-    problem, _ = _first_frame(create_system('boltzmann_equation', positions=4, velocities=8))
+    problem, _ = _first_frame(BoltzmannEquationSystem(positions=4, velocities=8).prepare().system_)
     with pytest.raises(ValidationError, match='every axis but two'):
         ImageVisual(slices={'vx': 1, 'vy': 2}, path='gas').prepare(problem)
-    problem, _ = _first_frame(create_system('gray_scott', shape=(4, 4)))
+    problem, _ = _first_frame(GrayScottSystem(shape=(4, 4)).prepare().system_)
     with pytest.raises(ValidationError, match='phase space'):
         ImageVisual(slices={0: 1}, path=problem.elements[0].path).prepare(problem)
 

@@ -23,7 +23,8 @@ from ....specs import CallSpec, IssueSpec
 from ....specs._orders_spec import _OrdersSpec
 from ....types import Array, VariableKind
 from ..._utils import components_of, declarations_of, symbol, vector
-from ...problems import BlockSpec, KernelSpec
+from ...problems._block_spec import BlockSpec
+from ...problems._kernel_spec import KernelSpec
 from ...problems._relation_spec import _RelationSpec
 from .._base import BasePass
 from .._compilation import Compilation

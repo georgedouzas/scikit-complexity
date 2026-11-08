@@ -2,7 +2,6 @@
 
 import numpy as np
 
-from skcomplex.systems import describe
 from skcomplex.systems.economics.innovation import (
     ArthurPolakSystem,
     NkTechnologySystem,
@@ -19,14 +18,14 @@ def _truth_table(arity, function):
 def test_nk_technology_costs_only_fall_and_fall_faster_for_modular_designs():
     """Test that the total cost never rises, and that it falls further when redesigns change fewer components."""
     modular = _run(
-        built := NkTechnologySystem(10, 1).prepare().system_,
+        NkTechnologySystem(10, 1).prepare().system_,
         2000,
-        observables=describe('nk_technology').observables_of(built),
+        observables=NkTechnologySystem().get_run_settings()['observables'],
     ).values('total_cost')
     coupled = _run(
-        built := NkTechnologySystem(10, 4).prepare().system_,
+        NkTechnologySystem(10, 4).prepare().system_,
         2000,
-        observables=describe('nk_technology').observables_of(built),
+        observables=NkTechnologySystem().get_run_settings()['observables'],
     ).values('total_cost')
     for costs in (modular, coupled):
         assert np.all(np.diff(costs) <= 1e-12)

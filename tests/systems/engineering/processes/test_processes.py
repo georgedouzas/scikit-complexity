@@ -2,7 +2,7 @@
 
 import pytest
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.engineering.processes import BathtubSystem, CascadeClassifierSystem
 
 from ...conftest import _run_monitored
@@ -10,7 +10,7 @@ from ...conftest import _run_monitored
 
 def test_bathtub_drains_then_holds():
     """Test that the tub loses five gallons per minute until the faucet opens, and then holds its level."""
-    trajectory = Simulation(BathtubSystem().prepare().system_, dt=0.5).prepare().run(until=10).trajectory_
+    trajectory = simulate(BathtubSystem().prepare().system_, until=10, dt=0.5)
     assert trajectory.values('tub.water')[10] == pytest.approx(25.0)
     assert trajectory.values('tub.water')[-1] == pytest.approx(25.0)
 
@@ -19,7 +19,7 @@ def test_bathtub_drains_then_holds():
 def test_cascade_classifier_fractional_extraction(n_stages, k, feed_stage):
     """Test that the share of the feed in the fine product matches Barsky's fractional extraction."""
     system = CascadeClassifierSystem(n_stages, k=k, feed_stage=feed_stage).prepare().system_
-    trajectory = Simulation(system, dt=10.0).prepare().run(until=400).trajectory_
+    trajectory = simulate(system, until=400, dt=10.0)
     fine = trajectory.values('fine.m')
     entry = (n_stages + 1) // 2 if feed_stage is None else feed_stage
     ratio = (1 - k) / k

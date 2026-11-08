@@ -21,20 +21,17 @@ from ...specs import EntrySpec, NeighborReadSpec, ObservableSpec, ReadSpec, RunS
 from ...specs._held_reduction_spec import _HeldReductionSpec
 from ...types import Array, FormKind, Indices, VariableKind
 from .._utils import bound_labels, declarations_of, symbol, symbols_of
-from ..problems import (
-    BaseProblemSpec,
-    ExpressionPrinter,
-    OperatorProblemSpec,
-    ProblemSpec,
-    ReductionScheduleSpec,
-    ReferenceSpec,
-)
+from ..problems import BaseProblemSpec, ProblemSpec
 from ..problems._drive_kernel import DriveKernel
+from ..problems._expression_printer import ExpressionPrinter
 from ..problems._law_kernel import LawKernel
 from ..problems._operator_kernel import OperatorKernel
 from ..problems._operator_lowering import OperatorLowering
+from ..problems._operator_problem_spec import OperatorProblemSpec
 from ..problems._recorded_spec import _RecordedSpec
 from ..problems._reduction_kernel import ReductionKernel
+from ..problems._reduction_schedule_spec import ReductionScheduleSpec
+from ..problems._reference_spec import ReferenceSpec
 from ..types import AgentsFunction, Declared, ObservableFunction, ReadKind
 from ._base import BaseCompiler, BasePass
 from ._complex import _is_zero, _split_complex
@@ -213,7 +210,8 @@ class ObservableEvaluator:
 
     Examples:
         >>> from skcomplex.core.components.elements import GroupElement
-        >>> from skcomplex.core.engine.compile import ObservableEvaluator, PassCompiler
+        >>> from skcomplex.core.engine.compile._observables import ObservableEvaluator
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
         >>> from skcomplex.core.specs import ObservableSpec
         >>> from skcomplex.core.components.system import System
         >>> from skcomplex.systems.biology.common.populations import PopulationElement
@@ -884,8 +882,8 @@ class ObservableEvaluator:
                 The namespace.
 
         Examples:
-            >>> from skcomplex.core.engine.compile import PassCompiler
-            >>> from skcomplex.core.engine.compile import ObservableEvaluator
+            >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+            >>> from skcomplex.core.engine.compile._observables import ObservableEvaluator
             >>> from skcomplex.core.components.system import System
             >>> from skcomplex.systems.biology.common.populations import PopulationElement
             >>> problem = PassCompiler().prepare(System(elements=[PopulationElement('rabbits')])).run().problem_
@@ -947,8 +945,8 @@ class ObservableEvaluator:
                 The path of every element that holds a reduction, with the reduction.
 
         Examples:
-            >>> from skcomplex.core.engine.compile import PassCompiler
-            >>> from skcomplex.core.engine.compile import ObservableEvaluator
+            >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+            >>> from skcomplex.core.engine.compile._observables import ObservableEvaluator
             >>> from skcomplex.systems import create_system
             >>> problem = PassCompiler().prepare(create_system('harvesting')).run().problem_
             >>> [path for path, _ in ObservableEvaluator._held_reductions_of(problem)]

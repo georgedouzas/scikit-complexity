@@ -9,7 +9,7 @@ from skcomplex.core.components.interactions import FeedbackInteraction
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from skcomplex.systems.economics.markets import ShopsSystem
 
@@ -73,7 +73,7 @@ def test_interest_rate_rule():
         time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('policy')])),
     )
     observables = [ObservableSpec('price_level', group='shops', variable='price')]
-    trajectory = Simulation(system, random_state=0, observables=observables).prepare().run(until=40).trajectory_
+    trajectory = simulate(system, until=40, random_state=0, observables=observables)
     rate, inflation = trajectory.values('bank.rate'), trajectory.values('bank.inflation')
     changed = np.diff(rate) != 0
     assert changed.any()

@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import CoSimulationSolver, RK4Solver
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.biology.systems_biology import DynamicFBASystem
@@ -41,10 +41,8 @@ def test_static_optimisation_approaches_the_direct_approach():
     errors = []
     for interval in (0.1, 0.05, 0.025):
         solver = CoSimulationSolver(sync_dt=interval, solvers={'culture': RK4Solver(dt=0.005)})
-        simulation = (
-            Simulation(DynamicFBASystem(interval=interval).prepare().system_, solver=solver, dt=0.1).prepare().run(6.0)
-        )
-        errors.append(abs(float(simulation.trajectory_.values('culture/biomass.x')[-1]) - reference))
+        trajectory = simulate(DynamicFBASystem(interval=interval).prepare().system_, until=6.0, solver=solver, dt=0.1)
+        errors.append(abs(float(trajectory.values('culture/biomass.x')[-1]) - reference))
     assert errors[1] <= errors[0] * 0.75 + 1e-9
     assert errors[2] <= errors[1] * 0.75 + 1e-9
 

@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import events, fit_law
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.physics.criticality import EvolutionarySKGameSystem
 
 STEPS = 51_000
@@ -53,7 +53,7 @@ def test_evolutionary_sk_game_replaces_the_least_fit():
 def test_evolutionary_sk_game_self_organisation():
     """Test the evolved low temperatures, cascades of exponent 3/2, and a reward above every fixed temperature."""
     system = EvolutionarySKGameSystem(memory=0.75, random_state=SEED).prepare().system_
-    evolved = Simulation(system, dt=1, random_state=SEED).prepare().run(until=STEPS).trajectory_
+    evolved = simulate(system, until=STEPS, dt=1, random_state=SEED)
     temperatures = np.asarray(evolved.values('agents.temperature'))
     assert np.median(temperatures[-1]) < 0.5 < np.median(temperatures[0])
     fitness = np.asarray(evolved.values('agents.fitness'))[::3][TRANSIENT // 3 :]
@@ -64,5 +64,5 @@ def test_evolutionary_sk_game_self_organisation():
     reward = np.asarray(evolved.values('agents.reward'))[STEPS // 2 :].mean()
     for temperature in SWEEP:
         system = EvolutionarySKGameSystem(temperature=temperature, random_state=SEED).prepare().system_
-        fixed = Simulation(system, dt=1, random_state=SEED).prepare().run(until=SWEEP_STEPS).trajectory_
+        fixed = simulate(system, until=SWEEP_STEPS, dt=1, random_state=SEED)
         assert reward > np.asarray(fixed.values('agents.reward'))[SWEEP_STEPS // 2 :].mean(), temperature

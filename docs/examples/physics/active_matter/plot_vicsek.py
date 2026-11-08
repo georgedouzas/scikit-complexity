@@ -16,7 +16,7 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.active_matter import VicsekSystem
 
@@ -51,13 +51,14 @@ noises = np.linspace(0.05, 0.95, 10)
 orders = []
 for noise in noises:
     system_system = VicsekSystem(n_particles=400, eta=noise, seed=1)
-    run = Simulation(
+    run = simulate(
         system_system.prepare().system_,
+        until=150,
         dt=5.0,
         random_state=1,
         observables=VicsekSystem.observables,
-    ).prepare()
-    orders.append(np.mean(np.asarray(run.run(until=150).trajectory_.values('polarization'), dtype=float)[-10:]))
+    )
+    orders.append(np.mean(np.asarray(run.values('polarization'), dtype=float)[-10:]))
 fig, (series, transition) = plt.subplots(1, 2, figsize=(10, 4))
 series.plot(trajectory.times, np.asarray(trajectory.values('polarization'), dtype=float))
 series.set_ylim(0, 1)
@@ -94,13 +95,14 @@ ks = [1, 2, 4, 8]
 topological = []
 for k in ks:
     system_system = VicsekSystem(n_particles=100, size=100.0, v0=1.0, neighbors=k, seed=0)
-    run = Simulation(
+    run = simulate(
         system_system.prepare().system_,
+        until=300,
         dt=10.0,
         random_state=0,
         observables=VicsekSystem.observables,
     )
-    topological.append(np.mean(np.asarray(run.prepare().run(until=300).trajectory_.values('polarization'))[-5:]))
+    topological.append(np.mean(np.asarray(run.values('polarization'))[-5:]))
 delays = [-4, -2, 0, 2, 5, 10, 25]
 clustering = []
 for delay in delays:

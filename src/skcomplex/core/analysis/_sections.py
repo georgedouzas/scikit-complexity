@@ -9,9 +9,10 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from skcomplex.core.engine.runtime import simulate
+
 from ..engine.problems import ProblemSpec
 from ..engine.problems._event_kernel import EventKernel
-from ..engine.runtime import Simulation
 from ..engine.solvers import Solver
 from ..errors import AnalysisError
 from ..specs import AnalysisTags, EventRecordSpec
@@ -221,9 +222,7 @@ def _crossings(
     start = transient if transient is not None else 0.0
     event = EventKernel(SECTION, guard, None, int(direction), False).prepare()
     sectioned = dataclasses.replace(problem, events=(*problem.events, event))
-    trajectory = (
-        Simulation(sectioned, solver=solver, dt=until / 100, random_state=random_state).prepare().run(until).trajectory_
-    )
+    trajectory = simulate(sectioned, until=until, solver=solver, dt=until / 100, random_state=random_state)
     crossings = [
         record
         for record in trajectory.events
@@ -251,6 +250,6 @@ def _samples(
     step = float(period)
     skipped = int(transient if transient is not None else 100)
     until = step * (skipped + n_points - 1)
-    simulation = Simulation(problem, solver=solver, dt=step, random_state=random_state).prepare()
-    trajectory = simulation.run(until).trajectory_
+    simulation = simulate(problem, until=until, solver=solver, dt=step, random_state=random_state)
+    trajectory = simulation
     return trajectory.times[skipped:], trajectory.states[skipped:]

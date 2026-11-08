@@ -8,9 +8,9 @@ import rerun.blueprint as rrb
 from skcomplex.core.components.elements import Element, FieldElement, GroupElement
 from skcomplex.core.components.spaces import ContinuousSpace, LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems import BaseProblemSpec
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import (
     AgentsVisual,
     BaseVisual,
@@ -21,9 +21,17 @@ from skcomplex.core.engine.viz import (
 )
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import StateSpec, VisualSpec
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.collective_behaviour import BoidsSystem
 from skcomplex.systems.biology.common.populations import PopulationElement
+from skcomplex.systems.biology.ecology import LotkaVolterraSystem, WolfSheepSystem
+from skcomplex.systems.biology.epidemiology import SIRSystem
+from skcomplex.systems.biology.evolution import MoranProcessSystem
+from skcomplex.systems.chemistry.pattern_formation import GrayScottSystem
+from skcomplex.systems.computer_science.automata import ElementaryAutomatonSystem
+from skcomplex.systems.mathematics.networks import NetworkDiffusionSystem
 from skcomplex.systems.physics.heat import HeatElement
+from skcomplex.systems.physics.statistical_mechanics import IdealGasSystem
+from skcomplex.systems.social.opinion_dynamics import VoterSystem
 
 
 def _prepared(system, **settings):
@@ -57,10 +65,10 @@ def _views(blueprint):
 
 def test_views_of_builtin_visuals():
     """Test that the scalars, 3D points, image, and network agents visuals declare their views."""
-    lotka = PassCompiler().prepare(create_system('lotka_volterra')).run().problem_
-    gas = PassCompiler().prepare(create_system('ideal_gas', n_molecules=10, n_dim=3)).run().problem_
-    gray = PassCompiler().prepare(create_system('gray_scott', shape=(16, 16))).run().problem_
-    voters = PassCompiler().prepare(create_system('voter')).run().problem_
+    lotka = PassCompiler().prepare(LotkaVolterraSystem().prepare().system_).run().problem_
+    gas = PassCompiler().prepare(IdealGasSystem(n_molecules=10, n_dim=3).prepare().system_).run().problem_
+    gray = PassCompiler().prepare(GrayScottSystem(shape=(16, 16)).prepare().system_).run().problem_
+    voters = PassCompiler().prepare(VoterSystem().prepare().system_).run().problem_
     views = [
         ScalarsVisual(path=lotka.elements[0].path).prepare(lotka).views_[0],
         PointsVisual(position='x', states=(), path=gas.elements[0].path).prepare(gas).views_[0],
@@ -73,13 +81,13 @@ def test_views_of_builtin_visuals():
 
 def test_views_of_user_visual_are_empty_by_default():
     """Test that a visual that declares no views is left out of the layout."""
-    problem = PassCompiler().prepare(create_system('lotka_volterra')).run().problem_
+    problem = PassCompiler().prepare(LotkaVolterraSystem().prepare().system_).run().problem_
     assert BaseVisual(path=problem.elements[0].path).prepare(problem).views_ == []
 
 
 def test_views_of_points_log_other_states_as_series():
     """Test that the states other than the position get a time series view."""
-    problem = PassCompiler().prepare(create_system('ideal_gas', n_molecules=10)).run().problem_
+    problem = PassCompiler().prepare(IdealGasSystem(n_molecules=10).prepare().system_).run().problem_
     views = PointsVisual(position='x', path=problem.elements[0].path).prepare(problem).views_
     assert [type(view).__name__ for view in views] == ['Spatial2DView', 'TimeSeriesView']
 
@@ -92,7 +100,7 @@ def _whole_run_series(blueprint):
 
 def test_default_blueprint_shows_one_dimensional_points_over_whole_run():
     """Test that the time series view of the positions of a one-dimensional gas shows the whole run."""
-    blueprint = default_blueprint(create_system('ideal_gas', n_molecules=10, n_dim=1))
+    blueprint = default_blueprint(IdealGasSystem(n_molecules=10, n_dim=1).prepare().system_)
     assert 'gas/x' in [str(view.origin) for view in _views(blueprint)]
     assert _whole_run_series(blueprint)
 
@@ -124,7 +132,7 @@ def test_default_blueprint_shows_other_states_of_points_over_whole_run():
 
 def test_default_blueprint_of_ode_system():
     """Test that the populations share one time series view, without parameters, collapsed, and following."""
-    blueprint = default_blueprint(create_system('lotka_volterra'))
+    blueprint = default_blueprint(LotkaVolterraSystem().prepare().system_)
     views = _views(blueprint)
     assert len(views) == 1
     assert isinstance(views[0], rrb.TimeSeriesView)
@@ -136,14 +144,14 @@ def test_default_blueprint_of_ode_system():
 
 def test_default_blueprint_of_field_system():
     """Test that each field state gets a 2D view side by side."""
-    blueprint = default_blueprint(create_system('gray_scott', shape=(16, 16)))
+    blueprint = default_blueprint(GrayScottSystem(shape=(16, 16)).prepare().system_)
     assert isinstance(blueprint.root_container, rrb.Horizontal)
     assert [str(view.origin) for view in _views(blueprint)] == ['cells/u', 'cells/v']
 
 
 def test_default_blueprint_puts_spatial_views_above_series():
     """Test that agents share one spatial view above the time series of their counts."""
-    blueprint = default_blueprint(create_system('wolf_sheep'))
+    blueprint = default_blueprint(WolfSheepSystem().prepare().system_)
     assert isinstance(blueprint.root_container, rrb.Vertical)
     spatial, series = _views(blueprint)
     assert spatial.contents == ['/grass/**', '/sheep/**', '/wolves/**']
@@ -159,18 +167,18 @@ def test_default_blueprint_splits_series_by_six():
 
 def test_default_blueprint_with_parameters():
     """Test that parameters get a time series view on request."""
-    views = _views(default_blueprint(create_system('lotka_volterra'), parameters=True))
+    views = _views(default_blueprint(LotkaVolterraSystem().prepare().system_, parameters=True))
     assert [str(view.origin) for view in views][-1] == '/'
     assert views[-1].contents == ['/parameters/**']
 
 
 @pytest.mark.parametrize(
-    ('name', 'kind', 'origin'),
-    [('gray_scott', 'Spatial2DView', 'cells/u'), ('sir', 'TimeSeriesView', '/')],
+    ('system_class', 'kind', 'origin'),
+    [(GrayScottSystem, 'Spatial2DView', 'cells/u'), (SIRSystem, 'TimeSeriesView', '/')],
 )
-def test_primary_view_is_first_view(name, kind, origin):
+def test_primary_view_is_first_view(system_class, kind, origin):
     """Test that the primary view is the first view of the default blueprint."""
-    system = create_system(name)
+    system = system_class().prepare().system_
     view = primary_view(system)
     assert (type(view).__name__, str(view.origin)) == (kind, origin)
     assert str(_views(default_blueprint(system))[0].origin) == origin
@@ -193,7 +201,7 @@ def test_rerun_observer_check_rejects_settings_without_the_default_blueprint(set
 def test_rerun_observer_saves_blueprint_next_to_recording(tmp_path):
     """Test that a saved recording gets its blueprint with the same stem."""
     observer = RerunObserver('test', save_path=tmp_path / 'run.rrd', blueprint='default')
-    Simulation(create_system('lotka_volterra'), dt=0.1, observers=[observer]).prepare().run(until=1)
+    simulate(LotkaVolterraSystem().prepare().system_, until=1, dt=0.1, observers=[observer])
     assert (tmp_path / 'run.rrd').exists()
     assert (tmp_path / 'run.rbl').exists()
     assert isinstance(observer.blueprint_, rrb.Blueprint)
@@ -202,7 +210,7 @@ def test_rerun_observer_saves_blueprint_next_to_recording(tmp_path):
 def test_rerun_observer_without_blueprint_writes_recording_only(tmp_path):
     """Test that no blueprint is sent or saved when none is given."""
     observer = RerunObserver('test', save_path=tmp_path / 'run.rrd')
-    Simulation(create_system('lotka_volterra'), dt=0.1, observers=[observer]).prepare().run(until=1)
+    simulate(LotkaVolterraSystem().prepare().system_, until=1, dt=0.1, observers=[observer])
     assert observer.blueprint_ is None
     assert not (tmp_path / 'run.rbl').exists()
 
@@ -211,7 +219,7 @@ def test_rerun_observer_accepts_given_blueprint(tmp_path):
     """Test that a given blueprint is sent unchanged."""
     blueprint = rrb.Blueprint(rrb.TimeSeriesView(origin='/prey'))
     observer = RerunObserver('test', save_path=tmp_path / 'run.rrd', blueprint=blueprint)
-    Simulation(create_system('lotka_volterra'), dt=0.1, observers=[observer]).prepare().run(until=1)
+    simulate(LotkaVolterraSystem().prepare().system_, until=1, dt=0.1, observers=[observer])
     assert observer.blueprint_ is blueprint
 
 
@@ -219,24 +227,24 @@ def test_rerun_observer_rejects_unknown_blueprint(tmp_path):
     """Test that an unknown blueprint name is rejected."""
     observer = RerunObserver('test', save_path=tmp_path / 'run.rrd', blueprint='grid')
     with pytest.raises(ValidationError, match='default'):
-        Simulation(create_system('lotka_volterra'), dt=0.1, observers=[observer]).prepare().run(until=1)
+        simulate(LotkaVolterraSystem().prepare().system_, until=1, dt=0.1, observers=[observer])
 
 
 def test_default_blueprint_puts_named_primary_view_first():
     """Test that a view named as primary comes first, with its row above the others."""
-    views = _views(default_blueprint(create_system('boids'), primary='reporters'))
+    views = _views(default_blueprint(BoidsSystem().prepare().system_, primary='reporters'))
     assert [str(view.name) for view in views] == ['reporters', 'flock']
 
 
 def test_default_blueprint_rejects_unknown_primary_view():
     """Test that a primary view that matches no view is rejected with the names of the views."""
     with pytest.raises(ValidationError, match='The views are: u, v'):
-        default_blueprint(create_system('gray_scott', shape=(16, 16)), primary='cells/w')
+        default_blueprint(GrayScottSystem(shape=(16, 16)).prepare().system_, primary='cells/w')
 
 
 def test_primary_view_of_one_dimensional_lattice_is_space_time():
     """Test that a one-dimensional lattice puts its space-time image first."""
-    view = primary_view(create_system('elementary_automaton'))
+    view = primary_view(ElementaryAutomatonSystem().prepare().system_)
     assert type(view).__name__ == 'Spatial2DView'
     assert str(view.origin) == 'cells/space_time/alive'
     assert str(view.name) == 'alive history'
@@ -244,7 +252,7 @@ def test_primary_view_of_one_dimensional_lattice_is_space_time():
 
 def test_primary_view_of_agents_without_space_is_a_trait_series():
     """Test that agents without a space show the statistics of their colored trait first, not the reporters."""
-    problem = PassCompiler().prepare(create_system('moran_process')).run().problem_
+    problem = PassCompiler().prepare(MoranProcessSystem().prepare().system_).run().problem_
     assert problem.agent_space is None
     assert AgentsVisual(path=problem.agents[0].path).prepare(problem).views_ == []
     view = primary_view(problem)
@@ -253,14 +261,14 @@ def test_primary_view_of_agents_without_space_is_a_trait_series():
 
 def test_views_of_image_without_history_leave_out_space_time():
     """Test that a history of 0 rows declares no space-time view."""
-    problem = PassCompiler().prepare(create_system('elementary_automaton')).run().problem_
+    problem = PassCompiler().prepare(ElementaryAutomatonSystem().prepare().system_).run().problem_
     views = ImageVisual(history=0, path=problem.elements[0].path).prepare(problem).views_
     assert [str(view.origin) for view in views] == ['cells/alive']
 
 
 def test_fields_on_networks_are_drawn_as_colored_graphs():
     """Test that a field on a network without a visual is drawn as a colored graph, not one series per node."""
-    problem = PassCompiler().prepare(create_system('network_diffusion')).run().problem_
+    problem = PassCompiler().prepare(NetworkDiffusionSystem().prepare().system_).run().problem_
     assert problem.elements[0].visual.kind == 'sites'
     assert any(type(view).__name__ == 'GraphView' for view in _views(default_blueprint(problem)))
 

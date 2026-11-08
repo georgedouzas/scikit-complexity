@@ -9,7 +9,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import TopologyInteraction
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import NetworkSnapshotSpec
 
@@ -61,7 +61,7 @@ def test_reads_the_frames_of_a_trajectory_and_rejects_other_sources():
     )
     space = NetworkSpace(nx.empty_graph(3, create_using=nx.DiGraph))
     system = System(elements=[nodes, links, groups], interactions=[growth], space=space, time=DiscreteTime())
-    trajectory = Simulation(system, random_state=0).prepare().run(until=20).trajectory_
+    trajectory = simulate(system, until=20, random_state=0)
     analysis = autocatalytic_sets(trajectory, frames=[0, -1])
     assert analysis.sizes[0] == 0
     assert analysis.sizes[1] > 10

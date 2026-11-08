@@ -13,8 +13,8 @@ from skcomplex.core.components.interactions import ConnectionInteraction, Crossi
 from skcomplex.core.components.laws import EquationLaw, NoiseLaw, RateLaw, RuleLaw
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AlgebraicStateError, SolverError, ValidationError
 from skcomplex.core.specs import ConnectorSpec, ParameterSpec, StateSpec
 from skcomplex.core.types import FormKind
@@ -141,7 +141,7 @@ def _driven(source):
 
 def _run(system, until=1.0, dt=0.25):
     """Return the trajectory of a system."""
-    return Simulation(system, dt=dt).prepare().run(until=until).trajectory_
+    return simulate(system, until=until, dt=dt)
 
 
 def _codes(system):
@@ -315,7 +315,7 @@ def test_guard_reads_the_symbolic_solution_of_an_algebraic_state():
         elements=[WatcherElement('watch')],
         interactions=[CrossingInteraction('stop', target='watch', guard=lambda s: s.target.y - 3.0, terminal=True)],
     )
-    trajectory = Simulation(system, dt=0.25).prepare().run(until=5.0).trajectory_
+    trajectory = simulate(system, until=5.0, dt=0.25)
     assert trajectory.times[-1] == pytest.approx(1.0, abs=1e-3)
 
 
@@ -438,9 +438,8 @@ def test_coupled_problem_records_the_algebraic_states_of_its_partition():
     )
     agents = System('village', elements=[GroupElement('farmers', element=WaitingElement, size=2)])
     system = System(systems=[circuit, agents])
-    simulation = Simulation(system, dt=1).prepare()
-    assert simulation.problem_.form == FormKind.COUPLED
-    trajectory = simulation.run(until=2).trajectory_
+    trajectory = simulate(system, until=2, dt=1)
+    assert trajectory.problem.form == FormKind.COUPLED
     assert np.allclose(trajectory.values('circuit/load.p_v').ravel(), trajectory.values('circuit/tank.u').ravel())
     assert trajectory.values('circuit/load.p_i')[-1] == pytest.approx(0.5 * np.exp(-0.5), rel=1e-3)
 
@@ -448,5 +447,5 @@ def test_coupled_problem_records_the_algebraic_states_of_its_partition():
 def test_noise_law_reads_a_symbolic_solution():
     """Test that a noise law reads an algebraic state as its solution."""
     system = System(elements=[VectorWatcherElement('watch', x=1.0)])
-    trajectory = Simulation(system, dt=0.1, random_state=0).prepare().run(until=0.5).trajectory_
+    trajectory = simulate(system, until=0.5, dt=0.1, random_state=0)
     assert np.allclose(trajectory.values('watch.x').ravel(), 1.0)

@@ -10,7 +10,7 @@ import pytest
 
 from skcomplex.core.analysis import loops
 from skcomplex.core.components.interactions import RelaxationInteraction, TransferInteraction
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerSolver
 from skcomplex.core.engine.translators import SystemDynamicsTranslator
 from skcomplex.core.errors import ConservationError, IncompatibleLawsError, ValidationError
@@ -45,13 +45,13 @@ def _load_reference(fixtures_folder, file_name):
 def _simulate(module):
     """Return the trajectory of a translated module with the integration and the time step of its file."""
     system = module.create_system()
-    simulation = Simulation(
+    return simulate(
         system,
+        until=module.UNTIL,
         solver=EulerSolver(dt=module.DT),
         dt=module.DT,
         observables=module.observables(system),
     )
-    return simulation.prepare().run(until=module.UNTIL).trajectory_
 
 
 def _at_saved_times(trajectory, values, module, reference):
@@ -124,7 +124,7 @@ def test_run_reads_saving_interval_from_the_time_step(fixtures_folder):
 def test_run_default_solver_finds_the_exact_solution(translate):
     """Test that the adaptive default solver follows the exact teacup and not the Euler error of the file's step."""
     module = translate('teacup.mdl')
-    trajectory = Simulation(module.create_system(), dt=module.DT).prepare().run(until=module.UNTIL).trajectory_
+    trajectory = simulate(module.create_system(), until=module.UNTIL, dt=module.DT)
     exact = 70.0 + 110.0 * np.exp(-np.asarray(trajectory.times) / 10.0)
     assert np.max(np.abs(trajectory.values('teacup.teacup_temperature') - exact)) < 1e-3
 
@@ -172,29 +172,29 @@ def test_run_sir_flows_are_named_transfers(translate):
     assert isinstance(infection, TransferInteraction)
     assert (infection.state, infection.into, infection.flow) == ('susceptible', 'infected', 'infection')
     total = ObservableSpec('people', _total, element='sir')
-    simulation = Simulation(
+    trajectory = simulate(
         system,
+        until=module.UNTIL,
         solver=EulerSolver(dt=module.DT),
         dt=module.DT,
         observables=[total],
         invariants={'sir.people': 1e-6},
     )
-    trajectory = simulation.prepare().run(until=module.UNTIL).trajectory_
     assert np.max(trajectory.values('sir.infection')) > 0
 
 
 def test_run_invariant_catches_a_total_that_changes(translate):
     """Test that an invariant on a stock with births and deaths fails, so the conserved total of SIR means something."""
     module = translate('population.mdl')
-    simulation = Simulation(
-        module.create_system(),
-        solver=EulerSolver(dt=module.DT),
-        dt=module.DT,
-        observables=[ObservableSpec('people', _growing_total, element='population')],
-        invariants={'population.people': 1e-6},
-    )
     with pytest.raises(ConservationError, match=r'population\.people'):
-        simulation.prepare().run(until=module.UNTIL)
+        simulate(
+            module.create_system(),
+            until=module.UNTIL,
+            solver=EulerSolver(dt=module.DT),
+            dt=module.DT,
+            observables=[ObservableSpec('people', _growing_total, element='population')],
+            invariants={'population.people': 1e-6},
+        )
 
 
 def test_run_loops_of_a_translated_system(translate):
@@ -315,7 +315,7 @@ def test_run_random_functions_become_draws_that_rate_laws_reject(tmp_path, monke
     monkeypatch.syspath_prepend(tmp_path)
     module = importlib.import_module('translated_noisy')
     with pytest.raises(IncompatibleLawsError, match='random draw'):
-        Simulation(module.create_system(), dt=0.25).prepare()
+        simulate(module.create_system(), until=0, dt=0.25)
 
 
 def test_run_regional_populations(fixtures_folder, translate):

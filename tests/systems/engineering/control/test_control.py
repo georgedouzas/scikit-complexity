@@ -5,10 +5,9 @@ import pytest
 
 from skcomplex.core.components.interactions import ConnectionInteraction
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.specs import ConnectorSpec
-from skcomplex.systems import describe
 from skcomplex.systems.engineering.control import (
     THERMAL,
     ConvectionElement,
@@ -24,25 +23,20 @@ from skcomplex.systems.engineering.control import (
 
 def test_thermostat_settles_below_the_setting():
     """Test that the leaky room settles at `(setting + leak * outside) / (1 + leak)`."""
-    trajectory = Simulation(ThermostatSystem().prepare().system_, dt=0.25).prepare().run(until=48).trajectory_
+    trajectory = simulate(ThermostatSystem().prepare().system_, until=48, dt=0.25)
     assert trajectory.values('room.T')[-1] == pytest.approx((18 + 0.1 * 10) / 1.1, rel=1e-4)
 
 
 @pytest.mark.parametrize(('Ki', 'final'), [(1.0, 1.0), (0.0, 0.5)])
 def test_pid_loop_integral_action(Ki, final):
     """Test that integral action removes the error left by a disturbance, which proportional control keeps."""
-    trajectory = Simulation(PidLoopSystem(Ki=Ki).prepare().system_, dt=0.1).prepare().run(until=40).trajectory_
+    trajectory = simulate(PidLoopSystem(Ki=Ki).prepare().system_, until=40, dt=0.1)
     assert trajectory.values('process.y')[-1] == pytest.approx(final, abs=1e-3)
 
 
 def test_pendulum_swing_up_reaches_the_top():
     """Test that the energy control brings the pendulum to its inverted position."""
-    trajectory = (
-        Simulation(PendulumSwingUpSystem().prepare().system_, dt=0.1, solver=RK4Solver(dt=0.01))
-        .prepare()
-        .run(until=100)
-        .trajectory_
-    )
+    trajectory = simulate(PendulumSwingUpSystem().prepare().system_, until=100, dt=0.1, solver=RK4Solver(dt=0.01))
     theta, omega = trajectory.values('pendulum.theta')[-100:], trajectory.values('pendulum.theta_d1')[-100:]
     assert np.cos(theta) == pytest.approx(np.full(100, -1.0), abs=0.01)
     assert np.abs(omega[-10:]).max() < 0.01
@@ -50,16 +44,12 @@ def test_pendulum_swing_up_reaches_the_top():
 
 def test_satellite_transfer_time():
     """Test that the transfer from the periapsis reaches the final energy after about 9.81."""
-    trajectory = (
-        Simulation(
-            built := SatelliteTransferSystem().prepare().system_,
-            dt=0.05,
-            solver=RK4Solver(dt=0.005),
-            observables=describe('satellite_transfer').observables_of(built),
-        )
-        .prepare()
-        .run(until=15)
-        .trajectory_
+    trajectory = simulate(
+        SatelliteTransferSystem().prepare().system_,
+        until=15,
+        dt=0.05,
+        solver=RK4Solver(dt=0.005),
+        observables=SatelliteTransferSystem().get_run_settings()['observables'],
     )
     energy = trajectory.values('energy')
     assert energy[0] == pytest.approx(-0.7, abs=1e-3)
@@ -69,7 +59,7 @@ def test_satellite_transfer_time():
 
 def test_heated_room_stays_within_the_band_of_its_thermostat():
     """Test that the room rises to the band, stays in it, and the heater switches on and off."""
-    trajectory = Simulation(HeatedRoomSystem().prepare().system_, dt=10.0).prepare().run(until=14400.0).trajectory_
+    trajectory = simulate(HeatedRoomSystem().prepare().system_, until=14400.0, dt=10.0)
     temperature = trajectory.values('room.T').ravel()
     reached = int(np.argmax(temperature >= 19.5))
     assert temperature[0] == pytest.approx(10.0)
@@ -109,7 +99,7 @@ def test_body_cools_through_a_conductor_and_convection_in_closed_form():
             ConnectionInteraction('outer', members=['wall', 'surface'], ports=['b', 'a']),
         ],
     )
-    trajectory = Simulation(system, dt=0.5).prepare().run(until=5.0).trajectory_
+    trajectory = simulate(system, until=5.0, dt=0.5)
     expected = 20.0 + 60.0 * np.exp(-trajectory.times * (2.0 * 2.0 / (2.0 + 2.0)) / 4.0)
     assert np.allclose(trajectory.values('body.T').ravel(), expected, rtol=1e-4)
     assert np.allclose(trajectory.values('wall.b_T').ravel(), (expected + 20.0) / 2, rtol=1e-4)

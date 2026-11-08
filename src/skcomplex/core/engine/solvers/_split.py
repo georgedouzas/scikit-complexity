@@ -27,8 +27,11 @@ from ...specs import SupportSpec
 from ...types import Array, ComplexArray, FormKind, OrderKind
 from .._utils import symbol
 from ..compile._field_lowering import FieldLowering
-from ..problems import ExpressionPrinter, LinearTermSpec, ProblemSpec, ReferenceSpec
+from ..problems import ProblemSpec
+from ..problems._expression_printer import ExpressionPrinter
 from ..problems._law_kernel import LATTICE_BOUNDARIES
+from ..problems._linear_term_spec import LinearTermSpec
+from ..problems._reference_spec import ReferenceSpec
 from ..problems._steps import step_count
 from ..types import SpectralBlock
 from ._solver import Solver

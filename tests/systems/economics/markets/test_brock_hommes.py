@@ -3,7 +3,7 @@
 import numpy as np
 from scipy.special import expit
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.economics.markets import BrockHommesSystem
 
 
@@ -27,7 +27,7 @@ def test_brock_hommes_bifurcation():
     spreads = {}
     for intensity in (1.0, 6.0):
         system = BrockHommesSystem(200, intensity=intensity).prepare().system_
-        deviations = Simulation(system, random_state=0).prepare().run(until=120).trajectory_.values('pricing.deviation')
+        deviations = simulate(system, until=120, random_state=0).values('pricing.deviation')
         spreads[intensity] = (deviations[-50:].std(), _mean_field(intensity, 400)[-200:].std())
     assert max(spreads[1.0]) < 0.1
     assert min(spreads[6.0]) > 0.3

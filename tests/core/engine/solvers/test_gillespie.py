@@ -8,8 +8,8 @@ import pytest
 from skcomplex.core.components.elements import CompartmentElement
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import GillespieSolver
 from skcomplex.core.specs import StepSpec
 from skcomplex.systems.biology.epidemiology import InfectionInteraction, RecoveryInteraction
@@ -43,10 +43,9 @@ def _epidemic():
 
 def _gillespie_run(backend):
     """Return the duration and the trajectory of a compiled Gillespie run after a warm-up run."""
-    simulation = Simulation(_epidemic(), backend=backend, solver=GillespieSolver(), dt=1.0, random_state=0).prepare()
-    simulation.run(until=50)
+    simulate(_epidemic(), until=50, backend=backend, solver=GillespieSolver(), dt=1.0, random_state=0)
     start = time.perf_counter()
-    trajectory = simulation.run(until=50).trajectory_
+    trajectory = simulate(_epidemic(), until=50, backend=backend, solver=GillespieSolver(), dt=1.0, random_state=0)
     return time.perf_counter() - start, trajectory
 
 

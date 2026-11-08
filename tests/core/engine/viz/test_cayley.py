@@ -11,7 +11,7 @@ from skcomplex.core.components.laws import LocalRuleLaw
 from skcomplex.core.components.spaces import CayleySpace, MemoryNeighborhood
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.problems import FrameSpec
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import CayleyVisual, RerunObserver
 from skcomplex.core.specs import StateSpec, TotalisticSpec, VisualSpec
 
@@ -45,28 +45,25 @@ class Logs:
         self.logs.append((path, archetype, static))
 
 
-def _simulation():
-    """Return a simulation of the parity rule on a ball of radius 3 of the free group of rank 2."""
+def _trajectory():
+    """Return the trajectory of the parity rule on a ball of radius 3 of the free group of rank 2."""
     space = CayleySpace(libgap.FreeGroup(['a', 'b']), ball=3).prepare()
     cells = np.zeros(space.size_)
     cells[0] = 1.0
-    return (
-        Simulation(
-            System(elements=[LatticeElement('cells', element=ParityElement, space=space, values={'alive': cells})]),
-        )
-        .prepare()
-        .run(until=2)
+    return simulate(
+        System(elements=[LatticeElement('cells', element=ParityElement, space=space, values={'alive': cells})]),
+        until=2,
     )
 
 
 def test_cayley_visual_logs_nodes_on_rings_and_edges_once():
     """Test that the nodes sit on rings by word length, colored by state, and the edges are logged once as static."""
-    simulation = _simulation()
-    problem = simulation.problem_
+    trajectory = _trajectory()
+    problem = trajectory.problem
     logs = Logs()
     visual = CayleyVisual(path=problem.elements[0].path, recording=logs).prepare(problem)
     for _ in range(2):
-        visual.run(FrameSpec(0, 0.0, simulation.state_, simulation.parameters_, problem))
+        visual.run(FrameSpec(0, 0.0, trajectory.states[-1], trajectory.parameters[-1], problem))
     nodes = [archetype for path, archetype, static in logs.logs if not static]
     edges = [archetype for path, archetype, static in logs.logs if static]
     assert len(nodes) == 2
@@ -79,8 +76,8 @@ def test_cayley_visual_logs_nodes_on_rings_and_edges_once():
 
 def test_cayley_visual_views_are_graph_views():
     """Test that a group on a group space defaults to the Cayley visual, whose view is a graph view of its state."""
-    simulation = _simulation()
-    problem = simulation.problem_
+    trajectory = _trajectory()
+    problem = trajectory.problem
     views = CayleyVisual(path=problem.elements[0].path).prepare(problem).views_
     assert [(type(view).__name__, str(view.origin)) for view in views] == [('GraphView', 'cells/alive')]
     assert problem.elements[0].visual.kind == 'cayley'

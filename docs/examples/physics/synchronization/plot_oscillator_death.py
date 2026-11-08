@@ -14,7 +14,7 @@ can pull together, the coupling kills the oscillations instead of synchronizing 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.synchronization import OscillatorDeathSystem
 
@@ -29,16 +29,13 @@ def coupling_at(time):
     return 0.0 if time < 5.0 else 3.0
 
 
-simulation = (
-    Simulation(
-        system.prepare().system_,
-        dt=0.05,
-        observers=[observer],
-        schedule={'coupling_x.K': coupling_at, 'coupling_y.K': coupling_at},
-        observables=OscillatorDeathSystem.observables,
-    )
-    .prepare()
-    .run(until=14)
+trajectory = simulate(
+    system.prepare().system_,
+    until=14,
+    dt=0.05,
+    observers=[observer],
+    schedule={'coupling_x.K': coupling_at, 'coupling_y.K': coupling_at},
+    observables=OscillatorDeathSystem.observables,
 )
 
 # %%

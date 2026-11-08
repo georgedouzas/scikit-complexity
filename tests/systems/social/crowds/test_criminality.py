@@ -1,9 +1,8 @@
 """Test the `_criminality` module of `skcomplex.systems.social.crowds`."""
 
-from skcomplex.core.engine.compile import PassCompiler
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import KineticSolver
-from skcomplex.systems import create_system
 from skcomplex.systems.social.crowds import CriminalitySystem
 
 
@@ -19,5 +18,5 @@ def test_security_forces_respond_to_criminality():
 
 def test_criminality_needs_an_ode_solver():
     """Test that the macro-scale recruitment, a rate law, rules out the particle solver."""
-    issues = PassCompiler(solver=KineticSolver()).prepare(create_system('criminality')).report_.errors
+    issues = PassCompiler(solver=KineticSolver()).prepare(CriminalitySystem().prepare().system_).report_.errors
     assert [issue.code for issue in issues] == ['solver-unsupported']

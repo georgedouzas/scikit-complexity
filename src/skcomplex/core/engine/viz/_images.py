@@ -254,7 +254,7 @@ class ImageVisual(BaseVisual):
                 dimension.
 
         Examples:
-            >>> from skcomplex.core.engine.compile import PassCompiler
+            >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
             >>> from skcomplex.core.engine.viz import ImageVisual
             >>> from skcomplex.systems import create_system
             >>> problem = PassCompiler().prepare(create_system('gray_scott', shape=(16, 16))).run().problem_

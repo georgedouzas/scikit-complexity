@@ -10,8 +10,8 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import NoiseLaw
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver, HeunSolver
 from skcomplex.core.errors import SolverError
 from skcomplex.core.specs import StateSpec, StepSpec, VisualSpec
@@ -89,17 +89,13 @@ class PairElement(Element):
 @pytest.mark.parametrize('stepper', [EulerMaruyamaSolver, HeunSolver])
 def test_shared_process_keeps_difference(backend, stepper):
     """Test that one process driving two states keeps their difference at every frame, with correlation 1."""
-    trajectory = (
-        Simulation(
-            System(elements=[PairElement('pair')]),
-            backend=backend(),
-            solver=stepper(dt=0.01),
-            random_state=0,
-            dt=0.1,
-        )
-        .prepare()
-        .run(until=5)
-        .trajectory_
+    trajectory = simulate(
+        System(elements=[PairElement('pair')]),
+        until=5,
+        backend=backend(),
+        solver=stepper(dt=0.01),
+        random_state=0,
+        dt=0.1,
     )
     np.testing.assert_array_equal(trajectory.values('pair.x'), trajectory.values('pair.y'))
     assert np.corrcoef(trajectory.values('pair.x'), trajectory.values('pair.y'))[0, 1] == pytest.approx(1.0)
@@ -109,17 +105,13 @@ def test_shared_process_keeps_difference(backend, stepper):
 def test_correlated_increments_reproduce_covariance(backend):
     """Test that the frame increments of two states driven by a `WienerProcessSpec` have its covariance within 0.1."""
     covariance = [[1.0, 0.6], [0.6, 2.0]]
-    trajectory = (
-        Simulation(
-            _correlated(covariance),
-            backend=backend(),
-            solver=EulerMaruyamaSolver(dt=1.0),
-            random_state=0,
-            dt=1.0,
-        )
-        .prepare()
-        .run(until=10_000)
-        .trajectory_
+    trajectory = simulate(
+        _correlated(covariance),
+        until=10_000,
+        backend=backend(),
+        solver=EulerMaruyamaSolver(dt=1.0),
+        random_state=0,
+        dt=1.0,
     )
     increments = np.diff(np.stack([trajectory.values('a.n'), trajectory.values('b.n')]), axis=1)
     np.testing.assert_allclose(np.cov(increments), covariance, atol=0.1)
@@ -152,9 +144,7 @@ def test_shared_stratonovich_process_has_exact_mean():
             ]
 
     system = System(elements=[GroupElement('crosses', element=CrossElement, size=4000)])
-    state = (
-        Simulation(system, solver=EulerMaruyamaSolver(dt=0.01), random_state=0, dt=1.0).prepare().run(until=1).state_
-    )
+    state = simulate(system, until=1, solver=EulerMaruyamaSolver(dt=0.01), random_state=0, dt=1.0).states[-1]
     totals = state[:4000] + state[4000:]
     error = totals.std() / math.sqrt(totals.size)
     assert abs(totals.mean() - 1.5 * math.exp(sigma**2 / 2)) < 2 * error

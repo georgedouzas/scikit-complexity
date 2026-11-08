@@ -15,9 +15,10 @@ from ...components.spaces import LatticeSpace
 from ...components.specs import CompiledAgentsSpec, CompiledElementSpec, OperatorViewSpec
 from ...errors import ValidationError
 from ...types import Array
-from ..compile import OperatorCompiler
-from ..problems import BaseProblemSpec, FrameSpec, OperatorProblemSpec
+from ..compile.passes._operator_compiler import OperatorCompiler
+from ..problems import BaseProblemSpec, FrameSpec
 from ..problems._operator_kernel import OperatorKernel
+from ..problems._operator_problem_spec import OperatorProblemSpec
 from ._base import BaseVisual
 from ._images import _SPACE_TIME, ImageVisual
 

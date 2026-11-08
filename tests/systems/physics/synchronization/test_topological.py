@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from skcomplex.core.engine.compile import PassCompiler
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.physics.synchronization import TopologicalKuramotoSystem
 

@@ -21,7 +21,7 @@ class IterationSolver(Solver):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.engine.compile import PassCompiler
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
         >>> from skcomplex.core.components.system import System
         >>> from skcomplex.systems.economics.markets import CobwebInteraction, MarketElement
         >>> from skcomplex.core.engine.solvers import IterationSolver

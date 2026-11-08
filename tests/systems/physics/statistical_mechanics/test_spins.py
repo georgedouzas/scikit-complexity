@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.engine.problems import FrameSpec
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import ImageVisual, RerunObserver
 from skcomplex.core.experiments import sweep
 from skcomplex.systems.physics.statistical_mechanics import IsingSystem, PottsSystem, XYSystem
@@ -67,10 +67,8 @@ def test_ising_transition():
 @pytest.mark.parametrize('factory', [PottsSystem, XYSystem])
 def test_cold_spin_systems_order(factory):
     """Test that the Potts and XY systems order at low temperature."""
-    simulation = (
-        Simulation(factory(16, temperature=0.2).prepare().system_, dt=100, random_state=0).prepare().run(until=300)
-    )
-    values = simulation.state_
+    trajectory = simulate(factory(16, temperature=0.2).prepare().system_, until=300, dt=100, random_state=0)
+    values = trajectory.states[-1]
     if factory is PottsSystem:
         assert np.bincount(values.astype(int)).max() > 0.8 * values.size
     else:
@@ -80,11 +78,11 @@ def test_cold_spin_systems_order(factory):
 def test_lattices_log_images():
     """Test that a lattice state is logged as an image of the lattice shape."""
     recording = Images()
-    simulation = Simulation(IsingSystem(8, initial='up').prepare().system_, dt=1).prepare().run(until=1)
-    frame = FrameSpec(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
+    trajectory = simulate(IsingSystem(8, initial='up').prepare().system_, until=1, dt=1)
+    frame = FrameSpec(0, 0.0, trajectory.states[-1], trajectory.parameters[-1], trajectory.problem)
     (
-        ImageVisual(low=-1, high=1, path=simulation.problem_.elements[0].path, recording=recording)
-        .prepare(simulation.problem_)
+        ImageVisual(low=-1, high=1, path=trajectory.problem.elements[0].path, recording=recording)
+        .prepare(trajectory.problem)
         .run(frame)
     )
     ((path, image),) = recording.images

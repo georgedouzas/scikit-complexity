@@ -11,7 +11,7 @@ from skcomplex.core.components.interactions import FeedbackInteraction
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.components.types import AgentViewProtocol, MatchingRule, Process, SystemViewProtocol, Target
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import PartnerSpec, RandomSearchSpec
 
 
@@ -85,5 +85,5 @@ def test_views_of_the_agent_stepper_offer_every_member_of_the_protocols() -> Non
     walkers = GroupElement('walkers', element=Element, size=2, location=[(0, 0), (1, 1)])
     census = FeedbackInteraction[SystemViewProtocol]('census', rule=read)
     system = System(elements=[walkers], interactions=[census], space=LatticeSpace((3, 3)), time=DiscreteTime())
-    Simulation(system, random_state=0).prepare().run(until=1)
+    simulate(system, until=1, random_state=0)
     assert readings == [(True, True, 0, 2, 'walkers', [0.0, 0.0], {}, {}, True)]

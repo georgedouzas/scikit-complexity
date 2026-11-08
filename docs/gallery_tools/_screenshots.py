@@ -12,7 +12,6 @@ import rerun as rr
 import rerun.blueprint as rrb
 from rerun.chunk import RrdReader
 
-from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 
 from ._cache import ScreenshotCache, cache_key
@@ -25,8 +24,6 @@ from ._settings import Budget, CaptureSettings
 
 def finished_observers(variables: Mapping[str, object]) -> list[RerunObserver]:
     """Return the Rerun observers of an example's variables that saved a recording with a blueprint.
-
-    Observers are found as variables and as observers of simulations.
 
     Args:
         variables:
@@ -43,9 +40,6 @@ def finished_observers(variables: Mapping[str, object]) -> list[RerunObserver]:
         []
     """
     candidates = [value for value in variables.values() if isinstance(value, RerunObserver)]
-    for value in variables.values():
-        if isinstance(value, Simulation):
-            candidates += [item for item in value.observers if isinstance(item, RerunObserver)]
     found: list[RerunObserver] = []
     for observer in candidates:
         if observer in found or observer.save_path is None or getattr(observer, 'logged_frames_', 0) == 0:

@@ -13,7 +13,7 @@ while thermal noise spreads them out, so the cloud moves at a steady mean veloci
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.soft_matter import TiltedPeriodicPotentialSystem
@@ -22,14 +22,14 @@ SYSTEM = 'tilted_periodic_potential'
 
 system = TiltedPeriodicPotentialSystem(n_particles=20, f=1.0, U0=0.5, L=1.0, kT=0.5)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(
+trajectory = simulate(
     system.prepare().system_,
+    until=50,
     dt=0.25,
     solver=EulerMaruyamaSolver(dt=0.005),
     observers=[observer],
     random_state=0,
-).prepare()
-simulation.run(until=50)
+)
 
 # %%
 # Mean velocity against the force
@@ -56,17 +56,18 @@ def exact_velocity(f, U0=0.5, L=1.0, kT=0.5, gamma=1.0):
 forces = np.array([0.25, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0])
 velocities = []
 for f in forces:
-    run = Simulation(
+    run = simulate(
         TiltedPeriodicPotentialSystem(n_particles=300, f=f).prepare().system_,
+        until=30,
         dt=1.0,
         solver=EulerMaruyamaSolver(dt=0.005),
         random_state=1,
-    ).prepare()
-    positions = run.run(until=30).trajectory_.values('particles.x')[..., 0]
+    )
+    positions = run.values('particles.x')[..., 0]
     velocities.append((positions[-1] - positions[5]).mean() / 25)
 
-times = simulation.trajectory_.times
-mean_position = simulation.trajectory_.values('particles.x')[..., 0].mean(axis=1)
+times = trajectory.times
+mean_position = trajectory.values('particles.x')[..., 0].mean(axis=1)
 
 fig, (current, drift) = plt.subplots(1, 2, figsize=(10, 4))
 grid = np.linspace(0.05, 4.0, 60)

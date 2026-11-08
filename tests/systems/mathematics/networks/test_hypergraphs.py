@@ -8,9 +8,8 @@ import xgi
 
 from skcomplex.core.analysis import fit_law
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation, simulate
-from skcomplex.systems import create_system
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.mathematics.networks import GrowingSimplicialComplexSystem, HypergraphRandomWalkSystem
 
 from .conftest import _final_graph
@@ -53,12 +52,13 @@ def test_hypergraph_random_walk_settles_on_the_hyperedge_weights():
 @pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
 def test_growing_simplicial_complex_attaches_one_triangle_per_step(backend):
     """Test that 50 steps from one triangle give 51 triangles along edges, each with its age in steps."""
-    simulation = Simulation(
+    simulation = simulate(
         GrowingSimplicialComplexSystem(60).prepare().system_,
+        until=50,
         backend=backend,
         random_state=0,
-    ).prepare()
-    trajectory = simulation.run(until=50).trajectory_
+    )
+    trajectory = simulation
     network = trajectory.network(-1)
     graph = network.graph()
     assert network.hyperedges.shape == (51, 3)
@@ -80,6 +80,6 @@ def test_growing_simplicial_complex_degrees_follow_preferential_attachment():
 
 def test_growing_simplicial_complex_is_created_by_name():
     """Test that the system is registered with variable groups on its nodes, edges, and triangles."""
-    system = create_system('growing_simplicial_complex')
+    system = GrowingSimplicialComplexSystem().prepare().system_
     assert [element.on for element in system.elements] == ['sites', 'edges', 'hyperedges']
     assert all(element.variable for element in system.elements)

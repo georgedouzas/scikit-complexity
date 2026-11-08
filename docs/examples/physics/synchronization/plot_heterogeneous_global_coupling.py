@@ -14,7 +14,7 @@ spread of time scales the coupling could not stabilize it.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.synchronization import HeterogeneousGlobalCouplingSystem
 
@@ -29,16 +29,13 @@ def coupling_at(time):
     return 0.0 if time < 15.0 else 2.0
 
 
-simulation = (
-    Simulation(
-        system.prepare().system_,
-        dt=0.2,
-        observers=[observer],
-        schedule={'coupling_x.K': coupling_at, 'coupling_y.K': coupling_at},
-        observables=HeterogeneousGlobalCouplingSystem.observables,
-    )
-    .prepare()
-    .run(until=40)
+trajectory = simulate(
+    system.prepare().system_,
+    until=40,
+    dt=0.2,
+    observers=[observer],
+    schedule={'coupling_x.K': coupling_at, 'coupling_y.K': coupling_at},
+    observables=HeterogeneousGlobalCouplingSystem.observables,
 )
 
 # %%

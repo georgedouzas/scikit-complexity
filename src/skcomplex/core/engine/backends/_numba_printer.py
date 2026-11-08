@@ -15,14 +15,18 @@ from ...components.spaces import ConeNeighborhood, NearestNeighborhood
 from ...errors import ValidationError
 from ...specs import EntrySpec, ReadSpec
 from .._utils import symbols_of
-from ..problems import BasePrinter, ExpressionPrinter, OutputSpec, ReductionScheduleSpec, ReferenceSpec
+from ..problems import BasePrinter
 from ..problems._edge_row_search import EdgeRowSearch
 from ..problems._edge_search import EdgeSearch
+from ..problems._expression_printer import ExpressionPrinter
 from ..problems._law_kernel import LawKernel
 from ..problems._metric_search import MetricSearch
 from ..problems._neighborhood_kernel import NeighborhoodKernel
+from ..problems._output_spec import OutputSpec
 from ..problems._pair_search import PairSearch
 from ..problems._reduction_kernel import ReductionKernel
+from ..problems._reduction_schedule_spec import ReductionScheduleSpec
+from ..problems._reference_spec import ReferenceSpec
 from ..problems._static_search import StaticSearch
 from ..types import ReadKind
 from ._base import _AUTO_MEMBERS

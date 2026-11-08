@@ -7,7 +7,6 @@ import pytest
 from skcomplex.core.analysis import cell_complex
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.systems import create_system
 from skcomplex.systems.social.opinion_dynamics import GaugeNetworkAgentsSystem
 
 
@@ -25,7 +24,7 @@ def test_frustration_blocks_agreement():
 def test_curvature_and_betti_numbers_read_the_connection():
     """Test the curvature of the connection and the Betti numbers of the ring with its one face."""
     for flux, curved in ((0.0, 0.0), (np.pi, 1.0)):
-        system = create_system('gauge_network_agents', flux=flux)
+        system = GaugeNetworkAgentsSystem(flux=flux).prepare().system_
         links = system.elements[1]
         space = links.space
         curvature = cell_complex(links.values['A'], kind='curvature', space=space)

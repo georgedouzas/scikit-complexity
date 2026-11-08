@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.epidemiology import RecordDynamicsEpidemicSystem
 
 
@@ -10,11 +10,12 @@ def test_outbreaks_follow_records_of_the_strain_strength():
     """Test that the mean number of outbreaks in 100 years is the harmonic number of the 99 strains drawn."""
     outbreaks = []
     for seed in range(30):
-        simulation = Simulation(
+        trajectory = simulate(
             RecordDynamicsEpidemicSystem(2000, seed=seed).prepare().system_,
+            until=100,
             random_state=seed,
-        ).prepare()
-        infected = simulation.run(until=100).trajectory_.values('residents.infected').sum(axis=1)
+        )
+        infected = trajectory.values('residents.infected').sum(axis=1)
         outbreaks.append((infected > 0).sum())
     assert abs(np.mean(outbreaks) - sum(1 / k for k in range(1, 100))) < 0.6
 

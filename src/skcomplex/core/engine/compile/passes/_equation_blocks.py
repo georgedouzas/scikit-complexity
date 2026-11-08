@@ -21,7 +21,9 @@ from ....specs import CallSpec, IssueSpec
 from ....specs._base_spec import BaseSpec
 from ....types import Array
 from ..._utils import symbols_of, vector
-from ...problems import ExpressionPrinter, KernelSpec, ReferenceSpec
+from ...problems._expression_printer import ExpressionPrinter
+from ...problems._kernel_spec import KernelSpec
+from ...problems._reference_spec import ReferenceSpec
 from ...problems._relation_spec import _RelationSpec
 from .._algebraic_law import AlgebraicLaw
 from .._base import BaseLowering, BasePass

@@ -36,7 +36,7 @@ class EulerSolver(Solver):
             The end time of the run the solver prepares for, infinite for a run that goes on until it is stopped.
 
     Examples:
-        >>> from skcomplex.core.engine.compile import PassCompiler
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
         >>> from skcomplex.core.components.system import System
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> from skcomplex.core.engine.solvers import EulerSolver

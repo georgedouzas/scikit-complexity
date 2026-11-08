@@ -19,7 +19,8 @@ from ....errors import ValidationError
 from ....specs import WienerProcessSpec
 from ....types import ProcessKey
 from ..._utils import components_of
-from ...problems import DeclarationsSpec, KernelSpec
+from ...problems._declarations_spec import DeclarationsSpec
+from ...problems._kernel_spec import KernelSpec
 from ...problems._noise_term_spec import _NoiseTermSpec
 from .._base import BasePass
 from .._compilation import Compilation

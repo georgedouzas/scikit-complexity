@@ -13,20 +13,23 @@ from skcomplex.core.components.laws import RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import derivative, lag
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import OperatorCompiler, PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from skcomplex.systems import create_system
 from skcomplex.systems.biology.common.populations import LogisticGrowthInteraction, PopulationElement
+from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 from skcomplex.systems.biology.epidemiology import RecoveryInteraction
 from skcomplex.systems.economics.finance import AssetElement, GeometricBrownianMotionInteraction
 from skcomplex.systems.economics.markets import CobwebInteraction, MarketElement
+from skcomplex.systems.physics.active_matter import CuckerSmaleFlockingSystem
 from skcomplex.systems.physics.common.particles import (
     ConstantForceInteraction,
     HarmonicPotentialInteraction,
     MassPointElement,
 )
+from skcomplex.systems.physics.statistical_mechanics import QuantumHeisenbergSystem
 
 from ...conftest import CallableGrowthInteraction
 
@@ -57,7 +60,7 @@ def test_equations_of_discrete_map_gives_next_value():
 def test_equations_of_group_with_numeric_derivatives_raises_error():
     """A group of order two whose forces are computed numerically has no symbolic equations."""
     with pytest.raises(AnalysisError, match='computed numerically'):
-        symbolic(create_system('cucker_smale_flocking'))
+        symbolic(CuckerSmaleFlockingSystem().prepare().system_)
 
 
 def test_equations_of_jump_process_raises_error():
@@ -165,8 +168,8 @@ def test_sage_expression_compiles_like_number():
         interactions=[SageForceInteraction('push', target='p')],
         space=ContinuousSpace(n_dim=1),
     )
-    expected = Simulation(system).prepare().run(until=1).trajectory_.values('p.x')
-    result = Simulation(sage_system).prepare().run(until=1).trajectory_.values('p.x')
+    expected = simulate(system, until=1).values('p.x')
+    result = simulate(sage_system, until=1).values('p.x')
     assert np.allclose(expected, result)
 
 
@@ -366,7 +369,7 @@ def test_remaining_sign_question_names_parameter():
 
 def test_hamiltonian_prints_operators_and_equations_refuse():
     """Test that an operator system prints its Hamiltonian and has no state equations."""
-    system = create_system('quantum_heisenberg', n_sites=2, boundary='open')
+    system = QuantumHeisenbergSystem(n_sites=2, boundary='open').prepare().system_
     problem = OperatorCompiler().prepare(system).run().problem_
     hamiltonian = symbolic(problem, kind='hamiltonian').hamiltonian
     assert {'J_exchange', 'delta_exchange', 'h_field'} <= {str(variable) for variable in hamiltonian.variables()}
@@ -378,4 +381,4 @@ def test_hamiltonian_prints_operators_and_equations_refuse():
 def test_settings_the_kind_ignores_are_rejected():
     """Test that the initial state, which only solving reads, is rejected for the equations."""
     with pytest.raises(AnalysisError, match='does not read use_initial_state'):
-        symbolic(create_system('logistic_growth'), use_initial_state=True)
+        symbolic(LogisticGrowthSystem().prepare().system_, use_initial_state=True)

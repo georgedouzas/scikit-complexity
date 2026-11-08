@@ -10,7 +10,7 @@ from skcomplex.core.components.interactions import ConservationInteraction
 from skcomplex.core.components.laws import FluxLaw
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
@@ -51,8 +51,7 @@ def _run(element, *interactions):
     values = {'u': 1.0 + 0.5 * np.sin((np.arange(CELLS) + 0.5) * spacing)}
     space = LatticeSpace((CELLS,), spacing=spacing, boundary='periodic')
     field = FieldElement('line', element=element, space=space, values=values, discretization='finite-volume')
-    simulation = Simulation(System(elements=[field], interactions=list(interactions)), dt=0.1)
-    return simulation.prepare().run(until=1.0).trajectory_.values('line.u')
+    return simulate(System(elements=[field], interactions=list(interactions)), until=1.0, dt=0.1).values('line.u')
 
 
 def test_run_matches_the_flux_law_and_conserves_the_total():
@@ -122,8 +121,7 @@ def _run_water(element, gravity, *interactions):
     values = {'h': 1.0 + 0.2 * np.exp(-(((centers - 0.5) / 0.1) ** 2)), 'q': np.zeros(CELLS), 'g': gravity}
     space = LatticeSpace((CELLS,), spacing=1 / CELLS, boundary='periodic')
     field = FieldElement('channel', element=element, space=space, values=values, discretization='finite-volume')
-    simulation = Simulation(System(elements=[field], interactions=list(interactions)), dt=0.05)
-    return simulation.prepare().run(until=0.2).trajectory_.values('channel.h')
+    return simulate(System(elements=[field], interactions=list(interactions)), until=0.2, dt=0.05).values('channel.h')
 
 
 def _water_interactions():
@@ -168,8 +166,8 @@ def test_run_without_numerical_flux_takes_the_divergence_on_a_spectral_field():
         flux=lambda s: s.target.u**2 / 2,
         riemann=None,
     )
-    simulation = Simulation(System(elements=[field], interactions=[burgers]), dt=0.1).prepare()
-    trajectory = simulation.run(until=1.0).trajectory_.values('line.u')
+    simulation = simulate(System(elements=[field], interactions=[burgers]), until=1.0, dt=0.1)
+    trajectory = simulation.values('line.u')
     assert trajectory[-1].sum() == pytest.approx(trajectory[0].sum(), abs=1e-9)
     assert not np.allclose(trajectory[-1], trajectory[0])
 

@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import distribution
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.physics.criticality import HexagonalForestFireSystem, MannaSandpileSystem, SandpileSystem
 
 from ...conftest import EventsObserver
@@ -19,14 +19,7 @@ def test_sandpile_avalanches_follow_power_law():
     8,000 grains, more than twice the grains that fill the pile to its critical density, between sizes 1 and 100.
     """
     observer = EventsObserver(lambda frame: (frame.lattice('pile.height') < 4).all())
-    simulation = Simulation(
-        SandpileSystem((40, 40)).prepare().system_,
-        dt=1000,
-        record=False,
-        random_state=0,
-        observers=[observer],
-    ).prepare()
-    simulation.run(until=30_000)
+    simulate(SandpileSystem((40, 40)).prepare().system_, until=30_000, dt=1000, random_state=0, observers=[observer])
     sizes = np.asarray([event.size for event in observer.events_ if event.time > 8_000])
     assert observer.passed_
     assert sizes.max() > 1000

@@ -18,9 +18,10 @@ from ...specs import ControlSolutionSpec
 from ...specs._control_spec import _ControlSpec
 from ...types import Array, FormKind
 from .._utils import symbols_of
-from ..compile import ObservableEvaluator
-from ..problems import ExpressionPrinter, ProblemSpec
+from ..compile._observables import ObservableEvaluator
+from ..problems import ProblemSpec
 from ..problems._control_problem_spec import _ControlProblemSpec
+from ..problems._expression_printer import ExpressionPrinter
 from ..types import Cost, GridFunction
 from ._solver import Solver
 

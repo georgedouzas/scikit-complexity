@@ -2,18 +2,18 @@
 
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.epidemiology import EpisimsCitySystem
 
 
 def _final_size(closed: bool, seed: int) -> float:
     """Return the share of recovered people after 200 half days."""
-    trajectory = (
-        Simulation(EpisimsCitySystem(500, closed=closed, seed=seed).prepare().system_, random_state=seed)
-        .prepare()
-        .run(until=200)
+    trajectory = simulate(
+        EpisimsCitySystem(500, closed=closed, seed=seed).prepare().system_,
+        until=200,
+        random_state=seed,
     )
-    return float((trajectory.trajectory_.agents('people', 200).values['health'] == 2).mean())
+    return float((trajectory.agents('people', 200).values['health'] == 2).mean())
 
 
 def test_workplaces_spread_the_disease_between_households():

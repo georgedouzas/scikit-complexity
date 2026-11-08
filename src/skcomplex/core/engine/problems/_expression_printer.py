@@ -82,7 +82,7 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.engine.problems import ExpressionPrinter
+        >>> from skcomplex.core.engine.problems._expression_printer import ExpressionPrinter
         >>> from skcomplex.core.engine._utils import symbol
         >>> t, x = symbol('t'), symbol('x')
         >>> ExpressionPrinter().prepare().run([(x + 1) ** 2, 3 * (x + 1) ** 2]).code_

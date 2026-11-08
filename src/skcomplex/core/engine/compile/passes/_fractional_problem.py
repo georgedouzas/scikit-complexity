@@ -14,8 +14,9 @@ from sage.all__sagemath_symbolics import SR
 from ....components.laws import FractionalNoiseLaw, NoiseLaw
 from ....specs import FractionalRowsSpec, FractionalStateSpec, LayoutSpec
 from ....types import Array, FormKind
-from ...problems import KernelSpec, LoweredKernelsSpec
+from ...problems._kernel_spec import KernelSpec
 from ...problems._law_kernel import LawKernel
+from ...problems._lowered_kernels_spec import LoweredKernelsSpec
 from .._base import BasePass
 from .._compilation import Compilation
 from ._check_fractional_noise import CheckFractionalNoisePass

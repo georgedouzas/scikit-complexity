@@ -9,7 +9,7 @@ from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.interactions import AdvectionInteraction, ConservationInteraction
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import RoleSpec, StateSpec
 
@@ -50,8 +50,7 @@ def _run(*interactions, discretization='finite-volume'):
     values = {'u': np.exp(-(((centers - 0.5) / 0.1) ** 2)), 'v': 1.0 + 0.5 * np.sin(2 * np.pi * centers)}
     space = LatticeSpace((CELLS,), spacing=spacing, boundary='periodic')
     field = FieldElement('tube', element=TracerElement, space=space, values=values, discretization=discretization)
-    simulation = Simulation(System(elements=[field], interactions=list(interactions)), dt=0.05)
-    return simulation.prepare().run(until=0.2).trajectory_.values('tube.u')
+    return simulate(System(elements=[field], interactions=list(interactions)), until=0.2, dt=0.05).values('tube.u')
 
 
 def test_run_matches_the_conservation_law_of_the_flux_v_u():

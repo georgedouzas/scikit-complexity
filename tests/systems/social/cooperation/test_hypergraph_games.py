@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.social.cooperation import HypergraphPublicGoodsSystem, SimplicialSocialDilemmasSystem
 
 from ..conftest import _run
@@ -26,8 +26,8 @@ def _cooperation(trajectory):
 
 def _first_payoffs(system, backend):
     """Return the payoffs of the play of the first step."""
-    simulation = Simulation(system, random_state=0, dt=1, backend=backend).prepare().run(until=1)
-    return simulation.trajectory_.values('players.payoff')[1]
+    trajectory = simulate(system, until=1, random_state=0, dt=1, backend=backend)
+    return trajectory.values('players.payoff')[1]
 
 
 def _game(own, other, sucker, temptation):

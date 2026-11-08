@@ -11,9 +11,9 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace, NetworkSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems import FrameSpec
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import CellVisual, RerunObserver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import StateSpec, VisualSpec
@@ -61,12 +61,11 @@ def _system(space, element=AngleElement, part='edges', values=None, visual=None)
 def _logged(system, visual, until=2.0):
     """Return what a visual logs for every frame of a run of a system."""
     recording = RecordingStub()
-    simulation = Simulation(system, dt=1.0).prepare().run(until=until)
-    problem = simulation.problem_
+    trajectory = simulate(system, until=until, dt=1.0)
+    problem = trajectory.problem
     visual.set_params(path='cells', recording=recording).prepare(problem)
-    trajectory = simulation.trajectory_
     for step, time in enumerate(trajectory.times):
-        frame = FrameSpec(step, float(time), trajectory.states[step], simulation.parameters_, problem)
+        frame = FrameSpec(step, float(time), trajectory.states[step], trajectory.parameters[-1], problem)
         visual.run(frame)
     return recording.logged
 
@@ -97,7 +96,7 @@ def test_recording_of_a_run_with_the_cell_visual_is_saved(tmp_path):
     space = CellComplexSpace(LatticeSpace((SIDE, SIDE))).prepare()
     path = tmp_path / 'run.rrd'
     system = _system(space, visual=VisualSpec('cell'))
-    Simulation(system, dt=1.0, observers=[RerunObserver('cells', save_path=path)]).prepare().run(until=2.0)
+    simulate(system, until=2.0, dt=1.0, observers=[RerunObserver('cells', save_path=path)])
     assert path.stat().st_size > 0
 
 

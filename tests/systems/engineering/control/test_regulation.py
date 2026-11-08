@@ -9,7 +9,7 @@ import pytest
 import skcomplex.core.components
 from skcomplex.core.analysis import linearization
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.engineering.control import (
     CartPendulumElement,
     IntegratorElement,
@@ -46,12 +46,7 @@ def test_lqr_oscillator_is_controllable():
 
 def test_pendulum_without_control_falls():
     """Test that the pendulum without its controller falls away from upright."""
-    trajectory = (
-        Simulation(System(elements=[CartPendulumElement('cart', theta=0.1)]), dt=0.1)
-        .prepare()
-        .run(until=1.0)
-        .trajectory_
-    )
+    trajectory = simulate(System(elements=[CartPendulumElement('cart', theta=0.1)]), until=1.0, dt=0.1)
     assert trajectory.values('cart.theta')[-1] > 0.5
 
 

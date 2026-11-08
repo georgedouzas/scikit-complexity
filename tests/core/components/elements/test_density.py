@@ -11,7 +11,7 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import EncounterLaw
 from skcomplex.core.components.spaces import ContinuousTime, LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, RoleSpec
 
 CLASSES = 5
@@ -65,7 +65,7 @@ def test_density_runs_into_no_laws():
 
 def test_density_is_moved_by_an_encounter_law():
     """Test that an encounter law moves a distribution of densities to the middle classes and keeps its total."""
-    trajectory = Simulation(_system(), dt=0.5).prepare().run(until=2).trajectory_
+    trajectory = simulate(_system(), until=2, dt=0.5)
     densities = np.asarray(trajectory.values('population.f'))
     np.testing.assert_allclose(densities.sum(axis=1), 1.0)
     assert densities[-1, 2] > 0

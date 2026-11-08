@@ -13,7 +13,8 @@ import rerun.blueprint as rrb
 
 from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
 from ...errors import ValidationError
-from ..problems import BaseProblemSpec, FrameSpec, LinearProgramKernel, ProblemSpec
+from ..problems import BaseProblemSpec, FrameSpec, ProblemSpec
+from ..problems._linear_program_kernel import LinearProgramKernel
 from ._base import _GRID_RADIUS, _NODE_SPACING, _SERIES_COLORS, BaseVisual
 
 GRAPH_LIMIT = 100

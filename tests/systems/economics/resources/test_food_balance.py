@@ -3,7 +3,6 @@
 import numpy as np
 import pytest
 
-from skcomplex.systems import describe
 from skcomplex.systems.economics.resources import RiceFoodBalanceSystem
 
 from ..conftest import _run
@@ -12,7 +11,7 @@ from ..conftest import _run
 def test_rice_food_balance_rises_then_falls_as_the_land_fills():
     """Test that the area approaches its balance with the land lost and that the food security peaks and then falls."""
     system = RiceFoodBalanceSystem().prepare().system_
-    trajectory = _run(system, 100.0, 0.25, observables=describe('rice_food_balance').observables_of(system))
+    trajectory = _run(system, 100.0, 0.25, observables=RiceFoodBalanceSystem().get_run_settings()['observables'])
     area, security, times = (
         trajectory.values('region.area_cultivated'),
         trajectory.values('region.food_security'),

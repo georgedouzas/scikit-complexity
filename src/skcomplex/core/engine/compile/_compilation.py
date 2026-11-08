@@ -18,28 +18,26 @@ from ...specs import MatrixLawSpec, TopologyRequestSpec
 from ...specs._plan_spec import _PlanSpec
 from ...types import FormKind
 from ..backends import BaseBackend
-from ..problems import (
-    BlockSpec,
-    DeclarationsSpec,
-    DiffusiveLimitSpec,
-    KernelSpec,
-    LinearTermSpec,
-    LoweredKernelsSpec,
-    OutputSpec,
-    ProblemSpec,
-    ReductionScheduleSpec,
-    SymmetrySpec,
-    TransferNetworkSpec,
-    TransferStateSpec,
-)
+from ..problems import ProblemSpec
+from ..problems._block_spec import BlockSpec
+from ..problems._declarations_spec import DeclarationsSpec
 from ..problems._delayed_state_spec import _DelayedStateSpec
+from ..problems._diffusive_limit_spec import DiffusiveLimitSpec
 from ..problems._draw_kernel import DrawKernel
 from ..problems._encounter_kernel import EncounterKernel
 from ..problems._finite_volume_kernel import FiniteVolumeKernel
 from ..problems._jacobian_kernel import JacobianKernel
+from ..problems._kernel_spec import KernelSpec
+from ..problems._linear_term_spec import LinearTermSpec
+from ..problems._lowered_kernels_spec import LoweredKernelsSpec
 from ..problems._markov_kernel import MarkovKernel
+from ..problems._output_spec import OutputSpec
 from ..problems._problem_functions_spec import _ProblemFunctionsSpec
+from ..problems._reduction_schedule_spec import ReductionScheduleSpec
+from ..problems._symmetry_spec import SymmetrySpec
 from ..problems._topology_kernel import TopologyKernel
+from ..problems._transfer_network_spec import TransferNetworkSpec
+from ..problems._transfer_state_spec import TransferStateSpec
 from ..types import ReadKind
 from ._bound_renewal_spec import BoundRenewalSpec
 

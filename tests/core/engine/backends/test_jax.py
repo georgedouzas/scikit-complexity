@@ -5,7 +5,7 @@ import pytest
 
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import JaxBackend, NumpyBackend
-from skcomplex.core.engine.compile import PassCompiler
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import BackendError, SolverError
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem

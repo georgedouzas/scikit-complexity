@@ -13,8 +13,8 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import ContinuousTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.solvers._defaults import DEFAULT_SOLVERS
 from skcomplex.core.errors import AnalysisError
@@ -87,15 +87,13 @@ def _driven_runs():
     """Return runs of the driven element under different random inputs, from different states."""
     solver = ScipyODESolver(method='DOP853', rtol=1e-12, atol=1e-12)
     return [
-        Simulation(
+        simulate(
             System(elements=[DrivenElement('driven', x=start)]),
+            until=20.0,
             solver=solver,
             dt=STEP,
             schedule={'driven.u': _held_input(seed)},
         )
-        .prepare()
-        .run(until=20.0)
-        .trajectory_
         for seed, start in enumerate((1.0, -2.0, 0.5))
     ]
 
@@ -112,12 +110,7 @@ def _one_sample_map():
 def _linear_trajectory():
     """Return a trajectory of the linear system `dx/dt = A x`, sampled every 0.05 for 10 time units."""
     solver = ScipyODESolver(method='DOP853', rtol=1e-12, atol=1e-12)
-    return (
-        Simulation(System(elements=[LinearElement('linear')]), solver=solver, dt=0.05)
-        .prepare()
-        .run(until=10.0)
-        .trajectory_
-    )
+    return simulate(System(elements=[LinearElement('linear')]), until=10.0, solver=solver, dt=0.05)
 
 
 NAMES = ['linear.x', 'linear.y', 'linear.z']
@@ -149,7 +142,7 @@ def test_mode_decomposition_system_validates_under_continuous_time():
     assert isinstance(decomposition.system.time, ContinuousTime)
     assert DEFAULT_SOLVERS[PassCompiler().prepare(decomposition.system).run().problem_.form] is ScipyODESolver
     solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-10)
-    run = Simulation(decomposition.system, solver=solver, dt=0.05).prepare().run(until=10.0).trajectory_
+    run = simulate(decomposition.system, until=10.0, solver=solver, dt=0.05)
     assert np.allclose(run.values('surrogate.y'), trajectory.values('linear.y'), atol=1e-6)
 
 
@@ -168,7 +161,7 @@ def test_mode_decomposition_run_matches_simulated_system():
     decomposition = _fit(_linear_values(_linear_trajectory(), 101), variables=NAMES, horizon=20, dt=0.05)
     names = [f'surrogate.{name}' for name in decomposition.states]
     initial_state = dict(zip(names, decomposition.last_state, strict=True))
-    run = Simulation(decomposition.system, dt=0.05, initial_state=initial_state).prepare().run(until=1.0).trajectory_
+    run = simulate(decomposition.system, until=1.0, dt=0.05, initial_state=initial_state)
     simulated = np.column_stack([run.values(name) for name in names])[1:21]
     assert np.allclose(decomposition.forecast, simulated, atol=1e-4)
 
@@ -257,12 +250,7 @@ def test_mode_decomposition_system_with_input_follows_schedule():
     decomposition = _fit(_driven_runs(), inputs=['driven.u'], variables=['driven.x', 'driven.y'], validation=0.0)
     schedule = _held_input(7)
     solver = ScipyODESolver(method='DOP853', rtol=1e-11, atol=1e-11)
-    run = (
-        Simulation(decomposition.system, solver=solver, dt=STEP, schedule={'surrogate.u': schedule})
-        .prepare()
-        .run(until=5.0)
-        .trajectory_
-    )
+    run = simulate(decomposition.system, until=5.0, solver=solver, dt=STEP, schedule={'surrogate.u': schedule})
     recorded = run.values('surrogate.u')
     assert np.allclose(recorded, [schedule(time) for time in run.times])
     states = np.column_stack([run.values('surrogate.x'), run.values('surrogate.y')])

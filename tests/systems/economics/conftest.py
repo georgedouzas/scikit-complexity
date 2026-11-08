@@ -3,7 +3,7 @@
 from collections.abc import Mapping, Sequence
 
 from skcomplex.core.components.system import BaseSystem, System
-from skcomplex.core.engine.runtime import Simulation, Trajectory, simulate
+from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.specs import ObservableSpec
 from skcomplex.core.types import AnyArray
 
@@ -30,5 +30,5 @@ def _run_observed(
     invariants: Mapping[str, float] | None = None,
 ) -> Trajectory:
     """Return the trajectory of a system run with a fixed random state."""
-    simulation = Simulation(system, random_state=0, observables=observables, invariants=invariants).prepare()
-    return simulation.run(until=until).trajectory_
+    trajectory = simulate(system, until=until, random_state=0, observables=observables, invariants=invariants)
+    return trajectory

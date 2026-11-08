@@ -21,8 +21,8 @@ from skcomplex.core.components.spaces import (
 )
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import RoleError, ValidationError
 from skcomplex.core.specs import LayerSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -303,8 +303,8 @@ def test_hebbian_weights_grow_between_coactive_nodes(backend):
     """Test that Hebbian weights end higher on edges between co-active nodes than on edges between inactive ones."""
     space = NetworkSpace(nx.cycle_graph(6))
     activities = np.array([1.0, 1.0, 1.0, 0.0, 0.0, 0.0])
-    simulation = Simulation(_hebbian(space, activities), backend=backend, solver=RK4Solver(dt=0.01), dt=0.1).prepare()
-    weights = simulation.run(until=1.0).trajectory_.values('synapses.w')[-1]
+    trajectory = simulate(_hebbian(space, activities), until=1.0, backend=backend, solver=RK4Solver(dt=0.01), dt=0.1)
+    weights = trajectory.values('synapses.w')[-1]
     sources, targets = space.prepare().edges_[None]
     coactive = activities[sources] * activities[targets] > 0
     assert np.allclose(weights[coactive], 2.1, atol=1e-9)
@@ -350,7 +350,7 @@ def test_two_layers_carry_infection_and_wages_apart():
             WagesInteraction('wages', people='people', jobs='jobs'),
         ],
     )
-    trajectory = Simulation(system, solver=RK4Solver(dt=0.01), dt=0.5).prepare().run(until=20.0).trajectory_
+    trajectory = simulate(system, until=20.0, solver=RK4Solver(dt=0.01), dt=0.5)
     infected, wages = trajectory.values('people.infected')[-1], trajectory.values('people.wage')[-1]
     assert np.all(infected > 0.9)
     assert np.allclose(wages, [-20.0, 0.0, -20.0, 20.0, 20.0], atol=1e-9)
@@ -358,7 +358,7 @@ def test_two_layers_carry_infection_and_wages_apart():
         elements=[people(), jobs],
         interactions=[ContagionInteraction('contagion', people='people', layer='work')],
     )
-    trajectory = Simulation(isolated, solver=RK4Solver(dt=0.01), dt=0.5).prepare().run(until=20.0).trajectory_
+    trajectory = simulate(isolated, until=20.0, solver=RK4Solver(dt=0.01), dt=0.5)
     assert np.allclose(trajectory.values('people.infected')[-1], [1.0, 0.0, 0.0, 0.0, 1.0], atol=1e-6)
 
 
@@ -394,7 +394,7 @@ def test_edge_jumps_change_the_ends_of_their_edge():
         elements=[LatticeElement('nodes', element=SISElement, space=space, values=values)],
         interactions=[SpreadInteraction('spread', nodes='nodes')],
     )
-    trajectory = Simulation(system, dt=1.0, random_state=0).prepare().run(until=60.0).trajectory_
+    trajectory = simulate(system, until=60.0, dt=1.0, random_state=0)
     assert trajectory.values('nodes.i')[-1].tolist() == [1.0, 1.0, 1.0, 1.0]
 
 
@@ -626,8 +626,7 @@ def test_delayed_reads_either_end_of_an_edge(end, space, backend):
         elements=[LatticeElement('nodes', element=OscillatorElement, space=space, values={'theta': 1.0})],
         interactions=[DelayedPullInteraction('pull', nodes='nodes', end=end)],
     )
-    simulation = Simulation(system, dt=0.1, solver=RK4Solver(), backend=backend).prepare()
-    trajectory = simulation.run(until=2).trajectory_
+    trajectory = simulate(system, until=2, dt=0.1, solver=RK4Solver(), backend=backend)
     times = trajectory.times
     exact = np.where(times <= 1, 1 - times, 1 - times + (times - 1) ** 2 / 2)
     assert np.allclose(trajectory.values('nodes.theta'), exact[:, None], atol=1e-9)
@@ -671,12 +670,11 @@ def test_relaxation_of_the_members_records_avalanches(space, element):
             time=DiscreteTime(),
         ),
     ]
-    found = [Simulation(system, dt=1).prepare().run(2) for system in runs]
-    reference, simulation = found
-    assert np.array_equal(simulation.state_, reference.state_)
-    events = simulation.trajectory_.events
+    reference, trajectory = [simulate(system, until=2, dt=1) for system in runs]
+    assert np.array_equal(trajectory.states[-1], reference.states[-1])
+    events = trajectory.events
     assert [(event.size, event.duration, event.area) for event in events] == [
-        (event.size, event.duration, event.area) for event in reference.trajectory_.events
+        (event.size, event.duration, event.area) for event in reference.events
     ]
     assert events
     assert all(event.label == 'topple' for event in events)

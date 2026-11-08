@@ -24,8 +24,8 @@ from skcomplex.core.components.spaces import (
 )
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import JaxBackend, NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ClampSpec, ObservableSpec, ParameterSpec, RadiusSpec, RoleSpec, StateSpec, VisualSpec
@@ -139,8 +139,8 @@ def _oscillators(space, theta, omega, **arguments):
 
 def _phases(system, until, backend=None):
     """Return the phases of the oscillators at every unit of time."""
-    simulation = Simulation(system, dt=1.0, solver=RK4Solver(dt=0.05), backend=backend).prepare()
-    return simulation.run(until).trajectory_.values('oscillators.theta')
+    trajectory = simulate(system, until=until, dt=1.0, solver=RK4Solver(dt=0.05), backend=backend)
+    return trajectory.values('oscillators.theta')
 
 
 def _drift(system, path='oscillators.theta', backend=None):
@@ -370,7 +370,7 @@ def test_coupling_map_form_combines_with_parameters_and_time():
         combine=lambda s, reduction: (1 - s.lag) * s.member.u + s.lag * reduction + s.t,
     )
     system = System(elements=[cells], interactions=[coupling], time=DiscreteTime())
-    levels = Simulation(system, dt=1).prepare().run(1).trajectory_.values('cells.u')[-1]
+    levels = simulate(system, until=1, dt=1).values('cells.u')[-1]
     np.testing.assert_allclose(levels, 0.5 * u + 0.25 * (np.roll(u, 1) + np.roll(u, -1)))
 
 
@@ -445,7 +445,7 @@ def test_coupling_map_form_combines_the_state_with_the_reduction():
         combine=lambda s, reduction: s.member.u + reduction,
     )
     system = System(elements=[cells], interactions=[coupling], time=DiscreteTime())
-    levels = Simulation(system, dt=1).prepare().run(1).trajectory_.values('cells.u')[-1]
+    levels = simulate(system, until=1, dt=1).values('cells.u')[-1]
     np.testing.assert_allclose(levels, (np.roll(u, 1) + np.roll(u, -1) + u) / 3)
 
 
@@ -485,8 +485,8 @@ def test_coupling_map_form_aligns_a_vicsek_flock_at_low_noise():
         ObservableSpec('mean_heading', _heading, group='flock'),
         ObservableSpec('polarization', _polarization),
     ]
-    simulation = Simulation(system, dt=1.0, random_state=0, observables=observables).prepare()
-    polarization = np.asarray(simulation.run(until=150.0).trajectory_.values('polarization'), dtype=float)
+    trajectory = simulate(system, until=150.0, dt=1.0, random_state=0, observables=observables)
+    polarization = np.asarray(trajectory.values('polarization'), dtype=float)
     assert polarization[0] < 0.2
     assert polarization[-1] > 0.9
 
@@ -537,7 +537,7 @@ def test_coupling_separate_elements_to_each_other():
         mode='group',
     )
     system = System(elements=oscillators, interactions=[sine])
-    trajectory = Simulation(system, dt=0.01).prepare().run(until=1.0).trajectory_
+    trajectory = simulate(system, until=1.0, dt=0.01)
     found = [trajectory.values(f'o{index}.theta')[-1] for index in range(3)]
     expected = scipy.integrate.solve_ivp(
         lambda _, theta: np.sin(theta[None, :] - theta[:, None]).sum(axis=1),
@@ -563,7 +563,7 @@ def test_coupling_hub_by_largest_value_of_group():
         mode='group',
     )
     system = System(elements=[cells, CellElement('hub')], interactions=[drive])
-    trajectory = Simulation(system, dt=0.1).prepare().run(until=1.0).trajectory_
+    trajectory = simulate(system, until=1.0, dt=0.1)
     assert trajectory.values('hub.u')[-1] == pytest.approx(3.0)
 
 
@@ -580,7 +580,7 @@ def test_coupling_group_to_hub_element():
         mode='group',
     )
     system = System(elements=[cells, CellElement('hub', u=2.0)], interactions=[inhibition])
-    trajectory = Simulation(system, dt=0.1).prepare().run(until=1.0).trajectory_
+    trajectory = simulate(system, until=1.0, dt=0.1)
     np.testing.assert_allclose(trajectory.values('cells.u')[-1], [-2.0, -1.0])
 
 
@@ -618,7 +618,7 @@ def _velocities(locations, velocities, **arguments):
     coupling = CouplingInteraction('coupling', target='agents', write=('vx', 'vy'), form='agent', **arguments)
     space = ContinuousSpace(extent=(10.0, 10.0))
     system = System(elements=[agents], interactions=[coupling], space=space, time=DiscreteTime())
-    snapshot = Simulation(system, random_state=0).prepare().run(until=1).trajectory_.agents('agents', 1)
+    snapshot = simulate(system, until=1, random_state=0).agents('agents', 1)
     return np.stack([snapshot.values['vx'], snapshot.values['vy']], axis=1)
 
 

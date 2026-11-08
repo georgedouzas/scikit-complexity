@@ -15,8 +15,8 @@ from skcomplex.core.components.laws import JumpLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import count, maximum, mean, minimum, total, variance
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import RoleError, ValidationError
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
@@ -510,8 +510,8 @@ def test_observable_read_in_its_own_partition():
         interactions=[ReaderInteraction('reader', target='account', source='mean_wealth')],
     )
     observables = [ObservableSpec('mean_wealth', group='savers', variable='W')]
-    simulation = Simulation(system, dt=0.5, observables=observables).prepare().run(until=5)
-    problem, trajectory = simulation.problem_, simulation.trajectory_
+    simulation = simulate(system, until=5, dt=0.5, observables=observables)
+    problem, trajectory = simulation.problem, simulation
     assert not problem.partitions
     index = problem.states.entry('account.x').start
     for row, values in enumerate(trajectory.states):
@@ -554,7 +554,7 @@ def test_propensity_after_event(backend):
         np.testing.assert_allclose(rates, expected, atol=1e-12)
         if rates[channel] > 0:
             state = state + problem.stoichiometry[channel]
-    trajectory = Simulation(system, backend=backend()).prepare().run(until=2).trajectory_
+    trajectory = simulate(system, until=2, backend=backend())
     assert set(np.unique(trajectory.values('units.x'))) <= {0.0, 1.0}
 
 

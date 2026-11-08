@@ -21,7 +21,11 @@ from ...errors import ParameterError, SimulationError, ValidationError
 from ...specs import AgentStateSpec, EntrySpec, ObservableSpec, RunStateSpec, StepSpec, StructureStateSpec
 from ...types import Array, FormKind
 from ..backends import BaseBackend
-from ..compile import BaseCompiler, ObservableEvaluator, PassCompiler
+from ..compile import BaseCompiler
+from ..compile._observables import ObservableEvaluator
+from ..compile._pass_compiler import PassCompiler
+from ..compile._rewriting_compiler import RewritingCompiler
+from ..compile.passes._operator_compiler import OperatorCompiler
 from ..problems import BaseProblemSpec, FrameSpec, ProblemSpec
 from ..solvers import BaseSolver, CoSimulationSolver
 from ..solvers._defaults import DEFAULT_SOLVERS
@@ -59,9 +63,10 @@ class Simulation(BaseConfig[None, float]):
             that change only parameters or initial values.
 
         compiler:
-            The compiler of the system, whose backend, solver, and observables the simulation sets, or `None` for
-            `PassCompiler`. An operator system takes `OperatorCompiler()`, and a system package can bring the compiler
-            of a form of its own, which names the solver of its problems.
+            The compiler of the system, whose backend, solver, and observables the simulation sets, or `None` for the
+            compiler of the library's form that the system holds: the operator compiler for a system of operator
+            elements, the rewriting compiler for a system of words or patches, and the pass compiler otherwise. A
+            system package can bring the compiler of a form of its own, which names the solver of its problems.
 
         solver:
             The solver, or `None` for the solver the compiler names, or else the default solver of the system's form,
@@ -221,8 +226,7 @@ class Simulation(BaseConfig[None, float]):
         if not isinstance(self.system, System | BaseProblemSpec):
             error_msg = (
                 f'A simulation takes a system or a compiled problem, not {self.system!r}. Create a system of the '
-                'library with `skcomplex.systems.create_system`, or a simulation of it with '
-                '`skcomplex.systems.create_simulation`.'
+                'library from its class, such as `SIRSystem()`.'
             )
             raise ValidationError(error_msg)
         if not isinstance(self.system, BaseProblemSpec):
@@ -445,8 +449,32 @@ class Simulation(BaseConfig[None, float]):
 
     def _compiler(self) -> BaseCompiler:
         """Return a copy of the compiler with the backend, the solver, and the observables of the simulation."""
-        compiler = PassCompiler() if self.compiler is None else clone(self.compiler)
+        if self.compiler is not None:
+            compiler = clone(self.compiler)
+        elif isinstance(self.system, System):
+            compiler = self._default_compiler(self.system) or PassCompiler()
+        else:
+            compiler = PassCompiler()
         return compiler.set_params(backend=self.backend, solver=self.solver, observables=self.observables)
+
+    @staticmethod
+    def _default_compiler(system: System) -> BaseCompiler | None:
+        """Return the compiler of the library's form that a system holds, or `None` for the pass compiler.
+
+        Args:
+            system:
+                The system.
+
+        Returns:
+            compiler:
+                The operator compiler for a system of operator elements, the rewriting compiler for a system of words
+                or patches, or `None` for any other system.
+        """
+        if OperatorCompiler._contains_operator(system):
+            return OperatorCompiler()
+        if RewritingCompiler._is_rewriting(system):
+            return RewritingCompiler()
+        return None
 
     def _default_solver(self, form: FormKind | str) -> BaseSolver:
         """Return the default solver of a form, `CoSimulationSolver` for a problem that runs as partitions."""

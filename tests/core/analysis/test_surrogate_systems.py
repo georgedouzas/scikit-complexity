@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import mode_decomposition, reservoir, sparse_identification
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 
 
 def _fit(labels, dt=0.1):
@@ -43,7 +43,7 @@ def _damped_rotation():
 
 def _last_values(analysis, states, until, dt):
     """Return the last values of states of the surrogate of an analysis."""
-    trajectory = Simulation(analysis.system, dt=dt).prepare().run(until=until).trajectory_
+    trajectory = simulate(analysis.system, until=until, dt=dt)
     return [float(np.ravel(trajectory.values(f'surrogate.{state}'))[-1]) for state in states]
 
 

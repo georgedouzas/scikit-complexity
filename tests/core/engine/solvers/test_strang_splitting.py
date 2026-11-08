@@ -14,7 +14,7 @@ from skcomplex.core.components.interactions import AdvectionInteraction, Relaxat
 from skcomplex.core.components.laws.utils import coordinate, maximum_entropy
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver, RK4Solver, SemiLagrangianSolver, StrangSplittingSolver
 from skcomplex.core.errors import SolverError
 from skcomplex.core.specs import AxisSpec
@@ -39,7 +39,7 @@ def bgk_final(step: float) -> npt.NDArray[np.float64]:
     relax = RelaxationInteraction('r', target='gas', state='f', goal=equilibrium, time=0.5)
     solver = StrangSplittingSolver(SemiLagrangianSolver(dt=step), RK4Solver(dt=step), dt=step)
     system = System(elements=[gas], interactions=[stream, relax])
-    return Simulation(system, dt=1.0, solver=solver).prepare().run(until=1.0).trajectory_.values('gas.f')[-1]
+    return simulate(system, until=1.0, dt=1.0, solver=solver).values('gas.f')[-1]
 
 
 def test_splitting_is_second_order_in_the_time_step() -> None:
@@ -56,9 +56,8 @@ def test_prepare_rejects_a_problem_without_fluxes() -> None:
     space = PhaseSpace(LatticeSpace((2,)), [AxisSpec('v', 4, -1.0, 1.0)])
     gas = FieldElement('gas', element=DensityElement, space=space, values={'f': 1.0})
     relax = RelaxationInteraction('r', target='gas', state='f', goal=equilibrium, time=0.5)
-    simulation = Simulation(System(elements=[gas], interactions=[relax]), solver=StrangSplittingSolver(dt=0.1))
     with pytest.raises(SolverError, match='no flux'):
-        simulation.prepare().run(until=0.1)
+        simulate(System(elements=[gas], interactions=[relax]), until=0.1, solver=StrangSplittingSolver(dt=0.1))
 
 
 def test_prepare_rejects_an_inner_solver_that_lacks_its_part() -> None:
@@ -67,6 +66,5 @@ def test_prepare_rejects_an_inner_solver_that_lacks_its_part() -> None:
     gas = FieldElement('gas', element=DensityElement, space=space, values={'f': 1.0}, discretization='finite-volume')
     stream = AdvectionInteraction('s', target='gas', state='f', drift=lambda _: [coordinate('v'), 0])
     solver = StrangSplittingSolver(EulerMaruyamaSolver(dt=0.1), RK4Solver(dt=0.1), dt=0.1)
-    simulation = Simulation(System(elements=[gas], interactions=[stream]), solver=solver)
     with pytest.raises(SolverError):
-        simulation.prepare().run(until=0.1)
+        simulate(System(elements=[gas], interactions=[stream]), until=0.1, solver=solver)

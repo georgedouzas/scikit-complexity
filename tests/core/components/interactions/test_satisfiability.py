@@ -11,8 +11,8 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import SatisfiabilityInteraction
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import CardinalitySpec, ClauseSpec, StateSpec
 
@@ -80,7 +80,7 @@ def test_prepare_compiler_real_state() -> None:
 def test_run_small_perceptron_matches_enumeration() -> None:
     """Test that the verdict of every step equals enumerating all weights and that assignments satisfy the patterns."""
     system, patterns, outputs = _perceptron(3, 8, 0)
-    trajectory = Simulation(system, random_state=0).prepare().run(until=8).trajectory_
+    trajectory = simulate(system, until=8, random_state=0)
     verdicts = trajectory.values('decide.satisfiable')
     candidates = [np.asarray(item) for item in itertools.product([-1, 1], repeat=3)]
     for step in range(1, 9):
@@ -97,13 +97,8 @@ def test_run_capacity_of_binary_perceptron() -> None:
     loads = []
     for seed in range(20):
         system, _, _ = _perceptron(21, 40, seed)
-        verdicts = (
-            Simulation(system, random_state=seed)
-            .prepare()
-            .run(until=40)
-            .trajectory_.values(
-                'decide.satisfiable',
-            )
+        verdicts = simulate(system, until=40, random_state=seed).values(
+            'decide.satisfiable',
         )
         loads.append(int(np.argmax(verdicts[1:] == 0)) + 1)
     assert 0.7 <= np.mean(loads) / 21 <= 1.0

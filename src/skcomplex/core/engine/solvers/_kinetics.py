@@ -13,8 +13,9 @@ from ...components.spaces import ContinuousTime, LatticeSpace
 from ...errors import SolverError
 from ...specs import SupportSpec
 from ...types import Array, FormKind, Indices, IntArray, OrderKind
-from ..problems import KineticProblemSpec, ProblemSpec
+from ..problems import ProblemSpec
 from ..problems._encounter_kernel import EncounterKernel
+from ..problems._kinetic_problem_spec import KineticProblemSpec
 from ._solver import Solver
 
 

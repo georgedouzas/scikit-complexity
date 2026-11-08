@@ -10,7 +10,7 @@ from ...components.spaces import CayleySpace, ContinuousSpace, DiscreteTime, Lat
 from ...errors import SolverError
 from ...specs import PatchStructureSpec, RunStateSpec, StructureStateSpec, SupportSpec, WordStructureSpec
 from ...types import Array, FormKind, OrderKind
-from ..problems import RewritingProblemSpec
+from ..problems._rewriting_problem_spec import RewritingProblemSpec
 from ._base import BaseSolver
 
 
@@ -31,7 +31,7 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
         ...     def _get_laws(self, namespace):
         ...         return [ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]
         >>> system = System(elements=[AlgaeElement('algae', axiom='A')], time=DiscreteTime())
-        >>> from skcomplex.core.engine.compile import RewritingCompiler
+        >>> from skcomplex.core.engine.compile._rewriting_compiler import RewritingCompiler
         >>> compiler = RewritingCompiler()
         >>> simulation = Simulation(system, compiler=compiler, solver=RewritingSolver())
         >>> simulation = simulation.prepare()

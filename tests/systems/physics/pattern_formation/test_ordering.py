@@ -7,7 +7,7 @@ from skcomplex.core.analysis import spectrum
 from skcomplex.core.components.elements import FieldElement
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ETDRK4Solver, EulerMaruyamaSolver
 from skcomplex.systems.physics.pattern_formation import AllenCahnSystem, CahnHilliardSystem
 from skcomplex.systems.physics.pattern_formation._ordering import LandauEnergyInteraction, PhaseFieldElement
@@ -17,7 +17,7 @@ def test_phase_field_holds_its_order_parameter_without_interactions():
     """Test that a phase field without interactions keeps its order parameter."""
     values = {'phi': np.linspace(-1.0, 1.0, 8)}
     field = FieldElement('mixture', element=PhaseFieldElement, space=LatticeSpace((8,)), values=values)
-    trajectory = Simulation(System(elements=[field]), dt=0.5).prepare().run(until=1.0).trajectory_
+    trajectory = simulate(System(elements=[field]), until=1.0, dt=0.5)
     np.testing.assert_allclose(trajectory.values('mixture.phi')[-1], values['phi'])
 
 

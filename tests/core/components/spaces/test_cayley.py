@@ -13,7 +13,7 @@ from skcomplex.core.components.elements import Element, LatticeElement
 from skcomplex.core.components.laws import LocalRuleLaw
 from skcomplex.core.components.spaces import BoxNeighborhood, CayleySpace, MemoryNeighborhood
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import SpaceTooLargeError, ValidationError
 from skcomplex.core.specs import StateSpec, TableSpec, TotalisticSpec, VisualSpec
 
@@ -74,7 +74,7 @@ class CopyElement(Element):
 
 def _run(system, until):
     """Return the trajectory of a system."""
-    return Simulation(system, dt=1, random_state=0).prepare().run(until=until).trajectory_
+    return simulate(system, until=until, dt=1, random_state=0)
 
 
 def test_cayley_space_checks_its_group_and_ball():

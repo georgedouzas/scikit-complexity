@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.engine.problems import FrameSpec
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.chemistry.pattern_formation import BrusselatorSystem, GrayScottSystem, SchnakenbergSystem
@@ -47,7 +47,7 @@ def test_brusselator_and_heat_stay_bounded():
     values = simulate(BrusselatorSystem((32, 32)), until=20, dt=1).states[-1]
     assert np.all(np.isfinite(values))
     assert values.max() < 20
-    trajectory = Simulation(HeatDiffusionSystem((32, 32)).prepare().system_, dt=5).prepare().run(until=50).trajectory_
+    trajectory = simulate(HeatDiffusionSystem((32, 32)).prepare().system_, until=50, dt=5)
     assert trajectory.values('plate.u').sum(axis=1) == pytest.approx(
         np.full(len(trajectory.times), trajectory.values('plate.u')[0].sum()),
     )
@@ -56,11 +56,11 @@ def test_brusselator_and_heat_stay_bounded():
 def test_gray_scott_streams_images(tmp_path):
     """Test that both Gray-Scott fields are logged as images every frame."""
     composite = GrayScottSystem((32, 32)).prepare().system_
-    simulation = Simulation(composite, dt=20, solver=RK4Solver(dt=1.0)).prepare().run(until=40)
-    problem, recording = simulation.problem_, Images()
+    trajectory = simulate(composite, until=40, dt=20, solver=RK4Solver(dt=1.0))
+    problem, recording = trajectory.problem, Images()
     visual = RerunObserver().prepare(problem).visuals_[0].set_params(recording=recording).prepare(problem)
-    for step in range(len(simulation.trajectory_.times)):
-        visual.run(FrameSpec(step, 0.0, simulation.trajectory_.states[step], simulation.parameters_, problem))
+    for step in range(len(trajectory.times)):
+        visual.run(FrameSpec(step, 0.0, trajectory.states[step], trajectory.parameters[-1], problem))
     assert recording.images == [('cells/u', 'Image'), ('cells/v', 'Image')] * 3
     observer = RerunObserver('gray-scott', save_path=tmp_path / 'gray-scott.rrd')
     simulate(GrayScottSystem((32, 32)), until=40, observers=[observer])

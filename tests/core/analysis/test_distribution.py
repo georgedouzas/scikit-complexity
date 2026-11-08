@@ -4,9 +4,11 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import DistributionResult, distribution
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError, ValidationError
-from skcomplex.systems import create_simulation, create_system
+from skcomplex.systems.economics.finance import GeometricBrownianMotionSystem
+from skcomplex.systems.mathematics.stochastic_processes import PoissonProcessSystem
+from skcomplex.systems.physics.statistical_mechanics import IdealGasSystem, IsingSystem
 
 
 def _distribution(kind: str, source: object, **settings: object) -> DistributionResult:
@@ -85,19 +87,20 @@ def _bursty_expression(rng: np.random.Generator, samples: int) -> np.ndarray:
 
 def test_moment_ratio_of_any_sample():
     """Test the moment ratio of the magnetisation samples of an Ising system and of the returns of a market system."""
-    ordered = (
-        Simulation(create_system('ising', size=16, temperature=1.5, initial='up'), dt=1, random_state=0)
-        .prepare()
-        .run(until=300)
+    ordered = simulate(
+        IsingSystem(size=16, temperature=1.5, initial='up').prepare().system_,
+        until=300,
+        dt=1,
+        random_state=0,
     )
-    hot = Simulation(create_system('ising', size=16, temperature=20.0), dt=1, random_state=0).prepare().run(until=300)
+    hot = simulate(IsingSystem(size=16, temperature=20.0).prepare().system_, until=300, dt=1, random_state=0)
     magnetisations = np.column_stack(
-        [simulation.trajectory_.lattice('spins.spin')[50:].mean(axis=(1, 2)) for simulation in (ordered, hot)],
+        [trajectory.lattice('spins.spin')[50:].mean(axis=(1, 2)) for trajectory in (ordered, hot)],
     )
     ising = _distribution('moment-ratio', magnetisations)
     assert ising.cumulant[0] == pytest.approx(2 / 3, abs=0.02)
     assert abs(ising.cumulant[1]) < 0.15
-    market = create_simulation('geometric_brownian_motion').set_params(dt=0.01).prepare().run(until=100).trajectory_
+    market = simulate(GeometricBrownianMotionSystem(), until=100, random_state=0, dt=0.01)
     returns = np.diff(np.log(market.values('asset.price')))
     prices = _distribution('moment-ratio', returns)
     assert prices.ratio[0] == pytest.approx(3, rel=0.1)
@@ -115,7 +118,7 @@ def test_moments_of_absolute_samples_and_of_agent_speeds():
     gaussian = _distribution('moments', np.random.default_rng(0).standard_normal(100_000))
     assert gaussian.skewness[0] == pytest.approx(0, abs=0.03)
     assert gaussian.kurtosis[0] == pytest.approx(0, abs=0.05)
-    trajectory = create_simulation('ideal_gas', n_dim=3, random_state=0).prepare().run(until=1.0).trajectory_
+    trajectory = simulate(IdealGasSystem(n_dim=3, random_state=0), until=1.0, random_state=0)
     speeds = _distribution('moments', trajectory)
     velocities = np.asarray(trajectory.values('gas.x_d1'), dtype=float)
     assert speeds.mean.shape == (len(trajectory.times),)
@@ -125,7 +128,7 @@ def test_moments_of_absolute_samples_and_of_agent_speeds():
 
 def test_dispersion_index_of_poisson_and_bursty_production():
     """Test that Gillespie production counts give a dispersion index near 1 and bursty mRNA copies near 5."""
-    trajectory = create_simulation('poisson_process', n_processes=1).prepare().run(until=50_000.0).trajectory_
+    trajectory = simulate(PoissonProcessSystem(n_processes=1), until=50_000.0, random_state=0)
     counts = np.diff(trajectory.values('counters.count')[:, 0][::10])
     assert _distribution('dispersion-index', counts).index[0] == pytest.approx(1, abs=0.05)
     bursty = _bursty_expression(np.random.default_rng(0), 20_000)

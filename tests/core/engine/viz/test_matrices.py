@@ -5,8 +5,8 @@ import pytest
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import RecorderObserver, Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import RecorderObserver, simulate
 from skcomplex.core.engine.viz import MatrixVisual, RerunObserver
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.computer_science.neural_networks import ElmanNetworkSystem
@@ -28,12 +28,12 @@ def test_matrix_visual_logs_the_recurrent_weights(tmp_path):
     """Test that the recurrent weights are a 4 by 4 image at every frame whose values change while training."""
     recorder = RecorderObserver()
     observer = RerunObserver('test', save_path=tmp_path / 'run.rrd')
-    simulation = Simulation(
+    trajectory = simulate(
         ElmanNetworkSystem(n_bits=30).prepare().system_,
+        until=3,
         observers=[observer, recorder],
         random_state=0,
     )
-    trajectory = simulation.prepare().run(until=3).trajectory_
     visual = next(item for item in observer.visuals_ if isinstance(item, MatrixVisual) and item.variable == 'A')
     assert (visual.name_, visual.shape_) == ('net/recurrence.A', (4, 4))
     values = trajectory.values('net/recurrence.A')

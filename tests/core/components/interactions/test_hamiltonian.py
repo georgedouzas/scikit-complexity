@@ -11,8 +11,8 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import HamiltonianInteraction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import RoleSpec, StateSpec
@@ -122,8 +122,7 @@ def test_run_sums_the_hamiltonians_of_a_coupling():
         elements=[OscillatorElement('left', q=1.0), OscillatorElement('right', q=1.0)],
         interactions=[*free, CouplingInteraction('spring', first='left', second='right')],
     )
-    simulation = Simulation(system, solver=ScipyODESolver(rtol=1e-10, atol=1e-12), dt=1.0).prepare()
-    trajectory = simulation.run(until=1.0).trajectory_
+    trajectory = simulate(system, until=1.0, solver=ScipyODESolver(rtol=1e-10, atol=1e-12), dt=1.0)
     np.testing.assert_allclose(trajectory.values('left.q')[-1], np.cos(1.0), atol=1e-7)
     np.testing.assert_allclose(trajectory.values('left.p')[-1], -np.sin(1.0), atol=1e-7)
 
@@ -132,7 +131,7 @@ def test_run_wraps_an_angle_coordinate():
     """Test that an angle coordinate of a rotor wraps around its period."""
     rotor = HamiltonianInteraction('rotor', target='wheel', hamiltonian=lambda s: s.target.p**2 / 2 - cos(s.target.q))
     system = System(elements=[RotorElement('wheel')], interactions=[rotor])
-    trajectory = Simulation(system, dt=0.01).prepare().run(until=20.0).trajectory_
+    trajectory = simulate(system, until=20.0, dt=0.01)
     values = trajectory.values('wheel.q')
     assert np.abs(values).max() <= np.pi
     assert np.abs(np.diff(values)).max() > np.pi

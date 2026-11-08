@@ -45,12 +45,15 @@ from ....specs import (
 )
 from ....types import Array, Indices
 from ..._utils import symbol
-from ...problems import DeclarationsSpec, ExpressionPrinter, KernelSpec, SourceLoader
 from ...problems._cascade_kernel import CascadeKernel
+from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._drive_kernel import DriveKernel
+from ...problems._expression_printer import ExpressionPrinter
 from ...problems._extremal_kernel import ExtremalKernel
+from ...problems._kernel_spec import KernelSpec
 from ...problems._monte_carlo_kernel import MonteCarloKernel
 from ...problems._rule_kernel import RuleKernel
+from ...problems._source_loader import SourceLoader
 from ...types import ReadKind
 from .._base import BaseCompiler, BasePass
 from .._compilation import Compilation

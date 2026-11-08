@@ -4,7 +4,7 @@ import numpy as np
 import scipy.fft
 
 from skcomplex.core.engine.backends import NumpyBackend
-from skcomplex.core.engine.compile import PassCompiler
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.physics.oceanography import DoubleGyreSystem
 

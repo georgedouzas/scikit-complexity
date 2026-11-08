@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.economics.macroeconomics import (
     EconomyElement,
     MultiplierAcceleratorSystem,
@@ -27,5 +27,5 @@ def test_solow_reaches_steady_state():
         elements=[EconomyElement('country', k=1.0)],
         interactions=[SolowGrowthInteraction('solow', target='country', s=s, alpha=alpha, delta=delta)],
     )
-    capital = Simulation(system, dt=10.0).prepare().run(until=300).trajectory_.values('country.k')[-1]
+    capital = simulate(system, until=300, dt=10.0).values('country.k')[-1]
     assert capital == pytest.approx((s / delta) ** (1 / (1 - alpha)), rel=1e-3)

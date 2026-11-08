@@ -14,7 +14,8 @@ from ....errors import BackendError, LabelError, ValidationError
 from ....specs import VisualSpec
 from ....types import VariableKind
 from ..._utils import declarations_of
-from ...problems import BlockSpec, KernelSpec
+from ...problems._block_spec import BlockSpec
+from ...problems._kernel_spec import KernelSpec
 from .._base import BasePass
 from .._compilation import Compilation
 from ._layout import LayoutPass

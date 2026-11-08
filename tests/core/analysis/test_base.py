@@ -26,13 +26,36 @@ from skcomplex.core.analysis._discovery import ANALYSES
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import JumpLaw
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError, TagError
 from skcomplex.core.specs import AnalysisTags, ParameterSpec, StateSpec, VisualSpec
-from skcomplex.systems import create_simulation
-from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+from skcomplex.systems.biology.ecology import (
+    GeneralizedLotkaVolterraSystem,
+    LogisticGrowthSystem,
+    LotkaVolterraSystem,
+    SequentiallyLinearEcosystemSystem,
+)
+from skcomplex.systems.biology.evolution import HypercyclesSystem, JainKrishnaSystem, ReplicatorDynamicsSystem
+from skcomplex.systems.biology.physiology import ClosedContourCellExchangeSystem
 from skcomplex.systems.chemistry.pattern_formation import BrusselatorSystem
-from skcomplex.systems.mathematics.stochastic_processes import WeakeningOrnsteinUhlenbeckSystem
+from skcomplex.systems.engineering.robotics import LightSeekingRobotsSystem
+from skcomplex.systems.engineering.traffic import OptimalVelocitySystem
+from skcomplex.systems.mathematics.dynamical_systems import DoublingMapSystem, SkewTentMapSystem
+from skcomplex.systems.mathematics.networks import NetworkDiffusionSystem
+from skcomplex.systems.mathematics.stochastic_processes import (
+    OnOffIntermittencySystem,
+    PoissonProcessSystem,
+    RandomWalkWithMemorySystem,
+    WeakeningOrnsteinUhlenbeckSystem,
+)
+from skcomplex.systems.physics.active_matter import RunAndTumbleSystem
+from skcomplex.systems.physics.statistical_mechanics import IdealGasSystem, IsingSystem
+from skcomplex.systems.physics.synchronization import (
+    MirolloStrogatzSystem,
+    NonlocalRingChimeraSystem,
+    SwarmalatorsSystem,
+)
+from skcomplex.systems.social.opinion_dynamics import CoevolvingVoterSystem
 
 
 class BirthDeathElement(Element):
@@ -59,7 +82,7 @@ class BirthDeathElement(Element):
 
 def test_analysis_reads_a_trajectory():
     """Test that the series of a trajectory are read by name."""
-    trajectory = create_simulation('lotka_volterra').prepare().run(until=1.0).trajectory_
+    trajectory = simulate(LotkaVolterraSystem(), until=1.0, random_state=0)
     series = _read_series(trajectory, ['prey.n'])
     assert series.labels == ['prey.n']
     assert series.values.mean(axis=0).tolist() == pytest.approx([trajectory.values('prey.n').mean()])
@@ -79,14 +102,14 @@ def test_analysis_reads_a_graph():
 
 def test_missing_data_kind_names_the_kinds():
     """Test that reading agents from an ODE trajectory names the data kinds it has."""
-    trajectory = create_simulation('lotka_volterra').prepare().run(until=1.0).trajectory_
+    trajectory = simulate(LotkaVolterraSystem(), until=1.0, random_state=0)
     with pytest.raises(AnalysisError, match=r'no agent group.*Its data kinds are: series'):
         _read_snapshots(trajectory)
 
 
 def test_series_of_an_ode():
     """Test that the series of the prey and predators equal the trajectory's columns."""
-    trajectory = create_simulation('lotka_volterra').prepare().run(until=5.0).trajectory_
+    trajectory = simulate(LotkaVolterraSystem(), until=5.0, random_state=0)
     series = _read_series(trajectory, ['prey.n', 'predators.n'])
     assert series.values.shape == (len(trajectory.times), 2)
     np.testing.assert_array_equal(series.values[:, 0], trajectory.values('prey.n'))
@@ -96,14 +119,14 @@ def test_series_of_an_ode():
 
 def test_series_labels_of_every_scalar_series():
     """Test that the series of a trajectory default to its scalar series, labelled by name."""
-    trajectory = create_simulation('lotka_volterra').prepare().run(until=1.0).trajectory_
+    trajectory = simulate(LotkaVolterraSystem(), until=1.0, random_state=0)
     assert _read_series(trajectory).labels == ['prey.n', 'predators.n']
 
 
 def test_jump_path_of_a_gillespie_run():
     """Test that the jump path of a birth-death run keeps only the frames where the state changed."""
     system = System(elements=[BirthDeathElement('cells')])
-    trajectory = Simulation(system, dt=0.01, random_state=0).prepare().run(until=20).trajectory_
+    trajectory = simulate(system, until=20, dt=0.01, random_state=0)
     path = _read_path(trajectory)
     assert path.label == 'cells.n'
     assert np.all(np.diff(path.states) != 0)
@@ -122,7 +145,7 @@ def test_jump_path_of_an_array_of_states():
 
 def test_fields_of_a_lattice():
     """Test that the frames of a 64 by 64 Ising run of 100 frames have the lattice shape."""
-    trajectory = create_simulation('ising', size=64).prepare().run(until=99).trajectory_
+    trajectory = simulate(IsingSystem(size=64), until=99, random_state=0)
     frames = _read_fields(trajectory, 'spins.spin')
     assert frames.shape == (100, 64, 64)
     np.testing.assert_array_equal(frames, trajectory.lattice('spins.spin'))
@@ -130,7 +153,7 @@ def test_fields_of_a_lattice():
 
 def test_snapshots_unwrap_agent_positions():
     """Test that walkers in a periodic square of side 10 are unwrapped so no step exceeds half the side."""
-    trajectory = create_simulation('run_and_tumble', n_agents=50, speed=1.0).prepare().run(until=200).trajectory_
+    trajectory = simulate(RunAndTumbleSystem(n_agents=50, speed=1.0), until=200, random_state=0)
     snapshots = _read_snapshots(trajectory)
     steps = np.linalg.norm(np.diff(snapshots.positions, axis=0), axis=-1)
     assert snapshots.periodic
@@ -141,7 +164,7 @@ def test_snapshots_unwrap_agent_positions():
 
 def test_snapshots_of_particle_groups():
     """Test that a particle group gives its positions and velocities in its periodic box."""
-    trajectory = create_simulation('ideal_gas').prepare().run(until=0.2).trajectory_
+    trajectory = simulate(IdealGasSystem(), until=0.2, random_state=0)
     snapshots = _read_snapshots(trajectory)
     assert snapshots.positions.shape == snapshots.velocities.shape
     assert snapshots.positions.shape[0] == len(trajectory.times)
@@ -149,7 +172,7 @@ def test_snapshots_of_particle_groups():
 
 def test_snapshots_of_scalar_positions():
     """Test that a scalar position and a velocity role give one dimension per frame and member."""
-    trajectory = create_simulation('optimal_velocity').prepare().run(until=0.5).trajectory_
+    trajectory = simulate(OptimalVelocitySystem(), until=0.5, random_state=0)
     snapshots = _read_snapshots(trajectory)
     assert snapshots.positions.ndim == 3
     assert snapshots.positions.shape == snapshots.velocities.shape
@@ -158,7 +181,7 @@ def test_snapshots_of_scalar_positions():
 
 def test_snapshots_stack_position_components():
     """Test that scalar states of the role position stack into dimensions, with a state of the role direction."""
-    trajectory = create_simulation('light_seeking_robots').prepare().run(until=0.5).trajectory_
+    trajectory = simulate(LightSeekingRobotsSystem(), until=0.5, random_state=0)
     snapshots = _read_snapshots(trajectory)
     assert snapshots.positions.shape[-1] == 2
     assert snapshots.directions is not None
@@ -167,7 +190,7 @@ def test_snapshots_stack_position_components():
 
 def test_snapshots_refuse_a_group_without_a_position_role():
     """Test that a group with a state named `x` and no position role gives no snapshots."""
-    trajectory = create_simulation('replicator_dynamics').prepare().run(until=0.5).trajectory_
+    trajectory = simulate(ReplicatorDynamicsSystem(), until=0.5, random_state=0)
     with pytest.raises(AnalysisError, match='agent group'):
         _read_snapshots(trajectory)
 
@@ -175,19 +198,19 @@ def test_snapshots_refuse_a_group_without_a_position_role():
 @pytest.mark.parametrize(
     ('system', 'state'),
     [
-        ('generalized_lotka_volterra', 'species.x'),
-        ('hypercycles', 'soup.x'),
-        ('replicator_dynamics', 'population.x'),
-        ('closed_contour_cell_exchange', 'cells.x'),
-        ('doubling_map', 'points.x'),
-        ('skew_tent_map', 'points.x'),
-        ('on_off_intermittency', 'variables.x'),
-        ('mirollo_strogatz', 'oscillators.x'),
+        (GeneralizedLotkaVolterraSystem, 'species.x'),
+        (HypercyclesSystem, 'soup.x'),
+        (ReplicatorDynamicsSystem, 'population.x'),
+        (ClosedContourCellExchangeSystem, 'cells.x'),
+        (DoublingMapSystem, 'points.x'),
+        (SkewTentMapSystem, 'points.x'),
+        (OnOffIntermittencySystem, 'variables.x'),
+        (MirolloStrogatzSystem, 'oscillators.x'),
     ],
 )
 def test_series_of_group_states(system, state):
     """Test that the scalar states of a group without positions are series, one column per member."""
-    trajectory = create_simulation(system).prepare().run(until=1.0).trajectory_
+    trajectory = simulate(system(), until=1.0, random_state=0)
     series = _read_series(trajectory)
     np.testing.assert_array_equal(series.values, trajectory.values(state))
     assert series.labels[0] == f'{state}[0]'
@@ -195,19 +218,19 @@ def test_series_of_group_states(system, state):
 
 def test_series_leave_out_particles_and_jump_paths():
     """Test that a group of particles or of jump paths has no series, while a single jump state keeps one."""
-    particles = create_simulation('random_walk_with_memory', n_walkers=5).prepare().run(until=1.0).trajectory_
-    paths = create_simulation('poisson_process', n_processes=2).prepare().run(until=1.0).trajectory_
+    particles = simulate(RandomWalkWithMemorySystem(n_walkers=5), until=1.0, random_state=0)
+    paths = simulate(PoissonProcessSystem(n_processes=2), until=1.0, random_state=0)
     for trajectory in (particles, paths):
         with pytest.raises(AnalysisError, match='no scalar series'):
             _read_series(trajectory)
-    single = Simulation(System(elements=[BirthDeathElement('a')])).prepare().run(until=1.0).trajectory_
+    single = simulate(System(elements=[BirthDeathElement('a')]), until=1.0)
     assert _read_series(single).labels == ['a.n']
 
 
-@pytest.mark.parametrize('system', ['jain_krishna', 'sequentially_linear_ecosystem'])
+@pytest.mark.parametrize('system', [JainKrishnaSystem, SequentiallyLinearEcosystemSystem])
 def test_series_leave_out_variable_groups(system):
     """Test that a variable group has no default series, its rows holding no one member, but can be read by name."""
-    trajectory = create_simulation(system).prepare().run(until=5.0).trajectory_
+    trajectory = simulate(system(), until=5.0, random_state=0)
     with pytest.raises(AnalysisError, match='no scalar series'):
         _read_series(trajectory)
     series = _read_series(trajectory, ['species.x'])
@@ -216,7 +239,7 @@ def test_series_leave_out_variable_groups(system):
 
 def test_sites_are_read_as_series_and_not_as_particles():
     """Test that oscillators on fixed sites give no particle snapshots, and their sites are no series."""
-    trajectory = create_simulation('nonlocal_ring_chimera', n_oscillators=20, R=3).prepare().run(until=0.5).trajectory_
+    trajectory = simulate(NonlocalRingChimeraSystem(n_oscillators=20, R=3), until=0.5, random_state=0)
     assert trajectory.problem.elements[0].roles == {'x': 'site', 'theta': 'phase'}
     with pytest.raises(AnalysisError, match='no agent group'):
         _read_snapshots(trajectory)
@@ -224,7 +247,7 @@ def test_sites_are_read_as_series_and_not_as_particles():
 
 def test_snapshots_of_phases():
     """Test that a state with the role phase gives the phases of the snapshots, not a direction or another state."""
-    trajectory = create_simulation('swarmalators').prepare().run(until=0.5).trajectory_
+    trajectory = simulate(SwarmalatorsSystem(), until=0.5, random_state=0)
     snapshots = _read_snapshots(trajectory)
     np.testing.assert_array_equal(snapshots.phases, trajectory.values('units.theta'))
     assert snapshots.directions is None
@@ -233,7 +256,7 @@ def test_snapshots_of_phases():
 
 def test_networks_of_a_network_space():
     """Test that a field on a network gives its graph at every frame."""
-    trajectory = create_simulation('network_diffusion').prepare().run(until=0.5).trajectory_
+    trajectory = simulate(NetworkDiffusionSystem(), until=0.5, random_state=0)
     graphs = _read_networks(trajectory)
     assert len(graphs) == len(trajectory.times)
     assert nx.is_isomorphic(graphs[0], nx.karate_club_graph())
@@ -241,7 +264,7 @@ def test_networks_of_a_network_space():
 
 def test_networks_of_a_changing_network_snapshot():
     """Test that a snapshot of a network whose topology changes is read as its graph."""
-    trajectory = create_simulation('coevolving_voter').prepare().run(until=2.0).trajectory_
+    trajectory = simulate(CoevolvingVoterSystem(), until=2.0, random_state=0)
     snapshot = trajectory.network(-1)
     graph = _read_networks(snapshot)[0]
     assert sorted(graph.nodes()) == snapshot.nodes.tolist()

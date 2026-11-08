@@ -15,8 +15,8 @@ from skcomplex.core.components.laws.utils import count, maximum, mean, total
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import RoleSpec, StateSpec, VisualSpec
 
@@ -187,8 +187,8 @@ def test_hyperedge_group_takes_an_update_once_per_hyperedge():
         interactions=[RecordInteraction('record', nodes='nodes', links='groups', size=3)],
         time=DiscreteTime(),
     )
-    simulation = Simulation(system, dt=1).prepare().run(1)
-    activities = simulation.trajectory_.values('groups.a')[-1]
+    trajectory = simulate(system, until=1, dt=1)
+    activities = trajectory.values('groups.a')[-1]
     expected = [values[list(item)].max() + values[list(item)].mean() if len(item) == 3 else -1.0 for item in HYPEREDGES]
     assert np.allclose(activities, expected, atol=1e-12)
 
@@ -206,8 +206,8 @@ def test_edge_group_takes_the_update_of_the_regulating_member():
         interactions=[RecordInteraction('record', nodes='nodes', links='links', part='edge')],
         time=DiscreteTime(),
     )
-    simulation = Simulation(system, dt=1).prepare().run(1)
-    assert simulation.trajectory_.values('links.a')[-1].tolist() == [3.0, -1.0, 0.0]
+    trajectory = simulate(system, until=1, dt=1)
+    assert trajectory.values('links.a')[-1].tolist() == [3.0, -1.0, 0.0]
 
 
 def test_edge_group_of_a_hyperedge_without_an_edge_is_reported():
@@ -272,4 +272,4 @@ def test_hyperedge_update_of_the_focal_member_of_a_growing_network_is_reported()
     system = _growing(SetInteraction('set', nodes='nodes'))
     system.time = DiscreteTime()
     with pytest.raises(ValidationError, match='change during a run'):
-        Simulation(system).prepare()
+        simulate(system, until=0)

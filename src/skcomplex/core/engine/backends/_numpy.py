@@ -44,8 +44,9 @@ from ...components.spaces import (
 from ...errors import ValidationError
 from ...specs import LoweredFunctionsSpec, SupportSpec
 from ...types import FormKind, NoiseKind, OrderKind, VectorFunction
-from ..problems import LoweredKernelsSpec, ReductionScheduleSpec
 from ..problems._law_kernel import LawKernel
+from ..problems._lowered_kernels_spec import LoweredKernelsSpec
+from ..problems._reduction_schedule_spec import ReductionScheduleSpec
 from ._base import BaseBackend
 
 
@@ -53,7 +54,7 @@ class NumpyBackend(BaseBackend):
     """Reference backend that evaluates every kernel with NumPy array operations.
 
     Examples:
-        >>> from skcomplex.core.engine.compile import PassCompiler
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
         >>> from skcomplex.core.engine.backends import NumpyBackend
         >>> from skcomplex.core.components.system import System
         >>> from skcomplex.systems.biology.common.populations import PopulationElement

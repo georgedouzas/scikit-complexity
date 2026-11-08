@@ -30,20 +30,18 @@ from ...specs import EntrySpec
 from ...specs._compiled_flow_spec import _CompiledFlowSpec
 from ...types import Array, VariableKind
 from .._utils import declarations_of, symbol, symbols_of
-from ..problems import (
-    BlockSpec,
-    DeclarationsSpec,
-    KernelSpec,
-    LoopTermSpec,
-    ReferenceSpec,
-    TransferNetworkSpec,
-    TransferStateSpec,
-)
+from ..problems._block_spec import BlockSpec
 from ..problems._born_spec import _BornSpec
 from ..problems._compiled_delay_spec import _CompiledDelaySpec
+from ..problems._declarations_spec import DeclarationsSpec
 from ..problems._flow_term_spec import _FlowTermSpec
+from ..problems._kernel_spec import KernelSpec
+from ..problems._loop_term_spec import LoopTermSpec
 from ..problems._record_spec import _RecordSpec
 from ..problems._recorded_spec import _RecordedSpec
+from ..problems._reference_spec import ReferenceSpec
+from ..problems._transfer_network_spec import TransferNetworkSpec
+from ..problems._transfer_state_spec import TransferStateSpec
 from ..types import ReadKind
 from ._base import BaseLowering, BasePass
 from ._compilation import Compilation

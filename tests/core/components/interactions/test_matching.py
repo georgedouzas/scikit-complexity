@@ -8,7 +8,7 @@ from skcomplex.core.components.interactions import MatchingInteraction
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import (
     BatchMatchingSpec,
@@ -77,15 +77,15 @@ def _auction(size, rng):
 def test_match_settles_transfers_and_realises_the_surplus():
     """Test that random quotes within budgets realise most of the surplus and the transfers conserve the money."""
     values, costs, system = _auction(50, np.random.default_rng(1))
-    simulation = Simulation(system, random_state=0).prepare().run(until=30)
-    requesters = simulation.trajectory_.agents('buyers', 30).values
-    providers = simulation.trajectory_.agents('sellers', 30).values
+    trajectory = simulate(system, until=30, random_state=0)
+    requesters = trajectory.agents('buyers', 30).values
+    providers = trajectory.agents('sellers', 30).values
     bought, sold = requesters['goods'] > 0, providers['goods'] < 0
     realised = requesters['value'][bought].sum() - providers['value'][sold].sum()
     maximum = np.sum(np.maximum(np.sort(values)[::-1] - np.sort(costs), 0))
     assert realised > 0.9 * maximum
     assert requesters['money'].sum() + providers['money'].sum() == pytest.approx(values.sum())
-    assert np.nansum(simulation.trajectory_.values('auction.volume')) == bought.sum()
+    assert np.nansum(trajectory.values('auction.volume')) == bought.sum()
     assert np.all(requesters['quantity'][bought] == 0.0)
 
 
@@ -106,7 +106,7 @@ def test_match_reads_the_states_named_by_a_pair():
             ),
         ],
     )
-    trajectory = Simulation(system, random_state=0).prepare().run(until=1).trajectory_
+    trajectory = simulate(system, until=1, random_state=0)
     assert trajectory.values('matching.value')[-1] == 7.0
     assert trajectory.values('matching.unmatched')[-1] == 0.0
 
@@ -311,7 +311,7 @@ def test_match_partners_considers_local_cells_and_distances_only():
         )
         space = LatticeSpace((5, 5), neighborhood='moore', boundary='fixed')
         system = System(elements=[requesters, providers], interactions=[matching], space=space)
-        trajectory = Simulation(system, random_state=0).prepare().run(until=1).trajectory_
+        trajectory = simulate(system, until=1, random_state=0)
         assert trajectory.values('matching.volume')[-1] == pytest.approx(expected)
 
 
@@ -356,7 +356,7 @@ def test_match_rejects_a_misspelled_state_instead_of_defaulting_it():
     _, _, system = _auction(5, np.random.default_rng(1))
     system.interactions[0].set_params(allowance='mony')
     with pytest.raises(ValidationError, match="no state 'mony'"):
-        Simulation(system, random_state=0).prepare().run(until=1)
+        simulate(system, until=1, random_state=0)
 
 
 def test_match_partner_spec_settles_the_pairs_at_the_midpoint(clear):

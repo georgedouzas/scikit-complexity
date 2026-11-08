@@ -14,7 +14,8 @@ from ....components.laws.utils import where
 from ....errors import ValidationError
 from ....specs import EntrySpec
 from ..._utils import components_of, symbol, vector
-from ...problems import KernelSpec, ReferenceSpec
+from ...problems._kernel_spec import KernelSpec
+from ...problems._reference_spec import ReferenceSpec
 from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import Compilation

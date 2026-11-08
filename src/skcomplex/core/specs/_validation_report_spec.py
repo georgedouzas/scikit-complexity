@@ -23,7 +23,7 @@ class ValidationReportSpec(BaseSpec):
             The issues, in the order they were found.
 
     Examples:
-        >>> from skcomplex.core.engine.compile import PassCompiler
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
         >>> from skcomplex.core.components.system import System
         >>> PassCompiler().prepare(System()).report_.ok
         True

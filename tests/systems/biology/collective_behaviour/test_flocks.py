@@ -8,7 +8,7 @@ import pytest
 from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.collective_behaviour import (
     BirdSwarmSystem,
     BoidElement,
@@ -24,10 +24,10 @@ from skcomplex.systems.biology.collective_behaviour import (
 
 def test_boids_align():
     """Test that boids starting with random headings become a polarized flock."""
-    simulation = Simulation(BoidsSystem().prepare().system_, dt=1, random_state=0).prepare().run(until=100)
+    trajectory = simulate(BoidsSystem().prepare().system_, until=100, dt=1, random_state=0)
 
     def polarization(frame):
-        snapshot = simulation.trajectory_.agents('flock', frame)
+        snapshot = trajectory.agents('flock', frame)
         velocity = np.stack([snapshot.values['vx'], snapshot.values['vy']], axis=1)
         return np.hypot(*(velocity / np.hypot(velocity[:, :1], velocity[:, 1:])).mean(axis=0))
 
@@ -64,8 +64,8 @@ def _velocities(values, locations, interactions, until=1):
     """Return the group of boids at the last frame of a run in a periodic cube of side 10."""
     flock = GroupElement('flock', element=SpatialBoidElement, size=len(locations), values=values, location=locations)
     space = ContinuousSpace(extent=(10.0, 10.0, 10.0), boundary='periodic')
-    simulation = Simulation(System(elements=[flock], interactions=interactions, space=space), random_state=0)
-    return simulation.prepare().run(until=until).trajectory_.agents('flock', until)
+    trajectory = simulate(System(elements=[flock], interactions=interactions, space=space), until=until, random_state=0)
+    return trajectory.agents('flock', until)
 
 
 def test_spatial_flight_moves_boids_by_velocity_across_the_depth_boundary():

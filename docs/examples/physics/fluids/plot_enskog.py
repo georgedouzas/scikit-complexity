@@ -18,7 +18,7 @@ as a sound wave.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver, SemiLagrangianSolver, StrangSplittingSolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.specs import ObservableSpec
@@ -53,9 +53,9 @@ trajectory = simulate(system, until=5.5, solver=solver, observers=[observer], ob
 
 def relative_wave(gas):
     """Return the times and the density wave of a gas, relative to its start."""
-    run = Simulation(gas, solver=solver, dt=0.1, observables=observables).prepare().run(until=5.5)
-    wave = run.trajectory_.values('density_wave')
-    return run.trajectory_.times, wave / wave[0]
+    run = simulate(gas, until=5.5, solver=solver, dt=0.1, observables=observables)
+    wave = run.values('density_wave')
+    return run.times, wave / wave[0]
 
 
 fig, axis = plt.subplots(figsize=(7, 4))

@@ -18,8 +18,8 @@ from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import NetworkSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.errors import LabelError, RoleError
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec, WienerProcessSpec
@@ -192,7 +192,7 @@ def test_group_of_members_grows_like_one_member():
         elements=[GroupElement('herd', element=StockElement, size=100, values={'n': np.linspace(1, 2, 100)})],
         interactions=[GrowthInteraction('g', target='herd')],
     )
-    trajectory = Simulation(system, dt=1).prepare().run(until=1).trajectory_
+    trajectory = simulate(system, until=1, dt=1)
     assert trajectory.values('herd.n').shape == (2, 100)
     assert np.allclose(trajectory.values('herd.n')[-1], np.linspace(1, 2, 100) * np.exp(0.5), rtol=1e-3)
 
@@ -243,13 +243,13 @@ def test_interaction_reading_groups_of_different_sizes_raises_error():
 def test_correlated_noise():
     """Test that two noise laws drawing the processes of a set bound to a role have the increments `h C`."""
     covariance = [[1.0, 0.6], [0.6, 2.0]]
-    simulation = Simulation(
+    trajectory = simulate(
         _correlated(covariance),
+        until=5_000,
         solver=EulerMaruyamaSolver(dt=0.5),
         random_state=0,
         dt=0.5,
-    ).prepare()
-    trajectory = simulation.run(until=5_000).trajectory_
+    )
     increments = np.diff(np.stack([trajectory.values('a.n'), trajectory.values('b.n')]), axis=1)
     np.testing.assert_allclose(np.cov(increments), 0.5 * np.asarray(covariance), atol=0.05)
     assert not issubclass(WienerProcessSpec, BaseElement)
@@ -258,9 +258,7 @@ def test_correlated_noise():
 def test_interactions_share_processes_of_one_label():
     """Test that two interactions that bind processes of one label draw the same increments."""
     market = WienerProcessSpec('market')
-    trajectory = (
-        Simulation(_shocked(market, WienerProcessSpec('market')), random_state=0).prepare().run(until=1).trajectory_
-    )
+    trajectory = simulate(_shocked(market, WienerProcessSpec('market')), until=1, random_state=0)
     np.testing.assert_array_equal(trajectory.values('a.n'), trajectory.values('b.n'))
     assert PassCompiler().prepare(_shocked(market, market)).run().problem_.n_processes == 1
 

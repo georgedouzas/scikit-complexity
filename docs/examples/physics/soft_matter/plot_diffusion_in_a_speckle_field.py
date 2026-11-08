@@ -18,7 +18,7 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.soft_matter import DiffusionInASpeckleFieldSystem
@@ -53,14 +53,15 @@ trajectory = simulate(system, solver=solver, dt=0.25, observers=[observer], rand
 
 fig, ax = plt.subplots(figsize=(7, 4))
 for strength in (0.0, 30.0, 100.0):
-    run = Simulation(
+    run = simulate(
         DiffusionInASpeckleFieldSystem(n_particles=300, strength=strength).prepare().system_,
+        until=70,
         solver=solver,
         dt=0.25,
         random_state=1,
-    ).prepare()
-    positions = run.run(until=70).trajectory_.values('beads.x')[40:]
-    times = run.trajectory_.times[41:] - 10
+    )
+    positions = run.values('beads.x')[40:]
+    times = run.times[41:] - 10
     squared = np.mean(np.sum((positions[1:] - positions[0]) ** 2, axis=-1), axis=1)
     ax.loglog(times, squared, label=f'strength {strength:.0f}')
 ax.loglog(times, 4 * times, '--', color='black', label='free diffusion, 4 D t')

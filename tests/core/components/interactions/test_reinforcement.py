@@ -9,7 +9,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import ChoiceInteraction, ReinforcementInteraction
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation, Trajectory
+from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.engine.solvers import AgentView, SystemView
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import StateSpec, VisualSpec
@@ -67,7 +67,7 @@ def _run(interactions: list, values: dict, size: int, until: int) -> Trajectory:
     """Return the trajectory of a group of learners bound to interactions."""
     group = GroupElement('learners', element=LearnerElement, size=size, values=values)
     system = System(elements=[group], interactions=interactions, time=DiscreteTime())
-    return Simulation(system, random_state=0).prepare().run(until=until).trajectory_
+    return simulate(system, until=until, random_state=0)
 
 
 def _agent_payoff(agent: LearnerView, system: SystemView, index: int) -> float:
@@ -140,7 +140,7 @@ def test_reinforcement_interaction_reinforces_the_components_of_a_vector_state()
     )
     group = GroupElement('pool', element=PoolElement, size=1, values={'scores': np.zeros((1, 4))})
     system = System(elements=[group], interactions=[reinforcement], time=DiscreteTime())
-    trajectory = Simulation(system, random_state=0).prepare().run(until=2).trajectory_
+    trajectory = simulate(system, until=2, random_state=0)
     scores = np.array(trajectory.agents('pool', 2).values['scores'].tolist(), dtype=float)
     assert scores.ravel().tolist() == pytest.approx([0.0, 0.75, 1.5, 2.25])
 

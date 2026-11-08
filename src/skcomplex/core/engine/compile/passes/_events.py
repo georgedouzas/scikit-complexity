@@ -14,8 +14,11 @@ from ....components.laws import BaseLaw, BoundaryLaw, CrossingLaw, JumpLaw, Nois
 from ....errors import PipelineError, ValidationError
 from ....specs import EntrySpec
 from ..._utils import symbol, vector
-from ...problems import DeclarationsSpec, ExpressionPrinter, KernelSpec, ReferenceSpec
+from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._delayed_state_spec import _DelayedStateSpec
+from ...problems._expression_printer import ExpressionPrinter
+from ...problems._kernel_spec import KernelSpec
+from ...problems._reference_spec import ReferenceSpec
 from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import Compilation

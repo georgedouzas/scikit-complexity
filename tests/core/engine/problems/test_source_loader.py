@@ -2,8 +2,7 @@
 
 import pytest
 
-from skcomplex.core.engine.problems import SourceLoader
-from skcomplex.core.engine.problems._source_loader import CACHE_DIR
+from skcomplex.core.engine.problems._source_loader import CACHE_DIR, SourceLoader
 from skcomplex.core.errors import ValidationError
 
 

@@ -42,8 +42,11 @@ from ...specs import AgentSnapshotSpec, AgentStateSpec, EntrySpec, StepSpec, Sup
 from ...specs._held_reduction_spec import _HeldReductionSpec
 from ...types import Array, FormKind, NoiseKind, OrderKind
 from ..backends import NumbaBackend, NumpyBackend
-from ..compile import ObservableEvaluator, PassCompiler
-from ..problems import ExpressionPrinter, PartitionSpec, ProblemSpec
+from ..compile._observables import ObservableEvaluator
+from ..compile._pass_compiler import PassCompiler
+from ..problems import ProblemSpec
+from ..problems._expression_printer import ExpressionPrinter
+from ..problems._partition_spec import PartitionSpec
 from ..problems._reduction_kernel import ReductionKernel
 from ._base import BaseSolver
 from ._defaults import DEFAULT_SOLVERS

@@ -11,7 +11,8 @@ from sage.modules.free_module_element import FreeModuleElement
 from ....components.laws import BaseLaw, JumpLaw, LinearProgramLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....components.spaces import DiscreteTime
 from ..._utils import vector
-from ...problems import DeclarationsSpec, KernelSpec
+from ...problems._declarations_spec import DeclarationsSpec
+from ...problems._kernel_spec import KernelSpec
 from .._base import BasePass
 from .._compilation import Compilation, Laws
 from ._census import CensusPass

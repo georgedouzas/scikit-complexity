@@ -18,8 +18,8 @@ from ....core.analysis import bind_analysis
 from ....core.analysis.types import Source
 from ....core.components.spaces import StaticTime
 from ....core.components.system import BaseSystem, System
-from ....core.engine.compile import PassCompiler
 from ....core.engine.problems import ProblemSpec
+from ....core.engine.runtime import simulate
 from ....core.errors import AnalysisError, ValidationError
 from ....core.specs import BaseSpec, DeclaredVariableSpec, RunStateSpec, VisualSpec
 from ....core.types import Array
@@ -877,7 +877,7 @@ def _drawn_vertices(fit: _FitSpec, rng: np.random.Generator) -> Array:
             reactions=network.reactions,
             default_objective=network.default_objective,
         ).set_params(**identifiers)
-        problem = PassCompiler().prepare(System(elements=[element], time=StaticTime())).run().problem_
+        problem = simulate(System(elements=[element], time=StaticTime()), until=0).problem
         if not isinstance(problem, ProblemSpec):
             error_msg = f'The network compiles to a {type(problem).__name__}, not a linear program.'
             raise AnalysisError(error_msg)

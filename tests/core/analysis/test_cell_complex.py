@@ -12,7 +12,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace, NetworkSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import StateSpec
 
@@ -99,7 +99,7 @@ def test_curvature_of_a_trajectory_reads_the_group_and_its_period():
     space = _square(4)
     links = GroupElement('links', element=AngleLinkElement, space=space, on='edges')
     rate = RateInteraction('rate', target='links', state='theta', rate=0.5)
-    trajectory = Simulation(System(elements=[links], interactions=[rate]), dt=0.1).prepare().run(until=1.0).trajectory_
+    trajectory = simulate(System(elements=[links], interactions=[rate]), until=1.0, dt=0.1)
     curvature = cell_complex(trajectory, kind='curvature', variables='links.theta')
     assert curvature.share.shape == trajectory.times.shape
     assert np.all(curvature.share == 0.0)

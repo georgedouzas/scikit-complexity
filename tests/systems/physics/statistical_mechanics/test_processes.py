@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from scipy import ndimage
 
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.physics.statistical_mechanics import (
     ContactProcessSystem,
     DiffusionLimitedAggregationSystem,
@@ -32,7 +32,7 @@ def test_site_percolation_burns_the_clusters_of_the_top_row(p, spans):
     """Test that the fire burns the clusters touching the top row, which span the lattice only above threshold."""
     system = SitePercolationSystem((40, 40), p=p, random_state=1).prepare().system_
     occupied = np.reshape(system.elements[0].values['cover'], (40, 40)) > 0
-    trajectory = Simulation(system, random_state=0).prepare().run(until=200).trajectory_
+    trajectory = simulate(system, until=200, random_state=0)
     burnt = trajectory.lattice('lattice.cover')[-1] == 3
     labels, _ = ndimage.label(occupied)
     lit = np.isin(labels, np.setdiff1d(labels[0], [0]))

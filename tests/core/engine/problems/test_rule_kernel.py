@@ -17,7 +17,7 @@ from skcomplex.core.components.spaces import (
     StateTranslationNeighborhood,
 )
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import PowerSeriesSpec, StateSpec, TotalisticSpec
 from skcomplex.systems.computer_science.automata import PowerSeriesCellElement
@@ -53,8 +53,8 @@ def _translated(space, values, schedule='synchronous', rule=lambda value: value)
 
 def _values(system, until, schedule_random_state=0):
     """Return the values of the cells at every step of a run."""
-    simulation = Simulation(system, dt=1, random_state=schedule_random_state).prepare().run(until=until)
-    return simulation.trajectory_.values('cells.value')
+    trajectory = simulate(system, until=until, dt=1, random_state=schedule_random_state)
+    return trajectory.values('cells.value')
 
 
 def test_translated_memory_reads_the_product_of_every_site_and_its_value():
@@ -103,7 +103,7 @@ def test_translated_memory_rejects_colorings_and_lookups_of_series():
     """Test that a colored schedule, which needs a fixed table, is rejected with a translated memory."""
     space = CayleySpace(SYMMETRIC).prepare()
     with pytest.raises(ValidationError, match='neither degrees nor a coloring'):
-        Simulation(_translated(space, np.zeros(space.size_), schedule='colored')).prepare()
+        simulate(_translated(space, np.zeros(space.size_), schedule='colored'), until=0)
 
 
 def test_function_rule_updates_a_power_series_state():
@@ -149,4 +149,4 @@ def test_lookup_rules_reject_power_series_states():
         ],
     )
     with pytest.raises(ValidationError, match='one component'):
-        Simulation(system).prepare()
+        simulate(system, until=0)

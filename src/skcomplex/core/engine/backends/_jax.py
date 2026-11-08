@@ -16,9 +16,12 @@ from ...components.spaces import ContinuousTime, DiscreteTime
 from ...errors import BackendError, ValidationError
 from ...specs import LoweredFunctionsSpec, ReadSpec, SupportSpec
 from ...types import Array, FormKind, OrderKind
-from ..problems import ExpressionPrinter, LoweredKernelsSpec, ReductionScheduleSpec, ReferenceSpec
+from ..problems._expression_printer import ExpressionPrinter
 from ..problems._law_kernel import LawKernel
+from ..problems._lowered_kernels_spec import LoweredKernelsSpec
 from ..problems._reduction_kernel import ReductionKernel
+from ..problems._reduction_schedule_spec import ReductionScheduleSpec
+from ..problems._reference_spec import ReferenceSpec
 from ..types import ReadKind, TracedArray, TracedFunction
 from ._base import BaseBackend
 
@@ -47,7 +50,7 @@ class JaxBackend(BaseBackend):
             differential equations or the update of a discrete map.
 
     Examples:
-        >>> from skcomplex.core.engine.compile import PassCompiler
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
         >>> from skcomplex.core.engine.backends import JaxBackend
         >>> from skcomplex.core.components.system import System
         >>> from skcomplex.systems.biology.common.populations import PopulationElement

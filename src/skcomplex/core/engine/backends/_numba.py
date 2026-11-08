@@ -54,12 +54,16 @@ from ...components.spaces import (
 from ...errors import BackendWarning, ValidationError
 from ...specs import AcceleratedSpec, EntrySpec, LoweredFunctionsSpec, NeighborReadSpec, SupportSpec
 from ...types import Array, FormKind, NoiseKind, OrderKind, VectorFunction
-from ..problems import ExpressionPrinter, LoweredKernelsSpec, ReductionScheduleSpec, ReferenceSpec, SourceLoader
 from ..problems._draw_kernel import DrawKernel
 from ..problems._edge_row_search import EdgeRowSearch
 from ..problems._edge_search import EdgeSearch
+from ..problems._expression_printer import ExpressionPrinter
 from ..problems._law_kernel import LawKernel
+from ..problems._lowered_kernels_spec import LoweredKernelsSpec
 from ..problems._metric_search import MetricSearch
+from ..problems._reduction_schedule_spec import ReductionScheduleSpec
+from ..problems._reference_spec import ReferenceSpec
+from ..problems._source_loader import SourceLoader
 from ..problems._steps import step_count
 from ..types import ReadKind
 from . import _numba_components, _numba_neighbours, _numba_stencils
@@ -112,7 +116,7 @@ class NumbaBackend(BaseBackend):
 
     Examples:
         >>> from skcomplex.core.components.elements import GroupElement
-        >>> from skcomplex.core.engine.compile import PassCompiler
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
         >>> from skcomplex.core.components.system import System
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> system = System(

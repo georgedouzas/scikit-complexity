@@ -25,10 +25,10 @@ from ....specs import EntrySpec, HilbertSpec, IssueSpec, LayoutSpec, ObservableS
 from ....types import Array, FormKind, VariableKind
 from ..._utils import declarations_of, symbol, vector
 from ...backends import BaseBackend
-from ...problems import BaseProblemSpec, OperatorProblemSpec
+from ...problems import BaseProblemSpec
 from ...problems._operator_kernel import OperatorKernel
 from ...problems._operator_lowering import OperatorLowering
-from ...problems._operator_problem_spec import REAL_TOLERANCE
+from ...problems._operator_problem_spec import REAL_TOLERANCE, OperatorProblemSpec
 from ...types import Dissipators, Generators
 from .._base import BaseCompiler
 from ._flatten import FlattenPass
@@ -71,7 +71,7 @@ class OperatorCompiler(BaseCompiler):
 
     Examples:
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.compile import OperatorCompiler
+        >>> from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
         >>> from skcomplex.systems.biology.common.populations import PopulationElement
         >>> OperatorCompiler().prepare(System(elements=[PopulationElement('rabbits')])).report_.ok
         False
@@ -234,7 +234,7 @@ class OperatorCompiler(BaseCompiler):
             >>> from typing import Annotated
             >>> from sage.all__sagemath_symbolics import CC
             >>> from skcomplex.core.components.elements import Element
-            >>> from skcomplex.core.engine.compile import OperatorCompiler
+            >>> from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
             >>> from skcomplex.core.specs import StateSpec
             >>> class TwoLevelElement(Element):
             ...     def __init__(self, label, psi: Annotated[object, StateSpec(domain=CC**2)] = 'up'):

@@ -63,7 +63,7 @@ class JumpTrajectoriesSolver(OperatorSolver):
         >>> z = [ObservableSpec('z', element='q', variable='z')]
         >>> system = System(elements=[TwoLevelElement('q')])
         >>> solver = JumpTrajectoriesSolver()
-        >>> from skcomplex.core.engine.compile import OperatorCompiler
+        >>> from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
         >>> simulation = Simulation(
         ...     system, compiler=OperatorCompiler(), solver=solver, dt=1.0, random_state=0, observables=z,
         ... ).prepare().run(until=20.0)

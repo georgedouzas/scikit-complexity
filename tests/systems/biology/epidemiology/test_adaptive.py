@@ -4,7 +4,7 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.systems import catalog
+from skcomplex.systems import all_systems
 from skcomplex.systems.biology.epidemiology import (
     ActivityDrivenEpidemicsSystem,
     AdaptiveSISSystem,
@@ -14,18 +14,18 @@ from skcomplex.systems.biology.epidemiology import (
 from ..conftest import _run
 
 SYSTEMS = {
-    'biology/epidemiology': {'quenched_mean_field_sis', 'adaptive_sis', 'activity_driven_epidemics'},
-    'biology/ecology': {'sequentially_linear_ecosystem'},
-    'biology/evolution': {'jain_krishna', 'sole_manrubia'},
+    'biology/epidemiology': {'QuenchedMeanFieldSISSystem', 'AdaptiveSISSystem', 'ActivityDrivenEpidemicsSystem'},
+    'biology/ecology': {'SequentiallyLinearEcosystemSystem'},
+    'biology/evolution': {'JainKrishnaSystem', 'SoleManrubiaSystem'},
 }
 
 
 @pytest.mark.parametrize(('field', 'names'), list(SYSTEMS.items()))
-def test_catalog_lists_the_network_systems(field, names):
-    """Test that the catalog lists the network systems of every subfield with descriptions and references."""
-    entries = {entry.name: entry for entry in catalog(field=field)}
-    assert names <= set(entries)
-    assert all(entries[name].description and entries[name].references for name in names)
+def test_all_systems_lists_the_network_systems(field, names):
+    """Test that `all_systems` lists the network systems of every subfield with descriptions and references."""
+    systems = dict(all_systems(field=field))
+    assert names <= set(systems)
+    assert all(systems[name].__doc__ and systems[name].references for name in names)
 
 
 def test_quenched_mean_field_threshold_is_the_inverse_spectral_radius():

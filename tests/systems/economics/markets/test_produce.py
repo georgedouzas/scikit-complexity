@@ -2,7 +2,6 @@
 
 import numpy as np
 
-from skcomplex.systems import describe
 from skcomplex.systems.economics.markets import (
     ProduceMarketSystem,
 )
@@ -13,16 +12,16 @@ from ..conftest import _agents, _run
 def test_produce_market_lists_shrink_until_every_shopper_is_done():
     """Test that shopping lists only shrink, and that stalls selling everything serve every list at their markups."""
     trajectory = _run(
-        built := ProduceMarketSystem(30, 5, n_items_stocked=4, random_state=1).prepare().system_,
+        ProduceMarketSystem(30, 5, n_items_stocked=4, random_state=1).prepare().system_,
         6,
-        observables=describe('produce_market').observables_of(built),
+        observables=ProduceMarketSystem().get_run_settings()['observables'],
     )
     assert np.all(np.diff(trajectory.values('items_left')) <= 0)
     assert trajectory.values('items_left')[-1] == 0
     complete = _run(
-        built := ProduceMarketSystem(30, 5, n_items_stocked=12, random_state=1).prepare().system_,
+        ProduceMarketSystem(30, 5, n_items_stocked=12, random_state=1).prepare().system_,
         1,
-        observables=describe('produce_market').observables_of(built),
+        observables=ProduceMarketSystem().get_run_settings()['observables'],
     )
     assert complete.values('items_left')[-1] == 0
     initial = (

@@ -19,7 +19,7 @@ class IMEXEulerSolver(SplitSolver):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.engine.compile import PassCompiler
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
         >>> from skcomplex.systems.physics.heat import HeatDiffusionSystem
         >>> from skcomplex.core.engine.solvers import IMEXEulerSolver
         >>> from skcomplex.core.specs import StepSpec

@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.systems import catalog
+from skcomplex.systems import all_systems
 from skcomplex.systems.biology.evolution import (
     AdaptiveClimbingSystem,
     MoranProcessSystem,
@@ -14,43 +14,43 @@ from skcomplex.systems.biology.evolution import (
 from ..conftest import _run_until
 
 ECOLOGY = {
-    'competition',
-    'mutualism',
-    'food_webs',
-    'rosenzweig_macarthur',
-    'nicholson_bailey',
-    'lotka_volterra_with_harvesting',
-    'varying_capacity_logistic',
-    'mangrove_succession',
-    'agent_based_lotka_volterra',
-    'stigmergic_predator_prey',
-    'meadow_capacity',
-    'neutral_macroecology',
-    'stochastic_predator_prey',
+    'CompetitionSystem',
+    'MutualismSystem',
+    'FoodWebsSystem',
+    'RosenzweigMacarthurSystem',
+    'NicholsonBaileySystem',
+    'LotkaVolterraWithHarvestingSystem',
+    'VaryingCapacityLogisticSystem',
+    'MangroveSuccessionSystem',
+    'AgentBasedLotkaVolterraSystem',
+    'StigmergicPredatorPreySystem',
+    'MeadowCapacitySystem',
+    'NeutralMacroecologySystem',
+    'StochasticPredatorPreySystem',
 }
 
 
 EPIDEMIOLOGY = {
-    'sis',
-    'sirs',
-    'agent_based_sir',
-    'random_walker_epidemics',
-    'network_sir',
-    'heterogeneous_mean_field_sis',
-    'metapopulation',
-    'delayed_sirs',
+    'SISSystem',
+    'SIRSSystem',
+    'AgentBasedSIRSystem',
+    'RandomWalkerEpidemicsSystem',
+    'NetworkSIRSystem',
+    'HeterogeneousMeanFieldSISSystem',
+    'MetapopulationSystem',
+    'DelayedSIRSSystem',
 }
 
 
 EVOLUTION = {
-    'replicator_dynamics',
-    'moran_process',
-    'eigen_quasispecies',
-    'hypercycles',
-    'nk_landscape',
-    'tangled_nature',
-    'adaptive_climbing',
-    'rock_paper_scissors',
+    'ReplicatorDynamicsSystem',
+    'MoranProcessSystem',
+    'EigenQuasispeciesSystem',
+    'HypercyclesSystem',
+    'NKLandscapeSystem',
+    'TangledNatureSystem',
+    'AdaptiveClimbingSystem',
+    'RockPaperScissorsSystem',
 }
 
 
@@ -58,11 +58,11 @@ EVOLUTION = {
     ('field', 'names'),
     [('biology/ecology', ECOLOGY), ('biology/epidemiology', EPIDEMIOLOGY), ('biology/evolution', EVOLUTION)],
 )
-def test_catalog_lists_subfield(field, names):
-    """Test that the catalog lists the systems of a subfield with descriptions and references."""
-    entries = {entry.name: entry for entry in catalog(field=field)}
-    assert names <= set(entries)
-    assert all(entries[name].description and entries[name].references for name in names)
+def test_all_systems_lists_subfield(field, names):
+    """Test that `all_systems` lists the systems of a subfield with descriptions and references."""
+    systems = dict(all_systems(field=field))
+    assert names <= set(systems)
+    assert all(systems[name].__doc__ and systems[name].references for name in names)
 
 
 def test_moran_fixation_probability():

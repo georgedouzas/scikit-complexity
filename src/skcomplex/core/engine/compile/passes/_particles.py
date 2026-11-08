@@ -11,7 +11,8 @@ from ....components.laws.utils import either, mod, where
 from ....components.spaces import ContinuousSpace
 from ....types import VariableKind
 from ..._utils import components_of, declarations_of
-from ...problems import BlockSpec, KernelSpec
+from ...problems._block_spec import BlockSpec
+from ...problems._kernel_spec import KernelSpec
 from .._base import BasePass
 from .._compilation import Compilation
 

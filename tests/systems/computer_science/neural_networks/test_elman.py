@@ -1,6 +1,6 @@
 """Test the `_elman` module of `skcomplex.systems.computer_science.neural_networks`."""
 
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.computer_science.neural_networks import ElmanNetworkSystem
 
 
@@ -15,8 +15,8 @@ def test_elman_network_learns_the_temporal_xor():
 
 def test_elman_network_with_elman_original_rule():
     """Test that a truncation of one step, Elman's original rule, still predicts the XOR bits better."""
-    simulation = Simulation(ElmanNetworkSystem(truncation=1).prepare().system_, random_state=0).prepare()
-    trajectory = simulation.run(until=500).trajectory_
+    simulation = simulate(ElmanNetworkSystem(truncation=1).prepare().system_, until=500, random_state=0)
+    trajectory = simulation
     assert trajectory.values('training/xor_error')[-1] < trajectory.values('training/random_error')[-1]
 
 

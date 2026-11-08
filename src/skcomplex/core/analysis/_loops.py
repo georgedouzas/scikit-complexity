@@ -14,7 +14,9 @@ from sage.all__sagemath_symbolics import SR, Expression, dirac_delta
 
 from ..components.laws.utils import delay_parts
 from ..engine._utils import symbols_of
-from ..engine.problems import ExpressionPrinter, LoopTermSpec, ProblemSpec
+from ..engine.problems import ProblemSpec
+from ..engine.problems._expression_printer import ExpressionPrinter
+from ..engine.problems._loop_term_spec import LoopTermSpec
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
 from ..specs import AnalysisTags

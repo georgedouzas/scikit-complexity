@@ -11,7 +11,8 @@ from sage.all__sagemath_symbolics import NN
 from ....components.laws import BaseLaw
 from ....specs import EntrySpec
 from ..._utils import symbol
-from ...problems import DeclarationsSpec, KernelSpec
+from ...problems._declarations_spec import DeclarationsSpec
+from ...problems._kernel_spec import KernelSpec
 from .._base import BasePass
 from .._bound_renewal_spec import BoundRenewalSpec
 from .._compilation import Compilation

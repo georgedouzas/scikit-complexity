@@ -20,10 +20,15 @@ from ....errors import PipelineError, ValidationError
 from ....specs import LayoutSpec, RunStateSpec
 from ....types import Array, VariableKind, VectorFunction
 from ..._utils import declarations_of
-from ...problems import BlockSpec, DeclarationsSpec, ExpressionPrinter, KernelSpec, ReferenceSpec, SymmetrySpec
+from ...problems._block_spec import BlockSpec
+from ...problems._declarations_spec import DeclarationsSpec
+from ...problems._expression_printer import ExpressionPrinter
 from ...problems._finite_volume_kernel import TIME, FiniteVolumeKernel
+from ...problems._kernel_spec import KernelSpec
 from ...problems._law_kernel import LawKernel
 from ...problems._problem_functions_spec import _ProblemFunctionsSpec
+from ...problems._reference_spec import ReferenceSpec
+from ...problems._symmetry_spec import SymmetrySpec
 from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import Compilation

@@ -10,11 +10,14 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.laws.utils import uniform
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import AgentsVisual, HistogramVisual, RerunObserver
 from skcomplex.core.specs import AgentSnapshotSpec, StateSpec, VisualSpec
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.evolution import MoranProcessSystem, TangledNatureSystem
+from skcomplex.systems.engineering.traffic import CharbonneauTrafficSystem
+from skcomplex.systems.social.opinion_dynamics import DeffuantSystem
+from skcomplex.systems.social.organizations import BonabeauHierarchiesSystem
 
 
 class Logs:
@@ -58,9 +61,9 @@ def default_blueprint(problem):
 
 def test_traits_visual_is_the_default_of_agents_without_space():
     """Test that agents without a space take the traits visual, and agents in a space keep the agents visual."""
-    problem = PassCompiler().prepare(create_system('moran_process')).run().problem_
+    problem = PassCompiler().prepare(MoranProcessSystem().prepare().system_).run().problem_
     assert isinstance(_agents_visual(problem), HistogramVisual)
-    problem = PassCompiler().prepare(create_system('bonabeau_hierarchies', random_state=0)).run().problem_
+    problem = PassCompiler().prepare(BonabeauHierarchiesSystem(random_state=0).prepare().system_).run().problem_
     assert not isinstance(_agents_visual(problem), HistogramVisual)
 
 
@@ -86,7 +89,7 @@ def test_traits_visual_counts_collections(log_agents):
 
 def test_default_blueprint_of_moran_process_shows_trait_statistics_and_histogram(monkeypatch, tmp_path):
     """Test that the Moran process shows its trait over time and its histogram, and logs the mean of every trait."""
-    problem = PassCompiler().prepare(create_system('moran_process')).run().problem_
+    problem = PassCompiler().prepare(MoranProcessSystem().prepare().system_).run().problem_
     views = [type(view).__name__ for view in _views(default_blueprint(problem))]
     assert views[:2] == ['TimeSeriesView', 'BarChartView']
     logged = []
@@ -98,7 +101,7 @@ def test_default_blueprint_of_moran_process_shows_trait_statistics_and_histogram
 
     monkeypatch.setattr(rr.RecordingStream, 'log', log)
     observer = RerunObserver('moran', save_path=tmp_path / 'moran.rrd')
-    Simulation(create_system('moran_process'), observers=[observer], random_state=0).prepare().run(until=10)
+    simulate(MoranProcessSystem().prepare().system_, until=10, observers=[observer], random_state=0)
     assert 'population/trait/mean' in logged
     assert 'population/fitness/mean' in logged
 
@@ -122,7 +125,7 @@ def test_traits_visual_logs_each_agent_of_small_groups(log_agents):
 
 def test_traits_visual_shows_chosen_statistics_first():
     """Test that the first view shows the chosen statistics of the colored trait."""
-    problem = PassCompiler().prepare(create_system('tangled_nature', organisms=20)).run().problem_
+    problem = PassCompiler().prepare(TangledNatureSystem(organisms=20).prepare().system_).run().problem_
     view = (
         HistogramVisual(color_by='trait', shown=('distinct',), path=problem.agents[0].path).prepare(problem).views_[0]
     )
@@ -131,7 +134,7 @@ def test_traits_visual_shows_chosen_statistics_first():
 
 def test_traits_visual_can_show_the_histogram_first():
     """Test that a traits visual can put the histogram of its trait before its time series."""
-    problem = PassCompiler().prepare(create_system('deffuant')).run().problem_
+    problem = PassCompiler().prepare(DeffuantSystem().prepare().system_).run().problem_
     views = (
         HistogramVisual(color_by='opinion', histogram_first=True, path=problem.agents[0].path).prepare(problem).views_
     )
@@ -156,7 +159,7 @@ def test_agents_visual_logs_one_dimensional_positions_as_series(log_agents):
 
 def test_charbonneau_traffic_has_a_space_time_view():
     """Test that the cars of Charbonneau's traffic system keep the agents visual and get a space-time view."""
-    problem = PassCompiler().prepare(create_system('charbonneau_traffic')).run().problem_
+    problem = PassCompiler().prepare(CharbonneauTrafficSystem().prepare().system_).run().problem_
     visual = _agents_visual(problem)
     assert not isinstance(visual, HistogramVisual)
     views = visual.views_
@@ -197,7 +200,7 @@ def test_traits_visual_logs_the_states_of_a_group(monkeypatch, tmp_path):
 
     monkeypatch.setattr(rr.RecordingStream, 'log', log)
     observer = RerunObserver('walkers', save_path=tmp_path / 'walkers.rrd')
-    Simulation(system, observers=[observer], random_state=0).prepare().run(until=3)
+    simulate(system, until=3, observers=[observer], random_state=0)
     assert 'walkers/x/histogram' in logged
     assert 'walkers/x/mean' in logged
 

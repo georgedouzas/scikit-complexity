@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.epidemiology import PairFormationSISSystem, WattsMayConcurrencySystem
 
 from ..conftest import _run_precise
@@ -29,12 +29,13 @@ def test_pair_formation_concurrency_raises_the_prevalence():
     def prevalence(k: int) -> float:
         runs = []
         for seed in range(2):
-            simulation = Simulation(
+            trajectory = simulate(
                 PairFormationSISSystem(n=300, k=k, seed=seed).prepare().system_,
+                until=25,
                 dt=0.5,
                 random_state=seed,
             )
-            runs.append(simulation.prepare().run(until=25).trajectory_.values('people.i')[20:].mean())
+            runs.append(trajectory.values('people.i')[20:].mean())
         return float(np.mean(runs))
 
     assert prevalence(4) > prevalence(1) + 0.03

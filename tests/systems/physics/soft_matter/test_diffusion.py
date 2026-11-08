@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.systems.physics.soft_matter import (
     BrownianMotionSystem,
@@ -28,12 +28,14 @@ def test_brownian_motion_is_ballistic_then_diffusive():
 
 def test_optical_trap_holds_particles_with_the_thermal_variance():
     """Test that trapped particles have the variance `kT / k` along each axis, and that moving traps run."""
-    trajectory = (
-        Simulation(OpticalTrapSystem(1000).prepare().system_, dt=1, solver=EulerMaruyamaSolver(dt=0.01), random_state=0)
-        .prepare()
-        .run(until=30)
+    trajectory = simulate(
+        OpticalTrapSystem(1000).prepare().system_,
+        until=30,
+        dt=1,
+        solver=EulerMaruyamaSolver(dt=0.01),
+        random_state=0,
     )
-    positions = trajectory.trajectory_.values('beads.x')[10:]
+    positions = trajectory.values('beads.x')[10:]
     assert positions[..., 0].var() == pytest.approx(1.0, rel=0.1)
     assert positions[..., 1].var() == pytest.approx(4.0, rel=0.1)
     blinking = OpticalTrapSystem(100, blink_period=4.0, amplitude=(1.0, 0.0), frequency=0.1)

@@ -10,7 +10,7 @@ from skcomplex.core.components.laws import FractionalNoiseLaw, NoiseLaw, RateLaw
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import PassCompiler
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.solvers import GrunwaldLetnikovSolver, L1Solver, RK4Solver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, StateSpec, SupportSpec, VisualSpec

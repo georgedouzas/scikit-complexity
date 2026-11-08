@@ -7,8 +7,8 @@ from skcomplex.core.components.elements import CompartmentElement
 from skcomplex.core.components.interactions import RateInteraction, RelaxationInteraction
 from skcomplex.core.components.laws.utils import delayed, step
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerSolver
 from skcomplex.core.errors import SolverError
 from skcomplex.core.specs import StepSpec
@@ -22,7 +22,7 @@ def _relaxing_system():
 
 def test_run_takes_explicit_steps():
     """Test that every step of a run is the state plus the step times the rate at the start of the step."""
-    trajectory = Simulation(_relaxing_system(), solver=EulerSolver(dt=0.5), dt=0.5).prepare().run(3).trajectory_
+    trajectory = simulate(_relaxing_system(), until=3, solver=EulerSolver(dt=0.5), dt=0.5)
     expected = [0.0]
     for _ in range(6):
         expected.append(expected[-1] + 0.5 * (10.0 - expected[-1]) / 2.0)
@@ -32,8 +32,8 @@ def test_run_takes_explicit_steps():
 def test_run_splits_a_frame_into_steps():
     """Test that a frame longer than the step takes several steps."""
     system = _relaxing_system()
-    frames = Simulation(system, solver=EulerSolver(dt=0.5), dt=1.0).prepare().run(3).trajectory_
-    steps = Simulation(system, solver=EulerSolver(dt=0.5), dt=0.5).prepare().run(3).trajectory_
+    frames = simulate(system, until=3, solver=EulerSolver(dt=0.5), dt=1.0)
+    steps = simulate(system, until=3, solver=EulerSolver(dt=0.5), dt=0.5)
     assert np.allclose(frames.values('tank.n'), steps.values('tank.n')[::2])
 
 
@@ -61,7 +61,7 @@ def test_run_reads_delays_from_the_steps_of_the_run():
         elements=[CompartmentElement('tank', n=1.0)],
         interactions=[RateInteraction('rate', target='tank', state='n', rate=_delayed_rate)],
     )
-    trajectory = Simulation(system, solver=EulerSolver(dt=0.25), dt=0.25).prepare().run(2).trajectory_
+    trajectory = simulate(system, until=2, solver=EulerSolver(dt=0.25), dt=0.25)
     expected = [1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5625, 2.9375, 3.375]
     assert np.allclose(trajectory.values('tank.n'), expected)
 
@@ -72,5 +72,5 @@ def test_run_steps_over_a_signal():
         elements=[CompartmentElement('tank', n=0.0)],
         interactions=[RateInteraction('rate', target='tank', state='n', rate=_stepped_rate)],
     )
-    trajectory = Simulation(system, solver=EulerSolver(dt=0.25), dt=0.25).prepare().run(2).trajectory_
+    trajectory = simulate(system, until=2, solver=EulerSolver(dt=0.25), dt=0.25)
     assert np.allclose(trajectory.values('tank.n'), [0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 1.5, 2.0])

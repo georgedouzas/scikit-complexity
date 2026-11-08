@@ -34,8 +34,10 @@ from sage.symbolic.function import Function
 from sage.symbolic.function_factory import function as formal_function
 
 from ..engine._utils import components_of, domain_of
-from ..engine.compile import PassCompiler
-from ..engine.problems import BaseProblemSpec, OperatorProblemSpec, ProblemSpec, TransferNetworkSpec
+from ..engine.compile._pass_compiler import PassCompiler
+from ..engine.problems import BaseProblemSpec, ProblemSpec
+from ..engine.problems._operator_problem_spec import OperatorProblemSpec
+from ..engine.problems._transfer_network_spec import TransferNetworkSpec
 from ..errors import AnalysisError, ConservationError
 from ..specs import AnalysisTags
 from ..specs._unknown_spec import _UnknownSpec

@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.economics.markets import OligopolyEquilibriaSystem
 
@@ -33,7 +33,7 @@ def test_oligopoly_equilibria_mixed_price(n_firms: int, alpha: float) -> None:
 def test_oligopoly_equilibria_cournot_quantities() -> None:
     """Test that the Cournot quantities are the solution of equation 21.6 of Forrest (2018)."""
     system = OligopolyEquilibriaSystem(demand=10.0, c_i=1.0, c_j=2.0, lambda_i=0.5, lambda_j=0.0).prepare().system_
-    trajectory = Simulation(system).prepare().run(1.0).trajectory_
+    trajectory = simulate(system, until=1.0)
     assert trajectory.values('cournot.q_i')[0] == pytest.approx((10.0 - 2 * 1.0 / 1.5 + 2.0) / 3)
     assert trajectory.values('cournot.q_j')[0] == pytest.approx((10.0 - 2 * 2.0 + 1.0 / 1.5) / 3)
 

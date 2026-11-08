@@ -51,7 +51,7 @@ class LindbladSolver(OperatorSolver):
         ...         return [DissipatorLaw(local_operator(s.psi, SR.symbol('minus')), 0.5)]
         >>> z = [ObservableSpec('z', element='q', variable='z')]
         >>> system = System(elements=[TwoLevelElement('q')])
-        >>> from skcomplex.core.engine.compile import OperatorCompiler
+        >>> from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
         >>> compiler = OperatorCompiler()
         >>> simulation = Simulation(system, compiler=compiler, solver=LindbladSolver(), dt=1.0, observables=z)
         >>> simulation = simulation.prepare()

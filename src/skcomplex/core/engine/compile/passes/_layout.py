@@ -25,8 +25,9 @@ from ....errors import LabelError, SpaceError, ValidationError
 from ....specs import EntrySpec, PowerSeriesSpec, TensorSpec, VariableSpec, WienerProcessSpec
 from ....types import Array, VariableKind
 from ..._utils import components_of, declarations_of, default_of, symbol, vector
-from ...problems import BlockSpec, DeclarationsSpec, ReferenceSpec
-from ...problems._declarations_spec import _ACTIVE, ENDS, MEMBERS
+from ...problems._block_spec import BlockSpec
+from ...problems._declarations_spec import _ACTIVE, ENDS, MEMBERS, DeclarationsSpec
+from ...problems._reference_spec import ReferenceSpec
 from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import Compilation

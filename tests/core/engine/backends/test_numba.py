@@ -5,7 +5,7 @@ import time
 import pytest
 
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import PassCompiler
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.systems.physics.statistical_mechanics import IdealGasSystem
 
 

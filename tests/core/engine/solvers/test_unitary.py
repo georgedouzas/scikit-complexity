@@ -12,9 +12,8 @@ from skcomplex.core.components.laws import DissipatorLaw, GeneratorLaw
 from skcomplex.core.components.laws.utils import local_operator
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import OperatorCompiler
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.core.engine.solvers import JumpTrajectoriesSolver, LindbladSolver, UnitarySolver
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.engine.solvers import JumpTrajectoriesSolver, UnitarySolver
 from skcomplex.core.errors import SolverError
 from skcomplex.core.specs import HilbertSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.systems.physics.common.quantum import QUBIT, QubitElement
@@ -131,29 +130,19 @@ def _chain(n_sites, **values):
 def test_unitary_evolution_follows_rabi_oscillations():
     """Test that a driven qubit oscillates as cos(omega t) with a constant norm."""
     system = System(elements=[RabiElement('q')])
-    simulation = (
-        Simulation(system, solver=UnitarySolver(), dt=0.05, observables=Z, compiler=OperatorCompiler())
-        .prepare()
-        .run(until=np.pi / OMEGA)
-    )
-    trajectory = simulation.trajectory_
+    trajectory = simulate(system, until=np.pi / OMEGA, solver=UnitarySolver(), dt=0.05, observables=Z)
     assert np.allclose(trajectory.values('z'), np.cos(OMEGA * trajectory.times), atol=1e-6)
     assert np.allclose(np.linalg.norm(trajectory.values('system.state'), axis=1), 1, atol=1e-8)
 
 
 def test_unitary_evolution_conserves_magnetization_and_energy():
     """Test that an isotropic chain of 10 spins conserves its magnetisation and energy."""
-    trajectory = (
-        Simulation(
-            _chain(10),
-            observables=MAGNETIZATION,
-            solver=UnitarySolver(atol=1e-14, rtol=1e-13),
-            dt=1.0,
-            compiler=OperatorCompiler(),
-        )
-        .prepare()
-        .run(until=10.0)
-        .trajectory_
+    trajectory = simulate(
+        _chain(10),
+        until=10.0,
+        observables=MAGNETIZATION,
+        solver=UnitarySolver(atol=1e-14, rtol=1e-13),
+        dt=1.0,
     )
     assert np.ptp(trajectory.values('magnetization')) < 1e-8
     assert np.ptp(trajectory.values('energy')) < 1e-8
@@ -162,19 +151,13 @@ def test_unitary_evolution_conserves_magnetization_and_energy():
 def test_unitary_evolution_rejects_open_systems():
     """Test that unitary evolution refuses dissipators."""
     with pytest.raises(SolverError, match='dissipators'):
-        Simulation(
-            System(elements=[DecayingElement('q')]),
-            solver=UnitarySolver(),
-            compiler=OperatorCompiler(),
-        ).prepare().run(until=1.0)
+        simulate(System(elements=[DecayingElement('q')]), until=1.0, solver=UnitarySolver())
 
 
 def test_lindblad_evolution_follows_spontaneous_decay():
     """Test that the excited population decays as exp(-gamma t) with trace 1."""
     system = System(elements=[DecayingElement('q')])
-    simulation = Simulation(system, dt=0.5, observables=Z, compiler=OperatorCompiler()).prepare().run(until=4.0)
-    assert isinstance(simulation.stepper_, LindbladSolver)
-    trajectory = simulation.trajectory_
+    trajectory = simulate(system, until=4.0, dt=0.5, observables=Z)
     assert np.allclose((1 + trajectory.values('z')) / 2, np.exp(-GAMMA * trajectory.times), atol=1e-6)
     traces = np.trace(trajectory.values('system.state'), axis1=1, axis2=2)
     assert np.allclose(traces, 1, atol=1e-10)
@@ -182,12 +165,7 @@ def test_lindblad_evolution_follows_spontaneous_decay():
 
 def test_lindblad_evolution_lowers_purity():
     """Test that dephasing lowers the purity from 1 frame after frame."""
-    trajectory = (
-        Simulation(System(elements=[DephasedElement('q')]), dt=0.2, compiler=OperatorCompiler())
-        .prepare()
-        .run(until=4.0)
-        .trajectory_
-    )
+    trajectory = simulate(System(elements=[DephasedElement('q')]), until=4.0, dt=0.2)
     purity = trajectory.values('purity')
     assert purity[0] == pytest.approx(1)
     assert np.all(np.diff(purity) <= 1e-10)
@@ -197,41 +175,29 @@ def test_jump_trajectories_are_reproducible():
     """Test that two seeded trajectories of a decaying qubit are identical."""
     system = System(elements=[DecayingElement('q')])
     runs = [
-        (
-            Simulation(
-                system,
-                solver=JumpTrajectoriesSolver(),
-                dt=0.5,
-                random_state=3,
-                observables=Z,
-                compiler=OperatorCompiler(),
-            )
-            .prepare()
-            .run(until=10.0)
-        )
+        simulate(system, until=10.0, solver=JumpTrajectoriesSolver(), dt=0.5, random_state=3, observables=Z)
         for _ in range(2)
     ]
-    assert np.array_equal(runs[0].trajectory_.values('z'), runs[1].trajectory_.values('z'))
-    assert set(np.round(runs[0].trajectory_.values('z'), 8)) <= {-1.0, 1.0}
+    assert np.array_equal(runs[0].values('z'), runs[1].values('z'))
+    assert set(np.round(runs[0].values('z'), 8)) <= {-1.0, 1.0}
 
 
 def test_jump_trajectories_average_to_the_master_equation():
     """Test that 500 trajectories average to the Lindblad decay within three standard errors."""
     system = System(elements=[DecayingElement('q')])
-    problem = OperatorCompiler(observables=Z).prepare(system).run().problem_
     rng = np.random.default_rng(0)
     values = np.array(
         [
-            Simulation(
-                problem,
+            simulate(
+                system,
+                until=4.0,
                 solver=JumpTrajectoriesSolver(),
                 dt=0.5,
                 random_state=rng,
-                compiler=OperatorCompiler(),
+                observables=Z,
+            ).values(
+                'z',
             )
-            .prepare()
-            .run(until=4.0)
-            .trajectory_.values('z')
             for _ in range(500)
         ],
     )
@@ -243,12 +209,14 @@ def test_jump_trajectories_average_to_the_master_equation():
 
 def test_operator_solvers_follow_parameter_updates():
     """Test that a quench of the anisotropy changes the energy after the update."""
-    simulation = (
-        Simulation(_chain(6), observables=MAGNETIZATION, dt=0.5, compiler=OperatorCompiler()).prepare().run(until=1.0)
+    trajectory = simulate(
+        _chain(6),
+        until=2.0,
+        observables=MAGNETIZATION,
+        dt=0.5,
+        schedule={'xxz.delta': lambda t: 1.0 if t < 1.0 else 0.0},
     )
-    simulation.update_parameters({'xxz.delta': 0.0})
-    trajectory = simulation.extend(until=2.0).trajectory_
     energy = trajectory.values('energy')
-    assert np.ptp(energy[:3]) < 1e-8
-    assert abs(energy[3] - energy[2]) > 0.1
-    assert np.ptp(energy[3:]) < 1e-8
+    assert np.ptp(energy[:2]) < 1e-8
+    assert abs(energy[2] - energy[1]) > 0.1
+    assert np.ptp(energy[2:]) < 1e-8

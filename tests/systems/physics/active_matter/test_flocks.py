@@ -6,7 +6,7 @@ import pytest
 from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import ContinuousSpace, DiscreteTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ParameterError
 from skcomplex.systems.physics.active_matter import (
     GinelliNematicsSystem,
@@ -31,7 +31,7 @@ def test_heading_alignment_takes_the_circular_mean_within_the_unit_distance(nema
         space=ContinuousSpace(extent=(5.0, 5.0), boundary='periodic'),
         time=DiscreteTime(),
     )
-    values = Simulation(system, random_state=0).prepare().run(until=1).trajectory_.values('flock.theta')[-1]
+    values = simulate(system, until=1, random_state=0).values('flock.theta')[-1]
     close = np.linalg.norm(x[None, :, :] - x[:, None, :], axis=2) <= 1.0
     side = np.where(np.cos(theta[None, :] - theta[:, None]) >= 0, 1, -1) if nematic else 1
     weights = close * side
@@ -69,7 +69,7 @@ def test_ginelli_nematics_orders_an_axis_without_a_direction():
 
 def _neighbors_within_unit_distance(system, until):
     """Return the mean number of other particles within the unit distance over the last frames of a run."""
-    trajectory = Simulation(system, dt=50.0, random_state=0).prepare().run(until=until).trajectory_
+    trajectory = simulate(system, until=until, dt=50.0, random_state=0)
     size = system.space.extent[0]
     counts = []
     for positions in np.asarray(trajectory.values('flock.x'))[-5:]:

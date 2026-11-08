@@ -7,7 +7,6 @@ import pytest
 from skcomplex.core.analysis import fit_law, network_measures, renormalization
 from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.systems import create_system
 from skcomplex.systems.mathematics.networks import (
     BarabasiAlbertSystem,
     GraphletArrivalSystem,
@@ -47,10 +46,10 @@ def test_vertex_copying_makes_hubs_that_random_attachment_lacks():
     assert largest > 2 * max(degree for _, degree in uniform.degree)
 
 
-@pytest.mark.parametrize('name', ['barabasi_albert', 'holme_kim', 'vertex_copying'])
-def test_growth_systems_are_created_by_name(name):
-    """Test that the growth systems are registered and start with their seed network."""
-    system = create_system(name)
+@pytest.mark.parametrize('system_class', [BarabasiAlbertSystem, HolmeKimSystem, VertexCopyingSystem])
+def test_growth_systems_start_with_their_seed_network(system_class):
+    """Test that the growth systems start with their seed network."""
+    system = system_class().prepare().system_
     assert system.elements[0].variable
     assert system.elements[1].on == 'edges'
 

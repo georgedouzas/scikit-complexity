@@ -15,9 +15,9 @@ from skcomplex.core.components.laws.utils import neighborhoods_in, shortest_path
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import PassCompiler
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems._neighborhood_kernel import NeighborhoodKernel
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import BackendWarning, ValidationError
 from skcomplex.core.specs import RoleSpec, StateSpec
 
@@ -109,7 +109,7 @@ def test_shortest_paths_follow_a_network_whose_nodes_are_removed(backend):
     system = System(elements=[nodes, links], interactions=[load, removal], space=space, time=DiscreteTime())
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', BackendWarning)
-        trajectory = Simulation(system, backend=backend, random_state=0).prepare().run(until=6).trajectory_
+        trajectory = simulate(system, until=6, backend=backend, random_state=0)
     for frame in range(5):
         expected = nx.betweenness_centrality(trajectory.network(frame).graph(), normalized=False)
         kept = trajectory.network(frame + 1).nodes

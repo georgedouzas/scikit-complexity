@@ -5,7 +5,7 @@
 
 from dataclasses import fields
 
-from ...problems import KineticProblemSpec
+from ...problems._kinetic_problem_spec import KineticProblemSpec
 from .._base import BasePass
 from .._compilation import Compilation
 

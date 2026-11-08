@@ -9,7 +9,7 @@ from scipy.special import comb
 from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumpyBackend
-from skcomplex.core.engine.compile import PassCompiler
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.experiments import sweep
 from skcomplex.systems.biology.common.populations import PopulationElement

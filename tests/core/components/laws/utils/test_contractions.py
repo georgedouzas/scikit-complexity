@@ -13,7 +13,7 @@ from skcomplex.core.components.laws import BaseLaw, RateLaw
 from skcomplex.core.components.laws.utils import contraction, contractions_in
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import JaxBackend, NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import PassCompiler
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.errors import ParameterError, ValidationError
 from skcomplex.core.specs import ParameterSpec, RoleSpec
 

@@ -30,8 +30,9 @@ from ...specs import SupportSpec
 from ...types import Array, FormKind, NoiseKind, OrderKind, VariableKind
 from .._utils import declarations_of, symbol, symbols_of
 from ..backends import NumpyBackend
-from ..compile import PassCompiler
-from ..problems import ExpressionPrinter, ProblemSpec
+from ..compile._pass_compiler import PassCompiler
+from ..problems import ProblemSpec
+from ..problems._expression_printer import ExpressionPrinter
 from ..problems._steps import step_count
 from ..types import PairArguments
 from ._external import ExternalSolver

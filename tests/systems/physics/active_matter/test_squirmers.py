@@ -6,7 +6,7 @@ import pytest
 from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.physics.active_matter import SquirmerElement, SquirmerSlipInteraction, SquirmersSystem
 
 
@@ -20,7 +20,7 @@ def _pair(beta, offset, until=8.0):
     )
     slip = SquirmerSlipInteraction('slip', target='squirmers', B1=1.5, B2=1.5 * beta)
     system = System(elements=[group], interactions=[slip], space=ContinuousSpace(n_dim=3))
-    trajectory = Simulation(system, dt=0.5).prepare().run(until=until).trajectory_
+    trajectory = simulate(system, until=until, dt=0.5)
     return trajectory.values('squirmers.x'), trajectory.values('squirmers.p')
 
 
@@ -73,7 +73,7 @@ def test_repulsion_range_follows_the_current_radius():
             values={'x': [[0.0, 0.0, 0.0], [3.0, 0.0, 0.0]], 'p': [[0.0, 0.0, 1.0], [0.0, 0.0, 1.0]]},
         )
         system = System(elements=[group], interactions=[slip], space=ContinuousSpace(n_dim=3))
-        positions = Simulation(system, dt=0.5).prepare().run(until=1.0).trajectory_.values('squirmers.x')[-1]
+        positions = simulate(system, until=1.0, dt=0.5).values('squirmers.x')[-1]
         return float(np.linalg.norm(positions[1] - positions[0]))
 
     slip = SquirmerSlipInteraction('slip', target='squirmers', B1=0.0, B2=0.0)

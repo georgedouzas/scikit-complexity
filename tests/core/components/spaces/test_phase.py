@@ -11,8 +11,8 @@ from skcomplex.core.components.interactions import AdvectionInteraction
 from skcomplex.core.components.laws.utils import coordinate
 from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace, PhaseSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import SpaceTooLargeError, ValidationError
 from skcomplex.core.specs import AxisSpec
@@ -28,8 +28,8 @@ def test_prepare_holds_one_value_per_point_of_the_product() -> None:
     assert space.class_axes_ == {'v': 1}
     assert space.position_axes_ == (0,)
     assert space.spacings_ == (1.0, 12.0 / 128)
-    simulation = Simulation(System(elements=[field]), dt=0.1).prepare()
-    assert simulation.problem_.initial_state[3 * 128 + 5] == 2.0
+    problem = simulate(System(elements=[field]), until=0, dt=0.1).problem
+    assert problem.initial_state[3 * 128 + 5] == 2.0
 
 
 def test_prepare_places_coordinates_at_cell_centres() -> None:
@@ -90,8 +90,8 @@ def test_periodic_class_axis_returns_after_one_turn(discretization: str, options
     start = 1.0 + 0.5 * np.cos(space.coordinates_['theta'])
     field = FieldElement('gas', element=DensityElement, space=space, values={'f': start}, discretization=discretization)
     drift = AdvectionInteraction('turn', target='gas', state='f', drift=lambda _: [0, 1.0], **options)
-    simulation = Simulation(System(elements=[field], interactions=[drift]), solver=RK4Solver(dt=0.02)).prepare()
-    final = simulation.run(until=2 * np.pi).trajectory_.values('gas.f')[-1]
+    trajectory = simulate(System(elements=[field], interactions=[drift]), until=2 * np.pi, solver=RK4Solver(dt=0.02))
+    final = trajectory.values('gas.f')[-1]
     assert np.abs(final - start).max() < 0.05
 
 
@@ -112,8 +112,8 @@ def test_free_streaming_shifts_every_class_slice(discretization: str, options: d
     start = np.outer(2.0 + np.sin(x), np.exp(-(v**2)))
     field = FieldElement('gas', element=DensityElement, space=space, values={'f': start}, discretization=discretization)
     drift = AdvectionInteraction('stream', target='gas', state='f', drift=lambda _: [coordinate('v'), 0], **options)
-    simulation = Simulation(System(elements=[field], interactions=[drift]), solver=RK4Solver(dt=0.01)).prepare()
-    final = simulation.run(until=1.0).trajectory_.values('gas.f')[-1].reshape(size, 16)
+    trajectory = simulate(System(elements=[field], interactions=[drift]), until=1.0, solver=RK4Solver(dt=0.01))
+    final = trajectory.values('gas.f')[-1].reshape(size, 16)
     exact = np.stack([(2.0 + np.sin(x - speed)) * np.exp(-(speed**2)) for speed in v], axis=1)
     assert np.abs(final - exact).max() < 0.02
     assert abs(final.sum() / start.sum() - 1.0) < 1e-12
@@ -131,8 +131,8 @@ def test_zero_drift_leaves_classes_unchanged() -> None:
         discretization='finite-volume',
     )
     drift = AdvectionInteraction('still', target='gas', state='f', drift=lambda _: [0, 0])
-    simulation = Simulation(System(elements=[field], interactions=[drift]), solver=RK4Solver(dt=0.1)).prepare()
-    final = simulation.run(until=1.0).trajectory_.values('gas.f')[-1].reshape(4, 16)
+    trajectory = simulate(System(elements=[field], interactions=[drift]), until=1.0, solver=RK4Solver(dt=0.1))
+    final = trajectory.values('gas.f')[-1].reshape(4, 16)
     assert np.array_equal(final, start)
 
 
@@ -141,7 +141,7 @@ def test_transport_conserves_total_through_interval_edges() -> None:
     space = PhaseSpace(LatticeSpace((1,)), [AxisSpec('v', 32, 0.0, 1.0)]).prepare()
     field = FieldElement('gas', element=DensityElement, space=space, values={'f': 1.0}, discretization='finite-volume')
     drift = AdvectionInteraction('push', target='gas', state='f', drift=lambda _: [0, 1.0])
-    simulation = Simulation(System(elements=[field], interactions=[drift]), solver=RK4Solver(dt=0.005)).prepare()
-    final = simulation.run(until=0.5).trajectory_.values('gas.f')[-1]
+    trajectory = simulate(System(elements=[field], interactions=[drift]), until=0.5, solver=RK4Solver(dt=0.005))
+    final = trajectory.values('gas.f')[-1]
     assert abs(final.sum() / 32 - 1.0) < 1e-12
     assert final[-1] > 1.5

@@ -2,23 +2,18 @@
 
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.systems import describe
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.economics.markets import LabourMarketSystem
 
 
 def test_labour_market_flow_balance():
     """Unemployment settles at s / (s + f) and every hire takes an offer of the same step."""
     separation = 0.05
-    trajectory = (
-        Simulation(
-            built := LabourMarketSystem(150, 30, separation=separation).prepare().system_,
-            random_state=0,
-            observables=describe('labour_market').observables_of(built),
-        )
-        .prepare()
-        .run(until=150)
-        .trajectory_
+    trajectory = simulate(
+        LabourMarketSystem(150, 30, separation=separation).prepare().system_,
+        until=150,
+        random_state=0,
+        observables=LabourMarketSystem().get_run_settings()['observables'],
     )
     window = slice(50, None)
     finding = np.nansum(trajectory.values('labour.volume')[window]) / np.nansum(

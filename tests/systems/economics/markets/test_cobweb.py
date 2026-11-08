@@ -3,7 +3,7 @@
 import pytest
 
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.economics.markets import CobwebInteraction, MarketElement
 
 
@@ -14,5 +14,5 @@ def test_cobweb_converges_to_equilibrium():
         elements=[MarketElement('m', price=1.0)],
         interactions=[CobwebInteraction('c', target='m', a=a, b=b, c=c, d=d)],
     )
-    price = Simulation(system).prepare().run(until=60).trajectory_.values('m.price')[-1]
+    price = simulate(system, until=60).values('m.price')[-1]
     assert price == pytest.approx((a - c) / (b + d))

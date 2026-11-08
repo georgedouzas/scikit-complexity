@@ -18,7 +18,7 @@ from ...components.spaces import DiscreteTime
 from ...errors import SolverError, ValidationError
 from ...specs import StructureStateSpec, SupportSpec
 from ...types import Array, FormKind, OrderKind
-from ..problems import LearningProblemSpec
+from ..problems._learning_problem_spec import LearningProblemSpec
 from ..types import TracedArray
 from ._base import BaseSolver
 

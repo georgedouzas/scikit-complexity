@@ -7,7 +7,7 @@ import numpy as np
 from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import ContinuousSpace, DiscreteTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import PhaseSpec, PhasesScheduleSpec
 from skcomplex.systems.biology.collective_behaviour import (
     CouzinLeadershipSystem,
@@ -21,12 +21,12 @@ def _accuracy(informed):
     """Return the mean cosine between the shoal's late heading and the preferred direction, over four shoals."""
     cosines = []
     for seed in range(4):
-        trajectory = Simulation(
+        trajectory = simulate(
             CouzinLeadershipSystem(30, informed=informed, random_state=seed).prepare().system_,
+            until=150,
             dt=1,
             random_state=seed,
-        ).prepare()
-        trajectory = trajectory.run(150).trajectory_
+        )
         for frame in range(100, 151):
             snapshot = trajectory.agents('shoal', frame)
             heading = np.arctan2(np.mean(snapshot.values['vy']), np.mean(snapshot.values['vx']))

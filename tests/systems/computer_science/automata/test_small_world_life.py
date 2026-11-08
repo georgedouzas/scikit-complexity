@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ParameterError
 from skcomplex.systems.computer_science.automata import GameOfLifeSystem, SmallWorldLifeSystem
 
@@ -12,12 +12,8 @@ def test_small_world_life_without_rewiring_is_the_game_of_life():
     """Test that on the unrewired Moore network the automaton follows the Game of Life on the torus."""
     trajectory = simulate(SmallWorldLifeSystem(), until=40, random_state=0)
     alive = trajectory.values('cells.alive')
-    lattice = (
-        Simulation(GameOfLifeSystem((50, 50), initial=alive[0].reshape(50, 50)).prepare().system_, dt=1)
-        .prepare()
-        .run(until=40)
-    )
-    assert np.array_equal(lattice.trajectory_.lattice('cells.alive')[-1].ravel(), alive[-1])
+    lattice = simulate(GameOfLifeSystem((50, 50), initial=alive[0].reshape(50, 50)).prepare().system_, until=40, dt=1)
+    assert np.array_equal(lattice.lattice('cells.alive')[-1].ravel(), alive[-1])
 
 
 def test_small_world_life_keeps_eight_neighbours_and_changes_the_density_it_settles_at():

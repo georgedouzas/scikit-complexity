@@ -35,7 +35,7 @@ class GrunwaldLetnikovSolver(ConvolutionSolver):
         >>> from skcomplex.core.components.laws import RateLaw
         >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.compile import PassCompiler
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
         >>> from skcomplex.core.engine.solvers import GrunwaldLetnikovSolver
         >>> from skcomplex.core.specs import StepSpec
         >>> class RelaxingElement(Element):

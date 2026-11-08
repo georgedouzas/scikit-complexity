@@ -58,7 +58,7 @@ class CollisionKernel(BaseKernel):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.engine.problems import CollisionKernel
+        >>> from skcomplex.core.engine.problems._collision_kernel import CollisionKernel
         >>> from skcomplex.core.specs import RunStateSpec
         >>> kernel = CollisionKernel((8, 8), (1.0, 1.0), lambda speed, cosine: 1 / (2 * np.pi)).prepare()
         >>> f = np.exp(-(np.indices((8, 8)) - 3.5) ** 2).prod(axis=0)

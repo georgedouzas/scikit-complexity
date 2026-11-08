@@ -13,9 +13,9 @@ import qutip
 import scipy.sparse as sp
 
 from ..components.system import System
-from ..engine.compile import OperatorCompiler
-from ..engine.compile.passes._operator_compiler import DENSE_LIMIT
-from ..engine.problems import BaseProblemSpec, OperatorProblemSpec
+from ..engine.compile.passes._operator_compiler import DENSE_LIMIT, OperatorCompiler
+from ..engine.problems import BaseProblemSpec
+from ..engine.problems._operator_problem_spec import OperatorProblemSpec
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError, ParameterError
 from ..specs import AnalysisTags, RunStateSpec, SectorSpec
@@ -142,7 +142,7 @@ def operator_measures(
         >>> from skcomplex.core.components.laws.utils import local_operator
         >>> from skcomplex.core.specs import HilbertSpec, StateSpec
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.compile import OperatorCompiler
+        >>> from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
         >>> from skcomplex.core.engine.runtime import Simulation
         >>> operators = {'z': (np.diag([1, -1]), True), 'minus': (np.array([[0, 0], [1, 0]]), False)}
         >>> QUBIT = HilbertSpec(2, operators, basis={'up': 0, 'down': 1})

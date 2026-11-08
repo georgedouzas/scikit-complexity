@@ -14,7 +14,7 @@ backward over the far one, so their positions climb from well to well.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.soft_matter import FlashingRatchetSystem
@@ -23,14 +23,14 @@ SYSTEM = 'flashing_ratchet'
 
 system = FlashingRatchetSystem(n_particles=20, asymmetry=0.1, rate=1.0, duration=60.0, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(
+trajectory = simulate(
     system.prepare().system_,
+    until=60,
     dt=0.25,
     solver=EulerMaruyamaSolver(dt=0.004),
     observers=[observer],
     random_state=0,
-).prepare()
-simulation.run(until=60)
+)
 
 # %%
 # Current against the asymmetry and the switching rate

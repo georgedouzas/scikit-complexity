@@ -20,7 +20,7 @@ def test_rice_milling_passes_the_harvest_through():
         RiceMillingSystem(harvest=2000.0, outturn=0.65).prepare().system_,
         0.25,
         120,
-        'rice_milling',
+        RiceMillingSystem(),
     )
     last_years = np.asarray(trajectory.times) >= 72
     assert trajectory.values('mill.milling')[last_years].mean() == pytest.approx(2000.0, rel=0.05)
@@ -55,7 +55,7 @@ def test_food_relief_delays_then_meets_the_need():
 
 def test_irrigation_pumps_groundwater_in_the_dry_season():
     """Test that the farmers pump the aquifer only when the reservoir runs low, drawing the aquifer down."""
-    trajectory = _run_monitored(IrrigationSystem().prepare().system_, 1.0, 730, 'irrigation')
+    trajectory = _run_monitored(IrrigationSystem().prepare().system_, 1.0, 730, IrrigationSystem())
     pumping, reservoir = trajectory.values('scheme.pumping'), trajectory.values('scheme.reservoir')
     assert pumping.max() > 0
     assert reservoir[pumping > 0].max() < 10.0

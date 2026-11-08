@@ -4,7 +4,7 @@ import numpy as np
 
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.systems.physics.common.particles import MassPointElement, SpringInteraction
 
@@ -16,9 +16,7 @@ def test_spring_conserves_energy():
         interactions=[SpringInteraction('spring', first='a', second='b', k=3.0, length=1.0)],
         space=ContinuousSpace(n_dim=2),
     )
-    trajectory = (
-        Simulation(system, solver=ScipyODESolver(rtol=1e-10, atol=1e-12), dt=0.1).prepare().run(until=5).trajectory_
-    )
+    trajectory = simulate(system, until=5, solver=ScipyODESolver(rtol=1e-10, atol=1e-12), dt=0.1)
     kinetic = 0.5 * (trajectory.values('a.x_d1') ** 2).sum(axis=1) + 0.5 * 2.0 * (trajectory.values('b.x_d1') ** 2).sum(
         axis=1,
     )

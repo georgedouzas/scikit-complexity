@@ -15,7 +15,9 @@ from ....components.specs import CensusRecordSpec
 from ....errors import ValidationError
 from ....specs import IssueSpec, NoiseProcessSpec
 from ....types import Indices
-from ...problems import DeclarationsSpec, OutputSpec, ReferenceSpec
+from ...problems._declarations_spec import DeclarationsSpec
+from ...problems._output_spec import OutputSpec
+from ...problems._reference_spec import ReferenceSpec
 from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import Compilation, Laws

@@ -22,7 +22,7 @@ def test_undecided_flows_settle_at_the_fixed_point_of_constant_rates():
 
 def test_undecided_drive_leaves_undecided_agents_only_above_the_critical_size():
     """Test that above `N_c = omega (1 / gamma + 1 / eta)` the surplus never decides, and below it everyone does."""
-    above = _run_seeded(UndecidedFlowsSystem().prepare().system_, 50.0, 1.0, 'undecided_flows')
+    above = _run_seeded(UndecidedFlowsSystem().prepare().system_, 50.0, 1.0, UndecidedFlowsSystem())
     np.testing.assert_allclose(_final(above), [20.0, 50.0, 30.0], rtol=1e-4)
     assert above.values('population.critical_size')[-1] == pytest.approx(70.0)
     below = _run_seeded(UndecidedFlowsSystem(50.0).prepare().system_, 50.0, 1.0)

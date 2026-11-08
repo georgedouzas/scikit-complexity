@@ -3,13 +3,13 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.physics.fluids import HPPLatticeGasSystem
 
 
 def _channels(system, until):
     """Return the four channels of a run, as arrays of frames, rows, and columns."""
-    trajectory = Simulation(system, dt=1).prepare().run(until=until).trajectory_
+    trajectory = simulate(system, until=until, dt=1)
     shape = (-1, *system.elements[0].space.shape)
     return [np.asarray(trajectory.values(f'gas.n{direction}'), dtype=float).reshape(shape) for direction in range(4)]
 

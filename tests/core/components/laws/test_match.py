@@ -10,7 +10,7 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import MatchLaw, RuleLaw
 from skcomplex.core.components.laws.utils import matches
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import PartnerSpec, StateSpec, VisualSpec
 
@@ -64,7 +64,7 @@ def test_random_matching_pairs_every_member_at_most_once():
         ],
         interactions=[ExchangeInteraction('market')],
     )
-    trajectory = Simulation(system, random_state=0).prepare().run(until=1).trajectory_
+    trajectory = simulate(system, until=1, random_state=0)
     sellers = np.asarray(trajectory.agents('sellers', 1).values['paired'])
     buyers = np.asarray(trajectory.agents('buyers', 1).values['paired'])
     assert sellers.tolist() == [1.0] * 30
@@ -92,7 +92,7 @@ def test_run_stores_the_pairs_of_a_partner_spec_for_the_rules_of_the_step():
     """Test that a match law lowers a partner spec, whose score sends every member to the one with the most pairs."""
     traders = GroupElement('traders', element=TraderElement, size=3, values={'paired': [0.0, 5.0, 0.0]})
     system = System(elements=[traders], interactions=[PairedInteraction('market')])
-    trajectory = Simulation(system, random_state=0).prepare().run(until=1).trajectory_
+    trajectory = simulate(system, until=1, random_state=0)
     assert trajectory.agents('traders', 1).values['paired'].sum() == pytest.approx(8.0)
     assert trajectory.agents('traders', 1).values['paired'][1] == pytest.approx(7.0)
 

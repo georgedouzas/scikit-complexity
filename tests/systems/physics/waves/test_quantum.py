@@ -6,7 +6,7 @@ import pytest
 
 from skcomplex.core.analysis import operator_measures
 from skcomplex.core.components.spaces import NetworkSpace
-from skcomplex.core.engine.compile import OperatorCompiler
+from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ETDRK4Solver
 from skcomplex.core.engine.viz import RerunObserver

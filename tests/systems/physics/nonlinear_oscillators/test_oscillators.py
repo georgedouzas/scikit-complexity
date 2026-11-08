@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.systems.physics.nonlinear_oscillators import (
     AdlerEquationSystem,
@@ -27,7 +27,7 @@ def _run_van_der_pol(**parameters):
     """Return the trajectory of one Van der Pol oscillator over a long run."""
     system = System(elements=[VanDerPolElement('oscillator', **parameters)])
     solver = ScipyODESolver(rtol=1e-9, atol=1e-11)
-    return Simulation(system, dt=0.05, solver=solver).prepare().run(until=100.0).trajectory_
+    return simulate(system, until=100.0, dt=0.05, solver=solver)
 
 
 def test_unforced_oscillator_reaches_its_limit_cycle():

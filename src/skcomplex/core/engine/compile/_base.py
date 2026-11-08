@@ -29,7 +29,9 @@ from ...specs import IssueSpec, ObservableSpec, SupportSpec, ValidationReportSpe
 from ...types import FormKind
 from ..backends import BaseBackend, NumbaBackend, NumpyBackend
 from ..backends._base import _AUTO_MEMBERS
-from ..problems import BaseProblemSpec, KernelSpec, ReferenceSpec
+from ..problems import BaseProblemSpec
+from ..problems._kernel_spec import KernelSpec
+from ..problems._reference_spec import ReferenceSpec
 from ._compilation import Compilation
 
 _FIXES: dict[type[SkcomplexError], tuple[str, str]] = {

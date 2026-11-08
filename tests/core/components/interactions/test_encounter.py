@@ -11,8 +11,8 @@ from skcomplex.core.components.interactions import EncounterInteraction
 from skcomplex.core.components.laws.utils import coordinate
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import AxisSpec, RoleSpec
@@ -51,7 +51,7 @@ def _densities(encounter, until, initial=(0.2, 0.3, 0.5)):
         interactions=[encounter],
         space=LatticeSpace(CLASSES, boundary='fixed'),
     )
-    trajectory = Simulation(system, dt=0.5).prepare().run(until=until).trajectory_
+    trajectory = simulate(system, until=until, dt=0.5)
     return np.asarray(trajectory.times), trajectory.values('candidates.f')
 
 
@@ -134,8 +134,7 @@ def test_linear_encounter_erases_polarization_at_the_rate_of_the_noise() -> None
     noise /= noise.sum(axis=0, keepdims=True)
     gas = FieldElement('gas', element=DensityElement, space=space, values={'f': start})
     diffusion = EncounterInteraction('noise', candidate='gas', rate=lambda _: 2.0, kernel=lambda _: noise.T)
-    simulation = Simulation(System(elements=[gas], interactions=[diffusion]), solver=RK4Solver(dt=0.01))
-    trajectory = simulation.prepare().run(until=1.0).trajectory_
+    trajectory = simulate(System(elements=[gas], interactions=[diffusion]), until=1.0, solver=RK4Solver(dt=0.01))
     values = np.asarray(trajectory.values('gas.f')).reshape(-1, 3, 32)
     assert np.abs(values[-1].sum(axis=1) / start.sum(axis=1) - 1.0).max() < 1e-12
     polarization = (values[-1] * np.cos(theta)).sum(axis=1) / (start * np.cos(theta)).sum(axis=1)
@@ -151,8 +150,8 @@ def test_encounter_pairs_classes_at_the_same_position() -> None:
     kernel = np.zeros((2, 2, 2))
     kernel[:, :, 1] = 1.0
     move = EncounterInteraction('move', candidate='gas', field='gas', rate=lambda _: 1.0, kernel=lambda _: kernel)
-    simulation = Simulation(System(elements=[gas], interactions=[move]), solver=RK4Solver(dt=0.01)).prepare()
-    final = simulation.run(until=1.0).trajectory_.values('gas.f')[-1].reshape(2, 2)
+    trajectory = simulate(System(elements=[gas], interactions=[move]), until=1.0, solver=RK4Solver(dt=0.01))
+    final = trajectory.values('gas.f')[-1].reshape(2, 2)
     assert final.sum(axis=1) == pytest.approx([1.0, 1.0])
     assert final[1] == pytest.approx([0.0, 1.0])
     assert final[0, 0] == pytest.approx(np.exp(-1.0), rel=1e-6)
@@ -171,7 +170,7 @@ def test_encounter_rate_reads_the_coordinate_of_the_candidate_class() -> None:
         outcome='destructive',
     )
     system = System(elements=[gas, level], interactions=[remove])
-    final = Simulation(system, solver=RK4Solver(dt=0.01)).prepare().run(until=0.1).trajectory_
+    final = simulate(system, until=0.1, solver=RK4Solver(dt=0.01))
     expected = np.exp(-0.1 * 2.0 * np.array([1.0, 3.0]))
     assert final.values('gas.f')[-1] == pytest.approx(expected, rel=1e-6)
 
@@ -235,8 +234,8 @@ def test_bkw_solution_within_1e_4_and_density_constant() -> None:
     start = bkw(0.0, vx, vy)
     gas = FieldElement('gas', element=DensityElement, space=space, values={'f': start[None]})
     collide = EncounterInteraction('c', candidate='gas', cross_section=maxwell)
-    simulation = Simulation(System(elements=[gas], interactions=[collide]), solver=RK4Solver(dt=0.1)).prepare()
-    final = simulation.run(until=5.0).trajectory_.values('gas.f')[-1].reshape(SIZE, SIZE)
+    trajectory = simulate(System(elements=[gas], interactions=[collide]), until=5.0, solver=RK4Solver(dt=0.1))
+    final = trajectory.values('gas.f')[-1].reshape(SIZE, SIZE)
     assert np.abs(final - bkw(5.0, vx, vy)).max() < 1e-4
     assert abs(final.sum() / start.sum() - 1.0) < 1e-12
 
@@ -248,10 +247,10 @@ def test_density_factor_speeds_relaxation_twice() -> None:
     gas = FieldElement('gas', element=DensityElement, space=space, values={'f': start[None]})
     plain = EncounterInteraction('c', candidate='gas', cross_section=maxwell)
     faster = EncounterInteraction('c', candidate='gas', cross_section=maxwell, factor=lambda _: 2.0)
-    slow = Simulation(System(elements=[gas], interactions=[plain]), solver=RK4Solver(dt=0.1)).prepare()
-    fast = Simulation(System(elements=[gas], interactions=[faster]), solver=RK4Solver(dt=0.05)).prepare()
-    first = slow.run(until=2.0).trajectory_.values('gas.f')[-1]
-    second = fast.run(until=1.0).trajectory_.values('gas.f')[-1]
+    slow = simulate(System(elements=[gas], interactions=[plain]), until=2.0, solver=RK4Solver(dt=0.1))
+    first = slow.values('gas.f')[-1]
+    fast = simulate(System(elements=[gas], interactions=[faster]), until=1.0, solver=RK4Solver(dt=0.05))
+    second = fast.values('gas.f')[-1]
     assert np.abs(first - second).max() / np.abs(first - start.ravel()).max() < 0.01
 
 

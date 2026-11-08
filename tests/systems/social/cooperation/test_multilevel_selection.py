@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.social.cooperation import (
@@ -15,8 +15,8 @@ from skcomplex.systems.social.cooperation import (
 
 def _final_density(system, until, dt=0.02):
     """Return the initial and final density of a system of group compositions."""
-    simulation = Simulation(system, dt=until, solver=RK4Solver(dt=dt)).prepare().run(until=until)
-    values = simulation.trajectory_.values('groups.f')
+    trajectory = simulate(system, until=until, dt=until, solver=RK4Solver(dt=dt))
+    values = trajectory.values('groups.f')
     return values[0], values[-1]
 
 

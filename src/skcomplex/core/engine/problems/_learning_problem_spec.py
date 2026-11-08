@@ -50,7 +50,7 @@ class LearningProblemSpec(BaseProblemSpec):
         >>> from skcomplex.core.types import FormKind
         >>> from skcomplex.core.engine._utils import symbol
         >>> from skcomplex.core.specs import LayoutSpec
-        >>> from skcomplex.core.engine.problems import LearningProblemSpec
+        >>> from skcomplex.core.engine.problems._learning_problem_spec import LearningProblemSpec
         >>> layout = LayoutSpec(())
         >>> problem = LearningProblemSpec(FormKind.LEARNING, layout, layout, np.zeros(0), np.zeros(0), symbol('t'))
         >>> problem.form.value, problem.trained

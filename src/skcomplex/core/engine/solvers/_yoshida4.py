@@ -58,7 +58,7 @@ class Yoshida4Solver(Solver):
             The problem is not an ODE, or its states admit no split into two blocks whose rates read only the other.
 
     Examples:
-        >>> from skcomplex.core.engine.compile import PassCompiler
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
         >>> from skcomplex.core.components.spaces import ContinuousSpace
         >>> from skcomplex.core.components.system import System
         >>> from skcomplex.core.components.elements import PointElement

@@ -5,11 +5,11 @@ import pytest
 
 from skcomplex.core.analysis import reservoir
 from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.errors import AnalysisError
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.dynamical_systems import LorenzSystem
 
 LYAPUNOV_TIME = 1 / 0.906
 STEP = 0.025
@@ -20,7 +20,7 @@ def _lorenz_samples():
     """Return samples of the Lorenz attractor every 0.025 for 42 Lyapunov times after a transient."""
     solver = ScipyODESolver(method='DOP853', rtol=1e-9, atol=1e-9)
     until = TRANSIENT + 42 * LYAPUNOV_TIME
-    trajectory = Simulation(create_system('lorenz'), solver=solver, dt=STEP).prepare().run(until=until).trajectory_
+    trajectory = simulate(LorenzSystem().prepare().system_, until=until, solver=solver, dt=STEP)
     values = np.column_stack([trajectory.values(f'lorenz.{name}') for name in 'xyz'])
     first = round(TRANSIENT / STEP)
     return values[first:]
@@ -53,7 +53,7 @@ def test_reservoir_analysis_runs_under_discrete_time():
     system = _fit(_sine_values(), horizon=20)
     assert isinstance(system.system.time, DiscreteTime)
     assert PassCompiler().prepare(system.system).report_.ok
-    run = Simulation(system.system).prepare().run(until=20).trajectory_
+    run = simulate(system.system, until=20)
     assert np.allclose(np.column_stack([run.values('surrogate.x'), run.values('surrogate.y')])[1:], system.forecast)
 
 

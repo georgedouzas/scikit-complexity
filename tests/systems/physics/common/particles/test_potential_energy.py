@@ -4,7 +4,7 @@ import numpy as np
 
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.systems.physics.common.particles import MassPointElement, PotentialEnergyInteraction
 
@@ -22,5 +22,5 @@ def test_potential_energy_changes_the_velocity_by_the_force_over_the_mass():
         space=ContinuousSpace(n_dim=1),
     )
     solver = ScipyODESolver(rtol=1e-10, atol=1e-12)
-    trajectory = Simulation(system, solver=solver, dt=0.1).prepare().run(until=4.0).trajectory_
+    trajectory = simulate(system, until=4.0, solver=solver, dt=0.1)
     np.testing.assert_allclose(trajectory.values('ball.x')[:, 0], np.cos(trajectory.times), atol=1e-7)

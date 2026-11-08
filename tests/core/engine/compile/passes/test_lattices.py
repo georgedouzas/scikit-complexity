@@ -24,10 +24,10 @@ from skcomplex.core.components.spaces import (
 )
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import PassCompiler
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems import FrameSpec
 from skcomplex.core.engine.problems._extremal_kernel import ExtremalKernel
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver, SiteVisual
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.experiments import sweep
@@ -177,7 +177,7 @@ def test_triangular_rule_spreads_as_hexagons(backend):
             ),
         ],
     )
-    burning = Simulation(system, dt=1, backend=backend()).prepare().run(until=10).trajectory_.lattice('forest.fire')
+    burning = simulate(system, until=10, dt=1, backend=backend()).lattice('forest.fire')
     assert [int(item.sum()) for item in burning] == [3 * k * (k + 1) + 1 for k in range(11)]
 
 
@@ -214,8 +214,8 @@ def test_grid_graph_matches_square_lattice():
             ),
         ],
     )
-    expected = Simulation(on_lattice, dt=1).prepare().run(until=40).trajectory_.values('cells.alive')
-    found = Simulation(on_graph, dt=1).prepare().run(until=40).trajectory_.values('cells.alive')
+    expected = simulate(on_lattice, until=40, dt=1).values('cells.alive')
+    found = simulate(on_graph, until=40, dt=1).values('cells.alive')
     assert np.array_equal(found, expected)
     assert expected[-1].sum() == 5
 
@@ -251,7 +251,7 @@ def test_totalistic_rule_counts_real_neighbours_on_star():
             ),
         ],
     )
-    assert Simulation(system, dt=1).prepare().run(until=1).state_.tolist() == [2, 1, 1, 1, 1, 1]
+    assert simulate(system, until=1, dt=1).states[-1].tolist() == [2, 1, 1, 1, 1, 1]
 
 
 def test_function_rule_reads_degrees_on_star():
@@ -275,7 +275,7 @@ def test_function_rule_reads_degrees_on_star():
             return [LocalRuleLaw(s.value, AdjacencyNeighborhood(center=True), lambda *values, degree: degree)]
 
     system = System(elements=[LatticeElement('star', element=DegreeElement, space=NetworkSpace(nx.star_graph(5)))])
-    assert Simulation(system, dt=1).prepare().run(until=1).state_.tolist() == [5, 1, 1, 1, 1, 1]
+    assert simulate(system, until=1, dt=1).states[-1].tolist() == [5, 1, 1, 1, 1, 1]
 
 
 def test_lattice_groups_on_networks_reject_tables_and_capacities():
@@ -420,10 +420,7 @@ def test_colored_schedule_partitions_triangular_lattice():
     assert np.array_equal(np.sort(sites), np.arange(144))
     for members in sampling.classes:
         assert not np.isin(sampling.table[members], members).any()
-    Simulation(
-        System(elements=[LatticeElement('spins', element=SpinElement, space=space)]),
-        dt=1,
-    ).prepare().run(until=2)
+    simulate(System(elements=[LatticeElement('spins', element=SpinElement, space=space)]), until=2, dt=1)
 
 
 @pytest.mark.parametrize('space', [LatticeSpace((6, 6), geometry='triangular'), NetworkSpace(nx.cycle_graph(6))])
@@ -473,19 +470,19 @@ def test_extremal_changes_only_the_neighbourhood():
             return [ExtremalLaw(s.value, BoxNeighborhood(), _renew)]
 
     values = np.random.default_rng(0).random(100)
-    simulation = Simulation(
+    trajectory = simulate(
         System(
             elements=[
                 LatticeElement('ring', element=OnceElement, space=LatticeSpace(100), values={'value': values}),
             ],
         ),
+        until=1,
         dt=1,
-    ).prepare()
-    simulation.run(until=1)
+    )
     site = int(np.argmin(values))
-    changed = np.flatnonzero(simulation.state_ != values)
+    changed = np.flatnonzero(trajectory.states[-1] != values)
     assert sorted(changed.tolist()) == sorted([(site - 1) % 100, site, (site + 1) % 100])
-    (event,) = simulation.trajectory_.events
+    (event,) = trajectory.events
     assert event == ExtremalRecordSpec('ring', 1.0, site, float(values[site]))
 
 
@@ -519,7 +516,7 @@ def test_extremal_maximum_and_ties():
             ),
         ],
     )
-    events = Simulation(system, dt=1, random_state=0).prepare().run(until=1).trajectory_.events
+    events = simulate(system, until=1, dt=1, random_state=0).events
     assert events[0].value == 2.0
     assert all(event.value <= 2.0 for event in events)
     with pytest.raises(ValidationError, match='extremum'):
@@ -536,8 +533,8 @@ def test_extremal_runs_are_reproducible_across_backends():
                 LatticeElement('ring', element=FitnessElement, space=LatticeSpace(50), values={'value': values}),
             ],
         )
-        simulation = Simulation(system, dt=1, backend=backend(), random_state=7).prepare().run(until=20)
-        runs.append((simulation.trajectory_.values('ring.value'), simulation.trajectory_.events))
+        trajectory = simulate(system, until=20, dt=1, backend=backend(), random_state=7)
+        runs.append((trajectory.values('ring.value'), trajectory.events))
     system = System(
         elements=[LatticeElement('ring', element=FitnessElement, space=LatticeSpace(50), values={'value': values})],
     )
@@ -552,10 +549,10 @@ def test_extremal_runs_are_reproducible_across_backends():
 
 def test_triangular_forest_fire_streams_hexagonal_cells(tmp_path):
     """Test that a triangular forest fire logs one colored cell per site at its position at every logged step."""
-    simulation = Simulation(HexagonalForestFireSystem((12, 10)).prepare().system_, dt=1).prepare().run(until=1)
-    frame = FrameSpec(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
+    trajectory = simulate(HexagonalForestFireSystem((12, 10)).prepare().system_, until=1, dt=1)
+    frame = FrameSpec(0, 0.0, trajectory.states[-1], trajectory.parameters[-1], trajectory.problem)
     recording = Recording()
-    (SiteVisual(path=simulation.problem_.elements[0].path, recording=recording).prepare(simulation.problem_).run(frame))
+    (SiteVisual(path=trajectory.problem.elements[0].path, recording=recording).prepare(trajectory.problem).run(frame))
     ((path, points, _),) = recording.entries
     assert path == 'forest/cover'
     assert type(points).__name__ == 'Points2D'
@@ -563,18 +560,18 @@ def test_triangular_forest_fire_streams_hexagonal_cells(tmp_path):
     assert np.allclose(positions, LatticeSpace((12, 10), geometry='triangular').prepare().positions_)
     assert len(points.colors.as_arrow_array()) == 120
     observer = RerunObserver('forest', save_path=tmp_path / 'forest.rrd')
-    Simulation(HexagonalForestFireSystem((12, 10)).prepare().system_, dt=1, observers=[observer]).prepare().run(until=3)
+    simulate(HexagonalForestFireSystem((12, 10)).prepare().system_, until=3, dt=1, observers=[observer])
     assert observer.logged_frames_ == 4
     assert (tmp_path / 'forest.rrd').stat().st_size > 0
 
 
 def test_graph_lattices_stream_nodes_and_static_edges():
     """Test that a lattice group on a graph logs its edges once and its nodes at every frame."""
-    simulation = Simulation(GraphIsingSystem(nx.cycle_graph(8)).prepare().system_, dt=1).prepare().run(until=1)
-    frame = FrameSpec(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
+    trajectory = simulate(GraphIsingSystem(nx.cycle_graph(8)).prepare().system_, until=1, dt=1)
+    frame = FrameSpec(0, 0.0, trajectory.states[-1], trajectory.parameters[-1], trajectory.problem)
     recording = Recording()
-    visual = SiteVisual(low=-1, high=1, path=simulation.problem_.elements[0].path, recording=recording)
-    visual.prepare(simulation.problem_)
+    visual = SiteVisual(low=-1, high=1, path=trajectory.problem.elements[0].path, recording=recording)
+    visual.prepare(trajectory.problem)
     visual.run(frame)
     visual.run(frame)
     kinds = [(type(archetype).__name__, static) for _, archetype, static in recording.entries]
@@ -600,7 +597,7 @@ def test_linear_rule_runs_as_its_law_steps():
         rule=LinearRuleSpec((1, 1), 'GF(2)'),
         neighborhood=LatticeNeighborhood(((-1,), (1,))),
     )
-    trajectory = Simulation(System(elements=[cells], interactions=[rule90]), dt=1).prepare().run(until=2).trajectory_
+    trajectory = simulate(System(elements=[cells], interactions=[rule90]), until=2, dt=1)
     values = trajectory.values('cells.alive')
     assert values[1].astype(int).tolist() == [0, 1, 0, 1, 0, 0]
     assert values[2].astype(int).tolist() == [1, 0, 0, 0, 1, 0]
@@ -614,7 +611,7 @@ def test_life_simulation_agrees_with_the_run_of_its_law():
     space = LatticeSpace((5, 5))
     cells = LatticeElement('cells', element=OnOffElement, space=space, values={'alive': start})
     life = LocalRuleInteraction('life', target='cells', state='alive', rule=rule, neighborhood=MooreNeighborhood())
-    trajectory = Simulation(System(elements=[cells], interactions=[life]), dt=1).prepare().run(until=1).trajectory_
+    trajectory = simulate(System(elements=[cells], interactions=[life]), until=1, dt=1)
     law = LocalRuleLaw(var('alive'), MooreNeighborhood(), rule).prepare()
     image = law.run({'space': space, 'alive': start.astype(int)}).value_
     np.testing.assert_array_equal(trajectory.values('cells.alive')[-1].astype(int), image)

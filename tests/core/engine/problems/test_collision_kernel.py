@@ -10,7 +10,7 @@ import numpy.typing as npt
 import pytest
 from scipy.interpolate import RegularGridInterpolator
 
-from skcomplex.core.engine.problems import CollisionKernel
+from skcomplex.core.engine.problems._collision_kernel import CollisionKernel
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import RunStateSpec
 

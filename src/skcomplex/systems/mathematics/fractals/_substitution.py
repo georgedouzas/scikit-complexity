@@ -14,7 +14,6 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import PatchElement, WordElement
 from ....core.components.laws import ProductionLaw, SubstitutionLaw
 from ....core.components.system import BaseSystem, System
-from ....core.engine.compile import RewritingCompiler
 from ....core.errors import ValidationError
 from ....core.specs import AffineSpec, GeometrySpec, ParameterSpec, PrototileSpec, VisualSpec
 
@@ -259,7 +258,6 @@ class KochCurveSystem(BaseSystem):
     references = ('Prusinkiewicz and Lindenmayer 1990', 'Thurner, Hanel, and Klimek 2018', 'Trzaska 2023')
     until = 5
     dt = 1
-    compiler = RewritingCompiler()
 
     def __init__(self, angle: float = 60.0, *, label: str = 'system') -> None:
         super().__init__(label)
@@ -308,7 +306,6 @@ class CantorSetSystem(BaseSystem):
     references = ('Cantor 1883', 'Thurner, Hanel, and Klimek 2018', 'Trzaska 2023')
     until = 8
     dt = 1
-    compiler = RewritingCompiler()
 
     def __init__(self, ratio: float = 1 / 3, *, label: str = 'system') -> None:
         super().__init__(label)
@@ -368,7 +365,6 @@ class SierpinskiSubstitutionSystem(BaseSystem):
     references = ('Sierpiński 1915', 'Sierpiński 1916', 'Thurner, Hanel, and Klimek 2018', 'Trzaska 2023')
     until = 6
     dt = 1
-    compiler = RewritingCompiler()
 
     def __init__(self, shape: str = 'triangle', *, filled: bool = True, label: str = 'system') -> None:
         super().__init__(label)

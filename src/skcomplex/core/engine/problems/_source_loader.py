@@ -41,7 +41,7 @@ class SourceLoader(BaseConfig[str | Path | None, str]):
             The module of the last source run.
 
     Examples:
-        >>> from skcomplex.core.engine.problems import SourceLoader
+        >>> from skcomplex.core.engine.problems._source_loader import SourceLoader
         >>> loader = SourceLoader('skcomplex_example').prepare()
         >>> loader.run('def double(x): return 2 * x').module_.double(3)
         6

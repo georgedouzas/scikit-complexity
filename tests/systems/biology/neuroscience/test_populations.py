@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from scipy.integrate import solve_ivp
 
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.systems.biology.neuroscience import (
     PolyhomeostaticNeuronSystem,
@@ -70,7 +70,7 @@ def test_winners_take_all_with_one_inhibition():
     """Test that the default network has one inhibition reading the total, and only the unit with input 1.1 wins."""
     for inputs in ((1.0, 1.1, 0.9), (1.0, 1.1, 0.9, 1.05, 0.95)):
         assert len(WinnersTakeAllSystem(inputs).prepare().system_.interactions) == 1
-    state = Simulation(WinnersTakeAllSystem(beta=2.0).prepare().system_, dt=1.0).prepare().run(until=200).state_
+    state = simulate(WinnersTakeAllSystem(beta=2.0).prepare().system_, until=200, dt=1.0).states[-1]
     assert np.argmax(state) == 1
     assert abs(state[1] - 1.1) < 1e-3
     assert np.sort(state)[-2] < 1e-3
@@ -79,8 +79,8 @@ def test_winners_take_all_with_one_inhibition():
 def test_winner_takes_all():
     """Test that strong inhibition leaves only the unit with the largest input, and weak inhibition several."""
     inputs = (1.0, 1.1, 0.9)
-    strong = Simulation(WinnersTakeAllSystem(inputs, beta=2.0).prepare().system_, dt=1.0).prepare().run(until=80).state_
-    weak = Simulation(WinnersTakeAllSystem(inputs, beta=0.5).prepare().system_, dt=1.0).prepare().run(until=80).state_
+    strong = simulate(WinnersTakeAllSystem(inputs, beta=2.0).prepare().system_, until=80, dt=1.0).states[-1]
+    weak = simulate(WinnersTakeAllSystem(inputs, beta=0.5).prepare().system_, until=80, dt=1.0).states[-1]
     assert np.argmax(strong) == 1
     assert strong[1] == pytest.approx(1.1, rel=1e-3)
     assert np.sort(strong)[-2] < 1e-3

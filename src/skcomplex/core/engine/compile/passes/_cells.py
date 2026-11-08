@@ -10,7 +10,7 @@ from ....components.elements import GroupElement
 from ....components.spaces import CellComplexSpace, LatticeSpace
 from ....errors import SpaceError
 from ....types import Array
-from ...problems import DeclarationsSpec
+from ...problems._declarations_spec import DeclarationsSpec
 
 DEGREES = {'sites': 0, 'edges': 1, 'hyperedges': 2}
 PARTS = tuple(DEGREES)

@@ -6,8 +6,8 @@ import inspect
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.biology.systems_biology import RandomBooleanNetworkSystem, YeastCellCycleSystem
 
@@ -104,9 +104,9 @@ def test_yeast_cell_cycle_matches_recorded_trajectory():
 
 def test_yeast_cell_cycle_returns_to_g1():
     """Test that the yeast network passes through the M phase and ends in the stationary G1 state."""
-    simulation = Simulation(YeastCellCycleSystem().prepare().system_, dt=1).prepare().run(until=15)
-    names = simulation.problem_.states.names
-    active = [[name for name, value in zip(names, row, strict=True) if value] for row in simulation.trajectory_.states]
+    trajectory = simulate(YeastCellCycleSystem().prepare().system_, until=15, dt=1)
+    names = trajectory.problem.states.names
+    active = [[name for name, value in zip(names, row, strict=True) if value] for row in trajectory.states]
     assert any('Clb1_2.x' in names for names in active)
     assert active[-1] == active[-2] == ['Cdh1.x', 'Sic1.x']
 

@@ -10,7 +10,7 @@ from skcomplex.core.components.interactions import PairInteraction
 from skcomplex.core.components.laws import BoundaryLaw, RateLaw
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 

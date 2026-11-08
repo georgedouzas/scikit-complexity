@@ -7,12 +7,10 @@ import pytest
 from sklearn.preprocessing import PolynomialFeatures
 
 from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation, simulate
-from skcomplex.core.engine.solvers import CoSimulationSolver
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.types import FormKind
-from skcomplex.systems import describe
 from skcomplex.systems.engineering.control import KoopmanModelPredictiveControlSystem
 
 
@@ -93,6 +91,6 @@ def test_koopman_model_predictive_control_rejects_unknown_plant():
 def test_koopman_model_predictive_control_default_solver_is_co_simulation():
     """Test that a default run schedules the plant and the controller with the co-simulation solver."""
     system = KoopmanModelPredictiveControlSystem(controlled=False).prepare().system_
-    simulation = Simulation(system, dt=1.0).prepare().run(until=2.0)
-    assert isinstance(simulation.stepper_, CoSimulationSolver)
-    assert describe('koopman_model_predictive_control').field == 'engineering/control'
+    trajectory = simulate(system, until=2.0, dt=1.0)
+    assert trajectory.problem.form == FormKind.COUPLED
+    assert KoopmanModelPredictiveControlSystem.field == 'engineering/control'

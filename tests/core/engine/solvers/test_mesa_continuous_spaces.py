@@ -13,8 +13,8 @@ from skcomplex.core.components.interactions import MovementInteraction
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import ContinuousSpace, LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import MesaSolver
 from skcomplex.core.errors import BackendError, SimulationError, SpaceError
 from skcomplex.core.specs import StateSpec
@@ -54,8 +54,7 @@ class IdleElement(Element):
 
 def _simulate(system, until=0, random_state=0):
     """Return the trajectory of a system on the Mesa solver."""
-    simulation = Simulation(system, solver=MesaSolver(), random_state=random_state)
-    return simulation.prepare().run(until=until).trajectory_
+    return simulate(system, until=until, solver=MesaSolver(), random_state=random_state)
 
 
 def _concave_polygon():
@@ -75,9 +74,7 @@ def test_two_dimensional_space_keeps_recorded_trajectories():
     """Test that a system on a two-dimensional continuous space repeats the trajectories recorded before the change."""
     recorded = json.loads((files(__package__) / RECORDED_BOIDS).read_text())
     for _ in range(2):
-        trajectory = (
-            Simulation(BoidsSystem(10).prepare().system_, dt=1, random_state=0).prepare().run(until=20).trajectory_
-        )
+        trajectory = simulate(BoidsSystem(10).prepare().system_, until=20, dt=1, random_state=0)
         for frame, values in recorded.items():
             snapshot = trajectory.agents('flock', int(frame))
             assert snapshot.ids.tolist() == values['ids']

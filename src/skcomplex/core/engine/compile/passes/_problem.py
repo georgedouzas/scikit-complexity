@@ -20,18 +20,16 @@ from ....specs._breakpoints_spec import _BreakpointsSpec
 from ....specs._delay_spec import _DelaySpec
 from ....types import Array, FormKind, Indices, VariableKind
 from ..._utils import components_of, declarations_of, symbols_of
-from ...problems import (
-    BlockSpec,
-    DeclarationsSpec,
-    ExpressionPrinter,
-    KernelSpec,
-    ProblemSpec,
-    ReductionScheduleSpec,
-    ReferenceSpec,
-)
+from ...problems import ProblemSpec
+from ...problems._block_spec import BlockSpec
+from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._delayed_state_spec import _DelayedStateSpec
 from ...problems._event_kernel import EventKernel
+from ...problems._expression_printer import ExpressionPrinter
+from ...problems._kernel_spec import KernelSpec
 from ...problems._random_stream import RandomStream
+from ...problems._reduction_schedule_spec import ReductionScheduleSpec
+from ...problems._reference_spec import ReferenceSpec
 from ...types import ReadKind, ScalarsFunction
 from .._base import BasePass
 from .._compilation import Compilation

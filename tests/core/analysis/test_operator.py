@@ -6,13 +6,11 @@ import pytest
 from skcomplex.core.analysis import operator_measures
 from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import OperatorCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError, ParameterError, ValidationError
 from skcomplex.core.specs import SectorSpec
-from skcomplex.systems import create_system, describe
 from skcomplex.systems.biology.common.populations import PopulationElement
-from skcomplex.systems.physics.statistical_mechanics import total_magnetization
+from skcomplex.systems.physics.statistical_mechanics import QuantumHeisenbergSystem, total_magnetization
 
 from ...conftest import SpinElement
 
@@ -24,7 +22,7 @@ def _operator(kind, source, **settings):
 
 def test_spectrum_of_the_heisenberg_ring_of_four_spins():
     """Test that the antiferromagnetic ring of four spins has the ground energy -2."""
-    assert _operator('spectrum', create_system('quantum_heisenberg', n_sites=4), n_states=1).energies[
+    assert _operator('spectrum', QuantumHeisenbergSystem(n_sites=4).prepare().system_, n_states=1).energies[
         0
     ] == pytest.approx(
         -2.0,
@@ -34,14 +32,14 @@ def test_spectrum_of_the_heisenberg_ring_of_four_spins():
 
 def test_spectrum_uses_parameters_and_sectors():
     """Test that spectra take parameter values and a conserved sector, also with the sparse eigensolver."""
-    system = create_system('quantum_heisenberg', n_sites=4)
+    system = QuantumHeisenbergSystem(n_sites=4).prepare().system_
     ferro = _operator('spectrum', system, n_states=1, parameters={'exchange.J': -1.0})
     assert ferro.energies[0] == pytest.approx(-1.0)
     sector = _operator('spectrum', system, n_states=1, sector=SectorSpec(total_magnetization, 2.0))
     assert sector.energies[0] == pytest.approx(1.0)
     large = _operator(
         'spectrum',
-        create_system('quantum_heisenberg', n_sites=12),
+        QuantumHeisenbergSystem(n_sites=12).prepare().system_,
         n_states=1,
         sector=SectorSpec(total_magnetization, 0.0),
     )
@@ -50,7 +48,7 @@ def test_spectrum_uses_parameters_and_sectors():
 
 def test_spectrum_rejects_bad_requests():
     """Test that unknown parameters, empty sectors, and classical systems raise errors."""
-    system = create_system('quantum_heisenberg', n_sites=4)
+    system = QuantumHeisenbergSystem(n_sites=4).prepare().system_
     with pytest.raises(ParameterError):
         _operator('spectrum', system, parameters={'exchange.K': 1.0})
     with pytest.raises(AnalysisError, match='eigenvalue'):
@@ -61,21 +59,14 @@ def test_spectrum_rejects_bad_requests():
 
 def test_ground_state_is_stationary():
     """Test that a run from the ground state keeps every expectation constant."""
-    system = create_system('quantum_heisenberg', n_sites=6, initial='ground')
+    system = QuantumHeisenbergSystem(n_sites=6, initial='ground').prepare().system_
     ground = _operator('ground-state', system)
     energy, state = ground.energy, ground.state
     assert state.shape == (64,)
-    entry = describe('quantum_heisenberg')
-    initial = entry.initial_state_of(n_sites=6, initial='ground')
-    assert initial == {'quantum_heisenberg.state': 'ground'}
-    simulation = Simulation(
-        system,
-        dt=0.5,
-        observables=entry.observables_of(system),
-        initial_state=initial,
-        compiler=OperatorCompiler(),
-    ).prepare()
-    trajectory = simulation.run(until=3.0).trajectory_
+    settings = QuantumHeisenbergSystem(n_sites=6, initial='ground').get_run_settings()
+    initial = settings['initial_state']
+    assert initial == {'system.state': 'ground'}
+    trajectory = simulate(system, until=3.0, dt=0.5, observables=settings['observables'], initial_state=initial)
     assert np.ptp(trajectory.values('energy')) < 1e-8
     assert np.ptp(trajectory.values('sz'), axis=0).max() < 1e-8
     assert trajectory.values('energy')[0] == pytest.approx(energy)
@@ -85,12 +76,7 @@ def test_entanglement_entropy_of_a_singlet_is_log_two():
     """Test that one spin of the singlet has the entropy ln 2, and the pair has none."""
     singlet = np.array([0, 1, -1, 0]) / np.sqrt(2)
     system = System(elements=[GroupElement('pair', element=SpinElement, size=2)])
-    trajectory = (
-        Simulation(system, dt=1.0, initial_state={'system.state': singlet}, compiler=OperatorCompiler())
-        .prepare()
-        .run(until=1.0)
-        .trajectory_
-    )
+    trajectory = simulate(system, until=1.0, dt=1.0, initial_state={'system.state': singlet})
     assert np.allclose(_operator('entanglement', trajectory, subsystems=['pair[0]']).entropy, np.log(2), atol=1e-12)
     assert np.allclose(_operator('entanglement', trajectory, subsystems=['pair']).entropy, 0, atol=1e-10)
     with pytest.raises(AnalysisError, match='not a subsystem'):
@@ -99,22 +85,12 @@ def test_entanglement_entropy_of_a_singlet_is_log_two():
 
 def test_purity_of_pure_and_dephased_runs():
     """Test that purity is 1 for closed runs and falls under dephasing."""
-    closed = (
-        Simulation(create_system('quantum_heisenberg', n_sites=4), dt=0.5, compiler=OperatorCompiler())
-        .prepare()
-        .run(until=1.0)
-        .trajectory_
-    )
+    closed = simulate(QuantumHeisenbergSystem(n_sites=4).prepare().system_, until=1.0, dt=0.5)
     assert np.allclose(_operator('purity', closed).purity, 1)
-    opened = (
-        Simulation(create_system('quantum_heisenberg', n_sites=4, gamma=0.5), dt=0.5, compiler=OperatorCompiler())
-        .prepare()
-        .run(until=2.0)
-        .trajectory_
-    )
+    opened = simulate(QuantumHeisenbergSystem(n_sites=4, gamma=0.5).prepare().system_, until=2.0, dt=0.5)
     assert np.all(np.diff(_operator('purity', opened).purity) <= 1e-10)
     assert _operator('purity', opened).purity[-1] < 1
-    rabbits = Simulation(System(elements=[PopulationElement('rabbits')]), dt=1.0).prepare().run(until=1.0).trajectory_
+    rabbits = simulate(System(elements=[PopulationElement('rabbits')]), until=1.0, dt=1.0)
     with pytest.raises(AnalysisError, match='not the trajectory'):
         _operator('purity', rabbits)
 
@@ -122,4 +98,4 @@ def test_purity_of_pure_and_dephased_runs():
 def test_settings_the_kind_ignores_are_rejected():
     """Test that the number of states of the purity, which it does not read, is rejected."""
     with pytest.raises(AnalysisError, match='does not read n_states'):
-        operator_measures(create_system('quantum_heisenberg', n_sites=2), kind='purity', n_states=2)
+        operator_measures(QuantumHeisenbergSystem(n_sites=2).prepare().system_, kind='purity', n_states=2)
