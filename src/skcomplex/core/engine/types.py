@@ -1,6 +1,7 @@
-"""Define the types of the engine: arrays, functions, records, and library classes that only the engine reads.
+"""Define the types that only the engine reads.
 
-The neighbour search on a grid of cells passes tuples, since its Numba kernels take no other records.
+They are arrays, functions, records, and library classes. The neighbour search on a grid of cells passes tuples, since
+its Numba kernels take no other records.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
