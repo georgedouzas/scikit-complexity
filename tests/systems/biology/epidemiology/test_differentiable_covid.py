@@ -7,6 +7,7 @@ import numpy as np
 from skcomplex.core.engine.backends import JaxBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.experiments import calibrate
 from skcomplex.systems.biology.epidemiology import DifferentiableCovidAbmSystem
 
 BETAS = ('beta_household', 'beta_school', 'beta_company')
@@ -58,3 +59,24 @@ def test_no_transmission_gives_no_infections():
 def test_system_holds_the_tag_differentiable():
     """Test that the relaxed draws make the system differentiable."""
     assert DifferentiableCovidAbmSystem(n_households=5).get_tags().differentiable
+
+
+def test_variational_calibration_recovers_the_three_betas():
+    """Test that variational calibration of the mean daily infections recovers the three betas within 0.15."""
+    times = np.arange(31.0)
+    runs = [simulate(DifferentiableCovidAbmSystem(), until=30, random_state=seed) for seed in range(20)]
+    paths = ('cases.children', 'cases.adults')
+    data = {path: (times, np.mean([run.values(path) for run in runs], axis=0)) for path in paths}
+    result = calibrate(
+        DifferentiableCovidAbmSystem(),
+        data,
+        dict.fromkeys(BETAS, (0.0, 2.0)),
+        method='variational',
+        loss='likelihood',
+        n_samples=300,
+        budget=4000,
+        random_state=0,
+    )
+    for name, truth in zip(BETAS, (0.9, 0.6, 0.3), strict=True):
+        assert abs(result.estimates[name] - truth) < 0.15
+    assert result.success
