@@ -1,4 +1,7 @@
-"""Phase ordering: relaxation of a scalar order parameter in a double well, non-conserved and conserved."""
+"""Phase ordering.
+
+A scalar order parameter relaxes in a double well, non-conserved and conserved.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,7 +25,9 @@ from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 class PhaseFieldElement(Element):
-    """Site of a phase field, which holds the order parameter `phi` that free energies and noise move.
+    """Site of a phase field.
+
+    The site holds the order parameter `phi` that free energies and noise move.
 
     Args:
         label:
@@ -56,7 +61,9 @@ class PhaseFieldElement(Element):
 
 
 class LandauEnergyInteraction(GradientInteraction):
-    """Gradient flow of a field `phi` in the Landau free energy of a double well with a cost of gradients.
+    """Gradient flow of a field `phi` in the Landau free energy of a double well.
+
+    The energy has a cost of gradients.
 
     The free energy is `F = integral -phi^2 / 2 + phi^4 / 4 + kappa |grad phi|^2 / 2`. Its functional derivative is
     the chemical potential `mu = -phi + phi^3 - kappa laplacian(phi)`. A non-conserved field relaxes as `phi_t = -mu`,
@@ -103,7 +110,9 @@ class LandauEnergyInteraction(GradientInteraction):
         self.kappa = kappa
 
     def _get_potential(self, namespace: SimpleNamespace) -> Expression:
-        """Return the density `-phi^2 / 2 + phi^4 / 4 - kappa phi laplacian(phi) / 2`, the gradient term by parts.
+        """Return the density `-phi^2 / 2 + phi^4 / 4 - kappa phi laplacian(phi) / 2`.
+
+        The gradient term is taken by parts.
 
         Args:
             namespace:
@@ -131,7 +140,9 @@ def _ordering(
     conserved: bool,
     temperature: float = 0.0,
 ) -> System:
-    """Return a system of a label with a phase field that starts from small noise around a mean and relaxes.
+    """Return a system of a label with a phase field that relaxes.
+
+    The field starts from small noise around a mean.
 
     A positive temperature adds the conserved thermal noise, on finite differences instead of the spectral lattice.
     """
@@ -163,7 +174,9 @@ def _ordering(
 
 
 class AllenCahnSystem(BaseSystem):
-    """The Allen-Cahn equation, System A, the non-conserved relaxation of an order parameter in a double well.
+    """The Allen-Cahn equation, System A.
+
+    It is the non-conserved relaxation of an order parameter in a double well.
 
     The order parameter follows `phi_t = phi - phi^3 + kappa laplacian(phi)`, the gradient descent of the free energy
     density `-phi^2 / 2 + phi^4 / 4 + kappa |grad(phi)|^2 / 2`. From small noise, domains of `phi = 1` and `phi = -1`
@@ -234,7 +247,9 @@ class AllenCahnSystem(BaseSystem):
 
 
 class CahnHilliardSystem(BaseSystem):
-    """The Cahn-Hilliard equation, System B, the conserved relaxation of an order parameter in a double well.
+    """The Cahn-Hilliard equation, System B.
+
+    It is the conserved relaxation of an order parameter in a double well.
 
     The order parameter follows `phi_t = laplacian(-phi + phi^3 - kappa laplacian(phi))`, a diffusion down the
     gradient of the chemical potential of the same free energy as the Allen-Cahn equation. Inside the spinodal,

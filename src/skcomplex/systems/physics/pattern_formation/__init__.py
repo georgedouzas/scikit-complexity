@@ -1,4 +1,7 @@
-"""Pattern formation: amplitude equations, rolls, phase ordering, and nonreciprocal conserved fields."""
+"""Pattern formation systems.
+
+The package covers amplitude equations, rolls, phase ordering, and nonreciprocal conserved fields.
+"""
 
 from ._conserved import NonreciprocalCahnHilliardSystem, NonreciprocalMixtureElement
 from ._ordering import AllenCahnSystem, CahnHilliardSystem
