@@ -1,4 +1,7 @@
-"""Dry friction: shaken chains of frictional blocks that relax to blocked configurations."""
+"""Dry friction.
+
+Shaken chains of frictional blocks relax to blocked configurations.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,7 +23,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class FrictionalBlockElement(Element):
-    """Block of a chain on a rough floor, at the position `x` with the velocity `v`, joined to its neighbours.
+    """Block of a chain on a rough floor, joined to its neighbours.
+
+    The block is at the position `x` with the velocity `v`.
 
     The springs of stiffness `k` and an anchor spring pull the block, Coulomb friction holds it while the force stays
     below `mu_s` and slows it by `mu_d` while it slides, and periodic shaking of amplitude `amplitude` kicks it during
@@ -108,7 +113,7 @@ class FrictionalBlockElement(Element):
         self.v_stick = v_stick
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the springs, the Coulomb friction with sticking, and the shaking of the block.
+        """Return the springs, the sticking Coulomb friction, and the shaking of the block.
 
         Args:
             s:
@@ -131,7 +136,9 @@ class FrictionalBlockElement(Element):
 
 
 class ShakenSpringBlockSystem(BaseSystem):
-    """A chain of blocks joined by springs on a frictional substrate, shaken and relaxed in turn.
+    """A chain of blocks joined by springs on a frictional substrate.
+
+    The chain is shaken and relaxed in turn.
 
     Every block of unit weight feels the springs to its neighbours, `k (x_{i+1} + x_{i-1} - 2 x_i)`, an optional spring
     of stiffness `anchor` to its rest position, and Coulomb friction. A sliding block feels the dynamic friction `-mu_d
@@ -215,7 +222,10 @@ class ShakenSpringBlockSystem(BaseSystem):
         self.v_stick = v_stick
 
     def _build_system(self) -> System:
-        """Return a chain of blocks joined by springs on a frictional substrate, shaken and relaxed in turn."""
+        """Return a chain of blocks joined by springs on a frictional substrate.
+
+        The chain is shaken and relaxed in turn.
+        """
         chain = FieldElement(
             'chain',
             element=FrictionalBlockElement,

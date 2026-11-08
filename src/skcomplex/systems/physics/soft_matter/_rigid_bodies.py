@@ -1,4 +1,7 @@
-"""Rigid Brownian bodies: axisymmetric particles in three dimensions and dimers of two spheres on a rod."""
+"""Rigid Brownian bodies.
+
+The module covers axisymmetric particles in three dimensions and dimers of two spheres on a rod.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -27,7 +30,9 @@ DIRECTIONS = ('ux', 'uy', 'uz')
 
 
 class AnisotropicParticleElement(Element):
-    """Axisymmetric Brownian particle in three dimensions, whose diffusion tensor turns with its axis.
+    """Axisymmetric Brownian particle in three dimensions.
+
+    Its diffusion tensor turns with its axis.
 
     The position `r = (x, y, z)` diffuses with `D_par` along the unit axis `u = (ux, uy, uz)` and with `D_perp` across
     it, `dr = (sqrt(2 D_par) u u + sqrt(2 D_perp) (I - u u)) dW`. The axis diffuses on the unit sphere,
@@ -128,7 +133,9 @@ class AnisotropicParticleElement(Element):
         self.D_c = D_c
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the translation and the rotation with their correlated noises, and the boundary of the axis.
+        """Return the translation and the rotation with their correlated noises.
+
+        The laws also hold the boundary of the axis.
 
         Args:
             s:
@@ -158,7 +165,9 @@ class AnisotropicParticleElement(Element):
 
 
 class DimerElement(Element):
-    """Two Brownian or active spheres joined by a rigid rod, described by the centre and the angle of the rod.
+    """Two Brownian or active spheres joined by a rigid rod.
+
+    The dimer is described by the centre and the angle of the rod.
 
     Each sphere diffuses with `D_t` and swims at the speed `v0` along its own orientation, `theta1` or `theta2`, which
     diffuse with `D_r`, and the rod keeps them at the distance `L`. Moving both spheres freely and then restoring
@@ -237,7 +246,9 @@ class DimerElement(Element):
         self.D_r = D_r
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the motion of the centre and the turning of the rod, and the diffusion of the orientations.
+        """Return the motion of the centre, the turning of the rod, and the diffusion.
+
+        The diffusion is that of the orientations.
 
         Args:
             s:
@@ -261,7 +272,9 @@ class DimerElement(Element):
 
 
 class AnisotropicBrownianParticlesSystem(BaseSystem):
-    """Overdamped axisymmetric Brownian particles in three dimensions that translate and rotate.
+    """Overdamped axisymmetric Brownian particles in three dimensions.
+
+    The particles translate and rotate.
 
     Every particle diffuses with `D_par` along its axis `u` and with `D_perp` across it, its axis diffuses on the unit
     sphere with `D_r`, so that `<u(t) . u(0)> = exp(-2 D_r t)`, and it spins about its axis with `D_spin`. The defaults
@@ -338,7 +351,10 @@ class AnisotropicBrownianParticlesSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return overdamped axisymmetric Brownian particles in three dimensions that translate and rotate."""
+        """Return overdamped axisymmetric Brownian particles in three dimensions.
+
+        The particles translate and rotate.
+        """
         if self.D_c**2 > self.D_par * self.D_spin:
             error_msg = (
                 f'The coupling {self.D_c!r} exceeds sqrt(D_par D_spin), so the diffusion tensor is not positive.'
@@ -361,7 +377,9 @@ class AnisotropicBrownianParticlesSystem(BaseSystem):
 
 
 class RigidDimersSystem(BaseSystem):
-    """Colloidal molecules: pairs of Brownian or active spheres joined by rigid rods, free in the plane.
+    """Colloidal molecules.
+
+    Pairs of Brownian or active spheres are joined by rigid rods, free in the plane.
 
     Each sphere diffuses with `D_t`, and an active sphere also swims at the speed `v0` along its own orientation, which
     diffuses with `D_r`. The rod keeps the spheres at the distance `L`. Diffusing both spheres freely and then restoring
@@ -428,7 +446,10 @@ class RigidDimersSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return colloidal molecules: pairs of Brownian or active spheres joined by rigid rods, free in the plane."""
+        """Return colloidal molecules.
+
+        Pairs of Brownian or active spheres are joined by rigid rods, free in the plane.
+        """
         rng = np.random.default_rng(self.random_state)
         angles = rng.uniform(0.0, 2 * np.pi, (3, self.n_dimers))
         values = {

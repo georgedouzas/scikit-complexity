@@ -1,4 +1,7 @@
-"""Hydrodynamically coupled spheres: two Brownian spheres in blinking optical traps that share one fluid."""
+"""Hydrodynamically coupled spheres.
+
+Two Brownian spheres in blinking optical traps share one fluid.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,7 +25,9 @@ SPHERES = VisualSpec('points', {'position': 'x', 'radius': 1.0})
 
 
 class TrappedSphereElement(Element):
-    """Colloidal sphere at the position `x`, held by an optical trap centred at `center`.
+    """Colloidal sphere at the position `x`, held by an optical trap.
+
+    The trap is centred at `center`.
 
     The sphere has no friction of its own. A mobility interaction moves it through the fluid it shares with the other
     spheres, and its trap is one of the forces the mobility turns into velocities.
@@ -60,7 +65,9 @@ class TrappedSphereElement(Element):
 
 
 class BlinkingTrapsInteraction(MobilityInteraction):
-    """Blinking optical traps on spheres that move through a shared fluid, in steps of Brownian dynamics.
+    """Blinking optical traps on spheres that move through a shared fluid.
+
+    The spheres move in steps of Brownian dynamics.
 
     Every sphere feels the harmonic force `-k (x - center)` of its own trap while the traps are on, for `on_time` of
     every period `on_time + off_time`, and no force while they are off. The mobility turns the forces on all spheres
@@ -140,14 +147,19 @@ class BlinkingTrapsInteraction(MobilityInteraction):
         self.off_time = off_time
 
     def _get_trap_force(self, namespace: SimpleNamespace) -> FreeModuleElement:
-        """Return the force of the trap of a sphere, switched off for `off_time` of every period."""
+        """Return the force of the trap of a sphere.
+
+        The trap is switched off for `off_time` of every period.
+        """
         s = namespace
         on = 1 if self.off_time == 0 else pulse_train(s.t * s.dt, self.on_time + self.off_time, self.on_time)
         return -s.k * on * (s.target.x - s.target.center)
 
 
 class HydrodynamicallyCoupledTrapsSystem(BaseSystem):
-    """Two Brownian spheres in blinking optical traps, whose free motion is correlated through the fluid.
+    """Two Brownian spheres in blinking optical traps.
+
+    The free motion of the spheres is correlated through the fluid.
 
     The traps hold the spheres at a distance `separation` along `x`, and switch off for `off_time` after every
     `on_time`. While they are off the spheres diffuse freely, and the force on one moves the other through the mobility,
@@ -230,7 +242,10 @@ class HydrodynamicallyCoupledTrapsSystem(BaseSystem):
         self.step = step
 
     def _build_system(self) -> System:
-        """Return two Brownian spheres in blinking optical traps, whose free motion is correlated through the fluid."""
+        """Return two Brownian spheres in blinking optical traps.
+
+        The free motion of the spheres is correlated through the fluid.
+        """
         centers = [[-self.separation / 2, 0.0], [self.separation / 2, 0.0]]
         spheres = GroupElement(
             'spheres',

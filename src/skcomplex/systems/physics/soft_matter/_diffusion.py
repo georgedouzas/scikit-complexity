@@ -1,4 +1,7 @@
-"""Diffusion systems: free, trapped, escaping, scaled, and speckle-driven Brownian particles, and noise conventions."""
+"""Diffusion systems.
+
+The module covers free, trapped, escaping, scaled, and speckle-driven Brownian particles, and noise conventions.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -95,7 +98,9 @@ class ModulatedParticleElement(Element):
 
 
 class ScaledWalkerElement(Element):
-    """Walker at the position `x` whose diffusion coefficient `K alpha (t + t0)^(alpha - 1)` changes in time.
+    """Walker at the position `x` whose diffusion coefficient changes in time.
+
+    The coefficient is `K alpha (t + t0)^(alpha - 1)`.
 
     Args:
         label:
@@ -140,7 +145,9 @@ class ScaledWalkerElement(Element):
 
 
 class OpticalTrapInteraction(GradientInteraction):
-    """Harmonic optical trap on overdamped particles, the potential `sum_d k_d (x_d - c_d(t))^2 / 2` of every axis.
+    """Harmonic optical trap on overdamped particles.
+
+    The potential is `sum_d k_d (x_d - c_d(t))^2 / 2` over every axis.
 
     The center oscillates as `c(t) = amplitude sin(2 pi frequency t)`, and a blinking trap is on for the first
     `duty` fraction of every `blink_period` and off for the rest. The force divides by the friction `gamma` of the
@@ -217,7 +224,9 @@ class OpticalTrapInteraction(GradientInteraction):
 
 
 class SpeckleFieldInteraction(GradientInteraction):
-    """Random optical speckle field of Gaussian hotspots, which drags particles up its gradient at `u grad(I)`.
+    """Random optical speckle field of Gaussian hotspots.
+
+    The field drags particles up its gradient at `u grad(I)`.
 
     The potential is `-u I(x)`, with the intensity `I(x) = sum_i I_i exp(-|x - c_i|^2 / d_i^2)` of hotspots whose
     centers, intensities relative to `strength`, and decay lengths are fixed when the field is created.
@@ -290,7 +299,9 @@ def _get_double_well_drive(s: SimpleNamespace) -> Expression:
 
 
 class BrownianMotionSystem(BaseSystem):
-    """Free Brownian particles with inertia, `m x'' = -gamma x' + sqrt(2 kT gamma) W`, or without it.
+    """Free Brownian particles with or without inertia.
+
+    With inertia they follow `m x'' = -gamma x' + sqrt(2 kT gamma) W`.
 
     With inertia the motion is ballistic, `<x^2> = kT t^2 / m`, below the momentum relaxation time `m / gamma`, and
     diffusive, `<x^2> = 2 kT t / gamma` per axis, above it. Without inertia it is diffusive at every time. The system
@@ -356,7 +367,10 @@ class BrownianMotionSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return free Brownian particles with inertia, `m x'' = -gamma x' + sqrt(2 kT gamma) W`, or without it."""
+        """Return free Brownian particles with or without inertia.
+
+        With inertia they follow `m x'' = -gamma x' + sqrt(2 kT gamma) W`.
+        """
         space = ContinuousSpace(n_dim=self.n_dim)
         if not self.inertial:
             beads = GroupElement(
@@ -388,7 +402,9 @@ class BrownianMotionSystem(BaseSystem):
 
 
 class OpticalTrapSystem(BaseSystem):
-    """Overdamped particles in a harmonic optical trap, still, oscillating, or blinking.
+    """Overdamped particles in a harmonic optical trap.
+
+    The trap is still, oscillating, or blinking.
 
     In a still trap every coordinate is normal with variance `kT / k` and relaxes in the time `gamma / k`. The system
     has the positions `beads.x`.
@@ -458,7 +474,10 @@ class OpticalTrapSystem(BaseSystem):
         self.duty = duty
 
     def _build_system(self) -> System:
-        """Return overdamped particles in a harmonic optical trap, still, oscillating, or blinking."""
+        """Return overdamped particles in a harmonic optical trap.
+
+        The trap is still, oscillating, or blinking.
+        """
         n_dim = len(self.k)
         beads = GroupElement(
             'beads',
@@ -480,7 +499,9 @@ class OpticalTrapSystem(BaseSystem):
 
 
 class KramersEscapeSystem(BaseSystem):
-    """Particles that escape over the barrier of `U = x^4 / 4 - x^2 / 2` by thermal noise of intensity `D`.
+    """Particles that escape over the barrier of `U = x^4 / 4 - x^2 / 2` by noise.
+
+    The noise is thermal with the intensity `D`.
 
     The particles start in the left well, and they hop between the wells at the Kramers rate `sqrt(U''(-1) |U''(0)|) /
     (2 pi) exp(-1 / (4 D))`, which is `sqrt(2) / (2 pi) exp(-1 / (4 D))`. The system has the positions `particles.x`.
@@ -526,7 +547,10 @@ class KramersEscapeSystem(BaseSystem):
 
     @staticmethod
     def _get_double_well_interactions(target: str) -> list[BaseInteraction]:
-        """Return the interactions of particles in a double well, the gradient of the well and the noisy forcing."""
+        """Return the interactions of particles in a double well.
+
+        They are the gradient of the well and the noisy forcing.
+        """
         return [
             GradientInteraction('well', target=target, potential=lambda s: s.target.x**4 / 4 - s.target.x**2 / 2),
             RateInteraction(
@@ -550,7 +574,9 @@ class KramersEscapeSystem(BaseSystem):
 
 
 class MultiplicativeNoiseSystem(BaseSystem):
-    """Free particles in a box with position-dependent noise, read in the Itô, Stratonovich, or anti-Itô sense.
+    """Free particles in a box with position-dependent noise.
+
+    The noise is read in the Itô, Stratonovich, or anti-Itô sense.
 
     Only the anti-Itô convention gives the flat stationary density of particles at thermal equilibrium without forces.
     The particles start at the middle of the box. The system has the positions `particles.x`.
@@ -622,7 +648,9 @@ class MultiplicativeNoiseSystem(BaseSystem):
 
 
 class ScaledBrownianMotionSystem(BaseSystem):
-    """Scaled Brownian motion, `dx = sqrt(2 K alpha (t + t0)^(alpha - 1)) dW`, with `<x^2> ~ 2 K t^alpha`.
+    """Scaled Brownian motion, `dx = sqrt(2 K alpha (t + t0)^(alpha - 1)) dW`.
+
+    Its mean squared displacement is `<x^2> ~ 2 K t^alpha`.
 
     The diffusion coefficient changes deterministically in time, which is the same as running Brownian motion on the
     rescaled clock `t^alpha`. The offset `t0` keeps the coefficient finite at the start. The system has the positions
@@ -673,7 +701,10 @@ class ScaledBrownianMotionSystem(BaseSystem):
         self.t0 = t0
 
     def _build_system(self) -> System:
-        """Return scaled Brownian motion, `dx = sqrt(2 K alpha (t + t0)^(alpha - 1)) dW`, with `<x^2> ~ 2 K t^alpha`."""
+        """Return scaled Brownian motion, `dx = sqrt(2 K alpha (t + t0)^(alpha - 1)) dW`.
+
+        Its mean squared displacement is `<x^2> ~ 2 K t^alpha`.
+        """
         return System(
             self.label,
             elements=[
@@ -695,7 +726,9 @@ class ScaledBrownianMotionSystem(BaseSystem):
 
 
 class DiffusionInASpeckleFieldSystem(BaseSystem):
-    """Brownian particles in a random speckle field, trapped at hotspots for longer as the field grows stronger.
+    """Brownian particles in a random speckle field.
+
+    The particles are trapped at hotspots for longer as the field grows stronger.
 
     The hotspots sit at random places in a square, with intensities `r^(-1/2)` and decay lengths `length r^(-1/2)` for
     independent uniform numbers `r`. The particles start at random places in the middle half of the square.

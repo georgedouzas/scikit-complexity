@@ -1,4 +1,7 @@
-"""Colored noise: a linear Langevin equation driven by Ornstein-Uhlenbeck noise of finite correlation time."""
+"""Colored noise.
+
+A linear Langevin equation is driven by Ornstein-Uhlenbeck noise of finite correlation time.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,7 +21,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class ColoredNoiseParticleElement(Element):
-    """Particle with the velocity `v`, driven by the noise `xi` of correlation time `tau`.
+    """Particle with the velocity `v`, driven by the noise `xi`.
+
+    The noise has the correlation time `tau`.
 
     Args:
         label:
@@ -68,7 +73,9 @@ class ColoredNoiseParticleElement(Element):
 
 
 class ColoredNoiseLangevinSystem(BaseSystem):
-    """Particles whose velocity `dv/dt = -gamma v + xi` is driven by Ornstein-Uhlenbeck noise `xi`.
+    """Particles whose velocity is driven by Ornstein-Uhlenbeck noise `xi`.
+
+    The velocity follows `dv/dt = -gamma v + xi`.
 
     The noise follows `tau dxi = -xi dt + sqrt(2 D) dW`, so its correlation is `<xi(t) xi(t')> = D / tau exp(-|t - t'| /
     tau)`, and it tends to the white noise of intensity `2 D` as `tau` goes to 0. The stationary velocity variance is
@@ -126,7 +133,10 @@ class ColoredNoiseLangevinSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return particles whose velocity `dv/dt = -gamma v + xi` is driven by Ornstein-Uhlenbeck noise `xi`."""
+        """Return particles whose velocity is driven by Ornstein-Uhlenbeck noise `xi`.
+
+        The velocity follows `dv/dt = -gamma v + xi`.
+        """
         noise = np.random.default_rng(self.random_state).normal(0.0, math.sqrt(self.D / self.tau), self.n_particles)
         particles = GroupElement(
             'particles',

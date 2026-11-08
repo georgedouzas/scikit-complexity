@@ -1,4 +1,7 @@
-"""Soft matter systems: Brownian particles and noise-driven transitions."""
+"""Soft matter systems.
+
+The module covers Brownian particles and noise-driven transitions.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,7 +22,9 @@ from ..common.particles import DoubleWellElement
 
 
 class WallParticleElement(Element):
-    """Brownian particle at the distance `z` from a wall, which reflects it, and whose diffusion slows near the wall.
+    """Brownian particle at the distance `z` from a wall.
+
+    The wall reflects the particle, and its diffusion slows near the wall.
 
     Args:
         label:
@@ -84,7 +89,9 @@ def _get_double_well_drive(s: SimpleNamespace) -> Expression:
 
 
 class StochasticResonanceSystem(BaseSystem):
-    """A particle in a double well, `dx = (x - x^3 + A cos(2 pi f t)) dt + sqrt(2 D) dW`.
+    """A particle in a double well.
+
+    The particle follows `dx = (x - x^3 + A cos(2 pi f t)) dt + sqrt(2 D) dW`.
 
     The forcing alone is too weak to move the particle between the wells, but noise of the right intensity makes the
     hops follow the forcing. The system has the position `particle.x`.
@@ -134,7 +141,10 @@ class StochasticResonanceSystem(BaseSystem):
 
     @staticmethod
     def _get_double_well_interactions(target: str) -> list[BaseInteraction]:
-        """Return the interactions of particles in a double well, the gradient of the well and the noisy forcing."""
+        """Return the interactions of particles in a double well.
+
+        They are the gradient of the well and the noisy forcing.
+        """
         return [
             GradientInteraction('well', target=target, potential=lambda s: s.target.x**4 / 4 - s.target.x**2 / 2),
             RateInteraction(
@@ -146,7 +156,10 @@ class StochasticResonanceSystem(BaseSystem):
         ]
 
     def _build_system(self) -> System:
-        """Return a particle in a double well, `dx = (x - x^3 + A cos(2 pi f t)) dt + sqrt(2 D) dW`."""
+        """Return a particle in a double well.
+
+        The particle follows `dx = (x - x^3 + A cos(2 pi f t)) dt + sqrt(2 D) dW`.
+        """
         return System(
             self.label,
             elements=[
@@ -157,7 +170,9 @@ class StochasticResonanceSystem(BaseSystem):
 
 
 class BrownianNearWallSystem(BaseSystem):
-    """A Brownian particle whose diffusion slows near a wall, `D(z) = D0 z² / (z² + a²)`, as it settles on it.
+    """A Brownian particle that settles on a wall.
+
+    Its diffusion slows near the wall, `D(z) = D0 z² / (z² + a²)`.
 
     The diffusion is a smooth form of the hydrodynamic hindrance that vanishes at the wall, and the drift is the
     settling velocity scaled by the same mobility. Diffusion that depends on the position makes the noise

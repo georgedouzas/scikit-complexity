@@ -1,4 +1,7 @@
-"""Anomalous diffusion: random walks with power-law waiting times and flights, heterogeneity, and memory."""
+"""Anomalous diffusion.
+
+The module covers random walks with power-law waiting times and flights, heterogeneity, and memory.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,7 +26,9 @@ POINTS = VisualSpec('points', {'position': 'x'})
 
 
 class ContinuousTimeWalkerElement(Element):
-    """Walker that waits a power-law time `tau0 r^(-1 / alpha)` for `r` uniform, then jumps by a Gaussian step.
+    """Walker that waits a power-law time, then jumps by a Gaussian step.
+
+    The waiting time is `tau0 r^(-1 / alpha)` for `r` uniform.
 
     The jumps are a jump interaction of the system, which resets the position after every waiting time.
 
@@ -70,7 +75,9 @@ class ContinuousTimeWalkerElement(Element):
 
 
 class FractionalWalkerElement(Element):
-    """Walker driven by fractional Brownian motion, `dx = sqrt(2 D) dB_H`, whose increments are correlated in time.
+    """Walker driven by fractional Brownian motion, `dx = sqrt(2 D) dB_H`.
+
+    The increments are correlated in time.
 
     Args:
         label:
@@ -110,7 +117,9 @@ class FractionalWalkerElement(Element):
 
 
 class LevyFlierElement(Element):
-    """Walker that jumps at every step by a length of power-law tail `l^(-1 - mu)` in a random direction.
+    """Walker that jumps at every step in a random direction.
+
+    The length of a jump has the power-law tail `l^(-1 - mu)`.
 
     Args:
         label:
@@ -150,7 +159,9 @@ class LevyFlierElement(Element):
 
 
 class LevyWalkerElement(Element):
-    """Walker that flies at constant speed in a random direction for a power-law flight time, then turns.
+    """Walker that flies at constant speed in a random direction, then turns.
+
+    Every flight lasts a power-law flight time.
 
     The flight is a rate interaction of the position, and the turns a jump interaction that resets the velocity after
     every flight time.
@@ -203,7 +214,9 @@ class LevyWalkerElement(Element):
 
 
 class TransientWalkerElement(Element):
-    """Brownian walker whose diffusion coefficient `D` is redrawn after waiting times of mean `D^(-gamma)`.
+    """Brownian walker whose diffusion coefficient `D` is redrawn at random times.
+
+    The waiting times have the mean `D^(-gamma)`.
 
     The coefficient takes values of density `sigma D^(sigma - 1)` on `(0, 1)`, the beta distribution `B(sigma, 1)`, so
     slow walkers wait long before they change.
@@ -251,14 +264,19 @@ class TransientWalkerElement(Element):
 
 
 def _direction(name: str, size: int) -> list[Expression]:
-    """Return a unit vector of uniformly random direction drawn from standard normal components."""
+    """Return a unit vector of uniformly random direction.
+
+    The vector is drawn from standard normal components.
+    """
     components = [normal(f'{name}{index}') for index in range(size)]
     length = sqrt(sum(component**2 for component in components))
     return [component / length for component in components]
 
 
 class ContinuousTimeRandomWalkSystem(BaseSystem):
-    """The continuous-time random walk, Gaussian jumps after waiting times with the tail `tau^(-1 - alpha)`.
+    """The continuous-time random walk.
+
+    Gaussian jumps follow waiting times with the tail `tau^(-1 - alpha)`.
 
     For `alpha < 1` the waiting times have no mean, so the number of jumps grows as `t^alpha` and the ensemble mean
     squared displacement grows as `t^alpha`, slower than Brownian motion. The walkers renew on their own clocks. The
@@ -339,7 +357,9 @@ class ContinuousTimeRandomWalkSystem(BaseSystem):
 
 
 class LevyWalkSystem(BaseSystem):
-    """The Lévy walk, flights at constant speed in random directions for times with the tail `tau^(-1 - sigma)`.
+    """The Lévy walk.
+
+    Flights at constant speed in random directions last times with the tail `tau^(-1 - sigma)`.
 
     For `1 < sigma < 2` the flight times have a mean but no variance, so long flights dominate and the ensemble mean
     squared displacement grows as `t^(3 - sigma)`, faster than Brownian motion and slower than ballistic motion. The
@@ -431,7 +451,9 @@ class LevyWalkSystem(BaseSystem):
 
 
 class AnnealedTransientTimeMotionSystem(BaseSystem):
-    """Annealed transient time motion, Brownian walkers whose diffusion coefficient changes at random times.
+    """Annealed transient time motion.
+
+    The diffusion coefficient of Brownian walkers changes at random times.
 
     Every walker diffuses with a coefficient `D` of density `sigma D^(sigma - 1)` on `(0, 1)` and keeps it for an
     exponential time of mean `D^(-gamma)`, so slow walkers stay slow for long. For `sigma < gamma` the ensemble mean
@@ -517,7 +539,9 @@ class AnnealedTransientTimeMotionSystem(BaseSystem):
 
 
 class FractionalBrownianMotionSystem(BaseSystem):
-    """Fractional Brownian motion, `dx = sqrt(2 D) dB_H`, with `<x^2> = 2 D t^(2 H)` along every axis.
+    """Fractional Brownian motion, `dx = sqrt(2 D) dB_H`.
+
+    Along every axis `<x^2> = 2 D t^(2 H)`.
 
     The increments are correlated over the whole run: they anticorrelate for `H < 1/2`, which makes the walkers
     subdiffusive, and correlate for `H > 1/2`, which makes them superdiffusive. The system has the positions
@@ -568,7 +592,10 @@ class FractionalBrownianMotionSystem(BaseSystem):
         self.n_dim = n_dim
 
     def _build_system(self) -> System:
-        """Return fractional Brownian motion, `dx = sqrt(2 D) dB_H`, with `<x^2> = 2 D t^(2 H)` along every axis."""
+        """Return fractional Brownian motion, `dx = sqrt(2 D) dB_H`.
+
+        Along every axis `<x^2> = 2 D t^(2 H)`.
+        """
         walkers = GroupElement(
             'walkers',
             element=FractionalWalkerElement,
@@ -585,7 +612,9 @@ class FractionalBrownianMotionSystem(BaseSystem):
 
 
 class LevyFlightSystem(BaseSystem):
-    """The Lévy flight, a walk whose jumps have lengths with the tail `l^(-1 - mu)` in random directions.
+    """The Lévy flight.
+
+    The walk jumps in random directions by lengths with the tail `l^(-1 - mu)`.
 
     For `mu < 2` the jump lengths have no variance, so the walk is dominated by its longest jumps and the typical
     distance travelled after `n` steps grows as `n^(1 / mu)`, faster than the `n^(1/2)` of a random walk. The system has
@@ -638,13 +667,19 @@ class LevyFlightSystem(BaseSystem):
 
     @staticmethod
     def _get_flight(s: SimpleNamespace) -> object:
-        """Return the position after a jump of power-law length `l0 r^(-1 / mu)` in a random direction."""
+        """Return the position after a jump in a random direction.
+
+        The jump has the power-law length `l0 r^(-1 / mu)`.
+        """
         length = draw('length', 'pareto', b=s.target.mu, scale=s.target.l0)
         steps = _direction('direction', len(list(s.target.x)))
         return vector(SR, [item + length * step for item, step in zip(s.target.x, steps, strict=True)])
 
     def _build_system(self) -> System:
-        """Return the Lévy flight, a walk whose jumps have lengths with the tail `l^(-1 - mu)` in random directions."""
+        """Return the Lévy flight.
+
+        The walk jumps in random directions by lengths with the tail `l^(-1 - mu)`.
+        """
         walkers = GroupElement(
             'walkers',
             element=LevyFlierElement,

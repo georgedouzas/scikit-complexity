@@ -1,4 +1,7 @@
-"""Trapping: walkers driven through quenched landscapes of broadly distributed trapping times."""
+"""Trapping.
+
+Walkers are driven through quenched landscapes of broadly distributed trapping times.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -28,7 +31,9 @@ def _mean_position(s: SimpleNamespace) -> object:
 
 
 class TrapSiteElement(Element):
-    """Site of a line of traps, which holds a walker for its trapping time `tau` before the walker hops to the right.
+    """Site of a line of traps.
+
+    The site holds a walker for its trapping time `tau` before the walker hops to the right.
 
     The walker on a site counts the steps it has spent there with `clock` and hops to the next site after `tau`
     steps, and every site keeps a record of whether a walker has visited it. A walker hops only onto a site of positive
@@ -77,7 +82,9 @@ class TrapSiteElement(Element):
 
 
 class BiasedTrapWalkSystem(BaseSystem):
-    """Walkers that hop always to the right through quenched traps with broadly distributed trapping times.
+    """Walkers that hop always to the right through quenched traps.
+
+    The trapping times are broadly distributed.
 
     Every walker moves along its own line of sites and stays `tau_i` steps on site `i` before it hops to site `i + 1`.
     The trapping times are drawn once, as `ceil(tau0 u^(-1 / alpha))` for uniform numbers `u`, so their distribution
@@ -141,7 +148,10 @@ class BiasedTrapWalkSystem(BaseSystem):
 
     @staticmethod
     def _hop(*values: Array) -> tuple[Array, Array, Array]:
-        """Return the occupation, the visits, and the clocks after one step of fully biased hops out of the traps."""
+        """Return the occupation, the visits, and the clocks after one step.
+
+        The step is one of fully biased hops out of the traps.
+        """
         occupied, left_occupied, _, visited, _, _, clock, left_clock, _, tau, left_tau, right_tau = values
         leaves = (occupied == 1) & (clock + 1 >= tau) & (right_tau > 0)
         arrives = (left_occupied == 1) & (left_clock + 1 >= left_tau)
