@@ -14,8 +14,8 @@ import numpy as np
 import scipy.sparse
 from sage.all__sagemath_symbolics import Expression
 
-from ...components.spaces import ConeNeighborhood, NearestNeighborhood
-from ...errors import ValidationError
+from ...components.spaces import ConeNeighborhood, DelaunayNeighborhood, NearestNeighborhood
+from ...errors import BackendError, ValidationError
 from ...specs import EntrySpec, ReadSpec
 from .._utils import symbols_of
 from ..problems import BasePrinter
@@ -941,6 +941,9 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         ]
         neighbourhood = search.neighbourhood
         center = bool(neighbourhood.center)
+        if isinstance(neighbourhood, DelaunayNeighborhood):
+            error_msg = 'Delaunay neighbourhoods triangulate with SciPy, so they run on the NumPy backend, not Numba.'
+            raise BackendError(error_msg)
         if isinstance(neighbourhood, NearestNeighborhood):
             call = f'_nearest_neighbours(_pos{index}_, {neighbourhood.k}, _per{index}_, {periodic}, {center})'
             return [*lines, f'{INDENT}_ip{index}_, _ix{index}_ = {call}']

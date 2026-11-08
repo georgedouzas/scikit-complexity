@@ -34,6 +34,7 @@ from ....components.spaces import (
     CellComplexSpace,
     CofaceNeighborhood,
     ConeNeighborhood,
+    DelaunayNeighborhood,
     LatticeNeighborhood,
     MemoryNeighborhood,
     NearestNeighborhood,
@@ -1195,11 +1196,13 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
                 | MemoryNeighborhood
                 | RadiusNeighborhood
                 | NearestNeighborhood
-                | ConeNeighborhood,
+                | ConeNeighborhood
+                | DelaunayNeighborhood,
             ):
                 error_msg = (
                     f'The neighbourhood reduction {reduction.call} of {group} reduces over {over!r}, which is not a '
-                    'neighbourhood. Reduce over a lattice, network, memory, Radius, Nearest, or Cone neighbourhood.'
+                    'neighbourhood. Reduce over a lattice, network, memory, Radius, Nearest, Cone, or Delaunay '
+                    'neighbourhood.'
                 )
                 raise ValidationError(error_msg)
             over = over.prepare()

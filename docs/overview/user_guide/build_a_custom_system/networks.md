@@ -494,7 +494,9 @@ problem.states.read(drift, 'nodes.u').tolist()
 - the neighbours of a network, by default,
 - a layer, with `AdjacencyNeighborhood(layer=label)`,
 - the neighbourhood of a lattice,
-- in a continuous space, `RadiusNeighborhood(r)`, `NearestNeighborhood(k)`, and `ConeNeighborhood(r, angle)`.
+- in a continuous space, `RadiusNeighborhood(r)`, `NearestNeighborhood(k)`, `ConeNeighborhood(r, angle)`, and
+  `DelaunayNeighborhood()`, the members joined by an edge of the Delaunay triangulation of the positions, such as
+  cells joined by springs, computed again every step and across periodic boundaries, on the NumPy backend.
 
 The reductions are `'sum'`, `'mean'`, `'count'`, `'max'`, `'min'`, and `'normalized-mean'`. A weight may read the state
 of the edge group of the layer through a role of an interaction, as the weight of the edge that joins the member to its
