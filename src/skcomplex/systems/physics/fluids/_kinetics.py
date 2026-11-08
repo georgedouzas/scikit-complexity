@@ -1,4 +1,7 @@
-"""Kinetic and wave transport systems: wave-number conservation with breaking, and discrete-velocity gases."""
+"""Kinetic and wave transport systems.
+
+The module covers wave-number conservation with breaking, and discrete-velocity gases.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,7 +23,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class CarlemanGasElement(Element):
-    """Site of the Carleman discrete-velocity gas, densities `f_plus` and `f_minus` moving at the speeds `c` and `-c`.
+    """Site of the Carleman discrete-velocity gas.
+
+    The densities `f_plus` and `f_minus` move at the speeds `c` and `-c`.
 
     Collisions turn two particles of one velocity into two of the other at the rate `kappa`, so
     `df_plus/dt + c df_plus/dx = kappa (f_minus^2 - f_plus^2)` and the opposite for `f_minus`, which conserves the
@@ -69,7 +74,9 @@ class CarlemanGasElement(Element):
 
 
 class WaveNumberElement(Element):
-    """Local wave number of deep-water waves, conserved as `dk/dt + d omega(k)/dx = 0` with `omega = sqrt(g k)`.
+    """Local wave number of deep-water waves.
+
+    The wave number is conserved as `dk/dt + d omega(k)/dx = 0` with `omega = sqrt(g k)`.
 
     The wave number travels at the group speed `C(k) = sqrt(g / k) / 2`, which falls as the waves shorten, so long
     waves catch up with short ones and the wave number steepens until it breaks.
@@ -107,7 +114,9 @@ class WaveNumberElement(Element):
 
 
 class WaveBreakingSystem(BaseSystem):
-    """The kinematic wave equation of deep-water wave trains on a periodic interval of length 2 pi.
+    """The kinematic wave equation of deep-water wave trains.
+
+    The interval is periodic of length 2 pi.
 
     The wave number starts as `k0 (1 + amplitude sin x)` and steepens into a jump, a break of the wavelength, at the
     time `1 / max(-C'(k0(x)) k0'(x))` of the first crossing of characteristics. Finite volumes conserve the total number
@@ -158,7 +167,10 @@ class WaveBreakingSystem(BaseSystem):
         self.g = g
 
     def _build_system(self) -> System:
-        """Return the kinematic wave equation of deep-water wave trains on a periodic interval of length 2 pi."""
+        """Return the kinematic wave equation of deep-water wave trains.
+
+        The interval is periodic of length 2 pi.
+        """
         spacing = 2 * math.pi / self.n
         centers = (np.arange(self.n) + 0.5) * spacing
         values = {'k': self.k0 * (1 + self.amplitude * np.sin(centers)), 'g': self.g}
@@ -186,7 +198,9 @@ class WaveBreakingSystem(BaseSystem):
 
 
 class DiscreteVelocityBoltzmannSystem(BaseSystem):
-    """The Carleman discrete-velocity Boltzmann equation on a periodic line, from a pulse of right movers.
+    """The Carleman discrete-velocity Boltzmann equation on a periodic line.
+
+    The gas starts from a pulse of right movers.
 
     A pulse of right-moving particles on a uniform background splits into two moving pulses while collisions relax every
     site towards equal densities, and the total mass stays constant. The system has the densities `gas.f_plus` and
@@ -238,11 +252,17 @@ class DiscreteVelocityBoltzmannSystem(BaseSystem):
 
     @staticmethod
     def _get_collisions(s: SimpleNamespace) -> Expression:
-        """Return the net rate `kappa (f_minus^2 - f_plus^2)` at which collisions turn left movers into right movers."""
+        """Return the net rate at which collisions turn left movers into right movers.
+
+        The rate is `kappa (f_minus^2 - f_plus^2)`.
+        """
         return s.target.kappa * (s.target.f_minus**2 - s.target.f_plus**2)
 
     def _build_system(self) -> System:
-        """Return the Carleman discrete-velocity Boltzmann equation on a periodic line, from a pulse of right movers."""
+        """Return the Carleman discrete-velocity Boltzmann equation on a periodic line.
+
+        The gas starts from a pulse of right movers.
+        """
         spacing = self.length / self.n
         centers = (np.arange(self.n) + 0.5) * spacing
         pulse = np.exp(-((centers - self.length / 2) ** 2))

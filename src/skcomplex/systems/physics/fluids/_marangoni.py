@@ -1,4 +1,7 @@
-"""Bénard-Marangoni convection: the order-parameter equation of a layer with a free, thermocapillary surface."""
+"""Bénard-Marangoni convection.
+
+The module holds the order-parameter equation of a layer with a free, thermocapillary surface.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -61,7 +64,9 @@ class MarangoniLayerElement(Element):
 
 
 class BenardMarangoniSystem(BaseSystem):
-    """The order-parameter equation of Bénard-Marangoni convection, which forms hexagonal cells.
+    """The order-parameter equation of Bénard-Marangoni convection.
+
+    The convection forms hexagonal cells.
 
     The field `u` is the vertical velocity at mid-depth of a heated layer whose open surface has a surface tension that
     falls with temperature. It follows `u_t = r u - (1 + laplacian)^2 u + g u^2 - u^3`, the Swift-Hohenberg equation of
@@ -120,14 +125,20 @@ class BenardMarangoniSystem(BaseSystem):
 
     @staticmethod
     def _get_marangoni_density(s: SimpleNamespace) -> Expression:
-        """Return the density of the Swift-Hohenberg functional with the quadratic term of the free surface."""
+        """Return the density of the Swift-Hohenberg functional.
+
+        The functional has the quadratic term of the free surface.
+        """
         layer = s.target
         u = layer.u
         potential = -(layer.r - 1) * u**2 / 2 - layer.g * u**3 / 3 + u**4 / 4
         return potential + u * laplacian(u) + laplacian(u) ** 2 / 2
 
     def _build_system(self) -> System:
-        """Return the order-parameter equation of Bénard-Marangoni convection, which forms hexagonal cells."""
+        """Return the order-parameter equation of Bénard-Marangoni convection.
+
+        The convection forms hexagonal cells.
+        """
         shape = tuple(self.shape)
         rng = np.random.default_rng(self.random_state)
         values = {'u': 0.01 * rng.uniform(-1.0, 1.0, shape), 'r': self.r, 'g': self.g}

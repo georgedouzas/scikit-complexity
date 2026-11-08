@@ -1,4 +1,7 @@
-"""Fluid dynamics: flows, convection cells, turbulence, shocks, shallow water, wave trains, and kinetic gases."""
+"""Fluid dynamics systems.
+
+The package covers flows, convection cells, turbulence, shocks, shallow water, wave trains, and kinetic gases.
+"""
 
 from ._flows import (
     BoussinesqElement,

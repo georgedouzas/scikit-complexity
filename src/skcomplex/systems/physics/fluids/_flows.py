@@ -1,4 +1,7 @@
-"""Fluid dynamics systems: incompressible flow, convection, turbulence, shocks, and shallow water."""
+"""Fluid dynamics systems.
+
+The module covers incompressible flow, convection, turbulence, shocks, and shallow water.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -29,7 +32,9 @@ from ....core.types import Array
 
 
 class BoussinesqElement(Element):
-    """Vorticity and temperature of Boussinesq convection, in units of the thermal diffusion time.
+    """Vorticity and temperature of Boussinesq convection.
+
+    The units are those of the thermal diffusion time.
 
     The temperature `theta` is the departure from the linear profile between a hot bottom and a cold top, so
     `dtheta/dt + u . grad(theta) = w + laplacian(theta)` and
@@ -79,7 +84,9 @@ class BoussinesqElement(Element):
 
 
 class BurgersElement(Element):
-    """Site of a field `u` that the Burgers equation `du/dt + d(u^2 / 2)/dx = 0` carries.
+    """Site of a field `u` carried by the Burgers equation.
+
+    The equation is `du/dt + d(u^2 / 2)/dx = 0`.
 
     Args:
         label:
@@ -109,7 +116,9 @@ class BurgersElement(Element):
 
 
 class KuramotoSivashinskyElement(Element):
-    """Site of a flame front or a thin film, `du/dt = -d(u^2 / 2)/dx - laplacian(u) - laplacian(laplacian(u))`.
+    """Site of a flame front or a thin film.
+
+    The field follows `du/dt = -d(u^2 / 2)/dx - laplacian(u) - laplacian(laplacian(u))`.
 
     The conservation of the flux `u^2 / 2` and the rate of the linear operator are interactions of the system.
 
@@ -141,7 +150,9 @@ class KuramotoSivashinskyElement(Element):
 
 
 class ShallowWaterElement(Element):
-    """Site of a channel of shallow water, with the depth `h` and the discharge `q` per unit width.
+    """Site of a channel of shallow water.
+
+    The site has the depth `h` and the discharge `q` per unit width.
 
     The mass `h` and the momentum `q` are conserved by two conservation interactions, with the fluxes `q` and
     `q^2 / h + g h^2 / 2`, which form one hyperbolic system.
@@ -184,7 +195,9 @@ class ShallowWaterElement(Element):
 
 
 class VorticityElement(Element):
-    """Vorticity of an incompressible two-dimensional flow, `domega/dt + u . grad(omega) = nu laplacian(omega) + f`.
+    """Vorticity of an incompressible two-dimensional flow.
+
+    The vorticity follows `domega/dt + u . grad(omega) = nu laplacian(omega) + f`.
 
     The velocity comes from the streamfunction, the solution of a Poisson equation, so the flow is divergence free,
     and the advection is written in conservative form so that dealiasing applies to it. The advection, the viscosity,
@@ -228,7 +241,9 @@ class VorticityElement(Element):
 
 
 class KuramotoSivashinskySystem(BaseSystem):
-    """The Kuramoto-Sivashinsky equation `u_t = -u u_x - u_xx - u_xxxx`, spatiotemporally chaotic.
+    """The Kuramoto-Sivashinsky equation `u_t = -u u_x - u_xx - u_xxxx`.
+
+    The equation is spatiotemporally chaotic.
 
     The field is spectral on a periodic line, started from `cos(x / 16) (1 + sin(x / 16))` as in Kassam and Trefethen,
     and the stiff fourth derivative suits exponential time differencing.
@@ -274,7 +289,10 @@ class KuramotoSivashinskySystem(BaseSystem):
         self.length = length
 
     def _build_system(self) -> System:
-        """Return the Kuramoto-Sivashinsky equation `u_t = -u u_x - u_xx - u_xxxx`, spatiotemporally chaotic."""
+        """Return the Kuramoto-Sivashinsky equation `u_t = -u u_x - u_xx - u_xxxx`.
+
+        The equation is spatiotemporally chaotic.
+        """
         spacing = self.length / self.modes
         positions = np.arange(1, self.modes + 1) * spacing
         values = {'u': np.cos(positions / 16) * (1 + np.sin(positions / 16))}
@@ -308,13 +326,19 @@ class KuramotoSivashinskySystem(BaseSystem):
 
 
 def _velocity(omega: Expression) -> tuple[Expression, Expression]:
-    """Return the velocity of a vorticity, from its streamfunction `psi` with `laplacian(psi) = -omega`."""
+    """Return the velocity of a vorticity.
+
+    The velocity comes from its streamfunction `psi` with `laplacian(psi) = -omega`.
+    """
     slopes = gradient(inverse_laplacian(-omega), 2)
     return slopes[1], -slopes[0]
 
 
 def _get_flow_interactions(buoyant: bool) -> list[Interaction]:
-    """Return the advection and the viscosity of the vorticity, with its forcing or with the buoyancy and the heat."""
+    """Return the advection and the viscosity of the vorticity.
+
+    The laws include its forcing or the buoyancy and the heat.
+    """
     advection = AdvectionInteraction(
         'advection',
         target='flow',
@@ -359,7 +383,9 @@ def incompressible_flow(
     temperature: npt.ArrayLike | None = None,
     label: str = 'system',
 ) -> System:
-    """Return incompressible two-dimensional flow in vorticity-streamfunction form on a periodic spectral lattice.
+    """Return incompressible two-dimensional flow in vorticity-streamfunction form.
+
+    The flow is on a periodic spectral lattice.
 
     Args:
         shape:
@@ -429,7 +455,9 @@ def incompressible_flow(
 
 
 class DecayingTurbulenceSystem(BaseSystem):
-    """Decaying two-dimensional turbulence from a random vorticity field on a periodic square of side 2 pi.
+    """Decaying two-dimensional turbulence from a random vorticity field.
+
+    The field lies on a periodic square of side 2 pi.
 
     Energy flows to large scales and enstrophy to small scales, where viscosity removes it, so vortices merge while the
     enstrophy decays faster than the energy. The system has the vorticity `flow.omega`.
@@ -480,7 +508,10 @@ class DecayingTurbulenceSystem(BaseSystem):
 
     @staticmethod
     def _smooth_noise(shape: tuple[int, ...], modes: int, random_state: int | np.random.Generator | None) -> Array:
-        """Return random values with only the Fourier modes below a wavenumber, scaled to unit largest value."""
+        """Return random values with only the Fourier modes below a wavenumber.
+
+        The values are scaled to unit largest value.
+        """
         rng = np.random.default_rng(random_state)
         spectrum = np.fft.rfftn(rng.standard_normal(shape))
         frequencies = np.meshgrid(
@@ -500,7 +531,9 @@ class DecayingTurbulenceSystem(BaseSystem):
 
 
 class RayleighBenardSystem(BaseSystem):
-    """Rayleigh-Bénard convection between free-slip walls, from a small perturbation of the critical mode.
+    """Rayleigh-Bénard convection between free-slip walls.
+
+    The convection starts from a small perturbation of the critical mode.
 
     The layer has height 1 and width `2 sqrt(2)`, the wavelength of the critical mode, and convection sets in above `Ra
     = 27 pi^4 / 4`, about 657.5. The lattice holds twice the layer's height with odd states, which gives the free-slip
@@ -553,7 +586,10 @@ class RayleighBenardSystem(BaseSystem):
         self.amplitude = amplitude
 
     def _build_system(self) -> System:
-        """Return Rayleigh-Bénard convection between free-slip walls, from a small perturbation of the critical mode."""
+        """Return Rayleigh-Bénard convection between free-slip walls.
+
+        The convection starts from a small perturbation of the critical mode.
+        """
         width, height = 2 * math.sqrt(2), 2.0
         x = (np.arange(self.shape[0]) * width / self.shape[0])[:, None]
         z = (np.arange(self.shape[1]) * height / self.shape[1])[None, :]
@@ -569,7 +605,9 @@ class RayleighBenardSystem(BaseSystem):
 
 
 class BurgersSystem(BaseSystem):
-    """The inviscid Burgers equation on a periodic interval of length 2 pi, whose sine steepens into a shock.
+    """The inviscid Burgers equation on a periodic interval of length 2 pi.
+
+    Its sine steepens into a shock.
 
     The cells hold averages updated by MUSCL reconstruction with a minmod limiter and Rusanov fluxes, so the total is
     conserved and the shock forms no new extrema. The shock forms at time `1 / amplitude`. The system has the velocity
@@ -638,7 +676,9 @@ class BurgersSystem(BaseSystem):
 
 
 class ShallowWaterSystem(BaseSystem):
-    """The shallow-water dam break: still water at two depths that a removed dam separated at the middle.
+    """The shallow-water dam break.
+
+    Still water at two depths was separated at the middle by a removed dam.
 
     A shock runs downstream and a rarefaction upstream, with the depth and the discharge conserved by finite volumes and
     open edges. The system has the depth `channel.h` and the discharge `channel.q`.
@@ -693,7 +733,10 @@ class ShallowWaterSystem(BaseSystem):
         self.g = g
 
     def _build_system(self) -> System:
-        """Return the shallow-water dam break: still water at two depths that a removed dam separated at the middle."""
+        """Return the shallow-water dam break.
+
+        Still water at two depths was separated at the middle by a removed dam.
+        """
         depth = np.where(np.arange(self.n) < self.n // 2, self.upstream, self.downstream).astype(float)
         space = LatticeSpace(self.n, spacing=self.length / self.n)
         values = {'h': depth, 'q': np.zeros(self.n), 'g': self.g}
