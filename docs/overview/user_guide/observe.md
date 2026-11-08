@@ -185,9 +185,8 @@ views that show what it logs, as its fitted attribute `views_`.
 ```python continuation
 import rerun.blueprint as rrb
 
-from skcomplex.systems import all_systems
+from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
-LotkaVolterraSystem = dict(all_systems(field='biology/ecology'))['LotkaVolterraSystem']
 predation = LotkaVolterraSystem()
 observer = RerunObserver('lotka_volterra', save_path=path.with_name('lotka_volterra.rrd'), blueprint='default')
 simulate(predation, until=20, observers=[observer])

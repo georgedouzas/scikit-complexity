@@ -44,11 +44,11 @@ class SSPRKSolver(Solver):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.physics.fluids import BurgersSystem
         >>> from skcomplex.core.engine.solvers import SSPRKSolver
         >>> from skcomplex.core.specs import StepSpec
-        >>> problem = PassCompiler().prepare(BurgersSystem(64).prepare().system_).run().problem_
+        >>> problem = simulate(BurgersSystem(64), until=0).problem
         >>> stepper = SSPRKSolver(random_state=0).prepare(problem)
         >>> state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_
         >>> bool(np.isclose(state.sum(), problem.initial_state.sum()))

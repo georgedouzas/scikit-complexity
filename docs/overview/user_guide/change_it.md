@@ -14,9 +14,8 @@ name to the class, or change them later with `set_params`, as for any scikit-lea
 
 ```python
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.systems import all_systems
+from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
-LotkaVolterraSystem = dict(all_systems(field='biology/ecology'))['LotkaVolterraSystem']
 LotkaVolterraSystem().get_params()
 simulate(LotkaVolterraSystem(r=1.5, predators=5.0)).values('prey.n').max().round()
 logistic = LotkaVolterraSystem().set_params(K=200.0)
@@ -33,9 +32,8 @@ solver.
 
 ```python
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.systems import all_systems
+from skcomplex.systems.biology.epidemiology import SIRSystem
 
-SIRSystem = dict(all_systems(field='biology/epidemiology'))['SIRSystem']
 epidemic = SIRSystem(stochastic=True)
 tags = epidemic.get_tags()
 tags.laws, tags.randomness, simulate(epidemic, random_state=0).values('I.n').max()
@@ -48,9 +46,8 @@ to override one for a run, such as `until`, `dt`, `solver`, `initial_state`, or 
 
 ```python
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.systems import all_systems
+from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
-LotkaVolterraSystem = dict(all_systems(field='biology/ecology'))['LotkaVolterraSystem']
 settings = LotkaVolterraSystem().get_run_settings()
 settings['until'], settings['dt']
 trajectory = simulate(LotkaVolterraSystem(), until=20.0, dt=0.5, initial_state={'prey.n': 20.0})
@@ -66,9 +63,8 @@ Pick every setting yourself, such as a fixed-step solver, a schedule of a parame
 ```python
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
-from skcomplex.systems import all_systems
+from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
-LotkaVolterraSystem = dict(all_systems(field='biology/ecology'))['LotkaVolterraSystem']
 trajectory = simulate(LotkaVolterraSystem(), until=30.0, dt=0.5, solver=RK4Solver(dt=0.01))
 trajectory.values('predators.n')[-1].round(3)
 ```
@@ -142,10 +138,9 @@ class has the label `system` by default, and nest the composite `system_` of its
 ```python
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.systems import all_systems
+from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+from skcomplex.systems.biology.epidemiology import SIRSystem
 
-LotkaVolterraSystem = dict(all_systems(field='biology/ecology'))['LotkaVolterraSystem']
-SIRSystem = dict(all_systems(field='biology/epidemiology'))['SIRSystem']
 island = LotkaVolterraSystem(label='island').prepare().system_
 town = SIRSystem(label='town').prepare().system_
 trajectory = simulate(System(systems=[island, town]), until=5, dt=0.1)

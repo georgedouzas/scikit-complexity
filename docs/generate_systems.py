@@ -4,6 +4,7 @@ import ast
 import inspect
 import sys
 import tomllib
+from collections.abc import Iterable
 from importlib.resources import files
 from pathlib import Path
 from typing import Any
@@ -16,12 +17,15 @@ from skcomplex.core.analysis import symbolic
 from skcomplex.core.components.elements import BaseElement
 from skcomplex.core.components.interactions import BaseInteraction
 from skcomplex.core.components.system import BaseSystem, System
-from skcomplex.core.errors import AnalysisError
+from skcomplex.core.errors import AnalysisError, ValidationError
+from skcomplex.core.specs import Tags
 
 DOCS = Path(str(files('gallery_tools'))).parent
 INVENTORY = DOCS / 'overview' / 'inventory.toml'
 GALLERY = build_from_environment(DOCS)
 EQUATION_LAWS = {'rate', 'noise', 'update'}
+DEFAULT_WIDTH = 60
+TAG_FIELDS = ('time', 'space', 'laws', 'randomness', 'domains', 'structure')
 
 
 def _listing(field: str | None = None) -> list[tuple[str, type[BaseSystem]]]:
@@ -31,6 +35,65 @@ def _listing(field: str | None = None) -> list[tuple[str, type[BaseSystem]]]:
         for name, system in sorted(library_systems().items())
         if field is None or system.field == field or system.field.startswith(f'{field}/')
     ]
+
+
+_BUILT: dict[str, BaseSystem] = {}
+
+
+def _built(system: type[BaseSystem]) -> BaseSystem:
+    """Return the system a class builds with its default parameters, built once for its tags and its page."""
+    key = f'{system.__module__}.{system.__qualname__}'
+    if key not in _BUILT:
+        _BUILT[key] = system()
+    return _BUILT[key]
+
+
+def _tags(system: type[BaseSystem]) -> Tags:
+    """Return the capability tags of a system class, those of the system it builds with its default parameters."""
+    return _built(system).get_tags()
+
+
+def _import_line(system: type[BaseSystem]) -> str:
+    """Return the statement that imports a system class from its subfield."""
+    return f'from {system.__module__.rpartition(".")[0]} import {system.__name__}'
+
+
+def _parameters(system: type[BaseSystem]) -> list[tuple[str, str]]:
+    """Return the name and the default of every model parameter of a system class, its label left out."""
+    parameters = list(inspect.signature(system.__init__).parameters.values())[1:]
+    variadic = (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD)
+    return [
+        (parameter.name, 'required' if parameter.default is parameter.empty else _default(parameter.default))
+        for parameter in parameters
+        if parameter.name != 'label' and parameter.kind not in variadic
+    ]
+
+
+def _default(value: object) -> str:
+    """Return the default of a parameter as a code span of one line, shortened when it is long."""
+    text = ' '.join(repr(value).split())
+    if len(text) > DEFAULT_WIDTH:
+        text = f'{text[: DEFAULT_WIDTH - 3]}...'
+    return f'`{text}`'.replace('|', '\\|')
+
+
+def _tag_values(values: Iterable[str] | str | None, empty: str = 'any') -> str:
+    """Return the values of a tag as sorted code spans, `empty` for none, and `unknown` when it is not declared."""
+    if values is None:
+        return 'unknown'
+    found = [values] if isinstance(values, str) else sorted(values)
+    return ', '.join(f'`{value}`' for value in found) or empty
+
+
+def _tag_cell(tags: Tags, name: str) -> str:
+    """Return the values of one capability tag, an empty structure read as fixed."""
+    return _tag_values(getattr(tags, name), empty='fixed' if name == 'structure' else 'any')
+
+
+def _table(header: list[str], rows: Iterable[list[str]]) -> list[str]:
+    """Return the Markdown lines of a table."""
+    lines = [f'| {" | ".join(header)} |', f'|{"---|" * len(header)}']
+    return lines + [f'| {" | ".join(row)} |' for row in rows]
 
 
 def _description(system: type[BaseSystem]) -> str:
@@ -118,7 +181,7 @@ def _selection_lines(system: type[BaseSystem]) -> list[str]:
         '',
         '```python',
         'from skcomplex.core.engine.runtime import simulate',
-        f'from {system.__module__.rpartition(".")[0]} import {system.__name__}',
+        _import_line(system),
         '',
         f'trajectory = simulate({system.__name__}())',
         '```',
@@ -148,26 +211,47 @@ def _equations(system: BaseSystem) -> str | None:
         return None
     try:
         equations = symbolic(system.prepare().system_).equations
-    except AnalysisError:
+    except (AnalysisError, ValidationError):
         return None
     return '\n'.join(f'{target}: {equation}' for target, equation in equations.items())
 
 
+def _parameter_lines(system: type[BaseSystem]) -> list[str]:
+    """Return the model parameters of a system class with their defaults, which `set_params` changes."""
+    parameters = _parameters(system)
+    lines = ['## Parameters', '']
+    if not parameters:
+        return [*lines, 'The system has no model parameter.', '']
+    rows = ([f'`{name}`', default] for name, default in parameters)
+    return [*lines, *_table(['Parameter', 'Default'], rows), '']
+
+
+def _tag_lines(system: type[BaseSystem]) -> list[str]:
+    """Return the capability tags of a system class, which `get_tags()` returns and solvers and analyses check."""
+    tags = _tags(system)
+    rows = ([name.capitalize(), _tag_cell(tags, name)] for name in TAG_FIELDS)
+    return ['## Tags', '', *_table(['Tag', 'Values'], rows), '']
+
+
 def system_page(name: str, title: str, examples: dict[str, Example]) -> str:
-    """Return the page of one system: its screenshot, description, references, class, types, and equations."""
+    """Return the page of one system: its screenshot, description, import, parameters, tags, class, and equations."""
     system_class = library_systems()[name]
-    built = system_class()
+    built = _built(system_class)
     lines = [
         f'# {title}',
         '',
         _description(system_class),
         '',
         f'- Class: `{system_class.__name__}`',
+        f'- Import: `{_import_line(system_class)}`',
         f'- Field: `{system_class.field}`',
+        f'- Topics: {", ".join(f"`{topic}`" for topic in system_class.topics)}',
         f'- References: {"; ".join(system_class.references)}',
         '',
         *_gallery_lines(name, examples),
         *_selection_lines(system_class),
+        *_parameter_lines(system_class),
+        *_tag_lines(system_class),
         '## Class',
         '',
         '```python',
@@ -227,6 +311,14 @@ def _catalog_entry(name: str, system: type[BaseSystem], titles: dict[str, str]) 
     return f'- [{titles[name]}]({system.field}/{name}.md) `{system.__name__}`: {_description(system)}'
 
 
+def _catalog_row(name: str, system: type[BaseSystem], titles: dict[str, str]) -> list[str]:
+    """Return the row of a system in the catalog: its link, its class, its parameters, and its capability tags."""
+    tags = _tags(system)
+    parameters = ', '.join(f'`{parameter}`' for parameter, _ in _parameters(system)) or 'none'
+    cells = [_tag_cell(tags, tag) for tag in ('time', 'space', 'laws', 'randomness')]
+    return [f'[{titles[name]}]({system.field}/{name}.md)', f'`{system.__name__}`', parameters, *cells]
+
+
 def catalog_page(inventory: dict[str, Any], titles: dict[str, str]) -> str:
     """Return the catalog: every ready-made system by field and subfield, and again by topic.
 
@@ -245,21 +337,26 @@ def catalog_page(inventory: dict[str, Any], titles: dict[str, str]) -> str:
     lines = [
         '# Catalog',
         '',
-        'Every ready-made system, by field and by topic. Import a system class from its subfield, or list the',
-        'classes with `all_systems` of `skcomplex.systems`. The search box of the site finds a system by its name,',
-        'description, or topic.',
+        'Every ready-made system, by field and by topic. Each subfield shows the statement that imports its',
+        'classes, and each system its class, its model parameters, and its capability tags. The page of a system',
+        'gives the defaults of its parameters and all its tags. List the classes of a field, a topic, or a tag with',
+        '`all_systems` of `skcomplex.systems`, and find a system by its name, description, or topic with the search',
+        'box of the site.',
         '',
         '```python',
         'from skcomplex.systems import all_systems',
         '',
-        "names = [name for name, _ in all_systems(field='biology/ecology')]",
+        "names = [name for name, _ in all_systems(field='biology/ecology', tags={'randomness': 'stochastic'})]",
         '```',
         '',
         '## By field',
     ]
+    header = ['System', 'Class', 'Parameters', 'Time', 'Space', 'Laws', 'Randomness']
     for field in sorted({system.field for _, system in entries}):
         listed = sorted((entry for entry in entries if entry[1].field == field), key=lambda entry: titles[entry[0]])
-        lines += ['', f'### {field}', '', *(_catalog_entry(name, system, titles) for name, system in listed)]
+        statement = f'from skcomplex.systems.{field.replace("/", ".")} import <Class>'
+        rows = (_catalog_row(name, system, titles) for name, system in listed)
+        lines += ['', f'### {field}', '', f'`{statement}`', '', *_table(header, rows)]
     lines += ['', '## By topic']
     for topic in sorted({topic for _, system in entries for topic in system.topics}):
         tagged = sorted((entry for entry in entries if topic in entry[1].topics), key=lambda entry: titles[entry[0]])

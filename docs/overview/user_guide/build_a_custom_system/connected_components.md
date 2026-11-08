@@ -185,9 +185,9 @@ trajectory.values('tank.u')[-1].round(4)
 ```
 
 The voltage of the capacitor decays as `exp(-t / RC)`, and the current through the load is that voltage over `R`. The
-ready-made systems of `skcomplex.systems.engineering` hold electrical and thermal components built in the same way. A
-port component drives a mechanism through an `EquationLaw` whose target is a coordinate of an
-`EulerLagrangeInteraction`, which adds to the equation of that coordinate, as `DcMotorSystem` of
+ready-made engineering systems, such as those of `skcomplex.systems.engineering.circuits`, hold electrical and thermal
+components built in the same way. A port component drives a mechanism through an `EquationLaw` whose target is a
+coordinate of an `EulerLagrangeInteraction`, which adds to the equation of that coordinate, as `DcMotorSystem` of
 `skcomplex.systems.engineering.mechatronics` shows.
 
 ## The solve

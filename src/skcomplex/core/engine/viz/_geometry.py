@@ -119,8 +119,8 @@ class GeometryVisual(BaseVisual):
             ...     def _get_laws(self, namespace):
             ...         return [ProductionLaw('F', 'F+F--F+F')]
             >>> koch = KochElement('koch', axiom='F', geometry=GeometrySpec(angle=60.0, contraction=1 / 3))
-            >>> from skcomplex.core.engine.compile._rewriting_compiler import RewritingCompiler
-            >>> problem = RewritingCompiler().prepare(System(elements=[koch], time=DiscreteTime())).run().problem_
+            >>> from skcomplex.core.engine.runtime import simulate
+            >>> problem = simulate(System(elements=[koch], time=DiscreteTime()), until=0).problem
             >>> views = GeometryVisual(path=problem.elements[0].path).prepare(problem).views_
             >>> [type(view).__name__ for view in views]
             ['Spatial2DView', 'TimeSeriesView']

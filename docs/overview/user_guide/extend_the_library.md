@@ -227,9 +227,8 @@ from skcomplex.core.base import BaseConfig
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.system import BaseSystem, System
 from skcomplex.core.experiments import Calibration
-from skcomplex.systems import all_systems
+from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
-LotkaVolterraSystem = dict(all_systems(field='biology/ecology'))['LotkaVolterraSystem']
 [issubclass(cls, BaseConfig) for cls in (Element, System, LotkaVolterraSystem, Calibration)]
 issubclass(LotkaVolterraSystem, BaseSystem), LotkaVolterraSystem.field
 ```

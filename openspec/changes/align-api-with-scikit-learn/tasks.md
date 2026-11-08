@@ -32,13 +32,12 @@
 
 ## 6. Documentation
 
-- [ ] 6.1 Rewrite the README and the user guide to the new API, keeping the task order
-- [ ] 6.2 Replace the compatibility page with generated pages per kind of part, each with executed compatible and incompatible examples
-  - Done: elements, interactions, laws, solvers, and backends. Analyses, experiments, and systems remain.
+- [x] 6.1 Rewrite the README and the user guide to the new API, keeping the task order
+- [x] 6.2 Replace the compatibility page with generated pages per kind of part, each with executed compatible and incompatible examples
 - [x] 6.3 Add the migration page from 0.6 to 0.7
 - [x] 6.4 Add the systems page, and catalog pages with class, import path, parameters, and tags
-  - The systems page is `docs/overview/user_guide/system_classes.md`, in the guide after "Change it".
-- [ ] 6.5 Update every docstring example
+  - The systems page is `docs/overview/user_guide/system_classes.md`, and `docs/generate_systems.py` shows each system's class, import, parameters, and tags.
+- [x] 6.5 Update every docstring example
 
 ## 8. Follow-ups found while converting systems
 
@@ -54,6 +53,9 @@
 - [ ] 8.10 Make the module that `SystemDynamicsTranslator` writes define a system class on `BaseSystem` instead of the function `create_system()`
 - [ ] 8.11 Restore what `Simulation` offered and `simulate` lost: the `checked` option that raises when a state leaves its domain, and the validation of parameter values changed by a schedule, such as a transition probability above 1
 - [ ] 8.12 Decide whether `ParameterError` derives from `ValidationError`, so one except clause catches every validation failure of `simulate`
+- [ ] 8.13 Add `clock` to `simulate` for real-time pacing, and remove live parameter changes and background runs: drop the requirements "Parameters change while running" and "Simulations run in the background" of the `simulation` spec, keep "Runs can be paced in real time" through `clock`, and say so on the migration page
+- [ ] 8.14 Make `symbolic` raise `AnalysisError` for rewriting systems, instead of the `ValidationError` of compiling them
+- [ ] 8.15 Choose `FractionalEulerMaruyamaSolver` as the default solver of systems with fractional noise
 
 ## 7. Verification
 

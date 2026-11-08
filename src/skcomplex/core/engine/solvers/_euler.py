@@ -36,7 +36,7 @@ class EulerSolver(Solver):
             The end time of the run the solver prepares for, infinite for a run that goes on until it is stopped.
 
     Examples:
-        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.components.system import System
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> from skcomplex.core.engine.solvers import EulerSolver
@@ -45,7 +45,7 @@ class EulerSolver(Solver):
         ...     elements=[PopulationElement('a', n=1)],
         ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
         ... )
-        >>> problem = PassCompiler().prepare(system).run().problem_
+        >>> problem = simulate(system, until=0).problem
         >>> stepper = EulerSolver(dt=0.5, random_state=0).prepare(problem)
         >>> step = StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)
         >>> float(stepper.run(step).state_[0])

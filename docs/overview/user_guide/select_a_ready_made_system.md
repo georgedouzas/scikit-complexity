@@ -4,14 +4,14 @@ Find a system of the catalog, read what it is, and simulate it with the settings
 
 ## The catalog
 
-Every ready-made system is a class, named after the system with the suffix `System`, such as `SIRSystem`.
-`all_systems` returns the name and the class of every system, and `simulate` runs one with its tuned settings.
+Every ready-made system is a class, named after the system with the suffix `System`, such as `SIRSystem`. You import
+it from its subfield, the package `skcomplex.systems.<field>.<subfield>`, and `simulate` runs it with its tuned
+settings. `all_systems` returns the name and the class of every system.
 
 ```python
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.systems import all_systems
+from skcomplex.systems.biology.epidemiology import SIRSystem
 
-SIRSystem = dict(all_systems(field='biology/epidemiology'))['SIRSystem']
 trajectory = simulate(SIRSystem())
 trajectory.values('I.n').max().round()
 ```
@@ -58,8 +58,9 @@ is deterministic, and `SIRSystem(stochastic=True)` is stochastic.
 The catalog belongs to the catalog alone. `simulate`, the analyses, and the experiments take a system instance, or a
 class or a factory where a function builds several systems, never a name.
 
-Each system has a field path `<field>/<subfield>`, which `all_systems` takes as a filter. Every class can also be
-imported from its subfield package, as the page of the system under [Systems](../../systems/index.md) shows.
+Each system has a field path `<field>/<subfield>`, which `all_systems` takes as a filter, and is imported from the
+subfield package of the same path, such as `skcomplex.systems.biology.epidemiology` for `biology/epidemiology`. The
+page of each system under [Systems](../../systems/index.md) shows its import.
 
 | Field | Subfields |
 | --- | --- |
