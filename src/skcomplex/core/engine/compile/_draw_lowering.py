@@ -13,7 +13,7 @@ from sage.modules.free_module_element import FreeModuleElement
 from scipy import stats
 
 from ...components.laws import BaseLaw, UpdateLaw
-from ...components.laws.utils import draws_in, logistic, stop_gradient, where
+from ...components.laws.utils import clip, draws_in, logistic, stop_gradient, where
 from ...errors import ValidationError
 from ...specs import CallSpec, DrawSpec, EntrySpec, NamedDrawSpec, NeighborReadSpec, SampledDrawSpec
 from ...types import Array, Indices
@@ -30,6 +30,7 @@ from ._members import MemberLowering
 
 _NORMAL_KINDS = frozenset({'normal'})
 _SHIFT = 'shift_member'
+RELAXATION_FLOOR = 1e-12
 
 
 DISTRIBUTIONS = tuple(
@@ -414,11 +415,12 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
         A Bernoulli draw of probability `p` gives `sigmoid((logit p - logit u) / T)`, the binary concrete relaxation of
         the threshold `u < p` (Maddison et al. 2017). A categorical draw gives `sum_k sigmoid((u - c_k / W) / T)` over
         the cumulative weights `c_k` before the last and the total weight `W`, the relaxation of its inverse
-        distribution function. Both tend to the exact draw as the temperature `T` tends to 0.
+        distribution function. Both tend to the exact draw as the temperature `T` tends to 0. The probability is clipped
+        into `[1e-12, 1 - 1e-12]`, so its logit and its gradient stay finite.
         """
         temperature = SR(draw.temperature)
         if draw.kind == 'bernoulli':
-            p = arguments[0]
+            p = clip(arguments[0], RELAXATION_FLOOR, 1 - RELAXATION_FLOOR)
             return logistic(log(p) - log(1 - p) - log(slot) + log(1 - slot), 0, temperature)
         total = sum(arguments[1:], arguments[0])
         cumulative, relaxed = SR(0), SR(0)
