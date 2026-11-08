@@ -131,7 +131,7 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
         if not isinstance(context, System):
             error_msg = f'A compiler prepares on a system, not on a {type(context).__name__}.'
             raise ValidationError(error_msg)
-        system = context
+        system = context.prepare().system_ if context._nests_classes() else context
         try:
             self.system_ = self._with_observables(system, self.observables)
         except ValidationError as error:

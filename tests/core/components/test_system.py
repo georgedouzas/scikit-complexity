@@ -29,6 +29,7 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import UnitarySolver
 from skcomplex.core.errors import RoleElementError, TagError, ValidationError
 from skcomplex.core.specs import HilbertSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.systems.biology.epidemiology import SIRSystem
 
 PAULI = HilbertSpec(
     2,
@@ -203,6 +204,20 @@ def test_systems_nest_and_interactions_couple_them_by_path():
     )
     trajectory = simulate(system, until=1, dt=0.5)
     assert trajectory.values('meadow/rabbits.n')[-1] > 2.0
+
+
+def test_system_classes_nest_twice_under_their_labels():
+    """Test that a ready-made system class nests twice by label, with its paths and its parameters kept apart."""
+    system = System(
+        systems=[SIRSystem(label='town'), System('region', systems=[SIRSystem(beta=0.0006, label='city')])],
+        interactions=[GrowthInteraction('arrivals', target='town/S', r=0.01)],
+    )
+    assert PassCompiler().prepare(system).report_.ok
+    assert system.prepare().system_.systems[0].elements[0].label == 'S'
+    trajectory = simulate(system, until=10, dt=1.0)
+    alone = simulate(SIRSystem(), until=10, dt=1.0)
+    assert trajectory.values('town/S.n')[-1] > alone.values('S.n')[-1]
+    assert trajectory.values('region/city/S.n')[-1] < alone.values('S.n')[-1]
 
 
 def test_duplicate_labels_are_reported():

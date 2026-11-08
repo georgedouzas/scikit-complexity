@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import copy
 import functools
 from abc import abstractmethod
 from collections.abc import Callable, Mapping, Sequence
@@ -297,7 +298,7 @@ class System(BaseSystem):
         *,
         elements: Sequence[BaseElement] = (),
         interactions: Sequence[BaseInteraction] = (),
-        systems: Sequence[System] = (),
+        systems: Sequence[BaseSystem] = (),
         space: BaseSpace | None = None,
         time: BaseTime | None = None,
     ) -> None:
@@ -314,7 +315,8 @@ class System(BaseSystem):
                 The interactions between the elements.
 
             systems:
-                The nested systems.
+                The nested systems, composites or system classes such as the ready-made systems of the catalog, each
+                with a label of its own.
 
             space:
                 The space the elements live on, which gives vector states their dimension, or `None` for none.
@@ -364,7 +366,32 @@ class System(BaseSystem):
         for part in self.interactions:
             part.prepare(space)
         self._check_roles()
-        self.system_ = self
+        self.system_ = self._get_composite()
+
+    def _nests_classes(self) -> bool:
+        """Return whether a nested system, at any depth, is a system class rather than a composite."""
+        return any(not isinstance(system, System) or system._nests_classes() for system in self.systems)
+
+    def _get_composite(self) -> System:
+        """Return the system with the prepared composite of every nested system in place of the nested system.
+
+        A nested system class, such as a ready-made system of the catalog, is replaced by the composite it builds from
+        its model parameters, so the compilers, the solvers, and the trajectory read the elements, the interactions,
+        and the systems of every nested system alike. The system itself is returned when every nested system is its own
+        composite already.
+
+        Returns:
+            composite:
+                The system, or a shallow copy of it whose nested systems are composites.
+        """
+        systems = [system.system_ for system in self.systems]
+        if all(composite is system for composite, system in zip(systems, self.systems, strict=True)):
+            return self
+        composite = copy.copy(self)
+        composite.systems = systems
+        composite.system_ = composite
+        composite._prepared = True
+        return composite
 
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
         """Return the laws of every part, each for the namespace of its label.
@@ -405,7 +432,7 @@ class System(BaseSystem):
         *scopes, label = path.split('/')
         system: System | None = self
         for scope in scopes:
-            system = next((item for item in system.systems if item.label == scope), None) if system else None
+            system = next((item.system_ for item in system.systems if item.label == scope), None) if system else None
         if system is None:
             return None
         return next((element for element in system.elements if element.label == label), None)
