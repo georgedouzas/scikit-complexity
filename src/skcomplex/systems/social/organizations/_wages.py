@@ -1,4 +1,7 @@
-"""Wage systems: Ajani's Choice, where employers learn to pay migrant workers below the minimum wage."""
+"""Wage systems: Ajani's Choice.
+
+In it, employers learn to pay migrant workers below the minimum wage.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -38,7 +41,9 @@ class HarvesterView(AgentView):
 
 
 class FarmerElement(Element):
-    """Employer of Ajani's Choice, who offers a daily wage until the workforce it needs is filled.
+    """Employer of Ajani's Choice.
+
+    It offers a daily wage until the workforce it needs is filled.
 
     Args:
         label:
@@ -88,7 +93,9 @@ class FarmerElement(Element):
 
 
 class HarvesterElement(Element):
-    """Migrant worker of Ajani's Choice, who asks the employers near its slum for a day of work.
+    """Migrant worker of Ajani's Choice.
+
+    It asks the employers near its slum for a day of work.
 
     Args:
         label:
@@ -138,16 +145,17 @@ class HarvesterElement(Element):
 
 
 class HarvestInteraction(Interaction):
-    """Working day of Ajani's Choice: hiring in the morning, wage adjustment and chat among employers in the evening.
+    """Working day of Ajani's Choice.
 
-    Every worker asks the employers of its local area, the area of its slum, and moves to the other slum when its area
-    has none. In each of `asks` rounds every worker without work, in random order, asks a random employer it has not
-    asked yet, and an employer whose workforce is not filled offers its wage. The worker accepts if the wage is at
-    least the minimum wage 1, if it did not work yesterday for at least the minimum wage, or if no employer is left to
-    ask. In the evening every employer lowers its wage by `adjustment` if it filled its workforce and raises it
-    otherwise, within `[0.1, 2]`, and then, in random order, sets its wage to the mean wage of `chat` random employers.
-    The interaction reports the number of workers paid below the minimum wage, `slaves`, and of workers paid at least
-    the minimum wage, `in_work`.
+    Hiring happens in the morning, and wage adjustment and chat among employers in the evening. Every worker asks the
+    employers of its local area, the area of its slum, and moves to the other slum when its area has none. In each of
+    `asks` rounds every worker without work, in random order, asks a random employer it has not asked yet, and an
+    employer whose workforce is not filled offers its wage. The worker accepts if the wage is at least the minimum wage
+    1, if it did not work yesterday for at least the minimum wage, or if no employer is left to ask. In the evening
+    every employer lowers its wage by `adjustment` if it filled its workforce and raises it otherwise, within
+    `[0.1, 2]`, and then, in random order, sets its wage to the mean wage of `chat` random employers. The interaction
+    reports the number of workers paid below the minimum wage, `slaves`, and of workers paid at least the minimum wage,
+    `in_work`.
 
     Args:
         label:
@@ -211,7 +219,10 @@ class HarvestInteraction(Interaction):
         return [RuleLaw(self.work)]
 
     def _hire(self, farmers: list[FarmerView], harvesters: list[HarvesterView], rng: np.random.Generator) -> None:
-        """Let the workers ask the employers of their area for work and accept or refuse their offers."""
+        """Let the workers ask the employers of their area for work.
+
+        The workers accept or refuse their offers.
+        """
         areas = {area: [farmer for farmer in farmers if farmer.area == area] for area in (0.0, 1.0)}
         asked: dict[int, list[FarmerView]] = {}
         desperate: dict[int, bool] = {}
@@ -261,15 +272,15 @@ class HarvestInteraction(Interaction):
 
 
 class AjanisChoiceSystem(BaseSystem):
-    """Chesney's Ajani's Choice, migrant farm workers and employers among whom underpayment emerges.
+    """Chesney's Ajani's Choice, migrant farm workers and employers.
 
-    Employers need between 50 and 99 workers a day each and start with a random wage between 1 and 2, the minimum
-    wage being 1. Workers live in two slums, `n_workers` in each, and ask the employers of their local area for work
-    every morning, accepting an offer below the minimum wage only when desperate, after a day without work at the
-    minimum wage, or when no employer is left to ask. Every evening employers lower their wage if they filled their
-    workforce and raise it otherwise, by `adjustment`, within `[0.1, 2]`, and then average the wages of `chat`
-    random employers (Chesney 2021 sections 3.3 and 3.8). A worker paid below the minimum wage is a slave, and a run
-    lasts 60 days, two summer months. When workers outnumber the jobs, desperation drags the wages below the
+    Underpayment emerges among them. Employers need between 50 and 99 workers a day each and start with a random wage
+    between 1 and 2, the minimum wage being 1. Workers live in two slums, `n_workers` in each, and ask the employers of
+    their local area for work every morning, accepting an offer below the minimum wage only when desperate, after a day
+    without work at the minimum wage, or when no employer is left to ask. Every evening employers lower their wage if
+    they filled their workforce and raise it otherwise, by `adjustment`, within `[0.1, 2]`, and then average the wages
+    of `chat` random employers (Chesney 2021 sections 3.3 and 3.8). A worker paid below the minimum wage is a slave, and
+    a run lasts 60 days, two summer months. When workers outnumber the jobs, desperation drags the wages below the
     minimum, as with the default 10 employers and 1000 workers. The NetLogo listing of section 3.8 accepts a low offer
     when yesterday's pay was above the minimum, against rule 3 of the text, and the system follows the text.
 

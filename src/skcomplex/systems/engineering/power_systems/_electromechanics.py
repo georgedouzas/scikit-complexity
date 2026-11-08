@@ -1,4 +1,7 @@
-"""Electromechanical energy systems: braking energy recovery, homopolar chargers, and loaded rails."""
+"""Electromechanical energy systems: braking recovery, chargers, and loaded rails.
+
+The braking recovers energy, and the chargers are homopolar.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -98,10 +101,11 @@ class FaradayDiskElement(Element):
 
 
 class RailSegmentElement(Element):
-    """Rail segment on a sleeper, two masses joined by a spring and a damper and loaded by passing wheels.
+    """Rail segment on a sleeper, loaded by passing wheels.
 
-    The element holds the wheel load and the ballast under the sleeper, and the system joins the rail and the sleeper by
-    a `SpringDamperInteraction` of the stiffness `kr` and the damping `br`.
+    It is two masses joined by a spring and a damper. The element holds the wheel load and the ballast under the
+    sleeper, and the system joins the rail and the sleeper by a `SpringDamperInteraction` of the stiffness `kr` and the
+    damping `br`.
     """
 
     law_classes = (RateLaw,)
@@ -149,7 +153,10 @@ class RailSegmentElement(Element):
         self.spacing = spacing
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the accelerations of the rail by the wheels and of the sleeper by the ballast, the pad apart."""
+        """Return the accelerations of the rail and of the sleeper.
+
+        The wheels accelerate the rail and the ballast the sleeper. They leave the pad apart.
+        """
         return [
             RateLaw(s.z, RailSegmentElement._wheel_load(s) / s.Mr),
             RateLaw(
@@ -160,7 +167,10 @@ class RailSegmentElement(Element):
 
     @staticmethod
     def _wheel_load(s: SimpleNamespace) -> Expression:
-        """Return the force of the two wheels of a bogie: two pulses per period, `spacing` apart."""
+        """Return the force of the two wheels of a bogie.
+
+        It is two pulses per period, `spacing` apart.
+        """
         return pulse_train(s.t, s.T, s.width, s.F) + pulse_train(s.t, s.T, s.width, s.F, start=s.spacing)
 
 
@@ -207,7 +217,9 @@ class RegenerativeCarElement(Element):
 
 
 class RegenerativeBrakingSystem(BaseSystem):
-    """A car braked by a Faraday disk generator on its wheel, which charges a supercapacitor.
+    """A car braked by a Faraday disk generator on its wheel.
+
+    The generator charges a supercapacitor.
 
     The disk generates the voltage `A v`, with the structural constant `A = |B| R^2 / (2 r_w)` of the disk and the
     wheel, and drives the current through an inductor and a resistor into a supercapacitor, `L I' = A v - R I - V_s` and
@@ -297,14 +309,14 @@ class RegenerativeBrakingSystem(BaseSystem):
 
 
 class FaradayDiskSystem(BaseSystem):
-    """A battery charger driven by a Faraday disk generator whose own current strengthens its field.
+    """A battery charger driven by a Faraday disk generator.
 
-    A motor turns the conducting disk of radii `r1` and `r2` with a constant torque `M` in the field `B` of a magnet
-    plus the field `μ N I / l` of a coil that the generated current flows through. With `a = B (r2^2 - r1^2) / 2` and
-    `b = μ N (r2^2 - r1^2) / (2 l)`, the current, the polarization voltage of the battery, and the angular speed follow
-    `L I' = -R1 I - U + (a + b I) ω - E(I)`, `C U' = I - U / R2`, and
-    `J ω' = M - alpha sign(ω) - β r2 ω - (a + b I) I`, where the battery voltage is `E(I) = a0 + a1 I + a3 I^3` and the
-    last term is the braking torque of the Lorentz force.
+    The own current of the generator strengthens its field. A motor turns the conducting disk of radii `r1` and `r2`
+    with a constant torque `M` in the field `B` of a magnet plus the field `μ N I / l` of a coil that the generated
+    current flows through. With `a = B (r2^2 - r1^2) / 2` and `b = μ N (r2^2 - r1^2) / (2 l)`, the current, the
+    polarization voltage of the battery, and the angular speed follow `L I' = -R1 I - U + (a + b I) ω - E(I)`,
+    `C U' = I - U / R2`, and `J ω' = M - alpha sign(ω) - β r2 ω - (a + b I) I`, where the battery voltage is
+    `E(I) = a0 + a1 I + a3 I^3` and the last term is the braking torque of the Lorentz force.
 
     The generator charges the battery only when its voltage `a ω` exceeds the open-circuit voltage `a0 = 8` of the
     battery, at `ω` above 35 for the default field. Below that speed the steady current is a small negative current,

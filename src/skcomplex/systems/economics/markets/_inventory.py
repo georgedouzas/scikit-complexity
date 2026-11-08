@@ -1,4 +1,7 @@
-"""Markets systems: a retailer's inventory under perception, response, and delivery delays."""
+"""Markets systems: a retailer's inventory under delays.
+
+The delays are of perception, response, and delivery.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -24,17 +27,26 @@ def _sales(s: SimpleNamespace) -> Expression:
 
 
 def _perceived(s: SimpleNamespace) -> Expression:
-    """Return the perceived sales of the car dealership, its sales smoothed over the perception delay."""
+    """Return the perceived sales of the car dealership.
+
+    They are its sales smoothed over the perception delay.
+    """
     return distributed_delay(_sales(s), conserved=False, time=s.perception_delay)
 
 
 def _desired_inventory(s: SimpleNamespace) -> Expression:
-    """Return the inventory the car dealership desires, a coverage of its perceived sales."""
+    """Return the inventory the car dealership desires.
+
+    It is a coverage of its perceived sales.
+    """
     return s.coverage * _perceived(s)
 
 
 def _orders(s: SimpleNamespace) -> Expression:
-    """Return the orders of the car dealership, its perceived sales and the gap to its desired inventory."""
+    """Return the orders of the car dealership.
+
+    They are its perceived sales and the gap to its desired inventory.
+    """
     gap_orders = _perceived(s) + (_desired_inventory(s) - s.inventory) / s.response_delay
     return maximum(gap_orders, 0)
 
@@ -45,12 +57,13 @@ def _dealer(s: SimpleNamespace) -> SimpleNamespace:
 
 
 class CarDealershipElement(Element):
-    """Car dealership whose inventory deliveries fill and sales drain, ordered to close the gap to a desired coverage.
+    """Car dealership whose inventory deliveries fill and sales drain.
 
-    Sales are the demand, stepping up at `step_time`, limited by the inventory. The dealer perceives sales through a
-    first-order smoothing, desires `coverage` days of perceived sales, and orders the perceived sales plus the gap to
-    the desired inventory over the response delay, never negative. Orders arrive through a third-order delay. The
-    dealership holds the inventory and the parameters, and a transfer within it of the system moves the cars.
+    Its orders close the gap to a desired coverage. Sales are the demand, stepping up at `step_time`, limited by the
+    inventory. The dealer perceives sales through a first-order smoothing, desires `coverage` days of perceived sales,
+    and orders the perceived sales plus the gap to the desired inventory over the response delay, never negative. Orders
+    arrive through a third-order delay. The dealership holds the inventory and the parameters, and a transfer within it
+    of the system moves the cars.
 
     Args:
         label:
@@ -115,14 +128,15 @@ class CarDealershipElement(Element):
 
 
 class CarDealerSystem(BaseSystem):
-    """Meadows' car dealership, whose inventory oscillates after a step in demand because of its delays.
+    """Meadows' car dealership.
 
-    The inventory is a stock of cars that deliveries from the factory fill and sales to customers drain. Sales are the
-    customer demand, limited by the cars on the lot. The dealer smooths sales over the perception delay, wants an
-    inventory of `coverage` days of perceived sales, and orders the perceived sales plus the gap to that inventory
-    divided by the response delay. Orders arrive through a third-order material delay, a continuous stand-in for
-    Meadows' fixed delivery delay. Lengthening the response delay damps the oscillation, while shortening the
-    perception delay makes the dealer react faster to the new demand and slightly enlarges it.
+    Its inventory oscillates after a step in demand because of its delays. The inventory is a stock of cars that
+    deliveries from the factory fill and sales to customers drain. Sales are the customer demand, limited by the cars on
+    the lot. The dealer smooths sales over the perception delay, wants an inventory of `coverage` days of perceived
+    sales, and orders the perceived sales plus the gap to that inventory divided by the response delay. Orders arrive
+    through a third-order material delay, a continuous stand-in for Meadows' fixed delivery delay. Lengthening the
+    response delay damps the oscillation, while shortening the perception delay makes the dealer react faster to the new
+    demand and slightly enlarges it.
 
     The system has the cars on the lot `dealer.inventory`, and the flows `dealer.deliveries` and `dealer.sales`. The
     observables of the system are `dealer.perceived` for the perceived sales, `dealer.desired_inventory`, and

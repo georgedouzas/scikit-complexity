@@ -1,4 +1,7 @@
-"""Obesity systems: people whose weight follows the meals they buy near home and work."""
+"""Obesity systems: people whose weight follows the meals they buy.
+
+They buy the meals near home and work.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -24,7 +27,10 @@ from ....core.types import Array
 
 
 class EaterView(AgentView):
-    """View of a person of the obesity system, with its states and parameters as attributes."""
+    """View of a person of the obesity system.
+
+    Its states and parameters are attributes.
+    """
 
     home: Array
     work: Array
@@ -41,7 +47,10 @@ class EaterView(AgentView):
 
 
 class RestaurantView(AgentView):
-    """View of a restaurant of the obesity system, with its states and parameters as attributes."""
+    """View of a restaurant of the obesity system.
+
+    Its states and parameters are attributes.
+    """
 
     kind: float
     sold: float
@@ -61,7 +70,9 @@ KCAL_PER_KG = 7700.0
 
 
 def basal_metabolic_rate(weight: float, height: float, age: float, male: float) -> float:
-    """Return the daily basal metabolic rate of the revised Harris-Benedict equation, in kilocalories.
+    """Return the daily basal metabolic rate of the revised Harris-Benedict equation.
+
+    It is in kilocalories.
 
     Args:
         weight:
@@ -91,13 +102,13 @@ def basal_metabolic_rate(weight: float, height: float, age: float, male: float) 
 
 
 class EaterElement(Element):
-    """Person of the obesity system, who goes from home to work and back every day and eats near each place.
+    """Person of the obesity system.
 
-    The moves and the meals of the day are movements and transfers of the system, in the phases `home`, `work`, and
-    `evening`. The calories of a meal are drawn from the bottom, middle, or top half of the restaurant's range by the
-    eating habit. In the phase `week`, every seventh step, the weight changes by the calories eaten beyond seven days of
-    the expenditure, the basal metabolic rate times the `activity` factor of the Harris-Benedict equation, at 7700
-    kilocalories per kilogram.
+    The person goes from home to work and back every day and eats near each place. The moves and the meals of the day
+    are movements and transfers of the system, in the phases `home`, `work`, and `evening`. The calories of a meal are
+    drawn from the bottom, middle, or top half of the restaurant's range by the eating habit. In the phase `week`, every
+    seventh step, the weight changes by the calories eaten beyond seven days of the expenditure, the basal metabolic
+    rate times the `activity` factor of the Harris-Benedict equation, at 7700 kilocalories per kilogram.
 
     Args:
         label:
@@ -188,11 +199,16 @@ class EaterElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[EaterView]:
-        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        """Return the class of the views of the agents.
+
+        Their attributes are the states and parameters.
+        """
         return EaterView
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule that counts the days and the rule that changes the weight once a week.
+        """Return the rule that counts the days and the rule that changes the weight.
+
+        The weight changes once a week.
 
         Args:
             s:
@@ -217,7 +233,9 @@ class EaterElement(Element):
         agent.day += 1
 
     def gain_weight(self, agent: EaterView, system: SystemView) -> None:
-        """Change the weight by the calories of the week beyond the basal needs, and start a new week.
+        """Change the weight by the calories of the week, and start a new week.
+
+        Only the calories beyond the basal needs count.
 
         Args:
             agent:
@@ -268,7 +286,9 @@ class EaterElement(Element):
 
     @staticmethod
     def draw_meal(agent: EaterView, restaurant: RestaurantView, system: SystemView) -> float:
-        """Return the calories of a meal, drawn from the part of the range of a restaurant that a habit eats.
+        """Return the calories of a meal.
+
+        They are drawn from the part of the range of a restaurant that a habit eats.
 
         Args:
             agent:
@@ -290,7 +310,9 @@ class EaterElement(Element):
 
     @staticmethod
     def settle_meal(agent: EaterView, restaurant: RestaurantView, amounts: Sequence[float], system: SystemView) -> None:
-        """Credit a person with the calories of a meal, and count the sale on the restaurant.
+        """Credit a person with the calories of a meal.
+
+        The sale is counted on the restaurant.
 
         Args:
             agent:
@@ -313,7 +335,9 @@ class EaterElement(Element):
 
 
 class RestaurantElement(Element):
-    """Restaurant of the obesity system: a market at 0, a restaurant at 1, or a fast food outlet at 2.
+    """Restaurant of the obesity system.
+
+    It is a market at 0, a restaurant at 1, or a fast food outlet at 2.
 
     Args:
         label:
@@ -355,7 +379,10 @@ class RestaurantElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[RestaurantView]:
-        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        """Return the class of the views of the agents.
+
+        Their attributes are the states and parameters.
+        """
         return RestaurantView
 
 

@@ -1,4 +1,7 @@
-"""Driver agents: cars whose drivers choose their speed from the distance to the car ahead."""
+"""Driver agents: cars whose drivers choose their speed.
+
+The speed depends on the distance to the car ahead.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,7 +24,10 @@ from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 class MotoristView(AgentView):
-    """View of a car of Charbonneau's traffic system, with its states and parameters as attributes."""
+    """View of a car of Charbonneau's traffic system.
+
+    Its states and parameters are attributes.
+    """
 
     x: float
     v: float
@@ -33,7 +39,9 @@ class MotoristView(AgentView):
 
 
 class MotoristElement(Element):
-    """Car of Charbonneau's traffic system, which brakes when it is closer than a safe distance to the car ahead.
+    """Car of Charbonneau's traffic system.
+
+    It brakes when it is closer than a safe distance to the car ahead.
 
     Args:
         label:
@@ -96,7 +104,10 @@ class MotoristElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[MotoristView]:
-        """Return the view of the cars, which types their states and parameters."""
+        """Return the view of the cars.
+
+        It types their states and parameters.
+        """
         return MotoristView
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
@@ -113,9 +124,10 @@ class MotoristElement(Element):
         return [RuleLaw(self.adjust)]
 
     def adjust(self, agent: MotoristView, system: SystemView) -> None:
-        """Brake when the car ahead is closer than the safe distance and accelerate otherwise.
+        """Brake when the car ahead is too close and accelerate otherwise.
 
-        The lead car, which has no car ahead, keeps its distance to the car behind it instead.
+        The car brakes when the car ahead is closer than the safe distance. The lead car, which has no car ahead, keeps
+        its distance to the car behind it instead.
 
         Args:
             agent:
@@ -148,11 +160,12 @@ class DriverView(AgentView):
 
 
 class DriverElement(Element):
-    """Driver on a ring road who accelerates as much as allowed and stops when the speed would cause a collision.
+    """Driver on a ring road who accelerates as much as allowed.
 
-    The speed changes by the acceleration, bounded by `min_acc` and `max_acc`, is multiplied by a random factor between
-    `1 - eps` and `1 + eps`, and stays between 0 and the speed limit. A speed larger than the distance to the car ahead
-    becomes 0. The car then moves along the ring by its speed, and the ring is as long as the width of the space.
+    The driver stops when the speed would cause a collision. The speed changes by the acceleration, bounded by `min_acc`
+    and `max_acc`, is multiplied by a random factor between `1 - eps` and `1 + eps`, and stays between 0 and the speed
+    limit. A speed larger than the distance to the car ahead becomes 0. The car then moves along the ring by its speed,
+    and the ring is as long as the width of the space.
 
     Args:
         label:
@@ -217,7 +230,10 @@ class DriverElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[DriverView]:
-        """Return the view of the drivers, which types their states and parameters."""
+        """Return the view of the drivers.
+
+        It types their states and parameters.
+        """
         return DriverView
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
@@ -265,7 +281,10 @@ class DriverElement(Element):
 
     @staticmethod
     def _car_ahead(agent: DriverView, system: SystemView, n_cars: int) -> DriverView | None:
-        """Return the car whose rank follows the agent's rank on a road of `n_cars` cars, or `None` for the last car."""
+        """Return the car whose rank follows the agent's rank on a road of `n_cars` cars.
+
+        It is `None` for the last car.
+        """
         rank = (int(agent.rank) + 1) % n_cars if n_cars else 0
         return next(
             (car for car in system.agents(agent.group, DriverView) if int(car.rank) == rank and car != agent),
@@ -274,7 +293,7 @@ class DriverElement(Element):
 
 
 class CarelessBrakingInteraction(Interaction):
-    """System rule of Charbonneau's traffic system: a random driver brakes now and then, and every car moves.
+    """System rule of Charbonneau's traffic system.
 
     Every step, with probability `probability`, one random driver brakes by the braking of its group whatever the
     distance to the car ahead. Then every car moves by its speed, but no closer than `gap` to the car ahead.
@@ -327,7 +346,9 @@ class CarelessBrakingInteraction(Interaction):
         return [RuleLaw(self.drive)]
 
     def drive(self, system: SystemView) -> None:
-        """Make a random driver brake with the interaction's probability, then move every car.
+        """Make a random driver brake, then move every car.
+
+        The driver brakes with the interaction's probability.
 
         Args:
             system:
@@ -350,12 +371,12 @@ ROAD_WIDTH = 1.0
 
 
 class CharbonneauTrafficSystem(BaseSystem):
-    """Charbonneau's traffic system, where random braking of single drivers sets off traffic jams.
+    """Charbonneau's traffic system.
 
-    Cars on a one-way road start at rest with random spacings between 3 and 17. Every step, each driver brakes by 3 when
-    the car ahead is closer than the safe distance and accelerates by 1 otherwise, within the speed limit. A random
-    driver brakes with a probability every step, and then every car moves by its speed. The system has the group `cars`
-    of positions `x`, speeds `v`, and ranks `rank`.
+    Random braking of single drivers sets off traffic jams. Cars on a one-way road start at rest with random spacings
+    between 3 and 17. Every step, each driver brakes by 3 when the car ahead is closer than the safe distance and
+    accelerates by 1 otherwise, within the speed limit. A random driver brakes with a probability every step, and then
+    every car moves by its speed. The system has the group `cars` of positions `x`, speeds `v`, and ranks `rank`.
 
     Args:
         n_cars:
@@ -428,11 +449,12 @@ class CharbonneauTrafficSystem(BaseSystem):
 
 
 class RingRoadDriversSystem(BaseSystem):
-    """Drivers on a circular highway, where small random errors of speed set off traffic jams.
+    """Drivers on a circular highway.
 
-    The cars start at rest, equally spaced. Every driver accelerates by 1 per step up to the speed limit, the speed
-    takes a random relative error of up to `eps`, and a speed that would reach the car ahead becomes 0. The system has
-    the group `drivers` of speeds `speed` on a ring road of length `length`.
+    Small random errors of speed set off traffic jams. The cars start at rest, equally spaced. Every driver accelerates
+    by 1 per step up to the speed limit, the speed takes a random relative error of up to `eps`, and a speed that would
+    reach the car ahead becomes 0. The system has the group `drivers` of speeds `speed` on a ring road of length
+    `length`.
 
     Args:
         n_cars:

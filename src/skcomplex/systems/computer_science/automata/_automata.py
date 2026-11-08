@@ -60,9 +60,9 @@ class AntCellElement(Element):
 
 
 class ElementaryAutomatonSystem(BaseSystem):
-    """An elementary cellular automaton by its Wolfram number, started from a single live cell by default.
+    """An elementary cellular automaton by its Wolfram number.
 
-    The system has the cells `cells.alive`.
+    By default it starts from a single live cell. The system has the cells `cells.alive`.
 
     Args:
         rule:
@@ -103,7 +103,10 @@ class ElementaryAutomatonSystem(BaseSystem):
         self.initial = initial
 
     def _build_system(self) -> System:
-        """Return an elementary cellular automaton by its Wolfram number, started from a single live cell by default."""
+        """Return an elementary cellular automaton by its Wolfram number.
+
+        By default it starts from a single live cell.
+        """
         values = np.zeros(self.size) if self.initial is None else np.asarray(self.initial, dtype=float)
         if self.initial is None:
             values[self.size // 2] = 1.0
@@ -216,9 +219,10 @@ class GameOfLifeSystem(BaseSystem):
 
 
 class LangtonsAntSystem(BaseSystem):
-    """Langton's ant, which wanders chaotically for about 10,000 steps before it builds a periodic highway.
+    """Langton's ant, which builds a periodic highway after a chaotic transient.
 
-    The system has the colors `cells.color` and the ant `cells.ant`.
+    It wanders chaotically for about 10,000 steps before it builds the highway. The system has the colors `cells.color`
+    and the ant `cells.ant`.
 
     Args:
         shape:
@@ -255,7 +259,10 @@ class LangtonsAntSystem(BaseSystem):
 
     @staticmethod
     def _ant_rule(*values: Array) -> tuple[Array, Array]:
-        """Return the next colors and ants of Langton's ant from the von Neumann neighbourhoods of both states."""
+        """Return the next colors and ants of Langton's ant.
+
+        They are read from the von Neumann neighbourhoods of both states.
+        """
         colors, ants = values[:5], values[5:]
         color = np.where(ants[0] >= 0, 1 - colors[0], colors[0])
         ant = np.full(color.shape, -1.0)

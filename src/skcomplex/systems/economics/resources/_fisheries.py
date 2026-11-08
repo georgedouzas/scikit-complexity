@@ -1,4 +1,7 @@
-"""Fishery systems: the life cycle of a migratory fish through stages that natural losses and the catch deplete."""
+"""Fishery systems: the life cycle of a migratory fish through stages.
+
+Natural losses and the catch deplete the stages.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -38,10 +41,11 @@ def _stage(
     time: str,
     losses: tuple[tuple[str, str], ...],
 ) -> TransferInteraction:
-    """Return the transfer that drains a stage over its duration, a share to each loss and the rest to the next stage.
+    """Return the transfer that drains a stage over its duration.
 
-    The stage reads the duration `time` and the share of every loss by name, and reports the flow to the next stage as
-    `hilsa.<label>` and the flow to every loss as `hilsa.<label>_<loss>`.
+    A share goes to each loss and the rest to the next stage. The stage reads the duration `time` and the share of every
+    loss by name, and reports the flow to the next stage as `hilsa.<label>` and the flow to every loss as
+    `hilsa.<label>_<loss>`.
     """
     shares = [share for share, _ in losses]
     return TransferInteraction(
@@ -75,7 +79,10 @@ def _loss(s: SimpleNamespace, stock: str, time: str, share: str) -> Expression:
 
 
 def _spawning(s: SimpleNamespace) -> Expression:
-    """Return the spawning, the adults about to spawn that the catch spares over the spawning time."""
+    """Return the spawning.
+
+    It is the adults about to spawn that the catch spares over the spawning time.
+    """
     return (1 - s.adult_harvest) * s.spawners / s.spawning_time
 
 
@@ -95,7 +102,9 @@ def _juvenile_weight(s: SimpleNamespace) -> Expression:
 
 
 class HilsaElement(Element):
-    """Life cycle of the hilsa, with one stock of fish per stage and the parameters of the stages and the catch.
+    """Life cycle of the hilsa, with one stock of fish per stage.
+
+    It holds the parameters of the stages and the catch.
 
     Args:
         label:
@@ -250,17 +259,17 @@ class HilsaElement(Element):
 
 
 class HilsaFisherySystem(BaseSystem):
-    """A hilsa fishery, the life cycle of a migratory fish that the catch of juveniles and spawners depletes.
+    """A hilsa fishery, the life cycle of a migratory fish.
 
-    Spawning adults lay eggs in nests in the rivers, and the number of nests is limited by the spawning grounds. The
-    eggs hatch into larvae within a month, the larvae become juveniles within two months, and the juveniles stay in
-    the rivers for eight months before they enter the ocean. The fish mature in the ocean over two years, migrate back
-    to the rivers, and spawn. Every stage drains over its duration, and a fixed fraction of its outflow is lost to
-    natural mortality, to the catch of juveniles, or to the catch of spawning adults, while the rest enters the next
-    stage. Fish are conserved, every change of a stage is a flow, and the population settles where the spawning
-    grounds fill, unless the catch keeps the reproduction below replacement. The stages, the durations, and the loss
-    fractions follow the hilsa system of Bala, Arshad and Noh (2017, Chapter 9), with the stocks in millions of fish
-    and time in months.
+    The catch of juveniles and spawners depletes it. Spawning adults lay eggs in nests in the rivers, and the number of
+    nests is limited by the spawning grounds. The eggs hatch into larvae within a month, the larvae become juveniles
+    within two months, and the juveniles stay in the rivers for eight months before they enter the ocean. The fish
+    mature in the ocean over two years, migrate back to the rivers, and spawn. Every stage drains over its duration, and
+    a fixed fraction of its outflow is lost to natural mortality, to the catch of juveniles, or to the catch of spawning
+    adults, while the rest enters the next stage. Fish are conserved, every change of a stage is a flow, and the
+    population settles where the spawning grounds fill, unless the catch keeps the reproduction below replacement. The
+    stages, the durations, and the loss fractions follow the hilsa system of Bala, Arshad and Noh (2017, Chapter 9),
+    with the stocks in millions of fish and time in months.
 
     The system has the stages `hilsa.eggs`, `hilsa.larvae`, `hilsa.juveniles`, `hilsa.yearlings`, `hilsa.adults`,
     `hilsa.migrants`, and `hilsa.spawners`, and the flows between the stages, among them `hilsa.egg_deposition`,
@@ -322,7 +331,10 @@ class HilsaFisherySystem(BaseSystem):
 
     @staticmethod
     def _life_cycle() -> list[TransferInteraction]:
-        """Return the spawning, hatching, growth, migration, losses, and catch of the stages of the hilsa life cycle."""
+        """Return the life cycle flows of the stages of the hilsa.
+
+        They are the spawning, hatching, growth, migration, losses, and catch.
+        """
         mortality = 'mortality'
         return [
             TransferInteraction(
@@ -373,7 +385,10 @@ class HilsaFisherySystem(BaseSystem):
         adult_harvest: float,
         migration_loss: float,
     ) -> dict[str, float]:
-        """Return the stages that the egg deposition of the initial spawners fills through the life cycle."""
+        """Return the stages filled by the egg deposition of the initial spawners.
+
+        The deposition fills them through the life cycle.
+        """
         spawning = FEMALE_FRACTION * (1 - adult_harvest) * spawners / SPAWNING_TIME
         inflow = eggs_per_nest * min(spawning, MAX_NESTS)
         losses = {'juveniles': STAGES[2][4] + juvenile_harvest, 'migrants': migration_loss}

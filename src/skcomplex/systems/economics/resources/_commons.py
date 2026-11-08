@@ -1,4 +1,7 @@
-"""Natural resources systems: herders whose cows graze a shared meadow, the tragedy of the commons."""
+"""Natural resources systems: the tragedy of the commons.
+
+Herders' cows graze a shared meadow.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -56,10 +59,11 @@ UNLIMITED = 1e9
 
 
 class HerderElement(Element):
-    """Herder who adds a cow whenever a cow earned more than its upkeep, and sells one when the herd exceeds its quota.
+    """Herder who adds a cow whenever a cow earned more than its upkeep.
 
-    The life cycle `investment` of the system buys a cow, at a random cell, or sells the first cow the herder owns,
-    and two maps clear the income and the herd the grazing tallies, all member interactions in the phase of herding.
+    It sells one when the herd exceeds its quota. The life cycle `investment` of the system buys a cow, at a random
+    cell, or sells the first cow the herder owns, and two maps clear the income and the herd the grazing tallies, all
+    member interactions in the phase of herding.
 
     Args:
         label:
@@ -122,7 +126,9 @@ class CowView(AgentView):
 
 
 class CowElement(Element):
-    """Cow of a herder that gains the energy of the grass it eats, burns its metabolism, and starves without food.
+    """Cow of a herder that gains the energy of the grass it eats.
+
+    It burns its metabolism, and starves without food.
 
     Args:
         label:
@@ -178,7 +184,10 @@ class CowElement(Element):
 
 
 class PastureView(AgentView):
-    """Pasture as the rules see it: its `grass`, its `capacity`, and the `regrowth` and `seed` of its grass."""
+    """Pasture as the rules see it.
+
+    It holds its `grass`, its `capacity`, and the `regrowth` and `seed` of its grass.
+    """
 
     grass: float
     capacity: float
@@ -187,7 +196,9 @@ class PastureView(AgentView):
 
 
 class PastureElement(Element):
-    """Cell of the meadow whose grass grows back logistically, from a seed bank when it is grazed bare.
+    """Cell of the meadow whose grass grows back logistically.
+
+    When it is grazed bare, the grass grows from a seed bank.
 
     Args:
         label:
@@ -267,14 +278,14 @@ class PastureElement(Element):
 
 
 class GrazingInteraction(MatchingInteraction[SystemView]):
-    """Grazing of the meadow, a matching of the cows with the pastures, after which every cow eats and burns energy.
+    """Grazing of the meadow, a matching of the cows with the pastures.
 
-    The rule of the matching pairs the cows with the pastures, such as
-    `PartnerSpec('local', 'score', score=GrazingInteraction.score, clearing='provider')`, which pairs every cow, in
+    After the matching every cow eats and burns energy. The rule of the matching pairs the cows with the pastures, such
+    as `PartnerSpec('local', 'score', score=GrazingInteraction.score, clearing='provider')`, which pairs every cow, in
     random order, with the free pasture of most grass in its cell or the cells around it, ties broken at random. A
     pasture takes one cow, its default quantity of one unit. Every matched cow moves to its pasture and eats up to its
-    appetite as a transfer of grass to its energy, and its herder earns milk for what it ate. Then every cow burns
-    its metabolism and counts in the herd of its herder, and a cow whose energy runs out dies.
+    appetite as a transfer of grass to its energy, and its herder earns milk for what it ate. Then every cow burns its
+    metabolism and counts in the herd of its herder, and a cow whose energy runs out dies.
 
     Args:
         label:
@@ -357,7 +368,9 @@ class GrazingInteraction(MatchingInteraction[SystemView]):
         return herder
 
     def _settle(self, match: MatchSpec, system: SystemView) -> None:
-        """Move the cow of a match to its pasture, feed it, and pay its herder for what it ate.
+        """Move the cow of a match to its pasture and feed it.
+
+        Its herder is paid for what it ate.
 
         Args:
             match:
@@ -375,7 +388,9 @@ class GrazingInteraction(MatchingInteraction[SystemView]):
         self._get_herder(cow).income += system.parameter('milk') * eaten
 
     def match(self, system: SystemView) -> None:
-        """Pair and feed the cows, then let every cow burn its metabolism, count it in its herd, and starve.
+        """Pair and feed the cows, then let every cow burn its metabolism.
+
+        Every cow is counted in its herd, and it starves.
 
         Args:
             system:
@@ -390,11 +405,11 @@ class GrazingInteraction(MatchingInteraction[SystemView]):
 
 
 class QuotaRegulatorInteraction(FeedbackInteraction[SystemView]):
-    """Regulator that halves the quota of cows per herder when the grass runs short and raises it when it recovers.
+    """Regulator of the quota of cows per herder.
 
-    The quota is the adaptive parameter `quota` of every herder. It halves, down to one cow, when the grass falls below
-    the share `low` of the capacity of the meadow, and grows by one cow when the grass is above the share `high`.
-    Without regulation it stays as it is.
+    It halves the quota when the grass runs short and raises it when it recovers. The quota is the adaptive parameter
+    `quota` of every herder. It halves, down to one cow, when the grass falls below the share `low` of the capacity of
+    the meadow, and grows by one cow when the grass is above the share `high`. Without regulation it stays as it is.
 
     Args:
         label:
@@ -455,7 +470,10 @@ class QuotaRegulatorInteraction(FeedbackInteraction[SystemView]):
 
 
 def _pays(herder: AgentViewProtocol, system: SystemViewProtocol) -> bool:
-    """Return whether a cow of a herder earned more than its upkeep in the last step while the herd is below quota."""
+    """Return whether a cow of a herder earned more than its upkeep in the last step.
+
+    The herd must also be below quota.
+    """
     del system
     if not isinstance(herder, HerderView):
         return False
@@ -464,13 +482,19 @@ def _pays(herder: AgentViewProtocol, system: SystemViewProtocol) -> bool:
 
 
 def _exceeds(herder: AgentViewProtocol, system: SystemViewProtocol) -> bool:
-    """Return whether the herd of a herder in the last step exceeds its quota, so it sells a cow."""
+    """Return whether the herd of a herder in the last step exceeds its quota.
+
+    The herder then sells a cow.
+    """
     del system
     return isinstance(herder, HerderView) and herder.herd > herder.quota
 
 
 def _owns(herder: AgentViewProtocol, cow: AgentViewProtocol) -> bool:
-    """Return whether a herder owns a cow, which the reference state `owner` of the cow names."""
+    """Return whether a herder owns a cow.
+
+    The reference state `owner` of the cow names the herder.
+    """
     return cow.referenced('owner') is herder
 
 
@@ -495,14 +519,15 @@ def _get_cleared(herder: AgentViewProtocol, system: SystemViewProtocol) -> float
 
 
 class TragedyOfTheCommonsSystem(BaseSystem):
-    """Herders whose cows graze a shared meadow, each adding cows while a cow pays, until the grass collapses.
+    """Herders whose cows graze a shared meadow, until the grass collapses.
 
-    Every step every cow moves to the richest pasture it can reach, eats, and earns its herder milk, and the grass
-    grows back logistically. Every herder adds a cow whenever a cow earned more than its upkeep, since the gain of a
-    cow goes to its herder while the cost of the grass it eats falls on all. With more herders than the meadow
-    carries, the herd grows past what the grass sustains, the grass collapses below a tenth of its capacity, and the
-    cows starve, so the herd shrinks after it. A regulator with an adaptive quota of cows per herder, lowered when the
-    grass runs short and raised when it recovers, keeps the meadow from collapse (Hamill and Gilbert 2016 sec. 10.2).
+    Each herder adds cows while a cow pays. Every step every cow moves to the richest pasture it can reach, eats, and
+    earns its herder milk, and the grass grows back logistically. Every herder adds a cow whenever a cow earned more
+    than its upkeep, since the gain of a cow goes to its herder while the cost of the grass it eats falls on all. With
+    more herders than the meadow carries, the herd grows past what the grass sustains, the grass collapses below a tenth
+    of its capacity, and the cows starve, so the herd shrinks after it. A regulator with an adaptive quota of cows per
+    herder, lowered when the grass runs short and raised when it recovers, keeps the meadow from collapse (Hamill and
+    Gilbert 2016 sec. 10.2).
 
     The system has the groups `meadow`, `cows`, and `herders`, whose adaptive parameter `quota` the regulator
     `regulator` changes, and the grazing `grazing`.
@@ -581,7 +606,10 @@ class TragedyOfTheCommonsSystem(BaseSystem):
 
     @staticmethod
     def _get_investment() -> list[LifeCycleInteraction | MapInteraction]:
-        """Return the member interactions of a herder: buy or sell a cow, then clear its income and herd."""
+        """Return the member interactions of a herder.
+
+        They buy or sell a cow, then clear its income and herd.
+        """
         return [
             LifeCycleInteraction(
                 'investment',

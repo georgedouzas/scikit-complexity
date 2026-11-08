@@ -20,7 +20,10 @@ from ....core.types import Array
 
 
 class ShopperView(AgentView):
-    """Shopper as its rule sees it: its `wanted` items, its `visited` stalls, its `missed` items, and its `spent`."""
+    """Shopper as its rule sees it.
+
+    It holds its `wanted` items, its `visited` stalls, its `missed` items, and its `spent`.
+    """
 
     wanted: float
     visited: float
@@ -29,7 +32,10 @@ class ShopperView(AgentView):
 
 
 class StallView(AgentView):
-    """Stall as the shoppers see it: its index `stall`, its `stock` of produce as a bit mask, and its `markup`."""
+    """Stall as the shoppers see it.
+
+    It holds its index `stall`, its `stock` of produce as a bit mask, and its `markup`.
+    """
 
     stall: float
     stock: float
@@ -40,9 +46,10 @@ WHOLESALE_PRICES = (0.6, 0.5, 0.7, 0.9, 1.2, 1.5, 0.8, 0.4, 0.5, 0.3, 0.6, 1.0)
 
 
 class ShopperElement(Element):
-    """Shopper who visits one stall a step that it has not visited yet and buys what it wants there.
+    """Shopper who visits one stall a step and buys what it wants there.
 
-    A shopper gives up the items that it has not found once it has visited every stall.
+    It only visits stalls it has not visited yet. A shopper gives up the items that it has not found once it has visited
+    every stall.
 
     Args:
         label:
@@ -138,7 +145,9 @@ class ShopperElement(Element):
 
 
 class StallElement(Element):
-    """Market stall that sells some kinds of produce at the wholesale price plus its markup.
+    """Market stall that sells some kinds of produce.
+
+    It sells at the wholesale price plus its markup.
 
     Args:
         label:
@@ -210,12 +219,12 @@ def _items_left(wanted: object) -> float:
 
 
 class ProduceMarketSystem(BaseSystem):
-    """Hamill and Gilbert's produce market, where shoppers with lists of produce visit stalls at random.
+    """Hamill and Gilbert's produce market.
 
-    There are twelve kinds of fruit and vegetables. Every stall sells a random selection of them at its own markup of 1
-    to 30 percent on the wholesale prices, and every shopper wants between one and eight of them. The system has the
-    groups `stalls` and `shoppers`, the mean number of items left on the lists `items_left`, and the mean money spent
-    `spent`.
+    Shoppers with lists of produce visit stalls at random. There are twelve kinds of fruit and vegetables. Every stall
+    sells a random selection of them at its own markup of 1 to 30 percent on the wholesale prices, and every shopper
+    wants between one and eight of them. The system has the groups `stalls` and `shoppers`, the mean number of items
+    left on the lists `items_left`, and the mean money spent `spent`.
 
     Args:
         n_shoppers:
@@ -265,7 +274,10 @@ class ProduceMarketSystem(BaseSystem):
 
     @staticmethod
     def _random_masks(sizes: npt.NDArray[np.int64], rng: np.random.Generator) -> Array:
-        """Return one bit mask per size, each with that many distinct items chosen at random."""
+        """Return one bit mask per size.
+
+        Each mask has that many distinct items chosen at random.
+        """
         n_items = len(WHOLESALE_PRICES)
         masks = [sum(1 << int(item) for item in rng.choice(n_items, size, replace=False)) for size in sizes]
         return np.array(masks, dtype=float)

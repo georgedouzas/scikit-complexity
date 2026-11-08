@@ -1,4 +1,7 @@
-"""Gauge arbitrage: exchange rates on links as lattice electrodynamics, sourced by traders who move a good on sites."""
+"""Gauge arbitrage: exchange rates on links as lattice electrodynamics.
+
+Traders who move a good on sites source them.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -62,7 +65,9 @@ class GoodSiteElement(Element):
 
 
 class ExchangeLinkElement(Element):
-    """Link of a lattice with an exchange-rate potential `A` and its rate of change `E`.
+    """Link of a lattice with an exchange-rate potential `A` and its rate `E`.
+
+    The rate `E` is the rate of change of the potential.
 
     Args:
         label:
@@ -101,14 +106,14 @@ class ExchangeLinkElement(Element):
 
 
 class TraderCurrentInteraction(NeighborInteraction):
-    """Trader current `J = -D (rho_t - rho_s - q A (rho_s + rho_t) / 2)` along the links, down the covariant gradient.
+    """Trader current along the links, down the covariant gradient.
 
-    The covariant derivative is `D_mu = d_mu - A_mu` of Schwichtenberg (2020 Eq. 2.55), with the charge `q` of its
-    Eq. 4.24, and the current is minus the diffusion constant times this derivative of the good, as in Eq. 2.56. The
-    current moves the good from the source of a link to its target (footnote 18 of §2.1), and it is the source of the
-    field of the link with the sign of the Ampere-Maxwell law of Eq. 2.39, `E' = ... - J`, so the Gauss law holds as the
-    good moves. These signs give the potential a mass, `A'' = ... - D q rho A`, for a positive density and charge, so
-    the fields stay bounded.
+    The current is `J = -D (rho_t - rho_s - q A (rho_s + rho_t) / 2)`. The covariant derivative is `D_mu = d_mu - A_mu`
+    of Schwichtenberg (2020 Eq. 2.55), with the charge `q` of its Eq. 4.24, and the current is minus the diffusion
+    constant times this derivative of the good, as in Eq. 2.56. The current moves the good from the source of a link to
+    its target (footnote 18 of §2.1), and it is the source of the field of the link with the sign of the Ampere-Maxwell
+    law of Eq. 2.39, `E' = ... - J`, so the Gauss law holds as the good moves. These signs give the potential a mass,
+    `A'' = ... - D q rho A`, for a positive density and charge, so the fields stay bounded.
 
     Args:
         label:
@@ -150,7 +155,7 @@ class TraderCurrentInteraction(NeighborInteraction):
         self.q = q
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rates of the good at both ends of a link and of the electric field of the link.
+        """Return the rates of the good at both ends of a link and of its electric field.
 
         Args:
             namespace:
@@ -173,7 +178,12 @@ def _total_good(t: float, values: Mapping[str, object]) -> float:
 
 
 def _gauss_residual(edges: scipy.sparse.csr_array, t: float, values: Mapping[str, object]) -> float:
-    """Return the largest absolute difference of the codifferential of the field and the excess of the good."""
+    """Return the largest absolute difference of the codifferential and the excess.
+
+    The codifferential is that of the field, and the excess that of the good.
+
+    The excess is that of the good.
+    """
     del t
     density = np.ravel(np.asarray(values['sites.rho'], dtype=float))
     electric = np.ravel(np.asarray(values['links.E'], dtype=float))
@@ -190,7 +200,9 @@ def _market_observables(system: System) -> list[ObservableSpec]:
 
 
 class GaugeArbitrageMarketSystem(BaseSystem):
-    """Exchange-rate potentials on links as lattice Maxwell fields, sourced by traders who move a good on sites.
+    """Exchange-rate potentials on links as lattice Maxwell fields.
+
+    Traders who move a good on sites source them.
 
     The potentials follow `A_t = E` and `E_t = -codifferential(dA) - J`, and the good follows `rho_t =
     -codifferential(J)` with the current `J = -D (d rho - q A rho)` along its covariant gradient, after Schwichtenberg
@@ -258,12 +270,18 @@ class GaugeArbitrageMarketSystem(BaseSystem):
 
     @staticmethod
     def _field_rate(namespace: SimpleNamespace) -> Expression:
-        """Return the rate of the field without the current, minus the codifferential of the exterior derivative."""
+        """Return the rate of the field without the current.
+
+        It is minus the codifferential of the exterior derivative.
+        """
         return -codifferential(exterior_derivative(namespace.target.A))
 
     @staticmethod
     def _initial_field(edges: scipy.sparse.csr_array, excess: Array) -> Array:
-        """Return the electric field of the smallest norm whose codifferential is the excess of the good."""
+        """Return the electric field of the smallest norm with a given codifferential.
+
+        Its codifferential is the excess of the good.
+        """
         field = scipy.sparse.linalg.lsqr(
             -edges.T,
             excess,
@@ -296,7 +314,10 @@ class GaugeArbitrageMarketSystem(BaseSystem):
         return System(self.label, elements=[sites, links], interactions=interactions)
 
     def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings, with the observables of the parts built from the model parameters."""
+        """Return the tuned run settings.
+
+        The observables of the parts are built from the model parameters.
+        """
         settings = super().get_run_settings()
         settings['observables'] = _market_observables(self._pass_parameters())
         return settings

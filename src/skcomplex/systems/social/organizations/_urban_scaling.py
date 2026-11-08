@@ -53,7 +53,9 @@ class CityResidentElement(Element):
 
 
 class GravityContactInteraction(Interaction):
-    """Contacts of every resident, the sum of `r^-gamma` over the others within a reach.
+    """Contacts of every resident.
+
+    They are the sum of `r^-gamma` over the others within a reach.
 
     Args:
         label:
@@ -106,13 +108,13 @@ class GravityContactInteraction(Interaction):
 
 
 class GravityUrbanScalingSystem(BaseSystem):
-    """The residents of a city at uniform positions in a disc, each interacting with the others as `r^-gamma`.
+    """The residents of a city at uniform positions in a disc.
 
-    The disc has the area `N^alpha`, so the total interaction of a city grows as `N^(2 - alpha gamma / 2)` for `gamma <
-    2`, which with the population dimension `D_P = 2 / alpha` is the exponent `2 - gamma / D_P` of Ribeiro and Netto
-    (2024 §4). A `sweep` varies `population` and fits the exponent with `scaling(kind='power')`. The system has
-    the states `residents.x` and `residents.contacts` and the observable `total_contacts` of the catalog, which a run
-    passes in `observables`.
+    Each resident interacts with the others as `r^-gamma`. The disc has the area `N^alpha`, so the total interaction of
+    a city grows as `N^(2 - alpha gamma / 2)` for `gamma < 2`, which with the population dimension `D_P = 2 / alpha` is
+    the exponent `2 - gamma / D_P` of Ribeiro and Netto (2024 §4). A `sweep` varies `population` and fits the exponent
+    with `scaling(kind='power')`. The system has the states `residents.x` and `residents.contacts` and the observable
+    `total_contacts` of the catalog, which a run passes in `observables`.
 
     Args:
         population:

@@ -1,4 +1,7 @@
-"""Resources systems: a logistic fish stock harvested by a quota set from a noisy measurement of the stock."""
+"""Resources systems: a logistic fish stock harvested by a quota.
+
+The quota is set from a noisy measurement of the stock.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,12 +26,13 @@ def _extinct_share(stocks: object) -> float:
 
 
 class MeasuredFisheryElement(Element):
-    """Logistic fish stock with a noisy growth rate, harvested by a quota set from a measurement with an error.
+    """Logistic fish stock with a noisy growth rate, harvested by a quota.
 
-    Every step of length `step` is an Euler-Maruyama step of `dx = (R0 + sigma_R W) x (1 - x / K) dt - gamma dt`, where
-    `W` is white noise. The fishermen measure `x~ = x + e`, with a Gaussian error `e` of standard deviation `error`, and
-    set the quota `gamma = x~ - K / 2`, which is never negative unless `restocking` lets a negative quota release fish.
-    A stock that reaches zero is extinct and stays at zero.
+    The quota is set from a measurement with an error. Every step of length `step` is an Euler-Maruyama step of
+    `dx = (R0 + sigma_R W) x (1 - x / K) dt - gamma dt`, where `W` is white noise. The fishermen measure `x~ = x + e`,
+    with a Gaussian error `e` of standard deviation `error`, and set the quota `gamma = x~ - K / 2`, which is never
+    negative unless `restocking` lets a negative quota release fish. A stock that reaches zero is extinct and stays at
+    zero.
 
     Args:
         label:
@@ -97,7 +101,10 @@ class MeasuredFisheryElement(Element):
 
     @staticmethod
     def _quota(s: SimpleNamespace) -> Expression:
-        """Return the quota `x~ - K / 2` from the measured stock, floored at zero without restocking."""
+        """Return the quota `x~ - K / 2` from the measured stock.
+
+        It is floored at zero without restocking.
+        """
         quota = s.x + normal('error', 0, 1) * s.error - s.K / 2
         return where(quota > 0, quota, s.restocking * quota)
 
@@ -119,16 +126,16 @@ class MeasuredFisheryElement(Element):
 
 
 class FisheryMeasurementErrorsSystem(BaseSystem):
-    """Independent fisheries whose quota is set from a measurement of the stock with a Gaussian error.
+    """Independent fisheries whose quota is set from a measurement of the stock.
 
-    The fish stock grows logistically with a growth rate `R0 + sigma_R W(t)` that white noise `W` makes random, and the
-    fishermen harvest the quota `gamma(x~) = x~ - K / 2` from their measurement `x~ = x + e(t)`, Problem 14.8 of
-    Argun et al. (2021). The harvest of the deterministic system peaks at `x = K / 2`, at `R0 K / 4`, and the quota
-    rule holds the stock at `K / sqrt(2)`, where the growth `R0 x (1 - x / K)` equals the quota. The problem asks
-    whether the extinction probability can fall as the measurement error grows, after Argun et al. (2016). A quota is
-    a catch, so it is floored at zero, and `restocking` lets a negative quota release fish as the formula of the source
-    does. Every member of the group `fisheries` is an independent replica, so the share of extinct stocks estimates
-    the extinction probability, and a step is an Euler-Maruyama step of length `step`.
+    The measurement has a Gaussian error. The fish stock grows logistically with a growth rate `R0 + sigma_R W(t)` that
+    white noise `W` makes random, and the fishermen harvest the quota `gamma(x~) = x~ - K / 2` from their measurement
+    `x~ = x + e(t)`, Problem 14.8 of Argun et al. (2021). The harvest of the deterministic system peaks at `x = K / 2`,
+    at `R0 K / 4`, and the quota rule holds the stock at `K / sqrt(2)`, where the growth `R0 x (1 - x / K)` equals the
+    quota. The problem asks whether the extinction probability can fall as the measurement error grows, after Argun et
+    al. (2016). A quota is a catch, so it is floored at zero, and `restocking` lets a negative quota release fish as the
+    formula of the source does. Every member of the group `fisheries` is an independent replica, so the share of extinct
+    stocks estimates the extinction probability, and a step is an Euler-Maruyama step of length `step`.
 
     The system has the group `fisheries` of the stocks `fisheries.x` and the quotas `fisheries.catch`. The observables
     of the system are the share of extinct stocks `extinct`, the mean stock `mean_stock`, and the mean quota

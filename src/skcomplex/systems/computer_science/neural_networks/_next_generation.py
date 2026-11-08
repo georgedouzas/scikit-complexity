@@ -1,4 +1,7 @@
-"""Next-generation reservoir computer: lagged variables and the ridge readout of their polynomial features."""
+"""Next-generation reservoir computer.
+
+It uses lagged variables and the ridge readout of their polynomial features.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -32,7 +35,9 @@ REQUIRED_KIND = 'next_generation'
 
 
 class LorenzFlowElement(Element):
-    """Point of the Lorenz flow that trains a reservoir, with the three variables of the flow.
+    """Point of the Lorenz flow that trains a reservoir.
+
+    It holds the three variables of the flow.
 
     Args:
         label:
@@ -68,7 +73,9 @@ class LorenzFlowElement(Element):
 
 
 class NextGenerationReservoirSystem(BaseSystem):
-    """A next-generation reservoir computer whose variables follow the ridge readout of their monomials.
+    """A next-generation reservoir computer.
+
+    Its variables follow the ridge readout of their monomials.
 
     Every variable keeps `delay - 1` lags, and one map in the increment mode adds to it the readout of the constant, the
     variables with their lags, and the monomials of degree `order` of those. The readout comes from the result of
@@ -164,7 +171,10 @@ class NextGenerationReservoirSystem(BaseSystem):
         rho: float = 28.0,
         beta: float = 8.0 / 3.0,
     ) -> Array:
-        """Return samples of the Lorenz flow on its attractor, one row per sample and one column per variable."""
+        """Return samples of the Lorenz flow on its attractor.
+
+        There is one row per sample and one column per variable.
+        """
         rates: dict[str, Callable[[SimpleNamespace], Expression]] = {
             'x': lambda s: sigma * (s.target.y - s.target.x),
             'y': lambda s: s.target.x * (rho - s.target.z) - s.target.y,
@@ -184,7 +194,10 @@ class NextGenerationReservoirSystem(BaseSystem):
 
     @staticmethod
     def _reservoir_element(initial: Mapping[str, Sequence[float]]) -> DeclaredElement:
-        """Return the element of scalar states with lags, from the values of every state and of its lags."""
+        """Return the element of scalar states with lags.
+
+        It is built from the values of every state and of its lags.
+        """
         variables = {
             name: DeclaredVariableSpec(
                 float(values[0]),
@@ -207,7 +220,10 @@ class NextGenerationReservoirSystem(BaseSystem):
         scale: Array,
         spread: float,
     ) -> Expression:
-        """Return the increment of a variable, the ridge readout of the monomials of the rescaled lagged variables."""
+        """Return the increment of a variable.
+
+        It is the ridge readout of the monomials of the rescaled lagged variables.
+        """
         linear = [
             (lag(getattr(s.target, name), steps) - mean[index]) / scale[index]
             for steps in range(delay)
@@ -230,7 +246,10 @@ class NextGenerationReservoirSystem(BaseSystem):
         samples: int,
         step: float,
     ) -> ReservoirResult:
-        """Return the next-generation reservoir fitted to a series, or to samples of the Lorenz flow."""
+        """Return the next-generation reservoir fitted to a series.
+
+        Without a series, it is fitted to samples of the Lorenz flow.
+        """
         values = NextGenerationReservoirSystem._lorenz_series(samples, step) if series is None else series
         return reservoir(
             values,
@@ -245,7 +264,10 @@ class NextGenerationReservoirSystem(BaseSystem):
         )
 
     def _build_system(self) -> System:
-        """Return a next-generation reservoir computer whose variables follow the ridge readout of their monomials."""
+        """Return a next-generation reservoir computer.
+
+        Its variables follow the ridge readout of their monomials.
+        """
         fitted = self.result or self._fit_reservoir(
             self.series,
             self.variables,

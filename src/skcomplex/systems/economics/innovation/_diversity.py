@@ -1,4 +1,7 @@
-"""Innovation systems: diversity that grows by combining existing entities into new ones."""
+"""Innovation systems: diversity that grows by combining existing entities.
+
+The combinations make new entities.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,7 +21,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class AdjacentPossibleElement(Element):
-    """Combinatorial system of entities, with the share that exists and the share its new pairs can produce.
+    """Combinatorial system of entities.
+
+    It holds the share that exists and the share its new pairs can produce.
 
     Args:
         label:
@@ -58,13 +63,14 @@ class AdjacentPossibleElement(Element):
 
 
 class CreativePhaseTransitionSystem(BaseSystem):
-    """The diversity of a combinatorial system, which jumps from sparse to full above a critical rule density.
+    """The diversity of a combinatorial system.
 
-    The share of existing entities `x` grows by the share `d` of new entities that pairs of existing entities can
-    produce, `x_{t+1} = x_t + d_t` and `d_{t+1} = r (1 - x_{t+1}) (x_{t+1}^2 - x_t^2)`, with the rule density `r`. The
-    first step produces `d_0 = r x_0^2 (1 - x_0)`, and no step produces more than the entities that do not exist yet.
-    The final diversity changes discontinuously with `r` and `x_0`. The system has the diversity `system.x` and the
-    adjacent possible `system.d`.
+    It jumps from sparse to full above a critical rule density. The share of existing entities `x` grows by the share
+    `d` of new entities that pairs of existing entities can produce, `x_{t+1} = x_t + d_t` and
+    `d_{t+1} = r (1 - x_{t+1}) (x_{t+1}^2 - x_t^2)`, with the rule density `r`. The first step produces
+    `d_0 = r x_0^2 (1 - x_0)`, and no step produces more than the entities that do not exist yet. The final diversity
+    changes discontinuously with `r` and `x_0`. The system has the diversity `system.x` and the adjacent possible
+    `system.d`.
 
     Args:
         x:
@@ -101,7 +107,10 @@ class CreativePhaseTransitionSystem(BaseSystem):
 
     @staticmethod
     def _new_entities(s: SimpleNamespace) -> Expression:
-        """Return the share of new entities that the new pairs produce, at most the share that does not exist yet."""
+        """Return the share of new entities that the new pairs produce.
+
+        It is at most the share that does not exist yet.
+        """
         previous, current = s.target.x, s.target.x + s.target.d
         produced = s.target.r * (1 - current) * (current**2 - previous**2)
         return where(produced < 1 - current, produced, 1 - current)

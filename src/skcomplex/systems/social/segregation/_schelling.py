@@ -19,14 +19,19 @@ from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 class ResidentView(AgentView):
-    """View of a resident of the Schelling system, with its states and parameters as attributes."""
+    """View of a resident of the Schelling system.
+
+    Its states and parameters are attributes.
+    """
 
     kind: float
     threshold: float
 
 
 class ResidentElement(Element):
-    """Resident of the Schelling system, who moves to an empty cell while too few neighbours share its kind.
+    """Resident of the Schelling system.
+
+    It moves to an empty cell while too few neighbours share its kind.
 
     Args:
         label:
@@ -63,17 +68,20 @@ class ResidentElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[ResidentView]:
-        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        """Return the class of the views of the agents.
+
+        Their attributes are the states and parameters.
+        """
         return ResidentView
 
 
 class RelocationInteraction(MovementInteraction):
-    """Relocation of the Schelling system, where every resident with too few similar neighbours moves to an empty cell.
+    """Relocation of the Schelling system.
 
-    Every step every resident, in random order, moves to a random empty cell when the share of its neighbours of its
-    own kind is below its threshold. With `choices`, the Big Sort of Bishop's hypothesis, every resident moves with
-    the probability `probability` whatever its neighbours, to the cell with the highest share of neighbours of its own
-    kind among `choices` random empty cells, the first of them on ties.
+    Every step every resident, in random order, moves to a random empty cell when the share of its neighbours of its own
+    kind is below its threshold. With `choices`, the Big Sort of Bishop's hypothesis, every resident moves with the
+    probability `probability` whatever its neighbours, to the cell with the highest share of neighbours of its own kind
+    among `choices` random empty cells, the first of them on ties.
 
     Args:
         label:
@@ -111,7 +119,10 @@ class RelocationInteraction(MovementInteraction):
         self.choices = choices
 
     def _get_destination(self, agent: AgentViewProtocol, system: SystemViewProtocol, occupied: set[object]) -> object:
-        """Return a random empty cell for a resident with too few similar neighbours, or `None` to stay."""
+        """Return a random empty cell for a resident with too few similar neighbours.
+
+        It is `None` to stay.
+        """
         if not isinstance(agent, ResidentView) or not isinstance(system, SystemView):
             return None
         if self.choices is not None:
@@ -123,7 +134,10 @@ class RelocationInteraction(MovementInteraction):
         return system.random_empty_cell() if similar < agent.threshold else None
 
     def _get_sorted_destination(self, resident: ResidentView, system: SystemView) -> object:
-        """Return the empty cell with the highest share of similar neighbours among random empty cells."""
+        """Return the empty cell with the highest share of similar neighbours.
+
+        It is chosen among random empty cells.
+        """
         storage = system.storage
         if storage.get('time') != system.time:
             storage['time'] = system.time

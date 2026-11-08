@@ -17,7 +17,9 @@ from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 class FirmsElement(Element):
-    """Firms sector, with its deposits, its loans, and the sales of the last period, which pays wages and profits.
+    """Firms sector, with its deposits, its loans, and the sales of the last period.
+
+    It pays wages and profits.
 
     Args:
         label:
@@ -72,7 +74,9 @@ class FirmsElement(Element):
 
 
 class HouseholdsElement(Element):
-    """Households sector, whose deposits are money, and which consumes out of its wages and its deposits.
+    """Households sector, whose deposits are money.
+
+    It consumes out of its wages and its deposits.
 
     Args:
         label:
@@ -112,7 +116,9 @@ class HouseholdsElement(Element):
 
 
 class MonetaryBankElement(Element):
-    """Bank of a stock-flow consistent economy, whose own funds are money, and which lends and charges interest.
+    """Bank of a stock-flow consistent economy, whose own funds are money.
+
+    It lends and charges interest.
 
     Args:
         label:
@@ -222,12 +228,18 @@ class CircuitInteraction(TransferInteraction):
         self.bank = bank
 
     def _get_holders(self, namespace: SimpleNamespace) -> list[tuple[SimpleNamespace, SimpleNamespace]]:
-        """Return the households and the firms, the first pair of the circuit, whose other legs name their roles."""
+        """Return the households and the firms, the first pair of the circuit.
+
+        The other legs name their roles.
+        """
         return [(namespace.households, namespace.firms)]
 
     @staticmethod
     def _consumption(households: SimpleNamespace, firms: SimpleNamespace) -> Expression:
-        """Return the consumption of a period, a share of the wages and a share of the deposits of the households."""
+        """Return the consumption of a period.
+
+        It is a share of the wages and a share of the deposits of the households.
+        """
         return households.alpha_income * firms.wage_share * firms.sales + households.alpha_wealth * households.deposits
 
     @staticmethod
@@ -237,13 +249,13 @@ class CircuitInteraction(TransferInteraction):
 
 
 class StockFlowConsistentEconomySystem(BaseSystem):
-    """A stock-flow consistent economy, a closed circuit of money between households, firms, and a bank.
+    """A stock-flow consistent economy.
 
-    Money is the deposits of the three sectors, tagged as the quantity `money`, and every transaction of a period is
-    a flow, so each payment is one sector's outflow and another's inflow. Households consume a share `alpha_income` of
-    their wages and a share `alpha_wealth` of their deposits, firms pay the wage share of last period's sales and the
-    interest on their loans, and distribute a share of their deposits as profits, and the bank pays out a share of its
-    funds as dividends. Lending creates money and
+    It is a closed circuit of money between households, firms, and a bank. Money is the deposits of the three sectors,
+    tagged as the quantity `money`, and every transaction of a period is a flow, so each payment is one sector's outflow
+    and another's inflow. Households consume a share `alpha_income` of their wages and a share `alpha_wealth` of their
+    deposits, firms pay the wage share of last period's sales and the interest on their loans, and distribute a share of
+    their deposits as profits, and the bank pays out a share of its funds as dividends. Lending creates money and
     repayment destroys it, the only flows with the environment, so the total money changes exactly by lending minus
     repayment, in the spirit of the systems of Godley and Lavoie (2007) and the balance sheets of Caiani et al. (2016).
     Loans approach `credit * sales / repayment` and sales settle where the stocks stop growing. The circuit moves the
@@ -344,7 +356,10 @@ class StockFlowConsistentEconomySystem(BaseSystem):
 
     @staticmethod
     def _next_loans(s: SimpleNamespace) -> Expression:
-        """Return the loans of the firms after a period, the new loans added and the repayments taken."""
+        """Return the loans of the firms after a period.
+
+        The new loans are added and the repayments taken.
+        """
         firms, bank = s.target, s.sources[0]
         return firms.loans + CircuitInteraction._lending(firms, bank) - firms.repayment * firms.loans
 

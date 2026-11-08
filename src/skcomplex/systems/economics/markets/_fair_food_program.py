@@ -1,4 +1,7 @@
-"""Markets systems: Chesney's Fair Food Program, tomato buyers and farms that join a programme of fair wages."""
+"""Markets systems: Chesney's Fair Food Program.
+
+Tomato buyers and farms join a programme of fair wages.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,7 +26,10 @@ OUTSIDE, COMMITTED, MEMBER = 0, 1, 2
 
 
 class ProgramMemberView(AgentView):
-    """Buyer or farm as the programme sees it: its acres of tomatoes, its level, and what it traded in the period."""
+    """Buyer or farm as the programme sees it.
+
+    It holds its acres of tomatoes, its level, and what it traded in the period.
+    """
 
     acres: float
     level: float
@@ -31,11 +37,12 @@ class ProgramMemberView(AgentView):
 
 
 class ProgramMemberElement(Element):
-    """Tomato buyer or farm with its acres of tomatoes, its level in the Fair Food Program, and what it traded.
+    """Tomato buyer or farm with its acres of tomatoes.
 
-    A buyer needs `acres` of tomatoes every period and has the level 0 outside the programme, 1 when it buys from
-    member farms first, and 2 when it buys only from member farms. A farm grows `acres` of tomatoes and has the level 0
-    outside the programme and 1 inside. `traded` is what a buyer bought or a farm sold in the period.
+    It holds its level in the Fair Food Program and what it traded. A buyer needs `acres` of tomatoes every period and
+    has the level 0 outside the programme, 1 when it buys from member farms first, and 2 when it buys only from member
+    farms. A farm grows `acres` of tomatoes and has the level 0 outside the programme and 1 inside. `traded` is what a
+    buyer bought or a farm sold in the period.
 
     Args:
         label:
@@ -96,14 +103,15 @@ class ProgramMemberElement(Element):
 
 
 class FairFoodMarketInteraction(FeedbackInteraction[SystemView]):
-    """Tomato market and the Fair Food Program, which buyers and farms join by the four rules of Chesney.
+    """Tomato market and the Fair Food Program.
 
-    Every period, in the order of the code of Chesney (2021, Section 7.6), every buyer outside the programme joins it at
-    level 1 with the probability `pressure` (Rule 1). Every buyer at level 1, in random order, moves to level 2 when
-    the member farms grow at least what the buyers at level 2 need plus its own need (Rule 2). The buyers then fill
-    their needs in random order from the farms in random order, any farm at level 0, member farms first at level 1, and
-    only member farms at level 2 (Rule 3). Finally every farm outside the programme joins it when it grows more than
-    the buyers outside the programme need (Rule 4). Levels only rise.
+    Buyers and farms join the programme by the four rules of Chesney. Every period, in the order of the code of Chesney
+    (2021, Section 7.6), every buyer outside the programme joins it at level 1 with the probability `pressure` (Rule 1).
+    Every buyer at level 1, in random order, moves to level 2 when the member farms grow at least what the buyers at
+    level 2 need plus its own need (Rule 2). The buyers then fill their needs in random order from the farms in random
+    order, any farm at level 0, member farms first at level 1, and only member farms at level 2 (Rule 3). Finally every
+    farm outside the programme joins it when it grows more than the buyers outside the programme need (Rule 4). Levels
+    only rise.
 
     Args:
         label:
@@ -149,7 +157,10 @@ class FairFoodMarketInteraction(FeedbackInteraction[SystemView]):
 
     @staticmethod
     def _buy(need: float, order: npt.NDArray[np.int64], left: Array) -> float:
-        """Take a need from the farms in order, lowering what they have left, and return the tomatoes bought."""
+        """Take a need from the farms in order and return the tomatoes bought.
+
+        It lowers what the farms have left.
+        """
         taken = np.minimum(left[order], np.maximum(need - np.concatenate(([0.0], np.cumsum(left[order])[:-1])), 0.0))
         left[order] -= taken
         return float(taken.sum())
@@ -200,16 +211,16 @@ class FairFoodMarketInteraction(FeedbackInteraction[SystemView]):
 
 
 class FairFoodProgramSystem(BaseSystem):
-    """Chesney's Fair Food Program, in which pressure on tomato buyers draws farms into fair wages.
+    """Chesney's Fair Food Program.
 
-    The Coalition of Immokalee Workers presses tomato buyers to join the Fair Food Program, whose member farms pay
-    pickers a penny more per pound. Buyers join at level 1, buying from member farms first, then move to level 2,
-    buying only from member farms, once the member farms grow enough, and farms join when the buyers outside the
-    programme need less than they grow. Buyers and farms have random sizes that share the acres of farmland, and the
-    buyers need as much as the farms grow. This is the model of Chesney (2021, Sections 7.2 to 7.6), with the `floor`
-    and `ceiling` of its NetLogo code, whose `sell_me` subtracts the last tomatoes of a farm from the buyer instead of
-    adding them, which this system corrects. Farms hold out until most buyers have joined, then join in a cascade, a
-    tipping point that comes later the more unequal the agents.
+    Pressure on tomato buyers draws farms into fair wages. The Coalition of Immokalee Workers presses tomato buyers to
+    join the Fair Food Program, whose member farms pay pickers a penny more per pound. Buyers join at level 1, buying
+    from member farms first, then move to level 2, buying only from member farms, once the member farms grow enough, and
+    farms join when the buyers outside the programme need less than they grow. Buyers and farms have random sizes that
+    share the acres of farmland, and the buyers need as much as the farms grow. This is the model of Chesney (2021,
+    Sections 7.2 to 7.6), with the `floor` and `ceiling` of its NetLogo code, whose `sell_me` subtracts the last
+    tomatoes of a farm from the buyer instead of adding them, which this system corrects. Farms hold out until most
+    buyers have joined, then join in a cascade, a tipping point that comes later the more unequal the agents.
 
     The system has the groups `shops` and `farms` and the market `market`, whose reporters are the buyers at level 1
     `market.committed_shops` and level 2 `market.member_shops`, the member farms `market.member_farms`, the unfulfilled
@@ -264,7 +275,10 @@ class FairFoodProgramSystem(BaseSystem):
 
     @staticmethod
     def _sizes(count: int, acres: float, rng: np.random.Generator) -> tuple[Array, Array]:
-        """Return random weights of the agents and their shares of the acres, as `farm_size / total_sizes * acres`."""
+        """Return random weights of the agents and their shares of the acres.
+
+        The shares are `farm_size / total_sizes * acres`.
+        """
         weights = rng.random(count)
         return weights, weights / weights.sum() * acres
 

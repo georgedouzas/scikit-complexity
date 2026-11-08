@@ -1,4 +1,7 @@
-"""Macroeconomics: growth, business cycles, investment, international trade, and mortal monetary economies."""
+"""Macroeconomics: growth, business cycles, investment, and trade.
+
+It also holds international trade and mortal monetary economies.
+"""
 
 from ._banking import DepositorElement, FractionalReserveBankingSystem, PolicySwitchInteraction, ReserveBankElement
 from ._capital import CapitalStockElement, CapitalStockSystem

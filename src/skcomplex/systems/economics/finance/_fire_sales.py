@@ -1,4 +1,7 @@
-"""Finance systems: fire sales of banks with overlapping portfolios, whose sales depress the prices of common assets."""
+"""Finance systems: fire sales of banks with overlapping portfolios.
+
+Their sales depress the prices of common assets.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -30,7 +33,9 @@ class MarketAssetView(AgentView):
 
 
 class MarketAssetElement(Element):
-    """Asset held by banks, whose price falls with the share of it liquidated, `p = exp(-alpha x)`.
+    """Asset held by banks, whose price falls with the share of it liquidated.
+
+    The price is `p = exp(-alpha x)`.
 
     Args:
         label:
@@ -86,13 +91,14 @@ class MarketAssetElement(Element):
 
 
 class FireSaleInteraction(FeedbackInteraction[SystemView]):
-    """Banks that sell common assets on losses, and the market impact that lowers the prices of what they sell.
+    """Banks that sell common assets on losses, and the market impact.
 
-    Every step the banks value their holdings at the current prices. Under the rule `'threshold'` a bank whose losses
-    exhaust its equity defaults and liquidates its whole portfolio, and otherwise stays passive. Under `'leverage'` a
-    bank sells the same share of every holding to bring its assets back to `leverage` times its equity, and liquidates
-    everything when its equity is gone. The proceeds become cash, and the price of every asset falls to
-    `p0 exp(-alpha x)`, where `x` is the share of the asset liquidated so far and `p0` its price after the shock.
+    The market impact lowers the prices of what they sell. Every step the banks value their holdings at the current
+    prices. Under the rule `'threshold'` a bank whose losses exhaust its equity defaults and liquidates its whole
+    portfolio, and otherwise stays passive. Under `'leverage'` a bank sells the same share of every holding to bring its
+    assets back to `leverage` times its equity, and liquidates everything when its equity is gone. The proceeds become
+    cash, and the price of every asset falls to `p0 exp(-alpha x)`, where `x` is the share of the asset liquidated so
+    far and `p0` its price after the shock.
 
     Args:
         label:
@@ -220,16 +226,17 @@ class FireSaleInteraction(FeedbackInteraction[SystemView]):
 
 
 class OverlappingPortfolioFireSalesSystem(BaseSystem):
-    """Banks with overlapping portfolios whose fire sales of common assets spread their losses to one another.
+    """Banks with overlapping portfolios whose fire sales spread their losses.
 
-    Every bank invests equal amounts in `diversification` assets drawn at random, a bipartite network of banks and
-    assets, with assets `leverage` times its equity. A shock lowers the price of one asset, and banks react to their
-    losses: under the linear threshold rule a bank stays passive until its losses exhaust its equity and then
-    liquidates its whole portfolio, and under leverage targeting it sells a share of every holding to restore its
-    leverage. Sales lower prices through the market impact `p = p0 exp(-alpha x)` of the share `x` of an asset
-    liquidated, which hits every bank holding the asset, so losses travel between banks that share no contract, the
-    indirect contagion of Bardoscia et al. (2021, Section 3.2) after Caccioli et al. (2014). Larger impact and leverage
-    make the cascades larger, and leverage targeting sells more for small shocks.
+    The fire sales of common assets spread the losses to one another. Every bank invests equal amounts in
+    `diversification` assets drawn at random, a bipartite network of banks and assets, with assets `leverage` times its
+    equity. A shock lowers the price of one asset, and banks react to their losses: under the linear threshold rule a
+    bank stays passive until its losses exhaust its equity and then liquidates its whole portfolio, and under leverage
+    targeting it sells a share of every holding to restore its leverage. Sales lower prices through the market impact
+    `p = p0 exp(-alpha x)` of the share `x` of an asset liquidated, which hits every bank holding the asset, so losses
+    travel between banks that share no contract, the indirect contagion of Bardoscia et al. (2021, Section 3.2) after
+    Caccioli et al. (2014). Larger impact and leverage make the cascades larger, and leverage targeting sells more for
+    small shocks.
 
     The system has the groups `banks`, of the equity `banks.equity` and the cash `banks.external`, and `assets`, of the
     prices `assets.price`, and the fire sales `sales`, whose reporters are the number of defaulted banks

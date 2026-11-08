@@ -1,4 +1,7 @@
-"""Crowds: pedestrians driven by social forces, evacuations, and criminality against security forces."""
+"""Crowds: pedestrians driven by social forces, evacuations, and criminality.
+
+The criminality acts against security forces.
+"""
 
 from ._criminality import (
     CriminalContagionInteraction,

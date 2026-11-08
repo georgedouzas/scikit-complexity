@@ -52,9 +52,10 @@ class LandCellElement(Element):
 
 
 class BidRentInteraction(Interaction):
-    """Land use of highest bid rent, where crop `i` bids `Y_i (p_i - c_i) - Y_i f_i d` at the distance `d` of a market.
+    """Land use of highest bid rent.
 
-    A cell grows the crop of the highest positive bid, and lies idle as crop 0 when no bid is positive.
+    Crop `i` bids `Y_i (p_i - c_i) - Y_i f_i d` at the distance `d` of a market. A cell grows the crop of the highest
+    positive bid, and lies idle as crop 0 when no bid is positive.
 
     Args:
         label:
@@ -141,11 +142,11 @@ class BidRentInteraction(Interaction):
 
 
 class VonThunenSystem(BaseSystem):
-    """A square plain around one market at its centre, whose every cell grows the crop of highest bid rent.
+    """A square plain around one market at its centre.
 
-    A crop of a high yield per cell bids most near the market, and its bid falls fastest with distance, so the land use
-    forms concentric rings whose boundaries lie where the bids of neighbouring crops are equal (Giordano 2024 §7). The
-    system has the states `plain.crop` and `plain.distance`.
+    Every cell grows the crop of highest bid rent. A crop of a high yield per cell bids most near the market, and its
+    bid falls fastest with distance, so the land use forms concentric rings whose boundaries lie where the bids of
+    neighbouring crops are equal (Giordano 2024 §7). The system has the states `plain.crop` and `plain.distance`.
 
     Args:
         size:

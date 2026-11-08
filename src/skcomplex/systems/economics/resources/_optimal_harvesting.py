@@ -1,4 +1,7 @@
-"""Optimal harvesting: the effort that maximises the discounted profit of a renewable resource."""
+"""Optimal harvesting: the effort that maximises the profit of a resource.
+
+The resource is renewable. The profit is discounted.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -120,12 +123,12 @@ class HarvestedResourceElement(Element):
 
 
 class OptimalHarvestingSystem(BaseSystem):
-    """A logistic resource harvested with the effort that maximises its discounted profit.
+    """A logistic resource harvested with the effort that maximises its profit.
 
-    Run with an optimal control solver, the effort starts at a bound, drives the stock to the level `x*` where `r (1 - 2
-    x* / K) + c r (1 - x* / K) / (p q x* - c) = delta`, holds it there with the effort `r (1 - x* / K) / q`, and rises
-    to its largest value at the end of the horizon, when the stock left has no value. The system has the stock
-    `resource.x`, the effort `resource.effort`, and the observable `catch`.
+    The profit is discounted. Run with an optimal control solver, the effort starts at a bound, drives the stock to the
+    level `x*` where `r (1 - 2 x* / K) + c r (1 - x* / K) / (p q x* - c) = delta`, holds it there with the effort
+    `r (1 - x* / K) / q`, and rises to its largest value at the end of the horizon, when the stock left has no value.
+    The system has the stock `resource.x`, the effort `resource.effort`, and the observable `catch`.
 
     Args:
         x:

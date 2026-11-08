@@ -1,4 +1,7 @@
-"""Mechatronic systems: a DC motor from components and a Lagrangian, and a quarter-car suspension."""
+"""Mechatronic systems: a DC motor and a quarter-car suspension.
+
+The DC motor is built from components and a Lagrangian.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,7 +25,9 @@ POSITIVE = RealSet.open(0, oo)
 
 
 class ArmatureElement(TwoPinElement):
-    """Winding of a motor, a two-pin element whose voltage the coupling with the inertia of the motor gives.
+    """Winding of a motor, a two-pin element.
+
+    Its voltage is given by the coupling with the inertia of the motor.
 
     Args:
         label:
@@ -108,10 +113,10 @@ class InertiaElement(Element):
 
 
 class QuarterCarElement(Element):
-    """Body of displacement `y1` and wheel of displacement `y2`, with a tire between the wheel and a road step.
+    """Body of displacement `y1` and wheel of displacement `y2`.
 
-    The element holds the tire, whose force on the wheel is `kt (road - y2)`, and a suspension interaction joins the
-    body and the wheel.
+    A tire lies between the wheel and a road step. The element holds the tire, whose force on the wheel is
+    `kt (road - y2)`, and a suspension interaction joins the body and the wheel.
 
     Args:
         label:
@@ -273,12 +278,13 @@ def _spring_energy(s: SimpleNamespace) -> Expression:
 
 
 class DcMotorSystem(BaseSystem):
-    """A DC motor whose armature circuit of components drives an inertia on a Lagrangian coordinate.
+    """A DC motor whose armature circuit drives an inertia.
 
-    A voltage source drives a resistor, an inductor, and the armature in series. The armature has the voltage `k phi'`,
-    and its current exerts the torque `k i` on the angle of an inertia with viscous friction, so the angular velocity
-    settles at `k V / (R b + k^2)`. The system has the angle `rotor.phi`, the angular velocity `rotor.phi_d1`, and the
-    current `winding.p_i`.
+    The armature circuit is made of components and the inertia is on a Lagrangian coordinate. A voltage source drives a
+    resistor, an inductor, and the armature in series. The armature has the voltage `k phi'`, and its current exerts the
+    torque `k i` on the angle of an inertia with viscous friction, so the angular velocity settles at
+    `k V / (R b + k^2)`. The system has the angle `rotor.phi`, the angular velocity `rotor.phi_d1`, and the current
+    `winding.p_i`.
 
     Args:
         V:

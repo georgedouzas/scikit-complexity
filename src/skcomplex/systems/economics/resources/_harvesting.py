@@ -82,7 +82,9 @@ class FarmerView(AgentView):
 
 
 class FarmerElement(Element):
-    """Farmer who adds the catch of every step to its wealth, reading the resource from the other partition.
+    """Farmer who adds the catch of every step to its wealth.
+
+    It reads the resource from the other partition.
 
     Args:
         label:
@@ -142,7 +144,9 @@ class FarmerElement(Element):
         return [RuleLaw(self.catch)]
 
     def catch(self, agent: FarmerView, system: SystemView) -> None:
-        """Add the effort times the resource stock at the last synchronisation point to the wealth.
+        """Add the effort times the resource stock to the wealth.
+
+        The stock is read at the last synchronisation point.
 
         Args:
             agent:
@@ -159,10 +163,10 @@ class FarmerElement(Element):
 
 
 class HarvestInteraction(RateInteraction):
-    """Harvest of a stock proportional to the stock and to the number of harvesters, the rate `-effort * N * n`.
+    """Harvest of a stock proportional to the stock and to the number of harvesters.
 
-    A rate on the state `n` of the target whose coefficient counts the members of the group of harvesters, which may
-    live in another subsystem.
+    The rate is `-effort * N * n`. A rate on the state `n` of the target whose coefficient counts the members of the
+    group of harvesters, which may live in another subsystem.
 
     Args:
         label:
@@ -214,10 +218,11 @@ class HarvestInteraction(RateInteraction):
 
 
 class HarvestingSystem(BaseSystem):
-    """A socio-ecological system of farmer agents harvesting a logistically regrowing resource.
+    """A socio-ecological system of farmer agents harvesting a resource.
 
-    The resource settles at `K * (1 - effort * farmers / r)` when `effort * farmers < r`, and collapses otherwise. The
-    system has the ODE subsystem `land` and the agent subsystem `village`.
+    The resource regrows logistically. The resource settles at `K * (1 - effort * farmers / r)` when
+    `effort * farmers < r`, and collapses otherwise. The system has the ODE subsystem `land` and the agent subsystem
+    `village`.
 
     Args:
         farmers:

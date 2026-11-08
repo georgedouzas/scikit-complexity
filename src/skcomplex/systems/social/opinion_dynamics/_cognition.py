@@ -1,4 +1,7 @@
-"""Cognitive consistency systems: attitudes that spread between agents and settle inside each agent's beliefs."""
+"""Cognitive consistency systems: attitudes that spread between agents.
+
+The attitudes settle inside each agent's beliefs.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,7 +25,10 @@ from ....core.types import Array
 
 
 class ThinkerView(AgentView):
-    """View of an agent of the cognitive consistency system, with its states and parameters as attributes."""
+    """View of an agent of the cognitive consistency system.
+
+    Its states and parameters are attributes.
+    """
 
     valences: Array
     attitude: float
@@ -30,7 +36,9 @@ class ThinkerView(AgentView):
 
 
 class ThinkerElement(Element):
-    """Agent of the cognitive consistency system, with the valences of the concepts of its belief network.
+    """Agent of the cognitive consistency system.
+
+    It holds the valences of the concepts of its belief network.
 
     Args:
         label:
@@ -72,7 +80,10 @@ class ThinkerElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[ThinkerView]:
-        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        """Return the class of the views of the agents.
+
+        Their attributes are the states and parameters.
+        """
         return ThinkerView
 
 
@@ -89,14 +100,19 @@ MAX_SETTLING = 1000
 
 
 def _settle_once(valences: Array, decay: float) -> Array:
-    """Return the valences after one synchronous update of the parallel constraint satisfaction network."""
+    """Return the valences after one synchronous update.
+
+    The update is that of the parallel constraint satisfaction network.
+    """
     net = COHERENCE @ valences
     growth = np.where(net > 0, net * (1.0 - valences), net * (valences + 1.0))
     return valences * (1.0 - decay) + growth
 
 
 def settle(valences: npt.ArrayLike, decay: float = 0.05) -> Array:
-    """Return the valences of a belief network updated until no valence changes by more than 0.01.
+    """Return the valences of a belief network updated until they settle.
+
+    The updates stop when no valence changes by more than 0.01.
 
     The network links the first concept to the second with weight 0.05 and the second to the third with weight
     -0.05. Every update decays a valence by `decay` and moves it towards 1 or -1 by its net input.
@@ -127,10 +143,11 @@ def settle(valences: npt.ArrayLike, decay: float = 0.05) -> Array:
 
 
 class ConversationsInteraction(GroupingInteraction):
-    """Conversations of the cognitive consistency system, one per agent and step, the agents speaking in random order.
+    """Conversations of the cognitive consistency system.
 
-    A speaker talks to a random neighbour about F1 or F2. The hearer averages its valence of the topic with the
-    speaker's and settles its belief network, and its attitude is its valence of X.
+    There is one per agent and step, the agents speaking in random order. A speaker talks to a random neighbour about F1
+    or F2. The hearer averages its valence of the topic with the speaker's and settles its belief network, and its
+    attitude is its valence of X.
 
     Args:
         label:
@@ -158,7 +175,9 @@ class ConversationsInteraction(GroupingInteraction):
         super().__init__(label, target=target, groups='neighborhood', phase=phase)
 
     def act_on(self, members: list[AgentViewProtocol], system: SystemViewProtocol) -> None:
-        """Let the first member speak to a random neighbour, who averages the topic and settles its beliefs.
+        """Let the first member speak to a random neighbour.
+
+        The neighbour averages the topic and settles its beliefs.
 
         Args:
             members:
@@ -182,9 +201,9 @@ POSITIVE = (1.0, 1.0, -1.0)
 
 
 class CognitiveConsistencySystem(BaseSystem):
-    """Agents whose attitudes spread by conversation and settle in a belief network that seeks consistency.
+    """Agents whose attitudes spread by conversation and settle in a belief network.
 
-    The system has the group `thinkers`.
+    The belief network seeks consistency. The system has the group `thinkers`.
 
     Args:
         graph:

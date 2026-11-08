@@ -1,4 +1,7 @@
-"""Define regrowth, the linear growth back of a renewable resource up to its capacity."""
+"""Define regrowth, the linear growth back of a renewable resource.
+
+It grows back up to its capacity.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,11 +14,12 @@ from .....core.specs import RoleSpec
 
 
 class RegrowthInteraction(MapInteraction):
-    """Linear regrowth of a resource held by the agents of a group, by a fixed amount a step up to their capacity.
+    """Linear regrowth of a resource held by the agents of a group.
 
-    Every step the resource `x` of an agent grows by the amount `g` its parameter `growth` names, `x = min(K, x + g)`,
-    or by that share of its capacity `K` when the regrowth is relative, `x = min(K, x + g K)`. It is a map of the agent
-    form, such as the sugar of a patch of Sugarscape or the food of a plot of land.
+    It grows by a fixed amount a step up to their capacity. Every step the resource `x` of an agent grows by the amount
+    `g` its parameter `growth` names, `x = min(K, x + g)`, or by that share of its capacity `K` when the regrowth is
+    relative, `x = min(K, x + g K)`. It is a map of the agent form, such as the sugar of a patch of Sugarscape or the
+    food of a plot of land.
 
     Args:
         label:

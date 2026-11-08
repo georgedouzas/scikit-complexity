@@ -1,4 +1,7 @@
-"""Markets systems: Brock and Hommes' asset market with traders switching between forecasting heuristics."""
+"""Markets systems: Brock and Hommes' asset market.
+
+Its traders switch between forecasting heuristics.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,7 +26,9 @@ from ..common.forecasting import heuristics
 
 @dataclass(frozen=True)
 class _MarketStateSpec(BaseSpec):
-    """Last two prices and forecasts of the market, which its institution keeps in the storage of the system.
+    """Last two prices and forecasts of the market.
+
+    Its institution keeps them in the storage of the system.
 
     Args:
         history:
@@ -38,7 +43,10 @@ class _MarketStateSpec(BaseSpec):
 
 
 class HeuristicTraderView(AgentView):
-    """Trader as the rules see it: its heuristic `predictor` and the last fitness of every heuristic."""
+    """Trader as the rules see it.
+
+    It holds its heuristic `predictor` and the last fitness of every heuristic.
+    """
 
     predictor: float
     fundamentalist_fitness: float
@@ -52,10 +60,11 @@ PRICING = 'pricing'
 
 
 class HeuristicTraderElement(Element):
-    """Trader who holds the index of the forecasting heuristic in use, 0 for the fundamentalist and 1 for the trend.
+    """Trader who holds the index of the forecasting heuristic in use.
 
-    The trader scores every heuristic by its last realised fitness, `fundamentalist_fitness` and `trend_fitness`, which
-    a reinforcement of rate 1 sets every step and a logit choice reads.
+    The index is 0 for the fundamentalist and 1 for the trend. The trader scores every heuristic by its last realised
+    fitness, `fundamentalist_fitness` and `trend_fitness`, which a reinforcement of rate 1 sets every step and a logit
+    choice reads.
 
     Args:
         label:
@@ -121,7 +130,9 @@ class HeuristicTraderElement(Element):
 
     @staticmethod
     def get_realised_fitness(agent: HeuristicTraderView, system: SystemView, index: int) -> float:
-        """Return the fitness of a heuristic that the market maker reported last, zero before the first report.
+        """Return the fitness of a heuristic that the market maker reported last.
+
+        It is zero before the first report.
 
         Args:
             agent:
@@ -142,13 +153,13 @@ class HeuristicTraderElement(Element):
 
 
 class HeuristicPricingInteraction(FeedbackInteraction[SystemView]):
-    """Market maker that clears the risky asset at the price where the mean forecast of the traders is met.
+    """Market maker that clears the risky asset.
 
-    The deviation `x` of the price from its fundamental value clears at `R x_t = sum_h n_h f_h + eps_t`, where `n_h`
-    is the share of traders using heuristic `h`. The fundamentalists forecast the fundamental, `f = 0`, and the trend
-    chasers extrapolate the last deviation, `f = g x_{t-1}`, both as `heuristics.fundamental` with a reversion of 0
-    and `g`. The realised fitness of a heuristic is the profit of its last forecast,
-    `(x_t - R x_{t-1}) (f_h(t - 1) - R x_{t-1}) / (a sigma^2)`, minus its cost.
+    It clears at the price where the mean forecast of the traders is met. The deviation `x` of the price from its
+    fundamental value clears at `R x_t = sum_h n_h f_h + eps_t`, where `n_h` is the share of traders using heuristic
+    `h`. The fundamentalists forecast the fundamental, `f = 0`, and the trend chasers extrapolate the last deviation,
+    `f = g x_{t-1}`, both as `heuristics.fundamental` with a reversion of 0 and `g`. The realised fitness of a heuristic
+    is the profit of its last forecast, `(x_t - R x_{t-1}) (f_h(t - 1) - R x_{t-1}) / (a sigma^2)`, minus its cost.
 
     Args:
         label:
@@ -213,7 +224,9 @@ class HeuristicPricingInteraction(FeedbackInteraction[SystemView]):
         self.initial = initial
 
     def act(self, system: SystemView) -> None:
-        """Clear the price from the forecasts of the traders' heuristics and report the fitnesses.
+        """Clear the price from the forecasts of the traders' heuristics.
+
+        It also reports the fitnesses.
 
         Args:
             system:
@@ -245,13 +258,14 @@ class HeuristicPricingInteraction(FeedbackInteraction[SystemView]):
 
 
 class BrockHommesSystem(BaseSystem):
-    """Brock and Hommes' asset market with traders switching between fundamentalists and trend chasers.
+    """Brock and Hommes' asset market.
 
-    Every step the traders score every heuristic by its last realised fitness and choose a heuristic by a logit choice
-    of intensity `beta` on its last realised fitness, and the market maker clears the deviation of the price from the
-    fundamental at `R x_t = sum_h n_h f_h`. The fundamental steady state is stable while the share of trend chasers
-    there, `1 / (1 + exp(-beta C))`, is below `R / g`, and beyond the critical intensity `beta* = ln(R / (g - R)) / C`
-    the price fluctuates persistently around the fundamental.
+    Traders switch between fundamentalists and trend chasers. Every step the traders score every heuristic by its last
+    realised fitness and choose a heuristic by a logit choice of intensity `beta` on its last realised fitness, and the
+    market maker clears the deviation of the price from the fundamental at `R x_t = sum_h n_h f_h`. The fundamental
+    steady state is stable while the share of trend chasers there, `1 / (1 + exp(-beta C))`, is below `R / g`, and
+    beyond the critical intensity `beta* = ln(R / (g - R)) / C` the price fluctuates persistently around the
+    fundamental.
 
     The system has the group `traders`, their scores `learning` and choice `choice`, and the institution `pricing`,
     whose reporters are the deviation of the price `pricing.deviation`, the share of trend chasers

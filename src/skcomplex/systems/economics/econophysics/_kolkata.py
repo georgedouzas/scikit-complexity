@@ -1,4 +1,7 @@
-"""Econophysics systems: the Kolkata Paise Restaurant problem of choosing among restaurants."""
+"""Econophysics systems: the Kolkata Paise Restaurant problem.
+
+Diners choose among restaurants.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,7 +25,7 @@ from ....core.specs import StateSpec, VisualSpec
 
 
 class DinerView(AgentView):
-    """Diner as the rules see it, with its restaurant, the crowd there, and whether it was served.
+    """Diner as the rules see it.
 
     It reads its `restaurant`, the `crowd` there, and whether it was `served`.
     """
@@ -33,7 +36,9 @@ class DinerView(AgentView):
 
 
 class DinerElement(Element):
-    """Diner of the Kolkata Paise Restaurant problem, who goes to one restaurant every evening.
+    """Diner of the Kolkata Paise Restaurant problem.
+
+    It goes to one restaurant every evening.
 
     Args:
         label:
@@ -139,7 +144,10 @@ class CrowdAvoidanceInteraction(ChoiceInteraction):
         )
 
     def _get_utility(self, agent: DinerView, system: SystemViewProtocol, option: float) -> float:
-        """Return 0 for another restaurant and `-log(1 - 1 / n)` for staying at a crowd of `n`."""
+        """Return the utility of a restaurant.
+
+        It is 0 for another restaurant and `-log(1 - 1 / n)` for staying at a crowd of `n`.
+        """
         if option != getattr(agent, self.state) or agent.crowd < 1:
             return 0.0
         if agent.crowd == 1:
@@ -148,10 +156,11 @@ class CrowdAvoidanceInteraction(ChoiceInteraction):
 
 
 class RestaurantsInteraction(GroupingInteraction):
-    """Restaurants that each serve one meal every evening, to one of the diners who come chosen at random.
+    """Restaurants that each serve one meal every evening.
 
-    The diners are grouped by their restaurant. Every diner learns the crowd at its restaurant, and the first of the
-    group in a random order is served. The interaction reports the fraction of restaurants that serve a meal.
+    The meal goes to one of the diners who come, chosen at random. The diners are grouped by their restaurant. Every
+    diner learns the crowd at its restaurant, and the first of the group in a random order is served. The interaction
+    reports the fraction of restaurants that serve a meal.
 
     Args:
         label:
@@ -217,7 +226,9 @@ class RestaurantsInteraction(GroupingInteraction):
         system.report('utilization', len(visited) / self.n_restaurants)
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule that serves the diners and the rule that reports the utilization.
+        """Return the rule that serves the diners and the utilization report.
+
+        The report is a rule of its own.
 
         Args:
             namespace:
@@ -234,12 +245,13 @@ STRATEGIES = ('random', 'crowd_avoiding')
 
 
 class KolkataRestaurantSystem(BaseSystem):
-    """The Kolkata Paise Restaurant problem, where diners spread over restaurants that serve one meal each.
+    """The Kolkata Paise Restaurant problem.
 
-    With random choice the expected utilization of `N` restaurants by `N` diners is `1 - 1/e`, about 0.632, and with the
-    stochastic crowd avoiding strategy it settles near 0.8. The system has the group `diners`, the choice `choice` of a
-    restaurant every evening, uniform or by crowd avoidance, and the interaction `restaurants`, which reports the
-    fraction of restaurants that serve a meal `restaurants.utilization`.
+    Diners spread over restaurants that serve one meal each. With random choice the expected utilization of `N`
+    restaurants by `N` diners is `1 - 1/e`, about 0.632, and with the stochastic crowd avoiding strategy it settles near
+    0.8. The system has the group `diners`, the choice `choice` of a restaurant every evening, uniform or by crowd
+    avoidance, and the interaction `restaurants`, which reports the fraction of restaurants that serve a meal
+    `restaurants.utilization`.
 
     Args:
         n_agents:

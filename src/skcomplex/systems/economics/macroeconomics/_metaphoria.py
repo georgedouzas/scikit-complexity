@@ -1,4 +1,7 @@
-"""Metaphoria: a mortal population that lives as hunter-gatherers or in a monetary economy of firms and a bank."""
+"""Metaphoria: a mortal population of hunter-gatherers or of a monetary economy.
+
+The monetary economy has firms and a bank.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -38,7 +41,10 @@ from ..common.resources import RegrowthInteraction
 
 
 class BusinessView(AgentView):
-    """Firm as the rules see it: its holdings, stock, wage, price, owner, workforce, sales, and policy parameters."""
+    """Firm as the rules see it.
+
+    It holds its holdings, stock, wage, price, owner, workforce, sales, and policy parameters.
+    """
 
     money: float
     loans: float
@@ -63,7 +69,7 @@ class CentralBankView(AgentView):
 
 
 class CentralBankElement(Element):
-    """Bank that creates money as loans and pays its interest income to a random person as a dividend.
+    """Bank that creates money as loans.
 
     The transfer `dividends` of the system pays the income to a random person, or to a random firm when nobody lives.
 
@@ -109,7 +115,9 @@ class CentralBankElement(Element):
 
     @staticmethod
     def get_income(agent: CentralBankView, holder: AgentView, system: SystemView) -> float:
-        """Return the income of the step that the bank pays as a dividend, its money plus its loans.
+        """Return the income of the step that the bank pays as a dividend.
+
+        It is its money plus its loans.
 
         Args:
             agent:
@@ -138,9 +146,10 @@ class PlotView(AgentView):
 
 
 class PlotElement(Element):
-    """Patch of land whose food grows back by a share of its capacity every step, harvested against a resistance.
+    """Patch of land whose food grows back by a share of its capacity every step.
 
-    The regrowth is a `RegrowthInteraction` of the group of patches, relative to the capacity.
+    It is harvested against a resistance. The regrowth is a `RegrowthInteraction` of the group of patches, relative to
+    the capacity.
 
     Args:
         label:
@@ -190,11 +199,12 @@ class PlotElement(Element):
 
 
 class SettlerView(AgentView):
-    """Person as the rules see it: its holdings, age, family, job, fate, propensities, and needs.
+    """Person as the rules see it.
 
-    Besides its states and parameters it reads two quantities of the markets: `hireable`, the highest wage limit of a
-    job it accepts, which admits every job for an unemployed adult and none otherwise, and `shortfall`, the food it
-    lacks for `reserve` steps, whose decrease by a purchase is the food the person receives.
+    It holds its holdings, age, family, job, fate, propensities, and needs. Besides its states and parameters it reads
+    two quantities of the markets: `hireable`, the highest wage limit of a job it accepts, which admits every job for an
+    unemployed adult and none otherwise, and `shortfall`, the food it lacks for `reserve` steps, whose decrease by a
+    purchase is the food the person receives.
     """
 
     food: float
@@ -223,7 +233,10 @@ class SettlerView(AgentView):
 
     @property
     def hireable(self) -> float:
-        """Return the limit of the jobs the person accepts, unlimited for an unemployed adult and none otherwise."""
+        """Return the limit of the jobs the person accepts.
+
+        It is unlimited for an unemployed adult and none otherwise.
+        """
         return math.inf if self.employer < 0 and self.age >= self.maturity else -math.inf
 
     @property
@@ -239,7 +252,9 @@ class SettlerView(AgentView):
 
 @dataclass(frozen=True)
 class _PeopleSpec(BaseSpec):
-    """Living people by id at one time, which the rules build once per step and keep in the storage of the system.
+    """Living people by id at one time.
+
+    The rules build them once per step and keep them in the storage of the system.
 
     Args:
         time:
@@ -263,15 +278,15 @@ OLD_AGE_DEATH = 1 / 7
 
 
 class SettlerElement(Element):
-    """Mortal person who eats, ages, raises children, moves, and, in the monetary economy, works and founds firms.
+    """Mortal person who eats, ages, raises children, and moves.
 
-    Every step a person eats `need` food and starves when its food runs out, and past `lifespan` it dies of old age
-    with probability 1/7. A child takes `need` food from its parent and follows it. A fed adult has a child with the
-    probability `fertility`, at most once every `spacing` steps, and gives it `endowment` food. The child inherits the
-    four propensities, each moved by a normal mutation and kept in [0, 1]. A person that harvested too little and holds
-    less than `reserve` steps of food moves, far with the probability `exploration`. In the monetary economy an
-    unemployed adult on a patch with food but no firm founds one with the probability `enterprise`, and a worker quits
-    with the probability `restlessness`.
+    In the monetary economy, the person also works and founds firms. Every step a person eats `need` food and starves
+    when its food runs out, and past `lifespan` it dies of old age with probability 1/7. A child takes `need` food from
+    its parent and follows it. A fed adult has a child with the probability `fertility`, at most once every `spacing`
+    steps, and gives it `endowment` food. The child inherits the four propensities, each moved by a normal mutation and
+    kept in [0, 1]. A person that harvested too little and holds less than `reserve` steps of food moves, far with the
+    probability `exploration`. In the monetary economy an unemployed adult on a patch with food but no firm founds one
+    with the probability `enterprise`, and a worker quits with the probability `restlessness`.
 
     Args:
         label:
@@ -457,7 +472,10 @@ class SettlerElement(Element):
         agent.create(None, None, food=agent.endowment, age=0.0, parent=float(agent.id), born=system.time, **traits)
 
     def _work_or_found(self, agent: SettlerView, system: SystemView) -> bool:
-        """Quit a job at the restlessness, or found a firm on a free patch with food, and return whether employed."""
+        """Quit a job at the restlessness, or found a firm on a free patch with food.
+
+        It returns whether the person is employed.
+        """
         if agent.employer >= 0:
             if system.rng.random() < agent.restlessness:
                 agent.employer = -1.0
@@ -515,7 +533,10 @@ class SettlerElement(Element):
 
     @staticmethod
     def _wander(agent: SettlerView, system: SystemView, sight: float) -> None:
-        """Move to a random cell within sight with the propensity to explore, and otherwise to a neighbouring cell."""
+        """Move to a random cell within sight with the propensity to explore.
+
+        Otherwise move to a neighbouring cell.
+        """
         if system.rng.random() < agent.exploration:
             width, height = system.dimensions or (1, 1)
             reach = int(sight)
@@ -528,14 +549,14 @@ class SettlerElement(Element):
 
 
 class BusinessElement(Element):
-    """Firm on a patch that harvests with its workers, pays wages with money it borrows, and sells food in its shop.
+    """Firm on a patch that harvests with its workers and sells food in its shop.
 
-    Every step the workers pool their labour on the firm's patch, the firm pays each the wage, borrowing what it
-    lacks from the bank, and pays the interest and a share of the principal of its loans. A firm that sold out
-    raises its price, and one with a stock above `stock_limit` lowers it and lays a worker off. Otherwise a firm
-    posts vacancies up to the workforce that harvests the whole capacity of its patch, raises the wage while a
-    vacancy went unfilled, and lowers it while its sales fall short of its wage bill. Profits above twice the wage
-    bill go to the owner, and a firm without a living owner passes to one of its workers.
+    It pays wages with money it borrows. Every step the workers pool their labour on the firm's patch, the firm pays
+    each the wage, borrowing what it lacks from the bank, and pays the interest and a share of the principal of its
+    loans. A firm that sold out raises its price, and one with a stock above `stock_limit` lowers it and lays a worker
+    off. Otherwise a firm posts vacancies up to the workforce that harvests the whole capacity of its patch, raises the
+    wage while a vacancy went unfilled, and lowers it while its sales fall short of its wage bill. Profits above twice
+    the wage bill go to the owner, and a firm without a living owner passes to one of its workers.
 
     Args:
         label:
@@ -649,7 +670,10 @@ class BusinessElement(Element):
             transfer(agent, bank, amount, 'loans')
 
     def _service(self, agent: BusinessView, bank: CentralBankView) -> None:
-        """Pay the interest and the repayment of the debt, borrowing anew what the firm lacks."""
+        """Pay the interest and the repayment of the debt.
+
+        The firm borrows anew what it lacks.
+        """
         debt = -agent.loans
         interest, principal = agent.interest * debt, agent.repayment * debt
         self._borrow(agent, bank, interest + principal - agent.money)
@@ -657,7 +681,10 @@ class BusinessElement(Element):
         transfer(bank, agent, principal, 'loans')
 
     def _adjust(self, agent: BusinessView, workers: list[SettlerView], patch: PlotView, sold_out: bool) -> None:
-        """Adjust the price, the wage, and the workforce to the stock, the labour, and the sales."""
+        """Adjust the price, the wage, and the workforce.
+
+        They follow the stock, the labour, and the sales.
+        """
         step = agent.adjustment
         if sold_out:
             agent.price *= 1 + step
@@ -675,7 +702,9 @@ class BusinessElement(Element):
         agent.vacancies = float(max(wanted - len(workers), 0))
 
     def produce(self, agent: BusinessView, system: SystemView) -> None:
-        """Harvest with the workers, pay wages and the bank, adjust, and pay a dividend to the owner.
+        """Harvest with the workers, pay wages and the bank, and adjust.
+
+        It then pays a dividend to the owner.
 
         Args:
             agent:
@@ -712,7 +741,10 @@ class BusinessElement(Element):
 
     @staticmethod
     def _people_by_id(system: SystemView) -> dict[int, SettlerView]:
-        """Return the living people by id, built once per step in the storage of the caller."""
+        """Return the living people by id.
+
+        They are built once per step in the storage of the caller.
+        """
         cached = system.storage.get('people')
         if not isinstance(cached, _PeopleSpec) or cached.time != system.time:
             people = {person.id: person for person in system.agents('people', SettlerView) if person.alive}
@@ -722,7 +754,7 @@ class BusinessElement(Element):
 
 
 class CommonsInteraction(Interaction):
-    """Harvest of the hunter-gatherers, who pool the labour of the adults on a patch and share the food equally.
+    """Harvest of the hunter-gatherers.
 
     The adults of a patch harvest `min(food, labour - resistance)`, and everyone on the patch, child or adult, gets an
     equal share.
@@ -785,11 +817,11 @@ class CommonsInteraction(Interaction):
 
 
 class EstateInteraction(Interaction):
-    """Settlement of the estates of the dead, who leave their money and loans to an heir, with a census of the step.
+    """Settlement of the estates of the dead, with a census of the step.
 
-    The money and the loans of a dead person go to a random living person of its patch, or of anywhere. When nobody
-    lives to inherit them, the dead person stays as an estate that holds them. The reporters `births`, `starvations`,
-    and `old_age` count the events of a step.
+    The dead leave their money and loans to an heir. The money and the loans of a dead person go to a random living
+    person of its patch, or of anywhere. When nobody lives to inherit them, the dead person stays as an estate that
+    holds them. The reporters `births`, `starvations`, and `old_age` count the events of a step.
 
     Args:
         label:
@@ -820,7 +852,10 @@ class EstateInteraction(Interaction):
         self.people = people
 
     def _settle(self, dead: SettlerView, living: list[SettlerView], system: SystemView) -> None:
-        """Leave the money and the loans of a dead person to an heir, and remove the person."""
+        """Leave the money and the loans of a dead person to an heir.
+
+        Then remove the person.
+        """
         near = [person for person in living if person.location == dead.location] or living
         if near:
             heir = near[int(system.rng.integers(len(near)))]
@@ -860,14 +895,13 @@ class EstateInteraction(Interaction):
 
 
 class FoodMarketInteraction(MatchingInteraction[SystemView]):
-    """Food market in which people short of food, in random order, buy from the cheapest stocked shop within sight.
+    """Food market in which people short of food buy from the cheapest shop in sight.
 
-    A matching of the people, who request their `shortfall` of food for `reserve` steps within the budget of
-    their money, with the firms, which provide their stock at their price. Every purchase moves the money to the firm,
-    which books it as revenue, and the food to the buyer. Build it with
+    They buy in random order, from stocked shops. A matching of the people, who request their `shortfall` of food for
+    `reserve` steps within the budget of their money, with the firms, which provide their stock at their price. Every
+    purchase moves the money to the firm, which books it as revenue, and the food to the buyer. Build it with
     `PartnerSpec(sight, 'score', score=FoodMarketInteraction.score, clearing='provider')`, whose score prefers the
-    lowest price. Besides the reporters of a matching, the reporter `gdp` sums the value of
-    the sales of a step.
+    lowest price. Besides the reporters of a matching, the reporter `gdp` sums the value of the sales of a step.
 
     Examples:
         >>> from skcomplex.core.specs import PartnerSpec
@@ -913,7 +947,9 @@ class FoodMarketInteraction(MatchingInteraction[SystemView]):
             match.provider.revenue += match.quantity * match.value
 
     def _report_matches(self, matches: list[MatchSpec], unmatched: float, system: SystemView) -> None:
-        """Report the price, the volume, the unmatched quantity, and the value of the sales of the step.
+        """Report the price, the volume, the unmatched quantity, and the sales value.
+
+        The sales are those of the step.
 
         Args:
             matches:
@@ -930,11 +966,11 @@ class FoodMarketInteraction(MatchingInteraction[SystemView]):
 
 
 class LabourMarketInteraction(MatchingInteraction[SystemView]):
-    """Labour market in which unemployed adults, in random order, take the best-paying vacancy within their sight.
+    """Labour market in which unemployed adults take the best-paying vacancy in sight.
 
-    A matching of the people, who request a job, with the firms, which provide their vacancies: a person whose
-    `hireable` limit admits a job takes the firm of the highest wage within its sight that still has a vacancy, and
-    moves to it. Build it with
+    They take it in random order. A matching of the people, who request a job, with the firms, which provide their
+    vacancies: a person whose `hireable` limit admits a job takes the firm of the highest wage within its sight that
+    still has a vacancy, and moves to it. Build it with
     `PartnerSpec(sight, 'score', score=LabourMarketInteraction.score, clearing='provider')`.
 
     Examples:
@@ -998,7 +1034,10 @@ SIGHT = 5.0
 
 
 def _bank_balance(bank: SimpleNamespace) -> float:
-    """Return the money the bank has issued plus the loans it holds, zero when every unit of money is a loan."""
+    """Return the money the bank has issued plus the loans it holds.
+
+    It is zero when every unit of money is a loan.
+    """
     return float(bank.money + bank.loans)
 
 
@@ -1014,7 +1053,10 @@ def _money_gini(money: object) -> float:
 
 
 def _metaphoria_observables(system: System) -> list[ObservableSpec]:
-    """Return the living population, the Gini coefficient of money, and the bank balance of a monetary economy."""
+    """Return the population, the Gini coefficient of money, and the bank balance.
+
+    The population is the living one, of a monetary economy.
+    """
     observables = [
         ObservableSpec('population', group='people', variable='fate', reduce=_living),
         ObservableSpec('money_gini', group='people', variable='money', reduce=_money_gini),
@@ -1025,17 +1067,17 @@ def _metaphoria_observables(system: System) -> list[ObservableSpec]:
 
 
 class MetaphoriaSystem(BaseSystem):
-    """Gooding's Metaphoria, a mortal population of hunter-gatherers or of a monetary economy.
+    """Gooding's Metaphoria.
 
-    Patches of a periodic lattice hold food that grows back to a random capacity and resist harvesting with a random
-    resistance. People need food every step, age, die of starvation or old age, and have children who inherit their
-    propensities to breed, explore, found firms, and quit jobs, with mutations, so the propensities evolve under the
-    test of survival. Hunter-gatherers pool the labour of the adults on a patch and share the harvest. In the monetary
-    economy firms harvest with paid workers, sell the food in shops, and borrow the wages from a bank that creates
-    money as loans, so the money of all holders sums to zero at every step. Gooding found the hunter-gatherers stable,
-    and the monetary population smaller and less healthy, with money concentrating to a Gini coefficient near 0.5. On
-    land where the hunter-gatherers thrive the monetary population dwindles towards extinction, and with abundant food
-    it lives on with persistent starvation.
+    It is a mortal population of hunter-gatherers or of a monetary economy. Patches of a periodic lattice hold food that
+    grows back to a random capacity and resist harvesting with a random resistance. People need food every step, age,
+    die of starvation or old age, and have children who inherit their propensities to breed, explore, found firms, and
+    quit jobs, with mutations, so the propensities evolve under the test of survival. Hunter-gatherers pool the labour
+    of the adults on a patch and share the harvest. In the monetary economy firms harvest with paid workers, sell the
+    food in shops, and borrow the wages from a bank that creates money as loans, so the money of all holders sums to
+    zero at every step. Gooding found the hunter-gatherers stable, and the monetary population smaller and less healthy,
+    with money concentrating to a Gini coefficient near 0.5. On land where the hunter-gatherers thrive the monetary
+    population dwindles towards extinction, and with abundant food it lives on with persistent starvation.
 
     The system has the group `patches`, one per cell, the variable group `people`, the reporters `census.births`,
     `census.starvations`, and `census.old_age`, and the observables `population` and `money_gini`. The monetary economy
@@ -1239,7 +1281,10 @@ class MetaphoriaSystem(BaseSystem):
         )
 
     def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings, with the observables of the parts built from the model parameters."""
+        """Return the tuned run settings.
+
+        The observables of the parts are built from the model parameters.
+        """
         settings = super().get_run_settings()
         settings['observables'] = _metaphoria_observables(self._pass_parameters())
         return settings

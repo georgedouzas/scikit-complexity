@@ -1,4 +1,7 @@
-"""Natural resources systems: capital that grows by extracting a nonrenewable or a renewable resource."""
+"""Natural resources systems: capital that grows by extracting a resource.
+
+The resource is nonrenewable or renewable.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -27,12 +30,12 @@ PRICE_BY_YIELD = (10.0, 7.0, 5.0, 3.0, 2.0, 1.5, 1.2)
 
 
 class FisheryElement(Element):
-    """Capital that harvests a regenerating resource, with a price that rises as the yield falls.
+    """Capital that harvests a regenerating resource.
 
-    The resource regenerates at a rate per unit of stock that is a hump-shaped table of the stock, zero when it is
-    empty or full. The harvest is the capital times the yield per unit of capital, a table of the stock. The fishery
-    holds the stocks, the parameters, and the tables, and transfers within it of the system move the resource and the
-    capital.
+    Its price rises as the yield falls. The resource regenerates at a rate per unit of stock that is a hump-shaped table
+    of the stock, zero when it is empty or full. The harvest is the capital times the yield per unit of capital, a table
+    of the stock. The fishery holds the stocks, the parameters, and the tables, and transfers within it of the system
+    move the resource and the capital.
 
     Args:
         label:
@@ -100,12 +103,12 @@ OIL_YIELD = (0.0, 0.1, 0.25, 0.45, 0.65, 0.8, 0.9, 0.95, 0.98, 1.0, 1.0)
 
 
 class OilEconomyElement(Element):
-    """Capital that extracts a nonrenewable resource and reinvests its profit up to a growth goal.
+    """Capital that extracts a nonrenewable resource.
 
-    Extraction is the capital times the yield per unit of capital, a table of the resource stock. The profit is the
-    price times the extraction minus the operating cost of the capital. The price is constant, or a table of the yield
-    when a price table is given. The economy holds the stocks, the parameters, and the tables, and transfers within it
-    of the system move the resource and the capital.
+    It reinvests its profit up to a growth goal. Extraction is the capital times the yield per unit of capital, a table
+    of the resource stock. The profit is the price times the extraction minus the operating cost of the capital. The
+    price is constant, or a table of the yield when a price table is given. The economy holds the stocks, the
+    parameters, and the tables, and transfers within it of the system move the resource and the capital.
 
     Args:
         label:
@@ -186,17 +189,26 @@ def _efficiency(holder: SimpleNamespace, yields: Sequence[float]) -> Expression:
 
 
 def _investment(holder: SimpleNamespace, revenue: Expression) -> Expression:
-    """Return the investment, the profit of a revenue clipped to the growth goal per unit of capital."""
+    """Return the investment.
+
+    It is the profit of a revenue clipped to the growth goal per unit of capital.
+    """
     return clip(revenue - holder.cost * holder.capital, 0, holder.growth_goal * holder.capital)
 
 
 def _harvest(holder: SimpleNamespace, yields: Sequence[float]) -> Expression:
-    """Return the harvest or extraction, the capital times the yield per unit of capital."""
+    """Return the harvest or extraction.
+
+    It is the capital times the yield per unit of capital.
+    """
     return holder.capital * _efficiency(holder, yields)
 
 
 def _capital(label: str, holder: str) -> TransferInteraction:
-    """Return the depreciation of the capital of a holder, reported as `<holder>.depreciation`."""
+    """Return the depreciation of the capital of a holder.
+
+    It is reported as `<holder>.depreciation`.
+    """
     return TransferInteraction(
         label,
         source=holder,
@@ -209,11 +221,11 @@ def _capital(label: str, holder: str) -> TransferInteraction:
 
 
 class OilEconomySystem(BaseSystem):
-    """Meadows' oil economy, capital that grows on a nonrenewable resource and collapses as it runs out.
+    """Meadows' oil economy, capital that grows on a nonrenewable resource.
 
-    The capital grows exponentially while extraction is cheap, peaks as falling yields cut the profit, and declines with
-    depreciation, leaving part of the resource in the ground. The system has the resource `oil.resource` and the capital
-    `oil.capital`.
+    The capital collapses as the resource runs out. The capital grows exponentially while extraction is cheap, peaks as
+    falling yields cut the profit, and declines with depreciation, leaving part of the resource in the ground. The
+    system has the resource `oil.resource` and the capital `oil.capital`.
 
     Args:
         resource:
@@ -320,12 +332,12 @@ class OilEconomySystem(BaseSystem):
 
 
 class FisheryCapitalSystem(BaseSystem):
-    """Meadows' fishing fleet, capital that grows on a renewable resource and can overshoot it.
+    """Meadows' fishing fleet, capital that grows on a renewable resource.
 
-    The capital grows while the harvest pays, and the outcome depends on the yield per unit of capital. With the default
-    yield, which falls with the square of the stock, the fleet and the stock settle at an equilibrium. A technology that
-    keeps the yield high at low stocks lets the fleet overshoot, and the stock and then the fleet collapse. The system
-    has the resource `fishery.resource` and the capital `fishery.capital`.
+    The capital can overshoot the resource. The capital grows while the harvest pays, and the outcome depends on the
+    yield per unit of capital. With the default yield, which falls with the square of the stock, the fleet and the stock
+    settle at an equilibrium. A technology that keeps the yield high at low stocks lets the fleet overshoot, and the
+    stock and then the fleet collapse. The system has the resource `fishery.resource` and the capital `fishery.capital`.
 
     Args:
         resource:

@@ -1,4 +1,7 @@
-"""Block segregation systems: stochastic moves between blocks of a city driven by the utility of their densities."""
+"""Block segregation systems: stochastic moves between blocks of a city.
+
+The utility of their densities drives the moves.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,7 +22,10 @@ from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpe
 
 
 class DwellerView(AgentView):
-    """View of a dweller of the stochastic Schelling system, with its states and parameters as attributes."""
+    """View of a dweller of the stochastic Schelling system.
+
+    Its states and parameters are attributes.
+    """
 
     block: float
     beta: float
@@ -29,7 +35,9 @@ class DwellerView(AgentView):
 
 
 class DwellerElement(Element):
-    """Agent of the stochastic Schelling system, whose utility `a * rho + b` depends on the density of its block.
+    """Agent of the stochastic Schelling system, with the utility `a * rho + b`.
+
+    The utility depends on the density of its block.
 
     Args:
         label:
@@ -81,12 +89,15 @@ class DwellerElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[DwellerView]:
-        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        """Return the class of the views of the agents.
+
+        Their attributes are the states and parameters.
+        """
         return DwellerView
 
 
 class BlockMovesInteraction(MovementInteraction):
-    """Moves of the stochastic Schelling system, from an agent's cell to a random empty cell of another block.
+    """Moves of the stochastic Schelling system.
 
     A visited agent proposes to move to a random empty cell of the grid, and stays when the cell lies in its own block.
     With block densities `rho_i` before and `rho_f'` after the move, the proposal is accepted with probability
@@ -157,7 +168,10 @@ class BlockMovesInteraction(MovementInteraction):
         )
 
     def _accept(self, agent: AgentViewProtocol, cell: object, system: SystemViewProtocol) -> float:
-        """Return the probability `1 / (1 + exp(beta * dU))` of a move of an agent to a cell of another block."""
+        """Return the probability `1 / (1 + exp(beta * dU))` of a move of an agent.
+
+        The move is to a cell of another block.
+        """
         if not isinstance(agent, DwellerView):
             return 0.0
         counts = system.composition('target', 'block')
@@ -202,9 +216,9 @@ PHASE = 'default'
 
 
 class StochasticSchellingSystem(BaseSystem):
-    """The stochastic Schelling system of agents moving between blocks, which segregates above `beta = 2`.
+    """The stochastic Schelling system of agents moving between blocks.
 
-    The system has the group `dwellers`.
+    It segregates above `beta = 2`. The system has the group `dwellers`.
 
     Args:
         width:

@@ -1,4 +1,7 @@
-"""Memristive mixed-mode oscillator: a slow-fast circuit with a cubic flux-controlled memristor."""
+"""Memristive mixed-mode oscillator.
+
+It is a slow-fast circuit with a cubic flux-controlled memristor.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,10 +20,11 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class MemristiveCircuitElement(Element):
-    """Slow-fast circuit with a cubic flux-controlled memristor, whose oscillations mix small and large amplitudes.
+    """Slow-fast circuit with a cubic flux-controlled memristor.
 
-    The memristor has the charge `q = a w + b w^3` of its flux `w`, so its memductance is `a + 3 b w^2`, and the
-    circuit follows `epsilon x' = -y - (a + 3 b w^2) x`, `y' = alpha (x - R y - z + e)`, `z' = -β y`, and `w' = x`.
+    Its oscillations mix small and large amplitudes. The memristor has the charge `q = a w + b w^3` of its flux `w`, so
+    its memductance is `a + 3 b w^2`, and the circuit follows `epsilon x' = -y - (a + 3 b w^2) x`,
+    `y' = alpha (x - R y - z + e)`, `z' = -β y`, and `w' = x`.
 
     Args:
         label:
@@ -120,16 +124,16 @@ class MemristiveCircuitElement(Element):
 
 
 class MemristiveMixedModeOscillatorSystem(BaseSystem):
-    """A slow-fast circuit with a cubic flux-controlled memristor, whose oscillations mix two amplitudes.
+    """A slow-fast circuit with a cubic flux-controlled memristor.
 
-    The memristor has the charge `q = a w + b w^3` of its flux `w`, and with the voltage `x` of the memristor, the
-    current `y` of the inductor, and the voltage `z` of the second capacitor, the circuit follows
-    `epsilon x' = -y - (a + 3 b w^2) x`, `y' = alpha (x - R y - z + e)`, `z' = -β y`, and `w' = x`. Trzaska prints the
-    memductance as `a + 3 b w`, but only the derivative `a + 3 b w^2` of the characteristic gives the response he
-    reports: for the defaults, from rest, the voltage settles on the mixed-mode oscillation `2^11`, two large spikes
-    and eleven small oscillations in a period of about 7.9, against the 7.816 he reports. The spikes last about a
-    hundredth of the period, so the tuned solver runs at the relative tolerance `1e-8`, below which looser runs drift
-    to an irregular pattern of shorter periods.
+    Its oscillations mix two amplitudes. The memristor has the charge `q = a w + b w^3` of its flux `w`, and with the
+    voltage `x` of the memristor, the current `y` of the inductor, and the voltage `z` of the second capacitor, the
+    circuit follows `epsilon x' = -y - (a + 3 b w^2) x`, `y' = alpha (x - R y - z + e)`, `z' = -β y`, and `w' = x`.
+    Trzaska prints the memductance as `a + 3 b w`, but only the derivative `a + 3 b w^2` of the characteristic gives the
+    response he reports: for the defaults, from rest, the voltage settles on the mixed-mode oscillation `2^11`, two
+    large spikes and eleven small oscillations in a period of about 7.9, against the 7.816 he reports. The spikes last
+    about a hundredth of the period, so the tuned solver runs at the relative tolerance `1e-8`, below which looser runs
+    drift to an irregular pattern of shorter periods.
 
     The system has the states `circuit.x`, `circuit.y`, `circuit.z`, and `circuit.w`.
 

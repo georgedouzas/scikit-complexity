@@ -1,4 +1,7 @@
-"""Undecided systems: opinions against, undecided, and for, on a network and in the mean-field flows between them."""
+"""Undecided systems: opinions against, undecided, and for.
+
+They live on a network and in the mean-field flows between them.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,14 +25,19 @@ from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 
 class UndecidedView(AgentView):
-    """View of a voter of the three-state opinion system, with its states and parameters as attributes."""
+    """View of a voter of the three-state opinion system.
+
+    Its states and parameters are attributes.
+    """
 
     opinion: float
     sensitivity: float
 
 
 class UndecidedElement(Element):
-    """Voter who is against, undecided, or for, at -1, 0, or 1, and redraws its opinion from its neighbours.
+    """Voter who is against, undecided, or for, at -1, 0, or 1.
+
+    It redraws its opinion from its neighbours.
 
     Args:
         label:
@@ -64,7 +72,10 @@ class UndecidedElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[UndecidedView]:
-        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        """Return the class of the views of the agents.
+
+        Their attributes are the states and parameters.
+        """
         return UndecidedView
 
 
@@ -130,24 +141,30 @@ class UndecidedFlowsElement(Element):
 
 
 def _logistic_half(argument: float) -> float:
-    """Return `f(t) = 1 / (2 (1 + exp(-t)))`, the probability of one side, with values in (0, 1/2)."""
+    """Return `f(t) = 1 / (2 (1 + exp(-t)))`, the probability of one side.
+
+    Its values lie in (0, 1/2).
+    """
     return float(0.5 / (1.0 + np.exp(-np.clip(argument, -500.0, 500.0))))
 
 
 def _critical_size(s: SimpleNamespace) -> Expression:
-    """Return the critical size `N_c = omega (1 / gamma + 1 / eta)` of the flows driven by the undecided."""
+    """Return the critical size `N_c = omega (1 / gamma + 1 / eta)`.
+
+    It is the critical size of the flows driven by the undecided.
+    """
     return s.omega * (1 / s.gamma + 1 / s.eta)
 
 
 class ThreeStateOpinionSystem(BaseSystem):
-    """The three-state opinion system of agents against, undecided, and for, on a random regular network.
+    """The three-state opinion system on a random regular network.
 
-    Every step the agents redraw their opinions one after the other in random order, each from the sum `x` of the
-    opinions of its neighbours: against with the probability `f(-beta x)`, for with `f(beta x)`, and undecided
-    otherwise, where `f(t) = 1 / (2 (1 + exp(-t)))` (Jensen 2023 section 11.5, Project 1). Since
-    `f(t) + f(-t) = 1 / 2`, half of the draws are undecided. In mean field, with every agent seeing `q <x>`, the mean
-    opinion solves `<x> = tanh(beta q <x> / 2) / 2`, which has a non-zero solution only above `beta_c = 4 / q`. On the
-    sparse network, domains of both signs and the undecided half keep the order weaker than in mean field.
+    The agents are against, undecided, or for. Every step the agents redraw their opinions one after the other in random
+    order, each from the sum `x` of the opinions of its neighbours: against with the probability `f(-beta x)`, for with
+    `f(beta x)`, and undecided otherwise, where `f(t) = 1 / (2 (1 + exp(-t)))` (Jensen 2023 section 11.5, Project 1).
+    Since `f(t) + f(-t) = 1 / 2`, half of the draws are undecided. In mean field, with every agent seeing `q <x>`, the
+    mean opinion solves `<x> = tanh(beta q <x> / 2) / 2`, which has a non-zero solution only above `beta_c = 4 / q`. On
+    the sparse network, domains of both signs and the undecided half keep the order weaker than in mean field.
 
     The system has the group `voters`.
 

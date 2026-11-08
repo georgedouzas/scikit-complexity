@@ -1,4 +1,7 @@
-"""Hypergraph games: public goods in hyperedges, and two- and three-player dilemmas on a simplicial complex."""
+"""Hypergraph games: public goods in hyperedges, and dilemmas on a complex.
+
+The complex is simplicial. The dilemmas are two- and three-player.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,10 +28,11 @@ from ._contributor import ContributorElement
 
 
 class DilemmaElement(Element):
-    """Player of the social dilemmas on a simplicial complex, a cooperator at 1 and a defector at 0, with its payoff.
+    """Player of the social dilemmas on a simplicial complex, with its payoff.
 
-    The play is a `SimplicialDilemmaInteraction` of the network, and the imitation an `ImitationInteraction` that
-    reads the payoffs of the same step, which `SimplicialSocialDilemmasSystem` adds.
+    It is a cooperator at 1 and a defector at 0. The play is a `SimplicialDilemmaInteraction` of the network, and the
+    imitation an `ImitationInteraction` that reads the payoffs of the same step, which `SimplicialSocialDilemmasSystem`
+    adds.
 
     Args:
         label:
@@ -68,12 +72,12 @@ class DilemmaElement(Element):
 
 
 class HyperedgeGoodsInteraction(CouplingInteraction):
-    """Play of the public goods game in every hyperedge around a player, which sets the payoffs.
+    """Play of the public goods game in every hyperedge around a player.
 
-    It is a `CouplingInteraction` over the hyperedges of a network in the map form, a cooperator at 1 and a defector
-    at 0. In every hyperedge of `m` members a cooperator pays 1, and the pot multiplied by `synergy` is shared by the
-    `m` members, so the payoff of a player is the sum over its hyperedges of its share minus its contribution. The
-    synergy is a parameter of the players.
+    The play sets the payoffs. It is a `CouplingInteraction` over the hyperedges of a network in the map form, a
+    cooperator at 1 and a defector at 0. In every hyperedge of `m` members a cooperator pays 1, and the pot multiplied
+    by `synergy` is shared by the `m` members, so the payoff of a player is the sum over its hyperedges of its share
+    minus its contribution. The synergy is a parameter of the players.
 
     Args:
         label:
@@ -103,7 +107,10 @@ class HyperedgeGoodsInteraction(CouplingInteraction):
         )
 
     def _get_share(self, hyperedge: SimpleNamespace) -> Expression:
-        """Return the share of the pot of a hyperedge for its member, minus the contribution of the member."""
+        """Return the share of the pot of a hyperedge for its member.
+
+        The contribution of the member is subtracted.
+        """
         pot = hyperedge.member.synergy * total(hyperedge.members.strategy, over=hyperedge.members)
         return pot / count(over=hyperedge.members) - hyperedge.member.strategy
 
@@ -112,15 +119,16 @@ PAIR = 2
 
 
 class SimplicialDilemmaInteraction(CouplingInteraction):
-    """Play of two-player games along the links of the triangles of a simplicial complex, which sets the payoffs.
+    """Play of two-player games along the links of the triangles of a complex.
 
-    It is a `CouplingInteraction` over the hyperedges of a network in the map form, a cooperator at 1 and a defector
-    at 0. Every game pays 1 for mutual cooperation, 0 for mutual defection, and the sucker's payoff `S` and the
-    temptation `T` when the strategies differ. A triangle of three links is three hyperedges of two members, along
-    which the players play game 1 of `S1` and `T1`. A triangle filled as a 2-simplex is one hyperedge of three members,
-    where a player plays each other member while the third looks on: game 2 of `S2` and `T2` when the third member
-    shares the player's strategy, and game 3 of `S3` and `T3` otherwise. The payoff of a player is the sum over the two
-    links of every triangle around it divided by twice its number of triangles, a parameter of the players.
+    The complex is simplicial. The play sets the payoffs. It is a `CouplingInteraction` over the hyperedges of a network
+    in the map form, a cooperator at 1 and a defector at 0. Every game pays 1 for mutual cooperation, 0 for mutual
+    defection, and the sucker's payoff `S` and the temptation `T` when the strategies differ. A triangle of three links
+    is three hyperedges of two members, along which the players play game 1 of `S1` and `T1`. A triangle filled as a
+    2-simplex is one hyperedge of three members, where a player plays each other member while the third looks on: game 2
+    of `S2` and `T2` when the third member shares the player's strategy, and game 3 of `S3` and `T3` otherwise. The
+    payoff of a player is the sum over the two links of every triangle around it divided by twice its number of
+    triangles, a parameter of the players.
 
     Args:
         label:
@@ -187,11 +195,11 @@ class SimplicialDilemmaInteraction(CouplingInteraction):
         self.temptation_opposed = temptation_opposed
 
     def _get_games(self, hyperedge: SimpleNamespace) -> Expression:
-        """Return the payoff of a member from the games along its links in one hyperedge of two or three members.
+        """Return the payoff of a member from the games along its links in one hyperedge.
 
-        In a link a cooperator earns 1 or `S1` and a defector `T1` or 0 against a cooperator or a defector. In a
-        2-simplex with `c` cooperating others a cooperator earns 2, `1 + S2`, or `2 S3`, and a defector `2 T3`, `T2`, or
-        0, for `c` of 2, 1, or 0.
+        The hyperedge has two or three members. In a link a cooperator earns 1 or `S1` and a defector `T1` or 0 against
+        a cooperator or a defector. In a 2-simplex with `c` cooperating others a cooperator earns 2, `1 + S2`, or `2
+        S3`, and a defector `2 T3`, `T2`, or 0, for `c` of 2, 1, or 0.
         """
         own = hyperedge.member.strategy
         others = total(hyperedge.members.strategy, over=hyperedge.members) - own
@@ -211,7 +219,10 @@ class SimplicialDilemmaInteraction(CouplingInteraction):
 
     @staticmethod
     def _get_mean(player: SimpleNamespace, games: Expression) -> Expression:
-        """Return the payoffs of the games of a player divided by twice its number of triangles."""
+        """Return the payoffs of the games of a player over its triangles.
+
+        They are divided by twice its number of triangles.
+        """
         return games / (PAIR * player.member.triangles)
 
 
@@ -222,14 +233,14 @@ PHASES = ('play', 'imitate')
 
 
 class HypergraphPublicGoodsSystem(BaseSystem):
-    """The public goods game on a hypergraph, played in every hyperedge, with Fermi imitation.
+    """The public goods game on a hypergraph, played in every hyperedge.
 
-    Every hyperedge is a group that plays the public goods game: a cooperator pays 1, and the pot multiplied by
-    `synergy` is shared by the members. Every step has two phases. In the phase `play` every player takes the sum of
-    its shares minus its contributions over the hyperedges around it, and in the phase `imitate` every player copies a
-    random neighbour, a member of one of its hyperedges, with the Fermi probability `1 / (1 + exp((P_own - P_other) /
-    K))` of the payoffs of the same step, at the noise `K`. In a well-mixed population defection wins in a group of `m`
-    for `synergy < m`, so cooperation needs a synergy near the sizes of the hyperedges.
+    The imitation follows the Fermi rule. Every hyperedge is a group that plays the public goods game: a cooperator pays
+    1, and the pot multiplied by `synergy` is shared by the members. Every step has two phases. In the phase `play`
+    every player takes the sum of its shares minus its contributions over the hyperedges around it, and in the phase
+    `imitate` every player copies a random neighbour, a member of one of its hyperedges, with the Fermi probability
+    `1 / (1 + exp((P_own - P_other) / K))` of the payoffs of the same step, at the noise `K`. In a well-mixed population
+    defection wins in a group of `m` for `synergy < m`, so cooperation needs a synergy near the sizes of the hyperedges.
 
     The system has the strategies `players.strategy` and the payoffs `players.payoff`.
 
@@ -293,7 +304,10 @@ class HypergraphPublicGoodsSystem(BaseSystem):
 
     @staticmethod
     def _hypergraph(n_nodes: int, sizes: Sequence[int], hyperdegree: float, rng: np.random.Generator) -> xgi.Hypergraph:
-        """Return a hypergraph of hyperedges of random members, `hyperdegree` of every size around a node on average."""
+        """Return a hypergraph of hyperedges of random members.
+
+        On average a node has `hyperdegree` hyperedges of every size around it.
+        """
         hypergraph = xgi.Hypergraph()
         hypergraph.add_nodes_from(range(n_nodes))
         for size in sizes:
@@ -332,16 +346,16 @@ class HypergraphPublicGoodsSystem(BaseSystem):
 
 
 class SimplicialSocialDilemmasSystem(BaseSystem):
-    """The social dilemmas of Guo et al. on the links and the 2-simplices of a simplicial complex.
+    """The social dilemmas of Guo et al. on a simplicial complex.
 
-    The network grows from a complete graph on five nodes, every new node joining both ends of a random link, which
-    forms one new triangle. A share `simplices` of the triangles, drawn at random, are 2-simplices, and the others are
-    three links. Players play game 1 along the links of a plain triangle, and in a 2-simplex game 2 against a member
-    when the third member shares their strategy and game 3 otherwise, every game paying 1 for mutual cooperation, 0
-    for mutual defection, and `S` and `T` to a cooperator and a defector that meet. The payoff of a player is the mean
-    over the two links of every triangle around it. Every step has two phases: in `play` every player takes its
-    payoff, and in `imitate` every player copies a random neighbour with the Fermi probability `1 / (1 + exp((P_own -
-    P_other) / K))` at the noise `K`.
+    They are played on the links and the 2-simplices of the complex. The network grows from a complete graph on five
+    nodes, every new node joining both ends of a random link, which forms one new triangle. A share `simplices` of the
+    triangles, drawn at random, are 2-simplices, and the others are three links. Players play game 1 along the links of
+    a plain triangle, and in a 2-simplex game 2 against a member when the third member shares their strategy and game 3
+    otherwise, every game paying 1 for mutual cooperation, 0 for mutual defection, and `S` and `T` to a cooperator and a
+    defector that meet. The payoff of a player is the mean over the two links of every triangle around it. Every step
+    has two phases: in `play` every player takes its payoff, and in `imitate` every player copies a random neighbour
+    with the Fermi probability `1 / (1 + exp((P_own - P_other) / K))` at the noise `K`.
 
     The review of Majhi et al. writes the payoff as a mean over the links of a player of the mean over the triangles of
     each link, and picks game 2 when `s_ki = s_kj`. This system takes the mean over the links of the triangles, which
@@ -428,7 +442,10 @@ class SimplicialSocialDilemmasSystem(BaseSystem):
 
     @staticmethod
     def _triangle_attachment(n_nodes: int, rng: np.random.Generator) -> tuple[nx.Graph, list[tuple[int, ...]]]:
-        """Return a network grown from a complete graph on five nodes, joining each new node to both ends of a link."""
+        """Return a network grown from a complete graph on five nodes.
+
+        Each new node joins both ends of a link.
+        """
         graph = nx.complete_graph(CLIQUE)
         triangles: list[tuple[int, ...]] = list(itertools.combinations(range(CLIQUE), 3))
         edges = list(graph.edges)

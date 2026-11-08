@@ -1,4 +1,7 @@
-"""Neural networks: Hopfield's memory, its diluted version, reservoir computers, and Elman's recurrent network."""
+"""Neural networks: Hopfield memories, reservoir computers, and Elman's network.
+
+The Hopfield memories include its diluted version, and Elman's network is recurrent.
+"""
 
 from ._diluted import DilutedHopfieldSystem, DilutedNeuronElement
 from ._echo_state import EchoStateNetworkSystem, ReservoirUnitElement

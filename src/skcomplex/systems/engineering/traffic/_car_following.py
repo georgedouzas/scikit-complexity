@@ -21,7 +21,10 @@ from ..common._optimal_velocity import OptimalVelocityInteraction
 
 
 class LeadCarElement(Element):
-    """Lead car whose speed swings about a cruising speed `u` with an amplitude and a frequency."""
+    """Lead car whose speed swings about a cruising speed `u`.
+
+    The swing has an amplitude and a frequency.
+    """
 
     law_classes = (RateLaw,)
 
@@ -49,11 +52,11 @@ class LeadCarElement(Element):
 
 
 class DelayedFollowingInteraction(RateInteraction):
-    """Acceleration of a follower car by the speed difference to its leader, both seen a reaction time late.
+    """Acceleration of a follower car by the speed difference to its leader.
 
-    The speed of the follower follows the Gazis-Herman-Rothery law
-    `v_f'(t) = λ (v_l - v_f)(t - T) / (x_l - x_f)(t - T)^m` of the sensitivity `λ`, the reaction time `T`, and the
-    power `m` of the gap.
+    Both cars are seen a reaction time late. The speed of the follower follows the Gazis-Herman-Rothery law
+    `v_f'(t) = λ (v_l - v_f)(t - T) / (x_l - x_f)(t - T)^m` of the sensitivity `λ`, the reaction time `T`, and the power
+    `m` of the gap.
 
     Args:
         label:
@@ -100,11 +103,11 @@ class DelayedFollowingInteraction(RateInteraction):
 
 
 class IntelligentDriverInteraction(RateInteraction):
-    """Acceleration of every car of a ring road by the intelligent driver system of its speed and the car ahead.
+    """Acceleration of every car of a ring road by the intelligent driver system.
 
-    The speed follows `v' = a (1 - (v / v0)^δ - (s*(v, Δv) / (h - l))^2)`, with the desired gap
-    `s* = s0 + v T + v Δv / (2 sqrt(a b))`, the approach rate `Δv` to the next car, and the headway `h` less the car
-    length `l`.
+    The acceleration depends on its speed and the car ahead. The speed follows
+    `v' = a (1 - (v / v0)^δ - (s*(v, Δv) / (h - l))^2)`, with the desired gap `s* = s0 + v T + v Δv / (2 sqrt(a b))`,
+    the approach rate `Δv` to the next car, and the headway `h` less the car length `l`.
 
     Args:
         label:
@@ -175,20 +178,23 @@ class IntelligentDriverInteraction(RateInteraction):
 
 
 def _ring_positions(n_cars: int, length: float, perturbation: float) -> list[float]:
-    """Return evenly spaced positions on a ring, with the first car moved forward by a perturbation."""
+    """Return evenly spaced positions on a ring.
+
+    The first car is moved forward by a perturbation.
+    """
     positions = np.arange(n_cars) * length / n_cars
     positions[0] += perturbation
     return [float(position) for position in positions]
 
 
 class OptimalVelocitySystem(BaseSystem):
-    """The optimal velocity system of cars on a ring road, where uniform flow breaks into stop-and-go waves.
+    """The optimal velocity system of cars on a ring road.
 
-    Car `i` relaxes its speed towards the optimal velocity of its headway `h`, `v_i' = a (V(h) - v_i)` with `V(h) = V0
-    (tanh(h - hc) + tanh(hc))`. Uniform flow with headway `b = length / n_cars` is unstable when `V'(b) > a / 2`, and
-    then a jam forms that moves against the direction of travel. The cars are one group, and the headway of car `i` is
-    the distance along the ring to member `i + 1`. The system has the group `cars` of positions `cars.x` and speeds
-    `cars.v`, car `i + 1` ahead of car `i`.
+    Uniform flow breaks into stop-and-go waves. Car `i` relaxes its speed towards the optimal velocity of its headway
+    `h`, `v_i' = a (V(h) - v_i)` with `V(h) = V0 (tanh(h - hc) + tanh(hc))`. Uniform flow with headway
+    `b = length / n_cars` is unstable when `V'(b) > a / 2`, and then a jam forms that moves against the direction of
+    travel. The cars are one group, and the headway of car `i` is the distance along the ring to member `i + 1`. The
+    system has the group `cars` of positions `cars.x` and speeds `cars.v`, car `i + 1` ahead of car `i`.
 
     Args:
         n_cars:
@@ -370,12 +376,13 @@ class IntelligentDriverSystem(BaseSystem):
 
 
 class DelayedCarFollowingSystem(BaseSystem):
-    """A chain of cars that react to the speed difference to the car ahead after a reaction time.
+    """A chain of cars that react to the speed difference to the car ahead.
 
-    Car `j + 1` follows car `j` as `x''_{j+1}(t) = λ Δv(t - T) / Δx(t - T)^power`, where `Δv` and `Δx` are the speed and
-    position differences to the car ahead. The lead car drives at `u (1 - amplitude sin(ω t))`. Oscillations grow along
-    the chain when `ω < 2 λ sin(ω T)` for the linear system, `power = 0`. The system has the lead car `car_0` and the
-    cars `car_<j>` behind it, with positions `x` and speeds `v`.
+    They react after a reaction time. Car `j + 1` follows car `j` as `x''_{j+1}(t) = λ Δv(t - T) / Δx(t - T)^power`,
+    where `Δv` and `Δx` are the speed and position differences to the car ahead. The lead car drives at
+    `u (1 - amplitude sin(ω t))`. Oscillations grow along the chain when `ω < 2 λ sin(ω T)` for the linear system,
+    `power = 0`. The system has the lead car `car_0` and the cars `car_<j>` behind it, with positions `x` and speeds
+    `v`.
 
     Args:
         n_cars:

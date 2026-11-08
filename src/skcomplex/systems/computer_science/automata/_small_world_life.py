@@ -1,4 +1,7 @@
-"""Automata systems on networks: the Game of Life on a small-world network rewired from the Moore lattice."""
+"""Automata systems on networks: the Game of Life on a small-world network.
+
+The network is rewired from the Moore lattice.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -32,7 +35,9 @@ def _alive_fraction(alive: AnyArray) -> float:
 
 
 class SmallWorldLifeSystem(BaseSystem):
-    """Conway's Game of Life on a small-world network rewired from the Moore lattice of a torus.
+    """Conway's Game of Life on a small-world network.
+
+    The network is rewired from the Moore lattice of a torus.
 
     Every cell is a node linked to its eight Moore neighbours. The rewiring cuts two random links and joins the four
     loose ends the other way, which keeps every node at eight neighbours, and repeats it `p` times half the number of
@@ -94,7 +99,10 @@ class SmallWorldLifeSystem(BaseSystem):
 
     @staticmethod
     def _moore_torus(shape: Sequence[int]) -> nx.Graph:
-        """Return the graph of the cells of a torus, each linked to its eight Moore neighbours, in row-major order."""
+        """Return the graph of the cells of a torus.
+
+        Each cell is linked to its eight Moore neighbours, in row-major order.
+        """
         rows, columns = shape
         graph = nx.Graph()
         graph.add_nodes_from(range(rows * columns))
@@ -106,14 +114,20 @@ class SmallWorldLifeSystem(BaseSystem):
 
     @staticmethod
     def _life(s: SimpleNamespace) -> Expression:
-        """Return the next state of a cell of the Game of Life from its live neighbours on the network."""
+        """Return the next state of a cell of the Game of Life.
+
+        It is read from the live neighbours of the cell on the network.
+        """
         live = neighbors(s.target.other.alive)
         born_or_kept = either(live == BIRTH, both(s.target.alive == 1, live == SURVIVAL))
         alive: Expression = where(born_or_kept, 1, 0)
         return alive
 
     def _build_system(self) -> System:
-        """Return Conway's Game of Life on a small-world network rewired from the Moore lattice of a torus."""
+        """Return Conway's Game of Life on a small-world network.
+
+        The network is rewired from the Moore lattice of a torus.
+        """
         if not 0 <= self.p <= 1:
             error_msg = f'The rewiring probability is {self.p!r}. Give a number in [0, 1].'
             raise ParameterError(error_msg)

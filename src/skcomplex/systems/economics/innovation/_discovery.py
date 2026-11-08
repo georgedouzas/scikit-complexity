@@ -1,4 +1,7 @@
-"""Innovation systems: discovery processes of explorers whose urns grow and share their adjacent possible."""
+"""Innovation systems: discovery processes of explorers whose urns grow.
+
+The urns share their adjacent possible.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,7 +22,10 @@ from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSp
 
 
 class BallView(AgentView):
-    """Balls of one colour as the urn sees them: their `color`, their `count`, and whether the node `drawn` it."""
+    """Balls of one colour as the urn sees them.
+
+    They hold their `color`, their `count`, and whether the node `drawn` it.
+    """
 
     color: float
     count: float
@@ -27,7 +33,9 @@ class BallView(AgentView):
 
 
 class BallElement(Element):
-    """Balls of one colour in the urn of a node, with how many there are and whether the node has drawn the colour.
+    """Balls of one colour in the urn of a node.
+
+    The element holds how many there are and whether the node has drawn the colour.
 
     A ball agent stands for every ball of its colour in the urn of the node it sits on, so the set of ball agents on a
     node is the set of colours of its urn, and their multiplicities make the urn a multiset.
@@ -75,7 +83,10 @@ class BallElement(Element):
 
 
 class UrnView(AgentView):
-    """Urn as its rules see it: its `novelties`, the `color` of its last draw, and whether that draw was `novel`."""
+    """Urn as its rules see it.
+
+    It holds its `novelties`, the `color` of its last draw, and whether that draw was `novel`.
+    """
 
     novelties: float
     color: float
@@ -88,13 +99,14 @@ BALLS = 'balls'
 
 
 class UrnElement(Element):
-    """Urn with triggering on a node of a network, which draws from its own balls and those of its neighbours.
+    """Urn with triggering on a node of a network.
 
-    The urn of the interacting discovery processes of Iacopini et al. (2020). The urn of a node is the set of ball
-    agents on its node. Every step the node draws one ball from its social urn, its own balls with their multiplicities
-    and one ball of every colour in the urns of its neighbours, in the phase `'draw'`. In the phase `'grow'` it adds
-    `rho` balls of the drawn colour to its own urn, and when it draws the colour for the first time, a novelty, it adds
-    one ball of each of `nu + 1` colours that no urn held before, the adjacent possible.
+    It draws from its own balls and those of its neighbours. The urn of the interacting discovery processes of Iacopini
+    et al. (2020). The urn of a node is the set of ball agents on its node. Every step the node draws one ball from its
+    social urn, its own balls with their multiplicities and one ball of every colour in the urns of its neighbours, in
+    the phase `'draw'`. In the phase `'grow'` it adds `rho` balls of the drawn colour to its own urn, and when it draws
+    the colour for the first time, a novelty, it adds one ball of each of `nu + 1` colours that no urn held before, the
+    adjacent possible.
 
     Args:
         label:
@@ -152,7 +164,9 @@ class UrnElement(Element):
         return UrnView
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the draw from the social urn and the growth of the own urn, in their phases.
+        """Return the draw from the social urn and the growth of the own urn.
+
+        They run in their phases.
 
         Args:
             namespace:
@@ -166,7 +180,9 @@ class UrnElement(Element):
 
     @staticmethod
     def draw(agent: UrnView, system: SystemView) -> None:
-        """Draw a ball from the social urn of the node, and record its colour and whether it is a novelty.
+        """Draw a ball from the social urn of the node.
+
+        It records its colour and whether it is a novelty.
 
         Args:
             agent:
@@ -187,7 +203,9 @@ class UrnElement(Element):
 
     @staticmethod
     def grow(agent: UrnView, system: SystemView) -> None:
-        """Reinforce the drawn colour in the own urn and, after a novelty, add the colours of the adjacent possible.
+        """Reinforce the drawn colour in the own urn.
+
+        After a novelty, it adds the colours of the adjacent possible.
 
         Args:
             agent:
@@ -219,14 +237,15 @@ class UrnElement(Element):
 
 
 class InteractingUrnsNetworkSystem(BaseSystem):
-    """One urn with triggering per node of a network, which draws from its own urn and those of its neighbours.
+    """One urn with triggering per node of a network.
 
-    The discovery process of Iacopini et al. (2020, Eqs. 1 and 2). Every node holds an urn of `m0` balls of colours
-    that no other urn holds. Every step every node draws one ball from its social urn, its own urn and one ball of every
-    colour of the urns of its neighbours, all from the urns at the start of the step. It then adds `rho` balls of the
-    drawn colour to its own urn, and when it draws a colour for the first time, a novelty, `nu + 1` balls of colours
-    that no urn held before. The number of novelties of a node grows as Heaps' law `D_i(t) ~ t^beta_i`, with
-    `beta = nu / rho` for an isolated urn and higher exponents for nodes whose neighbours enlarge their social urns.
+    Every node draws from its own urn and those of its neighbours. The discovery process of Iacopini et al. (2020, Eqs.
+    1 and 2). Every node holds an urn of `m0` balls of colours that no other urn holds. Every step every node draws one
+    ball from its social urn, its own urn and one ball of every colour of the urns of its neighbours, all from the urns
+    at the start of the step. It then adds `rho` balls of the drawn colour to its own urn, and when it draws a colour
+    for the first time, a novelty, `nu + 1` balls of colours that no urn held before. The number of novelties of a node
+    grows as Heaps' law `D_i(t) ~ t^beta_i`, with `beta = nu / rho` for an isolated urn and higher exponents for nodes
+    whose neighbours enlarge their social urns.
 
     The urn of a node is the set of ball agents of the variable group `balls` on its node, one agent per colour with its
     multiplicity, which the node reads with `agents_here` and its neighbours with `neighbors(group='balls')`. The system

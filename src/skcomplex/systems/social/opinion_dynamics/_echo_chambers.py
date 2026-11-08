@@ -1,4 +1,7 @@
-"""Echo chamber systems: radicalization of opinions over an activity-driven network with homophily."""
+"""Echo chamber systems: radicalization of opinions over a network.
+
+The network is activity-driven. The network has homophily.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -30,7 +33,9 @@ PAIR = 2
 
 
 class RadicalElement(Element):
-    """Agent with an unbounded opinion, whose sign is its stance and whose size is its conviction, and an activity.
+    """Agent with an unbounded opinion and an activity.
+
+    The sign of the opinion is its stance and its size is its conviction.
 
     Args:
         label:
@@ -70,13 +75,14 @@ class RadicalElement(Element):
 
 
 class RadicalizationInteraction(Interaction):
-    """Opinion dynamics of Baumann and coauthors, `dx_i/dt = -x_i + K sum_j A_ij(t) tanh(alpha x_j)`.
+    """Opinion dynamics of Baumann and coauthors.
 
-    Every step of the system integrates the opinions with `substeps` Euler steps of length `dt`, and draws a new
-    temporal network for every one of them. In a draw, every agent is active with the probability of its activity and
-    contacts `contacts` distinct others, each chosen with the probability `|x_i - x_j|^-beta` normalized over the
-    others. A contacted agent receives the influence of the agent that contacts it, which receives the influence back
-    when the contact is reciprocated, with the probability `reciprocity`.
+    The opinions follow `dx_i/dt = -x_i + K sum_j A_ij(t) tanh(alpha x_j)`. Every step of the system integrates the
+    opinions with `substeps` Euler steps of length `dt`, and draws a new temporal network for every one of them. In a
+    draw, every agent is active with the probability of its activity and contacts `contacts` distinct others, each
+    chosen with the probability `|x_i - x_j|^-beta` normalized over the others. A contacted agent receives the influence
+    of the agent that contacts it, which receives the influence back when the contact is reciprocated, with the
+    probability `reciprocity`.
 
     Args:
         label:
@@ -153,7 +159,10 @@ class RadicalizationInteraction(Interaction):
         return [RuleLaw(self.influence)]
 
     def _get_inputs(self, opinions: Array, activities: Array, rng: np.random.Generator) -> Array:
-        """Return the summed influence `sum_j A_ij tanh(alpha x_j)` every agent receives from one temporal network."""
+        """Return the summed influence `sum_j A_ij tanh(alpha x_j)` on every agent.
+
+        The influence comes from one temporal network.
+        """
         size = opinions.size
         influence = np.tanh(self.controversy * opinions)
         inputs = np.zeros(size)
@@ -189,18 +198,18 @@ class RadicalizationInteraction(Interaction):
 
 
 class EchoChamberRadicalizationSystem(BaseSystem):
-    """The radicalization model of echo chambers of Baumann and coauthors on an activity-driven network.
+    """The radicalization model of echo chambers of Baumann and coauthors.
 
-    Opinions follow `dx_i/dt = -x_i + K sum_j A_ij(t) tanh(alpha x_j)`, where the controversialness `alpha` shapes
-    the influence and `A_ij(t)` is an activity-driven temporal network redrawn at every integration step `dt = 0.01`:
-    agent `i` is active with the probability `a_i`, drawn from `F(a) ~ a^-gamma` on `[epsilon, 1]`, and contacts `m`
-    others with the homophilic probability `|x_i - x_j|^-beta / sum_j |x_i - x_j|^-beta`, and a contact is
-    reciprocated with the probability `r` (arXiv 1906.12325 Eqs. 1 and 2). Opinions start uniformly spaced on
-    `[-1, 1]`. For small `K alpha` they reach the neutral consensus, above `alpha_c = 1 / ((1 + r) K m <a>)` they
-    radicalize, all to one side without homophily (`beta = 0`), and into two opposite echo chambers with it. The
-    defaults are the polarized case of Fig. 1(c), `K = 3`, `alpha = 3`, `beta = 3`, `r = 0.5`, `m = 10`, and
-    `gamma = 2.1`, with fewer agents than the 1000 of the paper so a step is fast. Every step of the system is ten
-    integration steps.
+    It runs on an activity-driven network. Opinions follow `dx_i/dt = -x_i + K sum_j A_ij(t) tanh(alpha x_j)`, where the
+    controversialness `alpha` shapes the influence and `A_ij(t)` is an activity-driven temporal network redrawn at every
+    integration step `dt = 0.01`: agent `i` is active with the probability `a_i`, drawn from `F(a) ~ a^-gamma` on
+    `[epsilon, 1]`, and contacts `m` others with the homophilic probability
+    `|x_i - x_j|^-beta / sum_j |x_i - x_j|^-beta`, and a contact is reciprocated with the probability `r` (arXiv
+    1906.12325 Eqs. 1 and 2). Opinions start uniformly spaced on `[-1, 1]`. For small `K alpha` they reach the neutral
+    consensus, above `alpha_c = 1 / ((1 + r) K m <a>)` they radicalize, all to one side without homophily (`beta = 0`),
+    and into two opposite echo chambers with it. The defaults are the polarized case of Fig. 1(c), `K = 3`, `alpha = 3`,
+    `beta = 3`, `r = 0.5`, `m = 10`, and `gamma = 2.1`, with fewer agents than the 1000 of the paper so a step is fast.
+    Every step of the system is ten integration steps.
 
     The system has the group `agents`.
 

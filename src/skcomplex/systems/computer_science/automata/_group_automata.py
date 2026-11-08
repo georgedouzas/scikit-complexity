@@ -1,4 +1,7 @@
-"""Automata on groups: majority and parity rules on Cayley balls, a linear Laplacian, and the golden mean shift."""
+"""Automata on groups: majority, parity, and linear rules, and a golden mean shift.
+
+The linear rule is the discrete Laplacian. The majority and parity rules run on Cayley balls.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -29,7 +32,9 @@ GOLDEN_MEAN = SubshiftSpec(LatticeNeighborhood(((0,), (1,))), ((1, 1),))
 
 
 class GoldenCellElement(Element):
-    """Cell of the golden mean shift, whose state `alive` is 0 or 1 and whose configurations hold no two adjacent ones.
+    """Cell of the golden mean shift, whose state `alive` is 0 or 1.
+
+    Its configurations hold no two adjacent ones.
 
     Args:
         label:
@@ -59,7 +64,9 @@ class GoldenCellElement(Element):
 
 
 class LaplacianCellElement(Element):
-    """Cell of an automaton over the field of a prime number of elements, such as the discrete Laplacian on a ring.
+    """Cell of an automaton over the field of a prime number of elements.
+
+    An example is the discrete Laplacian on a ring.
 
     Args:
         label:
@@ -100,7 +107,10 @@ FLIP_PROBABILITY = 0.5
 
 
 def _majority(center: Array, *values: Array, degree: Array) -> Array:
-    """Return the value held by more than half of a cell and its neighbours inside the space, keeping it on a tie."""
+    """Return the value held by more than half of a cell and its neighbours.
+
+    Only the neighbours inside the space count, and a tie keeps the value.
+    """
     total = center + np.sum(values, axis=0)
     count = degree + 1
     return np.where(2 * total > count, 1.0, np.where(2 * total < count, 0.0, center))
@@ -130,11 +140,11 @@ def _majority_system(
 
 
 class FreeGroupAutomatonSystem(BaseSystem):
-    """The majority automaton on a ball of the free group, a tree in which every cell follows its neighbours.
+    """The majority automaton on a ball of the free group.
 
-    Every cell reads itself and the cells at its generators and their inverses, and takes the majority value, so the
-    random start freezes into blocks of agreeing cells. Cells on the boundary count only their neighbours inside the
-    ball. The system has the cells `cells.alive`.
+    The ball is a tree in which every cell follows its neighbours. Every cell reads itself and the cells at its
+    generators and their inverses, and takes the majority value, so the random start freezes into blocks of agreeing
+    cells. Cells on the boundary count only their neighbours inside the ball. The system has the cells `cells.alive`.
 
     Args:
         rank:
@@ -193,10 +203,11 @@ class FreeGroupAutomatonSystem(BaseSystem):
 
 
 class LamplighterAutomatonSystem(BaseSystem):
-    """The parity automaton on a ball of the lamplighter group, a linear rule over the field of two elements.
+    """The parity automaton on a ball of the lamplighter group.
 
-    Every cell takes the sum modulo 2 of itself and the cells at the generators `a` and `b`, so a few ones spread into
-    nested, self-similar patterns over the Diestel-Leader graph of the group. The system has the cells `cells.alive`.
+    It is a linear rule over the field of two elements. Every cell takes the sum modulo 2 of itself and the cells at the
+    generators `a` and `b`, so a few ones spread into nested, self-similar patterns over the Diestel-Leader graph of the
+    group. The system has the cells `cells.alive`.
 
     Args:
         radius:
@@ -258,10 +269,10 @@ class LamplighterAutomatonSystem(BaseSystem):
 
 
 class HeisenbergAutomatonSystem(BaseSystem):
-    """The majority automaton on a ball of the discrete Heisenberg group, of polynomial growth of degree 4.
+    """The majority automaton on a ball of the discrete Heisenberg group.
 
-    Every cell reads itself and the cells at `a`, `a^-1`, `b`, and `b^-1`, on the right, and takes the majority value.
-    The system has the cells `cells.alive`.
+    The group has polynomial growth of degree 4. Every cell reads itself and the cells at `a`, `a^-1`, `b`, and `b^-1`,
+    on the right, and takes the majority value. The system has the cells `cells.alive`.
 
     Args:
         radius:
@@ -315,11 +326,11 @@ class HeisenbergAutomatonSystem(BaseSystem):
 
 
 class BaumslagSolitarAutomatonSystem(BaseSystem):
-    """The majority automaton on a ball of the Baumslag-Solitar group `BS(m, n)`, of exponential growth.
+    """The majority automaton on a ball of the Baumslag-Solitar group `BS(m, n)`.
 
-    Every cell reads itself and the cells at `a`, `a^-1`, `t`, and `t^-1`, and takes the majority value. The ball is
-    built from a confluent rewriting system of the presentation, which GAP finds for `BS(1, n)`. The system has the
-    cells `cells.alive`.
+    The group has exponential growth. Every cell reads itself and the cells at `a`, `a^-1`, `t`, and `t^-1`, and takes
+    the majority value. The ball is built from a confluent rewriting system of the presentation, which GAP finds for
+    `BS(1, n)`. The system has the cells `cells.alive`.
 
     Args:
         m:
@@ -371,7 +382,10 @@ class BaumslagSolitarAutomatonSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return the majority automaton on a ball of the Baumslag-Solitar group `BS(m, n)`, of exponential growth."""
+        """Return the majority automaton on a ball of a Baumslag-Solitar group.
+
+        The group is `BS(m, n)`, of exponential growth.
+        """
         space = CayleySpace(baumslag_solitar(self.m, self.n), ball=self.radius)
         return _majority_system(
             self.label,
@@ -383,7 +397,9 @@ class BaumslagSolitarAutomatonSystem(BaseSystem):
 
 
 class LinearRingAutomatonSystem(BaseSystem):
-    """The discrete Laplacian as a linear automaton on a ring, over the field of `modulus` elements.
+    """The discrete Laplacian as a linear automaton on a ring.
+
+    It runs over the field of `modulus` elements.
 
     The ring is the cyclic group of order `size`, a periodic lattice, and every cell becomes `x(g - 1) + x(g + 1) - 2
     x(g)` modulo the field size, the element `a^-1 + a - 2` of the group ring. From a single 1 in the middle the values
@@ -426,11 +442,17 @@ class LinearRingAutomatonSystem(BaseSystem):
 
     @staticmethod
     def _laplacian(left: Array, center: Array, right: Array, *, modulus: float) -> Array:
-        """Return the discrete Laplacian `x(g - 1) + x(g + 1) - 2 x(g)` modulo the field size."""
+        """Return the discrete Laplacian `x(g - 1) + x(g + 1) - 2 x(g)`.
+
+        It is taken modulo the field size.
+        """
         return (left + right - 2 * center) % modulus
 
     def _build_system(self) -> System:
-        """Return the discrete Laplacian as a linear automaton on a ring, over the field of `modulus` elements."""
+        """Return the discrete Laplacian as a linear automaton on a ring.
+
+        It runs over the field of `modulus` elements.
+        """
         values = np.zeros(self.size)
         values[self.size // 2] = 1.0
         return System(
@@ -456,7 +478,9 @@ class LinearRingAutomatonSystem(BaseSystem):
 
 
 class SubshiftsSystem(BaseSystem):
-    """A Markov chain on the golden mean shift, the configurations of a ring that never hold two adjacent ones.
+    """A Markov chain on the golden mean shift.
+
+    The shift holds the configurations of a ring that never hold two adjacent ones.
 
     The ring is the cyclic group of order `size`, a periodic lattice. It starts empty, and every step proposes to flip
     every cell in a random order, rejecting the flips that would put two ones side by side. The chain samples the
@@ -494,7 +518,10 @@ class SubshiftsSystem(BaseSystem):
 
     @staticmethod
     def _golden_move(left: Array, center: Array, right: Array, *, random: Array) -> Array:
-        """Return the cell flipped with probability one half, unless a 1 would sit next to another 1."""
+        """Return the cell flipped with probability one half.
+
+        The flip is refused when a 1 would sit next to another 1.
+        """
         flipped = np.where(random < FLIP_PROBABILITY, 1.0 - center, center)
         blocked = (flipped == 1) & ((left == 1) | (right == 1))
         return np.where(blocked, center, flipped)
@@ -518,11 +545,11 @@ class SubshiftsSystem(BaseSystem):
 
 
 class GrigorchukAutomatonSystem(BaseSystem):
-    """The majority automaton on a ball of the Grigorchuk group, a group of intermediate growth.
+    """The majority automaton on a ball of the Grigorchuk group.
 
-    Every cell reads itself and the cells at the generators `a`, `b`, `c`, and `d`, all of order 2, and takes the
-    majority value. The ball of radius 8 holds 271 sites, and cells on its boundary count only their neighbours inside
-    it. The system has the cells `cells.alive`.
+    The group has intermediate growth. Every cell reads itself and the cells at the generators `a`, `b`, `c`, and `d`,
+    all of order 2, and takes the majority value. The ball of radius 8 holds 271 sites, and cells on its boundary count
+    only their neighbours inside it. The system has the cells `cells.alive`.
 
     Args:
         radius:
@@ -564,7 +591,10 @@ class GrigorchukAutomatonSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return the majority automaton on a ball of the Grigorchuk group, a group of intermediate growth."""
+        """Return the majority automaton on a ball of the Grigorchuk group.
+
+        The group has intermediate growth.
+        """
         return _majority_system(
             self.label,
             CayleySpace(grigorchuk_group(), ball=self.radius),

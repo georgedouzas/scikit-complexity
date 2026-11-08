@@ -23,10 +23,10 @@ def _piezo_voltage(s: SimpleNamespace) -> Expression:
 
 
 class PiezoHarvesterElement(Element):
-    """Two-mass suspension of a car whose spring presses a piezoelectric bar as the road shakes it.
+    """Two-mass suspension of a car whose spring presses a piezoelectric bar.
 
-    The element holds the tyre between the unsprung mass and the road, and the system joins the two masses by a
-    `SpringDamperInteraction` of the stiffness `k2` and the damping `b`.
+    The road shakes the suspension. The element holds the tyre between the unsprung mass and the road, and the system
+    joins the two masses by a `SpringDamperInteraction` of the stiffness `k2` and the damping `b`.
     """
 
     law_classes = (RateLaw,)
@@ -68,18 +68,22 @@ class PiezoHarvesterElement(Element):
         self.C = C
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the acceleration of the unsprung mass by the tyre on the road, the suspension apart."""
+        """Return the acceleration of the unsprung mass by the tyre on the road.
+
+        It leaves the suspension apart.
+        """
         return [RateLaw(s.y1, -s.k1 * (s.y1 - s.A * sin(s.omega * s.t)) / s.m1)]
 
 
 class VibrationEnergyHarvesterSystem(BaseSystem):
-    """A dual-mass piezoelectric harvester in a car suspension, driven by the roughness of the road.
+    """A dual-mass piezoelectric harvester in a car suspension.
 
-    The unsprung and sprung masses follow `m1 y1'' + b (y1' - y2') + k2 (y1 - y2) + k1 (y1 - z(t)) = 0` and `m2 y2'' + b
-    (y2' - y1') + k2 (y2 - y1) = 0`, with the road profile `z(t) = A sin(ω t)`. A lever with arm ratio `n` presses a
-    piezoelectric bar of constant `d` and capacitance `C`, whose charge is `n d k2 (y2 - y1)` and whose voltage is the
-    observable `voltage`. The damper `b` stands for the energy the bar absorbs. The system has the displacements
-    `harvester.y1` and `harvester.y2`, and the observable `voltage`.
+    The roughness of the road drives it. The unsprung and sprung masses follow
+    `m1 y1'' + b (y1' - y2') + k2 (y1 - y2) + k1 (y1 - z(t)) = 0` and `m2 y2'' + b (y2' - y1') + k2 (y2 - y1) = 0`, with
+    the road profile `z(t) = A sin(ω t)`. A lever with arm ratio `n` presses a piezoelectric bar of constant `d` and
+    capacitance `C`, whose charge is `n d k2 (y2 - y1)` and whose voltage is the observable `voltage`. The damper `b`
+    stands for the energy the bar absorbs. The system has the displacements `harvester.y1` and `harvester.y2`, and the
+    observable `voltage`.
 
     Args:
         m1:

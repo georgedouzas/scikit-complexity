@@ -1,4 +1,7 @@
-"""Fredkin's replicator: a planar parity automaton whose local law copies any pattern into translated replicas."""
+"""Fredkin's replicator: a planar parity automaton that replicates patterns.
+
+Its local law copies any pattern into translated replicas.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,7 +25,9 @@ HALF_CELL = 0.5
 
 
 class FredkinReplicatorSystem(BaseSystem):
-    """Fredkin's parity automaton, whose local law copies any initial pattern into translated replicas.
+    """Fredkin's parity automaton.
+
+    Its local law copies any initial pattern into translated replicas.
 
     Every cell takes the sum modulo 2 of its four nearest neighbours, `x(i, j, n + 1) = x(i - 1, j, n) + x(i + 1, j, n)
     + x(i, j - 1, n) + x(i, j + 1, n) (mod 2)`. The law is linear over the integers modulo 2, and raising it to the
@@ -70,7 +75,10 @@ class FredkinReplicatorSystem(BaseSystem):
         self.radius = radius
 
     def _build_system(self) -> System:
-        """Return Fredkin's parity automaton, whose local law copies any initial pattern into translated replicas."""
+        """Return Fredkin's parity automaton.
+
+        Its local law copies any initial pattern into translated replicas.
+        """
         if self.initial is None:
             rows, columns = np.indices(tuple(self.shape))
             distance = np.hypot(rows - self.shape[0] // 2, columns - self.shape[1] // 2)

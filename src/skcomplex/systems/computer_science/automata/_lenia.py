@@ -1,4 +1,7 @@
-"""Lenia: a continuous automaton of ring-kernel convolutions, and its expanded universe of kernels and channels."""
+"""Lenia: a continuous automaton of ring-kernel convolutions, and its expansion.
+
+The expanded universe adds kernels and channels.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,9 +28,10 @@ from ....core.types import AnyArray, Array
 
 
 class LeniaSiteElement(Element):
-    """Site of a Lenia world, with a value in `[0, 1]` for each of up to three channels.
+    """Site of a Lenia world, with a value in `[0, 1]` for each of its channels.
 
-    The updates of the world change the channels, and a world of one channel leaves `B` and `C` at 0.
+    A world has up to three channels. The updates of the world change the channels, and a world of one channel leaves
+    `B` and `C` at 0.
 
     Args:
         label:
@@ -70,7 +74,9 @@ type RingKernel = tuple[str, float, float, Sequence[float], float, float]
 
 
 class LeniaUpdateInteraction(Interaction):
-    """Update of a channel of a Lenia world by the growth maps of the convolutions of channels with ring kernels.
+    """Update of a channel of a Lenia world by the growth maps of convolutions.
+
+    The convolutions are of channels with ring kernels.
 
     Every kernel `(source, radius, h, beta, mu, sigma)` reads the state of its source channel, and its concentric
     rings peak at `beta`. At the distance `q` in units of its radius, with `B` rings, it is `beta_i K_C(B q - i)` on
@@ -147,7 +153,10 @@ class LeniaUpdateInteraction(Interaction):
 
     @staticmethod
     def _shell(q: Expression, peaks: Sequence[float]) -> Expression:
-        """Return the rings of a kernel at the distance `q` in units of its radius, zero outside the unit ball."""
+        """Return the rings of a kernel at the distance `q` in units of its radius.
+
+        They are zero outside the unit ball.
+        """
         rings = len(peaks)
         shell: Expression = 0
         for index, peak in enumerate(peaks):
@@ -210,19 +219,19 @@ def _mass(values: AnyArray) -> float:
 
 
 class LeniaSystem(BaseSystem):
-    """Lenia, a continuous automaton whose ring-kernel convolutions grow gliding, lifelike solitons.
+    """Lenia, a continuous automaton whose ring-kernel convolutions grow solitons.
 
-    The world is a torus of sites with values in `[0, 1]`, and one step of `1 / T` adds the growth map of the
-    convolution of the world with a ring kernel and clips the result, `A <- [A + G(K * A) / T]` in `[0, 1]`, with `G(u)
-    = 2 exp(-(u - mu)^2 / (2 sigma^2)) - 1` and the kernel of radius `R`, whose concentric rings peak at `beta`. The
-    expanded universe of Chan (2020) has several channels and several kernels `(source, destination, r, h, beta, mu,
-    sigma)`, each of radius `r R` with its own growth map, which reads its source channel and grows its destination with
-    the weight `h` over the sum of the weights into that destination, `A_j <- [A_j + sum_k (h_k / h_j) G_k(K_k * A_i) /
-    T]`, on worlds of three or more dimensions. By default the world holds Orbium unicaudatus, which glides across the
-    torus at a steady speed while its mass stays near 71. Every step of the system is one update, so a unit of Lenia's
-    time takes `T` steps. The system has the values `world.A`, `world.B`, and `world.C` of the three channels of the
-    sites, the last two at 0 for a world of one channel. Its standard observables `mass_A`, `mass_B`, and `mass_C` are
-    the totals of the values of every channel.
+    The solitons are gliding and lifelike. The world is a torus of sites with values in `[0, 1]`, and one step of
+    `1 / T` adds the growth map of the convolution of the world with a ring kernel and clips the result,
+    `A <- [A + G(K * A) / T]` in `[0, 1]`, with `G(u) = 2 exp(-(u - mu)^2 / (2 sigma^2)) - 1` and the kernel of radius
+    `R`, whose concentric rings peak at `beta`. The expanded universe of Chan (2020) has several channels and several
+    kernels `(source, destination, r, h, beta, mu, sigma)`, each of radius `r R` with its own growth map, which reads
+    its source channel and grows its destination with the weight `h` over the sum of the weights into that destination,
+    `A_j <- [A_j + sum_k (h_k / h_j) G_k(K_k * A_i) / T]`, on worlds of three or more dimensions. By default the world
+    holds Orbium unicaudatus, which glides across the torus at a steady speed while its mass stays near 71. Every step
+    of the system is one update, so a unit of Lenia's time takes `T` steps. The system has the values `world.A`,
+    `world.B`, and `world.C` of the three channels of the sites, the last two at 0 for a world of one channel. Its
+    standard observables `mass_A`, `mass_B`, and `mass_C` are the totals of the values of every channel.
 
     Args:
         shape:
@@ -322,7 +331,10 @@ class LeniaSystem(BaseSystem):
         return values
 
     def _build_system(self) -> System:
-        """Return Lenia, a continuous automaton whose ring-kernel convolutions grow gliding, lifelike solitons."""
+        """Return Lenia, a continuous automaton of ring-kernel convolutions.
+
+        Its convolutions grow solitons. The solitons are gliding and lifelike.
+        """
         shape = tuple(self.shape)
         if len(shape) < MIN_AXES or not 1 <= self.channels <= len(CHANNELS):
             error_msg = (

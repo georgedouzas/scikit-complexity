@@ -1,4 +1,7 @@
-"""Typewriting systems: Miller's monkeys, whose random keystrokes give a power law of word frequencies."""
+"""Typewriting systems: Miller's monkeys.
+
+Their random keystrokes give a power law of word frequencies.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,7 +22,10 @@ from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 class TypedWordView(AgentView):
-    """View of a typed word of the random typewriting system, with its states as attributes."""
+    """View of a typed word of the random typewriting system.
+
+    Its states are attributes.
+    """
 
     count: float
     length: float
@@ -27,7 +33,9 @@ class TypedWordView(AgentView):
 
 
 class TypedWordElement(Element):
-    """Distinct word of a randomly typed text, with its number of occurrences and its number of letters.
+    """Distinct word of a randomly typed text.
+
+    It holds its number of occurrences and its number of letters.
 
     Args:
         label:
@@ -72,12 +80,13 @@ class TypedWordElement(Element):
 
 
 class TypingInteraction(Interaction):
-    """Typing of Miller's monkeys, random keystrokes on a typewriter with a number of letters and a space bar.
+    """Typing of Miller's monkeys.
 
-    Every keystroke hits the space bar with the probability `space_bar`, and otherwise one of the `letters` letters,
-    uniformly. The space bar ends the word typed since the last space, a new distinct word or one more occurrence of
-    an earlier one, and a space after a space types no word. A word is held as its code, its letters `k_1, ..., k_L`
-    from 0 read as the digits `k_i + 1` of base `letters`, so distinct words have distinct codes.
+    The keystrokes are random, on a typewriter with a number of letters and a space bar. Every keystroke hits the space
+    bar with the probability `space_bar`, and otherwise one of the `letters` letters, uniformly. The space bar ends the
+    word typed since the last space, a new distinct word or one more occurrence of an earlier one, and a space after a
+    space types no word. A word is held as its code, its letters `k_1, ..., k_L` from 0 read as the digits `k_i + 1` of
+    base `letters`, so distinct words have distinct codes.
 
     Args:
         label:
@@ -167,14 +176,14 @@ class TypingInteraction(Interaction):
 
 
 class RandomTypewritingSystem(BaseSystem):
-    """Miller's random typewriting, monkeys whose random keystrokes give Zipf's law of word frequencies.
+    """Miller's random typewriting.
 
-    A typewriter has `letters` letters and a space bar hit with the probability `q = space`, and every space ends a
-    word. A word of `L` letters has the probability `q ((1 - q) / letters)^L`, so its frequency falls exponentially with
-    its length, while the number of distinct words of length `L` grows exponentially as `letters^L`. The two
-    exponentials give a power law of the frequency of the word of rank `r`, `r^(-alpha)` with `alpha = 1 - log(1 - q) /
-    log(letters)` (Thurner et al. 2018 section 3.3.6.2). The system has the variable group `words`, which starts with
-    the first word of the text.
+    The random keystrokes of monkeys give Zipf's law of word frequencies. A typewriter has `letters` letters and a space
+    bar hit with the probability `q = space`, and every space ends a word. A word of `L` letters has the probability
+    `q ((1 - q) / letters)^L`, so its frequency falls exponentially with its length, while the number of distinct words
+    of length `L` grows exponentially as `letters^L`. The two exponentials give a power law of the frequency of the word
+    of rank `r`, `r^(-alpha)` with `alpha = 1 - log(1 - q) / log(letters)` (Thurner et al. 2018 section 3.3.6.2). The
+    system has the variable group `words`, which starts with the first word of the text.
 
     Args:
         letters:

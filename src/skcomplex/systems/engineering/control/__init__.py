@@ -1,4 +1,7 @@
-"""Control: feedback loops that keep or drive a system towards a goal, and the controllers that close them."""
+"""Control: feedback loops that keep or drive a system towards a goal.
+
+It also holds the controllers that close them.
+"""
 
 from ._control import (
     THERMAL,

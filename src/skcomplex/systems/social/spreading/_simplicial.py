@@ -1,4 +1,7 @@
-"""Simplicial contagion: infection through the links and the filled triangles of a simplicial complex."""
+"""Simplicial contagion: infection through a simplicial complex.
+
+The infection goes through the links and the filled triangles.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -24,7 +27,9 @@ from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, V
 
 
 class InfectiveElement(Element):
-    """Node of a contagion, susceptible at 0 and infected at 1, that recovers at a rate.
+    """Node of a contagion, susceptible at 0 and infected at 1.
+
+    It recovers at a rate.
 
     Args:
         label:
@@ -68,10 +73,11 @@ PAIR = 2
 
 
 class SimplicialInfectionInteraction(HyperedgeInteraction):
-    """Infection of a susceptible node by the other members of a link or a filled triangle, when all are infected.
+    """Infection of a susceptible node by the other members of a link or a triangle.
 
-    A susceptible node of a link is infected at rate `beta` when its neighbour is infected, and a susceptible node of a
-    triangle at rate `beta_triangle` when both other members are infected.
+    The triangle is filled, and the infection needs all of them infected. A susceptible node of a link is infected at
+    rate `beta` when its neighbour is infected, and a susceptible node of a triangle at rate `beta_triangle` when both
+    other members are infected.
 
     Args:
         label:
@@ -108,7 +114,10 @@ class SimplicialInfectionInteraction(HyperedgeInteraction):
         self.beta_triangle = beta_triangle
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the infection of the focal node when every other member of its link or triangle is infected."""
+        """Return the infection of the focal node.
+
+        It happens when every other member of its link or triangle is infected.
+        """
         infected = s.member.infected
         rate = s.beta if len(s.others) + 1 == PAIR else s.beta_triangle
         exposed = math.prod((other.infected for other in s.others), start=where(infected == 0, 1, 0))
@@ -119,16 +128,17 @@ TRIANGLE = 3
 
 
 class SimplicialContagionSystem(BaseSystem):
-    """The simplicial contagion of Iacopini et al., an SIS process on the links and triangles of a complex.
+    """The simplicial contagion of Iacopini et al.
 
-    A random simplicial complex joins every pair of nodes with probability `p1` and fills every triple with probability
-    `p2`, chosen so that a node has `mean_degree` links and `mean_triangles` triangles on average. A susceptible node is
-    infected at rate `beta = infectivity * recovery / <k>` by every infected neighbour, and at rate `beta_triangle =
-    triangle_infectivity * recovery / <k_triangle>` by every triangle whose two other members are infected, and an
-    infected node recovers at rate `recovery`. The mean-field prevalence follows `rho' = -rho + infectivity rho (1 -
-    rho) + triangle_infectivity rho^2 (1 - rho)` in units of the recovery time. For `triangle_infectivity > 1` and
-    infectivities below the epidemic threshold 1, an endemic state coexists with the healthy one, so the epidemic
-    dies out from a small seed and persists from a large one.
+    It is an SIS process on the links and triangles of a complex. A random simplicial complex joins every pair of nodes
+    with probability `p1` and fills every triple with probability `p2`, chosen so that a node has `mean_degree` links
+    and `mean_triangles` triangles on average. A susceptible node is infected at rate
+    `beta = infectivity * recovery / <k>` by every infected neighbour, and at rate
+    `beta_triangle = triangle_infectivity * recovery / <k_triangle>` by every triangle whose two other members are
+    infected, and an infected node recovers at rate `recovery`. The mean-field prevalence follows
+    `rho' = -rho + infectivity rho (1 - rho) + triangle_infectivity rho^2 (1 - rho)` in units of the recovery time. For
+    `triangle_infectivity > 1` and infectivities below the epidemic threshold 1, an endemic state coexists with the
+    healthy one, so the epidemic dies out from a small seed and persists from a large one.
 
     The system has the states `nodes.infected` and the prevalence `prevalence`.
 
@@ -199,7 +209,10 @@ class SimplicialContagionSystem(BaseSystem):
 
     @staticmethod
     def _simplicial_complex(n_nodes: int, links: float, triangles: float, seed: int) -> tuple[nx.Graph, list[tuple]]:
-        """Return a random simplicial complex: random links, and random filled triangles whose sides join the links."""
+        """Return a random simplicial complex.
+
+        It holds random links, and random filled triangles whose sides join the links.
+        """
         simplices = xgi.random_simplicial_complex(n_nodes, [links, triangles], seed=seed)
         members = [tuple(sorted(edge)) for edge in simplices.edges.members(dtype=list)]
         graph = nx.Graph()

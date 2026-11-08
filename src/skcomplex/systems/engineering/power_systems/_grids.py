@@ -1,4 +1,7 @@
-"""Power grid systems: generators and consumers that synchronise through transmission lines."""
+"""Power grid systems: generators and consumers that synchronise.
+
+They synchronise through transmission lines.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,7 +23,10 @@ from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 class GridNodeElement(Element):
-    """Node of a power grid whose phase follows the swing equation with a power and a damping."""
+    """Node of a power grid whose phase follows the swing equation.
+
+    The swing equation has a power and a damping.
+    """
 
     law_classes = (RateLaw,)
 
@@ -46,9 +52,10 @@ class GridNodeElement(Element):
 
 
 class TransmissionLineInteraction(CouplingInteraction):
-    """Transmission line of a capacity that couples the phases of two nodes by the sine of their difference.
+    """Transmission line of a capacity that couples the phases of two nodes.
 
-    It is the coupling of the two nodes as separate elements, each getting `K sin(phi_j - phi_i)` from the other.
+    The coupling is the sine of their difference. It is the coupling of the two nodes as separate elements, each getting
+    `K sin(phi_j - phi_i)` from the other.
 
     Args:
         label:
@@ -79,13 +86,14 @@ class TransmissionLineInteraction(CouplingInteraction):
 
 
 class PowerGridSystem(BaseSystem):
-    """A ring power grid in the swing-equation system, where more transmission capacity can break synchrony.
+    """A ring power grid in the swing-equation system.
 
-    The phase of node `i` relative to the grid frequency follows `phi_i'' = P_i - gamma phi_i' + Σ_j K_ij sin(phi_j -
-    phi_i)`. The first half of the ring are generators with `P = power` and the second half consumers with `P = -power`,
-    joined by lines of capacity `K`. The default grid synchronises, but adding the line `(0, 2)` or doubling the
-    capacity of the line `(0, 1)` makes the flows overload a line, and synchrony is lost, which is Braess's paradox. The
-    system has the phases `node_<i>.phi` and frequency deviations `node_<i>.phi_d1`.
+    More transmission capacity can break synchrony. The phase of node `i` relative to the grid frequency follows
+    `phi_i'' = P_i - gamma phi_i' + Σ_j K_ij sin(phi_j - phi_i)`. The first half of the ring are generators with
+    `P = power` and the second half consumers with `P = -power`, joined by lines of capacity `K`. The default grid
+    synchronises, but adding the line `(0, 2)` or doubling the capacity of the line `(0, 1)` makes the flows overload a
+    line, and synchrony is lost, which is Braess's paradox. The system has the phases `node_<i>.phi` and frequency
+    deviations `node_<i>.phi_d1`.
 
     Args:
         n_nodes:

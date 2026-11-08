@@ -1,4 +1,7 @@
-"""Nonlinear consensus on temporal hypergraphs: opinions pulled by triangles that switch on and off in time."""
+"""Nonlinear consensus on temporal hypergraphs.
+
+Opinions are pulled by triangles that switch on and off in time.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -53,7 +56,9 @@ class OpinionElement(Element):
 
 
 class ScheduleElement(Element):
-    """Triangle of a temporal hypergraph, active in every other half of a period from its own phase.
+    """Triangle of a temporal hypergraph.
+
+    It is active in every other half of a period from its own phase.
 
     Args:
         label:
@@ -86,12 +91,12 @@ TRIANGLE = 3
 
 
 class ThreeBodyConsensusInteraction(HyperedgeInteraction):
-    """Nonlinear three-body consensus of Neuhäuser, Mellor, and Lambiotte, on the triangles active at the time.
+    """Nonlinear three-body consensus of Neuhäuser, Mellor, and Lambiotte.
 
-    The focal node `i` of an active triangle `ijk` moves towards the two others at the rate `s(|x_j - x_k|) (x_j + x_k -
-    2 x_i)`, with `s(d) = exp(reinforcement * d)`, so a pair that agrees pulls harder for a negative reinforcement. A
-    triangle is active when `sin(2 pi t / period + phase) > 0`, with the phase of the triangle member of the group on
-    hyperedges.
+    It acts on the triangles active at the time. The focal node `i` of an active triangle `ijk` moves towards the two
+    others at the rate `s(|x_j - x_k|) (x_j + x_k - 2 x_i)`, with `s(d) = exp(reinforcement * d)`, so a pair that agrees
+    pulls harder for a negative reinforcement. A triangle is active when `sin(2 pi t / period + phase) > 0`, with the
+    phase of the triangle member of the group on hyperedges.
 
     Args:
         label:
@@ -133,7 +138,10 @@ class ThreeBodyConsensusInteraction(HyperedgeInteraction):
         self.period = period
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the pull of the two other members of an active triangle on the focal node."""
+        """Return the pull of the two other members of an active triangle.
+
+        The pull acts on the focal node.
+        """
         x = s.member.x
         first, second = (other.x for other in s.others)
         active = where(sin(2 * pi * s.t / s.period + s.hyperedge.phase) > 0, 1, 0)
@@ -142,19 +150,22 @@ class ThreeBodyConsensusInteraction(HyperedgeInteraction):
 
 
 def _spread(s: SimpleNamespace) -> object:
-    """Return the squared distance of an opinion from zero, which the variance of the opinions averages."""
+    """Return the squared distance of an opinion from zero.
+
+    The variance of the opinions averages it.
+    """
     return s.x**2
 
 
 class HypergraphConsensusSystem(BaseSystem):
-    """The nonlinear three-body consensus system on a random hypergraph of triangles that switch on and off.
+    """The nonlinear three-body consensus system on a random hypergraph of triangles.
 
-    Every triple of nodes is a triangle with probability `triangles`, and every triangle is active in alternate half
-    periods from a random phase. On an active triangle `ijk`, node `i` follows `x_i' = s(|x_j - x_k|) (x_j + x_k - 2
-    x_i)` with `s(d) = exp(reinforcement * d)`. Without reinforcement the pulls of a triangle on its three members sum
-    to zero, so the mean opinion stays fixed whatever the schedules. With reinforcement the pull depends on the member
-    it acts on, and the mean opinion drifts towards the pairs that agree, for a negative reinforcement, while the
-    opinions still reach a consensus on a connected hypergraph.
+    The triangles switch on and off. Every triple of nodes is a triangle with probability `triangles`, and every
+    triangle is active in alternate half periods from a random phase. On an active triangle `ijk`, node `i` follows
+    `x_i' = s(|x_j - x_k|) (x_j + x_k - 2 x_i)` with `s(d) = exp(reinforcement * d)`. Without reinforcement the pulls of
+    a triangle on its three members sum to zero, so the mean opinion stays fixed whatever the schedules. With
+    reinforcement the pull depends on the member it acts on, and the mean opinion drifts towards the pairs that agree,
+    for a negative reinforcement, while the opinions still reach a consensus on a connected hypergraph.
 
     The system has the opinions `nodes.x`, the mean opinion `mean_opinion`, and the mean squared opinion `spread`.
 

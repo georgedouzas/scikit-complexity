@@ -1,4 +1,7 @@
-"""Markets systems: a commodity market whose price cycles because capacity arrives after a construction delay."""
+"""Markets systems: a commodity market whose price cycles.
+
+The price cycles because capacity arrives after a construction delay.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -46,19 +49,22 @@ def _capacity_orders(s: SimpleNamespace) -> Expression:
 
 
 def _market(s: SimpleNamespace) -> SimpleNamespace:
-    """Return the symbols of the market a transfer moves the commodity or the capacity of, with the time."""
+    """Return the symbols of the market a transfer moves.
+
+    The transfer moves the commodity or the capacity, with the time.
+    """
     return SimpleNamespace(t=s.t, **vars(s.source))
 
 
 class CommodityMarketElement(Element):
-    """Commodity market whose inventory production fills and consumption drains, with capacity built after a delay.
+    """Commodity market whose inventory production fills and consumption drains.
 
-    The price is a falling table function of the coverage of the demand by the inventory relative to the desired
-    coverage. Production is the capacity times the relative price to the supply elasticity, consumption the demand
-    times the relative price to minus the demand elasticity. Capacity is ordered at the rate of retirements times a
-    rising table function of the smoothed price, completed through a third-order delay, and retired over its lifetime.
-    The market holds the stocks and the parameters, and transfers within it of the system move the commodity and the
-    capacity.
+    Its capacity is built after a delay. The price is a falling table function of the coverage of the demand by the
+    inventory relative to the desired coverage. Production is the capacity times the relative price to the supply
+    elasticity, consumption the demand times the relative price to minus the demand elasticity. Capacity is ordered at
+    the rate of retirements times a rising table function of the smoothed price, completed through a third-order delay,
+    and retired over its lifetime. The market holds the stocks and the parameters, and transfers within it of the system
+    move the commodity and the capacity.
 
     Args:
         label:
@@ -143,17 +149,17 @@ class CommodityMarketElement(Element):
 
 
 class CommodityCycleSystem(BaseSystem):
-    """A commodity market whose price and capacity cycle because new capacity arrives after a delay.
+    """A commodity market whose price and capacity cycle.
 
-    The inventory is a stock of the commodity that production fills and consumption drains. The price is a falling
-    table function of the inventory coverage, the years of demand the inventory holds, relative to the desired
-    coverage. A high price raises the utilization of capacity and lowers consumption with constant elasticities.
-    Producers form an expected price by smoothing the price, and order new capacity at the rate of retirements
-    multiplied by a rising table function of the expected price. Orders become capacity through a third-order delay.
-    After a step in demand the market overshoots, so the price and the capacity oscillate, the commodity cycle of
-    Bala et al. Section 4.11.4. The book was not at hand, so the tables and the parameters are a documented
-    reconstruction of that structure, in years and in units of the reference demand and price. The market starts in
-    equilibrium.
+    New capacity arrives after a delay. The inventory is a stock of the commodity that production fills and consumption
+    drains. The price is a falling table function of the inventory coverage, the years of demand the inventory holds,
+    relative to the desired coverage. A high price raises the utilization of capacity and lowers consumption with
+    constant elasticities. Producers form an expected price by smoothing the price, and order new capacity at the rate
+    of retirements multiplied by a rising table function of the expected price. Orders become capacity through a
+    third-order delay. After a step in demand the market overshoots, so the price and the capacity oscillate, the
+    commodity cycle of Bala et al. Section 4.11.4. The book was not at hand, so the tables and the parameters are a
+    documented reconstruction of that structure, in years and in units of the reference demand and price. The market
+    starts in equilibrium.
 
     The system has the inventory `market.inventory` and the capacity `market.capacity` in years, the flows
     `market.production`, `market.consumption`, `market.completions`, and `market.retirements`. The observables of the
@@ -250,13 +256,19 @@ class CommodityCycleSystem(BaseSystem):
 
     @staticmethod
     def _production(s: SimpleNamespace) -> Expression:
-        """Return the production, the capacity times the relative price to the supply elasticity."""
+        """Return the production.
+
+        It is the capacity times the relative price to the supply elasticity.
+        """
         market = _market(s)
         return market.capacity * (_price(market) / market.reference_price) ** market.supply_elasticity
 
     @staticmethod
     def _consumption(s: SimpleNamespace) -> Expression:
-        """Return the consumption, the demand times the relative price to minus the demand elasticity."""
+        """Return the consumption.
+
+        It is the demand times the relative price to minus the demand elasticity.
+        """
         market = _market(s)
         return _demand(market) * (_price(market) / market.reference_price) ** (-market.demand_elasticity)
 

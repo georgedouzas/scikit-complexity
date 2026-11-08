@@ -1,4 +1,7 @@
-"""Markets systems: duopolists that set their output from beliefs about their rival."""
+"""Markets systems: duopolists that set their output from beliefs.
+
+The beliefs are about their rival.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -26,7 +29,9 @@ class DuopolistView(AgentView):
 
 
 class DuopolistElement(Element):
-    """Firm of a Cournot duopoly, described by its output and its constant marginal cost.
+    """Firm of a Cournot duopoly.
+
+    It is described by its output and its constant marginal cost.
 
     Args:
         label:
@@ -67,11 +72,12 @@ class DuopolistElement(Element):
 
 
 class CournotAdjustmentInteraction(MapInteraction):
-    """Simultaneous best responses of two firms to their beliefs about the rival's last output.
+    """Simultaneous best responses of two firms to their beliefs.
 
-    Under the inverse demand `P = a - b Q`, each firm sets `q_i = (a - c_i) / (2 b) - belief_j / 2`, where the
-    belief is the rival's last output scaled by a factor drawn uniformly from `[1 - error, 1 + error]`. It is a
-    synchronous map of the agent form of the outputs, so both firms respond to the outputs of the step before.
+    The beliefs are about the rival's last output. Under the inverse demand `P = a - b Q`, each firm sets
+    `q_i = (a - c_i) / (2 b) - belief_j / 2`, where the belief is the rival's last output scaled by a factor drawn
+    uniformly from `[1 - error, 1 + error]`. It is a synchronous map of the agent form of the outputs, so both firms
+    respond to the outputs of the step before.
 
     Args:
         label:
@@ -110,7 +116,10 @@ class CournotAdjustmentInteraction(MapInteraction):
         self.error = error
 
     def _get_response(self, agent: DuopolistView, system: SystemView) -> float:
-        """Return the best response of a firm to its belief about the last output of its rival."""
+        """Return the best response of a firm to its belief.
+
+        The belief is about the last output of its rival.
+        """
         a, b, error = (system.parameter(name) for name in ('a', 'b', 'error'))
         rival = next(firm for firm in system.agents('target', DuopolistView) if firm.id != agent.id)
         belief = rival.output * (1 + error * float(system.rng.uniform(-1.0, 1.0)))
@@ -121,16 +130,19 @@ N_FIRMS = 2
 
 
 def _price(s: SimpleNamespace) -> Expression:
-    """Return the market price of the total output under the inverse demand of the interaction `market`."""
+    """Return the market price of the total output.
+
+    It follows the inverse demand of the interaction `market`.
+    """
     return s.market.a - s.market.b * s.total
 
 
 class CournotDuopolySystem(BaseSystem):
-    """Two Cournot duopolists that adjust their output to their beliefs about each other.
+    """Two Cournot duopolists that adjust their output to their beliefs.
 
-    Without errors the outputs converge to the Nash equilibrium, `q_i = (a - 2 c_i + c_j) / (3 b)`, which is 50 units
-    each for the defaults. Errors in the beliefs keep the total output fluctuating around it. The system has the group
-    `firms`, the total output `total`, and the price `price`.
+    The beliefs are about each other. Without errors the outputs converge to the Nash equilibrium,
+    `q_i = (a - 2 c_i + c_j) / (3 b)`, which is 50 units each for the defaults. Errors in the beliefs keep the total
+    output fluctuating around it. The system has the group `firms`, the total output `total`, and the price `price`.
 
     Args:
         outputs:

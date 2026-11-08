@@ -1,4 +1,7 @@
-"""Neural network systems: the echo state network, a reservoir of leaky tanh units driven by an input."""
+"""Neural network systems: the echo state network.
+
+It is a reservoir of leaky tanh units driven by an input.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,7 +24,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class ReservoirUnitElement(Element):
-    """Leaky tanh unit of an echo state network, with its activity and the weight, leak, and sine of its input.
+    """Leaky tanh unit of an echo state network.
+
+    It holds its activity and the weight, leak, and sine of its input.
 
     The map of `EchoStateNetworkSystem` sets `r(t + 1) = (1 - a) r + a tanh(sum_j W_ij r_j + w u(t))` with the input
     `u(t) = A sin(f t)`.
@@ -74,7 +79,7 @@ class ReservoirUnitElement(Element):
 
 
 class EchoStateNetworkSystem(BaseSystem):
-    """An echo state network, a reservoir of leaky tanh units with random recurrent weights driven by a sine.
+    """An echo state network, a reservoir of leaky tanh units driven by a sine.
 
     The recurrent weights are sparse and Gaussian, scaled to a spectral radius below 1, so the reservoir has the echo
     state property: its activities forget their initial values and become a function of the input history alone. A
@@ -157,7 +162,10 @@ class EchoStateNetworkSystem(BaseSystem):
 
     @staticmethod
     def _leaky_tanh(s: SimpleNamespace, *, weights: scipy.sparse.csr_array) -> Expression:
-        """Return the next activity `(1 - a) r + a tanh(sum_j W_ij r_j + w A sin(f t))` of a unit."""
+        """Return the next activity of a unit.
+
+        It is `(1 - a) r + a tanh(sum_j W_ij r_j + w A sin(f t))`.
+        """
         unit = s.target
         drive = total(unit.r, weights=weights) + unit.w_in * unit.amplitude * sin(unit.frequency * s.t)
         return (1 - unit.leak) * unit.r + unit.leak * tanh(drive)

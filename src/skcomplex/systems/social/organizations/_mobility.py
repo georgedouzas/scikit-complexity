@@ -1,4 +1,7 @@
-"""Mobility systems: individual trajectories by exploration and preferential return, and between nested containers."""
+"""Mobility systems: individual trajectories.
+
+They follow exploration and preferential return, or move between nested containers.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -31,7 +34,9 @@ class ExplorerView(AgentView):
 
 
 class ExplorerElement(Element):
-    """Individual of the mobility systems, with its position, its number of distinct locations, and its last level.
+    """Individual of the mobility systems.
+
+    It holds its position, its number of distinct locations, and its last level.
 
     Args:
         label:
@@ -81,11 +86,12 @@ class ExplorerElement(Element):
 
 
 class ExplorationInteraction(Interaction):
-    """Exploration and preferential return of Song and coauthors, one displacement per individual and step.
+    """Exploration and preferential return of Song and coauthors.
 
-    An individual who has visited `S` distinct locations explores a new one with the probability `rho S^-gamma`, at a
-    distance drawn from the power law `P(r) ~ r^-beta` above `least_jump` in a uniform direction, and otherwise returns
-    to a visited location with the probability proportional to its number of visits.
+    There is one displacement per individual and step. An individual who has visited `S` distinct locations explores a
+    new one with the probability `rho S^-gamma`, at a distance drawn from the power law `P(r) ~ r^-beta` above
+    `least_jump` in a uniform direction, and otherwise returns to a visited location with the probability proportional
+    to its number of visits.
 
     Args:
         label:
@@ -176,15 +182,16 @@ class ExplorationInteraction(Interaction):
 
 
 class ContainerMobilityInteraction(Interaction):
-    """Container model of Alessandretti and coauthors, displacements between locations nested in containers.
+    """Container model of Alessandretti and coauthors.
 
-    Space is a nested grid of `levels` levels, every container of a level split into `side` by `side` containers of
-    the level below, and the containers of the lowest level are the locations. The children of every container have
-    attractivenesses drawn from a power law of the exponent `exponent` and normalized, and home is the location of the
-    largest attractiveness at every level. Every step every individual draws the level-distance `d` of its
-    displacement from `travel`, chooses a container of level `d` other than its own among the children of its
-    container of level `d + 1`, by attractiveness, and then descends to a location by the attractivenesses of the
-    children at every level below. Every individual has its own hierarchy, drawn at its first step, and starts at home.
+    It displaces individuals between locations nested in containers. Space is a nested grid of `levels` levels, every
+    container of a level split into `side` by `side` containers of the level below, and the containers of the lowest
+    level are the locations. The children of every container have attractivenesses drawn from a power law of the
+    exponent `exponent` and normalized, and home is the location of the largest attractiveness at every level. Every
+    step every individual draws the level-distance `d` of its displacement from `travel`, chooses a container of level
+    `d` other than its own among the children of its container of level `d + 1`, by attractiveness, and then descends to
+    a location by the attractivenesses of the children at every level below. Every individual has its own hierarchy,
+    drawn at its first step, and starts at home.
 
     Args:
         label:
@@ -262,7 +269,10 @@ class ContainerMobilityInteraction(Interaction):
         return [RuleLaw(self.move)]
 
     def _get_attractiveness(self, rng: np.random.Generator) -> list[Array]:
-        """Return the attractiveness of every container of every level, child 0 of every container the largest."""
+        """Return the attractiveness of every container of every level.
+
+        Child 0 of every container is the largest.
+        """
         children = int(self.side) ** 2
         result = []
         for level in range(int(self.levels)):
@@ -272,7 +282,10 @@ class ContainerMobilityInteraction(Interaction):
         return result
 
     def _get_position(self, location: int) -> tuple[float, float]:
-        """Return the centre of a location on the nested grid, a unit cell of the lowest level."""
+        """Return the centre of a location on the nested grid.
+
+        The location is a unit cell of the lowest level.
+        """
         side, children = int(self.side), int(self.side) ** 2
         x = y = 0.0
         for level in range(int(self.levels)):
@@ -282,7 +295,10 @@ class ContainerMobilityInteraction(Interaction):
         return x + 0.5, y + 0.5
 
     def _descend(self, container: int, level: int, attractiveness: list[Array], rng: np.random.Generator) -> int:
-        """Return a location inside a container of a level, choosing a child by attractiveness at every level below."""
+        """Return a location inside a container of a level.
+
+        A child is chosen by attractiveness at every level below.
+        """
         children = int(self.side) ** 2
         for below in range(level - 1, 0, -1):
             weights = attractiveness[below - 1][container * children : (container + 1) * children]
@@ -290,7 +306,9 @@ class ContainerMobilityInteraction(Interaction):
         return container
 
     def move(self, system: SystemView) -> None:
-        """Displace every individual once, at a drawn level-distance, to a location chosen by attractiveness.
+        """Displace every individual once.
+
+        The displacement is at a drawn level-distance, to a location chosen by attractiveness.
 
         Args:
             system:
@@ -327,14 +345,14 @@ class ContainerMobilityInteraction(Interaction):
 
 
 class ExplorationPreferentialReturnSystem(BaseSystem):
-    """The exploration and preferential return model of human mobility of Song and coauthors.
+    """The exploration and preferential return model of human mobility.
 
-    At every displacement an individual who has visited `S` distinct locations explores a new place with the
-    probability `rho S^-gamma`, at a distance drawn from the power law `P(r) ~ r^-beta`, and otherwise returns to a
-    visited location chosen in proportion to its number of visits (arXiv 2109.07381 Methods, the baseline of Fig. 2).
-    The number of distinct locations grows as `n^(1 / (1 + gamma))` after `n` displacements, and the visits of the
-    locations follow Zipf's law. The defaults `rho = 0.6` and `gamma = 0.21` are the values of Song and coauthors, and
-    every individual starts at the origin.
+    The model is that of Song and coauthors. At every displacement an individual who has visited `S` distinct locations
+    explores a new place with the probability `rho S^-gamma`, at a distance drawn from the power law `P(r) ~ r^-beta`,
+    and otherwise returns to a visited location chosen in proportion to its number of visits (arXiv 2109.07381 Methods,
+    the baseline of Fig. 2). The number of distinct locations grows as `n^(1 / (1 + gamma))` after `n` displacements,
+    and the visits of the locations follow Zipf's law. The defaults `rho = 0.6` and `gamma = 0.21` are the values of
+    Song and coauthors, and every individual starts at the origin.
 
     The system has the group `individuals`.
 
@@ -400,16 +418,16 @@ class ExplorationPreferentialReturnSystem(BaseSystem):
 
 
 class ContainerMobilitySystem(BaseSystem):
-    """The container model of human mobility of Alessandretti, Aslak, and Lehmann, trajectories across scales.
+    """The container model of human mobility of Alessandretti, Aslak, and Lehmann.
 
-    Space is a hierarchy of `L` levels of containers, a nested grid where every container holds `side` by `side`
-    containers of the level below, down to the locations, and every container has an attractiveness among its siblings,
-    drawn from a power law. An individual travels at the level-distance `d`, the highest level at which its origin and
-    destination differ, with the probability `p_d`, chooses the destination container of level `d` among the other
-    children of its container of level `d + 1` by attractiveness, and descends by attractiveness to a location
-    (arXiv 2109.07381 Methods, Generating traces). The nested grid, the power law of the attractivenesses, and the
-    probabilities of travel that do not depend on the distance from home follow Supplementary Note 3. Displacements are
-    a mixture of the scales of the containers, from one cell to `side^(L - 1)` cells.
+    Its trajectories cross scales. Space is a hierarchy of `L` levels of containers, a nested grid where every container
+    holds `side` by `side` containers of the level below, down to the locations, and every container has an
+    attractiveness among its siblings, drawn from a power law. An individual travels at the level-distance `d`, the
+    highest level at which its origin and destination differ, with the probability `p_d`, chooses the destination
+    container of level `d` among the other children of its container of level `d + 1` by attractiveness, and descends by
+    attractiveness to a location (arXiv 2109.07381 Methods, Generating traces). The nested grid, the power law of the
+    attractivenesses, and the probabilities of travel that do not depend on the distance from home follow Supplementary
+    Note 3. Displacements are a mixture of the scales of the containers, from one cell to `side^(L - 1)` cells.
 
     The system has the group `individuals`.
 

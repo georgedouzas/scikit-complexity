@@ -1,4 +1,7 @@
-"""Markets systems: shops on a grid that compete for nearby shoppers, and the digital market that removes distance."""
+"""Markets systems: shops on a grid that compete for nearby shoppers.
+
+It also holds the digital market that removes distance.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -34,9 +37,10 @@ from ....core.specs import (
 
 
 class ResidentView(AgentView):
-    """Shopper as the rules see it: its `bid`, `demand`, `money`, and `travel`, and its shopping parameters.
+    """Shopper as the rules see it.
 
-    The parameters are the `distance_cost` of shopping in person and the probability `online` of shopping online.
+    It holds its `bid`, `demand`, `money`, and `travel`, and its shopping parameters. The parameters are the
+    `distance_cost` of shopping in person and the probability `online` of shopping online.
     """
 
     bid: float
@@ -48,7 +52,7 @@ class ResidentView(AgentView):
 
 
 class StoreView(AgentView):
-    """Shop as the rules see it: its prices, sales, and accounts, and its cost parameters.
+    """Shop as the rules see it.
 
     The states are the `price`, the `ask` of the step, the `supply` left, the `sales`, the `money`, the `profit`, and
     the `direction` of the last change of the price. The parameters are the `capacity`, the `unit_cost`, the
@@ -69,7 +73,9 @@ class StoreView(AgentView):
 
 
 class ResidentElement(Element):
-    """Shopper who wants one unit a step and shops in person, paying for travel, or online, where distance is free.
+    """Shopper who wants one unit a step.
+
+    It shops in person, paying for travel, or online, where distance is free.
 
     Args:
         label:
@@ -130,7 +136,9 @@ class ResidentElement(Element):
 
     @staticmethod
     def get_travel(agent: ResidentView, system: SystemView) -> float:
-        """Return the travel cost per cell of the step, zero when the shopper shops online with its probability.
+        """Return the travel cost per cell of the step.
+
+        It is zero when the shopper shops online with its probability.
 
         Args:
             agent:
@@ -147,9 +155,10 @@ class ResidentElement(Element):
 
     @staticmethod
     def get_preference(shopper: object, shop: object) -> float:
-        """Return the preference of a shopper for a shop, the opposite of the delivered price.
+        """Return the preference of a shopper for a shop.
 
-        The delivered price is the shop's ask plus the shopper's travel cost per cell times the distance to the shop.
+        It is the opposite of the delivered price. The delivered price is the shop's ask plus the shopper's travel cost
+        per cell times the distance to the shop.
 
         Args:
             shopper:
@@ -168,11 +177,12 @@ class ResidentElement(Element):
 
 
 class StoreElement(Element):
-    """Shop that offers its capacity at its price, searches for the price of the largest profit, and may close.
+    """Shop that offers its capacity at its price.
 
-    The shop searches for its price by trial and error: it moves the price by `adjustment` in the same direction as
-    long as its profit grows, and turns back when the profit falls, never below the unit cost. It pays the unit cost
-    of every unit sold and the fixed cost every step, and closes when its money runs out.
+    It searches for the price of the largest profit, and may close. The shop searches for its price by trial and error:
+    it moves the price by `adjustment` in the same direction as long as its profit grows, and turns back when the profit
+    falls, never below the unit cost. It pays the unit cost of every unit sold and the fixed cost every step, and closes
+    when its money runs out.
 
     Args:
         label:
@@ -272,7 +282,9 @@ class StoreElement(Element):
 
     @staticmethod
     def get_opening() -> tuple[tuple[str, Callable[[StoreView, SystemView], float]], ...]:
-        """Return the states a shop sets when it opens for the market, its capacity offered at its price.
+        """Return the states a shop sets when it opens for the market.
+
+        It offers its capacity at its price.
 
         Returns:
             opening:
@@ -325,15 +337,15 @@ def _largest_share(sales: object) -> float:
 
 
 class ShopsSystem(BaseSystem):
-    """Shops on a grid that compete for the shoppers on every cell, in person or in a digital market.
+    """Shops on a grid that compete for the shoppers on every cell.
 
-    Every step every shopper wants one unit and shops online with probability `online`, and in person otherwise, when it
-    pays a travel cost for the distance to the shop. The shoppers choose in random order the shops they prefer by price
-    plus travel cost, within the shops' capacities, a greedy matching that pays the shop's ask for a unit. Shops search
-    for the price of the largest profit by trial and error, pay a fixed cost every step, and close when their money runs
-    out. Distance gives every shop a local market, so many shops survive with high prices. In the digital market the
-    cheapest shop takes every shopper, the others undercut it, prices fall toward the unit cost, and most shops close
-    (Hamill and Gilbert 2016 sec. 6.3-6.4).
+    The shoppers buy in person or in a digital market. Every step every shopper wants one unit and shops online with
+    probability `online`, and in person otherwise, when it pays a travel cost for the distance to the shop. The shoppers
+    choose in random order the shops they prefer by price plus travel cost, within the shops' capacities, a greedy
+    matching that pays the shop's ask for a unit. Shops search for the price of the largest profit by trial and error,
+    pay a fixed cost every step, and close when their money runs out. Distance gives every shop a local market, so many
+    shops survive with high prices. In the digital market the cheapest shop takes every shopper, the others undercut it,
+    prices fall toward the unit cost, and most shops close (Hamill and Gilbert 2016 sec. 6.3-6.4).
 
     The system has the groups `shoppers` and `shops` and the market `shopping`, whose reporters are the
     `shopping.value`, `shopping.volume`, and `shopping.unmatched` of the purchases.

@@ -1,4 +1,7 @@
-"""Static oligopoly equilibria, and the fictitious play of a discretised pricing duopoly."""
+"""Static oligopoly equilibria, and the fictitious play of a pricing duopoly.
+
+The pricing duopoly is discretised.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -26,10 +29,11 @@ from ....core.types import Array
 
 
 class CournotBestResponseElement(Element):
-    """Quantities of two firms at the best responses of a Cournot game, where each firm holds a share of the other.
+    """Quantities of two firms at the best responses of a Cournot game.
 
-    The conditions are `alpha - 2 q_i - q_j = c_i / (1 + lambda_i)` and its mirror (Forrest 2018 Eq. 21.5), whose
-    solution is `q_i = (alpha - 2 c_i / (1 + lambda_i) + c_j / (1 + lambda_j)) / 3` (Eq. 21.6).
+    Each firm holds a share of the other. The conditions are `alpha - 2 q_i - q_j = c_i / (1 + lambda_i)` and its mirror
+    (Forrest 2018 Eq. 21.5), whose solution is `q_i = (alpha - 2 c_i / (1 + lambda_i) + c_j / (1 + lambda_j)) / 3` (Eq.
+    21.6).
 
     Args:
         label:
@@ -103,12 +107,13 @@ class CournotBestResponseElement(Element):
 
 
 class PricePointElement(Element):
-    """Equilibrium distribution of prices at one price, which makes a firm indifferent among its prices.
+    """Equilibrium distribution of prices at one price.
 
-    A firm that charges `P` sells to its loyal share `alpha`, and to the switchers `beta` when it undercuts all its
-    `m - 1` rivals, each with the probability `1 - F(P)`, for the expected profit `P (alpha + beta (1 - F)^(m - 1))`.
-    In equilibrium every price gives the profit `alpha` of selling to the loyal share at the highest price 1, which
-    `F(P) = 1 - (alpha (1 - P) / (beta P))^(1 / (m - 1))` solves (Forrest 2018 Lemma 20.1).
+    It makes a firm indifferent among its prices. A firm that charges `P` sells to its loyal share `alpha`, and to the
+    switchers `beta` when it undercuts all its `m - 1` rivals, each with the probability `1 - F(P)`, for the expected
+    profit `P (alpha + beta (1 - F)^(m - 1))`. In equilibrium every price gives the profit `alpha` of selling to the
+    loyal share at the highest price 1, which `F(P) = 1 - (alpha (1 - P) / (beta P))^(1 / (m - 1))` solves (Forrest 2018
+    Lemma 20.1).
 
     Args:
         label:
@@ -156,7 +161,9 @@ class PricePointElement(Element):
 
     @staticmethod
     def get_profit(member: SimpleNamespace) -> Expression:
-        """Return the expected profit of a firm at the price of a member, for the observables of a run.
+        """Return the expected profit of a firm at the price of a member.
+
+        It serves the observables of a run.
 
         Args:
             member:
@@ -192,7 +199,9 @@ class PricingFirmView(AgentView):
 
 @dataclass(frozen=True, eq=False)
 class PricingGameSpec(BaseSpec):
-    """Grid of prices of two firms, each with a loyal share, that share the switchers who pay the lower price.
+    """Grid of prices of two firms, each with a loyal share.
+
+    The firms share the switchers who pay the lower price.
 
     Args:
         prices:
@@ -216,7 +225,9 @@ class PricingGameSpec(BaseSpec):
     beta: float
 
     def utility(self, agent: PricingFirmView, system: SystemView, option: float) -> float:
-        """Return what a price has earned so far against the prices of the rival, its score.
+        """Return what a price has earned so far against the prices of the rival.
+
+        It is its score.
 
         Args:
             agent:
@@ -235,7 +246,9 @@ class PricingGameSpec(BaseSpec):
         return float(agent.scores[int(np.searchsorted(self.prices, option))])
 
     def payoff(self, agent: PricingFirmView, system: SystemView, k: int) -> float:
-        """Return what the price of index `k` earns against the price the rival charged in this step.
+        """Return what the price of index `k` earns against the rival's price.
+
+        The rival's price is the one charged in this step.
 
         Args:
             agent:
@@ -258,7 +271,9 @@ class PricingGameSpec(BaseSpec):
 
 
 class PricingFirmElement(Element):
-    """Firm that charges one price of a grid and counts what every price would have earned.
+    """Firm that charges one price of a grid.
+
+    It counts what every price would have earned.
 
     Args:
         label:
@@ -289,7 +304,10 @@ class PricingFirmElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[PricingFirmView]:
-        """Return the view of the firms, which types their states."""
+        """Return the view of the firms.
+
+        It types their states.
+        """
         return PricingFirmView
 
 
@@ -298,7 +316,10 @@ DUOPOLY = 2
 
 
 def _price_observables(system: System) -> list[ObservableSpec]:
-    """Return the lowest and the highest expected profit over the prices, or the prices charged under learning."""
+    """Return the lowest and the highest expected profit over the prices.
+
+    Under learning, it returns the prices charged.
+    """
     if isinstance(system.time, StaticTime):
         profit = PricePointElement.get_profit
         return [
@@ -312,13 +333,14 @@ def _price_observables(system: System) -> list[ObservableSpec]:
 
 
 class OligopolyEquilibriaSystem(BaseSystem):
-    """The equilibria of a Cournot duopoly and of a pricing game of firms with loyal customers and switchers.
+    """The equilibria of a Cournot duopoly and of a pricing game.
 
-    The static system solves the Cournot best responses (Forrest 2018 Eqs. 21.5-21.6) and, on a grid of prices, the
-    symmetric mixed equilibrium of `m` firms of loyal share `alpha` and switchers `beta = 1 - m alpha`, whose price
-    distribution makes a firm indifferent among its prices, at the profit `alpha` (Lemma 20.1). With
-    `dynamics='fictitious-play'`, two firms learn to price on the grid instead: every round each plays a best response
-    to the prices of its rival so far, and the prices they charge are distributed near the mixed equilibrium.
+    The pricing game has firms with loyal customers and switchers. The static system solves the Cournot best responses
+    (Forrest 2018 Eqs. 21.5-21.6) and, on a grid of prices, the symmetric mixed equilibrium of `m` firms of loyal share
+    `alpha` and switchers `beta = 1 - m alpha`, whose price distribution makes a firm indifferent among its prices, at
+    the profit `alpha` (Lemma 20.1). With `dynamics='fictitious-play'`, two firms learn to price on the grid instead:
+    every round each plays a best response to the prices of its rival so far, and the prices they charge are distributed
+    near the mixed equilibrium.
 
     The static system, with the states `cournot.q_i`, `cournot.q_j`, `prices.price`, and `prices.distribution` and the
     observables `lowest_profit` and `highest_profit`, or the learning system, with the group `firms` and the observables
@@ -398,7 +420,10 @@ class OligopolyEquilibriaSystem(BaseSystem):
 
     @staticmethod
     def _fictitious_play(label: str, prices: Array, alpha: float, beta: float) -> System:
-        """Return two firms that best respond to the sum of the payoffs of every price against the rival so far."""
+        """Return two firms that best respond to the payoffs of every price so far.
+
+        The payoffs are summed against the rival.
+        """
         game = PricingGameSpec(prices, alpha, beta)
         firms = GroupElement(
             'firms',
@@ -457,7 +482,10 @@ class OligopolyEquilibriaSystem(BaseSystem):
         return System(self.label, elements=[cournot, points], time=StaticTime())
 
     def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings, with the observables of the parts built from the model parameters."""
+        """Return the tuned run settings.
+
+        The observables of the parts are built from the model parameters.
+        """
         settings = super().get_run_settings()
         settings['observables'] = _price_observables(self._pass_parameters())
         return settings

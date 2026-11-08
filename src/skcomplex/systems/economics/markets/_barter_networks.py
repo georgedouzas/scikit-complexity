@@ -1,4 +1,7 @@
-"""Bilateral two-good barter on trade networks: complete, isolated, linked, and small-world groups of traders."""
+"""Bilateral two-good barter on trade networks.
+
+The networks are complete, isolated, linked, and small-world groups of traders.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -32,7 +35,10 @@ from ....core.specs import (
 
 
 class BarterTraderView(AgentView):
-    """Barter trader as the rules see it: its holdings `good1` and `good2`, its rate `mrs`, `links`, and `partners`."""
+    """Barter trader as the rules see it.
+
+    It holds its holdings `good1` and `good2`, its rate `mrs`, `links`, and `partners`.
+    """
 
     good1: float
     good2: float
@@ -42,10 +48,10 @@ class BarterTraderView(AgentView):
 
 
 class BarterTraderElement(Element):
-    """Trader with a bundle of two goods and the Cobb-Douglas utility `good1 good2`, who records its rate.
+    """Trader with a bundle of two goods and the Cobb-Douglas utility `good1 good2`.
 
-    Its marginal rate of substitution `good2 / good1` is the price of the first good, in units of the second, at
-    which it is indifferent to trade. Every step it records the rate of its current bundle.
+    It records its rate. Its marginal rate of substitution `good2 / good1` is the price of the first good, in units of
+    the second, at which it is indifferent to trade. Every step it records the rate of its current bundle.
 
     Args:
         label:
@@ -101,7 +107,9 @@ class BarterTraderElement(Element):
 
     @staticmethod
     def is_partner(trader: object, other: object) -> bool:
-        """Return whether another trader is a trading partner of a trader, a neighbour on the trade network.
+        """Return whether another trader is a trading partner of a trader.
+
+        A partner is a neighbour on the trade network.
 
         Args:
             trader:
@@ -120,9 +128,10 @@ class BarterTraderElement(Element):
 
     @staticmethod
     def get_rate_gap(trader: object, other: object) -> float:
-        """Return the gap between the logarithms of the rates of substitution of a trader and a trading partner.
+        """Return the gap between the logarithms of the rates of substitution.
 
-        The gap is minus infinity for a trader that is not a partner, so a trader takes a partner whenever it has one.
+        The rates are those of a trader and a trading partner. The gap is minus infinity for a trader that is not a
+        partner, so a trader takes a partner whenever it has one.
 
         Args:
             trader:
@@ -160,7 +169,7 @@ class BarterTraderElement(Element):
 
 
 class BilateralBarterInteraction(MatchingInteraction[SystemView]):
-    """Barter in which every trader trades with the neighbour it matched, the one whose rate differs the most.
+    """Barter in which every trader trades with the neighbour it matched.
 
     A greedy matching pairs every trader, in random order, with the neighbour whose marginal rate of substitution
     differs the most in logarithm, and a neighbour takes any number of partners. The score of a trader that is not a
@@ -242,7 +251,10 @@ class BilateralBarterInteraction(MatchingInteraction[SystemView]):
 
     @staticmethod
     def _barter(first: BarterTraderView, second: BarterTraderView, units: int) -> int:
-        """Trade single units of the first good at the bundle price while both traders gain, and return the units."""
+        """Trade single units of the first good at the bundle price while both gain.
+
+        It returns the units.
+        """
         buyer, seller = (first, second) if first.good2 * second.good1 > second.good2 * first.good1 else (second, first)
         price = (buyer.good2 + seller.good2) / (buyer.good1 + seller.good1)
         traded = 0
@@ -274,7 +286,9 @@ class BilateralBarterInteraction(MatchingInteraction[SystemView]):
         return float(trades) if isinstance(trades, int | float) else 0.0
 
     def match(self, system: SystemView) -> None:
-        """Pair and trade, and report the units traded and the neighbours searched besides the matching reporters.
+        """Pair and trade, and report the units traded and the neighbours searched.
+
+        The report comes besides the matching reporters.
 
         Args:
             system:
@@ -294,7 +308,7 @@ GOODS = ('good1', 'good2')
 
 
 def _log_spread(rates: object) -> float:
-    """Return the standard deviation of the logarithms of the marginal rates of substitution."""
+    """Return the standard deviation of the log marginal rates of substitution."""
     return float(np.std(np.log(np.asarray(rates, dtype=float))))
 
 
@@ -304,15 +318,15 @@ def _utility(agent: object) -> float:
 
 
 class WilhiteTradeNetworksSystem(BaseSystem):
-    """Wilhite's bilateral barter of two goods among traders on one of four trade networks.
+    """Wilhite's bilateral barter of two goods among traders on a trade network.
 
-    Traders start with random bundles of two goods and the utility `good1 good2`. Every step, each trader searches
-    its neighbours and trades with the one whose marginal rate of substitution differs the most, single units at a
-    price between their rates, while both gain. Trade drives the rates of every connected set of traders towards one
-    price. On the complete network every trader searches every other, so it needs the most searches, and traders crowd
-    onto the most extreme partners, so prices converge slowly. Isolated groups settle on different prices. Groups
-    chained by shared end traders, or a small world with some long links, bring the prices together with far fewer
-    searches.
+    The network is one of four. Traders start with random bundles of two goods and the utility `good1 good2`. Every
+    step, each trader searches its neighbours and trades with the one whose marginal rate of substitution differs the
+    most, single units at a price between their rates, while both gain. Trade drives the rates of every connected set of
+    traders towards one price. On the complete network every trader searches every other, so it needs the most searches,
+    and traders crowd onto the most extreme partners, so prices converge slowly. Isolated groups settle on different
+    prices. Groups chained by shared end traders, or a small world with some long links, bring the prices together with
+    far fewer searches.
 
     The system has the group `traders` on the network, the reporters `barter.trades` and `barter.searches`, and the
     observables `dispersion`, the spread of the logarithms of the rates, and `utility`, the mean utility.
@@ -392,7 +406,10 @@ class WilhiteTradeNetworksSystem(BaseSystem):
         shortcuts: int,
         rng: np.random.Generator,
     ) -> nx.Graph:
-        """Return the trade network of one of Wilhite's four topologies, with nodes numbered from zero."""
+        """Return the trade network of one of Wilhite's four topologies.
+
+        Its nodes are numbered from zero.
+        """
         if topology not in TOPOLOGIES:
             error_msg = f'Unknown topology {topology!r}. Use one of {TOPOLOGIES}.'
             raise ValueError(error_msg)

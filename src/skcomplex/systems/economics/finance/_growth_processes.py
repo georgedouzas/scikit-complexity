@@ -30,7 +30,9 @@ class GibratFirmView(AgentView):
 
 
 class GibratFirmElement(Element):
-    """Firm whose size is multiplied every step by an independent normal growth factor, `x = lambda x`.
+    """Firm whose size is multiplied every step by a normal growth factor.
+
+    The factor is independent, `x = lambda x`.
 
     Args:
         label:
@@ -100,7 +102,10 @@ class GibratFirmElement(Element):
 
 
 class KestenFirmView(AgentView):
-    """Firm of Kesten's process as its rule sees it: its size `x` and the bounds of its random factor and term."""
+    """Firm of Kesten's process as its rule sees it.
+
+    It holds its size `x` and the bounds of its random factor and term.
+    """
 
     x: float
     lambda_low: float
@@ -110,7 +115,9 @@ class KestenFirmView(AgentView):
 
 
 class KestenFirmElement(Element):
-    """Firm whose size follows Kesten's process, `x = lambda x + b`, with uniform random `lambda` and `b`.
+    """Firm whose size follows Kesten's process, `x = lambda x + b`.
+
+    The `lambda` and `b` are uniform random.
 
     Args:
         label:
@@ -186,10 +193,10 @@ class KestenFirmElement(Element):
 
 
 class ReflectingFloorInteraction(MapInteraction):
-    """Lower bound on the sizes of a group at a fraction of their mean before the step, `x = max(x, c <x_{t-1}>)`.
+    """Lower bound on the sizes of a group at a fraction of their mean.
 
-    It is a map of the agent form that raises every size below the floor to the floor, the mean of the states
-    `previous` of the group times `c`.
+    The mean is taken before the step, `x = max(x, c <x_{t-1}>)`. It is a map of the agent form that raises every size
+    below the floor to the floor, the mean of the states `previous` of the group times `c`.
 
     Args:
         label:
@@ -222,7 +229,10 @@ class ReflectingFloorInteraction(MapInteraction):
         self.c = c
 
     def _get_floor(self, system: SystemView) -> float:
-        """Return the floor of the step, `c` times the mean size of the group before it, computed once per step."""
+        """Return the floor of the step.
+
+        It is `c` times the mean size of the group before it, computed once per step.
+        """
         cached = system.storage.get('floor')
         if isinstance(cached, tuple) and cached[0] == system.time:
             return float(cached[1])
@@ -232,7 +242,10 @@ class ReflectingFloorInteraction(MapInteraction):
         return floor
 
     def _get_floored(self, agent: GibratFirmView, system: SystemView) -> float:
-        """Return the size of a firm raised to the floor, `c` times the mean size of its group before the step."""
+        """Return the size of a firm raised to the floor.
+
+        The floor is `c` times the mean size of its group before the step.
+        """
         return max(agent.x, self._get_floor(system))
 
 
@@ -259,9 +272,10 @@ def _size_observables() -> list[ObservableSpec]:
 
 
 class GibratProcessSystem(BaseSystem):
-    """Firms that grow by Gibrat's law of proportionate effect, which makes their sizes lognormal.
+    """Firms that grow by Gibrat's law of proportionate effect.
 
-    The system has the group `firms`, the mean size `mean_size`, and the largest size `max_size`.
+    The law makes their sizes lognormal. The system has the group `firms`, the mean size `mean_size`, and the largest
+    size `max_size`.
 
     Args:
         n_firms:
@@ -318,11 +332,11 @@ class GibratProcessSystem(BaseSystem):
 
 
 class MultiplicativeProcessSystem(BaseSystem):
-    """Levy and Solomon's multiplicative process, whose floor at a fraction of the mean makes a power-law tail.
+    """Levy and Solomon's multiplicative process.
 
-    Every size is multiplied by a normal growth factor and then raised to `c` times the mean size of the step before if
-    it fell below it. With `c = 0` the process is Gibrat's. The system has the group `firms`, the mean size `mean_size`,
-    and the largest size `max_size`.
+    Its floor at a fraction of the mean makes a power-law tail. Every size is multiplied by a normal growth factor and
+    then raised to `c` times the mean size of the step before if it fell below it. With `c = 0` the process is Gibrat's.
+    The system has the group `firms`, the mean size `mean_size`, and the largest size `max_size`.
 
     Args:
         n_firms:
@@ -389,10 +403,11 @@ class MultiplicativeProcessSystem(BaseSystem):
 
 
 class KestenProcessSystem(BaseSystem):
-    """Firms whose sizes follow Kesten's process, a random multiplicative factor plus a random positive term.
+    """Firms whose sizes follow Kesten's process.
 
-    When the factor shrinks sizes on average, the additive term reinjects them, and the stationary distribution has a
-    power-law tail. The system has the group `firms`, the mean size `mean_size`, and the largest size `max_size`.
+    It is a random multiplicative factor plus a random positive term. When the factor shrinks sizes on average, the
+    additive term reinjects them, and the stationary distribution has a power-law tail. The system has the group
+    `firms`, the mean size `mean_size`, and the largest size `max_size`.
 
     Args:
         n_firms:

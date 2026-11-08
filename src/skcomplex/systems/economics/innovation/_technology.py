@@ -1,4 +1,7 @@
-"""Innovation systems: technologies that improve by redesigning their components or combining logic circuits."""
+"""Innovation systems: technologies that improve by redesign or combination.
+
+They redesign their components or combine logic circuits.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,7 +25,10 @@ from ....core.types import Array
 
 
 class TechnologyView(AgentView):
-    """Technology as the invention sees it: its `arity`, its truth `table`, and its `cost` in NAND gates."""
+    """Technology as the invention sees it.
+
+    It holds its `arity`, its truth `table`, and its `cost` in NAND gates.
+    """
 
     arity: float
     table: float
@@ -87,7 +93,10 @@ class PartElement(Element):
 
 
 def _truth_table(arity: int, function: Callable[..., bool]) -> int:
-    """Return the truth table of a Boolean function, bit `r` holding its value on the input bits of row `r`."""
+    """Return the truth table of a Boolean function.
+
+    Bit `r` holds its value on the input bits of row `r`.
+    """
     rows = range(2**arity)
     return sum(int(function(*(bool(row >> pin & 1) for pin in range(arity)))) << row for row in rows)
 
@@ -111,12 +120,12 @@ GOALS = frozenset(
 
 
 class InventionInteraction(Interaction):
-    """Random wiring of technologies of the pool into a circuit, kept if it computes a wanted function more cheaply.
+    """Random wiring of technologies of the pool into a circuit.
 
-    A circuit has between one and `max_inputs` inputs and wires between two and `max_components` technologies in a
-    row, each pin to an input or to the output of an earlier technology. The output of the last one is the circuit's
-    output. A circuit that computes a wanted function joins the pool, or replaces the technology of that function when
-    it uses fewer NAND gates.
+    The circuit is kept if it computes a wanted function more cheaply. A circuit has between one and `max_inputs` inputs
+    and wires between two and `max_components` technologies in a row, each pin to an input or to the output of an
+    earlier technology. The output of the last one is the circuit's output. A circuit that computes a wanted function
+    joins the pool, or replaces the technology of that function when it uses fewer NAND gates.
 
     Args:
         label:
@@ -153,7 +162,10 @@ class InventionInteraction(Interaction):
         self.max_inputs = max_inputs
 
     def _wire(self, pool: list[TechnologyView], system: SystemView) -> tuple[int, int, int]:
-        """Return the arity, the truth table, and the cost of a random circuit of technologies of the pool."""
+        """Return the arity, the truth table, and the cost of a random circuit.
+
+        The circuit wires technologies of the pool.
+        """
         rng = system.rng
         n_inputs = int(rng.integers(1, int(system.parameter('max_inputs')) + 1))
         n_parts = int(rng.integers(2, int(system.parameter('max_components')) + 1))
@@ -179,7 +191,9 @@ class InventionInteraction(Interaction):
         return [RuleLaw(self.invent)]
 
     def invent(self, system: SystemView) -> None:
-        """Wire a random circuit and add it to the pool if it computes a wanted function better.
+        """Wire a random circuit and add it to the pool if it is better.
+
+        It is better when it computes a wanted function better.
 
         Args:
             system:
@@ -203,7 +217,10 @@ class InventionInteraction(Interaction):
 
     @staticmethod
     def _apply(table: int, arity: int, signals: Sequence[int], n_inputs: int) -> int:
-        """Return the truth table of a gate with a table and an arity, wired to the signals of a circuit."""
+        """Return the truth table of a gate with a table and an arity.
+
+        The gate is wired to the signals of a circuit.
+        """
         output = 0
         for row in range(2**n_inputs):
             index = sum((signal >> row & 1) << pin for pin, signal in enumerate(signals[:arity]))
@@ -212,10 +229,11 @@ class InventionInteraction(Interaction):
 
 
 class RedesignInteraction(Interaction):
-    """Attempt to cut the cost of a technology by redesigning a random component and the components that depend on it.
+    """Attempt to cut the cost of a technology by redesigning its components.
 
-    The redesigned components get new costs drawn uniformly from `[0, 1]`, and the redesign is kept only if the total
-    cost falls. `dependencies[i][j]` is 1 when a change of component `j` requires a change of component `i`.
+    It redesigns a random component and the components that depend on it. The redesigned components get new costs drawn
+    uniformly from `[0, 1]`, and the redesign is kept only if the total cost falls. `dependencies[i][j]` is 1 when a
+    change of component `j` requires a change of component `i`.
 
     Args:
         label:
@@ -262,7 +280,9 @@ class RedesignInteraction(Interaction):
         return [RuleLaw(self.redesign)]
 
     def redesign(self, system: SystemView) -> None:
-        """Propose new costs for a random component and its dependents and keep them if the total cost falls.
+        """Propose new costs for a random component and its dependents.
+
+        They are kept if the total cost falls.
 
         Args:
             system:
@@ -282,7 +302,10 @@ class RedesignInteraction(Interaction):
 
     @staticmethod
     def _components(cost: Array, dependencies: Array, rng: np.random.Generator) -> tuple[Array, npt.NDArray[np.intp]]:
-        """Return the proposed costs of a redesign of a random component and of the components that depend on it."""
+        """Return the proposed costs of a redesign of a random component.
+
+        They include the components that depend on it.
+        """
         changed = np.flatnonzero(dependencies[:, int(rng.integers(len(cost)))])
         proposal = cost.copy()
         proposal[changed] = rng.random(len(changed))
@@ -299,9 +322,10 @@ TRUE = (0, 1)
 
 
 class TechnologyElement(Element):
-    """Logic circuit in the pool of technologies, described by the truth table of the function it computes.
+    """Logic circuit in the pool of technologies.
 
-    Bit `r` of the table is the output on the inputs whose bits form `r`, with the first input as the lowest bit.
+    It is described by the truth table of the function it computes. Bit `r` of the table is the output on the inputs
+    whose bits form `r`, with the first input as the lowest bit.
 
     Args:
         label:
@@ -363,12 +387,12 @@ class TechnologyElement(Element):
 
 
 class NkTechnologySystem(BaseSystem):
-    """McNerney's system of technological improvement, whose cost falls as a power of the cumulative production.
+    """McNerney's system of technological improvement.
 
-    Every step is one unit of production and one attempt to redesign a random component together with the components
-    that depend on it. Redesigns are kept only when they cut the total cost, which falls like Wright's law, more slowly
-    for designs whose components depend on more others. The system has the group `components` and the total cost
-    `total_cost`.
+    Its cost falls as a power of the cumulative production. Every step is one unit of production and one attempt to
+    redesign a random component together with the components that depend on it. Redesigns are kept only when they cut
+    the total cost, which falls like Wright's law, more slowly for designs whose components depend on more others. The
+    system has the group `components` and the total cost `total_cost`.
 
     Args:
         n_components:
@@ -410,7 +434,10 @@ class NkTechnologySystem(BaseSystem):
 
     @staticmethod
     def _design_structure(n_components: int, d: int, rng: np.random.Generator) -> Array:
-        """Return a design structure matrix where a change of a component changes it and `d - 1` other ones."""
+        """Return a design structure matrix.
+
+        A change of a component changes it and `d - 1` other ones.
+        """
         matrix = np.eye(n_components)
         for column in range(n_components):
             others = rng.choice([row for row in range(n_components) if row != column], d - 1, replace=False)
@@ -435,12 +462,13 @@ class NkTechnologySystem(BaseSystem):
 
 
 class ArthurPolakSystem(BaseSystem):
-    """Arthur and Polak's evolution of technology, which builds logic functions from NAND gates.
+    """Arthur and Polak's evolution of technology.
 
-    The pool starts with the NAND gate and the constants 0 and 1. Every step wires a random circuit from the pool and
-    keeps it when it computes a wanted function, negation, two-input and, or, exclusive or, nor, equivalence, and
-    implication, or three-input and, or, parity, and majority, so simple inventions become the building blocks of
-    complex ones. The system has the pool `technologies`, whose size is the reporter `technologies.count`.
+    It builds logic functions from NAND gates. The pool starts with the NAND gate and the constants 0 and 1. Every step
+    wires a random circuit from the pool and keeps it when it computes a wanted function, negation, two-input and, or,
+    exclusive or, nor, equivalence, and implication, or three-input and, or, parity, and majority, so simple inventions
+    become the building blocks of complex ones. The system has the pool `technologies`, whose size is the reporter
+    `technologies.count`.
 
     Args:
         max_components:

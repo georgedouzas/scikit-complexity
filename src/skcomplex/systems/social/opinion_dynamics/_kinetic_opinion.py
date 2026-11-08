@@ -1,4 +1,7 @@
-"""Opinion dynamics systems: the kinetic theory of opinion formation over a discrete opinion grid."""
+"""Opinion dynamics systems: the kinetic theory of opinion formation.
+
+The opinions lie on a discrete grid.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -103,7 +106,9 @@ def mean_opinion(s: SimpleNamespace, opinions: npt.NDArray[np.float64]) -> Expre
 
 
 def opinion_variance(s: SimpleNamespace, opinions: npt.NDArray[np.float64]) -> Expression:
-    """Return the variance of the opinions of a distribution, which grows as opinions polarise.
+    """Return the variance of the opinions of a distribution.
+
+    It grows as opinions polarise.
 
     Args:
         s:
@@ -120,7 +125,9 @@ def opinion_variance(s: SimpleNamespace, opinions: npt.NDArray[np.float64]) -> E
 
 
 class OpinionEncountersInteraction(EncounterInteraction):
-    """Conservative encounters between opinion levels, which persuade close opinions and repel distant ones.
+    """Conservative encounters between opinion levels.
+
+    They persuade close opinions and repel distant ones.
 
     Args:
         label:
@@ -187,7 +194,9 @@ def _levels_of(system: System) -> int:
 
 
 def opinion_observables(levels: int) -> list[ObservableSpec]:
-    """Return the mean opinion and the variance of the opinions of a distribution `opinions`.
+    """Return the mean opinion and the variance of the opinions of a distribution.
+
+    The distribution is `opinions`.
 
     Args:
         levels:
@@ -300,7 +309,10 @@ class KineticOpinionSystem(BaseSystem):
         )
 
     def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings, with the observables of the parts built from the model parameters."""
+        """Return the tuned run settings.
+
+        The observables of the parts are built from the model parameters.
+        """
         settings = super().get_run_settings()
         system = self._pass_parameters()
         settings['observables'] = opinion_observables(_levels_of(system))

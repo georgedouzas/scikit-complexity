@@ -1,4 +1,7 @@
-"""Markets systems: Epstein and Axtell's Sugarscape of foragers on a landscape of regrowing sugar."""
+"""Markets systems: Epstein and Axtell's Sugarscape.
+
+Foragers live on a landscape of regrowing sugar.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,7 +28,10 @@ from ..common.resources import RegrowthInteraction
 
 
 class ForagerView(AgentView):
-    """Forager as the rules see it: its wealth `sugar`, its `vision`, and its `metabolism`."""
+    """Forager as the rules see it.
+
+    It holds its wealth `sugar`, its `vision`, and its `metabolism`.
+    """
 
     sugar: float
     vision: float
@@ -33,12 +39,12 @@ class ForagerView(AgentView):
 
 
 class ForagerElement(Element):
-    """Agent that moves to the richest free cell in sight, harvests its sugar, burns its metabolism, and may starve.
+    """Agent that moves to the richest free cell in sight and harvests its sugar.
 
-    In its own activation, a forager sees `vision` cells along each of the four lattice directions and moves to the
-    free cell with the most sugar, the nearest among equals, or stays when no cell in sight beats its own, by a
-    `MovementInteraction` of the best step with a vision. Transfers then harvest the sugar of its cell and burn its
-    metabolism, and a `LifeCycleInteraction` removes it when its wealth falls below zero.
+    It burns its metabolism, and may starve. In its own activation, a forager sees `vision` cells along each of the four
+    lattice directions and moves to the free cell with the most sugar, the nearest among equals, or stays when no cell
+    in sight beats its own, by a `MovementInteraction` of the best step with a vision. Transfers then harvest the sugar
+    of its cell and burn its metabolism, and a `LifeCycleInteraction` removes it when its wealth falls below zero.
 
     Args:
         label:
@@ -93,7 +99,9 @@ class SugarPatchView(AgentView):
 
 @dataclass(frozen=True)
 class _PatchMapSpec(BaseSpec):
-    """Patches of a run by cell, which the foragers build once and keep in the storage of the system.
+    """Patches of a run by cell.
+
+    The foragers build them once and keep them in the storage of the system.
 
     Args:
         patches:
@@ -104,9 +112,9 @@ class _PatchMapSpec(BaseSpec):
 
 
 class SugarPatchElement(Element):
-    """Cell of the landscape whose sugar grows back by a fixed amount a step up to its capacity.
+    """Cell of the landscape whose sugar grows back up to its capacity.
 
-    The growback is a `RegrowthInteraction` of the group of patches.
+    The sugar grows back by a fixed amount a step. The growback is a `RegrowthInteraction` of the group of patches.
 
     Args:
         label:
@@ -238,14 +246,14 @@ def _gini(wealth: object) -> float:
 
 
 class SugarscapeSystem(BaseSystem):
-    """The Sugarscape of Epstein and Axtell, foragers of random vision and metabolism on two sugar peaks.
+    """The Sugarscape of Epstein and Axtell.
 
-    Every step the foragers, in random order, move to the richest free cell in sight, harvest it, and burn their
-    metabolism, and those whose wealth falls below zero die. Then the sugar grows back. Foragers of poor vision or high
-    metabolism starve, so the population falls to the carrying capacity of the landscape, and the wealth of the
-    survivors becomes skewed, with a Gini coefficient that rises from its initial value. The system has the groups
-    `patches` and `foragers`, whose catalog observables are the population `population` and the Gini coefficient of
-    wealth `gini`.
+    Foragers of random vision and metabolism live on two sugar peaks. Every step the foragers, in random order, move to
+    the richest free cell in sight, harvest it, and burn their metabolism, and those whose wealth falls below zero die.
+    Then the sugar grows back. Foragers of poor vision or high metabolism starve, so the population falls to the
+    carrying capacity of the landscape, and the wealth of the survivors becomes skewed, with a Gini coefficient that
+    rises from its initial value. The system has the groups `patches` and `foragers`, whose catalog observables are the
+    population `population` and the Gini coefficient of wealth `gini`.
 
     Args:
         width:
@@ -320,7 +328,10 @@ class SugarscapeSystem(BaseSystem):
 
     @staticmethod
     def _get_foraging() -> list[MovementInteraction | TransferInteraction | LifeCycleInteraction]:
-        """Return the member interactions of a forager: move to the best cell in sight, harvest, burn, and starve."""
+        """Return the member interactions of a forager.
+
+        They move to the best cell in sight, harvest, burn, and starve.
+        """
         return [
             MovementInteraction(
                 'search',

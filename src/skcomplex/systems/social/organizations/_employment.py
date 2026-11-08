@@ -1,4 +1,7 @@
-"""Employment systems: employers and workers on a checkerboard who follow each other's colours."""
+"""Employment systems: employers and workers on a checkerboard.
+
+They follow each other's colours.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,12 +24,13 @@ NEIGHBORS = LatticeNeighborhood(((0, 0), (0, 1), (0, -1), (1, 0), (-1, 0)))
 
 
 class WorkplaceElement(Element):
-    """Cell of the employment takeover system: an employer, white 0 or black 1, or a worker, red 0 or blue 1.
+    """Cell of the employment takeover system.
 
-    Employers and workers alternate like the squares of a checkerboard. Every step each worker first takes the colour
-    of the employer to its right, at `x + 1`. Then each employer turns black when at least three of its four workers
-    are blue, stays as it is when two are, and turns white otherwise. The two phases are local rule interactions of
-    the lattice, which `EmploymentTakeoverSystem` adds.
+    It is an employer, white 0 or black 1, or a worker, red 0 or blue 1. Employers and workers alternate like the
+    squares of a checkerboard. Every step each worker first takes the colour of the employer to its right, at `x + 1`.
+    Then each employer turns black when at least three of its four workers are blue, stays as it is when two are, and
+    turns white otherwise. The two phases are local rule interactions of the lattice, which `EmploymentTakeoverSystem`
+    adds.
 
     Args:
         label:
@@ -61,9 +65,10 @@ class WorkplaceElement(Element):
 
 
 class EmploymentTakeoverSystem(BaseSystem):
-    """The employment takeover system on a periodic checkerboard, with half of each kind coloured at random.
+    """The employment takeover system on a periodic checkerboard.
 
-    The system has the colours `cells.colour` and the employers `cells.employer`.
+    Half of each kind is coloured at random. The system has the colours `cells.colour` and the employers
+    `cells.employer`.
 
     Args:
         size:
@@ -100,13 +105,19 @@ class EmploymentTakeoverSystem(BaseSystem):
 
     @staticmethod
     def _follow_employer(*values: Array) -> Array:
-        """Return the colours after every worker takes the colour of the employer at `x + 1`."""
+        """Return the colours after every worker follows its employer.
+
+        Every worker takes the colour of the employer at `x + 1`.
+        """
         colours, employers = values[:5], values[5:]
         return np.where(employers[0] > 0, colours[0], colours[1])
 
     @staticmethod
     def _follow_workers(*values: Array) -> Array:
-        """Return the colours after every employer counts its workers of colour 1 and follows a majority of three."""
+        """Return the colours after every employer follows its workers.
+
+        Every employer counts its workers of colour 1 and follows a majority of three.
+        """
         colours, employers = values[:5], values[5:]
         count = sum(colours[1:])
         following = np.where(count >= TAKEOVER, 1.0, np.where(count == KEEP, colours[0], 0.0))

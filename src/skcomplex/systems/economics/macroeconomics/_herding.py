@@ -1,4 +1,7 @@
-"""Macroeconomics systems: linear choices of agents that herd on the past choices of the agents they are linked to."""
+"""Macroeconomics systems: linear choices of agents that herd.
+
+They herd on the past choices of the agents they are linked to.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,7 +22,9 @@ from ....core.types import Array
 
 
 class HerdingAgentElement(Element):
-    """Agent whose choice `c` is a weighted sum of the past choices of others plus its individual characteristic.
+    """Agent whose choice `c` is a weighted sum of the past choices of others.
+
+    It adds its individual characteristic.
 
     Args:
         label:
@@ -65,15 +70,15 @@ class HerdingAgentElement(Element):
 
 
 class NetworkHerdingSystem(BaseSystem):
-    """Agents whose linear choices herd on the past choices of the agents they are linked to.
+    """Agents whose linear choices herd on the past choices of linked agents.
 
-    The choice of agent `i` is `c_it = sum_j theta_ij c_j,t-1 + gamma x_it`, so the choices follow
-    `c_t = Theta c_t-1 + gamma x_t` on the weighted network `Theta`, without self-links, Eqs. 1.10 and 1.11 of Caiani
-    et al. (2016, Section 1.1.6). The individual characteristic is `x_it = x_i + sigma eps_it`, with a standard normal
-    shock `eps_it`. The mean choice follows `c_t = (1/N) sum_i d_i c_i,t-1 + gamma x_t` (Eq. 1.12), where the out-degree
-    `d_i` of agent `i`, the sum of column `i` of `Theta`, measures how much its choice moves the others, so the
-    persistence of the aggregate depends on the out-degrees and on how they correlate with the choices. Without
-    shocks the choices settle at `(I - Theta)^-1 gamma x` when the spectral radius of `Theta` is below 1.
+    They herd on the agents they are linked to. The choice of agent `i` is `c_it = sum_j theta_ij c_j,t-1 + gamma x_it`,
+    so the choices follow `c_t = Theta c_t-1 + gamma x_t` on the weighted network `Theta`, without self-links, Eqs. 1.10
+    and 1.11 of Caiani et al. (2016, Section 1.1.6). The individual characteristic is `x_it = x_i + sigma eps_it`, with
+    a standard normal shock `eps_it`. The mean choice follows `c_t = (1/N) sum_i d_i c_i,t-1 + gamma x_t` (Eq. 1.12),
+    where the out-degree `d_i` of agent `i`, the sum of column `i` of `Theta`, measures how much its choice moves the
+    others, so the persistence of the aggregate depends on the out-degrees and on how they correlate with the choices.
+    Without shocks the choices settle at `(I - Theta)^-1 gamma x` when the spectral radius of `Theta` is below 1.
 
     The system has the group `agents` of the choices `agents.c` and the herding `herding`. The observable of the system
     is the mean choice `mean_choice`.
@@ -146,12 +151,18 @@ class NetworkHerdingSystem(BaseSystem):
 
     @staticmethod
     def _choice(s: SimpleNamespace, herding: Expression) -> Expression:
-        """Return the next choice, the herding term plus `gamma` times the shocked individual characteristic."""
+        """Return the next choice.
+
+        It is the herding term plus `gamma` times the shocked individual characteristic.
+        """
         return herding + s.member.gamma * (s.member.x + s.member.sigma * normal('shock', 0, 1))
 
     @staticmethod
     def _random_links(n_agents: int, density: float, herding: float, rng: np.random.Generator) -> Array:
-        """Return random directed weights with no self-links, every row of which sums to `herding`."""
+        """Return random directed weights with no self-links.
+
+        Every row sums to `herding`.
+        """
         links = (rng.random((n_agents, n_agents)) < density) * rng.random((n_agents, n_agents))
         np.fill_diagonal(links, 0.0)
         rows = links.sum(axis=1, keepdims=True)

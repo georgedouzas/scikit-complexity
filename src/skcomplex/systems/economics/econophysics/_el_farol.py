@@ -25,7 +25,7 @@ from ..common.forecasting import heuristics
 
 
 class PatronView(AgentView):
-    """Patron as the rules of the bar see it, with its predictors, forecast, and attendance.
+    """Patron as the rules of the bar see it.
 
     It reads the bit mask of its `predictors`, its `forecast`, whether it `attends`, and the `capacity` of the bar.
     """
@@ -37,7 +37,10 @@ class PatronView(AgentView):
 
 
 class PredictorPoolView(AgentView):
-    """Pool of predictors as the rules of the bar see it, with the `forecasts` and the `errors` of its predictors."""
+    """Pool of predictors as the rules of the bar see it.
+
+    It holds the `forecasts` and the `errors` of its predictors.
+    """
 
     forecasts: Array
     errors: Array
@@ -50,7 +53,10 @@ MAX_ATTENDANCE = 100.0
 
 
 def _lag(history: Array, weeks: int) -> float:
-    """Return the attendance a number of weeks ago, which detects cycles of that period."""
+    """Return the attendance a number of weeks ago.
+
+    It detects cycles of that period.
+    """
     return float(history[-weeks])
 
 
@@ -81,7 +87,9 @@ PREDICTORS: tuple[Predictor, ...] = (
 
 
 def forecasts(history: npt.ArrayLike) -> Array:
-    """Return the forecast of next week's attendance of every predictor of the pool, between 0 and 100.
+    """Return the forecast of next week's attendance of every predictor of the pool.
+
+    It lies between 0 and 100.
 
     Args:
         history:
@@ -102,13 +110,13 @@ def forecasts(history: npt.ArrayLike) -> Array:
 
 
 class PredictorPoolElement(Element):
-    """Pool of Arthur's predictors, with the forecast and the accuracy of every predictor that the patrons share.
+    """Pool of Arthur's predictors that the patrons share.
 
-    The accuracy of a predictor depends only on the history of attendance, the observable `attendance` of the run,
-    so one member holds it for every patron. Every week the pool forecasts the attendance with every predictor, from
-    ten random weeks it draws at the first week followed by the observed attendances, and a
-    `ReinforcementInteraction` moves the error of every predictor towards its last absolute error, a discounted mean
-    of the errors.
+    It holds the forecast and the accuracy of every predictor. The accuracy of a predictor depends only on the history
+    of attendance, the observable `attendance` of the run, so one member holds it for every patron. Every week the pool
+    forecasts the attendance with every predictor, from ten random weeks it draws at the first week followed by the
+    observed attendances, and a `ReinforcementInteraction` moves the error of every predictor towards its last absolute
+    error, a discounted mean of the errors.
 
     Args:
         label:
@@ -186,7 +194,9 @@ class PredictorPoolElement(Element):
 
     @staticmethod
     def error(agent: PredictorPoolView, system: SystemView, index: int) -> float:
-        """Return the absolute error of a predictor last week, or its error so far before the first attendance.
+        """Return the absolute error of a predictor last week.
+
+        Before the first attendance, it is its error so far.
 
         Args:
             agent:
@@ -209,10 +219,11 @@ class PredictorPoolElement(Element):
 
 
 class PatronElement(Element):
-    """Patron of the El Farol bar, who forecasts the attendance with its most accurate predictor.
+    """Patron of the El Farol bar.
 
-    Every patron holds a few predictors of the pool, the set bits of `predictors`, and forecasts with the one of
-    smallest error in the pool. A choice then sends the patron to the bar when the forecast is below the capacity.
+    It forecasts the attendance with its most accurate predictor. Every patron holds a few predictors of the pool, the
+    set bits of `predictors`, and forecasts with the one of smallest error in the pool. A choice then sends the patron
+    to the bar when the forecast is below the capacity.
 
     Args:
         label:
@@ -296,12 +307,13 @@ class PatronElement(Element):
 
 
 class ElFarolSystem(BaseSystem):
-    """Arthur's El Farol bar problem, whose attendance self-organizes around the capacity.
+    """Arthur's El Farol bar problem.
 
-    Every patron holds a random set of predictors of next week's attendance, drawn from a pool of 46, and acts on
-    its currently most accurate one, going when it forecasts room in the bar. The attendance is random-looking, yet
-    its mean settles near the capacity. The patrons read the past attendances from the observable `attendance` of
-    the run, which the catalog lists, so a run passes it in `observables`.
+    Its attendance self-organizes around the capacity. Every patron holds a random set of predictors of next week's
+    attendance, drawn from a pool of 46, and acts on its currently most accurate one, going when it forecasts room in
+    the bar. The attendance is random-looking, yet its mean settles near the capacity. The patrons read the past
+    attendances from the observable `attendance` of the run, which the catalog lists, so a run passes it in
+    `observables`.
 
     The system has the group `patrons`, the one-member group `pool` of the forecasts and the errors of the predictors,
     the reinforcement `scoring` of the errors, and the choice `choice` to go when the forecast is below the capacity of

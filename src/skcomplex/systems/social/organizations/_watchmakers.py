@@ -1,4 +1,7 @@
-"""Watchmaker systems: Simon's fable of Hora and Tempus, who assemble watches with and without stable subassemblies."""
+"""Watchmaker systems: Simon's fable of Hora and Tempus.
+
+They assemble watches with and without stable subassemblies.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,7 +21,10 @@ from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 class WatchmakerView(AgentView):
-    """View of a watchmaker of the Hora and Tempus fable, with its states and parameters as attributes."""
+    """View of a watchmaker of the Hora and Tempus fable.
+
+    Its states and parameters are attributes.
+    """
 
     progress: float
     done: float
@@ -28,7 +34,9 @@ class WatchmakerView(AgentView):
 
 
 class WatchmakerElement(Element):
-    """Watchmaker who assembles a watch as a number of tasks of a number of actions each.
+    """Watchmaker who assembles a watch.
+
+    The watch is a number of tasks of a number of actions each.
 
     Args:
         label:
@@ -78,16 +86,19 @@ class WatchmakerElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[WatchmakerView]:
-        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        """Return the class of the views of the agents.
+
+        Their attributes are the states and parameters.
+        """
         return WatchmakerView
 
 
 class AssemblyInteraction(Interaction):
-    """Assembly of the Hora and Tempus fable, one action per step that an interruption can undo.
+    """Assembly of the Hora and Tempus fable.
 
-    Every step every watchmaker takes one action on the task in hand, unless a customer calls, with the probability
-    `interruption`, and the unfinished task falls to pieces. A finished task is stable, and a watchmaker who finishes
-    the last task of a watch sells it and starts the next one.
+    There is one action per step, which an interruption can undo. Every step every watchmaker takes one action on the
+    task in hand, unless a customer calls, with the probability `interruption`, and the unfinished task falls to pieces.
+    A finished task is stable, and a watchmaker who finishes the last task of a watch sells it and starts the next one.
 
     Args:
         label:
@@ -132,7 +143,9 @@ class AssemblyInteraction(Interaction):
         return [RuleLaw(self.assemble)]
 
     def assemble(self, system: SystemView) -> None:
-        """Take one action of every watchmaker, or undo the task in hand at an interruption.
+        """Take one action of every watchmaker.
+
+        An interruption undoes the task in hand instead.
 
         Args:
             system:
@@ -153,16 +166,16 @@ class AssemblyInteraction(Interaction):
 
 
 class WatchmakersSystem(BaseSystem):
-    """Simon's fable of the watchmakers Hora and Tempus, told by Meadows, with and without stable subassemblies.
+    """Simon's fable of the watchmakers Hora and Tempus, told by Meadows.
 
-    Both watchmakers build watches of `parts` parts. Tempus puts all of them together at once, so an interruption,
-    a customer's call, makes the unfinished watch fall to pieces. Hora puts together stable subassemblies of
-    `subassembly` elements, then assemblies of those, up to the whole watch, so an interruption loses only the
-    assembly in hand. Hora has more actions to take, `parts - 1` divided by `subassembly - 1` tasks of `subassembly`
-    actions each, 111 tasks of 10 actions for 1000 parts. A task of `k` actions interrupted with the probability `p` at
-    every action takes `((1 - p)^-k - 1) / p` actions on average, so at `p = 0.01` Hora finishes a watch every 1173
-    steps and Tempus one every 2.3 million steps. The book tells the fable as a narrative, so the step of one action
-    and the interruption at every action follow Simon's original telling.
+    The watchmakers work with and without stable subassemblies. Both watchmakers build watches of `parts` parts. Tempus
+    puts all of them together at once, so an interruption, a customer's call, makes the unfinished watch fall to pieces.
+    Hora puts together stable subassemblies of `subassembly` elements, then assemblies of those, up to the whole watch,
+    so an interruption loses only the assembly in hand. Hora has more actions to take, `parts - 1` divided by
+    `subassembly - 1` tasks of `subassembly` actions each, 111 tasks of 10 actions for 1000 parts. A task of `k` actions
+    interrupted with the probability `p` at every action takes `((1 - p)^-k - 1) / p` actions on average, so at
+    `p = 0.01` Hora finishes a watch every 1173 steps and Tempus one every 2.3 million steps. The book tells the fable
+    as a narrative, so the step of one action and the interruption at every action follow Simon's original telling.
 
     The system has the group `watchmakers`, Hora first and Tempus second.
 

@@ -1,4 +1,7 @@
-"""Trafficking systems: victims moved between brothels and the traces their movements leave."""
+"""Trafficking systems: victims moved between brothels and the traces they leave.
+
+The traces are left by their movements.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,7 +26,10 @@ from ....core.specs import PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, V
 
 
 class PremisesView(AgentView):
-    """View of a premises of the trafficking system, with its states and parameters as attributes."""
+    """View of a premises of the trafficking system.
+
+    Its states and parameters are attributes.
+    """
 
     brothel: float
     bills: float
@@ -33,11 +39,11 @@ class PremisesView(AgentView):
 
 
 class PremisesElement(Element):
-    """House or brothel of the brothel movement system, whose energy bills grow with the people inside.
+    """House or brothel of the brothel movement system.
 
-    Every day the bills grow by `1 / (1 + exp(x0 - n))` for the `n` people in the premises' cell, and every quarter they
-    are recorded and reset. In `TraffickingSystem`, maps of the bills read the counts of the women by cell every day,
-    and maps in a phase of a period of 90 days record and reset them.
+    Its energy bills grow with the people inside. Every day the bills grow by `1 / (1 + exp(x0 - n))` for the `n` people
+    in the premises' cell, and every quarter they are recorded and reset. In `TraffickingSystem`, maps of the bills read
+    the counts of the women by cell every day, and maps in a phase of a period of 90 days record and reset them.
 
     Args:
         label:
@@ -89,19 +95,27 @@ class PremisesElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[PremisesView]:
-        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        """Return the class of the views of the agents.
+
+        Their attributes are the states and parameters.
+        """
         return PremisesView
 
 
 class TravellerView(AgentView):
-    """View of a woman of the trafficking system, with its states and parameters as attributes."""
+    """View of a woman of the trafficking system.
+
+    Its states and parameters are attributes.
+    """
 
     victim: float
     trips: float
 
 
 class TravellerElement(Element):
-    """Woman of the brothel movement system: a trafficking victim, or a woman who travels freely.
+    """Woman of the brothel movement system.
+
+    She is a trafficking victim, or a woman who travels freely.
 
     Args:
         label:
@@ -138,7 +152,10 @@ class TravellerElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[TravellerView]:
-        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        """Return the class of the views of the agents.
+
+        Their attributes are the states and parameters.
+        """
         return TravellerView
 
 
@@ -290,9 +307,10 @@ QUARTERLY = 'quarter'
 
 
 class TraffickingSystem(BaseSystem):
-    """The brothel movement system, where victims moved between brothels leave traces in bills and train trips.
+    """The brothel movement system.
 
-    The system has the groups `premises` and `women`.
+    Victims moved between brothels leave traces in bills and train trips. The system has the groups `premises` and
+    `women`.
 
     Args:
         width:
@@ -359,7 +377,10 @@ class TraffickingSystem(BaseSystem):
 
     @staticmethod
     def _heat(place: PremisesView, system: SystemViewProtocol) -> float:
-        """Return the growth of the bills of a premises in a day, `1 / (1 + exp(x0 - n))` for the `n` people inside."""
+        """Return the growth of the bills of a premises in a day.
+
+        It is `1 / (1 + exp(x0 - n))` for the `n` people inside.
+        """
         people = system.occupancy('sources').get(place.location_key, 0)
         return float(1 / (1 + np.exp(place.efficiency - people)))
 

@@ -1,4 +1,7 @@
-"""Markets systems: the demand of heterogeneous households for a good as its price rises."""
+"""Markets systems: the demand of heterogeneous households for a good.
+
+The demand follows the price as it rises.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -28,12 +31,12 @@ FOOD_ELASTICITIES = (-0.6, -0.6, -0.5, -0.4, -0.3)
 
 
 class BudgetHouseholdElement(Element):
-    """Household with a budget that buys a good at a price that rises by a share every step.
+    """Household with a budget that buys a good at a rising price.
 
-    With the demand `'cobb-douglas'` the household maximizes `A^alpha B^(1 - alpha)` against a composite good `B` of
-    price 1, so it buys `A = alpha m / p` and spends the share `alpha` of its budget `m` on the good. With the demand
-    `'elasticity'` it spends the budget share `alpha` at the initial price `p0` and its demand changes with its
-    own-price elasticity, `A = (alpha m / p0) (p / p0)^elasticity`.
+    The price rises by a share every step. With the demand `'cobb-douglas'` the household maximizes
+    `A^alpha B^(1 - alpha)` against a composite good `B` of price 1, so it buys `A = alpha m / p` and spends the share
+    `alpha` of its budget `m` on the good. With the demand `'elasticity'` it spends the budget share `alpha` at the
+    initial price `p0` and its demand changes with its own-price elasticity, `A = (alpha m / p0) (p / p0)^elasticity`.
 
     Args:
         label:
@@ -144,7 +147,9 @@ class BudgetHouseholdElement(Element):
         return s.alpha * s.budget / s.initial_price * (price / s.initial_price) ** s.elasticity
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rise of the price and the demand, expenditure, and utility at the new price.
+        """Return the rise of the price and the demand, expenditure, and utility.
+
+        The demand, expenditure, and utility are at the new price.
 
         Args:
             s:
@@ -166,16 +171,17 @@ class BudgetHouseholdElement(Element):
 
 
 class HouseholdDemandSystem(BaseSystem):
-    """Hamill and Gilbert's heterogeneous households, whose demand for food traces a curve as its price rises.
+    """Hamill and Gilbert's heterogeneous households.
 
-    Every household has a budget drawn from an exponential law shifted right by a minimum and normalized to a mean of
-    100, which gives a Gini coefficient of about a third and a P90/P10 ratio just over 4, and a budget share of food
-    drawn around the mean of its budget quintile, from 15 percent for the poorest to 8 percent for the richest. Every
-    step the price rises by the share `change`, from 1. With the Cobb-Douglas utility of Section 3.2 of Hamill and
-    Gilbert (2016) the demand is `alpha m / p`, the own-price elasticity is -1, the expenditure stays the same, and the
-    poorest lose the most utility. With the practical model of Section 3.3 the households also have own-price
-    elasticities drawn around the means of their quintiles, from -0.6 to -0.3, so a price rise of 10 percent lowers
-    the demand by about 4.4 percent and raises the expenditure by about 5.1 percent, more for the richest.
+    Their demand for food traces a curve as its price rises. Every household has a budget drawn from an exponential law
+    shifted right by a minimum and normalized to a mean of 100, which gives a Gini coefficient of about a third and a
+    P90/P10 ratio just over 4, and a budget share of food drawn around the mean of its budget quintile, from 15 percent
+    for the poorest to 8 percent for the richest. Every step the price rises by the share `change`, from 1. With the
+    Cobb-Douglas utility of Section 3.2 of Hamill and Gilbert (2016) the demand is `alpha m / p`, the own-price
+    elasticity is -1, the expenditure stays the same, and the poorest lose the most utility. With the practical model of
+    Section 3.3 the households also have own-price elasticities drawn around the means of their quintiles, from -0.6 to
+    -0.3, so a price rise of 10 percent lowers the demand by about 4.4 percent and raises the expenditure by about 5.1
+    percent, more for the richest.
 
     The system has the group `households` of the demands `households.demand`, the expenditures `households.expenditure`,
     the utilities `households.utility`, and the prices `households.price`. The observables of the system are
@@ -255,7 +261,10 @@ class HouseholdDemandSystem(BaseSystem):
 
     @staticmethod
     def _budgets(n_households: int, minimum: float, rng: np.random.Generator) -> Array:
-        """Return budgets drawn from an exponential law shifted right by the minimum, normalized to a mean of 100."""
+        """Return budgets drawn from an exponential law shifted right by the minimum.
+
+        They are normalized to a mean of 100.
+        """
         draws = minimum + rng.exponential(1.0, n_households) * (100.0 - minimum)
         return draws * 100.0 / draws.mean()
 

@@ -1,4 +1,7 @@
-"""Markets systems: traders who wander a grid and barter two or three goods with their neighbours."""
+"""Markets systems: traders who wander a grid and barter goods.
+
+They barter two or three goods with their neighbours.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

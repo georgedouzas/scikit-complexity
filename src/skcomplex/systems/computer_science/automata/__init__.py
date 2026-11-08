@@ -1,4 +1,7 @@
-"""Automata: elementary, life-like, noisy, and group automata, automata over infinite alphabets, and subshifts."""
+"""Automata: elementary, life-like, noisy, and group automata, and subshifts.
+
+It also holds automata over infinite alphabets.
+"""
 
 from ._alphabets import (
     GroupCellElement,

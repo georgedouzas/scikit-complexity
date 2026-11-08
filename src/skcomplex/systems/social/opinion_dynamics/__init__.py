@@ -1,4 +1,7 @@
-"""Opinion dynamics: voting, coevolving networks, persuasion, bounded confidence, conventions, and diffusion."""
+"""Opinion dynamics: voting, coevolving networks, persuasion, and more.
+
+It also holds bounded confidence, conventions, and diffusion.
+"""
 
 from ._axelrod import (
     AxelrodSystem,

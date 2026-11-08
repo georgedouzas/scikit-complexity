@@ -1,4 +1,7 @@
-"""Urban scaling of interactions: a city grown by hyperbolic distance, whose residents meet their neighbours."""
+"""Urban scaling of interactions: a city grown by hyperbolic distance.
+
+Its residents meet their neighbours.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,7 +26,9 @@ MEETINGS_VISUAL = VisualSpec('sites', {'states': ['meetings']})
 
 
 class CityDwellerElement(Element):
-    """Resident of a growing city, with an angle of similarity, an age, and the meetings of the last step.
+    """Resident of a growing city.
+
+    It holds an angle of similarity, an age, and the meetings of the last step.
 
     Args:
         label:
@@ -72,18 +77,18 @@ MIN_EXPONENT = 2.0
 
 
 class UrbanScalingInteractionsSystem(BaseSystem):
-    """A city that grows by residents and internal links, so its meetings grow faster than its population.
+    """A city that grows by residents and internal links.
 
-    Every step a resident joins at a uniform angle and adds `edges` links to residents drawn in proportion to the
-    Fermi-Dirac probability of their hyperbolic distance, as in popularity-similarity growth (Papadopoulos et al.
-    2012). Every resident also adds an internal link with the probability `internal` per step, toward the same weight,
-    so the links per step and the mean degree grow with the size. This rate per resident is the assumption of this
-    system, since Papadopoulos et al. (2015) add a fixed number of internal links per step and keep the mean degree
-    constant.
-    Every resident meets each neighbour with the probability `meeting` per step. The growth and the internal links stop
-    when the city holds `population` residents, so one run time reaches every size. A `sweep` varies `population`,
-    and `scaling(kind='allometric')` fits the exponent of the meetings, which Ribeiro and Netto (2024) review
-    near 1.15 for socioeconomic quantities, and which the rate `internal` sets here.
+    Its meetings grow faster than its population. Every step a resident joins at a uniform angle and adds `edges` links
+    to residents drawn in proportion to the Fermi-Dirac probability of their hyperbolic distance, as in
+    popularity-similarity growth (Papadopoulos et al. 2012). Every resident also adds an internal link with the
+    probability `internal` per step, toward the same weight, so the links per step and the mean degree grow with the
+    size. This rate per resident is the assumption of this system, since Papadopoulos et al. (2015) add a fixed number
+    of internal links per step and keep the mean degree constant. Every resident meets each neighbour with the
+    probability `meeting` per step. The growth and the internal links stop when the city holds `population` residents,
+    so one run time reaches every size. A `sweep` varies `population`, and `scaling(kind='allometric')` fits the
+    exponent of the meetings, which Ribeiro and Netto (2024) review near 1.15 for socioeconomic quantities, and which
+    the rate `internal` sets here.
 
     The system has the groups `residents` and `links`, the states `residents.angle`, `residents.age`,
     `residents.degree`, and `residents.meetings`, and the observable `total_meetings` of the catalog, which a run passes
@@ -159,7 +164,10 @@ class UrbanScalingInteractionsSystem(BaseSystem):
 
     @staticmethod
     def _get_closeness(node: SimpleNamespace, arrivals: int, edges: int, fading: float, temperature: float) -> object:
-        """Return the Fermi-Dirac probability of the hyperbolic distance of a candidate from the source of an edge."""
+        """Return the Fermi-Dirac probability of the hyperbolic distance of a candidate.
+
+        The distance is from the source of an edge.
+        """
         now = node.t + arrivals
         radius = 2 * ln(now)
         first = fading * 2 * ln(now - node.age) + (1 - fading) * radius

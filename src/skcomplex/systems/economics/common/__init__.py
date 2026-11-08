@@ -1,4 +1,7 @@
-"""Realizations shared by several economics systems: assets, balance sheets, exchange, forecasting, and resources."""
+"""Realizations shared by several economics systems.
+
+They are assets, balance sheets, exchange, forecasting, and resources.
+"""
 
 from ._asset import AssetElement
 from ._balance_sheet import BalanceSheetElement

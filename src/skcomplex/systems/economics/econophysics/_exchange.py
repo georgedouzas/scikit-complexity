@@ -14,7 +14,9 @@ from ....core.specs import StateSpec, VisualSpec
 
 
 class TraderElement(Element):
-    """Agent of the Boltzmann wealth system, whose wealth in whole units changes only by gifts of one unit.
+    """Agent of the Boltzmann wealth system.
+
+    Its wealth in whole units changes only by gifts of one unit.
 
     Args:
         label:

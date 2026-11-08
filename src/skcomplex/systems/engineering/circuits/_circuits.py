@@ -90,7 +90,10 @@ class CircuitElement(Element):
 
 
 class KickedCircuitElement(Element):
-    """RLC circuit ringing down freely between the impulses of strength `A` that kick its rate."""
+    """RLC circuit ringing down freely between impulses.
+
+    The impulses of strength `A` kick its rate.
+    """
 
     law_classes = (EquationLaw,)
 
@@ -234,7 +237,10 @@ class MultiscrollChuaCircuitElement(Element):
 
     @staticmethod
     def _scroll_nonlinearity(x: Expression, a: Expression, b: Expression, c: Expression) -> Expression:
-        """Return the sine characteristic of the multiscroll Chua circuit, continued linearly beyond `|x| = 2 a c`."""
+        """Return the sine characteristic of the multiscroll Chua circuit.
+
+        It is continued linearly beyond `|x| = 2 a c`.
+        """
         edge = 2 * a * c
         slope = b * pi / (2 * a)
         return where(x >= edge, slope * (x - edge), where(x <= -edge, slope * (x + edge), -b * sin(pi * x / (2 * a))))
@@ -277,9 +283,10 @@ CHUA_NONLINEARITIES = ('piecewise-linear', 'sine')
 
 
 class RlcCircuitSystem(BaseSystem):
-    """A series RLC circuit written as Kirchhoff's voltage law, `L q'' + R q' + q / C = V cos(ω t)`.
+    """A series RLC circuit written as Kirchhoff's voltage law.
 
-    The system has the circuit `circuit`, whose charge has order 2 and current `circuit.q_d1`.
+    The law is `L q'' + R q' + q / C = V cos(ω t)`. The system has the circuit `circuit`, whose charge has order 2 and
+    current `circuit.q_d1`.
 
     Args:
         q:
@@ -441,12 +448,12 @@ class ChuaSystem(BaseSystem):
 
 
 class MixedModeChuaSystem(BaseSystem):
-    """A modified Chua circuit on three time scales, whose oscillations mix small and large amplitudes.
+    """A modified Chua circuit on three time scales.
 
-    The circuit follows `ε x' = -y + (a + b x) x^2`, `y' = alpha (x - R y - z)`, and `z' = c - β y`. For `ε = 0.01`, `a
-    = 1.5`, `b = -1`, and `β = 0.005`, the circuit has small oscillations only for `c = 0`, large ones only for `c =
-    0.00105`, and mixed-mode oscillations for `c = 0.00053`. The system has the states `circuit.x`, `circuit.y`, and
-    `circuit.z`.
+    Its oscillations mix small and large amplitudes. The circuit follows `ε x' = -y + (a + b x) x^2`,
+    `y' = alpha (x - R y - z)`, and `z' = c - β y`. For `ε = 0.01`, `a = 1.5`, `b = -1`, and `β = 0.005`, the circuit
+    has small oscillations only for `c = 0`, large ones only for `c = 0.00105`, and mixed-mode oscillations for
+    `c = 0.00053`. The system has the states `circuit.x`, `circuit.y`, and `circuit.z`.
 
     Args:
         x:
@@ -541,11 +548,12 @@ class MixedModeChuaSystem(BaseSystem):
 
 
 class MemristorOscillatorSystem(BaseSystem):
-    """The simplest memristor oscillator: a capacitor, an inductor, and a memristor in series.
+    """The simplest memristor oscillator.
 
-    The capacitor voltage, the inductor current, and the internal state of the memristor follow `C v' = i`, `L i' = -v -
-    β (w^2 - 1) i`, and `w' = -i - alpha w + w i`. The memristor has the memristance `β (w^2 - 1)`, and the circuit
-    oscillates chaotically for the default values. The system has the states `circuit.v`, `circuit.i`, and `circuit.w`.
+    It is a capacitor, an inductor, and a memristor in series. The capacitor voltage, the inductor current, and the
+    internal state of the memristor follow `C v' = i`, `L i' = -v - β (w^2 - 1) i`, and `w' = -i - alpha w + w i`. The
+    memristor has the memristance `β (w^2 - 1)`, and the circuit oscillates chaotically for the default values. The
+    system has the states `circuit.v`, `circuit.i`, and `circuit.w`.
 
     Args:
         v:
@@ -625,10 +633,11 @@ class MemristorOscillatorSystem(BaseSystem):
 
 
 class TunnelDiodeOscillatorSystem(BaseSystem):
-    """A tunnel-diode oscillator: an inductor and a capacitor in parallel with a negative-resistance diode.
+    """A tunnel-diode oscillator.
 
-    The diode current is `h(V) = gamma V^3 - alpha V`, so Kirchhoff's laws give `C V' = -h(V) - i` and `L i' = V`, which
-    is the van der Pol oscillator with `ε = alpha sqrt(L / C)`. The voltage settles on a limit cycle of amplitude near
+    It is an inductor and a capacitor in parallel with a negative-resistance diode. The diode current is
+    `h(V) = gamma V^3 - alpha V`, so Kirchhoff's laws give `C V' = -h(V) - i` and `L i' = V`, which is the van der Pol
+    oscillator with `ε = alpha sqrt(L / C)`. The voltage settles on a limit cycle of amplitude near
     `2 sqrt(alpha / (3 gamma))`. The system has the voltage `circuit.V` and the inductor current `circuit.i`.
 
     Args:
@@ -703,11 +712,12 @@ class TunnelDiodeOscillatorSystem(BaseSystem):
 
 
 class ImpulsiveCircuitsSystem(BaseSystem):
-    """An RLC circuit driven by a periodic train of current impulses, `L C x'' + R C x' + x = A Σ δ(t - k T)`.
+    """An RLC circuit driven by a periodic train of current impulses.
 
-    Every impulse is an event that raises the rate of change `x'` by `A / (L C)`, and between impulses the circuit rings
-    down freely. The response settles on a periodic, non-sinusoidal waveform of period `T`. The system has the response
-    `circuit.x` and its rate `circuit.x_d1`, kicked by the impulses `impulse`.
+    It follows `L C x'' + R C x' + x = A Σ δ(t - k T)`. Every impulse is an event that raises the rate of change `x'` by
+    `A / (L C)`, and between impulses the circuit rings down freely. The response settles on a periodic, non-sinusoidal
+    waveform of period `T`. The system has the response `circuit.x` and its rate `circuit.x_d1`, kicked by the impulses
+    `impulse`.
 
     Args:
         x:

@@ -1,4 +1,7 @@
-"""Markets: prices, competition, retail, inventories, queues, and barter of Cobb-Douglas traders on trade networks."""
+"""Markets: prices, competition, retail, inventories, queues, and barter.
+
+The barter is of Cobb-Douglas traders on trade networks.
+"""
 
 from ..common import ExchangeInteraction, cobb_douglas, marginal_rate, trade_goods
 from ._adaptive_auction import AdaptiveAuctionInteraction, AdaptiveTraderElement, GoodingDoubleAuctionSystem

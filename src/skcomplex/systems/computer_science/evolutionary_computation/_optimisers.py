@@ -32,7 +32,9 @@ from ....core.types import Array
 
 
 class AnnealedCandidateElement(Element):
-    """Candidate solution of the plane, whose coordinates are sampled one state at a time.
+    """Candidate solution of the plane.
+
+    Its coordinates are sampled one state at a time.
 
     Args:
         label:
@@ -104,7 +106,9 @@ class SearchCandidateElement(Element):
 
 
 class RunningBestInteraction(Interaction):
-    """Keep the lowest value of an observable, `best <- value if value < best else best`.
+    """Keep the lowest value of an observable.
+
+    It sets `best <- value if value < best else best`.
 
     Args:
         label:
@@ -208,13 +212,13 @@ MEMBER_ENERGIES = {'rastrigin': _rastrigin_member, 'rosenbrock': _rosenbrock_mem
 
 
 class EvolutionaryOptimisersSystem(BaseSystem):
-    """A population of candidates that searches a two-dimensional landscape, one generation per step.
+    """A population of candidates that searches a two-dimensional landscape.
 
-    A population optimiser moves the candidates through `OptimizationInteraction`, and reports `search.best`. Simulated
-    annealing samples every coordinate through `SamplingInteraction` at a temperature that falls geometrically to 1e-3
-    of its start over `generations` steps, and `tracker/record.best` holds the lowest energy it has reached, from the
-    observable `search/lowest` that the catalog lists, so a run passes it in `observables` (Raman 2021 §6.3.3.3,
-    §6.3.4). The system has the group `candidates`.
+    Each step is one generation. A population optimiser moves the candidates through `OptimizationInteraction`, and
+    reports `search.best`. Simulated annealing samples every coordinate through `SamplingInteraction` at a temperature
+    that falls geometrically to 1e-3 of its start over `generations` steps, and `tracker/record.best` holds the lowest
+    energy it has reached, from the observable `search/lowest` that the catalog lists, so a run passes it in
+    `observables` (Raman 2021 §6.3.3.3, §6.3.4). The system has the group `candidates`.
 
     Args:
         n_candidates:
@@ -288,7 +292,10 @@ class EvolutionaryOptimisersSystem(BaseSystem):
         *,
         label: str,
     ) -> System:
-        """Return candidates that anneal one state at a time, and the element keeping the lowest energy they reach."""
+        """Return candidates that anneal one state at a time, and the best-energy element.
+
+        The element keeps the lowest energy the candidates reach.
+        """
         candidates = LatticeElement(
             'candidates',
             element=AnnealedCandidateElement,
@@ -321,7 +328,10 @@ class EvolutionaryOptimisersSystem(BaseSystem):
         )
 
     def _build_system(self) -> System:
-        """Return a population of candidates that searches a two-dimensional landscape, one generation per step."""
+        """Return a population of candidates that searches a two-dimensional landscape.
+
+        Each step is one generation.
+        """
         if (self.algorithm not in ALGORITHMS and self.algorithm != ANNEALING) or self.landscape not in LANDSCAPES:
             names = ', '.join((*ALGORITHMS, ANNEALING))
             error_msg = (
@@ -350,11 +360,11 @@ class EvolutionaryOptimisersSystem(BaseSystem):
         return System(self.label, elements=[candidates], interactions=[search], time=DiscreteTime())
 
     def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings, with the lowest candidate energy of simulated annealing.
+        """Return the tuned run settings.
 
-        A population optimiser keeps the default settings. Simulated annealing nests the search and the tracker of the
-        best energy, which run side by side, and records the lowest energy its candidates reach, as `search/lowest`,
-        which the tracker reads.
+        They record the lowest candidate energy of simulated annealing. A population optimiser keeps the default
+        settings. Simulated annealing nests the search and the tracker of the best energy, which run side by side, and
+        records the lowest energy its candidates reach, as `search/lowest`, which the tracker reads.
 
         Returns:
             settings:

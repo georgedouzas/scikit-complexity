@@ -1,4 +1,7 @@
-"""Continuum traffic systems: the density and speed of traffic as fields along a road."""
+"""Continuum traffic systems: the density and speed of traffic as fields.
+
+The fields lie along a road.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,11 +23,12 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class GasKineticTrafficElement(Element):
-    """Cell of a road with the traffic density `rho` and the flow `Q` of the gas-kinetic-based traffic system.
+    """Cell of a road with the density `rho` and the flow `Q` of the GKT system.
 
-    The density and the flow are conserved by conservation interactions, and the flow relaxes to a dynamic equilibrium
-    speed that brakes on the density and the speed read ahead at the interaction point. Lengths are in kilometres and
-    times in hours, so `T` and `tau` are fractions of an hour.
+    The GKT system is the gas-kinetic-based traffic system. The density and the flow are conserved by conservation
+    interactions, and the flow relaxes to a dynamic equilibrium speed that brakes on the density and the speed read
+    ahead at the interaction point. Lengths are in kilometres and times in hours, so `T` and `tau` are fractions of an
+    hour.
 
     Args:
         label:
@@ -104,10 +108,11 @@ class GasKineticTrafficElement(Element):
 
 
 class KernerKonhauserElement(Element):
-    """Cell of a road with the traffic density `rho` and the flow `q` of the Kerner-Konhäuser system.
+    """Cell of a road with the density and the flow of the Kerner-Konhäuser system.
 
-    The density and the flow are conserved by conservation interactions, the flow relaxes to the equilibrium flow by a
-    relaxation interaction, and the viscosity adds the rate `mu laplacian(q / rho)` to the flow.
+    The density is `rho` and the flow is `q`. The density and the flow are conserved by conservation interactions, the
+    flow relaxes to the equilibrium flow by a relaxation interaction, and the viscosity adds the rate `mu laplacian(q /
+    rho)` to the flow.
     """
 
     def __init__(
@@ -134,7 +139,10 @@ class KernerKonhauserElement(Element):
 
 
 class LighthillWhithamRichardsElement(Element):
-    """Cell of a road with the traffic density `rho`, the free speed `vmax`, and the jam density `rho_max`."""
+    """Cell of a road with the density `rho`, the free speed, and the jam density.
+
+    The free speed is `vmax` and the jam density is `rho_max`.
+    """
 
     def __init__(
         self,
@@ -152,7 +160,7 @@ class LighthillWhithamRichardsElement(Element):
 
 
 class PayneElement(Element):
-    """Cell of a road with the traffic density `rho` and the flow `q` of the Payne system.
+    """Cell of a road with the density `rho` and the flow `q` of the Payne system.
 
     The density and the flow are conserved by conservation interactions, and the flow relaxes to the Greenshields flow
     by a relaxation interaction.
@@ -181,24 +189,30 @@ KERNER_KONHAUSER_OFFSET = 3.72e-6
 
 
 def _get_variance_prefactor(road: SimpleNamespace, rho: object) -> Expression:
-    """Return the variance prefactor `A0 + dA (tanh((rho - rho_c) / d_rho) + 1)` of a road at the density `rho`."""
+    """Return the variance prefactor of a road at the density `rho`.
+
+    It is `A0 + dA (tanh((rho - rho_c) / d_rho) + 1)`.
+    """
     prefactor: Expression = road.A0 + road.dA * (tanh((rho - road.rho_c) / road.d_rho) + 1)
     return prefactor
 
 
 def _density_bump(n: int, density: float, bump: float) -> np.ndarray:
-    """Return a uniform density on a ring with a smooth bump of relative height `bump` around the middle."""
+    """Return a uniform density on a ring with a smooth bump around the middle.
+
+    The bump has the relative height `bump`.
+    """
     centers = (np.arange(n) + 0.5) / n
     return density * (1 + bump * np.exp(-(((centers - 0.5) / 0.05) ** 2)))
 
 
 class LighthillWhithamRichardsSystem(BaseSystem):
-    """The Lighthill-Whitham-Richards system, the conservation of cars with the Greenshields speed law.
+    """The Lighthill-Whitham-Richards system.
 
-    The density follows `rho_t + (rho V(rho))_x = 0` with `V(rho) = vmax (1 - rho / rho_max)` on a road of length 1 with
-    open edges. Free traffic at density `upstream` runs into a queue at density `downstream` in the second half of the
-    road, and the shock between them moves at `vmax (1 - (upstream + downstream) / rho_max)`. The system has the density
-    `road.rho`.
+    It is the conservation of cars with the Greenshields speed law. The density follows `rho_t + (rho V(rho))_x = 0`
+    with `V(rho) = vmax (1 - rho / rho_max)` on a road of length 1 with open edges. Free traffic at density `upstream`
+    runs into a queue at density `downstream` in the second half of the road, and the shock between them moves at
+    `vmax (1 - (upstream + downstream) / rho_max)`. The system has the density `road.rho`.
 
     Args:
         n:
@@ -274,13 +288,13 @@ class LighthillWhithamRichardsSystem(BaseSystem):
 
 
 class PayneSystem(BaseSystem):
-    """The Payne system, where the speed of traffic relaxes to the Greenshields speed and anticipates density.
+    """The Payne system, where the speed of traffic relaxes to the Greenshields speed.
 
-    The density and the flow `q = rho v` on a ring road of length 1 follow `rho_t + q_x = 0` and `q_t + (q^2 / rho +
-    P(rho))_x = (rho V(rho) - q) / τ`, with `V(rho) = vmax (1 - rho / rho_max)` and the anticipation pressure `P(rho) =
-    vmax rho / (2 τ rho_max)`. This is the speed equation `v_t + v v_x = (V - v) / τ + V'(rho) rho_x / (2 τ rho)` in
-    conservation form. The flow starts in equilibrium with a bump of density. The system has the density `road.rho` and
-    the flow `road.q`.
+    The speed also anticipates density. The density and the flow `q = rho v` on a ring road of length 1 follow
+    `rho_t + q_x = 0` and `q_t + (q^2 / rho + P(rho))_x = (rho V(rho) - q) / τ`, with
+    `V(rho) = vmax (1 - rho / rho_max)` and the anticipation pressure `P(rho) = vmax rho / (2 τ rho_max)`. This is the
+    speed equation `v_t + v v_x = (V - v) / τ + V'(rho) rho_x / (2 τ rho)` in conservation form. The flow starts in
+    equilibrium with a bump of density. The system has the density `road.rho` and the flow `road.q`.
 
     Args:
         n:
@@ -373,12 +387,13 @@ class PayneSystem(BaseSystem):
 
 
 class KernerKonhauserSystem(BaseSystem):
-    """The Kerner-Konhäuser system, where viscous traffic flow forms dense moving clusters.
+    """The Kerner-Konhäuser system, where viscous traffic forms moving clusters.
 
-    The density and the flow `q = rho v` on a ring road follow `rho_t + q_x = 0` and `q_t + (q^2 / rho + c0^2 rho)_x =
-    (rho V(rho) - q) / τ + μ v_xx`, with the equilibrium speed `V(rho) = V0 (1 / (1 + exp((rho / rho_max - 0.25) /
-    0.06)) - 3.72e-6)`. The flow starts in equilibrium with a bump of density, which grows into a cluster at
-    intermediate densities. The system has the density `road.rho` and the flow `road.q`.
+    The clusters are dense, and the traffic flow is viscous. The density and the flow `q = rho v` on a ring road follow
+    `rho_t + q_x = 0` and `q_t + (q^2 / rho + c0^2 rho)_x = (rho V(rho) - q) / τ + μ v_xx`, with the equilibrium speed
+    `V(rho) = V0 (1 / (1 + exp((rho / rho_max - 0.25) / 0.06)) - 3.72e-6)`. The flow starts in equilibrium with a bump
+    of density, which grows into a cluster at intermediate densities. The system has the density `road.rho` and the flow
+    `road.q`.
 
     Args:
         n:
@@ -451,7 +466,10 @@ class KernerKonhauserSystem(BaseSystem):
 
     @staticmethod
     def _get_kerner_konhauser_speed(road: SimpleNamespace) -> Expression:
-        """Return the equilibrium speed `V0 (1 / (1 + exp((rho / rho_max - 0.25) / 0.06)) - 3.72e-6)` of a road."""
+        """Return the equilibrium speed of a road in the Kerner-Konhäuser system.
+
+        It is `V0 (1 / (1 + exp((rho / rho_max - 0.25) / 0.06)) - 3.72e-6)`.
+        """
         return road.V0 * (1 / (1 + exp((road.rho / road.rho_max - 0.25) / 0.06)) - KERNER_KONHAUSER_OFFSET)
 
     @staticmethod
@@ -504,10 +522,11 @@ class KernerKonhauserSystem(BaseSystem):
 
 
 class GktTrafficSystem(BaseSystem):
-    """The gas-kinetic-based traffic system, where drivers brake on the traffic at an interaction point ahead.
+    """The gas-kinetic-based traffic system.
 
-    The density and the flow `Q = rho V` on a ring road follow `rho_t + Q_x = 0` and
-    `Q_t + (Q**2 / rho + rho A(rho) V**2)_x = rho (Ve* - V) / tau`, where the dynamic equilibrium speed
+    Drivers brake on the traffic at an interaction point ahead. The density and the flow `Q = rho V` on a ring road
+    follow `rho_t + Q_x = 0` and `Q_t + (Q**2 / rho + rho A(rho) V**2)_x = rho (Ve* - V) / tau`, where the dynamic
+    equilibrium speed
 
         Ve* = V0 (1 - (theta + theta_a) / (2 A(rho_max)) (rho_a T / (1 - rho_a / rho_max))**2 B(dV))
 
@@ -593,18 +612,21 @@ class GktTrafficSystem(BaseSystem):
 
     @staticmethod
     def _get_gkt_momentum_flux(s: SimpleNamespace) -> Expression:
-        """Return the flux of the flow, `Q**2 / rho` plus the traffic pressure `rho A(rho) V**2`."""
+        """Return the flux of the flow.
+
+        It is `Q**2 / rho` plus the traffic pressure `rho A(rho) V**2`.
+        """
         road = s.target
         flux: Expression = (1 + _get_variance_prefactor(road, road.rho)) * road.Q**2 / road.rho
         return flux
 
     @staticmethod
     def _get_gkt_relaxation(s: SimpleNamespace) -> Expression:
-        """Return the relaxation `rho (Ve* - V) / tau` of the flow to the dynamic equilibrium speed of the GKT system.
+        """Return the relaxation `rho (Ve* - V) / tau` of the flow.
 
-        The density and the speed are read at the interaction point `x + gamma (1 / rho_max + T V)`, and the braking
-        term grows with the variances `theta = A(rho) V**2` of both points and with the Boltzmann factor of their
-        dimensionless speed difference.
+        The flow relaxes to the dynamic equilibrium speed of the GKT system. The density and the speed are read at the
+        interaction point `x + gamma (1 / rho_max + T V)`, and the braking term grows with the variances
+        `theta = A(rho) V**2` of both points and with the Boltzmann factor of their dimensionless speed difference.
         """
         road = s.target
         speed = road.Q / road.rho
@@ -627,7 +649,10 @@ class GktTrafficSystem(BaseSystem):
 
     @staticmethod
     def _gkt_equilibrium_speed(rho: np.ndarray, road: GasKineticTrafficElement) -> np.ndarray:
-        """Return the equilibrium speed `Vt**2 / (2 V0) (sqrt(1 + 4 V0**2 / Vt**2) - 1)` of homogeneous GKT traffic."""
+        """Return the equilibrium speed of homogeneous GKT traffic.
+
+        It is `Vt**2 / (2 V0) (sqrt(1 + 4 V0**2 / Vt**2) - 1)`.
+        """
         prefactors = [
             road.A0 + road.dA * (np.tanh((value - road.rho_c) / road.d_rho) + 1) for value in (rho, road.rho_max)
         ]

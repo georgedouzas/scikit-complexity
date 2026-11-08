@@ -1,4 +1,7 @@
-"""Ridesharing: riders who request trips on a city grid and cabs that a stable matching sends to them."""
+"""Ridesharing: riders who request trips on a city grid and cabs sent to them.
+
+A stable matching sends the cabs.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -32,7 +35,10 @@ from ....core.specs import (
 
 
 class CabView(AgentView):
-    """View of a cab of the ridesharing system, with its states and parameters as attributes."""
+    """View of a cab of the ridesharing system.
+
+    Its states and parameters are attributes.
+    """
 
     task: float
     target_x: float
@@ -60,9 +66,10 @@ IDLE, PICKING_UP, DELIVERING = 0.0, 1.0, 2.0
 
 
 class CabElement(Element):
-    """Cab that drives one block a step to its rider, collects the fare, and drives the rider to its destination.
+    """Cab that drives a rider to its destination for a fare.
 
-    The fare is a base fare plus a fare per block of the trip, paid as a transfer from rider to cab.
+    It drives one block a step to its rider, collects the fare, and drives the rider to its destination. The fare is a
+    base fare plus a fare per block of the trip, paid as a transfer from rider to cab.
 
     Args:
         label:
@@ -140,7 +147,10 @@ class CabElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[CabView]:
-        """Return the view of the cabs, which types their states and parameters."""
+        """Return the view of the cabs.
+
+        It types their states and parameters.
+        """
         return CabView
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
@@ -202,12 +212,17 @@ class CabElement(Element):
 
     @staticmethod
     def _blocks(first: tuple[int, int], second: tuple[int, int]) -> int:
-        """Return the number of blocks between two cells of the grid, the Manhattan distance."""
+        """Return the number of blocks between two cells of the grid.
+
+        It is the Manhattan distance.
+        """
         return abs(first[0] - second[0]) + abs(first[1] - second[1])
 
 
 class RiderElement(Element):
-    """Rider who waits at a cell for a cab to a destination, and pays the fare when the cab picks it up.
+    """Rider who waits at a cell for a cab to a destination.
+
+    It pays the fare when the cab picks it up.
 
     Args:
         label:
@@ -258,14 +273,18 @@ class RiderElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[RiderView]:
-        """Return the view of the riders, which types their states."""
+        """Return the view of the riders.
+
+        It types their states.
+        """
         return RiderView
 
 
 class ArrivalInteraction(LifeCycleInteraction):
-    """Arrival of new riders at random cells with random destinations, a life cycle of arrivals only.
+    """Arrival of new riders at random cells with random destinations.
 
-    Every step a Poisson number of riders, with mean `demand`, appear at random cells with random destinations.
+    It is a life cycle of arrivals only. Every step a Poisson number of riders, with mean `demand`, appear at random
+    cells with random destinations.
 
     Args:
         label:
@@ -368,14 +387,14 @@ def _busy(agent: CabView) -> float:
 
 
 class RidesharingSystem(BaseSystem):
-    """Riders who request trips on a city grid and cabs that a stable matching sends to them.
+    """Riders who request trips on a city grid and cabs sent to them.
 
-    Every step new riders appear at random cells with random destinations, and the dispatch matches the waiting
-    riders with the idle cabs by a stable matching in which riders prefer nearer cabs and cabs prefer riders who waited
-    longer. Every cab drives one block a step to its rider, collects the fare, and drives the rider to its destination.
-    While the demand stays below the trips the fleet can serve, riders wait about as long as a cab takes to reach them.
-    As the demand approaches that capacity, every cab is busy, the queue of waiting riders grows, and the waiting time
-    rises steeply, as in a queue near saturation.
+    A stable matching sends the cabs. Every step new riders appear at random cells with random destinations, and the
+    dispatch matches the waiting riders with the idle cabs by a stable matching in which riders prefer nearer cabs and
+    cabs prefer riders who waited longer. Every cab drives one block a step to its rider, collects the fare, and drives
+    the rider to its destination. While the demand stays below the trips the fleet can serve, riders wait about as long
+    as a cab takes to reach them. As the demand approaches that capacity, every cab is busy, the queue of waiting riders
+    grows, and the waiting time rises steeply, as in a queue near saturation.
 
     The system has the groups `riders` and `cabs`, the arrivals `arrival`, and the matching `dispatch`.
 
@@ -451,7 +470,10 @@ class RidesharingSystem(BaseSystem):
 
     @staticmethod
     def _patience(cab: object, rider: object) -> float:
-        """Return the preference of a cab for a rider, higher for a rider who waited longer."""
+        """Return the preference of a cab for a rider.
+
+        It is higher for a rider who waited longer.
+        """
         if not isinstance(rider, RiderView):
             error_msg = f'A cab ranks riders, but got {rider!r}.'
             raise ArgumentError(error_msg)

@@ -1,4 +1,7 @@
-"""Binary automata on the integers with long memory sets: a nilpotent automaton and an involution."""
+"""Binary automata on the integers with long memory sets.
+
+They are a nilpotent automaton and an involution.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -49,14 +52,14 @@ def _line_system(label: str, rule: object, offsets: range, values: Array) -> Sys
 
 
 class NilpotentAutomatonSystem(BaseSystem):
-    """A binary automaton on a ring that is nilpotent of class `n`: `n` steps send every configuration to 0.
+    """A binary automaton on a ring that is nilpotent of class `n`.
 
-    The memory set is `{-1, 0, ..., n - 1}`, and a cell becomes 0 when the whole window holds ones or when it is the
-    left end of a run of ones, `p(-1) = 0` and `p(0) = 1`, and keeps its value otherwise (Ceccherini-Silberstein and
-    Coornaert 2023, Exercise 1.15). After one step every run of ones is shorter than `n`, and every further step removes
-    the left end of each run, so `n` steps reach 0 and the run of `n + 1` ones needs all of them. The exercise prints
-    the memory set `{-1, ..., n - 2}`, whose class is `n - 1`, while its solution relies on `{-1, ..., n - 1}`, which
-    this system takes. The system has the cells `cells.alive`.
+    Every configuration reaches 0 in `n` steps. The memory set is `{-1, 0, ..., n - 1}`, and a cell becomes 0 when the
+    whole window holds ones or when it is the left end of a run of ones, `p(-1) = 0` and `p(0) = 1`, and keeps its value
+    otherwise (Ceccherini-Silberstein and Coornaert 2023, Exercise 1.15). After one step every run of ones is shorter
+    than `n`, and every further step removes the left end of each run, so `n` steps reach 0 and the run of `n + 1` ones
+    needs all of them. The exercise prints the memory set `{-1, ..., n - 2}`, whose class is `n - 1`, while its solution
+    relies on `{-1, ..., n - 1}`, which this system takes. The system has the cells `cells.alive`.
 
     Args:
         n:
@@ -113,9 +116,10 @@ class NilpotentAutomatonSystem(BaseSystem):
 
     @staticmethod
     def _nilpotent(*values: Array) -> Array:
-        """Return 0 on a window of ones or at the left end of a run of ones, and the cell otherwise.
+        """Return 0 on a window of ones or at the left end of a run of ones.
 
-        The values are those of the offsets `-1, 0, ..., n - 1`, so the cell itself is the second.
+        It returns the cell otherwise. The values are those of the offsets `-1, 0, ..., n - 1`, so the cell itself is
+        the second.
         """
         window = np.stack(values)
         left, center = window[0], window[1]
@@ -136,12 +140,13 @@ class NilpotentAutomatonSystem(BaseSystem):
 
 
 class InvolutiveAutomatonSystem(BaseSystem):
-    """A binary automaton on a ring that is its own inverse, with the minimal memory set `{-1, 0, ..., n}`.
+    """A binary automaton on a ring that is its own inverse.
 
-    A cell at the left end of a run of exactly `n` ones, the window `alpha = 0 1^n 0`, becomes 0, a cell just before a
-    run of exactly `n - 1` ones, the window `beta = 0 0 1^(n - 1) 0`, becomes 1, and every other cell keeps its value
-    (Ceccherini-Silberstein and Coornaert 2023, Exercise 1.36). The two moves undo each other, so two steps return every
-    configuration to itself, and the automaton is invertible with `τ^-1 = τ`. The system has the cells `cells.alive`.
+    Its minimal memory set is `{-1, 0, ..., n}`. A cell at the left end of a run of exactly `n` ones, the window
+    `alpha = 0 1^n 0`, becomes 0, a cell just before a run of exactly `n - 1` ones, the window `beta = 0 0 1^(n - 1) 0`,
+    becomes 1, and every other cell keeps its value (Ceccherini-Silberstein and Coornaert 2023, Exercise 1.36). The two
+    moves undo each other, so two steps return every configuration to itself, and the automaton is invertible with
+    `τ^-1 = τ`. The system has the cells `cells.alive`.
 
     Args:
         n:
@@ -198,8 +203,9 @@ class InvolutiveAutomatonSystem(BaseSystem):
 
     @staticmethod
     def _involution(*values: Array) -> Array:
-        """Return the cell with `alpha = 0 1^n 0` sent to 0, `beta = 0 0 1^(n - 1) 0` sent to 1, and other windows kept.
+        """Return the cell under the involution.
 
+        The window `alpha = 0 1^n 0` is sent to 0, `beta = 0 0 1^(n - 1) 0` is sent to 1, and other windows are kept.
         The values are those of the offsets `-1, 0, ..., n`, so the cell itself is the second.
         """
         window = np.stack(values)

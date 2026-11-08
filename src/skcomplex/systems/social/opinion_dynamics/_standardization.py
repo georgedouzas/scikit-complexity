@@ -1,4 +1,7 @@
-"""Opinion dynamics systems: complex agents with many internal configurations whose interactions standardize them."""
+"""Opinion dynamics systems: complex agents standardized by their interactions.
+
+The agents have many internal configurations.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,17 +23,21 @@ from ....core.types import AnyArray, Array
 
 
 class ComplexAgentView(AgentView):
-    """View of an agent of the standardization system, with its states and parameters as attributes."""
+    """View of an agent of the standardization system.
+
+    Its states and parameters are attributes.
+    """
 
     configuration: float
     spin: float
 
 
 class ComplexAgentElement(Element):
-    """Agent with many internal configurations, of which two show a characteristic with the spin `1` or `-1`.
+    """Agent with many internal configurations.
 
-    Configuration 0 has the spin `S = 1`, configuration 1 the spin `S = -1`, and the configurations from 2 to `H + 1`
-    the spin 0. In `StandardizedAgentsSystem`, a `MapInteraction` sets the spin after every change of configuration.
+    Two of them show a characteristic with the spin `1` or `-1`. Configuration 0 has the spin `S = 1`, configuration 1
+    the spin `S = -1`, and the configurations from 2 to `H + 1` the spin 0. In `StandardizedAgentsSystem`, a
+    `MapInteraction` sets the spin after every change of configuration.
 
     Args:
         label:
@@ -68,7 +75,10 @@ class ComplexAgentElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[ComplexAgentView]:
-        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        """Return the class of the views of the agents.
+
+        Their attributes are the states and parameters.
+        """
         return ComplexAgentView
 
 
@@ -79,18 +89,22 @@ PHASE = 'default'
 
 
 def _standardization(spins: AnyArray) -> float:
-    """Return the share `q` of agents that show the characteristic, the mean of `|S_i|`."""
+    """Return the share `q` of agents that show the characteristic.
+
+    It is the mean of `|S_i|`.
+    """
     return float(np.mean(np.abs(spins)))
 
 
 class StandardizationInteraction(ChoiceInteraction):
-    """Changes of configuration of random agents, accepted with the logistic probability of their gain in utility.
+    """Changes of configuration of random agents.
 
-    The utility of agent `i` is `u_i = K / N sum_j |S_i| |S_j| + J / N sum_j S_i S_j` over the other agents. An agent
-    proposes a configuration drawn uniformly from the `H + 2` configurations, its own included, and takes it with the
-    probability `1 / (1 + exp(-beta (u_i' - u_i)))` of the rule `'fermi'`, so the agents sample `P ~ exp(beta E)`. The
-    utilities read the counts of the configurations of the group, so every proposal sees the changes accepted before
-    it. In `StandardizedAgentsSystem`, a phase of visits draws `N` agents with replacement every unit of time.
+    They are accepted with the logistic probability of their gain in utility. The utility of agent `i` is
+    `u_i = K / N sum_j |S_i| |S_j| + J / N sum_j S_i S_j` over the other agents. An agent proposes a configuration drawn
+    uniformly from the `H + 2` configurations, its own included, and takes it with the probability
+    `1 / (1 + exp(-beta (u_i' - u_i)))` of the rule `'fermi'`, so the agents sample `P ~ exp(beta E)`. The utilities
+    read the counts of the configurations of the group, so every proposal sees the changes accepted before it. In
+    `StandardizedAgentsSystem`, a phase of visits draws `N` agents with replacement every unit of time.
 
     Args:
         label:
@@ -154,7 +168,10 @@ class StandardizationInteraction(ChoiceInteraction):
         self.H = H
 
     def _get_utility(self, agent: ComplexAgentView, system: SystemViewProtocol, option: float) -> float:
-        """Return the utility of a configuration for an agent, from the counts of the configurations of the others."""
+        """Return the utility of a configuration for an agent.
+
+        It is read from the counts of the configurations of the others.
+        """
         counts = system.composition('target', 'configuration')
         up, down = counts.get(0.0, 0), counts.get(1.0, 0)
         spin, new = float(StandardizationInteraction._spins_of(np.array(agent.configuration))), float(
@@ -166,18 +183,22 @@ class StandardizationInteraction(ChoiceInteraction):
 
     @staticmethod
     def _spins_of(configurations: Array) -> Array:
-        """Return the spin of each configuration: 1 for configuration 0, -1 for configuration 1, and 0 otherwise."""
+        """Return the spin of each configuration.
+
+        It is 1 for configuration 0, -1 for configuration 1, and 0 otherwise.
+        """
         return np.select([configurations == 0, configurations == 1], [1.0, -1.0], 0.0)
 
 
 class StandardizedAgentsSystem(BaseSystem):
-    """Complex agents whose interactions make them standardized, all showing one characteristic, and ordered.
+    """Complex agents whose interactions make them standardized.
 
-    Below the temperature `T_S = K / (2 ln(H / 2))` the most probable share of agents with the characteristic jumps from
-    `q ~ 0` to `q ~ 1`, a discontinuous transition, and below `T_M = J` the standardized agents order, with a
-    magnetization `m` of either sign. Both states are long-lived on either side of `T_S` in large groups, so the initial
-    share `standardized` selects the branch that the run follows. The system has the group `agents`, the share `q` of
-    agents with the characteristic, and the magnetization `m`, the mean spin.
+    They all show one characteristic, and are ordered. Below the temperature `T_S = K / (2 ln(H / 2))` the most probable
+    share of agents with the characteristic jumps from `q ~ 0` to `q ~ 1`, a discontinuous transition, and below
+    `T_M = J` the standardized agents order, with a magnetization `m` of either sign. Both states are long-lived on
+    either side of `T_S` in large groups, so the initial share `standardized` selects the branch that the run follows.
+    The system has the group `agents`, the share `q` of agents with the characteristic, and the magnetization `m`, the
+    mean spin.
 
     Args:
         agents:

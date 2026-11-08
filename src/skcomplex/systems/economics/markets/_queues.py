@@ -18,7 +18,10 @@ from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 class CarView(AgentView):
-    """Car as the rules see it: its `stage`, the `work` left on it, and the size of its `crew`."""
+    """Car as the rules see it.
+
+    It holds its `stage`, the `work` left on it, and the size of its `crew`.
+    """
 
     stage: float
     work: float
@@ -96,10 +99,10 @@ CREW_SIZE = 2
 
 
 class WasherElement(Element):
-    """Worker who joins the front car of the wash or of the valet while it has fewer than two workers.
+    """Worker who joins the front car of the wash or of the valet.
 
-    A worker who finds both areas staffed helps at a random one of them. One second of work removes one
-    person-second from the car.
+    It joins while the car has fewer than two workers. A worker who finds both areas staffed helps at a random one of
+    them. One second of work removes one person-second from the car.
 
     Args:
         label:
@@ -152,13 +155,19 @@ class WasherElement(Element):
 
     @staticmethod
     def _front(cars: list[CarView], stage: int) -> CarView | None:
-        """Return the car that came first among the cars at a stage, or `None` if there is none."""
+        """Return the car that came first among the cars at a stage.
+
+        It is `None` if there is none.
+        """
         waiting = [car for car in cars if car.stage == stage]
         return min(waiting, key=lambda car: car.id) if waiting else None
 
 
 class TillView(AgentView):
-    """Till as the operation sees it: its `revenue` and its counts of `washes`, `valets`, and cars `turned_away`."""
+    """Till as the operation sees it.
+
+    It holds its `revenue` and its counts of `washes`, `valets`, and cars `turned_away`.
+    """
 
     revenue: float
     washes: float
@@ -167,7 +176,9 @@ class TillView(AgentView):
 
 
 class TillElement(Element):
-    """Till of the car wash, which counts the revenue and the cars served and turned away.
+    """Till of the car wash.
+
+    It counts the revenue and the cars served and turned away.
 
     Args:
         label:
@@ -236,10 +247,10 @@ _PARAMETERS = ('p_pass', 'p_enter', 'p_valet', 'wash_work', 'valet_work', 'wash_
 
 
 class CarWashOperationInteraction(Interaction):
-    """Arrival of passing cars, completion of washes and valets, and payment, once every second.
+    """Arrival of passing cars, completion of washes and valets, and payment.
 
-    A passing car turns in with a probability, unless the wash queue holds `balk` cars or more. A washed car stays for
-    a valet with a probability, and pays the wash price or the valet price when it leaves.
+    They happen once every second. A passing car turns in with a probability, unless the wash queue holds `balk` cars or
+    more. A washed car stays for a valet with a probability, and pays the wash price or the valet price when it leaves.
 
     Args:
         label:
@@ -311,7 +322,10 @@ class CarWashOperationInteraction(Interaction):
         self.balk = balk
 
     def _finish(self, car: CarView, till: TillView, system: SystemView, values: dict[str, float]) -> None:
-        """Move a car whose work is done to the valet, or take its payment and let it leave."""
+        """Move a car whose work is done to the valet.
+
+        Otherwise, take its payment and let it leave.
+        """
         if car.stage == WASH and system.rng.random() < values['p_valet']:
             car.stage, car.work = VALET, values['valet_work']
             return
@@ -337,7 +351,9 @@ class CarWashOperationInteraction(Interaction):
         return [RuleLaw(self.operate)]
 
     def operate(self, system: SystemView) -> None:
-        """Finish the cars whose work is done, reset the crews, and let a passing car turn in or drive on.
+        """Finish the cars whose work is done and reset the crews.
+
+        Then a passing car turns in or drives on.
 
         Args:
             system:
@@ -358,11 +374,12 @@ class CarWashOperationInteraction(Interaction):
 
 
 class CarWashSystem(BaseSystem):
-    """Chesney's Clean and Wax hand car wash, a shadow account of the revenue of its workers' labour.
+    """Chesney's Clean and Wax hand car wash.
 
-    Every step is one second. Passing cars turn in with a probability and queue for the wash, washed cars may queue for
-    a valet, and the workers serve the front car of each area, two at a time if they can. The wash opens with cars
-    already queuing. The system has the groups `workers`, `cars`, and `till`.
+    It is a shadow account of the revenue of its workers' labour. Every step is one second. Passing cars turn in with a
+    probability and queue for the wash, washed cars may queue for a valet, and the workers serve the front car of each
+    area, two at a time if they can. The wash opens with cars already queuing. The system has the groups `workers`,
+    `cars`, and `till`.
 
     Args:
         n_workers:

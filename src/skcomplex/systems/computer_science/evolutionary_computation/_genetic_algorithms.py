@@ -1,4 +1,7 @@
-"""Evolutionary computation systems: Mitchell's genetic algorithm and Gooding's evolution by circumstance of Robby."""
+"""Evolutionary computation systems: Mitchell's and Gooding's evolution of Robby.
+
+They are Mitchell's genetic algorithm and Gooding's evolution by circumstance of Robby.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -35,10 +38,10 @@ class StrategyView(AgentView):
 
 
 class StrategyElement(Element):
-    """Strategy of Robby, the action for each of the 243 situations he can see, with its last measured score.
+    """Strategy of Robby, with its last measured score.
 
-    The actions are 0 to 3 for moving north, south, east, and west, 4 to stay, 5 to pick up a can, and 6 to move in a
-    random direction.
+    The strategy gives the action for each of the 243 situations he can see. The actions are 0 to 3 for moving north,
+    south, east, and west, 4 to stay, 5 to pick up a can, and 6 to move in a random direction.
 
     Args:
         label:
@@ -74,7 +77,10 @@ class StrategyElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[StrategyView]:
-        """Return the view of the strategies, which types their states."""
+        """Return the view of the strategies.
+
+        It types their states.
+        """
         return StrategyView
 
 
@@ -91,11 +97,11 @@ CAN_REWARD, EMPTY_PICK_UP_PENALTY, WALL_PENALTY = 10.0, -1.0, -5.0
 
 
 class RoomCleaningInteraction(Interaction):
-    """Score of every strategy of Robby, the mean of its scores in sessions of cleaning random rooms.
+    """Score of every strategy of Robby.
 
-    Every strategy cleans `sessions` random rooms of side `side`, with a can in each cell with probability `density`,
-    for `n_actions` actions, and its state `score` takes the mean score. A picked can scores 10, picking up nothing
-    scores -1, and bumping into a wall scores -5.
+    It is the mean of its scores in sessions of cleaning random rooms. Every strategy cleans `sessions` random rooms of
+    side `side`, with a can in each cell with probability `density`, for `n_actions` actions, and its state `score`
+    takes the mean score. A picked can scores 10, picking up nothing scores -1, and bumping into a wall scores -5.
 
     Args:
         label:
@@ -191,14 +197,20 @@ class RoomCleaningInteraction(Interaction):
 
     @staticmethod
     def _new_rooms(rng: np.random.Generator, shape: tuple[int, ...], side: int, density: float) -> IntArray:
-        """Return square rooms surrounded by walls, with a can in every inner cell with a probability."""
+        """Return square rooms surrounded by walls.
+
+        Every inner cell holds a can with a probability.
+        """
         rooms = np.full((*shape, side + 2, side + 2), WALL, dtype=np.int64)
         rooms[..., 1:-1, 1:-1] = (rng.random((*shape, side, side)) < density).astype(np.int64)
         return rooms
 
     @staticmethod
     def _situations(rooms: IntArray, rows: IntArray, columns: IntArray) -> IntArray:
-        """Return the index of what Robby sees north, south, east, west, and here, in base 3."""
+        """Return the index of what Robby sees.
+
+        He sees north, south, east, west, and here, and the index is in base 3.
+        """
         index = np.indices(rows.shape)
         seen = [rooms[(*index, rows + row, columns + column)] for row, column in [*MOVES.tolist(), [0, 0]]]
         return sum(value * 3**power for power, value in enumerate(seen))
@@ -242,7 +254,9 @@ class AgedStrategyView(StrategyView):
 
 
 class AgedStrategyElement(StrategyElement):
-    """Strategy of Robby with an age, which dies of old age or starves in the evolution by circumstance.
+    """Strategy of Robby with an age.
+
+    It dies of old age or starves in the evolution by circumstance.
 
     Args:
         label:
@@ -280,12 +294,17 @@ class AgedStrategyElement(StrategyElement):
 
     @classmethod
     def _get_view(cls) -> type[AgedStrategyView]:
-        """Return the view of the aged strategies, which types their states."""
+        """Return the view of the aged strategies.
+
+        It types their states.
+        """
         return AgedStrategyView
 
 
 class CircumstanceInteraction(Interaction):
-    """Evolution by circumstance: strategies die of old age or starve, and random survivors breed in their places.
+    """Evolution by circumstance of the strategies of Robby.
+
+    Strategies die of old age or starve, and random survivors breed in their places.
 
     Every generation the strategies age by one, the ones that reach `lifespan` die of old age, and the fraction
     `starvation` of the population with the lowest scores starves. Random pairs of survivors, whatever their score,
@@ -351,7 +370,10 @@ class CircumstanceInteraction(Interaction):
         return [RuleLaw(self._generation)]
 
     def _generation(self, system: SystemView) -> None:
-        """Age the strategies, remove the old and starving ones, and fill their places with children of survivors."""
+        """Age the strategies and replace the old and starving ones.
+
+        Their places are filled with children of survivors.
+        """
         agents = system.agents('target', AgedStrategyView)
         rng = system.rng
         ages = np.array([agent.age for agent in agents]) + 1
@@ -375,7 +397,10 @@ class CircumstanceInteraction(Interaction):
         return self.switch is None or int(time // self.switch) % 2 == 0
 
     def _child(self, first: IntArray, second: IntArray, rng: np.random.Generator) -> IntArray:
-        """Return the child of two strategies, the head of one and the tail of the other, with mutated actions."""
+        """Return the child of two strategies.
+
+        It takes the head of one and the tail of the other, with mutated actions.
+        """
         cut = int(rng.integers(1, first.size))
         child = np.concatenate([first[:cut], second[cut:]])
         mutated = rng.random(child.size) < self.mutation
@@ -384,12 +409,13 @@ class CircumstanceInteraction(Interaction):
 
 
 class RobbyGASystem(BaseSystem):
-    """Mitchell's genetic algorithm that evolves strategies for Robby, a robot that collects cans in a room.
+    """Mitchell's genetic algorithm that evolves strategies for Robby.
 
-    Each step is one generation. Parents are selected with probabilities proportional to their rank, every pair of
-    parents exchanges the tails of their strategies after a random cut, and every action of a child mutates to another
-    action with probability `mutation`. Then every child is scored in random rooms. Random strategies score far below
-    zero because they bump into walls, and evolution finds strategies that avoid walls and collect cans.
+    Robby is a robot that collects cans in a room. Each step is one generation. Parents are selected with probabilities
+    proportional to their rank, every pair of parents exchanges the tails of their strategies after a random cut, and
+    every action of a child mutates to another action with probability `mutation`. Then every child is scored in random
+    rooms. Random strategies score far below zero because they bump into walls, and evolution finds strategies that
+    avoid walls and collect cans.
 
     Gooding's evolution by circumstance, the regime `'circumstance'`, replaces the selection with deaths: every strategy
     starts at a random age, dies at the age `lifespan`, and the fraction `starvation` with the lowest scores starves

@@ -1,4 +1,7 @@
-"""Coupled Colpitts oscillators: two detuned chaotic oscillators that lock their phases through a coupling."""
+"""Coupled Colpitts oscillators: two detuned chaotic oscillators.
+
+They lock their phases through a coupling.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,11 +21,11 @@ from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 class ColpittsOscillatorElement(Element):
-    """Colpitts oscillator in dimensionless form, whose transistor conducts below a threshold of its third variable.
+    """Colpitts oscillator in dimensionless form.
 
-    The oscillator follows `x' = omega y - a F(z)`, `y' = c - omega x - z - b y`, and `z' = epsilon (y - d)`, with the
-    transistor characteristic `F(z) = max(0, -1 - z)`, which is chaotic for `a = 30`, `b = 1`, `c = 20`, `d = 1`, and
-    `epsilon = 1`.
+    Its transistor conducts below a threshold of its third variable. The oscillator follows `x' = omega y - a F(z)`,
+    `y' = c - omega x - z - b y`, and `z' = epsilon (y - d)`, with the transistor characteristic
+    `F(z) = max(0, -1 - z)`, which is chaotic for `a = 30`, `b = 1`, `c = 20`, `d = 1`, and `epsilon = 1`.
 
     Args:
         label:
@@ -112,7 +115,9 @@ class ColpittsOscillatorElement(Element):
 
 
 class ColpittsCouplingInteraction(RateInteraction):
-    """Coupling of a Colpitts oscillator to another through their second variables, `y_t' += k (y_s - y_t)`.
+    """Coupling of a Colpitts oscillator to another through their second variables.
+
+    It adds `y_t' += k (y_s - y_t)`.
 
     Args:
         label:
@@ -161,13 +166,13 @@ class ColpittsCouplingInteraction(RateInteraction):
 
 
 class CoupledColpittsSystem(BaseSystem):
-    """Two detuned chaotic Colpitts oscillators coupled through the difference of their second variables.
+    """Two detuned chaotic Colpitts oscillators.
 
-    Oscillator `i` follows `x' = omega_i y - a F(z)`, `y' = c - omega_i x - z - b y + k (y_j - y_i)`, and
-    `z' = epsilon (y - d)`, with the transistor characteristic `F(z) = max(0, -1 - z)`. The phase of an oscillator
-    is the angle of its orbit in the plane of `y` and `z`, around the means of both. Without coupling the two
-    oscillators run at different mean frequencies and their phases drift apart, while for `k` near 0.3 to 0.5 their
-    phases lock although their amplitudes stay irregular.
+    They are coupled through the difference of their second variables. Oscillator `i` follows `x' = omega_i y - a F(z)`,
+    `y' = c - omega_i x - z - b y + k (y_j - y_i)`, and `z' = epsilon (y - d)`, with the transistor characteristic
+    `F(z) = max(0, -1 - z)`. The phase of an oscillator is the angle of its orbit in the plane of `y` and `z`, around
+    the means of both. Without coupling the two oscillators run at different mean frequencies and their phases drift
+    apart, while for `k` near 0.3 to 0.5 their phases lock although their amplitudes stay irregular.
 
     The system has the states `oscillator_0.x`, `oscillator_0.y`, `oscillator_0.z`, and the same states of
     `oscillator_1`.

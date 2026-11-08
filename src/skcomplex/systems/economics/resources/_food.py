@@ -1,4 +1,7 @@
-"""Food security systems: the rice production of a country against the requirement of its growing population."""
+"""Food security systems: the rice production of a country.
+
+It is set against the requirement of its growing population.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,7 +25,10 @@ TONNES_PER_KG = 1e-3
 
 
 def _input_ratio(s: SimpleNamespace) -> Expression:
-    """Return the input ratio, the fraction of the recommended inputs that the farmers apply."""
+    """Return the input ratio.
+
+    It is the fraction of the recommended inputs that the farmers apply.
+    """
     return s.bio_fraction + (1 - s.bio_fraction) * (s.subsidy + (1 - s.subsidy) * s.farmer_inputs)
 
 
@@ -61,14 +67,14 @@ def _rice_laws(s: SimpleNamespace) -> list[BaseLaw]:
 
 
 class RiceSectorElement(Element):
-    """Rice sector of a country, its land, population, and the factors of the productivity of its rice land.
+    """Rice sector of a country.
 
-    The suitable land is developed into rice area and the rice area is discarded, and the population grows
-    exponentially, through transfers within the sector of the system. Research raises the potential yield towards a
-    limit, chemical fertiliser degrades the soil and fallow regenerates it, and training improves the farming
-    practice through a learning table. The training, the share of bio-fertiliser, and the cropping intensity relax
-    towards their targets through relaxation interactions of the system, which read the targets and times of the
-    sector.
+    It holds its land, population, and the factors of the productivity of its rice land. The suitable land is developed
+    into rice area and the rice area is discarded, and the population grows exponentially, through transfers within the
+    sector of the system. Research raises the potential yield towards a limit, chemical fertiliser degrades the soil and
+    fallow regenerates it, and training improves the farming practice through a learning table. The training, the share
+    of bio-fertiliser, and the cropping intensity relax towards their targets through relaxation interactions of the
+    system, which read the targets and times of the sector.
 
     Args:
         label:
@@ -248,21 +254,22 @@ class RiceSectorElement(Element):
 
 
 class FoodSecuritySystem(BaseSystem):
-    """A food security system, the rice self-sufficiency of a country under subsidy, research, and extension.
+    """A food security system, the rice self-sufficiency of a country.
 
-    The land suitable for rice is developed into rice area over eight years, and the rice area is discarded for
-    housing, roads, and industry at a small fraction per year. The production is the milled share of the
-    productivity times the area times the cropping intensity. The productivity is the potential yield, which research
-    raises towards a limit, times a table of the input ratio, the soil quality, which chemical fertiliser degrades and
-    fallow regenerates, and the farming practice, which training and extension improve through a learning table. The
-    input ratio is the share of the recommended fertiliser that the farmers apply, which the subsidy raises, and a
-    target share of bio-fertiliser replaces the chemical one without degrading the soil. The requirement is the per
-    capita consumption of a population growing exponentially, and the self-sufficiency level is the production over
-    the requirement. Land is conserved, so the rice area peaks once the suitable land is developed and then declines,
-    and without research and extension the self-sufficiency falls as the population grows. The structure and the
-    initial values follow the food security system of Malaysia of Bala, Arshad and Noh (2017, Chapter 10), and the
-    table functions and the rates are illustrative, with the land in millions of hectares, the population in
-    millions, the productivity in tonnes of paddy per hectare, the rice in millions of tonnes, and time in years.
+    The country acts by subsidy, research, and extension. The land suitable for rice is developed into rice area over
+    eight years, and the rice area is discarded for housing, roads, and industry at a small fraction per year. The
+    production is the milled share of the productivity times the area times the cropping intensity. The productivity is
+    the potential yield, which research raises towards a limit, times a table of the input ratio, the soil quality,
+    which chemical fertiliser degrades and fallow regenerates, and the farming practice, which training and extension
+    improve through a learning table. The input ratio is the share of the recommended fertiliser that the farmers apply,
+    which the subsidy raises, and a target share of bio-fertiliser replaces the chemical one without degrading the soil.
+    The requirement is the per capita consumption of a population growing exponentially, and the self-sufficiency level
+    is the production over the requirement. Land is conserved, so the rice area peaks once the suitable land is
+    developed and then declines, and without research and extension the self-sufficiency falls as the population grows.
+    The structure and the initial values follow the food security system of Malaysia of Bala, Arshad and Noh (2017,
+    Chapter 10), and the table functions and the rates are illustrative, with the land in millions of hectares, the
+    population in millions, the productivity in tonnes of paddy per hectare, the rice in millions of tonnes, and time in
+    years.
 
     The system has the land stocks `rice.available_land` and `rice.rice_area`, the population `rice.population`, the
     factors `rice.potential`, `rice.soil_quality`, `rice.practice`, `rice.training`, `rice.bio_fraction`, and

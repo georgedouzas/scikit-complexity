@@ -1,4 +1,7 @@
-"""Define the forecasting heuristics of agent rules, functions of the past values of a series."""
+"""Define the forecasting heuristics of agent rules.
+
+They are functions of the past values of a series.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,7 +16,10 @@ TREND_LENGTH = 2
 
 
 def _adaptive(history: Sequence[float], previous: float, weight: float = 0.65) -> float:
-    """Return the adaptive forecast `w x(t) + (1 - w) f(t)` of the last value and the previous forecast."""
+    """Return the adaptive forecast `w x(t) + (1 - w) f(t)`.
+
+    It combines the last value and the previous forecast.
+    """
     return float(weight * history[-1] + (1 - weight) * previous)
 
 
@@ -25,7 +31,10 @@ def _trend(history: Sequence[float], strength: float = 1.3) -> float:
 
 
 def _anchoring(history: Sequence[float]) -> float:
-    """Return the anchoring-and-adjustment forecast `(mean + x(t)) / 2 + (x(t) - x(t - 1))`."""
+    """Return the anchoring-and-adjustment forecast.
+
+    It is `(mean + x(t)) / 2 + (x(t) - x(t - 1))`.
+    """
     if len(history) < TREND_LENGTH:
         return float(history[-1])
     return float((np.mean(history) + history[-1]) / 2 + history[-1] - history[-2])

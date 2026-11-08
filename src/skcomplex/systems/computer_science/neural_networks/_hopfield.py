@@ -28,9 +28,10 @@ class NeuronView(AgentView):
 
 
 class NeuronElement(Element):
-    """Binary neuron of a Hopfield network, which the update aligns with the sign of its weighted input.
+    """Binary neuron of a Hopfield network.
 
-    The neuron sits on its node of a complete graph and holds the weights of its incoming links, one per node.
+    The update aligns it with the sign of its weighted input. The neuron sits on its node of a complete graph and holds
+    the weights of its incoming links, one per node.
 
     Args:
         label:
@@ -66,15 +67,19 @@ class NeuronElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[NeuronView]:
-        """Return the view of the neurons, which types their states."""
+        """Return the view of the neurons.
+
+        It types their states.
+        """
         return NeuronView
 
 
 class HopfieldUpdateInteraction(MapInteraction):
-    """Asynchronous update of a Hopfield network, where every neuron in turn takes the sign of its weighted input.
+    """Asynchronous update of a Hopfield network.
 
-    The neurons update one after the other in a new random order every step, each reading the states the neurons before
-    it set, so the energy `-sum w_ij s_i s_j / 2` never increases. A neuron whose input is zero keeps its state.
+    Every neuron in turn takes the sign of its weighted input. The neurons update one after the other in a new random
+    order every step, each reading the states the neurons before it set, so the energy `-sum w_ij s_i s_j / 2` never
+    increases. A neuron whose input is zero keeps its state.
 
     Args:
         label:
@@ -100,7 +105,10 @@ class HopfieldUpdateInteraction(MapInteraction):
         )
 
     def _get_spin(self, agent: NeuronView, system: SystemViewProtocol) -> float:
-        """Return the sign of the weighted input of a neuron from the other neurons, or its state for a zero input."""
+        """Return the sign of the weighted input of a neuron from the other neurons.
+
+        A zero input returns its state.
+        """
         del system
         weights = np.asarray(agent.weights)
         neighbors = [other for other in agent.neighbors() if isinstance(other, NeuronView)]
@@ -109,11 +117,12 @@ class HopfieldUpdateInteraction(MapInteraction):
 
 
 class HopfieldSystem(BaseSystem):
-    """A Hopfield network that stores patterns with Hebb's rule and recalls the first from a corrupted copy.
+    """A Hopfield network that stores patterns and recalls the first.
 
-    Neurons update one at a time in random order, so the energy `-Σ w_ij s_i s_j / 2` never increases and the network
-    settles in a stored pattern when few patterns are stored, about fewer than `0.14 n` for `n` neurons. The system has
-    the group `neurons` of states `spin` and `weights` on a complete graph.
+    It stores the patterns with Hebb's rule and recalls the first from a corrupted copy. Neurons update one at a time in
+    random order, so the energy `-Σ w_ij s_i s_j / 2` never increases and the network settles in a stored pattern when
+    few patterns are stored, about fewer than `0.14 n` for `n` neurons. The system has the group `neurons` of states
+    `spin` and `weights` on a complete graph.
 
     Args:
         patterns:
@@ -164,7 +173,10 @@ class HopfieldSystem(BaseSystem):
 
     @staticmethod
     def _hebbian_weights(patterns: Array) -> Array:
-        """Return the Hebbian weights `w_ij = Σ_μ ξ_i ξ_j / n` that store patterns, with no self-coupling."""
+        """Return the Hebbian weights `w_ij = Σ_μ ξ_i ξ_j / n` that store patterns.
+
+        There is no self-coupling.
+        """
         weights = patterns.T @ patterns / patterns.shape[1]
         np.fill_diagonal(weights, 0.0)
         return weights

@@ -1,4 +1,7 @@
-"""Innovation systems: households that adopt a networked product when they can afford it and know a user."""
+"""Innovation systems: households that adopt a networked product.
+
+They adopt when they can afford it and know a user.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -42,7 +45,9 @@ MOORE = tuple((dx, dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy)
 
 
 class HouseholdElement(Element):
-    """Household whose income grows every year and that gets a phone when it can afford one and a neighbour has one.
+    """Household whose income grows every year.
+
+    It gets a phone when it can afford one and a neighbour has one.
 
     Args:
         label:
@@ -114,7 +119,9 @@ class HouseholdElement(Element):
 
     @staticmethod
     def get_phone(agent: HouseholdView, system: SystemView) -> float:
-        """Return 1 for a household that has a phone or gets one, affordable with a neighbour that has one, else 0.
+        """Return 1 for a household that has or gets a phone, else 0.
+
+        A household gets a phone when it is affordable and a neighbour has one.
 
         Args:
             agent:
@@ -133,14 +140,14 @@ class HouseholdElement(Element):
 
 
 class PhoneAdoptionSystem(BaseSystem):
-    """Hamill and Gilbert's adoption of fixed-line phones by British households from 1951.
+    """Hamill and Gilbert's adoption of fixed-line phones by British households.
 
-    One household lives in every cell of a torus. The upper class lives in the top left quadrant, the lower class in
-    the bottom left, and the middle class elsewhere, so neighbours tend to be alike. Incomes are lognormal, scaled by
-    class and normalised to a mean of 1, and grow every year. A household gets a phone once its income reaches the
-    threshold and one of its eight neighbours has a phone. Households decide one after the other in a new random order
-    every year, so phones spread along chains of affording neighbours within a year. The first owners are a cluster of
-    affording households grown from the richest upper-class household.
+    The adoption starts from 1951. One household lives in every cell of a torus. The upper class lives in the top left
+    quadrant, the lower class in the bottom left, and the middle class elsewhere, so neighbours tend to be alike.
+    Incomes are lognormal, scaled by class and normalised to a mean of 1, and grow every year. A household gets a phone
+    once its income reaches the threshold and one of its eight neighbours has a phone. Households decide one after the
+    other in a new random order every year, so phones spread along chains of affording neighbours within a year. The
+    first owners are a cluster of affording households grown from the richest upper-class household.
 
     The system has the group `households` and the share of households with a phone `share`.
 
@@ -199,14 +206,20 @@ class PhoneAdoptionSystem(BaseSystem):
 
     @staticmethod
     def _social_classes(width: int, height: int) -> Array:
-        """Return the class of every cell: upper in the top left quadrant, lower in the bottom left, else middle."""
+        """Return the class of every cell.
+
+        It is upper in the top left quadrant, lower in the bottom left, else middle.
+        """
         columns, rows = np.meshgrid(np.arange(width), np.arange(height), indexing='ij')
         left, top = columns < width // 2, rows >= height // 2
         return np.where(left & top, UPPER, np.where(left & ~top, LOWER, MIDDLE)).ravel().astype(float)
 
     @staticmethod
     def _seed_network(incomes: Array, classes: Array, shape: tuple[int, int], threshold: float, share: float) -> Array:
-        """Return the initial owners, grown from the richest upper-class household over affording neighbours."""
+        """Return the initial owners.
+
+        They are grown from the richest upper-class household over affording neighbours.
+        """
         width, height = shape
         owners = np.zeros(len(incomes))
         seed = int(np.argmax(np.where(classes == UPPER, incomes, -np.inf)))

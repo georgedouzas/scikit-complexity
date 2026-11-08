@@ -1,4 +1,7 @@
-"""Coevolving opinion networks: opinions spread along edges while discordant edges rewire to like-minded nodes."""
+"""Coevolving opinion networks: opinions spread along edges as the edges rewire.
+
+The discordant edges rewire to like-minded nodes.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,11 +25,12 @@ OPINION_VISUAL = VisualSpec('sites', {'states': ['opinion'], 'low': 0.0, 'high':
 
 
 class CoevolvingVoterElement(Element):
-    """Voter of a coevolving network, with a binary opinion, its degree, and its number of discordant neighbours.
+    """Voter of a coevolving network, with a binary opinion and its degree.
 
-    Every step a voter is active with probability `activity` and picks a random neighbour. When the neighbour
-    disagrees, the voter copies its opinion with probability `1 - rewiring`, and otherwise the interaction
-    `SeparationInteraction` moves the edge to a random voter who agrees with it.
+    It also holds its number of discordant neighbours. Every step a voter is active with probability `activity` and
+    picks a random neighbour. When the neighbour disagrees, the voter copies its opinion with probability
+    `1 - rewiring`, and otherwise the interaction `SeparationInteraction` moves the edge to a random voter who agrees
+    with it.
 
     Args:
         label:
@@ -71,12 +75,12 @@ class CoevolvingVoterElement(Element):
 
 
 class ClubMemberElement(Element):
-    """Agent that is in a club (spin 1) or out of it (spin 0), aligned by a heat bath with the agents it knows.
+    """Agent that is in a club (spin 1) or out of it (spin 0).
 
-    Every step an agent reconsiders with probability `deciding` and then joins with probability
-    `1 / (1 + exp(-2 β h))`, where the field `h` counts the acquaintances in the club minus those out of it, plus the
-    appeal of the club. The interaction `SeparationInteraction` dissolves acquaintances between a member and an outsider
-    and reforms them towards an agent of the same side.
+    A heat bath aligns it with the agents it knows. Every step an agent reconsiders with probability `deciding` and then
+    joins with probability `1 / (1 + exp(-2 β h))`, where the field `h` counts the acquaintances in the club minus those
+    out of it, plus the appeal of the club. The interaction `SeparationInteraction` dissolves acquaintances between a
+    member and an outsider and reforms them towards an agent of the same side.
 
     Args:
         label:
@@ -139,11 +143,12 @@ SMALLEST_DEGREE = 1e-9
 
 
 class SeparationInteraction(TopologyInteraction):
-    """Rewiring of discordant edges by one end, which keeps the edge and moves its other end to a like-minded node.
+    """Rewiring of discordant edges by one end.
 
-    It is a `TopologyInteraction` that rewires the edges of the voters. The end `keep` acts on an edge with
-    probability `activity / degree` per step, and when it holds the opinion `opinion` and the other end does not, it
-    rewires the edge with probability `rewiring`, drawing a new end among the voters of the opinion `opinion`.
+    It keeps the edge and moves its other end to a like-minded node. It is a `TopologyInteraction` that rewires the
+    edges of the voters. The end `keep` acts on an edge with probability `activity / degree` per step, and when it holds
+    the opinion `opinion` and the other end does not, it rewires the edge with probability `rewiring`, drawing a new end
+    among the voters of the opinion `opinion`.
 
     Args:
         label:
@@ -185,11 +190,17 @@ class SeparationInteraction(TopologyInteraction):
         self.opinion = opinion
 
     def _get_weight(self, node: SimpleNamespace) -> object:
-        """Return the weight of a candidate node as a new end, 1 when it holds the opinion of the acting end."""
+        """Return the weight of a candidate node as a new end.
+
+        It is 1 when it holds the opinion of the acting end.
+        """
         return node.opinion if self.opinion == 1 else 1 - node.opinion
 
     def _get_chance(self, namespace: SimpleNamespace) -> object:
-        """Return the probability that the acting end rewires the edge, when the ends hold different opinions."""
+        """Return the probability that the acting end rewires the edge.
+
+        The edge is rewired when the ends hold different opinions.
+        """
         actor, other = (namespace.source, namespace.target)[:: 1 if self.keep == 'source' else -1]
         chance = actor.activity * actor.rewiring / (actor.degree + SMALLEST_DEGREE)
         if self.opinion == 1:
@@ -213,7 +224,10 @@ def _coevolving(
     choice: MapInteraction,
     **values: object,
 ) -> System:
-    """Return a coevolving network of agents with opinions and its variable ties, rewired by separation."""
+    """Return a coevolving network of agents with opinions and its variable ties.
+
+    The ties are rewired by separation.
+    """
     agents = GroupElement(
         'voters',
         element=element,
@@ -237,12 +251,13 @@ def _coevolving(
 
 
 class CoevolvingVoterSystem(BaseSystem):
-    """The coevolving voter system, which fragments into consensual components when rewiring is fast.
+    """The coevolving voter system.
 
-    Voters on an Erdős-Rényi graph copy discordant neighbours or rewire the discordant edges to like-minded voters.
-    Below a critical rewiring probability, near 0.38 for mean degree 4, the network stays connected and discordant edges
-    survive for long times, and above it the network splits into components of one opinion. The system has the groups
-    `voters` and `ties` and the interaction `separation`.
+    It fragments into consensual components when rewiring is fast. Voters on an Erdős-Rényi graph copy discordant
+    neighbours or rewire the discordant edges to like-minded voters. Below a critical rewiring probability, near 0.38
+    for mean degree 4, the network stays connected and discordant edges survive for long times, and above it the network
+    splits into components of one opinion. The system has the groups `voters` and `ties` and the interaction
+    `separation`.
 
     Args:
         n_voters:
@@ -295,7 +310,10 @@ class CoevolvingVoterSystem(BaseSystem):
 
     @staticmethod
     def _copy_discordant(namespace: SimpleNamespace) -> object:
-        """Return the opinion of a voter after it copies a random discordant neighbour, with its probability."""
+        """Return the opinion of a voter after it copies a random discordant neighbour.
+
+        It copies with its probability.
+        """
         voter = namespace.target
         discordant = neighbors(abs(voter.other.opinion - voter.opinion))
         copying = voter.activity * (1 - voter.rewiring) * discordant / (neighbors(1) + SMALLEST_DEGREE)
@@ -319,13 +337,14 @@ class CoevolvingVoterSystem(BaseSystem):
 
 
 class JoinAClubSystem(BaseSystem):
-    """Join-a-club spins, agents who join a club with their acquaintances while acquaintances follow the club.
+    """Join-a-club spins.
 
-    Agents of an Erdős-Rényi graph are in or out of a club, a spin, and choose by a heat bath with the inverse
-    temperature `beta` in the field of their acquaintances and of the appeal of the club. Acquaintances across the club
-    boundary dissolve and reform among agents on the same side. Without coupling the choices stay random and many
-    acquaintances cross the boundary, and with strong coupling the members and the outsiders separate into communities
-    with few acquaintances between them. The system has the groups `voters` and `ties` and the interaction `separation`.
+    Agents join a club with their acquaintances while acquaintances follow the club. Agents of an Erdős-Rényi graph are
+    in or out of a club, a spin, and choose by a heat bath with the inverse temperature `beta` in the field of their
+    acquaintances and of the appeal of the club. Acquaintances across the club boundary dissolve and reform among agents
+    on the same side. Without coupling the choices stay random and many acquaintances cross the boundary, and with
+    strong coupling the members and the outsiders separate into communities with few acquaintances between them. The
+    system has the groups `voters` and `ties` and the interaction `separation`.
 
     Args:
         n_agents:
@@ -381,7 +400,10 @@ class JoinAClubSystem(BaseSystem):
 
     @staticmethod
     def _choose_club(namespace: SimpleNamespace) -> object:
-        """Return the choice of an agent that reconsiders, joining by a heat bath in the field of its acquaintances."""
+        """Return the choice of an agent that reconsiders.
+
+        It joins by a heat bath in the field of its acquaintances.
+        """
         agent = namespace.target
         field = neighbors(2 * agent.other.opinion - 1) + agent.appeal
         joining = 1 / (1 + exp(-2 * agent.beta * field))

@@ -19,7 +19,10 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class ContenderView(AgentView):
-    """View of an agent of the Bonabeau hierarchy system, with its states and parameters as attributes."""
+    """View of an agent of the Bonabeau hierarchy system.
+
+    Its states and parameters are attributes.
+    """
 
     strength: float
     eta: float
@@ -27,12 +30,13 @@ class ContenderView(AgentView):
 
 
 class ContenderElement(Element):
-    """Agent of the Bonabeau system, who wanders on a grid and fights the agents it runs into.
+    """Agent of the Bonabeau system.
 
-    Every step an agent's strength relaxes by the factor `1 - relaxation`, and the agent tries to step into a random
-    neighbouring cell. An attacker beats the occupant with probability `1 / (1 + exp(eta * (h_occupant - h_attacker)))`,
-    the winner gains 1 and the loser loses 1, and a winning attacker swaps places with the occupant. Agents differ only
-    by their strength, so the swap exchanges their strengths.
+    It wanders on a grid and fights the agents it runs into. Every step an agent's strength relaxes by the factor
+    `1 - relaxation`, and the agent tries to step into a random neighbouring cell. An attacker beats the occupant with
+    probability `1 / (1 + exp(eta * (h_occupant - h_attacker)))`, the winner gains 1 and the loser loses 1, and a
+    winning attacker swaps places with the occupant. Agents differ only by their strength, so the swap exchanges their
+    strengths.
 
     Args:
         label:
@@ -77,7 +81,10 @@ class ContenderElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[ContenderView]:
-        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        """Return the class of the views of the agents.
+
+        Their attributes are the states and parameters.
+        """
         return ContenderView
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
@@ -104,7 +111,9 @@ class ContenderElement(Element):
             agent.strength, occupant.strength = agent.strength - 1, occupant.strength + 1
 
     def wander(self, agent: ContenderView, system: SystemView) -> None:
-        """Relax the strength, then step into a random neighbouring cell or fight its occupant.
+        """Relax the strength, then step into a random neighbouring cell.
+
+        An occupied cell makes the agent fight its occupant.
 
         Args:
             agent:
@@ -129,9 +138,9 @@ class ContenderElement(Element):
 
 
 class BonabeauHierarchiesSystem(BaseSystem):
-    """The Bonabeau system, where a hierarchy of strengths emerges above a critical density of agents.
+    """The Bonabeau system.
 
-    The system has the group `contenders`.
+    A hierarchy of strengths emerges above a critical density of agents. The system has the group `contenders`.
 
     Args:
         width:

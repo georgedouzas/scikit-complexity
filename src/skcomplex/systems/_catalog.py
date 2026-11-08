@@ -18,10 +18,11 @@ _LISTED = ('field', 'topics', 'references')
 
 
 class _SystemClasses:
-    """Reader of the system classes of a package, which finds them in the sources without importing them.
+    """Reader of the system classes of a package.
 
-    A system class is a class whose body gives the class variable `field`. Its field and topics are read from the
-    sources, so selecting classes by them imports only the modules of the selected classes.
+    It finds them in the sources without importing them. A system class is a class whose body gives the class variable
+    `field`. Its field and topics are read from the sources, so selecting classes by them imports only the modules of
+    the selected classes.
 
     Args:
         root:
@@ -42,7 +43,9 @@ class _SystemClasses:
         topics: str | Sequence[str] = (),
         tags: Mapping[str, str | Sequence[str]] | None = None,
     ) -> list[tuple[str, type[BaseSystem]]]:
-        """Return the name and the class of every system class, optionally of a field, with topics, or with tags.
+        """Return the name and the class of every system class.
+
+        The classes can be selected by field, by topics, or by tags.
 
         Args:
             field:
@@ -111,7 +114,10 @@ class _SystemClasses:
         return True
 
     def _listed(self) -> dict[str, tuple[str, str, tuple[str, ...]]]:
-        """Return the module, the field path, and the topics of every system class, by class name, read once."""
+        """Return the module, the field path, and the topics of every system class.
+
+        They are given by class name and read once.
+        """
         if self._found is None:
             found: dict[str, tuple[str, str, tuple[str, ...]]] = {}
             for path in sorted(self.root.rglob('_*.py')):
@@ -135,7 +141,9 @@ class _SystemClasses:
         module: str,
         constants: dict[str, object],
     ) -> tuple[str, str, tuple[str, ...]]:
-        """Return the module, the field path, and the topics of a system class from its class variables.
+        """Return the module, the field path, and the topics of a system class.
+
+        They are read from its class variables.
 
         Args:
             node:
@@ -173,7 +181,10 @@ class _SystemClasses:
 
     @staticmethod
     def _class_value(node: ast.ClassDef, name: str) -> ast.expr | None:
-        """Return the value a class body assigns to a class variable, or `None` when it assigns none."""
+        """Return the value a class body assigns to a class variable.
+
+        It is `None` when the body assigns none.
+        """
         for item in node.body:
             if isinstance(item, ast.Assign) and any(
                 isinstance(target, ast.Name) and target.id == name for target in item.targets
@@ -184,7 +195,9 @@ class _SystemClasses:
         return None
 
     def _literal(self, node: ast.expr | None, name: str, module: str, constants: dict[str, object]) -> object:
-        """Return the static value of a class variable, or `None` when the class does not give it.
+        """Return the static value of a class variable.
+
+        It is `None` when the class does not give it.
 
         Args:
             node:
@@ -220,7 +233,10 @@ class _SystemClasses:
             raise RegistryError(error_msg) from error
 
     def _constants(self, path: Path, seen: frozenset[Path] = frozenset()) -> dict[str, object]:
-        """Return the module-level literal constants of a system module, with those it imports from its own package."""
+        """Return the module-level literal constants of a system module.
+
+        They include those it imports from its own package.
+        """
         if path in seen or not path.exists():
             return {}
         constants: dict[str, object] = {}
@@ -238,7 +254,10 @@ class _SystemClasses:
         return constants
 
     def _evaluate(self, node: ast.expr, constants: dict[str, object]) -> object:
-        """Return the value of a literal expression whose names are module-level literal constants."""
+        """Return the value of a literal expression.
+
+        Its names are module-level literal constants.
+        """
         if isinstance(node, ast.Name):
             if node.id in constants:
                 return constants[node.id]
@@ -267,11 +286,12 @@ def all_systems(
     topics: str | Sequence[str] = (),
     tags: Mapping[str, str | Sequence[str]] | None = None,
 ) -> list[tuple[str, type[BaseSystem]]]:
-    """Return the name and the class of every ready-made system, optionally of a field, with topics, or with tags.
+    """Return the name and the class of every ready-made system.
 
-    It takes the role of `sklearn.utils.all_estimators`. The field and the topics of every class are read from the
-    sources, so selecting by them imports the modules of the selected classes alone. Filtering by capability tags
-    builds every selected class with its default model parameters and reads its tags.
+    The systems can be selected by field, by topics, or by capability tags. It takes the role of
+    `sklearn.utils.all_estimators`. The field and the topics of every class are read from the sources, so selecting by
+    them imports the modules of the selected classes alone. Filtering by capability tags builds every selected class
+    with its default model parameters and reads its tags.
 
     Args:
         field:

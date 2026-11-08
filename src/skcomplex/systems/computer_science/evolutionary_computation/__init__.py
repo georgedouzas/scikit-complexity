@@ -1,4 +1,7 @@
-"""Evolutionary computation: genetic algorithms and bit strings on fitness landscapes."""
+"""Evolutionary computation: genetic algorithms and evolving bit strings.
+
+The bit strings evolve on fitness landscapes.
+"""
 
 from ._genetic_algorithms import (
     AgedStrategyElement,

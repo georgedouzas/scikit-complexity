@@ -1,4 +1,7 @@
-"""Innovation: technological progress, combinatorial evolution, discovery, autocatalytic sets, and adoption."""
+"""Innovation: technological progress, combinatorial evolution, and more.
+
+It also holds discovery, autocatalytic sets, and adoption.
+"""
 
 from ._adoption import HouseholdElement, PhoneAdoptionSystem
 from ._bass import BassDiffusionSystem

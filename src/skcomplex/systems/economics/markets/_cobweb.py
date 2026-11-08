@@ -46,9 +46,9 @@ class MarketElement(Element):
 
 
 class CobwebInteraction(MapInteraction):
-    """Cobweb system, where supply reacts to the previous price and demand clears the market.
+    """Cobweb system, where supply reacts to the previous price.
 
-    Demand is `a - b * price` and supply is `c + d * previous price`, so the next price is
+    Demand clears the market. Demand is `a - b * price` and supply is `c + d * previous price`, so the next price is
     `(a - c - d * price) / b`, a map of the state `price` of the market.
 
     Args:
@@ -94,14 +94,17 @@ class CobwebInteraction(MapInteraction):
 
     @staticmethod
     def _get_price(s: SimpleNamespace) -> Expression:
-        """Return the next price `(a - c - d * price) / b`, at which demand buys the supply of the last price."""
+        """Return the next price `(a - c - d * price) / b`.
+
+        At this price demand buys the supply of the last price.
+        """
         return (s.a - s.c - s.d * s.target.price) / s.b
 
 
 class CobwebSystem(BaseSystem):
-    """A market whose price converges to or oscillates around equilibrium as supply lags the price.
+    """A market whose price converges to or oscillates around equilibrium.
 
-    The system has the market `market`.
+    Supply lags the price. The system has the market `market`.
 
     Args:
         price:

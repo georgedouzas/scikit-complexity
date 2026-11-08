@@ -1,4 +1,7 @@
-"""Macroeconomics systems: the Mark-0 economy of firms, a household, and a bank, under a Covid shock and policies."""
+"""Macroeconomics systems: the Mark-0 economy of firms, a household, and a bank.
+
+It runs under a Covid shock and policies.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,7 +24,10 @@ from ....core.types import Array
 
 
 class Mark0FirmView(AgentView):
-    """Firm as the economy sees it: its workforce, demand, price, wage, cash, profit, and whether it is active."""
+    """Firm as the economy sees it.
+
+    It holds its workforce, demand, price, wage, cash, profit, and whether it is active.
+    """
 
     workforce: float
     demand: float
@@ -33,10 +39,10 @@ class Mark0FirmView(AgentView):
 
 
 class Mark0FirmElement(Element):
-    """Firm of the Mark-0 economy, with its workforce, demand, price, wage, cash balance, and profit.
+    """Firm of the Mark-0 economy.
 
-    The production is the productivity times the workforce, a negative cash balance is a debt, and the economy of the
-    system updates every firm at once.
+    It holds its workforce, demand, price, wage, cash balance, and profit. The production is the productivity times the
+    workforce, a negative cash balance is a debt, and the economy of the system updates every firm at once.
 
     Args:
         label:
@@ -120,17 +126,18 @@ CREDIT_POLICIES = ('none', 'naive', 'adaptive')
 
 
 class Mark0EconomyInteraction(FeedbackInteraction[SystemView]):
-    """Representative household and bank of the Mark-0 economy, which run the firms through one month every step.
+    """Representative household and bank of the Mark-0 economy.
 
-    Every step the firms adjust their workforce, prices, and wages by the rules of thumb of Mark-0 (Eqs. 11 to 17 of
-    Sharma et al. 2020) from the demand and the profit of the last month, pay their wages, and sell to the household,
-    whose consumption budget `c (S + W + rho_d S)` (Eq. 5) splits among the firms by the logit demand of their prices
-    relative to the mean price (Eq. 9). Firms pay interest and, when profitable with positive cash, a share `delta` of
-    their cash as dividends (Eqs. 18 and 19). A firm whose debt to payroll `Phi = -E / (W N)` reaches the bankruptcy
-    threshold `Theta` defaults, its debt falls on the bank, which moves the loan and deposit rates (Eqs. 21 and 22), and
-    a bankrupt firm is revived with probability `phi` per month at the mean price and wage. Following the
-    simplifications of the source, inflation expectations, the feedback of inflation on consumption, the effect of
-    fragility on hiring, and the central bank are switched off, so the base rate is zero.
+    They run the firms through one month every step. Every step the firms adjust their workforce, prices, and wages by
+    the rules of thumb of Mark-0 (Eqs. 11 to 17 of Sharma et al. 2020) from the demand and the profit of the last month,
+    pay their wages, and sell to the household, whose consumption budget `c (S + W + rho_d S)` (Eq. 5) splits among the
+    firms by the logit demand of their prices relative to the mean price (Eq. 9). Firms pay interest and, when
+    profitable with positive cash, a share `delta` of their cash as dividends (Eqs. 18 and 19). A firm whose debt to
+    payroll `Phi = -E / (W N)` reaches the bankruptcy threshold `Theta` defaults, its debt falls on the bank, which
+    moves the loan and deposit rates (Eqs. 21 and 22), and a bankrupt firm is revived with probability `phi` per month
+    at the mean price and wage. Following the simplifications of the source, inflation expectations, the feedback of
+    inflation on consumption, the effect of fragility on hiring, and the central bank are switched off, so the base rate
+    is zero.
 
     During the shock, from `shock_time` for `shock_length` months, the productivity falls by the share `dzeta` and the
     consumption propensity by the share `dc`. The credit policy `'naive'` lifts the threshold during the shock and
@@ -302,18 +309,27 @@ class Mark0EconomyInteraction(FeedbackInteraction[SystemView]):
 
     @staticmethod
     def _stored(system: SystemView, name: str, default: float) -> float:
-        """Return a number the economy stored in an earlier step, or the default before it is stored."""
+        """Return a number the economy stored in an earlier step.
+
+        Before it is stored, it is the default.
+        """
         value = system.storage.get(name, default)
         return float(value) if isinstance(value, int | float | np.number) else default
 
     @staticmethod
     def _weighted(values: Array, weights: Array) -> float:
-        """Return the mean of values weighted by nonnegative weights, the plain mean when they sum to zero."""
+        """Return the mean of values weighted by nonnegative weights.
+
+        It is the plain mean when they sum to zero.
+        """
         total = weights.sum()
         return float(values @ weights / total) if total > 0 else float(values.mean())
 
     def _adjust(self, system: SystemView, state: dict[str, Array], zeta: float, unemployment: float) -> None:
-        """Adjust the workforce, prices, and wages of the active firms by last month's demand and profit."""
+        """Adjust the workforce, prices, and wages of the active firms.
+
+        The adjustment follows last month's demand and profit.
+        """
         rng, gamma = system.rng, system.parameter('gamma')
         active = state['active'] > 0
         workforce, demand, price, wage, profit = (state[name] for name in ('n', 'd', 'p', 'w', 'profit'))
@@ -347,7 +363,9 @@ class Mark0EconomyInteraction(FeedbackInteraction[SystemView]):
         state['n'], state['p'], state['w'] = np.maximum(workforce, 0.0), price, wage
 
     def act(self, system: SystemView) -> None:
-        """Run one month of the economy: adjust, pay, sell, distribute, default, revive, and set the rates.
+        """Run one month of the economy.
+
+        It adjusts, pays, sells, distributes, defaults, revives, and sets the rates.
 
         Args:
             system:
@@ -440,18 +458,19 @@ class Mark0EconomyInteraction(FeedbackInteraction[SystemView]):
 
 
 class Mark0System(BaseSystem):
-    """The Mark-0 economy of Sharma, Bouchaud, and co-authors, with a Covid shock to supply and demand.
+    """The Mark-0 economy of Sharma, Bouchaud, and co-authors.
 
-    Firms produce perishable goods with a linear technology, sell them to a representative household at prices they
-    adjust by rules of thumb, hire and fire by the gap between production and demand, and borrow from a representative
-    bank, defaulting when their debt to payroll exceeds the threshold `Theta` (Sharma et al. 2020, Section 2). A month
-    is a step, the money starts at zero, and the economy is stock-flow consistent apart from the written-off debts and
-    the helicopter money. With the defaults of Table 1 the economy sits in the full employment phase. A lockdown lowers
-    the productivity and the consumption propensity for `shock_length` months, after which a mild shock recovers in a
-    V shape and a strong one tips the economy into an L-shaped recession of high unemployment, which easy credit and
-    helicopter money can prevent. The source summarizes the model of earlier papers, so the initial firms (a workforce
-    between 0.9 and 1, prices around 1, unit wages, no cash) and revived firms (the mean price and wage and a random
-    share of the unemployed) follow Gualdi et al. (2015), and the demand reads prices relative to the mean price.
+    It has a Covid shock to supply and demand. Firms produce perishable goods with a linear technology, sell them to a
+    representative household at prices they adjust by rules of thumb, hire and fire by the gap between production and
+    demand, and borrow from a representative bank, defaulting when their debt to payroll exceeds the threshold `Theta`
+    (Sharma et al. 2020, Section 2). A month is a step, the money starts at zero, and the economy is stock-flow
+    consistent apart from the written-off debts and the helicopter money. With the defaults of Table 1 the economy sits
+    in the full employment phase. A lockdown lowers the productivity and the consumption propensity for `shock_length`
+    months, after which a mild shock recovers in a V shape and a strong one tips the economy into an L-shaped recession
+    of high unemployment, which easy credit and helicopter money can prevent. The source summarizes the model of earlier
+    papers, so the initial firms (a workforce between 0.9 and 1, prices around 1, unit wages, no cash) and revived firms
+    (the mean price and wage and a random share of the unemployed) follow Gualdi et al. (2015), and the demand reads
+    prices relative to the mean price.
 
     The system has the group `firms` and the economy `economy`, whose reporters are `economy.unemployment`,
     `economy.inflation`, `economy.output`, `economy.savings`, `economy.fragility`, `economy.bankruptcies`,

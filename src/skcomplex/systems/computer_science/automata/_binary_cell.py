@@ -12,7 +12,9 @@ from ....core.specs import StateSpec, VisualSpec
 
 
 class BinaryCellElement(Element):
-    """Cell of an automaton whose state `alive` is 0 or 1, changed by the local rule of an interaction.
+    """Cell of an automaton whose state `alive` is 0 or 1.
+
+    The local rule of an interaction changes the state.
 
     Args:
         label:

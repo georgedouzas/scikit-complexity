@@ -1,4 +1,7 @@
-"""Spatial games: cooperation on a lattice where players imitate more successful neighbours."""
+"""Spatial games: cooperation on a lattice.
+
+Players imitate more successful neighbours.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -24,12 +27,12 @@ from ._contributor import ContributorElement
 
 
 class IteratedPrisonerElement(Element):
-    """Player of the lattice iterated prisoner's dilemma, who cooperates for a number of rounds and then defects.
+    """Player of the lattice iterated prisoner's dilemma.
 
-    The strategy `n` of a player is the number of rounds it intends to cooperate, until round `n` included or until its
-    opponent defects, after which it defects for the rest of the game. The payoffs are years in prison, so lower is
-    better. The play, the revision, and the mutation are an `IteratedDilemmaInteraction` of the lattice, which
-    `IteratedLatticeDilemmaSystem` adds.
+    It cooperates for a number of rounds and then defects. The strategy `n` of a player is the number of rounds it
+    intends to cooperate, until round `n` included or until its opponent defects, after which it defects for the rest of
+    the game. The payoffs are years in prison, so lower is better. The play, the revision, and the mutation are an
+    `IteratedDilemmaInteraction` of the lattice, which `IteratedLatticeDilemmaSystem` adds.
 
     Args:
         label:
@@ -154,14 +157,15 @@ DIAMOND = LatticeNeighborhood(
 
 
 class IteratedDilemmaInteraction(LocalRuleInteraction):
-    """Play of the iterated prisoner's dilemma between neighbours, revision to the best strategy, and mutation.
+    """Play of the iterated prisoner's dilemma between neighbours.
 
-    It is a stochastic `LocalRuleInteraction` of the strategies over the cells within two von Neumann steps of a
-    player. Every step each player plays the `N`-round prisoner's dilemma with its four von Neumann neighbours and sums
-    its years in prison. A player of strategy `n` against one of strategy `m < n` gets `m R + S + (N - m - 1) P`, the
-    other `m R + T + (N - m - 1) P`, and two players of strategy `n` get `n R + (N - n) P`. Every player then adopts
-    the strategy of the lowest score among itself and its four neighbours, a random one of them on ties, and finally
-    mutates to a uniformly drawn strategy with the probability `mu`.
+    The play is followed by revision to the best strategy, and mutation. It is a stochastic `LocalRuleInteraction` of
+    the strategies over the cells within two von Neumann steps of a player. Every step each player plays the `N`-round
+    prisoner's dilemma with its four von Neumann neighbours and sums its years in prison. A player of strategy `n`
+    against one of strategy `m < n` gets `m R + S + (N - m - 1) P`, the other `m R + T + (N - m - 1) P`, and two players
+    of strategy `n` get `n R + (N - n) P`. Every player then adopts the strategy of the lowest score among itself and
+    its four neighbours, a random one of them on ties, and finally mutates to a uniformly drawn strategy with the
+    probability `mu`.
 
     Args:
         label:
@@ -190,7 +194,9 @@ class IteratedDilemmaInteraction(LocalRuleInteraction):
         temptation: float | Array,
         punishment: float | Array,
     ) -> Array:
-        """Return the years in prison of a player of strategy `n` against one of strategy `m` in an `N`-round game.
+        """Return the years in prison of a player of strategy `n` against strategy `m`.
+
+        The game has `N` rounds.
 
         Args:
             own:
@@ -244,7 +250,10 @@ class IteratedDilemmaInteraction(LocalRuleInteraction):
         extremes: float | Array,
         random: Array,
     ) -> Array:
-        """Return the strategies after the play against the neighbours, the revision, and the mutation."""
+        """Return the strategies after the play, the revision, and the mutation.
+
+        The play is against the neighbours.
+        """
         cells = dict(zip(DIAMOND.offsets, values, strict=True))
         payoffs = {'rounds': rounds, 'reward': reward, 'sucker': sucker, 'temptation': temptation}
 
@@ -291,13 +300,13 @@ SQUARE = LatticeNeighborhood(tuple((dx, dy) for dx in range(-2, 3) for dy in ran
 
 
 class PrisonersDilemmaInteraction(LocalRuleInteraction):
-    """Play of the weak prisoner's dilemma between neighbours, and imitation of more successful neighbours.
+    """Play of the weak prisoner's dilemma between neighbours.
 
-    It is a stochastic `LocalRuleInteraction` of the strategies over the 5 by 5 square around a player, a cooperator
-    at 1 and a defector at 0. Every step each player plays the weak dilemma, with reward 1, temptation `temptation`,
-    and 0 otherwise, against itself and its eight neighbours. It then copies the best player among them, or a random
-    neighbour with the Fermi probability `1 / (1 + exp((P_own - P_other) / noise))`. The temptation and the noise are
-    parameters of the players.
+    The play is followed by imitation of more successful neighbours. It is a stochastic `LocalRuleInteraction` of the
+    strategies over the 5 by 5 square around a player, a cooperator at 1 and a defector at 0. Every step each player
+    plays the weak dilemma, with reward 1, temptation `temptation`, and 0 otherwise, against itself and its eight
+    neighbours. It then copies the best player among them, or a random neighbour with the Fermi probability
+    `1 / (1 + exp((P_own - P_other) / noise))`. The temptation and the noise are parameters of the players.
 
     Args:
         label:
@@ -336,7 +345,10 @@ class PrisonersDilemmaInteraction(LocalRuleInteraction):
             raise ValidationError(error_msg)
 
     def _play(self, *values: Array, temptation: float | Array, noise: float | Array, random: Array) -> Array:
-        """Return the strategies after the play of every player against its neighbours and the imitation."""
+        """Return the strategies after the play and the imitation.
+
+        Every player plays against its neighbours.
+        """
         cells = dict(zip(SQUARE.offsets, values, strict=True))
 
         def payoff(center: Pair) -> Array:
@@ -372,7 +384,10 @@ class PrisonersDilemmaInteraction(LocalRuleInteraction):
         noise: float | Array,
         random: Array,
     ) -> Array:
-        """Return the strategy of a random neighbour with probability `1 / (1 + exp((P_own - P_other) / noise))`."""
+        """Return the strategy of a random neighbour with the Fermi probability.
+
+        The probability is `1 / (1 + exp((P_own - P_other) / noise))`.
+        """
         count = len(payoffs)
         chosen = np.minimum((random * count).astype(int), count - 1)
         uniform = random * count - chosen
@@ -383,7 +398,10 @@ class PrisonersDilemmaInteraction(LocalRuleInteraction):
 
     @staticmethod
     def _imitate_best(own: Array, own_payoff: Array, payoffs: list[Array], strategies: list[Array]) -> Array:
-        """Return the strategy of the largest payoff among a player and its neighbours, its own on ties."""
+        """Return the strategy of the largest payoff among a player and its neighbours.
+
+        Ties keep its own.
+        """
         best, following = own_payoff.copy(), own.copy()
         for payoff, strategy in zip(payoffs, strategies, strict=True):
             following = np.where(payoff > best, strategy, following)
@@ -392,12 +410,13 @@ class PrisonersDilemmaInteraction(LocalRuleInteraction):
 
 
 class PublicGoodsInteraction(GroupingInteraction):
-    """Play of the public goods game in the groups of a player and its four neighbours, which sets the payoffs.
+    """Play of the public goods game in the groups of a player and its neighbours.
 
-    It is a symbolic `GroupingInteraction` of the von Neumann neighbourhoods of a lattice, a cooperator at 1 and a
-    defector at 0. Every player joins five groups, the one centred on itself and those centred on its four neighbours.
-    In each group a cooperator pays 1, and the pot multiplied by `synergy` is shared by the members, so the payoff of a
-    player is the sum of its shares minus its contributions. The synergy is a parameter of the players.
+    The groups hold a player and its four neighbours, and the play sets the payoffs. It is a symbolic
+    `GroupingInteraction` of the von Neumann neighbourhoods of a lattice, a cooperator at 1 and a defector at 0. Every
+    player joins five groups, the one centred on itself and those centred on its four neighbours. In each group a
+    cooperator pays 1, and the pot multiplied by `synergy` is shared by the members, so the payoff of a player is the
+    sum of its shares minus its contributions. The synergy is a parameter of the players.
 
     Args:
         label:
@@ -427,7 +446,10 @@ class PublicGoodsInteraction(GroupingInteraction):
         )
 
     def _get_share(self, group: SimpleNamespace) -> Expression:
-        """Return the share of the pot of a group for its member, minus the contribution of the member."""
+        """Return the share of the pot of a group for its member.
+
+        The contribution of the member is subtracted.
+        """
         pot = group.member.synergy * total(group.members.strategy, over=group.members)
         return pot / count(over=group.members) - group.member.strategy
 
@@ -437,14 +459,17 @@ def _random_strategies(
     share: float,
     random_state: int | np.random.Generator | None,
 ) -> Array:
-    """Return strategies that are 1, cooperation, with a probability and 0, defection, otherwise."""
+    """Return strategies that are 1, cooperation, with a probability.
+
+    The other strategies are 0, defection.
+    """
     return (np.random.default_rng(random_state).random(tuple(shape)) < share).astype(float)
 
 
 class SpatialPrisonersDilemmaSystem(BaseSystem):
-    """The spatial prisoner's dilemma of Nowak and May, with best-neighbour or Fermi imitation.
+    """The spatial prisoner's dilemma of Nowak and May.
 
-    The system has the strategies `players.strategy`.
+    The imitation is of the best neighbour or by the Fermi rule. The system has the strategies `players.strategy`.
 
     Args:
         shape:
@@ -519,12 +544,12 @@ class SpatialPrisonersDilemmaSystem(BaseSystem):
 
 
 class PublicGoodsGameSystem(BaseSystem):
-    """The spatial public goods game in groups of five neighbours, with Fermi imitation.
+    """The spatial public goods game in groups of five neighbours.
 
-    Every step has two phases. In the phase `play` every player takes the payoff of its five groups, and in the phase
-    `imitate` every player copies a random neighbour with the Fermi probability `1 / (1 + exp((P_own - P_other) / K))`
-    of the payoffs of the same step, at the noise `K`. The system has the strategies `players.strategy` and the payoffs
-    `players.payoff`.
+    The imitation follows the Fermi rule. Every step has two phases. In the phase `play` every player takes the payoff
+    of its five groups, and in the phase `imitate` every player copies a random neighbour with the Fermi probability
+    `1 / (1 + exp((P_own - P_other) / K))` of the payoffs of the same step, at the noise `K`. The system has the
+    strategies `players.strategy` and the payoffs `players.payoff`.
 
     Args:
         shape:
@@ -602,19 +627,18 @@ class PublicGoodsGameSystem(BaseSystem):
 
 
 class IteratedLatticeDilemmaSystem(BaseSystem):
-    """Argun's evolutionary iterated prisoner's dilemma on a lattice, with strategies of `n` cooperation rounds.
+    """Argun's evolutionary iterated prisoner's dilemma on a lattice.
 
-    The payoffs are years in prison, `T < R < P < S`, so lower is better. A strategy `n` cooperates until round `n`
-    or until the opponent defects, and defects afterwards, so `n = 0` always defects and `n = N` always cooperates.
-    Against a strategy `m` the best reply is `n = m - 1`. Every step each player plays the `N`-round game with its four
-    von Neumann neighbours, adopts the strategy of the lowest total among itself and its neighbours, random on ties,
-    and mutates to a random strategy with the probability `mu` (Argun et al. 2021 sections 13.2 and 13.3). With every
-    strategy allowed and `S = 1.5`, cooperative strategies prevail for `R` below about 0.5, all strategies coexist and
-    cycle between about 0.5 and 0.75, and defecting strategies dominate above, so the default `R = 0.6` lies in the
-    middle of the cycling regime, where a finite lattice is not absorbed by defection. With only the two extreme
-    strategies,
-    `extremes=True`, cooperation dominates at `R = 0.82`, coexists with defection at `R = 0.84`, and vanishes at
-    `R = 0.86` (Exercise 13.3).
+    Its strategies are of `n` cooperation rounds. The payoffs are years in prison, `T < R < P < S`, so lower is better.
+    A strategy `n` cooperates until round `n` or until the opponent defects, and defects afterwards, so `n = 0` always
+    defects and `n = N` always cooperates. Against a strategy `m` the best reply is `n = m - 1`. Every step each player
+    plays the `N`-round game with its four von Neumann neighbours, adopts the strategy of the lowest total among itself
+    and its neighbours, random on ties, and mutates to a random strategy with the probability `mu` (Argun et al. 2021
+    sections 13.2 and 13.3). With every strategy allowed and `S = 1.5`, cooperative strategies prevail for `R` below
+    about 0.5, all strategies coexist and cycle between about 0.5 and 0.75, and defecting strategies dominate above, so
+    the default `R = 0.6` lies in the middle of the cycling regime, where a finite lattice is not absorbed by defection.
+    With only the two extreme strategies, `extremes=True`, cooperation dominates at `R = 0.82`, coexists with defection
+    at `R = 0.84`, and vanishes at `R = 0.86` (Exercise 13.3).
 
     The system has the strategies `players.strategy`.
 

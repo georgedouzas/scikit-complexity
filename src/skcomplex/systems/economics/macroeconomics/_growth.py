@@ -47,7 +47,9 @@ class EconomyElement(Element):
 
 
 class IncomeElement(Element):
-    """Economy described by its national income, which keeps the income of the previous period.
+    """Economy described by its national income.
+
+    It keeps the income of the previous period.
 
     Args:
         label:
@@ -97,9 +99,10 @@ class IncomeElement(Element):
 
 
 class SolowGrowthInteraction(RateInteraction):
-    """Solow growth of the capital per worker `k` of a target, `dk/dt = s * k**alpha - delta * k`.
+    """Solow growth of the capital per worker `k` of a target.
 
-    A rate interaction on the state `k` whose rate is the saving of a Cobb-Douglas output minus depreciation.
+    It follows `dk/dt = s * k**alpha - delta * k`. A rate interaction on the state `k` whose rate is the saving of a
+    Cobb-Douglas output minus depreciation.
 
     Args:
         label:
@@ -154,9 +157,9 @@ class SolowGrowthInteraction(RateInteraction):
 
 
 class SolowSystem(BaseSystem):
-    """An economy whose capital per worker approaches its steady state through saving and depreciation.
+    """An economy whose capital per worker approaches its steady state.
 
-    The system has the economy `economy`.
+    It approaches through saving and depreciation. The system has the economy `economy`.
 
     Args:
         k:
