@@ -1,4 +1,7 @@
-"""Climate: energy balance, variability, glacial cycles, low-order atmospheres, net energy, forests, and tipping."""
+"""Climate systems.
+
+The package covers energy balance, variability, glacial cycles, low-order atmospheres, net energy, forests, and tipping.
+"""
 
 from ._early_warning import EarlyWarningResult, early_warning
 from ._energy_balance import (

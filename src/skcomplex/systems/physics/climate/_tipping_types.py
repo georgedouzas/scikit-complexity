@@ -1,4 +1,7 @@
-"""Tipping types: bifurcation-, noise-, and rate-induced tipping of a stochastic energy balance and a ramped fold."""
+"""Tipping types.
+
+The module covers bifurcation-, noise-, and rate-induced tipping of a stochastic energy balance and a ramped fold.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,7 +25,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class FoldFollowerElement(Element):
-    """Stochastic fold `dy = (-y³ + y + c) dt + sigma dW`, whose control a leading element shifts.
+    """Stochastic fold `dy = (-y³ + y + c) dt + sigma dW`.
+
+    A leading element shifts its control.
 
     The fold has a lower and an upper stable branch while `|c| < 2 / (3 √3)`, and a coupling adds to its control.
 
@@ -86,7 +91,9 @@ class FoldFollowerElement(Element):
 
 
 class HopfFollowerElement(Element):
-    """Stochastic Hopf normal form `dz = ((mu + i omega) z - |z|² z) dt + sigma dW`, whose `mu` a leader shifts.
+    """Stochastic Hopf normal form `dz = ((mu + i omega) z - |z|² z) dt + sigma dW`.
+
+    A leader shifts its `mu`.
 
     The complex amplitude `z = y + i z_im` is held as two real states. For `mu < 0` it decays to a focus at the origin,
     and for `mu > 0` it settles on a limit cycle of radius `sqrt(mu)`, and a coupling adds to `mu`.
@@ -162,7 +169,9 @@ class HopfFollowerElement(Element):
 
 
 class RampedFoldElement(Element):
-    """Stochastic fold `dx = (a x^3 + b x + phi(t)) dt + sigma dW` whose control rises linearly from `phi0` to `phi1`.
+    """Stochastic fold `dx = (a x^3 + b x + phi(t)) dt + sigma dW`.
+
+    The control rises linearly from `phi0` to `phi1`.
 
     For `a < 0 < b` the fold has two stable branches for `|phi| < phi_c = sqrt(-4 b^3 / (27 a))`, and the lower
     branch vanishes at `phi = phi_c`. The control rises at the rate `rate` and stays at `phi1` once it reaches it.
@@ -250,7 +259,9 @@ C1 = 9.7137e9
 
 
 class StochasticEnergyBalanceElement(Element):
-    """Global mean surface temperature of the Sutera-Fraedrich energy balance, with drifting and ramped controls.
+    """Global mean surface temperature of the Sutera-Fraedrich energy balance.
+
+    The controls drift and ramp.
 
     The temperature follows `dT = c0 [-T^4 + c1 mu (b2 T^2 - a2)] dt + sqrt(nu) dW`, in kelvin and years. The control
     `mu` drifts at the rate `-drift`, and `b2 = b_ini + lam (b_fin - b_ini)` follows the logistic ramp
@@ -339,7 +350,9 @@ class StochasticEnergyBalanceElement(Element):
         self.c1 = c1
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the energy balance with its noise, the drift of `mu`, and the logistic ramp of `b2` and `a2`.
+        """Return the energy balance with its noise, and the controls.
+
+        The control `mu` drifts, and `b2` and `a2` follow a logistic ramp.
 
         Args:
             s:
@@ -373,13 +386,18 @@ FOLLOWERS = ('fold', 'hopf')
 
 
 def _lower_branch(a: float, b: float, phi: float) -> float:
-    """Return the lowest real root of `a x^3 + b x + phi`, the lower branch of the fold."""
+    """Return the lowest real root of `a x^3 + b x + phi`.
+
+    The root is the lower branch of the fold.
+    """
     roots = np.roots([a, 0.0, b, phi])
     return float(min(root.real for root in roots if abs(root.imag) < REAL_TOLERANCE))
 
 
 class SuteraFraedrichTippingSystem(BaseSystem):
-    """The Sutera-Fraedrich stochastic energy balance set up for bifurcation-, noise-, or rate-induced tipping.
+    """The Sutera-Fraedrich stochastic energy balance set up for tipping.
+
+    The tipping is bifurcation-, noise-, or rate-induced.
 
     The temperature follows `dT = c0 [-T^4 + c1 mu (b2 T^2 - a2)] dt + sqrt(nu) dW` with the parameters of Table 1 of
     Fang et al. and starts at its warm stable equilibrium. In bifurcation-induced tipping, `mu` decreases at `4e-4` per
@@ -436,7 +454,10 @@ class SuteraFraedrichTippingSystem(BaseSystem):
 
     @staticmethod
     def _warm_state(mu: float, b2: float, a2: float) -> float:
-        """Return the warm stable equilibrium of the energy balance, the largest root of `T^4 = c1 mu (b2 T^2 - a2)`."""
+        """Return the warm stable equilibrium of the energy balance.
+
+        The equilibrium is the largest root of `T^4 = c1 mu (b2 T^2 - a2)`.
+        """
         root = C1 * mu * b2 + math.sqrt((C1 * mu * b2) ** 2 - 4 * C1 * mu * a2)
         return math.sqrt(root / 2)
 
@@ -461,7 +482,9 @@ class SuteraFraedrichTippingSystem(BaseSystem):
 
 
 class RampedStochasticFoldSystem(BaseSystem):
-    """A stochastic fold whose control is ramped through the tipping point of its lower branch.
+    """A stochastic fold whose control is ramped through a tipping point.
+
+    The tipping point is that of its lower branch.
 
     The state follows `dx = (a x^3 + b x + phi(t)) dt + sigma dW` with `phi = phi0 + rate t` until it reaches `phi1`,
     Eq. 4 of Fang et al. with `phi = -1 + 0.004 t`. It starts on the lower branch, which vanishes at the static fold
@@ -525,7 +548,10 @@ class RampedStochasticFoldSystem(BaseSystem):
         self.phi1 = phi1
 
     def _build_system(self) -> System:
-        """Return a stochastic fold whose control is ramped through the tipping point of its lower branch."""
+        """Return a stochastic fold whose control is ramped through a tipping point.
+
+        The tipping point is that of its lower branch.
+        """
         fold = RampedFoldElement(
             'system',
             x=_lower_branch(self.a, self.b, self.phi0),
@@ -540,7 +566,9 @@ class RampedStochasticFoldSystem(BaseSystem):
 
 
 class LeadingFollowingCascadeSystem(BaseSystem):
-    """A cascade of two tipping elements, a leading fold driven by a ramp and a follower forced by the leader.
+    """A cascade of two tipping elements.
+
+    A leading fold is driven by a ramp and a follower is forced by the leader.
 
     The leading element follows `dx = (-x³ + x + phi(t)) dt + sigma dW`, whose control rises as `phi = phi0 + rate t`
     until `phi1`, and it tips from its lower to its upper branch when `phi` passes `2 / (3 √3)`. The following element

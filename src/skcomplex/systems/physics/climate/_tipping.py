@@ -1,4 +1,7 @@
-"""Tipping cascades: networks of interacting tipping elements that can push one another past their tipping points."""
+"""Tipping cascades.
+
+Networks of interacting tipping elements can push one another past their tipping points.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -24,7 +27,9 @@ FOLD = math.sqrt(4 / 27)
 
 
 class TippingElementElement(Element):
-    """Tipping element in the normal form of a fold, pushed toward its upper state by tipped neighbours.
+    """Tipping element in the normal form of a fold.
+
+    Tipped neighbours push the element toward its upper state.
 
     The state follows `dx_i/dt = -x_i^3 + x_i + sqrt(4/27) c_i + d Σ_j A_ij (x_j + 1)`. Alone, the element has a
     lower and an upper stable state for `|c| < 1` and only the upper one beyond the critical value `c = 1`. A neighbour
@@ -84,7 +89,9 @@ class TippingElementElement(Element):
 
 
 class TippingCascadeNetworkSystem(BaseSystem):
-    """A network of tipping elements, where one element pushed past its tipping point can tip its neighbours.
+    """A network of tipping elements.
+
+    One element pushed past its tipping point can tip its neighbours.
 
     Every node is a fold `dx_i/dt = -x_i^3 + x_i + sqrt(4/27) c_i + d Σ_j A_ij (x_j + 1)` that starts in its lower
     state. An element whose control passes the critical value 1 tips to its upper state, and its coupling then raises
@@ -138,7 +145,10 @@ class TippingCascadeNetworkSystem(BaseSystem):
 
     @staticmethod
     def _push(s: SimpleNamespace) -> Expression:
-        """Return the push `d (x_j + 1)` of a neighbour `j` on a member, about `2 d` from a tipped neighbour."""
+        """Return the push `d (x_j + 1)` of a neighbour `j` on a member.
+
+        The push is about `2 d` from a tipped neighbour.
+        """
         return s.member.d * (s.other.x + 1)
 
     def _build_system(self) -> System:

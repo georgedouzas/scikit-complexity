@@ -18,7 +18,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class GeodynamoElement(Element):
-    """Dynamo of Gissinger's geodynamo, its quadrupolar and dipolar fields and the velocity of the flow.
+    """Dynamo of Gissinger's geodynamo.
+
+    The dynamo holds its quadrupolar and dipolar fields and the velocity of the flow.
 
     The quadrupolar field `Q`, the dipolar field `D`, and the velocity `V` follow `dQ/dt = mu Q - V D`,
     `dD/dt = -nu D + V Q`, and `dV/dt = Gamma - V + Q D`.
@@ -95,7 +97,9 @@ class GeodynamoElement(Element):
 
 
 class Lorenz84Element(Element):
-    """Atmosphere of Lorenz-84, the general circulation reduced to a westerly jet and a travelling wave of eddies.
+    """Atmosphere of Lorenz-84.
+
+    The general circulation is reduced to a westerly jet and a travelling wave of eddies.
 
     The jet `x` and the cosine and sine phases `y` and `z` of the eddies follow `dx/dt = -y^2 - z^2 - a x + a F`,
     `dy/dt = x y - b x z - y + G`, and `dz/dt = b x y + x z - z`.
@@ -177,7 +181,9 @@ class Lorenz84Element(Element):
 
 
 class Lorenz96Element(Element):
-    """Ring of Lorenz-96 sites around a latitude circle, advected by their neighbours, damped, and forced.
+    """Ring of Lorenz-96 sites around a latitude circle.
+
+    The sites are advected by their neighbours, damped, and forced.
 
     Every site follows `dx_i/dt = (x_{i+1} - x_{i-2}) x_{i-1} - x_i + F`, with the indices taken around the ring.
 
@@ -232,7 +238,9 @@ class Lorenz96Element(Element):
 
 
 class Lorenz84System(BaseSystem):
-    """Lorenz-84, the general circulation reduced to a westerly jet and a travelling wave, chaotic for `F = 8`.
+    """Lorenz-84, the general circulation as a westerly jet and a travelling wave.
+
+    The system is chaotic for `F = 8`.
 
     The jet `x` and the cosine and sine phases `y` and `z` of the eddies follow `dx/dt = -y^2 - z^2 - a x + a F`, `dy/dt
     = x y - b x z - y + G`, and `dz/dt = b x y + x z - z`. The system has the states `atmosphere.x`, `atmosphere.y`, and
@@ -307,7 +315,9 @@ class Lorenz84System(BaseSystem):
 
 
 class Lorenz96System(BaseSystem):
-    """Lorenz-96, `dx_i/dt = (x_{i+1} - x_{i-2}) x_{i-1} - x_i + F` on a ring of sites around a latitude circle.
+    """Lorenz-96 on a ring of sites around a latitude circle.
+
+    Every site follows `dx_i/dt = (x_{i+1} - x_{i-2}) x_{i-1} - x_i + F`.
 
     The sites start at the steady state `F`, and the first one is displaced by `perturbation`. For `F = 8` the steady
     state is unstable and the ring is chaotic. The system has the values `ring.x` of all sites.

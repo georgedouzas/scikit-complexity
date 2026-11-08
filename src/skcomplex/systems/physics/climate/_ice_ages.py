@@ -1,4 +1,7 @@
-"""Paleoclimate oscillators: glacial cycles and the excitable carbon cycle."""
+"""Paleoclimate oscillators.
+
+The module covers glacial cycles and the excitable carbon cycle.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,7 +20,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class CarbonCycleElement(Element):
-    """Ocean of Rothman's excitable carbon cycle, its carbonate ion concentration and dissolved inorganic carbon.
+    """Ocean of Rothman's excitable carbon cycle.
+
+    The ocean holds its carbonate ion concentration and dissolved inorganic carbon.
 
     The carbonate ion concentration `c` and the dissolved inorganic carbon `w`, in μmol kg⁻¹, follow
     `dc/dt = f(c) (mu (1 - b s(c, c_p) - theta (1 - s(c, c_x)) - nu) + w - w0)` and
@@ -114,7 +119,9 @@ class CarbonCycleElement(Element):
         self.beta = beta
 
     def _get_burial(self, s: SimpleNamespace) -> Expression:
-        """Return the burial of organic carbon, a Hill function of the carbonate ion concentration.
+        """Return the burial of organic carbon.
+
+        The burial is a Hill function of the carbonate ion concentration.
 
         Args:
             s:
@@ -127,7 +134,9 @@ class CarbonCycleElement(Element):
         return s.b * hill(s.c, s.c_p, s.gamma)
 
     def _get_respiration(self, s: SimpleNamespace) -> Expression:
-        """Return the respiration of organic carbon, a decreasing Hill function of the carbonate ion concentration.
+        """Return the respiration of organic carbon.
+
+        The respiration is a decreasing Hill function of the carbonate ion concentration.
 
         Args:
             s:
@@ -140,7 +149,9 @@ class CarbonCycleElement(Element):
         return s.theta * (1 - hill(s.c, s.c_x, s.gamma))
 
     def _get_buffer(self, s: SimpleNamespace) -> Expression:
-        """Return the buffer factor of the carbonate ion concentration, a Hill function of it.
+        """Return the buffer factor of the carbonate ion concentration.
+
+        The factor is a Hill function of the concentration.
 
         Args:
             s:
@@ -173,7 +184,9 @@ class CarbonCycleElement(Element):
 
 
 class SaltzmanMaaschElement(Element):
-    """Climate of the Saltzman-Maasch glacial cycles, the anomalies of ice, carbon dioxide, and deep ocean temperature.
+    """Climate of the Saltzman-Maasch glacial cycles.
+
+    The climate holds the anomalies of ice, carbon dioxide, and deep ocean temperature.
 
     The anomalies of global ice volume `x`, atmospheric carbon dioxide `y`, and deep ocean temperature `z` follow
     `dx/dt = -x - y - u z - nu F(t)`, `dy/dt = -p z + r y - s y^2 - y^3`, and `dz/dt = -q (x + z)`, where
@@ -253,7 +266,9 @@ class SaltzmanMaaschElement(Element):
         self.t0 = t0
 
     def _get_orbital_forcing(self, s: SimpleNamespace) -> Expression:
-        """Return the quasiperiodic orbital forcing, with the periods of precession and obliquity.
+        """Return the quasiperiodic orbital forcing.
+
+        The forcing has the periods of precession and obliquity.
 
         Args:
             s:
@@ -266,7 +281,9 @@ class SaltzmanMaaschElement(Element):
         return cos(2 * pi * s.t0 * s.t / 22.1) - cos(2 * pi * s.t0 * s.t / 44.1)
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the feedbacks of ice volume, carbon dioxide, and deep ocean temperature, with orbital forcing.
+        """Return the feedbacks of ice volume, carbon dioxide, and deep ocean temperature.
+
+        The feedbacks include the orbital forcing.
 
         Args:
             s:
@@ -285,7 +302,9 @@ class SaltzmanMaaschElement(Element):
 
 
 class VanDerPolIceAgesElement(Element):
-    """Climate of glacial cycles as a Van der Pol relaxation oscillator, a slow ice volume and a fast climate state.
+    """Climate of glacial cycles as a Van der Pol relaxation oscillator.
+
+    The oscillator has a slow ice volume and a fast climate state.
 
     With time in thousands of years, `tau x' = -(y + beta + gamma F(t))` and `tau y' = -alpha (y^3/3 - y - x)`, where
     `F(t) = cos(2 pi t/23) + cos(2 pi t/41)` stands for precession and obliquity.
@@ -357,7 +376,9 @@ class VanDerPolIceAgesElement(Element):
         return cos(2 * pi * s.t / 23) + cos(2 * pi * s.t / 41)
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the slow ice volume and the fast climate of the relaxation oscillator under orbital forcing.
+        """Return the slow ice volume and the fast climate of the relaxation oscillator.
+
+        The oscillator is under orbital forcing.
 
         Args:
             s:
@@ -375,7 +396,9 @@ class VanDerPolIceAgesElement(Element):
 
 
 class SaltzmanGlaciationSystem(BaseSystem):
-    """The glacial cycles of Saltzman and Maasch, a self-sustained oscillation of ice, carbon, and ocean.
+    """The glacial cycles of Saltzman and Maasch.
+
+    The cycles are a self-sustained oscillation of ice, carbon, and ocean.
 
     The anomalies of global ice volume `x`, atmospheric carbon dioxide `y`, and deep ocean temperature `z` follow `dx/dt
     = -x - y - u z - nu F(t)`, `dy/dt = -p z + r y - s y^2 - y^3`, and `dz/dt = -q (x + z)`. The time unit is 10 kyr,
@@ -452,7 +475,10 @@ class SaltzmanGlaciationSystem(BaseSystem):
         self.nu = nu
 
     def _build_system(self) -> System:
-        """Return the glacial cycles of Saltzman and Maasch, a self-sustained oscillation of ice, carbon, and ocean."""
+        """Return the glacial cycles of Saltzman and Maasch.
+
+        The cycles are a self-sustained oscillation of ice, carbon, and ocean.
+        """
         return System(
             self.label,
             elements=[
@@ -473,7 +499,9 @@ class SaltzmanGlaciationSystem(BaseSystem):
 
 
 class CarbonCycleSystem(BaseSystem):
-    """Rothman's excitable carbon cycle, where a large enough perturbation of the ocean sets off an excursion.
+    """Rothman's excitable carbon cycle.
+
+    A large enough perturbation of the ocean sets off an excursion.
 
     The carbonate ion concentration `c` and the dissolved inorganic carbon `w`, in μmol kg⁻¹, follow `dc/dt = f(c) (mu
     (1 - b s(c, c_p) - theta (1 - s(c, c_x)) - nu) + w - w0)` and `dw/dt = mu (1 - b s(c, c_p) + theta (1 - s(c, c_x)) +
@@ -531,7 +559,9 @@ class CarbonCycleSystem(BaseSystem):
 
 
 class VanDerPolIceAgesSystem(BaseSystem):
-    """Glacial cycles as a Van der Pol relaxation oscillator, optionally paced by orbital forcing.
+    """Glacial cycles as a Van der Pol relaxation oscillator.
+
+    The oscillator is optionally paced by orbital forcing.
 
     Time is in thousands of years. The slow variable `x` stands for ice volume and the fast variable `y` for the climate
     state, with `tau x' = -(y + beta + gamma F(t))` and `tau y' = -alpha (y^3/3 - y - x)`, where `F(t) = cos(2 pi t/23)
@@ -593,7 +623,10 @@ class VanDerPolIceAgesSystem(BaseSystem):
         self.tau = tau
 
     def _build_system(self) -> System:
-        """Return glacial cycles as a Van der Pol relaxation oscillator, optionally paced by orbital forcing."""
+        """Return glacial cycles as a Van der Pol relaxation oscillator.
+
+        The oscillator is optionally paced by orbital forcing.
+        """
         return System(
             self.label,
             elements=[
