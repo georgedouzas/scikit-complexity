@@ -732,7 +732,7 @@ breaks it.
 - **WHEN** a law creates wealth from nothing in a system whose run declares the observable `total_wealth` invariant
 - **THEN** the run raises `ConservationError` naming `total_wealth` and the first frame that breaks it
 
-### Requirement: Parts share two verbs
+### Requirement: Parts share two main public methods
 Elements, interactions, laws, and systems SHALL derive from `BasePart`, which defines `label`,
 `prepare(namespace)`, and `run(input)`. Elements, interactions, and systems SHALL return `self` from
 `prepare`, and their laws from `run(s)`; a system SHALL return the laws of its children. A law SHALL return a prepared

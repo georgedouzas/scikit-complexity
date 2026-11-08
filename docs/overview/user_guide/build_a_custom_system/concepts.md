@@ -55,9 +55,9 @@ These concepts carry no field-specific meaning. A population, a particle, a firm
 system in any field of science is a configuration of the same interface, and every ready-made system in
 `skcomplex.systems`, such as `SIRSystem`, is a class that builds such a configuration from its model parameters.
 
-## Two verbs
+## Two main public methods
 
-Every part speaks two verbs, and both return the part itself.
+Every part has two main public methods, and both return the part itself.
 
 - `prepare(...)` validates the part and prepares it against what it works on.
 - `run(...)` sets what the part contributes. An element, an interaction, or a system sets its laws in `laws_`. A law
@@ -66,7 +66,7 @@ Every part speaks two verbs, and both return the part itself.
 A part must be prepared before it runs. Every part also has `get_params`, `set_params`, and `get_tags`, as estimators of
 scikit-learn do. `simulate` is a function, since it is what you do to a system and not a part of it.
 
-The interaction `growth` returns a `RateLaw` on `n`. A law speaks the two verbs on its own too, so you can check it
+The interaction `growth` returns a `RateLaw` on `n`. A law has the two main public methods on its own too, so you can check it
 before it joins a system. Here it gives its rate at `n = 10`.
 
 ```python continuation

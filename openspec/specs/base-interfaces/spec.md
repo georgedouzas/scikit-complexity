@@ -6,7 +6,7 @@ derived state in attributes ending in `_`, and values carry only fields and `che
 
 ## Requirements
 
-### Requirement: Configurable bases share two verbs
+### Requirement: Configurable bases share two main public methods
 Every base class of the library SHALL derive from `BaseConfig` in `skcomplex.core.base`, which defines
 `prepare(context)` and `run(input, final=False)` once. `prepare` SHALL call the private hook `_check` and then `_prepare`,
 and `run` SHALL call `_run`. No public `check` SHALL exist. `BaseConfig` SHALL declare the
@@ -15,7 +15,7 @@ instantiated, and SHALL give only the optional hook `_release` a default that do
 each hook itself or inherit it from the base of its family, which implements the hooks its whole family shares, such
 as the `_check` of every pass or solver. `BaseSpec` SHALL be the only base that implements all three hooks for its
 children: `_check` accepts every field, and `_prepare` and `_run` do nothing. No base SHALL derive from
-`BaseEstimator` directly, and no configurable class SHALL add a public verb beyond its constructors and the extension
+`BaseEstimator` directly, and no configurable class SHALL add a public method beyond its constructors and the extension
 hooks a user implements.
 
 #### Scenario: One vocabulary
@@ -27,7 +27,7 @@ hooks a user implements.
 #### Scenario: A new child through hooks
 - **WHEN** a user writes a space that implements `_check`, `_prepare` setting `size_`, `n_dim_`, and `positions_`,
   and `_run` setting the neighbours it finds
-- **THEN** the space is prepared and run through the base's verbs, and the runtime uses it
+- **THEN** the space is prepared and run through the base's main public methods, and the runtime uses it
 
 #### Scenario: A missing hook
 - **WHEN** a user writes a configurable class that implements `_check` and `_prepare` but not `_run`, and creates it
@@ -39,7 +39,7 @@ hooks a user implements.
 
 #### Scenario: A spec without hooks
 - **WHEN** a user writes a frozen spec with two fields and no hook, and calls `prepare()` and `run()` on it
-- **THEN** every verb returns the spec unchanged
+- **THEN** every main public method returns the spec unchanged
 
 ### Requirement: Constructors only store their arguments
 Every `__init__` SHALL assign each argument to the attribute of the same name and do nothing else. Every other
@@ -142,7 +142,7 @@ SHALL live in `skcomplex.core.types` and end in `Protocol`.
 - **THEN** every import succeeds and no other module of the library defines an enum or a protocol
 
 ### Requirement: Runs keep their results as attributes
-Every verb of a configurable object SHALL return the object itself, and every hook SHALL return `None`. A run SHALL
+Every main public method of a configurable object SHALL return the object itself, and every hook SHALL return `None`. A run SHALL
 keep what it produces in an attribute ending in `_`, named once for each family:
 - elements, interactions, and systems keep their laws in `laws_`, and no other part has `laws_`,
 - laws keep their contribution in `value_`,
@@ -159,7 +159,7 @@ keep what it produces in an attribute ending in `_`, named once for each family:
 
 Observers of a run, clocks, and visuals SHALL keep their results in the attributes they already document, and
 analyses, experiments, and `simulate` SHALL return their results. The overrides of `run` that name their input, such as `BaseClock.run(elapsed=...)`,
-SHALL forward to the base verb and return the object.
+SHALL forward to the base method and return the object.
 
 #### Scenario: A compiler's problem
 - **WHEN** a user prepares and runs a compiler on a system
@@ -179,7 +179,7 @@ SHALL forward to the base verb and return the object.
 
 ### Requirement: Running needs preparing
 `run` SHALL raise `NotPreparedError` for a configurable object that was not prepared with `prepare`. A spec SHALL be exempt, since a frozen value cannot be
-marked. No verb SHALL prepare an object on its own: a simulation runs only once `prepare` compiled its system.
+marked. No main public method SHALL prepare an object on its own: a simulation runs only once `prepare` compiled its system.
 
 #### Scenario: Running before preparing
 - **WHEN** a user runs `Calibration(system, data, bounds).run()` without preparing it
@@ -189,8 +189,8 @@ marked. No verb SHALL prepare an object on its own: a simulation runs only once 
 - **WHEN** a user runs a spec without preparing it
 - **THEN** the run returns the spec unchanged
 
-### Requirement: The root base holds only the verbs and hooks
-`BaseConfig` SHALL define only the verbs `prepare` and `run` and their hooks. Loading generated source
+### Requirement: The root base holds only the main public methods and hooks
+`BaseConfig` SHALL define only the main public methods `prepare` and `run` and their hooks. Loading generated source
 SHALL be the one action of a `SourceLoader` in the engine, which takes the cache directory in `prepare`, defaulting
 to `~/.cache/skcomplex/kernels`, and runs on the generated source, keeping the imported module in `module_`. Every
 class that generates source SHALL load it through a `SourceLoader`.

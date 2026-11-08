@@ -9,7 +9,6 @@ from enum import StrEnum
 import numpy as np
 import numpy.typing as npt
 
-# arrays and tuples
 type Array = npt.NDArray[np.float64]
 type IntArray = npt.NDArray[np.int64]
 type Indices = npt.NDArray[np.intp]
@@ -17,8 +16,6 @@ type ComplexArray = npt.NDArray[np.complex128]
 type AnyArray = npt.NDArray[np.generic]
 type IntTuple = tuple[int, ...]
 type Pair = tuple[int, int]
-
-# functions and keys
 type VectorFunction = Callable[[float, Array, Array], Array]
 type ProcessKey = tuple[str, str, str | int]
 type Preference = Callable[[object, object], float]

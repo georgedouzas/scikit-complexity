@@ -22,7 +22,7 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
     """Base of every part of a system: its elements, its interactions, the laws they return, and the system itself.
 
     Every part has a label, returns the laws it contributes from `_get_laws`, and implements three hooks that the
-    verbs `prepare` and `run` call:
+    main public methods `prepare` and `run` call:
 
     - `_check()` validates the arguments of the part, after `check` validates the label.
     - `_prepare(context)` prepares the part against its context and sets its attributes that end in `_`.

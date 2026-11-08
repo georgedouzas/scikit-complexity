@@ -14,7 +14,7 @@ space.size_, space.shape_, space.periodic_, space.positions_[4].tolist()
 - `LatticeElement(label, element=..., space=space, values={...})` puts one member of an element type on every site,
   with values given as arrays of the lattice shape.
 
-A space is a part of its system and speaks the same verbs. `space.prepare()` checks its arguments and derives its
+A space is a part of its system and has the same main public methods. `space.prepare()` checks its arguments and derives its
 facts, whose names end in `_`:
 
 - `size_` is the number of sites, and `n_dim_` the dimension.

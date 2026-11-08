@@ -94,7 +94,7 @@ def test_solver_run_of_no_length_returns_the_state():
 
 
 def test_solver_speaks_only_the_estimator_verbs():
-    """Test that the solver base has none of the former verbs."""
+    """Test that the solver base has none of the former main public methods."""
     for name in ('initialize', 'advance', 'plan', 'initial_state', 'drain_events', 'snapshot', 'agents_of'):
         assert not hasattr(BaseSolver, name)
 

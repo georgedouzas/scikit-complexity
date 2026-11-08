@@ -12,11 +12,11 @@ from .errors import NotPreparedError
 
 
 class BaseConfig[ContextT, InputT](BaseEstimator, ABC):
-    """Root of every configurable class of the library: it stores its settings and speaks two verbs.
+    """Root of every configurable class of the library.
 
-    The constructor of a child stores every setting unmodified under its own name, as in scikit-learn, so
-    `get_params`, `set_params`, and `clone` work on every class. The verbs call the abstract hooks `_check`,
-    `_prepare`, and `_run`, which every child implements, itself or through the base of its family, and every verb
+    The constructor stores every setting unmodified under its own name, as in scikit-learn, so `get_params`,
+    `set_params`, and `clone` work on every class. The main public methods call the abstract hooks `_check`, `_prepare`,
+    and `_run`, which every child implements, itself or through the base of its family, and every main public method
     returns the object, as in scikit-learn:
 
     - `prepare(context)` validates the settings through `_check()`, prepares the object against the one thing it serves

@@ -7,7 +7,7 @@ parameters of its model.
 
 Every system derives from `BaseSystem`, and comes in one of four kinds, from the most general to the most specific:
 
-- **`BaseSystem`** is the base of every system. It holds the verbs, derives the tags, and builds the parts of a system
+- **`BaseSystem`** is the base of every system. It holds the main public methods, derives the tags, and builds the parts of a system
   from its model parameters.
 - **`System`** is the generic composite of elements, interactions, and nested systems, on a space and in a time. It
   plays the role of `Pipeline` in scikit-learn: it holds parts and adds no model of its own.

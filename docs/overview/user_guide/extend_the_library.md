@@ -256,7 +256,7 @@ Every package of the core shares the root modules:
 
 - `skcomplex.core.base` holds `BaseConfig`, the root of every configurable class. It stores the settings of a class
   under their own names, as scikit-learn does, so `get_params`, `set_params`, and `clone` work on every class. It gives
-  every class the verbs `prepare` and `run`, and `get_tags` gives the capability tags of every part.
+  every class the main public methods `prepare` and `run`, and `get_tags` gives the capability tags of every part.
 - `skcomplex.core.errors` holds the errors and warnings, such as `ValidationError`, `RoleError`, `SolverError`, and
   `RewritingError`.
 - `skcomplex.core.types` holds the types that every layer reads, such as arrays, functions, keys, and kinds.
