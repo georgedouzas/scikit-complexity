@@ -1,4 +1,7 @@
-"""Learning on a spin-glass landscape: the SK game of reinforcement learners on quenched random couplings."""
+"""Learning on a spin-glass landscape.
+
+The module holds the SK game of reinforcement learners on quenched random couplings.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -28,7 +31,9 @@ def _reward(actions: Array, couplings: Array) -> float:
 
 
 class LearningAgentElement(Element):
-    """Agent of the SK game that plays an action of ±1 from a softmax policy over its incentive to play +1.
+    """Agent of the SK game that plays an action of ±1 from a softmax policy.
+
+    The policy runs over its incentive to play +1.
 
     The incentive follows the reinforcement rule `Q(t + 1) = (1 - alpha) Q(t) + alpha sum_j J_ij sigma_j(t)`, the
     discounted reward of playing +1, and the agent plays `sigma = ±1` with probability `1 / (1 + exp(-+2 Q / T))`.
@@ -84,7 +89,9 @@ class LearningAgentElement(Element):
         self.couplings = couplings
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the reinforcement of the incentive and the softmax draw of the action, both in parallel.
+        """Return the reinforcement of the incentive and the softmax draw of the action.
+
+        Both run in parallel.
 
         Args:
             s:
@@ -103,7 +110,9 @@ class LearningAgentElement(Element):
 
 
 class SKGameSystem(BaseSystem):
-    """The SK game, reinforcement learners whose rewards come from quenched Sherrington-Kirkpatrick couplings.
+    """The SK game of reinforcement learners.
+
+    The rewards come from quenched Sherrington-Kirkpatrick couplings.
 
     Every agent plays `sigma_i = ±1` and earns `sigma_i sum_j J_ij sigma_j`, with symmetric Gaussian couplings of mean
     0, variance `1 / N`, and zero diagonal. It discounts its rewards with the memory `alpha` into the incentive `Q_i`
@@ -170,7 +179,10 @@ class SKGameSystem(BaseSystem):
         ]
 
     def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings, with the observables of the parts built from the model parameters."""
+        """Return the tuned run settings.
+
+        The observables of the parts are built from the model parameters.
+        """
         settings = super().get_run_settings()
         settings['observables'] = tuple(self._observables(self._build_system()))
         return settings

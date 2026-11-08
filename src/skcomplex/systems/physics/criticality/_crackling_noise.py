@@ -1,4 +1,7 @@
-"""Measure the crackling-noise scaling of avalanches: the mean size against the duration and the collapse of shapes."""
+"""Measure the crackling-noise scaling of avalanches.
+
+The scaling is the mean size against the duration and the collapse of shapes.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,7 +22,9 @@ SHAPE_GRID = 50
 
 @dataclass(frozen=True)
 class CracklingNoiseResult:
-    """Crackling-noise scaling of the avalanches of an activity series or of the relaxations of a lattice.
+    """Crackling-noise scaling of avalanches.
+
+    The avalanches are those of an activity series or the relaxations of a lattice.
 
     Args:
         times:
@@ -77,7 +82,9 @@ def crackling_noise(
     size_exponent: float | None = None,
     duration_exponent: float | None = None,
 ) -> CracklingNoiseResult:
-    """Return the crackling-noise scaling of the avalanches of an activity series or of the relaxations of a lattice.
+    """Return the crackling-noise scaling of avalanches.
+
+    The avalanches are those of an activity series or the relaxations of a lattice.
 
     It finds the avalanches as the events of kind `'excursions'`, then fits the exponent `gamma` of the mean size
     against the duration, `<S>(T) ~ T^gamma`, predicts it as `(tau_T - 1) / (tau_S - 1)` from the exponents of the
@@ -168,7 +175,10 @@ def crackling_noise(
 
 
 def _mean_shape(shapes: list[Array]) -> Array:
-    """Return the mean profile of avalanches of one duration, scaled by the mean height, on a grid of 0 to 1."""
+    """Return the mean profile of avalanches of one duration over the mean height.
+
+    The profile lies on a grid of 0 to 1.
+    """
     profiles = np.asarray(shapes, dtype=float)
     grid = np.linspace(0, 1, SHAPE_GRID)
     steps = np.linspace(0, 1, profiles.shape[1])
