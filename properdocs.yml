@@ -62,8 +62,11 @@ nav:
     - Elements: parts/elements.md
     - Interactions: parts/interactions.md
     - Laws: parts/laws.md
+    - Systems: parts/systems.md
     - Solvers: parts/solvers.md
     - Backends: parts/backends.md
+    - Analyses: parts/analyses.md
+    - Experiments: parts/experiments.md
   - Systems: systems/
   - API: api/
   - Examples:
