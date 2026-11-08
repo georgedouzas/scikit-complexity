@@ -1,4 +1,7 @@
-"""Chaotic synchronization systems: coupled Rössler oscillators and logistic maps coupled by aggregate averaging."""
+"""Chaotic synchronization systems.
+
+The module covers coupled Rössler oscillators and logistic maps coupled by aggregate averaging.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -102,7 +105,9 @@ class LorenzElement(Element):
 
 
 class DelayedUnitElement(DeclaredElement):
-    """Value `x` of a map that keeps its last `delay` values, which a delayed coupling reads.
+    """Value `x` of a map that keeps its last `delay` values.
+
+    A delayed coupling reads the values.
 
     The state `x` has `delay` lags, `x_lag1` to `x_lag<delay>`, and before the start every lag holds the initial value.
 
@@ -146,13 +151,18 @@ class DelayedUnitElement(DeclaredElement):
         self.delay = delay
 
     def _declare_variables(self) -> Mapping[str, DeclaredVariableSpec]:
-        """Return the value `x` with its `delay` lags, all at the initial value, and the replacing variables."""
+        """Return the value `x` with its `delay` lags, and the replacing variables.
+
+        The lags all hold the initial value.
+        """
         lagged = StateSpec(lags=self.delay, initial=(self.value,) * self.delay)
         return {'x': DeclaredVariableSpec(self.value, lagged), **(self.variables or {})}
 
 
 class LogisticUnitElement(Element):
-    """Value `x` in `[0, 1]` of a logistic map, which maps of the coupling iterate.
+    """Value `x` in `[0, 1]` of a logistic map.
+
+    The maps of the coupling iterate the value.
 
     Args:
         label:
@@ -186,7 +196,9 @@ class LogisticUnitElement(Element):
 
 
 class RosslerOscillatorElement(Element):
-    """Rössler oscillator `x1' = -omega x2 - x3`, `x2' = omega x1 + a x2`, `x3' = b + x3 (x1 - c)`.
+    """Rössler oscillator.
+
+    The oscillator follows `x1' = -omega x2 - x3`, `x2' = omega x1 + a x2`, `x3' = b + x3 (x1 - c)`.
 
     It is chaotic for `a = b = 0.2` and `c = 5.7`. The time scale `p` divides every rate, `p x' = f(x)`, so `p < 1`
     speeds the oscillator up.
@@ -281,7 +293,9 @@ MAPS = ('logistic', 'bernoulli')
 
 
 class AggregateAveragingInteraction(MapInteraction):
-    """Logistic or Bernoulli map of an aggregate of the value of a target and the value of a source, possibly delayed.
+    """Logistic or Bernoulli map of an aggregate of a target value and a source value.
+
+    The value of the source is possibly delayed.
 
     The map sets `x_t(t + 1) = f(a)` with the aggregate `a = (1 - kappa) x_t(t) + kappa x_s(t - delay)`, and with the
     logistic map `f(a) = r a (1 - a)` or the Bernoulli shift `f(a) = r a mod 1`. A delayed source keeps `delay` lags.
@@ -366,7 +380,9 @@ class AggregateAveragingInteraction(MapInteraction):
 
 
 class DiffusiveCouplingInteraction(RateInteraction):
-    """Diffusive coupling of a state of one element to the same state of another, `x_t' += k (x_s - x_t)`.
+    """Diffusive coupling of a state of one element to the same state of another.
+
+    The coupling is `x_t' += k (x_s - x_t)`.
 
     Args:
         label:
@@ -425,7 +441,9 @@ PAIR = 2
 
 
 class CoupledRosslerSystem(BaseSystem):
-    """Chaotic Rössler oscillators on a ring, diffusively coupled through their second variable.
+    """Chaotic Rössler oscillators on a ring.
+
+    The oscillators are diffusively coupled through their second variable.
 
     Oscillator `i` follows `x1' = -ω_i x2 - x3`, `x2' = ω_i x1 + a x2 + k sum_j (x2_j - x2_i)`, and `x3' = b + x3 (x1 -
     c)`, summed over its neighbours on the ring. Two oscillators with frequencies `1 ± mismatch` pass from no
@@ -492,7 +510,10 @@ class CoupledRosslerSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> System:
-        """Return chaotic Rössler oscillators on a ring, diffusively coupled through their second variable."""
+        """Return chaotic Rössler oscillators on a ring.
+
+        The oscillators are diffusively coupled through their second variable.
+        """
         omegas = np.linspace(1 - self.mismatch, 1 + self.mismatch, self.n_oscillators)
         starts = np.random.default_rng(self.seed).uniform(-1.0, 1.0, (self.n_oscillators, 2))
         oscillators = [
@@ -525,7 +546,9 @@ class CoupledRosslerSystem(BaseSystem):
 
 
 class AggregateAveragingSynchronizationSystem(BaseSystem):
-    """Two chaotic maps coupled by aggregate averaging, which synchronize their chaos for strong coupling.
+    """Two chaotic maps coupled by aggregate averaging.
+
+    The maps synchronize their chaos for strong coupling.
 
     Each map iterates on the aggregate of its own value and the other's, `x_i(t + 1) = f(a_i)` with `a_1 = (1 - kappa)
     x_1(t) + kappa x_2(t - T)` and `a_2 = (1 - kappa) x_2(t) + kappa x_1(t - T)`, for the delay `T`. The logistic map is
@@ -594,7 +617,10 @@ class AggregateAveragingSynchronizationSystem(BaseSystem):
         self.delay = delay
 
     def _build_system(self) -> System:
-        """Return two chaotic maps coupled by aggregate averaging, which synchronize their chaos for strong coupling."""
+        """Return two chaotic maps coupled by aggregate averaging.
+
+        The maps synchronize their chaos for strong coupling.
+        """
         if self.delay:
             units: list[Element] = [
                 DelayedUnitElement('first', value=self.x1, delay=self.delay),
@@ -618,7 +644,9 @@ class AggregateAveragingSynchronizationSystem(BaseSystem):
 
 
 class RosslerDrivenLorenzSystem(BaseSystem):
-    """A chaotic Rössler system that drives a Lorenz-63 system through its second variable.
+    """A chaotic Rössler system that drives a Lorenz-63 system.
+
+    The drive acts through the second variable.
 
     The drive follows `p x1' = -x2 - x3`, `p x2' = x1 + 0.2 x2`, `p x3' = 0.2 + x3 (x1 - 5.7)`, with the time scale `p =
     1 / 6` that brings it close to the Lorenz system, and the response follows `y1' = 10 (y2 - y1)`, `y2' = 28 y1 - y2 -
@@ -668,7 +696,10 @@ class RosslerDrivenLorenzSystem(BaseSystem):
         self.p = p
 
     def _build_system(self) -> System:
-        """Return a chaotic Rössler system that drives a Lorenz-63 system through its second variable."""
+        """Return a chaotic Rössler system that drives a Lorenz-63 system.
+
+        The drive acts through the second variable.
+        """
         drive = RosslerOscillatorElement('drive', x1=1.0, x2=0.0, x3=0.0, p=self.p)
         responses = [LorenzElement('response', x=1.0, y=1.0, z=1.0, beta=2.666)]
         if self.auxiliary:

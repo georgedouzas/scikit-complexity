@@ -1,4 +1,7 @@
-"""Synchronization: coupled phase oscillators, pulse-coupled oscillators, swarmalators, chaos, and Kuramoto order."""
+"""Synchronization systems.
+
+The package covers coupled phase oscillators, pulse-coupled oscillators, swarmalators, chaos, and Kuramoto order.
+"""
 
 from ..common.oscillators import LinkElement
 from ._adaptive import AdaptiveCouplingInteraction, AdaptiveKuramotoSystem, AdaptiveLinkElement

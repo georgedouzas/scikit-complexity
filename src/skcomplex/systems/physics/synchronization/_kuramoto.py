@@ -1,4 +1,7 @@
-"""Kuramoto systems: phase oscillators coupled all to all, in populations, on rings, delayed, and as a mean field."""
+"""Kuramoto systems.
+
+The module covers phase oscillators coupled all to all, in populations, on rings, delayed, and as a mean field.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -27,7 +30,9 @@ from ..common.oscillators import (
 
 
 class DelayedCouplingInteraction(RateInteraction):
-    """Delayed sine coupling of one phase oscillator to another, `theta_t' += K sin(theta_s(t - tau) - theta_t)`.
+    """Delayed sine coupling of one phase oscillator to another.
+
+    The coupling is `theta_t' += K sin(theta_s(t - tau) - theta_t)`.
 
     The target reads the phase of the source as it was a delay `tau` earlier.
 
@@ -91,7 +96,9 @@ def _spread_phases(size: int, seed: int) -> list[float]:
 
 
 class DelayedKuramotoSystem(BaseSystem):
-    """Kuramoto phase oscillators coupled all to all through signals that arrive after a delay.
+    """Kuramoto phase oscillators coupled all to all through delayed signals.
+
+    The signals arrive after a delay.
 
     Oscillator `i` follows `theta_i' = omega_i + (K / N) sum_j sin(theta_j(t - tau) - theta_i)`, with natural
     frequencies spread evenly around 1 and initial phases spread around the circle. The system has the phases
@@ -146,7 +153,10 @@ class DelayedKuramotoSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> System:
-        """Return Kuramoto phase oscillators coupled all to all through signals that arrive after a delay."""
+        """Return Kuramoto phase oscillators coupled all to all through delayed signals.
+
+        The signals arrive after a delay.
+        """
         phases = [
             2 * math.pi * ((self.seed * 0.618 + index / self.n_oscillators) % 1.0)
             for index in range(self.n_oscillators)
@@ -174,7 +184,9 @@ class DelayedKuramotoSystem(BaseSystem):
 
 
 class KuramotoSystem(BaseSystem):
-    """Kuramoto oscillators coupled all to all, `theta_i' = omega_i + (K / N) sum_j sin(theta_j - theta_i)`.
+    """Kuramoto oscillators coupled all to all.
+
+    The oscillators follow `theta_i' = omega_i + (K / N) sum_j sin(theta_j - theta_i)`.
 
     Every oscillator reads the group means of `cos theta` and `sin theta`, so the coupling costs time linear in the
     number of oscillators. The natural frequencies are drawn from a normal distribution of width `sigma`, and the phases
@@ -255,7 +267,9 @@ class KuramotoSystem(BaseSystem):
 
 
 class KuramotoSakaguchiChimeraSystem(BaseSystem):
-    """Two populations of identical phase oscillators with phase lag, where one synchronizes and one drifts.
+    """Two populations of identical phase oscillators with phase lag.
+
+    One population synchronizes and one drifts.
 
     Oscillator `i` of population `p` follows `theta_i' = sum_q (K_pq / N) sum_j sin(theta_j - theta_i - alpha)`, with
     the stronger coupling `mu = (1 + A) / 2` inside a population, the weaker `nu = (1 - A) / 2` between them, and the
@@ -359,7 +373,9 @@ class KuramotoSakaguchiChimeraSystem(BaseSystem):
 
 
 class NonlocalRingChimeraSystem(BaseSystem):
-    """Identical phase oscillators on a ring, each coupled to its `R` nearest neighbours on both sides.
+    """Identical phase oscillators on a ring.
+
+    Each oscillator is coupled to its `R` nearest neighbours on both sides.
 
     Oscillator `i` follows `phi_i' = omega - (1 / 2R) sum_{j = i - R}^{i + R} sin(phi_i - phi_j + alpha)`, where the sum
     includes the oscillator itself. Near `alpha = pi / 2`, coherent and incoherent domains coexist on the ring as a
@@ -416,7 +432,10 @@ class NonlocalRingChimeraSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> System:
-        """Return identical phase oscillators on a ring, each coupled to its `R` nearest neighbours on both sides."""
+        """Return identical phase oscillators on a ring.
+
+        Each oscillator is coupled to its `R` nearest neighbours on both sides.
+        """
         weight = 1 / (2 * self.R)
         ring = GroupElement(
             'ring',
@@ -447,7 +466,9 @@ class NonlocalRingChimeraSystem(BaseSystem):
 
 
 class OttAntonsenSystem(BaseSystem):
-    """The Ott-Antonsen equation for the order parameter of infinitely many Kuramoto oscillators.
+    """The Ott-Antonsen equation for the order parameter of Kuramoto oscillators.
+
+    The oscillators are infinitely many.
 
     For natural frequencies with a Lorentzian distribution of center `omega` and half width `Delta`, the complex order
     parameter `z = x + i y` follows exactly `z' = (i omega - Delta) z + (K / 2)(1 - |z|²) z`, a Stuart-Landau oscillator
@@ -499,7 +520,10 @@ class OttAntonsenSystem(BaseSystem):
         self.omega = omega
 
     def _build_system(self) -> System:
-        """Return the Ott-Antonsen equation for the order parameter of infinitely many Kuramoto oscillators."""
+        """Return the Ott-Antonsen equation of the order parameter of Kuramoto oscillators.
+
+        The oscillators are infinitely many.
+        """
         return System(
             self.label,
             elements=[

@@ -1,4 +1,7 @@
-"""Swarmalators: oscillators that swarm, whose phases and positions couple to each other."""
+"""Swarmalators.
+
+Oscillators swarm, and their phases and positions couple to each other.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,7 +25,9 @@ from ..common.oscillators import SitedOscillatorElement
 
 
 class SwarmalatorElement(SitedOscillatorElement):
-    """Phase oscillator whose place `x` is a position that moves by the rates of interactions.
+    """Phase oscillator whose place `x` is a position.
+
+    The position moves by the rates of interactions.
 
     Args:
         label:
@@ -59,7 +64,9 @@ class SwarmalatorElement(SitedOscillatorElement):
 
 
 class SwarmalatorCouplingInteraction(PairCouplingInteraction):
-    """Coupling of two swarmalators through their separation `r` and their phase difference `dtheta`.
+    """Coupling of two swarmalators.
+
+    The coupling acts through their separation `r` and their phase difference `dtheta`.
 
     Each swarmalator moves toward the other at the speed `(A + J cos(dtheta)) / N`, away from it at `B / (N |r|)`, and
     turns its phase toward the other's at the rate `K sin(dtheta) / (N |r|)`, as in O'Keeffe, Ceron, and Petersen. It
@@ -137,7 +144,7 @@ class SwarmalatorCouplingInteraction(PairCouplingInteraction):
         self.n_units = n_units
 
     def _get_terms(self, s: SimpleNamespace) -> tuple[Target, Target]:
-        """Return the move and the phase turn of the first member of a pair toward the second."""
+        """Return the move and phase turn of the first member of a pair toward the second."""
         separation = getattr(s.second, self.position) - getattr(s.first, self.position)
         r = sqrt(separation.dot_product(separation))
         difference = s.second.theta - s.first.theta
@@ -146,7 +153,9 @@ class SwarmalatorCouplingInteraction(PairCouplingInteraction):
 
 
 class SwarmalatorsSystem(BaseSystem):
-    """Swarmalators, identical oscillators whose phases set their attraction and whose positions their coupling.
+    """Swarmalators.
+
+    The phases of identical oscillators set their attraction and their positions their coupling.
 
     Every swarmalator `i` moves by `(1 / N) sum_j [(x_j - x_i) / |x_j - x_i| (A + J cos(theta_j - theta_i)) - B (x_j -
     x_i) / |x_j - x_i|^2]` and turns by `(K / N) sum_j sin(theta_j - theta_i) / |x_j - x_i|`. With `J > 0` like phases

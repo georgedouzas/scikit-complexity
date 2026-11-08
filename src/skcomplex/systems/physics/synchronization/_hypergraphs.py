@@ -1,4 +1,7 @@
-"""Synchronization on hypergraphs: Kuramoto oscillators coupled in pairs and through the triangles of a hypergraph."""
+"""Synchronization on hypergraphs.
+
+Kuramoto oscillators are coupled in pairs and through the triangles of a hypergraph.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -66,7 +69,7 @@ class SimplexCouplingInteraction(HyperedgeInteraction):
         self.K2 = K2
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the coupling of the focal oscillator to the other members of a link or a triangle."""
+        """Return the coupling of the focal oscillator to the rest of a link or a triangle."""
         theta = s.member.theta
         others = [other.theta for other in s.others]
         if len(others) + 1 == PAIR:
@@ -75,7 +78,9 @@ class SimplexCouplingInteraction(HyperedgeInteraction):
 
 
 class HypergraphKuramotoSystem(BaseSystem):
-    """Kuramoto oscillators coupled in pairs and by three-body interactions on the triangles of a hypergraph.
+    """Kuramoto oscillators coupled in pairs and by three-body interactions.
+
+    The three-body interactions act on the triangles of a hypergraph.
 
     Oscillator `i` follows `theta_i' = omega_i + (K1 / <k1>) sum_j sin(theta_j - theta_i) + (K2 / <k2>) sum_jk
     sin(theta_j + theta_k - 2 theta_i)` over the links `ij` and the triangles `ijk` of a random hypergraph, where `<k1>`
@@ -153,7 +158,10 @@ class HypergraphKuramotoSystem(BaseSystem):
 
     @staticmethod
     def _simplices(n_oscillators: int, links: float, triangles: float, seed: int) -> xgi.Hypergraph:
-        """Return a random hypergraph of the given densities of links and of triangles over the oscillators."""
+        """Return a random hypergraph over the oscillators.
+
+        The hypergraph has the given densities of links and of triangles.
+        """
         return xgi.fast_random_hypergraph(n_oscillators, [links, triangles], seed=seed)
 
     def _build_system(self) -> System:

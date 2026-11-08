@@ -1,4 +1,7 @@
-"""Amplitude death: globally coupled limit-cycle oscillators whose common fixed point the coupling restabilizes."""
+"""Amplitude death.
+
+The coupling of globally coupled limit-cycle oscillators restabilizes their common fixed point.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -24,7 +27,9 @@ DISTRIBUTIONS = ('lorentzian', 'quartic')
 
 
 class GlobalCouplingInteraction(CouplingInteraction):
-    """Diffusive coupling of one state of every member to the mean of the group, `x_i' += K (mean_j x_j - x_i)`.
+    """Diffusive coupling of one state of every member to the mean of the group.
+
+    The coupling is `x_i' += K (mean_j x_j - x_i)`.
 
     The mean runs over every member, the member itself included.
 
@@ -88,12 +93,12 @@ def _order(s: SimpleNamespace) -> Expression:
 
 
 def _time_scale_deviation_x(member: SimpleNamespace) -> Expression:
-    """Return the product of the deviation of the time scale from its mean 1 and the first variable."""
+    """Return the time scale deviation from its mean 1 times the first variable."""
     return (member.tau - 1) * member.x
 
 
 def _time_scale_deviation_y(member: SimpleNamespace) -> Expression:
-    """Return the product of the deviation of the time scale from its mean 1 and the second variable."""
+    """Return the time scale deviation from its mean 1 times the second variable."""
     return (member.tau - 1) * member.y
 
 
@@ -113,7 +118,9 @@ def _spread_on_circle(size: int, random_state: int | np.random.Generator | None)
 
 
 class OscillatorDeathSystem(BaseSystem):
-    """Globally coupled Stuart-Landau oscillators, whose oscillations all die for strong coupling and spread.
+    """Globally coupled Stuart-Landau oscillators.
+
+    Their oscillations all die for strong coupling and spread.
 
     Oscillator `j` follows `z_j' = (1 + iω_j) z_j - |z_j|² z_j + (K / N) Σ_k (z_k - z_j)` for `z_j = x_j + i y_j`. Alone
     it settles on the unit circle. The frequencies are the midpoint quantiles of a density of width `ω0`, the Lorentzian
@@ -183,7 +190,10 @@ class OscillatorDeathSystem(BaseSystem):
 
     @staticmethod
     def _frequency_quantiles(size: int, width: float, distribution: str) -> np.ndarray:
-        """Return the midpoint quantiles of a Lorentzian or quartic density of frequencies of a given width."""
+        """Return the midpoint quantiles of a density of frequencies of a given width.
+
+        The density is Lorentzian or quartic.
+        """
         levels = (np.arange(size) + 1 / 2) / size
         if distribution == 'lorentzian':
             return width * stats.cauchy.ppf(levels)
@@ -214,7 +224,9 @@ class OscillatorDeathSystem(BaseSystem):
 
 
 class HeterogeneousGlobalCouplingSystem(BaseSystem):
-    """Globally coupled oscillators with heterogeneous time scales, whose fixed point the coupling restabilizes.
+    """Globally coupled oscillators with heterogeneous time scales.
+
+    The coupling restabilizes their fixed point.
 
     System `j` follows `x_j' = τ_j g(x_j, y_j) + k (X - x_j)` and `y_j' = τ_j h(x_j, y_j) + k (Y - y_j)`, where `X` and
     `Y` are the population means and `g + ih = (beta + i gamma) z - |z|² z` is the Hopf normal form of `z = x + iy`. Its

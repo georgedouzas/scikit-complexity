@@ -1,4 +1,7 @@
-"""Topological synchronization: phases on the nodes and links of a clique complex, coupled by order parameters."""
+"""Topological synchronization.
+
+Phases on the nodes and links of a clique complex are coupled by order parameters.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,12 +28,18 @@ MODELS = ('NL', 'NLT')
 
 
 def _order_of(expression: Expression, over: SimpleNamespace) -> Expression:
-    """Return the modulus of the mean of the unit vectors of the angles of an expression over a group."""
+    """Return the modulus of the mean unit vector of the angles of an expression.
+
+    The mean runs over a group.
+    """
     return sqrt(mean(cos(expression), over=over) ** 2 + mean(sin(expression), over=over) ** 2)
 
 
 def _modulus(values: object) -> float:
-    """Return the modulus of the mean of the unit vectors of some angles, 0 without angles."""
+    """Return the modulus of the mean of the unit vectors of some angles.
+
+    The modulus is 0 without angles.
+    """
     angles = np.ravel(np.asarray(values, dtype=float))
     return float(np.abs(np.exp(1j * angles).mean())) if angles.size else 0.0
 
@@ -47,14 +56,19 @@ def _link_order(
     t: float,
     values: Mapping[str, object],
 ) -> float:
-    """Return the mean order parameter of the projections of the link phases on the nodes and on the triangles."""
+    """Return the mean order parameter of the projections of the link phases.
+
+    The projections are those on the nodes and on the triangles.
+    """
     del t
     phases = np.ravel(np.asarray(values['links.theta'], dtype=float))
     return (_modulus(edges.T @ phases) + _modulus(faces @ phases)) / 2
 
 
 class TopologicalKuramotoSystem(BaseSystem):
-    """Phases on the nodes and links of a clique complex, coupled through its incidence by order parameters.
+    """Phases on the nodes and links of a clique complex.
+
+    The phases are coupled through its incidence by order parameters.
 
     Node phases follow `theta' = omega + K R_links codifferential(sin(d theta))`. Link phases follow `phi' = omega + K
     R_nodes d(sin(codifferential(phi))) - K codifferential(sin(d phi))`. With the signs of `codifferential`, these are
@@ -131,21 +145,30 @@ class TopologicalKuramotoSystem(BaseSystem):
 
     @staticmethod
     def _node_rate(coupling: float, namespace: SimpleNamespace) -> Expression:
-        """Return the coupling of a node phase, scaled by the order parameter of the projections of the link phases."""
+        """Return the coupling of a node phase.
+
+        The coupling is scaled by the order parameter of the projections of the link phases.
+        """
         nodes, links = namespace.target, namespace.sources[0]
         order = _order_of(codifferential(links.theta), nodes)
         return coupling * order * codifferential(sin(exterior_derivative(nodes.theta)))
 
     @staticmethod
     def _link_rate(coupling: float, namespace: SimpleNamespace) -> Expression:
-        """Return the coupling of a link phase through its nodes, scaled by the order of the nodes and triangles."""
+        """Return the coupling of a link phase through its nodes.
+
+        The coupling is scaled by the order of the nodes and triangles.
+        """
         links, nodes = namespace.target, namespace.sources[0]
         down = exterior_derivative(sin(codifferential(links.theta)))
         return coupling * (_order_of(nodes.theta, nodes) * down - codifferential(sin(exterior_derivative(links.theta))))
 
     @staticmethod
     def _triangle_link_rate(coupling: float, namespace: SimpleNamespace) -> Expression:
-        """Return the link coupling of the Nodes-Links-Triangles system, each term scaled by the other face."""
+        """Return the link coupling of the Nodes-Links-Triangles system.
+
+        Each term is scaled by the other face.
+        """
         links, nodes, triangles = namespace.target, namespace.sources[0], namespace.sources[1]
         down = exterior_derivative(sin(codifferential(links.theta)))
         up = codifferential(sin(exterior_derivative(links.theta)))
@@ -155,7 +178,7 @@ class TopologicalKuramotoSystem(BaseSystem):
 
     @staticmethod
     def _topological_observables(system: System) -> list[ObservableSpec]:
-        """Return the order parameters of the node phases and of the projections of the link phases."""
+        """Return the order parameters of the node phases and the link phase projections."""
         space = system.elements[0].space.prepare()
         return [
             ObservableSpec('node_order', function=_node_order),
@@ -163,7 +186,10 @@ class TopologicalKuramotoSystem(BaseSystem):
         ]
 
     def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings, with the observables of the parts built from the model parameters."""
+        """Return the tuned run settings.
+
+        The observables of the parts are built from the model parameters.
+        """
         settings = super().get_run_settings()
         settings['observables'] = tuple(self._topological_observables(self._build_system()))
         return settings

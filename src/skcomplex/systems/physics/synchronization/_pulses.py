@@ -1,4 +1,7 @@
-"""Pulse coupling systems: Winfree oscillators and Mirollo-Strogatz integrate-and-fire oscillators."""
+"""Pulse coupling systems.
+
+The module covers Winfree oscillators and Mirollo-Strogatz integrate-and-fire oscillators.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,7 +23,9 @@ from ..common.oscillators import PhaseOscillatorElement, order_parameter
 
 
 class IntegrateAndFireOscillatorElement(Element):
-    """Integrate-and-fire oscillator that charges as `x' = S - gamma x`, and sends pulses of strength `epsilon`.
+    """Integrate-and-fire oscillator.
+
+    The oscillator charges as `x' = S - gamma x`, and sends pulses of strength `epsilon`.
 
     The oscillator charges towards `S / gamma`. Its firing at 1 is a crossing of the group it belongs to, which resets
     the most charged oscillators to 0 and lifts every other one by `epsilon`.
@@ -88,7 +93,9 @@ class IntegrateAndFireOscillatorElement(Element):
 
 
 class WinfreeMeanFieldInteraction(CouplingInteraction):
-    """Winfree coupling `theta_i' += K mean_j P(theta_j) R(theta_i)` over every member `j` of the group.
+    """Winfree coupling `theta_i' += K mean_j P(theta_j) R(theta_i)`.
+
+    The mean runs over every member `j` of the group.
 
     The influence `P(theta) = 1 + cos(theta)` that an oscillator sends and the sensitivity `R(theta) = -sin(theta)` with
     which it responds make every oscillator respond to the mean influence of the group.
@@ -138,7 +145,9 @@ class WinfreeMeanFieldInteraction(CouplingInteraction):
 
 
 class WinfreeSystem(BaseSystem):
-    """The Winfree system, `theta_i' = omega_i + (K / N) sum_j P(theta_j) R(theta_i)`, with the sum over all `j`.
+    """The Winfree system.
+
+    The system follows `theta_i' = omega_i + (K / N) sum_j P(theta_j) R(theta_i)`, with the sum over all `j`.
 
     The influence `P(theta) = 1 + cos(theta)` and the sensitivity `R(theta) = -sin(theta)` make every oscillator respond
     to the mean influence of the population, which every oscillator reads as a group mean. The natural frequencies are
@@ -209,7 +218,9 @@ class WinfreeSystem(BaseSystem):
 
 
 class MirolloStrogatzSystem(BaseSystem):
-    """Integrate-and-fire oscillators coupled by pulses, which end up firing in unison.
+    """Integrate-and-fire oscillators coupled by pulses.
+
+    The oscillators end up firing in unison.
 
     Every oscillator of the group charges as `x' = S - gamma x`, a concave rise, and fires when it reaches 1. Firing is
     an event whose guard is the group maximum of the charges, and it resets the most charged oscillators to 0 and lifts
@@ -266,7 +277,10 @@ class MirolloStrogatzSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> System:
-        """Return integrate-and-fire oscillators coupled by pulses, which end up firing in unison."""
+        """Return integrate-and-fire oscillators coupled by pulses.
+
+        The oscillators end up firing in unison.
+        """
         charges = np.random.default_rng(self.seed).uniform(0.0, 1.0, self.n_oscillators)
         oscillators = GroupElement(
             'oscillators',
