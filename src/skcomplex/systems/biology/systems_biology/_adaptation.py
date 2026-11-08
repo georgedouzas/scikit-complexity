@@ -15,6 +15,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import BaseInteraction, Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import step
+from ....core.components.spaces import BaseSpace
 from ....core.components.system import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -120,14 +121,18 @@ class EnzymeRegulationInteraction(Interaction):
         self.k = k
         self.K = K
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Check the sign.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The sign is neither 1 nor -1.
         """
-        super()._check()
+        super()._prepare(context)
         if self.sign not in {1, -1}:
             error_msg = f'The sign of a regulation must be 1 or -1, not {self.sign}.'
             raise ValidationError(error_msg)

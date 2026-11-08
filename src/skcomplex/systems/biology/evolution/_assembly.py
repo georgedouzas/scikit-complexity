@@ -16,7 +16,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw, RuleLaw
 from ....core.components.laws.utils import shift_member
-from ....core.components.spaces import DiscreteTime
+from ....core.components.spaces import BaseSpace, DiscreteTime
 from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
@@ -180,14 +180,18 @@ class PolymerJoiningInteraction(Interaction):
         self.polymers = polymers
         self.mode = mode
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Check the mode.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The mode is unknown.
         """
-        super()._check()
+        super()._prepare(context)
         if self.mode not in MODES:
             error_msg = f'The mode must be one of {", ".join(MODES)}, not {self.mode!r}.'
             raise ValidationError(error_msg)

@@ -15,6 +15,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import total
+from ....core.components.spaces import BaseSpace
 from ....core.components.system import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -187,14 +188,18 @@ class ConsumptionInteraction(Interaction):
         self.kind = kind
         self.n = n
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Check the kind and the exponent.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The kind is unknown, or the exponent of essential resources is not below -1.
         """
-        super()._check()
+        super()._prepare(context)
         if self.kind not in KINDS:
             error_msg = f'The kind must be one of {", ".join(KINDS)}, not {self.kind!r}.'
             raise ValidationError(error_msg)
@@ -326,14 +331,18 @@ class ResourceTurnoverInteraction(ConsumptionInteraction):
         self.supply = supply
         self.v = v
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Check the supply, the kind, and the exponent.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The supply or the kind is unknown, or the exponent of essential resources is not below -1.
         """
-        super()._check()
+        super()._prepare(context)
         if self.supply not in SUPPLIES:
             error_msg = f'The supply must be one of {", ".join(SUPPLIES)}, not {self.supply!r}.'
             raise ValidationError(error_msg)

@@ -19,6 +19,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import categorical, where
+from ....core.components.spaces import BaseSpace
 from ....core.components.system import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
@@ -138,16 +139,20 @@ class ProbabilisticFunctionInteraction(MapInteraction):
         """Return the value of one truth table of the inputs."""
         return sum((self._get_pattern(inputs, index) for index, entry in enumerate(table) if entry), start=SR(0))
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for invalid tables and probabilities.
 
         They are invalid when they differ in number, or a table has the wrong size.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The tables and the probabilities differ in number, or a table does not have one entry per pattern.
         """
-        super()._check()
+        super()._prepare(context)
         if len(self.tables) != len(self.probabilities):
             error_msg = (
                 f'ProbabilisticFunction {self.label} has {len(self.tables)} tables and {len(self.probabilities)} '

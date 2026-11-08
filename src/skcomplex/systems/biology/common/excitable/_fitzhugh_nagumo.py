@@ -14,6 +14,7 @@ from sage.sets.real_set import RealSet
 
 from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, RateLaw
+from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
 from .....core.specs import ParameterSpec, RoleSpec
 
@@ -100,14 +101,18 @@ class FitzHughNagumoInteraction(Interaction):
         self.epsilon = epsilon
         self.I = I
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for state names that are not names or that coincide.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 A state name is not a name, or the fast and the slow state are the same.
         """
-        super()._check()
+        super()._prepare(context)
         names = (self.fast, self.slow)
         if not all(isinstance(name, str) and name.isidentifier() for name in names) or self.fast == self.slow:
             error_msg = f'{self.label!r} reads the states {names!r}. Give two different names of states.'

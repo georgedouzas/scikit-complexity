@@ -150,17 +150,17 @@ class EllipsePath(BaseConfig[None, Array]):
         self.short_diagonal = short_diagonal
         self.cells = cells
 
-    def _check(self) -> None:
-        """Raise an error for a diagonal or a number of cells that is not positive."""
+    def _prepare(self, context: None = None) -> None:
+        """Set the grid of the path that starts the search of a projection.
+
+        It first raises an error for a diagonal or a number of cells that is not positive.
+        """
         if self.long_diagonal <= 0 or self.short_diagonal <= 0 or self.cells < 1:
             error_msg = (
                 'The diagonals and the cells of an ellipse path must be positive, but they are '
                 f'{self.long_diagonal}, {self.short_diagonal}, and {self.cells}.'
             )
             raise ValidationError(error_msg)
-
-    def _prepare(self, context: None = None) -> None:
-        """Set the grid of the path that starts the search of a projection."""
         self.grid_ = np.linspace(0.0, TURN, GRID_POINTS, endpoint=False)
         self.grid_points_ = self.read_points(self.grid_)
 

@@ -62,13 +62,6 @@ class BackboneGeometry(BaseConfig[None, Array]):
         self.structure = structure
         self.system = system
 
-    def _check(self) -> None:
-        """Raise an error for a structure of more than one chain."""
-        chains = set(self.structure.chain_names)
-        if len(chains) != 1:
-            error_msg = f'A backbone is rebuilt for one chain, but the structure holds the chains {sorted(chains)}.'
-            raise ValidationError(error_msg)
-
     def _rebuild(self) -> None:
         """Rebuild the atoms from the internal coordinates.
 
@@ -79,7 +72,14 @@ class BackboneGeometry(BaseConfig[None, Array]):
             self._chain.internal_to_atom_coordinates()
 
     def _prepare(self, context: None = None) -> None:
-        """Read the internal coordinates of the chain, and set the angles of the system."""
+        """Read the internal coordinates of the chain, and set the angles of the system.
+
+        It first raises an error for a structure of more than one chain.
+        """
+        chains = set(self.structure.chain_names)
+        if len(chains) != 1:
+            error_msg = f'A backbone is rebuilt for one chain, but the structure holds the chains {sorted(chains)}.'
+            raise ValidationError(error_msg)
         self._chain = next(read_biopython_structure(self.structure, (self.system,)).get_chains())
         with warnings.catch_warnings():
             warnings.filterwarnings('ignore', message=VECTOR_WARNING, category=UserWarning, module=VECTOR_MODULE)

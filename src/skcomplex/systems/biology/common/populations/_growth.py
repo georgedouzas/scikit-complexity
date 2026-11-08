@@ -11,6 +11,7 @@ from sage.sets.real_set import RealSet
 
 from .....core.components.interactions import RateInteraction
 from .....core.components.laws.utils import delayed
+from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
 from .....core.specs import ParameterSpec, RoleSpec
 
@@ -163,17 +164,21 @@ class GrowthInteraction(RateInteraction):
             )
             raise ValidationError(error_msg)
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for an unknown form or a state that is no name.
 
         It also raises for a delay or exponent the form cannot take.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The type declares states, the form is unknown, the state is not a name, a delay is given to a form
                 without a limiting factor, or the von Bertalanffy exponent is 1.
         """
-        super()._check()
+        super()._prepare(context)
         self._check_form()
         self._check_settings()
 

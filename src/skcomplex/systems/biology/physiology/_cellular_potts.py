@@ -22,6 +22,7 @@ from ....core.components.elements import Element, LatticeElement
 from ....core.components.interactions import SamplingInteraction
 from ....core.components.spaces import (
     BaseNeighborhood,
+    BaseSpace,
     DiscreteTime,
     LatticeSpace,
     MooreNeighborhood,
@@ -210,16 +211,20 @@ class CellAdhesionInteraction(SamplingInteraction):
         del labels
         return perimeter_strength, target_perimeter
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for an invalid adhesion or kind.
 
         The adhesion must be a symmetric square matrix, and every kind one of its rows.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The adhesion is not a symmetric square matrix, or a kind is not one of its rows.
         """
-        super()._check()
+        super()._prepare(context)
         adhesion = np.asarray(self.adhesion, dtype=float)
         if (
             adhesion.ndim != MATRIX_AXES

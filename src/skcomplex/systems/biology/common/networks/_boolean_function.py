@@ -11,6 +11,7 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import SR, Expression
 
 from .....core.components.interactions import MapInteraction
+from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
 from .....core.specs import RoleSpec
 
@@ -71,14 +72,18 @@ class BooleanFunctionInteraction(MapInteraction):
         terms = [self._get_pattern(inputs, index) for index, entry in enumerate(self.table) if entry]
         return sum(terms, start=SR(0))
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for a table without one entry per pattern of the inputs.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The table does not have one entry per pattern of the inputs.
         """
-        super()._check()
+        super()._prepare(context)
         if len(self.table) != 2 ** len(self.inputs):
             error_msg = (
                 f'BooleanFunction {self.label} reads {len(self.inputs)} inputs, which take {2 ** len(self.inputs)} '

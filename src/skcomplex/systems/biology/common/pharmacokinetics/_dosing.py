@@ -14,6 +14,7 @@ from sage.all__sagemath_symbolics import Expression
 
 from .....core.components.interactions import RateInteraction
 from .....core.components.laws.utils import pulse_train
+from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
 from .....core.specs import RoleSpec
 
@@ -87,14 +88,18 @@ class DosingInteraction(RateInteraction):
         self.start = start
         self.count = count
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for a state, a dose, or a schedule the input cannot take.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The state is not a name, the dose is neither a function nor a number, or the schedule is not positive.
         """
-        super()._check()
+        super()._prepare(context)
         if not (callable(self.dose) or isinstance(self.dose, int | float)):
             error_msg = f'The dose of {self.label!r} is {self.dose!r}. Give a function of the namespace or a number.'
             raise ValidationError(error_msg)

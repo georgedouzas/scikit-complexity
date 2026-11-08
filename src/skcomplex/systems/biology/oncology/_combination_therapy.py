@@ -16,6 +16,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction, ReactionInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import where
+from ....core.components.spaces import BaseSpace
 from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import ScipyODESolver
 from ....core.errors import ParameterError
@@ -619,14 +620,18 @@ class ChemovirotherapyTumourElement(Element):
         self.u1 = u1
         self.infusion = infusion
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for an unknown infusion.
+
+        Args:
+            context:
+                The space the element inherits from its system, which an element does not read.
 
         Raises:
             ParameterError:
                 The infusion is not one of the known forms.
         """
-        super()._check()
+        super()._prepare(context)
         if self.infusion not in INFUSIONS:
             error_msg = f'The infusion must be one of {INFUSIONS}, got {self.infusion!r}.'
             raise ParameterError(error_msg)

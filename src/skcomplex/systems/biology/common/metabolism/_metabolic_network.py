@@ -132,6 +132,7 @@ class MetabolicNetworkElement(DeclaredElement):
             context:
                 The space the element inherits from its system, which a network does not read.
         """
+        super()._prepare(context)
         self.default_visual_ = VisualSpec('linear_program')
 
     @staticmethod

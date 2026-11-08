@@ -12,6 +12,7 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression
 
 from .....core.components.interactions import RateInteraction
+from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
 from .....core.specs import RoleSpec
 
@@ -73,14 +74,18 @@ class EvaporationInteraction(RateInteraction):
         super().__init__(label, target=target, state=state)
         self.evaporation = evaporation
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for a name of the rate of evaporation that is no parameter.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The state or the name of the rate of evaporation is not a name.
         """
-        super()._check()
+        super()._prepare(context)
         if not isinstance(self.evaporation, str) or not self.evaporation.isidentifier():
             error_msg = f'The evaporation of {self.label!r} is {self.evaporation!r}. Name a parameter of the target.'
             raise ValidationError(error_msg)

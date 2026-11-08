@@ -15,6 +15,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import DeclaredElement, Element
 from ....core.components.interactions import BaseInteraction, Interaction, ReactionInteraction
 from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components.spaces import BaseSpace
 from ....core.components.system import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -389,14 +390,18 @@ class GeneralizedMassActionInteraction(Interaction):
         """
         return self.stoichiometry
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for matrices that do not match the species and the fluxes.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The matrices do not have one row per flux or species and one entry per species or flux.
         """
-        super()._check()
+        super()._prepare(context)
         self._check_matrices()
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:

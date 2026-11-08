@@ -14,6 +14,7 @@ from sage.all__sagemath_symbolics import Expression
 
 from .....core.components.interactions import RateInteraction
 from .....core.components.laws.utils import total
+from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
 from .....core.specs import RoleSpec
 
@@ -81,14 +82,18 @@ class ReplicatorInteraction(RateInteraction):
             error_msg = f'The fitness of {self.label!r} is {self.fitness!r}. Give a function of the namespace.'
             raise ValidationError(error_msg)
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for a state, functions, or a fitness the interaction cannot take.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The state is not a name, or the fitness is not callable.
         """
-        super()._check()
+        super()._prepare(context)
         self._check_fitness()
 
     def _get_fitness(self, namespace: SimpleNamespace) -> Expression:
