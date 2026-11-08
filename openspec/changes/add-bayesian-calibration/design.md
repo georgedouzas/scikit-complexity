@@ -173,6 +173,4 @@ Calls of `calibrate` without `method` keep their estimates. The changelog names 
 
 ## Open Questions
 
-- `CellCycleInvasionSystem` is a cell biology model of melanoma cells. The brief names `biology/cell_biology`, which
-  does not exist. The plan puts it in `biology/oncology`. A new subfield needs the user's approval and only changes the
-  module path and the registered field.
+None. `CellCycleInvasionSystem` models melanoma cell invasion and stays in `biology/oncology`.

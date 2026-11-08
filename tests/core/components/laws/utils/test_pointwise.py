@@ -2,16 +2,18 @@
 
 from typing import Annotated
 
+import jax
 import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import SR, cosh, log, pi, sin, var
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.laws.utils import clip, hill, logistic, sign
+from skcomplex.core.components.laws.utils import clip, hill, logistic, sign, stop_gradient
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.problems._expression_printer import ExpressionPrinter
 from skcomplex.core.specs import StateSpec, VisualSpec
 
 BACKENDS = (NumpyBackend(), NumbaBackend())
@@ -23,6 +25,7 @@ FUNCTIONS = {
     'clip-low': (lambda x: clip(x, low=0), lambda x: np.clip(x, 0, None)),
     'clip-high': (lambda x: clip(x, high=0.5), lambda x: np.clip(x, None, 0.5)),
     'sign': (sign, np.sign),
+    'stop_gradient': (lambda x: stop_gradient(x**2), lambda x: x**2),
 }
 
 
@@ -94,3 +97,12 @@ def test_sign_has_a_zero_derivative():
     """Test that the sign differentiates to zero away from 0, so Jacobians stay finite."""
     x = var('x')
     assert sign(x).diff(x).subs(x=2) == 0
+
+
+def test_stop_gradient_stops_gradients_on_jax():
+    """Test that the JAX printer lowers `stop_gradient` so the value is kept and its gradient is zero."""
+    t, x = var('t'), var('x')
+    printer = ExpressionPrinter('jax', time=t, compiled=True).prepare([x])
+    function = ExpressionPrinter._function_of(printer.run([x * stop_gradient(x**2)]).code_)
+    value, gradient = jax.value_and_grad(lambda y: function(0.0, y)[0])(3.0)
+    assert (float(value), float(gradient)) == (27.0, 9.0)

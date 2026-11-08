@@ -41,7 +41,7 @@ _QUIET_ERRORS = "with np.errstate(divide='ignore', invalid='ignore', over='ignor
 
 IMPORTS = {
     'numpy': 'import numpy as np\nfrom scipy.special import erf, erfc, gamma\n\n\n',
-    'jax': 'import jax.numpy as jnp\nimport jax.scipy.special as jsp\n\n\n',
+    'jax': 'import jax\nimport jax.numpy as jnp\nimport jax.scipy.special as jsp\n\n\n',
 }
 
 

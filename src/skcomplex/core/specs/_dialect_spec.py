@@ -106,6 +106,7 @@ _NUMPY_DIALECT = DialectSpec(
         'either': 'np.logical_or({0}, {1})',
         'both': 'np.logical_and({0}, {1})',
         'mod': 'np.mod({0}, {1})',
+        'stop_gradient': '({0})',
     },
     _PYTHON_RELATIONS,
     complex_numbers=True,
@@ -145,6 +146,7 @@ _SCALAR_DIALECT = DialectSpec(
         'either': '({0} or {1})',
         'both': '({0} and {1})',
         'mod': '({0} % {1})',
+        'stop_gradient': '({0})',
     },
     _PYTHON_RELATIONS,
 )
@@ -176,6 +178,7 @@ _LEPTON_DIALECT = DialectSpec(
         'either': 'max({0}, {1})',
         'both': '({0}*{1})',
         'mod': '({0} - {1}*floor({0}/{1}))',
+        'stop_gradient': '({0})',
     },
     {
         'lt': '(1 - step({0} - {1}))',
@@ -198,6 +201,7 @@ _JAX_DIALECT = DialectSpec(
         'erf': 'jsp.erf({0})',
         'erfc': 'jsp.erfc({0})',
         'gamma': 'jsp.gamma({0})',
+        'stop_gradient': 'jax.lax.stop_gradient({0})',
     },
     _PYTHON_RELATIONS,
     error=BackendError,

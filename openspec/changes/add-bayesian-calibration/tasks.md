@@ -47,7 +47,7 @@
 ## 8. Relaxed draws and Delaunay neighbourhoods
 
 - [x] 8.1 Add `temperature` and `hard` to `bernoulli`, `categorical`, and `DrawSpec`, and test that NumPy runs draw exact values with them
-- [ ] 8.2 Add the symbolic `stop_gradient`, lowered by the JAX printer to `jax.lax.stop_gradient` and by the others to the identity, and test both lowerings
+- [x] 8.2 Add the symbolic `stop_gradient`, lowered by the JAX printer to `jax.lax.stop_gradient` and by the others to the identity, and test both lowerings
 - [ ] 8.3 Lower relaxed draws on JAX to the concrete relaxation with straight-through hard values, draw the uniform values of the differentiable unroll from a JAX key, and test the gradient against finite differences and the low-temperature limit
 - [ ] 8.4 Report a `not-differentiable` issue for a Bernoulli or categorical draw without a temperature in the JAX lowering, and test its message
 - [x] 8.5 Add `DelaunayNeighborhood` in `spaces/_delaunay.py` with the search in `_metric_search.py`, periodic images, and per-step recomputation, and test the known point set, the periodic boundary, and moving members
