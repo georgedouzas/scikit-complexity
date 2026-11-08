@@ -1,4 +1,7 @@
-"""Define mass-action systems, species in compartments and the reactions between them at mass-action rates."""
+"""Define mass-action systems.
+
+A mass-action system holds species in compartments and the reactions between them at mass-action rates.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -91,21 +94,31 @@ class MassActionSystem(BaseSystem):
         self.mode = mode
 
     def _get_species(self) -> Mapping[str, float]:
-        """Return the initial amount of every species by name, which a subclass with parameters of its own returns."""
+        """Return the initial amount of every species by name.
+
+        A subclass with parameters of its own returns it.
+        """
         return self.species or {}
 
     def _get_reactions(self) -> ReactionTable:
-        """Return the reactants, the products, and the rate constant of every reaction, which a subclass returns."""
+        """Return the reactants, the products, and the rate constant of every reaction.
+
+        A subclass returns them.
+        """
         return self.reactions or {}
 
     def _get_mode(self) -> str:
-        """Return the form of the laws of the reactions, which a subclass that sets it by another parameter returns."""
+        """Return the form of the laws of the reactions.
+
+        A subclass that sets it by another parameter returns it.
+        """
         return self.mode
 
     def _get_interactions(self) -> Sequence[ReactionInteraction]:
-        """Return a reaction for every row of the reactions, between the states `n` of the compartments it names.
+        """Return a reaction for every row of the reactions.
 
-        A subclass whose reactions are subclasses of `ReactionInteraction` with roles of their own names returns them.
+        The reactions act between the states `n` of the compartments they name. A subclass whose reactions are
+        subclasses of `ReactionInteraction` with roles of their own names returns them.
 
         Returns:
             interactions:
