@@ -33,10 +33,9 @@ class ThresholdNodeView(AgentView):
 class ThresholdActivationInteraction(MapInteraction):
     """Activation of the Watts cascade system.
 
-    A node becomes active once enough of its neighbours are active. A node becomes active for good once the share of
-    active nodes among its neighbouring nodes reaches its threshold. The nodes update one after the other in a new
-    random order every step, each reading the activations the nodes before it set, so a cascade can cross several nodes
-    in one step.
+    A node becomes active for good once the share of active nodes among its neighbouring nodes reaches its threshold.
+    The nodes update one after the other in a new random order every step, each reading the activations the nodes before
+    it set, so a cascade can cross several nodes in one step.
 
     Args:
         label:

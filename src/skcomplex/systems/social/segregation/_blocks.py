@@ -99,13 +99,12 @@ class DwellerElement(Element):
 class BlockMovesInteraction(MovementInteraction):
     """Moves of the stochastic Schelling system.
 
-    An agent moves from its cell to a random empty cell of another block. A visited agent proposes to move to a random
-    empty cell of the grid, and stays when the cell lies in its own block. With block densities `rho_i` before and
-    `rho_f'` after the move, the proposal is accepted with probability `1 / (1 + exp(beta * dU))`, where
-    `dU = (1 - altruism) * (u(rho_f') - u(rho_i)) + altruism * dU_global` and `dU_global` is the change of
-    `M * sum_q rho_q u(rho_q)` over the blocks of `M` cells. The densities are the counts of the block states of the
-    group. In `StochasticSchellingSystem`, a phase of visits draws as many agents with replacement as there are agents
-    every step, and a `MapInteraction` sets the block of an agent after its move.
+    A visited agent proposes to move to a random empty cell of the grid, and stays when the cell lies in its own block.
+    With block densities `rho_i` before and `rho_f'` after the move, the proposal is accepted with probability
+    `1 / (1 + exp(beta * dU))`, where `dU = (1 - altruism) * (u(rho_f') - u(rho_i)) + altruism * dU_global` and
+    `dU_global` is the change of `M * sum_q rho_q u(rho_q)` over the blocks of `M` cells. The densities are the counts
+    of the block states of the group. In `StochasticSchellingSystem`, a phase of visits draws as many agents with
+    replacement as there are agents every step, and a `MapInteraction` sets the block of an agent after its move.
 
     Args:
         label:

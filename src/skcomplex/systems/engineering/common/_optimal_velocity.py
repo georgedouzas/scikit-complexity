@@ -20,9 +20,8 @@ from ....core.specs import ParameterSpec, RoleSpec
 class OptimalVelocityInteraction(RelaxationInteraction):
     """Relaxation of the speed `v` of every car of a ring road.
 
-    The speed relaxes towards the optimal velocity of its headway. The speed follows `v' = a (V(h) - v)` with the
-    optimal velocity `V(h) = V0 (tanh(h - hc) + tanh(hc))` of the headway `h` to the next car, a relaxation over the
-    time `1 / a`.
+    The speed follows `v' = a (V(h) - v)` with the optimal velocity `V(h) = V0 (tanh(h - hc) + tanh(hc))` of the
+    headway `h` to the next car, a relaxation over the time `1 / a`.
 
     Args:
         label:

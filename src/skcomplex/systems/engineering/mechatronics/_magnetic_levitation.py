@@ -23,8 +23,7 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 class LevitatedBallElement(Element):
     """Conductive ball levitated in a vacuum.
 
-    Its velocity relaxes between the impulses of the levitating field. Between impulses the velocity follows
-    `v' = -b v`, and every impulse of the field changes it by `m` or `-m`.
+    Between impulses the velocity follows `v' = -b v`, and every impulse of the field changes it by `m` or `-m`.
 
     Args:
         label:

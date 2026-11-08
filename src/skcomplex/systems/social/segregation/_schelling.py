@@ -78,11 +78,10 @@ class ResidentElement(Element):
 class RelocationInteraction(MovementInteraction):
     """Relocation of the Schelling system.
 
-    Every resident with too few similar neighbours moves to an empty cell. Every step every resident, in random order,
-    moves to a random empty cell when the share of its neighbours of its own kind is below its threshold. With
-    `choices`, the Big Sort of Bishop's hypothesis, every resident moves with the probability `probability` whatever its
-    neighbours, to the cell with the highest share of neighbours of its own kind among `choices` random empty cells, the
-    first of them on ties.
+    Every step every resident, in random order, moves to a random empty cell when the share of its neighbours of its own
+    kind is below its threshold. With `choices`, the Big Sort of Bishop's hypothesis, every resident moves with the
+    probability `probability` whatever its neighbours, to the cell with the highest share of neighbours of its own kind
+    among `choices` random empty cells, the first of them on ties.
 
     Args:
         label:

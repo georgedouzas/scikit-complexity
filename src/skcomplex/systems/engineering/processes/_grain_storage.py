@@ -21,10 +21,10 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 class GrainStoreElement(Element):
     """Retail grain store, whose stock is restocked from grain on order.
 
-    The grain on order arrives through a receiving delay. Grain on order arrives in the stock at the receiving rate
-    `on_order / receiving_delay`, and the stock releases the fraction `release_fraction` of itself per unit time to the
-    consumers. The procurement rate `(desired_stock - stock) / adjustment_delay` adds grain on order, and it is negative
-    when the stock exceeds the desired stock, which cancels orders.
+    Grain on order arrives in the stock at the receiving rate `on_order / receiving_delay`, and the stock releases the
+    fraction `release_fraction` of itself per unit time to the consumers. The procurement rate
+    `(desired_stock - stock) / adjustment_delay` adds grain on order, and it is negative when the stock exceeds the
+    desired stock, which cancels orders.
 
     Args:
         label:

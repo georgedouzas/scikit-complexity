@@ -295,9 +295,8 @@ class DriverElement(Element):
 class CarelessBrakingInteraction(Interaction):
     """System rule of Charbonneau's traffic system.
 
-    A random driver brakes now and then, and every car moves. Every step, with probability `probability`, one random
-    driver brakes by the braking of its group whatever the distance to the car ahead. Then every car moves by its speed,
-    but no closer than `gap` to the car ahead.
+    Every step, with probability `probability`, one random driver brakes by the braking of its group whatever the
+    distance to the car ahead. Then every car moves by its speed, but no closer than `gap` to the car ahead.
 
     Args:
         label:

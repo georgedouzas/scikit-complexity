@@ -128,10 +128,9 @@ class DiscussantElement(Element):
 class ConfidenceCouplingInteraction(CouplingInteraction):
     """Hegselmann-Krause coupling of the opinions of agents.
 
-    Every agent moves to the mean opinion of the neighbours within its confidence. Every step every agent takes at once
-    the mean opinion of its neighbours, itself included, whose opinions differ from its own by less than its parameter
-    `confidence`. It is the map form of coupling with the normalized mean over the neighbours of the network weighted by
-    the indicator of the confidence.
+    Every step every agent takes at once the mean opinion of its neighbours, itself included, whose opinions differ from
+    its own by less than its parameter `confidence`. It is the map form of coupling with the normalized mean over the
+    neighbours of the network weighted by the indicator of the confidence.
 
     Args:
         label:

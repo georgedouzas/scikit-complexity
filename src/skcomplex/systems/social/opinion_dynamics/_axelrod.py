@@ -116,9 +116,8 @@ def cultural_traits(culture: float, features: int, traits: int) -> IntArray:
 class CulturalInfluenceInteraction(GroupingInteraction):
     """Cultural influence of Axelrod's system.
 
-    Every village in turn may copy a trait of a random neighbour. Every step every village, in random order, picks a
-    random neighbour and, with probability equal to the fraction of features they share, copies the trait of one feature
-    on which they differ.
+    Every step every village, in random order, picks a random neighbour and, with probability equal to the fraction of
+    features they share, copies the trait of one feature on which they differ.
 
     Args:
         label:
