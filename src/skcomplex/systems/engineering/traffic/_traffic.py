@@ -18,10 +18,11 @@ from ....core.types import Array
 
 
 class RoadElement(Element):
-    """Cell of the Nagel-Schreckenberg road: the velocity of the car on it, or -1 when it is empty.
+    """Cell of the Nagel-Schreckenberg road.
 
-    The local rules of the road make cars accelerate by one up to the largest velocity, brake to the gap ahead, slow
-    down by one with probability `slowdown`, and move forward by their velocity, every step.
+    It holds the velocity of the car on it, or -1 when it is empty. The local rules of the road make cars accelerate by
+    one up to the largest velocity, brake to the gap ahead, slow down by one with probability `slowdown`, and move
+    forward by their velocity, every step.
 
     Args:
         label:
@@ -56,9 +57,9 @@ class RoadElement(Element):
 
 
 class NagelSchreckenbergSystem(BaseSystem):
-    """The Nagel-Schreckenberg traffic system on a ring road, where jams emerge above a critical density.
+    """The Nagel-Schreckenberg traffic system on a ring road.
 
-    The system has the velocities `road.velocity`, -1 on empty cells.
+    Jams emerge above a critical density. The system has the velocities `road.velocity`, -1 on empty cells.
 
     Args:
         length:
@@ -111,7 +112,10 @@ class NagelSchreckenbergSystem(BaseSystem):
 
     @staticmethod
     def _accelerate(velocity: Array, *ahead: Array, slowdown: Array | float, random: Array) -> Array:
-        """Return the velocities after the cars accelerate, brake to the gap ahead, and slow down at random."""
+        """Return the velocities after the cars accelerate, brake, and slow down at random.
+
+        The cars brake to the gap ahead.
+        """
         vmax = len(ahead)
         gap = np.full(velocity.shape, float(vmax))
         for distance in range(vmax, 0, -1):

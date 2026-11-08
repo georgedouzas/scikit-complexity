@@ -1,4 +1,7 @@
-"""Process systems: stocks of grain, waste, food, and water that engineered systems move between holders."""
+"""Process systems: stocks of grain, waste, food, and water.
+
+Engineered systems move the stocks between holders.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,7 +21,10 @@ from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 
 class ReliefPipelineElement(Element):
-    """Relief supply line that ships food through a delayed pipeline to a warehouse and distributes it."""
+    """Relief supply line that ships food to a warehouse and distributes it.
+
+    The food is shipped through a delayed pipeline.
+    """
 
     law_classes = (TransferLaw,)
 
@@ -56,12 +62,18 @@ class ReliefPipelineElement(Element):
 
     @staticmethod
     def _need(s: SimpleNamespace) -> Expression:
-        """Return the need of relief food, which starts at the onset of the disaster."""
+        """Return the need of relief food.
+
+        It starts at the onset of the disaster.
+        """
         return s.ration * s.affected * step(s.t, s.onset)
 
     @staticmethod
     def _shipments(s: SimpleNamespace) -> Expression:
-        """Return the shipments that meet the need and close the gaps of the stock and of the pipeline."""
+        """Return the shipments that meet the need and close the gaps.
+
+        The gaps are those of the stock and of the pipeline.
+        """
         need = ReliefPipelineElement._need(s)
         stock_gap = (s.cover * need - s.warehouse) / s.stock_time
         pipeline_gap = (s.shipping_delay * need - s.in_transit) / s.pipeline_time
@@ -69,7 +81,10 @@ class ReliefPipelineElement(Element):
 
     @staticmethod
     def _relief_laws(s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the shipments, arrivals, and distribution of relief food after a disaster."""
+        """Return the shipments, arrivals, and distribution of relief food.
+
+        They follow a disaster.
+        """
         shipments = ReliefPipelineElement._shipments(s)
         return [
             TransferLaw(Source('donors'), s.in_transit, shipments, label='shipping'),
@@ -93,7 +108,10 @@ BRAN_SHARE = 0.08
 
 
 class RiceMillElement(Element):
-    """Rice mill that buys seasonal paddy, mills it into rice, husk, and bran, and adjusts its capacity."""
+    """Rice mill that buys seasonal paddy, mills it, and adjusts its capacity.
+
+    The paddy is milled into rice, husk, and bran.
+    """
 
     law_classes = (TransferLaw, RateLaw)
 
@@ -143,12 +161,18 @@ class RiceMillElement(Element):
 
     @staticmethod
     def _season(mean: Expression, amplitude: Expression, t: Expression, period: float) -> Expression:
-        """Return a seasonal value that oscillates about its mean with a relative amplitude and a period."""
+        """Return a seasonal value that oscillates about its mean.
+
+        It has a relative amplitude and a period.
+        """
         return mean * (1 + amplitude * sin(2 * math.pi * t / period))
 
     @staticmethod
     def _procurement(s: SimpleNamespace) -> Expression:
-        """Return the procurement of paddy, the seasonal harvest after the procurement delay."""
+        """Return the procurement of paddy.
+
+        It is the seasonal harvest after the procurement delay.
+        """
         return delay3(RiceMillElement._season(s.harvest, s.seasonality, s.t, MONTHS_PER_YEAR), s.procurement_delay)
 
     @staticmethod
@@ -163,7 +187,10 @@ class RiceMillElement(Element):
 
     @staticmethod
     def _rice_mill_laws(s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the procurement, milling, and sales of a rice mill, and the adjustment of its milling capacity."""
+        """Return the procurement, milling, and sales of a rice mill.
+
+        It also returns the adjustment of its milling capacity.
+        """
         milling = RiceMillElement._milling(s)
         losses = 1 - s.outturn - s.husk_share - s.bran_share
         return [
@@ -189,7 +216,10 @@ WATER_STRESS = ((0.0, 0.0), (0.3, 0.5), (0.6, 1.0), (1.0, 1.0))
 
 
 class IrrigationSchemeElement(Element):
-    """Irrigation scheme that moves water between a reservoir, the root zone of crops, and an aquifer."""
+    """Irrigation scheme that moves water between its reservoirs.
+
+    The water moves between a reservoir, the root zone of crops, and an aquifer.
+    """
 
     law_classes = (TransferLaw,)
 
@@ -243,23 +273,35 @@ class IrrigationSchemeElement(Element):
 
     @staticmethod
     def _demand(s: SimpleNamespace) -> Expression:
-        """Return the water demand of the crops, their evapotranspiration and the refill of the root zone."""
+        """Return the water demand of the crops.
+
+        It is their evapotranspiration and the refill of the root zone.
+        """
         return clip(s.potential_et + (s.target * s.field_capacity - s.soil) / s.refill_time, 0)
 
     @staticmethod
     def _reservoir_release(s: SimpleNamespace) -> Expression:
-        """Return the release of the reservoir, the demand before the canal losses, limited by the reservoir."""
+        """Return the release of the reservoir.
+
+        It is the demand before the canal losses, limited by the reservoir.
+        """
         return minimum(IrrigationSchemeElement._demand(s) / (1 - s.canal_loss), s.reservoir / s.release_time)
 
     @staticmethod
     def _pumping(s: SimpleNamespace) -> Expression:
-        """Return the pumping of groundwater, the demand the release leaves, limited by the pumps and the aquifer."""
+        """Return the pumping of groundwater.
+
+        It is the demand the release leaves, limited by the pumps and the aquifer.
+        """
         unmet = IrrigationSchemeElement._demand(s) - (1 - s.canal_loss) * IrrigationSchemeElement._reservoir_release(s)
         return minimum(clip(unmet, 0), minimum(s.pump_capacity, s.groundwater / s.pump_time))
 
     @staticmethod
     def _irrigation_laws(s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the water balance of a reservoir, the root zone of the irrigated crops, and the aquifer below them."""
+        """Return the water balance of a reservoir, the root zone, and the aquifer.
+
+        The root zone is that of the irrigated crops, and the aquifer is below them.
+        """
         release = IrrigationSchemeElement._reservoir_release(s)
         crop_water = s.potential_et * lookup(s.soil / s.field_capacity, WATER_STRESS)
         spill = clip(s.reservoir - s.reservoir_capacity, 0) / s.spill_time
@@ -285,7 +327,10 @@ LANDFILL_ACCEPTANCE = ((0.0, 1.0), (0.9, 1.0), (1.0, 0.0))
 
 
 class WasteSystemElement(Element):
-    """Solid waste system of a growing city that collects, recycles, composts, and landfills its waste."""
+    """Solid waste system of a growing city.
+
+    It collects, recycles, composts, and landfills its waste.
+    """
 
     law_classes = (TransferLaw, RateLaw)
 
@@ -330,7 +375,10 @@ class WasteSystemElement(Element):
         self.capacity_time = capacity_time
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the flows of waste through the city and the adjustment of its collection capacity."""
+        """Return the flows of waste through the city.
+
+        It also returns the adjustment of its collection capacity.
+        """
         return WasteSystemElement._waste_laws(s)
 
     @staticmethod
@@ -350,7 +398,10 @@ class WasteSystemElement(Element):
 
     @staticmethod
     def _waste_laws(s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the generation, collection, treatment, and disposal of the solid waste of a growing city."""
+        """Return the generation, collection, treatment, and disposal of solid waste.
+
+        The waste is that of a growing city.
+        """
         generation, collection, acceptance = (
             WasteSystemElement._generation(s),
             WasteSystemElement._collection(s),
@@ -374,17 +425,17 @@ INITIAL_COLLECTION_SHARE = 0.75
 
 
 class RiceMillingSystem(BaseSystem):
-    """A rice milling system, a mill that buys paddy, mills it into rice and by-products, and sells them.
+    """A rice milling system.
 
-    Paddy arrives from the farms through a third-order procurement delay, at a rate that follows the harvest season
-    around its mean. The mill processes its paddy stock in a month, as far as its milling capacity allows, and splits
-    the milled paddy by mass into rice, the outturn, husk, bran, and milling losses. Rice, husk, and bran leave their
-    inventories for the market at a fixed coverage. The capacity adjusts to the smoothed indicated milling rate, so in
-    the harvest season the capacity lags and paddy accumulates, and in the lean season the capacity idles. Grain is
-    conserved, every change of the paddy, rice, husk, and bran stocks is a flow, and over a year the milled paddy and
-    the rice sales match the mean harvest and its outturn. The structure follows the rice milling case of Bala,
-    Arshad and Noh (2017), with illustrative parameters in tonnes and months, since the case data are specific to
-    their study.
+    A mill buys paddy, mills it into rice and by-products, and sells them. Paddy arrives from the farms through a
+    third-order procurement delay, at a rate that follows the harvest season around its mean. The mill processes its
+    paddy stock in a month, as far as its milling capacity allows, and splits the milled paddy by mass into rice, the
+    outturn, husk, bran, and milling losses. Rice, husk, and bran leave their inventories for the market at a fixed
+    coverage. The capacity adjusts to the smoothed indicated milling rate, so in the harvest season the capacity lags
+    and paddy accumulates, and in the lean season the capacity idles. Grain is conserved, every change of the paddy,
+    rice, husk, and bran stocks is a flow, and over a year the milled paddy and the rice sales match the mean harvest
+    and its outturn. The structure follows the rice milling case of Bala, Arshad and Noh (2017), with illustrative
+    parameters in tonnes and months, since the case data are specific to their study.
 
     The system has the grain stocks `mill.paddy`, `mill.rice`, `mill.husk`, and `mill.bran` in tonnes, the capacity
     `mill.capacity`, and the flows `mill.paddy_purchases`, `mill.milled_rice`, `mill.husk_output`, `mill.bran_output`,
@@ -468,15 +519,16 @@ class RiceMillingSystem(BaseSystem):
 
 
 class SolidWasteSystem(BaseSystem):
-    """A solid waste system, the waste of a growing city collected, recycled, composted, and landfilled.
+    """A solid waste system.
 
-    The population grows exponentially and generates waste in proportion to its size. The waste waits uncollected
-    until the collection, limited by a collection capacity that the city expands towards the generation with a delay,
-    removes it. The collected waste is recycled, composted, or sent to the landfill in fixed shares. Recycled material
-    and compost leave for industry and farms. The landfill accepts waste until it nears its capacity, and a table
-    function then turns the residual waste to open dumping. Waste is conserved, so the landfill fills up to its
-    capacity and dumping takes over. The structure follows the solid waste management case of Bala, Arshad and Noh
-    (2017), with illustrative parameters in tonnes and years for a city of a million people.
+    The waste of a growing city is collected, recycled, composted, and landfilled. The population grows exponentially
+    and generates waste in proportion to its size. The waste waits uncollected until the collection, limited by a
+    collection capacity that the city expands towards the generation with a delay, removes it. The collected waste is
+    recycled, composted, or sent to the landfill in fixed shares. Recycled material and compost leave for industry and
+    farms. The landfill accepts waste until it nears its capacity, and a table function then turns the residual waste to
+    open dumping. Waste is conserved, so the landfill fills up to its capacity and dumping takes over. The structure
+    follows the solid waste management case of Bala, Arshad and Noh (2017), with illustrative parameters in tonnes and
+    years for a city of a million people.
 
     The system has the population `city.population`, the waste stocks `city.uncollected`, `city.recycled`,
     `city.composted`, `city.landfill`, and `city.dumped` in tonnes, the capacity `city.collection_capacity`, and the
@@ -558,15 +610,15 @@ class SolidWasteSystem(BaseSystem):
 
 
 class FoodReliefSystem(BaseSystem):
-    """A food relief system, a pipeline that ships food to a warehouse and distributes it to people in need.
+    """A food relief system.
 
-    A disaster at `onset` leaves `affected` people who need a daily ration. The relief agency ships food at the need
-    plus corrections that close the gaps between the warehouse stock and its desired cover of the need, and between
-    the food in transit and the need over the shipping delay. Shipped food enters the pipeline and arrives at the
-    warehouse through a third-order material delay. The warehouse distributes the need while its stock lasts. Food is
-    conserved, so almost nothing reaches the people in the first days after the disaster, and the gap closes as the
-    pipeline fills. The structure follows the relief food example of Bala, Arshad and Noh (2017, Section 4.11), with
-    illustrative parameters in tonnes and days.
+    A pipeline ships food to a warehouse and distributes it to people in need. A disaster at `onset` leaves `affected`
+    people who need a daily ration. The relief agency ships food at the need plus corrections that close the gaps
+    between the warehouse stock and its desired cover of the need, and between the food in transit and the need over the
+    shipping delay. Shipped food enters the pipeline and arrives at the warehouse through a third-order material delay.
+    The warehouse distributes the need while its stock lasts. Food is conserved, so almost nothing reaches the people in
+    the first days after the disaster, and the gap closes as the pipeline fills. The structure follows the relief food
+    example of Bala, Arshad and Noh (2017, Section 4.11), with illustrative parameters in tonnes and days.
 
     The system has the food stocks `relief.in_transit` and `relief.warehouse` in tonnes, and the flows
     `relief.shipping`, `relief.arrivals`, and `relief.distribution` in tonnes per day, over days. The observables of the
@@ -644,17 +696,17 @@ class FoodReliefSystem(BaseSystem):
 
 
 class IrrigationSystem(BaseSystem):
-    """An irrigation system, a reservoir and an aquifer that keep the root zone of the crops supplied.
+    """An irrigation system.
 
-    A river fills the reservoir with a yearly cycle, and the reservoir loses water to evaporation and spills above its
-    capacity. The irrigation demand is the potential crop evapotranspiration plus the refill of the root zone towards
-    a target fraction of its field capacity. The reservoir releases the demand grossed up for the canal losses, as far
-    as its stock allows, and the losses seep into the aquifer. When the release falls short, the farmers pump the
-    unmet demand from the aquifer up to the pump capacity. The crops draw water from the root zone at the potential
-    rate scaled by a water-stress table, and the root zone percolates to the aquifer, which drains as baseflow. Water
-    is conserved, so in the dry season the reservoir falls, the pumping rises, and the aquifer is drawn down. The
-    structure follows the irrigation example of Bala, Arshad and Noh (2017, Section 4.11), with illustrative
-    parameters in millions of cubic metres and days.
+    A reservoir and an aquifer keep the root zone of the crops supplied. A river fills the reservoir with a yearly
+    cycle, and the reservoir loses water to evaporation and spills above its capacity. The irrigation demand is the
+    potential crop evapotranspiration plus the refill of the root zone towards a target fraction of its field capacity.
+    The reservoir releases the demand grossed up for the canal losses, as far as its stock allows, and the losses seep
+    into the aquifer. When the release falls short, the farmers pump the unmet demand from the aquifer up to the pump
+    capacity. The crops draw water from the root zone at the potential rate scaled by a water-stress table, and the root
+    zone percolates to the aquifer, which drains as baseflow. Water is conserved, so in the dry season the reservoir
+    falls, the pumping rises, and the aquifer is drawn down. The structure follows the irrigation example of Bala,
+    Arshad and Noh (2017, Section 4.11), with illustrative parameters in millions of cubic metres and days.
 
     The system has the water stocks `scheme.reservoir`, `scheme.soil`, and `scheme.groundwater`, and the flows
     `scheme.inflow`, `scheme.evaporation`, `scheme.spill`, `scheme.irrigation`, `scheme.seepage`,

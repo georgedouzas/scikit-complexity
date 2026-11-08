@@ -1,4 +1,7 @@
-"""Robot systems: autonomous robots that react to light and to each other."""
+"""Robot systems: autonomous robots.
+
+They react to light and to each other.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,11 +25,12 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class LightSensitiveRobotElement(Element):
-    """Robot in a Gaussian light field that slows down in light, reacting to the light it measured a delay ago.
+    """Robot in a Gaussian light field that slows down in light.
 
-    The robot moves at the speed `v = V_inf + (V0 - V_inf) exp(-I(t - delay))` in the direction `phi`, which diffuses
-    with time scale `tau`, `dphi = sqrt(2 / tau) dW`. The light is `I(x, y) = I0 exp(-(x^2 + y^2) / r0^2)`, and a wall
-    at radius `R` reflects the robot back into a circular well.
+    It reacts to the light it measured a delay ago. The robot moves at the speed
+    `v = V_inf + (V0 - V_inf) exp(-I(t - delay))` in the direction `phi`, which diffuses with time scale `tau`,
+    `dphi = sqrt(2 / tau) dW`. The light is `I(x, y) = I0 exp(-(x^2 + y^2) / r0^2)`, and a wall at radius `R` reflects
+    the robot back into a circular well.
 
     Args:
         label:
@@ -102,7 +106,9 @@ class LightSensitiveRobotElement(Element):
         self.delay = delay
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the motion at the light-dependent speed, the rotational noise, and the reflecting wall.
+        """Return the motion at the light-dependent speed.
+
+        It includes the rotational noise and the reflecting wall.
 
         Args:
             s:
@@ -134,7 +140,10 @@ class LightSensitiveRobotElement(Element):
 
 
 class SwarmRobotView(AgentView):
-    """View of a robot of the swarmtaxis algorithm, with its states and parameters as attributes."""
+    """View of a robot of the swarmtaxis algorithm.
+
+    Its states and parameters are attributes.
+    """
 
     heading: float
     connections: float
@@ -154,14 +163,15 @@ EDGE_FRACTION = 1e-9
 
 
 class SwarmRobotElement(Element):
-    """Robot of the swarmtaxis algorithm, which keeps in radio contact with the swarm and avoids its neighbours.
+    """Robot of the swarmtaxis algorithm.
 
-    Every step the robot counts the robots within its radio range. When it loses a connection and has fewer than
-    `alpha` connections, it turns around to stay with the swarm, and when it gains one it turns at random. A robot
-    closer than its avoidance radius to another turns away from it. A robot is shadowed when another robot lies between
-    it and the beacon, within the radio range and `shadow_angle` of the bearing to the beacon, and it is illuminated
-    otherwise. Illuminated robots avoid at a larger radius than shadowed ones, so they move away from the swarm towards
-    the beacon, and the swarm follows. The robot then moves forward at its speed.
+    It keeps in radio contact with the swarm and avoids its neighbours. Every step the robot counts the robots within
+    its radio range. When it loses a connection and has fewer than `alpha` connections, it turns around to stay with the
+    swarm, and when it gains one it turns at random. A robot closer than its avoidance radius to another turns away from
+    it. A robot is shadowed when another robot lies between it and the beacon, within the radio range and `shadow_angle`
+    of the bearing to the beacon, and it is illuminated otherwise. Illuminated robots avoid at a larger radius than
+    shadowed ones, so they move away from the swarm towards the beacon, and the swarm follows. The robot then moves
+    forward at its speed.
 
     Args:
         label:
@@ -251,7 +261,10 @@ class SwarmRobotElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[SwarmRobotView]:
-        """Return the view of the robots, which types their states and parameters."""
+        """Return the view of the robots.
+
+        It types their states and parameters.
+        """
         return SwarmRobotView
 
     def _is_shadowed(self, agent: SwarmRobotView, neighbors: list[AgentView]) -> bool:
@@ -271,7 +284,10 @@ class SwarmRobotElement(Element):
         )
 
     def _turn(self, agent: SwarmRobotView, system: SystemView, count: int) -> float:
-        """Return the new heading: back to the swarm after a lost connection, or at random after a new one."""
+        """Return the new heading.
+
+        It turns back to the swarm after a lost connection, or at random after a new one.
+        """
         if count < agent.connections and count < agent.alpha:
             return agent.heading + math.pi
         if count > agent.connections:
@@ -279,7 +295,10 @@ class SwarmRobotElement(Element):
         return agent.heading
 
     def _avoid(self, agent: SwarmRobotView, neighbors: list[AgentView], heading: float) -> float:
-        """Return the heading away from the nearest neighbour inside the avoidance radius, or the heading unchanged."""
+        """Return the heading away from the nearest neighbour inside the avoidance radius.
+
+        Without such a neighbour the heading is unchanged.
+        """
         x, y = SwarmRobotElement._position(agent)
         radius = agent.avoid_illuminated if agent.illuminated else agent.avoid_shadowed
         distances = [
@@ -351,13 +370,14 @@ BEACON_MARGIN = 5.0
 
 
 class LightSeekingRobotsSystem(BaseSystem):
-    """Light-sensitive robots in a circular well, whose sensory delay decides whether they gather in the light.
+    """Light-sensitive robots in a circular well.
 
-    Each robot moves at `V_inf + (V0 - V_inf) exp(-I(t - delay))` in a direction that diffuses with time scale `tau`,
-    in the Gaussian light `I = I0 exp(-(x^2 + y^2) / r0^2)` at the centre of a well of radius `R`. The robots start
-    at the centre, in directions spread around the circle, and do not interact. A positive delay drives them out of
-    the light: a robot crosses the light at the fast speed it measured in the dark and lingers outside at the slow
-    speed it measured in the light, so robots with a delay spend less time in the light than robots without one.
+    Their sensory delay decides whether they gather in the light. Each robot moves at
+    `V_inf + (V0 - V_inf) exp(-I(t - delay))` in a direction that diffuses with time scale `tau`, in the Gaussian light
+    `I = I0 exp(-(x^2 + y^2) / r0^2)` at the centre of a well of radius `R`. The robots start at the centre, in
+    directions spread around the circle, and do not interact. A positive delay drives them out of the light: a robot
+    crosses the light at the fast speed it measured in the dark and lingers outside at the slow speed it measured in the
+    light, so robots with a delay spend less time in the light than robots without one.
 
     The system has the group `robots` of positions `x`, `y` and directions `phi`.
 
@@ -448,12 +468,13 @@ class LightSeekingRobotsSystem(BaseSystem):
 
 
 class SwarmtaxisSystem(BaseSystem):
-    """The swarmtaxis algorithm, which moves a swarm of robots towards a beacon that only some of them see.
+    """The swarmtaxis algorithm, which moves a swarm of robots towards a beacon.
 
-    The robots start in a cluster near the left edge of a square arena, with the beacon at the middle of the right edge.
-    Each robot keeps radio contact with the swarm by turning around when it loses a connection, and avoids its
-    neighbours. Robots that see the beacon avoid at a larger radius than shadowed robots, which moves the centre of the
-    swarm towards the beacon. The system has the group `robots` of headings `heading` and illumination `illuminated`.
+    Only some of the robots see the beacon. The robots start in a cluster near the left edge of a square arena, with the
+    beacon at the middle of the right edge. Each robot keeps radio contact with the swarm by turning around when it
+    loses a connection, and avoids its neighbours. Robots that see the beacon avoid at a larger radius than shadowed
+    robots, which moves the centre of the swarm towards the beacon. The system has the group `robots` of headings
+    `heading` and illumination `illuminated`.
 
     Args:
         n_robots:

@@ -1,4 +1,7 @@
-"""Define the spring and damper between two coordinates of one element, each divided by its own mass."""
+"""Define the spring and damper between two coordinates of one element.
+
+Each coordinate is divided by its own mass.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,11 +23,11 @@ N_STATES = 2
 
 
 class SpringDamperInteraction(GradientInteraction):
-    """Linear spring and damper between two coordinates `x1` and `x2` of order 2 of one element.
+    """Linear spring and damper between two coordinates `x1` and `x2` of one element.
 
-    The spring is the gradient of the energy `k (x1 - x2)^2 / 2`, and the damper adds `-b (x1' - x2')` to the first
-    coordinate and its opposite to the second, both divided by the divisor of every coordinate, such as its own mass.
-    The stiffness and the damping are named parameters of the element.
+    The coordinates have order 2. The spring is the gradient of the energy `k (x1 - x2)^2 / 2`, and the damper adds
+    `-b (x1' - x2')` to the first coordinate and its opposite to the second, both divided by the divisor of every
+    coordinate, such as its own mass. The stiffness and the damping are named parameters of the element.
 
     Args:
         label:
@@ -72,7 +75,9 @@ class SpringDamperInteraction(GradientInteraction):
         self.damping = damping
 
     def _check(self) -> None:
-        """Raise an error for states that are not two names, or a stiffness or damping that is not a name.
+        """Raise an error for invalid states, stiffness, or damping.
+
+        The states must be two names, and the stiffness and the damping names.
 
         Raises:
             ValidationError:

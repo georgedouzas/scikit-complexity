@@ -1,4 +1,7 @@
-"""Minimum-time control: a linear plant steered to the origin by a sampled bang-bang control."""
+"""Minimum-time control: a linear plant steered to the origin.
+
+A sampled bang-bang control steers it.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -24,15 +27,15 @@ CIRCLES_END = 2
 
 
 class BangBangPlantElement(Element):
-    """Second-order linear plant under a bang-bang control, held between samples, that steers it to the origin.
+    """Second-order linear plant under a bang-bang control.
 
-    The plant follows `x' = y` and `y' = a x + u` with the control `u` of size 1, `a = 0` for a free particle, `a = -1`
-    for a harmonic oscillator, and `a = 1` for a saddle. The control stays constant between samples, and at every
-    sample takes `-1` above the switching curve `y = g(x)` of the plant and `1` below it. The curve is made of the
-    two trajectories of the plant under `u = 1` and `u = -1` that reach the origin: `g(x) = -sign(x) sqrt(2 |x|)` for
-    the free particle, the half circles `g(x) = sqrt(1 - (x + 1)^2)` on `[-2, 0]` and `-sqrt(1 - (x - 1)^2)` on
-    `[0, 2]`, and 0 outside, for the harmonic oscillator, and `g(x) = sqrt(x^2 - 2 x)` for `x <= 0` and
-    `-sqrt(x^2 + 2 x)` for `x >= 0` for the saddle.
+    The control is held between samples, and it steers the plant to the origin. The plant follows `x' = y` and
+    `y' = a x + u` with the control `u` of size 1, `a = 0` for a free particle, `a = -1` for a harmonic oscillator, and
+    `a = 1` for a saddle. The control stays constant between samples, and at every sample takes `-1` above the switching
+    curve `y = g(x)` of the plant and `1` below it. The curve is made of the two trajectories of the plant under `u = 1`
+    and `u = -1` that reach the origin: `g(x) = -sign(x) sqrt(2 |x|)` for the free particle, the half circles
+    `g(x) = sqrt(1 - (x + 1)^2)` on `[-2, 0]` and `-sqrt(1 - (x - 1)^2)` on `[0, 2]`, and 0 outside, for the harmonic
+    oscillator, and `g(x) = sqrt(x^2 - 2 x)` for `x <= 0` and `-sqrt(x^2 + 2 x)` for `x >= 0` for the saddle.
 
     Args:
         label:
@@ -124,7 +127,9 @@ class BangBangPlantElement(Element):
 
     @staticmethod
     def _control(plant: str, x: Expression, y: Expression) -> Expression:
-        """Return the bang-bang control of a plant, -1 above its switching curve and 1 below it.
+        """Return the bang-bang control of a plant.
+
+        It is -1 above its switching curve and 1 below it.
 
         Args:
             plant:
@@ -145,17 +150,17 @@ class BangBangPlantElement(Element):
 
 
 class MinimumTimeControlSystem(BaseSystem):
-    """A linear plant steered to the origin of its phase space in minimum time by a sampled bang-bang control.
+    """A linear plant steered to the origin of its phase space in minimum time.
 
-    The plant follows `x'' = a x + u` with `|u| <= 1`: a free particle, `x'' = u`, a harmonic oscillator,
-    `x'' + x = u`, or an unstable saddle, `x'' - x = u`. Pontryagin's maximum principle makes the minimum-time
-    control bang-bang, `u = ±1`, with the switch on the curve of the two trajectories under `u = 1` and `u = -1` that
-    reach the origin: the control is -1 above the curve and 1 below it. As in Dilão's examples, the controller samples
-    the position and the velocity every `interval` and holds the control until the next sample, so the plant reaches
-    a neighbourhood of the origin, whose size shrinks with the interval, and stays there. A free particle from `(x, v)`
-    above the curve reaches the origin at the time `v + 2 sqrt(x + v^2 / 2)`, about 6.47 for the defaults. Only the
-    states between the lines `y = -(x + 1)` and `y = -(x - 1)` of the saddle are controllable, and from the others the
-    plant escapes to infinity.
+    A sampled bang-bang control steers it. The plant follows `x'' = a x + u` with `|u| <= 1`: a free particle,
+    `x'' = u`, a harmonic oscillator, `x'' + x = u`, or an unstable saddle, `x'' - x = u`. Pontryagin's maximum
+    principle makes the minimum-time control bang-bang, `u = ±1`, with the switch on the curve of the two trajectories
+    under `u = 1` and `u = -1` that reach the origin: the control is -1 above the curve and 1 below it. As in Dilão's
+    examples, the controller samples the position and the velocity every `interval` and holds the control until the next
+    sample, so the plant reaches a neighbourhood of the origin, whose size shrinks with the interval, and stays there. A
+    free particle from `(x, v)` above the curve reaches the origin at the time `v + 2 sqrt(x + v^2 / 2)`, about 6.47 for
+    the defaults. Only the states between the lines `y = -(x + 1)` and `y = -(x - 1)` of the saddle are controllable,
+    and from the others the plant escapes to infinity.
 
     The system has the position `plant.x`, the velocity `plant.y`, and the control `plant.u`, which the samples `sample`
     set.

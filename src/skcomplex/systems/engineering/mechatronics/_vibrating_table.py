@@ -1,4 +1,7 @@
-"""Electromagnetic vibrating table: a shaker whose table a supplied electromagnet pulls against a spring."""
+"""Electromagnetic vibrating table: a shaker.
+
+A supplied electromagnet pulls its table against a spring.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,13 +19,13 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class VibratingTableElement(Element):
-    """Electromagnetic vibrating table, a shaker whose table a supplied electromagnet pulls against a spring.
+    """Electromagnetic vibrating table, a shaker.
 
-    The source `u = U sin(omega t)` feeds a resistor `R` and a capacitor `C`, whose voltage `uC` drives the current
-    `i2` of the coil `L` against the back electromotive force `k1 v` of the moving table. The electromagnet pulls the
-    table of mass `m`, held by a spring `K` and a damper `B`, with the force `g(i2) = k2 tan(alpha i2) / alpha`, or with
-    its linearization `k2 i2` at the origin. The states follow `i2' = (uC - k1 v) / L`, `uC' = (u - uC) / (R C) -
-    i2 / C`, `x' = v`, and `m v' = g(i2) - K x - B v`.
+    A supplied electromagnet pulls its table against a spring. The source `u = U sin(omega t)` feeds a resistor `R` and
+    a capacitor `C`, whose voltage `uC` drives the current `i2` of the coil `L` against the back electromotive force
+    `k1 v` of the moving table. The electromagnet pulls the table of mass `m`, held by a spring `K` and a damper `B`,
+    with the force `g(i2) = k2 tan(alpha i2) / alpha`, or with its linearization `k2 i2` at the origin. The states
+    follow `i2' = (uC - k1 v) / L`, `uC' = (u - uC) / (R C) - i2 / C`, `x' = v`, and `m v' = g(i2) - K x - B v`.
 
     Args:
         label:
@@ -128,7 +131,7 @@ class VibratingTableElement(Element):
         self.linear = linear
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rates of the current, the capacitor voltage, and the motion of the table.
+        """Return the rates of the current, the capacitor voltage, and the table motion.
 
         Args:
             s:
@@ -147,20 +150,23 @@ class VibratingTableElement(Element):
         ]
 
     def _force(self, s: SimpleNamespace) -> Expression:
-        """Return the force of the electromagnet, `k2 tan(alpha i2) / alpha`, or its linearization `k2 i2`."""
+        """Return the force of the electromagnet.
+
+        It is `k2 tan(alpha i2) / alpha`, or its linearization `k2 i2`.
+        """
         force: Expression = s.k2 * s.i2 if self.linear else s.k2 * tan(s.alpha * s.i2) / s.alpha
         return force
 
 
 class VibratingTableSystem(BaseSystem):
-    """An electromagnetic vibrating table, a shaker driven by a sinusoidal supply after its switch closes.
+    """An electromagnetic vibrating table, a shaker driven by a sinusoidal supply.
 
-    The source `u = U sin(omega t)` feeds a resistor and a capacitor, whose voltage drives the current `i2` of the coil
-    of an electromagnet against the back electromotive force `k1 v` of the table. The electromagnet pulls the table,
-    held by a spring and a damper, with the force `g(i2) = k2 tan(alpha i2) / alpha`, whose slope `k2` at zero current
-    is the one of Trzaska's linearized model. From rest, a transient of about 8 s dies out and the table vibrates
-    steadily at the supply frequency, and the linearized model, `g(i2) = k2 i2`, gives nearly the same response since
-    the current stays small.
+    The supply drives it after its switch closes. The source `u = U sin(omega t)` feeds a resistor and a capacitor,
+    whose voltage drives the current `i2` of the coil of an electromagnet against the back electromotive force `k1 v` of
+    the table. The electromagnet pulls the table, held by a spring and a damper, with the force
+    `g(i2) = k2 tan(alpha i2) / alpha`, whose slope `k2` at zero current is the one of Trzaska's linearized model. From
+    rest, a transient of about 8 s dies out and the table vibrates steadily at the supply frequency, and the linearized
+    model, `g(i2) = k2 i2`, gives nearly the same response since the current stays small.
 
     The system has the current `shaker.i2`, the capacitor voltage `shaker.uC`, the displacement `shaker.x`, and the
     velocity `shaker.v`.

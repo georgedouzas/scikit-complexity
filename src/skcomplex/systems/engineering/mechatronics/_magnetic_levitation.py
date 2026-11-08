@@ -1,4 +1,7 @@
-"""Magnetic levitation: a conductive ball in a vacuum pushed and pulled by alternating impulses of a field."""
+"""Magnetic levitation: a conductive ball in a vacuum.
+
+Alternating impulses of a field push and pull the ball.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,9 +21,10 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class LevitatedBallElement(Element):
-    """Conductive ball levitated in a vacuum, whose velocity relaxes between the impulses of the levitating field.
+    """Conductive ball levitated in a vacuum.
 
-    Between impulses the velocity follows `v' = -b v`, and every impulse of the field changes it by `m` or `-m`.
+    Its velocity relaxes between the impulses of the levitating field. Between impulses the velocity follows
+    `v' = -b v`, and every impulse of the field changes it by `m` or `-m`.
 
     Args:
         label:
@@ -78,13 +82,15 @@ IMPULSE_PERIOD = 4.0
 
 
 class MagneticLevitationSystem(BaseSystem):
-    """A conductive ball levitated in a vacuum by a field that pushes and pulls it with alternating impulses.
+    """A conductive ball levitated in a vacuum by a field.
 
-    The velocity follows `v' + b v = m Σ_k [δ(t + 1 - 4 k) - δ(t - 1 - 4 k)]`: it relaxes freely, rises by `m` at the
-    times `4 k - 1`, and falls by `m` at the times `4 k + 1`. Its periodic solution, with the triangular wave `τ(t) = (2
-    / π) arcsin(sin(π t / 2))` and the rectangular wave `e(t) = sign(cos(π t / 2))`, is `v = m / (2 cosh b) exp(-b τ(t)
-    e(t)) e(t)`, which the ball follows from the start when it starts at `m / (2 cosh b)`. The system has the velocity
-    `ball.v`, raised by the impulses `push` and lowered by the impulses `pull`.
+    The field pushes and pulls it with alternating impulses. The velocity follows
+    `v' + b v = m Σ_k [δ(t + 1 - 4 k) - δ(t - 1 - 4 k)]`: it relaxes freely, rises by `m` at the times `4 k - 1`, and
+    falls by `m` at the times `4 k + 1`. Its periodic solution, with the triangular wave
+    `τ(t) = (2 / π) arcsin(sin(π t / 2))` and the rectangular wave `e(t) = sign(cos(π t / 2))`, is
+    `v = m / (2 cosh b) exp(-b τ(t) e(t)) e(t)`, which the ball follows from the start when it starts at
+    `m / (2 cosh b)`. The system has the velocity `ball.v`, raised by the impulses `push` and lowered by the impulses
+    `pull`.
 
     Args:
         v:

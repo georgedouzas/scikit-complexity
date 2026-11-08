@@ -1,4 +1,7 @@
-"""Regulation systems: plants with bounded control inputs that feedback controllers keep at a set point."""
+"""Regulation systems: plants with bounded control inputs kept at a set point.
+
+Feedback controllers keep the plants at the set point.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -28,10 +31,10 @@ FORCE_LIMIT = 50.0
 
 
 class CartPendulumElement(Element):
-    """Inverted pendulum on a cart that a bounded horizontal force pushes, after Åström and Murray.
+    """Inverted pendulum on a cart that a bounded horizontal force pushes.
 
-    The cart of mass `M` at position `x` carries a point mass `m` at the end of a rod of length `l`, at the angle
-    `theta` from upright, positive towards negative `x`. The equations of motion are
+    It follows Åström and Murray. The cart of mass `M` at position `x` carries a point mass `m` at the end of a rod of
+    length `l`, at the angle `theta` from upright, positive towards negative `x`. The equations of motion are
     `(M + m) x'' - m l theta'' cos(theta) + m l theta'^2 sin(theta) = force` and
     `l theta'' - x'' cos(theta) = g sin(theta)`, so upright is unstable and a positive force tilts the pendulum back
     from a positive angle.
@@ -129,7 +132,9 @@ class CartPendulumElement(Element):
 
 
 class DrivenOscillatorElement(Element):
-    """Damped harmonic oscillator that a bounded force drives, `x'' = -omega^2 x - 2 zeta omega x' + force`.
+    """Damped harmonic oscillator that a bounded force drives.
+
+    It follows `x'' = -omega^2 x - 2 zeta omega x' + force`.
 
     Args:
         label:
@@ -224,14 +229,14 @@ class IntegratorElement(Element):
 
 
 class PIDInteraction(Interaction):
-    """Proportional-integral-derivative controller that sets a control input of a plant from the error of a measure.
+    """Proportional-integral-derivative controller of a control input of a plant.
 
-    The error is `e = setpoint - y` for the measured state `y`, and the controller sets the control input to
-    `u = kp e + ki I - kd y'`, clipped to the limits, with the derivative taken on the measure. The integral
-    `I' = e` of the error lives in an `IntegratorElement` bound to the role `integrator`. The control input is an
-    adaptive parameter of the plant, which the controller sets after every solver step, so it holds within a step like a
-    sampled controller. The derivative term reads the first derivative of the measure, so a measure with a derivative
-    term is a state of order 2.
+    It sets the control input from the error of a measure. The error is `e = setpoint - y` for the measured state `y`,
+    and the controller sets the control input to `u = kp e + ki I - kd y'`, clipped to the limits, with the derivative
+    taken on the measure. The integral `I' = e` of the error lives in an `IntegratorElement` bound to the role
+    `integrator`. The control input is an adaptive parameter of the plant, which the controller sets after every solver
+    step, so it holds within a step like a sampled controller. The derivative term reads the first derivative of the
+    measure, so a measure with a derivative term is a state of order 2.
 
     Args:
         label:
@@ -320,11 +325,11 @@ class PIDInteraction(Interaction):
 
 
 class StateFeedbackInteraction(Interaction):
-    """Linear state feedback `u = -K x` that sets a control input of a plant from its states.
+    """Linear state feedback `u = -K x` of a control input of a plant.
 
-    The control input is an adaptive parameter of the plant, which the controller sets after every solver step, so it
-    holds within a step like a sampled controller. A gain from `linearization` of the plant makes the
-    controller a linear-quadratic regulator.
+    It sets the control input from the states of the plant. The control input is an adaptive parameter of the plant,
+    which the controller sets after every solver step, so it holds within a step like a sampled controller. A gain from
+    `linearization` of the plant makes the controller a linear-quadratic regulator.
 
     Args:
         label:

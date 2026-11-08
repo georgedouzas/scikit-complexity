@@ -1,4 +1,7 @@
-"""Langevin traffic: cars that relax with noise to a speed set by the local density, and their density equations."""
+"""Langevin traffic: cars that relax with noise to a speed, and density equations.
+
+The equations are those of the density of the cars. The speed is set by the local density.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,7 +26,10 @@ from ..common._optimal_velocity import OptimalVelocityInteraction
 
 
 class TrafficMomentsElement(Element):
-    """Density `rho` and flow `w` of Langevin traffic on a road, the first two moments of its speeds."""
+    """Density `rho` and flow `w` of Langevin traffic on a road.
+
+    They are the first two moments of its speeds.
+    """
 
     law_classes = (RateLaw,)
 
@@ -66,11 +72,12 @@ class TrafficMomentsElement(Element):
 
 
 class LangevinDrivingInteraction(RelaxationInteraction):
-    """Relaxation of the speed of every car of a ring road towards the speed of its local density, with noise.
+    """Relaxation of the speed of every car of a ring road, with noise.
 
-    The speed follows `dv = -gamma (v - u(rho)) dt + sqrt(2 D1 rho) dW`, with the desired speed
-    `u(rho) = u0 (1 - rho / rho_max)` of the density `rho`, the inverse of the headway to the next car, an
-    Ornstein-Uhlenbeck relaxation over the time `1 / gamma` with a noise that grows with the density.
+    The speed relaxes towards the speed of the local density. The speed follows
+    `dv = -gamma (v - u(rho)) dt + sqrt(2 D1 rho) dW`, with the desired speed `u(rho) = u0 (1 - rho / rho_max)` of the
+    density `rho`, the inverse of the headway to the next car, an Ornstein-Uhlenbeck relaxation over the time
+    `1 / gamma` with a noise that grows with the density.
 
     Args:
         label:
@@ -147,15 +154,15 @@ class LangevinDrivingInteraction(RelaxationInteraction):
 
 
 class LangevinTrafficSystem(BaseSystem):
-    """Cars on a ring road whose speeds relax with noise towards a desired speed set by the local density.
+    """Cars on a ring road whose speeds relax with noise towards a desired speed.
 
-    Car `i` follows `dv_i = -gamma (v_i - u(rho_i)) dt + sqrt(2 D(rho_i)) dW` with the desired speed
-    `u(rho) = u0 (1 - rho / rho_max)` and the noise intensity `D(rho) = D1 rho`, where the local density `rho_i` is the
-    inverse of the headway to the car ahead. Cars start evenly spaced at the speed `u(rho)` of the mean density
-    `rho = n_cars / length`. The mean speed stays at `u(rho)`, so the mean flow follows the fundamental diagram
-    `rho u(rho)`, and the speeds fluctuate with the variance `D1 rho / gamma`. The uniform flow is linearly stable while
-    `u0 rho^2 / rho_max < gamma / 2`, as for the optimal velocity system. Strong noise lets cars pass each other, and
-    the headway of a car that has passed the car ahead wraps around the ring.
+    The local density sets the desired speed. Car `i` follows `dv_i = -gamma (v_i - u(rho_i)) dt + sqrt(2 D(rho_i)) dW`
+    with the desired speed `u(rho) = u0 (1 - rho / rho_max)` and the noise intensity `D(rho) = D1 rho`, where the local
+    density `rho_i` is the inverse of the headway to the car ahead. Cars start evenly spaced at the speed `u(rho)` of
+    the mean density `rho = n_cars / length`. The mean speed stays at `u(rho)`, so the mean flow follows the fundamental
+    diagram `rho u(rho)`, and the speeds fluctuate with the variance `D1 rho / gamma`. The uniform flow is linearly
+    stable while `u0 rho^2 / rho_max < gamma / 2`, as for the optimal velocity system. Strong noise lets cars pass each
+    other, and the headway of a car that has passed the car ahead wraps around the ring.
 
     The system has the group `cars` of positions `cars.x` and speeds `cars.v`, car `i + 1` ahead of car `i`.
 
@@ -236,16 +243,16 @@ class LangevinTrafficSystem(BaseSystem):
 
 
 class TrafficDensityEquationSystem(BaseSystem):
-    """The density and flux equations of Langevin traffic on a ring road, whose uniform flow breaks into jams.
+    """The density and flux equations of Langevin traffic on a ring road.
 
-    The density `rho` and the flux `w` of cars that relax to the desired speed `u(rho) = u0 (1 - rho / rho_max)` at
-    the rate `gamma`, with the diffusion coefficient `D(rho) = D1 rho`, follow the moment equations
-    `rho_t + w_x = (D rho_x)_x` and `w_t + (2 u w - rho u^2)_x = -gamma (w - rho u) + (D w_x)_x`, closed by expanding
-    the velocity distribution around `u(rho)`. A long density wave of the uniform flow grows when the effective
-    diffusion coefficient `D(rho) + ((rho u^2)' - (rho u)'^2) / gamma = D(rho) - rho^2 u'(rho)^2 / gamma` is negative,
-    so the flow is unstable above the density `D1 gamma rho_max^2 / u0^2`, and the perturbation grows into dense jams.
-    The uniform density starts with independent Gaussian perturbations of relative size
-    `perturbation` in every cell, at the flux `rho u(rho)`.
+    Their uniform flow breaks into jams. The density `rho` and the flux `w` of cars that relax to the desired speed
+    `u(rho) = u0 (1 - rho / rho_max)` at the rate `gamma`, with the diffusion coefficient `D(rho) = D1 rho`, follow the
+    moment equations `rho_t + w_x = (D rho_x)_x` and `w_t + (2 u w - rho u^2)_x = -gamma (w - rho u) + (D w_x)_x`,
+    closed by expanding the velocity distribution around `u(rho)`. A long density wave of the uniform flow grows when
+    the effective diffusion coefficient `D(rho) + ((rho u^2)' - (rho u)'^2) / gamma = D(rho) - rho^2 u'(rho)^2 / gamma`
+    is negative, so the flow is unstable above the density `D1 gamma rho_max^2 / u0^2`, and the perturbation grows into
+    dense jams. The uniform density starts with independent Gaussian perturbations of relative size `perturbation` in
+    every cell, at the flux `rho u(rho)`.
 
     The system has the density `road.rho` and the flux `road.w`.
 

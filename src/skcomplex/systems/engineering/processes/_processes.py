@@ -1,4 +1,7 @@
-"""Process systems: stocks of material that flows in, out, and between stages."""
+"""Process systems: stocks of material that flows between stages.
+
+The material flows in, out, and between stages.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -43,7 +46,10 @@ INFLOW_START = 5.0
 
 
 class TubElement(Element):
-    """Tub of water, a stock filled by a faucet that opens after five minutes and emptied by a drain."""
+    """Tub of water, a stock filled by a faucet and emptied by a drain.
+
+    The faucet opens after five minutes.
+    """
 
     law_classes = (TransferLaw,)
 
@@ -70,12 +76,12 @@ class TubElement(Element):
 
 
 class BathtubSystem(BaseSystem):
-    """A bathtub, one stock of water with an inflow from the faucet and an outflow through the drain.
+    """A bathtub, one stock of water with an inflow and an outflow.
 
-    The drain empties the tub at `outflow` gallons per minute while there is water, and the faucet opens to `inflow`
-    gallons per minute after five minutes. With equal flows the level falls for five minutes and then stays constant.
-    The system has the water `tub.water` in gallons and the flows `tub.faucet` and `tub.drain` in gallons per minute,
-    over minutes.
+    The inflow is from the faucet and the outflow is through the drain. The drain empties the tub at `outflow` gallons
+    per minute while there is water, and the faucet opens to `inflow` gallons per minute after five minutes. With equal
+    flows the level falls for five minutes and then stays constant. The system has the water `tub.water` in gallons and
+    the flows `tub.faucet` and `tub.drain` in gallons per minute, over minutes.
 
     Args:
         water:
@@ -124,11 +130,12 @@ class BathtubSystem(BaseSystem):
 
 
 class CascadeClassifierSystem(BaseSystem):
-    """A cascade classifier, a column of stages that separates a narrow size class of particles by an air flow.
+    """A cascade classifier, a column of stages that separates particles.
 
-    Material leaves every stage at unit rate, a fraction `k` upwards and `1 - k` downwards. The top stage releases
-    into the fine product and the bottom stage into the coarse product. Material of one size class is fed into one
-    stage at a constant rate. At steady state the share of the feed that ends in the fine product is
+    An air flow separates them. The particles separated are of a narrow size class. Material leaves every stage at unit
+    rate, a fraction `k` upwards and `1 - k` downwards. The top stage releases into the fine product and the bottom
+    stage into the coarse product. Material of one size class is fed into one stage at a constant rate. At steady state
+    the share of the feed that ends in the fine product is
     `F_f = (1 - ((1 - k) / k)^(z + 1 - i)) / (1 - ((1 - k) / k)^(z + 1))` for `z` stages and feeding at stage `i`
     counted from the top, Barsky's fractional extraction.
 

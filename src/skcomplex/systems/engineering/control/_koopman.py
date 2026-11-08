@@ -1,4 +1,7 @@
-"""Model predictive control of nonlinear plants through linear surrogates fitted by mode decomposition with control."""
+"""Model predictive control of nonlinear plants through linear surrogates.
+
+The surrogates are fitted by mode decomposition with control.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -33,9 +36,10 @@ MOTOR_LA, MOTOR_RA, MOTOR_KM, MOTOR_J, MOTOR_B, MOTOR_TAU, MOTOR_UA = 0.314, 12.
 
 
 def _duffing_rates(s: SimpleNamespace, *, limit: float, step: float) -> tuple[Expression, Expression]:
-    """Return the rates per sample of the forced Duffing oscillator of the review of Brunton et al., figure 6.6.
+    """Return the rates per sample of the forced Duffing oscillator.
 
-    The second derivative is `x'' = a x + b x^3 + d x' + f cos(w t) + (3 + cos(x)) u`.
+    The oscillator is that of the review of Brunton et al., figure 6.6. The second derivative is
+    `x'' = a x + b x^3 + d x' + f cos(w t) + (3 + cos(x)) u`.
     """
     plant, control = s.target, limit * s.sources[0].u
     force = DUFFING_FORCE * cos(DUFFING_FREQUENCY * step * s.t)
@@ -45,14 +49,20 @@ def _duffing_rates(s: SimpleNamespace, *, limit: float, step: float) -> tuple[Ex
 
 
 def _van_der_pol_rates(s: SimpleNamespace, *, limit: float, step: float) -> tuple[Expression, Expression]:
-    """Return the rates per sample of the Van der Pol oscillator, `x'' = mu (1 - x^2) x' - x + u`."""
+    """Return the rates per sample of the Van der Pol oscillator.
+
+    The oscillator is `x'' = mu (1 - x^2) x' - x + u`.
+    """
     plant, control = s.target, limit * s.sources[0].u
     acceleration = VAN_DER_POL_MU * (1 - plant.x**2) * plant.y - plant.x + control
     return step * plant.y, step * acceleration
 
 
 def _motor_rates(s: SimpleNamespace, *, limit: float, step: float) -> tuple[Expression, Expression]:
-    """Return the rates per sample of the current and the angular velocity of a bilinear DC motor."""
+    """Return the rates per sample of a bilinear DC motor.
+
+    They are the rates of the current and the angular velocity.
+    """
     plant, control = s.target, limit * s.sources[0].u
     current = -MOTOR_RA / MOTOR_LA * plant.x - MOTOR_KM / MOTOR_LA * plant.y * control + MOTOR_UA / MOTOR_LA
     velocity = -MOTOR_B / MOTOR_J * plant.y + MOTOR_KM / MOTOR_J * plant.x * control - MOTOR_TAU / MOTOR_J
@@ -81,7 +91,10 @@ def _symbolic_cosine_reference(time: Expression) -> Expression:
 
 @dataclass(frozen=True)
 class _PlantCase:
-    """Plant of the system with its rates, sampling, input limit, start domain, horizon, weight, and reference."""
+    """Plant of the system with its rates and its control settings.
+
+    The settings are the sampling, input limit, start domain, horizon, weight, and reference.
+    """
 
     rates: Callable[..., tuple[Expression, Expression]]
     step: float
@@ -122,7 +135,9 @@ PLANTS = {
 
 
 class ControlInputElement(Element):
-    """Control input that a plant reads, a bounded adaptive parameter scaled to the interval from -1 to 1.
+    """Control input that a plant reads, a bounded adaptive parameter.
+
+    It is scaled to the interval from -1 to 1.
 
     Args:
         label:
@@ -187,7 +202,10 @@ class PlantStateElement(Element):
 
 
 class _PredictiveProblem:
-    """Quadratic tracking problem over a horizon on a fitted linear surrogate, condensed to a bounded least squares."""
+    """Quadratic tracking problem over a horizon on a fitted linear surrogate.
+
+    It is condensed to a bounded least squares.
+    """
 
     def __init__(
         self,
@@ -207,7 +225,9 @@ class _PredictiveProblem:
         self.reference = reference
 
     def prepare(self) -> "_PredictiveProblem":
-        """Set the rows that give the outputs over the horizon from the first state and from the inputs.
+        """Set the rows that give the outputs over the horizon.
+
+        The outputs follow from the first state and from the inputs.
 
         Returns:
             problem:
@@ -227,7 +247,9 @@ class _PredictiveProblem:
         return self
 
     def control(self, t: float, *states: float) -> float:
-        """Return the first input of the solution of the tracking problem from states at a time in samples.
+        """Return the first input of the solution of the tracking problem.
+
+        The problem is read from states at a time in samples.
 
         Args:
             t:
@@ -250,7 +272,10 @@ class _PredictiveProblem:
 
 
 def _plant_interactions(case: _PlantCase, target: str, source: str) -> list[RateInteraction]:
-    """Return the rates of the two variables of a plant that reads its input from a source."""
+    """Return the rates of the two variables of a plant.
+
+    The plant reads its input from a source.
+    """
     rates = functools.partial(case.rates, limit=case.limit, step=case.step)
     return [
         RateInteraction(
@@ -275,7 +300,10 @@ def _rate_at(
 
 
 def _run_training(case: _PlantCase, duration: int, rng: np.random.Generator) -> Trajectory:
-    """Return a run of the plant under a random binary input drawn every sample, from a random state."""
+    """Return a run of the plant under a random binary input.
+
+    The input is drawn every sample, from a random state.
+    """
     system = System(
         elements=[
             PlantStateElement('plant', x=rng.uniform(case.low, case.high), y=rng.uniform(case.low, case.high)),
@@ -304,14 +332,14 @@ def _reference(s: SimpleNamespace, *, step: float, symbolic: Callable[[Expressio
 
 
 class KoopmanModelPredictiveControlSystem(BaseSystem):
-    """A plant that a discrete-time controller steers with model predictive control on a fitted surrogate.
+    """A plant that a discrete-time controller steers with model predictive control.
 
-    The system runs the plant under a random binary input at the limits of its range, drawn every sample, and fits
-    `mode_decomposition` with the input to the runs. The controller lifts the states with the dictionary,
-    condenses the quadratic tracking cost over the horizon with the matrices of the surrogate, solves the bounded least
-    squares problem with `scipy.optimize.lsq_linear`, and sets the input to the first value of the solution. The
-    plant reads the input through a role, and `CoSimulationSolver` holds it between samples. The plants are those of
-    figure 6.6 of the review of Brunton et al.: the forced Duffing oscillator
+    The control runs on a fitted surrogate. The system runs the plant under a random binary input at the limits of its
+    range, drawn every sample, and fits `mode_decomposition` with the input to the runs. The controller lifts the states
+    with the dictionary, condenses the quadratic tracking cost over the horizon with the matrices of the surrogate,
+    solves the bounded least squares problem with `scipy.optimize.lsq_linear`, and sets the input to the first value of
+    the solution. The plant reads the input through a role, and `CoSimulationSolver` holds it between samples. The
+    plants are those of figure 6.6 of the review of Brunton et al.: the forced Duffing oscillator
     `x'' = a x + b x^3 + d x' + f cos(w t) + (3 + cos(x)) u`, the Van der Pol oscillator
     `x'' = -x - mu (x^2 - 1) x' + u`, and the bilinear DC motor, whose second variable is the output that tracks the
     reference. The motor reads four times the input, as Korda and Mezić scale it. One time unit of the system is one
@@ -391,7 +419,10 @@ class KoopmanModelPredictiveControlSystem(BaseSystem):
 
     @staticmethod
     def _hold(s: SimpleNamespace, *, problem: _PredictiveProblem | None) -> object:
-        """Return the next input of the controller, the solution of the tracking problem or 0 without one."""
+        """Return the next input of the controller.
+
+        It is the solution of the tracking problem, or 0 without one.
+        """
         if problem is None:
             return 0.0
         plant = s.sources[0]
@@ -405,7 +436,10 @@ class KoopmanModelPredictiveControlSystem(BaseSystem):
         duration: int,
         random_state: int | np.random.Generator | None,
     ) -> _PredictiveProblem:
-        """Return the tracking problem of a plant on the surrogate fitted to its training runs."""
+        """Return the tracking problem of a plant on its fitted surrogate.
+
+        The surrogate is fitted to its training runs.
+        """
         rng = np.random.default_rng(random_state)
         surrogate = mode_decomposition(
             [_run_training(case, duration, rng) for _ in range(n_runs)],

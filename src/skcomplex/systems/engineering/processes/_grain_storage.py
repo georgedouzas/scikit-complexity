@@ -1,4 +1,7 @@
-"""Grain storage: a retail grain store whose orders through a supply line make its stock oscillate."""
+"""Grain storage: a retail grain store whose stock oscillates.
+
+Its orders through a supply line make the stock oscillate.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,12 +19,12 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class GrainStoreElement(Element):
-    """Retail grain store, whose stock is restocked from grain on order through a receiving delay.
+    """Retail grain store, whose stock is restocked from grain on order.
 
-    Grain on order arrives in the stock at the receiving rate `on_order / receiving_delay`, and the stock releases the
-    fraction `release_fraction` of itself per unit time to the consumers. The procurement rate
-    `(desired_stock - stock) / adjustment_delay` adds grain on order, and it is negative when the stock exceeds the
-    desired stock, which cancels orders.
+    The grain on order arrives through a receiving delay. Grain on order arrives in the stock at the receiving rate
+    `on_order / receiving_delay`, and the stock releases the fraction `release_fraction` of itself per unit time to the
+    consumers. The procurement rate `(desired_stock - stock) / adjustment_delay` adds grain on order, and it is negative
+    when the stock exceeds the desired stock, which cancels orders.
 
     Args:
         label:
@@ -95,7 +98,10 @@ class GrainStoreElement(Element):
 
     @staticmethod
     def _procurement(s: SimpleNamespace) -> Expression:
-        """Return the procurement rate, the gap to the desired stock over the adjustment delay."""
+        """Return the procurement rate.
+
+        It is the gap to the desired stock over the adjustment delay.
+        """
         procurement: Expression = (s.desired_stock - s.stock) / s.adjustment_delay
         return procurement
 
@@ -107,16 +113,16 @@ class GrainStoreElement(Element):
 
 
 class GrainStorageSystem(BaseSystem):
-    """A retail grain store, whose orders through a supply line make its stock oscillate.
+    """A retail grain store, whose stock oscillates.
 
-    The grain stock gains the receiving rate `on_order / receiving_delay` and loses the release rate
-    `release_fraction stock`, and the grain on order gains the procurement rate
-    `(desired_stock - stock) / adjustment_delay` and loses the receiving rate. The orders ignore the grain already on
-    order, so the supply line overshoots and the stock, the receiving rate, and the procurement oscillate in weeks
-    before they settle, with the stock below the desired one at
-    `desired_stock / (1 + release_fraction adjustment_delay)`, 5333 tonnes for the defaults, where the release
-    balances the receiving. The defaults are those of the grain storage example of Bala, Arshad and Noh (2017), in
-    tonnes and weeks.
+    Its orders through a supply line make the stock oscillate. The grain stock gains the receiving rate
+    `on_order / receiving_delay` and loses the release rate `release_fraction stock`, and the grain on order gains the
+    procurement rate `(desired_stock - stock) / adjustment_delay` and loses the receiving rate. The orders ignore the
+    grain already on order, so the supply line overshoots and the stock, the receiving rate, and the procurement
+    oscillate in weeks before they settle, with the stock below the desired one at
+    `desired_stock / (1 + release_fraction adjustment_delay)`, 5333 tonnes for the defaults, where the release balances
+    the receiving. The defaults are those of the grain storage example of Bala, Arshad and Noh (2017), in tonnes and
+    weeks.
 
     The system has the stocks `store.stock` and `store.on_order` in tonnes, and the flows `store.procurement`,
     `store.receiving`, and `store.release` in tonnes per week, over weeks.

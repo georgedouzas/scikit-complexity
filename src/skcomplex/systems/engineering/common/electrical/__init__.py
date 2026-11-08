@@ -1,4 +1,7 @@
-"""Electrical realizations shared by the engineering packages: the connector of a pin and circuit components."""
+"""Electrical realizations shared by the engineering packages.
+
+They are the connector of a pin and circuit components.
+"""
 
 from ._components import (
     ELECTRICAL,

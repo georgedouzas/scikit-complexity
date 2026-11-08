@@ -26,7 +26,10 @@ CHANGE_TIME = 20.0
 
 
 class ControlledProcessElement(Element):
-    """First-order process under a PID controller whose derivative term is solved into the time constant."""
+    """First-order process under a PID controller.
+
+    The derivative term of the controller is solved into the time constant.
+    """
 
     law_classes = (RateLaw,)
 
@@ -75,7 +78,10 @@ class ControlledProcessElement(Element):
 
     @staticmethod
     def _error(s: SimpleNamespace) -> Expression:
-        """Return the error of the controlled process, the set point after its change less the output."""
+        """Return the error of the controlled process.
+
+        It is the set point after its change less the output.
+        """
         return s.setpoint + s.change * step(s.t, CHANGE_TIME) - s.y
 
 
@@ -83,7 +89,10 @@ HOURS_PER_DAY = 24.0
 
 
 class RoomElement(Element):
-    """Room heated by a furnace towards a setting and leaking heat to an outside temperature with a daily swing."""
+    """Room heated by a furnace towards a setting.
+
+    It leaks heat to an outside temperature with a daily swing.
+    """
 
     law_classes = (RateLaw,)
 
@@ -119,7 +128,10 @@ class RoomElement(Element):
 
 
 class SatelliteElement(Element):
-    """Satellite on a planar Kepler orbit whose radial thrust moves it to an orbit of a final energy."""
+    """Satellite on a planar Kepler orbit moved by radial thrust.
+
+    The thrust moves it to an orbit of a final energy.
+    """
 
     law_classes = (RateLaw,)
 
@@ -152,17 +164,26 @@ class SatelliteElement(Element):
 
     @staticmethod
     def _satellite_energy(s: SimpleNamespace) -> Expression:
-        """Return the total effective energy of the satellite, `s'^2 / 2 + L_z^2 / (2 s^2) - 1 / s`."""
+        """Return the total effective energy of the satellite.
+
+        It is `s'^2 / 2 + L_z^2 / (2 s^2) - 1 / s`.
+        """
         return derivative(s.s, 1) ** 2 / 2 + s.Lz**2 / (2 * s.s**2) - 1 / s.s
 
     @staticmethod
     def _thrust_direction(s: SimpleNamespace) -> Expression:
-        """Return the thrust `sigma`: inwards while the satellite falls, outwards while it rises, to the end energy."""
+        """Return the thrust `sigma`.
+
+        It points inwards while the satellite falls, outwards while it rises, to the end energy.
+        """
         return where(SatelliteElement._satellite_energy(s) < s.H_final, where(derivative(s.s, 1) < 0, 1, -1), 0)
 
 
 class SwingingPendulumElement(Element):
-    """Pendulum swung up by a bang-bang control of its energy, with `f` integrating the control."""
+    """Pendulum swung up by a bang-bang control of its energy.
+
+    The state `f` integrates the control.
+    """
 
     law_classes = (RateLaw,)
 
@@ -203,7 +224,10 @@ class SwingingPendulumElement(Element):
 
     @staticmethod
     def _swing_up_control(s: SimpleNamespace) -> Expression:
-        """Return the bang-bang control `u = -μ sign(θ' cos θ) sign(E_s - E)` of the energy of the pendulum."""
+        """Return the bang-bang control of the energy of the pendulum.
+
+        It is `u = -μ sign(θ' cos θ) sign(E_s - E)`.
+        """
         gap = s.omega**2 - SwingingPendulumElement._pendulum_energy(s)
         return -s.mu * sign(derivative(s.theta, 1) * cos(s.theta)) * sign(gap)
 
@@ -266,7 +290,9 @@ class HeatCapacityElement(Element):
 
 
 class ThermalConductorElement(Element):
-    """Conductor between two ports, with the heat flow `a_Q = G (a_T - b_T)` and `a_Q + b_Q = 0`.
+    """Conductor between two ports.
+
+    It has the heat flow `a_Q = G (a_T - b_T)` and `a_Q + b_Q = 0`.
 
     Args:
         label:
@@ -324,7 +350,9 @@ class ThermalConductorElement(Element):
 
 
 class ConvectionElement(Element):
-    """Surface that exchanges heat with a fluid of a fixed temperature, with `a_Q = h (a_T - fluid)`.
+    """Surface that exchanges heat with a fluid of a fixed temperature.
+
+    It has `a_Q = h (a_T - fluid)`.
 
     Args:
         label:
@@ -377,9 +405,10 @@ class ConvectionElement(Element):
 
 
 class HeatingResistorElement(TwoPinElement):
-    """Resistor that delivers its electric power to a thermal port `h` while its switch `on` is closed.
+    """Resistor that delivers its electric power to a thermal port `h`.
 
-    The current is `on (p_v - n_v) / R`, and the heat flow into the thermal port is `-(p_v - n_v) p_i`.
+    It delivers the power while its switch `on` is closed. The current is `on (p_v - n_v) / R`, and the heat flow into
+    the thermal port is `-(p_v - n_v) p_i`.
 
     Args:
         label:
@@ -544,13 +573,14 @@ class ThermostatSystem(BaseSystem):
 
 
 class PidLoopSystem(BaseSystem):
-    """A work process whose output a PID controller keeps at a set point against a disturbance.
+    """A work process whose output a PID controller keeps at a set point.
 
-    The output follows the first-order process `τ y' = -y + gain u + d(t)`, and the controller sets `u = Kp e + Ki ∫ e
-    dt - Kd y'` from the error `e = r(t) - y`, with the derivative taken on the output, so `(τ + gain Kd) y' = -y + gain
-    (Kp e + Ki ∫ e dt) + d(t)`. The disturbance `d` steps in at time 10, and a coordinator moves the set point `r` by
-    `change` at time 20. The integral action removes the error that the disturbance leaves under proportional control
-    alone. The system has the output `process.y` and the integral of the error `process.integral`.
+    The controller acts against a disturbance. The output follows the first-order process `τ y' = -y + gain u + d(t)`,
+    and the controller sets `u = Kp e + Ki ∫ e dt - Kd y'` from the error `e = r(t) - y`, with the derivative taken on
+    the output, so `(τ + gain Kd) y' = -y + gain (Kp e + Ki ∫ e dt) + d(t)`. The disturbance `d` steps in at time 10,
+    and a coordinator moves the set point `r` by `change` at time 20. The integral action removes the error that the
+    disturbance leaves under proportional control alone. The system has the output `process.y` and the integral of the
+    error `process.integral`.
 
     Args:
         y:
@@ -639,12 +669,13 @@ class PidLoopSystem(BaseSystem):
 
 
 class PendulumSwingUpSystem(BaseSystem):
-    """A pendulum swung up to its inverted position by a bang-bang acceleration of its pivot.
+    """A pendulum swung up to its inverted position.
 
-    The pivot of an acrobat's pendulum moves horizontally with acceleration `f'' = u`, so the pendulum follows `θ'' +
-    ω^2 sin θ + u cos θ = 0`. The control `u = -μ sign(θ' cos θ) sign(E_s - E)` pumps the energy `E = θ'^2 / 2 - ω^2 cos
-    θ` towards `E_s = ω^2`, the energy of the inverted position, from below or from above. The system has the angle
-    `pendulum.theta`, the position of the pivot `pendulum.f`, and their velocities.
+    A bang-bang acceleration of its pivot swings it up. The pivot of an acrobat's pendulum moves horizontally with
+    acceleration `f'' = u`, so the pendulum follows `θ'' + ω^2 sin θ + u cos θ = 0`. The control
+    `u = -μ sign(θ' cos θ) sign(E_s - E)` pumps the energy `E = θ'^2 / 2 - ω^2 cos θ` towards `E_s = ω^2`, the energy of
+    the inverted position, from below or from above. The system has the angle `pendulum.theta`, the position of the
+    pivot `pendulum.f`, and their velocities.
 
     Args:
         theta:
@@ -705,13 +736,13 @@ class PendulumSwingUpSystem(BaseSystem):
 
 
 class SatelliteTransferSystem(BaseSystem):
-    """A satellite moved between Kepler orbits of equal angular momentum by radial thrust.
+    """A satellite moved between Kepler orbits by radial thrust.
 
-    In normalised polar coordinates the satellite follows `s'' = L_z^2 / s^3 - 1 / s^2 - ε sigma` and
-    `θ' = L_z / s^2`. Radial thrust keeps the angular momentum and changes the effective energy
-    `H = s'^2 / 2 + L_z^2 / (2 s^2) - 1 / s` at the rate `-ε sigma s'`, so the controller pushes inwards, `sigma = 1`,
-    while the satellite falls and outwards, `sigma = -1`, while it rises, until `H` reaches the final energy. From the
-    periapsis of the orbit with `H = -0.7`, the transfer to `H = -0.2` takes about 9.81.
+    The orbits have equal angular momentum. In normalised polar coordinates the satellite follows
+    `s'' = L_z^2 / s^3 - 1 / s^2 - ε sigma` and `θ' = L_z / s^2`. Radial thrust keeps the angular momentum and changes
+    the effective energy `H = s'^2 / 2 + L_z^2 / (2 s^2) - 1 / s` at the rate `-ε sigma s'`, so the controller pushes
+    inwards, `sigma = 1`, while the satellite falls and outwards, `sigma = -1`, while it rises, until `H` reaches the
+    final energy. From the periapsis of the orbit with `H = -0.7`, the transfer to `H = -0.2` takes about 9.81.
 
     The system has the distance `satellite.s`, the radial velocity `satellite.s_d1`, the angle `satellite.theta`, and
     the observable `energy`.
@@ -786,12 +817,12 @@ class SatelliteTransferSystem(BaseSystem):
 
 
 class HeatedRoomSystem(BaseSystem):
-    """A room assembled from thermal and electrical components, heated under a thermostat with hysteresis.
+    """A room assembled from thermal and electrical components.
 
-    A voltage source drives a heating resistor whose heat enters the room, and the room loses heat through a wall of its
-    own heat capacity to the outside air. The thermostat opens the switch of the resistor when the room rises through
-    `setting + band / 2` and closes it when the room falls through `setting - band / 2`. The system has the room
-    temperature `room.T` and the switch `heater.on`, in seconds.
+    It is heated under a thermostat with hysteresis. A voltage source drives a heating resistor whose heat enters the
+    room, and the room loses heat through a wall of its own heat capacity to the outside air. The thermostat opens the
+    switch of the resistor when the room rises through `setting + band / 2` and closes it when the room falls through
+    `setting - band / 2`. The system has the room temperature `room.T` and the switch `heater.on`, in seconds.
 
     Args:
         T:
