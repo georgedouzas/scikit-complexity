@@ -13,7 +13,7 @@ from sage.modules.free_module_element import FreeModuleElement
 from scipy import stats
 
 from ...components.laws import BaseLaw, UpdateLaw
-from ...components.laws.utils import clip, draws_in, logistic, stop_gradient, where
+from ...components.laws.utils import clip, draws_in, logistic, reductions_in, stop_gradient, where
 from ...errors import ValidationError
 from ...specs import CallSpec, DrawSpec, EntrySpec, NamedDrawSpec, NeighborReadSpec, SampledDrawSpec
 from ...types import Array, Indices
@@ -322,10 +322,13 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
     ) -> Callable[[float, Array, Array], list[Array]] | None:
         """Return the function of the values of the arguments of a draw.
 
-        It is `None` when they read a symbol that is not a state or a parameter of the member.
+        It is `None` when they read a symbol that is not a state or a parameter of the member, or reduce over other
+        members, such as the mean of a group.
         """
         time = self.time_
         arguments = [DrawLowering._lowered(SR(item), request.slots) for item in draw.arguments]
+        if any(reductions_in(item) for item in arguments):
+            return None
         symbols = sorted(symbols_of(arguments) - {time}, key=str)
         found = [self._reference_of(item, request.spec) for item in symbols]
         readers = [
