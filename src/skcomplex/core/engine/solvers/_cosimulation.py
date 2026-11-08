@@ -112,7 +112,7 @@ class CoSimulationSolver(Solver):
         ...     ],
         ... )
         >>> trajectory = simulate(system, until=1, solver=CoSimulationSolver(split=True), dt=0.5)
-        >>> [round(float(trajectory.values(name)[-1]), 2) for name in ('a.x.n', 'b.y.n')]
+        >>> [round(float(trajectory.values(name)[-1]), 2) for name in ('a/x.n', 'b/y.n')]
         [2.72, 2.72]
     """
 

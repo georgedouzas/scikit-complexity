@@ -142,7 +142,7 @@ class Simulation(BaseConfig[None, float]):
     Examples:
         >>> from skcomplex.core.components.system import System
         >>> from skcomplex.systems.biology.common.populations import LogisticGrowthInteraction, PopulationElement
-        >>> from skcomplex.core.engine.runtime import Simulation
+        >>> from skcomplex.core.engine.runtime._simulations import Simulation
         >>> system = System(
         ...     elements=[PopulationElement('rabbits', n=10)],
         ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
@@ -565,7 +565,7 @@ class Simulation(BaseConfig[None, float]):
         Examples:
             >>> from skcomplex.core.components.system import System
             >>> from skcomplex.systems.biology.common.populations import LogisticGrowthInteraction, PopulationElement
-            >>> from skcomplex.core.engine.runtime import Simulation
+            >>> from skcomplex.core.engine.runtime._simulations import Simulation
             >>> system = System(
             ...     elements=[PopulationElement('rabbits', n=10)],
             ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],

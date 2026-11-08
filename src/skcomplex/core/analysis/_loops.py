@@ -303,6 +303,7 @@ def loops(
 
     Examples:
         >>> from skcomplex.core.analysis import loops
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.economics.innovation import BassDiffusionSystem
         >>> loops(BassDiffusionSystem().prepare().system_).polarities
         ['reinforcing', 'balancing']

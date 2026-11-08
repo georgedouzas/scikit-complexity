@@ -261,7 +261,8 @@ class ImageVisual(BaseVisual):
             >>> views = ImageVisual(path=problem.elements[0].path).prepare(problem).views_
             >>> [str(view.origin) for view in views]
             ['cells/u', 'cells/v']
-            >>> problem = PassCompiler().prepare(ElementaryAutomatonSystem().prepare().system_).run().problem_
+            >>> from skcomplex.systems.computer_science.automata import ElementaryAutomatonSystem
+        >>> problem = PassCompiler().prepare(ElementaryAutomatonSystem().prepare().system_).run().problem_
             >>> views = ImageVisual(path=problem.elements[0].path).prepare(problem).views_
             >>> [str(view.origin) for view in views]
             ['cells/space_time/alive', 'cells/alive']
