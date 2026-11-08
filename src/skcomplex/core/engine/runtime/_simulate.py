@@ -242,7 +242,7 @@ def _prepare_runners(
             The copy of the backend, or `None`.
 
         compiler:
-            The copy of the compiler, or `None` for `PassCompiler`.
+            The copy of the compiler, or `None` for the pass compiler.
 
         observables:
             The observables of the run.
