@@ -1,4 +1,4 @@
-"""Stochastic process systems: urns with reinforcement."""
+"""Stochastic process systems of urns with reinforcement."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,7 +15,9 @@ from ....core.specs import StateSpec, VisualSpec
 
 
 class PolyaUrnElement(Element):
-    """Urn of red and blue balls, from which a drawn ball returns with `added` extra balls of its color.
+    """Urn of red and blue balls.
+
+    A drawn ball returns with `added` extra balls of its color.
 
     The jumps of the system draw at rate 1, and a draw picks a color with probability proportional to its number of
     balls, so the sequence of draws is that of Pólya's urn in discrete time.
@@ -58,7 +60,9 @@ class PolyaUrnElement(Element):
 
 
 class PolyaUrnSystem(BaseSystem):
-    """Independent Pólya urns, whose share of red balls converges to a random limit with a beta distribution.
+    """Independent Pólya urns.
+
+    The share of red balls converges to a random limit with a beta distribution.
 
     The limit follows `Beta(red / added, blue / added)`, uniform for one ball of each color and one added ball. The
     system has the states `urns.red` and `urns.blue`.

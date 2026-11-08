@@ -1,4 +1,7 @@
-"""Stochastic processes: random walks, Markov sources, counting, urn, branching, and sample-space-reducing processes."""
+"""Stochastic process systems.
+
+The package covers random walks, Markov sources, counting, urn, branching, and sample-space-reducing processes.
+"""
 
 from ._branching import GaltonWatsonSystem, IndividualElement
 from ._counting import BernoulliProcessSystem, BernoulliTrialElement, PoissonCounterElement, PoissonProcessSystem

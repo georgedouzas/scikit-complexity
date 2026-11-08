@@ -1,4 +1,7 @@
-"""Define the types of the stochastic processes: the matrices of their sources."""
+"""Define the types of the stochastic processes.
+
+The types are the matrices of their sources.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

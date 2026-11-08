@@ -1,4 +1,4 @@
-"""Stochastic process systems: Markov and hidden Markov sources of symbols."""
+"""Stochastic process systems of Markov and hidden Markov sources of symbols."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,7 +15,9 @@ from .types import Matrix
 
 
 class HiddenMarkovSourceElement(Element):
-    """Source of symbols emitted from the states of a hidden Markov chain, one symbol per step.
+    """Source of symbols emitted from the states of a hidden Markov chain.
+
+    The source emits one symbol per step.
 
     Args:
         label:
@@ -50,7 +52,9 @@ class HiddenMarkovSourceElement(Element):
 
 
 class MarkovSourceElement(Element):
-    """Source of symbols `0` to `n - 1`, whose symbol a transition matrix steps in discrete time.
+    """Source of symbols `0` to `n - 1`.
+
+    A transition matrix steps the symbol in discrete time.
 
     Args:
         label:
@@ -86,7 +90,9 @@ EMISSION = ((0.7, 0.3), (0.2, 0.8))
 
 
 class MarkovSourceSystem(BaseSystem):
-    """A Markov source, a sequence of symbols in which each symbol depends on the one before it.
+    """A Markov source.
+
+    Each symbol of the sequence depends on the one before it.
 
     The symbol after `i` is `j` with probability `P_ij`. The entropy rate of the source is `h = -Σ_i π_i Σ_j P_ij log2
     P_ij` bits per symbol, where `π` is the stationary distribution of the chain, and the block entropies of the
@@ -126,13 +132,18 @@ class MarkovSourceSystem(BaseSystem):
         self.symbol = symbol
 
     def _build_system(self) -> System:
-        """Return a Markov source, a sequence of symbols in which each symbol depends on the one before it."""
+        """Return a Markov source.
+
+        Each symbol of the sequence depends on the one before it.
+        """
         chain = TransitionInteraction('chain', target='source', state='symbol', matrix=lambda s: self.transition)
         return System(self.label, elements=[MarkovSourceElement('source', symbol=self.symbol)], interactions=[chain])
 
 
 class HiddenMarkovSourceSystem(BaseSystem):
-    """A hidden Markov source, whose symbols are emitted at random from the states of a hidden Markov chain.
+    """A hidden Markov source.
+
+    Its symbols are emitted at random from the states of a hidden Markov chain.
 
     The hidden state follows the transition matrix `P`, and in hidden state `i` the source emits symbol `j` with
     probability `E_ij`. The frequency of symbol `j` is `Σ_i π_i E_ij` for the stationary distribution `π` of the hidden

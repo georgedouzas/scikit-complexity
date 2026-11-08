@@ -1,4 +1,7 @@
-"""Stochastic process systems: sample-space-reducing processes, their cascades, and fragmentation."""
+"""Stochastic process systems of sample-space reduction.
+
+The module covers sample-space-reducing processes, their cascades, and fragmentation.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,14 +21,19 @@ from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 class CascadingBallView(AgentView):
-    """View of a ball of a cascading sample-space-reducing process, with its states and parameters as attributes."""
+    """View of a ball of a cascading sample-space-reducing process.
+
+    The view has the states and parameters of the ball as attributes.
+    """
 
     level: float
     mu: float
 
 
 class CascadingBallElement(Element):
-    """Ball of a cascading sample-space-reducing process, which multiplies into `mu` balls at every state it hits.
+    """Ball of a cascading sample-space-reducing process.
+
+    The ball multiplies into `mu` balls at every state it hits.
 
     Args:
         label:
@@ -62,7 +70,10 @@ class CascadingBallElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[CascadingBallView]:
-        """Return the view of the agents, which types their states and parameters."""
+        """Return the view of the agents.
+
+        The view types their states and parameters.
+        """
         return CascadingBallView
 
     @staticmethod
@@ -84,7 +95,9 @@ class CascadingBallElement(Element):
 
     @staticmethod
     def multiplies(agent: CascadingBallView, system: SystemView) -> int:
-        """Return the number of balls a ball becomes, `floor(mu)` and one more with the probability of the rest.
+        """Return the number of balls a ball becomes.
+
+        The number is `floor(mu)`, and one more with the probability of the rest.
 
         Args:
             agent:
@@ -126,7 +139,9 @@ class FragmentView(AgentView):
 
 
 class FragmentElement(Element):
-    """Fragment of integer size, which the breaking of the system cuts at a uniformly random point into two fragments.
+    """Fragment of integer size.
+
+    The breaking of the system cuts the fragment at a uniformly random point into two fragments.
 
     Args:
         label:
@@ -163,7 +178,10 @@ class FragmentElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[FragmentView]:
-        """Return the view of the agents, which types their states and parameters."""
+        """Return the view of the agents.
+
+        The view types their states and parameters.
+        """
         return FragmentView
 
     @staticmethod
@@ -185,7 +203,9 @@ class FragmentElement(Element):
 
     @staticmethod
     def cut(agent: FragmentView, system: SystemView) -> float:
-        """Return the share of a breaking fragment that stays with it, cut at a uniformly random whole point.
+        """Return the share of a breaking fragment that stays with it.
+
+        The fragment is cut at a uniformly random whole point.
 
         Args:
             agent:
@@ -203,7 +223,10 @@ class FragmentElement(Element):
 
 
 class ReducingBallView(AgentView):
-    """View of a ball of a sample-space-reducing process, with its states and parameters as attributes."""
+    """View of a ball of a sample-space-reducing process.
+
+    The view has the states and parameters of the ball as attributes.
+    """
 
     level: float
     n_states: float
@@ -211,7 +234,9 @@ class ReducingBallView(AgentView):
 
 
 class ReducingBallElement(Element):
-    """Ball of the sample-space-reducing process, whose state the reducing jump moves to a random lower state.
+    """Ball of the sample-space-reducing process.
+
+    The reducing jump moves its state to a random lower state.
 
     With probability `lam` the jump takes the ball uniformly to a state below its own, and otherwise uniformly to any
     state, and the ball restarts from the top state after it reaches state 1.
@@ -256,12 +281,17 @@ class ReducingBallElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[ReducingBallView]:
-        """Return the view of the agents, which types their states and parameters."""
+        """Return the view of the agents.
+
+        The view types their states and parameters.
+        """
         return ReducingBallView
 
 
 class ReducingJumpInteraction(MapInteraction):
-    """Jump of the sample-space-reducing process, to a random lower state, to any state, or back to the top state.
+    """Jump of the sample-space-reducing process.
+
+    The ball jumps to a random lower state, to any state, or back to the top state.
 
     A ball at state 1 restarts from the top state `n_states`. Otherwise it jumps with probability `lam` uniformly to a
     state below its own, and else uniformly to any state, so the states are visited with probabilities proportional to
@@ -296,7 +326,9 @@ class ReducingJumpInteraction(MapInteraction):
 
 
 class SampleSpaceReducingSystem(BaseSystem):
-    """Sample-space-reducing processes, whose state visits follow Zipf's law `1 / i` for `lam = 1`.
+    """Sample-space-reducing processes.
+
+    Their state visits follow Zipf's law `1 / i` for `lam = 1`.
 
     The system has the group `balls` of state `level`.
 
@@ -338,7 +370,10 @@ class SampleSpaceReducingSystem(BaseSystem):
         self.lam = lam
 
     def _build_system(self) -> System:
-        """Return sample-space-reducing processes, whose state visits follow Zipf's law `1 / i` for `lam = 1`."""
+        """Return sample-space-reducing processes.
+
+        Their state visits follow Zipf's law `1 / i` for `lam = 1`.
+        """
         return System(
             self.label,
             elements=[
@@ -355,7 +390,9 @@ class SampleSpaceReducingSystem(BaseSystem):
 
 
 class FragmentationSystem(BaseSystem):
-    """The random fragmentation of an object of integer size, whose fragments keep breaking into smaller ones.
+    """The random fragmentation of an object of integer size.
+
+    The fragments keep breaking into smaller ones.
 
     The total size is conserved, and every fragment ends at size 1. The system has the group `fragments` of state
     `length`.
@@ -418,7 +455,9 @@ class FragmentationSystem(BaseSystem):
 
 
 class CascadingSampleSpaceReducingSystem(BaseSystem):
-    """Cascading sample-space-reducing processes, whose visits follow the power law `i^(-mu)` for any `mu`.
+    """Cascading sample-space-reducing processes.
+
+    Their visits follow the power law `i^(-mu)` for any `mu`.
 
     Every cascade starts with one ball at the top state `n_states`. At every step each ball above state 1 jumps to a
     state drawn uniformly below its own and becomes `mu` balls there, `floor(mu)` and one more with the probability of

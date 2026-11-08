@@ -1,4 +1,7 @@
-"""Stochastic process systems: power laws from exponential growth observed at random times."""
+"""Stochastic process systems of power laws.
+
+The power laws come from exponential growth observed at random times.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,7 +21,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class ObservedGrowthElement(Element):
-    """Quantity that grows exponentially and is observed and restarted at exponentially distributed times.
+    """Quantity that grows exponentially.
+
+    The quantity is observed and restarted at exponentially distributed times.
 
     The quantity follows `x' = mu x` from `x0`, and after a waiting time drawn from the exponential distribution of
     rate `lam` it is observed and starts again from `x0`.
@@ -87,7 +92,9 @@ class ObservedGrowthElement(Element):
 
 
 class ExponentialGrowthAtRandomTimesSystem(BaseSystem):
-    """Exponential growth observed at exponentially distributed times, whose observed values follow a power law.
+    """Exponential growth observed at exponentially distributed times.
+
+    The observed values follow a power law.
 
     Every sample grows as `x0 exp(mu t)` and is observed and restarted after a waiting time drawn from the exponential
     distribution of rate `lam`. The observed values, and the values of the samples at any later time, follow the power
