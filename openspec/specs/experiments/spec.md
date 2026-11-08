@@ -80,20 +80,6 @@ main guard that a script needs and the executors that avoid processes.
 - **WHEN** a script without `if __name__ == '__main__':` builds an orbit diagram with `executor='process'`
 - **THEN** it raises `ExperimentError`, whose message names the main guard and `executor='thread'`
 
-### Requirement: Experiments are estimators with two verbs
-Every experiment SHALL take a system or a factory of systems as its source, never a system name, since experiments
-cannot import the system library. Every experiment SHALL store its source, design, scenarios, replicates, and analyses in its constructor, validate them and
-resolve the source and the runs in `prepare()`, and execute the runs in `run()`, keeping the result in
-`result_`.
-
-#### Scenario: Experiment with analyses
-- **WHEN** a user runs an experiment of 20 stochastic SIR replicates with a peak analysis
-- **THEN** `result_` holds one row per run with the fitted attributes of the analysis of that run
-
-#### Scenario: Invalid replicates
-- **WHEN** a user builds an experiment with zero replicates and prepares it
-- **THEN** a named error names `replicates` and the value
-
 ### Requirement: Basin stability is an experiment
 The experiments layer SHALL estimate the basin stability of the attractors of a system by running it from initial
 states sampled within bounds and classifying each final state, as an experiment whose fitted attributes hold the
@@ -104,15 +90,17 @@ fraction of runs per attractor.
   initial position
 - **THEN** each of the two attractors gets a fraction within 0.05 of one half
 
-### Requirement: The experiments surface is estimators only
-The public surface of the experiments package SHALL hold only designs, experiments, the sensitivity analysis, scenarios,
-the experiment result, and the bases a user subclasses, and SHALL hold no function.
+### Requirement: Experiments are functions, except calibration
+Parameter sweeps, ensembles, scenarios, sensitivity, and basin stability SHALL be public functions of a system or of a
+factory of systems, in the role of `validation_curve` and `cross_validate` with repeats, and SHALL return tidy
+results. Calibration SHALL stay an estimator, in the role of `GridSearchCV`, whose `run` returns the system with fitted
+parameters. Every experiment SHALL check the tags it needs, such as `stochastic` for an ensemble over seeds or
+`differentiable` for gradient calibration.
 
-#### Scenario: Surface listing
-- **WHEN** a user lists the public names of the experiments package
-- **THEN** every name is a class, and none of `calibrate`, `sensitivity`, `run_task`, or `resolve_source` exists
+#### Scenario: A sweep
+- **WHEN** a user calls a sweep of a system over one parameter with a bound analysis
+- **THEN** it returns a table with one row per value and the analysis's result per row
 
-#### Scenario: System of the library as a source
-- **WHEN** a user runs an experiment of a library system
-- **THEN** they pass the system's factory or a system created by `skcomplex.systems`, and a system name raises a named error
-  that says to pass a system or a factory
+#### Scenario: Calibration fits a system
+- **WHEN** calibration runs on a system and observed data
+- **THEN** its fitted attribute holds the system with the fitted parameters

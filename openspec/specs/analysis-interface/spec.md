@@ -6,24 +6,6 @@ system it measures, runs, and keeps its results as fitted attributes, so a model
 
 ## Requirements
 
-### Requirement: Every analysis is an estimator with two verbs
-Every analysis SHALL be a class whose constructor only stores its settings, whose `prepare(source)` validates them and
-reads the data or the system it measures, and whose `run()` computes and returns the analysis itself.
-No analysis SHALL be a public function.
-
-#### Scenario: Transfer entropy of a trajectory
-- **WHEN** a user runs `TransferEntropyAnalysis(lag=1, bins=8).prepare(trajectory).run()` on a trajectory of two
-  coupled logistic maps
-- **THEN** the call returns the analysis, and its `transfer_entropy_` holds one value per ordered pair of series
-
-#### Scenario: Settings are checked, not constructed
-- **WHEN** a user builds an entropy analysis with a negative embedding dimension
-- **THEN** construction succeeds, and `prepare` raises a named error that names the setting and the value
-
-#### Scenario: Run before prepare
-- **WHEN** a user calls `run()` on an analysis that was never prepared
-- **THEN** a named error says that the analysis must be prepared with a source first
-
 ### Requirement: Results are fitted attributes
 An analysis SHALL keep every result in a public attribute whose name ends in `_`, set by `prepare` or `run`, and SHALL
 NOT return a separate result object. Its settings SHALL stay readable and settable through `get_params` and
@@ -75,19 +57,6 @@ setting that `prepare` validates against the choices the class lists.
 - **WHEN** a user prepares `EntropyAnalysis(kind='unknown')`
 - **THEN** a named error lists the kinds the class takes
 
-### Requirement: The analysis surface is classes only
-The public surface of the analysis package SHALL hold only analysis classes and the base a user subclasses. Every name
-SHALL end with `Analysis`, except the base `BaseAnalysis`.
-
-#### Scenario: Surface listing
-- **WHEN** a user lists the public names of the analysis package
-- **THEN** every name is a class whose name ends with `Analysis`, and no name is a function
-
-#### Scenario: A user analysis
-- **WHEN** a user subclasses `BaseAnalysis`, implements the hooks to read a series and compute its mean, and runs it on
-  a trajectory
-- **THEN** the analysis prepares and runs through the base's verbs
-
 ### Requirement: Analyses are general operations across domains
 Every analysis class SHALL compute one mathematical operation, named after it, and SHALL read every data kind on which
 the operation is defined, so the same class with the same settings applies to the data of any field. A choice SHALL be
@@ -107,3 +76,17 @@ a data kind it reads, and SHALL raise a named error that lists the kinds it read
 #### Scenario: Source without a readable kind
 - **WHEN** a user prepares the alignment analysis on a trajectory with no agents, no angle field, and no phase series
 - **THEN** a named error lists the data kinds the analysis reads and the data kinds the trajectory holds
+
+### Requirement: Analyses are functions of results
+Every analysis of a trajectory, an array, or a graph SHALL be a public function of that result with keyword settings,
+in the role of a function of `sklearn.metrics`, and SHALL return its values as a frozen result. Settings worth reusing
+SHALL be bound by one helper in the role of `make_scorer`, which returns a callable a function such as `simulate` or an
+experiment accepts.
+
+#### Scenario: Measuring a trajectory
+- **WHEN** a user calls `lyapunov(trajectory, kind='largest', variables=['x'])`
+- **THEN** it returns the exponents, with no object to prepare or run
+
+#### Scenario: Reusing settings
+- **WHEN** a user binds an analysis with fixed settings and passes it to a parameter sweep
+- **THEN** the sweep applies it to the trajectory of every run
