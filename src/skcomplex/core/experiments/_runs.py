@@ -3,8 +3,10 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import functools
+import sys
 from collections import Counter
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Hashable, Mapping, MutableMapping, Sequence
 from concurrent.futures import Executor, ProcessPoolExecutor, ThreadPoolExecutor
 from concurrent.futures.process import BrokenProcessPool
 from dataclasses import fields, is_dataclass
@@ -17,7 +19,8 @@ from ..components.specs import ScenarioSpec
 from ..components.system import BaseSystem
 from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.problems import BaseProblemSpec
-from ..engine.runtime import Trajectory, simulate
+from ..engine.runtime import Trajectory
+from ..engine.runtime._simulate import _compile_problem, _simulate
 from ..engine.solvers import BaseSolver
 from ..errors import ExperimentError, ValidationError
 from ..specs import ObservableSpec
@@ -28,8 +31,8 @@ from .types import Output, Row, Source
 
 EXECUTORS = ('serial', 'thread', 'process')
 TIME_TOLERANCE = 1e-12
-_PROBLEMS: dict[tuple[int, str, int], BaseProblemSpec] = {}
-"""Compiled problems of the systems of the running experiment, by source, model parameters, and scenario system."""
+
+type Problems = MutableMapping[Hashable, tuple[BaseProblemSpec, BaseSolver]]
 
 
 def _check_source(source: object) -> Source:
@@ -316,16 +319,44 @@ def _read_outputs(
     return series, scalars
 
 
-def _run_task(task: _TaskSpec) -> _RunResultSpec:
-    """Run one task through `simulate`, keep its series and scalar outputs, and run its analyses on its trajectory.
+def _get_structure(task: _TaskSpec, arguments: Mapping[str, object]) -> tuple[int, str]:
+    """Return the key of the structure of the system of a task: its source or scenario system, and model parameters.
 
-    Values without a dot are model parameters, set on a copy of the system or passed to the factory. Dotted paths of
-    states replace initial values, and dotted paths of parameters keep their value for the whole run. The layouts that
-    tell states from parameters are compiled once per set of model parameters of the running experiment.
+    Runs that share the key differ only by dotted paths of initial states and parameters, and by seeds, so they share
+    one compiled problem. Arrays are written in full, so two arrays that differ never share a key.
 
     Args:
         task:
             The task.
+
+        arguments:
+            The model parameters of the task by name.
+
+    Returns:
+        key:
+            The identity of the source or the scenario system, and the model parameters written out.
+    """
+    source = task.scenario.system if task.scenario.system is not None else task.source
+    with np.printoptions(threshold=sys.maxsize):
+        return id(source), repr(sorted(arguments.items()))
+
+
+def _run_task(task: _TaskSpec, problems: Problems | None = None) -> _RunResultSpec:
+    """Run one task as `simulate` does, keep its series and scalar outputs, and run its analyses on its trajectory.
+
+    Values without a dot are model parameters, set on a copy of the system or passed to the factory. Dotted paths of
+    states replace initial values, and dotted paths of parameters keep their value for the whole run. The system is
+    compiled once per structure of the running experiment, its source and model parameters, and the runs of one
+    structure reuse its problem with their own values and seeds. A system that brings its own compiler is compiled
+    for every run.
+
+    Args:
+        task:
+            The task.
+
+        problems:
+            The compiled problems of the running experiment by structure, filled as tasks compile them, or `None` to
+            compile for this run alone.
 
     Returns:
         result:
@@ -340,18 +371,23 @@ def _run_task(task: _TaskSpec) -> _RunResultSpec:
     paths = {name: value for name, value in values.items() if '.' in name}
     system = _build(task.scenario.system if task.scenario.system is not None else task.source, arguments)
     settings = system.get_run_settings()
+    compiled = None
+    if settings['compiler'] is None:
+        store = {} if problems is None else problems
+        key = _get_structure(task, arguments)
+        if key not in store:
+            store[key] = _compile_problem(system, solver=task.solver, observables=task.observables)
+        compiled = store[key]
     initial_state, schedule = None, None
     if paths or task.scenario.schedule:
-        key = (id(task.source), repr(sorted(arguments.items())), id(task.scenario.system))
-        if key not in _PROBLEMS:
-            _PROBLEMS[key] = _compile(system)
-        problem = _PROBLEMS[key]
+        problem = compiled[0] if compiled is not None else _compile(system)
         states, parameters = _split_paths(problem, paths)
         functions = _schedule(problem, task.scenario, parameters)
         initial_state = {**(settings['initial_state'] or {}), **states} if states else None
         schedule = {**(settings['schedule'] or {}), **functions} if functions else None
-    trajectory = simulate(
+    trajectory = _simulate(
         system,
+        compiled,
         until=task.until,
         dt=task.dt,
         solver=task.solver,
@@ -402,7 +438,8 @@ def _run_experiment(
     """Run a system once per row, scenario, and replicate, with one random stream per row and replicate.
 
     The streams are spawned from `random_state` in a fixed order, so the results do not depend on the executor, and
-    every scenario of a row and replicate shares its stream.
+    every scenario of a row and replicate shares its stream. The compiled problems live for this call alone: serial
+    and thread runs share them, and every worker process compiles its own.
 
     Args:
         source:
@@ -461,7 +498,6 @@ def _run_experiment(
         error_msg = f"executor = {executor!r} must be 'serial', 'thread', 'process', or an executor."
         raise ValidationError(error_msg)
     named = _name_analyses(analyses)
-    _PROBLEMS.clear()
     seeds = np.random.SeedSequence(random_state).spawn(len(rows) * replicates)
     tasks: list[_TaskSpec] = []
     for row_index, row in enumerate(rows):
@@ -484,14 +520,15 @@ def _run_experiment(
                     named,
                 )
                 tasks.append(task)
+    problems: Problems = {}
     if executor == 'serial':
-        return ExperimentResult(tuple(_run_task(task) for task in tasks))
+        return ExperimentResult(tuple(_run_task(task, problems) for task in tasks))
     if isinstance(executor, Executor):
         pool = executor
     else:
         pool = ThreadPoolExecutor() if executor == 'thread' else ProcessPoolExecutor()
     try:
-        results = tuple(pool.map(_run_task, tasks))
+        results = tuple(pool.map(functools.partial(_run_task, problems=problems), tasks))
     except BrokenProcessPool as error:
         error_msg = (
             'The worker processes of the experiment stopped before finishing their tasks. On macOS and Windows every '

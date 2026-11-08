@@ -181,6 +181,11 @@ class TopologyInteraction(NeighborInteraction):
         drawn = self._get_argument('probability') is not None
         return self._get_variant_tags((UpdateLaw,), stochastic=drawn, structure=changing)
 
+    def _draws(self) -> bool:
+        """Return whether the change draws, by an action that draws new ends or that runs for one member."""
+        removal = self._get_argument('action') in ('remove-node', 'remove-edge', 'remove-hyperedge')
+        return super()._draws() or bool(self._get_argument('one')) or not removal
+
     def __init__(
         self,
         label: str,

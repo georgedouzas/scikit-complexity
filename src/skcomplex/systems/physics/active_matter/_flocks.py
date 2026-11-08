@@ -85,6 +85,8 @@ class CohesiveParticleElement(Element):
         0.5
     """
 
+    draws = True
+
     law_classes = (UpdateLaw,)
 
     def __init__(
@@ -333,6 +335,8 @@ class HeadingAlignmentInteraction(CouplingInteraction):
         >>> HeadingAlignmentInteraction('alignment', target='flock', nematic=True).reduce
         'circular-mean'
     """
+
+    draws = True
 
     def __init__(
         self,

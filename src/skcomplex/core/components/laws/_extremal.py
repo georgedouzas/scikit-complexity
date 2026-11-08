@@ -56,6 +56,8 @@ class ExtremalLaw(BaseLaw):
 
     law_tag: ClassVar[str] = 'update'
 
+    draws = True
+
     def __init__(
         self,
         targets: Expression | tuple[Expression, ...],

@@ -67,6 +67,8 @@ class MeasuredFisheryElement(Element):
         0.1
     """
 
+    draws = True
+
     law_classes = (UpdateLaw,)
 
     def __init__(

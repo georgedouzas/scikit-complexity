@@ -150,6 +150,10 @@ class GroupingInteraction(Interaction):
         """Return the tags of the rules of the agent form or of the updates of the symbolic grouping."""
         return self._get_variant_tags((RuleLaw,) if self._get_argument('form') == 'agent' else (UpdateLaw,))
 
+    def _draws(self) -> bool:
+        """Return whether the grouping draws, by random groups or by acting on its groups in random order."""
+        return super()._draws() or self._get_argument('form') == 'agent' or self.groups != 'neighborhood'
+
     def __init__(
         self,
         label: str,

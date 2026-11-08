@@ -326,6 +326,8 @@ class SelfOrganizedBranchingSystem(BaseSystem):
         0.4
     """
 
+    draws = True
+
     field = 'physics/criticality'
     topics = ('branching process', 'avalanches', 'mean field', 'self-organized criticality', 'stochastic')
     references = ('Zapperi, Lauritsen, and Stanley 1995', 'Jensen 2023')

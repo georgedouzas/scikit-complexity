@@ -5,6 +5,7 @@
 
 import math
 from collections.abc import Mapping
+from typing import ClassVar
 
 import numpy as np
 
@@ -33,7 +34,8 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
     `_is_implicit`, so they do not warn about the stability limit of explicit steps. Solvers that fire renewal laws
     answer `_is_renewing`, solvers that integrate fractional noise `_is_fractional`, and solvers that read external
     inputs `_reads_inputs`. A solver is generic over the problem it advances, so one written for the compiler's problem
-    reads its fields.
+    reads its fields. A solver that draws random numbers whatever the laws it solves, such as a Monte Carlo simulation
+    of particles, declares it with the class attribute `draws`, so its runs of a deterministic system are stochastic.
 
     Args:
         random_state:
@@ -71,6 +73,9 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
         state_:
             The state vector at the end time of the last step.
     """
+
+    draws: ClassVar[bool] = False
+    """Whether the solver draws random numbers whatever the laws it solves."""
 
     problem_: P
     rng_: np.random.Generator

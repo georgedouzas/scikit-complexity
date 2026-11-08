@@ -184,9 +184,9 @@ class ReactionInteraction(JumpInteraction):
     def _get_tags(self) -> Tags:
         """Return the tags of the rules of the agent form, or the rate, jump, or Langevin laws of the symbolic one."""
         if self._get_argument('form') == 'agent':
-            return self._get_variant_tags((RuleLaw,), stochastic=self._get_argument('mode') == 'jump')
+            return self._get_variant_tags((RuleLaw,), stochastic=self._get_mode() == 'jump')
         modes: dict[object, tuple[type[BaseLaw], ...]] = {'jump': (JumpLaw,), 'langevin': (RateLaw, NoiseLaw)}
-        return self._get_variant_tags(modes.get(self._get_argument('mode'), (RateLaw,)))
+        return self._get_variant_tags(modes.get(self._get_mode(), (RateLaw,)))
 
     def __init__(
         self,

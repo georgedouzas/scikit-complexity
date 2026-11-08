@@ -113,6 +113,8 @@ class NetworkHerdingSystem(BaseSystem):
         2
     """
 
+    draws = True
+
     field = 'economics/macroeconomics'
     topics = ('herding', 'network', 'aggregation', 'agents', 'linear map')
     references = ('Caiani et al. 2016 §1.1.6',)

@@ -164,6 +164,8 @@ class PolymerJoiningInteraction(Interaction):
         'directed'
     """
 
+    draws = True
+
     law_classes = (RuleLaw,)
 
     def __init__(self, label: str, *, polymers: Annotated[str, RoleSpec()], mode: str = 'undirected') -> None:

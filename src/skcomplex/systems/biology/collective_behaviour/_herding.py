@@ -166,6 +166,8 @@ class ShepherdingInteraction(Interaction):
         65.0
     """
 
+    draws = True
+
     law_classes = (RuleLaw,)
 
     def __init__(

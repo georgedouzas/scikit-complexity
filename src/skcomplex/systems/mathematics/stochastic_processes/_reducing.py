@@ -280,6 +280,8 @@ class ReducingJumpInteraction(MapInteraction):
         'level'
     """
 
+    draws = True
+
     def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
         super().__init__(label, target=target, state='level', function=self._get_level, form='agent')
 

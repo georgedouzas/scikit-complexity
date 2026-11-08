@@ -88,6 +88,8 @@ class WillingMajorityInteraction(Interaction):
         3
     """
 
+    draws = True
+
     law_classes = (RuleLaw,)
 
     def __init__(

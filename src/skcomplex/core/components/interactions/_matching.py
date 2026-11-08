@@ -124,6 +124,10 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (MatchLaw, RuleLaw)
 
+    def _draws(self) -> bool:
+        """Return whether the rule draws, as every rule does but a queue served in a fixed order."""
+        return super()._draws() or not (isinstance(self.rule, QueueSpec) and self.rule.order != 'random')
+
     def __init__(
         self,
         label: str,

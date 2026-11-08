@@ -101,6 +101,8 @@ class TypingInteraction(Interaction):
         5
     """
 
+    draws = True
+
     law_classes = (RuleLaw,)
 
     def __init__(

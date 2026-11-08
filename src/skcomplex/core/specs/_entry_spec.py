@@ -10,7 +10,7 @@ from dataclasses import dataclass
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import CC, NN, ZZ
+from sage.all__sagemath_symbolics import CC, NN, RR, ZZ
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
@@ -385,6 +385,39 @@ class EntrySpec(BaseSpec):
         return np.asarray(values)
 
     @staticmethod
+    def _contains_numbers(domain: object, value: object) -> bool | None:
+        """Check at once that real numbers belong to the real line or to a union of intervals, as Sage checks each.
+
+        A large array, such as a tensor parameter of an experiment, is checked in one pass instead of one Sage call per
+        component. Not a number belongs to neither, and infinities belong to the real line alone.
+
+        Args:
+            domain:
+                The Sage set of the values.
+
+            value:
+                A value or an array of values.
+
+        Returns:
+            is_contained:
+                Whether every component belongs to the set, or `None` when the values are not real numbers or the set
+                is neither the real line nor a union of intervals.
+        """
+        array = np.asarray(value)
+        if array.dtype.kind not in 'biuf' or not (domain is RR or isinstance(domain, RealSet)):
+            return None
+        numbers = array.astype(float).ravel()
+        if domain is RR:
+            return not bool(np.isnan(numbers).any())
+        inside = np.zeros(numbers.shape, dtype=bool)
+        for interval in domain:
+            lower, upper = float(interval.lower()), float(interval.upper())
+            above = (numbers > lower) | (interval.lower_closed() & (numbers == lower))
+            below = (numbers < upper) | (interval.upper_closed() & (numbers == upper))
+            inside |= above & below
+        return bool(inside.all())
+
+    @staticmethod
     def _contains(domain: object, value: object) -> bool:
         """Check that every component of a value belongs to a Sage set.
 
@@ -400,6 +433,9 @@ class EntrySpec(BaseSpec):
                 Whether every component belongs to the set.
         """
         domain = EntrySpec._cell_domain(domain)
+        numbers = EntrySpec._contains_numbers(domain, value)
+        if numbers is not None:
+            return numbers
         labels = EntrySpec._labels_of(domain)
         items = np.asarray(value, dtype=object).ravel()
         if labels is not None:

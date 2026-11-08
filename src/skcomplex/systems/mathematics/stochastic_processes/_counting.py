@@ -127,6 +127,8 @@ class BernoulliProcessSystem(BaseSystem):
         3
     """
 
+    draws = True
+
     field = 'mathematics/stochastic_processes'
     topics = ('counting process', 'agents', 'independent trials')
     references = ('Thurner et al. 2018',)

@@ -197,6 +197,10 @@ class GroupElement(BaseElement):
         structure = frozenset({'variable membership'}) if self.variable else frozenset()
         return replace(tags, space=space, structure=structure)
 
+    def _draws(self) -> bool:
+        """Return whether the group draws, when it declares it or the class of its members does."""
+        return self.draws or self.element.draws
+
     def _get_member_location(self, index: int, size: int) -> object:
         """Return the initial location of one of `size` members, from per-member locations or one shared location."""
         location = self.location

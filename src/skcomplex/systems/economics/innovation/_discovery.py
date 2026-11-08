@@ -124,6 +124,8 @@ class UrnElement(Element):
         2
     """
 
+    draws = True
+
     law_classes = (RuleLaw,)
 
     def __init__(

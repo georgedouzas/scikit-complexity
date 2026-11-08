@@ -96,8 +96,9 @@ class RateInteraction(Interaction):
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RateLaw, NoiseLaw, FractionalNoiseLaw)
 
     def _get_tags(self) -> Tags:
-        """Return the tags of the rate law, with a noise law of a Hurst index or not when the noise is given."""
-        noise: tuple[type[BaseLaw], ...] = () if self._get_argument('noise') is None else (NoiseLaw,)
+        """Return the tags of the rate law, with a noise law when the noise is given or a subclass writes its hook."""
+        given = self._get_argument('noise') is not None or type(self)._get_noise is not RateInteraction._get_noise
+        noise: tuple[type[BaseLaw], ...] = (NoiseLaw,) if given else ()
         if noise and self._get_argument('hurst') is not None:
             noise = (FractionalNoiseLaw,)
         return self._get_variant_tags((RateLaw, *noise))

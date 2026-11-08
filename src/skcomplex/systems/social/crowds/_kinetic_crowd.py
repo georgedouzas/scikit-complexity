@@ -159,6 +159,8 @@ class KineticCrowdInteraction(Interaction):
         0.5
     """
 
+    draws = True
+
     law_classes = (RuleLaw,)
 
     reports: ClassVar[tuple[str, ...]] = ('band_index', 'mean_speed')

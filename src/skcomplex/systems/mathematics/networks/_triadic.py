@@ -128,6 +128,8 @@ class TriadicRegulationInteraction(HyperedgeInteraction):
         3
     """
 
+    draws = True
+
     law_classes = (UpdateLaw,)
 
     def __init__(

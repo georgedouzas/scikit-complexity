@@ -131,6 +131,8 @@ class IntrinsicInstabilitySystem(BaseSystem):
         0.01
     """
 
+    draws = True
+
     field = 'biology/ecology'
     topics = ('tipping point', 'stochastic', 'discrete map', 'early warning')
     references = ('Jensen 2023',)

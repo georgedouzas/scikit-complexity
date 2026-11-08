@@ -210,6 +210,8 @@ class ToyMarketInteraction(FeedbackInteraction[SystemView]):
         ('average_price', 'trades')
     """
 
+    draws = True
+
     reports: ClassVar[tuple[str, ...]] = ('average_price', 'trades', 'money_gini', 'asset_gini')
 
     def __init__(

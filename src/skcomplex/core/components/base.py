@@ -9,8 +9,9 @@ import functools
 import inspect
 from abc import abstractmethod
 from collections.abc import Mapping, Sequence
+from dataclasses import replace
 from types import SimpleNamespace
-from typing import Self
+from typing import ClassVar, Self
 
 from ..base import BaseConfig
 from ..errors import ValidationError
@@ -39,6 +40,11 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
     state specs, a space and a time from their class, a law from its class, an interaction from the laws it returns
     for its arguments, and a system from its parts.
 
+    A part whose run draws random numbers that its law kinds do not show, such as an agent rule that reads
+    `system.rng` or a law that holds a draw such as `normal('noise')`, declares it with the class attribute `draws`, and
+    a part whose arguments decide it, such as a random order of its agents, returns it from the private hook
+    `_draws()`. Its randomness is then stochastic.
+
     Examples:
         >>> from skcomplex.core.components.base import BasePart
         >>> class DoublingPart(BasePart):
@@ -60,6 +66,9 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
         >>> DoublingPart('doubling').prepare().run(3).doubled_
         6
     """
+
+    draws: ClassVar[bool] = False
+    """Whether the run of the part draws random numbers that the kinds of its laws do not show."""
 
     def __init__(self, label: str) -> None:
         """Store the label of the part.
@@ -129,6 +138,9 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
     def _get_law_tags(classes: Sequence[type] | None) -> Tags:
         """Return the tags of laws of some classes: their kinds, the times they all run in, and their randomness.
 
+        The laws are stochastic when one of them has a kind that draws, such as noise or jumps, or its class declares
+        that it draws.
+
         Args:
             classes:
                 The law classes, or `None` when they are unknown.
@@ -147,12 +159,17 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
         ]
         known = [time for time in times if time]
         common = functools.reduce(frozenset.intersection, known) if known else frozenset()
-        randomness = 'stochastic' if laws & STOCHASTIC_LAWS else 'deterministic'
+        drawn = laws & STOCHASTIC_LAWS or any(getattr(law, 'draws', False) for law in classes)
+        randomness = 'stochastic' if drawn else 'deterministic'
         return Tags(time=common, laws=laws, randomness=randomness)
 
     def _get_tags(self) -> Tags:
         """Return the tags the declarations of the part show, none by default."""
         return Tags(laws=None, randomness=None)
+
+    def _draws(self) -> bool:
+        """Return whether the run of the part draws random numbers its law kinds do not show, `draws` by default."""
+        return self.draws
 
     def get_tags(self) -> Tags:
         """Return the capability tags of the part, from its declarations and its arguments alone.
@@ -172,8 +189,16 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
             ...         self.alive = alive
             >>> sorted(CellElement('cell').get_tags().domains)
             ['boolean']
+
+            A part whose rules draw random numbers declares it, so its randomness is stochastic:
+
+            >>> class WalkerElement(CellElement):
+            ...     draws = True
+            >>> WalkerElement('walker').get_tags().randomness
+            'stochastic'
         """
-        return self._get_tags()
+        tags = self._get_tags()
+        return replace(tags, randomness='stochastic') if self._draws() else tags
 
     def _get_declared(self) -> Mapping[str, DeclaredVariableSpec]:
         """Return the variables the part declares from data, by name, none by default."""

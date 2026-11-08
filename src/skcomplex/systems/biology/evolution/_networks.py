@@ -69,6 +69,8 @@ class ChemicalElement(Element):
         10.0
     """
 
+    draws = True
+
     law_classes = (UpdateLaw,)
 
     def __init__(
@@ -245,6 +247,8 @@ class CompetitiveSelectionInteraction(Interaction):
         >>> CompetitiveSelectionInteraction('selection', species='species', p=0.1).p
         0.1
     """
+
+    draws = True
 
     law_classes = (RuleLaw,)
 

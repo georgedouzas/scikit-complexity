@@ -174,6 +174,8 @@ class HarvestInteraction(Interaction):
         3
     """
 
+    draws = True
+
     law_classes = (RuleLaw,)
 
     reports: ClassVar[tuple[str, ...]] = ('slaves', 'in_work')

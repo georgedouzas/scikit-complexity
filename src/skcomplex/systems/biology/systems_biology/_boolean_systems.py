@@ -127,6 +127,8 @@ class NoisyMajorityInteraction(Interaction):
         'nodes'
     """
 
+    draws = True
+
     law_classes = (UpdateLaw,)
 
     def __init__(

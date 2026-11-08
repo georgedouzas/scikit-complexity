@@ -613,6 +613,8 @@ class LevyFlightSystem(BaseSystem):
         1.5
     """
 
+    draws = True
+
     field = 'physics/soft_matter'
     topics = ('anomalous diffusion', 'superdiffusion', 'random walk', 'stochastic map')
     references = ('Bertin 2021', 'Shlesinger, Zaslavsky, and Frisch 1995')

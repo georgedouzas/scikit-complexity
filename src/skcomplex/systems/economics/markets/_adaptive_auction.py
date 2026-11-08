@@ -124,6 +124,8 @@ class AdaptiveAuctionInteraction(FeedbackInteraction[SystemView]):
         ('price', 'volume', 'mean_bid', 'mean_ask')
     """
 
+    draws = True
+
     reports: ClassVar[tuple[str, ...]] = ('price', 'volume', 'mean_bid', 'mean_ask')
 
     def __init__(

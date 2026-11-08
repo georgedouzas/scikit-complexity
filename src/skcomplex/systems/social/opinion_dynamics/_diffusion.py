@@ -66,6 +66,8 @@ class BelieverElement(Element):
         ('people', 'BelieverElement', 4)
     """
 
+    draws = True
+
     def __init__(
         self,
         label: str,

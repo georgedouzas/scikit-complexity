@@ -406,6 +406,8 @@ class AgeingRandomWalkSystem(BaseSystem):
         5
     """
 
+    draws = True
+
     field = 'mathematics/stochastic_processes'
     topics = ('random walk', 'agents', 'history dependence', 'ageing')
     references = ('Hanel, Thurner, and Gell-Mann 2014', 'Thurner et al. 2018')
@@ -483,6 +485,8 @@ class PersistentRandomWalkSystem(BaseSystem):
         10
     """
 
+    draws = True
+
     field = 'mathematics/stochastic_processes'
     topics = ('random walk', 'discrete map', 'persistence', 'diffusion')
     references = ('Jensen 2023',)
@@ -553,6 +557,8 @@ class RandomWalkWithMemorySystem(BaseSystem):
         >>> RandomWalkWithMemorySystem(10).prepare().system_.elements[0].prepare().size_
         10
     """
+
+    draws = True
 
     field = 'mathematics/stochastic_processes'
     topics = ('random walk', 'discrete map', 'memory', 'autoregressive')

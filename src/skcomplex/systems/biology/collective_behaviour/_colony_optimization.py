@@ -136,6 +136,8 @@ class ColonySearchInteraction(Interaction):
         20
     """
 
+    draws = True
+
     law_classes = (RuleLaw,)
 
     reports: ClassVar[tuple[str, ...]] = ('shortest',)

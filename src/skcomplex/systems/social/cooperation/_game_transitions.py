@@ -128,6 +128,8 @@ class GameTransitionsInteraction(Interaction):
         'death-birth'
     """
 
+    draws = True
+
     law_classes = (RuleLaw,)
 
     reports: ClassVar[tuple[str, ...]] = ('game_one',)

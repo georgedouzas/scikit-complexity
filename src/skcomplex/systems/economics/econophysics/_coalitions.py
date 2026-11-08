@@ -134,6 +134,8 @@ class CoalitionBarInteraction(FeedbackInteraction[SystemView]):
         ('attendance', 'coalitions')
     """
 
+    draws = True
+
     reports: ClassVar[tuple[str, ...]] = ('attendance', 'coalitions', 'mean_score', 'splits', 'joins')
 
     def __init__(

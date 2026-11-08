@@ -133,6 +133,12 @@ class MovementInteraction(Interaction):
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw,)
 
+    def _draws(self) -> bool:
+        """Return whether the movement draws: by its order, a random step, a probability or rate, or random ties."""
+        ties = self.ties or ('random' if self.vision is None else 'nearest')
+        drawn = self.step in ('neighbor', 'gaussian', 'levy') or (self.step == 'best' and ties == 'random')
+        return super()._draws() or drawn or self.probability != 1 or self.rate is not None or self.accept is not None
+
     def __init__(
         self,
         label: str,

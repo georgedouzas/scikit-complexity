@@ -90,6 +90,8 @@ class TrainingInteraction(Interaction):
         'adam'
     """
 
+    draws = True
+
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (GradientStepLaw,)
 
     def __init__(

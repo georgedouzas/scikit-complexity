@@ -106,6 +106,8 @@ class LigationInteraction(Interaction):
         ((0, 1),)
     """
 
+    draws = True
+
     law_classes = (RuleLaw,)
 
     def __init__(

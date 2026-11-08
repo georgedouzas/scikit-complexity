@@ -10,11 +10,12 @@ import numpy.typing as npt
 from sklearn.base import clone
 
 from ...base import BaseConfig
-from ...components.system import BaseSystem
+from ...components.system import BaseSystem, System
 from ...errors import TagError, ValidationError
 from ...specs import ObservableSpec, Tags
 from ..backends import BaseBackend
 from ..compile import BaseCompiler
+from ..problems import BaseProblemSpec
 from ..solvers import BaseSolver
 from ..solvers._defaults import DEFAULT_SOLVERS
 from ._base import BaseObserver
@@ -184,14 +185,73 @@ def simulate(
         >>> round(simulate(system, until=20).values('rabbits.n')[-1])
         100
     """
-    if not isinstance(system, BaseSystem):
-        error_msg = f'simulate takes a system, not {system!r}.'
-        raise ValidationError(error_msg)
+    return _simulate(
+        system,
+        None,
+        until=until,
+        dt=dt,
+        initial_state=initial_state,
+        solver=solver,
+        backend=backend,
+        observables=observables,
+        observers=observers,
+        invariants=invariants,
+        schedule=schedule,
+        compiler=compiler,
+        random_state=random_state,
+    )
+
+
+def _prepare_runners(
+    system: BaseSystem,
+    solver: BaseSolver | None,
+    backend: BaseBackend | None,
+    compiler: BaseCompiler | None,
+    observables: Sequence[ObservableSpec],
+) -> tuple[System, BaseSolver | None, BaseBackend | None, BaseCompiler | None, Sequence[ObservableSpec]]:
+    """Return the composite of a system with copies of the solver, the backend, and the compiler, and the observables.
+
+    A setting left out comes from the tuned run settings of the system. The tags are read before any compiling, so a
+    solver or a backend that does not support them is rejected first, and without a solver the tags choose the default
+    one, unless the compiled form chooses it.
+
+    Args:
+        system:
+            The system.
+
+        solver:
+            The solver, or `None` for the tuned or the default one.
+
+        backend:
+            The backend, or `None` for the tuned one.
+
+        compiler:
+            The compiler, or `None` for the tuned one.
+
+        observables:
+            The observables, or none for the tuned ones.
+
+    Returns:
+        composite:
+            The composite of the parts of the system.
+
+        solver:
+            The copy of the solver, or `None` for the compiled form to choose it.
+
+        backend:
+            The copy of the backend, or `None`.
+
+        compiler:
+            The copy of the compiler, or `None` for `PassCompiler`.
+
+        observables:
+            The observables of the run.
+
+    Raises:
+        TagError:
+            The parts of the system disagree on a tag, or the solver or the backend does not support a tag.
+    """
     settings = system.get_run_settings()
-    end = settings['until'] if until is None else until
-    if end is None:
-        error_msg = f'{type(system).__name__} has no tuned end time. Pass `until`.'
-        raise ValidationError(error_msg)
     stepper = _clone_setting(settings['solver'] if solver is None else solver)
     runner = _clone_setting(settings['backend'] if backend is None else backend)
     form = _clone_setting(settings['compiler'] if compiler is None else compiler)
@@ -205,15 +265,131 @@ def simulate(
     tuned_observables = () if composite is system else settings['observables']
     if stepper is None and form is None and not composite.systems:
         stepper = _choose_solver(tags)
+    return composite, stepper, runner, form, observables or tuned_observables
+
+
+def _compile_problem(
+    system: BaseSystem,
+    *,
+    solver: BaseSolver | None = None,
+    observables: Sequence[ObservableSpec] = (),
+) -> tuple[BaseProblemSpec, BaseSolver]:
+    """Return the problem compiled from a system, and the solver of its runs, for runs that change only values.
+
+    Runs of the problem through `_simulate` set their own initial states, parameter schedules, and seeds without
+    compiling again, so an experiment compiles a system once per structure and keeps the problem for that call.
+
+    Args:
+        system:
+            The system.
+
+        solver:
+            The solver, or `None` for the tuned or the default one.
+
+        observables:
+            The observables, or none for the tuned ones.
+
+    Returns:
+        problem:
+            The compiled problem, with the initial values of the system.
+
+        solver:
+            The solver of the runs, which every run copies.
+    """
+    composite, stepper, runner, form, observed = _prepare_runners(system, solver, None, None, observables)
+    simulation = Simulation(composite, compiler=form, solver=stepper, backend=runner, observables=observed).prepare()
+    return simulation.problem_, simulation.stepper_
+
+
+def _simulate(
+    system: BaseSystem,
+    compiled: tuple[BaseProblemSpec, BaseSolver] | None,
+    *,
+    until: float | None = None,
+    dt: float | None = None,
+    initial_state: Mapping[str, object] | None = None,
+    solver: BaseSolver | None = None,
+    backend: BaseBackend | None = None,
+    observables: Sequence[ObservableSpec] = (),
+    observers: Sequence[BaseObserver] = (),
+    invariants: Mapping[str, float] | None = None,
+    schedule: Mapping[str, Callable[[float], float | npt.ArrayLike]] | None = None,
+    compiler: BaseCompiler | None = None,
+    random_state: int | np.random.Generator | None = None,
+) -> Trajectory:
+    """Simulate a system as `simulate` does, from a problem compiled from it by `_compile_problem` when one is given.
+
+    Args:
+        system:
+            The system to simulate.
+
+        compiled:
+            The problem compiled from the system with the solver of its runs, or `None` to compile the system.
+
+        until:
+            The end time of the run, or `None` for the tuned one.
+
+        dt:
+            The time between frames, or `None` for the tuned one.
+
+        initial_state:
+            Initial values by dotted state name, or `None` for the tuned initial state.
+
+        solver:
+            The solver, or `None` for the tuned or the default one, or the one of the compiled problem.
+
+        backend:
+            The backend, or `None` for the tuned one.
+
+        observables:
+            The observables, or none for the tuned ones.
+
+        observers:
+            The observers that receive every frame.
+
+        invariants:
+            The tolerance of every observable that must stay constant, or `None` for the tuned invariants.
+
+        schedule:
+            A function of time per dotted parameter name, or `None` for the tuned schedule.
+
+        compiler:
+            The compiler, or `None` for the tuned one.
+
+        random_state:
+            The seed or generator of stochastic solvers.
+
+    Returns:
+        trajectory:
+            The trajectory of the system from time 0 until the end time.
+
+    Raises:
+        ValidationError:
+            The system is not a system, or no end time is given or tuned.
+    """
+    if not isinstance(system, BaseSystem):
+        error_msg = f'simulate takes a system, not {system!r}.'
+        raise ValidationError(error_msg)
+    settings = system.get_run_settings()
+    end = settings['until'] if until is None else until
+    if end is None:
+        error_msg = f'{type(system).__name__} has no tuned end time. Pass `until`.'
+        raise ValidationError(error_msg)
+    source: System | BaseProblemSpec
+    if compiled is None:
+        source, stepper, runner, form, observed = _prepare_runners(system, solver, backend, compiler, observables)
+    else:
+        source, runner, form, observed = compiled[0], _clone_setting(backend), None, ()
+        stepper = clone(compiled[1] if solver is None else solver)
     simulation = Simulation(
-        composite,
+        source,
         compiler=form,
         solver=stepper,
         backend=runner,
         dt=settings['dt'] if dt is None else dt,
         observers=observers,
         schedule=settings['schedule'] if schedule is None else schedule,
-        observables=observables or tuned_observables,
+        observables=observed,
         invariants=settings['invariants'] if invariants is None else invariants,
         initial_state=settings['initial_state'] if initial_state is None else initial_state,
         random_state=random_state,

@@ -110,6 +110,8 @@ class ColocationInteraction(Interaction):
         0.02
     """
 
+    draws = True
+
     law_classes = (RuleLaw,)
 
     def __init__(
