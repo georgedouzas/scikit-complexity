@@ -1,4 +1,7 @@
-"""Cooperation: evolutionary games between neighbours, in hyperedges, in tournaments, and between groups."""
+"""Cooperation: evolutionary games between neighbours, in hyperedges, and more.
+
+It also holds games in tournaments and between groups.
+"""
 
 from ._contributor import ContributorElement
 from ._game_transitions import DonorElement, DonorView, GameTransitionsInteraction, GameTransitionsSystem

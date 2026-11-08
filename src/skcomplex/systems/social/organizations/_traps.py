@@ -1,4 +1,7 @@
-"""Organization systems: Meadows' system traps, from success to the successful to drift to low performance."""
+"""Organization systems: Meadows' system traps.
+
+They run from success to the successful to drift to low performance.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -163,27 +166,42 @@ def _allocation(s: SimpleNamespace) -> Expression:
 
 
 def _symptom(s: SimpleNamespace) -> Expression:
-    """Return the symptom, the gap between the desired and the current state of the problem."""
+    """Return the symptom.
+
+    It is the gap between the desired and the current state of the problem.
+    """
     return s.desired - s.capability - s.intervention
 
 
 def _desired_a(s: SimpleNamespace) -> Expression:
-    """Return the stock the first party desires, a margin above its delayed view of the second's."""
+    """Return the stock the first party desires.
+
+    It is a margin above its delayed view of the second's.
+    """
     return (1 + s.margin) * distributed_delay(s.b, conserved=False, time=s.perception_delay)
 
 
 def _desired_b(s: SimpleNamespace) -> Expression:
-    """Return the stock the second party desires, a margin above its delayed view of the first's."""
+    """Return the stock the second party desires.
+
+    It is a margin above its delayed view of the first's.
+    """
     return (1 + s.margin) * distributed_delay(s.a, conserved=False, time=s.perception_delay)
 
 
 def _pull(s: SimpleNamespace, actor: str) -> Expression:
-    """Return the corrective pull of an actor, its strength times the gap from its goal to the stock."""
+    """Return the corrective pull of an actor.
+
+    It is its strength times the gap from its goal to the stock.
+    """
     return getattr(s, f'strength_{actor}') * (getattr(s, f'goal_{actor}') - s.stock)
 
 
 def _compromise(s: SimpleNamespace) -> Expression:
-    """Return the goal the stock settles at, the mean of the goals weighted by the strengths of the actors."""
+    """Return the goal the stock settles at.
+
+    It is the mean of the goals weighted by the strengths of the actors.
+    """
     strengths = [getattr(s, f'strength_{actor}') for actor in ACTORS]
     goals = [getattr(s, f'goal_{actor}') for actor in ACTORS]
     return sum(strength * goal for strength, goal in zip(strengths, goals, strict=True)) / sum(strengths)
@@ -195,13 +213,14 @@ def _discrepancy(s: SimpleNamespace) -> Expression:
 
 
 class SuccessToTheSuccessfulSystem(BaseSystem):
-    """Meadows' success to the successful trap, two competitors that share a budget by their past success.
+    """Meadows' success to the successful trap.
 
-    Each competitor holds a stock of resources that its share of the budget fills and that depreciates over its
-    lifetime. The share of the first competitor is a table function of its success, its fraction of all resources,
-    that gives more than a proportional share to the more successful one. The two reinforcing loops make the symmetric
-    state unstable, so the competitor that starts larger ends with the whole budget and the other one disappears. The
-    book gives the structure only, so the table and the parameters are a documented choice.
+    Two competitors share a budget by their past success. Each competitor holds a stock of resources that its share of
+    the budget fills and that depreciates over its lifetime. The share of the first competitor is a table function of
+    its success, its fraction of all resources, that gives more than a proportional share to the more successful one.
+    The two reinforcing loops make the symmetric state unstable, so the competitor that starts larger ends with the
+    whole budget and the other one disappears. The book gives the structure only, so the table and the parameters are a
+    documented choice.
 
     The system has the resources `contest.a` and `contest.b` in years, the flows `contest.allocation_a`,
     `contest.allocation_b`, `contest.depreciation_a`, and `contest.depreciation_b`. The observables of the system are
@@ -266,12 +285,18 @@ class SuccessToTheSuccessfulSystem(BaseSystem):
 
     @staticmethod
     def _depreciation_a(s: SimpleNamespace) -> Expression:
-        """Return the depreciation of the resources of the first competitor over their lifetime."""
+        """Return the depreciation of the resources of the first competitor.
+
+        The resources depreciate over their lifetime.
+        """
         return s.source.a / s.source.lifetime
 
     @staticmethod
     def _depreciation_b(s: SimpleNamespace) -> Expression:
-        """Return the depreciation of the resources of the second competitor over their lifetime."""
+        """Return the depreciation of the resources of the second competitor.
+
+        The resources depreciate over their lifetime.
+        """
         return s.source.b / s.source.lifetime
 
     def _build_system(self) -> System:
@@ -298,14 +323,14 @@ class SuccessToTheSuccessfulSystem(BaseSystem):
 
 
 class ShiftingTheBurdenSystem(BaseSystem):
-    """Meadows' shifting the burden trap, a quick fix that relieves a symptom and erodes the system's capability.
+    """Meadows' shifting the burden trap.
 
-    The symptom is the gap between the desired state and the state that the capability of the system and an outside
-    intervention deliver together. The intervention grows quickly with the symptom. The capability grows slowly with
-    the symptom, perceived over the solution delay, and the intervention erodes it as a side effect. With a quick fix
-    the intervention takes over and the capability withers away, an addiction. Without one, `fix_rate = 0`, the
-    capability grows to the desired state. The book gives the structure only, so the parameters are a documented
-    choice.
+    A quick fix relieves a symptom and erodes the system's capability. The symptom is the gap between the desired state
+    and the state that the capability of the system and an outside intervention deliver together. The intervention grows
+    quickly with the symptom. The capability grows slowly with the symptom, perceived over the solution delay, and the
+    intervention erodes it as a side effect. With a quick fix the intervention takes over and the capability withers
+    away, an addiction. Without one, `fix_rate = 0`, the capability grows to the desired state. The book gives the
+    structure only, so the parameters are a documented choice.
 
     The system has the capability `burden.capability` and the intervention `burden.intervention` in years, the flows
     `burden.fixing`, `burden.building`, and `burden.erosion`. The observable of the system is `burden.symptom`.
@@ -414,13 +439,13 @@ class ShiftingTheBurdenSystem(BaseSystem):
 
 
 class EscalationSystem(BaseSystem):
-    """Meadows' escalation trap, two parties that each want to exceed the other's stock by a margin.
+    """Meadows' escalation trap.
 
-    Each party sees the stock of the other through an information smoothing over the perception delay, wants to hold
-    `1 + margin` times that stock, and builds up the gap over the adjustment time. The loop through both stocks is
-    reinforcing, so both stocks grow exponentially at the rate `r` that solves
-    `r * adjustment_time = (1 + margin) / (1 + r * perception_delay) - 1`. The book gives the structure only, so the
-    parameters are a documented choice.
+    Two parties each want to exceed the other's stock by a margin. Each party sees the stock of the other through an
+    information smoothing over the perception delay, wants to hold `1 + margin` times that stock, and builds up the gap
+    over the adjustment time. The loop through both stocks is reinforcing, so both stocks grow exponentially at the rate
+    `r` that solves `r * adjustment_time = (1 + margin) / (1 + r * perception_delay) - 1`. The book gives the structure
+    only, so the parameters are a documented choice.
 
     The system has the stocks `race.a` and `race.b` in years, and the flows `race.build_a` and `race.build_b`. The
     observables of the system are `race.desired_a` and `race.desired_b`.
@@ -515,15 +540,16 @@ class EscalationSystem(BaseSystem):
 
 
 class PolicyResistanceSystem(BaseSystem):
-    """Meadows' policy resistance trap, one stock pulled by three actors toward inconsistent goals.
+    """Meadows' policy resistance trap.
 
-    Every actor compares the stock with its own goal and pulls the stock toward it, in proportion to the discrepancy
-    and to its strength, and intensifies its effort while the discrepancy persists, the ratchet of the book. The book's
-    example is the drug supply on the streets, which addicts want high, enforcement agencies want low, and pushers want
-    in the middle. The countermoves produce a standoff: the stock settles at the mean of the goals weighted by the
-    strengths, which none of the actors wants, while the efforts of the actors above and below it grow without bound.
-    When one actor lets up, its strength set to zero, the others drag the stock toward their own goals. The book gives
-    the structure only, as a narrative, so the corrective rules and the parameters are a documented choice.
+    Three actors pull one stock toward inconsistent goals. Every actor compares the stock with its own goal and pulls
+    the stock toward it, in proportion to the discrepancy and to its strength, and intensifies its effort while the
+    discrepancy persists, the ratchet of the book. The book's example is the drug supply on the streets, which addicts
+    want high, enforcement agencies want low, and pushers want in the middle. The countermoves produce a standoff: the
+    stock settles at the mean of the goals weighted by the strengths, which none of the actors wants, while the efforts
+    of the actors above and below it grow without bound. When one actor lets up, its strength set to zero, the others
+    drag the stock toward their own goals. The book gives the structure only, as a narrative, so the corrective rules
+    and the parameters are a documented choice.
 
     The system has the stock `standoff.stock` and the efforts `standoff.effort_a`, `standoff.effort_b`, and
     `standoff.effort_c`, and the flows `standoff.push`, `standoff.intensify_a`, `standoff.intensify_b`, and
@@ -575,23 +601,35 @@ class PolicyResistanceSystem(BaseSystem):
 
     @staticmethod
     def _push(s: SimpleNamespace) -> Expression:
-        """Return the change of the stock, the corrective pulls and the efforts of all three actors."""
+        """Return the change of the stock.
+
+        It is the corrective pulls and the efforts of all three actors.
+        """
         standoff = s.source
         return sum(_pull(standoff, actor) + getattr(standoff, f'effort_{actor}') for actor in ACTORS)
 
     @staticmethod
     def _intensify_a(s: SimpleNamespace) -> Expression:
-        """Return the intensification of the effort of the first actor while the stock misses its goal."""
+        """Return the intensification of the effort of the first actor.
+
+        The effort intensifies while the stock misses its goal.
+        """
         return _pull(s.source, 'a') / s.source.intensification_time
 
     @staticmethod
     def _intensify_b(s: SimpleNamespace) -> Expression:
-        """Return the intensification of the effort of the second actor while the stock misses its goal."""
+        """Return the intensification of the effort of the second actor.
+
+        The effort intensifies while the stock misses its goal.
+        """
         return _pull(s.source, 'b') / s.source.intensification_time
 
     @staticmethod
     def _intensify_c(s: SimpleNamespace) -> Expression:
-        """Return the intensification of the effort of the third actor while the stock misses its goal."""
+        """Return the intensification of the effort of the third actor.
+
+        The effort intensifies while the stock misses its goal.
+        """
         return _pull(s.source, 'c') / s.source.intensification_time
 
     def _build_system(self) -> System:
@@ -625,16 +663,16 @@ class PolicyResistanceSystem(BaseSystem):
 
 
 class DriftToLowPerformanceSystem(BaseSystem):
-    """Meadows' drift to low performance trap, eroding goals that follow a pessimistic view of the performance.
+    """Meadows' drift to low performance trap.
 
-    The actor compares the desired state with the actual performance and corrects the gap over the correction time,
-    an ordinary balancing loop. The actor perceives the performance worse than it is, smoothed over the perception
-    time and lowered by the negative bias, and the desired state slips toward the perceived state over the goal time.
-    The lower the perceived state, the lower the goal, the less corrective action, and the lower the performance, a
-    reinforcing loop that drags the performance down exponentially. With absolute standards, `absolute=True`, the
-    desired state does not slip and the performance holds, and with an upbeat bias, a negative `bias`, the same
-    structure drifts toward high performance, the two ways out of the book. The book gives the structure only, as a
-    narrative, so the parameters are a documented choice.
+    The goals erode, following a pessimistic view of the performance. The actor compares the desired state with the
+    actual performance and corrects the gap over the correction time, an ordinary balancing loop. The actor perceives
+    the performance worse than it is, smoothed over the perception time and lowered by the negative bias, and the
+    desired state slips toward the perceived state over the goal time. The lower the perceived state, the lower the
+    goal, the less corrective action, and the lower the performance, a reinforcing loop that drags the performance down
+    exponentially. With absolute standards, `absolute=True`, the desired state does not slip and the performance holds,
+    and with an upbeat bias, a negative `bias`, the same structure drifts toward high performance, the two ways out of
+    the book. The book gives the structure only, as a narrative, so the parameters are a documented choice.
 
     The system has the performance `performance.performance`, the perceived state `performance.perceived`, and the
     desired state `performance.desired`, and the flows `performance.correction`, `performance.perception`, and
@@ -696,18 +734,27 @@ class DriftToLowPerformanceSystem(BaseSystem):
 
     @staticmethod
     def _correction(s: SimpleNamespace) -> Expression:
-        """Return the corrective action, the gap from the performance to the desired state over the correction time."""
+        """Return the corrective action.
+
+        It is the gap from the performance to the desired state over the correction time.
+        """
         return (s.source.desired - s.source.performance) / s.source.correction_time
 
     @staticmethod
     def _perception(s: SimpleNamespace) -> Expression:
-        """Return the update of the perceived state toward the performance lowered by the negative bias."""
+        """Return the update of the perceived state toward the biased performance.
+
+        The performance is lowered by the negative bias.
+        """
         performance = s.source
         return ((1 - performance.bias) * performance.performance - performance.perceived) / performance.perception_time
 
     @staticmethod
     def _goal_erosion(s: SimpleNamespace) -> Expression:
-        """Return the slip of the desired state toward the perceived state, zero for absolute standards."""
+        """Return the slip of the desired state toward the perceived state.
+
+        It is zero for absolute standards.
+        """
         performance = s.source
         return performance.erosion * (performance.perceived - performance.desired) / performance.goal_time
 

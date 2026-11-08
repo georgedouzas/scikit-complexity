@@ -19,14 +19,19 @@ from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 class GrowingWordView(AgentView):
-    """View of a word of the Simon system, with its states and parameters as attributes."""
+    """View of a word of the Simon system.
+
+    Its states and parameters are attributes.
+    """
 
     count: float
     innovation: float
 
 
 class GrowingWordElement(Element):
-    """Distinct word of the Simon system, with the number of times it occurs in the text.
+    """Distinct word of the Simon system.
+
+    It holds the number of times it occurs in the text.
 
     Args:
         label:
@@ -63,7 +68,10 @@ class GrowingWordElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[GrowingWordView]:
-        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        """Return the class of the views of the agents.
+
+        Their attributes are the states and parameters.
+        """
         return GrowingWordView
 
 
@@ -143,10 +151,10 @@ class WritingInteraction(Interaction):
 
 
 class SimonYuleSystem(BaseSystem):
-    """The Simon system of a text that grows from one word, whose word counts follow a power law.
+    """The Simon system of a text that grows from one word.
 
-    The rank-frequency exponent is `1 / (1 - innovation)`, and the number of distinct words grows as `innovation` times
-    the length of the text. The system has the group `words`.
+    Its word counts follow a power law. The rank-frequency exponent is `1 / (1 - innovation)`, and the number of
+    distinct words grows as `innovation` times the length of the text. The system has the group `words`.
 
     Args:
         innovation:

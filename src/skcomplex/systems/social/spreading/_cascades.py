@@ -21,18 +21,22 @@ from ....core.specs import RoleSpec, StateSpec, VisualSpec
 
 
 class ThresholdNodeView(AgentView):
-    """View of a node of the Watts cascade system, with its states and parameters as attributes."""
+    """View of a node of the Watts cascade system.
+
+    Its states and parameters are attributes.
+    """
 
     active: float
     threshold: float
 
 
 class ThresholdActivationInteraction(MapInteraction):
-    """Activation of the Watts cascade system, where a node becomes active once enough of its neighbours are active.
+    """Activation of the Watts cascade system.
 
-    A node becomes active for good once the share of active nodes among its neighbouring nodes reaches its threshold.
-    The nodes update one after the other in a new random order every step, each reading the activations the nodes
-    before it set, so a cascade can cross several nodes in one step.
+    A node becomes active once enough of its neighbours are active. A node becomes active for good once the share of
+    active nodes among its neighbouring nodes reaches its threshold. The nodes update one after the other in a new
+    random order every step, each reading the activations the nodes before it set, so a cascade can cross several nodes
+    in one step.
 
     Args:
         label:
@@ -58,7 +62,10 @@ class ThresholdActivationInteraction(MapInteraction):
         )
 
     def _get_active(self, agent: ThresholdNodeView, system: SystemViewProtocol) -> float:
-        """Return 1 for a node that is or becomes active, and 0 for one that stays inactive."""
+        """Return 1 for a node that is or becomes active.
+
+        It returns 0 for one that stays inactive.
+        """
         del system
         neighbors = [item for item in agent.neighbors() if isinstance(item, ThresholdNodeView)]
         if agent.active or not neighbors:
@@ -67,7 +74,9 @@ class ThresholdActivationInteraction(MapInteraction):
 
 
 class ThresholdNodeElement(Element):
-    """Node of the Watts cascade system, which the activation turns active once enough of its neighbours are active.
+    """Node of the Watts cascade system.
+
+    The activation turns it active once enough of its neighbours are active.
 
     Args:
         label:
@@ -103,7 +112,10 @@ class ThresholdNodeElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[ThresholdNodeView]:
-        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        """Return the class of the views of the agents.
+
+        Their attributes are the states and parameters.
+        """
         return ThresholdNodeView
 
 

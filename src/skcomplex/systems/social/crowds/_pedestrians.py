@@ -25,10 +25,10 @@ from ....core.specs import ParameterSpec, RoleSpec
 
 
 class MotivationInteraction(RelaxationInteraction):
-    """Driving force of the social force system, which relaxes a walker's velocity to its desired velocity.
+    """Driving force of the social force system.
 
-    The force per unit mass is `(speed * direction - x_d1) / tau`, where the velocity `x_d1` is the first derivative of
-    the position `x`.
+    It relaxes a walker's velocity to its desired velocity. The force per unit mass is
+    `(speed * direction - x_d1) / tau`, where the velocity `x_d1` is the first derivative of the position `x`.
 
     Args:
         label:
@@ -76,9 +76,10 @@ class MotivationInteraction(RelaxationInteraction):
 
 
 class SocialRepulsionInteraction(PairCouplingInteraction):
-    """Repulsion between two walkers, the force `strength * exp((2 * radius - r) / falloff)` of the social force system.
+    """Repulsion between two walkers of the social force system.
 
-    It derives from the pair energy `strength * falloff * exp((2 * radius - r) / falloff)`.
+    Its force is `strength * exp((2 * radius - r) / falloff)`. It derives from the pair energy
+    `strength * falloff * exp((2 * radius - r) / falloff)`.
 
     Args:
         label:
@@ -201,9 +202,9 @@ class WallsInteraction(GradientInteraction):
 
 
 class SocialForceSystem(BaseSystem):
-    """Two crowds walking in opposite directions along a periodic corridor, which form lanes.
+    """Two crowds walking in opposite directions along a periodic corridor.
 
-    The system has the groups `rightward` and `leftward`.
+    The crowds form lanes. The system has the groups `rightward` and `leftward`.
 
     Args:
         n_walkers:

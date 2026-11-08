@@ -1,4 +1,7 @@
-"""Bounded confidence systems: compromise between agents whose opinions are close, in pairs or all at once."""
+"""Bounded confidence systems: compromise between agents whose opinions are close.
+
+They compromise in pairs or all at once.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,10 +26,11 @@ from ._random_pairs import RandomPairsInteraction
 
 
 class ConfidentElement(Element):
-    """Agent of the Hegselmann-Krause system, with an opinion and the confidence within which it trusts neighbours.
+    """Agent of the Hegselmann-Krause system.
 
-    `ConfidenceCouplingInteraction` moves every agent each step to the mean opinion of the neighbours, itself
-    included, whose opinions differ from its own by less than `confidence`.
+    It holds an opinion and the confidence within which it trusts neighbours. `ConfidenceCouplingInteraction` moves
+    every agent each step to the mean opinion of the neighbours, itself included, whose opinions differ from its own by
+    less than `confidence`.
 
     Args:
         label:
@@ -61,7 +65,10 @@ class ConfidentElement(Element):
 
 
 class DiscussantView(AgentView):
-    """View of an agent of the Deffuant bounded confidence system, with its states and parameters as attributes."""
+    """View of an agent of the Deffuant bounded confidence system.
+
+    Its states and parameters are attributes.
+    """
 
     opinion: float
     confidence: float
@@ -111,16 +118,20 @@ class DiscussantElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[DiscussantView]:
-        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        """Return the class of the views of the agents.
+
+        Their attributes are the states and parameters.
+        """
         return DiscussantView
 
 
 class ConfidenceCouplingInteraction(CouplingInteraction):
-    """Hegselmann-Krause coupling, the move of every agent to the mean opinion of the neighbours within its confidence.
+    """Hegselmann-Krause coupling of the opinions of agents.
 
-    Every step every agent takes at once the mean opinion of its neighbours, itself included, whose opinions differ
-    from its own by less than its parameter `confidence`. It is the map form of coupling with the normalized mean over
-    the neighbours of the network weighted by the indicator of the confidence.
+    Every agent moves to the mean opinion of the neighbours within its confidence. Every step every agent takes at once
+    the mean opinion of its neighbours, itself included, whose opinions differ from its own by less than its parameter
+    `confidence`. It is the map form of coupling with the normalized mean over the neighbours of the network weighted by
+    the indicator of the confidence.
 
     Args:
         label:
@@ -172,16 +183,19 @@ class ConfidenceCouplingInteraction(CouplingInteraction):
         return getattr(namespace.other, self.state)
 
     def _get_trust(self, namespace: SimpleNamespace) -> Expression:
-        """Return 1 for a neighbour whose opinion lies within the confidence of the agent, and 0 otherwise."""
+        """Return 1 for a neighbour whose opinion lies within the confidence of the agent.
+
+        Otherwise it returns 0.
+        """
         difference = getattr(namespace.other, self.state) - getattr(namespace.member, self.state)
         return where(abs(difference) < namespace.member.confidence, 1, 0)
 
 
 class EncountersInteraction(RandomPairsInteraction):
-    """Random binary encounters of the Deffuant system, as many per step as there are agents.
+    """Random binary encounters of the Deffuant system.
 
-    In every encounter two random agents whose opinions differ by less than the confidence bound move towards each
-    other by the convergence fraction of their difference.
+    There are as many per step as there are agents. In every encounter two random agents whose opinions differ by less
+    than the confidence bound move towards each other by the convergence fraction of their difference.
 
     Args:
         label:
@@ -200,7 +214,9 @@ class EncountersInteraction(RandomPairsInteraction):
     """
 
     def act_on(self, members: list[AgentViewProtocol], system: SystemViewProtocol) -> None:
-        """Move the opinions of a pair towards each other when they differ by less than the confidence bound.
+        """Move the opinions of a pair towards each other.
+
+        They move when they differ by less than the confidence bound.
 
         Args:
             members:
@@ -220,9 +236,9 @@ PAIR = 2
 
 
 class DeffuantSystem(BaseSystem):
-    """The Deffuant bounded confidence system, whose opinions settle into about `1 / (2 * confidence)` clusters.
+    """The Deffuant bounded confidence system.
 
-    The system has the group `people`.
+    Its opinions settle into about `1 / (2 * confidence)` clusters. The system has the group `people`.
 
     Args:
         n_agents:
@@ -281,11 +297,12 @@ class DeffuantSystem(BaseSystem):
 
 
 class HegselmannKrauseSystem(BaseSystem):
-    """The Hegselmann-Krause system, whose opinions freeze within a few steps into clusters about `2 ε` apart.
+    """The Hegselmann-Krause system.
 
-    Every step every agent moves at once to the mean opinion of its neighbours, itself included, whose opinions lie
-    within the confidence `ε` of its own. On the complete graph the opinions settle into about `1 / (2 ε)` clusters. The
-    system has the group `people` on the nodes of the network.
+    Its opinions freeze within a few steps into clusters about `2 ε` apart. Every step every agent moves at once to the
+    mean opinion of its neighbours, itself included, whose opinions lie within the confidence `ε` of its own. On the
+    complete graph the opinions settle into about `1 / (2 ε)` clusters. The system has the group `people` on the nodes
+    of the network.
 
     Args:
         n_agents:

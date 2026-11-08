@@ -1,4 +1,7 @@
-"""Gauge theory of agents on a network: phases on nodes, connections on edges, and frustrated loops."""
+"""Gauge theory of agents on a network.
+
+It has phases on nodes, connections on edges, and frustrated loops.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -24,9 +27,10 @@ from ....core.types import Array
 
 
 class TransportedCouplingInteraction(CouplingInteraction):
-    """Relaxation of agent phases towards the phases of their neighbours, `theta_i' += K sin(theta_j - theta_i - A_ij)`.
+    """Relaxation of agent phases towards the phases of their neighbours.
 
-    The connection `A_ij` lives on the edge of the network from `i` to `j`, and `A_ji = -A_ij`.
+    It adds `theta_i' += K sin(theta_j - theta_i - A_ij)`. The connection `A_ij` lives on the edge of the network from
+    `i` to `j`, and `A_ji = -A_ij`.
 
     Args:
         label:
@@ -60,7 +64,10 @@ class TransportedCouplingInteraction(CouplingInteraction):
         self.K = K
 
     def _get_edge_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rates of both ends of an edge, with the connection read along and against its direction."""
+        """Return the rates of both ends of an edge.
+
+        The connection is read along and against its direction.
+        """
         source, target = namespace.source, namespace.target
         flow = namespace.K * sin(target.theta - source.theta - namespace.edge.A)
         return [RateLaw(source.theta, flow), RateLaw(target.theta, -flow)]
@@ -135,14 +142,20 @@ class ConnectionElement(Element):
 
 
 def _differences(edges: scipy.sparse.csr_array, values: Mapping[str, object]) -> Array:
-    """Return the differences of the phases along the edges minus the connection, wrapped into one period around 0."""
+    """Return the differences of the phases along the edges minus the connection.
+
+    They are wrapped into one period around 0.
+    """
     phases = np.ravel(np.asarray(values['agents.theta'], dtype=float))
     connection = np.ravel(np.asarray(values['links.A'], dtype=float))
     return np.angle(np.exp(1j * (edges @ phases - connection)))
 
 
 def _energy(edges: scipy.sparse.csr_array, t: float, values: Mapping[str, object]) -> float:
-    """Return the sum over the edges of one minus the cosine of the transported difference."""
+    """Return the sum over the edges of one minus the cosine of the difference.
+
+    The difference is the transported one.
+    """
     del t
     return float((1.0 - np.cos(_differences(edges, values))).sum())
 
@@ -153,13 +166,19 @@ def _twist(
     t: float,
     values: Mapping[str, object],
 ) -> float:
-    """Return the largest absolute oriented sum of the transported differences around a face."""
+    """Return the largest absolute oriented sum of the transported differences.
+
+    The sums run around the faces.
+    """
     del t
     return float(np.abs(faces @ _differences(edges, values)).max(initial=0.0))
 
 
 def _agent_observables(system: System) -> list[ObservableSpec]:
-    """Return the energy of the transported differences and their twist around the faces."""
+    """Return the energy of the transported differences and their twist.
+
+    The twist is around the faces.
+    """
     space = system.elements[0].space.prepare()
     return [
         ObservableSpec('energy', function=partial(_energy, space.incidences_[0])),
@@ -168,11 +187,12 @@ def _agent_observables(system: System) -> list[ObservableSpec]:
 
 
 class GaugeNetworkAgentsSystem(BaseSystem):
-    """Agent phases on the nodes of a network that relax towards the transported phases of their neighbours.
+    """Agent phases on the nodes of a network.
 
-    Agent `i` follows `theta_i' = K sum_j sin(theta_j - theta_i - A_ij)` over its neighbours. A connection whose
-    oriented sum around a loop is not a multiple of `2 pi` frustrates the loop: the transported differences cannot all
-    vanish, so the agents keep a residual energy `sum (1 - cos(theta_j - theta_i - A_ij))` and a twist around the loop.
+    They relax towards the transported phases of their neighbours. Agent `i` follows
+    `theta_i' = K sum_j sin(theta_j - theta_i - A_ij)` over its neighbours. A connection whose oriented sum around a
+    loop is not a multiple of `2 pi` frustrates the loop: the transported differences cannot all vanish, so the agents
+    keep a residual energy `sum (1 - cos(theta_j - theta_i - A_ij))` and a twist around the loop.
 
     Args:
         n_agents:
@@ -267,7 +287,10 @@ class GaugeNetworkAgentsSystem(BaseSystem):
         return System(self.label, elements=[agents, links], interactions=[coupling])
 
     def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings, with the observables of the parts built from the model parameters."""
+        """Return the tuned run settings.
+
+        The observables of the parts are built from the model parameters.
+        """
         settings = super().get_run_settings()
         settings['observables'] = _agent_observables(self._pass_parameters())
         return settings

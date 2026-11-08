@@ -20,7 +20,10 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class EmployeeView(AgentView):
-    """View of an employee of the insider sabotage system, with its states and parameters as attributes."""
+    """View of an employee of the insider sabotage system.
+
+    Its states and parameters are attributes.
+    """
 
     predisposed: float
     disgruntlement: float
@@ -203,7 +206,10 @@ class EmployeeElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[EmployeeView]:
-        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        """Return the class of the views of the agents.
+
+        Their attributes are the states and parameters.
+        """
         return EmployeeView
 
 
@@ -223,9 +229,9 @@ HIRE_RESETS = ('disgruntlement', 'stress', 'skill', 'days', 'mean_feeling', 'fir
 
 
 class InsiderSabotageSystem(BaseSystem):
-    """The insider sabotage system of employees whose risk of sabotage builds up over the days of a year.
+    """The insider sabotage system of employees whose risk of sabotage builds up.
 
-    The system has the groups `employees` and `supervisors`.
+    The risk builds up over the days of a year. The system has the groups `employees` and `supervisors`.
 
     Args:
         size:
@@ -276,19 +282,28 @@ class InsiderSabotageSystem(BaseSystem):
 
     @staticmethod
     def _feel(agent: EmployeeView, system: SystemViewProtocol) -> float:
-        """Return the feeling of a predisposed employee about the organization today, drawn, or else the last one."""
+        """Return the feeling of a predisposed employee about the organization today.
+
+        It is drawn, or else the last one.
+        """
         if not agent.predisposed:
             return float(agent.feeling)
         return float(system.rng.normal(agent.culture, np.sqrt(agent.change)))
 
     @staticmethod
     def _remember_first(agent: EmployeeView, system: SystemViewProtocol) -> float:
-        """Return the first feeling of an employee, today's feeling on the first day of a predisposed employee."""
+        """Return the first feeling of an employee.
+
+        It is today's feeling on the first day of a predisposed employee.
+        """
         return float(agent.feeling if agent.predisposed and agent.days == 0 else agent.first)
 
     @staticmethod
     def _disgruntle(agent: EmployeeView, system: SystemViewProtocol) -> float:
-        """Return the disgruntlement, the shortfall of today's feeling from the expectation of a predisposed one."""
+        """Return the disgruntlement.
+
+        It is the shortfall of today's feeling from the expectation of a predisposed one.
+        """
         if not agent.predisposed or agent.days == 0:
             return float(agent.disgruntlement)
         return float((agent.expectation - agent.feeling) * agent.affect_weight)
@@ -300,12 +315,18 @@ class InsiderSabotageSystem(BaseSystem):
 
     @staticmethod
     def _average(agent: EmployeeView, system: SystemViewProtocol) -> float:
-        """Return the change of the mean feeling of a predisposed employee by today's feeling."""
+        """Return the change of the mean feeling of a predisposed employee.
+
+        The change is by today's feeling.
+        """
         return float((agent.feeling - agent.mean_feeling) / agent.days) if agent.predisposed else 0.0
 
     @staticmethod
     def _expect(agent: EmployeeView, system: SystemViewProtocol) -> float:
-        """Return the expectation of a predisposed employee, which weighs the first, the mean, and today's feeling."""
+        """Return the expectation of a predisposed employee.
+
+        It weighs the first, the mean, and today's feeling.
+        """
         if not agent.predisposed:
             return float(agent.expectation)
         weights = agent.primacy + agent.consistency + agent.recency
@@ -314,7 +335,10 @@ class InsiderSabotageSystem(BaseSystem):
 
     @staticmethod
     def _stress(agent: EmployeeView, system: SystemViewProtocol) -> float:
-        """Return the change of stress towards its level in sight of a supervisor, an agent of another group, or out."""
+        """Return the change of stress towards its level.
+
+        The level is that in sight of a supervisor, an agent of another group, or out.
+        """
         supervised = any(other.group != agent.group for other in [*agent.neighbors(), *agent.agents_here()])
         if supervised:
             return float(agent.alpha_seen * (agent.lambda_seen - agent.stress))
@@ -332,12 +356,18 @@ class InsiderSabotageSystem(BaseSystem):
 
     @staticmethod
     def _hire(agent: EmployeeView | None, system: SystemViewProtocol) -> dict[str, object]:
-        """Return the values of a new hire who replaces a leaving employee and keeps its affect."""
+        """Return the values of a new hire who replaces a leaving employee.
+
+        The new hire keeps its affect.
+        """
         return {'predisposed': float(system.rng.random() < PREDISPOSED), **dict.fromkeys(HIRE_RESETS, 0.0)}
 
     @staticmethod
     def _sum_risk(agent: EmployeeView, system: SystemViewProtocol) -> float:
-        """Return the risk, the sum of the predisposition, the disgruntlement, the stress, the skill, and the affect."""
+        """Return the risk.
+
+        It is the sum of the predisposition, the disgruntlement, the stress, the skill, and the affect.
+        """
         return float(agent.predisposed + agent.disgruntlement + agent.stress + agent.skill + agent.affect)
 
     def _build_system(self) -> System:

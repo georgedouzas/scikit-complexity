@@ -1,4 +1,7 @@
-"""Tournament systems: the evolution of strategies of the iterated prisoner's dilemma."""
+"""Tournament systems: the evolution of strategies of the iterated dilemma.
+
+The iterated dilemma is the prisoner's dilemma.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,14 +23,19 @@ from ....core.types import Array
 
 
 class StrategistView(AgentView):
-    """View of a strategist of the iterated prisoner's dilemma, with its states as attributes."""
+    """View of a strategist of the iterated prisoner's dilemma.
+
+    Its states are attributes.
+    """
 
     genome: Array
     fitness: float
 
 
 class StrategistElement(Element):
-    """Agent of the prisoner's dilemma tournament, with a genome of responses and the fitness of its last games.
+    """Agent of the prisoner's dilemma tournament.
+
+    It holds a genome of responses and the fitness of its last games.
 
     Args:
         label:
@@ -65,7 +73,10 @@ class StrategistElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[StrategistView]:
-        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        """Return the class of the views of the agents.
+
+        Their attributes are the states and parameters.
+        """
         return StrategistView
 
 
@@ -76,7 +87,10 @@ PAYOFFS = {(1, 1): (3.0, 3.0), (1, 0): (0.0, 5.0), (0, 1): (5.0, 0.0), (0, 0): (
 
 
 def _gene(history: list[int]) -> int:
-    """Return the gene that answers the last two moves of the opponent: none, C, D, CC, CD, DC, or DD."""
+    """Return the gene that answers the last two moves of the opponent.
+
+    The moves are none, C, D, CC, CD, DC, or DD.
+    """
     recent = history[-2:]
     if not recent:
         return 0
@@ -168,7 +182,9 @@ class TournamentInteraction(GroupingInteraction):
         return [[agent, ring[position - 1], ring[(position + 1) % len(ring)]] for position, agent in enumerate(ring)]
 
     def act_on(self, members: list[AgentViewProtocol], system: SystemViewProtocol) -> None:
-        """Set the fitness of the first member to its mean score per round against the two others.
+        """Set the fitness of the first member to its mean score per round.
+
+        The score is against the two others.
 
         Args:
             members:
@@ -186,9 +202,10 @@ GENES = 7
 
 
 class PrisonersDilemmaTournamentSystem(BaseSystem):
-    """The evolution of strategies of the iterated prisoner's dilemma from random genomes.
+    """The evolution of strategies of the iterated prisoner's dilemma.
 
-    The system has the group `agents`, the tournament `tournament`, and the death-birth replacement `selection`.
+    The strategies start from random genomes. The system has the group `agents`, the tournament `tournament`, and the
+    death-birth replacement `selection`.
 
     Args:
         n_agents:

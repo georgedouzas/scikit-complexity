@@ -1,4 +1,7 @@
-"""Supply chain systems: Namrata's Family, the diffusion of good working conditions from buyers to suppliers."""
+"""Supply chain systems: Namrata's Family.
+
+It is the diffusion of good working conditions from buyers to suppliers.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,7 +24,10 @@ from ....core.specs import StateSpec, VisualSpec
 
 
 class SupplierView(AgentView):
-    """View of a firm of the supply chain diffusion system, with its states as attributes."""
+    """View of a firm of the supply chain diffusion system.
+
+    Its states are attributes.
+    """
 
     adopted: float
     inflow: float
@@ -29,7 +35,9 @@ class SupplierView(AgentView):
 
 
 class SupplierElement(Element):
-    """Firm of a supply chain, a buyer or a factory, with the value of the goods that flow into and out of it.
+    """Firm of a supply chain, a buyer or a factory.
+
+    It holds the value of the goods that flow into and out of it.
 
     Args:
         label:
@@ -74,17 +82,18 @@ class SupplierElement(Element):
 
 
 class SupplyChainDiffusionSystem(BaseSystem):
-    """Chesney's Namrata's Family, buyers who push good working conditions down their supply network.
+    """Chesney's Namrata's Family.
 
-    Goods flow from suppliers to buyers along the weighted edges of a directed network, `w_ji` from `j` to `i`. A buyer
-    `i` that has adopted forces a supplier `j` to adopt when it is less beholden to the supplier than the supplier is
-    to it, `V_ij = w_ji / w_->i < V_ji = w_ji / w_j->`, where `w_->i` is the total value that flows into `i` and
-    `w_j->` the total value that flows out of `j`, with a strict inequality since factories resist by default
-    (Chesney 2021 sections 4.9 and 4.10). A seed group of buyers adopts at the start, and in every time period the
-    firms that adopted in the previous one push their suppliers. Since the condition reads `w_->i > w_j->`, a buyer
-    with a single supplier never forces it, so diffusion needs buyers with two or more suppliers (section 4.11). The
-    default network has `buyers` buyers and `factories` factories, every factory supplying one to three random firms
-    listed before it with values from 1 to 10.
+    Buyers push good working conditions down their supply network. Goods flow from suppliers to buyers along the
+    weighted edges of a directed network, `w_ji` from `j` to `i`. A buyer `i` that has adopted forces a supplier `j` to
+    adopt when it is less beholden to the supplier than the supplier is to it,
+    `V_ij = w_ji / w_->i < V_ji = w_ji / w_j->`, where `w_->i` is the total value that flows into `i` and `w_j->` the
+    total value that flows out of `j`, with a strict inequality since factories resist by default (Chesney 2021 sections
+    4.9 and 4.10). A seed group of buyers adopts at the start, and in every time period the firms that adopted in the
+    previous one push their suppliers. Since the condition reads `w_->i > w_j->`, a buyer with a single supplier never
+    forces it, so diffusion needs buyers with two or more suppliers (section 4.11). The default network has `buyers`
+    buyers and `factories` factories, every factory supplying one to three random firms listed before it with values
+    from 1 to 10.
 
     The system has the group `firms` on the nodes of the network.
 
@@ -138,10 +147,11 @@ class SupplyChainDiffusionSystem(BaseSystem):
 
     @staticmethod
     def _adopt(firm: SupplierView, system: SystemViewProtocol) -> float:
-        """Return 1 for a firm that has adopted or that an adopting buyer has the power to force, and 0 otherwise.
+        """Return 1 for a firm that has adopted or can be forced, and 0 otherwise.
 
-        A buyer `i` forces its supplier `j` when `V_ij = w_ji / w_->i` is below `V_ji = w_ji / w_j->`, that is when
-        the inflow of the buyer exceeds the outflow of the supplier.
+        A firm can be forced when an adopting buyer has the power to force it. A buyer `i` forces its supplier `j` when
+        `V_ij = w_ji / w_->i` is below `V_ji = w_ji / w_j->`, that is when the inflow of the buyer exceeds the outflow
+        of the supplier.
         """
         del system
         if firm.adopted:
@@ -151,7 +161,10 @@ class SupplyChainDiffusionSystem(BaseSystem):
 
     @staticmethod
     def _supply_network(buyers: int, factories: int, rng: np.random.Generator) -> nx.DiGraph:
-        """Return a random supply network, edges from supplier to buyer weighted by the value of the goods."""
+        """Return a random supply network.
+
+        Its edges go from supplier to buyer, weighted by the value of the goods.
+        """
         graph = nx.DiGraph()
         graph.add_nodes_from(range(buyers + factories))
         for factory in range(buyers, buyers + factories):

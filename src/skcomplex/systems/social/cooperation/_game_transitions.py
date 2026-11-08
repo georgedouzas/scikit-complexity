@@ -1,4 +1,7 @@
-"""Game transition systems: donation games on the edges of a graph that change with the actions played."""
+"""Game transition systems: donation games on the edges of a graph.
+
+The games change with the actions played.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -35,7 +38,9 @@ MUTUAL_COOPERATION = 2
 
 
 class DonorElement(Element):
-    """Player of donation games on the edges of a graph, a cooperator at 1 and a defector at 0.
+    """Player of donation games on the edges of a graph.
+
+    It is a cooperator at 1 and a defector at 0.
 
     Args:
         label:
@@ -75,17 +80,18 @@ class DonorElement(Element):
 
 
 class GameTransitionsInteraction(Interaction):
-    """Evolutionary dynamics with game transitions, where the game on every edge follows the actions played on it.
+    """Evolutionary dynamics with game transitions.
 
-    Every edge of the graph carries game 1 or game 2, donation games where a cooperator pays `c` to give its partner
-    `b1` or `b2`, and every edge starts with game 1. In every time step every player plays the game of every edge with
-    its neighbour and accumulates the payoff `pi`, of fitness `1 - delta + delta pi`. Under death-birth updating a
-    uniformly drawn player dies and its neighbours compete for the site in proportion to their fitness, and under
-    pairwise comparison a uniformly drawn player copies a random neighbour with the probability
-    `1 / (1 + exp(-delta (pi_j - pi_i)))`. The games then change: an edge goes to game 2 with the probability
-    `after_cooperation` after mutual cooperation, with `after_defection` after one defection, and surely after mutual
-    defection, and to game 1 otherwise. The newcomer of a site plays the games of its prior occupant. Every step of the
-    system has one time step per player, and the share of edges with game 1 is reported as `game_one`.
+    The game on every edge follows the actions played on it. Every edge of the graph carries game 1 or game 2, donation
+    games where a cooperator pays `c` to give its partner `b1` or `b2`, and every edge starts with game 1. In every time
+    step every player plays the game of every edge with its neighbour and accumulates the payoff `pi`, of fitness
+    `1 - delta + delta pi`. Under death-birth updating a uniformly drawn player dies and its neighbours compete for the
+    site in proportion to their fitness, and under pairwise comparison a uniformly drawn player copies a random
+    neighbour with the probability `1 / (1 + exp(-delta (pi_j - pi_i)))`. The games then change: an edge goes to game 2
+    with the probability `after_cooperation` after mutual cooperation, with `after_defection` after one defection, and
+    surely after mutual defection, and to game 1 otherwise. The newcomer of a site plays the games of its prior
+    occupant. Every step of the system has one time step per player, and the share of edges with game 1 is reported as
+    `game_one`.
 
     Args:
         label:
@@ -206,7 +212,10 @@ class GameTransitionsInteraction(Interaction):
         return np.bincount(first, gains, strategies.size) + np.bincount(second, returns, strategies.size)
 
     def _replace(self, strategies: Array, payoffs: Array, neighbors: list[IntArray], rng: np.random.Generator) -> None:
-        """Replace the strategy of one uniformly drawn player by death-birth or pairwise comparison."""
+        """Replace the strategy of one uniformly drawn player.
+
+        The replacement is by death-birth or pairwise comparison.
+        """
         player = int(rng.integers(strategies.size))
         around = neighbors[player]
         if around.size == 0:
@@ -221,7 +230,9 @@ class GameTransitionsInteraction(Interaction):
         strategies[player] = strategies[around[rng.choice(around.size, p=fitness / fitness.sum())]]
 
     def evolve(self, system: SystemView) -> None:
-        """Run one time step per player: play the games, replace one player, and change the games.
+        """Run one time step per player.
+
+        The step plays the games, replaces one player, and changes the games.
 
         Args:
             system:
@@ -260,19 +271,19 @@ class GameTransitionsInteraction(Interaction):
 
 
 class GameTransitionsSystem(BaseSystem):
-    """Evolutionary dynamics with game transitions on a random regular graph, after Su, McAvoy, Wang, and Nowak.
+    """Evolutionary dynamics with game transitions on a random regular graph.
 
-    Every edge carries a donation game, game 1 of benefit `b1` or game 2 of benefit `b2 < b1`, at the same cost `c`.
-    Players accumulate the payoffs of the games with all their neighbours, one player is replaced every time step by
-    death-birth updating or pairwise comparison, and the game of every edge changes with the actions played on it:
-    with the default transitions mutual cooperation leads to game 1 and every other outcome to game 2 (arXiv 1905.10269
-    section 2 and section 3.1). Under weak selection and death-birth updating on a `k`-regular graph, cooperation is
-    favoured if `b1 / c > k - xi (b1 - b2) / c` with `xi = (k - 1) / 2`, lowered from the rule `b1 / c > k` of a
-    single game, and with the probabilities `p` and `q` of game 2 after mutual cooperation and after one defection,
-    `xi = (k - 1) q / 2 - (k + 1) p / 2` (Eq. 1 and Eq. 3). Under pairwise comparison cooperation is favoured if
-    `(b1 - b2) / (2 c) > 1` (Eq. 2), whatever `b1`, and never with a single game. The defaults `b1 = 3.5`,
-    `b2 = b1 - 0.9`, and `k = 4` lie in the range of Fig. 2 where transitions favour cooperation, since
-    `3.5 > 4 - 1.5 * 0.9`, and game 1 alone does not, since `3.5 < 4`.
+    It follows Su, McAvoy, Wang, and Nowak. Every edge carries a donation game, game 1 of benefit `b1` or game 2 of
+    benefit `b2 < b1`, at the same cost `c`. Players accumulate the payoffs of the games with all their neighbours, one
+    player is replaced every time step by death-birth updating or pairwise comparison, and the game of every edge
+    changes with the actions played on it: with the default transitions mutual cooperation leads to game 1 and every
+    other outcome to game 2 (arXiv 1905.10269 section 2 and section 3.1). Under weak selection and death-birth updating
+    on a `k`-regular graph, cooperation is favoured if `b1 / c > k - xi (b1 - b2) / c` with `xi = (k - 1) / 2`, lowered
+    from the rule `b1 / c > k` of a single game, and with the probabilities `p` and `q` of game 2 after mutual
+    cooperation and after one defection, `xi = (k - 1) q / 2 - (k + 1) p / 2` (Eq. 1 and Eq. 3). Under pairwise
+    comparison cooperation is favoured if `(b1 - b2) / (2 c) > 1` (Eq. 2), whatever `b1`, and never with a single game.
+    The defaults `b1 = 3.5`, `b2 = b1 - 0.9`, and `k = 4` lie in the range of Fig. 2 where transitions favour
+    cooperation, since `3.5 > 4 - 1.5 * 0.9`, and game 1 alone does not, since `3.5 < 4`.
 
     The system has the group `players` on the nodes of the graph, and the reporter `evolution.game_one`.
 

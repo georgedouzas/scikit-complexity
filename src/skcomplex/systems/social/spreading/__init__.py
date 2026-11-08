@@ -1,4 +1,4 @@
-"""Spreading: rumours, cascades, contagions on hypergraphs, and the growth of texts."""
+"""Spreading: rumours, cascades, contagions on hypergraphs, and growing texts."""
 
 from ._cascades import ThresholdActivationInteraction, ThresholdNodeElement, ThresholdNodeView, WattsCascadesSystem
 from ._exposure import ExposureInteraction, HypergraphExposureSisSystem, ParticipantElement

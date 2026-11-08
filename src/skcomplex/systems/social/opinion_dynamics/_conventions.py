@@ -18,16 +18,19 @@ from ._random_pairs import RandomPairsInteraction
 
 
 class NamerView(AgentView):
-    """View of an agent of the naming game, with its states and parameters as attributes."""
+    """View of an agent of the naming game.
+
+    Its states and parameters are attributes.
+    """
 
     words: Array
 
 
 class NamerElement(Element):
-    """Agent of the naming game, with an inventory of the words it knows for one object.
+    """Agent of the naming game, with an inventory of the words it knows.
 
-    The inventory is an indicator vector over the lexicon, with one slot per agent for the word that agent invents
-    when it first speaks with an empty inventory.
+    The words name one object. The inventory is an indicator vector over the lexicon, with one slot per agent for the
+    word that agent invents when it first speaks with an empty inventory.
 
     Args:
         label:
@@ -60,7 +63,10 @@ class NamerElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[NamerView]:
-        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        """Return the class of the views of the agents.
+
+        Their attributes are the states and parameters.
+        """
         return NamerView
 
 
@@ -88,7 +94,10 @@ class NamingGamesInteraction(RandomPairsInteraction):
     """
 
     def _invent(self, words: Array, system: SystemViewProtocol) -> None:
-        """Mark in an inventory a new word, the first slot of the lexicon that no agent knows."""
+        """Mark a new word in an inventory.
+
+        The new word is the first slot of the lexicon that no agent knows.
+        """
         known = np.zeros_like(words)
         for agent in system.agents('target'):
             if isinstance(agent, NamerView):
@@ -96,7 +105,9 @@ class NamingGamesInteraction(RandomPairsInteraction):
         words[int(np.flatnonzero(known == 0)[0])] = 1.0
 
     def act_on(self, members: list[AgentViewProtocol], system: SystemViewProtocol) -> None:
-        """Play one naming game between the first member, the speaker, and the second, the hearer.
+        """Play one naming game between the first member and the second.
+
+        The first member is the speaker, and the second the hearer.
 
         Args:
             members:

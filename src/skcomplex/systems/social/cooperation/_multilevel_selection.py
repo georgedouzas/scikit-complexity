@@ -1,4 +1,7 @@
-"""Multilevel selection of altruistic punishment: densities of group compositions under group-level competition."""
+"""Multilevel selection of altruistic punishment.
+
+It follows the densities of group compositions under group-level competition.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -27,13 +30,19 @@ type Fraction = Expression | npt.NDArray[np.float64]
 
 
 def _get_pairwise_payoff(z: Fraction, payoffs: tuple[float, ...]) -> Fraction:
-    """Return the average payoff `G(z)` of a group of punishers `z` and defectors, from equation 2.11."""
+    """Return the average payoff `G(z)` of a group of punishers `z` and defectors.
+
+    It follows equation 2.11.
+    """
     benefit, cost, punishment, interaction, fixed = payoffs
     return (benefit - cost - fixed - punishment - interaction) * z + (punishment + interaction) * z**2
 
 
 def _get_trimorphic_payoff(x: Fraction, y: Fraction, payoffs: tuple[float, ...]) -> Fraction:
-    """Return the average payoff `G(x, y)` of cooperators `x`, defectors `y`, and punishers, from equation 2.5."""
+    """Return the average payoff `G(x, y)` of a group of three kinds.
+
+    The kinds are cooperators `x`, defectors `y`, and punishers, and the payoff follows equation 2.5.
+    """
     benefit, cost, punishment, interaction, fixed = payoffs
     strength = punishment + interaction
     return (
@@ -48,7 +57,10 @@ def _get_trimorphic_payoff(x: Fraction, y: Fraction, payoffs: tuple[float, ...])
 
 
 def _get_payoff_range(payoffs: tuple[float, ...]) -> float:
-    """Return the largest difference `G* - G_*` of the average payoffs of two groups on the simplex."""
+    """Return the largest difference `G* - G_*` of the average payoffs of two groups.
+
+    The groups lie on the simplex.
+    """
     grid = np.linspace(0.0, 1.0, SIMPLEX_SAMPLES)
     x, y = np.meshgrid(grid, grid, indexing='ij')
     values = np.asarray(_get_trimorphic_payoff(x, y, payoffs))[x + y <= 1]
@@ -63,16 +75,16 @@ def _check_victory(victory: str, victories: tuple[str, ...]) -> None:
 
 
 class NonlinearPairwiseGroupConflictSystem(BaseSystem):
-    """The density of groups of defectors and altruistic punishers under pairwise group conflict.
+    """The density of groups of defectors and altruistic punishers.
 
-    The density `f(z)` of groups with a fraction `z` of punishers is advected by the replicator dynamics within groups,
-    `z (1 - z) (pi_P - pi_D)`, and groups win pairwise conflicts, copying themselves over the loser, at the rate
-    `group_strength f(z) int (rho(z, u) - rho(u, z)) f(u) du`. The victory probability `rho` is not additively
-    separable: the group Fermi rule `(1 + tanh(s (G(z) - G(u)))) / 2` (`'fermi'`), the local rule normalized by the
-    payoffs of both groups (`'local'`), or the Tullock contest function of the payoffs above their minimum with the
-    exponent `1 / a` (`'tullock'`), where `G(z)` is the average payoff of a group (Cooney 2024, arXiv 2405.18419 §3.1
-    and §6). The density starts uniform, and the integral against the two-point kernel `rho(z, u) - rho(u, z)` keeps
-    its total at one.
+    The groups are under pairwise group conflict. The density `f(z)` of groups with a fraction `z` of punishers is
+    advected by the replicator dynamics within groups, `z (1 - z) (pi_P - pi_D)`, and groups win pairwise conflicts,
+    copying themselves over the loser, at the rate `group_strength f(z) int (rho(z, u) - rho(u, z)) f(u) du`. The
+    victory probability `rho` is not additively separable: the group Fermi rule `(1 + tanh(s (G(z) - G(u)))) / 2`
+    (`'fermi'`), the local rule normalized by the payoffs of both groups (`'local'`), or the Tullock contest function of
+    the payoffs above their minimum with the exponent `1 / a` (`'tullock'`), where `G(z)` is the average payoff of a
+    group (Cooney 2024, arXiv 2405.18419 §3.1 and §6). The density starts uniform, and the integral against the
+    two-point kernel `rho(z, u) - rho(u, z)` keeps its total at one.
 
     The system has the density `groups.f`.
 
@@ -164,7 +176,10 @@ class NonlinearPairwiseGroupConflictSystem(BaseSystem):
         sensitivity: float,
         exponent: float,
     ) -> Expression:
-        """Return the probability that a group of punishers `first` defeats one of `second`, equations 3.12 to 3.14."""
+        """Return the probability that a group of punishers defeats another.
+
+        The groups are `first` and `second`. It follows equations 3.12 to 3.14.
+        """
         own, other = (_get_pairwise_payoff(item, payoffs) for item in (first, second))
         if victory == 'fermi':
             return (1 + tanh(sensitivity * (own - other))) / 2
@@ -225,16 +240,17 @@ class NonlinearPairwiseGroupConflictSystem(BaseSystem):
 
 
 class TwoLevelReplicatorSystem(BaseSystem):
-    """The two-level replicator equation of defectors and altruistic punishers, additive pairwise group conflict.
+    """The two-level replicator equation of defectors and altruistic punishers.
 
-    The density `f(z)` of groups with a fraction `z` of punishers is advected by the replicator dynamics within groups,
-    `z (1 - z) (pi_P - pi_D)`, and groups replicate at the rate `group_strength f(z) (G(z) - int G(u) f(u) du)`
-    (Cooney 2024, arXiv 2405.18419 Eq. 3.3). Pairwise group conflict with an additively separable victory probability
-    `rho(z, u) = 1/2 + (G(z) - G(u)) / 2` reduces to this equation (Eq. 3.11): `G(z) = z` for the probability of
-    Boyd and coauthors based on the fraction of punishers (`'punishers'`, Eq. 3.6 and section 5.1), or the average
-    payoff of a group normalized by its range, `G(z) / (G* - G_*)` (`'payoff'`, Eq. 3.8 and section 5.2). From a uniform
-    density with `G(z) = z` and `p < c + q`, the groups concentrate at the all-defector state below the threshold
-    `lambda* = c + q - p`, and above it the mean fraction of punishers tends to `1 - (c + q - p) / lambda` (Eq. 5.4).
+    The group conflict is additive and pairwise. The density `f(z)` of groups with a fraction `z` of punishers is
+    advected by the replicator dynamics within groups, `z (1 - z) (pi_P - pi_D)`, and groups replicate at the rate
+    `group_strength f(z) (G(z) - int G(u) f(u) du)` (Cooney 2024, arXiv 2405.18419 Eq. 3.3). Pairwise group conflict
+    with an additively separable victory probability `rho(z, u) = 1/2 + (G(z) - G(u)) / 2` reduces to this equation (Eq.
+    3.11): `G(z) = z` for the probability of Boyd and coauthors based on the fraction of punishers (`'punishers'`, Eq.
+    3.6 and section 5.1), or the average payoff of a group normalized by its range, `G(z) / (G* - G_*)` (`'payoff'`, Eq.
+    3.8 and section 5.2). From a uniform density with `G(z) = z` and `p < c + q`, the groups concentrate at the
+    all-defector state below the threshold `lambda* = c + q - p`, and above it the mean fraction of punishers tends to
+    `1 - (c + q - p) / lambda` (Eq. 5.4).
 
     The system has the density `groups.f`.
 
@@ -308,7 +324,10 @@ class TwoLevelReplicatorSystem(BaseSystem):
 
     @staticmethod
     def _get_group_rate(z: Expression, payoffs: tuple[float, ...], victory: str) -> Expression:
-        """Return the net group-level replication rate `G(z)` of an additively separable victory probability."""
+        """Return the net group-level replication rate `G(z)`.
+
+        The victory probability is additively separable.
+        """
         if victory == 'punishers':
             return z
         centres = np.linspace(0.0, 1.0, SIMPLEX_SAMPLES)
@@ -349,15 +368,15 @@ class TwoLevelReplicatorSystem(BaseSystem):
 
 
 class TrimorphicMultilevelSelectionSystem(BaseSystem):
-    """The density of groups of cooperators, defectors, and altruistic punishers on the 2-simplex.
+    """The density of groups of cooperators, defectors, and altruistic punishers.
 
-    The density `f(x, y)` of groups with fractions `x` of cooperators, `y` of defectors, and `1 - x - y` of punishers
-    lives on the 2-simplex. The replicator dynamics within groups advect it, and groups win pairwise conflicts at the
-    rate `group_strength f(x, y) int (rho(x, y; u, v) - rho(u, v; x, y)) f(u, v) du dv` over the simplex. The victory
-    probability is `1/2 + (v - y) / 2` of the fraction of non-defectors (`'defectors'`), or the difference of the
-    average payoffs normalized by their largest difference on the simplex (`'payoff'`) (Cooney 2024, arXiv 2405.18419
-    §3.2 and §7). The density starts uniform at two, so its integral is one, the cells along the slanted face are half
-    cells, and no flux leaves the simplex.
+    It lives on the 2-simplex. The density `f(x, y)` of groups with fractions `x` of cooperators, `y` of defectors, and
+    `1 - x - y` of punishers lives on the 2-simplex. The replicator dynamics within groups advect it, and groups win
+    pairwise conflicts at the rate `group_strength f(x, y) int (rho(x, y; u, v) - rho(u, v; x, y)) f(u, v) du dv` over
+    the simplex. The victory probability is `1/2 + (v - y) / 2` of the fraction of non-defectors (`'defectors'`), or the
+    difference of the average payoffs normalized by their largest difference on the simplex (`'payoff'`) (Cooney 2024,
+    arXiv 2405.18419 §3.2 and §7). The density starts uniform at two, so its integral is one, the cells along the
+    slanted face are half cells, and no flux leaves the simplex.
 
     The system has the density `groups.f`.
 
@@ -431,7 +450,10 @@ class TrimorphicMultilevelSelectionSystem(BaseSystem):
 
     @staticmethod
     def _get_trimorphic_victory_gain(victory: str, payoffs: tuple[float, ...]) -> Expression:
-        """Return `rho(x, y; u, v) - rho(u, v; x, y)` of the victory of a group over another on the simplex."""
+        """Return `rho(x, y; u, v) - rho(u, v; x, y)` of the victory of a group.
+
+        The victory is over another group on the simplex.
+        """
         x, y = coordinate('x'), coordinate('y')
         u, v = integration_variable('x'), integration_variable('y')
         if victory == 'defectors':
@@ -441,7 +463,10 @@ class TrimorphicMultilevelSelectionSystem(BaseSystem):
 
     @staticmethod
     def _get_simplex_drift(payoffs: tuple[float, ...]) -> list[Expression]:
-        """Return the replicator dynamics of cooperators and defectors in a group, from equation E.20."""
+        """Return the replicator dynamics of cooperators and defectors in a group.
+
+        It follows equation E.20.
+        """
         _, cost, punishment, interaction, fixed = payoffs
         x, y = coordinate('x'), coordinate('y')
         punished = fixed + interaction * y

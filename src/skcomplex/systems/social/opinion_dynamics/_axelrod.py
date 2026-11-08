@@ -23,7 +23,10 @@ from ....core.types import AnyArray, IntArray
 
 
 class VillageView(AgentView):
-    """View of a village of the Axelrod culture system, with its states and parameters as attributes."""
+    """View of a village of the Axelrod culture system.
+
+    Its states and parameters are attributes.
+    """
 
     culture: float
     features: float
@@ -31,7 +34,9 @@ class VillageView(AgentView):
 
 
 class VillageElement(Element):
-    """Village of Axelrod's system, with a culture of `F` features of `q` traits each, stored as one integer.
+    """Village of Axelrod's system, with a culture of `F` features of `q` traits each.
+
+    The culture is stored as one integer.
 
     Args:
         label:
@@ -74,12 +79,17 @@ class VillageElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[VillageView]:
-        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        """Return the class of the views of the agents.
+
+        Their attributes are the states and parameters.
+        """
         return VillageView
 
 
 def cultural_traits(culture: float, features: int, traits: int) -> IntArray:
-    """Return the traits of a culture vector stored as one integer, its digits in base `q`.
+    """Return the traits of a culture vector stored as one integer.
+
+    They are its digits in base `q`.
 
     Args:
         culture:
@@ -104,10 +114,11 @@ def cultural_traits(culture: float, features: int, traits: int) -> IntArray:
 
 
 class CulturalInfluenceInteraction(GroupingInteraction):
-    """Cultural influence of Axelrod's system, where every village in turn may copy a trait of a random neighbour.
+    """Cultural influence of Axelrod's system.
 
-    Every step every village, in random order, picks a random neighbour and, with probability equal to the fraction of
-    features they share, copies the trait of one feature on which they differ.
+    Every village in turn may copy a trait of a random neighbour. Every step every village, in random order, picks a
+    random neighbour and, with probability equal to the fraction of features they share, copies the trait of one feature
+    on which they differ.
 
     Args:
         label:
@@ -135,7 +146,9 @@ class CulturalInfluenceInteraction(GroupingInteraction):
         super().__init__(label, target=target, groups='neighborhood', phase=phase)
 
     def act_on(self, members: list[AgentViewProtocol], system: SystemViewProtocol) -> None:
-        """Copy one differing trait of a random neighbour with probability equal to the cultural overlap.
+        """Copy one differing trait of a random neighbour.
+
+        The probability is equal to the cultural overlap.
 
         Args:
             members:
@@ -199,7 +212,9 @@ def _count_cultures(cultures: AnyArray) -> int:
 
 
 def culture_observables(width: int, height: int) -> list[ObservableSpec]:
-    """Return the share of the largest cultural region and the number of cultures of a full grid of villages.
+    """Return the share of the largest cultural region and the number of cultures.
+
+    They are read from a full grid of villages.
 
     Args:
         width:
@@ -234,12 +249,12 @@ def _get_culture_observables(system: System) -> list[ObservableSpec]:
 
 
 class AxelrodSystem(BaseSystem):
-    """Axelrod's culture dissemination system on a full grid with von Neumann neighbourhoods.
+    """Axelrod's culture dissemination system on a full grid.
 
-    Every village starts with random traits. For few traits per feature the villages converge to one culture, and for
-    many traits they freeze into many small cultural regions, an order-disorder transition at a critical `q`. The system
-    has the group `villages` and the influence `influence`. `culture_observables` gives the share of the largest
-    cultural region and the number of cultures.
+    The grid has von Neumann neighbourhoods. Every village starts with random traits. For few traits per feature the
+    villages converge to one culture, and for many traits they freeze into many small cultural regions, an
+    order-disorder transition at a critical `q`. The system has the group `villages` and the influence `influence`.
+    `culture_observables` gives the share of the largest cultural region and the number of cultures.
 
     Args:
         width:
@@ -310,7 +325,10 @@ class AxelrodSystem(BaseSystem):
         )
 
     def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings, with the observables of the parts built from the model parameters."""
+        """Return the tuned run settings.
+
+        The observables of the parts are built from the model parameters.
+        """
         settings = super().get_run_settings()
         settings['observables'] = _get_culture_observables(self._pass_parameters())
         return settings

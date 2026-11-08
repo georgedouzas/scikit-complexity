@@ -1,4 +1,7 @@
-"""Crowd systems: the kinetic theory of the evacuation of a building whose rooms form a network."""
+"""Crowd systems: the kinetic theory of the evacuation of a building.
+
+The rooms of the building form a network.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,10 +25,11 @@ from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec
 
 
 def crowding_table(rooms: int, speeds: int, step: int) -> tuple[npt.NDArray[np.float64], ...]:
-    """Return the rate pattern and the transition table of encounters that change the speed class by one step.
+    """Return the rate pattern and the transition table of crowding encounters.
 
-    With `step = -1`, two pedestrians in the same room meet and the candidate slows down one class, so crowded rooms
-    walk slower. With `step = 1`, a pedestrian meets the exit signs and speeds up one class.
+    The encounters change the speed class by one step. With `step = -1`, two pedestrians in the same room meet and the
+    candidate slows down one class, so crowded rooms walk slower. With `step = 1`, a pedestrian meets the exit signs and
+    speeds up one class.
 
     Args:
         rooms:
@@ -113,7 +117,10 @@ class CrowdingInteraction(EncounterInteraction):
         self.crowding = crowding
 
     def _get_rate(self, s: SimpleNamespace) -> object:
-        """Return the rate of the slowing encounters of every pair of classes within a room."""
+        """Return the rate of the slowing encounters of every pair of classes.
+
+        The encounters happen within a room.
+        """
         return crowding_table(int(self.rooms), int(self.speeds), -1)[0] * s.crowding
 
     def _get_kernel(self, s: SimpleNamespace) -> object:
@@ -177,7 +184,9 @@ class GuidanceInteraction(EncounterInteraction):
 
 
 def building_of(branching: int, depth: int) -> nx.Graph:
-    """Return a building whose rooms form a balanced tree, with the exit door in room 0, the root.
+    """Return a building whose rooms form a balanced tree.
+
+    The exit door is in room 0, the root.
 
     Args:
         branching:
@@ -199,7 +208,9 @@ def building_of(branching: int, depth: int) -> nx.Graph:
 
 
 def walking_speeds(speeds: int) -> npt.NDArray[np.float64]:
-    """Return the walking speed of every speed class, evenly spaced from a quarter of the free speed to the free speed.
+    """Return the walking speed of every speed class.
+
+    The speeds are evenly spaced from a quarter of the free speed to the free speed.
 
     Args:
         speeds:
@@ -218,7 +229,9 @@ def walking_speeds(speeds: int) -> npt.NDArray[np.float64]:
 
 
 def next_rooms(building: nx.Graph, exit_room: int) -> list[int]:
-    """Return the next room on the shortest path to the exit room from every room, and the outside for the exit room.
+    """Return the next room on the shortest path to the exit room from every room.
+
+    For the exit room it is the outside.
 
     Args:
         building:
@@ -243,10 +256,11 @@ def next_rooms(building: nx.Graph, exit_room: int) -> list[int]:
 
 
 def walking_table(building: nx.Graph, exit_room: int, speeds: int) -> tuple[npt.NDArray[np.float64], ...]:
-    """Return the rate pattern and the transition table of walking to the next room, an encounter with exit signs.
+    """Return the rate pattern and the transition table of walking to the next room.
 
-    The sites of the crowd are indexed by room and speed class in row-major order, with one last row of sites for the
-    outside. A pedestrian of speed `v` in a room walks to the next room on the way to the exit at the rate `v`.
+    The walking is an encounter with exit signs. The sites of the crowd are indexed by room and speed class in row-major
+    order, with one last row of sites for the outside. A pedestrian of speed `v` in a room walks to the next room on the
+    way to the exit at the rate `v`.
 
     Args:
         building:
@@ -288,7 +302,9 @@ def walking_table(building: nx.Graph, exit_room: int, speeds: int) -> tuple[npt.
 
 
 class WalkingInteraction(EncounterInteraction):
-    """Walking of pedestrians to the next room on the way out, an encounter with the exit signs.
+    """Walking of pedestrians to the next room on the way out.
+
+    It is an encounter with the exit signs.
 
     Args:
         label:
@@ -391,7 +407,10 @@ def mean_speed(s: SimpleNamespace, rooms: int, speeds: int) -> Expression:
 
 
 def _sizes_of(system: System) -> tuple[int, int]:
-    """Return the number of rooms and of speed classes of a system, from its crowding interaction."""
+    """Return the number of rooms and of speed classes of a system.
+
+    They are read from its crowding interaction.
+    """
     crowding = next(item for item in system.interactions if isinstance(item, CrowdingInteraction))
     return int(crowding.rooms), int(crowding.speeds)
 
@@ -541,7 +560,10 @@ class EvacuationSystem(BaseSystem):
         )
 
     def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings, with the observables of the parts built from the model parameters."""
+        """Return the tuned run settings.
+
+        The observables of the parts are built from the model parameters.
+        """
         settings = super().get_run_settings()
         system = self._pass_parameters()
         settings['observables'] = evacuation_observables(*_sizes_of(system))

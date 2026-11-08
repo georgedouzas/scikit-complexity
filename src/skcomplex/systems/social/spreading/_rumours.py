@@ -47,10 +47,10 @@ class ListenersElement(Element):
 
 
 class RumourContactsInteraction(Interaction):
-    """Contacts of the Maki-Thompson rumour system in a well-mixed population of size `N`.
+    """Contacts of the Maki-Thompson rumour system in a well-mixed population.
 
-    A spreader who meets an ignorant tells the rumour at rate `spread * X * Y / N`, and a spreader who meets another
-    spreader or a stifler stops spreading at rate `stifle * Y * (Y - 1 + Z) / N`.
+    The population has size `N`. A spreader who meets an ignorant tells the rumour at rate `spread * X * Y / N`, and a
+    spreader who meets another spreader or a stifler stops spreading at rate `stifle * Y * (Y - 1 + Z) / N`.
 
     Args:
         label:
@@ -116,9 +116,9 @@ class RumourContactsInteraction(Interaction):
 
 
 class MakiThompsonSystem(BaseSystem):
-    """The Maki-Thompson rumour system started by one spreader, which leaves about 20% of people ignorant.
+    """The Maki-Thompson rumour system started by one spreader.
 
-    The system has the counts `ignorants.n`, `spreaders.n`, and `stiflers.n`.
+    It leaves about 20% of people ignorant. The system has the counts `ignorants.n`, `spreaders.n`, and `stiflers.n`.
 
     Args:
         n_people:

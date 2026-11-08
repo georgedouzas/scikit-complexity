@@ -1,4 +1,7 @@
-"""Crowd systems: the kinetic theory of criminality in a society and the security forces that act against it."""
+"""Crowd systems: the kinetic theory of criminality in a society.
+
+It includes the security forces that act against it.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,7 +24,9 @@ from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, V
 
 
 class SecurityAgentsElement(Element):
-    """Density of security agents at one efficacy class, with the share of new recruits that join the class.
+    """Density of security agents at one efficacy class.
+
+    It holds the share of new recruits that join the class.
 
     Args:
         label:
@@ -93,7 +98,9 @@ def contagion_table(classes: int, attraction: object, redemption: object) -> npt
 
 
 class CriminalContagionInteraction(EncounterInteraction):
-    """Conservative encounters between citizens, in which crime attracts and honesty redeems.
+    """Conservative encounters between citizens.
+
+    In them crime attracts and honesty redeems.
 
     Args:
         label:
@@ -150,10 +157,10 @@ class CriminalContagionInteraction(EncounterInteraction):
 
 
 def deterrence_table(classes: int, forces: int) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
-    """Return the rate pattern and the transition table of the encounters of citizens with security forces.
+    """Return the rate pattern and the transition table of deterrence encounters.
 
-    A citizen of a criminal class `h > 0` who meets a security agent of efficacy `v_k` moves one class down at a rate
-    proportional to `v_k`. Honest citizens are left alone.
+    They are the encounters of citizens with security forces. A citizen of a criminal class `h > 0` who meets a security
+    agent of efficacy `v_k` moves one class down at a rate proportional to `v_k`. Honest citizens are left alone.
 
     Args:
         classes:
@@ -184,7 +191,9 @@ def deterrence_table(classes: int, forces: int) -> tuple[npt.NDArray[np.float64]
 
 
 class DeterrenceInteraction(EncounterInteraction):
-    """Encounters of citizens with security forces, which move criminal citizens toward honesty.
+    """Encounters of citizens with security forces.
+
+    They move criminal citizens toward honesty.
 
     Args:
         label:
@@ -227,7 +236,10 @@ class DeterrenceInteraction(EncounterInteraction):
         self.deterrence = deterrence
 
     def _get_rate(self, s: SimpleNamespace) -> object:
-        """Return the deterrence rate of every pair of a criminality class and an efficacy class."""
+        """Return the deterrence rate of every pair of classes.
+
+        A pair holds a criminality class and an efficacy class.
+        """
         return deterrence_table(int(self.classes), int(self.forces))[0] * s.deterrence
 
     def _get_kernel(self, s: SimpleNamespace) -> object:
@@ -236,7 +248,9 @@ class DeterrenceInteraction(EncounterInteraction):
 
 
 def criminality_grid(classes: int) -> npt.NDArray[np.float64]:
-    """Return the criminality of every class of citizens, from 0 for honest to 1 for criminal.
+    """Return the criminality of every class of citizens.
+
+    It runs from 0 for honest to 1 for criminal.
 
     Args:
         classes:
@@ -255,11 +269,11 @@ def criminality_grid(classes: int) -> npt.NDArray[np.float64]:
 
 
 class RecruitmentInteraction(RateInteraction):
-    """Recruitment of security agents in proportion to the mean criminality, a macro-scale external action.
+    """Recruitment of security agents in proportion to the mean criminality.
 
-    It is a `RateInteraction` of the density `f` of the security forces that reads the citizens. The security forces
-    grow at the rate `recruitment m share_k` in efficacy class `k`, where `m` is the mean criminality of the citizens,
-    a moment of their distribution, and retire at the rate `retirement`.
+    It is a macro-scale external action. It is a `RateInteraction` of the density `f` of the security forces that reads
+    the citizens. The security forces grow at the rate `recruitment m share_k` in efficacy class `k`, where `m` is the
+    mean criminality of the citizens, a moment of their distribution, and retire at the rate `retirement`.
 
     Args:
         label:
@@ -303,7 +317,10 @@ class RecruitmentInteraction(RateInteraction):
         self.retirement = retirement
 
     def _get_rate(self, s: SimpleNamespace) -> Expression:
-        """Return the recruitment in proportion to the mean criminality of the citizens, less the retirement."""
+        """Return the recruitment of security agents, less the retirement.
+
+        The recruitment is in proportion to the mean criminality. The criminality is that of the citizens.
+        """
         security, citizens = s.target, s.citizens
         criminality = moment(citizens.f, 1, criminality_grid(int(self.classes)), normalized=True)
         return s.recruitment * criminality * security.share - s.retirement * security.f
@@ -373,7 +390,9 @@ def _sizes_of(system: System) -> tuple[int, int]:
 
 
 def criminality_observables(classes: int, forces: int) -> list[ObservableSpec]:
-    """Return the mean criminality, the criminal fraction, and the density of the security forces of the system.
+    """Return the mean criminality, the criminal fraction, and the security density.
+
+    The density is that of the security forces of the system.
 
     Args:
         classes:
@@ -400,14 +419,14 @@ def criminality_observables(classes: int, forces: int) -> list[ObservableSpec]:
 
 
 class CriminalitySystem(BaseSystem):
-    """The kinetic system of criminality in a society and the security forces that act against it.
+    """The kinetic system of criminality in a society.
 
-    Citizens are a distribution over criminality classes and security agents a distribution over efficacy classes,
-    held by site groups on lattices of the classes. Encounters between citizens spread crime when it attracts more than
-    honesty redeems, encounters with security agents move criminal citizens toward honesty, a micro-scale action, and
-    the security forces grow in proportion to the mean criminality, a macro-scale action that reads a moment of the
-    citizens. The security forces grow while crime is high, crime recedes, and the forces retire, so crime and
-    security oscillate toward a balance where some crime persists.
+    It includes the security forces that act against it. Citizens are a distribution over criminality classes and
+    security agents a distribution over efficacy classes, held by site groups on lattices of the classes. Encounters
+    between citizens spread crime when it attracts more than honesty redeems, encounters with security agents move
+    criminal citizens toward honesty, a micro-scale action, and the security forces grow in proportion to the mean
+    criminality, a macro-scale action that reads a moment of the citizens. The security forces grow while crime is high,
+    crime recedes, and the forces retire, so crime and security oscillate toward a balance where some crime persists.
 
     The system has the distributions `citizens` and `security` and the interactions `contagion`, `deterrence`, and
     `recruitment`. Its standard observables are the mean criminality, the criminal fraction, and the density of the
@@ -532,7 +551,10 @@ class CriminalitySystem(BaseSystem):
         )
 
     def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings, with the observables of the parts built from the model parameters."""
+        """Return the tuned run settings.
+
+        The observables of the parts are built from the model parameters.
+        """
         settings = super().get_run_settings()
         system = self._pass_parameters()
         settings['observables'] = criminality_observables(*_sizes_of(system))

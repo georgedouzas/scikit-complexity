@@ -1,4 +1,7 @@
-"""Persuasion systems: agreeing pairs, majorities in small groups, and social impact."""
+"""Persuasion systems: agreeing pairs, majorities in small groups, and impact.
+
+The impact is social.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,7 +26,10 @@ from ....core.types import Array
 
 
 class PersuaderView(AgentView):
-    """View of an agent of the Sznajd system, with its states and parameters as attributes."""
+    """View of an agent of the Sznajd system.
+
+    Its states and parameters are attributes.
+    """
 
     opinion: float
 
@@ -64,12 +70,18 @@ class PersuaderElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[PersuaderView]:
-        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        """Return the class of the views of the agents.
+
+        Their attributes are the states and parameters.
+        """
         return PersuaderView
 
 
 class CitizenView(AgentView):
-    """View of an agent of the Galam majority system, with its states and parameters as attributes."""
+    """View of an agent of the Galam majority system.
+
+    Its states and parameters are attributes.
+    """
 
     opinion: float
 
@@ -107,12 +119,18 @@ class CitizenElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[CitizenView]:
-        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        """Return the class of the views of the agents.
+
+        Their attributes are the states and parameters.
+        """
         return CitizenView
 
 
 class InfluenceeView(AgentView):
-    """View of an agent of the social impact system, with its states and parameters as attributes."""
+    """View of an agent of the social impact system.
+
+    Its states and parameters are attributes.
+    """
 
     opinion: float
     persuasiveness: float
@@ -122,7 +140,9 @@ class InfluenceeView(AgentView):
 
 
 class InfluenceeElement(Element):
-    """Agent of the social impact system, with an opinion of -1 or 1, a persuasiveness, and a supportiveness.
+    """Agent of the social impact system.
+
+    It holds an opinion of -1 or 1, a persuasiveness, and a supportiveness.
 
     Args:
         label:
@@ -174,15 +194,18 @@ class InfluenceeElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[InfluenceeView]:
-        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        """Return the class of the views of the agents.
+
+        Their attributes are the states and parameters.
+        """
         return InfluenceeView
 
 
 class DiscussionsInteraction(GroupingInteraction):
-    """Discussions of the Galam system, which split the citizens into random groups that adopt their majority opinion.
+    """Discussions of the Galam system.
 
-    It is a symbolic `GroupingInteraction` of random partitions, drawn again at every step. A tie in a group of even
-    size goes to opinion 0, the status quo.
+    They split the citizens into random groups that adopt their majority opinion. It is a symbolic `GroupingInteraction`
+    of random partitions, drawn again at every step. A tie in a group of even size goes to opinion 0, the status quo.
 
     Args:
         label:
@@ -214,17 +237,21 @@ class DiscussionsInteraction(GroupingInteraction):
         )
 
     def _get_majority(self, group: SimpleNamespace) -> Expression:
-        """Return 1 when more than half of the members of a group hold opinion 1, and 0 otherwise."""
+        """Return 1 when most members of a group hold opinion 1, and 0 otherwise.
+
+        Most means more than half.
+        """
         return where(mean(group.members.opinion, over=group.members) > 1 / 2, 1, 0)
 
 
 class SocialImpactInteraction(MapInteraction):
-    """Synchronous update of the social impact system, where every agent takes the opinion of the stronger impact.
+    """Synchronous update of the social impact system.
 
-    The impact on agent `i` is `I_i = sum_j t_j (1 - o_i o_j) / d_ij^a - sum_j s_j (1 + o_i o_j) / d_ij^a`, with the
-    persuasiveness `t`, the supportiveness `s`, and the distance `d` on the grid, where an agent supports itself from
-    distance 1. The impact is the net pressure to change, whatever the opinion, so an agent flips its opinion when
-    `I_i + h_i > 0`, with a uniform random field `h_i`. Every agent decides from the opinions at the start of the step.
+    Every agent takes the opinion of the stronger impact. The impact on agent `i` is
+    `I_i = sum_j t_j (1 - o_i o_j) / d_ij^a - sum_j s_j (1 + o_i o_j) / d_ij^a`, with the persuasiveness `t`, the
+    supportiveness `s`, and the distance `d` on the grid, where an agent supports itself from distance 1. The impact is
+    the net pressure to change, whatever the opinion, so an agent flips its opinion when `I_i + h_i > 0`, with a uniform
+    random field `h_i`. Every agent decides from the opinions at the start of the step.
 
     Args:
         label:
@@ -248,7 +275,10 @@ class SocialImpactInteraction(MapInteraction):
         super().__init__(label, target=target, state='opinion', function=self._get_opinion, form='agent')
 
     def _get_impact(self, agent: InfluenceeView, system: SystemViewProtocol) -> float:
-        """Return the net pressure to change on an agent from every agent of the group, itself from distance 1."""
+        """Return the net pressure to change on an agent from every agent of the group.
+
+        The agent itself counts from distance 1.
+        """
         agents = [item for item in system.agents('target') if isinstance(item, InfluenceeView)]
         locations = np.array([item.location for item in agents], dtype=float)
         distances = np.linalg.norm(locations - np.asarray(agent.location, dtype=float), axis=-1)
@@ -260,7 +290,10 @@ class SocialImpactInteraction(MapInteraction):
         return float((weights * persuasion * (1 - agreement)).sum() - (weights * support * (1 + agreement)).sum())
 
     def _get_opinion(self, agent: InfluenceeView, system: SystemViewProtocol) -> float:
-        """Return the opposite opinion of an agent under a positive net pressure to change, and its own otherwise."""
+        """Return the opposite opinion of an agent under a positive net pressure to change.
+
+        Otherwise it is its own.
+        """
         field = system.rng.uniform(-agent.noise, agent.noise)
         return -agent.opinion if self._get_impact(agent, system) + field > 0 else float(agent.opinion)
 
@@ -271,11 +304,11 @@ def _shares(size: int, share: float, random_state: int | np.random.Generator | N
 
 
 class PersuasionInteraction(GroupingInteraction):
-    """Persuasion of the Sznajd system, where an agreeing pair of neighbours convinces the neighbours of both.
+    """Persuasion of the Sznajd system.
 
-    Every step every agent, in random order, picks a random neighbour, and when both share an opinion every neighbour
-    of either adopts it. On a ring this is the original one-dimensional rule, where the pair convinces the two agents
-    beside it.
+    An agreeing pair of neighbours convinces the neighbours of both. Every step every agent, in random order, picks a
+    random neighbour, and when both share an opinion every neighbour of either adopts it. On a ring this is the original
+    one-dimensional rule, where the pair convinces the two agents beside it.
 
     Args:
         label:
@@ -303,7 +336,9 @@ class PersuasionInteraction(GroupingInteraction):
         super().__init__(label, target=target, groups='neighborhood', phase=phase)
 
     def act_on(self, members: list[AgentViewProtocol], system: SystemViewProtocol) -> None:
-        """Convince the neighbours of the first member and a random neighbour of it when the two agree.
+        """Convince the neighbours of the first member and of a random neighbour of it.
+
+        This happens when the two agree.
 
         Args:
             members:
@@ -386,9 +421,9 @@ class SznajdSystem(BaseSystem):
 
 
 class GalamMajoritySystem(BaseSystem):
-    """The Galam majority system, where random groups adopt their majority until one opinion wins.
+    """The Galam majority system.
 
-    The system has the group `citizens`.
+    Random groups adopt their majority until one opinion wins. The system has the group `citizens`.
 
     Args:
         n_agents:
@@ -448,9 +483,9 @@ class GalamMajoritySystem(BaseSystem):
 
 
 class SocialImpactSystem(BaseSystem):
-    """The social impact system on a full grid, with random persuasiveness and supportiveness.
+    """The social impact system on a full grid.
 
-    The system has the group `people`.
+    The persuasiveness and the supportiveness are random. The system has the group `people`.
 
     Args:
         width:

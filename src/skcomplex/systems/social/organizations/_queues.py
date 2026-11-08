@@ -19,7 +19,10 @@ from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 class TaskView(AgentView):
-    """View of a task of the priority queue system, with its states and parameters as attributes."""
+    """View of a task of the priority queue system.
+
+    Its states and parameters are attributes.
+    """
 
     priority: float
     age: float
@@ -28,7 +31,9 @@ class TaskView(AgentView):
 
 
 class TaskElement(Element):
-    """Task of the Barabási priority queue, with a priority, an age, and the waiting time when it was last executed.
+    """Task of the Barabási priority queue.
+
+    It holds a priority, an age, and the waiting time when it was last executed.
 
     Args:
         label:
@@ -75,7 +80,10 @@ class TaskElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[TaskView]:
-        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        """Return the class of the views of the agents.
+
+        Their attributes are the states and parameters.
+        """
         return TaskView
 
 
@@ -148,10 +156,10 @@ class ExecutionInteraction(Interaction):
 
 
 class PriorityQueuesSystem(BaseSystem):
-    """The Barabási priority queue, whose waiting times follow a power law as the choice becomes greedy.
+    """The Barabási priority queue.
 
-    The system has the group `tasks` and the execution `execution`, which reports the waiting time of the task it
-    executes at every step.
+    Its waiting times follow a power law as the choice becomes greedy. The system has the group `tasks` and the
+    execution `execution`, which reports the waiting time of the task it executes at every step.
 
     Args:
         n_tasks:

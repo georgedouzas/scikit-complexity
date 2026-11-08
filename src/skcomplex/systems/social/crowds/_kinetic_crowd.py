@@ -1,4 +1,7 @@
-"""Kinetic crowd systems: Bellomo's walkers in a venue with walls, who choose a direction and then a speed."""
+"""Kinetic crowd systems: Bellomo's walkers in a venue with walls.
+
+They choose a direction and then a speed.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -35,7 +38,9 @@ TINY = 1e-12
 
 
 class KineticWalkerElement(Element):
-    """Walker of the kinetic crowd system, with its position, its speed, its direction, and the side it walks to.
+    """Walker of the kinetic crowd system.
+
+    It holds its position, its speed, its direction, and the side it walks to.
 
     Args:
         label:
@@ -90,22 +95,23 @@ class KineticWalkerElement(Element):
 
 
 class KineticCrowdInteraction(Interaction):
-    """Decision process of Bellomo's kinetic crowd model, run by a direct simulation Monte Carlo of the walkers.
+    """Decision process of Bellomo's kinetic crowd model.
 
-    The density `rho` and the mean velocity `xi` are counted on square cells of side `cell` of a street of length
-    `length`, periodic along it, and width `width`, between walls, with `rho = 1` at `packing` walkers per unit area.
-    Every walker interacts with the crowd with the probability `eta_A dt` in a step of length `dt`. It first turns to
-    the preferred direction `nu_p ~ rho nu_v + (1 - rho) (beta nu_s + (1 - beta) nu_t) / |.|`, where `nu_v` points
-    down the gradient of the density, `nu_s` along the mean velocity, and `nu_t` to its target, and then adjusts its
-    speed to the perceived density `rho_theta = rho + d / sqrt(1 + d^2) ((1 - rho) H(d) + rho H(-d))` of the
-    derivative `d` of the density along its new direction: a walker no faster than the mean speed accelerates to
+    A direct simulation Monte Carlo of the walkers runs it. The density `rho` and the mean velocity `xi` are counted on
+    square cells of side `cell` of a street of length `length`, periodic along it, and width `width`, between walls,
+    with `rho = 1` at `packing` walkers per unit area. Every walker interacts with the crowd with the probability
+    `eta_A dt` in a step of length `dt`. It first turns to the preferred direction
+    `nu_p ~ rho nu_v + (1 - rho) (beta nu_s + (1 - beta) nu_t) / |.|`, where `nu_v` points down the gradient of the
+    density, `nu_s` along the mean velocity, and `nu_t` to its target, and then adjusts its speed to the perceived
+    density `rho_theta = rho + d / sqrt(1 + d^2) ((1 - rho) H(d) + rho H(-d))` of the derivative `d` of the density
+    along its new direction: a walker no faster than the mean speed accelerates to
     `xi + alpha beta (1 - rho_theta) (alpha beta - xi)` with the probability `alpha beta (1 - rho_theta)`, and a faster
     one decelerates to `xi - rho_theta xi` with the probability `(1 - c alpha beta) rho_theta`. A walker at a distance
     `d < d_w` from a wall and heading to it then reduces the normal component of its velocity to `d / d_w` of it at
     constant speed, and every walker moves along its velocity. From the time `panic_time` on, the stress parameter is
     `panic_stress` in place of `stress`. The interaction reports the band index, the mean of
-    `|rho_1 - rho_2| / (rho_1 + rho_2)` over the cells of the street where walkers are, of the densities smoothed by
-    a Gaussian of width `band_width`, and the mean speed.
+    `|rho_1 - rho_2| / (rho_1 + rho_2)` over the cells of the street where walkers are, of the densities smoothed by a
+    Gaussian of width `band_width`, and the mean speed.
 
     Args:
         label:
@@ -214,14 +220,20 @@ class KineticCrowdInteraction(Interaction):
         return [RuleLaw(self.walk)]
 
     def _get_cells(self, x: Array, y: Array) -> tuple[IntArray, IntArray, tuple[int, int]]:
-        """Return the cell indices of positions along and across the street, and the numbers of cells."""
+        """Return the cell indices of positions along and across the street.
+
+        It also returns the numbers of cells.
+        """
         shape = (max(round(self.length / self.cell), 1), max(round(self.width / self.cell), 1))
         column = np.clip((x / self.length * shape[0]).astype(int), 0, shape[0] - 1)
         row = np.clip((y / self.width * shape[1]).astype(int), 0, shape[1] - 1)
         return column, row, shape
 
     def _get_fields(self, x: Array, y: Array, velocity: Array, target: Array) -> dict[str, Array]:
-        """Return the counts of each side on the cells, and the density, its gradient, and the means at every walker."""
+        """Return the counts of each side on the cells, and the fields at every walker.
+
+        The fields are the density, its gradient, and the means.
+        """
         column, row, shape = self._get_cells(x, y)
         area = (self.length / shape[0]) * (self.width / shape[1])
         counts = [np.zeros(shape) for _ in range(2)]
@@ -249,7 +261,10 @@ class KineticCrowdInteraction(Interaction):
 
     @staticmethod
     def _unit(vectors: Array, fallback: Array) -> Array:
-        """Return the unit vectors of the rows, or the fallback rows where a vector vanishes."""
+        """Return the unit vectors of the rows.
+
+        Where a vector vanishes, it returns the fallback rows.
+        """
         norms = np.linalg.norm(vectors, axis=1, keepdims=True)
         return np.where(norms > TINY, vectors / np.maximum(norms, TINY), fallback)
 
@@ -260,7 +275,10 @@ class KineticCrowdInteraction(Interaction):
         stress: float,
         rng: np.random.Generator,
     ) -> None:
-        """Turn the interacting walkers to their preferred direction and adjust their speeds in probability."""
+        """Turn the interacting walkers to their preferred direction.
+
+        Their speeds are adjusted in probability.
+        """
         rho, gradient, mean = fields['density'], fields['gradient'], fields['mean']
         goal = np.stack([np.where(walkers['target'] == 0, 1.0, -1.0), np.zeros(rho.size)], axis=1)
         vacuum = self._unit(-gradient, np.zeros_like(gradient))
@@ -283,7 +301,10 @@ class KineticCrowdInteraction(Interaction):
         walkers['direction'] = np.where(active, angle, walkers['direction'])
 
     def _avoid_walls(self, walkers: dict[str, Array]) -> None:
-        """Reduce the normal component of the velocity of walkers near a wall and heading to it, at constant speed."""
+        """Reduce the normal component of the velocity of walkers near a wall.
+
+        Only walkers heading to the wall turn, at constant speed.
+        """
         speed, direction = walkers['speed'], walkers['direction']
         vx, vy = speed * np.cos(direction), speed * np.sin(direction)
         for distance, normal in ((walkers['y'], 1.0), (self.width - walkers['y'], -1.0)):
@@ -295,7 +316,10 @@ class KineticCrowdInteraction(Interaction):
         walkers['direction'] = np.arctan2(vy, vx)
 
     def _get_band_index(self, first: Array, second: Array) -> float:
-        """Return the band index of the densities of both sides, smoothed over `band_width`, where walkers are."""
+        """Return the band index of the densities of both sides where walkers are.
+
+        The densities are smoothed over `band_width`.
+        """
         sigma = self.band_width / self.cell
         smooth = [scipy.ndimage.gaussian_filter(counts, sigma, mode=('wrap', 'nearest')) for counts in (first, second)]
         total = smooth[0] + smooth[1]
@@ -338,17 +362,18 @@ class KineticCrowdInteraction(Interaction):
 
 
 class KineticCrowdSystem(BaseSystem):
-    """Bellomo's kinetic crowd of two groups walking in opposite directions along a street with walls.
+    """Bellomo's kinetic crowd of two groups walking in opposite directions.
 
-    Walkers in a continuous venue choose first a direction and then a speed (Bellomo et al. 2017 sections 6.4 and 6.5).
-    The preferred direction weighs the search of less crowded areas, the attraction of the mean stream, and the target,
-    by the density `rho` and the stress `beta` (Eq. 6.19). The speed then adjusts to the density perceived along that
-    direction, with the venue quality `alpha` and the stress (Eqs. 6.22 to 6.24), and walkers near a wall turn parallel
-    to it at constant speed (Eq. 6.25). Panic raises the stress from `beta_1` to `beta_2` at a critical time (Eqs. 6.27
-    and 6.28). The kinetic equation is solved, as in the book, by a particle method close to direct simulation Monte
-    Carlo, here with one particle per walker. In space-homogeneous conditions the mean speed follows the fundamental
-    diagram `alpha^3 beta^3 (1 - rho)^2 / (alpha^2 beta^2 (1 - rho)^2 + (1 - c alpha beta) rho^2)` (Eq. 6.30), which a
-    single cell spanning the street reproduces. The default is the counterflow of section 6.5.2, 50 walkers uniformly
+    They walk along a street with walls. Walkers in a continuous venue choose first a direction and then a speed
+    (Bellomo et al. 2017 sections 6.4 and 6.5). The preferred direction weighs the search of less crowded areas, the
+    attraction of the mean stream, and the target, by the density `rho` and the stress `beta` (Eq. 6.19). The speed then
+    adjusts to the density perceived along that direction, with the venue quality `alpha` and the stress (Eqs. 6.22 to
+    6.24), and walkers near a wall turn parallel to it at constant speed (Eq. 6.25). Panic raises the stress from
+    `beta_1` to `beta_2` at a critical time (Eqs. 6.27 and 6.28). The kinetic equation is solved, as in the book, by a
+    particle method close to direct simulation Monte Carlo, here with one particle per walker. In space-homogeneous
+    conditions the mean speed follows the fundamental diagram
+    `alpha^3 beta^3 (1 - rho)^2 / (alpha^2 beta^2 (1 - rho)^2 + (1 - c alpha beta) rho^2)` (Eq. 6.30), which a single
+    cell spanning the street reproduces. The default is the counterflow of section 6.5.2, 50 walkers uniformly
     distributed in a street periodic along its length, for which the book reports segregation into lanes, measured by
     the band index of Eq. 6.31, most pronounced at `beta = 0.5`. The densities are counted on cells of side `cell`, an
     assumption of this particle method. The venue is a distinct system from `EvacuationSystem`, a network of rooms. One

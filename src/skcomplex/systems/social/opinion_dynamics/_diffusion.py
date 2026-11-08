@@ -23,7 +23,10 @@ from ....core.types import Array
 
 
 class BelieverView(AgentView):
-    """View of an agent of the influentials system, with its states and parameters as attributes."""
+    """View of an agent of the influentials system.
+
+    Its states and parameters are attributes.
+    """
 
     belief: Array
     caring: float
@@ -32,12 +35,13 @@ class BelieverView(AgentView):
 
 
 class BelieverElement(Element):
-    """Agent of the belief diffusion system, with the weights it gives to four levels of caring about an issue.
+    """Agent of the belief diffusion system.
 
-    The levels are not caring at all, caring less, caring a bit, and caring passionately. An agent cares at the level of
-    its largest weight. In `InfluentialsSystem`, a `MapInteraction` of the vector of weights adds every step `learning`
-    times the influence of every neighbour to the weight of the level the neighbour cares at, a tie broken at random,
-    and a second one sets the level of caring.
+    It holds the weights it gives to four levels of caring about an issue. The levels are not caring at all, caring
+    less, caring a bit, and caring passionately. An agent cares at the level of its largest weight. In
+    `InfluentialsSystem`, a `MapInteraction` of the vector of weights adds every step `learning` times the influence of
+    every neighbour to the weight of the level the neighbour cares at, a tie broken at random, and a second one sets the
+    level of caring.
 
     Args:
         label:
@@ -86,12 +90,18 @@ class BelieverElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[BelieverView]:
-        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        """Return the class of the views of the agents.
+
+        Their attributes are the states and parameters.
+        """
         return BelieverView
 
 
 class AdopterView(AgentView):
-    """View of an agent of the threshold adoption system, with its states and parameters as attributes."""
+    """View of an agent of the threshold adoption system.
+
+    Its states and parameters are attributes.
+    """
 
     adopted: float
     threshold: float
@@ -141,7 +151,10 @@ class AdopterElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[AdopterView]:
-        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        """Return the class of the views of the agents.
+
+        Their attributes are the states and parameters.
+        """
         return AdopterView
 
 
@@ -149,11 +162,11 @@ MODES = ('infection', 'influence')
 
 
 class AdoptionInteraction(TransitionInteraction):
-    """Synchronous adoption of the threshold system, where every agent adopts for good from its social circle.
+    """Synchronous adoption of the threshold system.
 
-    In the infection mode an agent adopts once anyone in its social circle has adopted. In the influence mode it
-    adopts once the percentage of adopters in its circle exceeds its threshold, or in society when its circle is empty.
-    Every agent decides from the adoptions at the start of the step.
+    Every agent adopts for good from its social circle. In the infection mode an agent adopts once anyone in its social
+    circle has adopted. In the influence mode it adopts once the percentage of adopters in its circle exceeds its
+    threshold, or in society when its circle is empty. Every agent decides from the adoptions at the start of the step.
 
     Args:
         label:
@@ -206,7 +219,10 @@ class AdoptionInteraction(TransitionInteraction):
             raise ValidationError(error_msg)
 
     def _adopts(self, agent: AdopterView, system: SystemViewProtocol) -> bool:
-        """Return whether an agent adopts from the adopters in its social circle, or in society without a circle."""
+        """Return whether an agent adopts from the adopters in its social circle.
+
+        Without a circle, the adopters are those in society.
+        """
         circle = [item for item in agent.neighbors(agent.reach) if isinstance(item, AdopterView)]
         adopters = sum(item.adopted for item in circle)
         if self.mode == 'infection':
@@ -227,10 +243,11 @@ INNOVATORS = 0.025
 
 
 class InfluentialsSystem(BaseSystem):
-    """The belief diffusion system with influentials who care passionately and weigh more with their neighbours.
+    """The belief diffusion system with influentials.
 
-    Every cell of a torus holds one agent whose weights start uniform on 0 to 4. Every agent in turn, in a random order,
-    learns from its neighbours and then sets its level of caring. The system has the group `people`.
+    The influentials care passionately and weigh more with their neighbours. Every cell of a torus holds one agent whose
+    weights start uniform on 0 to 4. Every agent in turn, in a random order, learns from its neighbours and then sets
+    its level of caring. The system has the group `people`.
 
     Args:
         width:
@@ -286,7 +303,10 @@ class InfluentialsSystem(BaseSystem):
 
     @staticmethod
     def _learn(agent: BelieverView, system: SystemViewProtocol) -> Array:
-        """Return the weights of an agent plus the influence of every neighbour on the level the neighbour cares at."""
+        """Return the weights of an agent plus the influence of every neighbour.
+
+        The influence is on the level the neighbour cares at.
+        """
         belief = np.array(agent.belief, dtype=np.float64)
         for neighbor in (item for item in agent.neighbors() if isinstance(item, BelieverView)):
             weights = np.asarray(neighbor.belief, dtype=np.float64)
@@ -341,9 +361,9 @@ class InfluentialsSystem(BaseSystem):
 
 
 class ThresholdAdoptionSystem(BaseSystem):
-    """The threshold adoption system in social circles, started by the 2.5% of agents with the lowest thresholds.
+    """The threshold adoption system in social circles.
 
-    The system has the group `people`.
+    It is started by the 2.5% of agents with the lowest thresholds. The system has the group `people`.
 
     Args:
         n_agents:
@@ -405,7 +425,10 @@ class ThresholdAdoptionSystem(BaseSystem):
 
     @staticmethod
     def _shift(agent: AgentViewProtocol, system: SystemViewProtocol, size: float) -> Array:
-        """Return the position one unit away from an agent in a random direction, wrapped on a square torus."""
+        """Return the position one unit away from an agent in a random direction.
+
+        It is wrapped on a square torus.
+        """
         angle = system.rng.uniform(0, 2 * np.pi)
         position = np.asarray(agent.location, dtype=float) + np.array([np.cos(angle), np.sin(angle)])
         return np.mod(position, size)

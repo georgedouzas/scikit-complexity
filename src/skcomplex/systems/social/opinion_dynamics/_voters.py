@@ -23,9 +23,10 @@ from ....core.types import Array
 
 
 class MajorityVoterElement(Element):
-    """Cell that takes the majority opinion of its Moore neighbourhood, itself included.
+    """Cell that takes the majority opinion of its Moore neighbourhood.
 
-    The majority rule is a `LocalRuleInteraction` of the lattice, which `MajorityRuleSystem` adds.
+    The neighbourhood includes the cell itself. The majority rule is a `LocalRuleInteraction` of the lattice, which
+    `MajorityRuleSystem` adds.
 
     Args:
         label:
@@ -55,7 +56,10 @@ class MajorityVoterElement(Element):
 
 
 class VariantVoterView(AgentView):
-    """View of an agent of the voter system variants, with its states and parameters as attributes."""
+    """View of an agent of the voter system variants.
+
+    Its states and parameters are attributes.
+    """
 
     opinion: float
     contrarian: float
@@ -63,12 +67,12 @@ class VariantVoterView(AgentView):
 
 
 class VariantVoterElement(Element):
-    """Agent of the voter system variants: an imitator, a threshold voter, or a contrarian.
+    """Agent of the voter system variants.
 
-    With a threshold of 0 the voting copies a random neighbour into the agent, as in the voter system. With a positive
-    threshold it gives the agent the opinion opposite to its own when the share of neighbours that hold it exceeds the
-    threshold, so a threshold of 0.5 gives the majority rule. A contrarian adopts the opposite of what it would
-    otherwise adopt.
+    It is an imitator, a threshold voter, or a contrarian. With a threshold of 0 the voting copies a random neighbour
+    into the agent, as in the voter system. With a positive threshold it gives the agent the opinion opposite to its own
+    when the share of neighbours that hold it exceeds the threshold, so a threshold of 0.5 gives the majority rule. A
+    contrarian adopts the opposite of what it would otherwise adopt.
 
     Args:
         label:
@@ -111,18 +115,26 @@ class VariantVoterElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[VariantVoterView]:
-        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        """Return the class of the views of the agents.
+
+        Their attributes are the states and parameters.
+        """
         return VariantVoterView
 
 
 class VoterView(AgentView):
-    """View of an agent of the voter system, with its states and parameters as attributes."""
+    """View of an agent of the voter system.
+
+    Its states and parameters are attributes.
+    """
 
     opinion: float
 
 
 class VoterElement(Element):
-    """Agent of the voter system, whose opinion the imitation sets to that of a random neighbour on a network.
+    """Agent of the voter system on a network.
+
+    The imitation sets its opinion to that of a random neighbour.
 
     Args:
         label:
@@ -154,17 +166,21 @@ class VoterElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[VoterView]:
-        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        """Return the class of the views of the agents.
+
+        Their attributes are the states and parameters.
+        """
         return VoterView
 
 
 class VariantVotingInteraction(MapInteraction):
-    """Voting of the voter system variants, where every voter in turn takes the opinion of its variant.
+    """Voting of the voter system variants.
 
-    A voter of threshold 0 copies a random neighbour. A voter of positive threshold adopts the opinion opposite to its
-    own when the share of neighbours that hold it exceeds the threshold. A contrarian adopts the opposite of what it
-    would otherwise adopt. The voters update one after the other in a new random order every step, each reading the
-    opinions the voters before it set, and a voter without a neighbouring voter keeps its opinion.
+    Every voter in turn takes the opinion of its variant. A voter of threshold 0 copies a random neighbour. A voter of
+    positive threshold adopts the opinion opposite to its own when the share of neighbours that hold it exceeds the
+    threshold. A contrarian adopts the opposite of what it would otherwise adopt. The voters update one after the other
+    in a new random order every step, each reading the opinions the voters before it set, and a voter without a
+    neighbouring voter keeps its opinion.
 
     Args:
         label:
@@ -211,10 +227,11 @@ class VariantVotingInteraction(MapInteraction):
 
 
 class VoterImitationInteraction(MapInteraction):
-    """Imitation of the voter system, where every voter in turn adopts the opinion of a random neighbour.
+    """Imitation of the voter system.
 
-    The voters update one after the other in a new random order every step, each reading the opinions the voters before
-    it set. A voter without a neighbouring voter keeps its opinion.
+    Every voter in turn adopts the opinion of a random neighbour. The voters update one after the other in a new random
+    order every step, each reading the opinions the voters before it set. A voter without a neighbouring voter keeps its
+    opinion.
 
     Args:
         label:
@@ -240,7 +257,10 @@ class VoterImitationInteraction(MapInteraction):
         )
 
     def _get_opinion(self, agent: VoterView, system: SystemViewProtocol) -> float:
-        """Return the opinion of a random neighbouring voter, or the voter's own without one."""
+        """Return the opinion of a random neighbouring voter.
+
+        Without one, it is the voter's own.
+        """
         neighbors = [item for item in agent.neighbors() if isinstance(item, VoterView)]
         if not neighbors:
             return float(agent.opinion)
@@ -251,10 +271,11 @@ MAJORITY = 5
 
 
 class MajorityRuleSystem(BaseSystem):
-    """Voters that take the majority opinion of their neighbourhood, which coarsens into domains.
+    """Voters that take the majority opinion of their neighbourhood.
 
-    Every step every voter takes the opinion of the majority of its eight Moore neighbours and keeps its own when they
-    tie, the majority rule of Argun et al. (2021, section 4.3). The system has the opinions `voters.opinion`.
+    The opinions coarsen into domains. Every step every voter takes the opinion of the majority of its eight Moore
+    neighbours and keeps its own when they tie, the majority rule of Argun et al. (2021, section 4.3). The system has
+    the opinions `voters.opinion`.
 
     Args:
         shape:
@@ -296,7 +317,10 @@ class MajorityRuleSystem(BaseSystem):
 
     @staticmethod
     def _is_majority(total: float) -> bool:
-        """Return whether the opinions 1 of the nine cells of a Moore neighbourhood are a majority."""
+        """Return whether the opinions 1 of a Moore neighbourhood are a majority.
+
+        The neighbourhood has nine cells.
+        """
         return total >= MAJORITY
 
     @staticmethod
@@ -388,9 +412,9 @@ class VoterSystem(BaseSystem):
 
 
 class VoterVariantsSystem(BaseSystem):
-    """Voter system variants on a network, with threshold voters and a share of contrarians.
+    """Voter system variants on a network.
 
-    The system has the group `voters`.
+    They have threshold voters and a share of contrarians. The system has the group `voters`.
 
     Args:
         graph:

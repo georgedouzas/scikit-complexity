@@ -1,4 +1,7 @@
-"""Willing majority systems: agents who adopt, with their willingness, the majority opinion of a random group."""
+"""Willing majority systems: agents who adopt the majority of a random group.
+
+The majority is that of opinions. They adopt it with their willingness.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,14 +22,19 @@ from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 class WillingVoterView(AgentView):
-    """View of a voter of the majority rule with willingness, with its states as attributes."""
+    """View of a voter of the majority rule with willingness.
+
+    Its states are attributes.
+    """
 
     opinion: float
     willingness: float
 
 
 class WillingVoterElement(Element):
-    """Voter with a binary opinion and a willingness to follow the majority, a zealot at willingness 0.
+    """Voter with a binary opinion and a willingness to follow the majority.
+
+    It is a zealot at willingness 0.
 
     Args:
         label:
@@ -66,11 +74,11 @@ class WillingVoterElement(Element):
 
 
 class WillingMajorityInteraction(Interaction):
-    """Majority rule with willingness, where a random agent adopts the majority opinion of a random group.
+    """Majority rule with willingness.
 
-    Every step has one update per agent. An update chooses an agent uniformly, then an odd number `group_size` of
-    other agents uniformly, and the agent adopts the majority opinion of the group with the probability of its
-    willingness.
+    A random agent adopts the majority opinion of a random group. Every step has one update per agent. An update chooses
+    an agent uniformly, then an odd number `group_size` of other agents uniformly, and the agent adopts the majority
+    opinion of the group with the probability of its willingness.
 
     Args:
         label:
@@ -117,7 +125,9 @@ class WillingMajorityInteraction(Interaction):
         return [RuleLaw(self.follow)]
 
     def follow(self, system: SystemView) -> None:
-        """Update as many random agents as there are agents, each by the majority of a random group.
+        """Update as many random agents as there are agents.
+
+        Each agent follows the majority of a random group.
 
         Args:
             system:
@@ -141,14 +151,14 @@ class WillingMajorityInteraction(Interaction):
 
 
 class WillingMajoritySystem(BaseSystem):
-    """The majority rule with willingness, where zealots of willingness 0 never change their opinion.
+    """The majority rule with willingness.
 
-    Every agent holds opinion `A` or `B`, drawn with probability 1/2, and a willingness `w_i`. An update chooses an
-    agent and an odd number `n` of other agents at random, and the agent adopts the majority opinion of the group with
-    the probability `w_i` (Jensen 2023 section 11.5, Exercise 4). Every agent has `w_i = willingness`, except a fraction
-    `zealots` of them with `w_i = 0`. With every agent willing, the population reaches consensus. Zealots of both
-    opinions prevent it, while a small group of zealots of one opinion, `zealot_opinion`, wins over everyone. The system
-    has the group `voters`.
+    Zealots of willingness 0 never change their opinion. Every agent holds opinion `A` or `B`, drawn with probability
+    1/2, and a willingness `w_i`. An update chooses an agent and an odd number `n` of other agents at random, and the
+    agent adopts the majority opinion of the group with the probability `w_i` (Jensen 2023 section 11.5, Exercise 4).
+    Every agent has `w_i = willingness`, except a fraction `zealots` of them with `w_i = 0`. With every agent willing,
+    the population reaches consensus. Zealots of both opinions prevent it, while a small group of zealots of one
+    opinion, `zealot_opinion`, wins over everyone. The system has the group `voters`.
 
     Args:
         n_agents:
