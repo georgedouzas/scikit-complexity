@@ -218,18 +218,19 @@ SHALL not declare support for it, so validation rejects the combination before c
 - **THEN** the report holds an error that names the process's first law and lists the backends that support shared noise
 
 ### Requirement: A system package plugs in its own compiler
-A compiler defined outside the engine, on `BaseCompiler`, SHALL compile a system passed to `simulate` with
-`compiler=`, and the run SHALL use the solver that compiler names, without the engine
-importing the package.
+A compiler defined outside the engine, on the public `BaseCompiler`, SHALL compile a system whose `compiler` run setting
+names it, or a system passed to `simulate` with `compiler=`, and the run SHALL use the solver that compiler names,
+without the engine importing the package. The compilers of the library's own forms SHALL stay private, and `simulate`
+SHALL choose them from the form the system holds.
 
 #### Scenario: Rewriting from the systems library
-- **WHEN** `simulate(KochCurveSystem(), compiler=RewritingCompiler())` runs, with `RewritingCompiler` imported
-  from `skcomplex.core.engine.compile`
-- **THEN** the run rewrites the word once per frame, and `skcomplex.core.engine` imports nothing from `skcomplex.systems`
+- **WHEN** `simulate(KochCurveSystem(), until=3)` runs without a compiler
+- **THEN** the compiler of the rewriting form is chosen automatically, the run rewrites the word once per frame, and
+  `skcomplex.core.engine` imports nothing from `skcomplex.systems`
 
 #### Scenario: Quantum system without its compiler
-- **WHEN** a quantum system runs with the default compiler
-- **THEN** checking it raises a validation error that names `compiler=QuantumCompiler()`
+- **WHEN** a quantum system runs through `simulate` without a compiler
+- **THEN** the compiler of the operator form is chosen automatically and the run succeeds
 
 ### Requirement: A symplectic solver of fourth order
 `Yoshida4Solver` SHALL integrate continuous-time systems by three velocity Verlet steps with the Yoshida coefficients,
@@ -247,20 +248,20 @@ SHALL raise `SolverError` naming the state that prevents it and a solver that ne
 - **THEN** `SolverError` is raised that names a momentum whose rate reads a momentum and suggests `RK4Solver`
 
 ### Requirement: A simulation holds a default end time
-A simulation SHALL take an optional end time `until` as an argument. `run()` without an end time SHALL run to it, an
-end time passed to `run` SHALL take precedence, and a run with neither SHALL raise a validation error that asks for one.
+`simulate(system)` SHALL run to the tuned `until` of the run settings of the system. An `until` passed to `simulate`
+SHALL take precedence, and a system with neither SHALL raise a `ValidationError` that asks for one.
 
 #### Scenario: Stored end time
-- **WHEN** a user calls `Simulation(system, until=20).prepare().run()`
+- **WHEN** a user calls `simulate(system)` for a system class whose tuned `until` is 20
 - **THEN** the run ends at time 20
 
 #### Scenario: Passed end time wins
-- **WHEN** a user calls `Simulation(system, until=20).prepare().run(until=5)`
+- **WHEN** a user calls `simulate(system, until=5)` for a system class whose tuned `until` is 20
 - **THEN** the run ends at time 5
 
 #### Scenario: No end time
-- **WHEN** a user calls `Simulation(system).prepare().run()`
-- **THEN** it raises a validation error that shows how to pass an end time
+- **WHEN** a user calls `simulate(system)` for a system with no tuned `until`
+- **THEN** it raises a `ValidationError` that shows how to pass an end time
 
 ### Requirement: Simulating is a function
 `simulate(system, *, until, dt=None, initial_state=None, solver=None, backend=None, observables=(), observers=(),

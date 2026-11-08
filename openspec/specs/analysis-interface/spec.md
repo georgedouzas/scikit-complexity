@@ -6,19 +6,6 @@ system it measures, runs, and keeps its results as fitted attributes, so a model
 
 ## Requirements
 
-### Requirement: Results are fitted attributes
-An analysis SHALL keep every result in a public attribute whose name ends in `_`, set by `prepare` or `run`, and SHALL
-NOT return a separate result object. Its settings SHALL stay readable and settable through `get_params` and
-`set_params`.
-
-#### Scenario: Power-law fit
-- **WHEN** a user runs a power-law fit analysis on avalanche sizes drawn from a power law of exponent 1.5
-- **THEN** `exponent_` lies within 0.1 of 1.5, and `minimum_`, `statistic_`, and `p_value_` are set
-
-#### Scenario: Cloned analysis
-- **WHEN** a user clones a prepared analysis with scikit-learn's `clone`
-- **THEN** the clone has the same settings and none of the fitted attributes
-
 ### Requirement: An analysis reads trajectories, arrays, graphs, and systems
 An analysis function SHALL accept as its source a trajectory, a NumPy array, a NetworkX graph, or a system, as it needs, and
 SHALL extract the data it measures from a trajectory itself. Settings SHALL select the variables to read by name.

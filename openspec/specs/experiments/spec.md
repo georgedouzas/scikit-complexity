@@ -20,17 +20,16 @@ the results SHALL not depend on the number of worker processes.
 - **THEN** no two replicates have identical trajectories
 
 ### Requirement: Designs sweep parameters and initial states
-An experiment SHALL run a system over grids, random samples, Latin hypercube samples, and Sobol samples of parameters and
-initial states, addressed by model parameter or by dotted path. Every design SHALL be an estimator that validates its
-settings and prepares against the bounds of the values it samples, and runs to rows of values.
+A design SHALL be the `design=` argument of `sweep`, one of `'grid'`, `'random'`, `'latin_hypercube'`, and `'sobol'`,
+which gives the rows of model parameters and dotted initial states or part parameters that the system runs over.
 
 #### Scenario: Orbit diagram sweep
 - **WHEN** a user sweeps the growth rate of the logistic map over 200 values and keeps its last 100 values per run
 - **THEN** the result holds 200 rows with the swept rate and the kept values
 
 #### Scenario: Design without an experiment
-- **WHEN** a user runs `SobolDesign(n=64).prepare({'r': (0.5, 1.5), 'K': (100, 1000)}).run()`
-- **THEN** it returns 64 rows, each with a value of `r` and of `K` inside its bounds
+- **WHEN** a user calls `sweep(system, {'r': (0.5, 1.5), 'K': (100, 1000)}, design='sobol', n=64)`
+- **THEN** the result holds 64 runs, each with a value of `r` and of `K` inside its bounds
 
 ### Requirement: Scenarios compare policies
 An experiment SHALL run named scenarios that override parameters and initial states before a run and change parameters

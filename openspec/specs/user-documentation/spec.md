@@ -20,12 +20,14 @@ a custom system from the core.
 
 ### Requirement: Custom systems are built from the core
 
-Examples in the README and the user guide SHALL build custom systems from `skcomplex.core`, and SHALL reach ready-made
-systems only through `catalog`, `describe`, `create_system`, and `create_simulation` of `skcomplex.systems`.
+Examples in the README and the user guide SHALL build custom systems from `skcomplex.core`, and SHALL import ready-made
+systems as classes from their subfield package `skcomplex.systems.<field>.<subfield>`, and nothing else from field
+packages.
 
 #### Scenario: Import from a field module
 
-- **WHEN** a Python block of the README or the user guide imports from `skcomplex.systems.<field>`
+- **WHEN** a Python block of the README or the user guide imports anything but a system class from a package of
+  `skcomplex.systems.<field>`
 - **THEN** the documentation test fails and names the file and the line
 
 #### Scenario: A field module in the prose
