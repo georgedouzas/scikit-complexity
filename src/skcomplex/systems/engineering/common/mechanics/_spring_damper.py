@@ -16,6 +16,7 @@ from .....core.components.base import BasePart
 from .....core.components.interactions import GradientInteraction
 from .....core.components.laws import RateLaw
 from .....core.components.laws.utils import derivative
+from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
 from .....core.specs import RoleSpec
 
@@ -74,16 +75,20 @@ class SpringDamperInteraction(GradientInteraction):
         self.stiffness = stiffness
         self.damping = damping
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for invalid states, stiffness, or damping.
 
         The states must be two names, and the stiffness and the damping names.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The states are not two names, the stiffness or the damping is not a name, or a divisor is invalid.
         """
-        super()._check()
+        super()._prepare(context)
         if len(self._get_names()) != N_STATES:
             error_msg = f'{self.label!r} joins the states {self.states!r}. Give two states.'
             raise ValidationError(error_msg)
