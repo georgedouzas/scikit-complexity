@@ -133,12 +133,12 @@ The runtime SHALL run any problem through what `BaseProblem` holds, and SHALL re
 - **THEN** both runs succeed, and neither problem is a subclass of `skcomplex.core.components.problems.Problem`
 
 ### Requirement: A system compiler is not a pass
-`BaseSystemCompiler` of `skcomplex.core.engine.compile` SHALL be the base of the compilers that claim a whole system of a
-formalism and compile it to a problem, and SHALL be unrelated to `BasePass`, whose subclasses are steps of one
-compilation.
+`BaseCompiler` of `skcomplex.core.engine.compile` SHALL be the public base of the compilers that compile a whole system
+of one form to a problem, the private compilers of the library's forms included, and SHALL be unrelated to `BasePass`,
+whose subclasses are steps of one compilation.
 
 #### Scenario: Quantum compiler
-- **WHEN** a test checks `QuantumCompiler` against `BaseSystemCompiler` and `BasePass`
+- **WHEN** a test checks the compiler that `simulate` chooses for a quantum system against `BaseCompiler` and `BasePass`
 - **THEN** it derives from the first and not from the second
 
 ### Requirement: Every class derives from the base it is
@@ -301,8 +301,9 @@ its compiler, and its solver that serve the systems of one field SHALL live in t
 
 #### Scenario: Rewriting in the core and the engine
 - **WHEN** a user imports `WordElement` and `PatchElement` from `skcomplex.core.components.elements`, `ProductionLaw` and
-  `SubstitutionLaw` from `skcomplex.core.components.laws`, and `RewritingCompiler` from `skcomplex.core.engine.compile`
-- **THEN** every import succeeds, and none of these modules imports `skcomplex.systems`
+  `SubstitutionLaw` from `skcomplex.core.components.laws`, and `RewritingSolver` from `skcomplex.core.engine.solvers`
+- **THEN** every import succeeds, none of these modules imports `skcomplex.systems`, and the public names of
+  `skcomplex.core.engine.compile` hold no compiler of a form of the library
 
 ### Requirement: The library calls its ready-made items systems
 Every identifier, path, documentation page, and sentence of the library SHALL call a ready-made item of the catalog a
@@ -324,8 +325,8 @@ interactions, views, and helpers that only that system uses, so the module reads
 package SHALL NOT hold a component module that serves a single system.
 
 #### Scenario: Reading one system
-- **WHEN** a reader opens the module that defines the class of `active_walkers`
-- **THEN** the element, interaction, and view classes that only `active_walkers` uses are defined in that module
+- **WHEN** a reader opens the module that defines the class of `ActiveWalkersSystem`
+- **THEN** the element, interaction, and view classes that only `ActiveWalkersSystem` uses are defined in that module
 
 #### Scenario: Component module of one system
 - **WHEN** a subfield package holds a module that defines no system class and is imported by the module of only one

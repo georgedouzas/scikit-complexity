@@ -1,8 +1,8 @@
 # analysis-interface Specification
 
 ## Purpose
-Gives every analysis one contract: an estimator that stores its settings, checks them, prepares against the data or the
-system it measures, runs, and keeps its results as fitted attributes, so a modeller learns one way to measure anything.
+Gives every analysis one contract: a public function of a trajectory, an array, or a graph that takes keyword settings
+and returns its values as a frozen result, so a modeller learns one way to measure anything.
 
 ## Requirements
 

@@ -8,7 +8,7 @@ polygons by affine substitution, and graphs by graph productions, with one gener
 
 ### Requirement: Rewriting systems are a form
 A system whose elements hold a word or a patch of tiles rewritten by productions SHALL compile to the rewriting form
-with `RewritingCompiler` of `skcomplex.core.engine.compile`. Each simulation step SHALL apply one
+with the private compiler of that form, which `simulate` chooses automatically. Each simulation step SHALL apply one
 generation, every part of the structure rewritten in parallel, and the time between frames SHALL be a positive integer
 number of generations.
 
@@ -127,12 +127,13 @@ rules from `_get_laws`. No rewriting rule SHALL be an interaction.
 Field-specific elements, such as `KochElement`, and their system classes SHALL stay in `skcomplex.systems.mathematics.fractals`.
 
 #### Scenario: A rewriting system from the core alone
-- **WHEN** a user writes an L-system from a `WordElement` and a `ProductionLaw`, and runs it with `RewritingCompiler`
+- **WHEN** a user writes an L-system from a `WordElement` and a `ProductionLaw`, and runs it with `simulate` and no compiler
 - **THEN** it runs without importing a field module of `skcomplex.systems`
 
 ### Requirement: Rewriting runs in the engine
-`RewritingCompiler` SHALL live in `skcomplex.core.engine.compile`, `RewritingSolver` in `skcomplex.core.engine.solvers`,
-`RewritingProblemSpec` in `skcomplex.core.engine.problems`, and `GeometryVisual` in `skcomplex.core.engine.viz`.
+The compiler and the problem of the rewriting form SHALL be private modules of `skcomplex.core.engine.compile` and
+`skcomplex.core.engine.problems`, and `RewritingSolver` SHALL live in `skcomplex.core.engine.solvers` and
+`GeometryVisual` in `skcomplex.core.engine.viz`.
 
 #### Scenario: The core imports no engine
 - **WHEN** the import contracts run

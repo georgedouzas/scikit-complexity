@@ -74,8 +74,8 @@ components that do not fix the second derivatives SHALL raise a `ValidationError
   derivatives
 
 ### Requirement: Relativity systems reproduce known results
-The catalog SHALL hold `schwarzschild_precession`, `light_bending`, and `kerr_frame_dragging` in
-`physics/celestial_mechanics` and `flrw_cosmology` and `oppenheimer_snyder_collapse` in `physics/cosmology`, built on
+The catalog SHALL hold `SchwarzschildPrecessionSystem`, `LightBendingSystem`, and `KerrFrameDraggingSystem` in
+`physics/celestial_mechanics` and `FLRWCosmologySystem` and `OppenheimerSnyderCollapseSystem` in `physics/cosmology`, built on
 these interactions, with inventory entries and gallery examples.
 
 #### Scenario: Perihelion precession

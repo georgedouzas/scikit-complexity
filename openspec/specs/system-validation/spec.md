@@ -105,7 +105,7 @@ the system uses, naming the first law or element that needs it and listing the s
 
 #### Scenario: Milstein with a shared process
 - **WHEN** a system in which one process drives two states is validated with the solver `Milstein`
-- **THEN** the report holds one error that names the process's first law and suggests `EulerMaruyama` or `Heun`
+- **THEN** the report holds one error that names the process's first law and suggests `EulerMaruyamaSolver` or `Heun`
 
 #### Scenario: Automatic solver for correlated noise
 - **WHEN** a system with a correlated Wiener element is simulated with the solver `'auto'`

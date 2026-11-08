@@ -93,13 +93,15 @@ view class generated per group.
 - **WHEN** a user combines a grid design and a rows design with `product`
 - **THEN** the result runs every combination of their rows
 
-### Requirement: Surrogates are estimators
-A surrogate SHALL take its settings in `__init__`, learn with `prepare(series)`, store `system_` and its errors, and
-forecast with `run(steps)`, which the base defines by simulating the prepared system.
+### Requirement: Surrogates are analysis functions
+A surrogate SHALL be an analysis function of `skcomplex.core.analysis`, `mode_decomposition`, `sparse_identification`,
+or `reservoir`, which takes its settings as keyword arguments and returns a frozen `ModeDecompositionResult`,
+`SparseIdentificationResult`, or `ReservoirResult`. The result SHALL hold the fitted `system`, its `training_error` and
+`validation_error`, and a `forecast` of `horizon` samples.
 
 #### Scenario: Prepare and run
-- **WHEN** a user prepares a `SINDySurrogate` to the series of a Lotka-Volterra run and runs it for 50 steps
-- **THEN** `system_` is a system, `training_error_` is a number, and the forecast has 50 rows
+- **WHEN** a user calls `sparse_identification` on the series of a Lotka-Volterra run with `horizon=50`
+- **THEN** its result's `system` is a system, `training_error` is a number, and `forecast` has 50 rows
 
 ### Requirement: The runtime reads problems through their base
 The runtime, the visuals, and the analyses SHALL read a problem only through the fields and readers of
