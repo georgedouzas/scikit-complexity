@@ -177,7 +177,9 @@ class SwiftHohenbergEnergyInteraction(GradientInteraction):
         self.g = g
 
     def _get_potential(self, namespace: SimpleNamespace) -> Expression:
-        """Return the density `-r u^2 / 2 + (u + laplacian(u))^2 / 2 - g u^3 / 3 + u^4 / 4`.
+        """Return the Swift-Hohenberg free energy density.
+
+        The density is `-r u^2 / 2 + (u + laplacian(u))^2 / 2 - g u^3 / 3 + u^4 / 4`.
 
         Args:
             namespace:
