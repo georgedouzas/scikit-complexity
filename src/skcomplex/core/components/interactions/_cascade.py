@@ -1,4 +1,7 @@
-"""Define cascades of a state, which drive it and then relax every member at or above a threshold."""
+"""Define cascades of a state.
+
+A cascade drives a state and then relaxes every member at or above a threshold.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,15 +24,16 @@ MODES = ('redistribute', 'reset', 'random')
 
 
 class CascadeInteraction(NeighborInteraction):
-    """Cascade of the members whose state reaches a threshold, which relax and pass shares to their neighbours.
+    """Cascade of the members whose state reaches a threshold.
 
-    At every step the drive changes the state, and then every member whose state reaches `threshold` relaxes, all at
-    once, until no member does. In the mode `'redistribute'` a relaxing member loses `threshold` and each of its
-    neighbours gains `share`. In the mode `'reset'` a relaxing member falls to 0 and each of its neighbours gains
-    `share` times the state it relaxed from. In the mode `'random'` a relaxing member loses `threshold` in parcels of
-    `share`, and every parcel goes to one of its neighbours drawn at random. Neighbours outside a fixed boundary take no
-    share, so it leaves the system, and the mode `'random'` treats every lattice as bounded. Every cascade is recorded
-    as an event with its size, the number of relaxations, its duration, and its area.
+    These members relax and pass shares to their neighbours. At every step the drive changes the state, and then every
+    member whose state reaches `threshold` relaxes, all at once, until no member does. In the mode `'redistribute'` a
+    relaxing member loses `threshold` and each of its neighbours gains `share`. In the mode `'reset'` a relaxing member
+    falls to 0 and each of its neighbours gains `share` times the state it relaxed from. In the mode `'random'` a
+    relaxing member loses `threshold` in parcels of `share`, and every parcel goes to one of its neighbours drawn at
+    random. Neighbours outside a fixed boundary take no share, so it leaves the system, and the mode `'random'` treats
+    every lattice as bounded. Every cascade is recorded as an event with its size, the number of relaxations, its
+    duration, and its area.
 
     Args:
         label:
@@ -78,7 +82,10 @@ class CascadeInteraction(NeighborInteraction):
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (CascadeLaw, DriveLaw, LocalRuleLaw)
 
     def _draws(self) -> bool:
-        """Return whether the cascade draws: by parcels sent at random, or by a drive that names the generator."""
+        """Return whether the cascade draws.
+
+        It draws by parcels sent at random, or by a drive that names the generator.
+        """
         drive = self.drive is not None and 'random' in inspect.signature(self.drive).parameters
         return super()._draws() or self.mode == 'random' or drive
 
@@ -105,7 +112,10 @@ class CascadeInteraction(NeighborInteraction):
         self.neighborhood = neighborhood
 
     def _check_random(self) -> None:
-        """Raise an error for a random cascade without a lattice neighbourhood or a whole number of parcels."""
+        """Raise an error for a random cascade without lattice neighbours or whole parcels.
+
+        The cascade needs a lattice neighbourhood and a whole number of parcels.
+        """
         if self.mode != 'random':
             return
         if self.neighborhood is not None and not isinstance(self.neighborhood, LatticeNeighborhood):
@@ -122,7 +132,7 @@ class CascadeInteraction(NeighborInteraction):
             raise ValidationError(error_msg)
 
     def _check(self) -> None:
-        """Raise an error for an unknown mode, a drive, a neighbourhood, or parcels the cascade cannot take.
+        """Raise an error for a mode, drive, neighbourhood, or parcels it cannot take.
 
         Raises:
             ValidationError:
@@ -143,7 +153,10 @@ class CascadeInteraction(NeighborInteraction):
         self._check_random()
 
     def _relax(self, threshold: float, share: float) -> Callable[..., Array]:
-        """Return the rule of one relaxation of every member, from its state first and the states of its neighbours."""
+        """Return the rule of one relaxation of every member.
+
+        The rule reads the state of the member first and the states of its neighbours.
+        """
         if self.mode not in MODES:
             raise self._get_variant_error(self.mode, 'mode', '_relax')
         reset = self.mode == 'reset'
@@ -157,7 +170,10 @@ class CascadeInteraction(NeighborInteraction):
         return relax
 
     def _scatter(self, neighborhood: LatticeNeighborhood, threshold: float, share: float) -> Callable[..., Array]:
-        """Return the drive that passes the parcels of every relaxing member to neighbours drawn at random."""
+        """Return the drive that passes parcels of relaxing members to random neighbours.
+
+        Every relaxing member passes its parcels to neighbours drawn at random.
+        """
         steps = np.array([offset for offset in neighborhood.prepare().offsets_ if any(offset)])
         parcels = round(threshold / share)
 

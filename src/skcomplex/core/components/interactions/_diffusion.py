@@ -1,4 +1,7 @@
-"""Define diffusion, the conservation law whose flux is minus a coefficient times the gradient of the state."""
+"""Define diffusion.
+
+Diffusion is the conservation law whose flux is minus a coefficient times the gradient of the state.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,11 +21,12 @@ from ._conservation import ConservationInteraction
 
 
 class DiffusionInteraction(ConservationInteraction):
-    """Diffusion `du/dt = D laplacian(u)` of a state `u` of a field, the conservation law of the flux `-D gradient(u)`.
+    """Diffusion `du/dt = D laplacian(u)` of a state `u` of a field.
 
-    The coefficient `D` is uniform in space, a number or a function of the namespace that returns an expression of
-    parameters and time. The interaction lowers to the Laplacian of the field, which its discretization evaluates, so
-    the total of the state on a periodic field stays constant and a point mass spreads as the heat kernel.
+    It is the conservation law of the flux `-D gradient(u)`. The coefficient `D` is uniform in space, a number or a
+    function of the namespace that returns an expression of parameters and time. The interaction lowers to the Laplacian
+    of the field, which its discretization evaluates, so the total of the state on a periodic field stays constant and a
+    point mass spreads as the heat kernel.
 
     Args:
         label:
@@ -80,7 +84,7 @@ class DiffusionInteraction(ConservationInteraction):
         self.coefficient = coefficient
 
     def _check(self) -> None:
-        """Raise an error for a state that is not a name, or a coefficient that is neither callable nor a number.
+        """Raise an error for a state that is not a name, or an invalid coefficient.
 
         Raises:
             ValidationError:
@@ -92,7 +96,9 @@ class DiffusionInteraction(ConservationInteraction):
             raise ValidationError(error_msg)
 
     def _get_transport_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
-        """Return the rate `D laplacian(u)` of the state, the divergence of the diffusive flux.
+        """Return the rate `D laplacian(u)` of the state.
+
+        It is the divergence of the diffusive flux.
 
         Args:
             namespace:

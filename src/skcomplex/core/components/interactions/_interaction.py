@@ -13,10 +13,11 @@ from ._base import BaseInteraction
 
 
 class Interaction(BaseInteraction):
-    """Base class of interactions whose laws run once for the elements, or for every member of the groups, they bind.
+    """Base class of interactions whose laws run once for the elements they bind.
 
-    A subclass takes its roles and parameters as arguments of its own `__init__`, annotating each with a `RoleSpec` or
-    a `ParameterSpec` inside `Annotated`, and returns its laws from `_get_laws`, which returns no laws by default.
+    For groups, the laws run once for every member of the groups. A subclass takes its roles and parameters as arguments
+    of its own `__init__`, annotating each with a `RoleSpec` or a `ParameterSpec` inside `Annotated`, and returns its
+    laws from `_get_laws`, which returns no laws by default.
 
     Args:
         label:

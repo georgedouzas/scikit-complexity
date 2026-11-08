@@ -1,4 +1,7 @@
-"""Define sign adjustments, which step a state of discrete time up or down by the sign of a signal."""
+"""Define sign adjustments.
+
+A sign adjustment steps a state of discrete time up or down by the sign of a signal.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -105,7 +108,7 @@ class SignAdjustmentInteraction(Interaction):
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw, UpdateLaw)
 
     def _get_tags(self) -> Tags:
-        """Return the tags of the rules of the agent form or of the updates of the symbolic adjustment."""
+        """Return the tags of the agent-form rules or of the symbolic adjustment updates."""
         return self._get_variant_tags((RuleLaw,) if self._get_argument('form') == 'agent' else (UpdateLaw,))
 
     def __init__(
@@ -136,7 +139,7 @@ class SignAdjustmentInteraction(Interaction):
         self.schedule = schedule
 
     def _check(self) -> None:
-        """Raise an error for an unknown mode, form, or schedule, or a signal that cannot be called.
+        """Raise an error for an unknown mode, form, or schedule, or an uncallable signal.
 
         Raises:
             ValidationError:
@@ -208,7 +211,7 @@ class SignAdjustmentInteraction(Interaction):
         self._update_agents(system, self.schedule, self._get_value, self._set_value)
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
-        """Return the update of the state to its stepped value, or the rule of the agent form.
+        """Return the update of the state to its stepped value, or the agent-form rule.
 
         Args:
             namespace:

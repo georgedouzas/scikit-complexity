@@ -1,4 +1,7 @@
-"""Define Euler-Lagrange interactions, the equations of motion of a Lagrangian with dissipation and forcing."""
+"""Define Euler-Lagrange interactions.
+
+They are the equations of motion of a Lagrangian with dissipation and forcing.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,16 +23,16 @@ from ._interaction import Interaction
 
 
 class EulerLagrangeInteraction(Interaction):
-    """Equations of motion `d/dt dL/dq' - dL/dq = Q - dR/dq'` of the coordinates `q` of a Lagrangian `L(ns)`.
+    """Equations of motion `d/dt dL/dq' - dL/dq = Q - dR/dq'` of a Lagrangian `L(ns)`.
 
-    The coordinates are states of order 2, and the Lagrangian, the Rayleigh dissipation function `R`, and the
-    generalized forcing `Q` read them and their first derivatives `derivative(q, 1)`. The interaction returns one
-    equation law per coordinate, which the compiler solves jointly for the second derivatives, so a Lagrangian with a
-    mass matrix, such as a double pendulum's, needs no inversion by hand. The equations of one coordinate from several
-    interactions add, so their Lagrangians, dissipations, and forcings sum: a coupling, such as a spring between two
-    pendulums, is an interaction of its own whose Lagrangian holds only the coupling energy. The coordinates are the
-    states of every role that binds one element or group, `target` by default, and every component of a vector state
-    is a coordinate.
+    The coordinates are `q`. The coordinates are states of order 2, and the Lagrangian, the Rayleigh dissipation
+    function `R`, and the generalized forcing `Q` read them and their first derivatives `derivative(q, 1)`. The
+    interaction returns one equation law per coordinate, which the compiler solves jointly for the second derivatives,
+    so a Lagrangian with a mass matrix, such as a double pendulum's, needs no inversion by hand. The equations of one
+    coordinate from several interactions add, so their Lagrangians, dissipations, and forcings sum: a coupling, such as
+    a spring between two pendulums, is an interaction of its own whose Lagrangian holds only the coupling energy. The
+    coordinates are the states of every role that binds one element or group, `target` by default, and every component
+    of a vector state is a coordinate.
 
     A Lagrangian, dissipation, or forcing function takes the namespace of the interaction, with the namespaces of the
     roles, the time `t`, and the symbols of the parameters a subclass declares. The forcing returns one generalized
@@ -108,7 +111,7 @@ class EulerLagrangeInteraction(Interaction):
         return (self.states,) if isinstance(self.states, str) else tuple(self.states)
 
     def _check(self) -> None:
-        """Raise an error for a state that is not a name, or a function that is not callable.
+        """Raise an error for a state that is not a name, or an uncallable function.
 
         Raises:
             ValidationError:
@@ -126,14 +129,20 @@ class EulerLagrangeInteraction(Interaction):
                 raise ValidationError(error_msg)
 
     def _get_lagrangian(self, namespace: SimpleNamespace) -> object:
-        """Return the Lagrangian, the hook a subclass overrides to derive it from its parameters."""
+        """Return the Lagrangian.
+
+        This is the hook a subclass overrides to derive it from its parameters.
+        """
         if self.lagrangian is None:
             error_msg = f'{type(self).__name__} {self.label!r} has no Lagrangian. Give a function of the namespace.'
             raise ValidationError(error_msg)
         return self.lagrangian(namespace)
 
     def _get_coordinates(self, namespace: SimpleNamespace) -> list[Expression]:
-        """Return the coordinates, every component of the states of every role that binds one path."""
+        """Return the coordinates.
+
+        They are every component of the states of every role that binds one path.
+        """
         coordinates = []
         for name, spec in self._get_specs().items():
             if not isinstance(spec, RoleSpec) or spec.variadic or spec.noise:

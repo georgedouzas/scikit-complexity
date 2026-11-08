@@ -18,7 +18,7 @@ from ._interaction import Interaction
 
 
 class ImpulseInteraction(Interaction):
-    """Impulses that set states of the target to new values at given times, or at periodic times.
+    """Impulses that set states of the target to new values at given or periodic times.
 
     The impulses fall at every time of `times` and, with a `period`, at `start + j * period` for `j` from 0, `count`
     times or without end. An impulse at the initial time of a run does not fire. The new values are functions of the
@@ -83,7 +83,7 @@ class ImpulseInteraction(Interaction):
         self.count = count
 
     def _check(self) -> None:
-        """Raise an error for impulses without states or times, or with a period or a count they cannot take.
+        """Raise an error for impulses without states or times, or a bad period or count.
 
         Raises:
             ValidationError:
@@ -109,7 +109,10 @@ class ImpulseInteraction(Interaction):
             raise ValidationError(error_msg)
 
     def _get_periodic_guard(self, time: Expression, period: float) -> Expression:
-        """Return a guard that crosses zero at every periodic impulse and stays away from zero outside them."""
+        """Return a guard that crosses zero at every periodic impulse.
+
+        It stays away from zero outside them.
+        """
         guard = where(time < self.start - period / 2, -1, sin(pi * (time - self.start) / period))
         if self.count is None:
             return guard

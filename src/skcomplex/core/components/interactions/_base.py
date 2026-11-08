@@ -1,4 +1,7 @@
-"""Define the base of interactions, the parts of a system that act between elements."""
+"""Define the base of interactions.
+
+Interactions are the parts of a system that act between elements.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -24,17 +27,18 @@ RATE_DOMAINS = ('real', 'integer', 'complex', 'vector')
 
 
 class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
-    """Base of every interaction, a part of a system whose laws couple elements to each other or to the environment.
+    """Base of every interaction.
 
-    A subclass takes its roles and parameters as arguments of its own `__init__`, annotated with `Annotated` and the
-    spec `RoleSpec` or `ParameterSpec`, and stores each under its own name, as in scikit-learn. It returns its
-    laws from `_get_laws`, where `namespace.<role>` is the namespace of the element bound to the role and
-    `namespace.<parameter>` is a symbol. Interactions hold no state: state on couplings lives in groups on the edges or
-    hyperedges of a network space. A general interaction reads the members of its roles, such as `'source'` or
-    `'target'`, by the name `_get_role` returns for them, the role itself by default, so a subclass that names its
-    roles otherwise returns its own names, in the agent forms and, through `_get_member`, in the symbolic forms.
-    It reads its parameters by the name `_get_parameter` returns for them, and a parameter the class does not declare
-    reads the plain attribute, so a subclass renames a parameter or fixes its value by setting the attribute.
+    An interaction is a part of a system whose laws couple elements to each other or to the environment. A subclass
+    takes its roles and parameters as arguments of its own `__init__`, annotated with `Annotated` and the spec
+    `RoleSpec` or `ParameterSpec`, and stores each under its own name, as in scikit-learn. It returns its laws from
+    `_get_laws`, where `namespace.<role>` is the namespace of the element bound to the role and `namespace.<parameter>`
+    is a symbol. Interactions hold no state: state on couplings lives in groups on the edges or hyperedges of a network
+    space. A general interaction reads the members of its roles, such as `'source'` or `'target'`, by the name
+    `_get_role` returns for them, the role itself by default, so a subclass that names its roles otherwise returns its
+    own names, in the agent forms and, through `_get_member`, in the symbolic forms. It reads its parameters by the name
+    `_get_parameter` returns for them, and a parameter the class does not declare reads the plain attribute, so a
+    subclass renames a parameter or fixes its value by setting the attribute.
 
     A role states what it needs in its `RoleSpec`, and the class lists the laws it may return in `law_classes`, which
     `get_requirements` reads. Its capability tags come from the laws it returns for its arguments: a class whose
@@ -74,7 +78,9 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
     laws_: Sequence[BasePart]
 
     def _get_argument(self, name: str) -> object:
-        """Return the value of an argument of the general interaction under its subclass name, or `None` without one.
+        """Return the value of an argument of the general interaction.
+
+        It reads the argument under its subclass name, and returns `None` without one.
 
         Args:
             name:
@@ -93,7 +99,9 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
         stochastic: bool = False,
         structure: frozenset[str] = frozenset(),
     ) -> Tags:
-        """Return the tags of the laws an interaction returns for its arguments, unknown below its own `_get_laws`.
+        """Return the tags of the laws an interaction returns for its arguments.
+
+        The tags are unknown below its own `_get_laws`.
 
         Args:
             classes:
@@ -115,11 +123,17 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
         return replace(tags, randomness='stochastic' if stochastic else tags.randomness, structure=structure)
 
     def _get_tags(self) -> Tags:
-        """Return the tags of the laws the class lists, or unknown law kinds when it writes laws it does not list."""
+        """Return the tags of the laws the class lists.
+
+        The tags are unknown law kinds when the class writes laws it does not list.
+        """
         return self._get_law_tags(self._get_declared_laws())
 
     def _draws(self) -> bool:
-        """Return whether the interaction draws, by `draws`, a random order of its agents, or random ties or picks."""
+        """Return whether the interaction draws.
+
+        It draws, by `draws`, a random order of its agents, or random ties or picks.
+        """
         return (
             self.draws
             or self._get_argument('schedule') in ('random-sequential', 'member')
@@ -136,7 +150,9 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
         self.laws_ = self._laws_of(inputs)
 
     def _get_role(self, role: str) -> str:
-        """Return the name of the role a subclass binds in place of a role of its general interaction.
+        """Return the role a subclass binds in place of a role of its general interaction.
+
+        It returns the name of the role.
 
         Args:
             role:
@@ -149,7 +165,9 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
         return role
 
     def _get_member(self, namespace: SimpleNamespace, role: str) -> SimpleNamespace:
-        """Return the namespace of the element bound to a role of the general interaction, under its subclass name.
+        """Return the namespace of the element bound to a role of the general interaction.
+
+        The role is read under its subclass name.
 
         Args:
             namespace:
@@ -166,7 +184,9 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
         return member
 
     def _get_parameter(self, name: str) -> str:
-        """Return the name of the parameter a subclass reads in place of a parameter of its general interaction.
+        """Return the parameter a subclass reads in place of a general one.
+
+        It returns the name of the parameter that the subclass reads in place of a parameter of its general interaction.
 
         Args:
             name:
@@ -183,7 +203,9 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
         return isinstance(type(self)._get_specs().get(name), ParameterSpec)
 
     def _get_parameter_value(self, name: str, system: SystemViewProtocol) -> float:
-        """Return the value of a parameter in an agent form, the plain attribute when the class does not declare it.
+        """Return the value of a parameter in an agent form.
+
+        It is the plain attribute when the class does not declare the parameter.
 
         Args:
             name:
@@ -202,7 +224,9 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
         return float(getattr(self, parameter))
 
     def _get_parameter_symbol(self, name: str, namespace: SimpleNamespace) -> object:
-        """Return the symbol of a parameter in a symbolic form, the plain attribute when the class does not declare it.
+        """Return the symbol of a parameter in a symbolic form.
+
+        It is the plain attribute when the class does not declare the parameter.
 
         Args:
             name:
@@ -230,7 +254,9 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
         *,
         functions: bool = False,
     ) -> None:
-        """Raise an error for a variant that is none of its named values and of none of the kinds it also takes.
+        """Raise an error for a variant of no named value and of no kind it also takes.
+
+        The variant is none of its named values and of none of the kinds it also takes.
 
         Args:
             name:
@@ -288,7 +314,9 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
         get_next: Callable[[AgentViewProtocol, SystemViewProtocol], T],
         set_next: Callable[[AgentViewProtocol, T], None],
     ) -> None:
-        """Set the next value of every agent of the target, all at once or one after the other, by the schedule.
+        """Set the next value of every agent of the target by the schedule.
+
+        The agents update all at once or one after the other.
 
         Args:
             system:
@@ -318,7 +346,9 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
                 set_next(agent, get_next(agent, system))
 
     def _pick_best(self, scores: npt.ArrayLike, ties: str, system: SystemViewProtocol) -> int:
-        """Return the position of the largest score, the first one or one drawn uniformly among ties.
+        """Return the position of the largest score.
+
+        It is the first one or one drawn uniformly among ties.
 
         Args:
             scores:
@@ -341,7 +371,10 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
         return int(best[int(system.rng.integers(len(best)))])
 
     def _check_states(self) -> None:
-        """Raise an error for a type that declares states or adaptive parameters without a shape."""
+        """Raise an error for a type with states or adaptive parameters without a shape.
+
+        The type declares the states or the adaptive parameters.
+        """
         specs = self._get_specs()
         states = [name for name, spec in specs.items() if isinstance(spec, StateSpec)]
         adaptive = [
@@ -373,7 +406,9 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
         self._check_states()
 
     def _check_grid(self, name: str, value: object, space: BaseSpace | None, alternative: str) -> None:
-        """Raise an error for a variant that needs the cells of a grid or the nodes of a network in a continuous space.
+        """Raise an error for a variant that needs cells or nodes in a continuous space.
+
+        The variant needs the cells of a grid or the nodes of a network.
 
         Args:
             name:
@@ -401,13 +436,19 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
         raise SpaceError(error_msg)
 
     def _check_partners(self, partners: object, space: BaseSpace | None) -> None:
-        """Raise an error for a selection of partners among cells or nodes in a continuous space."""
+        """Raise an error for a selection of partners among cells or nodes.
+
+        The error is for a continuous space.
+        """
         if isinstance(partners, PartnerSpec) and partners.candidates in GRID_CANDIDATES:
             self._check_grid('candidates', partners.candidates, space, 'a radius, `PartnerSpec(candidates=<radius>)`')
 
     @classmethod
     def _get_law_classes(cls) -> tuple[type[BaseLaw], ...]:
-        """Return the law classes the class lists, none when a subclass writes its own laws below the list."""
+        """Return the law classes the class lists.
+
+        There are none when a subclass writes its own laws below the list.
+        """
         for klass in cls.__mro__:
             declared = vars(klass)
             if 'law_classes' in declared:
@@ -425,7 +466,10 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
         return tuple(dict.fromkeys(kind for classes in kinds for kind in classes))
 
     def _get_state_names(self, names: Sequence[str]) -> tuple[str, ...]:
-        """Return the states that declared names mean: the names an argument holds, or else the names themselves."""
+        """Return the states that declared names mean.
+
+        They are the names an argument holds, or else the names themselves.
+        """
         found: list[str] = []
         for name in names:
             value = getattr(self, name, name)
@@ -436,7 +480,9 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
         return tuple(dict.fromkeys(found))
 
     def _check_space(self, space: BaseSpace | None) -> None:
-        """Raise an error for a variant the space of the system cannot run, none by default.
+        """Raise an error for a variant the space of the system cannot run.
+
+        There is none by default.
 
         Args:
             space:
@@ -457,7 +503,9 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
         self._check_space(context)
 
     def get_requirements(self) -> InteractionRequirementSpec:
-        """Return what the interaction needs: the element kinds and states of its roles, and its laws' time and space.
+        """Return what the interaction needs.
+
+        It needs the element kinds and states of its roles, and its laws' time and space.
 
         Returns:
             requirements:

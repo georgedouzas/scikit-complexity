@@ -1,4 +1,7 @@
-"""Define matching interactions, which match requesters with providers by a rule and settle every match."""
+"""Define matching interactions.
+
+A matching matches requesters with providers by a rule and settles every match.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -48,19 +51,20 @@ RULES = (
 
 
 class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
-    """Matching of the members of a group of requesters with those of a group of providers by a rule.
+    """Matching of the members of a group of requesters with those of providers.
 
-    Requesters state the highest clearing value they accept in their `limit` state, the quantity they want in their
-    `quantity` state, and the most value they can give in their `allowance` state, and providers the lowest clearing
-    value they accept and the quantity they offer. A name given as a pair names the state of the requesters first and of
-    the providers second, and a missing state counts as no limit, one unit, and no allowance. The rule is a spec that
-    names the algorithm that pairs the offers and holds its settings: random search, partners, partner switching, a
-    queue, iterative, continuous, batch, or stable matching. The `value` of a match is its clearing value per unit.
-    Every match lowers the quantities of both sides and moves every state of `transfers`: a negative sign moves
-    `value * quantity` from the requester to the provider, and a positive sign moves `quantity` from the provider to the
-    requester, so the totals stay the same. `on_match(match, system)` adds any other effect. The matching runs
-    once per round of its phase and reports the quantity-weighted clearing value `value`, the matched `volume`, and the
-    `unmatched` quantity left, as the reporters `<label>.value`, `<label>.volume`, and `<label>.unmatched`.
+    The providers form a group, and a rule matches the members. Requesters state the highest clearing value they accept
+    in their `limit` state, the quantity they want in their `quantity` state, and the most value they can give in their
+    `allowance` state, and providers the lowest clearing value they accept and the quantity they offer. A name given as
+    a pair names the state of the requesters first and of the providers second, and a missing state counts as no limit,
+    one unit, and no allowance. The rule is a spec that names the algorithm that pairs the offers and holds its
+    settings: random search, partners, partner switching, a queue, iterative, continuous, batch, or stable matching. The
+    `value` of a match is its clearing value per unit. Every match lowers the quantities of both sides and moves every
+    state of `transfers`: a negative sign moves `value * quantity` from the requester to the provider, and a positive
+    sign moves `quantity` from the provider to the requester, so the totals stay the same. `on_match(match, system)`
+    adds any other effect. The matching runs once per round of its phase and reports the quantity-weighted clearing
+    value `value`, the matched `volume`, and the `unmatched` quantity left, as the reporters `<label>.value`,
+    `<label>.volume`, and `<label>.unmatched`.
 
     Args:
         label:
@@ -125,7 +129,10 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (MatchLaw, RuleLaw)
 
     def _draws(self) -> bool:
-        """Return whether the rule draws, as every rule does but a queue served in a fixed order."""
+        """Return whether the rule draws.
+
+        Every rule draws but a queue served in a fixed order.
+        """
         return super()._draws() or not (isinstance(self.rule, QueueSpec) and self.rule.order != 'random')
 
     def __init__(
@@ -155,11 +162,17 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
 
     @staticmethod
     def _get_sides(name: str | tuple[str, str]) -> tuple[str, str]:
-        """Return the state of the requesters and of the providers of a name given once or as a pair."""
+        """Return the state of the requesters and of the providers of a name.
+
+        The name is given once or as a pair.
+        """
         return (name, name) if isinstance(name, str) else name
 
     def _read(self, agent: AgentViewProtocol, name: str, default: float) -> float:
-        """Return a state of an agent, or a default when it lacks a state of a default name."""
+        """Return a state of an agent.
+
+        It returns a default when the agent lacks a state of a default name.
+        """
         if hasattr(agent, name):
             return float(getattr(agent, name))
         if name in DEFAULT_STATES:
@@ -172,14 +185,20 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
 
     @staticmethod
     def _get_affordable(offer: SimpleNamespace, value: float) -> float:
-        """Return the quantity a participant can still match at a value within its allowance."""
+        """Return the quantity a participant can still match at a value.
+
+        The value is within its allowance.
+        """
         if value <= 0:
             return float(offer.quantity)
         return max(0.0, min(offer.quantity, offer.allowance / value))
 
     @staticmethod
     def _book(trades: list[MatchSpec], requester: SimpleNamespace, provider: SimpleNamespace, value: float) -> None:
-        """Record a match of the largest quantity both sides can match at a value and lower both offers."""
+        """Record a match of the largest quantity both sides can match at a value.
+
+        It also lowers both offers.
+        """
         quantity = min(MatchingInteraction._get_affordable(requester, value), provider.quantity)
         if quantity <= 0:
             return
@@ -207,7 +226,10 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         return [offers[index] for index in rng.permutation(len(offers))]
 
     def _get_offers(self, system: SystemT) -> tuple[list[SimpleNamespace], list[SimpleNamespace]]:
-        """Return the offers of the requesters and of the providers with a positive quantity, which matches lower."""
+        """Return the offers of the requesters and providers with a positive quantity.
+
+        Matches lower the quantity.
+        """
         limits, quantities = self._get_sides(self.limit), self._get_sides(self.quantity)
         requesters = [
             SimpleNamespace(
@@ -238,7 +260,10 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         providers: list[SimpleNamespace],
         rng: np.random.Generator,
     ) -> list[MatchSpec]:
-        """Return the matches of requesters in random order that meet random providers and match on crossing limits."""
+        """Return the matches of requesters in random order that meet random providers.
+
+        They match on crossing limits.
+        """
         trades: list[MatchSpec] = []
         for index in rng.permutation(len(requesters)):
             requester = requesters[index]
@@ -258,7 +283,10 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         current: SimpleNamespace | None,
         rng: np.random.Generator,
     ) -> SimpleNamespace:
-        """Return the provider a requester matches with, its current partner or the best of its sample."""
+        """Return the provider a requester matches with.
+
+        It is its current partner or the best of its sample.
+        """
         if current is None or current.quantity <= 0:
             return best
         if best.limit >= current.limit:
@@ -275,7 +303,10 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         providers: list[SimpleNamespace],
         rng: np.random.Generator,
     ) -> list[MatchSpec]:
-        """Return the matches of every requester with its kept or new partner, at the partner's limit."""
+        """Return the matches of every requester with its kept or new partner.
+
+        The matches are at the partner's limit.
+        """
         trades: list[MatchSpec] = []
         by_id = {provider.agent.id: provider for provider in providers}
         for index in rng.permutation(len(requesters)):
@@ -300,7 +331,10 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         providers: list[SimpleNamespace],
         rng: np.random.Generator,
     ) -> list[MatchSpec]:
-        """Return the matches of the queue of requesters served by the lowest providers at their limits."""
+        """Return the matches of the queue of requesters served by the lowest providers.
+
+        The providers serve at their limits.
+        """
         queue = self._order(requesters, rule.order, rng)
         stock = sorted(providers, key=lambda provider: provider.limit)
         trades: list[MatchSpec] = []
@@ -341,7 +375,10 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         value: float,
         rng: np.random.Generator,
     ) -> list[MatchSpec]:
-        """Return the matches at one value between the willing requesters and providers in random order."""
+        """Return the matches at one value between the willing requesters and providers.
+
+        They match in random order.
+        """
         trades: list[MatchSpec] = []
         willing_requesters = self._order([item for item in requesters if item.limit >= value], 'random', rng)
         willing_providers = self._order([item for item in providers if item.limit <= value], 'random', rng)
@@ -362,7 +399,10 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         rng: np.random.Generator,
         storage: MutableMapping[str, object],
     ) -> list[MatchSpec]:
-        """Return the matches at the value of the tâtonnement, which starts from the value of the last clearing."""
+        """Return the matches at the value of the tâtonnement.
+
+        The tâtonnement starts from the value of the last clearing.
+        """
         limits = [offer.limit for offer in requesters + providers if offer.limit > 0]
         if not limits:
             return []
@@ -392,7 +432,10 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         providers: list[SimpleNamespace],
         rng: np.random.Generator,
     ) -> list[MatchSpec]:
-        """Return the matches of every arriving offer with the best resting offers of the other side."""
+        """Return the matches of every arriving offer with the best resting offers.
+
+        The resting offers are those of the other side.
+        """
         requests: list[tuple[float, int, SimpleNamespace]] = []
         provisions: list[tuple[float, int, SimpleNamespace]] = []
         trades: list[MatchSpec] = []
@@ -433,7 +476,10 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         requesters: list[SimpleNamespace],
         providers: list[SimpleNamespace],
     ) -> tuple[list[tuple[SimpleNamespace, SimpleNamespace]], float]:
-        """Return the pairs of crossing offers in order of their limits and the value of the last pair."""
+        """Return the pairs of crossing offers in order of their limits.
+
+        It also returns the value of the last pair.
+        """
         ranked_requesters = sorted(requesters, key=lambda offer: (-offer.limit, offer.agent.id))
         ranked_providers = sorted(providers, key=lambda offer: (offer.limit, offer.agent.id))
         left = {id(offer): self._get_requested(offer) for offer in ranked_requesters}
@@ -455,7 +501,10 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         return pairs, marginal
 
     def _match_batch(self, requesters: list[SimpleNamespace], providers: list[SimpleNamespace]) -> list[MatchSpec]:
-        """Return the matches of the crossing offers at the midpoint of the last crossing pair."""
+        """Return the matches of the crossing offers at the midpoint of the last pair.
+
+        The last pair is the last crossing pair.
+        """
         pairs, marginal = self._pair(requesters, providers)
         trades: list[MatchSpec] = []
         for requester, provider in pairs:
@@ -471,7 +520,10 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
 
     @staticmethod
     def _score_requester(rule: StableMatchingSpec, provider: SimpleNamespace, requester: SimpleNamespace) -> float:
-        """Return the score of a requester for a provider, higher for a preferred requester."""
+        """Return the score of a requester for a provider.
+
+        The score is higher for a preferred requester.
+        """
         if rule.provider_preference is None:
             return requester.limit
         return rule.provider_preference(provider.agent, requester.agent)
@@ -482,7 +534,10 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         requesters: list[SimpleNamespace],
         providers: list[SimpleNamespace],
     ) -> dict[int, list[int]]:
-        """Return the ids of the acceptable providers of every requester, the preferred first."""
+        """Return the ids of the acceptable providers of every requester.
+
+        The preferred come first.
+        """
         capacities = {provider.agent.id for provider in providers if int(provider.quantity) > 0}
         ranks = {}
         for requester in requesters:
@@ -523,7 +578,9 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         provider_ranks: dict[int, list[int]],
         capacities: dict[int, int],
     ) -> dict[int, list[int]]:
-        """Return the requesters of every provider, the preferred first, in the requester-optimal stable matching.
+        """Return the requesters of every provider in the stable matching.
+
+        The matching is the requester-optimal one, and the preferred requesters come first.
 
         Every free requester proposes to its next provider, which holds its preferred proposals up to its capacity and
         rejects the rest. The result does not depend on the order of the proposals.
@@ -577,12 +634,18 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         providers: list[SimpleNamespace],
         rng: np.random.Generator,
     ) -> list[MatchSpec]:
-        """Return the matches of every requester, in random order, with the feasible partners its rule picks."""
+        """Return the matches of every requester with the feasible partners its rule picks.
+
+        The requesters go in random order.
+        """
         wanting = {id(offer.agent): offer for offer in requesters}
         offering = {id(offer.agent): offer for offer in providers}
 
         def is_feasible(requester: AgentViewProtocol, provider: AgentViewProtocol) -> bool:
-            """Return whether a provider still offers a quantity at a limit the requester accepts."""
+            """Return whether a provider still offers a quantity at an acceptable limit.
+
+            The requester accepts the limit.
+            """
             offer = offering[id(provider)]
             return offer.quantity > 0 and offer.limit <= wanting[id(requester)].limit
 
@@ -605,7 +668,10 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         providers: list[SimpleNamespace],
         rng: np.random.Generator,
     ) -> list[MatchSpec]:
-        """Return the matches of the pairs of a function, each at the midpoint of the limits."""
+        """Return the matches of the pairs of a function.
+
+        Each is at the midpoint of the limits.
+        """
         wanting = {id(offer.agent): offer for offer in requesters}
         offering = {id(offer.agent): offer for offer in providers}
         trades: list[MatchSpec] = []
@@ -622,7 +688,10 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         providers: list[SimpleNamespace],
         system: SystemT,
     ) -> list[MatchSpec]:
-        """Return the matches of the offers by the algorithm the rule names, none when a side has no offers."""
+        """Return the matches of the offers by the algorithm the rule names.
+
+        There are none when a side has no offers.
+        """
         if not requesters or not providers:
             return []
         rule, rng = self.rule, system.rng
@@ -648,7 +717,10 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         return matches
 
     def _settle(self, match: MatchSpec, system: SystemT) -> None:
-        """Move the transfers of a match, lower the quantities of both sides, and run `on_match`."""
+        """Move the transfers of a match, lower both quantities, and run `on_match`.
+
+        It lowers the quantities of both sides.
+        """
         for state, sign in self.transfers:
             if sign < 0:
                 transfer(match.requester, match.provider, match.quantity * match.value, state)
@@ -661,7 +733,9 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
             self.on_match(match, system)
 
     def _report_matches(self, matches: list[MatchSpec], unmatched: float, system: SystemT) -> None:
-        """Report the quantity-weighted value, the matched volume, and the unmatched quantity of one clearing.
+        """Report the value, the matched volume, and the unmatched quantity of a clearing.
+
+        The value is weighted by quantity.
 
         Args:
             matches:
@@ -680,11 +754,16 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         system.report('unmatched', unmatched)
 
     def _check_space(self, space: BaseSpace | None) -> None:
-        """Raise an error for candidates in neighbouring cells or nodes in a continuous space."""
+        """Raise an error for candidates in neighbouring cells or nodes.
+
+        The error is for a continuous space.
+        """
         self._check_partners(self.rule, space)
 
     def _check(self) -> None:
-        """Raise an error for a declaration the matching cannot take, a transfer without a sign, or a bad rule.
+        """Raise an error for a bad declaration, an unsigned transfer, or a bad rule.
+
+        A bad declaration is one the matching cannot take.
 
         Raises:
             ValidationError:
@@ -714,7 +793,9 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         return [RuleLaw(self.match, phase=self.phase)]
 
     def match(self, system: SystemT) -> None:
-        """Match the members, settle the matches, and report the value, the volume, and the unmatched quantity.
+        """Match the members, settle the matches, and report the results.
+
+        It reports the value, the volume, and the unmatched quantity.
 
         Args:
             system:

@@ -1,4 +1,7 @@
-"""Define relaxation, rates that bring a state towards a goal over a time, with optional noise."""
+"""Define relaxation.
+
+Relaxation is rates that bring a state towards a goal over a time, with optional noise.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,13 +19,13 @@ from ._rate import RateInteraction
 
 
 class RelaxationInteraction(RateInteraction):
-    """Relaxation `(goal(ns) - x) / time(ns)` of a state `x` of a target towards a goal, with optional noise.
+    """Relaxation `(goal(ns) - x) / time(ns)` of a state `x` of a target.
 
-    With a constant goal and time and an additive noise of amplitude `sigma`, the state follows the Ornstein-Uhlenbeck
-    process `dx = (goal - x) / time dt + sigma dW`, whose stationary variance is `sigma**2 time / 2`. Without noise it
-    is first-order smoothing, or adaptive expectation, towards the goal. A goal or a time function takes the namespace
-    of the interaction, as for `RateInteraction`, and a number stands for a constant. A goal that is a number applies
-    to every component of a vector state.
+    The relaxation is towards a goal, with optional noise. With a constant goal and time and an additive noise of
+    amplitude `sigma`, the state follows the Ornstein-Uhlenbeck process `dx = (goal - x) / time dt + sigma dW`, whose
+    stationary variance is `sigma**2 time / 2`. Without noise it is first-order smoothing, or adaptive expectation,
+    towards the goal. A goal or a time function takes the namespace of the interaction, as for `RateInteraction`, and a
+    number stands for a constant. A goal that is a number applies to every component of a vector state.
 
     Args:
         label:
@@ -76,7 +79,10 @@ class RelaxationInteraction(RateInteraction):
         self.time = time
 
     def _check_functions(self) -> None:
-        """Raise an error for a state that is not a name, or a function that is neither callable nor a number."""
+        """Raise an error for a state that is not a name, or a bad function.
+
+        A bad function is neither callable nor a number.
+        """
         super()._check_functions()
         for name in ('goal', 'time'):
             value = getattr(self, name)
@@ -89,7 +95,10 @@ class RelaxationInteraction(RateInteraction):
         return self._evaluate(self.goal, namespace)
 
     def _get_time(self, namespace: SimpleNamespace) -> object:
-        """Return the relaxation time, the hook a subclass overrides to derive it from its parameters."""
+        """Return the relaxation time.
+
+        This is the hook a subclass overrides to derive it from its parameters.
+        """
         return self._evaluate(self.time, namespace)
 
     def _get_rate(self, namespace: SimpleNamespace) -> object:

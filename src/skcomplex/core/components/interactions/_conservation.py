@@ -1,4 +1,7 @@
-"""Define conservation laws, which change a conserved state of a field by the divergence of a flux and a source."""
+"""Define conservation laws.
+
+A conservation law changes a conserved state of a field by the divergence of a flux and a source.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,16 +26,16 @@ RIEMANN_SOLVERS = ('rusanov', 'godunov', None)
 
 
 class ConservationInteraction(Interaction):
-    """Conservation law `du/dt + divergence(flux(ns)) = source(ns)` of a state `u` of a field.
+    """Conservation law `du/dt + divergence(flux(ns)) = source(ns)` of a state `u`.
 
-    The flux is one expression for a field of one dimension, or one expression per dimension, of the states of the
-    field, and the interaction lowers it to a finite-volume flux law with a slope limiter and a numerical flux, or,
-    without a numerical flux, to the rate `-divergence(flux)` that the field discretizes by its own operators, as a
-    spectral or finite-difference field does. Without a source the total of the state on a periodic field stays
-    constant. The conservation laws of several states of one field form one system, whose numerical flux reads the
-    wave speeds of all of them, and a flux may read parameters that vary across the cells. A flux or a source function
-    takes the namespace of the interaction, with the namespace `target` of the field, the time `t`, and the symbols of
-    the parameters a subclass declares.
+    The state `u` is a state of a field. The flux is one expression for a field of one dimension, or one expression per
+    dimension, of the states of the field, and the interaction lowers it to a finite-volume flux law with a slope
+    limiter and a numerical flux, or, without a numerical flux, to the rate `-divergence(flux)` that the field
+    discretizes by its own operators, as a spectral or finite-difference field does. Without a source the total of the
+    state on a periodic field stays constant. The conservation laws of several states of one field form one system,
+    whose numerical flux reads the wave speeds of all of them, and a flux may read parameters that vary across the
+    cells. A flux or a source function takes the namespace of the interaction, with the namespace `target` of the field,
+    the time `t`, and the symbols of the parameters a subclass declares.
 
     Args:
         label:
@@ -92,7 +95,10 @@ class ConservationInteraction(Interaction):
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (FluxLaw, RateLaw)
 
     def _get_tags(self) -> Tags:
-        """Return the tags of a flux with a Riemann solver or of a rate, with a rate for a source."""
+        """Return the tags of a flux with a Riemann solver or of a rate.
+
+        A source adds a rate.
+        """
         transport = (FluxLaw,) if self._get_argument('riemann') is not None else (RateLaw,)
         source = () if self._get_argument('source') is None else (RateLaw,)
         return self._get_variant_tags((*transport, *source))
@@ -119,7 +125,9 @@ class ConservationInteraction(Interaction):
         self.sources = sources
 
     def _check(self) -> None:
-        """Raise an error for a state that is not a name, a function that is not callable, or an unknown scheme.
+        """Raise an error for an invalid state, function, or scheme.
+
+        It raises it for a state that is not a name, a function that is not callable, or an unknown scheme.
 
         Raises:
             ValidationError:
@@ -143,11 +151,17 @@ class ConservationInteraction(Interaction):
             raise ValidationError(error_msg)
 
     def _get_flux(self, namespace: SimpleNamespace) -> object:
-        """Return the flux, or `None` for none, the hook a subclass overrides to derive it from its arguments."""
+        """Return the flux, or `None` for none.
+
+        This is the hook a subclass overrides to derive the flux from its arguments.
+        """
         return None if self.flux is None else self.flux(namespace)
 
     def _get_transport_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
-        """Return the laws of the divergence of the flux, the hook a subclass overrides to lower its own flux."""
+        """Return the laws of the divergence of the flux.
+
+        This is the hook a subclass overrides to lower its own flux.
+        """
         flux = self._get_flux(namespace)
         if flux is None:
             return []

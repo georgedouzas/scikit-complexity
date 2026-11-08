@@ -1,4 +1,7 @@
-"""Define feedback interactions, single actors whose rules read observables and set the parameters of other parts."""
+"""Define feedback interactions.
+
+They are single actors whose rules read observables and set the parameters of other parts.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,13 +18,13 @@ from ._interaction import Interaction
 
 
 class FeedbackInteraction[SystemT: SystemViewProtocol](Interaction):
-    """Single actor that reads the system once per round of its phase and sets parameters from what it reads.
+    """Single actor that reads the system and sets parameters from what it reads.
 
-    Its rule runs once per round of its phase, after the agents of the phase. It reads observables with
-    `system.observable(name)`, reporters with `system.history(name)`, and agents with `system.agents(name)`, and sets
-    parameters of any group or interaction with `system.set_parameter(name, value)`. A change is visible to every rule
-    at once and recorded in the trajectory like any parameter. Subclasses declare their own parameters, such as a
-    target, and override `act`. Otherwise `rule(system)` acts.
+    It reads the system once per round of its phase. Its rule runs once per round of its phase, after the agents of the
+    phase. It reads observables with `system.observable(name)`, reporters with `system.history(name)`, and agents with
+    `system.agents(name)`, and sets parameters of any group or interaction with `system.set_parameter(name, value)`. A
+    change is visible to every rule at once and recorded in the trajectory like any parameter. Subclasses declare their
+    own parameters, such as a target, and override `act`. Otherwise `rule(system)` acts.
 
     Args:
         label:

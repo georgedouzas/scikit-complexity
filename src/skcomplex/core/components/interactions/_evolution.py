@@ -1,4 +1,7 @@
-"""Define evolution interactions, which breed the strategies of a group by selection, crossover, and mutation."""
+"""Define evolution interactions.
+
+They breed the strategies of a group by selection, crossover, and mutation.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -27,21 +30,22 @@ HALF = 0.5
 
 
 class EvolutionInteraction(Interaction):
-    """Replacement of the strategies of an agent group by offspring selected on a fitness, with crossover and mutation.
+    """Replacement of the strategies of an agent group by offspring.
 
-    Every `period` steps, or rounds of its phase, the interaction selects parents by tournaments of `tournament`
-    entrants, by roulette with weights of the fitness minus its minimum, in proportion to the fitness itself
-    (`'proportional'`), or by rank with weights `1` for the least fit to `n` for the fittest of `n` members. The
-    `'generational'` replacement selects as many parents as there are members, each pair of which exchanges the tails
-    after a random cut with probability `crossover`, and passes the `elite` fittest strategies unchanged. The `'moran'`
-    replacement runs as many birth-death events as there are members, one after the other, each copying a selected
-    parent onto a member drawn uniformly, and the copy takes the fitness of its parent for the later events of the
-    step. The `'death-birth'` replacement removes every member with probability `death` and fills its place with the
-    offspring of a parent selected among the survivors, or among all members when none survives or `parents` is
-    `'all'`. The `'truncation'` replacement fills the places of the `fraction` least fit members with the offspring of
-    parents selected among the others. The `'best-mutant'` replacement lets every member draw a mutant of its strategy,
-    and every member takes the fittest mutant when it is fitter than the fittest strategy, or when every member
-    mutated, so a population of one strategy climbs a landscape as a whole.
+    The offspring are selected on a fitness, with crossover and mutation. Every `period` steps, or rounds of its phase,
+    the interaction selects parents by tournaments of `tournament` entrants, by roulette with weights of the fitness
+    minus its minimum, in proportion to the fitness itself (`'proportional'`), or by rank with weights `1` for the least
+    fit to `n` for the fittest of `n` members. The `'generational'` replacement selects as many parents as there are
+    members, each pair of which exchanges the tails after a random cut with probability `crossover`, and passes the
+    `elite` fittest strategies unchanged. The `'moran'` replacement runs as many birth-death events as there are
+    members, one after the other, each copying a selected parent onto a member drawn uniformly, and the copy takes the
+    fitness of its parent for the later events of the step. The `'death-birth'` replacement removes every member with
+    probability `death` and fills its place with the offspring of a parent selected among the survivors, or among all
+    members when none survives or `parents` is `'all'`. The `'truncation'` replacement fills the places of the
+    `fraction` least fit members with the offspring of parents selected among the others. The `'best-mutant'`
+    replacement lets every member draw a mutant of its strategy, and every member takes the fittest mutant when it is
+    fitter than the fittest strategy, or when every member mutated, so a population of one strategy climbs a landscape
+    as a whole.
 
     Offspring mutate: each gene with probability `mutation` changes by the rule `change`, to another symbol of an
     alphabet of `alphabet` symbols (`'other'`), to a symbol drawn anew from the alphabet (`'any'`), one step up or down
@@ -193,7 +197,10 @@ class EvolutionInteraction(Interaction):
         self.phase = phase
 
     def _check_counts(self) -> None:
-        """Raise an error for a negative elite, a tournament without entrants, an alphabet of one, or no period."""
+        """Raise an error for invalid counts of the evolution.
+
+        It raises it for a negative elite, a tournament without entrants, an alphabet of one, or no period.
+        """
         if self.elite < 0 or self.tournament < 1:
             error_msg = (
                 f'{self.label!r} has elite {self.elite} and tournament {self.tournament}. Give an elite of at least 0 '
@@ -210,7 +217,10 @@ class EvolutionInteraction(Interaction):
             raise ValidationError(error_msg)
 
     def _check_probabilities(self) -> None:
-        """Raise an error for a probability outside `[0, 1]` or a mutation neither a probability nor callable."""
+        """Raise an error for an invalid probability or mutation.
+
+        A probability is outside `[0, 1]`, or a mutation is neither a probability nor callable.
+        """
         probabilities = [('crossover', self.crossover), ('death', self.death), ('fraction', self.fraction)]
         if not callable(self.mutation):
             probabilities.append(('mutation', self.mutation))
@@ -220,7 +230,7 @@ class EvolutionInteraction(Interaction):
                 raise ValidationError(error_msg)
 
     def _check(self) -> None:
-        """Raise an error for an unknown variant, a probability outside `[0, 1]`, or an invalid count.
+        """Raise an error for an unknown variant, a bad probability, or an invalid count.
 
         Raises:
             ValidationError:
@@ -245,14 +255,19 @@ class EvolutionInteraction(Interaction):
         self._check_counts()
 
     def _value(self, name: str, system: SystemViewProtocol) -> float:
-        """Return a probability, the parameter of the system when the class declares it as one."""
+        """Return a probability.
+
+        It is the parameter of the system when the class declares it as one.
+        """
         value = getattr(self, self._get_parameter(name))
         if self._declares(self._get_parameter(name)) or isinstance(value, int | float):
             return self._get_parameter_value(name, system)
         return 0.0
 
     def _evaluate(self, strategies: Array, system: SystemViewProtocol) -> Array | None:
-        """Return the fitness of every row of strategies by the evaluation, or `None` when there is none.
+        """Return the fitness of every row of strategies by the evaluation.
+
+        It returns `None` when there is no evaluation.
 
         Args:
             strategies:
@@ -270,7 +285,10 @@ class EvolutionInteraction(Interaction):
         return np.asarray(self.evaluate(strategies, system), dtype=float).reshape(len(strategies))
 
     def _evaluate_rows(self, flat: Array, genes: tuple[int, ...], system: SystemViewProtocol) -> Array | None:
-        """Return the fitness of flat rows of genes, given back the shape of the states before evaluation."""
+        """Return the fitness of flat rows of genes.
+
+        The rows get back the shape of the states before evaluation.
+        """
         return self._evaluate(flat.reshape(len(flat), *genes), system)
 
     def _select(self, fitness: Array, count: int, rng: np.random.Generator) -> npt.NDArray[np.intp]:
@@ -304,26 +322,35 @@ class EvolutionInteraction(Interaction):
         return children
 
     def _shift(self, children: Array, mutated: npt.NDArray[np.bool_], rng: np.random.Generator) -> Array:
-        """Return the children whose mutated genes change to another symbol, or by Gaussian noise."""
+        """Return the children whose mutated genes change to another symbol.
+
+        The genes may also change by Gaussian noise.
+        """
         if self.alphabet is None:
             return children + mutated * rng.normal(0.0, self.scale, children.shape)
         shift = rng.integers(1, self.alphabet, children.shape)
         return np.where(mutated, (children + shift) % self.alphabet, children)
 
     def _redraw(self, children: Array, mutated: npt.NDArray[np.bool_], rng: np.random.Generator) -> Array:
-        """Return the children whose mutated genes are drawn anew from the alphabet, or by Gaussian noise."""
+        """Return the children whose mutated genes are drawn anew from the alphabet.
+
+        The genes may also change by Gaussian noise.
+        """
         if self.alphabet is None:
             return children + mutated * rng.normal(0.0, self.scale, children.shape)
         return np.where(mutated, rng.integers(0, self.alphabet, children.shape), children)
 
     def _step(self, children: Array, mutated: npt.NDArray[np.bool_], rng: np.random.Generator) -> Array:
-        """Return the children whose mutated genes move one step up or down, within the alphabet when it is finite."""
+        """Return the children whose mutated genes move one step up or down.
+
+        The genes stay within the alphabet when it is finite.
+        """
         steps = np.where(rng.random(children.shape) < HALF, 1.0, -1.0)
         stepped = children + mutated * steps
         return stepped if self.alphabet is None else stepped % self.alphabet
 
     def _mutate(self, children: Array, probability: float, rng: np.random.Generator, population: Array) -> Array:
-        """Return the children mutated by the rule of the change, or by the mutation function.
+        """Return the children mutated by the rule of the change or the mutation function.
 
         Args:
             children:
@@ -378,7 +405,10 @@ class EvolutionInteraction(Interaction):
         system: SystemViewProtocol,
         genes: tuple[int, ...],
     ) -> tuple[Array, Array]:
-        """Return the strategies and the fitness after one birth-death event per member, one after the other."""
+        """Return the strategies and the fitness after one birth-death event per member.
+
+        The events happen one after the other.
+        """
         rng, probability = system.rng, self._value('mutation', system)
         strategies, fitness = flat.copy(), fitness.copy()
         for _ in range(len(strategies)):
@@ -396,7 +426,10 @@ class EvolutionInteraction(Interaction):
         fitness: Array,
         system: SystemViewProtocol,
     ) -> tuple[Array, npt.NDArray[np.bool_]]:
-        """Return the strategies after the dead members are filled by the offspring of the survivors, and the dead."""
+        """Return the strategies after the offspring of the survivors fill the dead.
+
+        It also returns the dead members.
+        """
         rng = system.rng
         dead = rng.random(len(flat)) < self._value('death', system)
         if not dead.any():
@@ -414,7 +447,10 @@ class EvolutionInteraction(Interaction):
         fitness: Array,
         system: SystemViewProtocol,
     ) -> tuple[Array, npt.NDArray[np.bool_]]:
-        """Return the strategies after the least fit are filled by the offspring of the others, and the replaced."""
+        """Return the strategies after the offspring of the others fill the least fit.
+
+        It also returns the replaced members.
+        """
         count = round(self._value('fraction', system) * len(flat))
         replaced = np.zeros(len(flat), dtype=bool)
         replaced[np.argsort(fitness, kind='stable')[:count]] = True
@@ -433,7 +469,10 @@ class EvolutionInteraction(Interaction):
         system: SystemViewProtocol,
         genes: tuple[int, ...],
     ) -> Array:
-        """Return the strategies after every member takes the fittest mutant, when it is fitter or all mutated."""
+        """Return the strategies after every member takes the fittest mutant.
+
+        A member takes it when it is fitter or all mutated.
+        """
         mutants = self._mutate(flat, self._value('mutation', system), system.rng, flat)
         mutated = np.any(mutants != flat, axis=1)
         if not mutated.any():
@@ -453,7 +492,10 @@ class EvolutionInteraction(Interaction):
         fitness: Array,
         system: SystemViewProtocol,
     ) -> tuple[Array, Array | None, npt.NDArray[np.bool_]]:
-        """Return the strategies after the replacement, their evaluated fitness or `None`, and the replaced."""
+        """Return the strategies after the replacement, and the replaced members.
+
+        It also returns their evaluated fitness, or `None`.
+        """
         flat, genes = strategies.reshape(len(strategies), -1), strategies.shape[1:]
         replaced = np.ones(len(flat), dtype=bool)
         if self.replacement == 'moran':
@@ -491,7 +533,10 @@ class EvolutionInteraction(Interaction):
         fitness: Array | None,
         replaced: npt.NDArray[np.bool_],
     ) -> None:
-        """Write the strategies, the evaluated fitness, and the reset states of the replaced members."""
+        """Write the strategies, the evaluated fitness, and the reset states.
+
+        The reset states are those of the replaced members.
+        """
         names = [self.strategy] if isinstance(self.strategy, str) else list(self.strategy)
         for index, (agent, child, new) in enumerate(zip(agents, children, replaced, strict=True)):
             genes = [child] if isinstance(self.strategy, str) else list(child)

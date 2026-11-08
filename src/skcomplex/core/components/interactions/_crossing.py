@@ -1,4 +1,7 @@
-"""Define crossings, events at the crossing of zero by a guard that reset states or end the run."""
+"""Define crossings.
+
+A crossing is an event at the crossing of zero by a guard that resets states or ends the run.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,12 +22,13 @@ DIRECTIONS = (-1, 0, 1)
 
 
 class CrossingInteraction(Interaction):
-    """Event at the crossing of zero by a guard, which sets states of the target to new values or ends the run.
+    """Event at the crossing of zero by a guard.
 
-    The guard and the new values are functions of the namespace, which holds `namespace.target`, the states and
-    parameters of the target, and the time `namespace.t`. A guard that reads the members of a group gives every member
-    its own event, which sets the states of that member alone. Solvers locate the crossing within their tolerance, and
-    the trajectory records every crossing among its events, under the label of the interaction and with the member.
+    The event sets states of the target to new values or ends the run. The guard and the new values are functions of the
+    namespace, which holds `namespace.target`, the states and parameters of the target, and the time `namespace.t`. A
+    guard that reads the members of a group gives every member its own event, which sets the states of that member
+    alone. Solvers locate the crossing within their tolerance, and the trajectory records every crossing among its
+    events, under the label of the interaction and with the member.
 
     Args:
         label:
@@ -94,7 +98,7 @@ class CrossingInteraction(Interaction):
         self.terminal = terminal
 
     def _check(self) -> None:
-        """Raise an error for a direction that is not -1, 0, or 1, or a guard or a new value that is not a function.
+        """Raise an error for an invalid direction, guard, or new value.
 
         Raises:
             ValidationError:
@@ -110,7 +114,10 @@ class CrossingInteraction(Interaction):
 
     @staticmethod
     def _get_law_value(value: object) -> object:
-        """Return what a function of the namespace returned: a function as it is, or a symbolic expression."""
+        """Return what a function of the namespace returned.
+
+        A function stays as it is, or the result is a symbolic expression.
+        """
         return value if BaseLaw._is_function(value) else SR(value)
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:

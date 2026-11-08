@@ -1,4 +1,7 @@
-"""Define reactions, jumps that move units between states by mass action or a given propensity."""
+"""Define reactions.
+
+Reactions are jumps that move units between states by mass action or a given propensity.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -28,16 +31,16 @@ ENTRY_SIZE = 2
 
 
 class ReactionInteraction(JumpInteraction):
-    """Reaction that moves units from its reactants to its products at a mass-action or a given propensity.
+    """Reaction that moves units from its reactants to its products.
 
-    A reactant, a product, or a modifier is a pair of the path of an element, or of a member of a group such as
-    `cells[0]`, and the name of its state that holds the units, mapped to its stoichiometric coefficient. A coefficient
-    is a positive number, or a function of the namespace of the reaction that returns an expression of its parameters,
-    such as `lambda s: 1 / s.target.epsilon`. So `S + I -> 2 I` has the reactants `{('S', 'n'): 1, ('I', 'n'): 1}` and
-    the products `{('I', 'n'): 2}`, and two states of one element are `('cell', 'u')` and `('cell', 'v')`. A species may
-    also be the name of a state of the `target` alone, such as `{'u': 1, 'v': 2}`. A target that is a group or a field
-    reacts in every member, with the species of every member its own states, as the reactions at every site of a
-    reaction-diffusion field.
+    It moves them at a mass-action or a given propensity. A reactant, a product, or a modifier is a pair of the path of
+    an element, or of a member of a group such as `cells[0]`, and the name of its state that holds the units, mapped to
+    its stoichiometric coefficient. A coefficient is a positive number, or a function of the namespace of the reaction
+    that returns an expression of its parameters, such as `lambda s: 1 / s.target.epsilon`. So `S + I -> 2 I` has the
+    reactants `{('S', 'n'): 1, ('I', 'n'): 1}` and the products `{('I', 'n'): 2}`, and two states of one element are
+    `('cell', 'u')` and `('cell', 'v')`. A species may also be the name of a state of the `target` alone, such as `{'u':
+    1, 'v': 2}`. A target that is a group or a field reacts in every member, with the species of every member its own
+    states, as the reactions at every site of a reaction-diffusion field.
 
     A subclass may bind its species under roles of its own names, such as `susceptible` and `infected`: it returns its
     entries from `_get_reactants`, `_get_products`, and `_get_modifiers`, pairs of the path a role binds and a state
@@ -182,7 +185,10 @@ class ReactionInteraction(JumpInteraction):
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RateLaw, NoiseLaw, JumpLaw, RuleLaw, UpdateLaw)
 
     def _get_tags(self) -> Tags:
-        """Return the tags of the rules of the agent form, or the rate, jump, or Langevin laws of the symbolic one."""
+        """Return the tags of the agent-form rules, or the laws of the symbolic one.
+
+        The laws of the symbolic form are rate, jump, or Langevin laws.
+        """
         if self._get_argument('form') == 'agent':
             return self._get_variant_tags((RuleLaw,), stochastic=self._get_mode() == 'jump')
         modes: dict[object, tuple[type[BaseLaw], ...]] = {'jump': (JumpLaw,), 'langevin': (RateLaw, NoiseLaw)}
@@ -219,23 +225,35 @@ class ReactionInteraction(JumpInteraction):
         self.schedule = schedule
 
     def _get_reactants(self) -> Stoichiometry | None:
-        """Return the coefficients of the reactants, which a subclass with roles of its own names returns."""
+        """Return the coefficients of the reactants.
+
+        A subclass with roles of its own names returns them.
+        """
         return self.reactants
 
     def _get_products(self) -> Stoichiometry | None:
-        """Return the coefficients of the products, which a subclass with roles of its own names returns."""
+        """Return the coefficients of the products.
+
+        A subclass with roles of its own names returns them.
+        """
         return self.products
 
     def _get_modifiers(self) -> Stoichiometry | None:
-        """Return the coefficients of the modifiers, which a subclass with roles of its own names returns."""
+        """Return the coefficients of the modifiers.
+
+        A subclass with roles of its own names returns them.
+        """
         return self.modifiers
 
     def _get_mode(self) -> str:
-        """Return the form of the laws, which a subclass that sets it by another argument returns."""
+        """Return the form of the laws.
+
+        A subclass that sets it by another argument returns it.
+        """
         return self.mode
 
     def _get_bound(self, namespace: SimpleNamespace) -> dict[str, SimpleNamespace]:
-        """Return the namespace of every path the plain roles of the reaction bind, by path."""
+        """Return the namespace of every path the plain roles of the reaction bind."""
         roles = [
             name
             for name, spec in self._get_specs().items()
@@ -279,11 +297,17 @@ class ReactionInteraction(JumpInteraction):
         ]
 
     def _get_state(self, entry: tuple[str, str] | str) -> str:
-        """Return the name of the state of an entry, a state name alone or the second item of a pair."""
+        """Return the name of the state of an entry.
+
+        The entry is a state name alone or the second item of a pair.
+        """
         return entry if isinstance(entry, str) else entry[1]
 
     def _get_changes(self, namespace: SimpleNamespace) -> dict[Expression, float]:
-        """Return the net change of every state the reaction changes, products minus reactants."""
+        """Return the net change of every state the reaction changes.
+
+        It is the products minus the reactants.
+        """
         changes: dict[Expression, float] = {}
         for sign, entries, name in (
             (-1, self._get_reactants(), 'reactants'),
@@ -294,7 +318,10 @@ class ReactionInteraction(JumpInteraction):
         return {state: change for state, change in changes.items() if change}
 
     def _get_mass_action(self, namespace: SimpleNamespace, constant: Expression) -> Expression:
-        """Return the mass action of a rate constant, times every reactant and modifier to its coefficient."""
+        """Return the mass action of a rate constant.
+
+        It is the rate constant times every reactant and modifier to its coefficient.
+        """
         propensity = SR(constant)
         for entries, name in ((self._get_reactants(), 'reactants'), (self._get_modifiers(), 'modifiers')):
             for state, coefficient in self._get_terms(entries, namespace, name):
@@ -302,13 +329,19 @@ class ReactionInteraction(JumpInteraction):
         return propensity
 
     def _get_rate(self, namespace: SimpleNamespace) -> Expression:
-        """Return the propensity of the reaction, by the user's function or by mass action at the rate constant `k`."""
+        """Return the propensity of the reaction.
+
+        It is given by the user's function or by mass action at the rate constant `k`.
+        """
         if self.propensity is not None:
             return SR(self.propensity(namespace))
         return self._get_mass_action(namespace, self._get_parameter_symbol('k', namespace))
 
     def _get_langevin_laws(self, propensity: Expression, changes: dict[Expression, float]) -> list[BasePart]:
-        """Return the drift of the reaction and the noise of its one Wiener process on every state it changes."""
+        """Return the drift of the reaction and the noise of its Wiener process.
+
+        The noise of its one Wiener process acts on every state it changes.
+        """
         amplitude = sqrt(where(propensity > 0, propensity, 0))
         rates: list[BasePart] = [RateLaw(state, change * propensity) for state, change in changes.items()]
         noises: list[BasePart] = [
@@ -317,7 +350,10 @@ class ReactionInteraction(JumpInteraction):
         return rates + noises
 
     def _is_entry(self, entry: object) -> bool:
-        """Check whether an entry is a pair of a path and a state name, or a state name of a given target."""
+        """Check whether an entry is a pair of a path and a state name, or a state name.
+
+        The state name is that of a given target.
+        """
         if isinstance(entry, str):
             return self.target is not None and entry.isidentifier()
         return (
@@ -332,7 +368,10 @@ class ReactionInteraction(JumpInteraction):
         return callable(coefficient) or (isinstance(coefficient, int | float) and coefficient > 0)
 
     def _check_entries(self, name: str, entries: Stoichiometry | None) -> None:
-        """Raise an error for entries that are neither pairs nor state names of the target, or not coefficients."""
+        """Raise an error for entries that are not pairs or target states, or coefficients.
+
+        The states are state names of the target.
+        """
         if entries is None:
             return
         valid = isinstance(entries, Mapping) and all(
@@ -346,7 +385,10 @@ class ReactionInteraction(JumpInteraction):
             raise ValidationError(error_msg)
 
     def _check_form(self) -> None:
-        """Raise an error for an unknown form, or an agent form without a target, with pairs, or of Langevin mode."""
+        """Raise an error for an unknown form, or a bad agent form.
+
+        A bad agent form has no target, has pairs, or is of Langevin mode.
+        """
         if self.form not in FORMS:
             error_msg = f'Reaction {self.label!r} has the form {self.form!r}. Use one of {", ".join(FORMS)}.'
             raise ValidationError(error_msg)
@@ -374,7 +416,7 @@ class ReactionInteraction(JumpInteraction):
             raise ValidationError(error_msg)
 
     def _check_jump(self) -> None:
-        """Raise an error for an unknown mode or form, no reactants and products, or entries the reaction cannot take.
+        """Raise an error for an unknown mode or form, no entries, or bad entries.
 
         Raises:
             ValidationError:
@@ -396,7 +438,10 @@ class ReactionInteraction(JumpInteraction):
         self._check_form()
 
     def _get_number(self, value: object, agent: AgentViewProtocol, system: SystemViewProtocol) -> float:
-        """Return a number, or the value of a function of an agent and the system as a number."""
+        """Return a number, or the value of a function of an agent and the system.
+
+        The value is returned as a number.
+        """
         found = value(agent, system) if callable(value) else value
         if not isinstance(found, SupportsFloat):
             error_msg = f'A function of reaction {self.label!r} returns {found!r} for an agent. Return a number.'
@@ -404,7 +449,10 @@ class ReactionInteraction(JumpInteraction):
         return float(found)
 
     def _get_agent_changes(self, agent: AgentViewProtocol, system: SystemViewProtocol) -> dict[str, float]:
-        """Return the net change of every state of an agent the reaction changes, products minus reactants."""
+        """Return the net change of every state of an agent the reaction changes.
+
+        It is the products minus the reactants.
+        """
         changes: dict[str, float] = {}
         for sign, entries in ((-1, self._get_reactants()), (1, self._get_products())):
             for entry, coefficient in (entries or {}).items():
@@ -413,7 +461,10 @@ class ReactionInteraction(JumpInteraction):
         return changes
 
     def _get_agent_propensity(self, agent: AgentViewProtocol, system: SystemViewProtocol) -> float:
-        """Return the propensity of an agent, by the user's function or by mass action at the rate constant `k`."""
+        """Return the propensity of an agent.
+
+        It is given by the user's function or by mass action at the rate constant `k`.
+        """
         if self.propensity is not None:
             return self._get_number(self.propensity, agent, system)
         propensity = self._get_parameter_value('k', system)
@@ -424,13 +475,19 @@ class ReactionInteraction(JumpInteraction):
         return propensity
 
     def _get_agent_scale(self, propensity: float, system: SystemViewProtocol) -> float:
-        """Return the multiple of its changes an agent adds in a step, its propensity or whether an event fires."""
+        """Return the multiple of its changes an agent adds in a step.
+
+        It is its propensity or whether an event fires.
+        """
         if self._get_mode() == 'rate':
             return propensity
         return float(system.rng.random() < 1.0 - math.exp(-max(propensity, 0.0)))
 
     def _get_agent_step(self, agent: AgentViewProtocol, system: SystemViewProtocol) -> dict[str, float]:
-        """Return the change of every state of an agent in the step, its changes times its propensity or its event."""
+        """Return the change of every state of an agent in the step.
+
+        It is its changes times its propensity or its event.
+        """
         changes, propensity = self._get_agent_changes(agent, system), self._get_agent_propensity(agent, system)
         scale = self._get_agent_scale(propensity, system)
         return {state: change * scale for state, change in changes.items()}
