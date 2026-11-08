@@ -16,6 +16,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import PatchElement, WordElement
 from ....core.components.laws import ProductionLaw, SubstitutionLaw
+from ....core.components.spaces import BaseSpace
 from ....core.components.system import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import AffineSpec, GeometrySpec, ParameterSpec, PrototileSpec, VisualSpec
@@ -318,17 +319,21 @@ class CantorSetSystem(BaseSystem):
         super().__init__(label)
         self.ratio = ratio
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for a ratio outside of `(0, 1/2)`, then check the parts.
+
+        Args:
+            context:
+                The space a nested system inherits from the system that holds it, or `None`.
 
         Raises:
             ValidationError:
                 The ratio is not between 0 and 1/2.
         """
+        super()._prepare(context)
         if not 0 < self.ratio < LARGEST_RATIO:
             error_msg = f'ratio = {self.ratio!r} must lie between 0 and 1/2.'
             raise ValidationError(error_msg)
-        super()._check()
 
     def _build_system(self) -> System:
         """Return the parts of the system built from its model parameters."""

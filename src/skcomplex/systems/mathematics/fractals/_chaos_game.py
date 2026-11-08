@@ -14,7 +14,7 @@ from sage.modules.free_module_element import FreeModuleElement
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import categorical, where
-from ....core.components.spaces import ContinuousSpace
+from ....core.components.spaces import BaseSpace, ContinuousSpace
 from ....core.components.system import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
@@ -108,16 +108,20 @@ class RandomAffineMapInteraction(MapInteraction):
         self.maps = maps
         self.weights = weights
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for invalid weights or maps.
 
         The weights must match the maps, and every map must have six coefficients.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The number of weights differs from the number of maps, or a map does not have six coefficients.
         """
-        super()._check()
+        super()._prepare(context)
         if len(self.maps) != len(self.weights) or any(len(item) != AFFINE_COEFFICIENTS for item in self.maps):
             error_msg = (
                 f'The random affine map {self.label!r} takes one weight per map and six coefficients per map, but got '
