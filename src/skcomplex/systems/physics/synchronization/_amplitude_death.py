@@ -103,7 +103,10 @@ def _time_scale_deviation_y(member: SimpleNamespace) -> Expression:
 
 
 def _quartic_cumulative(t: np.ndarray) -> np.ndarray:
-    """Return the cumulative distribution of the density proportional to `1 / (t⁴ + 1)`."""
+    """Return the cumulative distribution of a quartic density.
+
+    The density is proportional to `1 / (t⁴ + 1)`.
+    """
     root = math.sqrt(2)
     antiderivative = np.log((t**2 + root * t + 1) / (t**2 - root * t + 1)) + 2 * (
         np.arctan(root * t + 1) + np.arctan(root * t - 1)
