@@ -64,7 +64,7 @@ class SoilTemperatureElement(Element):
 
 
 class SoilTemperatureSystem(BaseSystem):
-    """The coupled maps of the soil surface temperature and the deeper soil temperature.
+    """The coupled maps of the surface and deeper temperatures of the soil.
 
     The dimensionless surface temperature `x` follows the energy balance of the ground, reduced to a logistic map, and
     the deeper soil temperature `y` relaxes towards it: `x_{n+1} = r x_n (1 - x_n) + epsilon y_n` and `y_{n+1} = epsilon
