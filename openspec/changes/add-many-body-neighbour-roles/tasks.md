@@ -4,12 +4,12 @@
 - [x] 1.2 Add the set rows to `NeighborhoodKernel` on NumPy and dispatch hyperedge reductions with `over` to it in `_reduction_lowering.py`, and verify the three-body loop, four-body count, and too-few-neighbours scenarios with tests on NumPy
 - [x] 1.3 Add the Numba loop over neighbour sets in `_numba_neighbours.py` and its printing in `_numba_printer.py`, and verify the three-body loop scenario on Numba within 1e-12
 - [x] 1.4 Report the `law-space` issue for a neighbourhood outside a continuous space and an issue on the JAX backend, and verify both with tests
-- [ ] 1.5 Add a test that a member whose neighbour leaves the radius has a zero 3-body term from the next step
+- [x] 1.5 Add a test that a member whose neighbour leaves the radius has a zero 3-body term from the next step
 
 ## 2. Coupling over neighbour hyperedges
 
-- [ ] 2.1 Pass `neighborhood` of `CouplingInteraction` to `hyperedges` in the mode `'hyperedges'` and update its docstring, and verify the flanking-alignment scenario with a test
-- [ ] 2.2 Document neighbour hyperedges beside the hyperedge section of `docs/overview/user_guide/build_a_custom_system/networks.md`, with a runnable example and the cost, and verify the page builds
+- [x] 2.1 Pass `neighborhood` of `CouplingInteraction` to `hyperedges` in the mode `'hyperedges'` and update its docstring, and verify the flanking-alignment scenario with a test
+- [x] 2.2 Document neighbour hyperedges beside the hyperedge section of `docs/overview/user_guide/build_a_custom_system/networks.md`, with a runnable example and the cost, and verify the page builds
 
 ## 3. Many-body alignment swarm
 

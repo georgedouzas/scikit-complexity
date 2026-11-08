@@ -1186,6 +1186,46 @@ def test_neighbour_hyperedges_need_enough_neighbours(backend):
     assert drift.tolist() == [0.0, 0.0, 0.0]
 
 
+class DriftingSetElement(Element):
+    """Element that drifts along the first axis and counts the pairs of its neighbours every step."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec(vector=True, role='position')] = 0.0,
+        y: Annotated[object, StateSpec()] = 0.0,
+        speed: Annotated[object, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.speed = speed
+
+    def _get_laws(self, s):
+        """Return the drift of the position and the count of the pairs of neighbours within a unit radius."""
+        return [
+            UpdateLaw(s.x, s.x + vector([s.speed, 0])),
+            UpdateLaw(s.y, hyperedges(SR(1), size=3, over=RadiusNeighborhood(1.0))),
+        ]
+
+
+@pytest.mark.parametrize('backend', BACKENDS, ids=['numpy', 'numba'])
+def test_neighbour_hyperedges_follow_a_neighbour_that_leaves(backend):
+    """Test that the three-body term of a member is 0 from the step after one of its two neighbours left."""
+    values = {'x': np.array([[5.0, 5.0], [5.4, 5.0], [4.5, 5.0]]), 'speed': [0.0, 0.0, -0.2]}
+    group = GroupElement('g', element=DriftingSetElement, size=3, values=values)
+    system = System(elements=[group], space=ContinuousSpace(extent=(10.0, 10.0)), time=DiscreteTime())
+    trajectory = simulate(system, until=6, dt=1.0, backend=backend)
+    distance = 5.0 - trajectory.values('g.x')[:, 2, 0]
+    left = int(np.argmax(distance > 1.0))
+    counts = trajectory.values('g.y')[:, 0]
+    assert left == 3
+    assert counts[1 : left + 1].tolist() == [1.0] * left
+    assert counts[left + 1 :].tolist() == [0.0] * (len(counts) - left - 1)
+
+
 def test_validate_reports_neighbour_hyperedges_on_a_network():
     """Test that a reduction over neighbour hyperedges in a network space has a law-space issue."""
     group = GroupElement('g', element=NeighbourSetElement, size=5, values={'term': 'pairs'})
