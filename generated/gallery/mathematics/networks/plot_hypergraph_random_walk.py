@@ -12,15 +12,15 @@ every node.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.networks import HypergraphRandomWalkSystem
 
 SYSTEM = 'hypergraph_random_walk'
 
-system = create_system(SYSTEM, seed=0)
+system = HypergraphRandomWalkSystem(seed=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=40)
+trajectory = simulate(system, until=40, dt=0.5, observers=[observer])
 
 # %%
 # Stationary distribution
@@ -28,8 +28,8 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(unti
 # The probability at every node should approach `D_i / sum_l D_l`, where `D_i` sums `(|e| - 1)^2` over the hyperedges
 # `e` of node `i`.
 
-probabilities = np.asarray(simulation.trajectory_.values('nodes.p'))[-1]
-weights = np.asarray(system.elements[0].values['D'])
+probabilities = np.asarray(trajectory.values('nodes.p'))[-1]
+weights = np.asarray(system.prepare().system_.elements[0].values['D'])
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.plot(weights / weights.sum(), probabilities, 'o')
 ax.plot([0, probabilities.max()], [0, probabilities.max()], '--', color='black')

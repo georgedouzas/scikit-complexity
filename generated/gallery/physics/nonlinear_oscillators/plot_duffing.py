@@ -14,16 +14,16 @@ import math
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.analysis import SectionAnalysis
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.analysis import section
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.nonlinear_oscillators import DuffingSystem
 
 SYSTEM = 'duffing'
 
-system = create_system(SYSTEM)
+system = DuffingSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=16)
-simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=200)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # Stroboscopic section
@@ -32,10 +32,15 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(unt
 # leave a few isolated points, while the chaotic Duffing oscillator should fill a folded, layered set, Ueda's strange
 # attractor, with points in both wells.
 
-section = SectionAnalysis('stroboscopic', period=2 * math.pi / 1.2, n_points=3000, transient=50)
-section.prepare(create_system(SYSTEM)).run()
+points = section(
+    DuffingSystem().prepare().system_,
+    kind='stroboscopic',
+    period=2 * math.pi / 1.2,
+    n_points=3000,
+    transient=50,
+)
 fig, ax = plt.subplots(figsize=(6, 4))
-ax.plot(section.values_['duffing.x'], section.values_['duffing.x_d1'], ',', color='black', alpha=0.6)
+ax.plot(points.values['duffing.x'], points.values['duffing.x_d1'], ',', color='black', alpha=0.6)
 ax.set_xlabel('x')
 ax.set_ylabel("x'")
 ax.set_title('Stroboscopic section: a strange attractor')

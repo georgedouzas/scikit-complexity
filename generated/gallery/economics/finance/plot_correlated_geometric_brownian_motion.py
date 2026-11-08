@@ -7,7 +7,7 @@ they rise and fall together, and their log returns are correlated with `rho`.
 """
 
 # %%
-# The system is created by name from the catalog with prices of 100, drifts of 5 and 8 percent, and volatilities of 20
+# The system is built from its class with prices of 100, drifts of 5 and 8 percent, and volatilities of 20
 # and 30 percent a year. It is simulated for three years in frames of 0.02 with the Euler-Maruyama scheme. The default
 # blueprint shows both prices in one time series view. The `WienerProcess` that both motions bind is no component and
 # draws no view.
@@ -15,18 +15,18 @@ they rise and fall together, and their log returns are correlated with `rho`.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.economics.finance import CorrelatedGeometricBrownianMotionSystem
 
 SYSTEM = 'correlated_geometric_brownian_motion'
 RHO = 0.7
 
-system = create_system(SYSTEM, rho=RHO)
+system = CorrelatedGeometricBrownianMotionSystem(rho=RHO)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
 solver = EulerMaruyamaSolver(dt=0.001)
-simulation = Simulation(system, dt=0.02, solver=solver, observers=[observer], random_state=0).prepare().run(until=3)
+trajectory = simulate(system, until=3, dt=0.02, solver=solver, observers=[observer], random_state=0)
 
 # %%
 # Correlated log returns
@@ -35,7 +35,6 @@ simulation = Simulation(system, dt=0.02, solver=solver, observers=[observer], ra
 # sample correlation of the two series of log returns should be close to `rho`, and their scatter should be an ellipse
 # tilted along the diagonal.
 
-trajectory = simulation.trajectory_
 first, second = (np.diff(np.log(trajectory.values(f'{label}.price'))) for label in ('first', 'second'))
 correlation = np.corrcoef(first, second)[0, 1]
 fig, (paths, returns) = plt.subplots(1, 2, figsize=(10, 4))
