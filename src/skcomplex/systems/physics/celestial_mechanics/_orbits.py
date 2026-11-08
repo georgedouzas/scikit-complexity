@@ -1,4 +1,4 @@
-"""Celestial mechanics systems: orbits of bodies under gravity."""
+"""Celestial mechanics systems of bodies orbiting under gravity."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

@@ -20,7 +20,7 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class EhrenfestUrnElement(Element):
-    """First box of the Ehrenfest urn, which holds `n` of the `N` balls.
+    """First box of the Ehrenfest urn, holding `n` of the `N` balls.
 
     One of the balls moves to the other box every step.
 
