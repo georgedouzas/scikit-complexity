@@ -1,4 +1,7 @@
-"""Run a system over rows of values, scenarios, and replicates, with one random stream per row and replicate."""
+"""Run a system over rows of values, scenarios, and replicates.
+
+There is one random stream per row and replicate.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -36,7 +39,9 @@ type Problems = MutableMapping[Hashable, tuple[BaseProblemSpec, BaseSolver]]
 
 
 def _check_source(source: object) -> Source:
-    """Return the system of an experiment, a system or a factory of systems, after checking it.
+    """Return the system of an experiment after checking it.
+
+    It is a system or a factory of systems.
 
     Args:
         source:
@@ -63,7 +68,9 @@ def _check_source(source: object) -> Source:
 
 
 def _check_count(name: str, value: object) -> None:
-    """Raise an error for a count of an experiment, such as `replicates`, that is not a positive integer.
+    """Raise an error for a count of an experiment that is not a positive integer.
+
+    An example of a count is `replicates`.
 
     Args:
         name:
@@ -82,7 +89,9 @@ def _check_count(name: str, value: object) -> None:
 
 
 def _build(source: Source, arguments: Mapping[str, object]) -> BaseSystem:
-    """Return the system of a source with model parameters set: a copy of a system, or what a factory builds.
+    """Return the system of a source with model parameters set.
+
+    It is a copy of a system, or what a factory builds.
 
     Args:
         source:
@@ -123,7 +132,9 @@ def _build(source: Source, arguments: Mapping[str, object]) -> BaseSystem:
 def _name_analyses(
     analyses: Sequence[Callable[[Trajectory], object]] | None,
 ) -> tuple[tuple[str, Callable[[Trajectory], object]], ...]:
-    """Return every analysis with its column prefix, the name of its function numbered when the function repeats.
+    """Return every analysis with its column prefix.
+
+    The prefix is the name of its function, numbered when the function repeats.
 
     Args:
         analyses:
@@ -152,7 +163,9 @@ def _name_analyses(
 
 
 def _compile(system: BaseSystem) -> BaseProblemSpec:
-    """Return the compiled problem of a system, whose layouts name its states and parameters.
+    """Return the compiled problem of a system.
+
+    Its layouts name the states and parameters of the system.
 
     Args:
         system:
@@ -168,7 +181,9 @@ def _compile(system: BaseSystem) -> BaseProblemSpec:
 
 
 def _split_paths(problem: BaseProblemSpec, paths: Mapping[str, object]) -> tuple[Row, Row]:
-    """Return the values of dotted paths split into initial states and parameters, checked against their domains.
+    """Return the values of dotted paths split into initial states and parameters.
+
+    They are checked against their domains.
 
     Args:
         problem:
@@ -207,7 +222,9 @@ def _step_function(
     initial: npt.ArrayLike,
     changes: Sequence[tuple[float, npt.ArrayLike]],
 ) -> Callable[[float], npt.ArrayLike]:
-    """Return the function of time that takes the value of the last change at or before a time, else the initial.
+    """Return the step function of time of a series of changes.
+
+    It takes the value of the last change at or before a time, else the initial value.
 
     Args:
         initial:
@@ -233,10 +250,11 @@ def _schedule(
     scenario: ScenarioSpec,
     parameters: Mapping[str, object],
 ) -> dict[str, Callable[[float], npt.ArrayLike]]:
-    """Return every parameter a run fixes or a scenario changes over time as a function of time, which `simulate` reads.
+    """Return every parameter a run fixes or a scenario changes as a function of time.
 
-    A parameter given by dotted path keeps its value for the whole run. Before its first change a scheduled parameter
-    keeps its value, and every change holds from the first frame at or after its time.
+    `simulate` reads these functions. A parameter given by dotted path keeps its value for the whole run. Before its
+    first change a scheduled parameter keeps its value, and every change holds from the first frame at or after its
+    time.
 
     Args:
         problem:
@@ -320,10 +338,11 @@ def _read_outputs(
 
 
 def _get_structure(task: _TaskSpec, arguments: Mapping[str, object]) -> tuple[int, str]:
-    """Return the key of the structure of the system of a task: its source or scenario system, and model parameters.
+    """Return the key of the structure of the system of a task.
 
-    Runs that share the key differ only by dotted paths of initial states and parameters, and by seeds, so they share
-    one compiled problem. Arrays are written in full, so two arrays that differ never share a key.
+    The key holds its source or scenario system, and model parameters. Runs that share the key differ only by dotted
+    paths of initial states and parameters, and by seeds, so they share one compiled problem. Arrays are written in
+    full, so two arrays that differ never share a key.
 
     Args:
         task:
@@ -342,13 +361,13 @@ def _get_structure(task: _TaskSpec, arguments: Mapping[str, object]) -> tuple[in
 
 
 def _run_task(task: _TaskSpec, problems: Problems | None = None) -> _RunResultSpec:
-    """Run one task as `simulate` does, keep its series and scalar outputs, and run its analyses on its trajectory.
+    """Run one task as `simulate` does and keep its outputs.
 
-    Values without a dot are model parameters, set on a copy of the system or passed to the factory. Dotted paths of
-    states replace initial values, and dotted paths of parameters keep their value for the whole run. The system is
-    compiled once per structure of the running experiment, its source and model parameters, and the runs of one
-    structure reuse its problem with their own values and seeds. A system that brings its own compiler is compiled
-    for every run.
+    It keeps its series and scalar outputs, and runs its analyses on its trajectory. Values without a dot are model
+    parameters, set on a copy of the system or passed to the factory. Dotted paths of states replace initial values, and
+    dotted paths of parameters keep their value for the whole run. The system is compiled once per structure of the
+    running experiment, its source and model parameters, and the runs of one structure reuse its problem with their own
+    values and seeds. A system that brings its own compiler is compiled for every run.
 
     Args:
         task:
@@ -435,11 +454,11 @@ def _run_experiment(
     random_state: int | None,
     executor: str | Executor,
 ) -> ExperimentResult:
-    """Run a system once per row, scenario, and replicate, with one random stream per row and replicate.
+    """Run a system once per row, scenario, and replicate.
 
-    The streams are spawned from `random_state` in a fixed order, so the results do not depend on the executor, and
-    every scenario of a row and replicate shares its stream. The compiled problems live for this call alone: serial
-    and thread runs share them, and every worker process compiles its own.
+    There is one random stream per row and replicate. The streams are spawned from `random_state` in a fixed order, so
+    the results do not depend on the executor, and every scenario of a row and replicate shares its stream. The compiled
+    problems live for this call alone: serial and thread runs share them, and every worker process compiles its own.
 
     Args:
         source:

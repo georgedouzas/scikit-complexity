@@ -1,4 +1,7 @@
-"""Build orbit diagrams: the values an observable visits after a transient, over a range of a parameter."""
+"""Build orbit diagrams.
+
+An orbit diagram holds the values an observable visits after a transient, over a range of a parameter.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -48,11 +51,12 @@ def orbit_diagram(
     executor: str | Executor = 'serial',
     vectorized: bool = False,
 ) -> OrbitDiagramResult:
-    """Return the values an observable visits after a transient, for every value of a parameter.
+    """Return the values an observable visits after a transient.
 
-    Every value of the parameter is run to `transient + (keep - 1) * dt`, and the frames from `transient` on are kept.
-    With `vectorized`, all values run as the members of one simulation of the system replicated over them, which needs
-    a dotted path of a state or parameter of an element, and a system of single elements and their interactions.
+    They are given for every value of a parameter. Every value of the parameter is run to `transient + (keep - 1) * dt`,
+    and the frames from `transient` on are kept. With `vectorized`, all values run as the members of one simulation of
+    the system replicated over them, which needs a dotted path of a state or parameter of an element, and a system of
+    single elements and their interactions.
 
     Args:
         system:

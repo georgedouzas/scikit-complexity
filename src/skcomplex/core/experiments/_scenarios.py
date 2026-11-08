@@ -1,4 +1,7 @@
-"""Run the scenarios of a system with shared random streams, so they differ only through what they change."""
+"""Run the scenarios of a system with shared random streams.
+
+They then differ only through what they change.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -31,11 +34,11 @@ def compare_scenarios(
     random_state: int | None = None,
     executor: str | Executor = 'serial',
 ) -> ExperimentResult:
-    """Return the runs of every scenario of a system, which share their random streams per replicate.
+    """Return the runs of every scenario of a system.
 
-    A scenario overrides model parameters or dotted paths before the run, changes parameters at given times, or
-    replaces the system for structural changes. Every scenario of a replicate runs with the same random stream, so the
-    scenarios differ only through what they change.
+    The scenarios share their random streams per replicate. A scenario overrides model parameters or dotted paths before
+    the run, changes parameters at given times, or replaces the system for structural changes. Every scenario of a
+    replicate runs with the same random stream, so the scenarios differ only through what they change.
 
     Args:
         system:

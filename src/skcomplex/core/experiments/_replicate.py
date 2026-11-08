@@ -1,4 +1,7 @@
-"""Replicate a system of single elements into groups of members, so many values run as one vectorised simulation."""
+"""Replicate a system of single elements into groups of members.
+
+Many values then run as one vectorised simulation.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -47,12 +50,17 @@ PLAIN_LAWS = (
 
 
 def _has_formalism_laws(element: Element) -> bool:
-    """Return whether an element follows laws other than the plain ones, such as the rules of agents."""
+    """Return whether an element follows laws other than the plain ones.
+
+    An example is the rules of agents.
+    """
     return any(not isinstance(law, PLAIN_LAWS) for law in probe_laws(element) or [])
 
 
 def _check_plain(system: System) -> None:
-    """Raise an error unless a system holds plain single elements and interactions alone.
+    """Raise an error for a system that is not only plain elements and interactions.
+
+    The elements must be plain single elements.
 
     Args:
         system:
@@ -72,7 +80,10 @@ def _check_plain(system: System) -> None:
 
 
 def _value_names(element: Element) -> list[str]:
-    """Return the names of the states and parameters an element holds, with derivatives of higher order states."""
+    """Return the names of the states and parameters an element holds.
+
+    They include the derivatives of higher order states.
+    """
     return [
         name
         for name, (variable, _) in declared_variables(element).items()
@@ -81,7 +92,10 @@ def _value_names(element: Element) -> list[str]:
 
 
 def _member_settings(element: Element) -> dict[str, object]:
-    """Return what a member takes from an element: its values, and the arguments that declare its variables."""
+    """Return what a member takes from an element.
+
+    It takes its values, and the arguments that declare its variables.
+    """
     if isinstance(element, DeclaredElement):
         settings = element.get_params(deep=False)
         return {name: value for name, value in settings.items() if name not in {'label', 'visual'}}
@@ -93,7 +107,9 @@ def _member_values(
     system: System,
     size: int,
 ) -> dict[str, dict[str, object]]:
-    """Return the per-member values of every element by its label, checked against the elements and the size.
+    """Return the per-member values of every element by its label.
+
+    They are checked against the elements and the size.
 
     Args:
         values:
@@ -130,13 +146,14 @@ def _member_values(
 
 
 def _replicate(system: System, size: int, values: Mapping[str, npt.ArrayLike] | None = None) -> System:
-    """Return a system whose single elements become groups of members of the same types and labels.
+    """Return a system whose single elements become groups of members.
 
-    Every member starts from the values of its element, except the dotted paths given in `values`, which take one
-    value per member. A dotted path such as `map.x` names the same state in the replicated system, where it holds one
-    value per member, so many initial conditions or parameter values run as one vectorised simulation. The interactions
-    of the system bind the groups by the labels of their elements, so member `i` of every group interacts with member
-    `i` of the others, and every member follows the original system from its own values.
+    The members are of the same types and labels. Every member starts from the values of its element, except the dotted
+    paths given in `values`, which take one value per member. A dotted path such as `map.x` names the same state in the
+    replicated system, where it holds one value per member, so many initial conditions or parameter values run as one
+    vectorised simulation. The interactions of the system bind the groups by the labels of their elements, so member `i`
+    of every group interacts with member `i` of the others, and every member follows the original system from its own
+    values.
 
     Args:
         system:
@@ -195,7 +212,9 @@ def _run_replicated(
     dt: float | None,
     random_state: int | None,
 ) -> tuple[Trajectory, System]:
-    """Return one run of a system replicated once per value of every path, and the composite of the system.
+    """Return one run of a replicated system, and the composite of the system.
+
+    The system is replicated once per value of every path.
 
     Args:
         source:

@@ -1,7 +1,8 @@
-"""Study systems through many runs: sweeps, ensembles, scenarios, sensitivity, basin stability, and calibration.
+"""Study systems through many runs.
 
-The experiments are functions of a system, in the role of the model selection functions of scikit-learn, and return
-frozen results. Calibration stays an estimator, in the role of `GridSearchCV`, since it returns a fitted system.
+They are sweeps, ensembles, scenarios, sensitivity, basin stability, and calibration. The experiments are functions of a
+system, in the role of the model selection functions of scikit-learn, and return frozen results. Calibration stays an
+estimator, in the role of `GridSearchCV`, since it returns a fitted system.
 """
 
 from ._basin_stability import BasinStabilityResult, basin_stability
