@@ -4,11 +4,11 @@ Build a quantum system, such as a chain of spins, and follow its state in time o
 a set of quantum subsystems whose state is one vector of their joint Hilbert space.
 
 ```python
-from skcomplex.core.analysis import OperatorAnalysis
-from skcomplex.systems import create_system
+from skcomplex.core.analysis import operator_measures
+from skcomplex.systems.physics.statistical_mechanics import QuantumHeisenbergSystem
 
-spectrum = OperatorAnalysis(n_states=2).prepare(create_system('quantum_heisenberg', n_sites=4)).run()
-spectrum.energies_.round(6).tolist()
+spectrum = operator_measures(QuantumHeisenbergSystem(n_sites=4), n_states=2)
+spectrum.energies.round(6).tolist()
 ```
 
 The core names this machinery for its mathematics, linear operator dynamics on tensor products, while the physics
@@ -42,8 +42,7 @@ from skcomplex.core.components.laws import GeneratorLaw
 from skcomplex.core.components.laws.utils import local_operator
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import OperatorCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import HilbertSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec
 
 PAULI = {
@@ -86,8 +85,7 @@ chain = System(
     interactions=[CouplingInteraction('coupling', target='chain')],
 )
 observables = [ObservableSpec('sz', sz, group='chain', reduce=sites)]
-simulation = Simulation(chain, dt=0.5, observables=observables, compiler=OperatorCompiler())
-trajectory = simulation.prepare().run(until=2.0).trajectory_
+trajectory = simulate(chain, until=2.0, dt=0.5, observables=observables)
 trajectory.values('sz').shape, round(float(np.ptp(trajectory.values('energy'))), 8)
 ```
 
@@ -102,7 +100,7 @@ A `NeighborInteraction` is written once for a bond, with `s.source` and `s.targe
 of the space of the group that its one role binds. Compiling checks that the generator is Hermitian, and that the
 dimension stays within the `max_dimension` of the operator solver.
 
-A whole-system initial state, such as an entangled vector or `'ground'`, is given to the simulation as
+A whole-system initial state, such as an entangled vector or `'ground'`, is given to `simulate` as
 `initial_state={'<system label>.state': value}`.
 
 ## Solvers, observables, and spectra
@@ -110,7 +108,7 @@ A whole-system initial state, such as an entangled vector or `'ground'`, is give
 Choose how the state evolves, record expectations of operators, and diagonalise the generator exactly. The first block
 of this section finds the two lowest energies of a Heisenberg chain of the catalog.
 
-A quantum system compiles to the operator form. Its state is stored as complex pairs under `<system>.state`, a pure
+`simulate` compiles a system of quantum elements to the operator form. Its state is stored as complex pairs under `<system>.state`, a pure
 state for a closed system and a density matrix for an open one. Its solvers hand every frame to QuTiP:
 
 - `UnitarySolver` solves the Schrödinger equation.
@@ -121,10 +119,10 @@ An `ObservableSpec` whose expression is an operator records its expectation. One
 member when its `reduce` keeps the values, as `sites` does above. Every quantum run also records its `energy`, and its
 `purity` when it is open. Groups on a lattice stream the space-time image of their local expectations to Rerun.
 
-`OperatorAnalysis` analyses quantum systems by its kind:
+`operator_measures(system, kind=)` analyses quantum systems by its kind:
 
 - `'spectrum'` and `'ground-state'` diagonalise the generator exactly, optionally in the sector of a conserved diagonal
   operator.
 - `'purity'` and `'entanglement'` read trajectories.
 
-`SymbolicAnalysis('hamiltonian')` prints the Hamiltonian in operator notation.
+`symbolic(system, kind='hamiltonian')` prints the Hamiltonian in operator notation.
