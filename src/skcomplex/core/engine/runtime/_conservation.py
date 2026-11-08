@@ -13,11 +13,12 @@ from ._base import BaseObserver
 
 
 class ConservationObserver(BaseObserver):
-    """Observer that checks at every frame that each quantity changes only by its flows with the environment.
+    """Observer that checks the conservation of every quantity at every frame.
 
-    The total of a quantity is the sum of the states that hold it. The monitor compares its change since the first
-    frame with the accumulated net inflow from the environment, which the compiler integrates as a hidden state, and
-    raises an error when they differ by more than the tolerance, such as after a boundary law clips a state.
+    Each quantity may change only by its flows with the environment. The total of a quantity is the sum of the states
+    that hold it. The monitor compares its change since the first frame with the accumulated net inflow from the
+    environment, which the compiler integrates as a hidden state, and raises an error when they differ by more than the
+    tolerance, such as after a boundary law clips a state.
 
     Args:
         rtol:
@@ -63,7 +64,10 @@ class ConservationObserver(BaseObserver):
                 raise ValidationError(error_msg)
 
     def _totals(self, state: Array) -> dict[str, float]:
-        """Return the total of every quantity minus its accumulated inflow from the environment."""
+        """Return the total of every quantity minus its accumulated inflow.
+
+        The inflow is the one from the environment.
+        """
         layout = self.problem_.states
         totals = {}
         for quantity, names in self.transfer_network_.quantities.items():

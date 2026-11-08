@@ -187,7 +187,10 @@ class Simulation(BaseConfig[None, float]):
         self.until = until
 
     def _check_dt(self, problem: BaseProblemSpec, until: float) -> float:
-        """Return the time between frames of a run until a time, after validating it for the problem's form."""
+        """Return the time between frames of a run until a time.
+
+        It is validated for the problem's form first.
+        """
         partitions = [item for item in self._partition_problems(problem) if not getattr(item, 'programs', ())]
         forms = {problem.form, *(item.form for item in partitions)}
         stepwise = bool(forms & _STEPWISE_FORMS) or self.stepper_._is_stepwise()
@@ -208,7 +211,9 @@ class Simulation(BaseConfig[None, float]):
         return float(dt)
 
     def _check(self) -> None:
-        """Validate the system against the solver, the backend, and the observables, unless it is a compiled problem.
+        """Validate the system against the solver, the backend, and the observables.
+
+        A compiled problem is not validated.
 
         Raises:
             ValidationError:
@@ -225,7 +230,9 @@ class Simulation(BaseConfig[None, float]):
             self._compiler().prepare(self.system).report_._validated()
 
     def _prepare(self, context: None) -> None:
-        """Compile the system, choose the solver, and gather the clock and the observers of a run.
+        """Compile the system and choose the solver.
+
+        It also gathers the clock and the observers of a run.
 
         Args:
             context:
@@ -275,18 +282,27 @@ class Simulation(BaseConfig[None, float]):
             observer.prepare(self.problem_)
 
     def _get_frame_parameters(self) -> npt.NDArray[np.float64]:
-        """Return a copy of the parameters for a frame, shared with the previous frame while they stay the same."""
+        """Return a copy of the parameters for a frame.
+
+        The copy is shared with the previous frame while they stay the same.
+        """
         if self._frame_parameters is None or not np.array_equal(self._frame_parameters, self.parameters_):
             self._frame_parameters = self.parameters_.copy()
         return self._frame_parameters
 
     def _get_frame_state(self) -> Array:
-        """Return the state of a frame, the current state with its algebraic states solved at the current time."""
+        """Return the state of a frame.
+
+        It is the current state with its algebraic states solved at the current time.
+        """
         algebraic = self.problem_.algebraic if isinstance(self.problem_, ProblemSpec) else None
         return self.state_ if algebraic is None else algebraic(self.time_, self.state_, self.parameters_)
 
     def _emit(self, step: int) -> None:
-        """Hand the current frame, with the events since the previous one, to every observer."""
+        """Hand the current frame to every observer.
+
+        The events since the previous frame go with it.
+        """
         external = self.stepper_.snapshot_
         agents, reporters = (external.groups, external.reporters) if isinstance(external, AgentStateSpec) else ({}, {})
         structures = external.structures if isinstance(external, StructureStateSpec) else {}
@@ -309,10 +325,10 @@ class Simulation(BaseConfig[None, float]):
             observer.run(frame)
 
     def _loop(self, until: float) -> None:
-        """Advance frame by frame from the current time until `until`, or until a terminal event.
+        """Advance frame by frame from the current time until `until`.
 
-        The stepper runs once per frame, and its last run, at the last frame or after a stop, releases what it acquired,
-        such as an external process.
+        A terminal event stops it earlier. The stepper runs once per frame, and its last run, at the last frame or after
+        a stop, releases what it acquired, such as an external process.
         """
         origin, first = self.time_, self._step
         self.clock_.prepare()
@@ -345,7 +361,9 @@ class Simulation(BaseConfig[None, float]):
                 observer.run(final=True)
 
     def _apply_schedule(self) -> None:
-        """Set every scheduled parameter and adaptive parameter to the value of its function at the current time.
+        """Set every scheduled and adaptive parameter to its value at the current time.
+
+        The value is that of its function.
 
         Raises:
             ParameterError:
@@ -385,7 +403,10 @@ class Simulation(BaseConfig[None, float]):
                 raise ValidationError(error_msg)
 
     def _check_value(self, name: str, entry: EntrySpec, value: float | npt.ArrayLike) -> Array:
-        """Return a scheduled value broadcast to its entry after checking its domain and shape."""
+        """Return a scheduled value broadcast to its entry.
+
+        Its domain and shape are checked first.
+        """
         error_msg = (
             f'At t = {self.time_}, the schedule sets {name} = {value!r}, which is not a value of shape {entry.shape}, '
             f'or of a shape that broadcasts to it, in the domain {entry.domain}. The given value has shape '
@@ -399,7 +420,7 @@ class Simulation(BaseConfig[None, float]):
             raise ValidationError(error_msg) from error
 
     def _check_matrices(self, changes: list[tuple[str, slice, Array]]) -> None:
-        """Raise an error when scheduled values would break a transition or emission matrix."""
+        """Raise an error for scheduled values that break a transition or emission matrix."""
         problems = (self.problem_, *self._partition_problems(self.problem_))
         matrices = [matrix for problem in problems for matrix in problem.matrices]
         if not matrices:
@@ -427,7 +448,10 @@ class Simulation(BaseConfig[None, float]):
             raise SimulationError(error_msg)
 
     def _compiler(self) -> BaseCompiler:
-        """Return a copy of the compiler with the backend, the solver, and the observables of the simulation."""
+        """Return a copy of the compiler with the settings of the simulation.
+
+        The settings are the backend, the solver, and the observables.
+        """
         if self.compiler is not None:
             compiler = clone(self.compiler)
         elif isinstance(self.system, System):
@@ -438,7 +462,9 @@ class Simulation(BaseConfig[None, float]):
 
     @staticmethod
     def _default_compiler(system: System) -> BaseCompiler | None:
-        """Return the compiler of the library's form that a system holds, or `None` for the pass compiler.
+        """Return the compiler of the library's form that a system holds.
+
+        It returns `None` for the pass compiler.
 
         Args:
             system:
@@ -600,12 +626,18 @@ class Simulation(BaseConfig[None, float]):
 
     @staticmethod
     def _partition_problems(problem: BaseProblemSpec) -> tuple[BaseProblemSpec, ...]:
-        """Return the problems of the partitions of a compiled problem, none for a problem without partitions."""
+        """Return the problems of the partitions of a compiled problem.
+
+        A problem without partitions gives none.
+        """
         return problem.partition_problems
 
     @staticmethod
     def _default_dt(until: float) -> float:
-        """Return the smallest of 0.01, 0.02, 0.05, 0.1, and so on, that keeps a run until a time within 1000 frames."""
+        """Return the smallest round time step that keeps a run within 1000 frames.
+
+        The candidates are 0.01, 0.02, 0.05, 0.1, and so on, for a run until a time.
+        """
         if not math.isfinite(until):
             return _DEFAULT_DT
         exponent = round(math.log10(_DEFAULT_DT))
