@@ -45,7 +45,7 @@ from skcomplex.core.components.spaces import (
     VonNeumannNeighborhood,
 )
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
+from skcomplex.core.engine.backends import JaxBackend, NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems._reduction_kernel import ReductionKernel
 from skcomplex.core.engine.runtime import simulate
@@ -1129,17 +1129,18 @@ class NeighbourSetElement(Element):
     def _get_laws(self, s):
         """Return the rate of `y`, a reduction over the sets of neighbours of the member."""
         over = RadiusNeighborhood(self.radius)
-        first, second = s.others[0].x - s.x, s.others[1].x - s.x
         terms = {
-            'flank': lambda: hyperedges(
-                (1 - first * second / sqrt((first * first) * (second * second))) / 2,
-                size=3,
-                over=over,
-            ),
+            'flank': lambda: hyperedges(self._flank(s), size=3, over=over),
             'count': lambda: hyperedges(SR(1), reduce='count', size=4, over=over),
             'pairs': lambda: hyperedges(SR(1), size=3, over=over),
         }
         return [RateLaw(s.y, terms[self.term]())]
+
+    @staticmethod
+    def _flank(s):
+        """Return the flanking term of one pair of neighbours, half of one minus the cosine of their angle."""
+        first, second = s.others[0].x - s.x, s.others[1].x - s.x
+        return (1 - first * second / sqrt((first * first) * (second * second))) / 2
 
 
 def _neighbour_set_drift(positions, term, side, backend, radius=1.5):
@@ -1183,6 +1184,26 @@ def test_neighbour_hyperedges_need_enough_neighbours(backend):
     positions = np.array([[1.0, 1.0], [1.5, 1.0], [8.0, 8.0]])
     drift = _neighbour_set_drift(positions, 'pairs', 10.0, backend, radius=1.0)
     assert drift.tolist() == [0.0, 0.0, 0.0]
+
+
+def test_validate_reports_neighbour_hyperedges_on_a_network():
+    """Test that a reduction over neighbour hyperedges in a network space has a law-space issue."""
+    group = GroupElement('g', element=NeighbourSetElement, size=5, values={'term': 'pairs'})
+    system = System(elements=[group], space=NetworkSpace(nx.cycle_graph(5)))
+    issues = [issue for issue in PassCompiler().prepare(system).report_.issues if issue.code == 'law-space']
+    assert len(issues) == 1
+    assert 'continuous space' in issues[0].message
+
+
+def test_validate_reports_neighbour_hyperedges_on_the_jax_backend():
+    """Test that a reduction over neighbour hyperedges on the JAX backend names the backends that run it."""
+    positions = np.array([[1.0, 1.0], [1.5, 1.0], [1.0, 1.5]])
+    group = GroupElement('g', element=NeighbourSetElement, size=3, values={'x': positions, 'term': 'pairs'})
+    system = System(elements=[group], space=ContinuousSpace(extent=(4.0, 4.0)))
+    issues = PassCompiler(backend=JaxBackend()).prepare(system).report_.issues
+    (issue,) = [issue for issue in issues if issue.code == 'backend-unsupported']
+    assert 'NumpyBackend' in issue.fix
+    assert 'NumbaBackend' in issue.fix
 
 
 class QuenchedEnergyElement(Element):

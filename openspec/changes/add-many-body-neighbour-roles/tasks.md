@@ -3,7 +3,7 @@
 - [x] 1.1 Add `over` to `hyperedges` and the field `over` to `HyperedgeReductionSpec`, with a `ValidationError` for a missing size, and verify the doctest and the missing-size scenario with tests in `tests/core/components/laws/`
 - [x] 1.2 Add the set rows to `NeighborhoodKernel` on NumPy and dispatch hyperedge reductions with `over` to it in `_reduction_lowering.py`, and verify the three-body loop, four-body count, and too-few-neighbours scenarios with tests on NumPy
 - [x] 1.3 Add the Numba loop over neighbour sets in `_numba_neighbours.py` and its printing in `_numba_printer.py`, and verify the three-body loop scenario on Numba within 1e-12
-- [ ] 1.4 Report the `law-space` issue for a neighbourhood outside a continuous space and an issue on the JAX backend, and verify both with tests
+- [x] 1.4 Report the `law-space` issue for a neighbourhood outside a continuous space and an issue on the JAX backend, and verify both with tests
 - [ ] 1.5 Add a test that a member whose neighbour leaves the radius has a zero 3-body term from the next step
 
 ## 2. Coupling over neighbour hyperedges
