@@ -44,7 +44,7 @@ from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.laws.utils import codifferential, exterior_derivative
 from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
 
@@ -70,7 +70,7 @@ interactions = [
     RateInteraction('field', target='links', state='E', rate=lambda n: codifferential(exterior_derivative(n.target.A))),
 ]
 system = System(elements=[links], interactions=interactions)
-trajectory = Simulation(system, dt=0.1).prepare().run(until=2.0).trajectory_
+trajectory = simulate(system, until=2.0, dt=0.1)
 bool(np.abs(space.incidences_[0].T @ trajectory.values('links.E').T).max() < 1e-10)
 ```
 
@@ -109,7 +109,7 @@ from skcomplex.core.components.interactions import SamplingInteraction
 from skcomplex.core.components.laws.utils import exterior_derivative, neighbors
 from skcomplex.core.components.spaces import CellComplexSpace, CofaceNeighborhood, DiscreteTime, LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
 
@@ -131,7 +131,7 @@ sampling = SamplingInteraction(
     schedule='colored',
 )
 system = System(elements=[links], interactions=[sampling], time=DiscreteTime())
-states = Simulation(system, random_state=0).prepare().run(until=200).trajectory_.values('links.theta')
+states = simulate(system, until=200, random_state=0).values('links.theta')
 round(float(np.cos(space.incidences_[1] @ states[-50:].T).mean()), 1)
 ```
 
@@ -182,7 +182,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import SamplingInteraction
 from skcomplex.core.components.spaces import CellComplexSpace, DiscreteTime, LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import HolonomyScoreSpec, MatrixGroupSpec, StateSpec
 
 group = MatrixGroupSpec('SU', 2)
@@ -210,7 +210,7 @@ sampling = SamplingInteraction(
     schedule='colored',
 )
 system = System(elements=[links], interactions=[sampling], time=DiscreteTime())
-states = Simulation(system, random_state=0).prepare().run(until=100).trajectory_.values('links.U')
+states = simulate(system, until=100, random_state=0).values('links.U')
 loops = group.holonomy_of(group.matrices_of(states[-1]), space.boundaries_, space.boundary_signs_)
 round(float(np.trace(loops, axis1=1, axis2=2).real.mean() / 2), 1)
 ```
@@ -225,8 +225,8 @@ The last line is the mean plaquette at `beta = 2`, close to `I_2(2) / I_1(2) = 0
 - A drive changes a matrix state as a whole, with the components of every link on a last axis, and receives the
   complex by the keyword `space` when it names it.
 
-The physics systems `lattice_yang_mills` and `GaugeAnalysis` with a `group` realize SU(2) and SU(3) lattice gauge theory
-with its average plaquette, Wilson loops, and Polyakov loop.
+`LatticeYangMillsSystem` and the analysis `gauge_observables` with a `group`, both of `skcomplex.systems.physics.waves`,
+realize SU(2) and SU(3) lattice gauge theory with its average plaquette, Wilson loops, and Polyakov loop.
 
 ## Analysing complexes
 
@@ -236,24 +236,24 @@ gauge field is:
 ```python
 import numpy as np
 
-from skcomplex.core.analysis import CellComplexAnalysis
+from skcomplex.core.analysis import cell_complex
 from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace
 
 torus = CellComplexSpace(LatticeSpace((8, 8))).prepare()
 uniform = np.where(torus.link_axes_ == 0, 1.0, 0.0)
-hodge = CellComplexAnalysis('hodge', space=torus).prepare(uniform).run()
-CellComplexAnalysis('betti', space=torus).prepare().run().betti_, bool(np.allclose(hodge.harmonic_[0], uniform))
+hodge = cell_complex(uniform, kind='hodge', space=torus)
+cell_complex(None, kind='betti', space=torus).betti, bool(np.allclose(hodge.harmonic[0], uniform))
 ```
 
 A uniform flow around the torus is purely harmonic, and the torus has one component, two independent loops, and one
-cavity. `CellComplexAnalysis` reads a state of a group on a complex from a trajectory, or an array with the complex as
+cavity. `cell_complex` reads a state of a group on a complex from a trajectory, or an array with the complex as
 `space`.
 
-- The kind `'hodge'` sets `gradient_`, `curl_`, and `harmonic_`, which are orthogonal and sum to the state, and the site
-  potential `potential_`.
-- The kind `'betti'` sets `betti_`.
-- The kind `'curvature'` sets `share_`, the share of faces whose oriented sum of an angle state is not a multiple of its
-  period, and `energy_`, the sum of one minus the cosine of the sums.
+- The kind `'hodge'` gives `gradient`, `curl`, and `harmonic`, which are orthogonal and sum to the state, and the site
+  potential `potential`.
+- The kind `'betti'` gives `betti`, and reads the complex alone, with `None` as the source.
+- The kind `'curvature'` gives `share`, the share of faces whose oriented sum of an angle state is not a multiple of its
+  period, and `energy`, the sum of one minus the cosine of the sums.
 
 `CellVisual`, named `VisualSpec('cell')`, draws edge states as colored segments. It draws their face sums and
 hyperedge states as an image on a lattice complex, or as polygons on a network complex, with a cyclic palette for angle

@@ -10,7 +10,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import Sink, Source, TransferLaw
 from skcomplex.core.components.laws.utils import lookup
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, StateSpec
 
 
@@ -41,7 +41,7 @@ class PeopleElement(Element):
 
 crowd = System(elements=[PeopleElement('crowd')])
 observed = [ObservableSpec('birth_rate', birth_rate, element='crowd')]
-trajectory = Simulation(crowd, dt=1.0, observables=observed).prepare().run(until=10).trajectory_
+trajectory = simulate(crowd, until=10, dt=1.0, observables=observed)
 round(float(trajectory.values('crowd.births')[-1]), 3), round(float(trajectory.values('crowd.deaths')[-1]), 3)
 round(float(trajectory.values('crowd.birth_rate')[-1]), 3)
 ```
@@ -65,21 +65,21 @@ flat outside them.
 Check that the stocks change only through flows, and see how much of each quantity enters from outside.
 
 ```python continuation
-from skcomplex.core.analysis import LoopAnalysis, SymbolicAnalysis
+from skcomplex.core.analysis import loops, symbolic
 from skcomplex.core.engine.runtime import ConservationObserver
 
-SymbolicAnalysis('conservation').prepare(crowd).run().inflows_
-monitored = Simulation(crowd, dt=1.0, observers=[ConservationObserver()]).prepare().run(until=10).trajectory_
-LoopAnalysis('flow-matrix').prepare(monitored).run().matrix_.sum(axis=1).tolist()
+symbolic(crowd, kind='conservation').inflows
+monitored = simulate(crowd, until=10, dt=1.0, observers=[ConservationObserver()])
+loops(monitored, kind='flow-matrix').matrix.sum(axis=1).tolist()
 ```
 
 - A rate or update law outside flows that changes a tagged state raises `ConservationError` when the system compiles.
-- `SymbolicAnalysis('conservation')` returns the net inflow of every quantity from the environment, after checking that
-  the internal flows cancel.
+- `symbolic(system, kind='conservation')` returns the net inflow of every quantity from the environment, after checking
+  that the internal flows cancel.
 - The compiler accumulates that inflow in the hidden state `__boundary.<quantity>`. The observer
   `ConservationObserver` checks at every frame that each total changed only by it.
-- `LoopAnalysis('flow-matrix', frame=frame)` gives the transaction-flow matrix of a frame of a trajectory, with one row
-  per flow and one column per holder. Its rows sum to zero.
+- `loops(trajectory, kind='flow-matrix', frame=frame)` gives the transaction-flow matrix of a frame of a trajectory,
+  with one row per flow and one column per holder. Its rows sum to zero.
 
 `distributed_delay(value, time, order, conserved=True)` is a material delay of any order. It is a chain of hidden stocks
 in series, and it returns their outflow. With `conserved=False` it is an information smoothing. It adds hidden stocks
@@ -87,14 +87,14 @@ in series, and it returns their outflow. With `conserved=False` it is an informa
 equilibrium with their input. The system dynamics names `delay1`, `delay3`, and `smooth` of
 `skcomplex.core.components.laws.utils` are its cases.
 
-`LoopAnalysis('loops')` derives the signed dependency graph of a system from its laws, and lists its feedback loops with
-their polarity. `LoopAnalysis('dominance')` ranks the loops by their gains at every frame of a trajectory.
+`loops(system)` derives the signed dependency graph of a system from its laws, and lists its feedback loops with their
+polarity. `loops(trajectory, kind='dominance')` ranks the loops by their gains at every frame of a trajectory.
 
 ```python continuation
-analysis = LoopAnalysis().prepare(crowd).run()
-[(polarity, ' -> '.join(nodes)) for nodes, polarity in zip(analysis.loops_, analysis.polarities_, strict=True)]
-dominance = LoopAnalysis('dominance').prepare(trajectory).run()
-dominance.polarities_[int(dominance.dominant_[-1])]
+feedback = loops(crowd)
+[(polarity, ' -> '.join(nodes)) for nodes, polarity in zip(feedback.loops, feedback.polarities, strict=True)]
+dominance = loops(trajectory, kind='dominance')
+dominance.polarities[int(dominance.dominant[-1])]
 ```
 
 An edge of the graph goes from one state to another when the rate of the second depends on the first, with the sign of
@@ -106,10 +106,10 @@ predator, prey growth closes a reinforcing self-loop, predator death a balancing
 through both populations.
 
 ```python continuation
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
-predation = LoopAnalysis(at=[1.0, 1.0]).prepare(create_system('lotka_volterra')).run()
-dict(zip(predation.loops_, predation.polarities_, strict=True))
+predation = loops(LotkaVolterraSystem(), at=[1.0, 1.0])
+dict(zip(predation.loops, predation.polarities, strict=True))
 ```
 
 ## Conserved quantities between agents
@@ -123,7 +123,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.laws.utils import transfer
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ObservableSpec, StateSpec
 
 
@@ -158,18 +158,17 @@ class TraderElement(Element):
 
 balance = ObservableSpec('net_worth', net_worth, group='traders', reduce='sum')
 market = System(elements=[GroupElement('traders', element=TraderElement, size=3)])
-simulation = Simulation(market, observables=[balance], invariants={'net_worth': 1e-9})
-traders = simulation.prepare().run(until=3).trajectory_
+traders = simulate(market, until=3, observables=[balance], invariants={'net_worth': 1e-9})
 float(traders.agents('traders', 3).values['cash'].sum())
 ```
 
 Agents move conserved quantities between each other inside rules. `transfer(source, sink, amount, state)` moves an
 amount between two agents at once. A negative holding is an amount owed, and total holdings stay constant.
 
-A run checks that an expression keeps its first value with `Simulation(invariants={name: tolerance})`, where the name is
-an observable of the run. At every frame the run compares the observable with its value at the first frame. It raises
-`ConservationError`, naming the observable and the first frame that breaks it. Removing an agent that still holds a
-tagged state also raises `ConservationError`, until its holdings are settled with transfers.
+A run checks that an expression keeps its first value with `simulate(system, invariants={name: tolerance})`, where the
+name is an observable of the run. At every frame the run compares the observable with its value at the first frame. It
+raises `ConservationError`, naming the observable and the first frame that breaks it. Removing an agent that still holds
+a tagged state also raises `ConservationError`, until its holdings are settled with transfers.
 
 ## Translating systems
 
@@ -182,8 +181,8 @@ import sys
 import tempfile
 from pathlib import Path
 
-from skcomplex.core.analysis import LoopAnalysis
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.analysis import loops
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerSolver
 from skcomplex.core.engine.translators import SystemDynamicsTranslator
 
@@ -208,10 +207,9 @@ module = importlib.import_module('translated_people')
 translator.settings_.until, module.DT
 
 system = module.create_system()
-simulation = Simulation(system, dt=module.SAVE_EVERY, observables=module.observables(system))
-trajectory = simulation.prepare().run(until=module.UNTIL).trajectory_
+trajectory = simulate(system, until=module.UNTIL, dt=module.SAVE_EVERY, observables=module.observables(system))
 trajectory.values('people.births')[0], trajectory.values('people.doubling_share')[0]
-LoopAnalysis().prepare(system).run().polarities_
+loops(system).polarities
 ```
 
 PySD reads the file. The translator writes `source_` from PySD's abstract model, and `settings_` from the control
@@ -241,8 +239,8 @@ The default solver finds the exact solution. Vensim and Stella integrate with Eu
 differs from it by the Euler error of the time step of the file.
 
 ```python continuation
-stepped = Simulation(system, solver=EulerSolver(dt=module.DT), dt=module.DT)
-final = stepped.prepare().run(until=module.UNTIL).trajectory_.values('people.population')[-1]
+stepped = simulate(system, until=module.UNTIL, dt=module.DT, solver=EulerSolver(dt=module.DT))
+final = stepped.values('people.population')[-1]
 round(float(final), 3)
 ```
 
@@ -262,8 +260,9 @@ The library sets these limits on what a translated module does:
 
 The catalog systems built on flows are these:
 
-- engineering processes: `bathtub`, `rice_milling`, `solid_waste`, `food_relief`, and `irrigation`,
-- markets: `car_dealer`, `commodity_cycle`, and `beer_game`,
-- innovation: `bass_diffusion`,
-- macroeconomics: `stock_flow_consistent_economy`,
-- organizations: `success_to_the_successful`, `shifting_the_burden`, and `escalation`.
+- engineering processes: `BathtubSystem`, `RiceMillingSystem`, `SolidWasteSystem`, `FoodReliefSystem`, and
+  `IrrigationSystem`,
+- markets: `CarDealerSystem`, `CommodityCycleSystem`, and `BeerGameSystem`,
+- innovation: `BassDiffusionSystem`,
+- macroeconomics: `StockFlowConsistentEconomySystem`,
+- organizations: `SuccessToTheSuccessfulSystem`, `ShiftingTheBurdenSystem`, and `EscalationSystem`.

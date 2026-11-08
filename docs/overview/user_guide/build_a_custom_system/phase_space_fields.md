@@ -24,7 +24,7 @@ from skcomplex.core.components.interactions import AdvectionInteraction
 from skcomplex.core.components.laws.utils import coordinate
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.specs import AxisSpec
 
@@ -34,8 +34,7 @@ start = np.outer(1.0 + 0.5 * np.sin(x), np.exp(-(v**2) / 2) / np.sqrt(2 * np.pi)
 gas = FieldElement('gas', element=DensityElement, space=space, values={'f': start}, discretization='finite-volume')
 stream = AdvectionInteraction('stream', target='gas', state='f', drift=lambda s: [coordinate('v'), 0])
 system = System(elements=[gas], interactions=[stream])
-simulation = Simulation(system, dt=0.1, solver=RK4Solver(dt=0.01)).prepare()
-final = simulation.run(until=0.5).trajectory_.values('gas.f')[-1]
+final = simulate(system, until=0.5, dt=0.1, solver=RK4Solver(dt=0.01)).values('gas.f')[-1]
 abs(final.sum() / start.sum() - 1.0) < 1e-12
 ```
 
@@ -45,11 +44,11 @@ The total mass is conserved to round-off.
 - Each class axis is an `AxisSpec(name, size, low, high, periodic=False)` with its own cells. An interval has no flux
   through its ends, and a periodic axis, such as an angle, joins them.
 - The position axes come first, and they keep the boundary of the lattice.
-- The compile report holds a `space-size` issue for a space above its limit, with the size it would take.
+- `simulate` rejects a space above its limit with the issue `space-size`, which names the size it would take.
 
 `coordinate(name)` is the coordinate, along a named axis, of the point a law updates. Streaming is the drift
-`[coordinate('v'), 0]`, and acceleration by a force `F` is the drift `[0, F]`. The compile report holds a `law-space`
-issue for a coordinate in a law whose group is not on a phase space with that axis.
+`[coordinate('v'), 0]`, and acceleration by a force `F` is the drift `[0, F]`. `simulate` rejects a coordinate in a law
+whose group is not on a phase space with that axis with the issue `law-space`.
 
 Finite-volume fields, finite-difference fields with `riemann=None`, and spectral fields with `riemann=None` all stream
 on a phase space. Spectral derivatives need the axis to be periodic.
@@ -97,7 +96,7 @@ from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.laws.utils import coordinate, integral_transform, integration_variable
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.specs import AxisSpec
 
@@ -109,8 +108,8 @@ groups = FieldElement('groups', element=DensityElement, space=space, values={'f'
 conflict = RateInteraction(
     'conflict', target='groups', state='f', rate=lambda s: s.target.f * integral_transform(s.target.f, gain, ('z',))
 )
-simulation = Simulation(System(elements=[groups], interactions=[conflict]), dt=1.0, solver=RK4Solver(dt=0.05))
-final = simulation.prepare().run(until=5.0).trajectory_.values('groups.f')[-1]
+trajectory = simulate(System(elements=[groups], interactions=[conflict]), until=5.0, dt=1.0, solver=RK4Solver(dt=0.05))
+final = trajectory.values('groups.f')[-1]
 round(float(final.sum() / 50), 10), bool(final[-1] > final[0])
 ```
 
@@ -126,8 +125,8 @@ The groups of more punishers win, and the total stays one, since the kernel is a
   light under a canopy is `exp(-gamma * cumulative_integral(f * coordinate('h')**2, 1, reverse=True))`.
 - `convolve` acts along the position axes of a phase space at every class, with a kernel of the displacements of the
   position axes, and it follows the boundary of the position lattice. Seeds disperse over position at every height.
-- The compile report holds a kernel that reads a state as a `kernel-state` issue, and an integral over class axes of a
-  field without a phase space as a `law-space` issue.
+- `simulate` rejects a kernel that reads a state with the issue `kernel-state`, and an integral over class axes of a
+  field without a phase space with the issue `law-space`.
 
 ## Simplex domains
 
@@ -142,7 +141,7 @@ from skcomplex.core.components.elements import DensityElement, FieldElement
 from skcomplex.core.components.laws.utils import moment
 from skcomplex.core.components.spaces import LatticeSpace, SimplexSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import AxisSpec, ObservableSpec
 
 
@@ -154,8 +153,8 @@ axes = [AxisSpec('x', 20, 0.0, 1.0), AxisSpec('y', 20, 0.0, 1.0)]
 simplex = SimplexSpace(LatticeSpace((1,)), axes).prepare()
 groups = FieldElement('groups', element=DensityElement, space=simplex, values={'f': 2.0 * (simplex.volumes_ > 0)})
 observables = [ObservableSpec('total', total, group='groups')]
-simulation = Simulation(System(elements=[groups]), dt=0.1, observables=observables).prepare()
-round(float(np.asarray(simulation.run(until=0.1).trajectory_.values('total'))[-1]), 10)
+trajectory = simulate(System(elements=[groups]), until=0.1, dt=0.1, observables=observables)
+round(float(np.asarray(trajectory.values('total'))[-1]), 10)
 ```
 
 - `volumes_` holds the fraction of every cell inside the simplex: whole cells below the slanted face, partial cells
@@ -164,8 +163,8 @@ round(float(np.asarray(simulation.run(until=0.1).trajectory_.values('total'))[-1
 - Finite-volume fluxes pass only through the open part of every face and change a cell by its volume, so the total is
   conserved and no density enters the empty cells. A density on a simplex starts at zero in the empty cells.
 - `moment`, `reduce_axes`, `integral_transform`, and `cumulative_integral` weight every cell by its volume.
-- The compile report holds a local operator, such as `laplacian` or a finite-difference advection, of a field on a
-  simplex as a `law-space` issue. `SemiLagrangianSolver` refuses partial cells, and `SSPRKSolver` divides its wave
+- `simulate` rejects a local operator, such as `laplacian` or a finite-difference advection, of a field on a simplex
+  with the issue `law-space`. `SemiLagrangianSolver` refuses partial cells, and `SSPRKSolver` divides its wave
   speed by the smallest cell volume.
 
 ## Encounters and equilibria
@@ -200,7 +199,7 @@ integral over two interval class axes.
 - The method uses FFT products on a grid padded by `(3 + sqrt(2)) / 2`. It conserves the density exactly, and the
   momentum and the energy within its spectral accuracy.
 - `factor` scales the collision frequency, such as a function of the density moment for the local Enskog equation.
-- The compile report holds a `law-space` issue for a collision without two interval class axes.
+- `simulate` rejects a collision without two interval class axes with the issue `law-space`.
 
 ## Solvers
 
@@ -226,7 +225,8 @@ solver.dt
 also logs the moments over the class axes, as a bar series over a one-dimensional position lattice and as an image over
 a two-dimensional one.
 
-`boltzmann_equation`, `bgk_equation`, `vlasov_equation`, and `enskog` in `physics/fluids`, and `bertin_droz_gregoire`
-in `physics/active_matter`, are the kinetic equations of the library. `nonlinear_pairwise_group_conflict` and
-`trimorphic_multilevel_selection` in `social/cooperation` integrate against two-point kernels, the second on the
-simplex, and `forest_size_structure` in `biology/ecology` shades trees by a cumulative integral over height.
+`BoltzmannEquationSystem`, `BGKEquationSystem`, `VlasovEquationSystem`, and `EnskogSystem` in `physics.fluids`, and
+`BertinDrozGregoireSystem` in `physics.active_matter`, are the kinetic equations of the library.
+`NonlinearPairwiseGroupConflictSystem` and `TrimorphicMultilevelSelectionSystem` in `social.cooperation` integrate
+against two-point kernels, the second on the simplex, and `ForestSizeStructureSystem` in `biology.ecology` shades trees
+by a cumulative integral over height.

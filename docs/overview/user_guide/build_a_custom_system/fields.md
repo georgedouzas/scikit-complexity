@@ -13,7 +13,7 @@ from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import laplacian
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
 
@@ -37,7 +37,7 @@ initial = np.zeros(400)
 initial[200] = 20.0
 space = LatticeSpace(400, spacing=0.05)
 rod = FieldElement('rod', element=HeatElement, space=space, boundary={'u': 'zero-flux'}, values={'u': initial})
-trajectory = Simulation(System(elements=[rod]), dt=0.1).prepare().run(until=0.5).trajectory_
+trajectory = simulate(System(elements=[rod]), until=0.5, dt=0.1)
 heat = trajectory.values('rod.u')
 round(float(heat[-1].max()), 3), heat.sum(axis=1)[[0, -1]].round(6).tolist()
 ```
@@ -56,15 +56,16 @@ ordinary differential equations, so every ODE solver and backend runs it.
   field and conserves its total, and fixed edges read the given value. The lattice's own `boundary` is the default.
 - The equations keep the operators, `diff(u(t), t) == D*laplacian(u(t))`, while the backends evaluate the stencils.
   On Numba, the stencils of a lattice are fused into one compiled loop.
-- `problem.stable_step` is the diffusive limit `h^2 / (2 d D)` of explicit steps. Fixed-step solvers whose `dt` exceeds
-  it warn before the run, with the limit.
+- `trajectory.problem.stable_step` is the diffusive limit `h^2 / (2 d D)` of explicit steps. Fixed-step solvers whose
+  `dt` exceeds it warn before the run, with the limit.
 
 Agents on a grid of the same shape couple to a field in co-simulation. A rule reads the field at a cell with
 `system.field('ground/pheromone.level', cell)` and adds to it with `system.deposit(name, cell, amount)`. The deposits
 reach the field at the next synchronisation point. Lattice fields stream to Rerun as images.
 
-The library has `heat_diffusion`, `fisher_kpp`, `gray_scott`, `brusselator`, `fitzhugh_nagumo`, `schnakenberg`, and
-`pheromone_foraging`, which you select by name, such as `create_system('gray_scott')`.
+The library has `HeatDiffusionSystem`, `FisherKPPSystem`, `GrayScottSystem`, `BrusselatorSystem`,
+`FitzhughNagumoSystem`, `SchnakenbergSystem`, and `PheromoneForagingSystem`, which you import from their subfield, such
+as `from skcomplex.systems.chemistry.pattern_formation import GrayScottSystem`.
 
 ## Discretizations and stiff solvers
 
@@ -81,7 +82,7 @@ from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import divergence, laplacian
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ETDRK4Solver
 from skcomplex.core.specs import StateSpec
 
@@ -103,8 +104,8 @@ line = FieldElement(
     values={'u': np.cos(positions / 16) * (1 + np.sin(positions / 16))},
     discretization='spectral',
 )
-state = Simulation(System(elements=[line]), dt=10, solver=ETDRK4Solver(dt=0.25)).prepare().run(until=100).state_
-round(float(np.abs(state).max()), 1)
+trajectory = simulate(System(elements=[line]), until=100, dt=10, solver=ETDRK4Solver(dt=0.25))
+round(float(np.abs(trajectory.values('line.u')[-1]).max()), 1)
 ```
 
 The argument `FieldElement(..., discretization=...)` chooses how space is discretized:
@@ -133,13 +134,13 @@ The implicit methods of `ScipyODESolver` are the stiff path for finite-differenc
 adaptive error control that the fixed-step split steppers lack:
 
 ```python
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.ecology import FisherKPPSystem
 
-stiff = create_system('fisher_kpp', length=400, D=1.0, spacing=0.05)
-simulation = Simulation(stiff, dt=1.0, solver=ScipyODESolver(method='BDF')).prepare().run(until=5)
-simulation.stepper_.jacobian_pattern_.nnz, simulation.state_.max().round(3)
+stiff = simulate(FisherKPPSystem(length=400, D=1.0, spacing=0.05), until=5, dt=1.0, solver=ScipyODESolver(method='BDF'))
+pattern = ScipyODESolver(method='BDF').prepare(stiff.problem).jacobian_pattern_
+pattern.nnz, stiff.values('line.u')[-1].max().round(3)
 ```
 
 The compiler derives the sparsity pattern of the Jacobian from the laws. The pattern covers member and shared reads,
@@ -147,7 +148,8 @@ the neighbour tables of stencils, the sparse matrices of finite elements, and th
 volumes. It holds dense blocks where couplings are known only at run time, such as pairs, spectral operators, and
 callables.
 
-- `ScipyODESolver(method='BDF')` and `ScipyODESolver(method='Radau')` receive the pattern. SciPy then estimates the
+- `ScipyODESolver(method='BDF')` and `ScipyODESolver(method='Radau')` receive the pattern, which a solver prepared on
+  the `problem` of a trajectory holds as `jacobian_pattern_`, as above. SciPy then estimates the
   Jacobian with one drift evaluation per group of independent columns, and factors it with sparse LU.
 - `LSODA` receives the half bandwidths of a pattern narrower than a tenth of the size.
 - The option `jacobian` selects the path: `'auto'` by default, `'exact'` for the sparse Jacobian of the laws
@@ -160,9 +162,9 @@ On Fisher-KPP on 4000 points, whose largest eigenvalue is about 1600, run to `t 
 `CrankNicolsonSolver(dt=0.01)` 0.8 s. Spectral fields keep `ETDRK4Solver` and the IMEX steppers. These win there,
 because the linear part is diagonal in Fourier space while its pattern is dense.
 
-The system `decaying_turbulence` is two-dimensional incompressible flow in vorticity-streamfunction form, and
-`rayleigh_benard` adds Boussinesq convection, with `Ra` and `Pr`. The library also has `kuramoto_sivashinsky`,
-`complex_ginzburg_landau`, `swift_hohenberg`, `heat_l_shape`, `burgers`, and `shallow_water`.
+`DecayingTurbulenceSystem` is two-dimensional incompressible flow in vorticity-streamfunction form, and
+`RayleighBenardSystem` adds Boussinesq convection, with `Ra` and `Pr`. The library also has `KuramotoSivashinskySystem`,
+`ComplexGinzburgLandauSystem`, `SwiftHohenbergSystem`, `HeatLShapeSystem`, `BurgersSystem`, and `ShallowWaterSystem`.
 
 ## Nonlocal operators
 
@@ -180,7 +182,7 @@ from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.laws.utils import convolve, displacement, inverse_helmholtz, partial, shifted
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
 
@@ -202,8 +204,7 @@ def rate_of(rate):
     values = {'u': np.exp(-((centers - 6.4) ** 2))}
     line = FieldElement('line', element=SiteElement, space=LatticeSpace(128, spacing=0.1), values=values)
     interaction = RateInteraction('rate', target='line', state='u', rate=rate)
-    simulation = Simulation(System(elements=[line], interactions=[interaction]), dt=0.05)
-    return simulation.prepare().run(until=0.2).trajectory_.values('line.u')
+    return simulate(System(elements=[line], interactions=[interaction]), until=0.2, dt=0.05).values('line.u')
 
 
 def smoothing(s):
@@ -250,7 +251,7 @@ pattern of the Jacobian marks a convolution as coupling the sites within its rad
 implicit solvers stay correct but slow, and explicit or exponential solvers suit these laws best. An observable may use
 the operators too, which streams a streamfunction as an image.
 
-The misuses are issues of the compiler's report, each with the path of the law and a fix:
+`simulate` rejects these misuses with a `ValidationError` that names each issue with the path of the law and a fix:
 
 - `law-space` for a convolution or a shifted read on a network or a mesh, and for a spectral operator on a lattice
   without periodic edges,
@@ -270,7 +271,7 @@ from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.interactions import CouplingInteraction
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
 
@@ -289,12 +290,13 @@ exchange = CouplingInteraction(
     function=lambda s: 0.2 * (s.other.u - s.member.u),
 )
 system = System(elements=[cells], interactions=[exchange])
-trajectory = Simulation(system, dt=0.5).prepare().run(until=2.0).trajectory_
+trajectory = simulate(system, until=2.0, dt=0.5)
 trajectory.values('cells.u')[-1].sum().round(6)
 ```
 
 A constant times `s.other.u - s.member.u` lowers to `laplacian`, so spectral and finite-element fields keep their own
 operator.
 
-`amari_neural_field` holds a bump with a convolution, `double_gyre` streams the streamfunction of a closed basin,
-`gkt_traffic` brakes on the traffic read ahead, and `active_viscoelastic_gel` solves its force balance at every step.
+`AmariNeuralFieldSystem` holds a bump with a convolution, `DoubleGyreSystem` streams the streamfunction of a closed
+basin, `GktTrafficSystem` brakes on the traffic read ahead, and `ActiveViscoelasticGelSystem` solves its force balance
+at every step.
