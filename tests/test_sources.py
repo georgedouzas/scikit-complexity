@@ -115,7 +115,7 @@ def test_readme_custom_system_runs_from_the_core_alone(request):
     text = (request.config.rootpath / README).read_text(encoding='utf-8')
     section = text[text.index('### Build a custom system') :]
     code = PYTHON_BLOCK.search(section).group(1)
-    assert 'Simulation' in code
+    assert 'simulate(' in code
     check = f"""
 import sys
 {code}
