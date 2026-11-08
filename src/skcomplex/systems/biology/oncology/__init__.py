@@ -10,6 +10,7 @@ from ._antiangiogenic import (
     VascularCorePeripherySystem,
     VascularizedSpheroidElement,
 )
+from ._cell_cycle_invasion import CellCycleInvasionInteraction, CellCycleInvasionSystem, CellSiteElement
 from ._cell_kinetics import (
     CellCycleChemotherapySystem,
     CellCycleElement,
@@ -138,7 +139,10 @@ __all__: list[str] = [
     'BoneMarrowBloodLeukaemiaSystem',
     'CellCycleChemotherapySystem',
     'CellCycleElement',
+    'CellCycleInvasionInteraction',
+    'CellCycleInvasionSystem',
     'CellQuotaProstateElement',
+    'CellSiteElement',
     'CheckpointTumourElement',
     'ChemoimmunotherapySystem',
     'ChemoimmunotherapyTumourElement',

@@ -55,7 +55,7 @@
 ## 9. Probe systems
 
 - [ ] 9.1 Add `OffLatticeTumourGrowthSystem` in its own module of `biology/oncology`, built on `DelaunayNeighborhood`, with tests of biphasic growth and spring spacing
-- [ ] 9.2 Add `CellCycleInvasionSystem` in its own module of `biology/oncology`, with tests of the scratch assay and the full lattice
+- [x] 9.2 Add `CellCycleInvasionSystem` in its own module of `biology/oncology`, with tests of the scratch assay and the full lattice
 - [ ] 9.3 Add `DifferentiableCovidAbmSystem` in its own module of `biology/epidemiology`, with discrete agents and relaxed draws, with tests of the gradient against finite differences and of zero transmission
 - [ ] 9.4 Test the variational recovery of the three betas of `DifferentiableCovidAbmSystem` within 0.15
 - [ ] 9.5 Add inventory entries for `off_lattice_tumour_growth`, `cell_cycle_invasion`, and `differentiable_covid_abm` with sources 2409.19675 and 2305.15340, and verify the inventory check passes
