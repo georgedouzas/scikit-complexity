@@ -49,13 +49,12 @@ module = importlib.import_module('translated_world')
 # %%
 # The run
 # -------
-# The module holds the settings of the file. Time in the module starts at zero, so a year is `module.START` plus the
-# time of a frame. The view shows the population of every frame.
+# The module holds the system class `WorldSystem`, whose run settings are those of the file. Time in the module starts
+# at zero, so a year is `module.START` plus the time of a frame. The view shows the population of every frame.
 
-system = module.create_system()
+system = module.WorldSystem()
 observer = RerunObserver('translated_world_population', save_path='translated_world_population.rrd', interval=1)
-observables = module.observables(system)
-trajectory = simulate(system, until=module.UNTIL, dt=module.DT, observers=[observer], observables=observables)
+trajectory = simulate(system, dt=module.DT, observers=[observer])
 
 # %%
 # Shifting dominance

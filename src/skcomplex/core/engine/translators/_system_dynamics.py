@@ -22,6 +22,7 @@ from pysd.translators.xmile.xmile_file import XmileFile
 
 from ...base import BaseConfig
 from ...components.elements import Element
+from ...components.system import BaseSystem
 from ...errors import ValidationError
 from ...specs import RunSettingsSpec
 from ._expressions import INTERPOLATED, _ExpressionWriter
@@ -32,15 +33,20 @@ VENSIM_SUFFIX = '.mdl'
 XMILE_SUFFIXES = ('.xmile', '.xml', '.stmx')
 MAIN_SECTION = 'main'
 CONTROL_NAMES = ('initial_time', 'final_time', 'time_step', 'saveper')
-RESERVED_NAMES = frozenset({'t', 'time', 'member', 'label', 'visual', *CONTROL_NAMES, *dir(Element)})
+RESERVED_NAMES = frozenset(
+    {'t', 'time', 'member', 'label', 'visual', *CONTROL_NAMES, *dir(Element), *dir(BaseSystem)},
+)
 
 
 class SystemDynamicsTranslator(BaseConfig[None, None]):
     """Translator of a Vensim or XMILE file into the source of a system module of the library.
 
     The module holds one element class, whose states are the stocks and whose parameters are the constants of the
-    file, one private function per auxiliary and lookup, the function `create_system()`, the function
-    `observables(system)`, and the constants `START`, `UNTIL`, `DT`, and `SAVE_EVERY`. A flow variable of two stocks
+    file, one private function per auxiliary and lookup, the constants `START`, `UNTIL`, `DT`, and `SAVE_EVERY`, and
+    one system class on `BaseSystem`, named after the element in CamelCase with the suffix `System`. The system class
+    takes the constants as keyword arguments, with the values of the file as defaults, builds its element and its
+    interactions in `_build_system`, and holds as tuned run settings `until`, the length of the run, `dt`, the saving
+    interval of the file, and `observables`, one per auxiliary and per goal-seeking stock. A flow variable of two stocks
     becomes a `TransferInteraction` between them, a flow variable of one stock a `TransferInteraction` with `Source()`
     or `Sink()`, and what remains of the rate of a stock a `RelaxationInteraction` or a `RateInteraction`. A system
     whose stocks are all subscripted over one range becomes a `GroupElement` with one member per subscript.
@@ -86,6 +92,8 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
         >>> translator.settings_.until
         4.0
         >>> 'class GrowthElement(Element):' in translator.source_
+        True
+        >>> 'class GrowthSystem(BaseSystem):' in translator.source_
         True
     """
 

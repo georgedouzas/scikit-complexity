@@ -206,8 +206,8 @@ sys.path.insert(0, str(folder))
 module = importlib.import_module('translated_people')
 translator.settings_.until, module.DT
 
-system = module.create_system()
-trajectory = simulate(system, until=module.UNTIL, dt=module.SAVE_EVERY, observables=module.observables(system))
+system = module.PeopleSystem(birth_fraction=0.04)
+trajectory = simulate(system)
 trajectory.values('people.births')[0], trajectory.values('people.doubling_share')[0]
 loops(system).polarities
 ```
@@ -216,7 +216,9 @@ PySD reads the file. The translator writes `source_` from PySD's abstract model,
 section of the file. You save the source and import it like any module. The module defines:
 
 - one element class, whose states are the stocks and whose parameters are the constants,
-- the functions `create_system()` and `observables(system)`,
+- the system class `PeopleSystem` on `BaseSystem`, named after the file, whose keyword arguments are the constants with
+  the values of the file as defaults, and whose tuned run settings are the length of the run, the saving interval,
+  and one observable per auxiliary,
 - the constants `START`, `UNTIL`, `DT`, and `SAVE_EVERY`.
 
 Time in the module runs from zero, and `Time` in the file becomes `t + START`. The parts of the file become these:
