@@ -8,12 +8,12 @@ import re
 from collections.abc import Callable, Mapping
 
 import numpy as np
-from sage.all__sagemath_symbolics import RR, SR, Expression
+from sage.all__sagemath_symbolics import RR, SR, Expression, log
 from sage.modules.free_module_element import FreeModuleElement
 from scipy import stats
 
 from ...components.laws import BaseLaw, UpdateLaw
-from ...components.laws.utils import draws_in, where
+from ...components.laws.utils import draws_in, logistic, stop_gradient, where
 from ...errors import ValidationError
 from ...specs import CallSpec, DrawSpec, EntrySpec, NamedDrawSpec, NeighborReadSpec, SampledDrawSpec
 from ...types import Array, Indices
@@ -48,7 +48,9 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
     the time symbol, and `run(laws)` takes the laws of every kernel spec, replaces every draw of their update laws by a
     drawn value, and places the drawn values after the parameters, by component path, draw name, and member index. A
     draw read at a member offset reads the value the offset member draws, so the members of a group can share one draw.
-    `_apply_references()` then gives every spec the references of its drawn values.
+    `_apply_references()` then gives every spec the references of its drawn values. On the JAX backend a Bernoulli or
+    categorical draw with a temperature is lowered to its continuous relaxation of the same uniform value, and with
+    `hard` to the exact value with the gradient of the relaxation, while every other backend draws it exactly.
 
     Attributes:
         offset_:
@@ -66,6 +68,9 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
         shifted_:
             The symbol of every draw read at a member offset, by the spec, the draw name, the offset, the boundary,
             and the fill of the read.
+
+        relaxes_:
+            Whether relaxed draws are lowered to their relaxation, true on the JAX backend.
     """
 
     offset_: int
@@ -73,6 +78,7 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
     requests_: list[_RequestSpec]
     draws_: DrawKernel | None
     shifted_: dict[tuple[int, str, int, str, float], Expression]
+    relaxes_: bool
 
     def _prepare(self, context: Compilation | None) -> None:
         """Read where the parameters end and the time symbol of the compilation.
@@ -94,6 +100,8 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
             raise ValidationError(error_msg)
         self.offset_, self.time_ = declarations.ends[False], declarations.time
         self.requests_, self.draws_, self.shifted_ = [], None, {}
+        backend = self.compilation_.backend
+        self.relaxes_ = backend is not None and backend._get_name() == 'jax'
 
     def _run(self, inputs: list[tuple[KernelSpec, list[BaseLaw]]] | None) -> None:
         """Set the laws of every kernel spec with the draws of their updates replaced.
@@ -190,9 +198,13 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
             if not isinstance(law, UpdateLaw) or not self._is_symbolic(law.value):
                 lowered.append(law)
                 continue
-            values = [self._lowered(self._unshifted(spec, SR(item), slots), slots) for item in components_of(law.value)]
+            relaxes = self.relaxes_
+            values = [
+                self._lowered(self._unshifted(spec, SR(item), slots), slots, relaxes=relaxes)
+                for item in components_of(law.value)
+            ]
             value = vector(values) if isinstance(law.value, FreeModuleElement) else values[0]
-            order = None if law.order is None else self._lowered(SR(law.order), slots)
+            order = None if law.order is None else self._lowered(SR(law.order), slots, relaxes=relaxes)
             lowered.append(BasePass._replaced(law, value=value, order=order))
         return lowered
 
@@ -226,7 +238,7 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
             draw = draws_in(drawn)[0]
             key = (id(spec), draw.name, offset, boundary, fill)
             slot = self.shifted_.setdefault(key, symbol(f'{slots[draw.name]}__shift{len(self.shifted_)}'))
-            replacements[call] = self._replacement(draw, list(draw.arguments), slot)
+            replacements[call] = self._replacement(draw, list(draw.arguments), slot, relaxes=self.relaxes_)
         return expression.subs(replacements) if replacements else expression
 
     @staticmethod
@@ -358,10 +370,19 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
         return name if count == 0 else f'{name}{count}'
 
     @staticmethod
-    def _replacement(draw: DrawSpec, arguments: list[Expression], slot: Expression) -> Expression:
+    def _replacement(
+        draw: DrawSpec,
+        arguments: list[Expression],
+        slot: Expression,
+        *,
+        relaxes: bool = False,
+    ) -> Expression:
         """Return the expression of a draw in terms of a uniform or normal value.
 
-        The value is uniform or standard normal, or else the sampled value of the draw.
+        The value is uniform or standard normal, or else the sampled value of the draw. A relaxed draw gives its
+        relaxation when `relaxes` is true, and a hard one `exact + (relaxed - stop_gradient(relaxed))`. The difference
+        is held in a choice of the uniform value, which is never negative, so Sage keeps it apart from the exact value
+        and it evaluates to exactly 0.
         """
         if draw.kind == 'draw':
             return slot
@@ -372,26 +393,51 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
             mean, deviation = arguments
             return mean + deviation * slot
         if draw.kind == 'bernoulli':
-            return where(slot < arguments[0], 1, 0)
-        total = sum(arguments[1:], arguments[0])
-        cumulative, index = SR(0), SR(0)
-        for weight in arguments[:-1]:
-            cumulative = cumulative + weight
-            index = index + where(slot * total >= cumulative, 1, 0)
-        return index
+            exact = where(slot < arguments[0], 1, 0)
+        else:
+            total = sum(arguments[1:], arguments[0])
+            cumulative, exact = SR(0), SR(0)
+            for weight in arguments[:-1]:
+                cumulative = cumulative + weight
+                exact = exact + where(slot * total >= cumulative, 1, 0)
+        if not relaxes or draw.temperature is None:
+            return exact
+        relaxed = DrawLowering._relaxation(draw, arguments, slot)
+        if not draw.hard:
+            return relaxed
+        return exact + where(slot >= 0, relaxed - stop_gradient(relaxed), 0)
 
     @staticmethod
-    def _lowered(expression: Expression, slots: Mapping[str, Expression]) -> Expression:
+    def _relaxation(draw: DrawSpec, arguments: list[Expression], slot: Expression) -> Expression:
+        """Return the continuous relaxation of a Bernoulli or categorical draw of a uniform value.
+
+        A Bernoulli draw of probability `p` gives `sigmoid((logit p - logit u) / T)`, the binary concrete relaxation of
+        the threshold `u < p` (Maddison et al. 2017). A categorical draw gives `sum_k sigmoid((u - c_k / W) / T)` over
+        the cumulative weights `c_k` before the last and the total weight `W`, the relaxation of its inverse
+        distribution function. Both tend to the exact draw as the temperature `T` tends to 0.
+        """
+        temperature = SR(draw.temperature)
+        if draw.kind == 'bernoulli':
+            p = arguments[0]
+            return logistic(log(p) - log(1 - p) - log(slot) + log(1 - slot), 0, temperature)
+        total = sum(arguments[1:], arguments[0])
+        cumulative, relaxed = SR(0), SR(0)
+        for weight in arguments[:-1]:
+            cumulative = cumulative + weight
+            relaxed = relaxed + logistic(slot - cumulative / total, 0, temperature)
+        return relaxed
+
+    @staticmethod
+    def _lowered(expression: Expression, slots: Mapping[str, Expression], *, relaxes: bool = False) -> Expression:
         """Return an expression with every draw replaced by its value expression.
 
-        The innermost draws are replaced first.
+        The innermost draws are replaced first, relaxed draws by their relaxation when `relaxes` is true.
         """
         found = draws_in(expression)
         while found:
             draw = next(item for item in found if not draws_in(list(item.arguments)))
-            expression = expression.subs(
-                {draw.call: DrawLowering._replacement(draw, list(draw.arguments), slots[draw.name])},
-            )
+            replacement = DrawLowering._replacement(draw, list(draw.arguments), slots[draw.name], relaxes=relaxes)
+            expression = expression.subs({draw.call: replacement})
             found = draws_in(expression)
         return expression
 

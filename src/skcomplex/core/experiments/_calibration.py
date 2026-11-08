@@ -27,7 +27,7 @@ from scipy.optimize import least_squares, minimize
 from ..components.system import BaseSystem
 from ..engine.backends import JaxBackend
 from ..engine.compile._pass_compiler import PassCompiler
-from ..engine.problems import BaseProblemSpec
+from ..engine.problems import ProblemSpec
 from ..engine.runtime import Trajectory, simulate
 from ..engine.solvers import BaseSolver
 from ..engine.types import TracedArray, TracedFunction
@@ -307,7 +307,7 @@ class _CalibrationObjective:
             return np.concatenate([np.asarray(simulated[path], dtype=float) for path in self.series])
         return np.atleast_1d(np.asarray(self.summary(simulated), dtype=float))
 
-    def _compiled(self, values: Sequence[float]) -> tuple[BaseProblemSpec, TracedFunction]:
+    def _compiled(self, values: Sequence[float]) -> tuple[ProblemSpec, TracedFunction]:
         """Return the problem of the candidate of a parameter vector compiled on JAX, and its pure function.
 
         Raises:
@@ -320,13 +320,16 @@ class _CalibrationObjective:
         except SkcomplexError as error:
             error_msg = f'The system has no differentiable run on JAX: {error}'
             raise ValidationError(error_msg) from error
-        if problem.form not in (FormKind.ODE, FormKind.DISCRETE):
+        if not isinstance(problem, ProblemSpec) or problem.form not in (FormKind.ODE, FormKind.DISCRETE):
             error_msg = f'Differentiable runs unroll maps and ordinary differential equations, not a {problem.form}.'
             raise ValidationError(error_msg)
         return problem, backend.traced_
 
-    def traced(self) -> Callable[[TracedArray], TracedArray]:
+    def traced(self) -> Callable[..., TracedArray]:
         """Return the JAX function from a parameter vector to the simulated values at the data times, concatenated.
+
+        The function `predict(theta, key=None)` takes a JAX key when the system draws, which draws its uniform and
+        normal values.
 
         The system is compiled on JAX at the medians of the priors and at small steps of every parameter, and the
         initial states and the parameter vector of its problem must be affine in the model parameters, as they are
@@ -362,7 +365,7 @@ class _CalibrationObjective:
         start = np.concatenate([problem.initial_state, problem.initial_parameters])
         size = problem.initial_state.size
         times = np.unique(np.concatenate([times for times, _ in self.series.values()]))
-        run = JaxBackend.unroll(function, problem.form, times, throw=False)
+        run = JaxBackend.unroll(function, problem.form, times, throw=False, draws=problem.draws)
         reads = []
         for path, (path_times, _) in self.series.items():
             if not problem.states.has(path):
@@ -371,9 +374,9 @@ class _CalibrationObjective:
             indices = np.arange(problem.states.size)[problem.states.locate(path)[1]]
             reads.append((np.searchsorted(times, path_times), indices))
 
-        def predict(theta: TracedArray) -> TracedArray:
+        def predict(theta: TracedArray, key: TracedArray | None = None) -> TracedArray:
             vector = jnp.asarray(start) + jnp.asarray(jacobian) @ (theta - jnp.asarray(center))
-            states = run(vector[:size], vector[size:])
+            states = run(vector[:size], vector[size:], key)
             return jnp.concatenate([states[rows][:, indices].ravel() for rows, indices in reads])
 
         return predict
@@ -664,16 +667,15 @@ def _fit_mcmc(
 ) -> tuple[Array, dict[str, object], bool]:
     """Return the samples of MCMC with numpyro, their diagnostics, and whether the chains converged.
 
-    A differentiable system with the Gaussian likelihood runs NUTS on its JAX run. Every other system runs the affine
-    invariant ensemble sampler, with the log-likelihood evaluated on the host, and at least two walkers per parameter
-    and two more.
+    A deterministic differentiable system with the Gaussian likelihood runs NUTS on its JAX run. Every other system runs
+    the affine invariant ensemble sampler, with the log-likelihood evaluated on the host, and at least two walkers per
+    parameter and two more.
     """
     names = objective.names
     priors = [_numpyro_prior(name, prior) for name, prior in objective.priors.items()]
     count = objective.observed.size if objective.series else 0
-    differentiable = loss == 'likelihood' and objective.build(
-        [float(prior.median()) for prior in objective.priors.values()],
-    ).get_tags().differentiable
+    tags = objective.build([float(prior.median()) for prior in objective.priors.values()]).get_tags()
+    differentiable = loss == 'likelihood' and tags.differentiable and tags.randomness == 'deterministic'
     with jax.enable_x64(True):
         if differentiable:
             predict, observed = objective.traced(), jnp.asarray(objective.observed)
@@ -722,7 +724,8 @@ def _fit_variational(
 
     The guide is a multivariate normal on the unconstrained parameters, fitted by Adam. The model adds the negative
     loss, the Gaussian log-likelihood or the negative sum of squares, so the ELBO is the expected loss plus the
-    divergence from the prior.
+    divergence from the prior. A system that draws runs with a fresh JAX key at every step of the fit, so the ELBO
+    also averages over the draws.
     """
     names = objective.names
     priors = [_numpyro_prior(name, prior) for name, prior in objective.priors.items()]
@@ -732,7 +735,7 @@ def _fit_variational(
 
         def model() -> None:
             theta = jnp.stack([numpyro.sample(name, prior) for name, prior in zip(names, priors, strict=True)])
-            squares = jnp.sum((predict(theta) - observed) ** 2)
+            squares = jnp.sum((predict(theta, numpyro.prng_key()) - observed) ** 2)
             score = -0.5 * count * jnp.log(squares) if loss == 'likelihood' else -squares
             numpyro.factor('loss', score)
 

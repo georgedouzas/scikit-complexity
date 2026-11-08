@@ -52,6 +52,10 @@ class Tags(BaseSpec):
         structure:
             How the structure changes, among `'variable membership'` and `'changing topology'`, empty for a fixed one.
 
+        reparameterized:
+            Whether every draw of a stochastic part is a uniform, normal, or relaxed Bernoulli or categorical draw of
+            its laws, a function of the uniform or normal value of the step, so its runs have gradients at fixed values.
+
     Examples:
         >>> from skcomplex.core.specs import Tags
         >>> tags = Tags(time=frozenset({'continuous'}), laws=frozenset({'rate', 'noise'}), randomness='stochastic')
@@ -62,6 +66,8 @@ class Tags(BaseSpec):
         {'laws': ['noise']}
         >>> tags.differentiable, supported.differentiable
         (False, True)
+        >>> Tags(laws=frozenset({'update'}), randomness='stochastic', reparameterized=True).differentiable
+        True
     """
 
     time: frozenset[str] = frozenset()
@@ -70,6 +76,7 @@ class Tags(BaseSpec):
     laws: frozenset[str] | None = frozenset()
     randomness: str | None = 'deterministic'
     structure: frozenset[str] = frozenset()
+    reparameterized: bool = False
 
     def _check(self) -> None:
         """Raise an error for a tag that is none of the values of its field.
@@ -96,14 +103,11 @@ class Tags(BaseSpec):
     def differentiable(self) -> bool:
         """Whether runs of the part can be differentiated in its parameters.
 
-        It holds for deterministic rate, update, and equation laws, which the JAX backend lowers to pure functions.
+        It holds for rate, update, and equation laws, which the JAX backend lowers to pure functions, when they are
+        deterministic or their draws are reparameterized, so the JAX run draws them from a key.
         """
-        return (
-            self.randomness == 'deterministic'
-            and self.laws is not None
-            and bool(self.laws)
-            and self.laws <= DIFFERENTIABLE_LAWS
-        )
+        randomness = self.randomness == 'deterministic' or (self.randomness == 'stochastic' and self.reparameterized)
+        return randomness and self.laws is not None and bool(self.laws) and self.laws <= DIFFERENTIABLE_LAWS
 
     def missing(self, tags: Tags) -> dict[str, list[str]]:
         """Return the tags of a system that these supported tags do not support, by field.

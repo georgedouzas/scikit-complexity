@@ -20,6 +20,7 @@ from ...components.spaces import ContinuousTime, DiscreteTime
 from ...errors import BackendError, ValidationError
 from ...specs import LoweredFunctionsSpec, ReadSpec, SupportSpec
 from ...types import Array, FormKind, OrderKind
+from ..problems._draw_kernel import DrawKernel
 from ..problems._expression_printer import ExpressionPrinter
 from ..problems._law_kernel import LawKernel
 from ..problems._lowered_kernels_spec import LoweredKernelsSpec
@@ -31,6 +32,7 @@ from ._base import BaseBackend
 
 FORMS = (FormKind.ODE, FormKind.DISCRETE)
 MEMBER_READS = (ReadKind.MEMBER, ReadKind.REDUCED)
+UNIFORM_FLOOR = 1e-12
 
 type TracedRead = Callable[[TracedArray, TracedArray], TracedArray]
 type TracedValues = Callable[[object, TracedArray, TracedArray], list[TracedArray]]
@@ -137,11 +139,14 @@ class JaxBackend(BaseBackend):
         times: Array,
         *,
         throw: bool = True,
-    ) -> Callable[[TracedArray, TracedArray], TracedArray]:
+        draws: DrawKernel | None = None,
+    ) -> Callable[..., TracedArray]:
         """Return the pure function from an initial state and a parameter vector to the states at given times.
 
         A discrete map is unrolled over every whole step up to the last time with `jax.lax.scan`, and ordinary
-        differential equations over the intervals between the times, each solved by `advance`.
+        differential equations over the intervals between the times, each solved by `advance`. A map that draws takes
+        a JAX key, splits one key per step, and writes the uniform and normal values of the step after the parameters,
+        where the draw kernel writes them in NumPy runs, so the run is a pure function of the key.
 
         Args:
             function:
@@ -156,9 +161,18 @@ class JaxBackend(BaseBackend):
             throw:
                 Whether a failed solve raises an error, or else gives states that are not finite.
 
+            draws:
+                The draw kernel of a map that draws, or `None`.
+
         Returns:
             run:
-                The function `run(x0, p)` that returns one row of states per time.
+                The function `run(x0, p, key=None)` that returns one row of states per time, which needs a key when the
+                map draws.
+
+        Raises:
+            BackendError:
+                The draws hold draws from `scipy.stats` distributions or random orders, which have no JAX form, or
+                ordinary differential equations draw.
 
         Examples:
             >>> import jax.numpy as jnp
@@ -177,17 +191,58 @@ class JaxBackend(BaseBackend):
             ends = np.unique(times[times > 0])
             starts = np.concatenate([[0.0], ends[:-1]])
             indices = np.searchsorted(np.concatenate([[0.0], ends]), times)
+        drawn = JaxBackend._drawn(draws, form)
 
-        def run(x0: TracedArray, p: TracedArray) -> TracedArray:
-            def body(x: TracedArray, item: tuple[TracedArray, TracedArray]) -> tuple[TracedArray, TracedArray]:
-                following = JaxBackend.advance(function, item[0], item[1], x, p, form=form, throw=throw)
+        def run(x0: TracedArray, p: TracedArray, key: TracedArray | None = None) -> TracedArray:
+            if drawn is not None and key is None:
+                error_msg = 'The map draws at every step, so its run takes a JAX key, `run(x0, p, key)`.'
+                raise ValidationError(error_msg)
+            keys = jax.random.split(key, starts.size) if drawn is not None else jnp.zeros(starts.size)
+
+            def body(x: TracedArray, item: tuple[TracedArray, ...]) -> tuple[TracedArray, TracedArray]:
+                t, t1, step_key = item
+                q = p if drawn is None else drawn(p, step_key)
+                following = JaxBackend.advance(function, t, t1, x, q, form=form, throw=throw)
                 return following, following
 
-            scanned = jax.lax.scan(body, x0, (jnp.asarray(starts), jnp.asarray(ends)))[1]
+            scanned = jax.lax.scan(body, x0, (jnp.asarray(starts), jnp.asarray(ends), keys))[1]
             states = jnp.concatenate([x0[None, :], scanned])
             return states[jnp.asarray(indices)]
 
         return run
+
+    @staticmethod
+    def _drawn(
+        draws: DrawKernel | None,
+        form: FormKind | str,
+    ) -> Callable[[TracedArray, TracedArray], TracedArray] | None:
+        """Return the function that writes the values a key draws after the parameters.
+
+        It is `None` without draws. Uniform values lie in `[1e-12, 1)`, so the logits of relaxed draws stay finite.
+
+        Raises:
+            BackendError:
+                The draws hold draws from `scipy.stats` distributions or random orders, or ordinary differential
+                equations draw.
+        """
+        if draws is None or not draws.size:
+            return None
+        if draws.sampled or draws.orders or form != FormKind.DISCRETE:
+            error_msg = (
+                'Differentiable runs draw uniform and normal values of maps, and the system draws from scipy.stats '
+                'distributions, in random orders, or in ordinary differential equations, which have no JAX form.'
+            )
+            raise BackendError(error_msg)
+        offset, normal = draws.offset, jnp.asarray(draws.normal)
+        size = int(draws.normal.size)
+
+        def extend(p: TracedArray, key: TracedArray) -> TracedArray:
+            uniform_key, normal_key = jax.random.split(key)
+            uniforms = jax.random.uniform(uniform_key, (size,), minval=UNIFORM_FLOOR)
+            values = jnp.where(normal, jax.random.normal(normal_key, (size,)), uniforms)
+            return jnp.concatenate([jnp.atleast_1d(p)[:offset], values])
+
+        return extend
 
     @classmethod
     def _get_support(cls) -> SupportSpec:
