@@ -14,10 +14,11 @@ from ..system import System
 
 @dataclass(frozen=True)
 class ScenarioSpec(BaseSpec):
-    """Named variant of a system: overrides before the run, parameter changes at given times, or another system.
+    """Named variant of a system.
 
-    Every scenario of an experiment runs with the same random streams per design row and replicate, so scenarios differ
-    only through what they change.
+    A scenario holds overrides before the run, parameter changes at given times, or another system. Every scenario of an
+    experiment runs with the same random streams per design row and replicate, so scenarios differ only through what
+    they change.
 
     Args:
         name:
