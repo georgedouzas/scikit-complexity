@@ -1,4 +1,7 @@
-"""Active matter: self-propelled particles, flocking, polar fluids, chemotaxis, squirmers, and Active System B+."""
+"""Active matter systems.
+
+The package covers self-propelled particles, flocking, polar fluids, chemotaxis, squirmers, and Active System B+.
+"""
 
 from ..common.particles import ActiveParticleElement, PropulsionStepInteraction, SelfPropulsionInteraction
 from ._active_passive import ActivePassiveFlockingSystem, FlockingAgentElement

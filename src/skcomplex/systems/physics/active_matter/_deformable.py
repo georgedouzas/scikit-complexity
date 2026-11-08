@@ -1,4 +1,7 @@
-"""Deformable active particles: self-propelled particles whose shape and velocity drive each other."""
+"""Deformable active particles.
+
+The shape and velocity of self-propelled particles drive each other.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,7 +24,9 @@ from ..common.particles import POINTS
 
 
 class DeformableParticleElement(Element):
-    """Deformable self-propelled particle, whose velocity and traceless deformation tensor drive each other.
+    """Deformable self-propelled particle.
+
+    Its velocity and traceless deformation tensor drive each other.
 
     The particle moves with its velocity `v`, which follows `v' = gamma v - |v|² v - a S v`, and its deformation, the
     traceless symmetric tensor `S`, follows `S' = -kappa S + b (v v - |v|² I / 2)`, the model of Ohta and Ohkuma. The
@@ -116,7 +121,9 @@ class DeformableParticleElement(Element):
 
 
 class DeformableActiveParticlesSystem(BaseSystem):
-    """Deformable self-propelled particles of Ohta and Ohkuma, which move straight or along circles.
+    """Deformable self-propelled particles of Ohta and Ohkuma.
+
+    The particles move straight or along circles.
 
     Every particle follows `x' = v`, `v' = gamma v - |v|² v - a S v`, and `S' = -kappa S + b (v v - |v|² I / 2)`, with
     the traceless symmetric deformation tensor `S`. A fast relaxing shape, large `kappa`, gives straight motion at the
@@ -187,7 +194,10 @@ class DeformableActiveParticlesSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return deformable self-propelled particles of Ohta and Ohkuma, which move straight or along circles."""
+        """Return deformable self-propelled particles of Ohta and Ohkuma.
+
+        The particles move straight or along circles.
+        """
         rng = np.random.default_rng(self.random_state)
         values = {
             'x': rng.uniform(0.0, 20.0, (self.n_particles, 2)),

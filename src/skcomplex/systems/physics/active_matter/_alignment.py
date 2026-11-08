@@ -1,4 +1,7 @@
-"""Alignment of active Brownian particles: a pairwise torque that turns neighbours towards each other."""
+"""Alignment of active Brownian particles.
+
+A pairwise torque turns neighbours towards each other.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -26,7 +29,10 @@ HEADINGS = VisualSpec(
 
 
 def _heading(member: SimpleNamespace) -> Expression:
-    """Return the unit vector `exp(i theta)` of a member's heading in the complex plane."""
+    """Return the unit vector `exp(i theta)` of a member's heading.
+
+    The vector lies in the complex plane.
+    """
     return exp(I * member.theta)
 
 
@@ -36,7 +42,9 @@ def _polarization(s: SimpleNamespace) -> Expression:
 
 
 class PolarAlignmentInteraction(PairCouplingInteraction):
-    """Alignment torque between two particles closer than the cutoff, `theta_i' += gamma sin(theta_j - theta_i)`.
+    """Alignment torque between two particles closer than the cutoff.
+
+    The torque is `theta_i' += gamma sin(theta_j - theta_i)`.
 
     Summed over every neighbour `j` within the interaction range `d0`, the cutoff, the torque turns each particle
     towards the headings of its neighbours.
@@ -99,7 +107,9 @@ class PolarAlignmentInteraction(PairCouplingInteraction):
 
 
 class AligningActiveBrownianParticlesSystem(BaseSystem):
-    """Active Brownian particles in a periodic box whose headings align with the neighbours within `d0`.
+    """Active Brownian particles in a periodic box whose headings align.
+
+    A particle aligns with its neighbours within `d0`.
 
     The heading of particle `i` follows `dtheta_i = gamma sum_{|x_j - x_i| < d0} sin(theta_j - theta_i) dt + sqrt(2 D_r)
     dW`, and the particle swims at the constant `speed` along it. In the mean-field approximation of the Fokker-Planck
@@ -177,7 +187,10 @@ class AligningActiveBrownianParticlesSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return active Brownian particles in a periodic box whose headings align with the neighbours within `d0`."""
+        """Return active Brownian particles in a periodic box whose headings align.
+
+        A particle aligns with its neighbours within `d0`.
+        """
         rng = np.random.default_rng(self.random_state)
         swimmers = GroupElement(
             'swimmers',

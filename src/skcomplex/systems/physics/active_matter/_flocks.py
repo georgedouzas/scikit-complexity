@@ -1,4 +1,7 @@
-"""Vicsek flocks in discrete time: polar alignment, cohesive flocks, and polar particles with nematic alignment."""
+"""Vicsek flocks in discrete time.
+
+The module covers polar alignment, cohesive flocks, and polar particles with nematic alignment.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -37,7 +40,9 @@ REPULSION = 1e3
 
 
 class CohesiveParticleElement(Element):
-    """Particle of a Grégoire-Chaté flock, which aligns, repels close neighbours, and attracts distant ones.
+    """Particle of a Grégoire-Chaté flock.
+
+    The particle aligns, repels close neighbours, and attracts distant ones.
 
     The new heading is the direction of `alpha sum_j exp(i theta_j) + beta sum_j f(r_ij) e_ij + eta n_i xi` over the
     `n_i` particles within the unit distance, where `e_ij` points from `i` to `j`, `xi` is a random unit vector, and the
@@ -154,7 +159,9 @@ MEMORY = 25
 
 
 class DelayedVicsekParticleElement(Element):
-    """Particle of a delayed Vicsek flock, which keeps its past headings for the delayed or predicted alignment.
+    """Particle of a delayed Vicsek flock.
+
+    The particle keeps its past headings for the delayed or predicted alignment.
 
     The heading keeps its last 25 values, `theta_lag1` to `theta_lag25`, which a delayed alignment reads, and which
     hold the initial heading before the start. A propulsion step moves the particle along its current heading.
@@ -201,7 +208,9 @@ class DelayedVicsekParticleElement(Element):
 
 
 class NematicParticleElement(Element):
-    """Polar particle with nematic alignment, which aligns with the axis of every neighbour on its nearer side.
+    """Polar particle with nematic alignment.
+
+    The particle aligns with the axis of every neighbour on its nearer side.
 
     `HeadingAlignmentInteraction` with `nematic=True` sets the new heading to the circular mean of the headings within
     the unit distance, itself included, each flipped to the side nearer the particle's own heading, plus a uniform
@@ -249,7 +258,9 @@ class NematicParticleElement(Element):
 
 
 class VicsekParticleElement(Element):
-    """Particle of a Vicsek flock, whose heading becomes the mean heading of its neighbours plus noise every step.
+    """Particle of a Vicsek flock.
+
+    Every step its heading becomes the mean heading of its neighbours plus noise.
 
     `HeadingAlignmentInteraction` sets the new heading to the circular mean of the headings within the unit distance,
     itself included, plus a uniform angle in `[-eta pi, eta pi]`. A propulsion step moves the particle along its
@@ -297,7 +308,9 @@ class VicsekParticleElement(Element):
 
 
 class HeadingAlignmentInteraction(CouplingInteraction):
-    """Vicsek alignment, the turn of every particle to the circular mean heading of its neighbours plus noise.
+    """Vicsek alignment.
+
+    Every particle turns to the circular mean heading of its neighbours plus noise.
 
     Every step the heading `theta` of every particle becomes the circular mean of the headings within the unit
     distance, itself included, plus a uniform angle in `[-eta pi, eta pi]` with the parameter `eta` of the particle.
@@ -381,7 +394,10 @@ class HeadingAlignmentInteraction(CouplingInteraction):
         return mean_heading + slope / spread * (-self.latency - mean_time)
 
     def _get_side(self, namespace: SimpleNamespace) -> Expression:
-        """Return -1 for a neighbour heading away from the particle when nematic, and 1 otherwise."""
+        """Return -1 for a neighbour heading away from the particle when nematic.
+
+        The sign is 1 otherwise.
+        """
         if not self.nematic:
             return SR(1)
         return where(cos(namespace.other.theta - namespace.member.theta) >= 0, 1, -1)
@@ -403,7 +419,10 @@ HEADINGS = VisualSpec(
 
 
 def _heading(member: SimpleNamespace) -> Expression:
-    """Return the unit vector `exp(i theta)` of a member's heading in the complex plane."""
+    """Return the unit vector `exp(i theta)` of a member's heading.
+
+    The vector lies in the complex plane.
+    """
     return exp(I * member.theta)
 
 
@@ -428,7 +447,10 @@ def _nematic_order(s: SimpleNamespace) -> Expression:
 
 
 def _orders(group: str) -> list[ObservableSpec]:
-    """Return the mean heading and axis of a group of flockers and their moduli, the polar and nematic orders."""
+    """Return the mean heading and axis of a group of flockers and their moduli.
+
+    The moduli are the polar and nematic orders.
+    """
     return [
         ObservableSpec('mean_heading', _heading, group=group),
         ObservableSpec('polarization', _polarization),
@@ -448,7 +470,10 @@ def _flock(
     alignment: BaseInteraction | None = None,
     **values: float,
 ) -> System:
-    """Return a system of a label with flockers of a type at uniform positions and headings in a periodic box."""
+    """Return a system of flockers of a type in a periodic box.
+
+    The system has a label, and the flockers have uniform positions and headings.
+    """
     rng = np.random.default_rng(seed)
     initial: dict[str, object] = {
         'x': rng.uniform(0.0, size, (n_particles, 2)),
@@ -469,7 +494,9 @@ def _flock(
 
 
 class VicsekSystem(BaseSystem):
-    """The Vicsek system: particles that move at a constant speed along the mean heading of their neighbours.
+    """The Vicsek system.
+
+    Particles move at a constant speed along the mean heading of their neighbours.
 
     At every step particle `i` takes the direction of the sum of the headings of the particles within the unit
     distance, itself included, plus a uniform angle in `[-eta pi, eta pi]`, and moves `v0` along it in a periodic box.
@@ -605,7 +632,9 @@ class VicsekSystem(BaseSystem):
 
 
 class GregoireChateSystem(BaseSystem):
-    """The Grégoire-Chaté system: aligning particles that also attract and repel, forming cohesive flocks.
+    """The Grégoire-Chaté system.
+
+    Aligning particles also attract and repel, forming cohesive flocks.
 
     At every step particle `i` takes the direction of `alpha sum_j exp(i theta_j) + beta sum_j f(r_ij) e_ij + eta n_i
     xi`, over the `n_i` particles within the unit distance, where `e_ij` points from `i` to `j`, `xi` is a random unit
@@ -675,7 +704,10 @@ class GregoireChateSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> System:
-        """Return the Grégoire-Chaté system: aligning particles that also attract and repel, forming cohesive flocks."""
+        """Return the Grégoire-Chaté system.
+
+        Aligning particles also attract and repel, forming cohesive flocks.
+        """
         return _flock(
             self.label,
             CohesiveParticleElement,
@@ -690,7 +722,9 @@ class GregoireChateSystem(BaseSystem):
 
 
 class GinelliNematicsSystem(BaseSystem):
-    """Polar particles with nematic alignment, which order along a common axis but move both ways along it.
+    """Polar particles with nematic alignment.
+
+    The particles order along a common axis but move both ways along it.
 
     At every step particle `i` takes the direction of `sum_j sign(cos(theta_j - theta_i)) exp(i theta_j)` over the
     particles within the unit distance, itself included, so it aligns with the axis of every neighbour on the side

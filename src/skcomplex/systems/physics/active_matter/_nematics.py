@@ -1,4 +1,7 @@
-"""Active liquid crystals: a dry active nematic and active nematic and polar gels."""
+"""Active liquid crystals.
+
+The module covers a dry active nematic and active nematic and polar gels.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -37,7 +40,9 @@ from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, V
 
 
 class NematicDensitySiteElement(Element):
-    """Site of a dry active nematic, whose alignment tensor grows with the traceless curvature of the density.
+    """Site of a dry active nematic.
+
+    Its alignment tensor grows with the traceless curvature of the density.
 
     The rate of the tensor from the density is `beta (partial_i partial_j rho - delta_ij laplacian(rho) / 2)`. The
     Landau-de Gennes energy and the current of the density are interactions of the system.
@@ -102,7 +107,9 @@ class NematicDensitySiteElement(Element):
 
 
 class PolarGelSiteElement(Element):
-    """Site of an active polar gel, a polarisation `p` carried by an overdamped Stokes flow.
+    """Site of an active polar gel.
+
+    A polarisation `p` is carried by an overdamped Stokes flow.
 
     The polarisation follows `p_t = -corotational(p, u, xi) + h / gamma`, with the molecular field
     `h = -a p - c |p|^2 p + K laplacian(p)`. The velocity solves `eta laplacian(u) - grad(P) + div(sigma) = 0`,
@@ -180,7 +187,10 @@ class PolarGelSiteElement(Element):
 
     @staticmethod
     def _velocity(s: SimpleNamespace) -> FreeModuleElement:
-        """Return the velocity of the Stokes flow of the elastic and active stresses at a site."""
+        """Return the velocity of the Stokes flow of the stresses at a site.
+
+        The stresses are the elastic and active ones.
+        """
         field = PolarGelSiteElement._molecular_field(s)
         outer = s.p.outer_product(field)
         stress = -s.xi * (outer + outer.transpose()) / 2 + (outer - outer.transpose()) / 2
@@ -189,7 +199,9 @@ class PolarGelSiteElement(Element):
         return leray_projection(force.apply_map(lambda item: inverse_laplacian(-item / s.eta)))
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rate of the polarisation, its transport in the flow and its relaxation.
+        """Return the rate of the polarisation.
+
+        The rate is its transport in the flow and its relaxation.
 
         Args:
             namespace:
@@ -204,7 +216,9 @@ class PolarGelSiteElement(Element):
 
 
 class NematicGelSiteElement(Element):
-    """Site of an active nematic gel, a symmetric traceless tensor `Q` carried by an overdamped Stokes flow.
+    """Site of an active nematic gel.
+
+    A symmetric traceless tensor `Q` is carried by an overdamped Stokes flow.
 
     The tensor follows `Q_t = -corotational(Q, u, xi) + H / gamma`, with the molecular field `H` of the Landau-de Gennes
     energy. The velocity solves `eta laplacian(u) - grad(P) + div(sigma) = 0`, `div(u) = 0`, with the stress
@@ -279,7 +293,10 @@ class NematicGelSiteElement(Element):
 
     @staticmethod
     def _velocity(s: SimpleNamespace) -> FreeModuleElement:
-        """Return the velocity of the Stokes flow of the elastic and active stresses at a site."""
+        """Return the velocity of the Stokes flow of the stresses at a site.
+
+        The stresses are the elastic and active ones.
+        """
         field = LandauDeGennesEnergyInteraction._molecular_field(s.Q, s.a, s.c, s.K)
         stress = -s.xi * field + s.Q * field - field * s.Q - s.zeta * s.Q
         force = tensor_divergence(stress)
@@ -302,7 +319,7 @@ class NematicGelSiteElement(Element):
 
 
 class LandauDeGennesEnergyInteraction(GradientInteraction):
-    """Gradient flow of a symmetric traceless tensor `Q` in the Landau-de Gennes free energy.
+    """Landau-de Gennes free energy gradient flow of a symmetric traceless tensor `Q`.
 
     The free energy is `F = integral a tr(Q^2) / 2 + c tr(Q^2)^2 / 4 + K |grad Q|^2 / 2`. Its negative functional
     derivative among symmetric traceless tensors is the molecular field `H = -a Q - c tr(Q^2) Q + K laplacian(Q)`, and
@@ -372,12 +389,17 @@ class LandauDeGennesEnergyInteraction(GradientInteraction):
 
     @classmethod
     def _molecular_field(cls, tensor: Matrix, a: object, c: object, K: object) -> Matrix:
-        """Return the molecular field of a tensor, the negative functional derivative of the free energy."""
+        """Return the molecular field of a tensor.
+
+        The field is the negative functional derivative of the free energy.
+        """
         energy = cls('energy', target='field')
         return -energy._get_matrix_derivative(cls._density(tensor, a, c, K), tensor)
 
     def _get_potential(self, namespace: SimpleNamespace) -> Expression:
-        """Return the density of the free energy over the rotational viscosity, whose gradient is `H / gamma`.
+        """Return the density of the free energy over the rotational viscosity.
+
+        Its gradient is `H / gamma`.
 
         Args:
             namespace:
@@ -409,7 +431,10 @@ def _check_matrix(utility: str, value: object) -> Matrix:
 
 
 def _check_vector(utility: str, value: object) -> FreeModuleElement:
-    """Return a vector, or a sequence as a vector, or raise an error that names the utility and the value."""
+    """Return a vector, or a sequence as a vector.
+
+    Any other value raises an error that names the utility and the value.
+    """
     if isinstance(value, list | tuple):
         return vector(SR, [SR(item) for item in value])
     if not isinstance(value, FreeModuleElement):
@@ -419,7 +444,10 @@ def _check_vector(utility: str, value: object) -> FreeModuleElement:
 
 
 def _advected(expression: Expression, velocity: FreeModuleElement) -> Expression:
-    """Return the advection of an entry of a matrix, 0 for a number, whose derivatives are 0."""
+    """Return the advection of an entry of a matrix.
+
+    The advection is 0 for a number, whose derivatives are 0.
+    """
     return SR(0) if SR(expression).is_numeric() else advection(expression, velocity)
 
 
@@ -428,7 +456,9 @@ def corotational(
     velocity: Sequence[object] | FreeModuleElement,
     xi: object = 0,
 ) -> Matrix | FreeModuleElement:
-    """Return the transport of a symmetric tensor or a vector by a flow that rotates and aligns it.
+    """Return the transport of a symmetric tensor or a vector by a flow.
+
+    The flow rotates and aligns it.
 
     A symmetric tensor `T` gets the Beris-Edwards transport `u.grad(T) - S`, where
     `S = (xi E + W)(T + I/d) + (T + I/d)(xi E - W) - 2 xi (T + I/d) tr(T grad(u))`, with the strain rate `E`, the
@@ -476,7 +506,9 @@ def corotational(
 
 
 def upper_convected(tensor: Matrix, velocity: Sequence[object] | FreeModuleElement) -> Matrix:
-    """Return the upper-convected transport of a rank-2 tensor, `u.grad(T) - grad(u)^T T - T grad(u)`.
+    """Return the upper-convected transport of a rank-2 tensor.
+
+    The transport is `u.grad(T) - grad(u)^T T - T grad(u)`.
 
     Args:
         tensor:
@@ -507,7 +539,10 @@ def upper_convected(tensor: Matrix, velocity: Sequence[object] | FreeModuleEleme
 
 
 def _gel_velocity(s: SimpleNamespace) -> FreeModuleElement:
-    """Return the velocity of the flow of a gel at a site, for the order the namespace holds."""
+    """Return the velocity of the flow of a gel at a site.
+
+    The velocity depends on the order the namespace holds.
+    """
     return PolarGelSiteElement._velocity(s) if hasattr(s, 'p') else NematicGelSiteElement._velocity(s)
 
 
@@ -527,7 +562,9 @@ def _sites(values: np.ndarray) -> np.ndarray:
 
 
 class DryActiveNematicsSystem(BaseSystem):
-    """A dry active nematic, a conserved density coupled to a symmetric traceless alignment tensor.
+    """A dry active nematic.
+
+    A conserved density is coupled to a symmetric traceless alignment tensor.
 
     On a periodic lattice the density and the tensor follow Section II.2 of Marchetti et al.,
 
@@ -624,7 +661,10 @@ class DryActiveNematicsSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return a dry active nematic, a conserved density coupled to a symmetric traceless alignment tensor."""
+        """Return a dry active nematic.
+
+        A conserved density is coupled to a symmetric traceless alignment tensor.
+        """
         shape = tuple(self.shape)
         rng = np.random.default_rng(self.random_state)
         sites = int(np.prod(shape))
@@ -664,7 +704,9 @@ class DryActiveNematicsSystem(BaseSystem):
 
 
 class ActiveGelsSystem(BaseSystem):
-    """An active gel, a nematic tensor or a polarisation transported in the Stokes flow of its own stresses.
+    """An active gel.
+
+    A nematic tensor or a polarisation is transported in the Stokes flow of its own stresses.
 
     On a periodic lattice with spectral operators, the order parameter follows its co-rotational derivative in the flow,
     Section III of Marchetti et al. The flow solves the overdamped Stokes equation of the elastic stress and the active
@@ -795,7 +837,10 @@ class ActiveGelsSystem(BaseSystem):
         self.random_state = random_state
 
     def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings, longer and coarser for the polar gel, whose flow is slow."""
+        """Return the tuned run settings.
+
+        They are longer and coarser for the polar gel, whose flow is slow.
+        """
         settings = super().get_run_settings()
         if self.order == 'polar':
             settings['until'] = 200.0

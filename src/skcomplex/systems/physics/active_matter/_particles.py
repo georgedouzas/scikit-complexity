@@ -1,4 +1,7 @@
-"""Active particle systems: active Brownian, chiral, Ornstein-Uhlenbeck, run-and-tumble, and depot-pumped particles."""
+"""Active particle systems.
+
+The module covers active Brownian, chiral, Ornstein-Uhlenbeck, run-and-tumble, and depot-pumped particles.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,7 +26,9 @@ from ..common.particles import POINTS, ActiveParticleElement, SelfPropulsionInte
 
 
 class DepotParticleElement(Element):
-    """Brownian particle pumped by an internal energy depot, as in the system of Schweitzer, Ebeling, and Tilch.
+    """Brownian particle pumped by an internal energy depot.
+
+    The particle follows the system of Schweitzer, Ebeling, and Tilch.
 
     The depot takes energy at the rate `q`, loses it at the rate `c e`, and converts it into motion at the rate
     `d e |v|^2`, so `de/dt = q - c e - d e |v|^2` and `dv = (-gamma v + d e v) dt + sqrt(2 D) dW`. Above
@@ -96,7 +101,9 @@ class DepotParticleElement(Element):
         self.D = D
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the motion, the friction and pumping of the velocity, its noise, and the depot balance.
+        """Return the laws of the particle.
+
+        They are the motion, the friction and pumping of the velocity, its noise, and the depot balance.
 
         Args:
             s:
@@ -115,7 +122,9 @@ class DepotParticleElement(Element):
 
 
 class InertialActiveParticleElement(Element):
-    """Active Brownian particle with mass and moment of inertia, whose velocity and spin relax with friction.
+    """Active Brownian particle with mass and moment of inertia.
+
+    Its velocity and spin relax with friction.
 
     With unit friction, the position follows `m x'' = -x' + v0 n + sqrt(2 D_t) xi` along the orientation
     `n = (cos theta, sin theta)`, and the orientation follows `J theta'' = -theta' + sqrt(2 D_r) xi_r`. The velocity
@@ -194,7 +203,7 @@ class InertialActiveParticleElement(Element):
         self.D_r = D_r
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the accelerations of the position and the orientation, and their noises.
+        """Return the accelerations of the position and orientation, and their noises.
 
         Args:
             s:
@@ -214,7 +223,9 @@ class InertialActiveParticleElement(Element):
 
 
 class OrnsteinUhlenbeckParticleElement(Element):
-    """Active Ornstein-Uhlenbeck particle, whose propulsion velocity `u` is an Ornstein-Uhlenbeck process.
+    """Active Ornstein-Uhlenbeck particle.
+
+    Its propulsion velocity `u` is an Ornstein-Uhlenbeck process.
 
     The laws are `dx = u dt + sqrt(2 D_t) dW` and `tau du = -u dt + sqrt(2 D) dW`, so the propulsion keeps its
     direction for the persistence time `tau` and the particle diffuses with `D + D_t` at long times.
@@ -290,7 +301,9 @@ class OrnsteinUhlenbeckParticleElement(Element):
 
 
 class TumblerView(AgentView):
-    """Run-and-tumble agent as rules see it, with its direction and the parameters of its group.
+    """Run-and-tumble agent as rules see it.
+
+    The agent has its direction and the parameters of its group.
 
     Args:
         agent:
@@ -307,7 +320,9 @@ class TumblerView(AgentView):
 
 
 class TumblerElement(Element):
-    """Run-and-tumble agent in a periodic square, which runs straight and tumbles to a random direction.
+    """Run-and-tumble agent in a periodic square.
+
+    The agent runs straight and tumbles to a random direction.
 
     Every step the agent moves `speed` along its direction, then tumbles with probability `1 - exp(-tumble_rate)`
     to a direction drawn uniformly, as bacteria such as E. coli do.
@@ -403,7 +418,9 @@ def _swimmers(
 
 
 class ActiveBrownianParticlesSystem(BaseSystem):
-    """Active Brownian particles in the plane, which swim at a constant speed in a diffusing direction.
+    """Active Brownian particles in the plane.
+
+    The particles swim at a constant speed in a diffusing direction.
 
     Their mean squared displacement is ballistic below the persistence time `1 / D_r` and diffusive above it, with the
     effective diffusion coefficient `D_t + v^2 / (2 D_r)`. The system has the positions `swimmers.x` and orientations
@@ -464,7 +481,10 @@ class ActiveBrownianParticlesSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return active Brownian particles in the plane, which swim at a constant speed in a diffusing direction."""
+        """Return active Brownian particles in the plane.
+
+        The particles swim at a constant speed in a diffusing direction.
+        """
         positions, angles = _swimmers(self.n_particles, self.size, self.random_state)
         group = GroupElement(
             'swimmers',
@@ -477,7 +497,9 @@ class ActiveBrownianParticlesSystem(BaseSystem):
 
 
 class ChiralActiveParticlesSystem(BaseSystem):
-    """Chiral active particles, which swim along circles of radius `v / omega` that drift by diffusion.
+    """Chiral active particles.
+
+    The particles swim along circles of radius `v / omega` that drift by diffusion.
 
     Their effective diffusion coefficient at long times is `D_t + v^2 D_r / (2 (D_r^2 + omega^2))`. The system has the
     positions `swimmers.x` and orientations `swimmers.theta`.
@@ -542,7 +564,10 @@ class ChiralActiveParticlesSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return chiral active particles, which swim along circles of radius `v / omega` that drift by diffusion."""
+        """Return chiral active particles.
+
+        The particles swim along circles of radius `v / omega` that drift by diffusion.
+        """
         positions, angles = _swimmers(self.n_particles, self.size, self.random_state)
         group = GroupElement(
             'swimmers',
@@ -555,7 +580,9 @@ class ChiralActiveParticlesSystem(BaseSystem):
 
 
 class ActiveOrnsteinUhlenbeckParticlesSystem(BaseSystem):
-    """Active Ornstein-Uhlenbeck particles in the plane, driven by exponentially correlated propulsion.
+    """Active Ornstein-Uhlenbeck particles in the plane.
+
+    The particles are driven by exponentially correlated propulsion.
 
     The propulsion starts in its stationary distribution, normal with variance `D / tau` per component. The system has
     the positions `swimmers.x` and propulsions `swimmers.u`.
@@ -615,7 +642,10 @@ class ActiveOrnsteinUhlenbeckParticlesSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return active Ornstein-Uhlenbeck particles in the plane, driven by exponentially correlated propulsion."""
+        """Return active Ornstein-Uhlenbeck particles in the plane.
+
+        The particles are driven by exponentially correlated propulsion.
+        """
         rng = np.random.default_rng(self.random_state)
         positions = rng.uniform(0.0, self.size, (self.n_particles, 2))
         propulsion = rng.normal(0.0, math.sqrt(self.D / self.tau), (self.n_particles, 2))
@@ -629,7 +659,9 @@ class ActiveOrnsteinUhlenbeckParticlesSystem(BaseSystem):
 
 
 class RunAndTumbleSystem(BaseSystem):
-    """Run-and-tumble agents in a periodic square, which diffuse with `v^2 (1 + q) / (4 (1 - q))` per step.
+    """Run-and-tumble agents in a periodic square.
+
+    The agents diffuse with `v^2 (1 + q) / (4 (1 - q))` per step.
 
     The persistence `q = exp(-tumble_rate)` is the probability that an agent keeps its direction for one step. The
     system has the agent group `bacteria`.
@@ -700,7 +732,9 @@ class RunAndTumbleSystem(BaseSystem):
 
 
 class DepotBrownianParticlesSystem(BaseSystem):
-    """Brownian particles with energy depots, which start at rest and take up the speed `sqrt(q/gamma - c/d)`.
+    """Brownian particles with energy depots.
+
+    The particles start at rest and take up the speed `sqrt(q/gamma - c/d)`.
 
     The system has the positions `walkers.x`, velocities `walkers.v`, and depots `walkers.e`.
 
@@ -776,7 +810,9 @@ class DepotBrownianParticlesSystem(BaseSystem):
 
 
 class InertialActiveBrownianParticlesSystem(BaseSystem):
-    """Active Brownian particles with inertia, which lag behind their orientation as they speed up and turn.
+    """Active Brownian particles with inertia.
+
+    The particles lag behind their orientation as they speed up and turn.
 
     With unit friction, every particle follows `m x'' = -x' + v0 n + sqrt(2 D_t) xi` and `J theta'' = -theta' + sqrt(2
     D_r) xi_r`, the inertial active Brownian particles of macroscopic swimmers, flyers, and vibrated grains. The

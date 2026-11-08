@@ -1,4 +1,7 @@
-"""Flocking of active agents among passive ones: self-propulsion, flocking, noise, and a soft repulsion between all."""
+"""Flocking of active agents among passive ones.
+
+The agents combine self-propulsion, flocking, noise, and a soft repulsion between all.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -33,7 +36,7 @@ ACTIVE_AGENT, PASSIVE_AGENT = 1.0, 0.0
 
 
 class FlockingAgentElement(PointElement):
-    """Agent of a crowd, a point with a mark that tells whether it is active or passive.
+    """Agent of a crowd, a point with a mark that says whether it is active or passive.
 
     Args:
         label:
@@ -71,12 +74,12 @@ class FlockingAgentElement(PointElement):
 
 
 def _velocity_x(member: SimpleNamespace) -> Expression:
-    """Return the first component of the velocity of a member when active, and 0 otherwise."""
+    """Return the first velocity component of a member when active, and 0 otherwise."""
     return member.active * member.x_d1[0]
 
 
 def _velocity_y(member: SimpleNamespace) -> Expression:
-    """Return the second component of the velocity of a member when active, and 0 otherwise."""
+    """Return the second velocity component of a member when active, and 0 otherwise."""
     return member.active * member.x_d1[1]
 
 
@@ -86,12 +89,15 @@ def _speed(member: SimpleNamespace) -> Expression:
 
 
 def _polarization(s: SimpleNamespace) -> Expression:
-    """Return the modulus of the mean velocity of the active agents over their mean speed."""
+    """Return the modulus of the mean active velocity over the mean active speed."""
     return sqrt(s.velocity_x**2 + s.velocity_y**2) / s.mean_speed
 
 
 def _mean_distance(t: float, values: Mapping[str, object], *, mark: float, size: float) -> float:
-    """Return the mean distance between the agents of a mark in a periodic box, 0 for fewer than two of them."""
+    """Return the mean distance between the agents of a mark in a periodic box.
+
+    The distance is 0 for fewer than two agents.
+    """
     del t
     positions = np.asarray(values['agents.x'], dtype=float)[np.asarray(values['agents.active']) == mark]
     count = len(positions)
@@ -104,7 +110,9 @@ def _mean_distance(t: float, values: Mapping[str, object], *, mark: float, size:
 
 
 class ActivePassiveFlockingSystem(BaseSystem):
-    """The active and passive agents of Charbonneau (2017, section 10.4) in a periodic box.
+    """The active and passive agents of Charbonneau (2017) in a periodic box.
+
+    The system is that of section 10.4.
 
     All agents repel each other within `2 r_0` with the force `epsilon (1 - r / (2 r_0))^exponent`, and all feel the
     force `mu (v_t - |v|) v / |v|`, with the target speed `v_t = v0` for an active agent and 0 for a passive one. An
@@ -225,21 +233,30 @@ class ActivePassiveFlockingSystem(BaseSystem):
         radius: float,
         exponent: float,
     ) -> Expression:
-        """Return the energy whose force at the distance `r` is the repulsion `epsilon (1 - r / (2 r_0))^exponent`."""
+        """Return the energy of the soft repulsion between agents.
+
+        Its force at the distance `r` is the repulsion `epsilon (1 - r / (2 r_0))^exponent`.
+        """
         del s
         overlap = 1 - r / (2 * radius)
         return epsilon * 2 * radius * overlap ** (exponent + 1) / (exponent + 1)
 
     @staticmethod
     def _propulsion(s: SimpleNamespace, *, mu: float, v0: float) -> FreeModuleElement:
-        """Return the force `mu (v_t - |v|) v / |v|`, with the target speed `v0` when active and 0 when passive."""
+        """Return the force `mu (v_t - |v|) v / |v|` towards the target speed `v_t`.
+
+        The target speed is `v0` when active and 0 when passive.
+        """
         velocity = s.target.x_d1
         speed = sqrt(velocity.dot_product(velocity) + SOFTENING)
         return velocity * (mu * (s.target.active * v0 - speed) / speed)
 
     @staticmethod
     def _flocking(s: SimpleNamespace, *, alpha: float, reach: float) -> FreeModuleElement:
-        """Return the force of size `alpha` on an active agent along the summed velocities of the others in reach."""
+        """Return the flocking force of size `alpha` on an active agent.
+
+        The force points along the summed velocities of the others in reach.
+        """
         summed = neighbors(s.target.other.x_d1, over=RadiusNeighborhood(reach))
         return summed * (s.target.active * alpha / sqrt(summed.dot_product(summed) + SOFTENING))
 
@@ -250,7 +267,10 @@ class ActivePassiveFlockingSystem(BaseSystem):
 
     @staticmethod
     def _observables(system: System) -> list[ObservableSpec]:
-        """Return the velocity of the active agents, their polarization, and the mean distance within each kind."""
+        """Return the observables of the agents.
+
+        They are the velocity of the active agents, their polarization, and the mean distance within each kind.
+        """
         if not isinstance(system.space, ContinuousSpace):
             error_msg = (
                 'The observables of `ActivePassiveFlockingSystem` read the periodic box of its continuous space.'
@@ -270,13 +290,19 @@ class ActivePassiveFlockingSystem(BaseSystem):
         ]
 
     def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings, with the observables of the parts built from the model parameters."""
+        """Return the tuned run settings.
+
+        The observables of the parts are built from the model parameters.
+        """
         settings = super().get_run_settings()
         settings['observables'] = tuple(self._observables(self._build_system()))
         return settings
 
     def _build_system(self) -> System:
-        """Return the active and passive agents of Charbonneau (2017, section 10.4) in a periodic box."""
+        """Return the active and passive agents of Charbonneau (2017) in a periodic box.
+
+        The system is that of section 10.4.
+        """
         if not 1 <= self.n_active <= self.n_agents:
             error_msg = (
                 f'The system has {self.n_active} active agents among {self.n_agents}. Give at least one, and at most '

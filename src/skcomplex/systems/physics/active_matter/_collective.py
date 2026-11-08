@@ -1,4 +1,7 @@
-"""Collective active matter systems: motility-induced phase separation, living crystals, flocking, and Toner-Tu."""
+"""Collective active matter systems.
+
+The module covers motility-induced phase separation, living crystals, flocking, and Toner-Tu.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,7 +28,9 @@ from ..common.particles import ActiveParticleElement, SelfPropulsionInteraction
 
 
 class PolarFluidElement(Element):
-    """Site of the Toner-Tu polar active fluid, with a density `rho` and a velocity `(vx, vy)`.
+    """Site of the Toner-Tu polar active fluid.
+
+    The site has a density `rho` and a velocity `(vx, vy)`.
 
     The density is conserved, `drho/dt + div(rho v) = 0`, and the velocity follows
     `dv/dt + lam (v . grad) v = a (rho - rho_c) v - beta |v|^2 v - sigma grad(rho) + D laplacian(v)` with additive
@@ -109,7 +114,7 @@ class PolarFluidElement(Element):
         self.noise = noise
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the continuity equation and the Toner-Tu equation of each velocity component.
+        """Return the continuity equation and a Toner-Tu equation per velocity component.
 
         Args:
             s:
@@ -134,7 +139,9 @@ class PolarFluidElement(Element):
 
 
 class SoftSphereInteraction(PairCouplingInteraction):
-    """Soft repulsion between overlapping spheres, `k * (cutoff - r) ** 2 / 2` closer than the cutoff.
+    """Soft repulsion between overlapping spheres.
+
+    The energy is `k * (cutoff - r) ** 2 / 2` closer than the cutoff.
 
     Args:
         label:
@@ -203,7 +210,9 @@ class SoftSphereInteraction(PairCouplingInteraction):
 
 
 class CuckerSmaleAlignmentInteraction(PairCouplingInteraction):
-    """Cucker-Smale alignment, `x_i'' += K / N psi(r_ij) (x_j' - x_i')` with `psi(r) = (1 + r^2)^(-beta)`.
+    """Cucker-Smale alignment.
+
+    The law is `x_i'' += K / N psi(r_ij) (x_j' - x_i')` with `psi(r) = (1 + r^2)^(-beta)`.
 
     Every pair of members within the cutoff pulls their velocities, the first derivatives of their positions of order
     2, towards each other with a weight that decays with their distance.
@@ -270,7 +279,10 @@ class CuckerSmaleAlignmentInteraction(PairCouplingInteraction):
         self.n_agents = n_agents
 
     def _align(self, namespace: SimpleNamespace) -> Expression:
-        """Return the pull `K / N psi(r) (x_j' - x_i')` of the velocity of the first member towards the second."""
+        """Return the pull of the velocity of the first member towards the second.
+
+        The pull is `K / N psi(r) (x_j' - x_i')`.
+        """
         first, second = namespace.first, namespace.second
         separation = getattr(first, self.position) - getattr(second, self.position)
         velocity = f'{self.position}_d1'
@@ -279,7 +291,9 @@ class CuckerSmaleAlignmentInteraction(PairCouplingInteraction):
 
 
 class PhoreticAttractionInteraction(PairCouplingInteraction):
-    """Phoretic attraction between active colloids, the pair potential `-v0 R^2 / r` of an overdamped position.
+    """Phoretic attraction between active colloids.
+
+    The attraction is the pair potential `-v0 R^2 / r` of an overdamped position.
 
     Every member of a pair drifts towards the other at the speed `v0 R^2 / r^2`.
 
@@ -350,7 +364,7 @@ def _disks(
     size: float,
     random_state: int | np.random.Generator | None,
 ) -> tuple[Array, Array]:
-    """Return positions on a jittered square grid that fills a box, and uniform orientations."""
+    """Return positions on a jittered square grid over a box, and uniform orientations."""
     rng = np.random.default_rng(random_state)
     side = math.ceil(math.sqrt(n_particles))
     spacing = size / side
@@ -383,7 +397,9 @@ def _active_disks(
 
 
 class MotilityInducedPhaseSeparationSystem(BaseSystem):
-    """Repulsive active Brownian disks of unit diameter, which phase separate into clusters at high speed.
+    """Repulsive active Brownian disks of unit diameter.
+
+    The disks phase separate into clusters at high speed.
 
     Disks that collide head on block each other until their orientations diffuse away, so fast swimmers with slow
     rotational diffusion, a large Péclet number `v / D_r`, accumulate where they are slow and form dense clusters in a
@@ -444,7 +460,10 @@ class MotilityInducedPhaseSeparationSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return repulsive active Brownian disks of unit diameter, which phase separate into clusters at high speed."""
+        """Return repulsive active Brownian disks of unit diameter.
+
+        The disks phase separate into clusters at high speed.
+        """
         size = math.sqrt(self.n_particles * math.pi / 4 / self.packing_fraction)
         system = _active_disks(self.n_particles, size, self.speed, self.D_r, self.random_state)
         repulsion = SoftSphereInteraction(
@@ -464,7 +483,9 @@ class MotilityInducedPhaseSeparationSystem(BaseSystem):
 
 
 class LivingCrystalsSystem(BaseSystem):
-    """Active colloids of radius 1 with phoretic attraction, which gather into clusters that slowly coarsen.
+    """Active colloids of radius 1 with phoretic attraction.
+
+    The colloids gather into clusters that slowly coarsen.
 
     The colloids swim as active Brownian particles, drift towards each other at the speed `v0 / r^2` within the cutoff,
     and a stiff soft repulsion stands in for the hard-sphere correction at contact. The system has the positions
@@ -559,7 +580,9 @@ class LivingCrystalsSystem(BaseSystem):
 
 
 class CuckerSmaleFlockingSystem(BaseSystem):
-    """Cucker-Smale flocking, where every agent aligns its velocity with all others, weighted by distance.
+    """Cucker-Smale flocking.
+
+    Every agent aligns its velocity with all others, weighted by distance.
 
     The mean velocity is conserved, and for `beta <= 1/2` the velocities converge to it from any start. The system has
     the positions `birds.x` and velocities `birds.x_d1`.
@@ -614,7 +637,10 @@ class CuckerSmaleFlockingSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return Cucker-Smale flocking, where every agent aligns its velocity with all others, weighted by distance."""
+        """Return Cucker-Smale flocking.
+
+        Every agent aligns its velocity with all others, weighted by distance.
+        """
         rng = np.random.default_rng(self.random_state)
         birds = GroupElement(
             'birds',
@@ -639,7 +665,9 @@ class CuckerSmaleFlockingSystem(BaseSystem):
 
 
 class TonerTuSystem(BaseSystem):
-    """The Toner-Tu hydrodynamics of a polar flock on a periodic lattice, from a disordered velocity field.
+    """The Toner-Tu hydrodynamics of a polar flock on a periodic lattice.
+
+    The flock starts from a disordered velocity field.
 
     Above the critical density the velocity grows and aligns until the whole fluid moves together with the speed `sqrt(a
     (rho0 - rho_c) / beta)`. The system has the fields `flock.rho`, `flock.vx`, and `flock.vy`.

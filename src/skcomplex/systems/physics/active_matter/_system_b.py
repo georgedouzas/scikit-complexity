@@ -1,4 +1,7 @@
-"""Active System B+: the conserved scalar field theory of motility-induced phase separation with thermal noise."""
+"""Active System B+.
+
+It is the conserved scalar field theory of motility-induced phase separation with thermal noise.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,7 +25,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class ActiveScalarElement(Element):
-    """Site of Active System B+, a conserved scalar field `phi` that phase separates with active currents.
+    """Site of Active System B+.
+
+    A conserved scalar field `phi` phase separates with active currents.
 
     The field follows `phi_t = laplacian(mu) - div(zeta laplacian(phi) grad phi) + div(sqrt(2 D) eta)`, with the
     chemical potential `mu = -phi + phi^3 - kappa laplacian(phi) + lam |grad phi|^2`. The active terms `lam` and `zeta`
@@ -183,7 +188,10 @@ class ActiveSystemBSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return Active System B+, the conserved field theory of the density of active particles."""
+        """Return Active System B+.
+
+        It is the conserved field theory of the density of active particles.
+        """
         shape = tuple(self.shape)
         rng = np.random.default_rng(self.random_state)
         values = {

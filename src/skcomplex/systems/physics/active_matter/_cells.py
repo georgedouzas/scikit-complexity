@@ -1,4 +1,7 @@
-"""Cells of the Szabó (2006) system: self-propelled discs whose headings turn towards the velocities the forces give."""
+"""Cells of the Szabó (2006) system.
+
+The cells are self-propelled discs whose headings turn towards the velocities the forces give.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -27,7 +30,9 @@ SOFTENING = 1e-12
 
 
 class MotileCellElement(Element):
-    """Motile cell of a tissue, with its position, the heading of its motility, and its force and motility parameters.
+    """Motile cell of a tissue.
+
+    The cell has its position, the heading of its motility, and its force and motility parameters.
 
     The position follows `x' = v0 n + mu F`, where `n` is the unit vector of the heading and `F` the sum of the pair
     forces. A pair force is `F_rep (d - R_eq) / R_eq` towards the neighbour below the distance `R_eq`, and
@@ -106,7 +111,10 @@ class MotileCellElement(Element):
 
 
 def _velocity(s: SimpleNamespace, *, reach: float) -> FreeModuleElement:
-    """Return the velocity `v0 n + mu F` of a cell, with the sum `F` of the forces of the neighbours within a reach."""
+    """Return the velocity `v0 n + mu F` of a cell.
+
+    The force `F` is the sum of the forces of the neighbours within a reach.
+    """
     cell = s.target
     dx, dy = cell.other.x[0] - cell.x[0], cell.other.x[1] - cell.x[1]
     distance = sqrt(dx**2 + dy**2)
@@ -121,7 +129,10 @@ def _velocity(s: SimpleNamespace, *, reach: float) -> FreeModuleElement:
 
 
 def _heading(member: SimpleNamespace) -> Expression:
-    """Return the unit vector `exp(i theta)` of a member's heading in the complex plane."""
+    """Return the unit vector `exp(i theta)` of a member's heading.
+
+    The vector lies in the complex plane.
+    """
     return exp(I * member.theta)
 
 
@@ -131,7 +142,9 @@ def _polarization(s: SimpleNamespace) -> Expression:
 
 
 class SzaboCellsSystem(BaseSystem):
-    """The cells of Szabó et al. (2006) in a periodic box, which move together above a critical density.
+    """The cells of Szabó et al. (2006) in a periodic box.
+
+    The cells move together above a critical density.
 
     A cell moves at `x' = v0 n + mu F`, where `F` sums the pair forces of the neighbours within `R_0`, the diameter of a
     cell, and its heading turns towards its velocity, `theta' = arcsin((n x v / |v|) . e_z) / tau + xi`. No cell reads
@@ -225,7 +238,10 @@ class SzaboCellsSystem(BaseSystem):
 
     @staticmethod
     def _turning(s: SimpleNamespace, *, reach: float) -> Expression:
-        """Return the rate `arcsin((n x v / |v|)_z) / tau` that turns a heading towards the velocity."""
+        """Return the rate that turns a heading towards the velocity.
+
+        The rate is `arcsin((n x v / |v|)_z) / tau`.
+        """
         cell = s.target
         velocity = _velocity(s, reach=reach)
         speed = sqrt(velocity[0] ** 2 + velocity[1] ** 2 + SOFTENING)
@@ -238,7 +254,10 @@ class SzaboCellsSystem(BaseSystem):
         return s.target.eta / sqrt(12)
 
     def _build_system(self) -> System:
-        """Return the cells in a periodic box, which move together above a critical density."""
+        """Return the cells of Szabó (2006) in a periodic box.
+
+        The cells move together above a critical density.
+        """
         size = math.sqrt(self.n_cells / self.density)
         rng = np.random.default_rng(self.random_state)
         cells = GroupElement(

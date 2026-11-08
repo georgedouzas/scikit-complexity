@@ -1,4 +1,7 @@
-"""Nonreciprocal flocking: two species of Vicsek movers whose alignment with each other differs between the two."""
+"""Nonreciprocal flocking.
+
+Two species of Vicsek movers align with each other differently.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,17 +28,25 @@ SPECIES = VisualSpec('points', {'position': 'x', 'radius': 0.04, 'color_by': 'sp
 
 
 def _heading_a(member: SimpleNamespace) -> Expression:
-    """Return the heading of a member of species A, doubled so the mean over both species is the mean over A."""
+    """Return the heading of a member of species A, doubled.
+
+    The doubling makes the mean over both species the mean over A.
+    """
     return 2 * (1 - member.species) * exp(I * member.theta)
 
 
 def _heading_b(member: SimpleNamespace) -> Expression:
-    """Return the heading of a member of species B, doubled so the mean over both species is the mean over B."""
+    """Return the heading of a member of species B, doubled.
+
+    The doubling makes the mean over both species the mean over B.
+    """
     return 2 * member.species * exp(I * member.theta)
 
 
 class NonreciprocalMoverElement(Element):
-    """Vicsek mover of species A (0) or B (1), which aligns with the neighbours within `radius` by species couplings.
+    """Vicsek mover of species A (0) or B (1).
+
+    The mover aligns with the neighbours within `radius` by species couplings.
 
     Every step the heading becomes the direction of `sum_j J(species_i, species_j) exp(i theta_j)` over the movers
     within the radius, itself included, plus uniform noise of width `eta`. A propulsion step moves the mover along it.
@@ -124,7 +135,7 @@ class NonreciprocalMoverElement(Element):
         )
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the alignment of the heading with the species-weighted neighbours, plus noise.
+        """Return the heading alignment with the species-weighted neighbours, plus noise.
 
         Args:
             namespace:
@@ -141,7 +152,9 @@ class NonreciprocalMoverElement(Element):
 
 
 class NonreciprocalVicsekSystem(BaseSystem):
-    """Two species of Vicsek movers in a periodic box whose alignment with each other is nonreciprocal.
+    """Two species of Vicsek movers in a periodic box with nonreciprocal alignment.
+
+    The alignment of each species with the other differs between the two.
 
     Half the movers are species A and half species B, each aligning with its own species. With `J_ab = J_ba` the two
     species flock together. With `J_ab = -J_ba`, A aligns with B while B antialigns with A, so neither settles: the mean
@@ -207,7 +220,10 @@ class NonreciprocalVicsekSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return two species of Vicsek movers in a periodic box whose alignment with each other is nonreciprocal."""
+        """Return two species of Vicsek movers in a periodic box, aligning nonreciprocally.
+
+        The alignment of each species with the other differs between the two.
+        """
         rng = np.random.default_rng(self.random_state)
         species = (np.arange(self.n_movers) % 2).astype(float)
         movers = GroupElement(
