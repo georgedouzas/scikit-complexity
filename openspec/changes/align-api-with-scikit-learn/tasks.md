@@ -50,6 +50,7 @@
 - [x] 8.7 Make `simulate` defer the solver to the compiled form when a system nests subsystems, and stop `MonteCarloSolver` claiming tags its compiler rejects
 - [x] 8.8 Derive the randomness tag from draws in agent rules, random parameters, and stochastic modes, so random systems such as `GaltonWatsonSystem` and `SIRSystem(stochastic=True)` are stochastic, then make `ensemble` require it
 - [x] 8.9 Let experiments compile a system once per structure and reuse the problem across runs that change only parameters, initial states, or seeds, as before the change
+- [ ] 8.10 Rename the compiled results `BaseProblemSpec`, `ProblemSpec`, and `FrameSpec` to `BaseProblem`, `Problem`, and `Frame`, so only the declarations of `skcomplex.core.specs` end in `Spec`. Results a user receives stay public, the machinery that makes them stays private
 
 ## 7. Verification
 

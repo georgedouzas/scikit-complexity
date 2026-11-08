@@ -383,3 +383,7 @@ value, and a system with a compiler of its own compiles per run.
   with a private reader. The registry, `register_system`, `create_system`, `create_simulation`, `describe`, `catalog`,
   `SystemEntry`, `SystemCatalog`, `SystemListing`, `SYSTEMS`, and `skcomplex.systems.types` are removed. The gallery
   and the systems pages name a system by the snake case of its class without `System`, as the inventory does.
+
+## Public results and private machinery
+
+What a user receives is public: `Trajectory`, the compiled problem a trajectory holds (`Problem`, on the base `BaseProblem`), the frames of a run (`Frame`), and the results of analyses and experiments. The machinery that makes them is private, except the bases a system package needs to bring its own form (`BaseCompiler`, `BasePass`, `BaseLowering`, `BaseKernel`, `BasePrinter`). Only the declarations of `skcomplex.core.specs` end in `Spec`, so the compiled results drop the suffix.
