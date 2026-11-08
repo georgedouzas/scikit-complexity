@@ -296,8 +296,8 @@ class ManyBodyAlignmentSwarmSystem(BaseSystem):
     alignment with every pair of neighbours weighted by `kappa_v`, and a 4-body encirclement alignment with every
     triple of neighbours weighted by `kappa_4`. The neighbours are the agents within `R`, found again at every
     evaluation, and the smooth cutoff `(1 - rho^2 / R^2)^2` weighs every neighbour at the distance `rho`. With
-    `kappa_v = kappa_4 = 0` the swarm is the classical pairwise collective. The system has the positions `agents.x` and
-    the velocities `agents.x_d1`.
+    `kappa_v = kappa_4 = 0` the swarm is the classical pairwise collective. The agents move in a periodic box that holds
+    about ten neighbours around each. The system has the positions `agents.x` and the velocities `agents.x_d1`.
 
     Args:
         size:
@@ -401,8 +401,8 @@ class ManyBodyAlignmentSwarmSystem(BaseSystem):
     def _build_system(self) -> System:
         """Return the agents and their interactions of every body order.
 
-        The agents start near the sites of a square or cubic lattice whose spacing gives each about ten neighbours, at
-        the preferred speed with random headings.
+        The agents start near the sites of a square or cubic lattice in a periodic box, whose spacing gives each about
+        ten neighbours, at the preferred speed with random headings.
         """
         rng = np.random.default_rng(self.random_state)
         spacing = (np.pi * self.R**2 / NEIGHBOURS) ** (1 / self.dimension)
@@ -442,5 +442,5 @@ class ManyBodyAlignmentSwarmSystem(BaseSystem):
             self.label,
             elements=[agents],
             interactions=[pairs, flanking, encirclement],
-            space=ContinuousSpace(n_dim=self.dimension),
+            space=ContinuousSpace(extent=(spacing * sides,) * self.dimension, boundary='periodic'),
         )
