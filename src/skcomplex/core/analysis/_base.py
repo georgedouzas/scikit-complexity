@@ -247,7 +247,7 @@ def _compiled_problem(system: System | BaseProblemSpec, purpose: str) -> Problem
             The problem of the general compiler.
 
     Raises:
-        ValidationError:
+        AnalysisError:
             A compiler of whole systems compiles the system to a problem of its own, which the work cannot read.
     """
     problem = system if isinstance(system, BaseProblemSpec) else PassCompiler().prepare(system).run().problem_
@@ -257,7 +257,7 @@ def _compiled_problem(system: System | BaseProblemSpec, purpose: str) -> Problem
         f'{purpose} reads the problem of the general compiler, but the system compiles to a '
         f'{type(problem).__name__} of the {problem.form} form.'
     )
-    raise ValidationError(error_msg)
+    raise AnalysisError(error_msg)
 
 
 def _get_lattice_names(problem: BaseProblemSpec) -> list[str]:

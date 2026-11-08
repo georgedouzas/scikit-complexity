@@ -17,7 +17,7 @@ from skcomplex.core.analysis import symbolic
 from skcomplex.core.components.elements import BaseElement
 from skcomplex.core.components.interactions import BaseInteraction
 from skcomplex.core.components.system import BaseSystem, System
-from skcomplex.core.errors import AnalysisError, ValidationError
+from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import Tags
 
 DOCS = Path(str(files('gallery_tools'))).parent
@@ -211,7 +211,7 @@ def _equations(system: BaseSystem) -> str | None:
         return None
     try:
         equations = symbolic(system.prepare().system_).equations
-    except (AnalysisError, ValidationError):
+    except AnalysisError:
         return None
     return '\n'.join(f'{target}: {equation}' for target, equation in equations.items())
 

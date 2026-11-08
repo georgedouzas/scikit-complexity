@@ -23,6 +23,7 @@ from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 from skcomplex.systems.biology.epidemiology import RecoveryInteraction
 from skcomplex.systems.economics.finance import AssetElement, GeometricBrownianMotionInteraction
 from skcomplex.systems.economics.markets import CobwebInteraction, MarketElement
+from skcomplex.systems.mathematics.fractals import KochCurveSystem
 from skcomplex.systems.physics.active_matter import CuckerSmaleFlockingSystem
 from skcomplex.systems.physics.common.particles import (
     ConstantForceInteraction,
@@ -365,6 +366,12 @@ def test_remaining_sign_question_names_parameter():
 
     with pytest.raises(AnalysisError, match=r'sign of k_a.*domain=RealSet'):
         symbolic(System(elements=[SpringElement('a')]), kind='solve', use_initial_state=True)
+
+
+def test_symbolic_refuses_rewriting_systems_with_an_analysis_error():
+    """Test that a system of words raises the analysis error of a form without equations, not a compiling error."""
+    with pytest.raises(AnalysisError, match='rewrites words or patches'):
+        symbolic(KochCurveSystem())
 
 
 def test_hamiltonian_prints_operators_and_equations_refuse():
