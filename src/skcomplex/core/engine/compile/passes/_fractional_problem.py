@@ -1,4 +1,7 @@
-"""Pass that adds the noise rows of fractional noise laws and the orders of the states to the problem."""
+"""Pass that adds the fractional noise rows and the state orders to the problem.
+
+The noise rows are those of fractional noise laws.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -24,7 +27,10 @@ from ._fractional_form import FractionalFormPass
 
 
 class FractionalProblemPass(BasePass):
-    """Pass that adds the noise rows of fractional noise laws and the orders of the states to the problem."""
+    """Pass that adds the fractional noise rows and the state orders to the problem.
+
+    The noise rows are those of fractional noise laws.
+    """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
@@ -51,7 +57,10 @@ class FractionalProblemPass(BasePass):
 
     @staticmethod
     def _hurst_function(kernel: LawKernel, hurst: object) -> Callable[[Array], Array]:
-        """Return the function of the parameter vector that gives the Hurst index of every row of a noise kernel."""
+        """Return the function of the parameter vector that gives the Hurst index.
+
+        It gives the index of every row of a noise kernel.
+        """
         rows = kernel.rows
         if SR(hurst).is_numeric():
             value = float(SR(hurst))
@@ -62,7 +71,10 @@ class FractionalProblemPass(BasePass):
 
     @staticmethod
     def _fractional_rows(lowered: LoweredKernelsSpec) -> tuple[FractionalRowsSpec, ...]:
-        """Return the noise rows that fractional noise laws drive, in the order of the noise rows."""
+        """Return the noise rows that fractional noise laws drive.
+
+        They are in the order of the noise rows.
+        """
         rows, position = [], 0
         for kernel in lowered.kernels[NoiseLaw]:
             for item in kernel.outputs:
@@ -85,7 +97,10 @@ class FractionalProblemPass(BasePass):
 
     @staticmethod
     def _state_orders(states: list[FractionalStateSpec], layout: LayoutSpec) -> Array:
-        """Return the order of every state component, 1 for the states outside the fractional ones."""
+        """Return the order of every state component.
+
+        It is 1 for the states outside the fractional ones.
+        """
         orders = np.ones(layout.size)
         for item in states:
             orders[layout.entry(item.name).indices] = item.order

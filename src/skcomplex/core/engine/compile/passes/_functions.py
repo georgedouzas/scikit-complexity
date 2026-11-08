@@ -1,4 +1,7 @@
-"""Lower the kernels of a problem into the numeric functions of its form on the chosen backend."""
+"""Lower the kernels of a problem into the numeric functions of its form.
+
+The functions run on the chosen backend.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -46,7 +49,10 @@ from .._forms import STEPWISE_FORMS
 
 
 class FunctionsPass(BasePass):
-    """Pass that lowers the kernels into the numeric functions and the equations of the form."""
+    """Pass that lowers the kernels into the numeric functions and form equations.
+
+    The equations are those of the form.
+    """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
@@ -74,7 +80,10 @@ class FunctionsPass(BasePass):
         declarations: DeclarationsSpec,
         form: FormKind,
     ) -> tuple[dict[str, Expression], dict[str, Expression]]:
-        """Return the symbolic equations and their symbols, without callables, group sums, or combined updates."""
+        """Return the symbolic equations and their symbols.
+
+        They hold no callables, group sums, or combined updates.
+        """
         contributions: dict[tuple[str, int], list[Expression]] = defaultdict(list)
         excluded: set[tuple[str, int]] = set()
         for kernel in kernels:
@@ -126,7 +135,10 @@ class FunctionsPass(BasePass):
 
     @staticmethod
     def _chosen_backend(compilation: Compilation, form: FormKind, members: int) -> BaseBackend:
-        """Return the backend that lowers a form, NumPy for a stepwise form, warning when it is not the one asked."""
+        """Return the backend that lowers a form.
+
+        It is NumPy for a stepwise form, with a warning when it is not the one asked.
+        """
         requested = BaseCompiler._resolve_backend(compilation.backend, members)
         if not FunctionsPass._is_stepwise(form):
             return requested
@@ -147,7 +159,10 @@ class FunctionsPass(BasePass):
         name: str,
         lowering: LoweredFunctionsSpec,
     ) -> dict[str, str]:
-        """Return the backend that runs the form and every law kind with kernels, with the backend's own record."""
+        """Return the backend that runs the form and every law kind with kernels.
+
+        The record of the backend itself is included.
+        """
         backends = {form.name: name}
         backends.update({kind.__name__: name for kind, items in kernels.items() if items})
         backends.update(lowering.backends)
@@ -155,7 +170,10 @@ class FunctionsPass(BasePass):
 
     @staticmethod
     def _lower(compilation: Compilation) -> _ProblemFunctionsSpec:
-        """Return the numeric functions and equations of a form, the update of a stochastic map taking a generator."""
+        """Return the numeric functions and equations of a form.
+
+        The update of a stochastic map takes a generator.
+        """
         form = Compilation._required(compilation.form, 'form')
         lowered = Compilation._required(compilation.kernels, 'kernels')
         declarations = Compilation._required(compilation.layout, 'layout')
@@ -232,7 +250,10 @@ class FunctionsPass(BasePass):
 
     @staticmethod
     def _algebraic_function(lowered: LoweredKernelsSpec, reductions: ReductionScheduleSpec) -> VectorFunction | None:
-        """Return the function that sets the algebraic states of a state vector, or `None` for a system without them."""
+        """Return the function that sets the algebraic states of a state vector.
+
+        It is `None` for a system without them.
+        """
         kernels = lowered.kernels.get(AlgebraicLaw)
         if not kernels:
             return None
@@ -245,7 +266,9 @@ class FunctionsPass(BasePass):
 
     @staticmethod
     def _is_stepwise(form: FormKind) -> bool:
-        """Check whether the solvers of a form evaluate its kernels step by step on the NumPy backend.
+        """Check whether the solvers of a form evaluate its kernels step by step.
+
+        They evaluate them on the NumPy backend.
 
         Args:
             form:
@@ -287,7 +310,10 @@ class FunctionsPass(BasePass):
 
     @staticmethod
     def _sweeps_of(lowered: LoweredKernelsSpec, time: Expression) -> list[_SweepSpec]:
-        """Return the update laws whose members update one after the other, with the indices each member sets."""
+        """Return the update laws whose members update one after the other.
+
+        It also returns the indices each member sets.
+        """
         found: dict[int, tuple[KernelSpec, UpdateLaw, list[Indices]]] = {}
         for kernel in lowered.kernels.get(UpdateLaw, []):
             for item in kernel.outputs:
@@ -311,9 +337,9 @@ class FunctionsPass(BasePass):
 
     @staticmethod
     def _ordered_update(update: Callable[..., Array], sweeps: list[_SweepSpec]) -> Callable[..., Array]:
-        """Return an update whose ordered laws set their members one after the other, each reading those before it.
+        """Return an update whose ordered laws set their members one after the other.
 
-        Every other law updates at once from the state at the start of the step.
+        Each member reads those before it. Every other law updates at once from the state at the start of the step.
 
         Args:
             update:
@@ -345,10 +371,11 @@ class FunctionsPass(BasePass):
         compilation: Compilation,
         lowered: LoweredKernelsSpec,
     ) -> list[tuple[PhaseSpec, list[LawKernel]]] | None:
-        """Return the phases of a step in order with the update kernels of each, or `None` for the default phase alone.
+        """Return the phases of a step in order with the update kernels of each.
 
-        The phases are those of the `PhasesScheduleSpec` of the discrete time of the system and its nested systems, with
-        the default phase first unless a schedule places it, and a phase without update laws is left out.
+        It is `None` for the default phase alone. The phases are those of the `PhasesScheduleSpec` of the discrete time
+        of the system and its nested systems, with the default phase first unless a schedule places it, and a phase
+        without update laws is left out.
 
         Args:
             compilation:
@@ -401,7 +428,10 @@ class FunctionsPass(BasePass):
 
     @staticmethod
     def _declared_phases(system: System) -> list[PhaseSpec]:
-        """Return the phases of the schedules of a system and its nested systems, the first of every name kept."""
+        """Return the phases of the schedules of a system and its nested systems.
+
+        The first of every name is kept.
+        """
         time = system.time
         schedule = time.prepare().schedule_ if isinstance(time, DiscreteTime) else None
         phases = list(schedule.phases) if isinstance(schedule, PhasesScheduleSpec) else []
@@ -419,7 +449,10 @@ class FunctionsPass(BasePass):
         kernels: list[LawKernel],
         time: Expression,
     ) -> Callable[..., Array]:
-        """Return the update of the kernels of one phase, whose ordered laws set their members one after the other."""
+        """Return the update of the kernels of one phase.
+
+        Its ordered laws set their members one after the other.
+        """
         phase = replace(complete, kernels=defaultdict(list, {UpdateLaw: kernels}))
         update = backend.prepare().run(phase).functions_.update
         if update is None:
@@ -430,9 +463,10 @@ class FunctionsPass(BasePass):
 
     @staticmethod
     def _phased_update(phases: list[tuple[PhaseSpec, Callable[..., Array]]]) -> Callable[..., Array]:
-        """Return an update that runs the phases due in a step in order, each reading the states the one before set.
+        """Return an update that runs the phases due in a step in order.
 
-        A phase runs in the steps `k`, counted from one, for which `k - offset` is a multiple of its period.
+        Each phase reads the states the one before set. A phase runs in the steps `k`, counted from one, for which `k -
+        offset` is a multiple of its period.
 
         Args:
             phases:
@@ -458,9 +492,10 @@ class FunctionsPass(BasePass):
         declarations: DeclarationsSpec,
         form: FormKind,
     ) -> tuple[dict[str, Expression], dict[str, Expression]]:
-        """Return the symbolic map of phases that run in every step, the map of every phase composed with those before.
+        """Return the symbolic map of the phases that run in every step.
 
-        A state whose value after a phase has no symbolic equation, or reads such a state, is left out.
+        The map of every phase is composed with those before. A state whose value after a phase has no symbolic
+        equation, or reads such a state, is left out.
         """
         known, symbols = FunctionsPass._equations_of([], declarations, form)
         names = {component: name for name, component in symbols.items()}
@@ -477,7 +512,9 @@ class FunctionsPass(BasePass):
 
     @staticmethod
     def _stochastic_update(update: Callable[..., Array], draws: DrawKernel) -> Callable[..., Array]:
-        """Return the update of a stochastic map, which draws its values from a generator before every step.
+        """Return the update of a stochastic map.
+
+        It draws its values from a generator before every step.
 
         Args:
             update:

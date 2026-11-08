@@ -1,4 +1,7 @@
-"""Plan the partitions of a system from the census of its laws and their classes once lowered."""
+"""Plan the partitions of a system from the census of its laws.
+
+The plan also uses their classes once lowered.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,7 +23,10 @@ from ._form import FormPass
 
 
 class PlanPass(BasePass):
-    """Pass that plans the partitions of the system with the registered forms and solvers."""
+    """Pass that plans the partitions of the system.
+
+    It uses the registered forms and solvers.
+    """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
@@ -55,7 +61,10 @@ class PlanPass(BasePass):
         lowered: Mapping[str, set[type]],
         solvers: list[type],
     ) -> IssueSpec:
-        """Return the issue of a system whose own laws no solver runs or no form takes, by law kind or class."""
+        """Return the issue of a system whose own laws fit no solver or form.
+
+        No solver runs them or no form takes them, by law kind or class.
+        """
         fix = 'Move the components of each law kind into their own nested system, so they run as coupled partitions.'
         if not PlanPass._solved(set().union(*declared.values()), solvers):
             message = f'No solver runs the laws of this system together ({PlanPass._listed(declared)}).'
@@ -85,9 +94,10 @@ class PlanPass(BasePass):
 
     @staticmethod
     def _solved(kinds: set[type], solvers: list[type]) -> bool:
-        """Check whether the solver of a single form passed runs every law kind of a set, or whether none is passed.
+        """Check whether the solver of a single form passed runs every law kind of a set.
 
-        Co-simulation is left out, since it runs partitions that each need a solver of their own.
+        It is also true when none is passed. Co-simulation is left out, since it runs partitions that each need a solver
+        of their own.
         """
         single = [solver for solver in solvers if BaseCompiler._form_of(solver) != FormKind.COUPLED]
         return not single or any(not BaseCompiler._support_of(solver).missing('laws', kinds) for solver in single)
@@ -98,7 +108,10 @@ class PlanPass(BasePass):
         owners: _OwnersSpec,
         scope: str = '',
     ) -> tuple[list['_PlannedPartitionSpec'], list[IssueSpec]]:
-        """Return the partitions of a system tree and the issues of the subsystems whose own laws fit no form."""
+        """Return the partitions of a system tree and the issues of unfit subsystems.
+
+        A subsystem is unfit when its own laws fit no form.
+        """
         name = scope.rstrip('/') or system.label
         declared, lowered = owners.under(scope, nested=True)
         if PlanPass._fits(owners, declared, lowered):
@@ -121,7 +134,10 @@ class PlanPass(BasePass):
         kinds: Mapping[str, set[type]],
         solvers: Iterable[type] | None = None,
     ) -> '_PlanSpec':
-        """Return the partitions of a system, the subsystems whose laws compile to one form that one solver runs."""
+        """Return the partitions of a system.
+
+        They are the subsystems whose laws compile to one form that one solver runs.
+        """
         declared: dict[str, set[type]] = {}
         for record in census.records:
             declared.setdefault(record.owner, set()).add(type(record.law))

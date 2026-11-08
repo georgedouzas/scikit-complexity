@@ -1,4 +1,7 @@
-"""Pass that takes the rules out of the laws lowered into kernels, since the agent stepper runs them."""
+"""Pass that takes the rules out of the laws lowered into kernels.
+
+The agent stepper runs the rules.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -10,7 +13,10 @@ from .._compilation import Compilation
 
 
 class SetRulesApartPass(BasePass):
-    """Pass that takes the rules out of the laws lowered into kernels, since the agent stepper runs them."""
+    """Pass that takes the rules out of the laws lowered into kernels.
+
+    The agent stepper runs the rules.
+    """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""

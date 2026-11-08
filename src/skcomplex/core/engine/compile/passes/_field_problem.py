@@ -1,4 +1,7 @@
-"""Pass that adds the stable step, the linear terms, the finite volumes, the fixed nodes, and the observed fields."""
+"""Pass that adds the field parts to the problem.
+
+They are the stable step, the linear terms, the finite volumes, the fixed nodes, and the observed fields.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,9 +22,10 @@ from .._field_lowering import FieldLowering
 
 
 class FieldProblemPass(BasePass):
-    """Pass that adds the stable step, the linear terms, the finite volumes, the fixed nodes, and the observed fields.
+    """Pass that adds the field parts to the problem.
 
-    An observable of a field whose expression applies field operators, such as `inverse_helmholtz` or `gradient`, is
+    They are the stable step, the linear terms, the finite volumes, the fixed nodes, and the observed fields. An
+    observable of a field whose expression applies field operators, such as `inverse_helmholtz` or `gradient`, is
     lowered like a law of the field, into a kernel that gives its value at every site.
     """
 
@@ -58,7 +62,10 @@ class FieldProblemPass(BasePass):
 
     @staticmethod
     def _observed(compilation: Compilation) -> dict[str, LawKernel]:
-        """Return the kernel of every observable of a field whose expression applies field operators, by its path."""
+        """Return the kernel of every field observable that applies field operators.
+
+        The kernels are given by path.
+        """
         specs = {
             spec.owner: spec
             for spec, block in Compilation._required(compilation.specs, 'specs')
@@ -82,7 +89,10 @@ class FieldProblemPass(BasePass):
         path: str,
         observable: ObservableSpec,
     ) -> LawKernel | None:
-        """Return the kernel of an observable of a field, or `None` when its expression applies no field operator."""
+        """Return the kernel of an observable of a field.
+
+        It is `None` when its expression applies no field operator.
+        """
         expression = observable.expression(spec.namespace) if callable(observable.expression) else observable.expression
         if not isinstance(expression, Expression) or not FieldLowering._has_operators(expression):
             return None

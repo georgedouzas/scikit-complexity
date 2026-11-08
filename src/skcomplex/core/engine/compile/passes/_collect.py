@@ -11,7 +11,10 @@ from ._census import CensusPass
 
 
 class CollectPass(BasePass):
-    """Pass that collects the declared laws of every kernel spec, with no laws set apart yet."""
+    """Pass that collects the declared laws of every kernel spec.
+
+    No laws are set apart yet.
+    """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""

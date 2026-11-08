@@ -1,4 +1,7 @@
-"""Read delayed states through hidden parameters, take events aside, and compile both with the breakpoints."""
+"""Read delayed states through hidden parameters and take events aside.
+
+Both are compiled with the breakpoints.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -30,7 +33,10 @@ DELAYED_READS = frozenset({ReadKind.SINGLE, ReadKind.MEMBER, ReadKind.OTHER, Rea
 
 
 class DelaysPass(BasePass):
-    """Pass that reads delayed states through hidden parameters and takes the events of the laws aside."""
+    """Pass that reads delayed states through hidden parameters and sets events aside.
+
+    It takes the events of the laws aside.
+    """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
@@ -58,7 +64,10 @@ class DelaysPass(BasePass):
         minimum: Expression | None,
         declarations: DeclarationsSpec,
     ) -> float:
-        """Return the smallest value of a delay: itself, its declared minimum, or its value at the parameters."""
+        """Return the smallest value of a delay.
+
+        It is the delay itself, its declared minimum, or its value at the parameters.
+        """
         if SR(tau).is_numeric():
             return float(tau)
         if minimum is not None and SR(minimum).is_numeric():
@@ -88,11 +97,11 @@ class DelaysPass(BasePass):
         compilation: Compilation,
         references: dict[Expression, ReferenceSpec],
     ) -> object:
-        """Return a law value with every delayed state replaced by a hidden parameter that solvers fill from history.
+        """Return a law value with every delayed state replaced by a hidden parameter.
 
-        The reference of every hidden parameter is added to `references`, which the spec receives after its laws. A
-        component, or one element of its element sets, that delays one state by one delay twice reads one hidden
-        parameter.
+        Solvers fill the hidden parameter from history. The reference of every hidden parameter is added to
+        `references`, which the spec receives after its laws. A component, or one element of its element sets, that
+        delays one state by one delay twice reads one hidden parameter.
         """
         if isinstance(value, FreeModuleElement):
             return vector(DelaysPass._substitute_delays(item, spec, compilation, references) for item in value)
@@ -164,9 +173,9 @@ class DelaysPass(BasePass):
         compilation: Compilation,
         references: dict[Expression, ReferenceSpec],
     ) -> list[BaseLaw]:
-        """Return laws with delayed states read through hidden parameters, keeping events aside in the compilation.
+        """Return laws with delayed states read through hidden parameters.
 
-        The references of the hidden parameters are added to `references`.
+        Events are kept aside in the compilation. The references of the hidden parameters are added to `references`.
         """
         events = compilation.events
         if events is None:

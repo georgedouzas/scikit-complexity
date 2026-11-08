@@ -1,4 +1,7 @@
-"""Match the equations of a system with algebraic states to their unknowns, order them into blocks, and solve them."""
+"""Match, order into blocks, and solve the equations of a system.
+
+The equations are those of a system with algebraic states, matched to their unknowns.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -41,7 +44,10 @@ type _BlockSolution = Callable[[float, list[float]], list[float]]
 
 @dataclass(frozen=True)
 class _NumericBlockSpec(BaseSpec):
-    """Equations `residuals == 0` that a block solves numerically at every evaluation for its unknowns."""
+    """Equations `residuals == 0` that a block solves numerically for its unknowns.
+
+    The block solves them at every evaluation.
+    """
 
     unknowns: tuple[Expression, ...]
     residuals: tuple[Expression, ...]
@@ -49,13 +55,14 @@ class _NumericBlockSpec(BaseSpec):
 
 
 class EquationBlocksLowering(BaseLowering[Laws]):
-    """Lowering of equations in highest derivatives and algebraic states into rate and algebraic laws.
+    """Lowering of equations into rate and algebraic laws.
 
-    `run(specs)` matches the relations of the specs to their unknowns, orders the matched pairs into blocks, and solves
-    every block: a block linear in its unknowns symbolically up to six unknowns and by a linear solve above, and any
-    other block by `scipy.optimize.root` with the Jacobian Sage derives, from the values of the last evaluation. The
-    laws that read algebraic states read their solutions. `lowered_` holds the specs without their relations, and a last
-    spec with a rate law per highest derivative and an algebraic law per algebraic state.
+    The equations are in highest derivatives and algebraic states. `run(specs)` matches the relations of the specs to
+    their unknowns, orders the matched pairs into blocks, and solves every block: a block linear in its unknowns
+    symbolically up to six unknowns and by a linear solve above, and any other block by `scipy.optimize.root` with the
+    Jacobian Sage derives, from the values of the last evaluation. The laws that read algebraic states read their
+    solutions. `lowered_` holds the specs without their relations, and a last spec with a rate law per highest
+    derivative and an algebraic law per algebraic state.
 
     Args:
         relations:
@@ -99,7 +106,10 @@ class EquationBlocksLowering(BaseLowering[Laws]):
 
     @staticmethod
     def _matching(relations: Sequence[_RelationSpec], unknowns: Mapping[Expression, Expression]) -> dict[int, int]:
-        """Return a maximum matching of relations to unknowns, as the position of the unknown of every relation."""
+        """Return a maximum matching of relations to unknowns.
+
+        It gives the position of the unknown of every relation.
+        """
         positions = {item: position for position, item in enumerate(unknowns)}
         graph = nx.Graph()
         graph.add_nodes_from(('relation', position) for position in range(len(relations)))
@@ -119,7 +129,10 @@ class EquationBlocksLowering(BaseLowering[Laws]):
         unknowns: Mapping[Expression, Expression],
         matching: Mapping[int, int],
     ) -> list[int]:
-        """Return the unmatched relations and those their unknowns are matched to, followed through the matching."""
+        """Return the unmatched relations and those their unknowns are matched to.
+
+        The matching is followed through.
+        """
         names = list(unknowns)
         owners = {unknown: position for position, unknown in matching.items()}
         found = [position for position in range(len(relations)) if position not in matching]
@@ -145,7 +158,9 @@ class EquationBlocksLowering(BaseLowering[Laws]):
         references: Mapping[Expression, ReferenceSpec],
         label: str,
     ) -> list[IssueSpec]:
-        """Return the issue of relations and unknowns that no matching pairs, naming the states they constrain.
+        """Return the issue of relations and unknowns that no matching pairs.
+
+        The issue names the states they constrain.
 
         Args:
             relations:
@@ -199,7 +214,10 @@ class EquationBlocksLowering(BaseLowering[Laws]):
         unknowns: Mapping[Expression, Expression],
         matching: Mapping[int, int],
     ) -> list[list[int]]:
-        """Return the positions of the relations of every block, each block after the blocks it reads."""
+        """Return the positions of the relations of every block.
+
+        Each block comes after the blocks it reads.
+        """
         positions = {item: position for position, item in enumerate(unknowns)}
         owners = {unknown: position for position, unknown in matching.items()}
         graph = nx.DiGraph()
@@ -223,7 +241,10 @@ class EquationBlocksLowering(BaseLowering[Laws]):
         return function
 
     def _guesses_of(self, specs: Sequence[tuple[KernelSpec, list[BaseLaw | _RelationSpec]]]) -> dict[Expression, float]:
-        """Return the initial value of every algebraic unknown, the starting guess of a nonlinear solve."""
+        """Return the initial value of every algebraic unknown.
+
+        It is the starting guess of a nonlinear solve.
+        """
         layout = Compilation._required(self.compilation_.layout, 'layout')
         initial = np.concatenate([np.zeros(0), *layout.initial_states])
         references = {key: value for spec, _ in specs for key, value in spec.references.items()}
@@ -238,7 +259,10 @@ class EquationBlocksLowering(BaseLowering[Laws]):
         block: list[Expression],
         residuals: list[Expression],
     ) -> dict[Expression, Expression] | None:
-        """Return the symbolic solution of a block that is linear in up to six unknowns, or `None` for any other."""
+        """Return the symbolic solution of a block linear in up to six unknowns.
+
+        It is `None` for any other block.
+        """
         coefficients = [[residual.diff(item) for item in block] for residual in residuals]
         names = set(block)
         if len(block) > _SYMBOLIC_UNKNOWNS or any(
@@ -256,7 +280,10 @@ class EquationBlocksLowering(BaseLowering[Laws]):
         return dict(zip(block, system.solve_right(right, check=False), strict=True))
 
     def _numeric_block(self, block: list[Expression], residuals: list[Expression]) -> _NumericBlockSpec:
-        """Return the numeric solve of a block, linear when its coefficients hold none of its unknowns."""
+        """Return the numeric solve of a block.
+
+        It is linear when its coefficients hold none of its unknowns.
+        """
         names = set(block)
         linear = not any(names & set(residual.diff(item).variables()) for residual in residuals for item in block)
         return _NumericBlockSpec(tuple(block), tuple(residuals), linear)
@@ -292,7 +319,10 @@ class EquationBlocksLowering(BaseLowering[Laws]):
         arguments: Sequence[Expression],
         time: Expression,
     ) -> _BlockSolution:
-        """Return the function that solves a nonlinear block from the values of its last evaluation, or one away."""
+        """Return the function that solves a nonlinear block.
+
+        It starts from the values of its last evaluation, or one away.
+        """
         size = len(block.unknowns)
         names = [*arguments, *block.unknowns]
         residual = self._printed(block.residuals, names, time)
@@ -324,7 +354,10 @@ class EquationBlocksLowering(BaseLowering[Laws]):
         return solve
 
     def _chained_solution(self, blocks: Sequence[_NumericBlockSpec], time: Expression) -> None:
-        """Set `arguments_` and `solve_`, the function of the arguments that returns the numeric unknowns."""
+        """Set `arguments_` and `solve_`.
+
+        `solve_` is the function of the arguments that returns the numeric unknowns.
+        """
         solved = {item for block in blocks for item in block.unknowns}
         self.arguments_ = sorted(
             symbols_of([item for block in blocks for item in block.residuals]) - solved - {time},
@@ -353,7 +386,7 @@ class EquationBlocksLowering(BaseLowering[Laws]):
         self.solve_ = solve
 
     def _numeric_value(self, expressions: Sequence[Expression], time: Expression) -> CallSpec:
-        """Return the call that evaluates expressions at the unknowns of the numeric blocks."""
+        """Return the call that evaluates expressions at the numeric block unknowns."""
         chained = list(self.arguments_)
         own = sorted(symbols_of(expressions) - set(self.numeric_) - set(chained) - {time}, key=str)
         function = self._printed(expressions, [*chained, *own, *self.numeric_], time)
@@ -365,11 +398,17 @@ class EquationBlocksLowering(BaseLowering[Laws]):
         return CallSpec(evaluate, (*chained, *own))
 
     def _value_of(self, value: Expression, time: Expression) -> Expression | CallSpec:
-        """Return a value that reads the numeric unknowns as a call, and any other value as it is."""
+        """Return a value that reads the numeric unknowns as a call.
+
+        Any other value is returned as it is.
+        """
         return self._numeric_value([value], time) if set(self.numeric_) & set(value.variables()) else value
 
     def _substituted_vector(self, value: FreeModuleElement, time: Expression) -> object:
-        """Return a vector value reading the solutions, a call when it reads the numeric unknowns."""
+        """Return a vector value reading the solutions.
+
+        It is a call when it reads the numeric unknowns.
+        """
         items = [SR(item) for item in value]
         if not any(set(self.algebraic_) & set(item.variables()) for item in items):
             return value
@@ -379,7 +418,10 @@ class EquationBlocksLowering(BaseLowering[Laws]):
         return vector(replaced)
 
     def _substituted(self, value: object, time: Expression, owner: str) -> object:
-        """Return the value of a rate, noise, update, or boundary law, or of a jump, reading the solutions."""
+        """Return the value of a law or a jump, reading the solutions.
+
+        The law is a rate, noise, update, or boundary law.
+        """
         if isinstance(value, FreeModuleElement):
             return self._substituted_vector(value, time)
         if isinstance(value, CallSpec) and value.arguments:
@@ -389,7 +431,10 @@ class EquationBlocksLowering(BaseLowering[Laws]):
         return value
 
     def _symbolic_only(self, value: Expression, owner: str) -> Expression:
-        """Return a value with the symbolic solutions, raising an error for a value that a numeric solve determines."""
+        """Return a value with the symbolic solutions.
+
+        A value that a numeric solve determines raises an error.
+        """
         replaced = value.subs(self.algebraic_) if set(self.algebraic_) & set(value.variables()) else value
         if set(self.numeric_) & set(replaced.variables()):
             names = ', '.join(sorted(str(item) for item in set(self.numeric_) & set(replaced.variables())))
@@ -401,7 +446,10 @@ class EquationBlocksLowering(BaseLowering[Laws]):
         return replaced
 
     def _with_solutions(self, law: BaseLaw, owner: str, time: Expression) -> BaseLaw:
-        """Return a law whose values read the solutions of the algebraic states, or the law when it reads none."""
+        """Return a law whose values read the solutions of the algebraic states.
+
+        It is the law itself when it reads none.
+        """
         if isinstance(law, _KERNEL_FREE_LAWS):
             return law
         if isinstance(law, JumpLaw):
@@ -415,7 +463,10 @@ class EquationBlocksLowering(BaseLowering[Laws]):
         return law
 
     def _with_event_solutions(self, law: CrossingLaw | RenewalLaw, owner: str) -> BaseLaw:
-        """Return an event or renewal whose guard, waiting time, and reset read the symbolic solutions."""
+        """Return an event or renewal that reads the symbolic solutions.
+
+        Its guard, waiting time, and reset read them.
+        """
         name = 'waiting' if isinstance(law, RenewalLaw) else 'guard'
         value = getattr(law, name)
         changes: dict[str, object] = {}
@@ -435,7 +486,10 @@ class EquationBlocksLowering(BaseLowering[Laws]):
         references: Mapping[Expression, ReferenceSpec],
         time: Expression,
     ) -> tuple[KernelSpec, list[BaseLaw]]:
-        """Return a spec and its laws read through the solutions, with the references of the symbols they now read."""
+        """Return a spec and its laws read through the solutions.
+
+        The spec has the references of the symbols they now read.
+        """
         kept = [self._with_solutions(law, spec.owner, time) for law in laws]
         if all(new is old for new, old in zip(kept, laws, strict=True)):
             return spec, kept
@@ -447,7 +501,10 @@ class EquationBlocksLowering(BaseLowering[Laws]):
         blocks: Sequence[Sequence[int]],
         matching: Mapping[int, int],
     ) -> tuple[dict[Expression, Expression], list[_NumericBlockSpec]]:
-        """Return the solution of every unknown, in known symbols and numeric unknowns, and the numeric blocks."""
+        """Return the solution of every unknown and the numeric blocks.
+
+        The solutions are in known symbols and numeric unknowns.
+        """
         names = list(self.unknowns)
         solutions: dict[Expression, Expression] = {}
         numeric: list[_NumericBlockSpec] = []
@@ -463,7 +520,9 @@ class EquationBlocksLowering(BaseLowering[Laws]):
         return solutions, numeric
 
     def _run(self, inputs: Sequence[tuple[KernelSpec, list[BaseLaw | _RelationSpec]]] | None) -> None:
-        """Set `lowered_`, the specs without their relations and a last spec of the laws of the unknowns.
+        """Set `lowered_`, the specs without their relations and a spec of unknowns.
+
+        The last spec holds the laws of the unknowns.
 
         Args:
             inputs:

@@ -1,4 +1,7 @@
-"""Hold the state of one compilation, the fields its passes produce in order from the system to the problem."""
+"""Hold the state of one compilation.
+
+Its passes produce the fields of the state in order, from the system to the problem.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -46,12 +49,13 @@ type BlockLaws = list[tuple[KernelSpec, list[BaseLaw], BlockSpec]]
 
 
 class Compilation:
-    """State of one compilation of a system, whose fields its passes read and write in order.
+    """State of one compilation of a system.
 
-    The constructor stores the inputs of the compilation, and the passes set every other field, from `nodes` to
-    `problem` in the order they are listed. A field that no pass has set yet is `None`. A pass may also declare hidden
-    states and parameters on the layout, which only grows. Kernel specs are frozen: a pass that adds references to a
-    spec builds a copy, which `_replace_specs` puts in every field that holds the spec.
+    Its passes read and write its fields in order. The constructor stores the inputs of the compilation, and the passes
+    set every other field, from `nodes` to `problem` in the order they are listed. A field that no pass has set yet is
+    `None`. A pass may also declare hidden states and parameters on the layout, which only grows. Kernel specs are
+    frozen: a pass that adds references to a spec builds a copy, which `_replace_specs` puts in every field that holds
+    the spec.
 
     Args:
         system:
@@ -331,7 +335,9 @@ class Compilation:
 
     @staticmethod
     def _required[T](value: T | None, name: str) -> T:
-        """Return the value of a field that a pass has set, raising an error for a field no pass has set yet.
+        """Return the value of a field that a pass has set.
+
+        A field that no pass has set yet raises an error.
 
         Args:
             value:

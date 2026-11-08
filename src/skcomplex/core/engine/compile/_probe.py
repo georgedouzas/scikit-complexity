@@ -1,4 +1,7 @@
-"""Probe the laws of the parts of a system before compiling, for the passes that need to know their kinds early."""
+"""Probe the laws of the parts of a system before compiling.
+
+Some passes need to know the kinds of the laws early.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,11 +17,12 @@ from ...specs import RoleSpec
 
 
 def _probe_namespace(part: BaseElement | BaseInteraction) -> SimpleNamespace:
-    """Return the namespace of free symbols of the declared names of a part, which probing its laws reads.
+    """Return the namespace of free symbols of the declared names of a part.
 
-    An element gives its states and its parameters, with `other`, the neighbour of a member, holding the same
-    names. An interaction gives its parameters and an empty namespace per role, or an empty tuple for a variadic role,
-    since the names of the bound elements are not known before compiling. Both give the time `t`.
+    Probing the laws of the part reads this namespace. An element gives its states and its parameters, with `other`, the
+    neighbour of a member, holding the same names. An interaction gives its parameters and an empty namespace per role,
+    or an empty tuple for a variadic role, since the names of the bound elements are not known before compiling. Both
+    give the time `t`.
     """
     specs = part._get_part_specs()
     names = {name: var(name) for name, spec in specs.items() if not isinstance(spec, RoleSpec)}
@@ -30,12 +34,12 @@ def _probe_namespace(part: BaseElement | BaseInteraction) -> SimpleNamespace:
 
 
 def probe_laws(component: object) -> list[object] | None:
-    """Return the laws of a component for a namespace of its declared names, before its states are declared.
+    """Return the laws of a component for a namespace of its declared names.
 
-    A group returns the laws of a representative member. The namespace holds a free symbol for every declared state
-    and parameter, the time `t`, `other` for the neighbour of a member, and an empty namespace per role. Laws that
-    read other names, such as the states of the elements a role binds, or that index a vector state, are not listed:
-    the errors that reading them raises leave the laws unlisted.
+    The laws are returned before the states are declared. A group returns the laws of a representative member. The
+    namespace holds a free symbol for every declared state and parameter, the time `t`, `other` for the neighbour of a
+    member, and an empty namespace per role. Laws that read other names, such as the states of the elements a role
+    binds, or that index a vector state, are not listed: the errors that reading them raises leave the laws unlisted.
 
     Args:
         component:

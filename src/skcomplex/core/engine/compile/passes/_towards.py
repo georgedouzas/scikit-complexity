@@ -1,4 +1,7 @@
-"""Pass that sets apart the weights and scores of the candidate nodes of every request, read like laws."""
+"""Pass that sets apart the weights and scores of the candidate nodes of requests.
+
+They are read like laws, for every request.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,7 +24,10 @@ from ._topology_functions import TopologyFunctionsPass
 
 
 class TowardsPass(BasePass):
-    """Pass that sets apart the weights and scores of the candidate nodes of every request, read like laws."""
+    """Pass that sets apart the weights and scores of the candidate nodes of requests.
+
+    They are read like laws, for every request.
+    """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
@@ -55,7 +61,10 @@ class TowardsPass(BasePass):
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
         declarations: DeclarationsSpec,
     ) -> list[tuple[KernelSpec, list[BaseLaw]]]:
-        """Return the specs of the nodes of every request with a weight or a score, each with the law to lower."""
+        """Return the specs of the nodes of every request with a weight or a score.
+
+        Each comes with the law to lower.
+        """
         towards: list[tuple[KernelSpec, list[BaseLaw]]] = []
         for spec, laws in specs:
             for law in laws:

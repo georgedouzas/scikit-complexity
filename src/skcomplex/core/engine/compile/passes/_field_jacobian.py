@@ -1,4 +1,7 @@
-"""Pass that adds the conservation laws, symmetries, and fixed nodes of the fields to the exact Jacobian."""
+"""Pass that adds the field terms to the exact Jacobian.
+
+The terms are the conservation laws, symmetries, and fixed nodes of the fields.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -9,7 +12,10 @@ from .._base import BasePass
 
 
 class FieldJacobianPass(BasePass):
-    """Pass that adds the conservation laws, symmetries, and fixed nodes of the fields to the exact Jacobian."""
+    """Pass that adds the field terms to the exact Jacobian.
+
+    The terms are the conservation laws, symmetries, and fixed nodes of the fields.
+    """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""

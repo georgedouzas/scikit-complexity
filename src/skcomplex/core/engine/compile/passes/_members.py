@@ -1,4 +1,7 @@
-"""Lower the member offset reads of laws to neighbour reads of the index table of their group."""
+"""Lower the member offset reads of laws to neighbour reads.
+
+The reads are of the index table of their group.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

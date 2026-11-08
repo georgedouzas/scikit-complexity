@@ -43,7 +43,10 @@ class EncounterFunctionsPass(BasePass):
         encounters: tuple[EncounterKernel, ...],
         size: int,
     ) -> _ProblemFunctionsSpec:
-        """Add the gain and loss rates of encounter laws to the drift, which then runs outside compiled steppers."""
+        """Add the gain and loss rates of encounter laws to the drift.
+
+        The drift then runs outside compiled steppers.
+        """
         if not encounters:
             return functions
 

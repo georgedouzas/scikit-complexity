@@ -42,13 +42,13 @@ DISTRIBUTIONS = tuple(
 
 
 class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
-    """Lowering of the draws of every component to values in an extended parameter vector.
+    """Lowering of the draws of every component to values in a parameter vector.
 
-    `prepare(compilation)` reads where the parameters end and the time symbol, and `run(laws)` takes the laws of every
-    kernel spec, replaces every draw of their update laws by a drawn value, and places the drawn values after the
-    parameters, by component path, draw name, and member index. A draw read at a member offset reads the value the
-    offset member draws, so the members of a group can share one draw. `_apply_references()` then gives every spec the
-    references of its drawn values.
+    The parameter vector is extended with the drawn values. `prepare(compilation)` reads where the parameters end and
+    the time symbol, and `run(laws)` takes the laws of every kernel spec, replaces every draw of their update laws by a
+    drawn value, and places the drawn values after the parameters, by component path, draw name, and member index. A
+    draw read at a member offset reads the value the offset member draws, so the members of a group can share one draw.
+    `_apply_references()` then gives every spec the references of its drawn values.
 
     Attributes:
         offset_:
@@ -75,7 +75,9 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
     shifted_: dict[tuple[int, str, int, str, float], Expression]
 
     def _prepare(self, context: Compilation | None) -> None:
-        """Read where the parameters end and the time symbol of the compilation, with no draws yet.
+        """Read where the parameters end and the time symbol of the compilation.
+
+        No draws are known yet.
 
         Args:
             context:
@@ -94,7 +96,9 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         self.requests_, self.draws_, self.shifted_ = [], None, {}
 
     def _run(self, inputs: list[tuple[KernelSpec, list[BaseLaw]]] | None) -> None:
-        """Set the laws of every kernel spec with the draws of their update laws replaced by drawn values.
+        """Set the laws of every kernel spec with the draws of their updates replaced.
+
+        Every draw of their update laws is replaced by its drawn value.
 
         Args:
             inputs:
@@ -108,9 +112,10 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         self._allocate(DrawLowering._orders_of([spec for spec, _ in self.lowered_]))
 
     def _slots(self, spec: KernelSpec, laws: list[BaseLaw]) -> dict[str, Expression]:
-        """Return the value symbol of every draw of a component, after checking that each name has one declaration.
+        """Return the value symbol of every draw of a component.
 
-        A draw read at a member offset is the draw of another member, so its arguments may read that member.
+        It first checks that each name has one declaration. A draw read at a member offset is the draw of another
+        member, so its arguments may read that member.
         """
         owner = spec.owner
         declared: dict[str, DrawSpec] = {}
@@ -147,7 +152,9 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         return slots
 
     def _lower(self, spec: KernelSpec, laws: list[BaseLaw]) -> list[BaseLaw]:
-        """Return the laws of a component with every draw of its update laws replaced by a drawn value.
+        """Return the laws of a component with its draws replaced by drawn values.
+
+        Every draw of its update laws is replaced.
 
         Args:
             spec:
@@ -185,7 +192,9 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         return [call for call in BasePass._calls_of(expression, _SHIFT) if draws_in(call.operands()[0])]
 
     def _unshifted(self, spec: KernelSpec, expression: Expression, slots: Mapping[str, Expression]) -> Expression:
-        """Return an expression with every draw read at a member offset replaced by the value the offset member draws.
+        """Return an expression with every draw at a member offset replaced.
+
+        The replacement is the value the offset member draws.
 
         Args:
             spec:
@@ -212,7 +221,10 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
 
     @staticmethod
     def _orders_of(specs: list[KernelSpec]) -> tuple[Indices, ...]:
-        """Return the distinct orders drawn at every step that the gather tables of kernel specs read through."""
+        """Return the distinct orders drawn at every step.
+
+        The gather tables of kernel specs read through these orders.
+        """
         orders: dict[int, Indices] = {}
         for spec in specs:
             for reference in spec.references.values():
@@ -222,11 +234,11 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         return tuple(orders.values())
 
     def _allocate(self, orders: tuple[Indices, ...]) -> None:
-        """Place the drawn values after the parameters, by component path, draw name, and member index.
+        """Place the drawn values after the parameters.
 
-        The reference of every drawn value is noted for the spec of its component, and the draws taken at every step are
-        kept in `draws_` with the orders drawn at every step, which stays `None` when no update law draws and no table
-        reads through an order.
+        They are placed by component path, draw name, and member index. The reference of every drawn value is noted for
+        the spec of its component, and the draws taken at every step are kept in `draws_` with the orders drawn at every
+        step, which stays `None` when no update law draws and no table reads through an order.
         """
         if not self.requests_ and not orders:
             return
@@ -257,11 +269,12 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
 
     @staticmethod
     def _entry_name(request: _RequestSpec, names: dict[str, int]) -> str:
-        """Return the name of the entry of the drawn values of a request, unique among the entries of the draws.
+        """Return the name of the entry of the drawn values of a request.
 
-        A component with several kernel specs, such as a hyperedge interaction with one spec per size of hyperedge,
-        draws one name in every spec, so the entries after the first of a name end with their number. Backends that
-        place entries by name, as Numba does, would otherwise read the values of every spec from one entry.
+        The name is unique among the entries of the draws. A component with several kernel specs, such as a hyperedge
+        interaction with one spec per size of hyperedge, draws one name in every spec, so the entries after the first of
+        a name end with their number. Backends that place entries by name, as Numba does, would otherwise read the
+        values of every spec from one entry.
 
         Args:
             request:
@@ -281,7 +294,10 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
 
     @staticmethod
     def _replacement(draw: DrawSpec, arguments: list[Expression], slot: Expression) -> Expression:
-        """Return the expression of a draw in terms of a uniform or standard normal value, or its sampled value."""
+        """Return the expression of a draw in terms of a uniform or normal value.
+
+        The value is uniform or standard normal, or else the sampled value of the draw.
+        """
         if draw.kind == 'draw':
             return slot
         if draw.kind == 'uniform':
@@ -301,7 +317,10 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
 
     @staticmethod
     def _lowered(expression: Expression, slots: Mapping[str, Expression]) -> Expression:
-        """Return an expression with every draw replaced by its expression of its value, innermost draws first."""
+        """Return an expression with every draw replaced by its value expression.
+
+        The innermost draws are replaced first.
+        """
         found = draws_in(expression)
         while found:
             draw = next(item for item in found if not draws_in(list(item.arguments)))
@@ -312,7 +331,10 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         return expression
 
     def _sampler(self, request: _RequestSpec) -> Callable[[float, Array, Array, np.random.Generator], Array]:
-        """Return the function that samples a draw from a `scipy.stats` distribution for every row of a request."""
+        """Return the function that samples a draw for every row of a request.
+
+        It samples from a `scipy.stats` distribution.
+        """
         time = self.time_
         draw = request.draw
         if draw is None:
@@ -351,12 +373,17 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
 
     @staticmethod
     def _is_symbolic(value: object) -> bool:
-        """Check whether a law value is symbolic, as opposed to a call or a Python function."""
+        """Check whether a law value is symbolic.
+
+        A value that is not symbolic is a call or a Python function.
+        """
         return isinstance(value, Expression | FreeModuleElement) or not (isinstance(value, CallSpec) or callable(value))
 
     @staticmethod
     def _distribution_of(owner: str, description: str, draw: DrawSpec) -> stats.rv_continuous | stats.rv_discrete:
-        """Return the `scipy.stats` distribution of a draw, after checking its name and its keywords.
+        """Return the `scipy.stats` distribution of a draw.
+
+        It first checks the name and the keywords of the draw.
 
         Args:
             owner:

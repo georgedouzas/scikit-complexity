@@ -1,4 +1,7 @@
-"""Pass that checks the Hurst index and amplitude of fractional noise laws, with Hurst index 1/2 as noise laws."""
+"""Pass that checks the Hurst index and amplitude of fractional noise laws.
+
+Laws of Hurst index 1/2 become noise laws.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,7 +24,10 @@ BROWNIAN_HURST = 0.5
 
 
 class CheckFractionalNoisePass(BasePass):
-    """Pass that checks the Hurst index and amplitude of fractional noise laws, with Hurst index 1/2 as noise laws."""
+    """Pass that checks the Hurst index and amplitude of fractional noise laws.
+
+    Laws of Hurst index 1/2 become noise laws.
+    """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
@@ -47,7 +53,10 @@ class CheckFractionalNoisePass(BasePass):
         declarations: DeclarationsSpec,
         description: str,
     ) -> None:
-        """Raise an error when the Hurst index of a fractional noise law is not a number or a parameter in `(0, 1)`."""
+        """Raise an error for a bad Hurst index of a fractional noise law.
+
+        The index must be a number or a parameter in `(0, 1)`.
+        """
         hurst = SR(law.hurst)
         if hurst.is_numeric():
             values = np.asarray([float(hurst)])
@@ -69,7 +78,10 @@ class CheckFractionalNoisePass(BasePass):
 
     @staticmethod
     def _checked_fractional(spec: KernelSpec, laws: list[BaseLaw], declarations: DeclarationsSpec) -> list[BaseLaw]:
-        """Return laws with every fractional noise law of Hurst index 1/2 as a noise law, after checking the others."""
+        """Return laws with every fractional noise law of Hurst index 1/2 as a noise law.
+
+        The others are checked first.
+        """
         result: list[BaseLaw] = []
         for law in laws:
             if not isinstance(law, FractionalNoiseLaw):

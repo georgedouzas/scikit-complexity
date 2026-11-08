@@ -1,4 +1,7 @@
-"""Replace the reductions and neighbourhood reductions of laws by placeholders, compiled once each."""
+"""Replace the reductions of laws by placeholders compiled once each.
+
+Neighbourhood reductions are replaced too.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,7 +18,10 @@ from ._reduction_lowering import ReductionLowering
 
 
 class ReductionsPass(BasePass):
-    """Pass that lowers the reductions of the laws, of the laws set apart, and of the events, in that order."""
+    """Pass that lowers the reductions of the laws, the laws set apart, and the events.
+
+    They are lowered in that order.
+    """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
@@ -54,9 +60,9 @@ class ReductionsPass(BasePass):
 
     @staticmethod
     def _pruned(spec: KernelSpec, declarations: DeclarationsSpec) -> KernelSpec:
-        """Return a spec without the references of the groups it reads only through reductions, keeping operands.
+        """Return a spec without the references of the groups read only in reductions.
 
-        Kernels then loop over its own group.
+        Operands are kept. Kernels then loop over its own group.
 
         A spec without such references is returned itself.
         """

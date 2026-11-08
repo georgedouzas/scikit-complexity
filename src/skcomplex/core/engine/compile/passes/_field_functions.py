@@ -1,4 +1,7 @@
-"""Pass that writes operators back into the equations and adds flux differences, symmetries, and fixed nodes."""
+"""Pass that writes operators back into the equations and adds field terms.
+
+It adds flux differences, symmetries, and fixed nodes.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -37,7 +40,10 @@ PAIR = 2
 
 
 class FieldFunctionsPass(BasePass):
-    """Pass that writes operators back into the equations and adds flux differences, symmetries, and fixed nodes."""
+    """Pass that writes operators back into the equations and adds field terms.
+
+    It adds flux differences, symmetries, and fixed nodes.
+    """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
@@ -75,7 +81,10 @@ class FieldFunctionsPass(BasePass):
         states: LayoutSpec,
         written: dict[tuple[str, int], list[tuple[Expression, Expression]]],
     ) -> dict[str, Expression]:
-        """Return equations with the stencils of operators replaced by the operators as written."""
+        """Return equations with the stencils of operators replaced by the operators.
+
+        The operators are written as given.
+        """
         result = dict(equations)
         for (name, column), pairs in written.items():
             key = states.entry(name).generic_names[column]
@@ -88,10 +97,10 @@ class FieldFunctionsPass(BasePass):
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
         declarations: DeclarationsSpec,
     ) -> tuple[FiniteVolumeKernel, ...]:
-        """Return the conservation laws of every finite-volume field from the flux laws of all its components.
+        """Return the conservation laws of every finite-volume field.
 
-        The flux laws of one field, from its element and from any interaction, form one system, whose wave speeds come
-        from the Jacobian of all its fluxes.
+        They come from the flux laws of all its components. The flux laws of one field, from its element and from any
+        interaction, form one system, whose wave speeds come from the Jacobian of all its fluxes.
         """
         found: dict[str, list[tuple[FluxLaw, ReferenceSpec, Mapping[Expression, ReferenceSpec]]]] = {}
         for spec, laws in specs:
@@ -115,7 +124,10 @@ class FieldFunctionsPass(BasePass):
 
     @staticmethod
     def _mesh_constraints(blocks: list[BlockSpec]) -> tuple[npt.NDArray[np.intp], npt.NDArray[np.float64]]:
-        """Return the state indices and values of the boundary nodes of finite element fields with fixed boundaries."""
+        """Return the state indices and values of the fixed boundary nodes.
+
+        They are the boundary nodes of finite element fields with fixed boundaries.
+        """
         indices: list[npt.NDArray[np.intp]] = []
         values: list[npt.NDArray[np.float64]] = []
         for block in blocks:
@@ -142,7 +154,10 @@ class FieldFunctionsPass(BasePass):
 
     @staticmethod
     def _component_parities(symmetry: Mapping[str, Sequence[object]]) -> list[tuple[str, Sequence[str | None], int]]:
-        """Return the state, the parities, and the column of the components with a parity of their own."""
+        """Return the state, parities, and column of the components with own parities.
+
+        Each such component has a parity of its own.
+        """
         found: list[tuple[str, Sequence[str | None], int]] = []
         for variable, parities in symmetry.items():
             own = bool(parities) and all(isinstance(item, list | tuple) for item in parities)
@@ -187,7 +202,10 @@ class FieldFunctionsPass(BasePass):
         drift: VectorFunction | None,
         symmetries: list[SymmetrySpec],
     ) -> VectorFunction | None:
-        """Return the drift with the rates of symmetric states projected onto their odd or even parts."""
+        """Return the drift with the rates of symmetric states projected.
+
+        The rates are projected onto their odd or even parts.
+        """
         if not symmetries or drift is None:
             return drift
 
@@ -248,7 +266,10 @@ class FieldFunctionsPass(BasePass):
         tuple[FiniteVolumeKernel, ...],
         tuple[npt.NDArray[np.intp], npt.NDArray[np.float64]],
     ]:
-        """Add flux differences, symmetries, and fixed boundary nodes to the drift, returning laws and fixed nodes."""
+        """Add flux differences, symmetries, and fixed boundary nodes to the drift.
+
+        It returns the laws and the fixed nodes.
+        """
         volumes = FieldFunctionsPass._compile_fluxes(specs, declarations)
         symmetries = FieldFunctionsPass._symmetries(blocks)
         constrained, fixed = FieldFunctionsPass._mesh_constraints(blocks)
@@ -265,11 +286,12 @@ class FieldFunctionsPass(BasePass):
         laws: Sequence[tuple[FluxLaw, ReferenceSpec, Mapping[Expression, ReferenceSpec]]],
         owner: str,
     ) -> tuple[list[list[Expression]], list[Expression], list[ReferenceSpec]]:
-        """Return the flux components in symbols shared by all the laws, the state symbols, and the parameters read.
+        """Return the flux components in shared symbols, the state symbols, and parameters.
 
-        Every law reads the states and parameters through the symbols of its own namespace, so the conserved states
-        become one symbol each, by their entries, and so do the other values the fluxes read, parameters or states that
-        no flux conserves, by their entries and how they are read.
+        The shared symbols are shared by all the laws, and the parameters are those read. Every law reads the states and
+        parameters through the symbols of its own namespace, so the conserved states become one symbol each, by their
+        entries, and so do the other values the fluxes read, parameters or states that no flux conserves, by their
+        entries and how they are read.
         """
         names = [reference.entry.name for _, reference, _ in laws]
         if len(set(names)) != len(names):
@@ -322,7 +344,9 @@ class FieldFunctionsPass(BasePass):
 
     @staticmethod
     def _eigenvalues(jacobian: list[list[Expression]]) -> list[Expression] | None:
-        """Return the closed-form eigenvalues of a flux Jacobian, or `None` when Sage finds no explicit real ones.
+        """Return the closed-form eigenvalues of a flux Jacobian.
+
+        It is `None` when Sage finds no explicit real ones.
 
         Args:
             jacobian:
@@ -355,7 +379,9 @@ class FieldFunctionsPass(BasePass):
         n_dim: int,
         owner: str,
     ) -> tuple[Callable[..., object], ...]:
-        """Return one function per dimension of the wave speeds a flux law gives as functions, or none.
+        """Return one function per dimension of the wave speeds a flux law gives.
+
+        The flux law gives them as functions, and the result is none otherwise.
 
         Args:
             laws:
@@ -405,7 +431,9 @@ class FieldFunctionsPass(BasePass):
         printer: ExpressionPrinter,
         owner: str,
     ) -> tuple[Callable[..., object], ...]:
-        """Return one function per dimension of the closed-form wave speeds, or none when a Jacobian has no closed form.
+        """Return one function per dimension of the closed-form wave speeds.
+
+        It is none when a Jacobian has no closed form.
 
         Args:
             columns:
@@ -440,7 +468,10 @@ class FieldFunctionsPass(BasePass):
         space: LatticeSpace,
         axis: int,
     ) -> bool:
-        """Check whether a drift reads a value that varies along its own axis, a coordinate or a field over position."""
+        """Check whether a drift reads a value that varies along its own axis.
+
+        The value is a coordinate or a field over position.
+        """
         own = next((name for name, index in getattr(space, 'class_axes_', {}).items() if index == axis), None)
         found = [reference for item, reference in zip(symbols, parameters, strict=True) if item in drift.variables()]
         return any(
@@ -464,7 +495,9 @@ class FieldFunctionsPass(BasePass):
         owner: str,
         space: LatticeSpace,
     ) -> tuple[Callable[..., object], ...]:
-        """Return one function per axis of the drift of every state, or none when a flux is not a linear drift.
+        """Return one function per axis of the drift of every state.
+
+        It is none when a flux is not a linear drift.
 
         Args:
             columns:
@@ -508,7 +541,10 @@ class FieldFunctionsPass(BasePass):
 
     @staticmethod
     def _class_edges(space: LatticeSpace) -> tuple[str | None, ...]:
-        """Return the edges of every class axis of a phase space and `None` for its position axes, or nothing."""
+        """Return the edges of every class axis of a phase space.
+
+        Its position axes give `None`, and the result is nothing without a phase space.
+        """
         if not isinstance(space, PhaseSpace):
             return ()
         return tuple(
@@ -522,7 +558,10 @@ class FieldFunctionsPass(BasePass):
         declarations: DeclarationsSpec,
         owner: str,
     ) -> tuple[Callable[[float, Array, Array], object] | None, ...]:
-        """Return the function that reads every value of the fluxes held by no vector, such as a moment, else `None`."""
+        """Return the function that reads every flux value held by no vector.
+
+        An example is a moment, and the result is `None` without such values.
+        """
         reader = LawKernel(
             f'{owner} fluxes',
             declarations.time,

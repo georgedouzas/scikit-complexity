@@ -1,4 +1,7 @@
-"""Read the degree of the groups on a cell complex and the sparse matrices of its exterior calculus."""
+"""Read the degree of the groups on a cell complex and its sparse matrices.
+
+The matrices are those of its exterior calculus.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,11 +21,14 @@ STAR_PARAMETER = 'weight'
 
 
 class CellTables:
-    """Degrees of the groups on a cell complex, and the matrices of the exterior calculus between them."""
+    """Degrees of the groups on a cell complex, and their exterior calculus matrices."""
 
     @staticmethod
     def _star(space: CellComplexSpace, degree: int, declarations: DeclarationsSpec) -> Array:
-        """Return the diagonal of the Hodge star of a degree, with the weights of the group on a network complex."""
+        """Return the diagonal of the Hodge star of a degree.
+
+        On a network complex, it holds the weights of the group.
+        """
         if isinstance(space.space, LatticeSpace):
             return space.stars_[degree]
         for block in declarations.blocks.values():
@@ -75,7 +81,7 @@ class CellTables:
         degree: int,
         declarations: DeclarationsSpec,
     ) -> scipy.sparse.csr_array:
-        """Return the matrix `(-1)^k star^-1 d^T star` of the codifferential of a degree `k`.
+        """Return the matrix `(-1)^k star^-1 d^T star` of the codifferential of degree `k`.
 
         Args:
             space:
@@ -125,7 +131,9 @@ class CellTables:
 
     @staticmethod
     def group_at(space: CellComplexSpace, degree: int, declarations: DeclarationsSpec) -> str:
-        """Return the path of a group on the cells of a degree, or an empty path without one.
+        """Return the path of a group on the cells of a degree.
+
+        It is an empty path without one.
 
         Args:
             space:

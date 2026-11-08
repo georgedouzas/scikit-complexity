@@ -1,4 +1,7 @@
-"""Lower reads of group members at an offset along the group order to neighbour reads of an index table."""
+"""Lower reads of group members at an offset to neighbour reads.
+
+The offset runs along the group order, and the reads are of an index table.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -26,12 +29,13 @@ _SHIFT = 'shift_member'
 
 
 class MemberLowering(BaseLowering[list[BaseLaw]]):
-    """Lowering of the member offset reads of the laws of one component to neighbour reads of its group's index table.
+    """Lowering of the member offset reads of the laws of one component.
 
-    `prepare(compilation)` reads the time of the compilation, and `run(laws)` sets `lowered_`, the laws with every
-    member offset read replaced by a symbol that reads the offset member, whose reference it notes for the spec. A
-    parameter of a single element or interaction is the same at every member and stays as it is. A draw read at an
-    offset stays a member offset read of the draw, which the lowering of draws reads at the offset member.
+    They are lowered to neighbour reads of the index table of its group. `prepare(compilation)` reads the time of the
+    compilation, and `run(laws)` sets `lowered_`, the laws with every member offset read replaced by a symbol that reads
+    the offset member, whose reference it notes for the spec. A parameter of a single element or interaction is the same
+    at every member and stays as it is. A draw read at an offset stays a member offset read of the draw, which the
+    lowering of draws reads at the offset member.
 
     Args:
         spec:
@@ -71,9 +75,10 @@ class MemberLowering(BaseLowering[list[BaseLaw]]):
         self.shifted_ = {}
 
     def _run(self, inputs: list[BaseLaw] | None) -> None:
-        """Set laws whose member offset reads are lowered to neighbour reads of the group's index table.
+        """Set laws whose member offset reads are lowered to neighbour reads.
 
-        A jump keeps a change whose target is not a symbolic expression, such as a request of another formalism.
+        The reads are of the index table of the group. A jump keeps a change whose target is not a symbolic expression,
+        such as a request of another formalism.
 
         Args:
             inputs:
@@ -98,13 +103,19 @@ class MemberLowering(BaseLowering[list[BaseLaw]]):
         self.lowered_ = result
 
     def _is_single(self, item: Expression) -> bool:
-        """Check whether a symbol is the time or a parameter of a single element or interaction, alike for all."""
+        """Check whether a symbol is the time or a single element or interaction parameter.
+
+        Such a symbol is alike for all members.
+        """
         reference = self.spec.references.get(item)
         single = reference is not None and reference.source is ReadKind.SINGLE and not reference.is_state
         return item == self.time_ or single
 
     def _shift_draws(self, expression: Expression, offset: int, boundary: str, fill: float) -> Expression:
-        """Return an expression with every draw wrapped in a member offset read, which the lowering of draws reads."""
+        """Return an expression with every draw wrapped in a member offset read.
+
+        The lowering of draws reads the wrapped draws.
+        """
         draws = draws_in(expression)
         if draws and BasePass._calls_of(expression, _SHIFT):
             error_msg = (
@@ -115,7 +126,10 @@ class MemberLowering(BaseLowering[list[BaseLaw]]):
         return expression.subs(calls) if calls else expression
 
     def _member(self, item: Expression) -> tuple[Expression, int, str | None, float]:
-        """Return the member symbol a symbol reads, with the offset, boundary, and fill it is already read at."""
+        """Return the member symbol a symbol reads, with its offset, boundary, and fill.
+
+        They are the ones it is already read at.
+        """
         if item in self.shifted_:
             return self.shifted_[item]
         reference = self.spec.references.get(item)
@@ -129,7 +143,10 @@ class MemberLowering(BaseLowering[list[BaseLaw]]):
         return item, 0, None, 0.0
 
     def _read(self, base: Expression, offset: int, boundary: str, fill: float) -> Expression:
-        """Return the symbol that reads a member symbol at an offset, registering its reference the first time."""
+        """Return the symbol that reads a member symbol at an offset.
+
+        Its reference is registered the first time.
+        """
         if not offset:
             return base
         key = (base, offset, boundary, fill)
@@ -148,7 +165,9 @@ class MemberLowering(BaseLowering[list[BaseLaw]]):
         return target
 
     def _shift(self, expression: Expression, offset: int, boundary: str, fill: float) -> Expression:
-        """Return an expression read at the member an offset along the group order of every member.
+        """Return an expression read at the member at an offset of every member.
+
+        The offset runs along the group order.
 
         Args:
             expression:
@@ -192,7 +211,9 @@ class MemberLowering(BaseLowering[list[BaseLaw]]):
         return expression.subs(replacements)
 
     def _lower(self, value: object) -> object:
-        """Return a law value with every member offset read replaced by symbols that read the offset members.
+        """Return a law value with every member offset read replaced.
+
+        The replacements are symbols that read the offset members.
 
         Args:
             value:
@@ -214,7 +235,10 @@ class MemberLowering(BaseLowering[list[BaseLaw]]):
 
     @staticmethod
     def _neighbor_read(rows: int, offset: int, boundary: str, fill: float) -> NeighborReadSpec:
-        """Return the read of the member at an offset of every member of a group of `rows` members."""
+        """Return the read of the member at an offset of every member of a group.
+
+        The group has `rows` members.
+        """
         lattice = LatticeSpace((rows,), boundary=boundary, fill=fill).prepare()
         table = lattice._index_table(LatticeNeighborhood(((offset,),)))[:, 0]
         ghost = fill if boundary == 'fixed' else None
@@ -223,7 +247,7 @@ class MemberLowering(BaseLowering[list[BaseLaw]]):
 
     @staticmethod
     def _shift_arguments(call: Expression) -> tuple[Expression, int, str, float]:
-        """Return the expression, the offset, the boundary, and the fill of a member offset read.
+        """Return the expression, offset, boundary, and fill of a member offset read.
 
         Args:
             call:

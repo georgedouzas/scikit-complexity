@@ -1,4 +1,7 @@
-"""Pass that makes the problem of a system with encounter laws a kinetic problem that holds them."""
+"""Pass that makes the problem of a system with encounter laws kinetic.
+
+The kinetic problem holds the encounter laws.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,7 +14,10 @@ from .._compilation import Compilation
 
 
 class EncounterProblemPass(BasePass):
-    """Pass that makes the problem of a system with encounter laws a kinetic problem that holds them."""
+    """Pass that makes the problem of a system with encounter laws kinetic.
+
+    The kinetic problem holds the encounter laws.
+    """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""

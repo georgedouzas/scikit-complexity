@@ -1,4 +1,7 @@
-"""Pass that checks the conserved quantities and lowers flows and delays into the laws of every spec, in place."""
+"""Pass that checks the conserved quantities and lowers flows and delays.
+
+It lowers them into the laws of every spec, in place.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -10,7 +13,10 @@ from .._flows import TransferLowering
 
 
 class LowerFlowsPass(BasePass):
-    """Pass that checks the conserved quantities and lowers flows and delays into the laws of every spec, in place."""
+    """Pass that checks the conserved quantities and lowers flows and delays.
+
+    It lowers them into the laws of every spec, in place.
+    """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
