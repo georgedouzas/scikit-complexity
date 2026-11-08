@@ -1,4 +1,7 @@
-"""Epidemiology systems: infection on networks in the mean-field limit and between subpopulations."""
+"""Epidemiology systems: infection on networks.
+
+The infection is in the mean-field limit and between subpopulations.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,7 +24,7 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class DegreeClassElement(Element):
-    """Infected density of the nodes of one degree of a network, in heterogeneous mean field.
+    """Infected density of the nodes of one degree, in heterogeneous mean field.
 
     A node of degree `k` recovers at rate 1 and is infected at rate `lam k Theta`, where
     `Theta = sum_k k P(k) rho_k / <k>` is the probability that an edge points to an infected node, a total over the
@@ -74,7 +77,9 @@ class DegreeClassElement(Element):
 
 
 class SubpopulationElement(Element):
-    """Well-mixed SIR population at a node of a network, whose individuals hop along each edge at the rate `D`.
+    """Well-mixed SIR population at a node of a network.
+
+    Its individuals hop along each edge at the rate `D`.
 
     Inside the node, `beta S I / N` individuals are infected and `gamma I` recover per unit time, with
     `N = S + I + R`. Hopping along every edge adds `D` times the graph Laplacian to every compartment.
@@ -153,7 +158,7 @@ class SubpopulationElement(Element):
 
 
 class HeterogeneousMeanFieldSISSystem(BaseSystem):
-    """The SIS epidemic on a network with a power-law degree distribution, in heterogeneous mean field.
+    """The SIS epidemic on a power-law network, in heterogeneous mean field.
 
     The degrees run from `k_min` to `k_max` with `P(k) ~ k^-exponent`. The infection persists above the epidemic
     threshold `lam_c = <k> / <k^2>`, which vanishes on scale-free networks as `k_max` grows, and dies out below it. The
@@ -220,12 +225,15 @@ class HeterogeneousMeanFieldSISSystem(BaseSystem):
 
     @staticmethod
     def _infection(namespace: SimpleNamespace) -> Expression:
-        """Return the infection `lam k (1 - rho_k) rho_k'` of a degree class by the nodes of another class."""
+        """Return the infection `lam k (1 - rho_k) rho_k'` of a degree class.
+
+        The infection is by the nodes of another class.
+        """
         member = namespace.member
         return member.lam * member.k * (1 - member.rho) * namespace.other.rho
 
     def _build_system(self) -> System:
-        """Return the parts of the SIS epidemic on a network with a power-law degree distribution."""
+        """Return the parts of the SIS epidemic on a network with power-law degrees."""
         degrees = np.arange(self.k_min, self.k_max + 1, dtype=float)
         weights = degrees**-self.exponent / np.sum(degrees**-self.exponent)
         classes = GroupElement(
@@ -252,7 +260,9 @@ class HeterogeneousMeanFieldSISSystem(BaseSystem):
 
 
 class MetapopulationSystem(BaseSystem):
-    """SIR epidemics in subpopulations at the nodes of a network, linked by individuals who travel.
+    """SIR epidemics in subpopulations at the nodes of a network.
+
+    Individuals who travel link the subpopulations.
 
     The infection starts in the first node and spreads to the others with the travellers. The total number of
     individuals stays constant. The system has the compartments `cities.S`, `cities.I`, and `cities.R`, one value per

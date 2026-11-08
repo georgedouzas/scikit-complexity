@@ -1,4 +1,7 @@
-"""Epidemiology systems: outbreaks that strike only when a strain beats every earlier one, by record dynamics."""
+"""Epidemiology systems: outbreaks by record dynamics.
+
+An outbreak strikes only when a strain beats every earlier one.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,7 +23,9 @@ from ....core.specs import RoleSpec, StateSpec, VisualSpec
 
 
 class PathogenElement(Element):
-    """Pathogen whose strength in every season is drawn anew, uniformly from zero to one.
+    """Pathogen whose strength is drawn anew every season.
+
+    The strength is drawn uniformly from zero to one.
 
     Args:
         label:
@@ -67,7 +72,9 @@ class PathogenElement(Element):
 
 
 class ResidentElement(Element):
-    """Resident of a population with a fixed resistance to a disease, immune for good once infected.
+    """Resident of a population with a fixed resistance to a disease.
+
+    The resident is immune for good once infected.
 
     Args:
         label:
@@ -102,7 +109,9 @@ class ResidentElement(Element):
 
 
 class ResistanceInfectionInteraction(Interaction):
-    """Infection of every resident whose resistance is below the strength of the season's strain, who becomes immune.
+    """Infection of every resident whose resistance is below the strain strength.
+
+    The strain is the one of the season, and an infected resident becomes immune.
 
     A resident with `R < eta` is infected in the season and its resistance becomes 1, so it is never infected again.
 
@@ -136,7 +145,9 @@ class ResistanceInfectionInteraction(Interaction):
         self.pathogen = pathogen
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the infection and the immunity of the residents below the strength of the strain.
+        """Return the infection and the immunity of the residents below the strain.
+
+        They are the residents whose resistance is below the strength of the strain.
 
         Args:
             s:
@@ -155,7 +166,9 @@ class ResistanceInfectionInteraction(Interaction):
 
 
 class RecordDynamicsEpidemicSystem(BaseSystem):
-    """Yearly strains that infect every resident less resistant than their strength, who become immune.
+    """Yearly strains that infect every resident less resistant than their strength.
+
+    The infected residents become immune.
 
     Every resident keeps a resistance `R` drawn uniformly from `[0, 1]`. Once a year a strain of strength `eta`, drawn
     uniformly from `[0, 1)`, infects the residents with `R < eta`, whose resistance becomes 1. In a large population an
@@ -198,7 +211,10 @@ class RecordDynamicsEpidemicSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> System:
-        """Return the parts of yearly strains that infect every resident less resistant than their strength."""
+        """Return the parts of yearly strains that infect less resistant residents.
+
+        A strain infects every resident less resistant than its strength.
+        """
         resistance = np.random.default_rng(self.seed).random(self.n)
         residents = GroupElement('residents', element=ResidentElement, size=self.n, values={'R': resistance})
         return System(

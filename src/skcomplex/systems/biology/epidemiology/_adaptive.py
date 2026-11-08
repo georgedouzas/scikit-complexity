@@ -1,4 +1,7 @@
-"""Epidemiology systems on networks: quenched mean field, adaptive rewiring, and activity-driven temporal networks."""
+"""Epidemiology systems on networks.
+
+They cover quenched mean field, adaptive rewiring, and activity-driven temporal networks.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -24,7 +27,9 @@ HIDDEN = VisualSpec('sites', {'states': []})
 
 
 class ActiveHostElement(Element):
-    """Node of an activity-driven network, susceptible at `i = 0` or infected at `i = 1`, in discrete time.
+    """Node of an activity-driven network, susceptible or infected, in discrete time.
+
+    The node is susceptible at `i = 0` and infected at `i = 1`.
 
     A `TransitionInteraction` recovers an infected node with probability `mu` in a step, and another infects a
     susceptible node with probability `lam` by every infected neighbour along the edges of the previous step. A
@@ -73,7 +78,7 @@ class ActiveHostElement(Element):
 
 
 class CarrierElement(Element):
-    """Node of a network whose state is the probability that it is infected, in quenched mean field.
+    """Node of a network holding its infection probability, in quenched mean field.
 
     The node recovers at rate 1 and every infected neighbour infects it at rate `lam`, with the probabilities of the
     neighbours taken as independent, so `dp_i / dt = -p_i + lam (1 - p_i) sum_j A_ij p_j` over the neighbours `j`.
@@ -126,7 +131,9 @@ class CarrierElement(Element):
 
 
 class QuenchedMeanFieldSISSystem(BaseSystem):
-    """The SIS epidemic on a fixed network in quenched mean field, one infection probability per node.
+    """The SIS epidemic on a fixed network in quenched mean field.
+
+    It has one infection probability per node.
 
     The infection persists above the threshold `lam_c = 1 / Lambda`, the inverse of the largest eigenvalue of the
     adjacency matrix, and dies out below it. On scale-free networks the hubs keep it alive at small `lam`. The system
@@ -202,7 +209,7 @@ class QuenchedMeanFieldSISSystem(BaseSystem):
 
 
 class AdaptiveSISSystem(BaseSystem):
-    """The SIS epidemic on a network whose susceptible nodes cut their edges to infected neighbours.
+    """The SIS epidemic where susceptible nodes cut their edges to infected neighbours.
 
     Every edge between a susceptible and an infected node is rewired at rate `w`: the susceptible end keeps it and joins
     it to another susceptible node. Rewiring isolates the infected nodes and raises the epidemic threshold above its
@@ -269,15 +276,21 @@ class AdaptiveSISSystem(BaseSystem):
 
     @staticmethod
     def _get_susceptible(node: SimpleNamespace) -> object:
-        """Return the weight of a candidate new end of an edge, 1 for a susceptible node and 0 otherwise."""
+        """Return the weight of a candidate new end of an edge.
+
+        The weight is 1 for a susceptible node and 0 otherwise.
+        """
         return 1 - node.i
 
     def _get_rewiring(self, keep: str) -> TopologyInteraction:
-        """Return the rewiring of the edges whose end `keep` is susceptible and whose other end is infected."""
+        """Return the rewiring of edges from a susceptible end `keep` to an infected end."""
         other = 'target' if keep == 'source' else 'source'
 
         def rate(edge: SimpleNamespace) -> object:
-            """Return the rate at which the susceptible end rewires the edge away from the infected end."""
+            """Return the rate at which the susceptible end rewires the edge.
+
+            The susceptible end rewires the edge away from the infected end.
+            """
             kept, left = getattr(edge, keep), getattr(edge, other)
             return kept.w * (1 - kept.i) * left.i
 
@@ -407,7 +420,10 @@ class ActivityDrivenEpidemicsSystem(BaseSystem):
 
     @staticmethod
     def _get_infection(s: SimpleNamespace) -> Expression:
-        """Return the probability that at least one infected neighbour infects a node along its edges."""
+        """Return the probability that at least one infected neighbour infects a node.
+
+        The neighbours infect the node along its edges.
+        """
         probability: Expression = 1 - (1 - s.target.lam) ** neighbors(s.target.other.i)
         return probability
 
@@ -418,7 +434,10 @@ class ActivityDrivenEpidemicsSystem(BaseSystem):
         return probability
 
     def _build_system(self) -> System:
-        """Return the parts of SIS spreading on an activity-driven temporal network, whose edges last one step."""
+        """Return the parts of SIS spreading on an activity-driven temporal network.
+
+        The edges of the network last one step.
+        """
         rng = np.random.default_rng(self.seed)
         activities = np.minimum(self.least * (1 - rng.random(self.n)) ** (-1 / (self.exponent - 1)), 1.0)
         initial = (rng.random(self.n) < self.infected).astype(float)

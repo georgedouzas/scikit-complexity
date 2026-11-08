@@ -1,4 +1,7 @@
-"""Epidemiology systems: recurrent outbreaks in discrete time with a fixed period of immunity."""
+"""Epidemiology systems: recurrent outbreaks in discrete time.
+
+The immunity lasts a fixed period.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,7 +22,9 @@ MAX_RECOVERY = 12
 
 
 class EpidemicCenterElement(Element):
-    """City in a discrete-time SIRS epidemic, where an infection lasts one step and immunity `recovery` steps.
+    """City in a discrete-time SIRS epidemic.
+
+    An infection lasts one step and immunity `recovery` steps.
 
     The state keeps the infected fractions of the last 12 steps, so the recovery time is at most 12.
 
@@ -69,7 +74,9 @@ class EpidemicCenterElement(Element):
 
 
 class DelayedSIRSSystem(BaseSystem):
-    """Two cities with recurrent outbreaks of a disease of fixed infection and immunity periods.
+    """Two cities with recurrent outbreaks of a disease.
+
+    The disease has fixed infection and immunity periods.
 
     With one infected step and `recovery` immune steps, each city follows `x' = a x (1 - x - x(t-1) - ... -
     x(t-recovery))`, which reduces to the logistic map without immunity. Outbreaks recur like relaxation oscillations,
@@ -126,12 +133,17 @@ class DelayedSIRSSystem(BaseSystem):
 
     @staticmethod
     def _infected_or_immune(center: SimpleNamespace) -> Expression:
-        """Return the fraction of a center infected now or in the last `recovery` steps, who cannot be infected."""
+        """Return the fraction of a center that cannot be infected.
+
+        The fraction is the one infected now or in the last `recovery` steps.
+        """
         past = sum(where(step <= center.recovery, lag(center.x, step), 0) for step in range(1, MAX_RECOVERY + 1))
         return center.x + past
 
     def _get_next_infected(self, s: SimpleNamespace) -> Expression:
-        """Return `a (x + e y) s`, the next infected fraction of a center visited by the infected of another one.
+        """Return `a (x + e y) s`, the next infected fraction of a center.
+
+        The center is visited by the infected of another one.
 
         The center is the target, `y` and `e` are the infected fraction of the other center and the fraction of them who
         visit, and `s = 1 - x - x(t - 1) - ... - x(t - recovery)` is the susceptible fraction of the center.

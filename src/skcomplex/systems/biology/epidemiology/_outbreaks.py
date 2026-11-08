@@ -1,4 +1,7 @@
-"""Epidemiology systems: outbreaks that confer immunity on networks of heterogeneous degree, in mean field."""
+"""Epidemiology systems: outbreaks that confer immunity, in mean field.
+
+The outbreaks spread on networks of heterogeneous degree.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,17 +20,19 @@ from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 
 def _recovered_share(member: SimpleNamespace) -> Expression:
-    """Return the share of the whole population that a degree class holds as recovered individuals."""
+    """Return the share of the population a degree class holds as recovered."""
     return member.P * member.r
 
 
 def _infected_share(member: SimpleNamespace) -> Expression:
-    """Return the share of the whole population that a degree class holds as infected individuals."""
+    """Return the share of the population a degree class holds as infected."""
     return member.P * member.i
 
 
 class ImmunizingDegreeClassElement(Element):
-    """Susceptible, infected, and recovered densities of the nodes of one degree, in heterogeneous mean field.
+    """Susceptible, infected, and recovered densities of the nodes of one degree.
+
+    The densities are in heterogeneous mean field.
 
     A susceptible node of degree `k` is infected at rate `beta k theta` and an infected node recovers at rate `mu`, so
     `d i_k / dt = -mu i_k + beta k s_k theta` and `d r_k / dt = mu i_k`. On an uncorrelated network, the probability
@@ -99,7 +104,9 @@ class ImmunizingDegreeClassElement(Element):
 
 
 class HeterogeneousMeanFieldSIRSystem(BaseSystem):
-    """The SIR epidemic on an uncorrelated network of power-law degrees, in heterogeneous mean field.
+    """The SIR epidemic on an uncorrelated network of power-law degrees.
+
+    It is in heterogeneous mean field.
 
     The degrees run from `k_min` to `k_max` with `P(k) ~ k^-exponent`. An outbreak grows when `beta / mu > <k> / (<k^2>
     - <k>)`, a threshold close to `<k> / <k^2>` on heterogeneous networks, which vanishes on scale-free networks as
@@ -177,12 +184,18 @@ class HeterogeneousMeanFieldSIRSystem(BaseSystem):
 
     @staticmethod
     def _infection(namespace: SimpleNamespace) -> Expression:
-        """Return the infection `beta k s_k (k' - 1) i_k' / k'` of a degree class by the nodes of another class."""
+        """Return the infection `beta k s_k (k' - 1) i_k' / k'` of a degree class.
+
+        The infection is by the nodes of another class.
+        """
         member, other = namespace.member, namespace.other
         return member.beta * member.k * member.s * (other.k - 1) * other.i / other.k
 
     def _susceptible_loss(self, namespace: SimpleNamespace) -> Expression:
-        """Return the loss of susceptible density of a degree class to the infection by another class."""
+        """Return the loss of susceptible density of a degree class.
+
+        The loss is to the infection by another class.
+        """
         return -self._infection(namespace)
 
     @staticmethod
@@ -191,7 +204,7 @@ class HeterogeneousMeanFieldSIRSystem(BaseSystem):
         return namespace.source.mu * namespace.source.i
 
     def _build_system(self) -> System:
-        """Return the parts of the SIR epidemic on an uncorrelated network of power-law degrees."""
+        """Return the parts of the SIR epidemic on an uncorrelated power-law network."""
         degrees = np.arange(self.k_min, self.k_max + 1, dtype=float)
         weights = degrees**-self.exponent / np.sum(degrees**-self.exponent)
         classes = GroupElement(

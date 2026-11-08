@@ -1,4 +1,7 @@
-"""Epidemiology systems: sexually transmitted infections spreading along partnerships that overlap in time."""
+"""Epidemiology systems: sexually transmitted infections along partnerships.
+
+The infections spread along partnerships that overlap in time.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -24,7 +27,9 @@ FRACTION = RealSet.closed(0, 1)
 
 
 class PartnershipEpidemicElement(Element):
-    """Population of Watts and May whose infections pass along partnerships that last, with a fixed exposed period.
+    """Population of Watts and May whose infections pass along lasting partnerships.
+
+    The population has a fixed exposed period.
 
     Susceptible people `S` acquire new partners at the rate `c`, each infecting with the probability `beta` over the
     partnership, and are infected at the rate `pi = c beta (I / A + J)` with the active population `A = S + E + I`. The
@@ -108,7 +113,9 @@ class PartnershipEpidemicElement(Element):
         self.nu = nu
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the infection by new and current partners, the exposed period, and the progression.
+        """Return the infection, the exposed period, and the progression.
+
+        The infection is by new and current partners.
 
         Args:
             s:
@@ -133,7 +140,9 @@ class PartnershipEpidemicElement(Element):
 
 
 class WattsMayConcurrencySystem(BaseSystem):
-    """The SEIR epidemic of Watts and May, where partnerships that last longer spread the infection faster.
+    """The SEIR epidemic of Watts and May.
+
+    Partnerships that last longer spread the infection faster.
 
     A susceptible person is infected at the rate `pi(t) = c beta [I / (S + E + I) + int exp(-(t - t') / tau) pi(t' - T)
     S(t' - T) / (S + E + I)(t') dt']`, by a new partner who is infectious or by a current partner who turned infectious
@@ -210,7 +219,7 @@ class WattsMayConcurrencySystem(BaseSystem):
 
 
 class PairFormationSISSystem(BaseSystem):
-    """The SIS epidemic on partnerships that dissolve and are replaced at once, with `k` partners each.
+    """The SIS epidemic on partnerships that dissolve and are replaced at once.
 
     Every person keeps `k` partners at any time, on a random regular network. A partnership dissolves at the rate
     `sigma`, and the person who keeps it finds a new partner at once, at random. An infectious person infects a
@@ -289,7 +298,10 @@ class PairFormationSISSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> System:
-        """Return the parts of the SIS epidemic on partnerships that dissolve and are replaced at once."""
+        """Return the parts of the SIS epidemic on partnerships that are replaced at once.
+
+        The partnerships dissolve and are replaced at once.
+        """
         beta = self.beta
         sigma = self.sigma
         beta = self.pressure / self.k if beta is None else beta

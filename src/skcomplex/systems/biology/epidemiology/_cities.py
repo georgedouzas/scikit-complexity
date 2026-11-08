@@ -1,4 +1,7 @@
-"""Epidemiology systems: epidemics on the contacts of people who visit the same locations of a synthetic city."""
+"""Epidemiology systems: epidemics among people who share locations of a city.
+
+The epidemics spread on the contacts of people who visit the same locations of a synthetic city.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -33,7 +36,9 @@ class CommuterView(AgentView):
 
 
 class CommuterElement(Element):
-    """Person of a synthetic city who sleeps at home and spends the day at a workplace, with an SIR health state.
+    """Person of a synthetic city with an SIR health state.
+
+    The person sleeps at home and spends the day at a workplace.
 
     The home and the workplace are the locations the person visits, the edges of the person in the bipartite graph of
     people and locations. Health is 0 susceptible, 1 infected, or 2 recovered.
@@ -81,7 +86,7 @@ class CommuterElement(Element):
 
 
 class ColocationInteraction(Interaction):
-    """Daily movement of people between their homes and workplaces, and infection between people at one location.
+    """Daily movement of people between home and work, and infection at locations.
 
     A step is half a day: in even steps every person is at home and in odd steps at the workplace, unless workplaces
     are closed, the time-labelled visits of the bipartite graph of people and locations of EpiSims. At every step a
@@ -164,7 +169,9 @@ class ColocationInteraction(Interaction):
 
 
 class EpisimsCitySystem(BaseSystem):
-    """A synthetic city in the spirit of EpiSims, where people infect those they meet at home and at work.
+    """A synthetic city in the spirit of EpiSims.
+
+    People infect those they meet at home and at work.
 
     EpiSims models a city as a bipartite graph of people and locations whose edges are visits labelled with their times,
     and spreads disease between people at the same location. Here every person belongs to a household of mean size

@@ -1,4 +1,7 @@
-"""Epidemiology: compartmental, network, metapopulation, and agent-based systems of infection and recovery."""
+"""Epidemiology systems of infection and recovery.
+
+The systems are compartmental, network, metapopulation, and agent-based.
+"""
 
 from ..common.networks import HostElement, SpreadingInteraction
 from ._adaptive import (

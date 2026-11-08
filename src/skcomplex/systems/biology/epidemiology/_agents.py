@@ -1,4 +1,7 @@
-"""Epidemiology systems: infections among individuals who walk on grids and travel on networks."""
+"""Epidemiology systems: infections among individuals on grids and networks.
+
+The individuals walk on grids and travel on networks.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -42,7 +45,9 @@ class PersonView(AgentView):
 
 
 class PersonElement(Element):
-    """Person of the agent-based SIR system, with incubation, mortality, waning immunity, and lockdown.
+    """Person of the agent-based SIR system.
+
+    The person has incubation, mortality, waning immunity, and lockdown.
 
     A `MovementInteraction` walks a living person to a neighbouring cell with probability `d`, or `lockdown_d` during
     the lockdown, which lasts `lockdown_length` steps from `lockdown_start`. Transitions of the agent form, which
@@ -141,7 +146,9 @@ class TravellerView(AgentView):
 
 
 class TravellerElement(Element):
-    """Resident of a city at a network node, who infects fellow residents and travels to neighbouring cities.
+    """Resident of a city at a network node.
+
+    The resident infects fellow residents and travels to neighbouring cities.
 
     In its own activation, an infected traveller infects every susceptible traveller of its node with probability
     `tau`, by a `TransitionInteraction` whose members act on their cell, and another transition makes it recover after
@@ -254,7 +261,10 @@ class WalkerElement(Element):
 
 
 def _is_due(agent: AgentViewProtocol, system: SystemViewProtocol) -> bool:
-    """Return true, so a member moves as soon as it has held its value for the residence time."""
+    """Return true.
+
+    A member moves as soon as it has held its value for the residence time.
+    """
     return True
 
 
@@ -266,7 +276,7 @@ def _initial_health(size: int, sick: int, rng: np.random.Generator, value: float
 
 
 class AgentBasedSIRSystem(BaseSystem):
-    """People who walk on a grid and infect those in their cell, with optional extensions of the SIR system.
+    """People who walk on a grid and infect those in their cell.
 
     The basic system infects with probability `beta` and recovers with probability `gamma`. Its final size depends on
     `beta` and `gamma` separately, not only on their ratio, because walking limits the contacts. Mortality `mu`, waning
@@ -369,12 +379,18 @@ class AgentBasedSIRSystem(BaseSystem):
 
     @staticmethod
     def _is_living_person(agent: AgentViewProtocol, system: SystemViewProtocol) -> bool:
-        """Return whether an agent is a living person, so it walks."""
+        """Return whether an agent is a living person.
+
+        A living person walks.
+        """
         return isinstance(agent, PersonView) and agent.health != DEAD
 
     @staticmethod
     def _get_person_step(agent: AgentViewProtocol, destination: object, system: SystemViewProtocol) -> float:
-        """Return the probability that a person walks, `lockdown_d` during the lockdown and `d` otherwise."""
+        """Return the probability that a person walks.
+
+        The probability is `lockdown_d` during the lockdown and `d` otherwise.
+        """
         if not isinstance(agent, PersonView) or not isinstance(system, SystemView):
             return 0.0
         locked = agent.lockdown_start <= system.time < agent.lockdown_start + agent.lockdown_length
@@ -382,7 +398,9 @@ class AgentBasedSIRSystem(BaseSystem):
 
     @staticmethod
     def _is_spreading(agent: PersonView, system: SystemView) -> bool:
-        """Return whether an infectious person spreads in this step, drawn once per step with probability `beta`.
+        """Return whether an infectious person spreads in this step.
+
+        The spread is drawn once per step with probability `beta`.
 
         The infection keeps the draw in its storage for the step, so the person infects every susceptible person of its
         cell or none of them.
@@ -395,7 +413,10 @@ class AgentBasedSIRSystem(BaseSystem):
         return spreads
 
     def _is_person_infected(self, agent: AgentViewProtocol, system: SystemViewProtocol) -> bool:
-        """Return whether an infectious person of the cell of a susceptible person spreads to it in this step."""
+        """Return whether an infectious cellmate infects a susceptible person.
+
+        The infectious person shares the cell of the susceptible person, and the infection happens in this step.
+        """
         if not isinstance(agent, PersonView) or not isinstance(system, SystemView):
             return False
         return any(
@@ -410,7 +431,9 @@ class AgentBasedSIRSystem(BaseSystem):
 
     @staticmethod
     def _get_person_death(agent: AgentViewProtocol, system: SystemViewProtocol) -> float:
-        """Return the probability `mu / (1 - gamma)` that an infectious person who has not recovered in a step dies.
+        """Return the probability `mu / (1 - gamma)` that an infectious person dies.
+
+        It is the probability of death of an infectious person who has not recovered in a step.
 
         The death follows the recovery in the step, so this conditional probability makes the death `mu` of the step.
         """
@@ -425,11 +448,17 @@ class AgentBasedSIRSystem(BaseSystem):
 
     @staticmethod
     def _is_incubated(agent: AgentViewProtocol, system: SystemViewProtocol) -> bool:
-        """Return true, so an exposed person becomes infectious as soon as its incubation is over."""
+        """Return true.
+
+        An exposed person becomes infectious as soon as its incubation is over.
+        """
         return True
 
     def _get_person_transitions(self, incubation: float) -> list[TransitionInteraction]:
-        """Return the infection, waning immunity, recovery, death, and incubation of the people of agent-based SIR."""
+        """Return the transitions of the people of agent-based SIR.
+
+        They are the infection, waning immunity, recovery, death, and incubation.
+        """
         exposed = EXPOSED if incubation > 0 else INFECTED
         transitions = [
             TransitionInteraction(
@@ -526,7 +555,9 @@ class AgentBasedSIRSystem(BaseSystem):
 
 
 class RandomWalkerEpidemicsSystem(BaseSystem):
-    """Random walkers among whom one sick walker starts a deadly epidemic, on a grid or on a network.
+    """Random walkers among whom one sick walker starts a deadly epidemic.
+
+    The walkers move on a grid or on a network.
 
     Sick walkers infect the walkers they meet in a cell and die `lifetime` steps later, so the epidemic spreads as a
     front like a forest fire and burns out. Above a critical density of walkers it percolates across the grid. On a
@@ -597,7 +628,10 @@ class RandomWalkerEpidemicsSystem(BaseSystem):
 
     @staticmethod
     def _is_living_walker(agent: AgentViewProtocol, system: SystemViewProtocol) -> bool:
-        """Return whether an agent is a living walker, so it walks."""
+        """Return whether an agent is a living walker.
+
+        A living walker walks.
+        """
         return isinstance(agent, WalkerView) and agent.health != DECEASED
 
     @staticmethod
@@ -607,11 +641,17 @@ class RandomWalkerEpidemicsSystem(BaseSystem):
 
     @staticmethod
     def _get_walker_infection(agent: AgentViewProtocol, other: AgentViewProtocol, system: SystemViewProtocol) -> float:
-        """Return the probability that a walker of the cell infects a healthy walker, `infection` when it is sick."""
+        """Return the probability that a walker of the cell infects a healthy walker.
+
+        The probability is `infection` when the walker is sick.
+        """
         return float(other.infection) if isinstance(other, WalkerView) and other.health == SICK else 0.0
 
     def _build_system(self) -> System:
-        """Return the parts of random walkers among whom one sick walker starts a deadly epidemic."""
+        """Return the parts of random walkers among whom a sick walker starts an epidemic.
+
+        The epidemic is deadly.
+        """
         rng = np.random.default_rng(self.random_state)
         if self.graph is None:
             cells = rng.integers(0, [self.width, self.height], size=(self.walkers, 2))
@@ -668,7 +708,9 @@ class RandomWalkerEpidemicsSystem(BaseSystem):
 
 
 class NetworkSIRSystem(BaseSystem):
-    """SIR epidemics in cities at the nodes of a network, carried between cities by travellers.
+    """SIR epidemics in cities at the nodes of a network.
+
+    Travellers carry the epidemics between cities.
 
     Every node starts with the same number of susceptible residents, and one resident of a random node is infected. The
     system has the group `travellers`.
@@ -737,7 +779,10 @@ class NetworkSIRSystem(BaseSystem):
         other: AgentViewProtocol,
         system: SystemViewProtocol,
     ) -> float:
-        """Return the probability that a traveller of the node infects a susceptible one, `tau` when it is infected."""
+        """Return the probability that a traveller of the node infects a susceptible one.
+
+        The probability is `tau` when the traveller is infected.
+        """
         return float(other.tau) if isinstance(other, TravellerView) and other.health == INFECTED else 0.0
 
     def _build_system(self) -> System:

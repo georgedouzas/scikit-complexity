@@ -18,7 +18,9 @@ MODES = {False: 'rate', True: 'jump'}
 
 
 class InfectionInteraction(ReactionInteraction):
-    """Mass-action infection, the reaction `S + I -> 2 I` at the rate `beta S I` from susceptible to infected.
+    """Mass-action infection, the reaction `S + I -> 2 I` at the rate `beta S I`.
+
+    The reaction moves individuals from susceptible to infected.
 
     It is a `ReactionInteraction` between the states `n` of the two compartments its roles bind, a rate equation, or
     in stochastic mode a random event that moves one individual.
@@ -77,7 +79,10 @@ class InfectionInteraction(ReactionInteraction):
         return {(self.infected, 'n'): 2}
 
     def _get_mode(self) -> str:
-        """Return the mode of the reaction, random events when stochastic and a rate equation otherwise."""
+        """Return the mode of the reaction.
+
+        The mode is random events when stochastic and a rate equation otherwise.
+        """
         return MODES[self.stochastic]
 
     def _get_rate(self, namespace: SimpleNamespace) -> Expression:
@@ -95,7 +100,9 @@ class InfectionInteraction(ReactionInteraction):
 
 
 class ImmunityLossInteraction(ReactionInteraction):
-    """Loss of immunity, the reaction `R -> S` at the rate `xi R` from recovered back to susceptible.
+    """Loss of immunity, the reaction `R -> S` at the rate `xi R`.
+
+    The reaction moves individuals from recovered back to susceptible.
 
     It is a `ReactionInteraction` between the states `n` of the two compartments its roles bind, a rate equation, or
     in stochastic mode a random event that moves one individual.
@@ -146,7 +153,10 @@ class ImmunityLossInteraction(ReactionInteraction):
         return {(self.susceptible, 'n'): 1}
 
     def _get_mode(self) -> str:
-        """Return the mode of the reaction, random events when stochastic and a rate equation otherwise."""
+        """Return the mode of the reaction.
+
+        The mode is random events when stochastic and a rate equation otherwise.
+        """
         return MODES[self.stochastic]
 
     def _get_rate(self, namespace: SimpleNamespace) -> Expression:
@@ -164,7 +174,9 @@ class ImmunityLossInteraction(ReactionInteraction):
 
 
 class RecoveryInteraction(ReactionInteraction):
-    """Recovery, the reaction `I -> R` at the rate `gamma I` from infected to recovered.
+    """Recovery, the reaction `I -> R` at the rate `gamma I`.
+
+    The reaction moves individuals from infected to recovered.
 
     It is a `ReactionInteraction` between the states `n` of the two compartments its roles bind, a rate equation, or
     in stochastic mode a random event that moves one individual.
@@ -223,7 +235,10 @@ class RecoveryInteraction(ReactionInteraction):
         return {(self.recovered, 'n'): 1}
 
     def _get_mode(self) -> str:
-        """Return the mode of the reaction, random events when stochastic and a rate equation otherwise."""
+        """Return the mode of the reaction.
+
+        The mode is random events when stochastic and a rate equation otherwise.
+        """
         return MODES[self.stochastic]
 
     def _get_rate(self, namespace: SimpleNamespace) -> Expression:
@@ -322,7 +337,9 @@ class SIRSystem(MassActionSystem):
 
 
 class SISSystem(MassActionSystem):
-    """An infection without immunity, where the recovered become susceptible again and the disease is endemic.
+    """An infection without immunity, where the recovered become susceptible again.
+
+    The disease is endemic.
 
     Above the threshold `beta N > gamma`, the infected settle at `I = N - gamma / beta`, and below it they die out. The
     system has the compartments `S` and `I`.
@@ -380,7 +397,9 @@ class SISSystem(MassActionSystem):
         return {'S': self.susceptible, 'I': self.infected}
 
     def _get_interactions(self) -> list[ReactionInteraction]:
-        """Return the infection and the recovery to susceptible of an infection without immunity.
+        """Return the infection and the recovery to susceptible.
+
+        They are the interactions of an infection without immunity.
 
         Returns:
             interactions:
@@ -399,7 +418,9 @@ class SISSystem(MassActionSystem):
 
 
 class SIRSSystem(MassActionSystem):
-    """An epidemic whose immunity wanes, which returns in damped waves to an endemic equilibrium.
+    """An epidemic whose immunity wanes.
+
+    The epidemic returns in damped waves to an endemic equilibrium.
 
     The equilibrium has `S = gamma / beta` susceptible and `I = xi (N - S) / (gamma + xi)` infected. The system has the
     compartments `S`, `I`, and `R`.
@@ -467,7 +488,9 @@ class SIRSSystem(MassActionSystem):
         return {'S': self.susceptible, 'I': self.infected, 'R': self.recovered}
 
     def _get_interactions(self) -> list[ReactionInteraction]:
-        """Return the infection, the recovery, and the loss of immunity of an epidemic whose immunity wanes.
+        """Return the infection, the recovery, and the loss of immunity.
+
+        They are the interactions of an epidemic whose immunity wanes.
 
         Returns:
             interactions:
@@ -487,7 +510,9 @@ class SIRSSystem(MassActionSystem):
 
 
 class ZombieOutbreakSystem(MassActionSystem):
-    """The outbreak of zombies of Munz et al., where the dead rise again and humans are eventually overrun.
+    """The outbreak of zombies of Munz et al.
+
+    The dead rise again and humans are eventually overrun.
 
     Humans `S` are born at the rate `birth` and die naturally at the rate `delta`. A zombie `Z` bites a human at the
     rate `beta S Z`, and humans destroy zombies at the rate `alpha S Z`. The dead and destroyed `R` rise as zombies at
@@ -568,7 +593,9 @@ class ZombieOutbreakSystem(MassActionSystem):
         return {'S': self.susceptible, 'Z': self.zombies, 'R': self.removed}
 
     def _get_interactions(self) -> list[ReactionInteraction]:
-        """Return the bites, the destruction, the deaths, the resurrections, and the births of the outbreak.
+        """Return the interactions of the outbreak.
+
+        They are the bites, the destruction, the deaths, the resurrections, and the births.
 
         Returns:
             interactions:

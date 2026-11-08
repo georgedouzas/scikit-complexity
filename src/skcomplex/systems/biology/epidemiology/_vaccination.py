@@ -1,4 +1,7 @@
-"""Optimal vaccination: the vaccination rate that balances the burden of an epidemic against the cost of vaccines."""
+"""Optimal vaccination of an epidemic.
+
+The vaccination rate balances the burden of an epidemic against the cost of vaccines.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -26,14 +29,19 @@ def _vaccinated(s: SimpleNamespace) -> Expression:
 
 
 def _cost(s: SimpleNamespace) -> Expression:
-    """Return the running cost of the epidemic, the infected fraction and the effort of vaccination."""
+    """Return the running cost of the epidemic.
+
+    The cost is the infected fraction and the effort of vaccination.
+    """
     population = s.population
     cost: Expression = population.a * population.I + population.b * population.u**2 / 2
     return cost
 
 
 class VaccinatedPopulationElement(Element):
-    """Susceptible, infected, and recovered fractions of a population vaccinated at a bounded rate.
+    """Susceptible, infected, and recovered fractions of a vaccinated population.
+
+    The population is vaccinated at a bounded rate.
 
     The fractions follow `S' = -beta S I - u S`, `I' = beta S I - gamma I`, and `R' = gamma I + u S`, where the
     vaccination rate `u` is a control input between 0 and its largest value. The planner minimises the burden of the
@@ -122,7 +130,9 @@ class VaccinatedPopulationElement(Element):
 
 
 class SIRVaccinationSystem(BaseSystem):
-    """An SIR epidemic with the vaccination rate that minimises the burden of infections and vaccines.
+    """An SIR epidemic with the optimal vaccination rate.
+
+    The rate minimises the burden of infections and vaccines.
 
     Run with an optimal control solver, vaccination is strongest early, while many are susceptible, and the epidemic
     peaks lower than without vaccination. With no weight `a` on the infections the optimal rate is 0, the epidemic
