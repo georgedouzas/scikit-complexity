@@ -183,3 +183,23 @@ def test_a_system_of_the_library_runs_as_an_instance_or_its_class():
     for source in (LogisticMapSystem(), LogisticMapSystem):
         diagram = orbit_diagram(source, 'r', [2.9], 'map.x', transient=1000, keep=4, dt=1)
         assert diagram.periods.tolist() == [1]
+
+
+def test_runs_of_one_structure_compile_once_per_call(monkeypatch):
+    """Test that runs differing by dotted paths and seeds share one compile, and model parameters compile each."""
+    calls = []
+    compile_problem = experiments._runs._compile_problem
+
+    def counted(system, **settings):
+        calls.append(system.get_params(deep=False))
+        return compile_problem(system, **settings)
+
+    monkeypatch.setattr(experiments._runs, '_compile_problem', counted)
+    rows = [{'I.n': value} for value in (1.0, 5.0, 10.0)]
+    result = sweep(SIRSystem(), rows, replicates=2, until=5, outputs=['I.n'], random_state=0)
+    assert len(calls) == 1
+    np.testing.assert_allclose(result.series('I.n')[::2, 0], [1.0, 5.0, 10.0])
+    sweep(SIRSystem(), rows, until=5, outputs=['I.n'])
+    assert len(calls) == 2
+    sweep(SIRSystem(), [{'beta': 0.2}, {'beta': 0.4}, {'beta': 0.2}], until=5, outputs=['I.n'])
+    assert len(calls) == 4
