@@ -5,7 +5,6 @@ import inspect
 import sys
 import tomllib
 from collections.abc import Iterable
-from functools import cache
 from importlib.resources import files
 from pathlib import Path
 from typing import Any
@@ -38,10 +37,15 @@ def _listing(field: str | None = None) -> list[tuple[str, type[BaseSystem]]]:
     ]
 
 
-@cache
+_BUILT: dict[str, BaseSystem] = {}
+
+
 def _built(system: type[BaseSystem]) -> BaseSystem:
     """Return the system a class builds with its default parameters, built once for its tags and its page."""
-    return system()
+    key = f'{system.__module__}.{system.__qualname__}'
+    if key not in _BUILT:
+        _BUILT[key] = system()
+    return _BUILT[key]
 
 
 def _tags(system: type[BaseSystem]) -> Tags:
