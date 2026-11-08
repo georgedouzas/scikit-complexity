@@ -1,4 +1,7 @@
-"""Mechanics systems: pendulums, oscillators, projectiles, and collisions."""
+"""Mechanics systems.
+
+The module covers pendulums, oscillators, projectiles, and collisions.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -28,7 +31,9 @@ from ..common.particles import (
 
 
 class BouncingBallElement(Element):
-    """Ball at the height `h` above a floor, falling under the gravitational acceleration `g`.
+    """Ball at the height `h` above a floor.
+
+    The ball falls under the gravitational acceleration `g`.
 
     The height has order 2 and its first derivative `h_d1` is the vertical velocity.
 
@@ -79,7 +84,9 @@ def _disc_wall(radius: float, **_: float) -> list[np.ndarray]:
 
 
 class DiscBilliardElement(Element):
-    """Particle moving freely in the plane with the position `(x, y)` and the velocity `(vx, vy)`, inside a disc.
+    """Particle moving freely in the plane inside a disc.
+
+    The particle has the position `(x, y)` and the velocity `(vx, vy)`.
 
     The position changes at the velocity, which changes only at the reflections off the wall of the disc.
 
@@ -148,7 +155,9 @@ class DiscBilliardElement(Element):
 
 
 class HangingBallElement(Element):
-    """Ball hanging on a string of length `length`, which swings with small amplitude about its rest position.
+    """Ball hanging on a string of length `length`.
+
+    The ball swings with small amplitude about its rest position.
 
     The horizontal position `x` has order 2, and its first derivative `x_d1` is the velocity. For small amplitudes
     the ball moves in the potential `g (x - rest)² / (2 length)`.
@@ -201,7 +210,9 @@ class HangingBallElement(Element):
 
 
 class ElasticCollisionInteraction(Interaction):
-    """Elastic collision of two equal masses in a row, which exchange their velocities when they touch.
+    """Elastic collision of two equal masses in a row.
+
+    The masses exchange their velocities when they touch.
 
     The collision is the event at which the gap `x_right - x_left - diameter` between the balls falls to zero, and
     equal masses swap their velocities in an elastic collision.
@@ -241,7 +252,9 @@ class ElasticCollisionInteraction(Interaction):
         self.diameter = diameter
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the crossing law of the contact, which swaps the velocities of the balls.
+        """Return the crossing law of the contact.
+
+        The law swaps the velocities of the balls.
 
         Args:
             s:
@@ -315,7 +328,10 @@ class ProjectileSystem(BaseSystem):
         self.drag = drag
 
     def _build_system(self) -> System:
-        """Return a particle launched under uniform gravity, optionally slowed by linear drag."""
+        """Return a particle launched under uniform gravity.
+
+        Linear drag optionally slows the particle.
+        """
         radians = np.radians(self.angle)
         velocity = [round(float(self.speed * np.cos(radians)), 12), round(float(self.speed * np.sin(radians)), 12)]
         interactions: list[BaseInteraction] = [
@@ -451,7 +467,10 @@ class PendulumSystem(BaseSystem):
         self.l = l
 
     def _build_system(self) -> System:
-        """Return a pendulum, whose angle follows Newton's second law `m l θ'' = -m g sin θ`."""
+        """Return a pendulum.
+
+        Its angle follows Newton's second law `m l θ'' = -m g sin θ`.
+        """
         return System(
             self.label,
             elements=[PendulumElement('bob', theta=self.theta, theta_d1=self.omega, m=self.m, g=self.g, l=self.l)],
@@ -460,7 +479,9 @@ class PendulumSystem(BaseSystem):
 
 
 class DrivenDampedOscillatorSystem(BaseSystem):
-    """A mass on a spring with damping and a periodic force, `m x'' = -k x - c x' + F cos(ω t)`.
+    """A mass on a spring with damping and a periodic force.
+
+    The mass follows `m x'' = -k x - c x' + F cos(ω t)`.
 
     The system has the mass `mass` in one dimension, whose displacement `mass.x` has order 2.
 
@@ -523,7 +544,10 @@ class DrivenDampedOscillatorSystem(BaseSystem):
         self.omega = omega
 
     def _build_system(self) -> System:
-        """Return a mass on a spring with damping and a periodic force, `m x'' = -k x - c x' + F cos(ω t)`."""
+        """Return a mass on a spring with damping and a periodic force.
+
+        The mass follows `m x'' = -k x - c x' + F cos(ω t)`.
+        """
         return System(
             self.label,
             elements=[MassPointElement('mass', x=self.x, x_d1=self.v, m=self.m)],
@@ -537,7 +561,9 @@ class DrivenDampedOscillatorSystem(BaseSystem):
 
 
 class BouncingBallSystem(BaseSystem):
-    """A ball that falls under gravity and bounces off the floor, losing speed by a coefficient of restitution.
+    """A ball that falls under gravity and bounces off the floor.
+
+    The ball loses speed by a coefficient of restitution.
 
     Every impact is an event that reverses the velocity and scales it by `e`. The impacts accumulate at the Zeno time
     `sqrt(2 h / g) (1 + e) / (1 - e)` for a ball dropped from rest, so runs should end before it. The system has the
@@ -609,7 +635,9 @@ class BouncingBallSystem(BaseSystem):
 
 
 class NewtonsCradleSystem(BaseSystem):
-    """Newton's cradle: pendulum balls in a row that pass momentum along by elastic collisions.
+    """Newton's cradle.
+
+    Pendulum balls in a row pass momentum along by elastic collisions.
 
     The balls swing with small amplitude about rest positions that leave a small gap between neighbours, so collisions
     are separate events. The first ball starts with a speed towards the others, and equal masses exchange velocities at
@@ -669,7 +697,10 @@ class NewtonsCradleSystem(BaseSystem):
         self.g = g
 
     def _build_system(self) -> System:
-        """Return Newton's cradle: pendulum balls in a row that pass momentum along by elastic collisions."""
+        """Return Newton's cradle.
+
+        Pendulum balls in a row pass momentum along by elastic collisions.
+        """
         spacing = self.diameter + self.gap
         elements = [
             HangingBallElement(
@@ -757,7 +788,10 @@ class CircularBilliardSystem(BaseSystem):
         self.radius = radius
 
     def _build_system(self) -> System:
-        """Return a particle moving freely inside a circle and reflecting specularly off its wall."""
+        """Return a particle moving freely inside a circle.
+
+        The particle reflects specularly off the wall of the circle.
+        """
         wall = ReflectionInteraction(
             'bounce',
             target='particle',

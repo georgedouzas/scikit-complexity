@@ -1,4 +1,7 @@
-"""Potential well systems: a particle in the one-dimensional well `k x² e^-x`."""
+"""Potential well systems.
+
+The module holds a particle in the one-dimensional well `k x² e^-x`.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,7 +19,9 @@ from ..common.particles import MassPointElement, PotentialEnergyInteraction
 
 
 class ExponentialWellInteraction(PotentialEnergyInteraction):
-    """Potential `k x² e^-x` on a particle in one dimension, a well at `x = 0` behind a barrier at `x = 2`.
+    """Potential `k x² e^-x` on a particle in one dimension.
+
+    The potential has a well at `x = 0` behind a barrier at `x = 2`.
 
     Args:
         label:

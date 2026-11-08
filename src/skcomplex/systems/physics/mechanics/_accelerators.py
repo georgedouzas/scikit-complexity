@@ -1,4 +1,7 @@
-"""Mechanics systems: the beam-beam map of colliding beams and a mass that sticks and slips under friction."""
+"""Mechanics systems of colliding beams and friction.
+
+The module holds the beam-beam map of colliding beams and a mass that sticks and slips under friction.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,7 +23,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class BeamElement(Element):
-    """Transverse position and momentum of a particle of an accelerator beam, kicked by the opposite beam every turn.
+    """Transverse position and momentum of a particle of an accelerator beam.
+
+    The opposite beam kicks the particle every turn.
 
     Map interactions rotate the particle by the tune and kick its momentum with the field of the opposite beam, so the
     element holds the states and the parameters they read.
@@ -72,7 +77,9 @@ class BeamElement(Element):
 
 
 class FrictionOscillatorElement(Element):
-    """Mass on a spring with static, Coulomb, and viscous friction, which sticks and slips.
+    """Mass on a spring with static, Coulomb, and viscous friction.
+
+    The mass sticks and slips.
 
     The mass `m` at the position `x` with the velocity `v` feels the spring `-k x` and the viscous friction `-c v`.
     While it slides it feels the Coulomb friction `-mu_k m g sign(v)`, and at rest it stays at rest while the spring
@@ -153,7 +160,9 @@ class FrictionOscillatorElement(Element):
         self.v_stick = v_stick
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the motion of the mass under the spring and the friction that sticks and slips.
+        """Return the motion of the mass under the spring and the friction.
+
+        The friction makes the mass stick and slip.
 
         Args:
             namespace:
@@ -181,7 +190,9 @@ def _rotate(s: SimpleNamespace) -> tuple[Expression, Expression]:
 
 
 class BeamBeamMapSystem(BaseSystem):
-    """The beam-beam map of a particle of an accelerator beam that meets the opposite beam once every turn.
+    """The beam-beam map of a particle of an accelerator beam.
+
+    The particle meets the opposite beam once every turn.
 
     Every turn the transverse position and momentum rotate by the angle `pi nu` of the tune, `u = a x + b y` with `a =
     cos(pi nu)` and `b = sin(pi nu)`, and the round Gaussian charge of the opposite beam kicks the momentum: `x' = u`,
@@ -235,7 +246,10 @@ class BeamBeamMapSystem(BaseSystem):
 
     @staticmethod
     def _kick(s: SimpleNamespace) -> Expression:
-        """Return the momentum of the target after its rotation and the kick `-8 pi c (1 - exp(-u² / 2)) / u`."""
+        """Return the momentum of the target after its rotation and kick.
+
+        The kick is `-8 pi c (1 - exp(-u² / 2)) / u`.
+        """
         position, momentum = _rotate(s)
         safe = where(position == 0, 1, position)
         return momentum - 8 * pi * s.target.c * where(position == 0, 0, (1 - exp(-(safe**2) / 2)) / safe)
@@ -253,7 +267,9 @@ class BeamBeamMapSystem(BaseSystem):
 
 
 class FrictionOscillatorSystem(BaseSystem):
-    """A mass on a linear spring with static, Coulomb, and viscous friction, `m x'' + c x' + k x + f = 0`.
+    """A mass on a linear spring with static, Coulomb, and viscous friction.
+
+    The mass follows `m x'' + c x' + k x + f = 0`.
 
     While the mass slides, the friction `f = mu_k m g sign(x')` opposes its motion, so in each half of the phase plane
     the motion is linear, around the shifted centres `x = ∓ mu_k m g / k`. At rest the static friction holds the mass
@@ -332,7 +348,10 @@ class FrictionOscillatorSystem(BaseSystem):
         self.v_stick = v_stick
 
     def _build_system(self) -> System:
-        """Return a mass on a linear spring with static, Coulomb, and viscous friction, `m x'' + c x' + k x + f = 0`."""
+        """Return a mass on a linear spring with static, Coulomb, and viscous friction.
+
+        The mass follows `m x'' + c x' + k x + f = 0`.
+        """
         mass = FrictionOscillatorElement(
             'mass',
             x=self.x,

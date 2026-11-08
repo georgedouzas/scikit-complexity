@@ -1,4 +1,7 @@
-"""Pendulum systems: double, coupled, parametric, magnetic, and ballistic pendulums, carts, and clocks."""
+"""Pendulum systems.
+
+The module covers double, coupled, parametric, magnetic, and ballistic pendulums, carts, and clocks.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -29,7 +32,9 @@ from ..common.particles import (
 
 
 class BallisticPendulumElement(Element):
-    """Bullet of mass `m` at the position `x` flying towards the block of mass `M` of a pendulum with the angle `theta`.
+    """Bullet of mass `m` at the position `x` flying towards the block of a pendulum.
+
+    The block has the mass `M`, and the pendulum the angle `theta`.
 
     The position and the angle have order 2. The bullet flies freely, the pendulum swings, and the impact transfers
     the momentum of the bullet to the pendulum.
@@ -97,12 +102,14 @@ class BallisticPendulumElement(Element):
 
 
 def _cart_and_bob(y: float, theta: float, l: float, **_: float) -> np.ndarray:
-    """Return the positions of a cart on a horizontal track and of the bob that hangs from it."""
+    """Return the positions of a cart on a horizontal track and of its hanging bob."""
     return np.array([[y, 0.0], [y + l * np.sin(theta), -l * np.cos(theta)]])
 
 
 class CartPendulumElement(Element):
-    """Cart on a horizontal track at the position `y`, with a pendulum of angle `theta` hanging from it.
+    """Cart on a horizontal track at the position `y`.
+
+    A pendulum of angle `theta` hangs from the cart.
 
     The position and the angle have order 2. The motion comes from `CartPendulumInteraction`.
 
@@ -176,7 +183,9 @@ class CartPendulumElement(Element):
 
 
 class ClockPendulumElement(Element):
-    """Pendulum clock, a pendulum of angle `theta` hanging from a support at the horizontal position `x`.
+    """Pendulum clock, a pendulum of angle `theta` hanging from a support.
+
+    The support is at the horizontal position `x`.
 
     The angle and the position have order 2. The motion comes from `ClockPendulumInteraction`.
 
@@ -258,13 +267,18 @@ class ClockPendulumElement(Element):
 
 
 def _double_bobs(theta1: float, theta2: float, l1: float, l2: float, **_: float) -> np.ndarray:
-    """Return the positions of the two bobs of a double pendulum hanging from the origin."""
+    """Return the positions of the two bobs of a double pendulum.
+
+    The pendulum hangs from the origin.
+    """
     first = np.array([l1 * np.sin(theta1), -l1 * np.cos(theta1)])
     return np.stack([first, first + np.array([l2 * np.sin(theta2), -l2 * np.cos(theta2)])])
 
 
 class DoublePendulumElement(Element):
-    """Double pendulum, a bob of mass `m2` on a rod of length `l2` hanging from a bob of mass `m1` on a rod `l1`.
+    """Double pendulum.
+
+    A bob of mass `m2` on a rod of length `l2` hangs from a bob of mass `m1` on a rod `l1`.
 
     The angles `theta1` and `theta2` of the rods from the vertical have order 2. The motion comes from
     `DoublePendulumInteraction`.
@@ -339,7 +353,9 @@ class DoublePendulumElement(Element):
 
 
 class ParametricPendulumElement(Element):
-    """Pendulum whose suspension point oscillates vertically, with the angle `theta` of order 2.
+    """Pendulum whose suspension point oscillates vertically.
+
+    The angle `theta` has order 2.
 
     The motion comes from `ParametricPendulumInteraction`.
 
@@ -401,7 +417,9 @@ class ParametricPendulumElement(Element):
 
 
 class CartPendulumInteraction(EulerLagrangeInteraction):
-    """Motion of a cart and the pendulum that hangs from it, the Euler-Lagrange equations with a force on the cart.
+    """Motion of a cart and the pendulum that hangs from it.
+
+    The motion is the Euler-Lagrange equations with a force on the cart.
 
     The Lagrangian is `(m1 + m2) y'² / 2 + m2 l y' θ' cos θ + m2 l² θ'² / 2 + m2 g l cos θ`, and the force `F` of the
     target drives the position `y` of the cart.
@@ -445,7 +463,9 @@ class CartPendulumInteraction(EulerLagrangeInteraction):
 
 
 class ClockPendulumInteraction(EulerLagrangeInteraction):
-    """Motion of a pendulum clock on a moving support, the Euler-Lagrange equations with the escapement.
+    """Motion of a pendulum clock on a moving support.
+
+    The motion is the Euler-Lagrange equations with the escapement.
 
     The Lagrangian is `(M + m) x'² / 2 + m l x' θ' cos θ + m l² θ'² / 2 + m g l cos θ`. The Rayleigh dissipation
     `λ l sgn(|θ| - θ_c) θ'² + rho x'²` damps the support and gives the escapement `2 λ l sgn(|θ| - θ_c) θ'`, which pumps
@@ -469,7 +489,7 @@ class ClockPendulumInteraction(EulerLagrangeInteraction):
 
     @staticmethod
     def _get_escapement(namespace: SimpleNamespace) -> Expression:
-        """Return the Rayleigh dissipation of the escapement and of the damping of the support."""
+        """Return the Rayleigh dissipation of the escapement and of the support damping."""
         p = namespace.target
         escapement = p.lam * p.l * sign(abs(p.theta) - p.theta_c) * derivative(p.theta, 1) ** 2
         return escapement + p.rho * derivative(p.x, 1) ** 2
@@ -492,7 +512,9 @@ class ClockPendulumInteraction(EulerLagrangeInteraction):
 
 
 class DoublePendulumInteraction(EulerLagrangeInteraction):
-    """Motion of a double pendulum, the Euler-Lagrange equations of its kinetic energy and gravity.
+    """Motion of a double pendulum.
+
+    The motion is the Euler-Lagrange equations of its kinetic energy and gravity.
 
     The Lagrangian is `(m1 + m2) l1² θ1'² / 2 + m2 l2² θ2'² / 2 + m2 l1 l2 θ1' θ2' cos(θ1 - θ2) + (m1 + m2) g l1 cos θ1
     + m2 g l2 cos θ2`, with the masses, lengths, and gravity of the target.
@@ -532,7 +554,9 @@ class DoublePendulumInteraction(EulerLagrangeInteraction):
 
 
 class MagnetInteraction(PotentialEnergyInteraction):
-    """Magnet below the plane of a pendulum bob, which attracts it with energy `-gamma / sqrt(|x - center|**2 + d**2)`.
+    """Magnet below the plane of a pendulum bob.
+
+    The magnet attracts the bob with energy `-gamma / sqrt(|x - center|**2 + d**2)`.
 
     Args:
         label:
@@ -589,7 +613,9 @@ DIRECTIONS = ('vertical', 'horizontal')
 
 
 class ParametricPendulumInteraction(EulerLagrangeInteraction):
-    """Motion of a pendulum whose suspension point oscillates vertically or horizontally, an Euler-Lagrange equation.
+    """Motion of a pendulum whose suspension point oscillates.
+
+    The point oscillates vertically or horizontally, and the motion is an Euler-Lagrange equation.
 
     The suspension point accelerates by `ε g cos Ω t`. Vertically, the Lagrangian per moment of inertia is
     `θ'² / 2 + (g / l)(1 + ε cos Ω t) cos θ`, and the acceleration modulates gravity, a parametric forcing.
@@ -658,7 +684,9 @@ class ParametricPendulumInteraction(EulerLagrangeInteraction):
 
 
 class PendulumSpringInteraction(EulerLagrangeInteraction):
-    """Spring between the bobs of two pendulums, which stretches with the horizontal distance of the bobs.
+    """Spring between the bobs of two pendulums.
+
+    The spring stretches with the horizontal distance of the bobs.
 
     The spring of stiffness `k` adds the Lagrangian `-k (l2 sin θ2 - l1 sin θ1)² / 2` to the Euler-Lagrange equations
     of the two angles, so its torque on every pendulum divides by the moment of inertia `m l²` of the pendulum's own
@@ -765,7 +793,9 @@ class SupportSpringInteraction(EulerLagrangeInteraction):
 
 
 class DoublePendulumSystem(BaseSystem):
-    """A double pendulum, a pendulum hanging from the bob of another, written as its two Lagrange equations.
+    """A double pendulum, a pendulum hanging from the bob of another.
+
+    The system is written as its two Lagrange equations.
 
     The equations `(m1 + m2) l1 θ1'' + m2 l2 θ2'' cos(θ1 - θ2) + m2 l2 θ2'² sin(θ1 - θ2) + (m1 + m2) g sin θ1 = 0` and
     `l2 θ2'' + l1 θ1'' cos(θ1 - θ2) - l1 θ1'² sin(θ1 - θ2) + g sin θ2 = 0` are solved jointly for the angular
@@ -863,7 +893,9 @@ class DoublePendulumSystem(BaseSystem):
 
 
 class CoupledPendulumsSystem(BaseSystem):
-    """Two pendulums whose bobs are joined by a spring, which pass their energy back and forth.
+    """Two pendulums whose bobs are joined by a spring.
+
+    The pendulums pass their energy back and forth.
 
     The spring stretches with the horizontal distance `l2 sin θ2 - l1 sin θ1` of the bobs and adds the torque `k l1 (l2
     sin θ2 - l1 sin θ1) cos θ1` to the first pendulum and the opposite one to the second. Identical pendulums have the
@@ -934,7 +966,10 @@ class CoupledPendulumsSystem(BaseSystem):
         self.g = g
 
     def _build_system(self) -> System:
-        """Return two pendulums whose bobs are joined by a spring, which pass their energy back and forth."""
+        """Return two pendulums whose bobs are joined by a spring.
+
+        The pendulums pass their energy back and forth.
+        """
         return System(
             self.label,
             elements=[
@@ -950,7 +985,9 @@ class CoupledPendulumsSystem(BaseSystem):
 
 
 class CartPendulumSystem(BaseSystem):
-    """A pendulum hanging from a cart that slides without friction along a horizontal track.
+    """A pendulum hanging from a cart.
+
+    The cart slides without friction along a horizontal track.
 
     The Lagrange equations `(m1 + m2) y'' + m2 l (θ'' cos θ - θ'² sin θ) = F` and `l θ'' + y'' cos θ + g sin θ = 0`
     couple the position `y` of the cart and the angle `θ` of the pendulum. Without a force the horizontal momentum is
@@ -1016,7 +1053,10 @@ class CartPendulumSystem(BaseSystem):
         self.F = F
 
     def _build_system(self) -> System:
-        """Return a pendulum hanging from a cart that slides without friction along a horizontal track."""
+        """Return a pendulum hanging from a cart.
+
+        The cart slides without friction along a horizontal track.
+        """
         return System(
             self.label,
             elements=[
@@ -1036,7 +1076,9 @@ class CartPendulumSystem(BaseSystem):
 
 
 class ParametricPendulumSystem(BaseSystem):
-    """A pendulum whose suspension point oscillates vertically or horizontally, with acceleration `ε g cos Ω t`.
+    """A pendulum whose suspension point oscillates vertically or horizontally.
+
+    The suspension point has the acceleration `ε g cos Ω t`.
 
     Vertically, the acceleration of the suspension point modulates gravity, `θ'' + c θ' + (g / l)(1 + ε cos Ω t) sin θ =
     0`. Small oscillations grow when `Ω` is close to twice the natural frequency `sqrt(g / l)`, the parametric resonance
@@ -1129,7 +1171,9 @@ class ParametricPendulumSystem(BaseSystem):
 
 
 class MagneticPendulumSystem(BaseSystem):
-    """A magnetic bob on a string swinging above magnets on a circle, which comes to rest at one of them.
+    """A magnetic bob on a string swinging above magnets on a circle.
+
+    The bob comes to rest at one of the magnets.
 
     The bob follows `x'' = -ω² x - q x' - Σ gamma (x - x_i) / d_i³` with `d_i = sqrt(|x - x_i|² + d²)`. The basins of
     the magnets have fractal boundaries. The system has the bob `bob` and its position `bob.x` in two dimensions.
@@ -1193,7 +1237,10 @@ class MagneticPendulumSystem(BaseSystem):
         self.d = d
 
     def _build_system(self) -> System:
-        """Return a magnetic bob on a string swinging above magnets on a circle, which comes to rest at one of them."""
+        """Return a magnetic bob on a string swinging above magnets on a circle.
+
+        The bob comes to rest at one of the magnets.
+        """
         angles = 2 * np.pi * np.arange(self.n_magnets) / self.n_magnets
         magnets = [
             MagnetInteraction(
@@ -1218,7 +1265,9 @@ class MagneticPendulumSystem(BaseSystem):
 
 
 class BallisticPendulumSystem(BaseSystem):
-    """A bullet that sticks in the block of a pendulum at rest, which then swings up.
+    """A bullet that sticks in the block of a pendulum at rest.
+
+    The pendulum then swings up.
 
     The bullet flies horizontally towards the block, and the impact is an event. Momentum is conserved in the perfectly
     inelastic collision, so the pendulum starts with the speed `m v / (m + M)` and rises to the height `(m v / (m + M))²
@@ -1279,7 +1328,10 @@ class BallisticPendulumSystem(BaseSystem):
         self.g = g
 
     def _build_system(self) -> System:
-        """Return a bullet that sticks in the block of a pendulum at rest, which then swings up."""
+        """Return a bullet that sticks in the block of a pendulum at rest.
+
+        The pendulum then swings up.
+        """
         swing = EulerLagrangeInteraction(
             'swing',
             target='pendulum',
@@ -1314,7 +1366,9 @@ class BallisticPendulumSystem(BaseSystem):
 
 
 class HuygensClocksSystem(BaseSystem):
-    """Pendulum clocks on supports joined by springs, which synchronize through the motion of the supports.
+    """Pendulum clocks on supports joined by springs.
+
+    The clocks synchronize through the motion of the supports.
 
     Every pendulum hangs from a support of mass `M` that moves horizontally with damping `rho`, and neighbouring
     supports are joined by springs of stiffness `k`. A pendulum follows `m l θ'' + f(θ) θ' + m g sin θ = -m x'' cos θ`
