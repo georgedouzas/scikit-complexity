@@ -1,4 +1,7 @@
-"""Koopman embeddings: a quadratic flow with a slow manifold that a finite set of observables makes linear."""
+"""Koopman embeddings.
+
+A finite set of observables makes a quadratic flow with a slow manifold linear.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,7 +17,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class SlowManifoldElement(Element):
-    """Quadratic flow `x1' = mu x1`, `x2' = lam (x2 - x1^2)` with the slow manifold `x2 = x1^2`.
+    """Quadratic flow `x1' = mu x1`, `x2' = lam (x2 - x1^2)`.
+
+    The flow has the slow manifold `x2 = x1^2`.
 
     Args:
         label:
@@ -74,7 +79,9 @@ class SlowManifoldElement(Element):
 
 
 class KoopmanSlowManifoldSystem(BaseSystem):
-    """The quadratic flow `x1' = mu x1`, `x2' = lam (x2 - x1^2)`, with a slow manifold and a linear embedding.
+    """The quadratic flow `x1' = mu x1`, `x2' = lam (x2 - x1^2)`.
+
+    The flow has a slow manifold and a linear embedding.
 
     For `lam < mu < 0` the fast direction contracts onto the slow manifold `x2 = x1^2`, and the state then slides along
     it to the origin. With the observable `x1^2`, the coordinates `(x1, x2, x1^2)` span a Koopman-invariant subspace in

@@ -1,4 +1,4 @@
-"""Dynamical systems: discrete maps."""
+"""Dynamical systems of discrete maps."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,7 +16,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class BakerMapElement(Element):
-    """Coordinates and parameters of the generalized baker map, which stretches the unit square and stacks it.
+    """Coordinates and parameters of the generalized baker map.
+
+    The map stretches the unit square and stacks it.
 
     Args:
         label:
@@ -66,7 +68,9 @@ class BakerMapElement(Element):
 
 
 class CatMapElement(Element):
-    """Coordinates of Arnold's cat map `(x, y) -> (2 x + y, x + y) (mod 1)` of the unit torus, which maps iterate.
+    """Coordinates of Arnold's cat map of the unit torus.
+
+    The map is `(x, y) -> (2 x + y, x + y) (mod 1)`, which maps iterate.
 
     Args:
         label:
@@ -101,7 +105,9 @@ class CatMapElement(Element):
 
 
 class CircleMapElement(Element):
-    """Angle and parameters of the sine circle map `theta' = theta + Omega - K / (2 pi) sin(2 pi theta) (mod 1)`.
+    """Angle and parameters of the sine circle map.
+
+    The map is `theta' = theta + Omega - K / (2 pi) sin(2 pi theta) (mod 1)`.
 
     Args:
         label:
@@ -141,7 +147,9 @@ class CircleMapElement(Element):
 
 
 class ConservativeHenonMapElement(Element):
-    """Coordinates and rotation of Hénon's area-preserving map, a rotation by `2π nu` followed by a quadratic kick.
+    """Coordinates and rotation of Hénon's area-preserving map.
+
+    The map is a rotation by `2π nu` followed by a quadratic kick.
 
     Args:
         label:
@@ -181,7 +189,9 @@ class ConservativeHenonMapElement(Element):
 
 
 class FermiUlamMapElement(Element):
-    """Speed and wall phase of the Fermi-Ulam map of a ball bouncing between a fixed and an oscillating wall.
+    """Speed and wall phase of the Fermi-Ulam map.
+
+    A ball bounces between a fixed and an oscillating wall.
 
     Args:
         label:
@@ -221,7 +231,9 @@ class FermiUlamMapElement(Element):
 
 
 class GaussianMapElement(Element):
-    """Value and parameters of the CDN Gaussian map `x' = exp(-alpha² x²) + β` of an interval.
+    """Value and parameters of the CDN Gaussian map `x' = exp(-alpha² x²) + β`.
+
+    The map acts on an interval.
 
     Args:
         label:
@@ -261,7 +273,9 @@ class GaussianMapElement(Element):
 
 
 class HenonMapElement(Element):
-    """Coordinates and parameters of the Hénon map `x' = 1 - a x^2 + y`, `y' = b x`, which maps iterate.
+    """Coordinates and parameters of the Hénon map `x' = 1 - a x^2 + y`, `y' = b x`.
+
+    Maps iterate the coordinates.
 
     Args:
         label:
@@ -306,7 +320,9 @@ class HenonMapElement(Element):
 
 
 class IntermittencyMapElement(Element):
-    """Value and exponent of the Pomeau-Manneville map `x' = x + x^z (mod 1)`, which a `MapInteraction` iterates.
+    """Value and exponent of the Pomeau-Manneville map `x' = x + x^z (mod 1)`.
+
+    A `MapInteraction` iterates the value.
 
     Args:
         label:
@@ -341,7 +357,9 @@ class IntermittencyMapElement(Element):
 
 
 class LogisticMapElement(Element):
-    """Value and growth rate of the logistic map `x -> r x (1 - x)`, which a `MapInteraction` iterates.
+    """Value and growth rate of the logistic map `x -> r x (1 - x)`.
+
+    A `MapInteraction` iterates the value.
 
     Args:
         label:
@@ -376,7 +394,9 @@ class LogisticMapElement(Element):
 
 
 class LoziMapElement(Element):
-    """Coordinates and parameters of the Lozi map `x' = 1 + y - a |x|`, `y' = b x`, which maps iterate.
+    """Coordinates and parameters of the Lozi map `x' = 1 + y - a |x|`, `y' = b x`.
+
+    Maps iterate the coordinates.
 
     Args:
         label:
@@ -421,7 +441,9 @@ class LoziMapElement(Element):
 
 
 class NewtonMapElement(Element):
-    """Real and imaginary parts of Newton's method for `z^3 = 1`, `z' = (2 z^3 + 1) / (3 z^2)`, which maps iterate.
+    """Real and imaginary parts of Newton's method for `z^3 = 1`.
+
+    The method is `z' = (2 z^3 + 1) / (3 z^2)`, which maps iterate.
 
     Args:
         label:
@@ -459,7 +481,9 @@ GOLDEN_MEAN = (math.sqrt(5) - 1) / 2
 
 
 class StandardMapElement(Element):
-    """Angle, momentum, and kick of the standard map `p' = p + K sin(theta)`, `theta' = theta + p' (mod 2 pi)`.
+    """Angle, momentum, and kick of the standard map.
+
+    The map is `p' = p + K sin(theta)`, `theta' = theta + p' (mod 2 pi)`.
 
     Args:
         label:
@@ -499,7 +523,9 @@ class StandardMapElement(Element):
 
 
 class TentMapElement(Element):
-    """Value and slope of the tent map `x' = mu min(x, 1 - x)`, which a `MapInteraction` iterates.
+    """Value and slope of the tent map `x' = mu min(x, 1 - x)`.
+
+    A `MapInteraction` iterates the value.
 
     Args:
         label:
@@ -534,7 +560,9 @@ class TentMapElement(Element):
 
 
 class TowelMapElement(Element):
-    """Coordinates and growth rates of Rössler's towel map, a three-dimensional map with two positive exponents.
+    """Coordinates and growth rates of Rössler's towel map.
+
+    The map is three-dimensional with two positive exponents.
 
     Args:
         label:
@@ -584,7 +612,9 @@ class TowelMapElement(Element):
 
 
 class LogisticMapSystem(BaseSystem):
-    """The logistic map `x_{t+1} = r x_t (1 - x_t)`, which reaches chaos through period doubling as `r` grows.
+    """The logistic map `x_{t+1} = r x_t (1 - x_t)`.
+
+    The map reaches chaos through period doubling as `r` grows.
 
     The system has the state `map.x`.
 
@@ -633,7 +663,9 @@ class LogisticMapSystem(BaseSystem):
 
 
 class HenonMapSystem(BaseSystem):
-    """The Hénon map `x' = 1 - a x² + y`, `y' = b x`, with a fractal strange attractor for its defaults.
+    """The Hénon map `x' = 1 - a x² + y`, `y' = b x`.
+
+    The map has a fractal strange attractor for its defaults.
 
     The system has the states `map.x` and `map.y`.
 
@@ -681,7 +713,10 @@ class HenonMapSystem(BaseSystem):
         self.b = b
 
     def _build_system(self) -> System:
-        """Return the Hénon map `x' = 1 - a x² + y`, `y' = b x`, with a fractal strange attractor for its defaults."""
+        """Return the Hénon map `x' = 1 - a x² + y`, `y' = b x`.
+
+        The map has a fractal strange attractor for its defaults.
+        """
         first = MapInteraction(
             'x_map',
             target='map',
@@ -697,7 +732,9 @@ class HenonMapSystem(BaseSystem):
 
 
 class StandardMapSystem(BaseSystem):
-    """The Chirikov standard map `p' = p + K sin θ`, `θ' = θ + p'`, with global chaos above K ≈ 0.9716.
+    """The Chirikov standard map `p' = p + K sin θ`, `θ' = θ + p'`.
+
+    The map has global chaos above K ≈ 0.9716.
 
     The last invariant circle that spans the angle, the golden-mean torus, breaks at K ≈ 0.971635. The angle is taken
     modulo 2π and the momentum is kept on the real line, so its spread measures diffusion. The system has the states
@@ -742,7 +779,10 @@ class StandardMapSystem(BaseSystem):
         self.K = K
 
     def _build_system(self) -> System:
-        """Return the Chirikov standard map `p' = p + K sin θ`, `θ' = θ + p'`, with global chaos above K ≈ 0.9716."""
+        """Return the Chirikov standard map `p' = p + K sin θ`, `θ' = θ + p'`.
+
+        The map has global chaos above K ≈ 0.9716.
+        """
         kick = MapInteraction(
             'p_map',
             target='map',
@@ -763,7 +803,9 @@ class StandardMapSystem(BaseSystem):
 
 
 class CircleMapSystem(BaseSystem):
-    """The sine circle map `θ' = θ + Ω - K / (2π) sin 2πθ (mod 1)`, which locks into Arnold tongues.
+    """The sine circle map `θ' = θ + Ω - K / (2π) sin 2πθ (mod 1)`.
+
+    The map locks into Arnold tongues.
 
     The system has the state `map.theta`.
 
@@ -806,7 +848,10 @@ class CircleMapSystem(BaseSystem):
         self.K = K
 
     def _build_system(self) -> System:
-        """Return the sine circle map `θ' = θ + Ω - K / (2π) sin 2πθ (mod 1)`, which locks into Arnold tongues."""
+        """Return the sine circle map `θ' = θ + Ω - K / (2π) sin 2πθ (mod 1)`.
+
+        The map locks into Arnold tongues.
+        """
         rotation = MapInteraction(
             'theta_map',
             target='map',
@@ -824,7 +869,9 @@ class CircleMapSystem(BaseSystem):
 
 
 class TentMapSystem(BaseSystem):
-    """The tent map `x' = μ min(x, 1 - x)`, chaotic with Lyapunov exponent `ln μ` for μ above 1.
+    """The tent map `x' = μ min(x, 1 - x)`.
+
+    The map is chaotic with Lyapunov exponent `ln μ` for μ above 1.
 
     The system has the state `map.x`.
 
@@ -862,7 +909,10 @@ class TentMapSystem(BaseSystem):
         self.mu = mu
 
     def _build_system(self) -> System:
-        """Return the tent map `x' = μ min(x, 1 - x)`, chaotic with Lyapunov exponent `ln μ` for μ above 1."""
+        """Return the tent map `x' = μ min(x, 1 - x)`.
+
+        The map is chaotic with Lyapunov exponent `ln μ` for μ above 1.
+        """
         tent = MapInteraction(
             'x_map',
             target='map',
@@ -873,7 +923,9 @@ class TentMapSystem(BaseSystem):
 
 
 class BakerMapSystem(BaseSystem):
-    """The generalized baker map, which stretches the unit square along `x` and stacks the two pieces in `y`.
+    """The generalized baker map.
+
+    The map stretches the unit square along `x` and stacks the two pieces in `y`.
 
     The strip `x < alpha` is stretched by `1 / alpha` and squeezed into the bottom band of height `lambda_a`, and the
     rest is stretched by `1 / (1 - alpha)` and squeezed into the top band of height `lambda_b`. The map preserves area
@@ -962,7 +1014,9 @@ class BakerMapSystem(BaseSystem):
 
 
 class TowelMapSystem(BaseSystem):
-    """Rössler's towel map, a three-dimensional map with two positive Lyapunov exponents.
+    """Rössler's towel map.
+
+    It is a three-dimensional map with two positive Lyapunov exponents.
 
     `x' = a x (1 - x) - 0.05 (y + 0.35)(1 - 2z)`, `y' = 0.1 ((y + 0.35)(1 - 2z) - 1)(1 - 1.9 x)`, and `z' = b z (1 - z)
     + 0.2 y`. The system has the states `map.x`, `map.y`, and `map.z`.
@@ -1016,7 +1070,10 @@ class TowelMapSystem(BaseSystem):
         self.b = b
 
     def _build_system(self) -> System:
-        """Return Rössler's towel map, a three-dimensional map with two positive Lyapunov exponents."""
+        """Return Rössler's towel map.
+
+        It is a three-dimensional map with two positive Lyapunov exponents.
+        """
         first = MapInteraction(
             'x_map',
             target='map',
@@ -1045,7 +1102,9 @@ class TowelMapSystem(BaseSystem):
 
 
 class IntermittencyMapSystem(BaseSystem):
-    """The Pomeau-Manneville map `x' = x + x^z (mod 1)`, whose long laminar phases near 0 end in chaotic bursts.
+    """The Pomeau-Manneville map `x' = x + x^z (mod 1)`.
+
+    Its long laminar phases near 0 end in chaotic bursts.
 
     The system has the state `map.x`.
 
@@ -1094,7 +1153,9 @@ class IntermittencyMapSystem(BaseSystem):
 
 
 class NewtonRaphsonMapSystem(BaseSystem):
-    """Newton's method for `z³ = 1` in the complex plane, `z' = (2z³ + 1) / (3z²)`, in real coordinates.
+    """Newton's method for `z³ = 1` in the complex plane, in real coordinates.
+
+    The method is `z' = (2z³ + 1) / (3z²)`.
 
     Every start except a set of measure zero converges to one of the three cube roots of unity, and the boundaries of
     their basins are fractal. The system has the states `map.x` and `map.y`.
@@ -1133,7 +1194,10 @@ class NewtonRaphsonMapSystem(BaseSystem):
         self.y = y
 
     def _build_system(self) -> System:
-        """Return Newton's method for `z³ = 1` in the complex plane, `z' = (2z³ + 1) / (3z²)`, in real coordinates."""
+        """Return Newton's method for `z³ = 1` in the complex plane, in real coordinates.
+
+        The method is `z' = (2z³ + 1) / (3z²)`.
+        """
         real = MapInteraction(
             'x_map',
             target='map',
@@ -1158,7 +1222,9 @@ class NewtonRaphsonMapSystem(BaseSystem):
 
 
 class CatMapSystem(BaseSystem):
-    """Arnold's cat map `(x, y) → (2x + y, x + y) (mod 1)`, an area-preserving hyperbolic map of the torus.
+    """Arnold's cat map `(x, y) → (2x + y, x + y) (mod 1)`.
+
+    It is an area-preserving hyperbolic map of the torus.
 
     The system has the states `map.x` and `map.y`.
 
@@ -1203,7 +1269,9 @@ class CatMapSystem(BaseSystem):
 
 
 class LoziMapSystem(BaseSystem):
-    """The Lozi map `x' = 1 + y - a |x|`, `y' = b x`, the piecewise linear Hénon map with a strange attractor.
+    """The Lozi map `x' = 1 + y - a |x|`, `y' = b x`.
+
+    It is the piecewise linear Hénon map with a strange attractor.
 
     The fold of the Hénon map becomes a corner, so the attractor is made of straight segments, and for the defaults of
     Lozi (1978) the orbit is chaotic (Dilão 2023, Exercise 3.16). The system has the states `map.x` and `map.y`.
@@ -1268,7 +1336,9 @@ class LoziMapSystem(BaseSystem):
 
 
 class ConservativeHenonMapSystem(BaseSystem):
-    """Hénon's area-preserving quadratic map, a rotation by `2π nu` with a quadratic kick.
+    """Hénon's area-preserving quadratic map.
+
+    The map is a rotation by `2π nu` with a quadratic kick.
 
     The map is `x' = a x + b y + b x²`, `y' = -b x + a y + a x²` with `a = cos 2π nu` and `b = sin 2π nu` (Dilão 2023,
     Example 3.17 and Exercise 2.8). For `nu` in `(0, 1/2)` the origin is a centre surrounded by invariant curves, and
@@ -1315,7 +1385,10 @@ class ConservativeHenonMapSystem(BaseSystem):
         self.nu = nu
 
     def _build_system(self) -> System:
-        """Return Hénon's area-preserving quadratic map, a rotation by `2π nu` with a quadratic kick."""
+        """Return Hénon's area-preserving quadratic map.
+
+        The map is a rotation by `2π nu` with a quadratic kick.
+        """
         first = MapInteraction(
             'x_map',
             target='map',
@@ -1338,7 +1411,9 @@ class ConservativeHenonMapSystem(BaseSystem):
 
 
 class FermiUlamMapSystem(BaseSystem):
-    """The Fermi-Ulam map of a ball bouncing between a fixed wall and a wall that oscillates in time.
+    """The Fermi-Ulam map of a ball bouncing between two walls.
+
+    One wall is fixed and the other oscillates in time.
 
     The speed and the phase of the wall at a bounce follow `u' = |u + ε sin θ|`, `θ' = θ + 2π / u' (mod 2π)`, an
     area-preserving map with a mixed state space like the standard map (Datseris and Parlitz 2022, Exercise 1.11). The
@@ -1384,7 +1459,10 @@ class FermiUlamMapSystem(BaseSystem):
         self.epsilon = epsilon
 
     def _build_system(self) -> System:
-        """Return the Fermi-Ulam map of a ball bouncing between a fixed wall and a wall that oscillates in time."""
+        """Return the Fermi-Ulam map of a ball bouncing between two walls.
+
+        One wall is fixed and the other oscillates in time.
+        """
         speed = MapInteraction(
             'u_map',
             target='map',
@@ -1408,7 +1486,9 @@ class FermiUlamMapSystem(BaseSystem):
 
 
 class CDNMapSystem(BaseSystem):
-    """The Cascais-Dilão-Noronha Gaussian map `x' = exp(-alpha² x²) + β` of an interval.
+    """The Cascais-Dilão-Noronha Gaussian map `x' = exp(-alpha² x²) + β`.
+
+    The map acts on an interval.
 
     For `alpha = 2.8` the map is chaotic over most of `β` between about -0.8 and -0.25, with periodic windows, and its
     complexity rises and falls again with `β` through period doubling and reverse period doubling, as in the bifurcation
@@ -1454,7 +1534,10 @@ class CDNMapSystem(BaseSystem):
         self.beta = beta
 
     def _build_system(self) -> System:
-        """Return the Cascais-Dilão-Noronha Gaussian map `x' = exp(-alpha² x²) + β` of an interval."""
+        """Return the Cascais-Dilão-Noronha Gaussian map `x' = exp(-alpha² x²) + β`.
+
+        The map acts on an interval.
+        """
         gaussian = MapInteraction(
             'x_map',
             target='map',

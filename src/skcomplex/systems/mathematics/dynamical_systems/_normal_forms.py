@@ -1,4 +1,4 @@
-"""Dynamical systems: normal forms of bifurcations."""
+"""Dynamical systems of the normal forms of bifurcations."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -68,7 +68,9 @@ class CuspElement(Element):
 
 
 class HopfElement(Element):
-    """Normal form of the Hopf bifurcation in Cartesian coordinates, with the radial law `r' = mu r + a r^3`.
+    """Normal form of the Hopf bifurcation in Cartesian coordinates.
+
+    The radial law is `r' = mu r + a r^3`.
 
     Args:
         label:
@@ -186,7 +188,9 @@ class SaddleNodeElement(Element):
 
 
 class TakensBogdanovElement(Element):
-    """Normal form `x' = y`, `y' = beta1 + beta2 x + x^2 + sign x y` of the Takens-Bogdanov bifurcation.
+    """Normal form of the Takens-Bogdanov bifurcation.
+
+    The form is `x' = y`, `y' = beta1 + beta2 x + x^2 + sign x y`.
 
     Args:
         label:
@@ -251,7 +255,9 @@ class TakensBogdanovElement(Element):
 
 
 class SaddleNodeFormSystem(BaseSystem):
-    """The saddle-node normal form `x' = μ - x²`, whose two equilibria `±√μ` meet and vanish at μ = 0.
+    """The saddle-node normal form `x' = μ - x²`.
+
+    Its two equilibria `±√μ` meet and vanish at μ = 0.
 
     The system has the state `form.x`.
 
@@ -289,12 +295,17 @@ class SaddleNodeFormSystem(BaseSystem):
         self.mu = mu
 
     def _build_system(self) -> System:
-        """Return the saddle-node normal form `x' = μ - x²`, whose two equilibria `±√μ` meet and vanish at μ = 0."""
+        """Return the saddle-node normal form `x' = μ - x²`.
+
+        Its two equilibria `±√μ` meet and vanish at μ = 0.
+        """
         return System(self.label, elements=[SaddleNodeElement('form', x=self.x, mu=self.mu)])
 
 
 class HopfFormSystem(BaseSystem):
-    """The Hopf normal form, whose focus gives birth to a limit cycle of radius `√(-μ / a)` as μ crosses 0.
+    """The Hopf normal form.
+
+    Its focus gives birth to a limit cycle of radius `√(-μ / a)` as μ crosses 0.
 
     `x' = μx - ωy + a x (x² + y²)` and `y' = ωx + μy + a y (x² + y²)`, supercritical for `a < 0`. The system has the
     states `form.x` and `form.y`.
@@ -356,7 +367,9 @@ class HopfFormSystem(BaseSystem):
 
 
 class TakensBogdanovFormSystem(BaseSystem):
-    """The Takens-Bogdanov normal form `x' = y`, `y' = β1 + β2 x + x² + s x y`, where a saddle-node meets a Hopf.
+    """The Takens-Bogdanov normal form `x' = y`, `y' = β1 + β2 x + x² + s x y`.
+
+    In this form a saddle-node meets a Hopf.
 
     The system has the states `form.x` and `form.y`.
 
@@ -419,7 +432,9 @@ class TakensBogdanovFormSystem(BaseSystem):
 
 
 class CuspFormSystem(BaseSystem):
-    """The cusp normal form `x' = β1 + β2 x - x³`, bistable inside the cusp `27 β1² < 4 β2³`.
+    """The cusp normal form `x' = β1 + β2 x - x³`.
+
+    The form is bistable inside the cusp `27 β1² < 4 β2³`.
 
     The system has the state `form.x`.
 
@@ -462,5 +477,8 @@ class CuspFormSystem(BaseSystem):
         self.beta2 = beta2
 
     def _build_system(self) -> System:
-        """Return the cusp normal form `x' = β1 + β2 x - x³`, bistable inside the cusp `27 β1² < 4 β2³`."""
+        """Return the cusp normal form `x' = β1 + β2 x - x³`.
+
+        The form is bistable inside the cusp `27 β1² < 4 β2³`.
+        """
         return System(self.label, elements=[CuspElement('form', x=self.x, beta1=self.beta1, beta2=self.beta2)])

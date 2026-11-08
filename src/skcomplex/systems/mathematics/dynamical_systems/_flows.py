@@ -1,4 +1,7 @@
-"""Dynamical systems: chaotic and conservative flows, delayed feedback, and singular growth."""
+"""Dynamical systems of flows.
+
+The module covers chaotic and conservative flows, delayed feedback, and singular growth.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,7 +22,9 @@ from ..common.flows._rossler import RosslerElement
 
 
 class BlowUpElement(Element):
-    """Hyperbolic growth `x' = a x^p`, which diverges in finite time for `p > 1`.
+    """Hyperbolic growth `x' = a x^p`.
+
+    The growth diverges in finite time for `p > 1`.
 
     Args:
         label:
@@ -74,7 +79,9 @@ class BlowUpElement(Element):
 
 
 class HyperchaoticRosslerElement(Element):
-    """Rössler's four-dimensional flow `x' = -(y + z)`, `y' = x + a y + w`, `z' = b + x z`, `w' = c w - d z`.
+    """Rössler's four-dimensional flow.
+
+    The flow is `x' = -(y + z)`, `y' = x + a y + w`, `z' = b + x z`, `w' = c w - d z`.
 
     Args:
         label:
@@ -159,7 +166,9 @@ class HyperchaoticRosslerElement(Element):
 
 
 class IkedaElement(Element):
-    """Ikeda delay equation `x' = a sin x(t - tau)`, which oscillates about its stable rest point once `a tau > π / 2`.
+    """Ikeda delay equation `x' = a sin x(t - tau)`.
+
+    The equation oscillates about its stable rest point once `a tau > π / 2`.
 
     Args:
         label:
@@ -274,7 +283,9 @@ class JerkElement(Element):
 
 
 class LangfordElement(Element):
-    """Langford flow, a rotation in `x, y` whose radius and height `z` couple into a torus that breaks into chaos.
+    """Langford flow, a rotation in `x, y` with the height `z`.
+
+    Its radius and height couple into a torus that breaks into chaos.
 
     The flow is `x' = (z - b) x - d y`, `y' = d x + (z - b) y`, and
     `z' = c + a z - z³ / 3 - (x² + y²)(1 + e z) + f z x³`.
@@ -367,7 +378,9 @@ class LangfordElement(Element):
 
 
 class MixedFlowElement(Element):
-    """Sprott's flow `x' = y + 2xy + xz`, `y' = 1 - 2x² + yz`, `z' = x - x² - y²`, conservative and dissipative at once.
+    """Sprott's flow, conservative and dissipative at once.
+
+    The flow is `x' = y + 2xy + xz`, `y' = 1 - 2x² + yz`, `z' = x - x² - y²`.
 
     Args:
         label:
@@ -426,7 +439,9 @@ class MixedFlowElement(Element):
 
 
 class NoseHooverElement(Element):
-    """Nosé-Hoover oscillator `x' = y`, `y' = y z - x`, `z' = 1 - y²`, a conservative flow with tori and chaos.
+    """Nosé-Hoover oscillator `x' = y`, `y' = y z - x`, `z' = 1 - y²`.
+
+    It is a conservative flow with tori and chaos.
 
     Args:
         label:
@@ -481,7 +496,9 @@ class NoseHooverElement(Element):
 
 
 class ThomasElement(Element):
-    """Thomas flow `x' = -a x + sin y`, `y' = -a y + sin z`, `z' = -a z + sin x`, cyclically symmetric and damped.
+    """Thomas flow, cyclically symmetric and damped.
+
+    The flow is `x' = -a x + sin y`, `y' = -a y + sin z`, `z' = -a z + sin x`.
 
     Args:
         label:
@@ -545,7 +562,9 @@ class ThomasElement(Element):
 
 
 class LorenzSystem(BaseSystem):
-    """The Lorenz-63 system of convection, chaotic on a butterfly-shaped attractor for its standard parameters.
+    """The Lorenz-63 system of convection.
+
+    The system is chaotic on a butterfly-shaped attractor for its standard parameters.
 
     The system has the states `lorenz.x`, `lorenz.y`, and `lorenz.z`.
 
@@ -613,7 +632,9 @@ class LorenzSystem(BaseSystem):
 
 
 class RosslerSystem(BaseSystem):
-    """The Rössler system, a chaotic flow with one folded band for its standard parameters.
+    """The Rössler system.
+
+    It is a chaotic flow with one folded band for its standard parameters.
 
     The system has the states `rossler.x`, `rossler.y`, and `rossler.z`.
 
@@ -671,7 +692,10 @@ class RosslerSystem(BaseSystem):
         self.c = c
 
     def _build_system(self) -> System:
-        """Return the Rössler system, a chaotic flow with one folded band for its standard parameters."""
+        """Return the Rössler system.
+
+        It is a chaotic flow with one folded band for its standard parameters.
+        """
         return System(
             self.label,
             elements=[RosslerElement('rossler', x=self.x, y=self.y, z=self.z, a=self.a, b=self.b, c=self.c)],
@@ -727,7 +751,10 @@ class SprottJerkSystem(BaseSystem):
         self.A = A
 
     def _build_system(self) -> System:
-        """Return Sprott's jerk equation `x''' = -A x'' - x' + |x| - 1`, chaotic near A = 0.6."""
+        """Return Sprott's jerk equation `x''' = -A x'' - x' + |x| - 1`.
+
+        The equation is chaotic near A = 0.6.
+        """
         return System(
             self.label,
             elements=[JerkElement('jerk', x=self.x, x_d1=self.velocity, x_d2=self.acceleration, A=self.A)],
@@ -735,7 +762,9 @@ class SprottJerkSystem(BaseSystem):
 
 
 class FiniteTimeBlowUpSystem(BaseSystem):
-    """Hyperbolic growth `x' = a x^p`, which diverges at the finite time `x0^(1 - p) / (a (p - 1))` for p > 1.
+    """Hyperbolic growth `x' = a x^p`.
+
+    For p > 1 the growth diverges at the finite time `x0^(1 - p) / (a (p - 1))`.
 
     The system has the state `growth.x`.
 
@@ -783,7 +812,9 @@ class FiniteTimeBlowUpSystem(BaseSystem):
 
 
 class HyperchaoticRosslerSystem(BaseSystem):
-    """Rössler's four-dimensional flow, hyperchaotic with two positive Lyapunov exponents for its defaults.
+    """Rössler's four-dimensional flow.
+
+    The flow is hyperchaotic with two positive Lyapunov exponents for its defaults.
 
     The flow `x' = -(y + z)`, `y' = x + a y + w`, `z' = b + x z`, `w' = c w - d z` stretches the attractor in two
     directions at once, with the exponents near 0.11 and 0.02 for the parameters of Dilão (2023, Exercise 4.18). The
@@ -873,7 +904,9 @@ class HyperchaoticRosslerSystem(BaseSystem):
 
 
 class NoseHooverSystem(BaseSystem):
-    """The Nosé-Hoover oscillator `x' = y`, `y' = y z - x`, `z' = 1 - y²`, with tori next to a chaotic sea.
+    """The Nosé-Hoover oscillator `x' = y`, `y' = y z - x`, `z' = 1 - y²`.
+
+    The oscillator has tori next to a chaotic sea.
 
     The flow conserves volume on average and its state space is mixed. From `(0, 1.549934227822898, 0)` the orbit is
     periodic, from `(0, 1, 0)` it winds on a torus around that orbit, and from the default `(0, 0.1, 0)` it is chaotic
@@ -924,7 +957,9 @@ class NoseHooverSystem(BaseSystem):
 
 
 class SprottMixedFlowSystem(BaseSystem):
-    """Sprott's flow with a conservative torus and a dissipative chaotic attractor side by side.
+    """Sprott's flow with a conservative torus and a dissipative chaotic attractor.
+
+    The torus and the attractor lie side by side.
 
     The flow is `x' = y + 2xy + xz`, `y' = 1 - 2x² + yz`, `z' = x - x² - y²`, whose volumes change at the rate
     `2(y + z)`. From `(1, 0, 0)` the orbit winds on a 2-torus where this rate averages to zero, and from the default
@@ -972,12 +1007,17 @@ class SprottMixedFlowSystem(BaseSystem):
         self.z = z
 
     def _build_system(self) -> System:
-        """Return Sprott's flow with a conservative torus and a dissipative chaotic attractor side by side."""
+        """Return Sprott's flow with a conservative torus and a dissipative attractor.
+
+        The torus and the attractor lie side by side.
+        """
         return System(self.label, elements=[MixedFlowElement('flow', x=self.x, y=self.y, z=self.z)])
 
 
 class LangfordSystem(BaseSystem):
-    """The Langford flow, a rotation whose torus breaks into a strange attractor for the defaults of Dilão.
+    """The Langford flow, a rotation whose torus breaks into a strange attractor.
+
+    The torus breaks for the defaults of Dilão.
 
     The flow is `x' = (z - b) x - d y`, `y' = d x + (z - b) y`, and
     `z' = c + a z - z³ / 3 - (x² + y²)(1 + e z) + f z x³`, with the reference parameters of Dilão (2023, Exercise
@@ -1075,7 +1115,9 @@ class LangfordSystem(BaseSystem):
 
 
 class ThomasSystem(BaseSystem):
-    """The Thomas flow `x' = -a x + sin y` with its cyclic permutations, chaotic for `a = 0.18`.
+    """The Thomas flow `x' = -a x + sin y` with its cyclic permutations.
+
+    The flow is chaotic for `a = 0.18`.
 
     The flow is symmetric under the cyclic permutation of its coordinates. As the damping `a` falls the fixed points
     give way to limit cycles and then to chaos, and at `a = 0` the orbits wander through a lattice of cells, Thomas's
@@ -1125,12 +1167,17 @@ class ThomasSystem(BaseSystem):
         self.a = a
 
     def _build_system(self) -> System:
-        """Return the Thomas flow `x' = -a x + sin y` with its cyclic permutations, chaotic for `a = 0.18`."""
+        """Return the Thomas flow `x' = -a x + sin y` with its cyclic permutations.
+
+        The flow is chaotic for `a = 0.18`.
+        """
         return System(self.label, elements=[ThomasElement('thomas', x=self.x, y=self.y, z=self.z, a=self.a)])
 
 
 class IkedaSystem(BaseSystem):
-    """The Ikeda delay equation `x' = a sin x(t - tau)` in the form of Dilão (2023, Exercise 6.4).
+    """The Ikeda delay equation `x' = a sin x(t - tau)`.
+
+    The equation is in the form of Dilão (2023, Exercise 6.4).
 
     The rest points `x = k π` alternate in stability for `a > 0`: those of odd `k` attract while `a tau < π / 2`, and
     lose stability to an oscillation in a Hopf bifurcation at `a tau = π / 2`. The history before the start is the
@@ -1175,5 +1222,8 @@ class IkedaSystem(BaseSystem):
         self.tau = tau
 
     def _build_system(self) -> System:
-        """Return the Ikeda delay equation `x' = a sin x(t - tau)` in the form of Dilão (2023, Exercise 6.4)."""
+        """Return the Ikeda delay equation `x' = a sin x(t - tau)`.
+
+        The equation is in the form of Dilão (2023, Exercise 6.4).
+        """
         return System(self.label, elements=[IkedaElement('ikeda', x=self.x, a=self.a, tau=self.tau)])

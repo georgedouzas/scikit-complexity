@@ -1,4 +1,7 @@
-"""Dynamical systems: the subcritical Hopf normal form, with bistability and hysteresis."""
+"""Dynamical systems of the subcritical Hopf normal form.
+
+The form has bistability and hysteresis.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,7 +20,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class SubcriticalHopfElement(Element):
-    """Subcritical Hopf normal form `z' = (alpha + i omega) z + (1 + i q) |z|^2 z - (gamma + i s) |z|^4 z`.
+    """Subcritical Hopf normal form.
+
+    The form is `z' = (alpha + i omega) z + (1 + i q) |z|^2 z - (gamma + i s) |z|^4 z`.
 
     The complex amplitude is `z = x + i y`.
 
@@ -102,7 +107,9 @@ class SubcriticalHopfElement(Element):
 
 
 class SubcriticalHopfFormSystem(BaseSystem):
-    """The subcritical Hopf normal form, where a stable focus coexists with a stable limit cycle.
+    """The subcritical Hopf normal form.
+
+    A stable focus coexists with a stable limit cycle.
 
     The complex amplitude `z = x + iy` follows `z' = (alpha + iω) z + (1 + iq) |z|² z - (gamma + is) |z|⁴ z`, so its
     modulus follows `r' = alpha r + r³ - gamma r⁵`. The focus `z = 0` is stable for `alpha < 0`. The stable limit cycle
@@ -170,7 +177,10 @@ class SubcriticalHopfFormSystem(BaseSystem):
         self.s = s
 
     def _build_system(self) -> System:
-        """Return the subcritical Hopf normal form, where a stable focus coexists with a stable limit cycle."""
+        """Return the subcritical Hopf normal form.
+
+        A stable focus coexists with a stable limit cycle.
+        """
         return System(
             self.label,
             elements=[

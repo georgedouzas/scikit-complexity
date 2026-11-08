@@ -1,4 +1,7 @@
-"""Dynamical systems: ensembles of chaotic maps, their invariant densities, and chaotic walks."""
+"""Dynamical systems of chaotic ensembles.
+
+The module covers ensembles of chaotic maps, their invariant densities, and chaotic walks.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,7 +21,9 @@ from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 
 class CubicWalkElement(Element):
-    """Walker driven by Bertin's cubic chaotic map `x' = lam x (x - 1/2)(x - 1) + x`, which steps by `2 x - 1`.
+    """Walker driven by Bertin's cubic chaotic map `x' = lam x (x - 1/2)(x - 1) + x`.
+
+    The walker steps by `2 x - 1`.
 
     Args:
         label:
@@ -196,7 +201,9 @@ def _draw_cloud(
 
 
 class CubicChaoticMapSystem(BaseSystem):
-    """Bertin's cubic chaotic map and the chaotic walk it drives, which spreads like a random walk.
+    """Bertin's cubic chaotic map and the chaotic walk it drives.
+
+    The walk spreads like a random walk.
 
     Every walker follows the map `x' = λ x (x - 1/2)(x - 1) + x` on the unit interval and moves by the step `y' = y + 2x
     - 1`. The fixed point `x = 1/2` is stable for `λ < 8`, a period-two cycle follows, and the map is chaotic at `λ =
@@ -243,7 +250,10 @@ class CubicChaoticMapSystem(BaseSystem):
         self.lam = lam
 
     def _build_system(self) -> System:
-        """Return Bertin's cubic chaotic map and the chaotic walk it drives, which spreads like a random walk."""
+        """Return Bertin's cubic chaotic map and the chaotic walk it drives.
+
+        The walk spreads like a random walk.
+        """
         start = (np.arange(self.n_walkers) + 1 / 4) / self.n_walkers
         walkers = GroupElement(
             'walkers',
@@ -258,7 +268,9 @@ class CubicChaoticMapSystem(BaseSystem):
 
 
 class SkewTentMapSystem(BaseSystem):
-    """An ensemble of the skew tent map, whose density relaxes to the uniform invariant density for any `a`.
+    """An ensemble of the skew tent map.
+
+    Its density relaxes to the uniform invariant density for any `a`.
 
     The map is `x' = x / a` for `x < a` and `x' = (1 - x) / (1 - a)` otherwise. Every value has one preimage on each
     branch, with slopes `1 / a` and `1 / (1 - a)`, so the uniform density is invariant. The points start in a narrow
@@ -331,7 +343,9 @@ class SkewTentMapSystem(BaseSystem):
 
 
 class DoublingMapSystem(BaseSystem):
-    """An ensemble of the doubling map `x' = 2x (mod 1)`, iterated exactly on fractions with an odd denominator.
+    """An ensemble of the doubling map `x' = 2x (mod 1)`.
+
+    The map is iterated exactly on fractions with an odd denominator.
 
     In floating point `2x (mod 1)` shifts out one binary digit per step, and every orbit reaches 0 within 53 steps. The
     system keeps every point on the fractions `k / q` of an odd denominator `q` and applies the map to them exactly, `k'
