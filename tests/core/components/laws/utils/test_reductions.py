@@ -1088,7 +1088,7 @@ def test_validate_reports_a_hyperedge_reduction_in_a_lattice():
 def test_hyperedges_over_a_neighbourhood_keeps_it():
     """Test that a reduction over neighbour hyperedges records its neighbourhood and its size."""
     (found,) = hyperedges_in(hyperedges(var('x'), size=3, over=RadiusNeighborhood(1.5)))
-    assert (found.size, repr(found.over)) == (3, "RadiusNeighborhood(radius=1.5)")
+    assert (found.size, repr(found.over)) == (3, 'RadiusNeighborhood(radius=1.5)')
     (network,) = hyperedges_in(hyperedges(var('x'), size=3))
     assert network.over is None
 

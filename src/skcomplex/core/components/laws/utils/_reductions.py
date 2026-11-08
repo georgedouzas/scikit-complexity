@@ -101,19 +101,14 @@ def _print_neighbors(self: object, argument: Expression, weight: Expression, ove
     return f'neighbors({", ".join(parts)})'
 
 
-def _print_hyperedges(
-    self: object,
-    argument: Expression,
-    weight: Expression,
-    size: Expression,
-    kind: Expression,
-    over: Expression,
-) -> str:
+def _print_hyperedges(self: object, *operands: Expression) -> str:
     """Return a hyperedge reduction call with its keywords.
 
-    It leaves out every size, unit weight, and the hyperedges of the network.
+    The operands are the argument, the weight, the size, the kind, and the neighbourhood. It leaves out every size, unit
+    weight, and the hyperedges of the network.
     """
     del self
+    argument, weight, size, kind, over = operands
     parts = [str(argument), f'reduce={NEIGHBOR_REDUCTIONS[int(SR(kind))]!r}']
     if not _is_placeholder(size, 0):
         parts.append(f'size={int(SR(size))}')
