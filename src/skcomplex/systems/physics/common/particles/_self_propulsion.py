@@ -1,4 +1,7 @@
-"""Define self-propulsion, the drift of a position along a heading at a constant speed."""
+"""Define self-propulsion.
+
+Self-propulsion is the drift of a position along a heading at a constant speed.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,7 +18,9 @@ from .....core.specs import ParameterSpec, RoleSpec
 
 
 class SelfPropulsionInteraction(RateInteraction):
-    """Self-propulsion `x' += speed (cos theta, sin theta)` of a position in the plane along a heading `theta`.
+    """Self-propulsion `x' += speed (cos theta, sin theta)` of a position in the plane.
+
+    The position drifts along a heading `theta`.
 
     The heading is a state of the same target, which other laws turn and diffuse.
 

@@ -18,7 +18,9 @@ from .....core.specs import ParameterSpec, RoleSpec
 
 
 class KuramotoCouplingInteraction(CouplingInteraction):
-    """Kuramoto coupling `theta_i' += K sum_j sin(theta_j - theta_i - alpha)` of the phases of a group.
+    """Kuramoto coupling `theta_i' += K sum_j sin(theta_j - theta_i - alpha)`.
+
+    The coupling acts on the phases of a group.
 
     The sum, or the mean, runs over the members `j` that the mode selects: the neighbours along the edges of a lattice
     or network, or within a neighbourhood such as `RadiusNeighborhood(r)`, every other member of the group, every member
@@ -125,7 +127,10 @@ class KuramotoCouplingInteraction(CouplingInteraction):
         return namespace.K * sin(other - member - namespace.alpha)
 
     def _get_group_reduction(self, namespace: SimpleNamespace) -> Target:
-        """Return the reduction over the group, from the group sums of `sin theta` and `cos theta` when it can."""
+        """Return the reduction over the group.
+
+        The reduction uses the group sums of `sin theta` and `cos theta` when it can.
+        """
         if self.weights is not None or self.delay != 0:
             return super()._get_group_reduction(namespace)
         source, target = namespace.source, namespace.target

@@ -1,4 +1,7 @@
-"""Translate the named particle forces, pair potentials, and thermostats to native LAMMPS pair styles and fixes."""
+"""Translate named particle laws to native LAMMPS pair styles and fixes.
+
+The laws are the named particle forces, pair potentials, and thermostats.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

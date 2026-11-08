@@ -1,4 +1,7 @@
-"""Define reflections, crossings of a wall that reverse the normal velocity of a moving point."""
+"""Define reflections off walls.
+
+A reflection is a crossing of a wall that reverses the normal velocity of a moving point.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,7 +22,9 @@ from .....core.specs import ParameterSpec, RoleSpec
 
 
 class ReflectionInteraction(CrossingInteraction):
-    """Reflection of a moving point off a wall `g(x) = 0`, with a coefficient of restitution `e`.
+    """Reflection of a moving point off a wall `g(x) = 0`.
+
+    The reflection has a coefficient of restitution `e`.
 
     When the guard `g` crosses zero, the velocity `v` of the point becomes `v - (1 + e) (v . n) n / |n|**2`, where `n`
     is the gradient of `g` with respect to the position. The normal velocity is reversed and scaled by `e`, and the
@@ -92,7 +97,10 @@ class ReflectionInteraction(CrossingInteraction):
         self.region = region
 
     def _get_components(self, member: SimpleNamespace, names: Sequence[str]) -> list[Expression]:
-        """Return the components of the named states of a member, every component of a vector state."""
+        """Return the components of the named states of a member.
+
+        A vector state gives every component.
+        """
         components: list[Expression] = []
         for name in names:
             value = getattr(member, name)
@@ -100,7 +108,9 @@ class ReflectionInteraction(CrossingInteraction):
         return components
 
     def _check(self) -> None:
-        """Raise an error for positions and velocities of different numbers of names, or a function not callable.
+        """Raise an error for invalid positions, velocities, or functions.
+
+        The error is raised for positions and velocities of different numbers of names, or a function not callable.
 
         Raises:
             ValidationError:
@@ -118,7 +128,9 @@ class ReflectionInteraction(CrossingInteraction):
             raise ValidationError(error_msg)
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the crossing law of the wall, which reflects the velocity about the normal of the wall.
+        """Return the crossing law of the wall.
+
+        The law reflects the velocity about the normal of the wall.
 
         Args:
             namespace:

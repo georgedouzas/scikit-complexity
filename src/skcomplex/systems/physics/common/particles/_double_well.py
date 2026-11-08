@@ -1,4 +1,7 @@
-"""Particle at the position `x` in the double well `x^4 / 4 - x^2 / 2`, forced periodically and by noise."""
+"""Particle at the position `x` in the double well `x^4 / 4 - x^2 / 2`.
+
+The particle is forced periodically and by noise.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,7 +16,9 @@ from .....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class DoubleWellElement(Element):
-    """Particle at the position `x` in the double well `x^4 / 4 - x^2 / 2`, forced periodically and by noise.
+    """Particle at the position `x` in the double well `x^4 / 4 - x^2 / 2`.
+
+    The particle is forced periodically and by noise.
 
     Args:
         label:

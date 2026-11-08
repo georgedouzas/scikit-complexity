@@ -15,7 +15,9 @@ from .....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class StuartLandauElement(Element):
-    """Stuart-Landau oscillator `z' = tau ((mu + i omega) z - kappa (1 + i beta) |z|^2 z)` of `z = x + i y`.
+    """Stuart-Landau oscillator of `z = x + i y`.
+
+    The oscillator follows `z' = tau ((mu + i omega) z - kappa (1 + i beta) |z|^2 z)`.
 
     It is the normal form of a supercritical Hopf bifurcation. For `mu > 0` the oscillator settles on the limit cycle
     of radius `sqrt(mu / kappa)`, which it turns at the frequency `tau (omega - beta mu)`, and for `mu < 0` it decays to

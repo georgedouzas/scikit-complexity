@@ -1,4 +1,7 @@
-"""Ising spin, up at 1 or down at -1, with its coupling `J`, its field `h`, and its temperature."""
+"""Ising spin, up at 1 or down at -1.
+
+The spin has its coupling `J`, its field `h`, and its temperature.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,7 +16,9 @@ from .....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class IsingSpinElement(Element):
-    """Ising spin, up at 1 or down at -1, with its coupling `J`, its field `h`, and its temperature.
+    """Ising spin, up at 1 or down at -1.
+
+    The spin has its coupling `J`, its field `h`, and its temperature.
 
     An `IsingSamplingInteraction` flips the spins by Monte Carlo sweeps at the temperature of the spins.
 

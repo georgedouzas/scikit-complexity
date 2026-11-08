@@ -14,7 +14,9 @@ from .....core.specs import ParameterSpec
 
 
 class LennardJonesInteraction(PairCouplingInteraction):
-    """Lennard-Jones pair potential, `4 * epsilon * ((sigma / r) ** 12 - (sigma / r) ** 6)`, without a shift.
+    """Lennard-Jones pair potential without a shift.
+
+    The potential is `4 * epsilon * ((sigma / r) ** 12 - (sigma / r) ** 6)`.
 
     Args:
         label:
