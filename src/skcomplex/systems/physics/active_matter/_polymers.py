@@ -1,4 +1,7 @@
-"""Active polymers: chains of self-propelled beads bonded by springs."""
+"""Active polymers.
+
+The polymers are chains of self-propelled beads bonded by springs.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,7 +23,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class ActiveBeadElement(Element):
-    """Bead of an active polymer, an active Brownian particle bonded to its neighbours along a chain by springs.
+    """Bead of an active polymer.
+
+    The bead is an active Brownian particle bonded to its neighbours along a chain by springs.
 
     The bead at `(x, y)` swims at the speed `v0` along its orientation `theta`, which diffuses with `D_r`, its position
     diffuses with `D_t`, and harmonic springs of stiffness `k` and zero rest length pull it towards its neighbours
@@ -92,7 +97,9 @@ class ActiveBeadElement(Element):
         self.D_r = D_r
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the propulsion and the bonds of the bead, and the noises of its position and orientation.
+        """Return the propulsion, the bonds, and the noises of the bead.
+
+        The noises act on its position and orientation.
 
         Args:
             s:
@@ -112,7 +119,9 @@ class ActiveBeadElement(Element):
 
 
 class ActivePolymerSystem(BaseSystem):
-    """An active polymer, a Rouse chain of active Brownian beads that each swim along their own orientation.
+    """An active polymer, a Rouse chain of active Brownian beads.
+
+    Each bead swims along its own orientation.
 
     Bead `i` follows `r_i' = v0 n_i + k (r_{i+1} + r_{i-1} - 2 r_i) + sqrt(2 D_t) xi_i`, with its orientation `n_i =
     (cos theta_i, sin theta_i)` diffusing with `D_r`, and the end beads bonded to one neighbour. The bonds cancel in the

@@ -1,4 +1,7 @@
-"""Pattern formation systems: amplitude equations and rolls."""
+"""Pattern formation systems.
+
+The module covers amplitude equations and rolls.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,7 +26,9 @@ from ....core.types import Array
 
 
 class GinzburgLandauElement(Element):
-    """Site of the complex Ginzburg-Landau equation `A_t = A + (1 + i b) laplacian(A) - (1 - i c) |A|^2 A`.
+    """Site of the complex Ginzburg-Landau equation.
+
+    The equation is `A_t = A + (1 + i b) laplacian(A) - (1 - i c) |A|^2 A`.
 
     The amplitude `A = u + i v` is held as its real and imaginary parts. Without the Laplacian every site is a
     Stuart-Landau oscillator, and the dispersion `b` and the nonlinear frequency shift `c` set whether plane waves are
@@ -124,7 +129,9 @@ class PatternFieldElement(Element):
 
 
 class SwiftHohenbergEnergyInteraction(GradientInteraction):
-    """Gradient flow `u_t = r u - (1 + laplacian)^2 u + g u^2 - u^3` of a field in the Swift-Hohenberg free energy.
+    """Gradient flow of a field in the Swift-Hohenberg free energy.
+
+    The flow is `u_t = r u - (1 + laplacian)^2 u + g u^2 - u^3`.
 
     The free energy is `F = integral -r u^2 / 2 + ((1 + laplacian) u)^2 / 2 - g u^3 / 3 + u^4 / 4`. Above onset,
     `r > 0`, the modes of wavenumber near 1 grow into rolls, or into hexagons for a large enough quadratic term `g`.
@@ -170,7 +177,9 @@ class SwiftHohenbergEnergyInteraction(GradientInteraction):
         self.g = g
 
     def _get_potential(self, namespace: SimpleNamespace) -> Expression:
-        """Return the density `-r u^2 / 2 + (u + laplacian(u))^2 / 2 - g u^3 / 3 + u^4 / 4`.
+        """Return the Swift-Hohenberg free energy density.
+
+        The density is `-r u^2 / 2 + (u + laplacian(u))^2 / 2 - g u^3 / 3 + u^4 / 4`.
 
         Args:
             namespace:
@@ -190,7 +199,9 @@ def _noise(shape: tuple[int, ...], scale: float, random_state: int | np.random.G
 
 
 class ComplexGinzburgLandauSystem(BaseSystem):
-    """The complex Ginzburg-Landau equation `A_t = A + (1 + i b) laplacian(A) - (1 + i c) |A|^2 A`.
+    """The complex Ginzburg-Landau equation.
+
+    The equation is `A_t = A + (1 + i b) laplacian(A) - (1 + i c) |A|^2 A`.
 
     The amplitude `A = u + i v` is held as its real and imaginary parts, and the linear part couples them per Fourier
     mode. With `1 + b c < 0` the uniform oscillation is unstable and spiral defects turn into turbulence. The system has
@@ -246,7 +257,10 @@ class ComplexGinzburgLandauSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return the complex Ginzburg-Landau equation `A_t = A + (1 + i b) laplacian(A) - (1 + i c) |A|^2 A`."""
+        """Return the complex Ginzburg-Landau equation.
+
+        The equation is `A_t = A + (1 + i b) laplacian(A) - (1 + i c) |A|^2 A`.
+        """
         shape = tuple(self.shape)
         rng = np.random.default_rng(self.random_state)
         values = {'u': _noise(shape, 0.01, rng), 'v': _noise(shape, 0.01, rng), 'b': self.b, 'c': self.c}
@@ -266,7 +280,9 @@ class ComplexGinzburgLandauSystem(BaseSystem):
 
 
 class SwiftHohenbergSystem(BaseSystem):
-    """The Swift-Hohenberg equation `u_t = r u - (1 + laplacian)^2 u - u^3`, which forms rolls of length 2 pi.
+    """The Swift-Hohenberg equation `u_t = r u - (1 + laplacian)^2 u - u^3`.
+
+    The equation forms rolls of length 2 pi.
 
     Above onset, `r > 0`, small noise grows into rolls whose wavenumber is near 1, the fastest growing one. The system
     has the field `cells.u`.

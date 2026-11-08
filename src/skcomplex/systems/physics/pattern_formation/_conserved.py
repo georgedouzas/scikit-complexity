@@ -1,4 +1,7 @@
-"""Pattern formation of conserved fields: the nonreciprocal Cahn-Hilliard equations."""
+"""Pattern formation of conserved fields.
+
+The module holds the nonreciprocal Cahn-Hilliard equations.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,7 +21,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class NonreciprocalMixtureElement(Element):
-    """Site of two conserved fields coupled nonreciprocally, a demixing field `phi` and a diffusing field `psi`.
+    """Site of two conserved fields coupled nonreciprocally.
+
+    The fields are a demixing field `phi` and a diffusing field `psi`.
 
     The fields follow `phi_t = laplacian(-phi + phi^3 - kappa laplacian(phi) + (chi + alpha) psi)` and
     `psi_t = laplacian(D psi + (chi - alpha) phi)`. The reciprocal coupling `chi` derives from a free energy, and the
@@ -101,7 +106,9 @@ class NonreciprocalMixtureElement(Element):
 
 
 class NonreciprocalCahnHilliardSystem(BaseSystem):
-    """The nonreciprocal Cahn-Hilliard equations, a demixing field coupled to a diffusing one.
+    """The nonreciprocal Cahn-Hilliard equations.
+
+    A demixing field is coupled to a diffusing one.
 
     The conserved field `phi` phase separates and the conserved field `psi` diffuses, and they are coupled through
     cross-diffusion, `phi_t = laplacian(-phi + phi^3 - kappa laplacian(phi) + (chi + alpha) psi)` and `psi_t =
@@ -169,7 +176,10 @@ class NonreciprocalCahnHilliardSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return the nonreciprocal Cahn-Hilliard equations, a demixing field coupled to a diffusing one."""
+        """Return the nonreciprocal Cahn-Hilliard equations.
+
+        A demixing field is coupled to a diffusing one.
+        """
         shape = tuple(self.shape)
         rng = np.random.default_rng(self.random_state)
         values = {

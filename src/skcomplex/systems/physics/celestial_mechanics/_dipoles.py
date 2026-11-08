@@ -1,4 +1,7 @@
-"""Charged particle systems: a charge in the magnetic dipole field of a planet."""
+"""Charged particle systems.
+
+The module holds a charge in the magnetic dipole field of a planet.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,7 +20,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class DipoleChargeElement(Element):
-    """Charge in the magnetic dipole field of a planet, at the position `(x, y, z)` with coordinates of order 2.
+    """Charge in the magnetic dipole field of a planet.
+
+    The charge is at the position `(x, y, z)` with coordinates of order 2.
 
     The parameter `alpha` is the product of the charge and the dipole moment, divided by the mass.
 
@@ -81,7 +86,9 @@ class DipoleChargeElement(Element):
 
 
 class StormerProblemSystem(BaseSystem):
-    """A charged particle moving in the magnetic dipole field of a planet, the Störmer problem.
+    """A charged particle moving in the magnetic dipole field of a planet.
+
+    This is the Störmer problem.
 
     The charge follows the Euler-Lagrange equations of `|x'|² / 2 + alpha (x y' - y x') / r³`, the kinetic energy and
     the coupling of the velocity to the vector potential of the dipole, whose Lorentz force gives `x'' = 3 alpha z (y' z
@@ -151,7 +158,10 @@ class StormerProblemSystem(BaseSystem):
 
     @staticmethod
     def _get_dipole_lagrangian(s: SimpleNamespace) -> Expression:
-        """Return the Lagrangian `|x'|² / 2 + alpha (x y' - y x') / r³` of a charge in a magnetic dipole field."""
+        """Return the Lagrangian of a charge in a magnetic dipole field.
+
+        The Lagrangian is `|x'|² / 2 + alpha (x y' - y x') / r³`.
+        """
         charge = s.target
         velocity = [derivative(item, 1) for item in (charge.x, charge.y, charge.z)]
         radius = sqrt(charge.x**2 + charge.y**2 + charge.z**2)
@@ -159,7 +169,10 @@ class StormerProblemSystem(BaseSystem):
         return kinetic + charge.alpha * (charge.x * velocity[1] - charge.y * velocity[0]) / radius**3
 
     def _build_system(self) -> System:
-        """Return a charged particle moving in the magnetic dipole field of a planet, the Störmer problem."""
+        """Return a charged particle moving in the magnetic dipole field of a planet.
+
+        This is the Störmer problem.
+        """
         return System(
             self.label,
             elements=[

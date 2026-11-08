@@ -1,4 +1,7 @@
-"""Monte Carlo sampling of angle or matrix link variables by the local Wilson action of a link."""
+"""Monte Carlo sampling of angle or matrix link variables.
+
+The sampling uses the local Wilson action of a link.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,7 +22,9 @@ from .....core.types import Array, ComplexArray
 
 
 class WilsonSamplingInteraction(SamplingInteraction):
-    """Monte Carlo sampling of link variables with the local Wilson action of the plaquettes of a link.
+    """Monte Carlo sampling of link variables.
+
+    The sampling uses the local Wilson action of the plaquettes of a link.
 
     For link angles the action is `-beta sum_p cos(theta_p)`, where `theta_p` is the oriented sum of the link angles
     around the plaquette `p`. For the matrices of a group `SU(N)` it is `-(beta / N) sum_p Re tr U_p`, where `U_p` is
@@ -106,6 +111,6 @@ class WilsonSamplingInteraction(SamplingInteraction):
         return -namespace.beta * neighbors(cos(exterior_derivative(theta)), over=CofaceNeighborhood())
 
     def _get_trace_action(self, holonomies: ComplexArray, beta: float) -> Array:
-        """Return the Wilson action `-(beta / N) Re tr U_p` of the holonomies of the plaquettes."""
+        """Return the Wilson action `-(beta / N) Re tr U_p` of the plaquette holonomies."""
         degree = holonomies.shape[-1]
         return -beta / degree * np.trace(holonomies, axis1=-2, axis2=-1).real

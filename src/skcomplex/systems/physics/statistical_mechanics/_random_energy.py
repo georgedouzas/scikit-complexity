@@ -78,7 +78,9 @@ class EnergyLevelElement(Element):
 
 
 class BoltzmannSumInteraction(Interaction):
-    """Boltzmann sums over a group of levels, which give the log partition function, mean energy, and entropy per spin.
+    """Boltzmann sums over a group of levels.
+
+    The sums give the log partition function, mean energy, and entropy per spin.
 
     The log partition function is `ln Z = log sum_j exp(-E_j / T)`, the mean energy is
     `U = sum_j E_j exp(-E_j / T - ln Z)`, and the entropy per spin is `(ln Z + U / T) / N`. The sums reduce in log
@@ -124,7 +126,7 @@ class BoltzmannSumInteraction(Interaction):
         self.n_spins = n_spins
 
     def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
-        """Return the equations of the log partition function, the mean energy, and the entropy per spin.
+        """Return the log partition function, mean energy, and entropy per spin equations.
 
         Args:
             s:
@@ -146,7 +148,9 @@ class BoltzmannSumInteraction(Interaction):
 
 
 class RandomEnergySystem(BaseSystem):
-    """The random energy system, `2^N` quenched Gaussian energies of variance `N / 2` at a temperature.
+    """The random energy system.
+
+    It has `2^N` quenched Gaussian energies of variance `N / 2` at a temperature.
 
     The entropy per spin follows `ln 2 - 1 / (4 T^2)` above the glass temperature `T_g = 1 / (2 sqrt(ln 2))` and freezes
     below it, where the Boltzmann weight falls on the few lowest levels (Bertin 2021 §1.5.3). The energies are drawn
@@ -193,7 +197,10 @@ class RandomEnergySystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return the random energy system, `2^N` quenched Gaussian energies of variance `N / 2` at a temperature."""
+        """Return the random energy system.
+
+        It has `2^N` quenched Gaussian energies of variance `N / 2` at a temperature.
+        """
         size = 2**self.n_spins
         energies = np.random.default_rng(self.random_state).normal(0.0, np.sqrt(self.n_spins / 2), size)
         visual = VisualSpec('histograms', {'color_by': 'energy'})

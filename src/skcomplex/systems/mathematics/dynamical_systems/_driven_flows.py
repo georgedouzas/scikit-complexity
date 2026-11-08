@@ -1,4 +1,7 @@
-"""Driven flows: a Rössler flow whose control parameter follows an Ornstein-Uhlenbeck process."""
+"""Driven flows.
+
+The control parameter of a Rössler flow follows an Ornstein-Uhlenbeck process.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,7 +19,9 @@ from ..common.flows._rossler import RosslerElement
 
 
 class DrivenRosslerElement(RosslerElement):
-    """Rössler flow with a control `eta`, the state that the drive adds to the rate of `y` and that relaxes to 0.
+    """Rössler flow with a control `eta`.
+
+    The control is the state that the drive adds to the rate of `y` and that relaxes to 0.
 
     The element holds the flow and the states and parameters of its control. The interactions of the system add the
     control to the rate of `y` and make it an Ornstein-Uhlenbeck process of correlation time `tau` and noise `rho`.
@@ -83,7 +88,9 @@ class DrivenRosslerElement(RosslerElement):
 
 
 class OUDrivenRosslerSystem(BaseSystem):
-    """The Rössler flow driven through its bifurcations by a slow Ornstein-Uhlenbeck control parameter.
+    """The Rössler flow driven through its bifurcations.
+
+    A slow Ornstein-Uhlenbeck control parameter drives the flow.
 
     The flow is `x' = -y - z`, `y' = x + a y + eta`, `z' = b + z (x - c)`, Eq. 13 of Cestnik and Martens, and the
     control follows `eta' = (-eta + rho xi) / tau` with white noise `xi`. The control is an Ornstein-Uhlenbeck process
@@ -161,7 +168,10 @@ class OUDrivenRosslerSystem(BaseSystem):
         self.eta = eta
 
     def _build_system(self) -> System:
-        """Return the Rössler flow driven through its bifurcations by a slow Ornstein-Uhlenbeck control parameter."""
+        """Return the Rössler flow driven through its bifurcations.
+
+        A slow Ornstein-Uhlenbeck control parameter drives the flow.
+        """
         rossler = DrivenRosslerElement(
             'rossler',
             x=self.x,

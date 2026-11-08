@@ -1,4 +1,7 @@
-"""Nonlinear oscillators: Duffing, Toda, Van der Pol, Stuart-Landau, Adler, impulses, billiards, and chaos."""
+"""Nonlinear oscillator systems.
+
+The package covers Duffing, Toda, Van der Pol, Stuart-Landau, Adler, impulses, billiards, and chaos.
+"""
 
 from ._billiards import BilliardsSystem, MushroomBilliardElement, SinaiBilliardElement, ThreeDiskBilliardElement
 from ._oscillators import (

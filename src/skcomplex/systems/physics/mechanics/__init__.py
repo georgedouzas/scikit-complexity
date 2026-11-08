@@ -1,4 +1,7 @@
-"""Mechanics: pendulums, oscillators, friction, projectiles, collisions, rotating bodies, wells, and beam maps."""
+"""Mechanics systems.
+
+The package covers pendulums, oscillators, friction, projectiles, collisions, rotating bodies, wells, and beam maps.
+"""
 
 from ..common.mechanics import PendulumElement, PendulumInteraction
 from ..common.particles import HarmonicForceInteraction

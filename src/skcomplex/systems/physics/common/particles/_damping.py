@@ -1,4 +1,7 @@
-"""Define damping interactions, which slow a velocity in proportion to itself."""
+"""Define damping interactions.
+
+They slow a velocity in proportion to itself.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,7 +18,9 @@ from ._utils import velocity_of
 
 
 class DampingInteraction(RateInteraction):
-    """Linear damping, a force `-gamma * v` proportional and opposite to the velocity `v` of a target.
+    """Linear damping, a force `-gamma * v` opposite to the velocity `v` of a target.
+
+    The force is proportional to the velocity.
 
     The velocity is the first derivative of the position, a state of order 2, whose second derivative changes by
     `-gamma * v / m` with the mass as divisor. The LAMMPS backend runs it as `fix viscous`.

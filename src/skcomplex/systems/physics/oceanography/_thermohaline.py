@@ -15,7 +15,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class StommelBoxesElement(Element):
-    """Ocean of Stommel's two boxes, the differences of temperature and salinity between the equator and the pole.
+    """Ocean of Stommel's two boxes.
+
+    The ocean holds the differences of temperature and salinity between the equator and the pole.
 
     Both differences relax to their forcing and are mixed by a flow proportional to the density difference
     `|T - S|`: `dT/dt = eta1 - T (1 + |T - S|)` and `dS/dt = eta2 - S (eta3 + |T - S|)`.
@@ -69,7 +71,9 @@ class StommelBoxesElement(Element):
         self.eta3 = eta3
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the relaxation of both differences to their forcing and their mixing by the circulation.
+        """Return the relaxation of both differences to their forcing and their mixing.
+
+        The circulation mixes the differences.
 
         Args:
             s:
@@ -86,7 +90,9 @@ class StommelBoxesElement(Element):
 
 
 class StommelSystem(BaseSystem):
-    """Stommel's two-box thermohaline circulation, bistable between a thermal and a haline mode.
+    """Stommel's two-box thermohaline circulation.
+
+    The circulation is bistable between a thermal and a haline mode.
 
     The dimensionless differences of temperature `T` and salinity `S` between an equatorial and a polar box relax to
     their forcing and are mixed by a flow proportional to the density difference `|T - S|`: `dT/dt = eta1 - T (1 + |T -
@@ -142,7 +148,10 @@ class StommelSystem(BaseSystem):
         self.eta3 = eta3
 
     def _build_system(self) -> System:
-        """Return Stommel's two-box thermohaline circulation, bistable between a thermal and a haline mode."""
+        """Return Stommel's two-box thermohaline circulation.
+
+        The circulation is bistable between a thermal and a haline mode.
+        """
         return System(
             self.label,
             elements=[StommelBoxesElement('ocean', T=self.T, S=self.S, eta1=self.eta1, eta2=self.eta2, eta3=self.eta3)],

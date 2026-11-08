@@ -1,4 +1,7 @@
-"""Squirmers: spherical microswimmers driven by surface slip, coupled through the flows they stir in a Stokes fluid."""
+"""Squirmers, spherical microswimmers driven by surface slip.
+
+The squirmers are coupled through the flows they stir in a Stokes fluid.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -24,7 +27,9 @@ POINTS = VisualSpec('points', {'position': 'x', 'radius': 1.0})
 
 
 class SquirmerElement(Element):
-    """Spherical squirmer, a microswimmer at the position `x` that swims along the unit orientation `p`.
+    """Spherical squirmer.
+
+    The microswimmer at the position `x` swims along the unit orientation `p`.
 
     The slip of its surface sets how it swims and stirs the fluid, and `SquirmerSlipInteraction` turns the slip of
     every squirmer into the motion of all of them.
@@ -62,7 +67,9 @@ class SquirmerElement(Element):
 
 
 class SquirmerSlipInteraction(MobilityInteraction):
-    """Slip of spherical squirmers, the B1 and B2 modes that make them swim and stir each other through the mobility.
+    """Slip of spherical squirmers.
+
+    The B1 and B2 modes make them swim and stir each other through the mobility.
 
     A squirmer of radius `a` with the tangential surface slip `B1 sin(theta) + B2 sin(theta) cos(theta)` about its
     orientation `p` (Lighthill 1952, Blake 1971) swims at `2 B1 / 3` along `p`. Far from it, the slip stirs the fluid
@@ -146,14 +153,19 @@ class SquirmerSlipInteraction(MobilityInteraction):
         return 2 ** (7 / 6) * namespace.radius
 
     def _get_repulsion(self, namespace: SimpleNamespace, r: Expression) -> Expression:
-        """Return the Weeks-Chandler-Andersen repulsion of spheres of diameter `2 a`, valid within the cutoff."""
+        """Return the Weeks-Chandler-Andersen repulsion of spheres of diameter `2 a`.
+
+        The repulsion is valid within the cutoff.
+        """
         s = namespace
         ratio = 2 * s.radius / r
         return 4 * s.epsilon * (ratio**12 - ratio**6) + s.epsilon
 
 
 class SquirmersSystem(BaseSystem):
-    """Spherical squirmers that swim at `2 B1 / 3` and stir each other as pushers or pullers.
+    """Spherical squirmers that swim at `2 B1 / 3`.
+
+    The squirmers stir each other as pushers or pullers.
 
     The squirmers start on a jittered cubic lattice of the spacing in an unbounded fluid, with random orientations.
     `beta = B2 / B1` sets the stresslet: pushers (`beta < 0`) draw their neighbours in from the sides and pullers (`beta
@@ -223,7 +235,10 @@ class SquirmersSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return spherical squirmers that swim at `2 B1 / 3` and stir each other as pushers or pullers."""
+        """Return spherical squirmers that swim at `2 B1 / 3`.
+
+        The squirmers stir each other as pushers or pullers.
+        """
         rng = np.random.default_rng(self.random_state)
         side = math.ceil(self.n_squirmers ** (1 / 3) - 1e-9)
         grid = np.stack(np.meshgrid(*[np.arange(side)] * 3, indexing='ij'), axis=-1).reshape(-1, 3)[: self.n_squirmers]

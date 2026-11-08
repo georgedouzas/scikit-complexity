@@ -1,4 +1,7 @@
-"""Fully connected spin systems with Glauber dynamics: the Curie-Weiss magnet and the Sherrington-Kirkpatrick glass."""
+"""Fully connected spin systems with Glauber dynamics.
+
+The module covers the Curie-Weiss magnet and the Sherrington-Kirkpatrick glass.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -36,7 +39,9 @@ def _magnetization() -> ObservableSpec:
 
 
 class FullyConnectedSpinElement(Element):
-    """Ising spin coupled to every other spin, flipped at the Glauber rate `1 / (1 + exp(2 s h / T))`.
+    """Ising spin coupled to every other spin.
+
+    The spin flips at the Glauber rate `1 / (1 + exp(2 s h / T))`.
 
     The local field is `h = J (sum_{j != i} s_j) / N + h_ext` of the Curie-Weiss energy `-(J / N) sum_{i<j} s_i s_j`,
     or `h = J sum_j C_ij s_j + h_ext` with a symmetric coupling matrix `C` of zero diagonal. The rate satisfies
@@ -112,7 +117,9 @@ class FullyConnectedSpinElement(Element):
 
 
 class CurieWeissSystem(BaseSystem):
-    """The fully connected Ising system with Glauber dynamics, ordered below the critical temperature `T_c = J`.
+    """The fully connected Ising system with Glauber dynamics.
+
+    The system orders below the critical temperature `T_c = J`.
 
     The energy is `-(J / N) sum_{i<j} s_i s_j - h sum_i s_i`. In the large system limit the magnetization `m` solves `m
     = tanh((J m + h) / T)`, which has a nonzero root below `T_c` when `h = 0`. One unit of time is one attempted flip
@@ -187,7 +194,9 @@ class CurieWeissSystem(BaseSystem):
 
 
 class SherringtonKirkpatrickSystem(BaseSystem):
-    """The Sherrington-Kirkpatrick spin glass with Glauber dynamics, frozen below the temperature `T_c = J`.
+    """The Sherrington-Kirkpatrick spin glass with Glauber dynamics.
+
+    The glass freezes below the temperature `T_c = J`.
 
     The energy is `-sum_{i<j} J_ij s_i s_j - h sum_i s_i` with quenched Gaussian couplings `J_ij` of mean 0 and variance
     `J^2 / N`, drawn once. Above `T_c` the energy per spin is `-J^2 / (2 T)`, and below it the spins freeze in random

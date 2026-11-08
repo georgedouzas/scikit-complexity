@@ -1,4 +1,7 @@
-"""Define constant force interactions, which push a target with a fixed force."""
+"""Define constant force interactions.
+
+They push a target with a fixed force.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,7 +16,9 @@ from .....core.specs import ParameterSpec, RoleSpec
 
 
 class ConstantForceInteraction(RateInteraction):
-    """Constant force `F` on a target, the second derivative `F / m` of its position of order 2.
+    """Constant force `F` on a target.
+
+    The force is the second derivative `F / m` of its position of order 2.
 
     It is the rate `F` with the mass as divisor, and the LAMMPS backend runs it as `fix addforce`.
 

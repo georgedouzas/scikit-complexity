@@ -1,4 +1,7 @@
-"""Variants of self-organized criticality: the fixed-energy sandpile, the Zhang sandpile, and branching avalanches."""
+"""Variants of self-organized criticality.
+
+The module covers the fixed-energy sandpile, the Zhang sandpile, and branching avalanches.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,7 +26,9 @@ from ..common import SandpileCellElement
 
 
 class BranchingTreeElement(Element):
-    """Self-organized branching process: avalanches on a binary tree whose branching probability the avalanches tune.
+    """Self-organized branching process.
+
+    Avalanches on a binary tree tune its branching probability.
 
     The probability `p` that an active site relaxes into two active sites of the next generation, the number `z` of
     active sites of the current generation of the avalanche, and its generation `g`. Map interactions advance the
@@ -71,7 +76,9 @@ class BranchingTreeElement(Element):
 
 
 class EnergySiteElement(Element):
-    """Site of the Zhang sandpile, which stores a continuous energy.
+    """Site of the Zhang sandpile.
+
+    The site stores a continuous energy.
 
     A cascade loads the energy in random packets and resets the sites above the threshold.
 
@@ -107,7 +114,9 @@ class EnergySiteElement(Element):
 
 
 class ToppleInteraction(LocalRuleInteraction):
-    """Parallel toppling of a sandpile without drive, where every site at or above the threshold topples once a step.
+    """Parallel toppling of a sandpile without drive.
+
+    Every site at or above the threshold topples once a step.
 
     Every step, every site that holds at least `threshold` grains loses `threshold` grains, and every site gains one
     grain from each toppling neighbour, all at once. On a periodic lattice no grain is lost, so the number of grains is
@@ -149,17 +158,25 @@ THRESHOLD = 4
 
 
 def _active(site: SimpleNamespace) -> Expression:
-    """Return 1 for a site that holds at least the threshold, an active site, and 0 otherwise."""
+    """Return 1 for an active site and 0 otherwise.
+
+    An active site holds at least the threshold.
+    """
     return where(site.height >= THRESHOLD, 1, 0)
 
 
 def _ends(tree: SimpleNamespace, generations: int) -> Expression:
-    """Return whether the avalanche of a tree ends this step, at the last generation or with no active site."""
+    """Return whether the avalanche of a tree ends this step.
+
+    It ends at the last generation or with no active site.
+    """
     return either(tree.g >= generations, tree.z == 0)
 
 
 class FixedEnergySandpileSystem(BaseSystem):
-    """The fixed-energy sandpile, a Bak-Tang-Wiesenfeld pile with no drive and no loss on a periodic lattice.
+    """The fixed-energy sandpile.
+
+    It is a Bak-Tang-Wiesenfeld pile with no drive and no loss on a periodic lattice.
 
     Every step, every site with at least four grains gives one grain to each of its four neighbours, all at once. The
     lattice is periodic, so the density of grains `density` is conserved, and it controls an absorbing phase transition.
@@ -222,7 +239,9 @@ class FixedEnergySandpileSystem(BaseSystem):
 
 
 class ZhangSandpileSystem(BaseSystem):
-    """The Zhang sandpile, a continuous sandpile whose unstable sites give away all their energy.
+    """The Zhang sandpile.
+
+    It is a continuous sandpile whose unstable sites give away all their energy.
 
     Every step loads a site chosen at random with a packet of energy of uniform size in `[0, threshold]`. A site whose
     energy reaches the threshold relaxes: its energy falls to 0 and each of its four neighbours gains a quarter of it,
@@ -271,14 +290,20 @@ class ZhangSandpileSystem(BaseSystem):
 
     @staticmethod
     def _load(packet: float, energies: Array, *, random: np.random.Generator) -> Array:
-        """Return the energies with a packet of uniform size in `[0, packet]` added on a random site."""
+        """Return the energies with a packet added on a random site.
+
+        The packet has a uniform size in `[0, packet]`.
+        """
         rng = random
         following = energies.copy()
         following[tuple(rng.integers(size) for size in energies.shape)] += rng.uniform(0.0, packet)
         return following
 
     def _build_system(self) -> System:
-        """Return the Zhang sandpile, a continuous sandpile whose unstable sites give away all their energy."""
+        """Return the Zhang sandpile.
+
+        It is a continuous sandpile whose unstable sites give away all their energy.
+        """
         energies = np.random.default_rng(self.random_state).uniform(0.0, self.threshold, size=tuple(self.shape))
         space = LatticeSpace(tuple(self.shape), boundary='fixed')
         avalanche = CascadeInteraction(
@@ -298,7 +323,9 @@ class ZhangSandpileSystem(BaseSystem):
 
 
 class SelfOrganizedBranchingSystem(BaseSystem):
-    """The self-organized branching process of Zapperi, Lauritsen, and Stanley, a mean-field sandpile.
+    """The self-organized branching process of Zapperi, Lauritsen, and Stanley.
+
+    It is a mean-field sandpile.
 
     An avalanche starts from one active site at the top of a binary tree of `generations` generations. Every active site
     relaxes with the probability `p` into two active sites of the next generation, and stays still otherwise, so every
@@ -347,7 +374,7 @@ class SelfOrganizedBranchingSystem(BaseSystem):
 
     @staticmethod
     def _branch(generations: int, s: SimpleNamespace) -> Expression:
-        """Return the active sites of the next generation, or the one site of a new avalanche."""
+        """Return the active sites of the next generation, or a new avalanche's one site."""
         return where(_ends(s.target, generations), 1, 2 * draw('children', 'binom', n=s.target.z, p=s.target.p))
 
     @staticmethod
@@ -357,13 +384,19 @@ class SelfOrganizedBranchingSystem(BaseSystem):
 
     @staticmethod
     def _tune(generations: int, s: SimpleNamespace) -> Expression:
-        """Return the branching probability, changed by `(1 - sigma) / N` at the end of an avalanche."""
+        """Return the branching probability.
+
+        It changes by `(1 - sigma) / N` at the end of an avalanche.
+        """
         sites = 2 ** (generations + 1) - 1
         dissipated = where(s.target.g >= generations, s.target.z, 0)
         return where(_ends(s.target, generations), s.target.p + (1 - dissipated) / sites, s.target.p)
 
     def _build_system(self) -> System:
-        """Return the self-organized branching process of Zapperi, Lauritsen, and Stanley, a mean-field sandpile."""
+        """Return the self-organized branching process of Zapperi, Lauritsen, and Stanley.
+
+        It is a mean-field sandpile.
+        """
         return System(
             self.label,
             elements=[BranchingTreeElement('tree', p=self.p)],

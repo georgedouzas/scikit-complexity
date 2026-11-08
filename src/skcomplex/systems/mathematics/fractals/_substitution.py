@@ -1,4 +1,7 @@
-"""Fractal systems built by substitution: the Koch curve, the Cantor set, and the Sierpiński triangle and carpet."""
+"""Fractal systems built by substitution.
+
+The module covers the Koch curve, the Cantor set, and the Sierpiński triangle and carpet.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,7 +22,9 @@ from ....core.specs import AffineSpec, GeometrySpec, ParameterSpec, PrototileSpe
 
 
 class CantorElement(PatchElement):
-    """Patch of intervals, each replaced by its first and its last part of the length `ratio`.
+    """Patch of intervals.
+
+    Each interval is replaced by its first and its last part of the length `ratio`.
 
     Args:
         label:
@@ -135,7 +140,9 @@ SHAPES = ('triangle', 'carpet')
 
 
 class SierpinskiElement(PatchElement):
-    """Patch of triangles or squares, each replaced by the scaled copies of the Sierpiński triangle or carpet.
+    """Patch of triangles or squares.
+
+    Each is replaced by the scaled copies of the Sierpiński triangle or carpet.
 
     Args:
         label:
@@ -214,7 +221,7 @@ class SierpinskiElement(PatchElement):
 
     @staticmethod
     def _sierpinski_tiles(shape: str) -> tuple[PrototileSpec, list[tuple[str, AffineSpec]]]:
-        """Return the prototile of a Sierpiński shape and the scaled copies that replace it."""
+        """Return the prototile of a Sierpiński shape and its scaled replacing copies."""
         if shape == 'triangle':
             height = np.sqrt(3) / 2
             corners = [(0.0, 0.0), (0.5, 0.0), (0.25, height / 2)]
@@ -331,7 +338,9 @@ class CantorSetSystem(BaseSystem):
 
 
 class SierpinskiSubstitutionSystem(BaseSystem):
-    """The Sierpiński triangle or carpet as the substitution of a polygon by scaled copies of itself.
+    """The Sierpiński triangle or carpet.
+
+    The shape is the substitution of a polygon by scaled copies of itself.
 
     The triangle is replaced by its three corner copies of half its side, so generation `n` has `3^n` triangles of
     total area `(3/4)^n` times the first, and the gasket has the similarity dimension `log 3 / log 2`, about 1.585. The

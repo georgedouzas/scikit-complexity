@@ -1,4 +1,7 @@
-"""Lattice gauge fields: angle links sampled by the Wilson action, and lattice Maxwell fields from static charges."""
+"""Lattice gauge fields.
+
+The module covers angle links sampled by the Wilson action, and lattice Maxwell fields from static charges.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -26,7 +29,9 @@ from ..common.fields import WilsonSamplingInteraction
 
 
 class GaugeLinkElement(Element):
-    """Link of a lattice with an angle `theta`, the U(1) or Z_N variable of a lattice gauge theory.
+    """Link of a lattice with an angle `theta`.
+
+    The angle is the U(1) or Z_N variable of a lattice gauge theory.
 
     Args:
         label:
@@ -60,7 +65,9 @@ class GaugeLinkElement(Element):
 
 
 class MaxwellLinkElement(Element):
-    """Link of a lattice with a vector potential `A` of second order, whose velocity `A_d1` is the field `-E`.
+    """Link of a lattice with a vector potential `A` of second order.
+
+    Its velocity `A_d1` is the field `-E`.
 
     Args:
         label:
@@ -138,13 +145,16 @@ NEUTRAL_TOTAL = 1e-12
 
 
 def _mean_plaquette(faces: scipy.sparse.csr_array, t: float, values: Mapping[str, object]) -> float:
-    """Return the mean cosine of the oriented sums of the link angles around the plaquettes."""
+    """Return the mean cosine of the oriented link angle sums around the plaquettes."""
     del t
     return float(np.cos(faces @ np.ravel(np.asarray(values['links.theta'], dtype=float))).mean())
 
 
 def _gauss_residual(edges: scipy.sparse.csr_array, t: float, values: Mapping[str, object]) -> float:
-    """Return the largest absolute difference of the codifferential of the electric field and the site charge."""
+    """Return the Gauss residual of the electric field.
+
+    The residual is the largest absolute difference of the codifferential of the field and the site charge.
+    """
     del t
     electric = -np.ravel(np.asarray(values['links.A_d1'], dtype=float))
     charges = np.ravel(np.asarray(values['charges.q'], dtype=float))
@@ -152,7 +162,10 @@ def _gauss_residual(edges: scipy.sparse.csr_array, t: float, values: Mapping[str
 
 
 def _field_energy(faces: scipy.sparse.csr_array, t: float, values: Mapping[str, object]) -> float:
-    """Return the energy of the electric field on the links and of the magnetic field on the plaquettes."""
+    """Return the energy of the electric and magnetic fields.
+
+    The electric field lives on the links and the magnetic field on the plaquettes.
+    """
     del t
     velocity = np.ravel(np.asarray(values['links.A_d1'], dtype=float))
     magnetic = faces @ np.ravel(np.asarray(values['links.A'], dtype=float))
@@ -160,7 +173,10 @@ def _field_energy(faces: scipy.sparse.csr_array, t: float, values: Mapping[str, 
 
 
 def _electric_field(space: CellComplexSpace, charges: Array) -> Array:
-    """Return the electric field of the smallest norm whose codifferential is the charge of every site."""
+    """Return the electric field of least norm whose codifferential is the charge.
+
+    The codifferential matches the charge of every site.
+    """
     field = scipy.sparse.linalg.lsqr(
         -space.incidences_[0].T,
         charges,
@@ -173,12 +189,17 @@ def _electric_field(space: CellComplexSpace, charges: Array) -> Array:
 
 
 def _curl_of_curl(namespace: SimpleNamespace) -> Expression:
-    """Return the rate of the velocity of the potential, minus the codifferential of its exterior derivative."""
+    """Return the rate of the velocity of the potential.
+
+    The rate is minus the codifferential of its exterior derivative.
+    """
     return -codifferential(exterior_derivative(namespace.target.A))
 
 
 class LatticeGaugeFieldsSystem(BaseSystem):
-    """Link variables on the cell complex of a periodic lattice, sampled or evolved in real time.
+    """Link variables on the cell complex of a periodic lattice.
+
+    The variables are sampled or evolved in real time.
 
     With Monte Carlo dynamics, link angles sample the Wilson action `-beta sum_p cos(theta_p)` under discrete time, as
     U(1) angles or as the angles `2 pi k / n` of Z_n. With Hamiltonian dynamics, a potential on the links follows the
@@ -261,7 +282,10 @@ class LatticeGaugeFieldsSystem(BaseSystem):
         self.seed = seed
 
     def _maxwell_system(self, space: CellComplexSpace) -> System:
-        """Return a lattice Maxwell field on the links from static charges and a transverse wave."""
+        """Return a lattice Maxwell field on the links.
+
+        The field comes from static charges and a transverse wave.
+        """
         density = np.zeros(space.size_) if self.charges is None else np.asarray(self.charges, dtype=float)
         if density.size != space.size_ or abs(density.sum()) > NEUTRAL_TOTAL:
             error_msg = (
@@ -306,7 +330,9 @@ class LatticeGaugeFieldsSystem(BaseSystem):
 
     @staticmethod
     def _gauge_observables(system: System) -> list[ObservableSpec]:
-        """Return the mean plaquette of a sampled system, or the Gauss residual and the field energy of a Maxwell one.
+        """Return the observables of the dynamics.
+
+        They are the mean plaquette of a sampled system, or the Gauss residual and the field energy of a Maxwell one.
 
         Args:
             system:
@@ -326,7 +352,10 @@ class LatticeGaugeFieldsSystem(BaseSystem):
         ]
 
     def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings, with the observables of the dynamics, and velocity Verlet for Maxwell."""
+        """Return the tuned run settings.
+
+        The settings have the observables of the dynamics, and velocity Verlet for Maxwell.
+        """
         settings = super().get_run_settings()
         settings['observables'] = tuple(self._gauge_observables(self._build_system()))
         if self.dynamics == 'hamiltonian':
@@ -336,7 +365,10 @@ class LatticeGaugeFieldsSystem(BaseSystem):
         return settings
 
     def _build_system(self) -> System:
-        """Return link variables on the cell complex of a periodic lattice, sampled or evolved in real time."""
+        """Return link variables on the cell complex of a periodic lattice.
+
+        The variables are sampled or evolved in real time.
+        """
         if self.dynamics not in DYNAMICS:
             error_msg = f'Unknown dynamics {self.dynamics!r}. Use one of {", ".join(DYNAMICS)}.'
             raise ValidationError(error_msg)

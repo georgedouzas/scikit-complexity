@@ -1,4 +1,7 @@
-"""Kinetic equations of gases and plasmas over position and velocity, on the phase spaces of the core."""
+"""Kinetic equations of gases and plasmas over position and velocity.
+
+The equations live on the phase spaces of the core.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,7 +26,9 @@ from ....core.specs import AxisSpec, RoleSpec, VisualSpec
 
 
 class BhatnagarGrossKrookInteraction(RelaxationInteraction):
-    """Relaxation of Bhatnagar, Gross, and Krook of a density towards the maximum-entropy density with its moments.
+    """Relaxation of Bhatnagar, Gross, and Krook of a density.
+
+    The density relaxes towards the maximum-entropy density with its moments.
 
     Args:
         label:
@@ -76,7 +81,10 @@ def _get_plane_streaming(_: SimpleNamespace) -> list[Expression]:
 
 
 def _get_uniform_gas(positions: int, velocities: int, knudsen: float, half_width: float) -> tuple[FieldElement, float]:
-    """Return a gas over one position and two velocity axes, with a density wave, and its collision frequency."""
+    """Return a gas over one position and two velocity axes, and its collision rate.
+
+    The gas has a density wave, and the rate is its collision frequency.
+    """
     length = 2 * math.pi
     axes = [AxisSpec(name, velocities, -half_width, half_width) for name in VELOCITY_AXES]
     space = PhaseSpace(LatticeSpace((positions,), spacing=length / positions), axes).prepare()
@@ -94,7 +102,9 @@ def _get_maxwell_molecules(_speed: object, _cosine: object) -> float:
 
 
 class BoltzmannEquationSystem(BaseSystem):
-    """The Boltzmann equation of Maxwell molecules over one position and two velocity axes.
+    """The Boltzmann equation of Maxwell molecules.
+
+    The equation is over one position and two velocity axes.
 
     Free streaming moves a density wave along the periodic position axis, and binary collisions redistribute the density
     over the velocities at every position, by the fast spectral method. The system has the density `gas.f`.
@@ -144,7 +154,10 @@ class BoltzmannEquationSystem(BaseSystem):
         self.half_width = half_width
 
     def _build_system(self) -> System:
-        """Return the Boltzmann equation of Maxwell molecules over one position and two velocity axes."""
+        """Return the Boltzmann equation of Maxwell molecules.
+
+        The equation is over one position and two velocity axes.
+        """
         gas, frequency = _get_uniform_gas(self.positions, self.velocities, self.knudsen, self.half_width)
         stream = AdvectionInteraction('stream', target='gas', state='f', drift=_get_plane_streaming)
         collide = EncounterInteraction(
@@ -157,7 +170,9 @@ class BoltzmannEquationSystem(BaseSystem):
 
 
 class EnskogSystem(BaseSystem):
-    """The local Enskog equation, the Boltzmann equation with the contact value of the pair correlation of disks.
+    """The local Enskog equation.
+
+    It is the Boltzmann equation with the contact value of the pair correlation of disks.
 
     The collision frequency is multiplied at every position by Henderson's contact value `(1 - 7 c / 16) / (1 - c)^2` of
     the area fraction `c = pi n d^2 / 4`, with `n` the density moment and `d` the diameter of the disks. The collision
@@ -286,7 +301,10 @@ class BGKEquationSystem(BaseSystem):
         temperature: npt.NDArray[np.float64],
         speeds: npt.NDArray[np.floating],
     ) -> npt.NDArray[np.float64]:
-        """Return the Maxwellian of densities, mean velocities, and temperatures over a velocity axis, a row each."""
+        """Return the Maxwellian of densities, mean velocities, and temperatures.
+
+        The Maxwellian is over a velocity axis, a row each.
+        """
         rows = (speeds[None, :] - mean[:, None]) ** 2 / (2 * temperature[:, None])
         return density[:, None] * np.exp(-rows) / np.sqrt(2 * np.pi * temperature[:, None])
 
@@ -296,7 +314,10 @@ class BGKEquationSystem(BaseSystem):
         return [coordinate('v'), 0]
 
     def _build_system(self) -> System:
-        """Return the BGK equation of the Sod shock tube over one position and one velocity axis."""
+        """Return the BGK equation of the Sod shock tube.
+
+        The equation is over one position and one velocity axis.
+        """
         position = LatticeSpace((self.positions,), spacing=1.0 / self.positions, boundary='reflecting')
         space = PhaseSpace(position, [AxisSpec('v', self.velocities, -self.half_width, self.half_width)]).prepare()
         left = np.arange(self.positions) < self.positions // 2
@@ -317,7 +338,9 @@ class BGKEquationSystem(BaseSystem):
 
 
 class VlasovEquationSystem(BaseSystem):
-    """The Vlasov-Poisson equation of electrons over a neutralizing background, on a periodic position axis.
+    """The Vlasov-Poisson equation of electrons over a neutralizing background.
+
+    The position axis is periodic.
 
     The electric field is solved from the density moment at every step. The set-up `'landau'` starts from a Maxwellian
     with a density wave of wave number 0.5, whose electric energy decays at twice the Landau damping rate 0.1533. The
@@ -379,7 +402,10 @@ class VlasovEquationSystem(BaseSystem):
 
     @staticmethod
     def _get_poisson_drift(s: SimpleNamespace) -> list[Expression]:
-        """Return the velocity along position and the force of the potential of the density along velocity."""
+        """Return the velocity along position and the potential force along velocity.
+
+        The potential is that of the density.
+        """
         density = moment(s.target.f, 0, axes=('v',))
         return [coordinate('v'), -gradient(inverse_laplacian(1 - density), 1)[0]]
 

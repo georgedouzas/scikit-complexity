@@ -10,7 +10,9 @@ from .....core.components.laws.utils import derivative
 
 
 def velocity_of(position: object) -> Expression | FreeModuleElement:
-    """Return the first time derivative of a position, component by component for a vector.
+    """Return the first time derivative of a position.
+
+    A vector is differentiated component by component.
 
     Args:
         position:

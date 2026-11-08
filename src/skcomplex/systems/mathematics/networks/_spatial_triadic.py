@@ -1,4 +1,7 @@
-"""Spatial triadic percolation: nearby signed regulators make the giant component of a network on a torus move."""
+"""Spatial triadic percolation.
+
+Nearby signed regulators make the giant component of a network on a torus move.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,7 +28,9 @@ ACTIVITY_VISUAL = VisualSpec('sites', {'states': ['active'], 'low': 0.0, 'high':
 
 
 class PercolatingNodeElement(Element):
-    """Node of a network with spatial triadic regulation, active when it belongs to the giant component.
+    """Node of a network with spatial triadic regulation.
+
+    The node is active when it belongs to the giant component.
 
     Args:
         label:
@@ -55,7 +60,9 @@ class PercolatingNodeElement(Element):
 
 
 class SignedLinkElement(Element):
-    """Link regulated by signed nodes, with its activity and the numbers of its negative and positive regulators.
+    """Link regulated by signed nodes.
+
+    The link has its activity and the numbers of its negative and positive regulators.
 
     Args:
         label:
@@ -97,7 +104,9 @@ class SignedLinkElement(Element):
 
 
 class SignedRegulationInteraction(HyperedgeInteraction):
-    """Regulation of every link by signed regulating nodes, which let it be active with probability `p` in its phase.
+    """Regulation of every link by signed regulating nodes.
+
+    The regulators let the link be active with probability `p` in its phase.
 
     Every hyperedge `(i, j, r_1, ..., r_m)` holds the two ends of the link `(i, j)` and its regulating nodes, first its
     `negatives` negative regulators and then its `positives` positive ones, which the link reads. Further members pad
@@ -148,7 +157,10 @@ class SignedRegulationInteraction(HyperedgeInteraction):
         self.phase = phase
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the activity of the link from its regulating nodes, the members of the hyperedge after its ends."""
+        """Return the activity of the link from its regulating nodes.
+
+        The regulating nodes are the members of the hyperedge after its ends.
+        """
         negatives, positives = s.edge.negatives, s.edge.positives
         blocked, silent = SR(1), SR(1)
         for position, regulator in enumerate(s.others[1:]):
@@ -160,7 +172,9 @@ class SignedRegulationInteraction(HyperedgeInteraction):
 
 
 class PercolationInteraction(Interaction):
-    """Activity of every node in its phase, 1 in the giant component of the active links and 0 outside it.
+    """Activity of every node in its phase.
+
+    The activity is 1 in the giant component of the active links and 0 outside it.
 
     Args:
         label:
@@ -202,7 +216,9 @@ class PercolationInteraction(Interaction):
 
 
 class SpatialTriadicPercolationSystem(BaseSystem):
-    """Spatial triadic percolation, where nearby signed regulators make the giant component form moving patterns.
+    """Spatial triadic percolation.
+
+    Nearby signed regulators make the giant component form moving patterns.
 
     The nodes lie uniformly on a square torus of side `side` with `density` nodes per unit area, and two nodes at the
     distance `d` are linked with probability `c exp(-d / structural_range)`, a Waxman network, Eq. 1 of Millán et al.
@@ -296,14 +312,20 @@ class SpatialTriadicPercolationSystem(BaseSystem):
 
     @staticmethod
     def _torus_distances(first: np.ndarray, second: np.ndarray, side: float) -> np.ndarray:
-        """Return the distances on a square torus between every point of a first and of a second array of points."""
+        """Return the distances on a square torus between two arrays of points.
+
+        Every point of the first array is paired with every point of the second.
+        """
         offsets = np.abs(first[:, None, :] - second[None, :, :])
         offsets = np.minimum(offsets, side - offsets)
         return np.hypot(offsets[..., 0], offsets[..., 1])
 
     @staticmethod
     def _waxman_torus(n_nodes: int, side: float, c: float, scale: float, rng: np.random.Generator) -> nx.Graph:
-        """Return nodes placed uniformly on a square torus, each pair linked with probability `c exp(-d / scale)`."""
+        """Return nodes placed uniformly on a square torus.
+
+        Each pair is linked with probability `c exp(-d / scale)`.
+        """
         positions = rng.uniform(0.0, side, size=(n_nodes, 2))
         graph = nx.Graph()
         graph.add_nodes_from((node, {'pos': tuple(positions[node])}) for node in range(n_nodes))
@@ -324,7 +346,9 @@ class SpatialTriadicPercolationSystem(BaseSystem):
         scale: float,
         rng: np.random.Generator,
     ) -> tuple[list[tuple[int, ...]], np.ndarray, np.ndarray]:
-        """Return a hyperedge of every link with its negative and then its positive regulators, padded to one size.
+        """Return a hyperedge of every link with its regulators, padded to one size.
+
+        The negative regulators come first and then the positive ones.
 
         A node regulates a link positively with probability `c+ exp(-d / scale)` and negatively with probability `c-
         exp(-d / scale)`, never both, from its distance `d` to the midpoint of the link on the torus. Every hyperedge is

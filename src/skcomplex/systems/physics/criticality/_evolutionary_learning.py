@@ -1,4 +1,7 @@
-"""Evolutionary learning on a rugged landscape: the evolutionary Sherrington-Kirkpatrick game of Lesmana et al."""
+"""Evolutionary learning on a rugged landscape.
+
+The module holds the evolutionary Sherrington-Kirkpatrick game of Lesmana et al.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,12 +25,17 @@ TEMPERATURE_VISUAL = VisualSpec('histograms', {'color_by': 'temperature', 'histo
 
 
 def _softmax_action(incentive: Expression, temperature: Expression) -> Expression:
-    """Return the action ±1 drawn with probability `exp(±Q / T) / (exp(Q / T) + exp(-Q / T))` of the softmax policy."""
+    """Return the action ±1 drawn from the softmax policy.
+
+    The probability of the action is `exp(±Q / T) / (exp(Q / T) + exp(-Q / T))`.
+    """
     return where(uniform('action') < (1 + tanh(incentive / temperature)) / 2, 1, -1)
 
 
 class LearnerElement(Element):
-    """Agent of the evolutionary Sherrington-Kirkpatrick game, who learns a binary action and may be replaced.
+    """Agent of the evolutionary Sherrington-Kirkpatrick game.
+
+    The agent learns a binary action and may be replaced.
 
     The agent keeps an incentive `Q`, the value of action +1, and plays the action `s = ±1` by the softmax policy at
     its temperature `T`. Every step the incentive becomes `(1 - alpha) Q + alpha h` for the local field
@@ -112,7 +120,9 @@ class LearnerElement(Element):
         self.settling = settling
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the replacement of the least fit agent, the learning of the incentive, and the softmax action.
+        """Return the replacement of the least fit agent, the learning, and the action.
+
+        The learning is that of the incentive, and the action follows the softmax policy.
 
         Args:
             s:
@@ -140,7 +150,9 @@ class LearnerElement(Element):
 
 
 class EvolutionarySKGameSystem(BaseSystem):
-    """The evolutionary Sherrington-Kirkpatrick game, which self-organises to the edge of ergodicity breaking.
+    """The evolutionary Sherrington-Kirkpatrick game.
+
+    The game self-organises to the edge of ergodicity breaking.
 
     After Lesmana et al. (2026, arXiv 2604.15669), `N` agents play ±1 on a Sherrington-Kirkpatrick landscape with
     symmetric Gaussian couplings of variance `1 / N`. Each learns the incentive of its actions with memory `alpha` and

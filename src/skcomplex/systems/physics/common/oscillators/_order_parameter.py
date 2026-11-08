@@ -1,4 +1,7 @@
-"""Define the order parameter of a group of phases, the modulus of their complex mean field."""
+"""Define the order parameter of a group of phases.
+
+The order parameter is the modulus of their complex mean field.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,7 +25,9 @@ def _modulus(name: str, s: SimpleNamespace) -> Expression:
 
 
 def order_parameter(label: str, group: str) -> list[ObservableSpec]:
-    """Return the complex mean field of a group's phases and its modulus, the order parameter.
+    """Return the complex mean field of a group's phases and its modulus.
+
+    The modulus is the order parameter.
 
     The mean field `Z = <exp(i theta)>` averages the unit vectors of the phases `theta` of the group's members, and the
     order parameter `r = |Z|` is 0 for scattered phases and 1 for locked phases.

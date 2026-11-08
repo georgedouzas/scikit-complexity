@@ -1,4 +1,7 @@
-"""Lattice processes of statistical mechanics: Q2R, percolation, contact process, exclusion, and aggregation."""
+"""Lattice processes of statistical mechanics.
+
+The module covers Q2R, percolation, contact process, exclusion, and aggregation.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -24,7 +27,9 @@ from ....core.types import Array
 
 
 class ContactSiteElement(Element):
-    """Site of the contact process, which infects a neighbour at the rate `rate / 4` and recovers at rate 1.
+    """Site of the contact process.
+
+    The site infects a neighbour at the rate `rate / 4` and recovers at rate 1.
 
     One step is a time slice `tau`, in which an infected site recovers with probability `1 - exp(-tau)` and a
     healthy site is infected with probability `1 - exp(-rate tau f)`, where `f` is the fraction of its infected
@@ -95,7 +100,9 @@ class ContactSiteElement(Element):
 
 
 class ExclusionSiteElement(Element):
-    """Site of the totally asymmetric simple exclusion process, empty at 0 or holding one particle at 1.
+    """Site of the totally asymmetric simple exclusion process.
+
+    The site is empty at 0 or holds one particle at 1.
 
     It holds the probabilities of a hop, of an entry at the left end of an open line, and of an exit at its right end,
     which the transfers of the process read.
@@ -149,7 +156,9 @@ BURNT = 3
 
 
 class PercolationSiteElement(Element):
-    """Site of a percolation lattice: empty at 0, occupied at 1, burning at 2, or burnt at 3.
+    """Site of a percolation lattice.
+
+    The site is empty at 0, occupied at 1, burning at 2, or burnt at 3.
 
     Fire spreads from burning sites to their occupied neighbours and burns out in one step, so a fire lit along one
     edge burns exactly the clusters that touch that edge.
@@ -197,13 +206,18 @@ class PercolationSiteElement(Element):
 
     @staticmethod
     def _burn(cover: Array, *around: Array) -> Array:
-        """Return the next cover of a site, which burns out, catches fire from a burning neighbour, or stays."""
+        """Return the next cover of a site.
+
+        The site burns out, catches fire from a burning neighbour, or stays.
+        """
         catches = (cover == 1) & np.any(np.stack(around) == BURNING, axis=0)
         return np.where(cover == BURNING, BURNT, np.where(catches, BURNING, cover))
 
 
 class Q2RSpinElement(Element):
-    """Site of the Q2R automaton, a spin and a phase that says whether the site updates in the current step.
+    """Site of the Q2R automaton.
+
+    The site holds a spin and a phase that says whether the site updates in the current step.
 
     The local rule of Q2R flips the spins of the updating sites whose neighbours sum to zero, which leaves the Ising
     energy unchanged, and swaps the phase of every site, so the two sublattices update in turn and the dynamics is
@@ -242,7 +256,9 @@ class Q2RSpinElement(Element):
 
 
 class WalkerView(AgentView):
-    """Walker of diffusion-limited aggregation as rules see it, with whether it belongs to the aggregate.
+    """Walker of diffusion-limited aggregation as rules see it.
+
+    The walker holds whether it belongs to the aggregate.
 
     Args:
         agent:
@@ -256,7 +272,9 @@ class WalkerView(AgentView):
 
 
 class WalkerElement(Element):
-    """Random walker of diffusion-limited aggregation, which sticks when it reaches a stuck walker.
+    """Random walker of diffusion-limited aggregation.
+
+    The walker sticks when it reaches a stuck walker.
 
     Args:
         label:
@@ -326,7 +344,9 @@ class WalkerElement(Element):
 
 
 class Q2rSystem(BaseSystem):
-    """The Q2R automaton, a reversible, energy-conserving Ising dynamics on a periodic lattice of even sides.
+    """The Q2R automaton.
+
+    It is a reversible, energy-conserving Ising dynamics on a periodic lattice of even sides.
 
     The spins start uncorrelated with a fraction `up` of spins up, and the sites of even coordinate sum update first.
     The system has the spins `spins.spin` and phases `spins.phase`.
@@ -371,7 +391,10 @@ class Q2rSystem(BaseSystem):
 
     @staticmethod
     def _flip_without_cost(*columns: Array) -> tuple[Array, Array]:
-        """Return the spins and phases after one Q2R step, from the spins and the phases of a centred neighbourhood."""
+        """Return the spins and phases after one Q2R step.
+
+        The step reads the spins and the phases of a centred neighbourhood.
+        """
         half = len(columns) // 2
         spin, around, phase = columns[0], columns[1:half], columns[half]
         flips = (phase == 1) & (sum(around) == 0)
@@ -404,7 +427,9 @@ class Q2rSystem(BaseSystem):
 
 
 class SitePercolationSystem(BaseSystem):
-    """Site percolation probed by a fire lit along the top row, which spans the lattice above `p_c = 0.5927`.
+    """Site percolation probed by a fire lit along the top row.
+
+    The fire spans the lattice above `p_c = 0.5927`.
 
     Sites are occupied with probability `p`, and the fire burns the clusters connected to the top row, one layer of
     sites per step. The system has the covers `lattice.cover`.
@@ -460,7 +485,9 @@ class SitePercolationSystem(BaseSystem):
 
 
 class ContactProcessSystem(BaseSystem):
-    """The contact process on a periodic lattice, which survives above a critical infection rate near 1.65.
+    """The contact process on a periodic lattice.
+
+    The process survives above a critical infection rate near 1.65.
 
     Below the critical rate the infection dies out and the lattice falls into the absorbing healthy state. The system
     has the infections `lattice.infected`.
@@ -532,7 +559,9 @@ class ContactProcessSystem(BaseSystem):
 
 
 class TASEPSystem(BaseSystem):
-    """The totally asymmetric simple exclusion process with parallel update, on an open line or a ring.
+    """The totally asymmetric simple exclusion process with parallel update.
+
+    The process runs on an open line or a ring.
 
     Every step all particles whose right neighbour is empty hop to it with probability `p` at once, a transfer along
     every edge of the lane with one draw per edge. On an open line particles enter the first site with probability
@@ -603,21 +632,33 @@ class TASEPSystem(BaseSystem):
 
     @staticmethod
     def _hop(s: SimpleNamespace) -> Expression:
-        """Return 1 where a particle hops to the empty next site with probability `p`, one draw per edge, or 0."""
+        """Return 1 where a particle hops to the empty next site, and 0 otherwise.
+
+        The hop has probability `p`, with one draw per edge.
+        """
         return s.source.occupied * (1 - s.target.occupied) * bernoulli('hop', s.source.p)
 
     @staticmethod
     def _enter(s: SimpleNamespace) -> Expression:
-        """Return 1 where a particle enters the empty first site with probability `alpha`, and 0 otherwise."""
+        """Return 1 where a particle enters the empty first site, and 0 otherwise.
+
+        The entry has probability `alpha`.
+        """
         return (1 - s.target.occupied) * bernoulli('entry', s.target.alpha)
 
     @staticmethod
     def _leave(s: SimpleNamespace) -> Expression:
-        """Return 1 where the particle on the last site leaves with probability `beta`, and 0 otherwise."""
+        """Return 1 where the particle on the last site leaves, and 0 otherwise.
+
+        The exit has probability `beta`.
+        """
         return s.source.occupied * bernoulli('exit', s.source.beta)
 
     def _build_system(self) -> System:
-        """Return the totally asymmetric simple exclusion process with parallel update, on an open line or a ring."""
+        """Return the totally asymmetric simple exclusion process with parallel update.
+
+        The process runs on an open line or a ring.
+        """
         rng = np.random.default_rng(self.random_state)
         occupied = np.zeros(self.n_sites)
         occupied[rng.choice(self.n_sites, round(self.density * self.n_sites), replace=False)] = 1.0
@@ -661,7 +702,9 @@ class TASEPSystem(BaseSystem):
 
 
 class DiffusionLimitedAggregationSystem(BaseSystem):
-    """Diffusion-limited aggregation on a periodic grid, where random walkers stick to a seed at the center.
+    """Diffusion-limited aggregation on a periodic grid.
+
+    Random walkers stick to a seed at the center.
 
     Walkers that touch the aggregate join it, so the tips of the aggregate catch most walkers and it grows into a
     branched fractal of dimension about 1.7. The system has the agent group `walkers`.

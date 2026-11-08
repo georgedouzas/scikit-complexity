@@ -1,4 +1,7 @@
-"""Net energy systems: a finite fossil reserve whose energy return on investment falls as it is depleted."""
+"""Net energy systems.
+
+The energy return on investment of a finite fossil reserve falls as it is depleted.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,7 +19,10 @@ from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 
 def _eroi(s: SimpleNamespace) -> Expression:
-    """Return the energy return on investment, which falls with the remaining fraction of the reserve."""
+    """Return the energy return on investment.
+
+    It falls with the remaining fraction of the reserve.
+    """
     return 1 + (s.initial_eroi - 1) * (s.reserve / s.reserve_size) ** s.decline
 
 
@@ -36,7 +42,9 @@ def _net_per_capita(s: SimpleNamespace) -> Expression:
 
 
 class EnergySectorElement(Element):
-    """Energy sector of a society, a finite reserve, the capacity that extracts it, and the population it supplies.
+    """Energy sector of a society.
+
+    The sector holds a finite reserve, the capacity that extracts it, and the population it supplies.
 
     The capacity draws the gross energy `capacity reserve / reserve_size` from the reserve. Part of it pays for the
     extraction work, the gross energy divided by the energy return on investment
@@ -121,7 +129,9 @@ class EnergySectorElement(Element):
         self.death_rate = death_rate
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the extraction of the reserve, its energy cost, the growth of the capacity, and the population.
+        """Return the extraction of the reserve and its energy cost.
+
+        The laws also hold the growth of the capacity and the population.
 
         Args:
             s:
@@ -143,7 +153,9 @@ class EnergySectorElement(Element):
 
 
 class EnergyReturnSystem(BaseSystem):
-    """The extraction of a finite energy reserve whose energy return on investment declines as it depletes.
+    """The extraction of a finite energy reserve.
+
+    Its energy return on investment declines as it depletes.
 
     The extraction capacity draws the gross energy from the reserve at a rate that falls with the remaining fraction,
     since the easy sources go first. Part of the gross energy pays for the extraction work, the gross energy divided by

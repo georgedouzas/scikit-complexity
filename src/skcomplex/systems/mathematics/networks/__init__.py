@@ -1,4 +1,8 @@
-"""Networks: growth, turnover, ensembles, robustness, cascades, walks, diffusion, PageRank, structure, percolation."""
+"""Network systems.
+
+The package covers growth, turnover, ensembles, robustness, cascades, walks, diffusion, PageRank, structure, and
+percolation.
+"""
 
 from ..common._network_node import NetworkNodeElement
 from ..common._regulated_node import RegulatedNodeElement

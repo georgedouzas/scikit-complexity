@@ -18,7 +18,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class SpringBlockElement(Element):
-    """Block of the Burridge-Knopoff fault, pulled by springs and a moving plate against a friction that weakens.
+    """Block of the Burridge-Knopoff fault.
+
+    Springs and a moving plate pull the block against a friction that weakens.
 
     The force on a block is the pull `k_c` of the springs to its neighbours plus the pull `k_p` of the plate moving at
     `velocity`. A block at rest sticks until the force exceeds the static friction `F0`, and a sliding block feels the
@@ -89,7 +91,9 @@ class SpringBlockElement(Element):
         self.v_c = v_c
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the sliding of the block under its springs and the stick-slip friction that weakens with speed.
+        """Return the sliding of the block under its springs and the stick-slip friction.
+
+        The friction weakens with speed.
 
         Args:
             s:
@@ -107,7 +111,9 @@ class SpringBlockElement(Element):
 
 
 class BurridgeKnopoffSystem(BaseSystem):
-    """The Burridge-Knopoff fault, a chain of blocks pulled by a moving plate that sticks and slips.
+    """The Burridge-Knopoff fault.
+
+    A chain of blocks pulled by a moving plate sticks and slips.
 
     Every block is coupled to its neighbours by springs of stiffness `k_c` and to a plate moving at `velocity` by a
     leaf spring of stiffness `k_p`. A block at rest stays stuck until its spring force exceeds the static friction `F0`,
@@ -180,7 +186,10 @@ class BurridgeKnopoffSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return the Burridge-Knopoff fault, a chain of blocks pulled by a moving plate that sticks and slips."""
+        """Return the Burridge-Knopoff fault.
+
+        A chain of blocks pulled by a moving plate sticks and slips.
+        """
         offsets = np.random.default_rng(self.random_state).uniform(-0.5, 0.5, self.n_blocks)
         fault = FieldElement(
             'fault',

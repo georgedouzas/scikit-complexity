@@ -1,4 +1,7 @@
-"""Flocking by binary collisions: self-propelled particles that align their headings when they meet."""
+"""Flocking by binary collisions.
+
+Self-propelled particles align their headings when they meet.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -72,7 +75,9 @@ class FlockerElement(Element):
 
 
 class BinaryCollisionsInteraction(Interaction):
-    """Motion, self-diffusion, and aligning binary collisions of self-propelled particles, in steps of `1 / substeps`.
+    """Motion, self-diffusion, and aligning collisions of self-propelled particles.
+
+    The collisions are binary, and the particles move in steps of `1 / substeps`.
 
     In every substep of length `tau` each particle moves `speed * tau` along its heading, and with probability
     `1 - exp(-lam * tau)` its heading jumps by a Gaussian angle of standard deviation `sigma`. Two particles collide
@@ -144,7 +149,9 @@ class BinaryCollisionsInteraction(Interaction):
         return [RuleLaw(self.fly)]
 
     def fly(self, system: SystemView) -> None:
-        """Move the particles for one unit of time, with self-diffusion and collisions in every substep.
+        """Move the particles for one unit of time.
+
+        Every substep has self-diffusion and collisions.
 
         Args:
             system:
@@ -171,7 +178,10 @@ class BinaryCollisionsInteraction(Interaction):
 
     @staticmethod
     def _collide(headings: Array, pairs: list[tuple[int, int]], sigma: float, rng: np.random.Generator) -> None:
-        """Set both headings of every pair, in random order, to their mean heading plus independent Gaussian noise."""
+        """Set both headings of every pair to their mean plus independent Gaussian noise.
+
+        The pairs come in random order.
+        """
         for index in rng.permutation(len(pairs)):
             first, second = pairs[index]
             mean = math.atan2(
@@ -197,7 +207,9 @@ def _polarization(s: SimpleNamespace) -> Expression:
 
 
 class BinaryCollisionFlockingSystem(BaseSystem):
-    """Self-propelled particles that flock through aligning binary collisions, the Bertin-Droz-Grégoire system.
+    """Self-propelled particles that flock through aligning binary collisions.
+
+    This is the Bertin-Droz-Grégoire system.
 
     Particles fly straight at a constant speed. Their headings jump by Gaussian angles in self-diffusion events at the
     rate `lam`, and two particles that come closer than `d0` both take their mean heading plus Gaussian noise. The

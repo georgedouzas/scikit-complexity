@@ -1,4 +1,7 @@
-"""Statistical mechanics systems: gases, fluids, and spin systems."""
+"""Statistical mechanics systems.
+
+The module covers gases, fluids, and spin systems.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,7 +23,9 @@ from ..common.spins import IsingSamplingInteraction, IsingSpinElement, SpinSampl
 
 
 class PottsSpinElement(Element):
-    """Spin of the q-state Potts system, in a state from 0 to `q - 1`, with its coupling `J` and its temperature.
+    """Spin of the q-state Potts system, in a state from 0 to `q - 1`.
+
+    The spin has its coupling `J` and its temperature.
 
     A `PottsSamplingInteraction` redraws the states by Monte Carlo sweeps at the temperature of the spins.
 
@@ -66,7 +71,9 @@ class PottsSpinElement(Element):
 
 
 class XYSpinElement(Element):
-    """Planar spin of the XY system, an angle `theta`, with its coupling `J` and its temperature.
+    """Planar spin of the XY system, an angle `theta`.
+
+    The spin has its coupling `J` and its temperature.
 
     An `XYSamplingInteraction` rotates the angles by Monte Carlo sweeps at the temperature of the spins.
 
@@ -112,7 +119,9 @@ class XYSpinElement(Element):
 
 
 class PottsSamplingInteraction(SpinSamplingInteraction):
-    """Monte Carlo sweeps of Potts spins in states `0` to `q - 1`, of local energy `-J` times the like neighbours.
+    """Monte Carlo sweeps of Potts spins in states `0` to `q - 1`.
+
+    The local energy is `-J` times the like neighbours.
 
     Every move proposes a state drawn from the `q` states. The coupling `J` and the temperature are parameters of the
     spins.
@@ -165,13 +174,15 @@ class PottsSamplingInteraction(SpinSamplingInteraction):
         self.q = q
 
     def _energy(self, namespace: SimpleNamespace) -> Expression:
-        """Return the local energy `-J` times the number of neighbours in the state of the spin."""
+        """Return the local energy `-J` times the number of neighbours in the spin's state."""
         color, other = getattr(namespace.target, self.state), getattr(namespace.target.other, self.state)
         return -namespace.target.J * neighbors(where(other == color, 1, 0), over=self.neighborhood)
 
 
 class XYSamplingInteraction(SpinSamplingInteraction):
-    """Monte Carlo sweeps of planar spins at angles `theta`, of local energy `-J sum_j cos(theta - theta_j)`.
+    """Monte Carlo sweeps of planar spins at angles `theta`.
+
+    The local energy is `-J sum_j cos(theta - theta_j)`.
 
     Every move rotates the angle by a uniform number in `[-width, width]`, accepted by the Metropolis rule. The
     coupling `J` and the temperature are parameters of the spins.
@@ -231,7 +242,9 @@ def _square(size: int | Sequence[int]) -> tuple[int, ...]:
 
 
 class IsingSystem(BaseSystem):
-    """The two-dimensional Ising system on a torus, ordered below the critical temperature `2 / ln(1 + sqrt 2)`.
+    """The two-dimensional Ising system on a torus.
+
+    The system orders below the critical temperature `2 / ln(1 + sqrt 2)`.
 
     One unit of time is one sweep of checkerboard updates. The system has the spins `spins.spin`.
 
@@ -316,7 +329,9 @@ class IsingSystem(BaseSystem):
 
 
 class PottsSystem(BaseSystem):
-    """The q-state Potts system on a torus, ordered below the critical temperature `1 / ln(1 + sqrt q)`.
+    """The q-state Potts system on a torus.
+
+    The system orders below the critical temperature `1 / ln(1 + sqrt q)`.
 
     The system has the states `spins.color`.
 
@@ -374,7 +389,10 @@ class PottsSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return the q-state Potts system on a torus, ordered below the critical temperature `1 / ln(1 + sqrt q)`."""
+        """Return the q-state Potts system on a torus.
+
+        The system orders below the critical temperature `1 / ln(1 + sqrt q)`.
+        """
         shape = _square(self.size)
         colors = np.random.default_rng(self.random_state).integers(0, self.q, size=shape).astype(float)
         space = LatticeSpace(shape)
@@ -392,7 +410,9 @@ class PottsSystem(BaseSystem):
 
 
 class XYSystem(BaseSystem):
-    """The XY system of planar spins on a torus, with vortices that bind below the Kosterlitz-Thouless point.
+    """The XY system of planar spins on a torus.
+
+    Its vortices bind below the Kosterlitz-Thouless point.
 
     The system has the angles `spins.theta`.
 

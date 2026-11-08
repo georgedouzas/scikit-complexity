@@ -1,4 +1,7 @@
-"""Dynamical systems: chaotic and driven flows, maps, Koopman embeddings, and normal forms of bifurcations."""
+"""Dynamical systems.
+
+The package covers chaotic and driven flows, maps, Koopman embeddings, and normal forms of bifurcations.
+"""
 
 from ..common.flows._rossler import RosslerElement
 from ._chaotic_ensembles import (

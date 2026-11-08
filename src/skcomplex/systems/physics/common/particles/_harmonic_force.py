@@ -1,4 +1,7 @@
-"""Define harmonic force interactions, which push a target with a force oscillating in time."""
+"""Define harmonic force interactions.
+
+They push a target with a force oscillating in time.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,7 +17,9 @@ from .....core.specs import ParameterSpec, RoleSpec
 
 
 class HarmonicForceInteraction(RateInteraction):
-    """Periodic force `F cos(omega t)` on a target, the second derivative `F cos(omega t) / m` of its position.
+    """Periodic force `F cos(omega t)` on a target.
+
+    The force is the second derivative `F cos(omega t) / m` of its position.
 
     It is the rate `F cos(omega t)` with the mass as divisor, applied to every component of the position.
 

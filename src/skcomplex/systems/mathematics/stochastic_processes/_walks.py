@@ -1,4 +1,7 @@
-"""Stochastic process systems: random walks, persistent and autoregressive walks, and diffusions."""
+"""Stochastic process systems of walks.
+
+The module covers random walks, persistent and autoregressive walks, and diffusions.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,7 +21,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class MemoryWalkerElement(Element):
-    """Walker on the real line whose velocity is an autoregressive process of memory `alpha` and noise `sigma`.
+    """Walker on the real line whose velocity is an autoregressive process.
+
+    The process has the memory `alpha` and the noise `sigma`.
 
     Args:
         label:
@@ -63,7 +68,9 @@ class MemoryWalkerElement(Element):
 
 
 class PersistentWalkerElement(Element):
-    """Walker on the integers with a direction `d = ±1`, which it keeps with the probability `persistence`.
+    """Walker on the integers with a direction `d = ±1`.
+
+    The walker keeps the direction with the probability `persistence`.
 
     Args:
         label:
@@ -103,7 +110,9 @@ class PersistentWalkerElement(Element):
 
 
 class RandomWalkerElement(Element):
-    """Walker on the integers that steps at the rate `rate`, up with the probability `bias`.
+    """Walker on the integers that steps at the rate `rate`.
+
+    The walker steps up with the probability `bias`.
 
     Args:
         label:
@@ -143,7 +152,9 @@ class RandomWalkerElement(Element):
 
 
 class WeakeningParticleElement(Element):
-    """Brownian particle on the real line held by a restoring force of stiffness `k` that weakens beyond `ell`.
+    """Brownian particle on the real line held by a restoring force of stiffness `k`.
+
+    The force weakens beyond `ell`.
 
     Args:
         label:
@@ -197,7 +208,7 @@ class AgeingWalkerView(AgentView):
 
 
 class AgeingWalkerElement(Element):
-    """Walker that steps up with a probability that decays with the number of its earlier up steps.
+    """Walker whose probability to step up decays with its number of earlier up steps.
 
     After `k` up steps, the next step is up with probability `p / (1 + k)^nu` and down otherwise. The walker remembers
     its number of up steps at the end of the last step, from which its step follows.
@@ -247,12 +258,17 @@ class AgeingWalkerElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[AgeingWalkerView]:
-        """Return the view of the agents, which types their states and parameters."""
+        """Return the view of the agents.
+
+        The view types their states and parameters.
+        """
         return AgeingWalkerView
 
 
 class RandomWalkSystem(BaseSystem):
-    """Independent walkers on the integers that step at random times, a continuous-time random walk.
+    """Independent walkers on the integers that step at random times.
+
+    This is a continuous-time random walk.
 
     Every walker steps up at rate `rate * bias` and down at rate `rate * (1 - bias)`, so its mean moves with velocity
     `rate (2 bias - 1)` and its variance grows as `4 rate bias (1 - bias) t`. The system has the positions `walkers.x`.
@@ -296,7 +312,10 @@ class RandomWalkSystem(BaseSystem):
         self.bias = bias
 
     def _build_system(self) -> System:
-        """Return independent walkers on the integers that step at random times, a continuous-time random walk."""
+        """Return independent walkers on the integers that step at random times.
+
+        This is a continuous-time random walk.
+        """
         walkers = GroupElement(
             'walkers',
             element=RandomWalkerElement,
@@ -382,7 +401,9 @@ class WeakeningOrnsteinUhlenbeckSystem(BaseSystem):
 
 
 class AgeingRandomWalkSystem(BaseSystem):
-    """Ageing random walks, whose up steps become rarer the more of them a walker has taken.
+    """Ageing random walks.
+
+    The up steps become rarer the more of them a walker has taken.
 
     After `k` up steps a walker steps up with probability `p / (1 + k)^nu`, so the walk is history dependent and, for
     `nu > 0`, its number of up steps grows as `n^(1 / (1 + nu))` after `n` steps. The system has the group `walkers`.
@@ -427,7 +448,10 @@ class AgeingRandomWalkSystem(BaseSystem):
         self.nu = nu
 
     def _build_system(self) -> System:
-        """Return ageing random walks, whose up steps become rarer the more of them a walker has taken."""
+        """Return ageing random walks.
+
+        The up steps become rarer the more of them a walker has taken.
+        """
         ageing = MapInteraction(
             'ageing',
             target='walkers',
@@ -459,7 +483,9 @@ class AgeingRandomWalkSystem(BaseSystem):
 
 
 class PersistentRandomWalkSystem(BaseSystem):
-    """Walkers on the integers that keep the direction of their last step with a probability.
+    """Walkers on the integers that keep the direction of their last step.
+
+    A walker keeps the direction with a probability.
 
     At every step a walker moves by its direction `d = ±1`, and keeps the direction with probability `q` and reverses it
     otherwise. Successive steps are correlated with `rho = 2 q - 1`, so the walk diffuses faster than a simple random
@@ -507,7 +533,10 @@ class PersistentRandomWalkSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return walkers on the integers that keep the direction of their last step with a probability."""
+        """Return walkers on the integers that keep the direction of their last step.
+
+        A walker keeps the direction with a probability.
+        """
         directions = np.random.default_rng(self.random_state).choice([-1.0, 1.0], size=self.n_walkers)
         walkers = GroupElement(
             'walkers',
@@ -532,7 +561,9 @@ class PersistentRandomWalkSystem(BaseSystem):
 
 
 class RandomWalkWithMemorySystem(BaseSystem):
-    """Random walks whose velocity is an autoregressive process, `x ← x + v` and `v ← alpha v + xi`.
+    """Random walks whose velocity is an autoregressive process.
+
+    The walks follow `x ← x + v` and `v ← alpha v + xi`.
 
     The noise `xi` is normal with mean 0 and deviation `sigma`, and the walks start from `x = v = 0`. The pair `(x, v)`
     is Markovian while the displacements are correlated, so the mean squared displacement grows as `sigma² t / (1 -
@@ -580,7 +611,10 @@ class RandomWalkWithMemorySystem(BaseSystem):
         self.sigma = sigma
 
     def _build_system(self) -> System:
-        """Return random walks whose velocity is an autoregressive process, `x ← x + v` and `v ← alpha v + xi`."""
+        """Return random walks whose velocity is an autoregressive process.
+
+        The walks follow `x ← x + v` and `v ← alpha v + xi`.
+        """
         walkers = GroupElement(
             'walkers',
             element=MemoryWalkerElement,

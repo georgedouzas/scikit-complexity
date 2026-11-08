@@ -1,4 +1,7 @@
-"""Network systems: random walks, diffusion, and PageRank on graphs."""
+"""Network systems.
+
+The module covers random walks, diffusion, and PageRank on graphs.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,7 +24,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class NodeContentElement(Element):
-    """Content of a node of a network, which diffuses along the links with the coefficient `D`.
+    """Content of a node of a network.
+
+    The content diffuses along the links with the coefficient `D`.
 
     Args:
         label:
@@ -56,7 +61,9 @@ class NodeContentElement(Element):
 
 
 class NodeRankElement(Element):
-    """Page of a network with its PageRank, its degree, the number of pages, and the damping of the surfer.
+    """Page of a network with its PageRank and degree.
+
+    The page also holds the number of pages and the damping of the surfer.
 
     Args:
         label:
@@ -107,7 +114,9 @@ class NetworkWalkerView(AgentView):
 
 
 class NetworkWalkerElement(Element):
-    """Walker on the nodes of a network, which counts the steps it takes.
+    """Walker on the nodes of a network.
+
+    The walker counts the steps it takes.
 
     Args:
         label:
@@ -139,7 +148,10 @@ class NetworkWalkerElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[NetworkWalkerView]:
-        """Return the view of the agents, which types their states."""
+        """Return the view of the agents.
+
+        The view types their states.
+        """
         return NetworkWalkerView
 
 
@@ -149,7 +161,9 @@ def _graph_or_default(graph: nx.Graph | None) -> nx.Graph:
 
 
 class NetworkRandomWalkSystem(BaseSystem):
-    """Random walkers on a network, which visit every node of a connected graph in proportion to its degree.
+    """Random walkers on a network.
+
+    The walkers visit every node of a connected graph in proportion to its degree.
 
     The system has the group `walkers`.
 
@@ -205,7 +219,9 @@ class NetworkRandomWalkSystem(BaseSystem):
 
 
 class NetworkDiffusionSystem(BaseSystem):
-    """Diffusion on a network, `du_i/dt = D Σ_j A_ij (u_j - u_i)`, which spreads a unit mass to every node.
+    """Diffusion on a network, `du_i/dt = D Σ_j A_ij (u_j - u_i)`.
+
+    The diffusion spreads a unit mass to every node.
 
     The total is conserved, and on a connected graph the content of every node tends to `1 / n`. The system has the
     contents `nodes.u`.
@@ -265,7 +281,9 @@ class NetworkDiffusionSystem(BaseSystem):
 
 
 class PagerankSystem(BaseSystem):
-    """The PageRank iteration `r_i' = (1 - d) / n + d Σ_j A_ij r_j / k_j` on an undirected network.
+    """The PageRank iteration `r_i' = (1 - d) / n + d Σ_j A_ij r_j / k_j`.
+
+    The network is undirected.
 
     The ranks start uniform, stay normalized, and converge to the PageRank of the graph. Every node needs a link. The
     system has the ranks `pages.rank`.
@@ -306,12 +324,18 @@ class PagerankSystem(BaseSystem):
 
     @staticmethod
     def _get_link_term(s: SimpleNamespace) -> object:
-        """Return what one link brings to the rank of a page: a share of the rank of the other page and of the jumps."""
+        """Return what one link brings to the rank of a page.
+
+        The link brings a share of the rank of the other page and of the jumps.
+        """
         member, other = s.member, s.other
         return member.damping * other.rank / other.degree + (1 - member.damping) / (member.n_nodes * member.degree)
 
     def _build_system(self) -> System:
-        """Return the PageRank iteration `r_i' = (1 - d) / n + d Σ_j A_ij r_j / k_j` on an undirected network."""
+        """Return the PageRank iteration `r_i' = (1 - d) / n + d Σ_j A_ij r_j / k_j`.
+
+        The network is undirected.
+        """
         graph = _graph_or_default(self.graph)
         size = graph.number_of_nodes()
         degrees = np.array([degree for _, degree in graph.degree()], dtype=float)

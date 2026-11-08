@@ -1,4 +1,7 @@
-"""Forest dieback: a tropical forest that warms its soil, alone or coupled with the mitigation of a population."""
+"""Forest dieback.
+
+A tropical forest warms its soil, alone or coupled with the mitigation of a population.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,7 +20,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class ForestCoverElement(Element):
-    """Vegetation cover of a tropical forest, whose growth rate falls on both sides of an optimal temperature.
+    """Vegetation cover of a tropical forest.
+
+    Its growth rate falls on both sides of an optimal temperature.
 
     The cover `v` runs from 0 for bare soil to 1 for full forest. Bare soil is warmer than forest by `a`, so the local
     temperature is `T = Tv + a (1 - v)`, and the growth rate `g = g0 (1 - ((T - Topt) / beta)²)` peaks at `Topt`. A
@@ -86,7 +91,9 @@ class ForestCoverElement(Element):
 
 
 class MitigatorsElement(Element):
-    """Share of mitigators in a population that weighs the cost of mitigation against the perceived cost of warming.
+    """Share of mitigators in a population.
+
+    The population weighs the cost of mitigation against the perceived cost of warming.
 
     The share `x` follows the replicator equation `x' = x (1 - x) (-alpha + f + delta (2 x - 1))`, with the cost of
     mitigation `alpha`, the strength `delta` of the social norm, and the cost of warming
@@ -166,17 +173,25 @@ def _temperature(forest: SimpleNamespace, cover: Expression) -> Expression:
 
 
 def _growth(forest: SimpleNamespace) -> Expression:
-    """Return the growth rate `g0 (1 - ((T - Topt) / beta)²)` of a forest at its local temperature."""
+    """Return the growth rate `g0 (1 - ((T - Topt) / beta)²)` of a forest.
+
+    The rate is taken at its local temperature.
+    """
     return forest.g0 * (1 - ((_temperature(forest, forest.v) - forest.Topt) / forest.beta) ** 2)
 
 
 def _logistic(forest: SimpleNamespace, efficiency: Expression | float) -> Expression:
-    """Return the logistic growth of a forest, scaled by an efficiency, minus its disturbance."""
+    """Return the logistic growth of a forest minus its disturbance.
+
+    The growth is scaled by an efficiency.
+    """
     return _growth(forest) * efficiency * forest.v * (1 - forest.v) - forest.gamma * forest.v
 
 
 class ForestDiebackSystem(BaseSystem):
-    """The forest dieback model of the Amazon, whose cover tips to bare soil when the ambient temperature rises.
+    """The forest dieback model of the Amazon.
+
+    The cover tips to bare soil when the ambient temperature rises.
 
     The cover follows `v' = g v (1 - v) - gamma v`, with the growth rate `g = g0 (1 - ((T - Topt) / beta)²)` at the
     local temperature `T = Tv + a (1 - v)`. Losing forest warms the soil, which lowers the growth and loses more forest,
@@ -260,7 +275,9 @@ class ForestDiebackSystem(BaseSystem):
 
 
 class SocialForestDiebackSystem(BaseSystem):
-    """The forest dieback model coupled with the replicator dynamics of mitigators who perceive its warming.
+    """The forest dieback model coupled with the replicator dynamics of mitigators.
+
+    The mitigators perceive the warming of the forest.
 
     The forest grows as in `ForestDiebackSystem`, with its growth rate scaled by `0.2 + 0.4 x`, so that mitigation by
     the share `x` of the population helps it. The share follows the replicator equation `x' = x (1 - x) (-alpha + f(Tf)
@@ -347,7 +364,10 @@ class SocialForestDiebackSystem(BaseSystem):
 
     @staticmethod
     def _replicator(s: SimpleNamespace) -> Expression:
-        """Return the replicator rate of the share of mitigators under the perceived warming of the forest."""
+        """Return the replicator rate of the share of mitigators.
+
+        The mitigators perceive the warming of the forest.
+        """
         people, forest = s.target, s.sources[0]
         past = delayed(forest.v, people.tp)
         perceived = people.tf / people.tp * (_temperature(forest, forest.v) - _temperature(forest, past))

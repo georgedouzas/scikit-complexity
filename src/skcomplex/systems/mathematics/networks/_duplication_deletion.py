@@ -1,4 +1,7 @@
-"""Duplication-deletion network of Jensen: nodes die and duplicate, and the connectance settles at a steady value."""
+"""Duplication-deletion network of Jensen.
+
+Nodes die and duplicate, and the connectance settles at a steady value.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -53,7 +56,9 @@ class DuplicatingNodeElement(Element):
 
 
 class DuplicationDeletionSystem(BaseSystem):
-    """The steady-state duplication-deletion network of Jensen, whose connectance settles at Eq. 8.84.
+    """The steady-state duplication-deletion network of Jensen.
+
+    Its connectance settles at Eq. 8.84.
 
     The network starts as an Erdős-Rényi graph of `n_nodes` nodes and the link probability `density`. Every step a node
     drawn uniformly leaves with its links with probability `kill`, and a parent drawn uniformly among the nodes left is
@@ -133,7 +138,10 @@ class DuplicationDeletionSystem(BaseSystem):
         links: int,
         changes: list[TopologyInteraction],
     ) -> System:
-        """Return the network of variable groups on its nodes and links, its changes, and the map of the degrees."""
+        """Return the network of variable groups on its nodes and links.
+
+        The network has its changes and the map of the degrees.
+        """
         nodes = GroupElement('nodes', element=DuplicatingNodeElement, on='sites', variable=True, capacity=capacity)
         edges = GroupElement('links', element=Element, on='edges', variable=True, capacity=links)
         degree = MapInteraction('degree', target='nodes', state='degree', function=lambda s: neighbors(1))

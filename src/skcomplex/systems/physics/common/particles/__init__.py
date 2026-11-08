@@ -1,4 +1,7 @@
-"""Particle realizations shared by the physics packages: point masses, active and Brownian particles, and forces."""
+"""Particle realizations shared by the physics packages.
+
+The package holds point masses, active and Brownian particles, and forces.
+"""
 
 from ._active_particle import POINTS, ActiveParticleElement
 from ._brownian_particle import BrownianParticleElement

@@ -1,4 +1,7 @@
-"""Measure early warnings of tipping: rolling variance, autocorrelation, skewness, and spectral reddening."""
+"""Measure early warnings of tipping.
+
+The warnings are rolling variance, autocorrelation, skewness, and spectral reddening.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -77,7 +80,9 @@ def early_warning(
     window: int | None = None,
     detrend: bool = True,
 ) -> EarlyWarningResult:
-    """Return the rolling indicators of critical slowing down before a tipping point, for every series of a source.
+    """Return the rolling indicators of critical slowing down before a tipping point.
+
+    The indicators are computed for every series of a source.
 
     The main indicator is the rolling lag-one autocorrelation of detrended windows, and the others of Dakos et al.
     (2012) follow: the rolling variance and skewness, and the reddening, the ratio of the mean power of the lowest
@@ -137,7 +142,10 @@ def early_warning(
 
 
 def _reddening_of(values: Array, window: int, *, detrend: bool) -> Array:
-    """Return the reddening of every window of a series, set at the last sample of the window."""
+    """Return the reddening of every window of a series.
+
+    The reddening is set at the last sample of the window.
+    """
     array = np.asarray(values, dtype=float)
     found = np.full(array.size, np.nan)
     axis = np.arange(window)
@@ -150,7 +158,10 @@ def _reddening_of(values: Array, window: int, *, detrend: bool) -> Array:
 
 
 def _reddening(segment: Array) -> float:
-    """Return the ratio of the mean power of the lowest eighth of frequencies to that of the highest half."""
+    """Return the ratio of the mean power of low frequencies to that of high ones.
+
+    The low frequencies are the lowest eighth, and the high ones the highest half.
+    """
     power = np.abs(np.fft.rfft(segment)[1:]) ** 2
     low = power[: max(power.size // 8, 1)]
     high = power[power.size // 2 :]

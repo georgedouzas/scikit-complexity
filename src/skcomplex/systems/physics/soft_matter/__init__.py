@@ -1,4 +1,7 @@
-"""Soft matter: Brownian particles, optical and hydrodynamically coupled traps, anomalous diffusion, and transitions."""
+"""Soft matter systems.
+
+The package covers Brownian particles, optical and hydrodynamically coupled traps, anomalous diffusion, and transitions.
+"""
 
 from ..common.particles import BrownianParticleElement, DoubleWellElement, ThermalNoiseInteraction
 from ._anomalous import (

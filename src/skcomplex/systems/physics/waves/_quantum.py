@@ -1,4 +1,7 @@
-"""Quantum wave systems: the Schrödinger equation as two real fields or as a particle on the sites of a lattice."""
+"""Quantum wave systems.
+
+The Schrödinger equation runs as two real fields or as a particle on the sites of a lattice.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -24,7 +27,9 @@ from ....core.specs import HilbertSpec, ParameterSpec, RoleSpec, StateSpec, Visu
 
 
 class SiteElement(Element):
-    """Single particle on the sites of a lattice or a network, whose basis state `k` is the particle at site `k`.
+    """Single particle on the sites of a lattice or a network.
+
+    Its basis state `k` is the particle at site `k`.
 
     Its laws read the operators of `site_space`: `laplacian`, `adjacency`, and `potential`.
 
@@ -62,7 +67,9 @@ class SiteElement(Element):
 
 
 class WaveFunctionElement(Element):
-    """Site of the wave function `psi = u + i w` of a particle with the potential `V`, by its real and imaginary parts.
+    """Site of the wave function `psi = u + i w` of a particle with the potential `V`.
+
+    The site holds the real and imaginary parts.
 
     The parts follow the Schrödinger equation `i psi' = -D laplacian(psi) + V psi`, so
     `u' = -D laplacian(w) + V w` and `w' = D laplacian(u) - V u`.
@@ -173,7 +180,9 @@ class LatticeHamiltonianInteraction(Interaction):
 
 
 class PositionDephasingInteraction(Interaction):
-    """Dephasing of a particle in the position basis, one dissipator per site projector at the rate `gamma`.
+    """Dephasing of a particle in the position basis.
+
+    There is one dissipator per site projector at the rate `gamma`.
 
     Args:
         label:
@@ -225,7 +234,10 @@ FORMULATIONS = ('fields', 'operators')
 
 
 def _lattice_laplacian(lattice: LatticeSpace) -> npt.NDArray[np.float64]:
-    """Return the Laplacian of a prepared lattice, spectral when it is periodic and of finite differences otherwise."""
+    """Return the Laplacian of a prepared lattice.
+
+    The Laplacian is spectral when the lattice is periodic and of finite differences otherwise.
+    """
     size = int(lattice.size_)
     laplacian = np.zeros((size, size))
     for axis, (length, spacing) in enumerate(zip(lattice.shape_, lattice.spacings_, strict=True)):
@@ -242,7 +254,9 @@ def _lattice_laplacian(lattice: LatticeSpace) -> npt.NDArray[np.float64]:
 
 
 def site_space(space: BaseSpace, potential: npt.ArrayLike | None = None, *, projectors: bool = False) -> HilbertSpec:
-    """Return the Hilbert space of a particle on the sites of a lattice or a network, whose basis state `k` is site `k`.
+    """Return the Hilbert space of a particle on the sites of a lattice or a network.
+
+    Its basis state `k` is site `k`.
 
     Its operators are the Laplacian, `laplacian`, the adjacency of the neighbouring sites, `adjacency`, with a
     potential the operator `potential` with the potential of every site on its diagonal, and with projectors the
@@ -296,7 +310,9 @@ def site_space(space: BaseSpace, potential: npt.ArrayLike | None = None, *, proj
 
 
 class SchrodingerSystem(BaseSystem):
-    """A Gaussian wave packet that follows the Schrödinger equation, as its real and imaginary parts.
+    """A Gaussian wave packet that follows the Schrödinger equation.
+
+    The packet is written as its real and imaginary parts.
 
     The wave function `psi = u + i w` follows `psi_t = i D laplacian(psi) - i V psi`, written as `u_t = -D laplacian(w)
     + V w` and `w_t = D laplacian(u) - V u`, on a periodic lattice with spectral derivatives. In units with `ħ = 1`,
@@ -378,7 +394,9 @@ class SchrodingerSystem(BaseSystem):
         self.gamma = gamma
 
     def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings, with the solver of the operator form for the operator formulation.
+        """Return the tuned run settings.
+
+        The operator formulation gets the solver of the operator form.
 
         Returns:
             settings:
@@ -390,7 +408,10 @@ class SchrodingerSystem(BaseSystem):
         return settings
 
     def _build_system(self) -> System:
-        """Return a Gaussian wave packet that follows the Schrödinger equation, as its real and imaginary parts."""
+        """Return a Gaussian wave packet that follows the Schrödinger equation.
+
+        The packet is written as its real and imaginary parts.
+        """
         spacing = self.length / self.n_sites
         positions = spacing * np.arange(self.n_sites) - self.length / 2
         envelope = np.exp(-(positions**2) / (4 * self.width**2)) / (2 * np.pi * self.width**2) ** 0.25

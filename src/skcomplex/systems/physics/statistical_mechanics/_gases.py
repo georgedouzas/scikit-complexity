@@ -1,4 +1,7 @@
-"""Statistical mechanics systems: gases, fluids, and spin systems."""
+"""Statistical mechanics systems.
+
+The module covers gases, fluids, and spin systems.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -99,7 +102,9 @@ class IdealGasSystem(BaseSystem):
 
 
 class LennardJonesFluidSystem(BaseSystem):
-    """Lennard-Jones particles in a periodic square box, optionally held at a temperature by a thermostat.
+    """Lennard-Jones particles in a periodic square box.
+
+    A thermostat optionally holds the particles at a temperature.
 
     The system has the particle group `fluid` in two dimensions.
 
@@ -154,7 +159,10 @@ class LennardJonesFluidSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return Lennard-Jones particles in a periodic square box, optionally held at a temperature by a thermostat."""
+        """Return Lennard-Jones particles in a periodic square box.
+
+        A thermostat optionally holds the particles at a temperature.
+        """
         rng = np.random.default_rng(self.random_state)
         size = float(np.sqrt(self.n_particles / self.density))
         side = int(np.ceil(np.sqrt(self.n_particles)))

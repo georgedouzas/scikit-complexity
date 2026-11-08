@@ -1,4 +1,7 @@
-"""Quantum spin chains: the quantum Heisenberg XXZ chain with a field and dephasing."""
+"""Quantum spin chains.
+
+The module holds the quantum Heisenberg XXZ chain with a field and dephasing.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,7 +26,9 @@ MIN_SPIN_DIMENSION = 2
 
 
 def spin_space(j: float = 0.5) -> HilbertSpec:
-    """Return the Hilbert space of a spin of quantum number `j`, with the basis from `m = j` down to `m = -j`.
+    """Return the Hilbert space of a spin of quantum number `j`.
+
+    The basis runs from `m = j` down to `m = -j`.
 
     Its operators are the spin components `x`, `y`, `z` and the ladder operators `plus` and `minus`.
 
@@ -62,7 +67,9 @@ SPIN_HALF = spin_space()
 
 
 class SpinElement(Element):
-    """Spin of the Hilbert space it takes, with the spin components `x`, `y`, `z` and the ladder operators.
+    """Spin of the Hilbert space it takes.
+
+    The spin has the spin components `x`, `y`, `z` and the ladder operators.
 
     The basis is ordered from `m = j` to `m = -j`, so `'up'` is index 0 and `'down'` is the last index. Its laws read
     the operators of its state `psi`, such as `local_operator(namespace.psi, 'z')`.
@@ -100,7 +107,9 @@ class SpinElement(Element):
 
 
 class DephasingInteraction(Interaction):
-    """Dephasing of every spin of a chain, a dissipator with the collapse operator `S^z_i` at the rate `gamma`.
+    """Dephasing of every spin of a chain.
+
+    The dissipator has the collapse operator `S^z_i` at the rate `gamma`.
 
     Args:
         label:
@@ -144,7 +153,9 @@ class DephasingInteraction(Interaction):
 
 
 class XXZExchangeInteraction(NeighborInteraction):
-    """Exchange `J (S^x_i S^x_j + S^y_i S^y_j + Δ S^z_i S^z_j)` between neighbouring spins.
+    """Exchange between neighbouring spins.
+
+    The exchange is `J (S^x_i S^x_j + S^y_i S^y_j + Δ S^z_i S^z_j)`.
 
     Args:
         label:
@@ -286,7 +297,9 @@ def total_magnetization(s: SimpleNamespace) -> Expression:
 
 
 class QuantumHeisenbergSystem(BaseSystem):
-    """A chain of spins one half with the XXZ Hamiltonian, a field, and optional dephasing.
+    """A chain of spins one half with the XXZ Hamiltonian.
+
+    The chain has a field and optional dephasing.
 
     The Hamiltonian is `J Σ (S^x_i S^x_j + S^y_i S^y_j + Δ S^z_i S^z_j) - h Σ S^z_i` over neighbouring pairs, with `ħ =
     1`. A dephasing rate `gamma > 0` adds the dissipator `S^z_i` on every site, so the state is a density matrix that
@@ -372,14 +385,20 @@ class QuantumHeisenbergSystem(BaseSystem):
         return ['up' if site < n_sites // 2 else 'down' for site in range(n_sites)]
 
     def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings, with the ground state as the initial state of the initial state `'ground'`."""
+        """Return the tuned run settings.
+
+        The initial state `'ground'` starts from the ground state.
+        """
         settings = super().get_run_settings()
         if self.initial == 'ground':
             settings['initial_state'] = {f'{self.label}.state': 'ground'}
         return settings
 
     def _build_system(self) -> System:
-        """Return a chain of spins one half with the XXZ Hamiltonian, a field, and optional dephasing."""
+        """Return a chain of spins one half with the XXZ Hamiltonian.
+
+        The chain has a field and optional dephasing.
+        """
         if self.boundary not in BOUNDARIES or self.initial not in INITIAL_STATES:
             error_msg = (
                 f'Unknown boundary {self.boundary!r} or initial state {self.initial!r}. Use a boundary of '

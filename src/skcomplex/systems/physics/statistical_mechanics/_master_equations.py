@@ -1,4 +1,7 @@
-"""Probabilistic and mean-field systems: master equations, particle exchange, and Landau relaxation."""
+"""Probabilistic and mean-field systems.
+
+The module covers master equations, particle exchange, and Landau relaxation.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,7 +22,9 @@ from ....core.types import Array
 
 
 class MicrostateElement(Element):
-    """State of a discrete master equation on a ring, with a probability `P` and a potential `U`.
+    """State of a discrete master equation on a ring.
+
+    The state has a probability `P` and a potential `U`.
 
     Every step the probability moves to each neighbouring state `B` from a state `A` with the Glauber probability
     `w / (1 + exp(beta (U_B - U_A)))`, so `P_A(t + 1) = P_A + sum_B T_AB P_B - sum_B T_BA P_A`, and the stationary
@@ -83,12 +88,17 @@ class MicrostateElement(Element):
 
     @staticmethod
     def _glauber(source: Array, destination: Array, beta: float | Array, w: float | Array) -> Array:
-        """Return the probability `w / (1 + exp(beta (U_destination - U_source)))` of a move between two states."""
+        """Return the probability of a move between two states.
+
+        The probability is `w / (1 + exp(beta (U_destination - U_source)))`.
+        """
         return w / (1 + np.exp(beta * (destination - source)))
 
     @staticmethod
     def _master_step(*around: Array, beta: float | Array, w: float | Array) -> Array:
-        """Return the probabilities after one step of the master equation with moves to the two neighbouring states.
+        """Return the probabilities after one step of the master equation.
+
+        The step moves probability to the two neighbouring states.
 
         The neighbourhood columns are the probabilities and then the potentials of the left state, the state, and the
         right state.
@@ -106,7 +116,9 @@ class MicrostateElement(Element):
 
 
 class OrderParameterElement(Element):
-    """Order parameter of Landau theory relaxing down its free energy, `dphi/dt = -Gamma dF/dphi`.
+    """Order parameter of Landau theory relaxing down its free energy.
+
+    The order parameter follows `dphi/dt = -Gamma dF/dphi`.
 
     The free energy is `F = a (T - Tc) phi^2 / 2 + b phi^4 / 4 - h phi`.
 
@@ -184,7 +196,9 @@ class OrderParameterElement(Element):
 
 
 class ZoneElement(Element):
-    """Small zone of a two-phase apparatus that exchanges particles with the rest of it.
+    """Small zone of a two-phase apparatus.
+
+    The zone exchanges particles with the rest of the apparatus.
 
     Every one of the `Na` particles enters the zone at the rate `k p` and leaves it at the rate `k (1 - p)`, where
     `p = dV / V` is the volume fraction of the zone, so the number in the zone is binomial with mean `Na p`.
@@ -250,7 +264,9 @@ class ZoneElement(Element):
 
 
 class DiscreteMasterEquationSystem(BaseSystem):
-    """The discrete-time master equation of states on a ring, which relaxes to the Boltzmann distribution.
+    """The discrete-time master equation of states on a ring.
+
+    The equation relaxes to the Boltzmann distribution.
 
     The potential is `U = depth cos(2 pi i / n_states)`, the probability starts on the state of highest potential, and
     moves to neighbouring states with Glauber probabilities, which satisfy detailed balance. The system has the
@@ -300,7 +316,10 @@ class DiscreteMasterEquationSystem(BaseSystem):
         self.w = w
 
     def _build_system(self) -> System:
-        """Return the discrete-time master equation of states on a ring, which relaxes to the Boltzmann distribution."""
+        """Return the discrete-time master equation of states on a ring.
+
+        The equation relaxes to the Boltzmann distribution.
+        """
         potential = self.depth * np.cos(2 * np.pi * np.arange(self.n_states) / self.n_states)
         probability = np.zeros(self.n_states)
         probability[0] = 1.0
@@ -319,7 +338,9 @@ class DiscreteMasterEquationSystem(BaseSystem):
 
 
 class TwoPhaseZoneExchangeSystem(BaseSystem):
-    """Independent zones of a two-phase apparatus, each exchanging particles with the rest of the apparatus.
+    """Independent zones of a two-phase apparatus.
+
+    Each zone exchanges particles with the rest of the apparatus.
 
     The zones start empty and their numbers of particles settle on the binomial distribution of mean `Na p` and variance
     `Na p (1 - p)`. The system has the numbers `zones.N`.
@@ -383,7 +404,9 @@ class TwoPhaseZoneExchangeSystem(BaseSystem):
 
 
 class LandauRelaxationSystem(BaseSystem):
-    """The relaxation of a Landau order parameter, to `sqrt(a (Tc - T) / b)` below `Tc` and to 0 above it.
+    """The relaxation of a Landau order parameter.
+
+    The order parameter relaxes to `sqrt(a (Tc - T) / b)` below `Tc` and to 0 above it.
 
     The relaxation time `1 / (Gamma a |T - Tc|)` diverges at the critical temperature, which is critical slowing down.
     The system has the order parameter `magnet.phi`.
@@ -447,7 +470,10 @@ class LandauRelaxationSystem(BaseSystem):
         self.Gamma = Gamma
 
     def _build_system(self) -> System:
-        """Return the relaxation of a Landau order parameter, to `sqrt(a (Tc - T) / b)` below `Tc` and to 0 above it."""
+        """Return the relaxation of a Landau order parameter.
+
+        The order parameter relaxes to `sqrt(a (Tc - T) / b)` below `Tc` and to 0 above it.
+        """
         return System(
             self.label,
             elements=[

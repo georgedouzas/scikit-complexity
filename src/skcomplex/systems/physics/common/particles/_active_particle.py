@@ -1,4 +1,7 @@
-"""Active particle in the plane, whose position diffuses, `dx = sqrt(2 D_t) dW`, and whose orientation turns."""
+"""Active particle in the plane.
+
+Its position diffuses, `dx = sqrt(2 D_t) dW`, and its orientation turns.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,7 +21,9 @@ POINTS = VisualSpec('points', {'position': 'x', 'radius': 0.2})
 
 
 class ActiveParticleElement(Element):
-    """Active particle in the plane, whose position diffuses, `dx = sqrt(2 D_t) dW`, and whose orientation turns.
+    """Active particle in the plane.
+
+    Its position diffuses, `dx = sqrt(2 D_t) dW`, and its orientation turns.
 
     The orientation turns at the angular velocity `omega` and diffuses, `dtheta = omega dt + sqrt(2 D_r) dW`. A
     `SelfPropulsionInteraction` adds the drift `v (cos theta, sin theta)` of the position. With `omega = 0` it is an

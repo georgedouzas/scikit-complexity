@@ -1,4 +1,7 @@
-"""Population and pollution: a population whose births, deaths, food, and quality of life suffer from its pollution."""
+"""Population and pollution.
+
+The births, deaths, food, and quality of life of a population suffer from its pollution.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -37,7 +40,9 @@ LIFE_FROM_POLLUTION = ((0.0, 1.05), (10.0, 0.85), (20.0, 0.6), (30.0, 0.3), (40.
 
 
 class PollutedRegionElement(Element):
-    """Population of a region and the pollution it generates, which the environment absorbs ever more slowly.
+    """Population of a region and the pollution it generates.
+
+    The environment absorbs the pollution ever more slowly.
 
     The pollution grows by `pollution_normal` per person and is absorbed over a time that a table lengthens with the
     pollution ratio, the pollution over its standard. The births and the deaths are the normal rates times table
@@ -124,7 +129,10 @@ class PollutedRegionElement(Element):
 
     @staticmethod
     def _food_per_capita(s: SimpleNamespace) -> Expression:
-        """Return the food per capita, from the land, the yield, the cropping intensity, and the pollution."""
+        """Return the food per capita.
+
+        The food follows from the land, the yield, the cropping intensity, and the pollution.
+        """
         ratio = PollutedRegionElement._pollution_ratio(s)
         intensity = lookup(s.t, CROPPING_INTENSITY)
         food = s.cultivated_land * s.crop_yield * intensity * lookup(ratio, FOOD_FROM_POLLUTION)
@@ -132,7 +140,10 @@ class PollutedRegionElement(Element):
 
     @staticmethod
     def _quality_of_life(s: SimpleNamespace) -> Expression:
-        """Return the quality of life, the product of the table multipliers of the food and the pollution ratios."""
+        """Return the quality of life.
+
+        It is the product of the table multipliers of the food and the pollution ratios.
+        """
         food_ratio = PollutedRegionElement._food_per_capita(s) / s.subsistence_food
         ratio = PollutedRegionElement._pollution_ratio(s)
         return lookup(food_ratio, LIFE_FROM_FOOD) * lookup(ratio, LIFE_FROM_POLLUTION)
@@ -160,7 +171,9 @@ class PollutedRegionElement(Element):
 
 
 class PopulationPollutionSystem(BaseSystem):
-    """The pollution model of Bala, Arshad, and Noh, a population that degrades its environment.
+    """The pollution model of Bala, Arshad, and Noh.
+
+    A population degrades its environment.
 
     The population generates pollution at `pollution_normal` per person per year, and the environment absorbs the
     pollution over a time that lengthens from 0.6 to 20 years as the pollution ratio, pollution over its standard, rises
@@ -229,7 +242,10 @@ class PopulationPollutionSystem(BaseSystem):
         self.death_normal = death_normal
 
     def _build_system(self) -> System:
-        """Return the pollution model of Bala, Arshad, and Noh, a population that degrades its environment."""
+        """Return the pollution model of Bala, Arshad, and Noh.
+
+        A population degrades its environment.
+        """
         region = PollutedRegionElement(
             'region',
             population=self.population,

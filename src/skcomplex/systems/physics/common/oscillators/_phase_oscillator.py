@@ -12,7 +12,9 @@ from .....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class PhaseOscillatorElement(Element):
-    """Phase oscillator, a phase `theta` that turns at its natural frequency, `theta' = omega`.
+    """Phase oscillator, a phase `theta` that turns at its natural frequency.
+
+    The phase follows `theta' = omega`.
 
     Couplings to other oscillators add to the rate of the phase.
 

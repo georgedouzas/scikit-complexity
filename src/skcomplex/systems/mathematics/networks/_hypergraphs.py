@@ -1,4 +1,7 @@
-"""Hypergraphs: the size-biased random walk across hyperedges, and the simplicial complex that grows by triangles."""
+"""Hypergraphs.
+
+The module covers the size-biased random walk across hyperedges, and the simplicial complex that grows by triangles.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -57,7 +60,9 @@ class SimplexElement(Element):
 
 
 class WalkerDensityElement(Element):
-    """Probability that a random walker is at a node of a hypergraph, with the weight `D` of the node.
+    """Probability that a random walker is at a node of a hypergraph.
+
+    The node has the weight `D`.
 
     Args:
         label:
@@ -133,7 +138,9 @@ class SimplexAgeingInteraction(HyperedgeInteraction):
 
 
 class SizeBiasedMoveInteraction(HyperedgeInteraction):
-    """Moves of a random walker across a hyperedge, to every other member with weight `|e| - 1`.
+    """Moves of a random walker across a hyperedge.
+
+    The walker moves to every other member with weight `|e| - 1`.
 
     A walker at node `i` moves to node `j` at rate `T_ij = k_ij / D_i`, where `k_ij = sum_e (|e| - 1)` over the
     hyperedges `e` that hold both, and `D_i = sum_j k_ij`. On a hyperedge, the focal member gains `(|e| - 1) p_j / D_j`
@@ -167,7 +174,9 @@ class SizeBiasedMoveInteraction(HyperedgeInteraction):
 
 
 class HypergraphRandomWalkSystem(BaseSystem):
-    """The size-biased random walk on a hypergraph, `p_j' = sum_i p_i T_ij - p_j`, from one node.
+    """The size-biased random walk on a hypergraph, `p_j' = sum_i p_i T_ij - p_j`.
+
+    The walk starts from one node.
 
     A walker at node `i` moves to node `j` at rate `T_ij = k_ij / sum_l k_il`, with `k_ij = sum_e (|e| - 1) e_i e_j`
     over the hyperedges `e` of the incidence matrix, so large hyperedges carry more of the walk, as in Carletti et al.
@@ -216,7 +225,10 @@ class HypergraphRandomWalkSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> System:
-        """Return the size-biased random walk on a hypergraph, `p_j' = sum_i p_i T_ij - p_j`, from one node."""
+        """Return the size-biased random walk on a hypergraph.
+
+        The walk `p_j' = sum_i p_i T_ij - p_j` starts from one node.
+        """
         hypergraph = self.hypergraph
         if hypergraph is None:
             hypergraph = xgi.fast_random_hypergraph(30, [0.1, 0.01, 0.001, 0.0005], seed=self.seed)
@@ -238,7 +250,9 @@ class HypergraphRandomWalkSystem(BaseSystem):
 
 
 class GrowingSimplicialComplexSystem(BaseSystem):
-    """A simplicial complex that grows by gluing one triangle per step along an edge drawn uniformly.
+    """A simplicial complex that grows by gluing one triangle per step along an edge.
+
+    The edge is drawn uniformly.
 
     The complex starts as one triangle, and every step one node joins and forms a triangle with the ends of an edge
     drawn uniformly, adding two edges, as the network geometry with flavor `s = 0` of Bianconi and Rahmede in two
@@ -276,14 +290,20 @@ class GrowingSimplicialComplexSystem(BaseSystem):
 
     @staticmethod
     def _get_bookkeeping() -> list[MapInteraction]:
-        """Return the maps that age every node and read its degree from the edges at the start of a step."""
+        """Return the maps that age every node and read its degree from the edges.
+
+        The maps run at the start of a step.
+        """
         return [
             MapInteraction('ageing', target='nodes', state='age', function=lambda s: 1, mode='increment'),
             MapInteraction('degree', target='nodes', state='degree', function=lambda s: neighbors(1)),
         ]
 
     def _build_system(self) -> System:
-        """Return a simplicial complex that grows by gluing one triangle per step along an edge drawn uniformly."""
+        """Return a simplicial complex that grows by gluing one triangle per step.
+
+        Every triangle is glued along an edge drawn uniformly.
+        """
         nodes = GroupElement(
             'nodes',
             element=VertexElement,

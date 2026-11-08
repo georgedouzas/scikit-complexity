@@ -1,4 +1,7 @@
-"""Expansion systems: the scale factor of a homogeneous universe under matter and dark energy."""
+"""Expansion systems.
+
+The scale factor of a homogeneous universe evolves under matter and dark energy.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,7 +21,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class ScaleFactorElement(Element):
-    """Homogeneous universe whose size is the scale factor `a`, a state of order 2 with the expansion rate `a_d1`.
+    """Homogeneous universe whose size is the scale factor `a`.
+
+    The scale factor is a state of order 2 with the expansion rate `a_d1`.
 
     Args:
         label:
@@ -68,7 +73,9 @@ class ScaleFactorElement(Element):
 
 
 class FriedmannExpansionSystem(BaseSystem):
-    """The scale factor of a homogeneous universe of matter and dark energy, after Friedmann and Lemaître.
+    """The scale factor of a homogeneous universe of matter and dark energy.
+
+    The system follows Friedmann and Lemaître.
 
     The acceleration equation `a² a'' = -4 pi G M / 3 + Lambda a³ / 3` is written with the density parameters of matter
     `Ω_m = 8 pi G M / (3 H0²)` and of the cosmological constant `Ω_Λ = Lambda / (3 H0²)` in units of the Hubble constant
@@ -126,7 +133,10 @@ class FriedmannExpansionSystem(BaseSystem):
 
     @staticmethod
     def _get_expansion_potential(s: SimpleNamespace) -> Expression:
-        """Return the potential `-omega_matter H0² / (2 a) - omega_lambda H0² a² / 2` of the acceleration equation."""
+        """Return the potential of the acceleration equation.
+
+        The potential is `-omega_matter H0² / (2 a) - omega_lambda H0² a² / 2`.
+        """
         universe = s.target
         return (
             -universe.omega_matter * universe.H0**2 / (2 * universe.a)
@@ -134,7 +144,10 @@ class FriedmannExpansionSystem(BaseSystem):
         )
 
     def _build_system(self) -> System:
-        """Return the scale factor of a homogeneous universe of matter and dark energy, after Friedmann and Lemaître."""
+        """Return the scale factor of a homogeneous universe of matter and dark energy.
+
+        The system follows Friedmann and Lemaître.
+        """
         square = self.H0**2 * (
             self.omega_matter / self.a + self.omega_lambda * self.a**2 + 1 - self.omega_matter - self.omega_lambda
         )

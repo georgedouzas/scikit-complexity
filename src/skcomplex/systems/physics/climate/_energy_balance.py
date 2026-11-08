@@ -1,4 +1,7 @@
-"""Energy balance climates: ice-albedo feedback, latitudinal heat transport, and Daisyworld."""
+"""Energy balance climates.
+
+The module covers ice-albedo feedback, latitudinal heat transport, and Daisyworld.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,7 +22,9 @@ from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 
 class DaisyworldElement(Element):
-    """Planet of Daisyworld, whose white and black daisies regulate its temperature through its albedo.
+    """Planet of Daisyworld.
+
+    Its white and black daisies regulate its temperature through its albedo.
 
     The areas covered by white and black daisies grow on the bare ground at a rate parabolic in their local
     temperature, with an optimum at `optimum`, and die at the rate `gamma`. The effective temperature follows the
@@ -115,7 +120,9 @@ class DaisyworldElement(Element):
         self.albedo_black = albedo_black
 
     def _get_growth(self, s: SimpleNamespace, albedo: Expression) -> Expression:
-        """Return the growth rate of daisies of an albedo, parabolic in their local temperature and zero outside it.
+        """Return the growth rate of daisies of an albedo.
+
+        The rate is parabolic in their local temperature and zero outside it.
 
         Args:
             s:
@@ -153,7 +160,10 @@ class DaisyworldElement(Element):
 
     @staticmethod
     def _daisyworld_albedo(s: SimpleNamespace) -> Expression:
-        """Return the planetary albedo, the area average of the albedos of bare ground and of both daisies."""
+        """Return the planetary albedo.
+
+        The albedo is the area average of the albedos of bare ground and of both daisies.
+        """
         bare = s.p - s.white - s.black
         return bare * s.albedo_ground + s.white * s.albedo_white + s.black * s.albedo_black
 
@@ -164,7 +174,9 @@ class DaisyworldElement(Element):
 
 
 class IceAlbedoClimateElement(Element):
-    """Global climate of a zero-dimensional energy balance, bistable through the ice-albedo feedback.
+    """Global climate of a zero-dimensional energy balance.
+
+    The climate is bistable through the ice-albedo feedback.
 
     In units of the mean insolation, the global temperature follows `dT/dt = s (1 - a(T)) - sigma epsilon T^4`, with
     the albedo `a(T) = albedo - contrast tanh((T - T_ice) / width)`, high on an icy planet and low on a warm one.
@@ -233,7 +245,9 @@ class IceAlbedoClimateElement(Element):
         self.width = width
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the absorbed insolation, lowered by the albedo of the ice, and the outgoing radiation.
+        """Return the absorbed insolation and the outgoing radiation.
+
+        The albedo of the ice lowers the absorbed insolation.
 
         Args:
             s:
@@ -252,7 +266,9 @@ class IceAlbedoClimateElement(Element):
 
 
 class LatitudeBandElement(Element):
-    """Latitude band of the Budyko-Sellers energy balance, heated by the sun and exchanging heat with its neighbours.
+    """Latitude band of the Budyko-Sellers energy balance.
+
+    The band is heated by the sun and exchanges heat with its neighbours.
 
     The temperature of the band at `x = sin(latitude)` follows `C dT/dt = Q s(x) (1 - a(x, T)) - (A + B T) +
     D d/dx((1 - x^2) dT/dx)`, with the annual insolation `s(x) = 1 + s2 P2(x)`, where `P2(x) = (3x^2 - 1) / 2`. The
@@ -348,7 +364,9 @@ class LatitudeBandElement(Element):
         self.width = width
 
     def _get_albedo(self, s: SimpleNamespace, legendre: Expression) -> Expression:
-        """Return the albedo of the band, which rises smoothly from its ice free value to that of ice as it cools.
+        """Return the albedo of the band.
+
+        The albedo rises smoothly from its ice free value to that of ice as the band cools.
 
         Args:
             s:
@@ -378,7 +396,9 @@ class LatitudeBandElement(Element):
         return s.D * ((1 - s.x**2) * laplacian(s.T) - 2 * s.x * gradient(s.T, 1)[0])
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the absorbed insolation, the linearized outgoing radiation, and the meridional diffusion of heat.
+        """Return the absorbed insolation, the outgoing radiation, and the heat diffusion.
+
+        The outgoing radiation is linearized, and the diffusion of heat is meridional.
 
         Args:
             s:
@@ -401,7 +421,9 @@ def _daisyworld_temperature(s: SimpleNamespace) -> Expression:
 
 
 class EnergyBalanceSystem(BaseSystem):
-    """The zero-dimensional energy balance of the Earth, bistable through the ice-albedo feedback.
+    """The zero-dimensional energy balance of the Earth.
+
+    The balance is bistable through the ice-albedo feedback.
 
     In units of the mean insolation, the global temperature follows `dT/dt = s (1 - a(T)) - sigma epsilon T^4`, with the
     albedo `a(T) = albedo - contrast tanh((T - T_ice) / width)`, high on an icy planet and low on a warm one. For the
@@ -472,7 +494,10 @@ class EnergyBalanceSystem(BaseSystem):
         self.width = width
 
     def _build_system(self) -> System:
-        """Return the zero-dimensional energy balance of the Earth, bistable through the ice-albedo feedback."""
+        """Return the zero-dimensional energy balance of the Earth.
+
+        The balance is bistable through the ice-albedo feedback.
+        """
         climate = IceAlbedoClimateElement(
             'earth',
             T=self.T,
@@ -488,7 +513,9 @@ class EnergyBalanceSystem(BaseSystem):
 
 
 class BudykoSellersSystem(BaseSystem):
-    """The Budyko-Sellers energy balance of one hemisphere, resolved in the sine of latitude.
+    """The Budyko-Sellers energy balance of one hemisphere.
+
+    The balance is resolved in the sine of latitude.
 
     The temperature of a band at `x = sin(latitude)` follows `C dT/dt = Q s(x) (1 - a(x, T)) - (A + B T) + D d/dx((1 -
     x^2) dT/dx)`, with the annual insolation `s(x) = 1 - 0.482 P2(x)`, where `P2(x) = (3x^2 - 1) / 2`. The albedo is
@@ -555,7 +582,10 @@ class BudykoSellersSystem(BaseSystem):
         self.C = C
 
     def _build_system(self) -> System:
-        """Return the Budyko-Sellers energy balance of one hemisphere, resolved in the sine of latitude."""
+        """Return the Budyko-Sellers energy balance of one hemisphere.
+
+        The balance is resolved in the sine of latitude.
+        """
         x = (np.arange(self.n_bands) + 0.5) / self.n_bands
         bands = FieldElement(
             'bands',
@@ -576,7 +606,9 @@ class BudykoSellersSystem(BaseSystem):
 
 
 class DaisyworldSystem(BaseSystem):
-    """Daisyworld, where white and black daisies regulate the temperature of their planet through its albedo.
+    """Daisyworld.
+
+    White and black daisies regulate the temperature of their planet through its albedo.
 
     The areas covered by white and black daisies grow on the bare ground at a rate parabolic in their local temperature,
     with an optimum at 22.5 °C, and die at the rate `gamma`. The effective temperature follows the planetary albedo,

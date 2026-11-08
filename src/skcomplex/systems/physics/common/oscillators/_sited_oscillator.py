@@ -12,7 +12,9 @@ from ._phase_oscillator import PhaseOscillatorElement
 
 
 class SitedOscillatorElement(PhaseOscillatorElement):
-    """Phase oscillator with a place `x` in a continuous space, which couplings within a distance or swarming read.
+    """Phase oscillator with a place `x` in a continuous space.
+
+    Couplings within a distance or swarming read the place.
 
     The phase turns at the natural frequency, and the place changes only by the rates of interactions.
 

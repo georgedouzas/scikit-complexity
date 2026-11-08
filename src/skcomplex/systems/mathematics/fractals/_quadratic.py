@@ -1,4 +1,7 @@
-"""Fractals of the complex quadratic map: the Mandelbrot set, the filled Julia sets, and their inverse iteration."""
+"""Fractals of the complex quadratic map.
+
+The module covers the Mandelbrot set, the filled Julia sets, and their inverse iteration.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,7 +25,9 @@ from .types import Window
 
 
 class InverseJuliaPointElement(Element):
-    """Point of the inverse iteration of `z -> z² + omega`, which moves to a square root of `z - omega` drawn at random.
+    """Point of the inverse iteration of `z -> z² + omega`.
+
+    The point moves to a square root of `z - omega` drawn at random.
 
     The point moves to `+√(z - omega)` with probability `p` and to `-√(z - omega)` otherwise, with the principal
     square root.
@@ -87,7 +92,9 @@ JULIA_WINDOW: Window = (-1.6, 1.6, -1.2, 1.2)
 
 
 class QuadraticMapElement(Element):
-    """Complex quadratic map `z' = z^2 + c` while `|z|` stays within the escape radius, with a count of its steps.
+    """Complex quadratic map `z' = z^2 + c` with a count of its steps.
+
+    The map runs while `|z|` stays within the escape radius.
 
     Args:
         label:
@@ -133,7 +140,9 @@ class QuadraticMapElement(Element):
         self.radius = radius
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the next point, which stays once it escaped, and the next count.
+        """Return the next point and the next count.
+
+        The point stays once it escaped.
 
         Args:
             s:
@@ -150,7 +159,10 @@ class QuadraticMapElement(Element):
 
 
 def _plane(shape: Sequence[int], window: Window) -> npt.NDArray[np.complex128]:
-    """Return the complex points of a lattice over a window, the real part along columns and the imaginary part up."""
+    """Return the complex points of a lattice over a window.
+
+    The real part runs along columns and the imaginary part up.
+    """
     rows, columns = (int(item) for item in shape)
     left, right, bottom, top = window
     real = np.linspace(left, right, columns)
@@ -159,7 +171,10 @@ def _plane(shape: Sequence[int], window: Window) -> npt.NDArray[np.complex128]:
 
 
 def _escape_field(label: str, shape: Sequence[int], z: object, c: object, radius: float) -> System:
-    """Return the field of the quadratic map over a lattice from the initial points and the constants."""
+    """Return the field of the quadratic map over a lattice.
+
+    The field comes from the initial points and the constants.
+    """
     space = LatticeSpace(tuple(int(item) for item in shape))
     values = {'z': z, 'c': c, 'radius': radius}
     return System(
@@ -169,7 +184,9 @@ def _escape_field(label: str, shape: Sequence[int], z: object, c: object, radius
 
 
 class MandelbrotSystem(BaseSystem):
-    """The Mandelbrot set, the points `c` whose orbit of `z -> z^2 + c` from 0 stays bounded (Dilão 2023 §5.5).
+    """The Mandelbrot set (Dilão 2023 §5.5).
+
+    The set holds the points `c` whose orbit of `z -> z^2 + c` from 0 stays bounded.
 
     Every site holds one point `c` of the window and iterates the map, and `n` counts the steps the orbit stays within
     the escape radius. The points of the set never escape, so their count grows with every step, while the count of an
@@ -221,7 +238,9 @@ class MandelbrotSystem(BaseSystem):
 
 
 class JuliaSystem(BaseSystem):
-    """The filled Julia set of `z -> z^2 + c`, the starting points whose orbit stays bounded (Dilão 2023 §5.5).
+    """The filled Julia set of `z -> z^2 + c` (Dilão 2023 §5.5).
+
+    The set holds the starting points whose orbit stays bounded.
 
     Every site holds one starting point `z` of the window and iterates the map with the same constant `c`, and `n`
     counts the steps the orbit stays within the escape radius. For `c` in the Mandelbrot set the filled Julia set is
@@ -278,7 +297,9 @@ class JuliaSystem(BaseSystem):
 
 
 class InverseJuliaSystem(BaseSystem):
-    """The random function system `z -> ±√(z - omega)`, whose points settle on the Julia set of `z² + omega`.
+    """The random function system `z -> ±√(z - omega)`.
+
+    Its points settle on the Julia set of `z² + omega`.
 
     At every step each point moves to the positive square root of `z - omega` with probability `p` and to the negative
     one otherwise (Dilão 2023, Exercise 5.8). Both branches invert the quadratic map `z -> z² + omega`, which repels its

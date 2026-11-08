@@ -1,4 +1,7 @@
-"""Climate variability: stochastic climate and the delayed oscillator of El Niño."""
+"""Climate variability.
+
+The module covers stochastic climate and the delayed oscillator of El Niño.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,7 +22,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class ClimateAnomalyElement(Element):
-    """Slow temperature anomaly of Hasselmann's stochastic climate, with its feedback rate and weather noise.
+    """Slow temperature anomaly of Hasselmann's stochastic climate.
+
+    The anomaly has its feedback rate and weather noise.
 
     The relaxation of `HasselmannSystem` damps the anomaly at the rate `lam` and drives it with weather noise of
     amplitude `sigma`.
@@ -62,7 +67,9 @@ class ClimateAnomalyElement(Element):
 
 
 class DelayedOscillatorElement(Element):
-    """Eastern Pacific of the delayed oscillator of El Niño, its sea surface temperature anomaly.
+    """Eastern Pacific of the delayed oscillator of El Niño.
+
+    The element holds its sea surface temperature anomaly.
 
     The anomaly follows `dT/dt = T - T^3 - alpha T(t - delta)`. It grows by local feedback and is damped by the
     delayed return of oceanic waves reflected at the western boundary.
@@ -106,7 +113,9 @@ class DelayedOscillatorElement(Element):
         self.delta = delta
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the local growth and saturation of the anomaly and its delayed negative feedback.
+        """Return the local growth and saturation of the anomaly, and its delayed feedback.
+
+        The delayed feedback is negative.
 
         Args:
             s:
@@ -120,7 +129,9 @@ class DelayedOscillatorElement(Element):
 
 
 class HasselmannSystem(BaseSystem):
-    """Hasselmann's stochastic climate, where fast weather noise drives a slow, damped temperature anomaly.
+    """Hasselmann's stochastic climate.
+
+    Fast weather noise drives a slow, damped temperature anomaly.
 
     The anomaly follows `dT = -lam T dt + sigma dW`, an Ornstein-Uhlenbeck process whose red spectrum integrates white
     weather noise, with the stationary variance `sigma^2 / (2 lam)`. The system has the anomaly `ocean.T`.
@@ -192,7 +203,9 @@ class HasselmannSystem(BaseSystem):
 
 
 class ENSOSystem(BaseSystem):
-    """The delayed oscillator of El Niño of Suarez and Schopf, `dT/dt = T - T^3 - alpha T(t - delta)`.
+    """The delayed oscillator of El Niño of Suarez and Schopf.
+
+    The oscillator is `dT/dt = T - T^3 - alpha T(t - delta)`.
 
     The sea surface temperature anomaly of the eastern Pacific grows by local feedback and is damped by the delayed
     return of oceanic waves reflected at the western boundary. For `alpha < 1` and a long enough delay the warm and cold
@@ -238,7 +251,10 @@ class ENSOSystem(BaseSystem):
         self.delta = delta
 
     def _build_system(self) -> System:
-        """Return the delayed oscillator of El Niño of Suarez and Schopf, `dT/dt = T - T^3 - alpha T(t - delta)`."""
+        """Return the delayed oscillator of El Niño of Suarez and Schopf.
+
+        The oscillator is `dT/dt = T - T^3 - alpha T(t - delta)`.
+        """
         return System(
             self.label,
             elements=[DelayedOscillatorElement('pacific', T=self.T, alpha=self.alpha, delta=self.delta)],

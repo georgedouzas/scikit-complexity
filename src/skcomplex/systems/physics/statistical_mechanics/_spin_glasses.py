@@ -1,4 +1,7 @@
-"""Lattice spin glasses: Ising spins with quenched bond couplings, the Edwards-Anderson and Mattis systems."""
+"""Lattice spin glasses.
+
+The module covers Ising spins with quenched bond couplings, the Edwards-Anderson and Mattis systems.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -24,7 +27,9 @@ SPIN_IMAGE = VisualSpec('image', {'states': ('spin',), 'low': -1.0, 'high': 1.0}
 
 
 class BondSpinElement(Element):
-    """Ising spin on a square lattice with quenched couplings to its four neighbours, of local energy `-s sum J_k s_k`.
+    """Ising spin on a square lattice with quenched couplings to its four neighbours.
+
+    Its local energy is `-s sum J_k s_k`.
 
     The couplings are constant states of every site, so a bond between two sites is stored at both of them with the same
     value. A `BondSamplingInteraction` flips the spins by Metropolis Monte Carlo at the temperature `T`, with the energy
@@ -88,7 +93,9 @@ class BondSpinElement(Element):
 
 
 class MattisSpinElement(BondSpinElement):
-    """Spin of the Mattis system, a bond spin that also holds its quenched pattern `xi`, with couplings `J xi_i xi_j`.
+    """Spin of the Mattis system.
+
+    The bond spin also holds its quenched pattern `xi`, with couplings `J xi_i xi_j`.
 
     Args:
         label:
@@ -159,7 +166,9 @@ NEAREST = VonNeumannNeighborhood()
 
 
 class BondSamplingInteraction(SpinSamplingInteraction):
-    """Metropolis sweeps of Ising spins with quenched couplings to their neighbours, of energy `-s (sum J_k s_k + h)`.
+    """Metropolis sweeps of Ising spins with quenched couplings to their neighbours.
+
+    The local energy is `-s (sum J_k s_k + h)`.
 
     The couplings `J_up`, `J_left`, `J_right`, and `J_down` are constant states of every spin, in the order of the
     offsets of the von Neumann neighbourhood, and the field `h` and the temperature are its parameters.
@@ -200,7 +209,10 @@ def _bond_states(
     right: npt.NDArray[np.floating],
     down: npt.NDArray[np.floating],
 ) -> dict[str, npt.NDArray[np.floating]]:
-    """Return the couplings of every site to its up, left, right, and down neighbours from the bonds right and down."""
+    """Return the couplings of every site to its up, left, right, and down neighbours.
+
+    The couplings come from the bonds right and down.
+    """
     return {
         'J_up': np.roll(down, 1, axis=0),
         'J_left': np.roll(right, 1, axis=1),
@@ -215,7 +227,9 @@ def _overlap(member: SimpleNamespace) -> Expression:
 
 
 class EdwardsAndersonSystem(BaseSystem):
-    """The Edwards-Anderson spin glass on a periodic square lattice, with quenched random bonds.
+    """The Edwards-Anderson spin glass on a periodic square lattice.
+
+    The bonds are quenched and random.
 
     Every bond takes the coupling `+J` or `-J` with equal probability, or a Gaussian coupling of mean 0 and standard
     deviation `J`, drawn once. The magnetization stays near zero at every temperature, while at low temperature the
@@ -282,7 +296,10 @@ class EdwardsAndersonSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return the Edwards-Anderson spin glass on a periodic square lattice, with quenched random bonds."""
+        """Return the Edwards-Anderson spin glass on a periodic square lattice.
+
+        The bonds are quenched and random.
+        """
         shape = _square(self.size)
         rng = np.random.default_rng(self.random_state)
         if self.disorder == 'bimodal':
@@ -304,7 +321,9 @@ class EdwardsAndersonSystem(BaseSystem):
 
 
 class MattisSpinGlassSystem(BaseSystem):
-    """The Mattis spin glass on a periodic square lattice, with couplings `J_ij = J xi_i xi_j` of a pattern `xi`.
+    """The Mattis spin glass on a periodic square lattice.
+
+    The couplings are `J_ij = J xi_i xi_j` of a pattern `xi`.
 
     The gauge change `sigma_i = xi_i s_i` maps the system at `h = 0` to the Ising system, so the overlap `m_xi = sum_i
     xi_i s_i / N` orders below the Ising critical temperature `2 J / ln(1 + sqrt 2)` while the magnetization averages to

@@ -1,4 +1,7 @@
-"""Chemotaxis: cells that climb the gradient of a chemical they secrete, the Keller-Segel system."""
+"""Chemotaxis, the Keller-Segel system.
+
+Cells climb the gradient of a chemical they secrete.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,7 +23,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class ChemotaxisElement(Element):
-    """Site of the Keller-Segel system, cells of density `rho` that climb the gradient of a chemical `c` they secrete.
+    """Site of the Keller-Segel system.
+
+    The site holds cells of density `rho` that climb the gradient of a chemical `c` they secrete.
 
     The cells diffuse and drift up the chemical, `rho_t = D laplacian(rho) - chi div(rho grad c)`, and the chemical
     diffuses, is secreted by the cells, and decays, `c_t = Dc laplacian(c) + rho - k c`. Above a critical mass the cells
@@ -102,7 +107,9 @@ class ChemotaxisElement(Element):
 
 
 class KellerSegelSystem(BaseSystem):
-    """The Keller-Segel system of cells that diffuse and climb the gradient of a chemical they secrete.
+    """The Keller-Segel system of diffusing cells that climb a chemical gradient.
+
+    The cells secrete the chemical.
 
     The cell density follows `rho_t = D laplacian(rho) - chi div(rho grad(c))` and the chemical `c_t = Dc laplacian(c) +
     rho - k c`, on a periodic square. The total number of cells is conserved. The uniform state of density `rho_0` is
@@ -175,7 +182,10 @@ class KellerSegelSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return the Keller-Segel system of cells that diffuse and climb the gradient of a chemical they secrete."""
+        """Return the Keller-Segel system of diffusing cells climbing a chemical gradient.
+
+        The cells secrete the chemical.
+        """
         shape = tuple(self.shape)
         rng = np.random.default_rng(self.random_state)
         values = {

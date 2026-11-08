@@ -1,4 +1,7 @@
-"""Kinetic theory of flocking of Bertin, Droz, and Grégoire over position and orientation."""
+"""Kinetic theory of flocking of Bertin, Droz, and Grégoire.
+
+The theory runs over position and orientation.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,7 +26,9 @@ ANTIPODAL = 1e-9
 
 
 class AngularAlignmentInteraction(EncounterInteraction):
-    """Pairs of self-propelled particles leave a collision at their mean angle plus a wrapped normal noise.
+    """Binary collisions of self-propelled particles.
+
+    Pairs of particles leave a collision at their mean angle plus a wrapped normal noise.
 
     A pair of angles meets at the rate `4 d0 v0 |sin((a - b) / 2)|`, the frequency of Bertin, Droz, and Grégoire, with
     `d0` the interaction range and `v0` the speed. A pair of opposite angles leaves at either of its two mean angles
@@ -79,7 +84,7 @@ class AngularAlignmentInteraction(EncounterInteraction):
         return 2 * np.pi * (np.arange(self.angles) + 0.5) / self.angles
 
     def _rate(self, _: SimpleNamespace) -> npt.NDArray[np.float64]:
-        """Return the rate of every pair of angles, times the width of the cell of the partner."""
+        """Return the rate of every pair of angles times the cell width of the partner."""
         centres = self._centres()
         return 8 * np.pi / self.angles * self.frequency * np.abs(np.sin(np.subtract.outer(centres, centres) / 2))
 
@@ -88,12 +93,15 @@ class AngularAlignmentInteraction(EncounterInteraction):
         centres: npt.NDArray[np.float64],
         means: npt.NDArray[np.float64],
     ) -> npt.NDArray[np.float64]:
-        """Return the wrapped normal weight of every angle around the mean angle of every pair."""
+        """Return the wrapped normal weight of every angle around each pair's mean angle."""
         gaps = np.angle(np.exp(1j * (centres[None, None, :] - means[:, :, None])))
         return np.exp(-(gaps**2) / (2 * self.noise**2))
 
     def _kernel(self, _: SimpleNamespace) -> npt.NDArray[np.float64]:
-        """Return the probability of every outcome angle of every pair of angles, around the mean angle of the pair."""
+        """Return the probability of every outcome angle of every pair of angles.
+
+        The outcome angles spread around the mean angle of the pair.
+        """
         centres = self._centres()
         cosines, sines = np.cos(centres), np.sin(centres)
         along, across = np.add.outer(cosines, cosines), np.add.outer(sines, sines)
@@ -106,7 +114,9 @@ class AngularAlignmentInteraction(EncounterInteraction):
 
 
 class AngularDiffusionInteraction(EncounterInteraction):
-    """Self-propelled particles change their angle at a rate by a wrapped normal noise, a linear redistribution.
+    """Self-diffusion of self-propelled particles, a linear redistribution.
+
+    The particles change their angle at a rate by a wrapped normal noise.
 
     Args:
         label:
@@ -160,7 +170,9 @@ class AngularDiffusionInteraction(EncounterInteraction):
 
 
 class BertinDrozGregoireSystem(BaseSystem):
-    """The kinetic theory of flocking, whose polar order grows above a transition density.
+    """The kinetic theory of flocking.
+
+    Its polar order grows above a transition density.
 
     Particles stream along their orientation, tumble at a rate by a wrapped normal noise, and align in binary collisions
     at their mean angle with the same noise. A homogeneous disordered state is unstable above the density `pi tumbling
@@ -232,7 +244,10 @@ class BertinDrozGregoireSystem(BaseSystem):
         self.perturbation = perturbation
 
     def _build_system(self) -> System:
-        """Return the kinetic theory of flocking, whose polar order grows above a transition density."""
+        """Return the kinetic theory of flocking.
+
+        Its polar order grows above a transition density.
+        """
         axis = AxisSpec('theta', self.angles, 0.0, 2 * math.pi, periodic=True)
         space = PhaseSpace(LatticeSpace((self.positions, self.positions)), [axis]).prepare()
         theta = space.coordinates_['theta']

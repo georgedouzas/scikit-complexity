@@ -1,4 +1,4 @@
-"""Stochastic process systems: random iterations of interval maps."""
+"""Stochastic process systems of random iterations of interval maps."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,7 +18,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class RandomBranchMapElement(Element):
-    """Value of a random interval map, which applies `(1 + x) / 2` with probability `p1` and `mu x²` otherwise.
+    """Value of a random interval map.
+
+    The map applies `(1 + x) / 2` with probability `p1` and `mu x²` otherwise.
 
     Args:
         label:
@@ -76,7 +78,9 @@ class RandomBranchMapElement(Element):
 
 
 class RandomBranchMapSystem(BaseSystem):
-    """Orbits of a random map of `[0, 1]` with the two branches `(1 + x) / 2` and `mu x²`.
+    """Orbits of a random map of `[0, 1]`.
+
+    The map has the two branches `(1 + x) / 2` and `mu x²`.
 
     At every step each orbit applies `(1 + x) / 2` with probability `p1` and `mu x²` otherwise (Dilão 2023, Exercise
     5.10). The first branch pulls towards 1 and the second towards 0, so the orbits settle on a stationary
@@ -130,7 +134,10 @@ class RandomBranchMapSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return orbits of a random map of `[0, 1]` with the two branches `(1 + x) / 2` and `mu x²`."""
+        """Return orbits of a random map of `[0, 1]`.
+
+        The map has the two branches `(1 + x) / 2` and `mu x²`.
+        """
         start = np.random.default_rng(self.random_state).uniform(0.0, 1.0, self.n_orbits)
         return System(
             self.label,

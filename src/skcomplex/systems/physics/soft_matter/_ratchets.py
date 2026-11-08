@@ -1,4 +1,7 @@
-"""Driven Brownian particles in periodic potentials: tilted washboards and flashing ratchets."""
+"""Driven Brownian particles in periodic potentials.
+
+The module covers tilted washboards and flashing ratchets.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,7 +25,9 @@ from ..common.particles import BrownianParticleElement, ThermalNoiseInteraction
 
 
 class FlashingSawtoothInteraction(RateInteraction):
-    """Sawtooth potential on overdamped particles on a line, turned on and off at given times.
+    """Sawtooth potential on overdamped particles on a line.
+
+    The potential is turned on and off at given times.
 
     Its force is the rate of the position, divided by the friction `gamma` of the target.
 
@@ -90,7 +95,9 @@ class FlashingSawtoothInteraction(RateInteraction):
 
 
 class TiltedWashboardInteraction(GradientInteraction):
-    """Tilted periodic potential `U(x) - f x`, with `U(x) = U0 cos(2 pi x / L)`, on overdamped particles on a line.
+    """Tilted periodic potential `U(x) - f x` on overdamped particles on a line.
+
+    The periodic part is `U(x) = U0 cos(2 pi x / L)`.
 
     The force divides by the friction `gamma` of the target.
 
@@ -146,7 +153,9 @@ class TiltedWashboardInteraction(GradientInteraction):
 
 
 class TiltedPeriodicPotentialSystem(BaseSystem):
-    """Overdamped particles in the tilted periodic potential `V(x) = U0 cos(2 pi x / L) - f x`.
+    """Overdamped particles in a tilted periodic potential.
+
+    The potential is `V(x) = U0 cos(2 pi x / L) - f x`.
 
     The force `f` breaks the left and right symmetry, so the particles reach a nonequilibrium steady state with a
     uniform probability current `J`. Their mean velocity is `J L = L (1 - exp(-f L / kT)) / int_0^L dx int_0^L dy
@@ -208,7 +217,10 @@ class TiltedPeriodicPotentialSystem(BaseSystem):
         self.kT = kT
 
     def _build_system(self) -> System:
-        """Return overdamped particles in the tilted periodic potential `V(x) = U0 cos(2 pi x / L) - f x`."""
+        """Return overdamped particles in a tilted periodic potential.
+
+        The potential is `V(x) = U0 cos(2 pi x / L) - f x`.
+        """
         particles = GroupElement(
             'particles',
             element=BrownianParticleElement,
@@ -221,7 +233,9 @@ class TiltedPeriodicPotentialSystem(BaseSystem):
 
 
 class FlashingRatchetSystem(BaseSystem):
-    """The on-off flashing ratchet, Brownian particles in a sawtooth potential switched on and off at random.
+    """The on-off flashing ratchet.
+
+    Brownian particles move in a sawtooth potential switched on and off at random.
 
     The potential switches at the rate `rate`, so on and off phases last `1 / rate` on average. While it is off the
     particles diffuse freely, and while it is on they slide to the minima of the sawtooth. A potential that rises over a

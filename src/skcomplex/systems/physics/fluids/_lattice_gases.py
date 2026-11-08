@@ -1,4 +1,7 @@
-"""Lattice gases: the HPP and FHP gases of particles that move along the directions of a lattice and collide."""
+"""Lattice gases.
+
+In the HPP and FHP gases, particles move along the directions of a lattice and collide.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,7 +23,9 @@ from ....core.types import Array
 
 
 class HPPSiteElement(Element):
-    """Site of the HPP lattice gas, with one boolean channel per direction of the square lattice.
+    """Site of the HPP lattice gas.
+
+    The site has one boolean channel per direction of the square lattice.
 
     The local rules of the gas turn every head-on pair of particles at a site by a quarter turn, and then move every
     particle to the neighbouring site along its direction. The state `density` holds the number of particles at the
@@ -96,13 +101,19 @@ SQUARE_HEAD_ON = {0b0101: 0b1010, 0b1010: 0b0101}
 
 
 def _rotated(code: int, turns: int) -> int:
-    """Return the occupation code of a site with every particle turned by a number of sixths of a turn."""
+    """Return the occupation code of a site with every particle turned.
+
+    Every particle turns by a number of sixths of a turn.
+    """
     turns %= DIRECTIONS
     return ((code << turns) | (code >> (DIRECTIONS - turns))) & (2**DIRECTIONS - 1)
 
 
 def _collisions() -> npt.NDArray[np.intp]:
-    """Return the occupation code after a collision, for every code and for both choices of the turn of a pair."""
+    """Return the occupation code after a collision.
+
+    The code is given for every code and for both choices of the turn of a pair.
+    """
     codes = np.arange(2**DIRECTIONS)
     following = np.stack([codes, codes], axis=1)
     for code in HEAD_ON:
@@ -121,7 +132,9 @@ def _count(*channels: Array) -> Array:
 
 
 class FHPSiteElement(Element):
-    """Site of the FHP-I lattice gas, with one boolean channel per direction of the triangular lattice.
+    """Site of the FHP-I lattice gas.
+
+    The site has one boolean channel per direction of the triangular lattice.
 
     The local rules of the gas collide the particles at every site, head-on pairs turning by a sixth of a turn to either
     side with equal probability and symmetric triples turning by a sixth of a turn, and then move every particle to the
@@ -186,7 +199,9 @@ class FHPSiteElement(Element):
 
 
 class FHPLatticeGasSystem(BaseSystem):
-    """The FHP-I lattice gas on a periodic triangular lattice, with a dense disc that spreads into the gas.
+    """The FHP-I lattice gas on a periodic triangular lattice.
+
+    A dense disc spreads into the gas.
 
     Every channel of every site is occupied at random with probability `density`, or `bump` inside a disc at the centre
     of the lattice, so the excess density spreads as a sound wave and then diffuses. The system has the channels
@@ -242,7 +257,10 @@ class FHPLatticeGasSystem(BaseSystem):
 
     @staticmethod
     def _collide(*channels: Array, random: Array) -> tuple[Array, ...]:
-        """Return the channels after the head-on and symmetric three-particle collisions of FHP-I at every site."""
+        """Return the channels after the collisions of FHP-I at every site.
+
+        The collisions are the head-on and symmetric three-particle ones.
+        """
         codes = sum(np.asarray(channel, dtype=np.intp) << direction for direction, channel in enumerate(channels))
         following = COLLISIONS[codes, (random < TURN_PROBABILITY).astype(np.intp)]
         return tuple(((following >> direction) & 1).astype(float) for direction in range(DIRECTIONS))
@@ -303,7 +321,9 @@ class FHPLatticeGasSystem(BaseSystem):
 
 
 class HPPLatticeGasSystem(BaseSystem):
-    """The HPP lattice gas on a periodic square lattice, whose particles move along four directions and collide.
+    """The HPP lattice gas on a periodic square lattice.
+
+    Its particles move along four directions and collide.
 
     Every site holds up to four particles, one per direction. Every step the particles first collide, where a site with
     exactly two particles of opposite directions turns them by a quarter turn and every other site keeps its particles,
@@ -369,7 +389,10 @@ class HPPLatticeGasSystem(BaseSystem):
 
     @staticmethod
     def _collide_square(*channels: Array) -> tuple[Array, ...]:
-        """Return the channels after every head-on pair of the HPP gas turns by a quarter turn, the only collision."""
+        """Return the HPP channels after every head-on pair turns by a quarter turn.
+
+        This is the only collision.
+        """
         codes = np.sum(
             [np.asarray(channel, dtype=np.intp) << direction for direction, channel in enumerate(channels)],
             axis=0,
@@ -381,7 +404,10 @@ class HPPLatticeGasSystem(BaseSystem):
 
     @staticmethod
     def _propagate_square(*columns: Array) -> tuple[Array, ...]:
-        """Return the channels of the HPP gas after every particle moves one site along its direction."""
+        """Return the channels of the HPP gas after every particle moves one site.
+
+        Every particle moves along its direction.
+        """
         return tuple(columns[SQUARE_DIRECTIONS * direction + direction] for direction in range(SQUARE_DIRECTIONS))
 
     def _build_system(self) -> System:

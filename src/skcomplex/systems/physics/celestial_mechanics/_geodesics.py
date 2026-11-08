@@ -1,4 +1,7 @@
-"""Geodesic systems: test particles and light rays falling freely around a static or a spinning mass."""
+"""Geodesic systems.
+
+Test particles and light rays fall freely around a static or a spinning mass.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -24,7 +27,7 @@ PHI_INDEX = 3
 
 
 def _equatorial_position(x: npt.NDArray[np.float64], **_: float) -> list[list[float]]:
-    """Return the position `(r cos phi, r sin phi)` of a particle in the equatorial plane."""
+    """Return the equatorial position `(r cos phi, r sin phi)` of a particle."""
     return [[x[R_INDEX] * np.cos(x[PHI_INDEX]), x[R_INDEX] * np.sin(x[PHI_INDEX])]]
 
 
@@ -34,7 +37,9 @@ def _central_mass(**_: float) -> list[list[float]]:
 
 
 class GeodesicParticleElement(Element):
-    """Test particle at the spacetime position `x = (t, r, theta, phi)` around a central mass, with its four-velocity.
+    """Test particle at the spacetime position `x = (t, r, theta, phi)` near a mass.
+
+    The mass is central, and the particle has its four-velocity.
 
     The position is a vector state of order 2 in the Schwarzschild or Boyer-Lindquist coordinates of the space, and its
     companion `x_d1` is the four-velocity, the derivative of the position by the proper time of a massive particle or by
@@ -74,7 +79,9 @@ class GeodesicParticleElement(Element):
 
 
 class SchwarzschildSpace(PseudoRiemannianSpace):
-    """Spacetime outside a static, spherical mass `M`, the Schwarzschild metric in units with `G = c = 1`.
+    """Spacetime outside a static, spherical mass `M`, the Schwarzschild metric.
+
+    The metric is in units with `G = c = 1`.
 
     The line element in the coordinates `(t, r, theta, phi)` is
     `ds² = -(1 - 2M/r) dt² + dr² / (1 - 2M/r) + r² (dθ² + sin²θ dφ²)`, with the horizon at `r = 2M`. The mass enters
@@ -128,7 +135,9 @@ class SchwarzschildSpace(PseudoRiemannianSpace):
 
 
 class KerrSpace(PseudoRiemannianSpace):
-    """Spacetime outside a spinning mass `M` of angular momentum `M a`, the Kerr metric in Boyer-Lindquist coordinates.
+    """Spacetime outside a spinning mass `M`, the Kerr metric.
+
+    The mass has the angular momentum `M a`, and the metric is in Boyer-Lindquist coordinates.
 
     With `Σ = r² + a² cos²θ` and `Δ = r² - 2 M r + a²`, the line element in `(t, r, theta, phi)` is
     `ds² = -(1 - 2Mr/Σ) dt² - (4 M a r sin²θ / Σ) dt dφ + Σ/Δ dr² + Σ dθ² + (r² + a² + 2 M a² r sin²θ / Σ) sin²θ dφ²`,
@@ -219,7 +228,9 @@ GEODESIC_SOLVER = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-10)
 
 
 class SchwarzschildPrecessionSystem(BaseSystem):
-    """A massive particle on a bound orbit around a static mass, whose perihelion advances every turn.
+    """A massive particle on a bound orbit around a static mass.
+
+    Its perihelion advances every turn.
 
     The particle follows a timelike geodesic of the Schwarzschild spacetime `SchwarzschildSpace`, in units with `G = c =
     1` and with its proper time as the time of the system. It starts at the periapsis `r₁ = a (1 - e)` of an orbit whose
@@ -273,7 +284,10 @@ class SchwarzschildPrecessionSystem(BaseSystem):
         self.mass = mass
 
     def _build_system(self) -> System:
-        """Return a massive particle on a bound orbit around a static mass, whose perihelion advances every turn."""
+        """Return a massive particle on a bound orbit around a static mass.
+
+        Its perihelion advances every turn.
+        """
         if not 0 <= self.eccentricity < 1:
             error_msg = f'The eccentricity is {self.eccentricity!r}. Give a value in [0, 1) for a bound orbit.'
             raise ValidationError(error_msg)
@@ -381,7 +395,9 @@ class LightBendingSystem(BaseSystem):
 
 
 class KerrFrameDraggingSystem(BaseSystem):
-    """A particle without angular momentum that falls into a spinning mass and is dragged around it.
+    """A particle without angular momentum that falls into a spinning mass.
+
+    The mass drags the particle around it.
 
     The particle follows a timelike geodesic of the Kerr spacetime `KerrSpace` in the equatorial plane, in units with `G
     = c = 1`, with its proper time as the time of the system. It starts at rest in the radius at `r₀`, with zero angular
@@ -434,7 +450,10 @@ class KerrFrameDraggingSystem(BaseSystem):
         self.spin = spin
 
     def _build_system(self) -> System:
-        """Return a particle without angular momentum that falls into a spinning mass and is dragged around it."""
+        """Return a particle without angular momentum that falls into a spinning mass.
+
+        The mass drags the particle around it.
+        """
         if self.radius <= 2 * self.mass:
             error_msg = (
                 f'The radius {self.radius} is inside the ergosphere at 2 M = {2 * self.mass}. Give a larger radius.'

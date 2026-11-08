@@ -1,4 +1,4 @@
-"""Stochastic process systems: counting processes."""
+"""Stochastic process systems of counting processes."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,7 +17,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class PoissonCounterElement(Element):
-    """Counter of the events of a Poisson process, with the rate of events it is counted at.
+    """Counter of the events of a Poisson process.
+
+    The counter has the rate of events it is counted at.
 
     Args:
         label:
@@ -60,7 +62,9 @@ class BernoulliTrialView(AgentView):
 
 
 class BernoulliTrialElement(Element):
-    """Sequence of independent trials, each a success with the same probability, and the count of its successes.
+    """Sequence of independent trials and the count of its successes.
+
+    Each trial is a success with the same probability.
 
     Args:
         label:
@@ -102,12 +106,17 @@ class BernoulliTrialElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[BernoulliTrialView]:
-        """Return the view of the agents, which types their states and parameters."""
+        """Return the view of the agents.
+
+        The view types their states and parameters.
+        """
         return BernoulliTrialView
 
 
 class BernoulliProcessSystem(BaseSystem):
-    """Independent Bernoulli processes, one success or failure per step, whose success counts are binomial.
+    """Independent Bernoulli processes, one success or failure per step.
+
+    Their success counts are binomial.
 
     The system has the group `trials` of states `outcome` and `successes`.
 
@@ -172,7 +181,9 @@ class BernoulliProcessSystem(BaseSystem):
 
 
 class PoissonProcessSystem(BaseSystem):
-    """Independent Poisson processes, counters that grow by one at exponentially distributed waiting times.
+    """Independent Poisson processes.
+
+    The counters grow by one at exponentially distributed waiting times.
 
     The system has the counts `counters.count`.
 

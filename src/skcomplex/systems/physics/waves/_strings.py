@@ -1,4 +1,7 @@
-"""String systems: chains of masses on springs, guitar strings, and standing waves on a continuous string."""
+"""String systems.
+
+The module covers chains of masses on springs, guitar strings, and standing waves on a continuous string.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,7 +26,9 @@ from ..common.particles import HarmonicPotentialInteraction, MassPointElement, S
 
 
 class WaveStringElement(Element):
-    """Site of a string, with the transverse displacement `u` of order 2 and the wave speed `c`.
+    """Site of a string, with the transverse displacement `u` and the wave speed `c`.
+
+    The displacement has order 2.
 
     Args:
         label:
@@ -63,7 +68,9 @@ class WaveStringElement(Element):
 
 
 class DrivenAnchorInteraction(HarmonicPotentialInteraction):
-    """Spring that ties a particle to an anchor point, which oscillates transversally as `amplitude sin(omega t)`.
+    """Spring that ties a particle to an anchor point.
+
+    The anchor oscillates transversally as `amplitude sin(omega t)`.
 
     The energy is `k |x - center - (0, amplitude sin(omega t))|² / 2`, and a zero amplitude gives a fixed anchor.
 
@@ -112,7 +119,9 @@ class DrivenAnchorInteraction(HarmonicPotentialInteraction):
 
 
 class SpringChainSystem(BaseSystem):
-    """Masses joined in a row by springs of zero rest length between two anchors, a discrete string.
+    """Masses joined in a row by springs of zero rest length between two anchors.
+
+    The chain is a discrete string.
 
     The masses start evenly spaced between the anchors at `0` and `length`, stretched, so the chain carries tension.
     With `pluck`, the masses start on a triangle of that height peaking at the fraction `pluck_at` of the length, the
@@ -187,12 +196,18 @@ class SpringChainSystem(BaseSystem):
 
     @staticmethod
     def _pluck(positions: np.ndarray, length: float, height: float, at: float) -> np.ndarray:
-        """Return the triangular shape of a string pulled to a height at a fraction of its length."""
+        """Return the triangular shape of a plucked string.
+
+        The string is pulled to a height at a fraction of its length.
+        """
         peak = at * length
         return np.where(positions <= peak, height * positions / peak, height * (length - positions) / (length - peak))
 
     def _build_system(self) -> System:
-        """Return masses joined in a row by springs of zero rest length between two anchors, a discrete string."""
+        """Return masses joined in a row by zero rest length springs between two anchors.
+
+        The chain is a discrete string.
+        """
         spacing = self.length / (self.n_masses + 1)
         positions = spacing * np.arange(1, self.n_masses + 1)
         heights = (
@@ -231,7 +246,9 @@ class SpringChainSystem(BaseSystem):
 
 
 class StandingWavesSystem(BaseSystem):
-    """A string with fixed ends on `[-length / 2, length / 2]` that vibrates as a standing wave.
+    """A string with fixed ends on `[-length / 2, length / 2]`.
+
+    The string vibrates as a standing wave.
 
     The displacement follows the wave equation `u'' = c² u_xx`, written as `u' = v` and `v' = c² laplacian(u)` on a
     lattice whose edges hold the string at zero. The string starts at rest in the mode `amplitude sin(mode pi (x +
@@ -287,7 +304,10 @@ class StandingWavesSystem(BaseSystem):
         self.amplitude = amplitude
 
     def _build_system(self) -> System:
-        """Return a string with fixed ends on `[-length / 2, length / 2]` that vibrates as a standing wave."""
+        """Return a string with fixed ends on `[-length / 2, length / 2]`.
+
+        The string vibrates as a standing wave.
+        """
         spacing = self.length / (self.n_sites + 1)
         positions = spacing * np.arange(1, self.n_sites + 1)
         shape = self.amplitude * np.sin(self.mode * math.pi * positions / self.length)

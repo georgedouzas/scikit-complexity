@@ -1,4 +1,4 @@
-"""Celestial mechanics systems: orbits of bodies under gravity."""
+"""Celestial mechanics systems of bodies orbiting under gravity."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -30,7 +30,9 @@ def _star(**_: float) -> list[list[float]]:
 
 
 class KeplerBodyElement(Element):
-    """Planet at `(x, y)` relative to a heavy star, with the canonical momenta `(px, py)` of the Kepler problem.
+    """Planet at `(x, y)` relative to a heavy star, with canonical momenta `(px, py)`.
+
+    The planet is that of the Kepler problem.
 
     The states are of order 1, and the star of mass `mass` sits at the origin.
 
@@ -94,7 +96,9 @@ def _primaries(mu: float, **_: float) -> list[list[float]]:
 
 
 class RotatingFrameBodyElement(Element):
-    """Light body at `(x, y)` with the canonical momenta `(px, py)` in the frame that rotates with two primaries.
+    """Light body at `(x, y)` with canonical momenta `(px, py)` in a rotating frame.
+
+    The frame rotates with two primaries.
 
     The states are of order 1, and the momenta are `px = x' - y` and `py = y' + x` for the unit angular velocity of the
     frame. The primaries of masses `1 - mu` and `mu` sit at `(-mu, 0)` and `(1 - mu, 0)`.
@@ -149,7 +153,9 @@ class RotatingFrameBodyElement(Element):
 
 
 class SitnikovBodyElement(Element):
-    """Light body at the height `z`, of order 2, on the axis through the centre of mass of two equal primaries.
+    """Light body at the height `z`, of order 2, on the axis of two equal primaries.
+
+    The axis runs through the centre of mass of the primaries.
 
     The primaries orbit with the eccentricity `e`.
 
@@ -277,12 +283,18 @@ class GravityInteraction(PotentialEnergyInteraction):
 
 
 def _get_kepler_energy(body: SimpleNamespace) -> Expression:
-    """Return the energy `|p|^2 / 2 - G M / |q|` per unit mass of a planet relative to its star."""
+    """Return the energy `|p|^2 / 2 - G M / |q|` per unit mass of a planet.
+
+    The planet moves relative to its star.
+    """
     return (body.px**2 + body.py**2) / 2 - body.G * body.mass / sqrt(body.x**2 + body.y**2)
 
 
 def _get_rotating_frame_energy(body: SimpleNamespace) -> Expression:
-    """Return the Hamiltonian of a light body in the frame that rotates with two primaries at unit angular velocity."""
+    """Return the Hamiltonian of a light body in the frame rotating with two primaries.
+
+    The frame rotates at unit angular velocity.
+    """
     first = sqrt((body.x + body.mu) ** 2 + body.y**2)
     second = sqrt((body.x - 1 + body.mu) ** 2 + body.y**2)
     kinetic = (body.px**2 + body.py**2) / 2 + body.y * body.px - body.x * body.py
@@ -290,7 +302,9 @@ def _get_rotating_frame_energy(body: SimpleNamespace) -> Expression:
 
 
 class TwoBodyOrbitSystem(BaseSystem):
-    """A light planet orbiting a heavy star under Newtonian gravity, as the Kepler problem of their separation.
+    """A light planet orbiting a heavy star under Newtonian gravity.
+
+    The system is the Kepler problem of their separation.
 
     The planet moves in the coordinate `(x, y)` relative to the star with the canonical momenta `(px, py)` per unit
     mass, under the Hamiltonian `H = (px² + py²) / 2 - G M / sqrt(x² + y²)`, which is separable. The energy and the
@@ -428,14 +442,17 @@ class NBodySystem(BaseSystem):
 
     @staticmethod
     def _preset(name: str) -> Preset:
-        """Return the masses, positions, velocities, and gravitational constant of a named configuration."""
+        """Return a preset's masses, positions, velocities, and gravitational constant.
+
+        The preset is a named configuration.
+        """
         if name not in PRESETS:
             error_msg = f'Unknown preset {name!r}. Use one of {", ".join(sorted(PRESETS))}.'
             raise ValidationError(error_msg)
         return PRESETS[name]
 
     def _build_system(self) -> System:
-        """Return bodies in the plane that attract each other pairwise by Newtonian gravity."""
+        """Return bodies in the plane that attract pairwise by Newtonian gravity."""
         preset_G, preset_masses, preset_positions, preset_velocities = self._preset(self.preset)
         masses = preset_masses if self.masses is None else self.masses
         positions = preset_positions if self.positions is None else self.positions
@@ -458,7 +475,9 @@ class NBodySystem(BaseSystem):
 
 
 class RestrictedThreeBodySystem(BaseSystem):
-    """A light body moving in the plane of two primaries on circular orbits, in the frame that rotates with them.
+    """A light body moving in the plane of two primaries on circular orbits.
+
+    The body moves in the frame that rotates with the primaries.
 
     The primaries of masses `1 - μ` and `μ` sit at `(-μ, 0)` and `(1 - μ, 0)`, and the light body moves under the
     Hamiltonian `H = (px² + py²) / 2 + y px - x py - (1 - μ) / r1 - μ / r2` of the rotating frame, with the momenta
@@ -555,7 +574,9 @@ class RestrictedThreeBodySystem(BaseSystem):
 
 
 class SitnikovSystem(BaseSystem):
-    """A light body moving on the axis through the centre of mass of two equal primaries, normal to their orbit.
+    """A light body moving on the axis through the mass centre of two equal primaries.
+
+    The axis is normal to their orbit.
 
     The primaries of mass 1/2 orbit their centre of mass with unit mean separation and period `2π`, at distance `r(t) =
     (1 - e cos t) / 2` from it to first order in the eccentricity `e`, and the light body follows `z'' = -z / (z² +
@@ -602,7 +623,10 @@ class SitnikovSystem(BaseSystem):
 
     @staticmethod
     def _get_sitnikov_potential(s: SimpleNamespace) -> Expression:
-        """Return the potential `-1 / sqrt(z² + r(t)²)` of the two primaries at the distance `r(t)` from the axis."""
+        """Return the potential `-1 / sqrt(z² + r(t)²)` of the two primaries.
+
+        The primaries are at the distance `r(t)` from the axis.
+        """
         distance = (1 - s.target.e * cos(s.t)) / 2
         return -1 / sqrt(s.target.z**2 + distance**2)
 

@@ -1,4 +1,7 @@
-"""Explosive percolation: edges chosen by the Achlioptas product rule, which delays and sharpens the giant component."""
+"""Explosive percolation.
+
+Edges chosen by the Achlioptas product rule delay and sharpen the giant component.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -54,7 +57,9 @@ class ClusterNodeElement(Element):
 
 
 class ExplosivePercolationSystem(BaseSystem):
-    """Explosive percolation, where the Achlioptas product rule delays and sharpens the giant component.
+    """Explosive percolation.
+
+    The Achlioptas product rule delays and sharpens the giant component.
 
     The network starts with `n_nodes` isolated nodes, and every step adds one edge. It draws `candidates` edges, each
     between two distinct nodes not yet joined drawn uniformly, and adds the one whose product of the sizes of the
@@ -101,11 +106,17 @@ class ExplosivePercolationSystem(BaseSystem):
 
     @staticmethod
     def _get_product(node: SimpleNamespace) -> object:
-        """Return the product of the sizes of the components a candidate edge joins, the score of the product rule."""
+        """Return the score of the product rule of a candidate edge.
+
+        The score is the product of the sizes of the components the edge joins.
+        """
         return node.size * node.source.size
 
     def _build_system(self) -> System:
-        """Return explosive percolation, where the Achlioptas product rule delays and sharpens the giant component."""
+        """Return explosive percolation.
+
+        The Achlioptas product rule delays and sharpens the giant component.
+        """
         nodes = GroupElement('nodes', element=ClusterNodeElement, on='sites', variable=True, capacity=self.n_nodes)
         links = GroupElement('links', element=Element, on='edges', variable=True, capacity=2 * self.n_nodes)
         interactions = [

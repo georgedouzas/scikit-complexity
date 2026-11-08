@@ -1,4 +1,7 @@
-"""Define Ising sampling, Monte Carlo sweeps of up and down spins coupled to their neighbours and a field."""
+"""Define Ising sampling.
+
+Monte Carlo sweeps flip up and down spins coupled to their neighbours and a field.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,7 +18,9 @@ from ._spin_sampling import SpinSamplingInteraction
 
 
 class IsingSamplingInteraction(SpinSamplingInteraction):
-    """Monte Carlo sweeps of Ising spins `s = ±1` of local energy `-J s sum_j s_j - h s`, by flips.
+    """Monte Carlo sweeps of Ising spins `s = ±1` by flips.
+
+    The local energy of a spin is `-J s sum_j s_j - h s`.
 
     The coupling `J`, the field `h`, and the temperature are parameters of the spins.
 

@@ -1,4 +1,7 @@
-"""Queues: birth-death processes of the number of customers waiting at a desk."""
+"""Queues.
+
+Birth-death processes give the number of customers waiting at a desk.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,7 +19,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class QueueElement(Element):
-    """Queue at a desk, the number of customers waiting, with the rates of their arrivals and departures.
+    """Queue at a desk, the number of customers waiting.
+
+    The queue has the rates of their arrivals and departures.
 
     The jumps of the system read the rates: customers arrive at rate `arrival_rate` and leave at rate `service_rate`
     while the queue is not empty.
@@ -59,7 +64,9 @@ class QueueElement(Element):
 
 
 class BirthDeathQueueSystem(BaseSystem):
-    """Independent M/M/1 queues, birth-death processes with constant arrival and service rates.
+    """Independent M/M/1 queues.
+
+    The queues are birth-death processes with constant arrival and service rates.
 
     Customers arrive as a Poisson process of rate `lambda` and are served one at a time in exponential times of rate
     `mu`. For the load `rho = lambda / mu < 1` the length of an unbounded queue reaches the stationary geometric
@@ -110,7 +117,10 @@ class BirthDeathQueueSystem(BaseSystem):
         self.n = n
 
     def _build_system(self) -> System:
-        """Return independent M/M/1 queues, birth-death processes with constant arrival and service rates."""
+        """Return independent M/M/1 queues.
+
+        The queues are birth-death processes with constant arrival and service rates.
+        """
         queue = GroupElement(
             'queues',
             element=QueueElement,

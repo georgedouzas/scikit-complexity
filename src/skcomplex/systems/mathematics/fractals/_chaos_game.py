@@ -1,4 +1,4 @@
-"""Fractal systems: iterated function systems drawn by the chaos game."""
+"""Fractal systems of iterated function systems drawn by the chaos game."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -59,7 +59,9 @@ class ChaosPointElement(Element):
 
 
 class RandomAffineMapInteraction(MapInteraction):
-    """Map of a point of the plane by one affine map of an iterated function system, drawn anew at every step.
+    """Map of a point of the plane by one affine map of an iterated function system.
+
+    The map is drawn anew at every step.
 
     Map `k` takes `(x, y)` to `(a x + b y + e, c x + d y + f)` for its coefficients `(a, b, c, d, e, f)`, and is drawn
     with a probability proportional to its weight, independently for every member of a bound group.
@@ -107,7 +109,9 @@ class RandomAffineMapInteraction(MapInteraction):
         self.weights = weights
 
     def _check(self) -> None:
-        """Raise an error for weights that do not match the maps, or maps without six coefficients.
+        """Raise an error for invalid weights or maps.
+
+        The weights must match the maps, and every map must have six coefficients.
 
         Raises:
             ValidationError:
@@ -223,7 +227,10 @@ class ChaosGameSystem(BaseSystem):
         n_points: int,
         random_state: int | np.random.Generator | None,
     ) -> System:
-        """Return a group of points started uniformly in the unit square, which iterate an iterated function system."""
+        """Return a group of points started uniformly in the unit square.
+
+        The points iterate an iterated function system.
+        """
         starts = np.random.default_rng(random_state).random((n_points, 2))
         points = GroupElement('points', element=ChaosPointElement, size=n_points, values={'p': starts})
         game = RandomAffineMapInteraction(
@@ -235,7 +242,10 @@ class ChaosGameSystem(BaseSystem):
         return System(label, elements=[points], interactions=[game], space=ContinuousSpace(n_dim=2))
 
     def _build_system(self) -> System:
-        """Return points that draw the attractor of an iterated function system by the chaos game."""
+        """Return points that draw the attractor of an iterated function system.
+
+        The points draw it by the chaos game.
+        """
         if self.maps is None and self.preset not in PRESETS:
             error_msg = f'Unknown chaos game preset {self.preset!r}. Use one of {", ".join(PRESETS)}, or give the maps.'
             raise ValidationError(error_msg)

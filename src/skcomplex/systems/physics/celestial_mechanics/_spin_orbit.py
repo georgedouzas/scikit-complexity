@@ -1,4 +1,7 @@
-"""Celestial mechanics systems: spin-orbit coupling of a dumbbell and relativistic orbits."""
+"""Celestial mechanics systems of spin-orbit coupling and relativistic orbits.
+
+The module holds the spin-orbit coupling of a dumbbell and relativistic orbits.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,7 +24,9 @@ from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 
 class DumbbellElement(Element):
-    """Rigid dumbbell orbiting a primary: the position of its centre of mass and the orientation of its arm.
+    """Rigid dumbbell orbiting a primary.
+
+    The element holds the position of its centre of mass and the orientation of its arm.
 
     The cylindrical coordinates `(u, theta, v)` place the centre of mass of the dumbbell relative to the primary, and
     the spherical angles `(phi, psi)` give the direction of its arm, of length `epsilon` in units of the mean orbit
@@ -120,7 +125,9 @@ class DumbbellElement(Element):
 
 
 class RelativisticOrbitElement(Element):
-    """Inverse radius of a planet along its orbit angle under the relativistic correction of Newtonian gravity.
+    """Inverse radius of a planet along its orbit angle.
+
+    The orbit follows the relativistic correction of Newtonian gravity.
 
     The inverse radius `u = 1 / r` follows Einstein's orbit equation `u'' + u = alpha + epsilon u²`, whose independent
     variable is the polar angle of the planet, which the simulation time stands for. For `epsilon = 0` it is the
@@ -192,7 +199,7 @@ COORDINATES = ('u', 'theta', 'v', 'phi', 'psi')
 
 
 def _get_dumbbell_distances(d: SimpleNamespace) -> tuple[Expression, Expression]:
-    """Return the distances `rho12` and `rho13` from the primary to the two masses of a dumbbell."""
+    """Return the distances `rho12`, `rho13` from the primary to both dumbbell masses."""
     radius = d.u**2 + d.v**2
     projection = d.u * sin(d.psi) * cos(d.theta - d.phi) + d.v * cos(d.psi)
     first = radius + d.delta**2 * d.epsilon**2 + 2 * d.delta * d.epsilon * projection
@@ -201,7 +208,10 @@ def _get_dumbbell_distances(d: SimpleNamespace) -> tuple[Expression, Expression]
 
 
 def _get_dumbbell_parts(d: SimpleNamespace, rates: SimpleNamespace) -> tuple[Expression, Expression]:
-    """Return the kinetic and potential energies of a dumbbell per reduced mass of its orbit, from given rates."""
+    """Return the kinetic and potential energies of a dumbbell per reduced orbit mass.
+
+    The energies follow from given rates.
+    """
     inertia = d.delta * (1 - d.delta) / d.mu * d.epsilon**2
     orbit = rates.u**2 + d.u**2 * rates.theta**2 + rates.v**2
     spin = inertia * (rates.psi**2 + sin(d.psi) ** 2 * rates.phi**2)
@@ -217,13 +227,15 @@ def _get_dumbbell_energy(d: SimpleNamespace) -> Expression:
 
 
 def _get_dumbbell_momentum(d: SimpleNamespace) -> Expression:
-    """Return the angular momentum of a dumbbell about the axis normal to the orbital plane."""
+    """Return the angular momentum of a dumbbell about the normal of the orbital plane."""
     inertia = d.delta * (1 - d.delta) / d.mu * d.epsilon**2
     return d.u**2 * d.theta_d1 + inertia * sin(d.psi) ** 2 * d.phi_d1
 
 
 class KeplerianDumbbellSystem(BaseSystem):
-    """The Keplerian dumbbell: two masses on a rigid massless arm that orbit a primary under gravity.
+    """The Keplerian dumbbell.
+
+    Two masses on a rigid massless arm orbit a primary under gravity.
 
     The centre of mass of the dumbbell at the cylindrical coordinates `(u, theta, v)` about the primary and the arm at
     the spherical angles `(phi, psi)` move under the dimensionless Lagrangian `L = (u'² + u² theta'² + v'²) / 2 + I
@@ -341,7 +353,10 @@ class KeplerianDumbbellSystem(BaseSystem):
         return kinetic - potential
 
     def _build_system(self) -> System:
-        """Return the Keplerian dumbbell: two masses on a rigid massless arm that orbit a primary under gravity."""
+        """Return the Keplerian dumbbell.
+
+        Two masses on a rigid massless arm orbit a primary under gravity.
+        """
         dumbbell = DumbbellElement(
             'dumbbell',
             u=self.u,
@@ -368,7 +383,9 @@ class KeplerianDumbbellSystem(BaseSystem):
 
 
 class RelativisticOrbitSystem(BaseSystem):
-    """Einstein's orbit equation `u'' + u = alpha + epsilon u²` of a planet, whose perihelion precesses.
+    """Einstein's orbit equation `u'' + u = alpha + epsilon u²` of a planet.
+
+    The perihelion of the planet precesses.
 
     The inverse radius `u = 1 / r` of the planet is a function of its polar angle, which the simulation time stands for,
     so the orbit in the plane is `(cos t / u, sin t / u)`. For `epsilon = 0` the orbit is a closed Newtonian ellipse of
@@ -423,7 +440,10 @@ class RelativisticOrbitSystem(BaseSystem):
         self.epsilon = epsilon
 
     def _build_system(self) -> System:
-        """Return Einstein's orbit equation `u'' + u = alpha + epsilon u²` of a planet, whose perihelion precesses."""
+        """Return Einstein's orbit equation `u'' + u = alpha + epsilon u²` of a planet.
+
+        The perihelion of the planet precesses.
+        """
         return System(
             self.label,
             elements=[

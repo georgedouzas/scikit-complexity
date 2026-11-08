@@ -1,4 +1,7 @@
-"""Active gels: contractile cells that drag a viscoelastic gel, whose velocity solves a force balance at every step."""
+"""Active gels.
+
+Contractile cells drag a viscoelastic gel, whose velocity solves a force balance at every step.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,7 +23,9 @@ from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 
 class ContractileGelSiteElement(Element):
-    """Site of a one-dimensional active viscoelastic gel, the density of contractile cells and the gel displacement.
+    """Site of a one-dimensional active viscoelastic gel.
+
+    The site has the density of contractile cells and the gel displacement.
 
     The site holds the density `c` of the cells and the displacement `u` of a Kelvin-Voigt gel of stiffness `E` and
     viscosity `eta`, with friction `gamma` against a rigid substrate. The cells diffuse with the coefficient `D` and
@@ -89,7 +94,10 @@ class ContractileGelSiteElement(Element):
 
 
 def _gel_velocity(s: SimpleNamespace) -> Expression:
-    """Return the gel velocity, the solution of `(gamma - eta d_xx) v = d_x (E d_x u + T0 c / (c + c_sat))`."""
+    """Return the gel velocity.
+
+    The velocity solves `(gamma - eta d_xx) v = d_x (E d_x u + T0 c / (c + c_sat))`.
+    """
     stress = s.E * partial(s.u, 0) + s.T0 * s.c / (s.c + s.c_sat)
     velocity: Expression = inverse_helmholtz(-partial(stress, 0) / s.eta, sqrt(s.gamma / s.eta))
     return velocity
@@ -101,7 +109,9 @@ def _sites(values: np.ndarray) -> np.ndarray:
 
 
 class ActiveViscoelasticGelSystem(BaseSystem):
-    """A one-dimensional active viscoelastic gel, where contractile cells concentrate by dragging the gel.
+    """A one-dimensional active viscoelastic gel.
+
+    Contractile cells concentrate by dragging the gel.
 
     On a periodic line, the density `c` of the cells and the displacement `u` of a Kelvin-Voigt gel follow
 
@@ -206,7 +216,10 @@ class ActiveViscoelasticGelSystem(BaseSystem):
         return diffusion
 
     def _build_system(self) -> System:
-        """Return a one-dimensional active viscoelastic gel, where contractile cells concentrate by dragging the gel."""
+        """Return a one-dimensional active viscoelastic gel.
+
+        Contractile cells concentrate by dragging the gel.
+        """
         rng = np.random.default_rng(self.random_state)
         values = {
             'c': self.density + self.perturbation * rng.standard_normal(self.n_sites),

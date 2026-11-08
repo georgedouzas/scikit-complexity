@@ -1,4 +1,7 @@
-"""Define the Langevin thermostat, a relaxation of the velocities of particles to rest under thermal noise."""
+"""Define the Langevin thermostat.
+
+The thermostat relaxes the velocities of particles to rest under thermal noise.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,7 +18,9 @@ from ._utils import velocity_of
 
 
 class LangevinThermostatInteraction(RelaxationInteraction):
-    """Langevin thermostat, which adds a drag `-gamma * v` and a random force that hold particles at a temperature.
+    """Langevin thermostat.
+
+    The thermostat adds a drag `-gamma * v` and a random force that hold particles at a temperature.
 
     Every velocity component follows `dv = -gamma * v / m * dt + sqrt(2 * gamma * temperature) / m * dW`, with the
     temperature in energy units, a relaxation of the velocity towards rest over the time `m / gamma` with additive
@@ -64,7 +69,9 @@ class LangevinThermostatInteraction(RelaxationInteraction):
         self.divisor = divisor
 
     def _get_time(self, namespace: SimpleNamespace) -> object:
-        """Return the relaxation time `1 / gamma` of the velocity, before the division by the mass.
+        """Return the relaxation time `1 / gamma` of the velocity.
+
+        The time is taken before the division by the mass.
 
         Args:
             namespace:
@@ -77,7 +84,9 @@ class LangevinThermostatInteraction(RelaxationInteraction):
         return 1 / namespace.gamma
 
     def _get_noise(self, namespace: SimpleNamespace) -> object:
-        """Return the amplitude `sqrt(2 * gamma * temperature)` of the noise, before the division by the mass.
+        """Return the amplitude `sqrt(2 * gamma * temperature)` of the noise.
+
+        The amplitude is taken before the division by the mass.
 
         Args:
             namespace:
@@ -90,7 +99,9 @@ class LangevinThermostatInteraction(RelaxationInteraction):
         return sqrt(2 * namespace.gamma * namespace.temperature)
 
     def _get_rate(self, namespace: SimpleNamespace) -> object:
-        """Return the relaxation `-v / time` of the velocity `v`, the first derivative of the position.
+        """Return the relaxation `-v / time` of the velocity `v`.
+
+        The velocity is the first derivative of the position.
 
         Args:
             namespace:

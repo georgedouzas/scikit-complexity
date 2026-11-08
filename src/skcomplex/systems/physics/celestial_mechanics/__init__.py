@@ -1,4 +1,7 @@
-"""Celestial mechanics: orbits under gravity and relativity, spin-orbit coupling, and charges in magnetic fields."""
+"""Celestial mechanics systems.
+
+The package covers orbits under gravity and relativity, spin-orbit coupling, and charges in magnetic fields.
+"""
 
 from ._dipoles import DipoleChargeElement, StormerProblemSystem
 from ._geodesics import (

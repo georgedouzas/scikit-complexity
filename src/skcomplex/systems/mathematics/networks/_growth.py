@@ -1,4 +1,7 @@
-"""Growing networks: preferential attachment, fitness, triad formation, copying, graphlets, and hyperbolic growth."""
+"""Growing networks.
+
+The module covers preferential attachment, fitness, triad formation, copying, graphlets, and hyperbolic growth.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,7 +26,9 @@ from ..common._vertex import DEGREE_VISUAL, VertexElement
 
 
 class CopyingVertexElement(VertexElement):
-    """Node of a vertex-copying network, which holds the inverse of its degree for the copying of its edges.
+    """Node of a vertex-copying network.
+
+    The node holds the inverse of its degree for the copying of its edges.
 
     Args:
         label:
@@ -61,7 +66,9 @@ class CopyingVertexElement(VertexElement):
 
 
 class FitnessVertexElement(VertexElement):
-    """Node of a growing network with an intrinsic fitness, which scales its chance to win new edges.
+    """Node of a growing network with an intrinsic fitness.
+
+    The fitness scales its chance to win new edges.
 
     A new edge joins the node with probability proportional to its fitness times its degree, as in the model of
     Bianconi and Barabási. The fitness is drawn when the node joins and stays fixed.
@@ -102,7 +109,9 @@ class FitnessVertexElement(VertexElement):
 
 
 class SimilarityVertexElement(VertexElement):
-    """Node of a popularity-similarity network, with an angle on the circle next to its age and degree.
+    """Node of a popularity-similarity network.
+
+    The node has an angle on the circle next to its age and degree.
 
     Args:
         label:
@@ -140,7 +149,9 @@ class SimilarityVertexElement(VertexElement):
 
 
 class TriadVertexElement(VertexElement):
-    """Node of a Holme-Kim network, which closes triangles with the neighbours of its first contact when it joins.
+    """Node of a Holme-Kim network.
+
+    When it joins, the node closes triangles with the neighbours of its first contact.
 
     One step after a node joins with one edge by preferential attachment, the triad formation of the system adds
     `extra` edges to it. Each new end is a neighbour of its first contact with probability `triad`, and a node drawn by
@@ -212,7 +223,10 @@ def _degree(node: SimpleNamespace) -> object:
 
 
 def _get_bookkeeping() -> list[MapInteraction]:
-    """Return the maps that age every node and read its degree from the edges at the start of a step."""
+    """Return the maps that age every node and read its degree from the edges.
+
+    The maps run at the start of a step.
+    """
     return [
         MapInteraction('ageing', target='nodes', state='age', function=lambda s: 1, mode='increment'),
         MapInteraction('degree', target='nodes', state='degree', function=lambda s: neighbors(1)),
@@ -220,7 +234,10 @@ def _get_bookkeeping() -> list[MapInteraction]:
 
 
 def _nodes(element: type[VertexElement], capacity: int, **values: object) -> GroupElement:
-    """Return the variable group on the nodes of a growing network, whose seed nodes start at age 1."""
+    """Return the variable group on the nodes of a growing network.
+
+    Its seed nodes start at age 1.
+    """
     return GroupElement(
         'nodes',
         element=element,
@@ -241,7 +258,10 @@ def _grown(
     *,
     label: str,
 ) -> System:
-    """Return a growing network of a group on its nodes, a variable edge group, the arrival of nodes, and its maps."""
+    """Return a growing network of a group on its nodes.
+
+    The network has a variable edge group, the arrival of nodes, and its maps.
+    """
     links = GroupElement('links', element=Element, on='edges', variable=True, capacity=capacity)
     return System(
         label,
@@ -253,7 +273,9 @@ def _grown(
 
 
 class BarabasiAlbertSystem(BaseSystem):
-    """Barabási-Albert growth, whose degrees follow a power law `P(k) ~ k^-3` by preferential attachment.
+    """Barabási-Albert growth.
+
+    By preferential attachment the degrees follow a power law `P(k) ~ k^-3`.
 
     The network starts complete on `seed_nodes` nodes, and every step one node joins with `edges` edges to nodes
     drawn with probability proportional to their degree, until it holds `n_nodes` nodes.
@@ -321,7 +343,10 @@ class BarabasiAlbertSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return Barabási-Albert growth, whose degrees follow a power law `P(k) ~ k^-3` by preferential attachment."""
+        """Return Barabási-Albert growth.
+
+        By preferential attachment the degrees follow a power law `P(k) ~ k^-3`.
+        """
         space = NetworkSpace(nx.complete_graph(self.seed_nodes))
         capacity = self.edges * self.n_nodes + self.seed_nodes**2
         if not self.fitness:
@@ -341,7 +366,9 @@ class BarabasiAlbertSystem(BaseSystem):
 
 
 class HolmeKimSystem(BaseSystem):
-    """Holme-Kim growth, scale-free like Barabási-Albert growth but with clustering that stays high.
+    """Holme-Kim growth.
+
+    The network is scale-free like Barabási-Albert growth but with clustering that stays high.
 
     Every step a node joins with one edge by preferential attachment, and the next step it adds `edges - 1` edges, each
     to a neighbour of its first contact with probability `triad`, closing a triangle, and by preferential attachment
@@ -391,7 +418,10 @@ class HolmeKimSystem(BaseSystem):
 
     @staticmethod
     def _get_triad_weight(node: SimpleNamespace) -> object:
-        """Return the mixture of triad formation and preferential attachment for a candidate node."""
+        """Return the mix of triad formation and preferential attachment for a candidate.
+
+        The candidate is a node.
+        """
         closing = neighbors(node.other.near)
         attaching = neighbors(1)
         return node.triad * closing / (total(closing) + SMALLEST_TOTAL) + (1 - node.triad) * attaching / total(
@@ -399,7 +429,10 @@ class HolmeKimSystem(BaseSystem):
         )
 
     def _build_system(self) -> System:
-        """Return Holme-Kim growth, scale-free like Barabási-Albert growth but with clustering that stays high."""
+        """Return Holme-Kim growth.
+
+        The network is scale-free like Barabási-Albert growth but with clustering that stays high.
+        """
         space = NetworkSpace(nx.complete_graph(self.seed_nodes))
         nodes = _nodes(TriadVertexElement, self.n_nodes, triad=self.triad, extra=self.edges - 1)
         near = MapInteraction(
@@ -422,7 +455,9 @@ class HolmeKimSystem(BaseSystem):
 
 
 class VertexCopyingSystem(BaseSystem):
-    """Vertex-copying growth, whose new nodes copy the edges of existing nodes and make a heavy-tailed degree.
+    """Vertex-copying growth.
+
+    New nodes copy the edges of existing nodes and make a heavy-tailed degree.
 
     Every step a node joins with `edges` edges, each to a random node with probability `randomness` and otherwise to a
     random neighbour of a random prototype, which favours nodes of high degree without reading degrees. The system has
@@ -490,7 +525,9 @@ class VertexCopyingSystem(BaseSystem):
 
 
 class PopularitySimilarityNetworkSystem(BaseSystem):
-    """Popularity-similarity growth, scale-free and clustered, whose nodes attach by hyperbolic distance.
+    """Popularity-similarity growth, scale-free and clustered.
+
+    Its nodes attach by hyperbolic distance.
 
     Every step a node joins at a uniform angle on the circle and the radius `2 ln t`, every other node `s` moves to the
     radius `b 2 ln s + (1 - b) 2 ln t` with `b = 1 / (exponent - 1)`, and the new node joins `edges` nodes drawn in
@@ -565,7 +602,10 @@ class PopularitySimilarityNetworkSystem(BaseSystem):
         fading: float,
         temperature: float,
     ) -> object:
-        """Return the Fermi-Dirac probability of the hyperbolic distance between a candidate node and the new node."""
+        """Return the Fermi-Dirac probability of a candidate node's hyperbolic distance.
+
+        The distance is that between the candidate node and the new node.
+        """
         now = node.t + arrivals
         radius = 2 * ln(now)
         candidate = fading * 2 * ln(now - node.age) + (1 - fading) * radius
@@ -577,7 +617,10 @@ class PopularitySimilarityNetworkSystem(BaseSystem):
         return 1 - logistic(distance, radius - 2 * ln(spread), 2 * temperature)
 
     def _build_system(self) -> System:
-        """Return popularity-similarity growth, scale-free and clustered, whose nodes attach by hyperbolic distance."""
+        """Return popularity-similarity growth, scale-free and clustered.
+
+        Its nodes attach by hyperbolic distance.
+        """
         if self.exponent <= MIN_EXPONENT:
             error_msg = (
                 f'The degree exponent of the growth is {self.exponent!r}. Give an exponent above {MIN_EXPONENT}.'
@@ -614,7 +657,9 @@ class PopularitySimilarityNetworkSystem(BaseSystem):
 
 
 class GraphletArrivalSystem(BaseSystem):
-    """Growth by the arrival of three-node graphlets, a tree whose degree exponent rises with `alpha`.
+    """Growth by the arrival of three-node graphlets.
+
+    The tree has a degree exponent that rises with `alpha`.
 
     The network starts from one edge, and every step a graphlet of a central node and two peripheral nodes joined to it
     arrives and merges one of its nodes with an existing node drawn with probability proportional to its degree: a
@@ -659,7 +704,10 @@ class GraphletArrivalSystem(BaseSystem):
         self.alpha = alpha
 
     def _build_system(self) -> System:
-        """Return growth by the arrival of three-node graphlets, a tree whose degree exponent rises with `alpha`."""
+        """Return growth by the arrival of three-node graphlets.
+
+        The tree has a degree exponent that rises with `alpha`.
+        """
         nodes = _nodes(VertexElement, self.n_nodes)
         growth = TopologyInteraction('growth', action='add-node', toward=_degree)
         graphlet = TopologyInteraction(

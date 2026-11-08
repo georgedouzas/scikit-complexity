@@ -1,4 +1,7 @@
-"""Define the types of the fractals: the affine maps of a chaos game and the windows of a quadratic map."""
+"""Define the types of the fractals.
+
+The types are the affine maps of a chaos game and the windows of a quadratic map.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

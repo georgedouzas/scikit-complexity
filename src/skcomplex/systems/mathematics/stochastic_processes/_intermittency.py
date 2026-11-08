@@ -1,4 +1,7 @@
-"""Intermittency: bursts of a variable driven across a bifurcation by multiplicative noise."""
+"""Intermittency.
+
+Multiplicative noise drives a variable across a bifurcation in bursts.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,7 +19,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class IntermittentVariableElement(Element):
-    """Positive variable driven across the bifurcation at `epsilon = 0` by multiplicative noise of intensity `D`.
+    """Positive variable driven across the bifurcation at `epsilon = 0`.
+
+    The drive is a multiplicative noise of intensity `D`.
 
     Args:
         label:
@@ -56,7 +61,9 @@ class IntermittentVariableElement(Element):
 
 
 class OnOffIntermittencySystem(BaseSystem):
-    """Stochastic on-off intermittency, `dx/dt = (epsilon + xi) x - x^3` with Stratonovich white noise `xi`.
+    """Stochastic on-off intermittency, `dx/dt = (epsilon + xi) x - x^3`.
+
+    The noise `xi` is Stratonovich white noise.
 
     The noise has the correlation `<xi(t) xi(t')> = 2 D delta(t - t')`. The variable `y = ln x` diffuses freely while
     `x` is small and is pushed back by `-exp(2 y)` once `x` grows, so near the bifurcation `epsilon = 0` the variable

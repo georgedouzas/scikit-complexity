@@ -1,4 +1,7 @@
-"""Absorbing-state transitions: the Langevin field theory of directed percolation coupled to an energy field."""
+"""Absorbing-state transitions.
+
+The module holds the Langevin field theory of directed percolation coupled to an energy field.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,7 +23,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class ActiveFieldElement(Element):
-    """Site of the Langevin equation of directed percolation with a conserved field, an activity `rho` and a field `nu`.
+    """Site of the Langevin equation of directed percolation with a conserved field.
+
+    The site has an activity `rho` and a field `nu`.
 
     The activity grows at the rate `a + b nu`, saturates, diffuses, and fluctuates with the multiplicative noise
     `e sqrt(rho)` of an absorbing state, `rho_t = (a + b nu) rho - c rho^2 + d laplacian(rho) + e sqrt(rho) eta`. The
@@ -104,7 +109,9 @@ class ActiveFieldElement(Element):
         self.g = g
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rates, the noise, and the nonnegative bounds of the activity and the field.
+        """Return the rates, the noise, and the bounds of the activity and the field.
+
+        The bounds keep both nonnegative.
 
         Args:
             namespace:
@@ -125,7 +132,9 @@ class ActiveFieldElement(Element):
 
 
 class DirectedPercolationLangevinSystem(BaseSystem):
-    """The Langevin field theory of an absorbing-state transition, an active density fed by an energy field.
+    """The Langevin field theory of an absorbing-state transition.
+
+    An active density is fed by an energy field.
 
     The active density `rho` grows at the local rate `a + b nu`, saturates through `-c rho^2`, spreads with the
     diffusivity `d`, and fluctuates with the multiplicative noise `e sqrt(rho)`, which vanishes in the absorbing state

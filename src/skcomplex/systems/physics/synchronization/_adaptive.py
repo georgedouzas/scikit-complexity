@@ -1,4 +1,7 @@
-"""Adaptive networks of phase oscillators, whose coupling weights evolve with the phases they couple."""
+"""Adaptive networks of phase oscillators.
+
+Their coupling weights evolve with the phases they couple.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,7 +24,9 @@ from ..common.oscillators import PhaseOscillatorElement
 
 
 class AdaptiveLinkElement(Element):
-    """Directed link of an adaptive network with the coupling weight `kappa`, a state that the phases of its ends adapt.
+    """Directed link of an adaptive network with the coupling weight `kappa`.
+
+    The weight is a state that the phases of its ends adapt.
 
     Args:
         label:
@@ -55,7 +60,9 @@ class AdaptiveLinkElement(Element):
 
 
 class AdaptiveCouplingInteraction(NeighborInteraction):
-    """Adaptive Kuramoto-Sakaguchi coupling, whose weights relax towards a phase-lagged sine of the phase difference.
+    """Adaptive Kuramoto-Sakaguchi coupling.
+
+    The weights relax towards a phase-lagged sine of the phase difference.
 
     On every directed link from `j` to `i`, the phase of `i` turns by `-K kappa_ij sin(theta_i - theta_j + alpha)` and
     the weight relaxes as `kappa_ij' = -epsilon (kappa_ij + sin(theta_i - theta_j + beta))`, so it grows between
@@ -111,7 +118,7 @@ class AdaptiveCouplingInteraction(NeighborInteraction):
         self.epsilon = epsilon
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the coupling of the target of every link and the adaptation of its weight.
+        """Return the coupling of every link's target and the adaptation of its weight.
 
         Args:
             namespace:
@@ -130,7 +137,9 @@ class AdaptiveCouplingInteraction(NeighborInteraction):
 
 
 class AdaptiveKuramotoSystem(BaseSystem):
-    """Globally coupled phase oscillators whose coupling weights adapt to their phase differences.
+    """Globally coupled phase oscillators with adaptive coupling weights.
+
+    The weights adapt to the phase differences.
 
     The oscillators follow the Kuramoto-Sakaguchi model `theta_i' = omega - (1 / N) Σ_j kappa_ij sin(theta_i - theta_j +
     alpha)`, and every weight of the directed link from `j` to `i` adapts as `kappa_ij' = -epsilon (kappa_ij +
@@ -194,7 +203,10 @@ class AdaptiveKuramotoSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> System:
-        """Return globally coupled phase oscillators whose coupling weights adapt to their phase differences."""
+        """Return globally coupled phase oscillators with adaptive coupling weights.
+
+        The weights adapt to the phase differences.
+        """
         rng = np.random.default_rng(self.seed)
         graph = nx.complete_graph(self.n_oscillators, create_using=nx.DiGraph)
         space = NetworkSpace(graph)

@@ -13,7 +13,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class SoilTemperatureElement(Element):
-    """Soil of the coupled temperature maps, its dimensionless surface temperature and deeper soil temperature.
+    """Soil of the coupled temperature maps.
+
+    The soil holds its dimensionless surface temperature and deeper soil temperature.
 
     Two maps of `SoilTemperatureSystem` iterate the states. The surface temperature follows the energy balance of the
     ground, reduced to a logistic map, and the deeper soil temperature relaxes towards it:
@@ -62,7 +64,7 @@ class SoilTemperatureElement(Element):
 
 
 class SoilTemperatureSystem(BaseSystem):
-    """The coupled maps of the soil surface temperature and the deeper soil temperature.
+    """The coupled maps of the surface and deeper temperatures of the soil.
 
     The dimensionless surface temperature `x` follows the energy balance of the ground, reduced to a logistic map, and
     the deeper soil temperature `y` relaxes towards it: `x_{n+1} = r x_n (1 - x_n) + epsilon y_n` and `y_{n+1} = epsilon
@@ -113,7 +115,7 @@ class SoilTemperatureSystem(BaseSystem):
         self.epsilon = epsilon
 
     def _build_system(self) -> System:
-        """Return the coupled maps of the soil surface temperature and the deeper soil temperature."""
+        """Return the coupled maps of the surface and deeper temperatures of the soil."""
         surface = MapInteraction(
             'surface',
             target='soil',

@@ -1,4 +1,7 @@
-"""Statistical mechanics: gases, fluids, spin systems, lattice processes, urns, master equations, and their measures."""
+"""Statistical mechanics systems.
+
+The package covers gases, fluids, spin systems, lattice processes, urns, master equations, and their measures.
+"""
 
 from ..common.spins import IsingSpinElement
 from ._absorbing_processes import AbsorbingBirthDeathSystem, ReactingParticlesElement

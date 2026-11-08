@@ -1,4 +1,7 @@
-"""Bosonic mode: its Hilbert space truncated at a number of quanta, and the element of a mode that takes it."""
+"""Bosonic mode.
+
+The module holds its Hilbert space truncated at a number of quanta, and the element of a mode that takes it.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -49,7 +52,9 @@ def mode_space(quanta: int = 4) -> HilbertSpec:
 
 
 class ModeElement(Element):
-    """Bosonic mode of the Hilbert space it takes, with `annihilate`, `create`, and `number`.
+    """Bosonic mode of the Hilbert space it takes.
+
+    The mode has `annihilate`, `create`, and `number`.
 
     Args:
         label:

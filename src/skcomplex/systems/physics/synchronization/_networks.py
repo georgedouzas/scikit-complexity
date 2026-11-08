@@ -1,4 +1,7 @@
-"""Synchronization on complex networks: Kuramoto oscillators and coupled logistic maps on the edges of a graph."""
+"""Synchronization on complex networks.
+
+Kuramoto oscillators and coupled logistic maps sit on the edges of a graph.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,7 +25,9 @@ from ..common.oscillators import KuramotoCouplingInteraction, LinkElement, Phase
 
 
 class LogisticNodeElement(Element):
-    """Logistic map on a node of a network, with its value, growth rate, and weight of the neighbours.
+    """Logistic map on a node of a network.
+
+    The map has its value, growth rate, and weight of the neighbours.
 
     `LogisticCouplingInteraction` iterates `x_i(t + 1) = (1 - epsilon) f(x_i) + epsilon mean_j f(x_j)`, where the map
     `f(x) = r x (1 - x)` of the node mixes with the mean of the maps of its neighbours `j` on the network.
@@ -69,7 +74,9 @@ class LogisticNodeElement(Element):
 
 
 class EdgeCouplingInteraction(KuramotoCouplingInteraction):
-    """Kuramoto coupling along the weighted edges of a network, `theta_i' += K w_ij sin(theta_j - theta_i)`.
+    """Kuramoto coupling along the weighted edges of a network.
+
+    The coupling is `theta_i' += K w_ij sin(theta_j - theta_i)`.
 
     The coupling runs once per edge of the network of its oscillators and reads the weight `w` of the edge from the
     group on the edges.
@@ -110,7 +117,9 @@ class EdgeCouplingInteraction(KuramotoCouplingInteraction):
 
 
 class LogisticCouplingInteraction(CouplingInteraction):
-    """Coupled logistic maps, `x_i(t + 1) = (1 - epsilon) f(x_i) + epsilon mean_j f(x_j)` with `f(x) = r x (1 - x)`.
+    """Coupled logistic maps.
+
+    The maps follow `x_i(t + 1) = (1 - epsilon) f(x_i) + epsilon mean_j f(x_j)` with `f(x) = r x (1 - x)`.
 
     The map of every node mixes with the mean of the maps of its neighbours `j` on its lattice or network, with the
     parameters `r` and `epsilon` of the node. A node with no neighbours keeps `(1 - epsilon) f(x_i)`. It is the map
@@ -191,7 +200,9 @@ def _network(name: str, n_nodes: int, degree: int, rewiring: float, seed: int) -
 
 
 class KuramotoOnNetworksSystem(BaseSystem):
-    """Kuramoto oscillators coupled along the edges of a network, `theta_i' = omega_i + K sum_j A_ij sin(...)`.
+    """Kuramoto oscillators coupled along the edges of a network.
+
+    The oscillators follow `theta_i' = omega_i + K sum_j A_ij sin(...)`.
 
     Oscillator `i` follows `theta_i' = omega_i + (K / <k>) sum_j w_ij sin(theta_j - theta_i)` over its neighbours `j`,
     where the weights `w_ij = 1` live on a group on the edges and `<k>` is the mean degree. The coupling runs once per
@@ -285,7 +296,9 @@ class KuramotoOnNetworksSystem(BaseSystem):
 
 
 class CoupledMapLatticesOnNetworksSystem(BaseSystem):
-    """Chaotic logistic maps on the nodes of a network, each pulled towards the mean of its neighbours.
+    """Chaotic logistic maps on the nodes of a network.
+
+    Each map is pulled towards the mean of its neighbours.
 
     Node `i` follows `x_i(t + 1) = (1 - epsilon) f(x_i) + (epsilon / k_i) sum_j A_ij f(x_j)` with the logistic map `f(x)
     = r x (1 - x)`, a mean over the neighbours of the network. For a coupling `epsilon` large enough against the
@@ -357,7 +370,10 @@ class CoupledMapLatticesOnNetworksSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> System:
-        """Return chaotic logistic maps on the nodes of a network, each pulled towards the mean of its neighbours."""
+        """Return chaotic logistic maps on the nodes of a network.
+
+        Each map is pulled towards the mean of its neighbours.
+        """
         space = _network(self.network, self.n_nodes, self.degree, self.rewiring, self.seed)
         rng = np.random.default_rng(self.seed + 1)
         maps = LatticeElement(

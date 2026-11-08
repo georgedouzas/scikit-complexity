@@ -1,4 +1,7 @@
-"""Spring systems: masses on springs and dampers between walls."""
+"""Spring systems.
+
+The module holds masses on springs and dampers between walls.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,7 +19,9 @@ from ..common.particles import (
 
 
 class TwoMassSpringDamperSystem(BaseSystem):
-    """Two masses between two walls, tied to the walls and to each other by springs, with dampers and forces.
+    """Two masses between two walls, with dampers and forces.
+
+    Springs tie the masses to the walls and to each other.
 
     The first mass rests at `x01 = l1` and the second at `x02 = l1 + l2`. They follow `m1 x1'' = -k1 (x1 - x01) + k ((x2
     - x1) - (x02 - x01)) - b1 x1' + F1 cos(ω1 t)` and `m2 x2'' = -k ((x2 - x1) - (x02 - x01)) - k2 (x2 - x02) - b2 x2' +

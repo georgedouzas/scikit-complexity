@@ -1,4 +1,7 @@
-"""Charged quantum waves: the Schrödinger equation minimally coupled to a prescribed electromagnetic potential."""
+"""Charged quantum waves.
+
+The Schrödinger equation is minimally coupled to a prescribed electromagnetic potential.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,7 +22,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class ChargedWaveFunctionElement(Element):
-    """Wave function `psi = u + i w` of a charge `q` in a uniform electromagnetic potential.
+    """Wave function `psi = u + i w` of a charge `q` in an electromagnetic potential.
+
+    The potential is uniform.
 
     The wave function follows `(d_t - i q A_t) psi = i D (d_x - i q A_x)^2 psi`. The vector potential
     `A_x(t) = A_x - E min(t, duration)` holds a uniform electric field `E` from time 0 to `duration`, and the scalar
@@ -90,7 +95,9 @@ class ChargedWaveFunctionElement(Element):
         self.duration = duration
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the minimally coupled Schrödinger equation for the real and imaginary parts.
+        """Return the minimally coupled Schrödinger equation of the two real parts.
+
+        The parts are the real and imaginary parts of the wave function.
 
         Args:
             s:
@@ -110,7 +117,9 @@ class ChargedWaveFunctionElement(Element):
 
 
 class ChargedSchrodingerSystem(BaseSystem):
-    """A Gaussian wave packet of a charge in a prescribed electromagnetic potential, after Schwichtenberg 4.3.
+    """A Gaussian wave packet of a charge in a prescribed electromagnetic potential.
+
+    The system follows Schwichtenberg 4.3.
 
     The wave function follows the Schrödinger equation with the covariant derivatives `d - i q A`, `(d_t - i q A_t) psi
     = i D (d_x - i q A_x)^2 psi`, on a periodic line with spectral derivatives. A mode of wave number `k` turns at the

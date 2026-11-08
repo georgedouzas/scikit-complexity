@@ -1,4 +1,7 @@
-"""Rotation systems: a rotating swing, balls on rotating rods, and a gyroscope in a gimbal."""
+"""Rotation systems.
+
+The module covers a rotating swing, balls on rotating rods, and a gyroscope in a gimbal.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,7 +21,9 @@ from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 class GyroscopeElement(Element):
-    """Gyroscope in a gimbal: a rotor in an inner ring that turns in an outer ring about a fixed axis.
+    """Gyroscope in a gimbal.
+
+    A rotor in an inner ring turns in an outer ring about a fixed axis.
 
     The angle `alpha` of the outer ring, `beta` of the inner ring, and `gamma` of the rotor have order 2. The motion
     comes from `GyroscopeInteraction`.
@@ -111,7 +116,9 @@ class GyroscopeElement(Element):
 
 
 class RotatingBallElement(Element):
-    """Ball of mass `m` on a rod at the distance `r` from the joint, turning about a vertical axis by the angle `theta`.
+    """Ball of mass `m` on a rod at the distance `r` from the joint.
+
+    The rod turns about a vertical axis by the angle `theta`.
 
     The rod is fixed at the angle `beta` to the axis, so the ball is at the distance `r sin β` from it, and `H` is its
     angular momentum about the axis.
@@ -164,7 +171,9 @@ class RotatingBallElement(Element):
 
 
 class RotatingSwingElement(Element):
-    """Rotating swing: chairs on chains hanging from the rods of a stand that turns about a vertical axis.
+    """Rotating swing.
+
+    Chairs on chains hang from the rods of a stand that turns about a vertical axis.
 
     The angle `phi` of the stand and the angle `theta` of the chains from the vertical have order 2. The motion comes
     from `RotatingSwingInteraction`.
@@ -252,7 +261,9 @@ class RotatingSwingElement(Element):
 
 
 class GyroscopeInteraction(EulerLagrangeInteraction):
-    """Motion of a gimballed gyroscope, the Euler-Lagrange equations of its kinetic energy with a torque on `beta`.
+    """Motion of a gimballed gyroscope.
+
+    The motion is the Euler-Lagrange equations of its kinetic energy with a torque on `beta`.
 
     The Lagrangian is the kinetic energy `[A2 + (A + A1) cos² β + (C + C1) sin² β] alpha'² / 2 + (A + B1) β'² / 2
     + C alpha' gamma' sin β + C gamma'² / 2`, and the torque of the target acts on the axis of the inner ring.
@@ -275,7 +286,10 @@ class GyroscopeInteraction(EulerLagrangeInteraction):
 
     @staticmethod
     def _get_torques(namespace: SimpleNamespace) -> list[Expression]:
-        """Return the generalized forces, the torque on the inner ring and none on the outer ring and the rotor."""
+        """Return the generalized forces.
+
+        The torque acts on the inner ring and none on the outer ring and the rotor.
+        """
         return [0, namespace.target.torque, 0]
 
     def _get_lagrangian(self, namespace: SimpleNamespace) -> Expression:
@@ -296,7 +310,9 @@ class GyroscopeInteraction(EulerLagrangeInteraction):
 
 
 class RotatingSwingInteraction(EulerLagrangeInteraction):
-    """Motion of a rotating swing, the Euler-Lagrange equations with a torque and friction on the stand.
+    """Motion of a rotating swing.
+
+    The motion is the Euler-Lagrange equations with a torque and friction on the stand.
 
     The Lagrangian is `[J + n m (a + l sin θ)²] φ'² / 2 + n m l² θ'² / 2 + n m g l cos θ`, the torque drives the angle
     `φ` of the stand, and the Rayleigh dissipation `c φ'² / 2` adds the friction of its axis.
@@ -353,7 +369,9 @@ class RotatingSwingInteraction(EulerLagrangeInteraction):
 
 
 class RotatingSwingSystem(BaseSystem):
-    """A rotating swing: chairs on chains hanging from the rods of a stand that turns about a vertical axis.
+    """A rotating swing.
+
+    Chairs on chains hang from the rods of a stand that turns about a vertical axis.
 
     The stand of inertia `J` turns by the angle `φ`, and the chairs, all deflected by the same angle `θ`, follow the
     Lagrange equations `[J + n m (a + l sin θ)²] φ'' + 2 n m l φ' θ' (a + l sin θ) cos θ = M - c φ'` and `l θ'' - φ'² (a
@@ -458,7 +476,9 @@ class RotatingSwingSystem(BaseSystem):
 
 
 class RotatingBallsOnRodsSystem(BaseSystem):
-    """Two balls on rods that turn about a vertical axis and conserve their angular momentum.
+    """Two balls on rods that turn about a vertical axis.
+
+    The balls conserve their angular momentum.
 
     Each ball sits at the distance `r` along a rod fixed at the angle `β` to the axis, so its distance from the axis is
     `r sin β`. Its angular momentum `H = m ω r² sin² β` is fixed by the initial angular velocity, and the balls turn at
@@ -509,7 +529,10 @@ class RotatingBallsOnRodsSystem(BaseSystem):
         self.m = m
 
     def _build_system(self) -> System:
-        """Return two balls on rods that turn about a vertical axis and conserve their angular momentum."""
+        """Return two balls on rods that turn about a vertical axis.
+
+        The balls conserve their angular momentum.
+        """
         momentum = self.m * self.omega * self.r**2 * math.sin(self.beta) ** 2
         return System(
             self.label,
@@ -530,7 +553,9 @@ class RotatingBallsOnRodsSystem(BaseSystem):
 
 
 class GimballedGyroscopeSystem(BaseSystem):
-    """A gyroscope in a gimbal: a rotor in an inner ring that turns in an outer ring about a fixed axis.
+    """A gyroscope in a gimbal.
+
+    A rotor in an inner ring turns in an outer ring about a fixed axis.
 
     The outer ring turns by `alpha` about the fixed axis, the inner ring by `beta` in the outer ring, and the rotor
     spins by `gamma` in the inner ring. The equations are the Lagrange equations of the kinetic energy `[A2 + (A + A1)
@@ -608,7 +633,10 @@ class GimballedGyroscopeSystem(BaseSystem):
         self.torque = torque
 
     def _build_system(self) -> System:
-        """Return a gyroscope in a gimbal: a rotor in an inner ring that turns in an outer ring about a fixed axis."""
+        """Return a gyroscope in a gimbal.
+
+        A rotor in an inner ring turns in an outer ring about a fixed axis.
+        """
         return System(
             self.label,
             elements=[

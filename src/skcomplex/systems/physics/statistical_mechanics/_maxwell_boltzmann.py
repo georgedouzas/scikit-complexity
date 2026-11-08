@@ -1,4 +1,4 @@
-"""Define the test of the speeds of agents or particles against the Maxwell-Boltzmann law."""
+"""Define the Maxwell-Boltzmann test of the speeds of agents or particles."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,7 +18,9 @@ from ._kinetic_temperature import _kinetic_temperature, _read_velocities
 
 @dataclass(frozen=True)
 class MaxwellBoltzmannResult:
-    """Kolmogorov-Smirnov test of the speeds of every frame against the Maxwell-Boltzmann law.
+    """Kolmogorov-Smirnov test of the speeds of every frame.
+
+    The test compares the speeds with the Maxwell-Boltzmann law.
 
     Args:
         values:
@@ -47,7 +49,9 @@ def maxwell_boltzmann(
     mass: float = 1.0,
     temperature: float | None = None,
 ) -> MaxwellBoltzmannResult:
-    """Return the Kolmogorov-Smirnov test of the speeds of every frame against the Maxwell-Boltzmann law.
+    """Return the Kolmogorov-Smirnov test of the speeds of every frame.
+
+    The test compares the speeds with the Maxwell-Boltzmann law.
 
     It is the test of the named law `'maxwell'` of `fit_law`, generalized to `d` dimensions: the speeds of an ideal gas
     at temperature `T` follow a chi law of `d` degrees of freedom and scale `sqrt(T / m)`, the Maxwell law in three
@@ -94,7 +98,10 @@ def maxwell_boltzmann(
 
 
 def _maxwell_boltzmann(frame: npt.ArrayLike, mass: float, temperature: float | None) -> tuple[float, float, float]:
-    """Return the temperature and the Kolmogorov-Smirnov test of the speeds of one frame against the chi law."""
+    """Return the temperature and the Kolmogorov-Smirnov test of one frame's speeds.
+
+    The test compares the speeds with the chi law.
+    """
     velocities = np.asarray(frame, dtype=float)
     chosen = float(_kinetic_temperature(velocities, mass)) if temperature is None else temperature
     speeds = np.linalg.norm(velocities, axis=-1)

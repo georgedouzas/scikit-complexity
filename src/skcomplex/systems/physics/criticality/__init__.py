@@ -1,4 +1,7 @@
-"""Criticality: sandpiles, forest fires, absorbing-state transitions, learners at the edge, and avalanches."""
+"""Criticality systems.
+
+The package covers sandpiles, forest fires, absorbing-state transitions, learners at the edge, and avalanches.
+"""
 
 from ..common import SandpileCellElement
 from ._absorbing import ActiveFieldElement, DirectedPercolationLangevinSystem

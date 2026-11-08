@@ -1,4 +1,7 @@
-"""Nonlinear oscillators systems: Duffing, Toda, Van der Pol, Stuart-Landau, Adler, impulses, and Hamiltonian chaos."""
+"""Nonlinear oscillator systems.
+
+The module covers Duffing, Toda, Van der Pol, Stuart-Landau, Adler, impulses, and Hamiltonian chaos.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,7 +25,9 @@ from ..common.oscillators import StuartLandauElement
 
 
 class AdlerPhaseElement(Element):
-    """Phase difference of a forced oscillator, `phi' = detuning + epsilon sin(phi)`, the Adler equation.
+    """Phase difference of a forced oscillator, the Adler equation.
+
+    The phase difference follows `phi' = detuning + epsilon sin(phi)`.
 
     The phase locks at a fixed point when `|detuning| <= epsilon`, and slips with the period
     `2 pi / sqrt(detuning^2 - epsilon^2)` otherwise.
@@ -84,7 +89,9 @@ class AdlerPhaseElement(Element):
 
 
 class DuffingElement(Element):
-    """Displacement and parameters of the forced Duffing oscillator, whose acceleration a `RateInteraction` sets.
+    """Displacement and parameters of the forced Duffing oscillator.
+
+    A `RateInteraction` sets its acceleration.
 
     The acceleration is `x'' = -delta x' - alpha x - beta x^3 + gamma cos(omega t)`.
 
@@ -153,7 +160,9 @@ class DuffingElement(Element):
 
 
 class HenonHeilesElement(Element):
-    """Star in the Hénon-Heiles potential `V = (x^2 + y^2) / 2 + x^2 y - y^3 / 3`, with the canonical momenta `px, py`.
+    """Star in the Hénon-Heiles potential `V = (x^2 + y^2) / 2 + x^2 y - y^3 / 3`.
+
+    The star has the canonical momenta `px, py`.
 
     The coordinates and the momenta are states of order 1, which a Hamiltonian interaction moves. Below the escape
     energy `1 / 6` the motion is regular for small energies and mostly chaotic near the escape energy.
@@ -201,7 +210,9 @@ class HenonHeilesElement(Element):
 
 
 class ImpulsiveOscillatorElement(Element):
-    """Displacement of an oscillator that rings freely between periodic impulses that kick its velocity.
+    """Displacement of an oscillator that rings freely between periodic impulses.
+
+    The impulses kick its velocity.
 
     A rate interaction gives the restoring force, and impulse interactions kick the velocity `x_d1` by multiples of the
     amplitude `H` at their times, so the element holds the states and the parameters they read.
@@ -254,7 +265,9 @@ class ImpulsiveOscillatorElement(Element):
 
 
 class QuadrupoleElement(Element):
-    """Surface of a nucleus in the quartic quadrupole potential, with the coordinates `q1, q2` and momenta `p1, p2`.
+    """Surface of a nucleus in the quartic quadrupole potential.
+
+    The surface has the coordinates `q1, q2` and momenta `p1, p2`.
 
     The quadrupole deformation of the nuclear surface moves under the Hamiltonian
     `H = (q² + p²) / 2 + B q1 (3 q2² - q1²) / √2 + q⁴ / 8`, with `q² = q1² + q2²`, which a Hamiltonian interaction
@@ -309,7 +322,9 @@ class QuadrupoleElement(Element):
 
 
 class TodaElement(Element):
-    """Displacement and parameters of the forced Toda oscillator, whose exponential spring is stiff on one side only.
+    """Displacement and parameters of the forced Toda oscillator.
+
+    Its exponential spring is stiff on one side only.
 
     The acceleration is `x'' = -d x' - (e^x - 1) + a sin(omega t)`. The restoring force `e^x - 1` grows exponentially
     for `x > 0` and saturates at `-1` for `x < 0`, so the oscillator is passive and asymmetric, and its resonance curve
@@ -383,7 +398,9 @@ class TodaElement(Element):
 
 
 class VanDerPolElement(Element):
-    """Van der Pol oscillator `x'' = mu (1 - x^2) x' - x + A cos(omega t)`, with an optional periodic forcing.
+    """Van der Pol oscillator `x'' = mu (1 - x^2) x' - x + A cos(omega t)`.
+
+    The periodic forcing is optional.
 
     The damping is negative for small amplitudes and positive for large ones, so the unforced oscillator, `A = 0`,
     settles on a limit cycle of amplitude near 2. A forcing of amplitude `A` and frequency `omega` locks it or drives it
@@ -462,7 +479,10 @@ class VanDerPolElement(Element):
 
 
 def _get_henon_heiles_energy(star: SimpleNamespace) -> Expression:
-    """Return the Hénon-Heiles energy `(px² + py²) / 2 + (x² + y²) / 2 + x² y - y³ / 3` of a star."""
+    """Return the Hénon-Heiles energy of a star.
+
+    The energy is `(px² + py²) / 2 + (x² + y²) / 2 + x² y - y³ / 3`.
+    """
     kinetic = (star.px**2 + star.py**2) / 2
     return kinetic + (star.x**2 + star.y**2) / 2 + star.x**2 * star.y - star.y**3 / 3
 
@@ -471,7 +491,10 @@ SPRINGS = ('tangent', 'linear')
 
 
 def _get_quadrupole_energy(nucleus: SimpleNamespace) -> Expression:
-    """Return the quadrupole energy `(q² + p²) / 2 + B q1 (3 q2² - q1²) / √2 + q⁴ / 8` of a nucleus."""
+    """Return the quadrupole energy of a nucleus.
+
+    The energy is `(q² + p²) / 2 + B q1 (3 q2² - q1²) / √2 + q⁴ / 8`.
+    """
     q2 = nucleus.q1**2 + nucleus.q2**2
     kinetic = (nucleus.p1**2 + nucleus.p2**2) / 2
     cubic = nucleus.B * nucleus.q1 * (3 * nucleus.q2**2 - nucleus.q1**2) / sqrt(2)
@@ -479,7 +502,9 @@ def _get_quadrupole_energy(nucleus: SimpleNamespace) -> Expression:
 
 
 class DuffingSystem(BaseSystem):
-    """The forced Duffing oscillator `x'' = -delta x' - alpha x - beta x^3 + gamma cos(omega t)`, chaotic here.
+    """The forced Duffing oscillator, chaotic here.
+
+    The oscillator is `x'' = -delta x' - alpha x - beta x^3 + gamma cos(omega t)`.
 
     The system has the displacement `duffing.x` of order 2 and its velocity `duffing.x_d1`.
 
@@ -573,7 +598,9 @@ class DuffingSystem(BaseSystem):
 
 
 class VanDerPolSystem(BaseSystem):
-    """The Van der Pol oscillator `x'' = μ (1 - x²) x' - x`, which settles on a limit cycle for `μ > 0`.
+    """The Van der Pol oscillator `x'' = μ (1 - x²) x' - x`.
+
+    The oscillator settles on a limit cycle for `μ > 0`.
 
     The system has the displacement `oscillator.x` of order 2 and its velocity `oscillator.x_d1`.
 
@@ -616,12 +643,17 @@ class VanDerPolSystem(BaseSystem):
         self.mu = mu
 
     def _build_system(self) -> System:
-        """Return the Van der Pol oscillator `x'' = μ (1 - x²) x' - x`, which settles on a limit cycle for `μ > 0`."""
+        """Return the Van der Pol oscillator `x'' = μ (1 - x²) x' - x`.
+
+        The oscillator settles on a limit cycle for `μ > 0`.
+        """
         return System(self.label, elements=[VanDerPolElement('oscillator', x=self.x, x_d1=self.v, mu=self.mu)])
 
 
 class HenonHeilesSystem(BaseSystem):
-    """The Hénon-Heiles system of a star in a galactic potential, whose motion is chaotic at higher energies.
+    """The Hénon-Heiles system of a star in a galactic potential.
+
+    The motion is chaotic at higher energies.
 
     The star moves under the Hamiltonian `H = (px² + py²) / 2 + (x² + y²) / 2 + x² y - y³ / 3`, which is conserved. The
     system has the coordinates `star.x` and `star.y` and their momenta `star.px` and `star.py`.
@@ -695,7 +727,9 @@ class HenonHeilesSystem(BaseSystem):
 
 
 class StuartLandauSystem(BaseSystem):
-    """The Stuart-Landau oscillator `z' = (μ + i ω) z - (1 + i β) |z|² z`, the normal form of a Hopf bifurcation.
+    """The Stuart-Landau oscillator `z' = (μ + i ω) z - (1 + i β) |z|² z`.
+
+    It is the normal form of a Hopf bifurcation.
 
     The complex amplitude `z = x + i y` is written as two real states. For `μ > 0` every orbit except the origin settles
     on the circle of radius `sqrt(μ)`, turning at the frequency `ω - β μ`. The system has the real part `oscillator.x`
@@ -760,7 +794,9 @@ class StuartLandauSystem(BaseSystem):
 
 
 class ForcedVanDerPolSystem(BaseSystem):
-    """The Van der Pol oscillator driven by a periodic force, `x'' = μ (1 - x²) x' - x + A cos(ω t)`.
+    """The Van der Pol oscillator driven by a periodic force.
+
+    The oscillator follows `x'' = μ (1 - x²) x' - x + A cos(ω t)`.
 
     A strong enough force entrains the limit cycle, so the oscillator locks to the driving frequency inside Arnold
     tongues, and the motion can be quasiperiodic or chaotic outside them. The system has the displacement `oscillator.x`
@@ -815,7 +851,10 @@ class ForcedVanDerPolSystem(BaseSystem):
         self.omega = omega
 
     def _build_system(self) -> System:
-        """Return the Van der Pol oscillator driven by a periodic force, `x'' = μ (1 - x²) x' - x + A cos(ω t)`."""
+        """Return the Van der Pol oscillator driven by a periodic force.
+
+        The oscillator follows `x'' = μ (1 - x²) x' - x + A cos(ω t)`.
+        """
         return System(
             self.label,
             elements=[VanDerPolElement('oscillator', x=self.x, x_d1=self.v, mu=self.mu, A=self.A, omega=self.omega)],
@@ -823,7 +862,9 @@ class ForcedVanDerPolSystem(BaseSystem):
 
 
 class AdlerEquationSystem(BaseSystem):
-    """The Adler equation `Δφ' = Δω + ε sin Δφ` for the phase difference of an oscillator and its drive.
+    """The Adler equation `Δφ' = Δω + ε sin Δφ`.
+
+    The equation is that of the phase difference of an oscillator and its drive.
 
     The phase difference locks at a fixed point when `|Δω| < ε`, inside the Arnold tongue. Outside it, the phase slips
     by `2π` every `2π / sqrt(Δω² - ε²)`. The system has the phase difference `difference.phi`.
@@ -867,7 +908,10 @@ class AdlerEquationSystem(BaseSystem):
         self.epsilon = epsilon
 
     def _build_system(self) -> System:
-        """Return the Adler equation `Δφ' = Δω + ε sin Δφ` for the phase difference of an oscillator and its drive."""
+        """Return the Adler equation `Δφ' = Δω + ε sin Δφ`.
+
+        The equation is that of the phase difference of an oscillator and its drive.
+        """
         return System(
             self.label,
             elements=[AdlerPhaseElement('difference', phi=self.phi, detuning=self.detuning, epsilon=self.epsilon)],
@@ -875,7 +919,9 @@ class AdlerEquationSystem(BaseSystem):
 
 
 class NuclearQuadrupoleSystem(BaseSystem):
-    """The quadrupole vibrations of a nuclear surface, a Hamiltonian system of two degrees of freedom.
+    """The quadrupole vibrations of a nuclear surface.
+
+    The vibrations are a Hamiltonian system of two degrees of freedom.
 
     The deformation coordinates `q = (q1, q2)` and their momenta `p` move under the Hamiltonian `H = (q² + p²) / 2 + B
     q1 (3 q2² - q1²) / √2 + q⁴ / 8`, which is conserved. The cubic term has the threefold symmetry of the Hénon-Heiles
@@ -940,7 +986,10 @@ class NuclearQuadrupoleSystem(BaseSystem):
         return _get_quadrupole_energy(s.target)
 
     def _build_system(self) -> System:
-        """Return the quadrupole vibrations of a nuclear surface, a Hamiltonian system of two degrees of freedom."""
+        """Return the quadrupole vibrations of a nuclear surface.
+
+        The vibrations are a Hamiltonian system of two degrees of freedom.
+        """
         return System(
             self.label,
             elements=[QuadrupoleElement('nucleus', q1=self.q1, q2=self.q2, p1=self.p1, p2=self.p2, B=self.B)],
@@ -957,7 +1006,9 @@ class NuclearQuadrupoleSystem(BaseSystem):
 
 
 class ForcedTodaSystem(BaseSystem):
-    """The forced Toda oscillator `x'' + d x' + e^x - 1 = a sin(omega t)`, a passive asymmetric oscillator.
+    """The forced Toda oscillator `x'' + d x' + e^x - 1 = a sin(omega t)`.
+
+    It is a passive asymmetric oscillator.
 
     The exponential spring is stiff for `x > 0` and soft for `x < 0`, unlike the symmetric spring of the Duffing
     oscillator. Its free frequency falls from 1 as the amplitude grows, so the resonance curve bends to low driving

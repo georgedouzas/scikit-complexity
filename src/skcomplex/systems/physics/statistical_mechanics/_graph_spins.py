@@ -17,7 +17,9 @@ DEGREE = 4
 
 
 class GraphIsingSystem(BaseSystem):
-    """The Ising system on a graph, ordered below a critical temperature set by the degrees of the nodes.
+    """The Ising system on a graph.
+
+    The system orders below a critical temperature set by the degrees of the nodes.
 
     On a random 4-regular graph the Bethe approximation gives the critical temperature `2 / ln 2`. One unit of time is
     one sweep of colored updates. The system has the spins `spins.spin` in node order.
@@ -82,7 +84,10 @@ class GraphIsingSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return the Ising system on a graph, ordered below a critical temperature set by the degrees of the nodes."""
+        """Return the Ising system on a graph.
+
+        The system orders below a critical temperature set by the degrees of the nodes.
+        """
         graph = self.graph
         rng = np.random.default_rng(self.random_state)
         if graph is None:

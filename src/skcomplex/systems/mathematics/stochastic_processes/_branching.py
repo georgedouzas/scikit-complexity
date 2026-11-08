@@ -1,4 +1,4 @@
-"""Stochastic process systems: branching processes."""
+"""Stochastic process systems of branching processes."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,14 +16,19 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class IndividualView(AgentView):
-    """View of an individual of a branching process, with its states and parameters as attributes."""
+    """View of an individual of a branching process.
+
+    The view has the states and parameters of the individual as attributes.
+    """
 
     generation: float
     m: float
 
 
 class IndividualElement(Element):
-    """Individual of a Galton-Watson process, which the life cycle of the system replaces by its offspring.
+    """Individual of a Galton-Watson process.
+
+    The life cycle of the system replaces the individual by its offspring.
 
     Args:
         label:
@@ -59,12 +64,17 @@ class IndividualElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[IndividualView]:
-        """Return the view of the agents, which types their states and parameters."""
+        """Return the view of the agents.
+
+        The view types their states and parameters.
+        """
         return IndividualView
 
 
 class GaltonWatsonSystem(BaseSystem):
-    """A Galton-Watson branching process with Poisson offspring, one generation per step.
+    """A Galton-Watson branching process with Poisson offspring.
+
+    Every step is one generation.
 
     The mean size of generation `n` is `n_individuals m^n`. The process dies out with certainty for `m <= 1`, and
     survives with a positive probability for `m > 1`. The system has the group `population`, whose count is the size of
@@ -103,7 +113,10 @@ class GaltonWatsonSystem(BaseSystem):
         self.m = m
 
     def _build_system(self) -> System:
-        """Return a Galton-Watson branching process with Poisson offspring, one generation per step."""
+        """Return a Galton-Watson branching process with Poisson offspring.
+
+        Every step is one generation.
+        """
         return System(
             self.label,
             elements=[
