@@ -36,7 +36,7 @@ class BaseElement(BasePart[BaseSpace, SimpleNamespace]):
 
     Examples:
         >>> from typing import Annotated
-        >>> from skcomplex.core.components.elements._base import BaseElement
+        >>> from skcomplex.core.components.elements import BaseElement
         >>> from skcomplex.core.specs import ParameterSpec, StateSpec
         >>> from skcomplex.core.specs import VisualSpec
         >>> class PopulationElement(BaseElement):

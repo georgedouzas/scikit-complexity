@@ -37,7 +37,7 @@
   - Done: elements, interactions, laws, solvers, and backends. Analyses, experiments, and systems remain.
 - [ ] 6.3 Add the migration page from 0.6 to 0.7
 - [ ] 6.4 Add the systems page, and catalog pages with class, import path, parameters, and tags
-- [ ] 6.5 Update every docstring example
+- [x] 6.5 Update every docstring example
 
 ## 8. Follow-ups found while converting systems
 

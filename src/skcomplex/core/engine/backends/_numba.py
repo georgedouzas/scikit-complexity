@@ -116,14 +116,14 @@ class NumbaBackend(BaseBackend):
 
     Examples:
         >>> from skcomplex.core.components.elements import GroupElement
-        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.components.system import System
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> system = System(
         ...     elements=[GroupElement('herds', element=PopulationElement, size=2, values={'n': [1.0, 2.0]})],
         ...     interactions=[ExponentialGrowthInteraction('growth', target='herds', r=3.0)],
         ... )
-        >>> problem = PassCompiler(backend=NumbaBackend()).prepare(system).run().problem_
+        >>> problem = simulate(system, until=0, backend=NumbaBackend()).problem
         >>> problem.drift(0.0, problem.initial_state, problem.initial_parameters).tolist()
         [3.0, 6.0]
     """

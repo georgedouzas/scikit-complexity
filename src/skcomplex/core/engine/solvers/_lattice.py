@@ -20,11 +20,11 @@ class LatticeSolver(Solver):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.computer_science.automata import ElementaryAutomatonSystem
         >>> from skcomplex.core.engine.solvers import LatticeSolver
         >>> from skcomplex.core.specs import StepSpec
-        >>> problem = PassCompiler().prepare(ElementaryAutomatonSystem(30, size=11).prepare().system_).run().problem_
+        >>> problem = simulate(ElementaryAutomatonSystem(30, size=11), until=0).problem
         >>> stepper = LatticeSolver(random_state=0).prepare(problem)
         >>> step = StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)
         >>> stepper.run(step).state_.astype(int).tolist()

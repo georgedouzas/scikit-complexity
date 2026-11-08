@@ -125,10 +125,10 @@ class MeshVisual(BaseVisual):
                 One 3D spatial view per chosen state, with `<path>/<state>` as origin.
 
         Examples:
-            >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+            >>> from skcomplex.core.engine.runtime import simulate
             >>> from skcomplex.core.engine.viz import MeshVisual
             >>> from skcomplex.systems.physics.heat import HeatLShapeSystem
-            >>> problem = PassCompiler().prepare(HeatLShapeSystem(refine=1).prepare().system_).run().problem_
+            >>> problem = simulate(HeatLShapeSystem(refine=1), until=0).problem
             >>> views = MeshVisual(path=problem.elements[0].path).prepare(problem).views_
             >>> [type(view).__name__ for view in views]
             ['Spatial3DView']

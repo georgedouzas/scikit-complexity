@@ -75,7 +75,7 @@ class FractionalEulerMaruyamaSolver(Solver):
         >>> from skcomplex.core.components.laws import FractionalNoiseLaw
         >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.solvers import FractionalEulerMaruyamaSolver
         >>> from skcomplex.core.specs import StepSpec
         >>> class WalkerElement(Element):
@@ -86,7 +86,7 @@ class FractionalEulerMaruyamaSolver(Solver):
         ...     def _get_laws(self, s):
         ...         return [FractionalNoiseLaw(s.x, 1, hurst=0.75)]
         >>> system = System(elements=[GroupElement('walkers', element=WalkerElement, size=500)])
-        >>> problem = PassCompiler().prepare(system).run().problem_
+        >>> problem = simulate(system, until=0, solver=FractionalEulerMaruyamaSolver()).problem
         >>> stepper = FractionalEulerMaruyamaSolver(dt=0.01, horizon=1.0, random_state=0).prepare(problem)
         >>> state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_
         >>> round(float(np.var(state)), 1)

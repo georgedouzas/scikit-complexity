@@ -155,10 +155,8 @@ class RerunObserver(BaseObserver):
         True
 
         The default blueprint of a compiled problem, with a chosen view first:
-
-        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
         >>> from skcomplex.systems.chemistry.pattern_formation import GrayScottSystem
-        >>> problem = PassCompiler().prepare(GrayScottSystem(shape=(16, 16)).prepare().system_).run().problem_
+        >>> problem = simulate(GrayScottSystem(shape=(16, 16)), until=0).problem
         >>> observer = RerunObserver(blueprint='default', primary='cells/v').prepare(problem)
         >>> [str(view.origin) for view in observer.blueprint_.root_container.contents]
         ['cells/v', 'cells/u']
