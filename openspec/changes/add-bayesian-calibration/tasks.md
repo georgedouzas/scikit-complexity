@@ -1,7 +1,7 @@
 ## 1. Dependencies
 
-- [ ] 1.1 Add `optuna>=5.0.0`, `pyabc>=0.13.1`, and `numpyro>=0.22.0` to the runtime dependencies in `pyproject.toml`, and verify `pdm install` resolves and the three import
-- [ ] 1.2 Name the three libraries and their uses in the runtime dependencies of the Project Profile in `openspec/constitution.md`, and verify the dependency freshness check passes
+- [x] 1.1 Add `optuna>=5.0.0`, `pyabc>=0.13.1`, and `numpyro>=0.22.0` to the runtime dependencies in `pyproject.toml`, and verify `pdm install` resolves and the three import
+- [x] 1.2 Name the three libraries and their uses in the runtime dependencies of the Project Profile in `openspec/constitution.md`, and verify the dependency freshness check passes
 
 ## 2. Objective and priors
 
