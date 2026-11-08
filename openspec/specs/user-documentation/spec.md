@@ -99,7 +99,7 @@ hard-coded count of the catalog's systems, which goes stale. It SHALL say "in an
 
 ### Requirement: The documentation follows the scikit-learn split
 The README, the user guide, every docstring example, and every gallery example SHALL use `simulate`, the analysis
-functions, and the experiment functions. A migration page SHALL list every removed name with its replacement.
+functions, and the experiment functions.
 
 #### Scenario: A gallery example
 - **WHEN** a gallery example runs a system

@@ -57,5 +57,3 @@ Read the parts in order.
 7. [Analyse](analyse.md)
 8. [Run experiments](run_experiments.md)
 9. [Extend the library](extend_the_library.md)
-
-Coming from 0.6? The page [Migrating from 0.6 to 0.7](../migration.md) maps every removed name to its replacement.
