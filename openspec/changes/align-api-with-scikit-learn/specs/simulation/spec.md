@@ -8,12 +8,12 @@ of `scoring`, and observers, such as a Rerun recording, the role of callbacks. T
 tags of the system.
 
 #### Scenario: Simulating a ready-made system
-- **WHEN** a user calls `simulate(create_system('sir'), until=10)`
+- **WHEN** a user calls `simulate(SIRSystem(), until=10)`
 - **THEN** it returns a trajectory of the system up to time 10, with the default solver of its tags
 
-#### Scenario: Tuned settings of a catalog entry
-- **WHEN** a user passes the tuned settings of a catalog entry, `simulate(create_system('sir'), **settings_of('sir'))`
-- **THEN** the run uses the entry's end time, solver, observables, and initial state
+#### Scenario: Tuned settings of a system class
+- **WHEN** a user calls `simulate(SIRSystem())` without run settings
+- **THEN** the run uses the end time, solver, observables, and initial state the class tunes
 
 ## REMOVED Requirements
 

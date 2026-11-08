@@ -9,13 +9,13 @@
 ## 2. Systems
 
 - [x] 2.1 Add `BaseSystem` with derived tags, nesting, and passing model parameters to parts, and make `System` its generic composite
-- [ ] 2.2 Add `all_systems()` with static listing by field and topics and filtering by tags, and remove the registry, `register_system`, `create_system`, and `describe`
+- [x] 2.2 Add `all_systems()` with static listing by field and topics and filtering by tags, and remove the registry, `register_system`, `create_system`, and `describe`
 
 ## 3. Simulate
 
 - [x] 3.1 Add `simulate`, which chooses default solvers from the tags and rejects mismatched solvers and backends
-- [ ] 3.2 Remove `create_simulation`, and read tuned run settings in `simulate` through `BaseSystem.get_run_settings()`
-- [ ] 3.3 Remove `Simulation`, and make compilers and problem classes private, with one hook for system packages
+- [x] 3.2 Remove `create_simulation`, and read tuned run settings in `simulate` through `BaseSystem.get_run_settings()`
+- [x] 3.3 Remove `Simulation`, and make compilers and problem classes private, with one hook for system packages
 
 ## 4. Analyses and experiments
 

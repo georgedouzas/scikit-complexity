@@ -346,3 +346,24 @@ yet check a stochastic randomness, since the tags of many agent-based random sys
     propensities, which no second field needs today.
   - The duplicate scan of `consolidate-system-modules` found no other shared system structure: its cross-field
     duplicates are helpers (`_random_cells`, `_noise`, evenly spaced grids) and the `LorenzElement`, not systems.
+
+## Decisions of the removal wave
+
+- **The library's forms choose their compiler.** `simulate` compiles a system of operator elements with the operator
+  compiler, a system of words or patches with the rewriting compiler, and any other system with the pass compiler, the
+  way the tags choose the default solver. System classes no longer name a compiler of the library, so the concrete
+  compilers are private. The `compiler` run setting stays the one hook: a system package that brings a form of its own
+  defines its compiler on `BaseCompiler`, with passes on `BasePass` and lowerings on `BaseLowering`, which stay public
+  in `skcomplex.core.engine.compile` with `HilbertSpaceError`.
+- **Problems keep their bases public.** `skcomplex.core.engine.problems` exports `BaseProblemSpec`, `ProblemSpec`,
+  `FrameSpec`, and the kernel, search, and printer bases. Observers read problems and frames, and the metabolic
+  analyses of `biology.common.metabolism` re-solve the linear programs of `ProblemSpec`, which the import contract
+  lets a system package reach only through a public module. The problems of the other forms and their kernels are
+  private.
+- **`Simulation` stays the private machinery of `simulate`** in `skcomplex.core.engine.runtime._simulations`, under its
+  name, with live parameter changes, extending runs, background runs, and clocks. Its tests live in the mirrored test
+  module. Analyses that rerun a compiled problem, such as sections and large deviations, use it from the private module.
+- **Discovery without a registry.** `all_systems()` reads the field and topics of every system class from the sources
+  with a private reader. The registry, `register_system`, `create_system`, `create_simulation`, `describe`, `catalog`,
+  `SystemEntry`, `SystemCatalog`, `SystemListing`, `SYSTEMS`, and `skcomplex.systems.types` are removed. The gallery
+  and the systems pages name a system by the snake case of its class without `System`, as the inventory does.
