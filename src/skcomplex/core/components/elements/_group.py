@@ -1,4 +1,7 @@
-"""Define groups of identical elements, whose variables are arrays with one row per member."""
+"""Define groups of identical elements.
+
+The variables of a group are arrays with one row per member.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,11 +25,11 @@ MIN_RANK = 2
 
 
 class GroupElement(BaseElement):
-    """Group of identical elements of one type, whose variables are arrays with one row per member.
+    """Group of identical elements of one type.
 
-    A value is either an array whose first dimension is the size of the group, or one value shared by every member.
-    Variables without a value take the default of the constructor of the element type, and the laws of the group are
-    the laws of its element type, written for one member.
+    Its variables are arrays with one row per member. A value is either an array whose first dimension is the size of
+    the group, or one value shared by every member. Variables without a value take the default of the constructor of the
+    element type, and the laws of the group are the laws of its element type, written for one member.
 
     Args:
         label:
@@ -138,7 +141,10 @@ class GroupElement(BaseElement):
         self.rank = rank
 
     def _size_of(self, space: BaseSpace | None = None) -> int:
-        """Return the size of the group, the number of parts of its own space or else of an inherited space."""
+        """Return the size of the group.
+
+        The size is the number of parts of its own space or else of an inherited space.
+        """
         if self.size is not None:
             return int(self.size)
         place = self.space if self.space is not None else space
@@ -152,13 +158,18 @@ class GroupElement(BaseElement):
         return self.element(self.label).set_params(**(self.values or {}))
 
     def _get_member_specs(self) -> dict[str, Spec]:
-        """Return the specs of a member, read from a member only when it declares variables from data."""
+        """Return the specs of a member.
+
+        They are read from a member only when it declares variables from data.
+        """
         if issubclass(self.element, DeclaredElement):
             return self._get_member()._get_part_specs()
         return self.element._get_specs()
 
     def get_declaring_part(self) -> type[BaseElement] | BaseElement:
-        """Return what declares the variables of a member: its class, or a member when it declares them from data.
+        """Return what declares the variables of a member.
+
+        It is its class, or a member when it declares them from data.
 
         Returns:
             part:
@@ -191,28 +202,43 @@ class GroupElement(BaseElement):
         return {name: spec for name, spec in self._get_member_specs().items() if isinstance(spec, StateSpec)}
 
     def _get_tags(self) -> Tags:
-        """Return the tags of the group: those of its members, on its own space, with a variable membership or not."""
+        """Return the tags of the group.
+
+        They are those of its members, on its own space, with a variable membership or not.
+        """
         tags = replace(self._get_law_tags(self.element._get_declared_laws()), domains=self._get_domain_tags())
         space = frozenset() if self.space is None else self.space.get_tags().space
         structure = frozenset({'variable membership'}) if self.variable else frozenset()
         return replace(tags, space=space, structure=structure)
 
     def _draws(self) -> bool:
-        """Return whether the group draws, when it declares it or the class of its members does."""
+        """Return whether the group draws.
+
+        It draws when it declares it or the class of its members does.
+        """
         return self.draws or self.element.draws
 
     def _get_member_location(self, index: int, size: int) -> object:
-        """Return the initial location of one of `size` members, from per-member locations or one shared location."""
+        """Return the initial location of one of `size` members.
+
+        It comes from per-member locations or one shared location.
+        """
         location = self.location
         array = np.asarray(location, dtype=object if isinstance(location, list | tuple) else None)
         return array[index] if array.ndim >= 1 and array.shape[0] == size else location
 
     def _flatten_values(self) -> dict[str, object]:
-        """Return the values with one row per member, which a group takes as given."""
+        """Return the values with one row per member.
+
+        A group takes them as given.
+        """
         return dict(self.values or {})
 
     def _check_value_rows(self) -> None:
-        """Raise an error for a per-member value of a state or a parameter without one row per member."""
+        """Raise an error for a per-member value without one row per member.
+
+        The value is that of a state or a parameter.
+        """
         specs = self._get_member_specs()
         for name, value in self.values_.items():
             spec = specs.get(name)
@@ -244,7 +270,10 @@ class GroupElement(BaseElement):
             raise ValidationError(error_msg)
 
     def _check_size(self) -> None:
-        """Raise an error for a size that is not a positive integer, except an empty variable group on parts."""
+        """Raise an error for a size that is not a positive integer.
+
+        An empty variable group on parts is the exception.
+        """
         if self.size is None and self.on is not None:
             return
         empty = self.variable and self.on in PARTS and self.size == 0
@@ -254,7 +283,10 @@ class GroupElement(BaseElement):
             raise ValidationError(error_msg)
 
     def _check_rank(self) -> None:
-        """Raise an error for a rank of a group that is not a variable group on hyperedges, or below two members."""
+        """Raise an error for an invalid rank of a group.
+
+        Only a variable group on hyperedges takes a rank, and the rank is a whole number of at least two.
+        """
         if self.rank is None:
             return
         if not self.variable or self.on != 'hyperedges':
@@ -265,7 +297,9 @@ class GroupElement(BaseElement):
             raise ValidationError(error_msg)
 
     def _check(self) -> None:
-        """Raise an error for a part, an element type, a size, a rank, or values the group cannot take.
+        """Raise an error for arguments the group cannot take.
+
+        They are a part, an element type, a size, a rank, or values.
 
         Raises:
             SpaceError:
@@ -286,11 +320,11 @@ class GroupElement(BaseElement):
         self._get_member()
 
     def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Set `default_visual_`, the visual of the group when it sets none, `size_`, and `values_`.
+        """Set `default_visual_`, `size_`, and `values_`.
 
-        The default visual of a group is the visual of a member, or the plain visual when the member sets none. The size
-        of a group on parts of a space without a size of its own is the number of parts of its space, or else of the
-        space it inherits.
+        `default_visual_` is the visual of the group when it sets none. The default visual of a group is the visual of a
+        member, or the plain visual when the member sets none. The size of a group on parts of a space without a size of
+        its own is the number of parts of its space, or else of the space it inherits.
 
         Args:
             context:
@@ -312,7 +346,9 @@ class GroupElement(BaseElement):
         self._check_value_rows()
 
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
-        """Return the laws of the element type, written for one member, for a namespace of symbols.
+        """Return the laws of the element type for a namespace of symbols.
+
+        The laws are written for one member.
 
         Args:
             namespace:

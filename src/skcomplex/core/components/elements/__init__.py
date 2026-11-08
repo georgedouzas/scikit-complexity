@@ -1,4 +1,7 @@
-"""Elements of systems: entities that carry states, and groups of identical elements."""
+"""Elements of systems.
+
+Elements are entities that carry states, and groups of identical elements.
+"""
 
 from ._base import BaseElement
 from ._compartment import CompartmentElement

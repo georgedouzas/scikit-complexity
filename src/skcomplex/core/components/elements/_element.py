@@ -15,12 +15,12 @@ from ._base import BaseElement
 
 
 class Element(BaseElement):
-    """Base class of entities that carry state, such as particles, populations, agents, or firms.
+    """Base class of entities that carry state.
 
-    A subclass takes its states, its parameters, and `visual` as arguments of its own `__init__`, annotating each state
-    with a `StateSpec` and each parameter with a `ParameterSpec` inside `Annotated`, and returns its intrinsic dynamics
-    from `_get_laws`, which returns no laws by default. A subclass drawn in its own way gives `visual` a default in its
-    signature.
+    Examples are particles, populations, agents, or firms. A subclass takes its states, its parameters, and `visual` as
+    arguments of its own `__init__`, annotating each state with a `StateSpec` and each parameter with a `ParameterSpec`
+    inside `Annotated`, and returns its intrinsic dynamics from `_get_laws`, which returns no laws by default. A
+    subclass drawn in its own way gives `visual` a default in its signature.
 
     An element whose laws have the agent trait, such as rules, alone or in a group, is an agent: under discrete time it
     runs on the agent stepper, whose rules receive every member as an agent with its states as attributes. Its states
@@ -71,10 +71,11 @@ class Element(BaseElement):
 
     @classmethod
     def _get_view(cls) -> type | None:
-        """Return the class of the views of the element's agents, or `None` for the engine's plain view.
+        """Return the class of the views of the element's agents.
 
-        An agent element names a subclass of the engine's `AgentView` that annotates its states and parameters, such as
-        `class WordView(AgentView): count: float`, so its rules read them with checked types.
+        The result is `None` for the engine's plain view. An agent element names a subclass of the engine's `AgentView`
+        that annotates its states and parameters, such as `class WordView(AgentView): count: float`, so its rules read
+        them with checked types.
         """
         return None
 

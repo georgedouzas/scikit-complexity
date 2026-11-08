@@ -1,4 +1,7 @@
-"""Define word elements, words of modules rewritten in parallel by string productions."""
+"""Define word elements.
+
+A word element holds a word of modules rewritten in parallel by string productions.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,10 +15,11 @@ from ._element import Element
 
 
 class WordElement(Element):
-    """Element that holds a word of modules rewritten in parallel by string productions.
+    """Element that holds a word of modules rewritten in parallel by productions.
 
-    A subclass returns the `ProductionLaw`s of the word from `_get_laws`. Its states are the count of every symbol
-    whose name is a word of letters, digits, and underscores, and the length `size` of the word.
+    The productions are string productions. A subclass returns the `ProductionLaw`s of the word from `_get_laws`. Its
+    states are the count of every symbol whose name is a word of letters, digits, and underscores, and the length `size`
+    of the word.
 
     Args:
         label:
@@ -74,7 +78,10 @@ class WordElement(Element):
         self.bounds = bounds
 
     def _check(self) -> None:
-        """Raise an error for an invalid geometry or a maximum size that is not a positive integer."""
+        """Raise an error for an invalid geometry or a maximum size that is not positive.
+
+        The maximum size must be a positive integer.
+        """
         if self.geometry is not None:
             self.geometry._validated()
         if isinstance(self.max_size, bool) or not isinstance(self.max_size, int) or self.max_size < 1:

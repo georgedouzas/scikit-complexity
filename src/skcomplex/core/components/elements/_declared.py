@@ -1,4 +1,7 @@
-"""Define declared elements, which take their states and parameters as data at construction."""
+"""Define declared elements.
+
+A declared element takes its states and parameters as data at construction.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,13 +17,14 @@ from ._element import Element
 
 
 class DeclaredElement(Element):
-    """Element whose states and parameters are data, for a system that knows them only when it builds the element.
+    """Element whose states and parameters are data.
 
-    The compiler treats a declared variable as it treats an annotated argument of the constructor: the spec gives the
-    declaration and the value gives the default. A law reads a declared variable from its namespace, and `get_value`
-    reads its value from the element. A subclass that derives its variables from other arguments overrides
-    `_declare_variables`, and `variables` then holds the variables that replace the derived ones. The mappings the
-    constructor takes are read as immutable, so `set_params` changes a variable.
+    It serves a system that knows them only when it builds the element. The compiler treats a declared variable as it
+    treats an annotated argument of the constructor: the spec gives the declaration and the value gives the default. A
+    law reads a declared variable from its namespace, and `get_value` reads its value from the element. A subclass that
+    derives its variables from other arguments overrides `_declare_variables`, and `variables` then holds the variables
+    that replace the derived ones. The mappings the constructor takes are read as immutable, so `set_params` changes a
+    variable.
 
     Args:
         label:
@@ -64,7 +68,10 @@ class DeclaredElement(Element):
         return self.variables or {}
 
     def _get_declared(self) -> Mapping[str, DeclaredVariableSpec]:
-        """Return the declared variables, read once per set of arguments, since compiling reads them often."""
+        """Return the declared variables.
+
+        They are read once per set of arguments, since compiling reads them often.
+        """
         arguments = list(self.get_params(deep=False).values())
         known = getattr(self, '_declared', None)
         if known is not None and all(new is old for new, old in zip(arguments, known[0], strict=True)):
@@ -74,7 +81,7 @@ class DeclaredElement(Element):
         return declared
 
     def _check(self) -> None:
-        """Raise an error for a name that a law cannot read or that an argument of the constructor takes.
+        """Raise an error for a name a law cannot read or a constructor argument takes.
 
         Raises:
             ValidationError:
@@ -107,7 +114,9 @@ class DeclaredElement(Element):
         return self._get_declared()[name].value
 
     def set_params(self, **params: object) -> Self:
-        """Set arguments of the constructor and values of declared variables, which keep their specs.
+        """Set arguments of the constructor and values of declared variables.
+
+        The declared variables keep their specs.
 
         Args:
             **params:

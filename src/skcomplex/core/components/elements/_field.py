@@ -1,4 +1,7 @@
-"""Define fields, groups of elements on the sites of a lattice, the nodes of a network, or the nodes of a mesh."""
+"""Define fields.
+
+A field is a group of elements on the sites of a lattice, the nodes of a network, or the nodes of a mesh.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,7 +24,7 @@ DISCRETIZATIONS = ('finite-difference', 'spectral', 'finite-volume', 'finite-ele
 
 
 class FieldElement(LatticeElement):
-    """Group of members of one element type at the sites of a lattice, the nodes of a network, or a mesh.
+    """Group of members of an element type at the sites of a lattice, network, or mesh.
 
     The states of the members are fields, with one value per site, and the laws of the element type are written for
     one site, with `laplacian`, `gradient`, `divergence`, and `advection` reading the neighbouring sites. Every state
@@ -115,7 +118,10 @@ class FieldElement(LatticeElement):
         self.symmetry = symmetry
 
     def _tensor_of(self, state: str) -> TensorSpec | None:
-        """Return the independent components of a tensor state of the element, or `None` for any other state."""
+        """Return the independent components of a tensor state of the element.
+
+        The result is `None` for any other state.
+        """
         spec = self._get_member_specs().get(state)
         if not isinstance(spec, StateSpec) or spec.tensor is None:
             return None
@@ -179,7 +185,9 @@ class FieldElement(LatticeElement):
                 raise ValidationError(error_msg)
 
     def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Set `size_`, `values_`, and `default_visual_`, an image on a lattice and a colored mesh on a mesh.
+        """Set `size_`, `values_`, and `default_visual_`.
+
+        The default visual is an image on a lattice and a colored mesh on a mesh.
 
         Args:
             context:
