@@ -28,7 +28,7 @@ def test_indices_count_the_independent_components(symmetry, n_dim, count):
 def test_check_rejects_one_dimension():
     """A tensor in one dimension is not valid."""
     with pytest.raises(ValidationError, match='2 or 3 dimensions'):
-        TensorSpec('symmetric', 1).prepare()
+        TensorSpec('symmetric', 1)._check()
 
 
 def test_array_of_gives_a_traceless_tensor():

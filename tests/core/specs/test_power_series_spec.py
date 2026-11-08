@@ -57,4 +57,4 @@ def test_entries_of_power_series_check_coefficients():
 def test_invalid_rings_raise(order, field):
     """Test that an order that is not a positive integer or an unknown field raises a validation error."""
     with pytest.raises(ValidationError):
-        PowerSeriesSpec(order, field).prepare()
+        PowerSeriesSpec(order, field)._check()

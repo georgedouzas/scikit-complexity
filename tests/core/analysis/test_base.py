@@ -311,10 +311,12 @@ def test_every_analysis_declares_valid_tags():
     """Test that the module of every analysis declares its tags, and tags of kinds only for kinds of its family."""
     for function in ANALYSES:
         module = sys.modules[function.__module__]
-        assert isinstance(module.TAGS.prepare(), AnalysisTags), function.__name__
+        assert isinstance(module.TAGS, AnalysisTags), function.__name__
+        module.TAGS._check()
         for kind, tags in getattr(module, 'KIND_TAGS', {}).items():
             assert kind in module.KINDS, (function.__name__, kind)
-            assert _get_analysis_tags(function, kind) is tags.prepare()
+            tags._check()
+            assert _get_analysis_tags(function, kind) is tags
 
 
 def test_lyapunov_of_a_stochastic_system_names_the_randomness():

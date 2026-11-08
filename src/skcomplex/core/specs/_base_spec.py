@@ -7,20 +7,17 @@ A spec is a frozen value whose fields are what it is.
 # License: MIT
 
 from dataclasses import dataclass
-from typing import Self
-
-from ..base import BaseConfig
 
 
 @dataclass(frozen=True)
-class BaseSpec(BaseConfig):
+class BaseSpec:
     """Base of every spec.
 
-    A spec is a frozen dataclass whose fields are what it is and whose `prepare` validates them. A spec declares what a
-    class reads, records what a run produced, or holds what a compiler built. It never changes, holds only its fields,
-    the hook `_check`, and readers of its own fields, and is prepared and run like any configurable object: preparing
-    only validates it, and running does nothing. It is the only base whose hooks have defaults: a child that validates
-    its fields overrides `_check()`.
+    A spec is a frozen dataclass whose fields are what it is. A spec declares what a class reads, records what a run
+    produced, or holds what a compiler built. It never changes and holds only its fields, the hook `_check`, and readers
+    of its own fields. A spec is a value, not an estimator: it has neither `prepare` nor `run`, and the class that owns
+    it calls `_check()` when it reads it. A child that validates its fields overrides `_check()`, and a spec is changed
+    with `dataclasses.replace`.
 
     Examples:
         >>> from dataclasses import dataclass
@@ -38,33 +35,3 @@ class BaseSpec(BaseConfig):
 
         It raises a named error for an invalid field. By default, it accepts every field.
         """
-
-    def _prepare(self, context: object | None) -> None:
-        """Prepare nothing, since a spec is a value."""
-
-    def _run(self, inputs: object | None) -> None:
-        """Run nothing, since a spec is a value."""
-
-    def _is_prepared(self) -> None:
-        """Accept a spec that was not prepared, since a frozen spec cannot be marked."""
-
-    def prepare(self, context: object | None = None) -> Self:
-        """Validate the spec.
-
-        A value otherwise leaves the spec as it is.
-
-        Args:
-            context:
-                What the spec serves, which a spec does not read.
-
-        Returns:
-            self:
-                The spec.
-
-        Raises:
-            ValidationError:
-                A field is invalid, named in the message.
-        """
-        self._validated()
-        self._prepare(context)
-        return self

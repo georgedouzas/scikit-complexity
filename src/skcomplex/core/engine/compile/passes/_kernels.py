@@ -99,7 +99,8 @@ class KernelsPass(BasePass):
         The law and component are the owner.
         """
         if isinstance(value, CallSpec):
-            return KernelsPass._call_outputs(value._validated(), targets, owner)
+            value._check()
+            return KernelsPass._call_outputs(value, targets, owner)
         expressions = KernelsPass._symbolic_components(value, len(targets), owner)
         if expressions is None:
             if not callable(value):

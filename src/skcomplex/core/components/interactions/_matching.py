@@ -777,7 +777,7 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
                 raise ValidationError(error_msg)
         self._check_variant('rule', self.rule, (), RULES, functions=True)
         if isinstance(self.rule, RULES):
-            self.rule._validated()
+            self.rule._check()
 
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
         """Return the rule that matches the members in the matching's phase.

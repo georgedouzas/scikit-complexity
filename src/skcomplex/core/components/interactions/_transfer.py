@@ -356,7 +356,7 @@ class TransferInteraction(Interaction):
             raise ValidationError(error_msg)
         self._check_variant('pairing', self.pairing, PAIRINGS, (PartnerSpec,), functions=True)
         if isinstance(self.pairing, PartnerSpec):
-            self.pairing._validated()
+            self.pairing._check()
         self._check_settlement()
         if self.form == 'symbolic' and self.fallback is not None:
             error_msg = f'The symbolic form of {self.label!r} pairs members. Use `form="agent"` for a fallback group.'

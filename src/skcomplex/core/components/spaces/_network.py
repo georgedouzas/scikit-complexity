@@ -201,7 +201,7 @@ class NetworkSpace(BaseSpace):
                 error_msg = f'The hyperedge {tuple(hyperedge)} needs at least two nodes of the graph.'
                 raise ValidationError(error_msg)
         for layer in self.layers:
-            layer._validated()
+            layer._check()
         labels = [layer.label for layer in self.layers]
         repeated = sorted({label for label in labels if labels.count(label) > 1})
         if repeated:

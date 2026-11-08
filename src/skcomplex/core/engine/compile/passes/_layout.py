@@ -583,7 +583,9 @@ class LayoutPass(BasePass):
         """
         if declaration.tensor is None or space is None:
             return None
-        return TensorSpec(declaration.tensor, int(space.n_dim_))._validated()
+        tensor = TensorSpec(declaration.tensor, int(space.n_dim_))
+        tensor._check()
+        return tensor
 
     @staticmethod
     def _shape_of(name: str, declaration: VariableSpec, space: BaseSpace | None) -> tuple[int, ...]:

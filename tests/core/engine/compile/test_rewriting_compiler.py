@@ -353,9 +353,9 @@ def test_module_parameters_override_the_word_geometry():
 def test_word_geometry_errors():
     """Test that unknown actions and dimensions are refused."""
     with pytest.raises(RewritingError, match='has no action'):
-        GeometrySpec(symbols={'G': 'jump'}).prepare()
+        GeometrySpec(symbols={'G': 'jump'})._check()
     with pytest.raises(RewritingError, match='dimension 4'):
-        GeometrySpec(dimension=4).prepare()
+        GeometrySpec(dimension=4)._check()
 
 
 def _cantor(generations):

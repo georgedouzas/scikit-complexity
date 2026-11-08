@@ -125,7 +125,9 @@ class FieldElement(LatticeElement):
         spec = self._get_member_specs().get(state)
         if not isinstance(spec, StateSpec) or spec.tensor is None:
             return None
-        return TensorSpec(spec.tensor, int(cast(BaseSpace, self.space).prepare().n_dim_))._validated()
+        tensor = TensorSpec(spec.tensor, int(cast(BaseSpace, self.space).prepare().n_dim_))
+        tensor._check()
+        return tensor
 
     def _get_boundary(self, state: str, column: int = 0) -> tuple[str, object]:
         """Return the boundary condition of a state and the value read outside fixed edges.

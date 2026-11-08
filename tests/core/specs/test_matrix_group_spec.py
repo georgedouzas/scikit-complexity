@@ -102,7 +102,7 @@ def test_holonomy_trace_is_gauge_invariant():
 def test_check_rejects_unknown_groups_and_degrees(arguments, match):
     """Test that an unknown group or a degree that is not a positive integer raises an error."""
     with pytest.raises(ValidationError, match=match):
-        MatrixGroupSpec(**arguments)._validated()
+        MatrixGroupSpec(**arguments)._check()
 
 
 def test_components_of_the_wrong_size_and_paths_of_wrong_signs_raise_an_error():

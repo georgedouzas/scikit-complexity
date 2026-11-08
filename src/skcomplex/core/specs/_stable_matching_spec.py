@@ -35,7 +35,7 @@ class StableMatchingSpec(BaseSpec):
 
     Raises:
         ValidationError:
-            The clearing rule is unknown, raised by `prepare`.
+            The clearing rule is unknown, raised when its owner checks it.
 
     Examples:
         >>> from skcomplex.core.specs import StableMatchingSpec

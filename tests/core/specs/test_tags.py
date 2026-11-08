@@ -9,12 +9,13 @@ from skcomplex.core.specs import DOMAINS, LAWS, RANDOMNESS, SPACES, STRUCTURES, 
 def test_tags_reject_an_unknown_value():
     """Test that a tag outside the values of its field is refused, with the field and its values named."""
     with pytest.raises(ValidationError, match=r"The space tag 'torus' is unknown\. Use one of 'none'"):
-        Tags(space=frozenset({'torus'})).prepare()
+        Tags(space=frozenset({'torus'}))._check()
 
 
 def test_tags_accept_unknown_law_kinds():
     """Test that law kinds and randomness may be unknown."""
-    tags = Tags(laws=None, randomness=None).prepare()
+    tags = Tags(laws=None, randomness=None)
+    tags._check()
     assert tags.laws is None
     assert tags.randomness is None
 
@@ -51,5 +52,6 @@ def test_tags_accept_every_value_of_the_public_vocabularies():
         laws=frozenset(LAWS),
         randomness=RANDOMNESS[-1],
         structure=frozenset(STRUCTURES),
-    ).prepare()
+    )
+    tags._check()
     assert tags.time == frozenset(TIMES)

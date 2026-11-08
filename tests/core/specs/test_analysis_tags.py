@@ -9,9 +9,9 @@ from skcomplex.core.specs import AnalysisTags, Tags
 def test_analysis_tags_reject_an_unknown_value():
     """Test that a data kind or a tag outside the values of its field is refused, with the field named."""
     with pytest.raises(ValidationError, match=r"The data tag 'table' is unknown"):
-        AnalysisTags('table').prepare()
+        AnalysisTags('table')._check()
     with pytest.raises(ValidationError, match=r"The space tag 'torus' is unknown"):
-        AnalysisTags('series', space=frozenset({'torus'})).prepare()
+        AnalysisTags('series', space=frozenset({'torus'}))._check()
 
 
 def test_missing_names_the_fields_a_system_lacks():

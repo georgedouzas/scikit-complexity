@@ -180,7 +180,7 @@ class TrainingInteraction(Interaction):
         super()._check()
         self._check_counts()
         self._check_observables()
-        self.data._validated()
+        self.data._check()
 
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
         """Return the gradient-step law of the training."""

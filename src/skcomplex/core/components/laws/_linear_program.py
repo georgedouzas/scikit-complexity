@@ -120,7 +120,7 @@ class LinearProgramLaw(BaseLaw):
             if not isinstance(objective, LinearObjectiveSpec):
                 error_msg = f'An objective of a linear program is a `LinearObjectiveSpec`, not {objective!r}.'
                 raise ValidationError(error_msg)
-            objective._validated()
+            objective._check()
         if self.infeasible not in INFEASIBLE_POLICIES:
             error_msg = (
                 f'Unknown infeasibility policy {self.infeasible!r}. Use one of {", ".join(INFEASIBLE_POLICIES)}.'

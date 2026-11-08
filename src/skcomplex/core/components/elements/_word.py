@@ -83,7 +83,7 @@ class WordElement(Element):
         The maximum size must be a positive integer.
         """
         if self.geometry is not None:
-            self.geometry._validated()
+            self.geometry._check()
         if isinstance(self.max_size, bool) or not isinstance(self.max_size, int) or self.max_size < 1:
             error_msg = f'The maximum size of {self.label} must be a positive integer, but it is {self.max_size!r}.'
             raise RewritingError(error_msg)

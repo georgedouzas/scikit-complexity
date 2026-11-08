@@ -30,7 +30,7 @@ class RunSettingsSpec(BaseSpec):
 
     Raises:
         ValidationError:
-            The length of the run, the time step, or the saving interval is not positive, raised by `prepare`.
+            The length of the run, the time step, or the saving interval is not positive, raised when its owner checks it.
 
     Examples:
         >>> from skcomplex.core.specs import RunSettingsSpec

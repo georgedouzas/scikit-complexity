@@ -26,7 +26,7 @@ class ContinuousMatchingSpec(BaseSpec):
 
     Raises:
         ValidationError:
-            The order of arrival is unknown, raised by `prepare`.
+            The order of arrival is unknown, raised when its owner checks it.
 
     Examples:
         >>> from skcomplex.core.specs import ContinuousMatchingSpec

@@ -267,7 +267,7 @@ def _check_inputs(
         error_msg = f'The symmetry is {symmetry!r}. Give a SymmetrySpec to check.'
         raise AnalysisError(error_msg)
     if isinstance(symmetry, SymmetrySpec) and kind == 'symmetry':
-        symmetry._validated()
+        symmetry._check()
     if not isinstance(samples, int) or samples < 1:
         error_msg = f'samples = {samples!r} must be a positive integer.'
         raise AnalysisError(error_msg)

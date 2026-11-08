@@ -33,7 +33,7 @@ class CardinalitySpec(BaseSpec):
 
     Raises:
         ValidationError:
-            A literal is 0, the bound lies outside the number of literals, or the sense is unknown, raised by `prepare`.
+            A literal is 0, the bound lies outside the number of literals, or the sense is unknown, raised when its owner checks it.
 
     Examples:
         >>> from skcomplex.core.specs import CardinalitySpec

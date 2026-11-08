@@ -180,7 +180,7 @@ class OperatorCompiler(BaseCompiler):
                 'Declare its state as `StateSpec(domain=CC)`.'
             )
             raise ValidationError(error_msg)
-        space._validated()
+        space._check()
         domain = declarations_of(element, VariableKind.STATE)[state].domain
         dimension = domain.dimension() if isinstance(domain, FreeModule_generic) else space.dimension
         if dimension != space.dimension:

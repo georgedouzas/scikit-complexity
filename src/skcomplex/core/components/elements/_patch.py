@@ -80,7 +80,7 @@ class PatchElement(Element):
             if name not in names:
                 error_msg = f'The patch {self.label} has a tile of the unknown prototile {name!r}.'
                 raise RewritingError(error_msg)
-            placement._validated()
+            placement._check()
 
     def _prepare(self, context: object = None) -> None:
         """Set `default_visual_`, the geometry of the tiles.

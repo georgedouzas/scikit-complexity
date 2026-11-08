@@ -16,4 +16,4 @@ def test_connector_names_the_variables_of_a_port():
 def test_connector_rejects_variables_that_are_not_distinct_names(potential, flow):
     """Test that the potential and the flow are two different names."""
     with pytest.raises(ValidationError, match='Give two different names'):
-        ConnectorSpec('broken', potential=potential, flow=flow).prepare()
+        ConnectorSpec('broken', potential=potential, flow=flow)._check()

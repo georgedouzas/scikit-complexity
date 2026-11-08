@@ -46,13 +46,15 @@ def _read_systems(handle: TextIO | str, *, is_pdb: bool) -> StructureSpec:
         ]
         coordinates.append([atom.coord for atom, _, _ in selected])
         atoms = selected
-    return StructureSpec(
+    read = StructureSpec(
         np.asarray(coordinates, dtype=float),
         tuple(atom.get_name() for atom, _, _ in atoms),
         tuple(residue.get_resname() for _, residue, _ in atoms),
         tuple(int(residue.id[1]) for _, residue, _ in atoms),
         tuple(str(chain.id) for _, _, chain in atoms),
-    )._validated()
+    )
+    read._check()
+    return read
 
 
 def read_structure(source: str | Path) -> StructureSpec:
@@ -211,10 +213,12 @@ def read_trajectory(path: str | Path, topology: str | Path) -> StructureSpec:
     """
     trajectory = import_extra('mdtraj', STRUCTURE_SYSTEMS, 'trajectories').load(str(path), top=str(topology))
     atoms = list(trajectory.topology.atoms)
-    return StructureSpec(
+    read = StructureSpec(
         np.asarray(trajectory.xyz, dtype=float) * NM_TO_ANGSTROM,
         tuple(atom.name for atom in atoms),
         tuple(atom.residue.name for atom in atoms),
         tuple(int(atom.residue.resSeq) for atom in atoms),
         tuple(str(atom.residue.chain.chain_id or atom.residue.chain.index) for atom in atoms),
-    )._validated()
+    )
+    read._check()
+    return read

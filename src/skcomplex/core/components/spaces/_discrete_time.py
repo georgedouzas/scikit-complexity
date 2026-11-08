@@ -44,7 +44,7 @@ class DiscreteTime(BaseTime):
     def _check(self) -> None:
         """Raise an error for a schedule that is neither known nor a `ScheduleSpec`."""
         if isinstance(self.schedule, ScheduleSpec):
-            self.schedule._validated()
+            self.schedule._check()
             return
         if self.schedule not in SCHEDULES:
             error_msg = f'Unknown schedule {self.schedule!r}. Use one of {", ".join(SCHEDULES)}, or a ScheduleSpec.'

@@ -24,7 +24,7 @@ class QueueSpec(BaseSpec):
 
     Raises:
         ValidationError:
-            The order is unknown, raised by `prepare`.
+            The order is unknown, raised when its owner checks it.
 
     Examples:
         >>> from skcomplex.core.specs import QueueSpec

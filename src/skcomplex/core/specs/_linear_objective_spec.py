@@ -26,7 +26,7 @@ class LinearObjectiveSpec(BaseSpec):
 
     Raises:
         ValidationError:
-            The sense is unknown, raised by `prepare`.
+            The sense is unknown, raised when its owner checks it.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var

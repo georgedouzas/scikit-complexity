@@ -635,7 +635,7 @@ def _atom_counts(atoms: Sequence[AtomMapSpec]) -> dict[str, int]:
     """
     counts: dict[str, tuple[int, str]] = {}
     for item in atoms:
-        item._validated()
+        item._check()
         for metabolite, letters in (*item.reactants, *item.products):
             known = counts.setdefault(metabolite, (len(letters), item.reaction))
             if known[0] != len(letters):

@@ -98,7 +98,7 @@ class ProductionLaw(BaseLaw):
             error_msg = f'The predecessor of a production is one symbol or module, not {self.predecessor!r}.'
             raise RewritingError(error_msg)
         for module in ModuleSpec.parse_word(self.successor):
-            module._validated()
+            module._check()
         if isinstance(self.probability, numbers.Real) and not 0 <= float(self.probability) <= 1:
             error_msg = f'The probability of a production is in [0, 1], not {self.probability!r}.'
             raise RewritingError(error_msg)

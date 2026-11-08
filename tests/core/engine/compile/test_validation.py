@@ -208,7 +208,7 @@ def test_report_raises_every_error():
         ),
     )
     with pytest.warns(ValidationWarning, match='Something to know'), pytest.raises(ValidationError) as error:
-        report.prepare()
+        report._check()
     assert '2 error(s)' in str(error.value)
     assert 'growth: The role is unbound. Bind it. [role]' in str(error.value)
     assert '[law-domain]' in str(error.value)

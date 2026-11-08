@@ -116,7 +116,7 @@ class TopologyRequestSpec(BaseSpec):
     Examples:
         >>> from skcomplex.core.components.laws import UpdateLaw
         >>> from skcomplex.core.specs import TopologyRequestSpec
-        >>> UpdateLaw(TopologyRequestSpec('rewire', keep='target').prepare(), 0.1).target.keep
+        >>> UpdateLaw(TopologyRequestSpec('rewire', keep='target'), 0.1).target.keep
         'target'
     """
 

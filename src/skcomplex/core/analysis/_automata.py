@@ -596,7 +596,8 @@ def _find_subshift(system: System) -> tuple[GroupElement, SubshiftSpec] | None:
             continue
         for spec in element.get_states().values():
             if isinstance(spec.domain, SubshiftSpec):
-                return element, spec.domain._validated()
+                spec.domain._check()
+                return element, spec.domain
     return None
 
 

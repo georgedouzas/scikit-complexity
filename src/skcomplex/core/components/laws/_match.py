@@ -95,7 +95,7 @@ class MatchLaw(BaseLaw):
         The capacity must be a positive integer.
         """
         if isinstance(self.pairing, PartnerSpec):
-            self.pairing._validated()
+            self.pairing._check()
         if isinstance(self.capacity, bool) or not isinstance(self.capacity, int) or self.capacity < 1:
             error_msg = f'The match {self.label!r} has capacity {self.capacity!r}. Give a positive integer.'
             raise ValidationError(error_msg)

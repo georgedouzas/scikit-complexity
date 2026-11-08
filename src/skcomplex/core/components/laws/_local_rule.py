@@ -135,7 +135,7 @@ class LocalRuleLaw(BaseLaw):
             error_msg = f'Unknown schedule {self.schedule!r}. Use one of {", ".join(SCHEDULES)}.'
             raise ValidationError(error_msg)
         if isinstance(self.rule, BaseSpec):
-            self.rule._validated()
+            self.rule._check()
 
     def _get_rule(self) -> object:
         """Return a rule code as its table, and any other rule unchanged.

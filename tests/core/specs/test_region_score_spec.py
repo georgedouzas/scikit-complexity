@@ -16,7 +16,7 @@ def _area(labels):
 def test_region_score_keeps_its_constraints_and_hits():
     """Test that a valid score keeps its constraints and its number of hits."""
     area = _area
-    score = RegionScoreSpec(np.maximum, volume=area, hits=3)._validated()
+    score = RegionScoreSpec(np.maximum, volume=area, hits=3)
     assert (score.volume, score.surface, score.hits) == (area, None, 3)
 
 
@@ -32,4 +32,4 @@ def test_region_score_keeps_its_constraints_and_hits():
 def test_region_score_rejects_what_it_cannot_run(arguments, match):
     """Test that a contact or a constraint that is not callable, or no hits, raise an error."""
     with pytest.raises(ValidationError, match=match):
-        RegionScoreSpec(**arguments)._validated()
+        RegionScoreSpec(**arguments)._check()

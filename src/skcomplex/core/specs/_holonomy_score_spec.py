@@ -62,7 +62,7 @@ class HolonomyScoreSpec(BaseSpec):
         if not isinstance(self.group, MatrixGroupSpec):
             error_msg = f'The group of a holonomy score is a MatrixGroupSpec, but it is {self.group!r}.'
             raise ValidationError(error_msg)
-        self.group._validated()
+        self.group._check()
         if not isinstance(self.hits, int) or self.hits < 1:
             error_msg = f'A holonomy score proposes at least one move per edge, but it has hits={self.hits!r}.'
             raise ValidationError(error_msg)

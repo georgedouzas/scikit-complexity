@@ -30,7 +30,7 @@ class ClampSpec(BaseSpec):
 
     Raises:
         ValidationError:
-            A bound is negative, raised by `prepare`.
+            A bound is negative, raised when its owner checks it.
 
     Examples:
         >>> from skcomplex.core.specs import ClampSpec

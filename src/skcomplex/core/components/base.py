@@ -269,5 +269,5 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
         """
         self._check_label()
         for spec in [*self._get_specs().values(), *self._get_declared().values()]:
-            spec._validated()
+            spec._check()
         return super()._validated()

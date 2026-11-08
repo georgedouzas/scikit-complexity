@@ -105,7 +105,7 @@ class SatisfiabilityInteraction(Interaction):
             if not isinstance(constraint, ClauseSpec | CardinalitySpec):
                 error_msg = f'The constraint {constraint!r} of {self.label!r} is no ClauseSpec or CardinalitySpec.'
                 raise ValidationError(error_msg)
-            constraint._validated()
+            constraint._check()
 
     def _add(self, constraint: ClauseSpec | CardinalitySpec, solver: Solver, pool: IDPool) -> None:
         """Add one constraint to the solver.

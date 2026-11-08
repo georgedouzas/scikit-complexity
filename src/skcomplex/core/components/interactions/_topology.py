@@ -267,7 +267,7 @@ class TopologyInteraction(NeighborInteraction):
                 error_msg = f'The {name} of {self.label!r} is {value!r}. Give a function of the namespace, or None.'
                 raise ValidationError(error_msg)
         for request in self._get_requests():
-            request._validated()
+            request._check()
 
     def _get_requests(self) -> list[TopologyRequestSpec]:
         """Return the request of the action."""

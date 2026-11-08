@@ -71,4 +71,4 @@ class SampleLaw(BaseLaw):
         """Check the objective, the move, and the sampler."""
         for spec in (self.objective, self.move, self.sampler):
             if spec is not None:
-                spec._validated()
+                spec._check()

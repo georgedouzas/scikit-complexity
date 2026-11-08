@@ -208,7 +208,7 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
             ValidationError:
                 The report holds an error, or the initial values are not a mapping.
         """
-        self.report_._validated()
+        self.report_._check()
         if inputs is not None and not isinstance(inputs, Mapping):
             error_msg = f'The initial state is a {type(inputs).__name__}. Pass a mapping of dotted state names.'
             raise ValidationError(error_msg)
@@ -383,7 +383,8 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
         """
         by_scope: dict[str, list[ObservableSpec]] = {}
         for observable in observables:
-            checked = BaseCompiler._of_root(observable._validated())
+            observable._check()
+            checked = BaseCompiler._of_root(observable)
             scope, _, label = checked.label.rpartition('/')
             by_scope.setdefault(scope, []).append(dataclasses.replace(checked, label=label))
         if not by_scope:

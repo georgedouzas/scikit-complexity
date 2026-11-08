@@ -74,7 +74,7 @@ class SubstitutionLaw(BaseLaw):
             if not (isinstance(piece, tuple) and len(piece) == PIECE_SIZE and isinstance(piece[1], AffineSpec)):
                 error_msg = f'A piece of a substitution is a prototile name and an `AffineSpec`, not {piece!r}.'
                 raise RewritingError(error_msg)
-            piece[1]._validated()
+            piece[1]._check()
 
     def _run(self, inputs: object) -> None:
         """Set `value_` to the pieces with their maps at given values.

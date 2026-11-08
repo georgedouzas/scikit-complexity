@@ -122,7 +122,7 @@ def test_snapshots_read_headings_from_roles_alone():
 def test_state_spec_rejects_an_unknown_role():
     """Test that a role is one of the names analyses read."""
     with pytest.raises(ValidationError, match='The role of a state'):
-        StateSpec(role='spin').prepare()
+        StateSpec(role='spin')._check()
 
 
 def test_observable_keeps_a_hashable_value():

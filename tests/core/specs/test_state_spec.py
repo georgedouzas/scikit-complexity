@@ -44,13 +44,13 @@ def _matrix_on(shape):
 def test_check_rejects_vector_and_tensor_together():
     """A state that is both a vector and a tensor names both settings."""
     with pytest.raises(ValidationError, match=r'vector=True or tensor=.symmetric'):
-        StateSpec(vector=True, tensor='symmetric').prepare()
+        StateSpec(vector=True, tensor='symmetric')._check()
 
 
 def test_check_rejects_unknown_symmetry():
     """An unknown tensor symmetry raises an error."""
     with pytest.raises(ValidationError, match='tensor symmetry'):
-        StateSpec(tensor='skew').prepare()
+        StateSpec(tensor='skew')._check()
 
 
 def test_tensor_traceless_stores_two_components_in_two_dimensions():
@@ -72,9 +72,9 @@ def test_algebraic_state_has_order_one_and_no_lags():
     """Test that an algebraic state rejects an order other than 1 and lags, which its equations leave no room for."""
     assert StateSpec(algebraic=True).algebraic
     with pytest.raises(ValidationError, match='An algebraic state has order 1 and no lags'):
-        StateSpec(algebraic=True, order=2).prepare()
+        StateSpec(algebraic=True, order=2)._check()
     with pytest.raises(ValidationError, match='An algebraic state has order 1 and no lags'):
-        StateSpec(algebraic=True, lags=1).prepare()
+        StateSpec(algebraic=True, lags=1)._check()
 
 
 class _ColorLinkElement(Element):
@@ -100,7 +100,7 @@ def test_matrix_group_state_stores_the_real_components_of_every_matrix():
 def test_matrix_group_state_holds_its_matrices_alone(arguments):
     """Test that a matrix group state that is also a vector, a tensor, or of another order or with lags is refused."""
     with pytest.raises(ValidationError, match='holds its matrices alone'):
-        StateSpec(group=COLOR, **arguments).prepare()
+        StateSpec(group=COLOR, **arguments)._check()
 
 
 @pytest.mark.parametrize(

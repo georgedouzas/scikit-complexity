@@ -16,6 +16,6 @@ def test_characteristic_reads_the_field():
 def test_check_rejects_an_unknown_field():
     """Test that a field that is neither the rationals nor a prime field is rejected."""
     with pytest.raises(ValidationError, match='Unknown field'):
-        LinearRuleSpec((1,), 'GF(x)').prepare()
+        LinearRuleSpec((1,), 'GF(x)')._check()
     with pytest.raises(ValidationError, match='Unknown field'):
-        LinearRuleSpec((1,), 'RR').prepare()
+        LinearRuleSpec((1,), 'RR')._check()

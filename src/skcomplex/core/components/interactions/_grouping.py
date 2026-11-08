@@ -236,7 +236,7 @@ class GroupingInteraction(Interaction):
             raise ValidationError(error_msg)
         self._check_variant('groups', self.groups, GROUPS, (BaseSpec,), functions=True)
         if isinstance(self.groups, PartnerSpec):
-            self.groups._validated()
+            self.groups._check()
         if isinstance(self.size, bool) or not isinstance(self.size, int) or self.size < PAIR:
             error_msg = f'The size of the groups of {self.label!r} is {self.size!r}. Give a whole number of at least 2.'
             raise ValidationError(error_msg)

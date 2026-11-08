@@ -227,7 +227,7 @@ class Simulation(BaseConfig[None, float]):
             )
             raise ValidationError(error_msg)
         if not isinstance(self.system, BaseProblemSpec):
-            self._compiler().prepare(self.system).report_._validated()
+            self._compiler().prepare(self.system).report_._check()
 
     def _prepare(self, context: None) -> None:
         """Compile the system and choose the solver.

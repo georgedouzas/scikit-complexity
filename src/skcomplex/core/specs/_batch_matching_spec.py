@@ -18,6 +18,6 @@ class BatchMatchingSpec(BaseSpec):
 
     Examples:
         >>> from skcomplex.core.specs import BatchMatchingSpec
-        >>> BatchMatchingSpec().prepare()
+        >>> BatchMatchingSpec()
         BatchMatchingSpec()
     """

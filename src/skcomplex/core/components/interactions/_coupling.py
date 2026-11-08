@@ -345,9 +345,9 @@ class CouplingInteraction(NeighborInteraction):
             error_msg = f'The agent form of coupling {self.label!r} needs one group of agents and at least one radius.'
             raise ValidationError(error_msg)
         for spec in self.radii:
-            spec._validated()
+            spec._check()
         if self.clamp is not None:
-            self.clamp._validated()
+            self.clamp._check()
 
     def _check(self) -> None:
         """Raise an error for unknown variants, bad functions, or unsuitable weights.

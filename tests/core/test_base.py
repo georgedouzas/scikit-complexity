@@ -103,7 +103,7 @@ def test_settings_follow_scikit_learn():
 
 
 def test_every_base_derives_from_the_root():
-    """Test that every class named `Base*` outside the systems derives from `BaseConfig`."""
+    """Test that every class named `Base*` outside the systems derives from `BaseConfig` or `BaseSpec`."""
     outside = []
     for module in pkgutil.walk_packages(skcomplex.__path__, 'skcomplex.'):
         if module.name.startswith('skcomplex.systems'):
@@ -117,7 +117,7 @@ def test_every_base_derives_from_the_root():
                 inspect.isclass(value)
                 and value.__module__ == loaded.__name__
                 and name.lstrip('_').startswith('Base')
-                and not issubclass(value, BaseConfig | BaseException)
+                and not issubclass(value, BaseConfig | BaseSpec | BaseException)
             ):
                 outside.append(f'{loaded.__name__}.{name}')
     assert outside == []
@@ -137,8 +137,8 @@ def test_a_class_without_a_hook_cannot_be_created():
         IdleConfig()
 
 
-def test_a_spec_without_hooks_checks_prepares_and_runs():
-    """Test that a spec, the only configurable object with default hooks, checks, prepares, and runs unchanged."""
+def test_a_spec_without_hooks_is_a_value():
+    """Test that a spec without hooks has neither `prepare` nor `run`, and its owner checks it through `_check`."""
 
     @dataclass(frozen=True)
     class SpanSpec(BaseSpec):
@@ -146,4 +146,7 @@ def test_a_spec_without_hooks_checks_prepares_and_runs():
         end: float
 
     span = SpanSpec(0.0, 1.0)
-    assert span.prepare().run() is span
+    assert not isinstance(span, BaseConfig)
+    assert not hasattr(span, 'prepare')
+    assert not hasattr(span, 'run')
+    assert span._check() is None

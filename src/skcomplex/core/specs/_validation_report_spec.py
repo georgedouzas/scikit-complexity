@@ -15,7 +15,7 @@ from ._issue_spec import _ERROR, _WARNING, IssueSpec
 class ValidationReportSpec(BaseSpec):
     """Every issue that a compiler found in a system, its solver, and its backend.
 
-    `prepare` emits the warnings of the report and raises one error that lists its errors, so a valid report passes
+    Its check emits the warnings of the report and raises one error that lists its errors, so a valid report passes
     its check.
 
     Args:

@@ -333,13 +333,13 @@ def _decaying_group(*observables, until=0.0):
 def test_state_spec_rejects_invalid_orders_and_lags(spec, message):
     """Test that an order that is not positive or integral, negative lags, or too many initial values are rejected."""
     with pytest.raises(ValidationError, match=message):
-        spec.prepare()
+        spec._check()
 
 
 @pytest.mark.parametrize('spec', [StateSpec(order=0.6), StateSpec(order=2.0), StateSpec(lags=2, initial=(1.0, 2.0))])
 def test_state_spec_accepts_fractional_orders_and_lags(spec):
     """Test that a fractional order, an integral order given as a float, and lags with their initial values pass."""
-    assert spec.prepare() is spec
+    spec._check()
 
 
 @pytest.mark.parametrize(
@@ -357,13 +357,13 @@ def test_state_spec_accepts_fractional_orders_and_lags(spec):
 def test_parameter_spec_rejects_invalid_declarations(spec, message):
     """Test that a parameter per role that is a vector or adaptive, invalid bounds, and bad shapes are rejected."""
     with pytest.raises(ValidationError, match=message):
-        spec.prepare()
+        spec._check()
 
 
 def test_parameter_spec_accepts_bounds_of_an_adaptive_parameter():
     """Test that an adaptive parameter takes bounds."""
     spec = ParameterSpec(adaptive=True, bounds=(0, 1))
-    assert spec.prepare() is spec
+    spec._check()
 
 
 def test_parameter_spec_accepts_a_shape_of_role_names():
@@ -375,7 +375,7 @@ def test_role_spec_is_variadic_or_a_noise_role():
     """Test that a role is either variadic or a noise role, not both."""
     assert RoleSpec(noise=True).noise
     with pytest.raises(ValidationError, match='not both'):
-        RoleSpec(variadic=True, noise=True).prepare()
+        RoleSpec(variadic=True, noise=True)._check()
 
 
 def test_role_spec_may_be_optional():
@@ -385,8 +385,10 @@ def test_role_spec_may_be_optional():
 
 
 def test_specs_are_frozen_records():
-    """Test that the specs are frozen dataclasses that derive from the spec base, itself a configurable object."""
-    assert issubclass(BaseSpec, BaseConfig)
+    """Test that the specs are frozen dataclasses that derive from the spec base, which is not an estimator."""
+    assert not issubclass(BaseSpec, BaseConfig)
+    assert not hasattr(BaseSpec, 'prepare')
+    assert not hasattr(BaseSpec, 'run')
     for spec in (StateSpec, ParameterSpec, RoleSpec, ObservableSpec, HilbertSpec, TopologyRequestSpec):
         assert spec.__bases__ == (BaseSpec,)
         assert spec.__dataclass_params__.frozen
@@ -427,7 +429,7 @@ def test_layer_spec_needs_a_string_label():
     """Test that a layer is labelled by a string."""
     assert LayerSpec('work', nx.path_graph(3)).label == 'work'
     with pytest.raises(ValidationError, match='string'):
-        LayerSpec(1, nx.path_graph(3)).prepare()
+        LayerSpec(1, nx.path_graph(3))._check()
 
 
 @pytest.mark.parametrize(
@@ -437,7 +439,7 @@ def test_layer_spec_needs_a_string_label():
 def test_wiener_process_spec_checks_its_label_and_dimension(spec, message):
     """Test that Wiener processes need a string label and a positive whole dimension."""
     with pytest.raises(ValidationError, match=message):
-        spec.prepare()
+        spec._check()
 
 
 @pytest.mark.parametrize(
@@ -453,13 +455,13 @@ def test_wiener_process_spec_checks_its_label_and_dimension(spec, message):
 def test_phases_schedule_spec_checks_its_phases(phases, message):
     """Test that phases need their own names, a known activation, and at least one round."""
     with pytest.raises(ValidationError, match=message):
-        PhasesScheduleSpec(phases).prepare()
+        PhasesScheduleSpec(phases)._check()
 
 
 def test_schedule_spec_has_nothing_to_check():
     """Test that the base schedule spec checks into itself."""
     schedule = ScheduleSpec()
-    assert schedule.prepare() is schedule
+    schedule._check()
 
 
 def test_monte_carlo_specs_check_their_kinds():
@@ -470,13 +472,13 @@ def test_monte_carlo_specs_check_their_kinds():
     assert MoveSpec(spin, 'gaussian', width=0.5).kind == 'gaussian'
     assert MoveSpec(spin, 'function', function=lambda values, random: values).kind == 'function'
     with pytest.raises(ValidationError, match='Unknown move'):
-        MoveSpec(spin, 'swap').prepare()
+        MoveSpec(spin, 'swap')._check()
     with pytest.raises(ValidationError, match='callable function'):
-        MoveSpec(spin, 'function').prepare()
+        MoveSpec(spin, 'function')._check()
     with pytest.raises(ValidationError, match='Unknown sampler'):
-        SamplerSpec('wolff').prepare()
+        SamplerSpec('wolff')._check()
     with pytest.raises(ValidationError, match='Unknown Monte Carlo schedule'):
-        SamplerSpec(schedule='parallel').prepare()
+        SamplerSpec(schedule='parallel')._check()
 
 
 @pytest.mark.parametrize(
@@ -492,7 +494,7 @@ def test_monte_carlo_specs_check_their_kinds():
 def test_hilbert_spec_checks_its_space(spec, message):
     """Test that a Hilbert space needs a positive dimension, square operators, basis states, and its display."""
     with pytest.raises(ValidationError, match=message):
-        spec.prepare()
+        spec._check()
 
 
 @pytest.mark.parametrize(
@@ -515,7 +517,7 @@ def test_hilbert_spec_checks_its_space(spec, message):
 def test_topology_request_spec_checks_its_kind_end_and_edges(spec, message):
     """Test that a topology request needs a known kind and kept end, whole edges, and a hyperedge of a new node."""
     with pytest.raises(ValidationError, match=message):
-        spec.prepare()
+        spec._check()
 
 
 def test_categorical_values_round_trip_as_labels():
@@ -624,9 +626,9 @@ def test_observable_of_a_member_symbol_outside_a_reduction_is_rejected():
 def test_observable_lambda_is_rejected():
     """Test that checking an observable whose expression or reduction is a lambda raises a named error."""
     with pytest.raises(ValidationError, match="expression of the observable 'total'"):
-        ObservableSpec('total', lambda s: s.a.n + s.b.n).prepare()
+        ObservableSpec('total', lambda s: s.a.n + s.b.n)._check()
     with pytest.raises(ValidationError, match='reduction'):
-        ObservableSpec('spread', group='herd', variable='n', reduce=lambda values: values.ptp()).prepare()
+        ObservableSpec('spread', group='herd', variable='n', reduce=lambda values: values.ptp())._check()
 
 
 def test_simulation_checks_its_observables():
@@ -760,7 +762,7 @@ def test_matching_rule_specs_hold_their_settings(spec, name, value):
 
 def test_batch_matching_spec_has_no_settings():
     """Test that batch matching is a spec without settings."""
-    assert dataclasses.fields(BatchMatchingSpec().prepare()) == ()
+    assert dataclasses.fields(BatchMatchingSpec()) == ()
 
 
 @pytest.mark.parametrize(
@@ -779,7 +781,7 @@ def test_batch_matching_spec_has_no_settings():
 def test_matching_rule_specs_reject_invalid_settings(spec, message):
     """Test that an unknown option, a distance that is not positive, and a bad score raise an error naming them."""
     with pytest.raises(ValidationError, match=message):
-        spec.prepare()
+        spec._check()
 
 
 @pytest.mark.parametrize(
@@ -794,7 +796,7 @@ def test_matching_rule_specs_reject_invalid_settings(spec, message):
 def test_check_agent_coupling_specs_reject_invalid_settings(spec, message):
     """Test that a radius or a clamp with an invalid setting raises an error naming it."""
     with pytest.raises(ValidationError, match=message):
-        spec.prepare()
+        spec._check()
 
 
 @pytest.mark.parametrize(
@@ -804,7 +806,7 @@ def test_check_agent_coupling_specs_reject_invalid_settings(spec, message):
 def test_check_symmetry_spec_rejects_invalid_settings(spec, message):
     """Test that a symmetry with an empty label or a generator that is not callable raises an error naming it."""
     with pytest.raises(ValidationError, match=message):
-        spec.prepare()
+        spec._check()
 
 
 def test_dataset_spec_counts_sequences_and_steps():
@@ -817,7 +819,7 @@ def test_dataset_spec_counts_sequences_and_steps():
 def test_dataset_spec_rejects_values_it_cannot_take(values):
     """Test that empty values, an array of one dimension, or a path that is not a string raise an error."""
     with pytest.raises(ValidationError):
-        DatasetSpec(values).prepare()
+        DatasetSpec(values)._check()
 
 
 @pytest.mark.parametrize(
@@ -835,7 +837,7 @@ def test_dataset_spec_rejects_values_it_cannot_take(values):
 def test_partner_spec_check_rejects_unusable_settings(arguments):
     """Test that the check of a partner spec names a choice, fallback, distance, capacity, or score it cannot take."""
     with pytest.raises(ValidationError):
-        PartnerSpec(**arguments).prepare()
+        PartnerSpec(**arguments)._check()
 
 
 def test_role_spec_defaults_to_any_element_and_no_states():

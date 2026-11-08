@@ -368,7 +368,7 @@ class SamplingInteraction(Interaction):
 
         It raises it for a row score that cannot run, or a heat-bath rule without values.
         """
-        score._validated()
+        score._check()
         if self.move == 'cluster':
             error_msg = f'The row score of sampling {self.label!r} accepts single moves of a row, not cluster moves.'
             raise ValidationError(error_msg)
@@ -485,7 +485,7 @@ class SamplingInteraction(Interaction):
 
         The options are a move, a rule, or a schedule.
         """
-        score._validated()
+        score._check()
         if not callable(self.move) and self.move not in HOLONOMY_MOVES:
             error_msg = (
                 f'The holonomy score of sampling {self.label!r} moves matrices of a group. Use the move '
@@ -645,7 +645,7 @@ class SamplingInteraction(Interaction):
 
         A bad move is a move other than a label copy.
         """
-        score._validated()
+        score._check()
         if self.move != 'copy':
             error_msg = f"The region score of sampling {self.label!r} moves labels by the move 'copy'."
             raise ValidationError(error_msg)
@@ -814,7 +814,7 @@ class SamplingInteraction(Interaction):
         elif not callable(objective):
             error_msg = f'The objective of sampling {self.label!r} must be a function of the namespace.'
             raise ValidationError(error_msg)
-        SamplerSpec(self.rule, schedule=self.schedule)._validated()
+        SamplerSpec(self.rule, schedule=self.schedule)._check()
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the sample law of the state.

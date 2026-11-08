@@ -318,5 +318,6 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
             listed = '\n'.join(f'- {problem}' for problem in dict.fromkeys(problems))
             error_msg = f'The file {self.path} has constructs that do not translate:\n{listed}'
             raise ValidationError(error_msg)
-        self.settings_ = settings._validated()
+        settings._check()
+        self.settings_ = settings
         self.source_ = source
