@@ -1,4 +1,7 @@
-"""Wind-driven gyres: the circulation of a closed ocean basin under a wind stress on the beta plane."""
+"""Wind-driven gyres.
+
+The module holds the circulation of a closed ocean basin under a wind stress on the beta plane.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,7 +23,9 @@ from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 
 class QuasiGeostrophicSiteElement(Element):
-    """Site of a quasi-geostrophic ocean basin, the relative potential vorticity of the water column at one position.
+    """Site of a quasi-geostrophic ocean basin.
+
+    The site holds the relative potential vorticity of the water column at one position.
 
     The site holds the relative potential vorticity `zeta = laplacian(psi) - psi / Rd**2`, the potential vorticity
     without the planetary part `beta y`, with the planetary vorticity gradient `beta`, the deformation radius `Rd`, the
@@ -74,7 +79,10 @@ class QuasiGeostrophicSiteElement(Element):
 
 
 def _streamfunction(s: SimpleNamespace) -> Expression:
-    """Return the streamfunction of a site, the inversion of its relative potential vorticity with walls at rest."""
+    """Return the streamfunction of a site.
+
+    It is the inversion of its relative potential vorticity with walls at rest.
+    """
     streamfunction: Expression = inverse_helmholtz(s.zeta, 1 / s.Rd, ('fixed', 0))
     return streamfunction
 
@@ -85,7 +93,9 @@ def _sites(values: np.ndarray) -> np.ndarray:
 
 
 class DoubleGyreSystem(BaseSystem):
-    """The quasi-geostrophic double gyre, the wind-driven circulation of a closed ocean basin.
+    """The quasi-geostrophic double gyre.
+
+    It is the wind-driven circulation of a closed ocean basin.
 
     The potential vorticity `q = laplacian(psi) - psi / Rd**2 + beta y` of a square basin of side `length` is carried by
     the geostrophic velocity `(-psi_y, psi_x)` of the streamfunction `psi`, driven by the curl of the wind stress
@@ -181,7 +191,10 @@ class DoubleGyreSystem(BaseSystem):
         return viscosity
 
     def _build_system(self) -> System:
-        """Return the quasi-geostrophic double gyre, the wind-driven circulation of a closed ocean basin."""
+        """Return the quasi-geostrophic double gyre.
+
+        It is the wind-driven circulation of a closed ocean basin.
+        """
         spacing = self.length / self.n_sites
         latitudes = (np.arange(self.n_sites) + 0.5) * spacing
         curl = -self.tau0 * (2 * np.pi / self.length) * np.sin(2 * np.pi * latitudes / self.length)
