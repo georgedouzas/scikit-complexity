@@ -24,13 +24,18 @@ def _state_and_drift(backend, **arguments):
 
 
 def _terms(positions, velocities, swarm):
-    """Return the 1-body, 2-body, 3-body, and 4-body terms of Eq. 2 of every agent, evaluated directly."""
+    """Return the 1-body, 2-body, 3-body, and 4-body terms of Eq. 2 of every agent, evaluated directly.
+
+    The offsets between agents are the minimum images in the periodic box of the swarm.
+    """
     size = len(positions)
+    side = np.asarray(swarm.prepare().system_.space.prepare().extent_)
     terms = np.zeros((4, *positions.shape))
     for i in range(size):
         v = velocities[i]
         terms[0, i] = (swarm.alpha - swarm.beta * v @ v) * v
         offsets = {j: positions[j] - positions[i] for j in range(size) if j != i}
+        offsets = {j: offset - side * np.rint(offset / side) for j, offset in offsets.items()}
         around = [j for j, offset in offsets.items() if np.linalg.norm(offset) <= swarm.R]
         unit = {j: offsets[j] / np.linalg.norm(offsets[j]) for j in around}
         relative = {j: velocities[j] - v for j in around}
@@ -77,6 +82,7 @@ def test_body_order_terms_match_the_paper(backend):
     np.testing.assert_allclose(full, terms.sum(axis=0), rtol=0.0, atol=1e-12)
 
 
+@pytest.mark.slow
 def test_swarm_moves_at_a_bounded_speed():
     """Test that the swarm with its defaults stays finite and near its preferred speed for 200 time units."""
     swarm = ManyBodyAlignmentSwarmSystem(40, random_state=0)
