@@ -217,19 +217,11 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
         """
         return {**self._get_specs(), **{name: item.spec for name, item in self._get_declared().items()}}
 
-    def _check(self) -> None:
-        """Validate the arguments of a part that still checks them in this hook.
-
-        It is a temporary bridge for the parts of the catalog that are not yet checked at the start of `_prepare`, so
-        their `super()._check()` ends here. It checks nothing.
-        """
-
     def _prepare(self, context: ContextT | None) -> None:
         """Check the label and the declared specs of the part.
 
         A child starts its own `_prepare` with `super()._prepare(context)`, so these checks come first, and then
-        checks its own arguments before it sets any attribute that ends in `_`. Until every part of the catalog checks
-        its arguments there, it also calls the temporary hook `_check`.
+        checks its own arguments before it sets any attribute that ends in `_`.
 
         Args:
             context:
@@ -242,7 +234,6 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
         self._check_label()
         for spec in [*self._get_specs().values(), *self._get_declared().values()]:
             spec._check()
-        self._check()
 
     @abstractmethod
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:

@@ -17,6 +17,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
+from ....core.components.spaces import BaseSpace
 from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
@@ -243,14 +244,18 @@ class ContainerMobilityInteraction(Interaction):
         self.travel = travel
         self.exponent = exponent
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for probabilities of travel that do not match the levels.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The probabilities of travel do not match the levels.
         """
-        super()._check()
+        super()._prepare(context)
         if len(self.travel) != self.levels or not np.isclose(sum(self.travel), 1.0):
             error_msg = f'Give {self.levels} probabilities of travel that sum to 1, not {tuple(self.travel)}.'
             raise ValidationError(error_msg)

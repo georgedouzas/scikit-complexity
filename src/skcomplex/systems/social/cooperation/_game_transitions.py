@@ -18,7 +18,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.spaces import NetworkSpace
+from ....core.components.spaces import BaseSpace, NetworkSpace
 from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
@@ -165,14 +165,18 @@ class GameTransitionsInteraction(Interaction):
         self.transitions = transitions
         self.update = update
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for an unknown update.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The update is unknown.
         """
-        super()._check()
+        super()._prepare(context)
         if self.update not in UPDATES:
             error_msg = f'Unknown update {self.update!r}. Use one of {", ".join(UPDATES)}.'
             raise ValidationError(error_msg)

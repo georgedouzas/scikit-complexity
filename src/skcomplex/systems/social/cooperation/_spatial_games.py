@@ -18,7 +18,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, LatticeElement
 from ....core.components.interactions import GroupingInteraction, ImitationInteraction, LocalRuleInteraction
 from ....core.components.laws.utils import count, total
-from ....core.components.spaces import DiscreteTime, LatticeNeighborhood, LatticeSpace
+from ....core.components.spaces import BaseSpace, DiscreteTime, LatticeNeighborhood, LatticeSpace
 from ....core.components.system import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
@@ -332,14 +332,18 @@ class PrisonersDilemmaInteraction(LocalRuleInteraction):
         super().__init__(label, target=target, state='strategy', rule=self._play, neighborhood=SQUARE, stochastic=True)
         self.imitation = imitation
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for an unknown imitation.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The imitation is unknown.
         """
-        super()._check()
+        super()._prepare(context)
         if self.imitation not in IMITATIONS:
             error_msg = f'Unknown imitation {self.imitation!r}. Use one of {", ".join(IMITATIONS)}.'
             raise ValidationError(error_msg)

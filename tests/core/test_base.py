@@ -66,6 +66,7 @@ def test_no_public_check_remains():
     assert not any(hasattr(base, 'check') for base in (BaseConfig, BaseSpec, BasePart))
     assert not any(hasattr(base, '_validated') for base in (BaseConfig, BaseSpec, BasePart))
     assert not hasattr(BaseConfig, '_check')
+    assert not hasattr(BasePart, '_check')
     assert not hasattr(BaseSpec, 'prepare')
     assert not hasattr(BaseSpec, 'run')
     assert not hasattr(errors, 'NotCheckedError')

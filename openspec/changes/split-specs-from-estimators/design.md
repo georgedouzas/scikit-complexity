@@ -52,9 +52,9 @@ so a spec has two public methods that do nothing. Owners call `_validated()` on 
 - **Compiling kernels.** `WordKernel` and `PatchKernel` compiled their tables in `_check`, and the rewriting compiler
   reads the tables before any run. The step is the private `_compile`, which `_prepare` calls first and the compiler
   calls alone.
-- **Transition bridge.** While the parts of the catalog still check their arguments in `_check`, `BasePart` keeps a
-  no-op `_check`, so their `super()._check()` ends there, and `BasePart._prepare` calls `self._check()` after the label
-  and the declared specs. The bridge goes once every part of `skcomplex.systems` checks in `_prepare` (task 2.2).
+- **Transition bridge.** While the parts of the catalog still checked their arguments in `_check`, `BasePart` kept a
+  no-op `_check`, so their `super()._check()` ended there, and `BasePart._prepare` called `self._check()` after the
+  label and the declared specs. It was removed once every part of `skcomplex.systems` checked in `_prepare`.
 - **Calibration as a function.** `calibrate` takes the arguments of the former constructor and returns
   `CalibrationResult`. A meta-system that fits lazily, in the role of `GridSearchCV` composed in a pipeline, can be
   added later on top of `calibrate` if a need appears. Today every caller runs it once and reads the fitted system.

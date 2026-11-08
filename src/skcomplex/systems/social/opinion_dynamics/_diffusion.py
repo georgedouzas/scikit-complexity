@@ -13,7 +13,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, MovementInteraction, TransitionInteraction
-from ....core.components.spaces import ContinuousSpace, LatticeSpace
+from ....core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace
 from ....core.components.system import BaseSystem, System
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
@@ -206,14 +206,18 @@ class AdoptionInteraction(TransitionInteraction):
         )
         self.mode = mode
 
-    def _check(self) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for an unknown mode.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The mode is unknown.
         """
-        super()._check()
+        super()._prepare(context)
         if self.mode not in MODES:
             error_msg = f'Unknown adoption mode {self.mode!r}. Use one of {", ".join(MODES)}.'
             raise ValidationError(error_msg)
