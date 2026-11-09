@@ -77,10 +77,10 @@ Same procedure as group 3, with `time='discrete'`.
 - [ ] 4.4 engineering: `control/_koopman.py`
   Left to do: `KoopmanModelPredictiveControlSystem`, whose build branches.
 - [ ] 4.5 mathematics: `dynamical_systems/_maps.py` (thirteen maps), `fractals/_quadratic.py`
-  Rebased: the thirteen maps. Left to do: `JuliaSystem`, `MandelbrotSystem`.
+  Rebased: the thirteen maps. Kept: `JuliaSystem`, `MandelbrotSystem` (a field of points on a lattice, not one element).
 - [ ] 4.6 physics: `active_matter/_flocks.py` `GregoireChateSystem`, `climate/_soil.py`, `criticality/_sandpiles.py`
   `SelfOrganizedBranchingSystem`, `mechanics/_accelerators.py` `BeamBeamMapSystem`, `statistical_mechanics/_urns.py`
-  Rebased: `SoilTemperatureSystem`, `BeamBeamMapSystem`. Left to do: `GregoireChateSystem`, `SelfOrganizedBranchingSystem`, `EhrenfestUrnSystem`.
+  Rebased: `SoilTemperatureSystem`, `BeamBeamMapSystem`, `SelfOrganizedBranchingSystem`. Kept: `GregoireChateSystem` (a group on a space, not one element). Left to do: `EhrenfestUrnSystem`.
 
 ## 5. NetworkDynamicalSystem
 
