@@ -6,6 +6,7 @@ The skeleton system has MinD and MinE cycling between the membrane and the cytos
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
@@ -202,6 +203,15 @@ class MinProteinSkeletonSystem(BaseSystem):
         mde, cdt, cdd, ce = others(md)
         return {'md': md, 'mde': mde, 'cdt': cdt, 'cdd': cdd, 'ce': ce}
 
+    @staticmethod
+    def _get_diffusion(state: str, coefficient: str) -> RateInteraction:
+        """Return the diffusion `D laplacian(u)` of a state by the parameter of its coefficient."""
+
+        def rate(s: SimpleNamespace) -> object:
+            return getattr(s.target, coefficient) * laplacian(getattr(s.target, state))
+
+        return RateInteraction(f'diffusion_{state}', target='cell', state=state, rate=rate)
+
     def _build_system(self) -> System:
         """Return the parts of the skeleton system of the Min proteins on a periodic line."""
         rng = np.random.default_rng(self.random_state)
@@ -242,22 +252,6 @@ class MinProteinSkeletonSystem(BaseSystem):
                 propensity=lambda s: s.target.lam * s.target.cdd,
             ),
         ]
-        membrane = [
-            RateInteraction(
-                f'diffusion_{state}',
-                target='cell',
-                state=state,
-                rate=lambda s, state=state: s.target.Dm * laplacian(getattr(s.target, state)),
-            )
-            for state in ('md', 'mde')
-        ]
-        cytosol = [
-            RateInteraction(
-                f'diffusion_{state}',
-                target='cell',
-                state=state,
-                rate=lambda s, state=state: s.target.Dc * laplacian(getattr(s.target, state)),
-            )
-            for state in ('cdt', 'cdd', 'ce')
-        ]
+        membrane = [self._get_diffusion(state, 'Dm') for state in ('md', 'mde')]
+        cytosol = [self._get_diffusion(state, 'Dc') for state in ('cdt', 'cdd', 'ce')]
         return System(self.label, elements=[cell], interactions=[*reactions, *membrane, *cytosol])
