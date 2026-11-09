@@ -140,10 +140,10 @@ when other agents run tests at the same time.
   `random_pairing`, and `cross_section` on a law, and verify it finds no use
 - [x] 8.2 Run `nox -s checks` for `src`, `tests`, and `docs`, with ruff, mypy, and the import contracts, and fix every
   finding without a suppression
-- [ ] 8.3 Run `nox -s tests` with the doctests, and verify it passes
-- [ ] 8.4 Run `nox -s docs` and `nox -s gallery`, and verify the strict build and the inventory check pass with no
+- [x] 8.3 Run `nox -s tests` with the doctests, and verify it passes
+- [x] 8.4 Run `nox -s docs` and `nox -s gallery`, and verify the strict build and the inventory check pass with no
   change to `docs/overview/inventory.toml`
-- [ ] 8.5 Commit the work as conventional `refactor!` commits whose bodies name the removed names and their
+- [x] 8.5 Commit the work as conventional `refactor!` commits whose bodies name the removed names and their
   replacements, and verify `nox -s changelog` lists them as breaking changes
 
 ## Workflow follow-up

@@ -126,4 +126,4 @@
 
 - [x] 11.1 Run the field-term and import tests of `tests/core/components/test_base.py`, and grep the core for the old
   class names. Verify no match and no failure.
-- [ ] 11.2 Run the nox sessions for tests, types, lint, and docs with the thread caps set to 1. Verify all pass.
+- [x] 11.2 Run the nox sessions for tests, types, lint, and docs with the thread caps set to 1. Verify all pass.
