@@ -49,6 +49,6 @@ class DiffusiveLimitSpec(BaseSpec):
             step:
                 The step `1 / (stiffness * max |D|)`, infinite without diffusion.
         """
-        values = [reference.column_of(np.zeros(0), p) for reference in self.parameters]
-        magnitude = float(np.max(np.abs(ExpressionPrinter._values_of(self.coefficient(0.0, *values))[0])))
+        values = [reference.get_column_of(np.zeros(0), p) for reference in self.parameters]
+        magnitude = float(np.max(np.abs(ExpressionPrinter._get_values_of(self.coefficient(0.0, *values))[0])))
         return math.inf if magnitude == 0 else 1 / (self.stiffness * magnitude)

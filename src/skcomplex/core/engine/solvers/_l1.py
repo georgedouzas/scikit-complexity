@@ -7,7 +7,7 @@ import numpy as np
 from scipy.special import gamma
 
 from ...types import Array
-from ._convolution import _MODE_SPACING, ConvolutionSolver
+from ._convolution import MODE_SPACING, ConvolutionSolver
 
 
 class L1Solver(ConvolutionSolver):
@@ -54,26 +54,26 @@ class L1Solver(ConvolutionSolver):
         0.43
     """
 
-    def _weights(self, alpha: Array, count: int) -> Array:
+    def _get_weights(self, alpha: Array, count: int) -> Array:
         """Return the weights `a_0` to `a_count` of the L1 scheme on the displacements.
 
         There is one column per order.
         """
-        return self._l1_weights(alpha, count)
+        return self._get_l1_weights(alpha, count)
 
-    def _tail(self, alpha: Array, rates: Array, window: int) -> Array:
+    def _get_tail(self, alpha: Array, rates: Array, window: int) -> Array:
         """Return the coefficients of the exponential modes of the L1 tail weights.
 
         They are the weights past a window.
         """
-        return self._l1_tail(alpha, rates, window)
+        return self._get_l1_tail(alpha, rates, window)
 
-    def _gain(self, alpha: Array) -> Array:
+    def _get_gain(self, alpha: Array) -> Array:
         """Return the factor `Gamma(2 - alpha)` of the drift of every order."""
         return np.asarray(gamma(2 - alpha))
 
     @staticmethod
-    def _l1_weights(alpha: Array, count: int) -> Array:
+    def _get_l1_weights(alpha: Array, count: int) -> Array:
         """Return the weights `a_0` to `a_count` of the L1 scheme on displacements.
 
         The displacements are from the start, with one column per order. The weights are the differences `b_j - b_(j-1)`
@@ -87,7 +87,7 @@ class L1Solver(ConvolutionSolver):
         return np.vstack([np.ones((1, alpha.size)), np.diff(increments, axis=0)])
 
     @staticmethod
-    def _l1_tail(alpha: Array, rates: Array, window: int) -> Array:
+    def _get_l1_tail(alpha: Array, rates: Array, window: int) -> Array:
         """Return the coefficients of the exponential modes of the L1 tail weights.
 
         The sum of the modes gives the L1 weights past a window. The weights have the Laplace representation `a_j = -((1
@@ -96,4 +96,4 @@ class L1Solver(ConvolutionSolver):
         """
         s, a = rates[:, None], alpha[None, :]
         density = -(1 - a) / gamma(a) * s ** (a - 2) * np.expm1(-s) ** 2 * np.exp(-s * window)
-        return _MODE_SPACING * s * density
+        return MODE_SPACING * s * density

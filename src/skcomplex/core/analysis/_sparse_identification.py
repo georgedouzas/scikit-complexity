@@ -231,7 +231,7 @@ def _forecast(
         dt=dt,
         initial_state=dict(zip(names, map(float, last_state), strict=True)),
     )
-    values = np.column_stack([np.asarray(trajectory.values(name), dtype=np.float64) for name in names])
+    values = np.column_stack([np.asarray(trajectory.get_values(name), dtype=np.float64) for name in names])
     return values[1 : horizon + 1].reshape(horizon, len(names))
 
 

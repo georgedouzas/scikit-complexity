@@ -238,7 +238,7 @@ def test_live_creates_offspring_in_another_group_with_given_values():
     trajectory = _cycle(life, parents, young)
     assert sorted(trajectory.get_agents('young', 1).values['trait'].tolist()) == [0.0, 10.0, 20.0]
     assert len(trajectory.get_agents('parents', 1).values['trait']) == 2
-    assert trajectory.values('life.births')[-1] == 2
+    assert trajectory.get_values('life.births')[-1] == 2
 
 
 def test_live_replaces_parents_by_their_offspring():
@@ -296,7 +296,7 @@ def test_live_renews_dying_agents_in_place():
     values = trajectory.get_agents('parents', 1).values
     assert values['reserve'].tolist() == [1.0, 2.0]
     assert values['trait'].tolist() == [7.0, 8.0]
-    assert trajectory.values('life.deaths')[-1] == 1
+    assert trajectory.get_values('life.deaths')[-1] == 1
 
 
 def test_live_culls_kin_of_another_group():

@@ -109,8 +109,8 @@ class EulerMaruyamaSolver(SDESolver):
                 The state at the end of the step.
         """
         problem = self.problem_
-        following = state + self._drift()(time, state, p) * step
-        np.add.at(following, problem.noise_rows, self._diffusion()(time, state, p) * noise)
+        following = state + self._get_drift()(time, state, p) * step
+        np.add.at(following, problem.noise_rows, self._get_diffusion()(time, state, p) * noise)
         return following
 
     def _step(self, time: float, state: Array, p: Array, lengths: Array) -> Array:
@@ -120,7 +120,7 @@ class EulerMaruyamaSolver(SDESolver):
         """
         noise = self._draw_increments(1.0) * np.sqrt(lengths[self.problem_.noise_rows])
         end = time + float(np.max(lengths))
-        return self._bounded(end, self._increment(time, state, p, step=lengths, noise=noise, end=end), p)
+        return self._get_bounded(end, self._increment(time, state, p, step=lengths, noise=noise, end=end), p)
 
     def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
         """Integrate the drift and the noise from time `t` to time `until`.
@@ -166,5 +166,5 @@ class EulerMaruyamaSolver(SDESolver):
             time = t + index * step
             noise = self._draw_increments(math.sqrt(step))
             following = self._increment(time, state, p, step=step, noise=noise, end=time + step)
-            state = self._bounded(time + step, following, p)
+            state = self._get_bounded(time + step, following, p)
         return state

@@ -32,7 +32,7 @@ trajectory = simulate(system, observers=[observer])
 settled = trajectory.times > 20
 exponent = lyapunov(system, n_exponents=1, until=500.0, dt=0.01).exponents[0]
 fig, ax = plt.subplots(figsize=(6, 5))
-ax.plot(trajectory.values('circuit.v')[settled], trajectory.values('circuit.i')[settled], linewidth=0.5)
+ax.plot(trajectory.get_values('circuit.v')[settled], trajectory.get_values('circuit.i')[settled], linewidth=0.5)
 ax.set_xlabel('capacitor voltage v')
 ax.set_ylabel('current i')
 ax.set_title(f'Chaotic attractor, largest Lyapunov exponent {exponent:.3f}')

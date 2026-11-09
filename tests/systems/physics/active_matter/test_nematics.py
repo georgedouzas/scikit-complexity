@@ -62,7 +62,9 @@ def _run_gel(system, until, dt, step):
 
 def _kinetic_energy(trajectory):
     """Return the mean kinetic energy per site at every frame."""
-    return 0.5 * (np.asarray(trajectory.values('u_x')) ** 2 + np.asarray(trajectory.values('u_y')) ** 2).mean(axis=1)
+    return 0.5 * (np.asarray(trajectory.get_values('u_x')) ** 2 + np.asarray(trajectory.get_values('u_y')) ** 2).mean(
+        axis=1,
+    )
 
 
 def test_molecular_field_is_the_negative_derivative_of_the_energy():
@@ -82,9 +84,9 @@ def test_dry_active_nematics_conserves_the_density():
     """The total density stays constant within 1e-10 relative error over 100 time units."""
     system = DryActiveNematicsSystem((32, 32))
     trajectory = simulate(system, until=100.0, dt=20.0, solver=RK4Solver(dt=0.02), backend=NumbaBackend())
-    totals = np.asarray(trajectory.values('nematic.rho')).sum(axis=1)
+    totals = np.asarray(trajectory.get_values('nematic.rho')).sum(axis=1)
     assert np.max(np.abs(totals - totals[0])) < 1e-10 * totals[0]
-    assert np.abs(np.asarray(trajectory.values('nematic.Q'))).max() > 0.1
+    assert np.abs(np.asarray(trajectory.get_values('nematic.Q'))).max() > 0.1
 
 
 @pytest.mark.slow
@@ -95,9 +97,9 @@ def test_active_gels_passive_nematic_relaxes_to_the_scalar_order():
     gel = system.elements[0]
     gel.values['Q'] = np.tile([0.2, 0.0], (64, 1))
     trajectory = _run_gel(system, until=30.0, dt=10.0, step=0.05)
-    assert np.abs(np.asarray(trajectory.values('u_x'))).max() < 1e-8
-    assert np.abs(np.asarray(trajectory.values('u_y'))).max() < 1e-8
-    frames = np.asarray(trajectory.lattice('gel.Q'))
+    assert np.abs(np.asarray(trajectory.get_values('u_x'))).max() < 1e-8
+    assert np.abs(np.asarray(trajectory.get_values('u_y'))).max() < 1e-8
+    frames = np.asarray(trajectory.get_lattice('gel.Q'))
     order = alignment(frames, kind='principal-axis').order
     assert np.abs(order[-1] - np.sqrt(-2 * a / c)).max() < 1e-6
 
@@ -121,7 +123,7 @@ def test_active_gels_extensile_nematic_turbulence_conserves_the_charge():
     values = system.elements[0].values
     assert values['zeta'] > 10 * 2 * values['K'] * (2 * np.pi / 10.0) ** 2
     trajectory = _run_gel(system, until=0.5, dt=0.025, step=5e-4)
-    axes = alignment(np.asarray(trajectory.lattice('gel.Q')), kind='principal-axis').axes
+    axes = alignment(np.asarray(trajectory.get_lattice('gel.Q')), kind='principal-axis').axes
     angles = np.arctan2(axes[..., 1], axes[..., 0])
     found = defects(angles, period=np.pi)
     charges = [item.sum() for item in found.charges]

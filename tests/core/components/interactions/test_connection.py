@@ -82,11 +82,11 @@ def test_connection_balances_the_currents_of_three_resistors():
         interactions=[ConnectionInteraction('node', members=['r1', 'r2', 'r3'], ports=['a', 'a', 'a'])],
     )
     trajectory = _run(system)
-    currents = [trajectory.values(f'{name}.a_i').ravel() for name in ('r1', 'r2', 'r3')]
+    currents = [trajectory.get_values(f'{name}.a_i').ravel() for name in ('r1', 'r2', 'r3')]
     voltage = (3.0 / 1.0 - 1.0 / 4.0) / (1 / 1.0 + 1 / 2.0 + 1 / 4.0)
     assert np.allclose(sum(currents), 0.0, atol=1e-12)
-    assert np.allclose(trajectory.values('r1.a_v').ravel(), voltage)
-    assert np.allclose(trajectory.values('r3.a_v').ravel(), voltage)
+    assert np.allclose(trajectory.get_values('r1.a_v').ravel(), voltage)
+    assert np.allclose(trajectory.get_values('r3.a_v').ravel(), voltage)
     assert np.allclose(currents[0], voltage - 3.0)
 
 
@@ -97,10 +97,10 @@ def test_connection_reads_a_connector_the_user_defines():
         interactions=[ConnectionInteraction('node', members=['first', 'second'], ports=['a', 'a'])],
     )
     trajectory = _run(system)
-    assert np.allclose(trajectory.values('first.a_mu').ravel(), 2.0)
-    assert np.allclose(trajectory.values('second.a_mu').ravel(), 2.0)
-    assert np.allclose(trajectory.values('first.a_n').ravel(), 1.0)
-    assert np.allclose(trajectory.values('second.a_n').ravel(), -1.0)
+    assert np.allclose(trajectory.get_values('first.a_mu').ravel(), 2.0)
+    assert np.allclose(trajectory.get_values('second.a_mu').ravel(), 2.0)
+    assert np.allclose(trajectory.get_values('first.a_n').ravel(), 1.0)
+    assert np.allclose(trajectory.get_values('second.a_n').ravel(), -1.0)
 
 
 def test_connection_rejects_members_and_ports_of_different_lengths():

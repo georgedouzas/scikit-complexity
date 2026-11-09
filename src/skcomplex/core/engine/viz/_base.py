@@ -22,17 +22,17 @@ from ...errors import ValidationError
 from ...specs import AgentSnapshotSpec
 from ..problems import BaseProblemSpec, FrameSpec
 
-_UPWARD = np.array([1.0, -1.0])
-_LAYOUT_SEED = 0
-_NODE_SPACING = 40.0
-_POINT_SHARE = 0.02
-_CROWD_SIZE = 10
-_CROWD_EXPONENT = 0.25
-_GRID_RADIUS = 0.4
-_MODULUS = 'modulus'
-_PHASE = 'phase'
+UPWARD = np.array([1.0, -1.0])
+LAYOUT_SEED = 0
+NODE_SPACING = 40.0
+POINT_SHARE = 0.02
+CROWD_SIZE = 10
+CROWD_EXPONENT = 0.25
+GRID_RADIUS = 0.4
+MODULUS = 'modulus'
+PHASE = 'phase'
 PARTS = ('real', 'imag')
-_SERIES_COLORS = (
+SERIES_COLORS = (
     (230, 159, 0),
     (86, 180, 233),
     (0, 158, 115),
@@ -42,15 +42,15 @@ _SERIES_COLORS = (
     (204, 121, 167),
     (170, 170, 170),
 )
-_POINT_FLOOR = 0.25
-_COLOR_SCALE = np.array(
+POINT_FLOOR = 0.25
+COLOR_SCALE = np.array(
     [[68, 1, 84], [59, 82, 139], [33, 145, 140], [94, 201, 98], [253, 231, 37]],
     dtype=float,
 )
-_PALETTE = (
+PALETTE = (
     np.stack(
         [
-            np.interp(np.linspace(0.0, 1.0, 256), np.linspace(0.0, 1.0, len(_COLOR_SCALE)), _COLOR_SCALE[:, channel])
+            np.interp(np.linspace(0.0, 1.0, 256), np.linspace(0.0, 1.0, len(COLOR_SCALE)), COLOR_SCALE[:, channel])
             for channel in range(3)
         ],
         axis=-1,
@@ -58,14 +58,14 @@ _PALETTE = (
     .round()
     .astype(np.uint8)
 )
-_PHASE_SCALE = np.array(
+PHASE_SCALE = np.array(
     [[230, 90, 80], [225, 190, 70], [90, 190, 110], [70, 160, 210], [150, 100, 200], [230, 90, 80]],
     dtype=float,
 )
-_PHASE_PALETTE = (
+PHASE_PALETTE = (
     np.stack(
         [
-            np.interp(np.linspace(0.0, 1.0, 256), np.linspace(0.0, 1.0, len(_PHASE_SCALE)), _PHASE_SCALE[:, channel])
+            np.interp(np.linspace(0.0, 1.0, 256), np.linspace(0.0, 1.0, len(PHASE_SCALE)), PHASE_SCALE[:, channel])
             for channel in range(3)
         ],
         axis=-1,
@@ -164,7 +164,7 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
         self.recording_ = self.recording if self.recording is not None else rr.get_data_recording()
         self.space_: BaseSpace | None = problem.agent_space
         self.layouts_: dict[int, dict[str, npt.NDArray[np.float64]]] = {}
-        self.views_ = self._views(self.element_, problem)
+        self.views_ = self._get_views(self.element_, problem)
 
     def _run(self, inputs: FrameSpec | None) -> None:
         """Log the element at a frame.
@@ -226,7 +226,7 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
         super().run(frame, final)
         return self
 
-    def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return the Rerun views that show what the visual logs for an element.
 
         By default there are none.
@@ -252,7 +252,7 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
         By default, log nothing.
         """
 
-    def _colors(
+    def _get_colors(
         self,
         values: npt.NDArray[np.float64],
         low: float | None,
@@ -264,25 +264,25 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
         """
         low = float(values.min()) if low is None else float(low)
         high = float(values.max()) if high is None else float(high)
-        return self._palette_colors(values, low, high)
+        return self._get_palette_colors(values, low, high)
 
-    def _layout(self, space: NetworkSpace) -> dict[str, npt.NDArray[np.float64]]:
+    def _get_layout(self, space: NetworkSpace) -> dict[str, npt.NDArray[np.float64]]:
         """Return the positions of the nodes of a network, computed once per network."""
         if id(space.graph) not in self.layouts_:
-            self.layouts_[id(space.graph)] = self._network_layout(space.graph)
+            self.layouts_[id(space.graph)] = self._get_network_layout(space.graph)
         return self.layouts_[id(space.graph)]
 
     @staticmethod
-    def _phase_colors(phases: npt.NDArray[np.float64]) -> npt.NDArray[np.uint8]:
+    def _get_phase_colors(phases: npt.NDArray[np.float64]) -> npt.NDArray[np.uint8]:
         """Return the colors of phases in `(-pi, pi]` from a cyclic palette.
 
         `-pi` and `pi` thus share one color.
         """
         levels = np.mod(phases + np.pi, 2 * np.pi) * (255.0 / (2 * np.pi))
-        return _PHASE_PALETTE[np.clip(levels, 0.0, 255.0).astype(np.uint8)]
+        return PHASE_PALETTE[np.clip(levels, 0.0, 255.0).astype(np.uint8)]
 
     @staticmethod
-    def _widened(span: tuple[float, float] | None, values: npt.NDArray[np.float64]) -> tuple[float, float]:
+    def _get_widened(span: tuple[float, float] | None, values: npt.NDArray[np.float64]) -> tuple[float, float]:
         """Return a color range widened to cover values.
 
         Without a range yet, it starts from their extremes.
@@ -291,7 +291,7 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
         return (low, high) if span is None else (min(span[0], low), max(span[1], high))
 
     @staticmethod
-    def _colors_of(values: npt.NDArray[np.float64], low: float, high: float) -> npt.NDArray[np.uint8]:
+    def _get_colors_of(values: npt.NDArray[np.float64], low: float, high: float) -> npt.NDArray[np.uint8]:
         """Return one color per value on a scale from blue at `low` to yellow at `high`.
 
         The colors are bright enough to see on black.
@@ -317,13 +317,13 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
             (2, 3)
         """
         fractions = np.clip((values - low) / (high - low), 0.0, 1.0) if high > low else np.zeros_like(values)
-        fractions = _POINT_FLOOR + (1.0 - _POINT_FLOOR) * fractions
-        anchors = np.linspace(0.0, 1.0, len(_COLOR_SCALE))
-        channels = [np.interp(fractions, anchors, _COLOR_SCALE[:, channel]) for channel in range(3)]
+        fractions = POINT_FLOOR + (1.0 - POINT_FLOOR) * fractions
+        anchors = np.linspace(0.0, 1.0, len(COLOR_SCALE))
+        channels = [np.interp(fractions, anchors, COLOR_SCALE[:, channel]) for channel in range(3)]
         return np.stack(channels, axis=-1).round().astype(np.uint8)
 
     @staticmethod
-    def _palette_colors(values: npt.NDArray[np.float64], low: float, high: float) -> npt.NDArray[np.uint8]:
+    def _get_palette_colors(values: npt.NDArray[np.float64], low: float, high: float) -> npt.NDArray[np.uint8]:
         """Return the colors of an array of values from a palette of 256 levels.
 
         It is fast enough for large images.
@@ -349,34 +349,34 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
             (2, 3)
         """
         if high <= low:
-            return np.broadcast_to(_PALETTE[0], (*values.shape, 3))
+            return np.broadcast_to(PALETTE[0], (*values.shape, 3))
         levels = np.clip((values - low) * (255.0 / (high - low)), 0.0, 255.0).astype(np.uint8)
-        return _PALETTE[levels]
+        return PALETTE[levels]
 
     @staticmethod
-    def _network_layout(graph: nx.Graph) -> dict[str, npt.NDArray[np.float64]]:
+    def _get_network_layout(graph: nx.Graph) -> dict[str, npt.NDArray[np.float64]]:
         """Return fixed positions of the nodes of a network.
 
         Neighbours lie about a spacing apart. The positions are the `pos` attributes of the nodes when every node has
         one, and a seeded spring layout otherwise.
         """
-        scale = _NODE_SPACING * float(np.sqrt(max(graph.number_of_nodes(), 1))) / 2
+        scale = NODE_SPACING * float(np.sqrt(max(graph.number_of_nodes(), 1))) / 2
         given = nx.get_node_attributes(graph, 'pos')
         if given and len(given) == graph.number_of_nodes():
             layout = nx.rescale_layout_dict(
                 {node: np.asarray(position, dtype=float) for node, position in given.items()},
             )
         else:
-            layout = nx.spring_layout(graph, seed=_LAYOUT_SEED)
+            layout = nx.spring_layout(graph, seed=LAYOUT_SEED)
         return {str(node): np.asarray(position, dtype=float) * scale for node, position in layout.items()}
 
     @staticmethod
-    def _radius_of(extent: float, count: int) -> float:
+    def _get_radius_of(extent: float, count: int) -> float:
         """Return a point radius that is a share of the extent of a view.
 
         It is smaller for crowds so they do not overlap.
         """
-        return _POINT_SHARE * (extent if extent > 0 else 1.0) / max(count / _CROWD_SIZE, 1.0) ** _CROWD_EXPONENT
+        return POINT_SHARE * (extent if extent > 0 else 1.0) / max(count / CROWD_SIZE, 1.0) ** CROWD_EXPONENT
 
     @staticmethod
     def _log_scalars(recording: rr.RecordingStream, path: str, value: object) -> None:

@@ -57,7 +57,7 @@ rotation = 0.1
 for omega, color in ((0.0, 'tab:blue'), (2.0, 'tab:orange')):
     system_o = ChiralActiveParticlesSystem(n_particles=500, omega=omega, size=1e5, random_state=1)
     run = simulate(system_o, until=40, solver=solver, dt=0.1, random_state=1)
-    positions = run.values('swimmers.x')
+    positions = run.get_values('swimmers.x')
     times = run.times[1:]
     squared = np.mean(np.sum((positions[1:] - positions[0]) ** 2, axis=-1), axis=1)
     w = rotation**2 + omega**2

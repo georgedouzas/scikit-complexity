@@ -18,7 +18,7 @@ from ..._utils import declarations_of
 from ...backends import BaseBackend
 from .._base import BaseCompiler, BasePass
 from .._compilation import Compilation
-from .._forms import _FORMS
+from .._forms import FORMS
 
 
 class FractionalFormPass(BasePass):
@@ -38,11 +38,11 @@ class FractionalFormPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Give the problem the fractional form when an owned state has a fractional order."""
         compilation = self.compilation_
-        if compilation.form == FormKind.ODE and self._owned_fractional(compilation):
+        if compilation.form == FormKind.ODE and self._get_owned_fractional(compilation):
             compilation.form = FormKind.FRACTIONAL
 
     @staticmethod
-    def _declared_times(
+    def _get_declared_times(
         system: CompositeSystem,
         scope: str = '',
         inherited: type | None = None,
@@ -69,11 +69,11 @@ class FractionalFormPass(BasePass):
         times = {scope: time}
         for child in system.systems:
             path = f'{scope}/{child.label}' if scope else child.label
-            times.update(FractionalFormPass._declared_times(child, path, time))
+            times.update(FractionalFormPass._get_declared_times(child, path, time))
         return times
 
     @staticmethod
-    def _fractional_states(nodes: list[NodeSpec]) -> list[FractionalStateSpec]:
+    def _get_fractional_states(nodes: list[NodeSpec]) -> list[FractionalStateSpec]:
         """Return every state of a fractional order of the elements and groups of a system.
 
         Args:
@@ -94,16 +94,16 @@ class FractionalFormPass(BasePass):
         return found
 
     @staticmethod
-    def _owned_fractional(compilation: Compilation) -> list[FractionalStateSpec]:
+    def _get_owned_fractional(compilation: Compilation) -> list[FractionalStateSpec]:
         """Return the fractional states of the owners that the layout declares.
 
         Agents are left out.
         """
-        declared = {entry.name for entry in Compilation._required(compilation.layout, 'layout').states}
+        declared = {entry.name for entry in Compilation._get_required(compilation.layout, 'layout').states}
         owners = compilation.owners
         return [
             item
-            for item in FractionalFormPass._fractional_states(Compilation._required(compilation.nodes, 'nodes'))
+            for item in FractionalFormPass._get_fractional_states(Compilation._get_required(compilation.nodes, 'nodes'))
             if item.name in declared and (owners is None or item.path in owners)
         ]
 
@@ -131,14 +131,14 @@ class FractionalFormPass(BasePass):
         return issues
 
     @staticmethod
-    def _law_issues(states: list[FractionalStateSpec], records: list[CensusRecordSpec]) -> list[IssueSpec]:
+    def _get_law_issues(states: list[FractionalStateSpec], records: list[CensusRecordSpec]) -> list[IssueSpec]:
         """Return the laws on fractional states that take the problem off its forms.
 
         The class of the law takes the problem off the ODE and fractional forms.
         """
         names = {item.name for item in states}
-        ode = set().union(*(kinds for kinds, form in _FORMS.items() if form == FormKind.ODE))
-        others = tuple(set().union(*(kinds for kinds, form in _FORMS.items() if form != FormKind.ODE)) - ode)
+        ode = set().union(*(kinds for kinds, form in FORMS.items() if form == FormKind.ODE))
+        others = tuple(set().union(*(kinds for kinds, form in FORMS.items() if form != FormKind.ODE)) - ode)
         issues = []
         for record in records:
             targets = sorted({entry.name for entry in record.targets} & names)
@@ -154,7 +154,7 @@ class FractionalFormPass(BasePass):
         return issues
 
     @staticmethod
-    def _order_issues(compilation: Compilation) -> list[IssueSpec]:
+    def _get_order_issues(compilation: Compilation) -> list[IssueSpec]:
         """Return the fractional states with a bad order, time, or support.
 
         The order is outside `(0, 1)`, the time is not continuous, or there is no support.
@@ -167,10 +167,10 @@ class FractionalFormPass(BasePass):
             issues:
                 The issues.
         """
-        states = FractionalFormPass._fractional_states(Compilation._required(compilation.nodes, 'nodes'))
+        states = FractionalFormPass._get_fractional_states(Compilation._get_required(compilation.nodes, 'nodes'))
         if not states:
             return []
-        times = FractionalFormPass._declared_times(compilation.system)
+        times = FractionalFormPass._get_declared_times(compilation.system)
         issues = []
         for item in states:
             if not 0 < item.order < 1:
@@ -186,5 +186,8 @@ class FractionalFormPass(BasePass):
                 )
                 fix = 'Declare continuous time, the only time in which fractional derivatives are defined.'
                 issues.append(IssueSpec('fractional-time', item.path, message, fix))
-        issues += FractionalFormPass._law_issues(states, Compilation._required(compilation.census, 'census').records)
+        issues += FractionalFormPass._get_law_issues(
+            states,
+            Compilation._get_required(compilation.census, 'census').records,
+        )
         return issues + FractionalFormPass._support_issues(states, compilation.solver, compilation.backend)

@@ -51,7 +51,7 @@ class PeakResult:
 
 def peak(trajectory, *, variable='I.x'):
     """Return the height and time of the peak of one series of a trajectory."""
-    values = np.asarray(trajectory.values(variable), dtype=float)
+    values = np.asarray(trajectory.get_values(variable), dtype=float)
     return PeakResult(float(values.max()), float(trajectory.times[values.argmax()]))
 
 

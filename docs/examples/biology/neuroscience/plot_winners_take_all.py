@@ -31,7 +31,7 @@ fig, axes = plt.subplots(1, 2, figsize=(10, 4), sharey=True)
 for ax, beta in zip(axes, [2.0, 0.5], strict=True):
     trajectory = simulate(WinnersTakeAllSystem(inputs=inputs, beta=beta))
     for unit, value in enumerate(inputs):
-        ax.plot(trajectory.times, trajectory.values(f'unit_{unit}.x'), label=f'input {value}')
+        ax.plot(trajectory.times, trajectory.get_values(f'unit_{unit}.x'), label=f'input {value}')
     ax.set_xlabel('time')
     ax.set_title(f'beta = {beta}')
 axes[0].axhline(max(inputs), color='black', linestyle=':', label='largest input')

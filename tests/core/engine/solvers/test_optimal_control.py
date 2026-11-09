@@ -57,7 +57,7 @@ def test_optimal_control_maximises_the_negated_cost(linear_quadratic, quadratic_
     """Test that maximising the negated cost gives the control that minimises the cost."""
     solver = PontryaginSolver(lambda s: -quadratic_cost(s), sense='max')
     trajectory = simulate(linear_quadratic, until=1.0, solver=solver, dt=0.05)
-    np.testing.assert_allclose(trajectory.values('plant.u'), riccati_control(trajectory.times), atol=1e-3)
+    np.testing.assert_allclose(trajectory.get_values('plant.u'), riccati_control(trajectory.times), atol=1e-3)
 
 
 def test_optimal_control_stops_at_the_horizon(linear_quadratic, quadratic_cost):
@@ -79,5 +79,5 @@ def test_optimal_control_needs_a_finite_horizon(linear_quadratic, quadratic_cost
 def test_default_solver_follows_the_laws(linear_quadratic):
     """Test that the default solver keeps the controls of a system at their initial values."""
     trajectory = simulate(linear_quadratic, until=1.0, dt=0.5)
-    np.testing.assert_allclose(trajectory.values('plant.u'), 0.0)
-    np.testing.assert_allclose(trajectory.values('plant.x'), 1.0)
+    np.testing.assert_allclose(trajectory.get_values('plant.u'), 0.0)
+    np.testing.assert_allclose(trajectory.get_values('plant.x'), 1.0)

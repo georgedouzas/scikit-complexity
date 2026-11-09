@@ -34,7 +34,7 @@ trajectory = simulate(LamplighterAutomatonSystem(radius=7, density=0.1, random_s
 # the group ring element `1 + a + b` is a matrix over GF(2), and its rank decides whether the automaton is invertible
 # there.
 
-alive = trajectory.values('cells.alive')
+alive = trajectory.get_values('cells.alive')
 quotient = CayleySpace(lamplighter().PermGroupOnLevel(3)).prepare()
 parity = CompositeSystem(
     elements=[GroupElement('cells', element=BinaryCellElement, space=quotient, on='sites')],

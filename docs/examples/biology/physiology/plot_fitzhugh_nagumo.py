@@ -35,7 +35,7 @@ trajectory = simulate(
 # A rotating spiral excites every site once per turn, so the potential at a fixed probe should spike periodically with
 # the rotation period of the spiral, and the last snapshot should show the spiral arm.
 
-potential = trajectory.lattice('medium.u')
+potential = trajectory.get_lattice('medium.u')
 probe = potential[:, 75, 75]
 peaks, _ = find_peaks(probe, height=0.5)
 fig, (snapshot, series) = plt.subplots(1, 2, figsize=(11, 4.5))

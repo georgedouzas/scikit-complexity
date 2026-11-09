@@ -103,16 +103,16 @@ def test_simulate_returns_the_trajectory_until_a_time():
     trajectory = simulate(CompositeSystem(elements=[TankElement('tank')], interactions=[decay]), until=1.0)
     assert isinstance(trajectory, Trajectory)
     assert trajectory.times[-1] == pytest.approx(1.0)
-    assert trajectory.values('tank.x')[-1] == pytest.approx(np.exp(-1.0), rel=1e-3)
+    assert trajectory.get_values('tank.x')[-1] == pytest.approx(np.exp(-1.0), rel=1e-3)
 
 
 def test_simulate_reads_the_tuned_settings_of_the_class():
     """Test that the end time, the time between frames, the initial state, and the observables come from the class."""
     trajectory = simulate(DecaySystem(k=0.5))
     assert trajectory.times.tolist() == [0.0, 0.5, 1.0, 1.5, 2.0]
-    assert trajectory.values('tank.x')[0] == 4.0
-    assert trajectory.values('tank.double')[-1] == pytest.approx(8.0 * np.exp(-1.0), rel=1e-3)
-    assert simulate(DecaySystem(), until=1.0, initial_state={'tank.x': 1.0}).values('tank.x')[0] == 1.0
+    assert trajectory.get_values('tank.x')[0] == 4.0
+    assert trajectory.get_values('tank.double')[-1] == pytest.approx(8.0 * np.exp(-1.0), rel=1e-3)
+    assert simulate(DecaySystem(), until=1.0, initial_state={'tank.x': 1.0}).get_values('tank.x')[0] == 1.0
 
 
 def test_simulate_takes_the_time_between_frames_and_observers():
@@ -157,7 +157,7 @@ def test_simulate_rejects_a_backend_of_other_spaces():
 def test_simulate_runs_a_solver_that_supports_the_tags():
     """Test that a jump system runs with a jump solver."""
     trajectory = simulate(_jump_system(), until=100.0, solver=GillespieSolver(), random_state=0)
-    assert trajectory.values('tank.x')[-1] == 0.0
+    assert trajectory.get_values('tank.x')[-1] == 0.0
 
 
 def test_tags_choose_the_default_solver_when_one_default_supports_them():
@@ -174,10 +174,10 @@ def test_tags_choose_the_default_solver_when_one_default_supports_them():
 def test_simulate_reads_the_tuned_invariants_schedule_and_compiler(monkeypatch):
     """Test that the tuned schedule holds the level, which the tuned invariant checks, and the tuned compiler runs."""
     trajectory = simulate(LeakySystem())
-    assert trajectory.values('tank.x').tolist() == [1.0] * 5
+    assert trajectory.get_values('tank.x').tolist() == [1.0] * 5
     with pytest.raises(ConservationError, match=r'invariant tank\.level'):
         simulate(LeakySystem(), schedule={'tank.k': lambda t: 1.0})
-    assert simulate(LeakySystem(), schedule={'tank.k': lambda t: 1.0}, invariants={}).values('tank.x')[-1] < 1.0
+    assert simulate(LeakySystem(), schedule={'tank.k': lambda t: 1.0}, invariants={}).get_values('tank.x')[-1] < 1.0
     compilers = []
 
     def capture(simulation):
@@ -217,7 +217,7 @@ def test_simulate_leaves_the_solver_of_nested_systems_to_the_compiled_form(monke
     monkeypatch.setattr(_simulate, '_choose_solver', fail)
     decay = RateInteraction('decay', target='tank', state='x', rate=lambda s: -s.target.x)
     nested = CompositeSystem(systems=[CompositeSystem('left', elements=[TankElement('tank')], interactions=[decay])])
-    assert simulate(nested, until=1.0).values('left/tank.x')[-1] == pytest.approx(np.exp(-1.0), rel=1e-3)
+    assert simulate(nested, until=1.0).get_values('left/tank.x')[-1] == pytest.approx(np.exp(-1.0), rel=1e-3)
 
 
 class KickedElement(Element):
@@ -251,7 +251,7 @@ def test_simulate_records_the_draws_of_a_law():
     assert record.values.size == 100
     assert record.steps.tolist() == list(range(1, 101))
     assert np.all(record.arguments['deviation'] == 0.5)
-    np.testing.assert_allclose(np.cumsum(record.values), trajectory.values('walker.x')[1:])
+    np.testing.assert_allclose(np.cumsum(record.values), trajectory.get_values('walker.x')[1:])
     assert trajectory.log_probability == pytest.approx(stats.norm.logpdf(record.values, 0, 0.5).sum())
 
 
@@ -268,8 +268,8 @@ def test_replay_forces_the_recorded_draws_and_scores_them():
     same = simulate(_kicked(0.5), until=50, random_state=0, replay=recorded)
     other = simulate(_kicked(1.0), until=50, random_state=7, replay=recorded)
     values = recorded.draws.draws['walker.kick'].values
-    np.testing.assert_allclose(same.values('walker.x'), recorded.values('walker.x'))
-    np.testing.assert_allclose(other.values('walker.x'), recorded.values('walker.x'))
+    np.testing.assert_allclose(same.get_values('walker.x'), recorded.get_values('walker.x'))
+    np.testing.assert_allclose(other.get_values('walker.x'), recorded.get_values('walker.x'))
     assert same.log_probability == pytest.approx(recorded.log_probability)
     assert other.log_probability == pytest.approx(stats.norm.logpdf(values, 0, 1.0).sum())
 

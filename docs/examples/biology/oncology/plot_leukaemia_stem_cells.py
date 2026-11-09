@@ -29,8 +29,8 @@ trajectory = simulate(LeukaemiaStemCellsSystem(), observers=[observer])
 # niche should switch from zero to one.
 
 fig, (series, switch) = plt.subplots(1, 2, figsize=(10, 4))
-series.plot(trajectory.times, trajectory.values('niche.NS'), label='normal stem cells')
-series.plot(trajectory.times, trajectory.values('niche.AS'), label='leukaemic stem cells')
+series.plot(trajectory.times, trajectory.get_values('niche.NS'), label='normal stem cells')
+series.plot(trajectory.times, trajectory.get_values('niche.AS'), label='leukaemic stem cells')
 series.set_xlabel('time')
 series.set_ylabel('cells')
 series.set_title('The leukaemic stem cells take over')
@@ -39,7 +39,7 @@ renewals = [0.45, 0.5, 0.55, 0.58, 0.6, 0.62, 0.65, 0.7, 0.8]
 shares = []
 for r4 in renewals:
     run = simulate(LeukaemiaStemCellsSystem(r4=r4), dt=5.0, until=3000)
-    shares.append(run.values('niche.AS')[-1] / (run.values('niche.AS')[-1] + run.values('niche.NS')[-1]))
+    shares.append(run.get_values('niche.AS')[-1] / (run.get_values('niche.AS')[-1] + run.get_values('niche.NS')[-1]))
 switch.plot(renewals, shares, 'o-')
 switch.axvline(0.6, color='grey', linestyle=':', label='normal renewal r1')
 switch.set_xlabel('leukaemic renewal rate r4')

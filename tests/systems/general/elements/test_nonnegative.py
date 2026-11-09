@@ -30,8 +30,8 @@ def test_nonnegative_keeps_its_value_without_laws():
     """Test that declared elements keep their amounts and fractions, since the element has no laws."""
     system = CompositeSystem(elements=[NonnegativeElement('S', x=990), NonnegativeElement('I', x=0.25)])
     trajectory = simulate(system, until=3, dt=1.0)
-    assert trajectory.values('S.x').tolist() == [990.0] * 4
-    assert trajectory.values('I.x').tolist() == [0.25] * 4
+    assert trajectory.get_values('S.x').tolist() == [990.0] * 4
+    assert trajectory.get_values('I.x').tolist() == [0.25] * 4
 
 
 def test_nonnegative_runs_into_no_laws():

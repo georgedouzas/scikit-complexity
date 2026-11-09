@@ -125,7 +125,7 @@ class StrangSplittingSolver(Solver):
         self.random_state = random_state
         self.until = until
 
-    def _flux_differences(self, t: float, x: Array, p: Array) -> Array:
+    def _get_flux_differences(self, t: float, x: Array, p: Array) -> Array:
         """Return the rates of the flux differences of the finite-volume fields.
 
         They are zero for the other states.
@@ -135,7 +135,7 @@ class StrangSplittingSolver(Solver):
             rates = rates + np.asarray(volume.run(RunStateSpec(t, x, p)).values_, dtype=float)
         return rates
 
-    def _inner(self, solver: Solver | None, law: type, dt: float, problem: ProblemSpec) -> Solver:
+    def _get_inner(self, solver: Solver | None, law: type, dt: float, problem: ProblemSpec) -> Solver:
         """Return an inner solver prepared on a part of the problem.
 
         An error is raised for a law it does not advance.
@@ -165,10 +165,10 @@ class StrangSplittingSolver(Solver):
             error_msg = 'StrangSplittingSolver splits flux differences from source rates, but the problem has no flux.'
             raise SolverError(error_msg)
         plain = replace(problem, accelerated=None, jacobian=None, sources=None)
-        transport = replace(plain, drift=self._flux_differences)
+        transport = replace(plain, drift=self._get_flux_differences)
         collision = replace(plain, drift=problem.sources, volumes=(), linear=())
-        self.transport_ = self._inner(self.transport, FluxLaw, self.dt / 2, transport)
-        self.collision_ = self._inner(self.collision, RateLaw, self.dt, collision)
+        self.transport_ = self._get_inner(self.transport, FluxLaw, self.dt / 2, transport)
+        self.collision_ = self._get_inner(self.collision, RateLaw, self.dt, collision)
 
     def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
         """Advance from time `t` to time `until` in equal split steps no longer than `dt`.

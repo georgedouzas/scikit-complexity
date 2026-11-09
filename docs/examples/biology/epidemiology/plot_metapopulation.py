@@ -30,7 +30,7 @@ trajectory = simulate(MetapopulationSystem(graph=graph), observers=[observer])
 # The infection hops one edge at a time, so the day each city reaches its epidemic peak should grow with its distance
 # on the network from the first city.
 
-infected = trajectory.values('cities.I')
+infected = trajectory.get_values('cities.I')
 peaks = trajectory.times[np.argmax(infected, axis=0)]
 distance = nx.single_source_shortest_path_length(graph, 0)
 hops = np.array([distance[node] for node in range(graph.number_of_nodes())])

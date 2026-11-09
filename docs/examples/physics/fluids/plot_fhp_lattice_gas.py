@@ -33,13 +33,13 @@ trajectory = simulate(system, until=120, observers=[observer], random_state=0)
 # the centre and spread over the lattice, so the mean particle number within the disc should fall towards the mean of
 # the whole gas.
 
-channels = np.stack([trajectory.values(f'gas.n{direction}').astype(float) for direction in range(6)])
+channels = np.stack([trajectory.get_values(f'gas.n{direction}').astype(float) for direction in range(6)])
 angles = np.arange(6) * np.pi / 3
 totals = channels.sum(axis=2)
 momentum = np.stack([np.cos(angles) @ totals, np.sin(angles) @ totals])
 positions = LatticeSpace((64, 64), geometry='triangular').prepare().positions_
 disc = np.linalg.norm(positions - positions.mean(axis=0), axis=1) < 64 / 6
-density = trajectory.values('gas.density')
+density = trajectory.get_values('gas.density')
 
 fig, (conserved, spread) = plt.subplots(1, 2, figsize=(10, 4))
 conserved.plot(trajectory.times, totals.sum(axis=0) - totals.sum(axis=0)[0], label='particle number')

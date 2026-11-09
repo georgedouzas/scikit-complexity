@@ -174,7 +174,7 @@ def test_local_rule_free_group_majority():
     system = CompositeSystem(
         elements=[GroupElement('cells', element=CellElement, space=space, values={'alive': cells}, on='sites')],
     )
-    alive = _run(system, 1).values('cells.alive')
+    alive = _run(system, 1).get_values('cells.alive')
     table = space._get_index_table(FREE_MEMORY)
     interior = (table < space.size_).all(axis=1)
     expected = cells[table[interior]].sum(axis=1) >= 3
@@ -191,7 +191,7 @@ def test_local_rule_keeps_the_orientation_of_the_memory():
     system = CompositeSystem(
         elements=[GroupElement('cells', element=CopyElement, space=space, values={'alive': cells}, on='sites')],
     )
-    alive = _run(system, 1).values('cells.alive')[1]
+    alive = _run(system, 1).get_values('cells.alive')[1]
     assert alive[sites['b*a^-1']] == 1
     assert alive[sites['a^-1*b']] == 0
 
@@ -204,7 +204,7 @@ def test_local_rule_runs_on_a_ball_of_an_automaton_group():
         elements=[GroupElement('cells', element=CopyElement, space=space, values={'alive': cells}, on='sites')],
     )
     assert space.level_ > 0
-    assert _run(system, 50).values('cells.alive').shape == (51, 40)
+    assert _run(system, 50).get_values('cells.alive').shape == (51, 40)
 
 
 def test_local_rule_runs_on_a_level_quotient():
@@ -214,6 +214,6 @@ def test_local_rule_runs_on_a_level_quotient():
     system = CompositeSystem(
         elements=[GroupElement('cells', element=CopyElement, space=space, values={'alive': cells}, on='sites')],
     )
-    alive = _run(system, 3).values('cells.alive')
+    alive = _run(system, 3).get_values('cells.alive')
     assert space.size_ == 8
     assert (alive.sum(axis=1) == cells.sum()).all()

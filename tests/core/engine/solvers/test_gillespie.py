@@ -93,9 +93,9 @@ def test_gillespie_records_firings_that_rebuild_the_states():
     for frame, now in enumerate(trajectory.times):
         fired = draws.firing_laws[draws.firing_times <= now]
         infections, recoveries = np.sum(fired == infection), np.sum(fired != infection)
-        assert trajectory.values('S.x')[frame] == 990 - infections
-        assert trajectory.values('I.x')[frame] == 10 + infections - recoveries
-        assert trajectory.values('R.x')[frame] == recoveries
+        assert trajectory.get_values('S.x')[frame] == 990 - infections
+        assert trajectory.get_values('I.x')[frame] == 10 + infections - recoveries
+        assert trajectory.get_values('R.x')[frame] == recoveries
 
 
 def test_gillespie_replay_gives_the_path_log_likelihood_at_other_rates():

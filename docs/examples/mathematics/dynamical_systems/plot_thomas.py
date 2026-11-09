@@ -37,7 +37,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=20)
 trajectory = simulate(ThomasSystem(), observers=[observer])
-points = np.column_stack([trajectory.values(f'thomas.{state}') for state in 'xyz'])[200:]
+points = np.column_stack([trajectory.get_values(f'thomas.{state}') for state in 'xyz'])[200:]
 observer.recording_.log('attractor', rr.LineStrips3D([points], radii=0.01, colors=[120, 200, 120]), static=True)
 observer.recording_.flush()
 

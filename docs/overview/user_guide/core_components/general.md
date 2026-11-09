@@ -57,7 +57,7 @@ system = CompositeSystem(
     space=ContinuousSpace(n_dim=2),
 )
 trajectory = simulate(system, until=2.0, dt=1.0)
-trajectory.values('stock.x')[-1], trajectory.values('point.x')[-1].tolist()
+trajectory.get_values('stock.x')[-1], trajectory.get_values('point.x')[-1].tolist()
 ```
 
 - `NonnegativeElement` holds one nonnegative state `x`, such as a stock, a species, a queue, or the density of one
@@ -78,7 +78,7 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.general.flows import LorenzElement
 
 trajectory = simulate(CompositeSystem(elements=[LorenzElement('lorenz', rho=10.0)]), until=2.0, dt=1.0)
-trajectory.values('lorenz.z')
+trajectory.get_values('lorenz.z')
 ```
 
 ## Reactions
@@ -122,7 +122,7 @@ isomerization = ReactionNetworkSystem(
     species={'A': 10.0, 'B': 0.0},
     reactions={'forth': ({'A': 1}, {'B': 1}, 0.3), 'back': ({'B': 1}, {'A': 1}, 0.1)},
 )
-round(float(simulate(isomerization, until=50.0, dt=1.0).values('A.x')[-1]), 3)
+round(float(simulate(isomerization, until=50.0, dt=1.0).get_values('A.x')[-1]), 3)
 isomerization.set_params(mode='jump').get_tags().randomness
 ```
 
@@ -185,7 +185,7 @@ economy = DynamicalSystem(
     time='discrete',
     element='economy',
 )
-simulate(populations, until=20.0, dt=1.0).values('populations.e')[-1], simulate(economy, until=3).values('economy.y')
+simulate(populations, until=20.0, dt=1.0).get_values('populations.e')[-1], simulate(economy, until=3).get_values('economy.y')
 ```
 
 Its hooks are `_get_states`, `_get_equations`, `_get_parameters`, `_get_noises`, `_get_time`, `_get_element_label`, and
@@ -212,7 +212,7 @@ cells = NetworkDynamicalSystem(
     parameters={'tau': 10.0, 'g': 0.5},
     element='cells',
 )
-simulate(cells, until=5.0, dt=1.0).values('cells.v')[-1]
+simulate(cells, until=5.0, dt=1.0).get_values('cells.v')[-1]
 ```
 
 It adds the hooks `_get_graph` and `_get_coupling`. A local equation may also read the graph Laplacian, as network
@@ -239,7 +239,7 @@ front = ReactionDiffusionSystem(
     boundary='reflecting',
     parameters={'r': 1.0},
 )
-simulate(front, until=10.0, dt=5.0).values('medium.u')[-1][:25]
+simulate(front, until=10.0, dt=5.0).get_values('medium.u')[-1][:25]
 ```
 
 It adds the hooks `_get_diffusivities`, `_get_space`, and `_get_boundaries`. A chemistry system whose kinetics are
@@ -265,7 +265,7 @@ race = StockFlowSystem(
     element='nations',
 )
 trajectory = simulate(race, until=10.0, dt=5.0)
-trajectory.values('nations.a'), trajectory.values('nations.arming_a')
+trajectory.get_values('nations.a'), trajectory.get_values('nations.arming_a')
 ```
 
 `None` stands for the environment. A labelled `Source('suppliers')` or `Sink('consumers')` of
@@ -300,7 +300,7 @@ system = CompositeSystem(
     interactions=[gather],
     space=LatticeSpace(3, boundary='fixed'),
 )
-densities = simulate(system, until=4.0, dt=0.5).values('candidates.x')
+densities = simulate(system, until=4.0, dt=0.5).get_values('candidates.x')
 np.round(densities[-1], 2).tolist()
 ```
 
@@ -468,7 +468,7 @@ utility = lambda s, option: 2.0 * option * mean(s.target.option)
 choice = ChoiceInteraction('choice', target='members', state='option', options=(-1, 1), utility=utility)
 members = GroupElement('members', element=ChooserElement, size=500)
 system = CompositeSystem(elements=[members], interactions=[choice], time=DiscreteTime())
-values = simulate(system, until=10, random_state=0).values('members.option')
+values = simulate(system, until=10, random_state=0).get_values('members.option')
 round(float(np.mean(values[-1])), 1)
 ```
 
@@ -501,7 +501,7 @@ initial = np.array([1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0], dtype=float)
 majority = ImitationInteraction('majority', target='voters', rule='majority', form='probability')
 voters = GroupElement('voters', element=VoterElement, space=LatticeSpace(12), values={'state': initial}, on='sites')
 system = CompositeSystem(elements=[voters], interactions=[majority], time=DiscreteTime())
-simulate(system, until=1, random_state=0).values('voters.state')[-1].tolist()
+simulate(system, until=1, random_state=0).get_values('voters.state')[-1].tolist()
 ```
 
 `ImitationInteraction(target, state, payoff, options, rate, rule='random', form='rate')` copies the state of a
@@ -718,9 +718,9 @@ auction = CompositeSystem(
     time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('quote'), PhaseSpec('trade')])),
 )
 trajectory = simulate(auction, until=5, random_state=0)
-prices = [round(float(price), 3) for price in trajectory.values('auction.value')[1:]]
-prices, float(trajectory.values('clerk.traded')[-1]), round(float(trajectory.values('clerk.fee')[-1]), 3)
-trajectory.values('auction.volume').tolist()
+prices = [round(float(price), 3) for price in trajectory.get_values('auction.value')[1:]]
+prices, float(trajectory.get_values('clerk.traded')[-1]), round(float(trajectory.get_values('clerk.fee')[-1]), 3)
+trajectory.get_values('auction.volume').tolist()
 ```
 
 `MatchingInteraction(label, requesters=..., providers=..., rule=...)` matches two groups.

@@ -43,7 +43,7 @@ def _run(
 
 def _series(trajectory: Trajectory, *names: str) -> list[npt.NDArray[np.float64]]:
     """Return the series of several variables as arrays."""
-    return [np.asarray(trajectory.values(name), dtype=float) for name in names]
+    return [np.asarray(trajectory.get_values(name), dtype=float) for name in names]
 
 
 def _upward_crossings(times: npt.NDArray[np.float64], values: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:

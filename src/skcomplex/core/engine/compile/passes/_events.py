@@ -28,7 +28,7 @@ from .._compilation import Compilation
 from ._layout import LayoutPass
 
 RELATIONS = (operator.lt, operator.le, operator.gt, operator.ge)
-_SWITCHES = frozenset({'sign', 'sgn', 'heaviside', 'unit_step'})
+SWITCHES = frozenset({'sign', 'sgn', 'heaviside', 'unit_step'})
 DELAYED_READS = frozenset({ReadKind.SINGLE, ReadKind.MEMBER, ReadKind.OTHER, ReadKind.FIRST, ReadKind.SECOND})
 
 
@@ -51,14 +51,14 @@ class DelaysPass(BasePass):
         compilation = self.compilation_
         compilation.delays, compilation.placeholders, compilation.events = [], {}, []
         compilation.delayed = []
-        for spec, laws in Compilation._required(compilation.ordered, 'ordered'):
+        for spec, laws in Compilation._get_required(compilation.ordered, 'ordered'):
             references: dict[Expression, ReferenceSpec] = {}
-            compilation.delayed.append((spec, self._with_delays(spec, laws, compilation, references)))
+            compilation.delayed.append((spec, self._copy_with_delays(spec, laws, compilation, references)))
             if references:
                 compilation._replace_specs({id(spec): replace(spec, references={**spec.references, **references})})
 
     @staticmethod
-    def _delay_minimum(
+    def _get_delay_minimum(
         spec: KernelSpec,
         tau: Expression,
         minimum: Expression | None,
@@ -76,7 +76,9 @@ class DelaysPass(BasePass):
         references = [spec.references.get(item) for item in symbols]
         if symbols and all(reference is not None and not reference.is_state for reference in references):
             values = np.concatenate([np.zeros(0), *declarations.initial_parameters])
-            columns = [reference.column_of(np.zeros(0), values) for reference in references if reference is not None]
+            columns = [
+                reference.get_column_of(np.zeros(0), values) for reference in references if reference is not None
+            ]
             printer = ExpressionPrinter(time=declarations.time, compiled=True).prepare(symbols)
             function = printer.run([SR(tau)]).code_
             delays = function(0.0, *columns) if callable(function) else None
@@ -112,7 +114,7 @@ class DelaysPass(BasePass):
             error_msg = 'DelaysPass reads the delays it collects, which it has not started.'
             raise PipelineError(error_msg)
         replacements = {}
-        for call in BasePass._calls_of(value, 'delayed'):
+        for call in BasePass._get_calls_of(value, 'delayed'):
             arguments = call.operands()
             item, tau = arguments[0], arguments[1]
             reference = spec.references.get(item)
@@ -129,7 +131,7 @@ class DelaysPass(BasePass):
                 references[placeholder] = ReferenceSpec(hidden, False, 0, reference.source)
                 replacements[call] = placeholder
                 continue
-            declarations = Compilation._required(compilation.layout, 'layout')
+            declarations = Compilation._get_required(compilation.layout, 'layout')
             entry = reference.entry
             members = entry.members if reference.source is not ReadKind.SINGLE else None
             indices = (
@@ -147,7 +149,7 @@ class DelaysPass(BasePass):
                 members,
             )
             values = np.asarray(initial, dtype=float)
-            declarations = LayoutPass._with_entry(declarations, hidden, values, is_state=False)
+            declarations = LayoutPass._copy_with_entry(declarations, hidden, values, is_state=False)
             compilation.layout = declarations
             placeholder = symbol(f'_delayed_{index}')
             references[placeholder] = ReferenceSpec(hidden, False, 0, reference.source)
@@ -156,7 +158,7 @@ class DelaysPass(BasePass):
                     entry=hidden,
                     states=np.asarray(indices, dtype=np.intp),
                     tau=tau,
-                    minimum=DelaysPass._delay_minimum(spec, tau, next(iter(arguments[2:]), None), declarations),
+                    minimum=DelaysPass._get_delay_minimum(spec, tau, next(iter(arguments[2:]), None), declarations),
                     spec=spec,
                     symbol=placeholder,
                     state=item,
@@ -167,7 +169,7 @@ class DelaysPass(BasePass):
         return value.subs(replacements) if replacements else value
 
     @staticmethod
-    def _with_delays(
+    def _copy_with_delays(
         spec: KernelSpec,
         laws: list[BaseLaw],
         compilation: Compilation,
@@ -206,7 +208,7 @@ class DelaysPass(BasePass):
                 )
             elif isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
                 result.append(
-                    BasePass._replaced(
+                    BasePass._get_replaced(
                         law,
                         value=DelaysPass._substitute_delays(law.value, spec, compilation, references),
                     ),

@@ -31,7 +31,7 @@ trajectory = simulate(HodgepodgeSystem(random_state=0), until=600, observers=[ob
 # the level of each cell should repeat with one period. The autocorrelation of the level of a cell, averaged over all
 # cells, should then peak at that period and its multiples.
 
-fields = trajectory.lattice('cells.level')[300:]
+fields = trajectory.get_lattice('cells.level')[300:]
 levels = fields.reshape(len(fields), -1)
 cells = levels[:, ::7]
 correlations = correlation(cells, max_lag=60).correlation.mean(axis=0)

@@ -62,7 +62,7 @@ def bgk_final(step: float) -> npt.NDArray[np.float64]:
     relax = RateInteraction('r', target='gas', state='x', rate=lambda s: (equilibrium(s) - s.target.x) / 0.5)
     solver = StrangSplittingSolver(SemiLagrangianSolver(dt=step), RK4Solver(dt=step), dt=step)
     system = CompositeSystem(elements=[gas], interactions=[stream, relax])
-    return simulate(system, until=1.0, dt=1.0, solver=solver).values('gas.x')[-1]
+    return simulate(system, until=1.0, dt=1.0, solver=solver).get_values('gas.x')[-1]
 
 
 def test_splitting_is_second_order_in_the_time_step() -> None:

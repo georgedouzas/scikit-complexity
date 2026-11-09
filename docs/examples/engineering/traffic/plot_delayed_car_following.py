@@ -49,7 +49,7 @@ fig, ax = plt.subplots(figsize=(6, 4.5))
 for delay, label in [(1.0, 'T = 1, unstable chain'), (0.2, 'T = 0.2, stable chain')]:
     run = simulate(DelayedCarFollowingSystem(T=delay), until=120)
     late = run.times > 60
-    amplitudes = [np.ptp(run.values(f'car_{car}.v')[late]) / 2 for car in range(8)]
+    amplitudes = [np.ptp(run.get_values(f'car_{car}.v')[late]) / 2 for car in range(8)]
     ax.semilogy(range(8), amplitudes, 'o-', label=label)
 ax.set_xlabel('car in the chain (0 is the leader)')
 ax.set_ylabel('amplitude of the speed oscillation')

@@ -266,21 +266,23 @@ def _run_lengths(series, symbol):
 
 def test_compiler_draws_uniform_values():
     """Test that a uniform draw has mean 0.5 and no lag-1 autocorrelation over 100000 steps."""
-    x = _run(CompositeSystem(elements=[UniformElement('a')]), 100000).values('a.x')[1:]
+    x = _run(CompositeSystem(elements=[UniformElement('a')]), 100000).get_values('a.x')[1:]
     assert abs(x.mean() - 0.5) < 0.005
     assert abs(np.corrcoef(x[:-1], x[1:])[0, 1]) < 0.01
 
 
 def test_compiler_draws_independently_for_members():
     """Test that 1000 normal walkers reach variance 100 after 100 steps with uncorrelated halves."""
-    final = _run(CompositeSystem(elements=[GroupElement('g', element=WalkerElement, size=1000)]), 100).values('g.x')[-1]
+    final = _run(CompositeSystem(elements=[GroupElement('g', element=WalkerElement, size=1000)]), 100).get_values(
+        'g.x',
+    )[-1]
     assert final.var() == pytest.approx(100, rel=0.15)
     assert abs(np.corrcoef(final[:500], final[500:])[0, 1]) < 0.1
 
 
 def test_compiler_reads_arguments_before_the_step():
     """Test that a draw's probability uses the state and parameter values before the step."""
-    y = _run(CompositeSystem(elements=[RampElement('r')]), 20).values('r.y')
+    y = _run(CompositeSystem(elements=[RampElement('r')]), 20).get_values('r.y')
     assert y[1] == 0
     assert np.all(y[3:] == 1)
 
@@ -306,14 +308,14 @@ def test_compiler_keeps_conditions_on_draws_undecided():
             return [UpdateLaw(s.x, where(bernoulli('b', 0.5) > 0, 1, 0))]
 
     coin = CoinElement
-    x = _run(CompositeSystem(elements=[coin('c')]), 20000).values('c.x')[1:]
+    x = _run(CompositeSystem(elements=[coin('c')]), 20000).get_values('c.x')[1:]
     assert np.mean(x) == pytest.approx(0.5, abs=0.02)
 
 
 def test_compiler_shares_a_draw_within_a_step():
     """Test that two uses of one draw name read the same value at every frame."""
     trajectory = _run(CompositeSystem(elements=[FlipElement('f')]), 200)
-    assert np.all((trajectory.values('f.a') + trajectory.values('f.b'))[1:] == 1)
+    assert np.all((trajectory.get_values('f.a') + trajectory.get_values('f.b'))[1:] == 1)
 
 
 def test_compiler_reads_the_draw_of_the_member_at_an_offset():
@@ -339,7 +341,7 @@ def test_compiler_reads_the_draw_of_the_member_at_an_offset():
             return [UpdateLaw(s.a, uniform('u', 0, 1)), UpdateLaw(s.b, shift_member(uniform('u', 0, 1), -1))]
 
     trajectory = _run(CompositeSystem(elements=[GroupElement('g', element=PairedElement, size=5)]), 20)
-    a, b = trajectory.values('g.a')[1:], trajectory.values('g.b')[1:]
+    a, b = trajectory.get_values('g.a')[1:], trajectory.get_values('g.b')[1:]
     assert np.array_equal(b, np.roll(a, 1, axis=1))
     assert len(np.unique(a)) == a.size
 
@@ -359,7 +361,7 @@ def test_compiler_rejects_draws_in_rate_laws():
 
 def test_transition_reaches_the_stationary_distribution():
     """Test that a two-symbol chain spends the stationary fraction of steps in its first symbol."""
-    x = _codes(_run(CompositeSystem(elements=[ChainElement('c')]), 100000).values('c.x'))
+    x = _codes(_run(CompositeSystem(elements=[ChainElement('c')]), 100000).get_values('c.x'))
     stationary = quantecon.MarkovChain(np.array(CHAIN)).stationary_distributions[0]
     assert np.mean(x == 0) == pytest.approx(stationary[0], abs=0.01)
 
@@ -374,7 +376,7 @@ def test_transition_follows_a_live_matrix_change():
         schedule=schedule,
         random_state=0,
     )
-    x = _codes(trajectory.values('c.x'))
+    x = _codes(trajectory.get_values('c.x'))
     assert _run_lengths(x[:50000], 0).mean() == pytest.approx(10, rel=0.1)
     assert _run_lengths(x[50002:], 0).mean() == pytest.approx(2, rel=0.1)
 
@@ -396,13 +398,13 @@ def test_transition_rejects_a_row_that_does_not_sum_to_one():
 def test_emission_aligns_with_the_hidden_state():
     """Test that an identity emission matrix copies the hidden sequence frame by frame."""
     trajectory = _run(CompositeSystem(elements=[HiddenElement('s', emission=[[1, 0], [0, 1]])]), 2000)
-    assert np.array_equal(_codes(trajectory.values('s.h')), _codes(trajectory.values('s.o')))
+    assert np.array_equal(_codes(trajectory.get_values('s.h')), _codes(trajectory.get_values('s.o')))
 
 
 def test_emission_draws_from_the_selected_row():
     """Test that the observed frequencies given each hidden state match the emission rows."""
     trajectory = _run(CompositeSystem(elements=[HiddenElement('s')]), 100000)
-    hidden, observed = _codes(trajectory.values('s.h'))[1:], _codes(trajectory.values('s.o'))[1:]
+    hidden, observed = _codes(trajectory.get_values('s.h'))[1:], _codes(trajectory.get_values('s.o'))[1:]
     for row in (0, 1):
         assert np.mean(observed[hidden == row] == 0) == pytest.approx(EMISSION[row][0], abs=0.01)
 
@@ -411,15 +413,15 @@ def test_compiler_reproduces_runs_with_one_seed():
     """Test that a hidden Markov source run twice with random state 0 gives equal trajectories."""
     first = _run(CompositeSystem(elements=[HiddenElement('s')]), 500)
     second = _run(CompositeSystem(elements=[HiddenElement('s')]), 500)
-    assert np.array_equal(_codes(first.values('s.o')), _codes(second.values('s.o')))
+    assert np.array_equal(_codes(first.get_values('s.o')), _codes(second.get_values('s.o')))
 
 
 def test_compiler_ignores_the_order_of_laws():
     """Test that the same source with its laws in two orders gives equal trajectories."""
     first = _run(CompositeSystem(elements=[HiddenElement('s', order=1)]), 500)
     second = _run(CompositeSystem(elements=[HiddenElement('s', order=2)]), 500)
-    assert np.array_equal(_codes(first.values('s.h')), _codes(second.values('s.h')))
-    assert np.array_equal(_codes(first.values('s.o')), _codes(second.values('s.o')))
+    assert np.array_equal(_codes(first.get_values('s.h')), _codes(second.get_values('s.h')))
+    assert np.array_equal(_codes(first.get_values('s.o')), _codes(second.get_values('s.o')))
 
 
 def test_compiler_draws_beside_reductions():
@@ -450,7 +452,7 @@ def test_compiler_draws_beside_reductions():
 
     spins = SpinsElement
     trajectory = _run(CompositeSystem(elements=[GroupElement('g', element=spins, size=2)]), 3)
-    assert trajectory.values('g.h')[-1].tolist() == [1.0, -1.0]
+    assert trajectory.get_values('g.h')[-1].tolist() == [1.0, -1.0]
 
 
 def test_compiler_agrees_across_backends():
@@ -485,7 +487,7 @@ def test_compiler_agrees_across_backends():
     system = CompositeSystem(elements=[GroupElement('m', element=mixed, size=50)])
     numpy, numba = _run(system, 300, NumpyBackend()), _run(system, 300, NumbaBackend())
     for name in ('m.x', 'm.k', 'm.b'):
-        assert np.allclose(numpy.values(name), numba.values(name), atol=1e-12)
+        assert np.allclose(numpy.get_values(name), numba.get_values(name), atol=1e-12)
 
 
 @pytest.mark.parametrize('part', ['edge', 'member'])
@@ -503,7 +505,7 @@ def test_compiler_agrees_across_backends_on_draws_of_hyperedges_of_several_sizes
     )
     numpy, numba = _run(system, 10, NumpyBackend()), _run(system, 10, NumbaBackend())
     for name in ('nodes.x', 'links.x'):
-        assert np.allclose(numpy.values(name), numba.values(name), atol=1e-12)
+        assert np.allclose(numpy.get_values(name), numba.get_values(name), atol=1e-12)
 
 
 def test_compiler_keeps_deterministic_maps_unchanged():
@@ -634,7 +636,7 @@ def test_compiler_draws_relaxed_draws_exactly(backend):
 
     relaxed = _run(CompositeSystem(elements=[GroupElement('m', element=RelaxedElement, size=40)]), 50, backend)
     exact = _run(CompositeSystem(elements=[GroupElement('m', element=ExactElement, size=40)]), 50, backend)
-    assert set(np.unique(relaxed.values('m.b'))) == {0.0, 1.0}
-    assert set(np.unique(relaxed.values('m.k'))) == {0.0, 1.0, 2.0}
+    assert set(np.unique(relaxed.get_values('m.b'))) == {0.0, 1.0}
+    assert set(np.unique(relaxed.get_values('m.k'))) == {0.0, 1.0, 2.0}
     for name in ('m.b', 'm.k'):
-        np.testing.assert_array_equal(relaxed.values(name), exact.values(name))
+        np.testing.assert_array_equal(relaxed.get_values(name), exact.get_values(name))

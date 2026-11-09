@@ -33,6 +33,6 @@ class EncounterProblemPass(BasePass):
         encounters = compilation.encounters
         if not encounters:
             return
-        problem = Compilation._required(compilation.problem, 'problem')
+        problem = Compilation._get_required(compilation.problem, 'problem')
         values = {item.name: getattr(problem, item.name) for item in fields(problem)}
         compilation.problem = KineticProblemSpec(**values, encounters=encounters)

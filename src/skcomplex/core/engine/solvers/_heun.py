@@ -96,9 +96,9 @@ class HeunSolver(SDESolver):
             state:
                 The state at the end of the step.
         """
-        problem, field = self.problem_, self._drift()
+        problem, field = self.problem_, self._get_drift()
         drift = field(time, state, p)
         diffusion = np.zeros_like(state)
-        np.add.at(diffusion, problem.noise_rows, self._diffusion()(time, state, p) * noise)
+        np.add.at(diffusion, problem.noise_rows, self._get_diffusion()(time, state, p) * noise)
         predictor = state + drift * step + diffusion
         return state + (drift + field(end, predictor, p)) * step / 2 + diffusion

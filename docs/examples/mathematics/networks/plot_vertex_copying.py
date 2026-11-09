@@ -48,7 +48,7 @@ trajectory = simulate(VertexCopyingSystem(), dt=2.0, observers=[observer], rando
 fig, axis = plt.subplots(figsize=(6, 4))
 for randomness in (1.0, 0.5, 0.1):
     run = simulate(VertexCopyingSystem(n_nodes=3004, randomness=randomness), until=3000, dt=1000.0, random_state=0)
-    snapshot = run.network(-1)
+    snapshot = run.get_network(-1)
     ccdf = distribution(np.bincount(np.concatenate([snapshot.sources, snapshot.targets])), kind='ccdf')
     values, shares = ccdf.support, ccdf.survival
     axis.loglog(values, shares, 'o', markersize=3, label=f'randomness {randomness}')

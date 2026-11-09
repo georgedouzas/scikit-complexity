@@ -301,7 +301,7 @@ def _prepare_runners(
     if runner is not None:
         _check_support(runner, 'backend', tags)
     composite = system.prepare().system_
-    form = Simulation._default_compiler(composite) if form is None else form
+    form = Simulation._get_default_compiler(composite) if form is None else form
     tuned_observables = () if isinstance(system, CompositeSystem) else settings['observables']
     if stepper is None and form is None and not composite.systems:
         stepper = _choose_solver(tags)

@@ -108,7 +108,7 @@ def chain_shape(
 def _read_positions(source: Trajectory, group: str | None) -> npt.ArrayLike:
     """Return the positions of a lattice state or of a group of a trajectory."""
     if group is not None and source.problem.states.has(group):
-        return source.lattice(group)
+        return source.get_lattice(group)
     positions = _read_snapshots(source, group).positions
     if positions is None:
         error_msg = f'The members of {group or "the first group"} have no positions.'

@@ -236,10 +236,10 @@ class ShepherdingInteraction(Interaction):
         shepherds = shepherds + np.where(blocked[:, None], 0.0, self.delta_s * self._unit(steps))
         width, height = system.dimensions or (np.inf, np.inf)
         for sheep_view, position, heading in zip(flock, moved, headings, strict=True):
-            sheep_view.move_to(self._inside(position, width, height))
+            sheep_view.move_to(self._get_inside(position, width, height))
             sheep_view.hx, sheep_view.hy = float(heading[0]), float(heading[1])
         for dog, position, mode in zip(dogs, shepherds, driving, strict=True):
-            dog.move_to(self._inside(position, width, height))
+            dog.move_to(self._get_inside(position, width, height))
             dog.driving = float(mode)
 
     def _move_sheep(
@@ -287,7 +287,7 @@ class ShepherdingInteraction(Interaction):
         lengths = np.linalg.norm(vectors, axis=-1, keepdims=True)
         return vectors / np.where(lengths > 0, lengths, 1.0)
 
-    def _inside(self, position: Array, width: float, height: float) -> tuple[float, float]:
+    def _get_inside(self, position: Array, width: float, height: float) -> tuple[float, float]:
         """Return a position clipped to the field."""
         margin = 1e-6
         return float(np.clip(position[0], margin, width - margin)), float(np.clip(position[1], margin, height - margin))

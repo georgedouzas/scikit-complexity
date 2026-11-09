@@ -23,7 +23,7 @@ def test_voter_system_reaches_consensus():
 def test_majority_rule_settles():
     """Test that synchronous majority voting settles into domains that are fixed or blink with period two."""
     trajectory = simulate(MajorityRuleSystem((50, 50)).prepare().system_, until=50, dt=1)
-    opinions = trajectory.values('voters.opinion')
+    opinions = trajectory.get_values('voters.opinion')
     changes = np.abs(np.diff(opinions, axis=0)).sum(axis=1)
     assert changes[0] > 100
     assert changes[-1] < 25

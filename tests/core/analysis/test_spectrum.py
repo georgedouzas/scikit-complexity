@@ -33,7 +33,7 @@ def test_structure_factor_same_on_a_trajectory_and_its_last_frame():
     spins = simulate(IsingSystem(size=32), until=5, random_state=0)
     np.testing.assert_array_equal(
         _spectrum('structure-factor', spins).power,
-        _spectrum('structure-factor', spins.lattice('spins.spin')[-1]).power,
+        _spectrum('structure-factor', spins.get_lattice('spins.spin')[-1]).power,
     )
 
 

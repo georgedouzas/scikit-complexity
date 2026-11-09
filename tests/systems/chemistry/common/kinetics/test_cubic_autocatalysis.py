@@ -26,5 +26,5 @@ def test_cubic_autocatalysis_reacts_at_every_site_of_a_field():
     reaction = CubicAutocatalysisInteraction('autocatalysis', target='cells', substrate='v', autocatalyst='u')
     simulation = simulate(CompositeSystem(elements=[cells], interactions=[reaction]), until=1e-4, dt=1e-4)
     trajectory = simulation
-    change = (trajectory.lattice('cells.v')[-1] - 1.0) / 1e-4
+    change = (trajectory.get_lattice('cells.v')[-1] - 1.0) / 1e-4
     np.testing.assert_allclose(change, -values['u'] ** 2, rtol=1e-3, atol=1e-9)

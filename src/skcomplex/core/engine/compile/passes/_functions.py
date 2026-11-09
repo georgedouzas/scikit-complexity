@@ -78,7 +78,7 @@ class FunctionsPass(BasePass):
         return item.target is not None and item.target.source is ReadKind.SINGLE and kernel.rows > 1
 
     @staticmethod
-    def _equations_of(
+    def _get_equations_of(
         kernels: list[LawKernel],
         declarations: DeclarationsSpec,
         form: FormKind,
@@ -104,7 +104,7 @@ class FunctionsPass(BasePass):
                 if entry not in declarations.states:
                     continue
                 components = block.symbols[variable]
-                for column, component in enumerate(ProblemSpec._real_components_of(components)):
+                for column, component in enumerate(ProblemSpec._get_real_components_of(components)):
                     key = (entry.name, column)
                     if key in excluded:
                         continue
@@ -116,7 +116,7 @@ class FunctionsPass(BasePass):
         return equations, symbols
 
     @staticmethod
-    def _wrapping_angles(boundary: VectorFunction | None, states: LayoutSpec) -> VectorFunction | None:
+    def _get_wrapping_angles(boundary: VectorFunction | None, states: LayoutSpec) -> VectorFunction | None:
         """Return a boundary function that also wraps every angle state into `(-pi, pi]`."""
         indices = np.concatenate(
             [np.zeros(0, dtype=np.intp)]
@@ -137,7 +137,7 @@ class FunctionsPass(BasePass):
         return wrapped
 
     @staticmethod
-    def _chosen_backend(compilation: Compilation, form: FormKind, members: int) -> BaseBackend:
+    def _get_chosen_backend(compilation: Compilation, form: FormKind, members: int) -> BaseBackend:
         """Return the backend that lowers a form.
 
         It is NumPy for a stepwise form, with a warning when it is not the one asked. Without a backend asked, it is
@@ -170,7 +170,7 @@ class FunctionsPass(BasePass):
         )
 
     @staticmethod
-    def _backends_of(
+    def _get_backends_of(
         form: FormKind,
         kernels: Mapping[type, list[LawKernel]],
         name: str,
@@ -191,12 +191,12 @@ class FunctionsPass(BasePass):
 
         The update of a stochastic map takes a generator.
         """
-        form = Compilation._required(compilation.form, 'form')
-        lowered = Compilation._required(compilation.kernels, 'kernels')
-        declarations = Compilation._required(compilation.layout, 'layout')
-        reductions = Compilation._required(compilation.reductions, 'reductions')
+        form = Compilation._get_required(compilation.form, 'form')
+        lowered = Compilation._get_required(compilation.kernels, 'kernels')
+        declarations = Compilation._get_required(compilation.layout, 'layout')
+        reductions = Compilation._get_required(compilation.reductions, 'reductions')
         draws = compilation.draws
-        backend = FunctionsPass._chosen_backend(
+        backend = FunctionsPass._get_chosen_backend(
             compilation,
             form,
             declarations.members,
@@ -205,19 +205,19 @@ class FunctionsPass(BasePass):
         complete = replace(lowered, form=form, size=size, reductions=reductions, draws=draws)
         lowering = backend.prepare().run(complete).functions_
         update: Callable[..., Array] | None = lowering.update
-        phases = FunctionsPass._phases_of(compilation, lowered) if form == FormKind.DISCRETE else None
-        sweeps = FunctionsPass._sweeps_of(lowered, declarations.time)
+        phases = FunctionsPass._get_phases_of(compilation, lowered) if form == FormKind.DISCRETE else None
+        sweeps = FunctionsPass._get_sweeps_of(lowered, declarations.time)
         if phases is not None:
-            update = FunctionsPass._phased_update(
+            update = FunctionsPass._get_phased_update(
                 [
-                    (phase, FunctionsPass._phase_update(backend, complete, items, declarations.time))
+                    (phase, FunctionsPass._get_phase_update(backend, complete, items, declarations.time))
                     for phase, items in phases
                 ],
             )
         elif sweeps and update is not None:
-            update = FunctionsPass._ordered_update(update, sweeps)
+            update = FunctionsPass._get_ordered_update(update, sweeps)
         if draws is not None and update is not None:
-            update = FunctionsPass._stochastic_update(update, draws)
+            update = FunctionsPass._get_stochastic_update(update, draws)
         accelerated = lowering.accelerated
         if (
             (draws is not None and (draws.sampled or draws.orders)) or sweeps or phases is not None
@@ -235,9 +235,9 @@ class FunctionsPass(BasePass):
             FormKind.JUMP: [],
         }.get(form, kernels[RateLaw])
         equations, symbols = (
-            FunctionsPass._equations_of(equation_kernels, declarations, form)
+            FunctionsPass._get_equations_of(equation_kernels, declarations, form)
             if phases is None
-            else FunctionsPass._phased_equations([items for _, items in phases], declarations, form)
+            else FunctionsPass._get_phased_equations([items for _, items in phases], declarations, form)
         )
         states = LayoutSpec(tuple(declarations.states))
         return _ProblemFunctionsSpec(
@@ -257,16 +257,19 @@ class FunctionsPass(BasePass):
             propensities=lowering.propensities,
             jumps=lowering.jumps,
             update=update,
-            boundary=FunctionsPass._wrapping_angles(lowering.boundary, states),
-            algebraic=FunctionsPass._algebraic_function(lowered, reductions),
+            boundary=FunctionsPass._get_wrapping_angles(lowering.boundary, states),
+            algebraic=FunctionsPass._get_algebraic_function(lowered, reductions),
             draws=draws,
             backend=backend._get_name(),
-            backends=FunctionsPass._backends_of(form, kernels, backend._get_name(), lowering),
+            backends=FunctionsPass._get_backends_of(form, kernels, backend._get_name(), lowering),
             accelerated=accelerated,
         )
 
     @staticmethod
-    def _algebraic_function(lowered: LoweredKernelsSpec, reductions: ReductionScheduleSpec) -> VectorFunction | None:
+    def _get_algebraic_function(
+        lowered: LoweredKernelsSpec,
+        reductions: ReductionScheduleSpec,
+    ) -> VectorFunction | None:
         """Return the function that sets the algebraic states of a state vector.
 
         It is `None` for a system without them.
@@ -274,8 +277,8 @@ class FunctionsPass(BasePass):
         kernels = lowered.kernels.get(AlgebraicLaw)
         if not kernels:
             return None
-        return NumpyBackend._wrapped(
-            BaseBackend._assigning_function(kernels),
+        return NumpyBackend._get_wrapped(
+            BaseBackend._get_assigning_function(kernels),
             AlgebraicLaw,
             reductions,
             lowered.kernels,
@@ -298,7 +301,7 @@ class FunctionsPass(BasePass):
         return form in STEPWISE_FORMS.values()
 
     @staticmethod
-    def _key_function(spec: KernelSpec, order: object, time: Expression) -> Callable[[float, Array, Array], Array]:
+    def _get_key_function(spec: KernelSpec, order: object, time: Expression) -> Callable[[float, Array, Array], Array]:
         """Return the function of the order of the members of an update law at a state."""
         expression = SR(order)
         arguments = sorted(symbols_of([expression]) - {time}, key=str)
@@ -317,7 +320,7 @@ class FunctionsPass(BasePass):
         rows = spec.rows
 
         def key(t: float, x: Array, q: Array) -> Array:
-            values = function(t, *(reference.column_of(x, q) for reference in references))
+            values = function(t, *(reference.get_column_of(x, q) for reference in references))
             if not isinstance(values, list):
                 error_msg = f'The function of the order of an update law of {spec.owner} returns no list of values.'
                 raise TypeError(error_msg)
@@ -326,7 +329,7 @@ class FunctionsPass(BasePass):
         return key
 
     @staticmethod
-    def _sweeps_of(lowered: LoweredKernelsSpec, time: Expression) -> list[_SweepSpec]:
+    def _get_sweeps_of(lowered: LoweredKernelsSpec, time: Expression) -> list[_SweepSpec]:
         """Return the update laws whose members update one after the other.
 
         It also returns the indices each member sets.
@@ -348,12 +351,12 @@ class FunctionsPass(BasePass):
                 )
                 found.setdefault(id(law), (spec, law, []))[2].append(indices)
         return [
-            _SweepSpec(np.stack(columns, axis=1), FunctionsPass._key_function(spec, law.order, time))
+            _SweepSpec(np.stack(columns, axis=1), FunctionsPass._get_key_function(spec, law.order, time))
             for spec, law, columns in found.values()
         ]
 
     @staticmethod
-    def _ordered_update(update: Callable[..., Array], sweeps: list[_SweepSpec]) -> Callable[..., Array]:
+    def _get_ordered_update(update: Callable[..., Array], sweeps: list[_SweepSpec]) -> Callable[..., Array]:
         """Return an update whose ordered laws set their members one after the other.
 
         Each member reads those before it. Every other law updates at once from the state at the start of the step.
@@ -384,7 +387,7 @@ class FunctionsPass(BasePass):
         return ordered
 
     @staticmethod
-    def _phases_of(
+    def _get_phases_of(
         compilation: Compilation,
         lowered: LoweredKernelsSpec,
     ) -> list[tuple[PhaseSpec, list[LawKernel]]] | None:
@@ -410,7 +413,7 @@ class FunctionsPass(BasePass):
                 An update law runs in a phase the schedule does not declare, or a phase of update laws repeats or has an
                 activation other than the default.
         """
-        declared = FunctionsPass._declared_phases(compilation.system)
+        declared = FunctionsPass._get_declared_phases(compilation.system)
         kernels: dict[str, list[LawKernel]] = defaultdict(list)
         for kernel in lowered.kernels.get(UpdateLaw, []):
             _, law = lowered.laws[id(kernel.outputs[0])]
@@ -444,7 +447,7 @@ class FunctionsPass(BasePass):
         return [(phase, kernels[phase.name]) for phase in plan if phase.name in kernels]
 
     @staticmethod
-    def _declared_phases(system: CompositeSystem) -> list[PhaseSpec]:
+    def _get_declared_phases(system: CompositeSystem) -> list[PhaseSpec]:
         """Return the phases of the schedules of a system and its nested systems.
 
         The first of every name is kept.
@@ -453,14 +456,14 @@ class FunctionsPass(BasePass):
         schedule = time.prepare().schedule_ if isinstance(time, DiscreteTime) else None
         phases = list(schedule.phases) if isinstance(schedule, PhasesScheduleSpec) else []
         for nested in system.systems:
-            phases += FunctionsPass._declared_phases(nested)
+            phases += FunctionsPass._get_declared_phases(nested)
         kept: dict[str, PhaseSpec] = {}
         for phase in phases:
             kept.setdefault(phase.name, phase)
         return list(kept.values())
 
     @staticmethod
-    def _phase_update(
+    def _get_phase_update(
         backend: BaseBackend,
         complete: LoweredKernelsSpec,
         kernels: list[LawKernel],
@@ -475,11 +478,11 @@ class FunctionsPass(BasePass):
         if update is None:
             error_msg = 'The backend returns no update of a phase of a discrete map.'
             raise TypeError(error_msg)
-        sweeps = FunctionsPass._sweeps_of(phase, time)
-        return FunctionsPass._ordered_update(update, sweeps) if sweeps else update
+        sweeps = FunctionsPass._get_sweeps_of(phase, time)
+        return FunctionsPass._get_ordered_update(update, sweeps) if sweeps else update
 
     @staticmethod
-    def _phased_update(phases: list[tuple[PhaseSpec, Callable[..., Array]]]) -> Callable[..., Array]:
+    def _get_phased_update(phases: list[tuple[PhaseSpec, Callable[..., Array]]]) -> Callable[..., Array]:
         """Return an update that runs the phases due in a step in order.
 
         Each phase reads the states the one before set. A phase runs in the steps `k`, counted from one, for which `k -
@@ -504,7 +507,7 @@ class FunctionsPass(BasePass):
         return phased
 
     @staticmethod
-    def _phased_equations(
+    def _get_phased_equations(
         phases: list[list[LawKernel]],
         declarations: DeclarationsSpec,
         form: FormKind,
@@ -514,10 +517,10 @@ class FunctionsPass(BasePass):
         The map of every phase is composed with those before. A state whose value after a phase has no symbolic
         equation, or reads such a state, is left out.
         """
-        known, symbols = FunctionsPass._equations_of([], declarations, form)
+        known, symbols = FunctionsPass._get_equations_of([], declarations, form)
         names = {component: name for name, component in symbols.items()}
         for kernels in phases:
-            equations, _ = FunctionsPass._equations_of(kernels, declarations, form)
+            equations, _ = FunctionsPass._get_equations_of(kernels, declarations, form)
             following = {}
             for name, equation in equations.items():
                 expression = SR(equation)
@@ -528,7 +531,7 @@ class FunctionsPass(BasePass):
         return known, {name: symbols[name] for name in known}
 
     @staticmethod
-    def _stochastic_update(update: Callable[..., Array], draws: DrawKernel) -> Callable[..., Array]:
+    def _get_stochastic_update(update: Callable[..., Array], draws: DrawKernel) -> Callable[..., Array]:
         """Return the update of a stochastic map.
 
         It draws its values from a generator before every step.

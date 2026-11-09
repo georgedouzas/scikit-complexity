@@ -39,8 +39,8 @@ trajectory = simulate(system, until=50, observers=[observer])
 # period `2π / (ω2 - ω1)`.
 
 times = np.asarray(trajectory.times)
-left = np.sin(np.ravel(trajectory.values('left.theta')))
-right = np.sin(np.ravel(trajectory.values('right.theta')))
+left = np.sin(np.ravel(trajectory.get_values('left.theta')))
+right = np.sin(np.ravel(trajectory.get_values('right.theta')))
 slow, fast = np.sqrt(9.81), np.sqrt(9.81 + 2 * 0.5)
 envelope = 0.2 * np.abs(np.cos((fast - slow) * times / 2))
 fig, ax = plt.subplots(figsize=(10, 4))

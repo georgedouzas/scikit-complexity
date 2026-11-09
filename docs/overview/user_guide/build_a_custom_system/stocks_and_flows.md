@@ -42,8 +42,8 @@ class PeopleElement(Element):
 crowd = CompositeSystem(elements=[PeopleElement('crowd')])
 observed = [ObservableSpec('birth_rate', birth_rate, element='crowd')]
 trajectory = simulate(crowd, until=10, dt=1.0, observables=observed)
-round(float(trajectory.values('crowd.births')[-1]), 3), round(float(trajectory.values('crowd.deaths')[-1]), 3)
-round(float(trajectory.values('crowd.birth_rate')[-1]), 3)
+round(float(trajectory.get_values('crowd.births')[-1]), 3), round(float(trajectory.get_values('crowd.deaths')[-1]), 3)
+round(float(trajectory.get_values('crowd.birth_rate')[-1]), 3)
 ```
 
 A `TransferLaw(source, sink, amount, label=...)` moves an amount of the quantity from one stock to another. It exchanges
@@ -208,7 +208,7 @@ translator.settings_.until, module.DT
 
 system = module.PeopleSystem(birth_fraction=0.04)
 trajectory = simulate(system)
-trajectory.values('people.births')[0], trajectory.values('people.doubling_share')[0]
+trajectory.get_values('people.births')[0], trajectory.get_values('people.doubling_share')[0]
 loops(system).polarities
 ```
 
@@ -254,7 +254,7 @@ differs from it by the Euler error of the time step of the file.
 
 ```python continuation
 stepped = simulate(system, until=module.UNTIL, dt=module.DT, solver=EulerSolver(dt=module.DT))
-final = stepped.values('people.population')[-1]
+final = stepped.get_values('people.population')[-1]
 round(float(final), 3)
 ```
 

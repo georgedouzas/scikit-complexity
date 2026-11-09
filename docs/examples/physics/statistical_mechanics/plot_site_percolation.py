@@ -36,7 +36,7 @@ trajectory = simulate(system, until=299, observers=[observer], random_state=0)
 def spans(side, p, seed):
     """Return whether the fire lit along the top row of a lattice reaches its bottom row."""
     run = simulate(SitePercolationSystem(shape=(side, side), p=p, random_state=seed), until=4 * side)
-    return bool((run.values('lattice.cover')[-1].reshape(side, side)[-1] >= 2).any())
+    return bool((run.get_values('lattice.cover')[-1].reshape(side, side)[-1] >= 2).any())
 
 
 probabilities = np.linspace(0.5, 0.7, 17)

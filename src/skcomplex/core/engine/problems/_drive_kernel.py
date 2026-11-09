@@ -12,7 +12,7 @@ from ...specs import ArgumentsSpec, RunStateSpec
 from ...types import Array
 from ._base import BaseKernel
 
-_NO_ARGUMENTS = ArgumentsSpec()
+NO_ARGUMENTS = ArgumentsSpec()
 
 
 class DriveKernel(BaseKernel):
@@ -53,7 +53,7 @@ class DriveKernel(BaseKernel):
         owner: str,
         target: LatticeStateSpec,
         function: Callable[..., object],
-        arguments: ArgumentsSpec = _NO_ARGUMENTS,
+        arguments: ArgumentsSpec = NO_ARGUMENTS,
         *,
         timed: bool = False,
         drawing: bool = True,
@@ -74,7 +74,7 @@ class DriveKernel(BaseKernel):
         """Lattice states the drive changes."""
         return (self.target,)
 
-    def _keywords(self, x: Array, p: Array) -> dict[str, object]:
+    def _get_keywords(self, x: Array, p: Array) -> dict[str, object]:
         """Return the parameters the functions receive by keyword.
 
         Those of one value per site come in lattice shape.
@@ -82,7 +82,7 @@ class DriveKernel(BaseKernel):
         shape = self.target.shape
         return {
             name: np.reshape(value, shape) if np.size(value) == self.target.size and np.ndim(value) else value
-            for name, value in self.arguments.values(x, p).items()
+            for name, value in self.arguments.get_values(x, p).items()
         }
 
     def read_score(self, x: Array, p: Array) -> object:
@@ -101,15 +101,15 @@ class DriveKernel(BaseKernel):
         """
         if self.score is None:
             return None
-        return self.score(np.reshape(x[self.target.sites].copy(), self.target.shape), **self._keywords(x, p))
+        return self.score(np.reshape(x[self.target.sites].copy(), self.target.shape), **self._get_keywords(x, p))
 
     def _run(self, inputs: RunStateSpec | None) -> None:
         """Update the state vector of the state in place by one application of the drive."""
         self.values_ = None
-        state = self._state_of(inputs)
+        state = self._get_state_of(inputs)
         x, p, rng = state.x, state.p, state.rng
         shape = self.target.shape if self.target.components == 1 else (*self.target.shape, self.target.components)
-        keywords = self._keywords(x, p)
+        keywords = self._get_keywords(x, p)
         if self.timed:
             keywords['time'] = state.t
         if self.drawing:

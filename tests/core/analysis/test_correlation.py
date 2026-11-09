@@ -109,7 +109,7 @@ def test_correlation_length_ising_lattice_above_its_critical_temperature():
     for temperature in (2.5, 3.0):
         system = IsingSystem(size=128, temperature=temperature, random_state=0).prepare().system_
         trajectory = simulate(system, until=1500, dt=1, random_state=0)
-        frames = np.asarray(trajectory.lattice('spins.spin'), dtype=float)[500::5]
+        frames = np.asarray(trajectory.get_lattice('spins.spin'), dtype=float)[500::5]
         length = _correlation('length', frames, frames=True).length
         assert length == pytest.approx(_exact_correlation_length(temperature), rel=0.15)
 
@@ -124,7 +124,7 @@ def test_correlation_length_reaction_diffusion_field():
 def test_correlation_length_of_a_trajectory_reads_the_last_frame():
     """Test that a field trajectory gives the length of its last frame, or of every frame."""
     trajectory = simulate(IsingSystem(size=32, temperature=3.0).prepare().system_, until=20, dt=1, random_state=0)
-    frames = np.asarray(trajectory.lattice('spins.spin'), dtype=float)
+    frames = np.asarray(trajectory.get_lattice('spins.spin'), dtype=float)
     assert _correlation('length', trajectory).length == _correlation('length', frames[-1]).length
     assert _correlation('length', trajectory, frames=True).length == _correlation('length', frames, frames=True).length
 
@@ -143,7 +143,7 @@ def test_overlap_of_ising_replicas():
             for seed in (0, 1)
         ]
         overlap = _correlation('overlap', replicas).overlap
-        frames = np.stack([replica.lattice('spins.spin') for replica in replicas])
+        frames = np.stack([replica.get_lattice('spins.spin') for replica in replicas])
         np.testing.assert_array_equal(overlap, _correlation('overlap', frames).overlap)
         overlaps[temperature] = float(np.mean(np.abs(overlap[100:])))
     assert overlaps[1.5] > 0.9

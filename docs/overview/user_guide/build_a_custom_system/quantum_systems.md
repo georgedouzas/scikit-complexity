@@ -90,7 +90,7 @@ chain = CompositeSystem(
 )
 observables = [ObservableSpec('sz', sz, group='chain', reduce=sites)]
 trajectory = simulate(chain, until=2.0, dt=0.5, observables=observables)
-trajectory.values('sz').shape, round(float(np.ptp(trajectory.values('energy'))), 8)
+trajectory.get_values('sz').shape, round(float(np.ptp(trajectory.get_values('energy'))), 8)
 ```
 
 Laws name the operators of a subsystem with `local_operator(s.psi, name)`, from `skcomplex.core.components.laws.utils`.

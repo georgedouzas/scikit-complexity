@@ -23,5 +23,5 @@ class TopologyProblemPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Add the topology changes to the problem."""
         compilation = self.compilation_
-        problem = Compilation._required(compilation.problem, 'problem')
+        problem = Compilation._get_required(compilation.problem, 'problem')
         compilation.problem = replace(problem, topology=compilation.topology)

@@ -31,11 +31,11 @@ class JacobianPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Derive the Jacobian of the drift."""
         compilation = self.compilation_
-        declarations = Compilation._required(compilation.layout, 'layout')
+        declarations = Compilation._get_required(compilation.layout, 'layout')
         compilation.jacobian = (
             JacobianKernel(
-                tuple(Compilation._required(compilation.kernels, 'kernels').kernels[RateLaw]),
-                Compilation._required(compilation.reductions, 'reductions'),
+                tuple(Compilation._get_required(compilation.kernels, 'kernels').kernels[RateLaw]),
+                Compilation._get_required(compilation.reductions, 'reductions'),
                 declarations.ends[True],
                 declarations.time,
             )

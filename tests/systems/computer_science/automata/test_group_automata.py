@@ -40,7 +40,7 @@ def test_grigorchuk_automaton_runs_the_majority_rule():
     """Test that the system runs the majority of {1, a, b, c, d} on a ball of radius 8 with the known ball sizes."""
     composite, trajectory = _run(GrigorchukAutomatonSystem(), 1)
     space = composite.elements[0].space
-    alive = trajectory.values('cells.alive')
+    alive = trajectory.get_values('cells.alive')
     assert space.size_ == 271
     assert space.ball_sizes_ == GRIGORCHUK_BALLS
     assert _majority_holds(space, MemoryNeighborhood(('1', 'a', 'b', 'c', 'd')), alive[0], alive[1])
@@ -78,7 +78,7 @@ def test_free_group_automaton_runs_the_majority_rule():
     """Test that every interior cell of the free group ball takes the majority of itself and its four neighbours."""
     composite, trajectory = _run(FreeGroupAutomatonSystem(radius=6), 1)
     space = composite.elements[0].space
-    alive = trajectory.values('cells.alive')
+    alive = trajectory.get_values('cells.alive')
     assert space.size_ == 1457
     assert _majority_holds(space, MemoryNeighborhood(('1', 'a', 'a^-1', 'b', 'b^-1')), alive[0], alive[1])
 
@@ -88,7 +88,7 @@ def test_majority_automata_on_balls(factory, size):
     """Test that the majority automata on the Heisenberg and Baumslag-Solitar balls of radius 2 run the rule."""
     composite, trajectory = _run(factory(radius=2), 1)
     space = composite.elements[0].space
-    alive = trajectory.values('cells.alive')
+    alive = trajectory.get_values('cells.alive')
     assert space.size_ == size
     assert _majority_holds(space, GeneratorNeighborhood(space.generators_), alive[0], alive[1])
 
@@ -104,21 +104,21 @@ def test_lamplighter_automaton_is_linear():
     images = [np.append(cells, 0)[table].sum(axis=1) % 2 for cells in (first, second, (first + second) % 2)]
     np.testing.assert_array_equal(((images[0] + images[1]) % 2)[interior], images[2][interior])
     _, trajectory = _run(system, 1)
-    alive = trajectory.values('cells.alive')
+    alive = trajectory.get_values('cells.alive')
     np.testing.assert_array_equal(alive[1][interior], (np.append(alive[0], 0)[table].sum(axis=1) % 2)[interior])
 
 
 def test_linear_ring_automaton_spreads_binomials():
     """Test that the Laplacian over GF(3) from one cell gives the coefficients of (x + 1/x - 2)^t modulo 3."""
     _, trajectory = _run(LinearRingAutomatonSystem(11, modulus=3), 2)
-    values = trajectory.values('cells.value')[-1]
+    values = trajectory.get_values('cells.value')[-1]
     np.testing.assert_array_equal(values, [0, 0, 0, 1, 2, 0, 2, 1, 0, 0, 0])
 
 
 def test_subshifts_stay_admissible():
     """Test that the Markov chain on the golden mean shift never puts two ones side by side and fills about a fifth."""
     composite, trajectory = _run(SubshiftsSystem(100), 30)
-    alive = trajectory.values('cells.alive')
+    alive = trajectory.get_values('cells.alive')
     analyses = (automaton(composite, kind='admissible', configuration=row.astype(int)) for row in alive)
     assert all(analysis.admissible for analysis in analyses)
     assert 0.1 < alive[-10:].mean() < 0.4

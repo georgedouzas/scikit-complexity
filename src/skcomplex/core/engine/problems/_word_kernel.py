@@ -34,7 +34,7 @@ from ._base_problem_spec import BaseProblemSpec
 from ._expression_printer import ExpressionPrinter
 from ._group_spec import _GroupSpec
 from ._rewriting_loops import (
-    _ACTION_CODES,
+    ACTION_CODES,
     DRAW,
     LEFT,
     MOVE,
@@ -52,13 +52,9 @@ from ._rewriting_loops import (
 from ._successor_spec import _SuccessorSpec
 
 IDENTIFIER = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
-
-
 PROBABILITY_TOLERANCE = 1e-9
 SPACE_DIMENSION = 3
-
-
-_TURNS = (LEFT, RIGHT, REVERSE, PITCH_DOWN, PITCH_UP, ROLL_LEFT, ROLL_RIGHT)
+TURNS = (LEFT, RIGHT, REVERSE, PITCH_DOWN, PITCH_UP, ROLL_LEFT, ROLL_RIGHT)
 
 
 class WordKernel(BaseKernel):
@@ -118,7 +114,7 @@ class WordKernel(BaseKernel):
         """
         word, productions, values = self.word, self.productions, self.values
         self.max_size = int(word.max_size)
-        arities = self._alphabet_of(word, productions)
+        arities = self._get_alphabet_of(word, productions)
         self.names = tuple(arities)
         self.arities = arities
         self.width = max(arities.values(), default=0)
@@ -133,11 +129,11 @@ class WordKernel(BaseKernel):
         if word.geometry is not None:
             meanings = {**TURTLE_SYMBOLS, **(word.geometry.symbols or {})}
             self.actions = np.array(
-                [_ACTION_CODES.get(meanings.get(name, ''), 0) for name in self.names],
+                [ACTION_CODES.get(meanings.get(name, ''), 0) for name in self.names],
                 dtype=np.int64,
             )
         self.successors: list[_SuccessorSpec] = []
-        self.groups = self._groups(productions)
+        self.groups = self._get_groups(productions)
         self._check_probabilities(values)
 
     def _encode(
@@ -146,35 +142,36 @@ class WordKernel(BaseKernel):
         where: str,
     ) -> tuple[npt.NDArray[np.int64], npt.NDArray[np.float64]]:
         """Return the codes and the parameter table of numeric modules."""
-        codes = np.array([self._code(module, where) for module in modules], dtype=np.int64)
+        codes = np.array([self._get_code(module, where) for module in modules], dtype=np.int64)
         table = np.full((len(modules), self.width), np.nan)
         for row, module in enumerate(modules):
             table[row, : len(module.parameters)] = [float(item) for item in module.parameters]
         return codes, table
 
-    def _code(self, module: ModuleSpec, where: str) -> int:
+    def _get_code(self, module: ModuleSpec, where: str) -> int:
         """Return the code of a module after checking its number of parameters."""
         arity = self.arities.get(module.name)
         if arity is None or len(module.parameters) > arity:
             error_msg = (
-                f'{self._written(module)} in {where} of word {self.path!r} does not fit the alphabet, whose symbols '
+                f'{self._get_written(module)} in {where} of word {self.path!r} does not fit the alphabet, whose '
+                'symbols '
                 f'and numbers of parameters are {self.arities}.'
             )
             raise RewritingError(error_msg)
         return self.names.index(module.name)
 
-    def _successor(self, production: ProductionLaw, variables: list[Expression]) -> int:
+    def _get_successor(self, production: ProductionLaw, variables: list[Expression]) -> int:
         """Compile the successor of a production and return its index."""
         modules = ModuleSpec.parse_word(production.successor, self.names)
-        text = self._production_text(production)
-        codes = np.array([self._code(module, text) for module in modules], dtype=np.int64)
+        text = self._get_production_text(production)
+        codes = np.array([self._get_code(module, text) for module in modules], dtype=np.int64)
         slots = [(row, column) for row, module in enumerate(modules) for column in range(len(module.parameters))]
         expressions = [modules[row].parameters[column] for row, column in slots]
-        values = self._function(variables, expressions, text) if slots else None
+        values = self._get_function(variables, expressions, text) if slots else None
         self.successors.append(_SuccessorSpec(codes, tuple(slots), values, len(variables)))
         return len(self.successors) - 1
 
-    def _function(
+    def _get_function(
         self,
         variables: Sequence[Expression],
         expressions: Sequence[object],
@@ -213,7 +210,7 @@ class WordKernel(BaseKernel):
             )
             raise RewritingError(error_msg)
         printer = ExpressionPrinter(time=time, compiled=True).prepare([*variables, *symbols])
-        compiled = ExpressionPrinter._function_of(printer.run(values).code_)
+        compiled = ExpressionPrinter._get_function_of(printer.run(values).code_)
 
         def evaluate(*arguments: object) -> Arrays:
             result = compiled(*arguments)
@@ -224,27 +221,27 @@ class WordKernel(BaseKernel):
 
         return evaluate
 
-    def _groups(self, productions: Sequence[ProductionLaw]) -> list[_GroupSpec]:
+    def _get_groups(self, productions: Sequence[ProductionLaw]) -> list[_GroupSpec]:
         """Return the groups of productions in the order they are tried."""
         groups: dict[tuple[str, ...] | int, _GroupSpec] = {}
         members: dict[tuple[str, ...] | int, tuple[list[int], list[Callable[..., Arrays] | None]]] = {}
         for order, production in enumerate(productions):
-            text = self._production_text(production)
+            text = self._get_production_text(production)
             predecessor = production.predecessor
             module = predecessor if isinstance(predecessor, ModuleSpec) else ModuleSpec(predecessor)
             variables = [SR(item) for item in module.parameters]
             if any(not item.is_symbol() for item in variables) or len(set(variables)) < len(variables):
                 error_msg = f'The predecessor of {text} must have distinct symbols as parameters.'
                 raise RewritingError(error_msg)
-            code = self._code(module, text)
+            code = self._get_code(module, text)
             left = ModuleSpec.parse_word(production.left, self.names) if production.left is not None else []
             right = ModuleSpec.parse_word(production.right, self.names) if production.right is not None else []
             condition = production.condition
             key: tuple[str, ...] | int = (
                 (
                     module.name,
-                    ' '.join(self._written(item) for item in left),
-                    ' '.join(self._written(item) for item in right),
+                    ' '.join(self._get_written(item) for item in left),
+                    ' '.join(self._get_written(item) for item in right),
                     str(condition),
                 )
                 if production.probability is not None
@@ -254,23 +251,28 @@ class WordKernel(BaseKernel):
                 members[key] = ([], [])
                 groups[key] = _GroupSpec(
                     code=code,
-                    left=tuple(self._code(item, text) for item in left),
-                    right=tuple(self._code(item, text) for item in right),
-                    condition=(None if condition is None else self._function(variables, [condition], text)),
+                    left=tuple(self._get_code(item, text) for item in left),
+                    right=tuple(self._get_code(item, text) for item in right),
+                    condition=(None if condition is None else self._get_function(variables, [condition], text)),
                     variables=len(variables),
                     rank=(0 if left or right else 1, 0 if condition is not None else 1, order),
                 )
             successors, probabilities = members[key]
-            successors.append(self._successor(production, variables))
+            successors.append(self._get_successor(production, variables))
             probability = production.probability
-            probabilities.append(None if probability is None else self._function([], [probability], text))
+            probabilities.append(None if probability is None else self._get_function([], [probability], text))
         found = [
             replace(group, successors=tuple(members[key][0]), probabilities=tuple(members[key][1]))
             for key, group in groups.items()
         ]
         return sorted(found, key=lambda group: group.rank)
 
-    def _weights(self, group: _GroupSpec, values: npt.NDArray[np.float64], generation: int) -> npt.NDArray[np.float64]:
+    def _get_weights(
+        self,
+        group: _GroupSpec,
+        values: npt.NDArray[np.float64],
+        generation: int,
+    ) -> npt.NDArray[np.float64]:
         """Return the probabilities of the productions of a group.
 
         They are checked to sum to one.
@@ -289,7 +291,7 @@ class WordKernel(BaseKernel):
     def _check_probabilities(self, values: npt.NDArray[np.float64]) -> None:
         """Raise an error when the probabilities of a stochastic group do not sum to one."""
         for group in self.groups:
-            self._weights(group, values, 0)
+            self._get_weights(group, values, 0)
 
     def _prepare(self, context: object) -> None:
         """Start the word at generation 0 for a run of the problem, as `values_`.
@@ -305,7 +307,7 @@ class WordKernel(BaseKernel):
         if not isinstance(context, BaseProblemSpec):
             error_msg = f'Word {self.path!r} starts from the initial parameters of a problem, but got none.'
             raise RewritingError(error_msg)
-        self.values_ = self._initial(context.initial_parameters)
+        self.values_ = self._get_initial(context.initial_parameters)
 
     def _run(self, inputs: RunStateSpec | None) -> None:
         """Rewrite the current word once, every module in parallel.
@@ -317,12 +319,12 @@ class WordKernel(BaseKernel):
             raise RewritingError(error_msg)
         self.values_ = self._rewrite(self.values_, inputs.p, inputs.rng)
 
-    def _initial(self, values: npt.NDArray[np.float64]) -> WordStructureSpec:
+    def _get_initial(self, values: npt.NDArray[np.float64]) -> WordStructureSpec:
         """Return the word at generation 0, the axiom with its geometry."""
         del values
-        return self._structure(self.codes, self.table, 0)
+        return self._get_structure(self.codes, self.table, 0)
 
-    def counts(self, word: WordStructureSpec) -> list[float]:
+    def get_counts(self, word: WordStructureSpec) -> list[float]:
         """Return the count of every counted symbol and the size of a word.
 
         Args:
@@ -336,7 +338,7 @@ class WordKernel(BaseKernel):
         totals = np.bincount(word.codes, minlength=len(self.names))
         return [float(totals[self.names.index(name)]) for name in self.counted] + [float(word.parts)]
 
-    def _context(
+    def _get_context(
         self,
         codes: npt.NDArray[np.int64],
         links: npt.NDArray[np.int64],
@@ -373,9 +375,9 @@ class WordKernel(BaseKernel):
                 continue
             keep = np.ones(len(rows), dtype=bool)
             if group.left and links is not None:
-                keep &= self._context(codes, links[0], rows, group.left[::-1])
+                keep &= self._get_context(codes, links[0], rows, group.left[::-1])
             if group.right and links is not None:
-                keep &= self._context(codes, links[1], rows, group.right)
+                keep &= self._get_context(codes, links[1], rows, group.right)
             if group.condition is not None:
                 columns = [table[rows, column] for column in range(group.variables)]
                 keep &= np.broadcast_to(np.asarray(group.condition(generation, *columns, *values)[0], bool), keep.shape)
@@ -384,7 +386,7 @@ class WordKernel(BaseKernel):
             if len(successors) == 1 or draws is None:
                 chosen[rows] = successors[0]
                 continue
-            bins = np.cumsum(self._weights(group, values, generation))
+            bins = np.cumsum(self._get_weights(group, values, generation))
             picks = np.minimum(np.searchsorted(bins, draws[rows], side='right'), len(successors) - 1)
             chosen[rows] = successors[picks]
         return chosen
@@ -444,9 +446,9 @@ class WordKernel(BaseKernel):
             results = successor.values(generation, *columns, *values)
             for (position, column), result in zip(successor.slots, results, strict=True):
                 new_table[starts + position, column] = result
-        return self._structure(new_codes, new_table, generation + 1)
+        return self._get_structure(new_codes, new_table, generation + 1)
 
-    def _structure(
+    def _get_structure(
         self,
         codes: npt.NDArray[np.int64],
         table: npt.NDArray[np.float64],
@@ -470,7 +472,7 @@ class WordKernel(BaseKernel):
         )
 
     @staticmethod
-    def _alphabet_of(word: WordElement, productions: Sequence[ProductionLaw]) -> dict[str, int]:
+    def _get_alphabet_of(word: WordElement, productions: Sequence[ProductionLaw]) -> dict[str, int]:
         """Return the arity of every symbol.
 
         It is declared, or taken from the axiom and the productions.
@@ -496,25 +498,25 @@ class WordKernel(BaseKernel):
         return {name: found.get(name, 0) for name in declared}
 
     @staticmethod
-    def _written(module: ModuleSpec) -> str:
+    def _get_written(module: ModuleSpec) -> str:
         """Return a module as written, such as `A(x, 2)`."""
         if not module.parameters:
             return module.name
         return f'{module.name}({", ".join(str(item) for item in module.parameters)})'
 
     @staticmethod
-    def _production_text(production: ProductionLaw) -> str:
+    def _get_production_text(production: ProductionLaw) -> str:
         """Return a production as written, such as `B < A → B`, for error messages."""
-        head = WordKernel._written(ModuleSpec.parse_word(production.predecessor)[0])
+        head = WordKernel._get_written(ModuleSpec.parse_word(production.predecessor)[0])
         if production.left is not None:
             left = ModuleSpec.parse_word(production.left)
-            head = f'{"".join(WordKernel._written(module) for module in left)} < {head}'
+            head = f'{"".join(WordKernel._get_written(module) for module in left)} < {head}'
         if production.right is not None:
             right = ModuleSpec.parse_word(production.right)
-            head = f'{head} > {"".join(WordKernel._written(module) for module in right)}'
+            head = f'{head} > {"".join(WordKernel._get_written(module) for module in right)}'
         modules = ModuleSpec.parse_word(production.successor)
         separator = ' ' if any(module.parameters for module in modules) else ''
-        return f'{head} → {separator.join(WordKernel._written(module) for module in modules)}'
+        return f'{head} → {separator.join(WordKernel._get_written(module) for module in modules)}'
 
     @staticmethod
     def _interpret(
@@ -550,7 +552,7 @@ class WordKernel(BaseKernel):
         step = geometry.step * geometry.contraction**generation
         angle, heading = np.deg2rad(geometry.angle), np.deg2rad(geometry.heading)
         values = table[:, 0].copy() if table.shape[1] else np.full(len(actions), np.nan)
-        turns = np.isin(actions, _TURNS)
+        turns = np.isin(actions, TURNS)
         values[turns] = np.deg2rad(values[turns])
         if geometry.dimension == SPACE_DIMENSION or np.isin(actions, (PUSH, POP)).any():
             segments, depths = _walk_word(actions, values, step, angle, heading)

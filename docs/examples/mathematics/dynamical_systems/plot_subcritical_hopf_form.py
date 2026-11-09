@@ -40,7 +40,7 @@ trajectory = simulate(system.prepare().system_, until=290, dt=1.0, observers=[ob
 # the last stays at `alpha = -0.1`, and near 0 during the middle one. Started from a small and from a large amplitude,
 # runs at fixed `alpha` should end on different attractors exactly in the bistable window `-1/4 < alpha < 0`.
 
-amplitude = np.hypot(trajectory.values('form.x'), trajectory.values('form.y'))
+amplitude = np.hypot(trajectory.get_values('form.x'), trajectory.get_values('form.y'))
 alphas = np.linspace(-0.4, 0.2, 25)
 finals = {
     start: [

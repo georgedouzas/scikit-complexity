@@ -49,9 +49,9 @@ for tau in taus:
         solver=EulerMaruyamaSolver(dt=min(0.01, tau / 20)),
         random_state=0,
     )
-    variances.append(np.mean(run.values('particles.v')[20:] ** 2))
+    variances.append(np.mean(run.get_values('particles.v')[20:] ** 2))
     if tau == 1.0:
-        noise = run.values('particles.xi')
+        noise = run.get_values('particles.xi')
 
 lags = np.arange(11) * 0.5
 correlation = np.array([np.mean(noise[: len(noise) - lag] * noise[lag:]) for lag in range(11)]) / np.mean(noise**2)

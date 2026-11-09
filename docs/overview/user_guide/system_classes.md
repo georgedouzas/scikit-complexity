@@ -81,7 +81,7 @@ class DrainingTankSystem(BaseSystem):
 
 tank = DrainingTankSystem(k=0.2)
 tank.get_params(), sorted(tank.get_tags().laws)
-round(float(simulate(tank).values('tank.level')[-1]), 3)
+round(float(simulate(tank).get_values('tank.level')[-1]), 3)
 ```
 
 `prepare` builds the parts from the current parameters and keeps them as `system_`. It builds them again only when a
@@ -143,7 +143,7 @@ class VaccinatedSIRSystem(SIRSystem):
 
 vaccinated = VaccinatedSIRSystem()
 [interaction.label for interaction in vaccinated.prepare().system_.interactions]
-simulate(SIRSystem()).values('I.x').max().round(), simulate(vaccinated).values('I.x').max().round()
+simulate(SIRSystem()).get_values('I.x').max().round(), simulate(vaccinated).get_values('I.x').max().round()
 ```
 
 The subclass repeats the arguments of its parent in its `__init__`, since `get_params` reads the signature of the
@@ -154,7 +154,7 @@ The subclass is an estimator like its parent, so every function of the library t
 
 ```python continuation
 stochastic = vaccinated.set_params(stochastic=True)
-stochastic.get_tags().randomness, simulate(stochastic, random_state=0).values('I.x').max()
+stochastic.get_tags().randomness, simulate(stochastic, random_state=0).get_values('I.x').max()
 ```
 
 The [contributing guide](../../development/contributing.md#adding-a-system-to-the-catalog) shows how a system class of

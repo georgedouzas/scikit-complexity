@@ -39,7 +39,7 @@ message
 room = CompositeSystem(elements=[HeaterElement('heater')])
 schedule = {'heater.power': lambda t: 1.0 if t >= 1.0 else 0.0}
 heated = simulate(room, until=3, dt=0.5, schedule=schedule)
-heated.values('heater.power').tolist()
+heated.get_values('heater.power').tolist()
 ```
 
 Laws read a control input like a parameter, and trajectories record it like a state. A schedule, an optimal control
@@ -88,9 +88,9 @@ def cost(s):
 
 optimal = simulate(plant, until=1.0, dt=0.1, solver=PontryaginSolver(cost))
 solution = PontryaginSolver(cost, until=1.0).prepare(optimal.problem).solution_
-round(float(optimal.values('plant.u')[0]), 3), round(float(solution.cost), 4)
+round(float(optimal.get_values('plant.u')[0]), 3), round(float(solution.cost), 4)
 transcribed = simulate(plant, until=1.0, dt=0.1, solver=CollocationSolver(cost, nodes=21))
-round(float(transcribed.values('plant.u')[0]), 3)
+round(float(transcribed.get_values('plant.u')[0]), 3)
 ```
 
 The objective has two parts:

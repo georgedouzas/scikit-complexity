@@ -33,7 +33,7 @@ trajectory = simulate(TapCatalysisSystem(), observers=[observer], random_state=0
 # or tiny at a low catalysis probability and present and close to the whole network at a high one, with about even
 # chances near `pc = 0.0044` (Hordijk and Kauffman 2022, Fig. 2).
 
-goods = [len(trajectory.network(frame).nodes) for frame in range(len(trajectory.times))]
+goods = [len(trajectory.get_network(frame).nodes) for frame in range(len(trajectory.times))]
 probabilities = [0.002, 0.003, 0.0044, 0.006, 0.008]
 shares = []
 for pc in probabilities:

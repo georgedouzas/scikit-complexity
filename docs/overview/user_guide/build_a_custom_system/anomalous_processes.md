@@ -31,7 +31,7 @@ class FlierElement(Element):
 
 fliers = CompositeSystem(elements=[GroupElement('fliers', element=FlierElement, size=100)])
 flight = simulate(fliers, until=20, dt=1.0, random_state=0)
-flight.values('fliers.x').shape
+flight.get_values('fliers.x').shape
 ```
 
 - The keywords can be expressions of states and parameters.
@@ -78,7 +78,7 @@ class WalkerElement(Element):
 
 walkers = CompositeSystem(elements=[GroupElement('walkers', element=WalkerElement, size=1000)])
 walk = simulate(walkers, until=1000, dt=100.0, random_state=0)
-walk.problem.form.value, bool(walk.values('jumps.renewals')[-1] > 1000)
+walk.problem.form.value, bool(walk.get_values('jumps.renewals')[-1] > 1000)
 ```
 
 - Every member of a group renews on its own clock.
@@ -127,7 +127,7 @@ class RoughElement(Element):
 
 walkers = CompositeSystem(elements=[GroupElement('walkers', element=RoughElement, size=500)])
 rough = simulate(walkers, until=1, dt=0.1, solver=FractionalEulerMaruyamaSolver(dt=0.01), random_state=0)
-round(float(rough.values('walkers.x')[-1].var()), 1)
+round(float(rough.get_values('walkers.x')[-1].var()), 1)
 ```
 
 - The increments anticorrelate for `H < 1/2` and correlate for `H > 1/2`.
@@ -173,7 +173,7 @@ system = CompositeSystem(elements=[RelaxingElement('a')])
 relaxing = simulate(system, until=20, dt=1.0, solver=L1Solver(dt=0.01, memory=10.0))
 solution = symbolic(system, kind='solve', use_initial_state=True).solutions['a.x'].rhs()
 exact = solution.subs({solution.variables()[0]: 20.0})
-relaxing.problem.form.value, abs(float(relaxing.values('a.x')[-1]) - float(exact)) < 1e-3
+relaxing.problem.form.value, abs(float(relaxing.get_values('a.x')[-1]) - float(exact)) < 1e-3
 ```
 
 The simulated relaxation matches the exact Mittag-Leffler solution to `1e-3` at time 20.

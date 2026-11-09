@@ -63,11 +63,11 @@ for f in forces:
         solver=EulerMaruyamaSolver(dt=0.005),
         random_state=1,
     )
-    positions = run.values('particles.x')[..., 0]
+    positions = run.get_values('particles.x')[..., 0]
     velocities.append((positions[-1] - positions[5]).mean() / 25)
 
 times = trajectory.times
-mean_position = trajectory.values('particles.x')[..., 0].mean(axis=1)
+mean_position = trajectory.get_values('particles.x')[..., 0].mean(axis=1)
 
 fig, (current, drift) = plt.subplots(1, 2, figsize=(10, 4))
 grid = np.linspace(0.05, 4.0, 60)

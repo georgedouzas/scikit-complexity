@@ -32,7 +32,7 @@ anneal = SamplingInteraction(
 )
 candidates = GroupElement('candidates', element=CandidateElement, space=LatticeSpace(20), on='sites')
 system = CompositeSystem(elements=[candidates], interactions=[anneal], time=DiscreteTime())
-values = simulate(system, until=200, random_state=0).values('candidates.x')
+values = simulate(system, until=200, random_state=0).get_values('candidates.x')
 round(float(abs(values[0] - 2).mean()), 2), round(float(abs(values[-1] - 2).mean()), 2)
 ```
 
@@ -54,7 +54,7 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.computer_science.evolutionary_computation import EvolutionaryOptimisersSystem
 
 system = EvolutionaryOptimisersSystem(algorithm='particle-swarm', random_state=1)
-simulate(system, until=20, random_state=1).values('search.best')[-1] < 20
+simulate(system, until=20, random_state=1).get_values('search.best')[-1] < 20
 ```
 
 - The `objective` takes the array of candidates.

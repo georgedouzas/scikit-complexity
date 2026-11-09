@@ -58,9 +58,9 @@ for noise in noises:
         random_state=1,
         observables=VicsekSystem.observables,
     )
-    orders.append(np.mean(np.asarray(run.values('polarization'), dtype=float)[-10:]))
+    orders.append(np.mean(np.asarray(run.get_values('polarization'), dtype=float)[-10:]))
 fig, (series, transition) = plt.subplots(1, 2, figsize=(10, 4))
-series.plot(trajectory.times, np.asarray(trajectory.values('polarization'), dtype=float))
+series.plot(trajectory.times, np.asarray(trajectory.get_values('polarization'), dtype=float))
 series.set_ylim(0, 1)
 series.set_xlabel('step')
 series.set_ylabel('polar order')
@@ -102,13 +102,13 @@ for k in ks:
         random_state=0,
         observables=VicsekSystem.observables,
     )
-    topological.append(np.mean(np.asarray(run.values('polarization'))[-5:]))
+    topological.append(np.mean(np.asarray(run.get_values('polarization'))[-5:]))
 delays = [-4, -2, 0, 2, 5, 10, 25]
 clustering = []
 for delay in delays:
     system_system = VicsekSystem(n_particles=100, size=50.0, v0=0.15, eta=0.2 / np.pi, delay=delay, seed=0)
     positions = np.asarray(
-        simulate(system_system, until=2000, dt=100.0, random_state=0).values('flock.x'),
+        simulate(system_system, until=2000, dt=100.0, random_state=0).get_values('flock.x'),
     )
     clustering.append(np.mean([neighbours(frame, 50.0) for frame in positions[-5:]]))
 fig, (left, right) = plt.subplots(1, 2, figsize=(10, 4))

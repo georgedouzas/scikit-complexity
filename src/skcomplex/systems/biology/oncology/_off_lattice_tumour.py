@@ -197,8 +197,8 @@ class TumourGrowthInteraction(Interaction):
         offset = DAUGHTER_DISTANCE / 2 * cell.s * np.array([math.cos(angle), math.sin(angle)])
         centre = np.asarray(cell.location, dtype=float)
         cell.age = 0.0
-        cell.move_to(self._inside(centre - offset, system))
-        cell.create(location=self._inside(centre + offset, system), cancer=1, age=0.0)
+        cell.move_to(self._get_inside(centre - offset, system))
+        cell.create(location=self._get_inside(centre + offset, system), cancer=1, age=0.0)
 
     @staticmethod
     def _invade(cell: SpringCellView, neighbours: list[SpringCellView], system: SystemViewProtocol) -> None:
@@ -226,7 +226,7 @@ class TumourGrowthInteraction(Interaction):
         cell.move_to(tuple(float(item) for item in moved))
 
     @staticmethod
-    def _inside(position: np.ndarray, system: SystemViewProtocol) -> tuple[float, ...]:
+    def _get_inside(position: np.ndarray, system: SystemViewProtocol) -> tuple[float, ...]:
         """Return a position clipped into the square, a small margin inside its edges."""
         sides = np.asarray(system.dimensions, dtype=float)
         return tuple(float(item) for item in np.clip(position, 1e-6, sides - 1e-6))

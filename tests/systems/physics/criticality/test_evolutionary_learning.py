@@ -40,8 +40,8 @@ def test_evolutionary_sk_game_rules():
 def test_evolutionary_sk_game_replaces_the_least_fit():
     """Test that the least fit agent at a replacement step gets a new temperature and no other agent does."""
     trajectory = simulate(EvolutionarySKGameSystem(n_agents=32), until=10, random_state=0)
-    temperatures, fitness = np.asarray(trajectory.values('agents.temperature')), np.asarray(
-        trajectory.values('agents.fitness'),
+    temperatures, fitness = np.asarray(trajectory.get_values('agents.temperature')), np.asarray(
+        trajectory.get_values('agents.fitness'),
     )
     for step in (3, 6, 9):
         changed = np.flatnonzero(temperatures[step + 1] != temperatures[step])
@@ -54,15 +54,15 @@ def test_evolutionary_sk_game_self_organisation():
     """Test the evolved low temperatures, cascades of exponent 3/2, and a reward above every fixed temperature."""
     system = EvolutionarySKGameSystem(memory=0.75, random_state=SEED).prepare().system_
     evolved = simulate(system, until=STEPS, dt=1, random_state=SEED)
-    temperatures = np.asarray(evolved.values('agents.temperature'))
+    temperatures = np.asarray(evolved.get_values('agents.temperature'))
     assert np.median(temperatures[-1]) < 0.5 < np.median(temperatures[0])
-    fitness = np.asarray(evolved.values('agents.fitness'))[::3][TRANSIENT // 3 :]
+    fitness = np.asarray(evolved.get_values('agents.fitness'))[::3][TRANSIENT // 3 :]
     threshold = np.quantile(fitness.min(axis=1), 0.97)
     sizes = events((fitness < threshold).sum(axis=1), kind='excursions').sizes
     fit = fit_law(sizes, minimum=5, discrete=True)
     assert fit.exponent == pytest.approx(1.5, abs=0.15)
-    reward = np.asarray(evolved.values('agents.reward'))[STEPS // 2 :].mean()
+    reward = np.asarray(evolved.get_values('agents.reward'))[STEPS // 2 :].mean()
     for temperature in SWEEP:
         system = EvolutionarySKGameSystem(temperature=temperature, random_state=SEED).prepare().system_
         fixed = simulate(system, until=SWEEP_STEPS, dt=1, random_state=SEED)
-        assert reward > np.asarray(fixed.values('agents.reward'))[SWEEP_STEPS // 2 :].mean(), temperature
+        assert reward > np.asarray(fixed.get_values('agents.reward'))[SWEEP_STEPS // 2 :].mean(), temperature

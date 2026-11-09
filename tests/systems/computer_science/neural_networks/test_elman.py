@@ -7,9 +7,9 @@ from skcomplex.systems.computer_science.neural_networks import ElmanNetworkSyste
 def test_elman_network_learns_the_temporal_xor():
     """Test that 200 epochs of Adam predict the XOR bits and leave the random bits unpredictable."""
     trajectory = simulate(ElmanNetworkSystem(), until=200, random_state=0)
-    assert trajectory.values('training/xor_error')[-1] < 0.05
-    assert trajectory.values('training/random_error')[-1] > 0.2
-    loss = trajectory.values('training/loss')
+    assert trajectory.get_values('training/xor_error')[-1] < 0.05
+    assert trajectory.get_values('training/random_error')[-1] > 0.2
+    loss = trajectory.get_values('training/loss')
     assert loss[-1] < loss[0]
 
 
@@ -17,7 +17,7 @@ def test_elman_network_with_elman_original_rule():
     """Test that a truncation of one step, Elman's original rule, still predicts the XOR bits better."""
     simulation = simulate(ElmanNetworkSystem(truncation=1).prepare().system_, until=500, random_state=0)
     trajectory = simulation
-    assert trajectory.values('training/xor_error')[-1] < trajectory.values('training/random_error')[-1]
+    assert trajectory.get_values('training/xor_error')[-1] < trajectory.get_values('training/random_error')[-1]
 
 
 def test_elman_network_holds_one_window_per_third_bit():

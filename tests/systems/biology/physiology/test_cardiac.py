@@ -15,7 +15,7 @@ def test_aliev_panfilov_sustains_a_spiral():
         dt=50.0,
         solver=RK4Solver(dt=0.05),
     )
-    excited = (trajectory.values('tissue.u') > 0.5).mean(axis=1)
+    excited = (trajectory.get_values('tissue.u') > 0.5).mean(axis=1)
     assert np.all(excited[1:] > 0.05)
 
 
@@ -24,5 +24,5 @@ def test_barkley_sustains_its_spiral_and_breaks_up_in_the_chaotic_regime():
     solver = RK4Solver(dt=0.2)
     spiral = simulate(BarkleySystem(), dt=20.0, solver=solver, until=500)
     chaos = simulate(BarkleySystem(a=0.7, epsilon=0.08, gamma=3.0).prepare().system_, until=500, dt=20.0, solver=solver)
-    assert np.all((spiral.values('medium.u') > 0.5).mean(axis=1) > 0.01)
-    assert np.all((chaos.values('medium.u')[10:] > 0.5).mean(axis=1) > 0.3)
+    assert np.all((spiral.get_values('medium.u') > 0.5).mean(axis=1) > 0.01)
+    assert np.all((chaos.get_values('medium.u')[10:] > 0.5).mean(axis=1) > 0.3)

@@ -21,7 +21,7 @@ from ..problems import BaseProblemSpec, ProblemSpec
 from ..problems._draw_recorder import DrawRecorder
 from ..types import BoundaryFunction, InterpolatingStepFunction
 from ._event_locator import EventLocator
-from ._history import _RESTART, History
+from ._history import RESTART, History
 
 
 class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
@@ -208,7 +208,7 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
             error_msg = f'{type(self).__name__} solves the {form} form, but the problem has the {problem.form} form.'
             raise SolverError(error_msg)
         self.problem_ = problem
-        self.rng_ = self._generator()
+        self.rng_ = self._get_generator()
         if isinstance(problem, ProblemSpec):
             problem.stream.bind(self.rng_)
         self.initial_state_ = problem.initial_state.copy()
@@ -218,7 +218,7 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
         self.agents_ = {}
         self.draw_recorder_ = None
 
-    def _generator(self) -> np.random.Generator:
+    def _get_generator(self) -> np.random.Generator:
         """Return the generator of the random state.
 
         For a seed, it is spawned from its seed sequence.
@@ -387,13 +387,13 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
         state, time = x.copy(), t
         for bound in EventLocator._find_bounds(problem, t, until):
             ceiling = EventLocator._find_left_limit(bound)
-            while time < bound - _RESTART * max(1.0, abs(bound)):
+            while time < bound - RESTART * max(1.0, abs(bound)):
                 step = min(dt, bound - time)
                 following, interpolant = take(time, state, step, ceiling)
                 if history is not None:
                     history.add(time, time + step, interpolant)
                 hit = (
-                    locator.crossing(
+                    locator.get_crossing(
                         time,
                         time + step,
                         state,

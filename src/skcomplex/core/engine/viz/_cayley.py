@@ -15,9 +15,9 @@ import rerun.blueprint as rrb
 from ...components.spaces import CayleySpace
 from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
 from ..problems import BaseProblemSpec, FrameSpec
-from ._base import _NODE_SPACING, _UPWARD, BaseVisual
+from ._base import NODE_SPACING, UPWARD, BaseVisual
 
-_NODE_SHARE = 0.15
+NODE_SHARE = 0.15
 
 
 class CayleyVisual(BaseVisual):
@@ -98,7 +98,7 @@ class CayleyVisual(BaseVisual):
         space = getattr(element.element, 'space', None)
         if not isinstance(space, CayleySpace):
             return
-        positions = space.positions_ * _NODE_SPACING * _UPWARD
+        positions = space.positions_ * NODE_SPACING * UPWARD
         nodes = [str(site) for site in range(space.size_)]
         for state, name in element.states.items():
             if self.states is not None and state not in self.states:
@@ -106,17 +106,17 @@ class CayleyVisual(BaseVisual):
             path = f'{element.path}/{state}'
             if path not in self.edges_:
                 self._log_edges(recording, path, space)
-            values = np.ravel(np.asarray(frame.value(name), dtype=float))
+            values = np.ravel(np.asarray(frame.get_value(name), dtype=float))
             drawn = rr.GraphNodes(
                 nodes,
                 positions=positions,
-                colors=self._colors(values, self.low, self.high),
-                radii=_NODE_SHARE * _NODE_SPACING,
+                colors=self._get_colors(values, self.low, self.high),
+                radii=NODE_SHARE * NODE_SPACING,
                 show_labels=False,
             )
             recording.log(path, drawn)
 
-    def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return one graph view per chosen state, bounded by the outer ring.
 
         Args:
@@ -133,7 +133,7 @@ class CayleyVisual(BaseVisual):
         space = getattr(getattr(element, 'element', None), 'space', None)
         if not isinstance(element, CompiledElementSpec) or not isinstance(space, CayleySpace):
             return []
-        extent = (float(space.lengths_.max(initial=0)) + 1.0) * _NODE_SPACING
+        extent = (float(space.lengths_.max(initial=0)) + 1.0) * NODE_SPACING
         bounds = rrb.VisualBounds2D(x_range=(-extent, extent), y_range=(-extent, extent))
         states = [state for state in element.states if self.states is None or state in self.states]
         return [rrb.GraphView(origin=f'{element.path}/{state}', name=state, visual_bounds=bounds) for state in states]

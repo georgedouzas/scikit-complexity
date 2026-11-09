@@ -239,7 +239,7 @@ def test_pair_coupling_holds_members_at_the_potential_minimum():
         space=ContinuousSpace(n_dim=2),
     )
     trajectory = simulate(system, until=1, solver=ScipyODESolver(), dt=0.1)
-    np.testing.assert_allclose(trajectory.values('pair.x_d1'), 0.0, atol=1e-12)
+    np.testing.assert_allclose(trajectory.get_values('pair.x_d1'), 0.0, atol=1e-12)
 
 
 @pytest.mark.slow
@@ -254,7 +254,7 @@ def test_pair_coupling_conserves_the_total_first_derivative():
     )
     solver = ScipyODESolver(rtol=1e-9, atol=1e-12)
     trajectory = simulate(system, until=2, solver=solver, dt=0.05)
-    momentum = trajectory.values('gas.x_d1').sum(axis=1)
+    momentum = trajectory.get_values('gas.x_d1').sum(axis=1)
     np.testing.assert_allclose(momentum, np.broadcast_to(momentum[0], momentum.shape), atol=1e-8)
 
 

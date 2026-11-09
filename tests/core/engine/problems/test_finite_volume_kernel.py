@@ -81,9 +81,9 @@ def test_max_speed_matches_numerical_eigenvalues():
     x = problem.initial_state.copy()
     x[depth : depth + 200] = rng.uniform(0.5, 2.0, 200)
     x[discharge : discharge + 200] = rng.uniform(-1.0, 1.0, 200)
-    closed = volume.max_speed(x, problem.initial_parameters)
+    closed = volume.get_max_speed(x, problem.initial_parameters)
     assert volume.closed_form is True
-    numerical = volume.set_params(speeds=()).max_speed(x, problem.initial_parameters)
+    numerical = volume.set_params(speeds=()).get_max_speed(x, problem.initial_parameters)
     assert volume.closed_form is False
     assert closed == pytest.approx(numerical, rel=1e-12)
 
@@ -139,7 +139,7 @@ def test_run_falls_back_to_numerical_eigenvalues_without_closed_form():
     assert volume.closed_form is False
     for index in range(N_STATES):
         total = values[f'u{index}'].sum()
-        assert trajectory.values(f'line.u{index}')[-1].sum() == pytest.approx(total, rel=1e-12)
+        assert trajectory.get_values(f'line.u{index}')[-1].sum() == pytest.approx(total, rel=1e-12)
 
 
 def test_max_speed_rejects_states_outside_the_hyperbolic_region():
@@ -148,7 +148,7 @@ def test_max_speed_rejects_states_outside_the_hyperbolic_region():
     x = problem.initial_state.copy()
     x[volume.starts[0] : volume.starts[0] + 20] = -1.0
     with pytest.raises(SolverError, match='channel'):
-        volume.max_speed(x, problem.initial_parameters)
+        volume.get_max_speed(x, problem.initial_parameters)
 
 
 @pytest.mark.parametrize('space_type', [PhaseSpace, SimplexSpace])
@@ -163,5 +163,5 @@ def test_max_speed_divides_by_the_smallest_cell_volume(space_type):
         flux=lambda s: [0, 0.5 * s.target.x, -0.25 * s.target.x],
     )
     problem, volume = _volume(CompositeSystem(elements=[groups], interactions=[flow]))
-    speed = volume.max_speed(problem.initial_state, problem.initial_parameters)
+    speed = volume.get_max_speed(problem.initial_state, problem.initial_parameters)
     assert speed == pytest.approx(1.0 if space_type is SimplexSpace else 0.5)

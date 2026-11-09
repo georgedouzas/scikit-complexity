@@ -37,9 +37,10 @@ from .._base import BasePass
 from .._compilation import Compilation, Laws
 from ._census import CensusPass
 
-type _Key = tuple[str, int]
-
 ABSOLUTE = 'abs'
+
+
+type _Key = tuple[str, int]
 
 
 @dataclass(frozen=True)
@@ -79,15 +80,17 @@ class LinearProgramsPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Lower the programs and make the functions of the problem solve them first."""
         compilation = self.compilation_
-        groups = self._merged(self._bound_laws(compilation))
-        problem = Compilation._required(compilation.problem, 'problem')
+        groups = self._get_merged(self._get_bound_laws(compilation))
+        problem = Compilation._get_required(compilation.problem, 'problem')
         if not groups:
             return
-        states = LayoutSpec(tuple(Compilation._required(compilation.layout, 'layout').states))
-        time = Compilation._required(compilation.layout, 'layout').time
-        offsets = self._value_offsets(compilation)
-        kernels = tuple(LinearProgramKernel(self._lowered(group, states, time, offsets)).prepare() for group in groups)
-        compilation.problem = self._solving_problem(problem, kernels)
+        states = LayoutSpec(tuple(Compilation._get_required(compilation.layout, 'layout').states))
+        time = Compilation._get_required(compilation.layout, 'layout').time
+        offsets = self._get_value_offsets(compilation)
+        kernels = tuple(
+            LinearProgramKernel(self._get_lowered(group, states, time, offsets)).prepare() for group in groups
+        )
+        compilation.problem = self._get_solving_problem(problem, kernels)
 
     @staticmethod
     def _count_values(bound: _BoundLawSpec, counts: dict[tuple[str, str], int]) -> None:
@@ -97,33 +100,35 @@ class LinearProgramsPass(BasePass):
         counts[bound.owner, 'dual'] = counts.get((bound.owner, 'dual'), 0) + (len(law.constraints) if law.duals else 0)
 
     @staticmethod
-    def _value_offsets(compilation: Compilation) -> dict[int, tuple[int, int]]:
+    def _get_value_offsets(compilation: Compilation) -> dict[int, tuple[int, int]]:
         """Return the position of the first objective value and dual of every law.
 
         The positions are keyed by the identity of the law.
         """
         counts: dict[tuple[str, str], int] = {}
         offsets = {}
-        for bound in LinearProgramsPass._bound_laws(compilation, owned=False):
+        for bound in LinearProgramsPass._get_bound_laws(compilation, owned=False):
             offsets[id(bound.law)] = (counts.get((bound.owner, 'objective'), 0), counts.get((bound.owner, 'dual'), 0))
             LinearProgramsPass._count_values(bound, counts)
         return offsets
 
     @staticmethod
-    def _bound_laws(compilation: Compilation, *, owned: bool = True) -> list[_BoundLawSpec]:
+    def _get_bound_laws(compilation: Compilation, *, owned: bool = True) -> list[_BoundLawSpec]:
         """Return the linear program laws with their owners.
 
         They are the laws of the owners of a compilation, or of the whole system.
         """
-        laws: Laws = Compilation._required(compilation.programs, 'programs')
+        laws: Laws = Compilation._get_required(compilation.programs, 'programs')
         found = [
-            _BoundLawSpec(spec, law, CensusPass._law_owner(spec, law, set())) for spec, items in laws for law in items
+            _BoundLawSpec(spec, law, CensusPass._get_law_owner(spec, law, set()))
+            for spec, items in laws
+            for law in items
         ]
         owners = compilation.owners
         return [item for item in found if not owned or owners is None or item.owner in owners]
 
     @staticmethod
-    def _key_of(spec: KernelSpec, item: Expression) -> _Key | None:
+    def _get_key_of(spec: KernelSpec, item: Expression) -> _Key | None:
         """Return what a symbol reads.
 
         It is the name of its state and its column, or `None` for no state.
@@ -132,13 +137,13 @@ class LinearProgramsPass(BasePass):
         return None if reference is None or not reference.is_state else (reference.entry.name, reference.column)
 
     @staticmethod
-    def _variable_keys(bound: _BoundLawSpec) -> list[_Key]:
+    def _get_variable_keys(bound: _BoundLawSpec) -> list[_Key]:
         """Return the states a law sets."""
-        keys = [LinearProgramsPass._key_of(bound.spec, item) for item in bound.law._get_targets()]
+        keys = [LinearProgramsPass._get_key_of(bound.spec, item) for item in bound.law._get_targets()]
         return [item for item in keys if item is not None]
 
     @staticmethod
-    def _merged(bounds: Sequence[_BoundLawSpec]) -> list[list[_BoundLawSpec]]:
+    def _get_merged(bounds: Sequence[_BoundLawSpec]) -> list[list[_BoundLawSpec]]:
         """Return the laws of every program.
 
         A program holds the laws whose variables overlap, directly or through another law.
@@ -147,68 +152,68 @@ class LinearProgramsPass(BasePass):
         for position, bound in enumerate(bounds):
             graph.add_node(('law', position))
             graph.add_edges_from(
-                (('law', position), ('state', key)) for key in LinearProgramsPass._variable_keys(bound)
+                (('law', position), ('state', key)) for key in LinearProgramsPass._get_variable_keys(bound)
             )
         components = [sorted(item[1] for item in part if item[0] == 'law') for part in nx.connected_components(graph)]
         return [[bounds[position] for position in part] for part in sorted(components)]
 
     @staticmethod
-    def _columns_of(group: Sequence[_BoundLawSpec]) -> dict[_Key, int]:
+    def _get_columns_of(group: Sequence[_BoundLawSpec]) -> dict[_Key, int]:
         """Return the column of every variable of a program.
 
         The columns follow the order the laws declare them.
         """
-        keys = [key for bound in group for key in LinearProgramsPass._variable_keys(bound)]
+        keys = [key for bound in group for key in LinearProgramsPass._get_variable_keys(bound)]
         return {key: position for position, key in enumerate(dict.fromkeys(keys))}
 
     @staticmethod
-    def _symbols_in(spec: KernelSpec, expression: Expression, columns: Mapping[_Key, int]) -> dict[Expression, int]:
+    def _get_symbols_in(spec: KernelSpec, expression: Expression, columns: Mapping[_Key, int]) -> dict[Expression, int]:
         """Return the column of every symbol of an expression that reads a variable.
 
         The variables are those of a program.
         """
         found = {}
         for item in expression.variables():
-            key = LinearProgramsPass._key_of(spec, item)
+            key = LinearProgramsPass._get_key_of(spec, item)
             if key is not None and key in columns:
                 found[item] = columns[key]
         return found
 
     @staticmethod
-    def _linear_parts(spec: KernelSpec, expression: Expression, columns: Mapping[_Key, int]) -> _LinearPartsSpec:
+    def _get_linear_parts(spec: KernelSpec, expression: Expression, columns: Mapping[_Key, int]) -> _LinearPartsSpec:
         """Return the coefficients of an expression and what is left at zero variables.
 
         There is a coefficient for every column. The coefficients come from substitutions, since a condition in a bound
         has no derivative.
         """
-        symbols = LinearProgramsPass._symbols_in(spec, expression, columns)
+        symbols = LinearProgramsPass._get_symbols_in(spec, expression, columns)
         zero = dict.fromkeys(symbols, 0)
         rest = expression.subs(zero)
         coefficients = {column: expression.subs({**zero, item: 1}) - rest for item, column in symbols.items()}
         return _LinearPartsSpec(coefficients, rest)
 
     @staticmethod
-    def _form_problem(spec: KernelSpec, expression: Expression, columns: Mapping[_Key, int]) -> str | None:
+    def _get_form_problem(spec: KernelSpec, expression: Expression, columns: Mapping[_Key, int]) -> str | None:
         """Return what makes an expression not linear in the variables, or `None`.
 
         The coefficients must be free of states.
         """
-        parts = LinearProgramsPass._linear_parts(spec, expression, columns)
-        symbols = LinearProgramsPass._symbols_in(spec, expression, columns)
+        parts = LinearProgramsPass._get_linear_parts(spec, expression, columns)
+        symbols = LinearProgramsPass._get_symbols_in(spec, expression, columns)
         names = {column: str(item) for item, column in symbols.items()}
         linear = sum((parts.coefficients[column] * item for item, column in symbols.items()), parts.rest)
         if not (expression - linear).expand().is_trivial_zero():
             return f'it is not linear in the variables {", ".join(sorted(names.values()))}'
         for column, coefficient in parts.coefficients.items():
             states = [
-                str(item) for item in coefficient.variables() if LinearProgramsPass._key_of(spec, item) is not None
+                str(item) for item in coefficient.variables() if LinearProgramsPass._get_key_of(spec, item) is not None
             ]
             if states:
                 return f'the coefficient of {names[column]} reads the states {", ".join(states)}'
         return None
 
     @staticmethod
-    def _variable_issues(bound: _BoundLawSpec, algebraic: set[str]) -> list[IssueSpec]:
+    def _get_variable_issues(bound: _BoundLawSpec, algebraic: set[str]) -> list[IssueSpec]:
         """Return the variables of a law that are not algebraic states."""
         issues = []
         for item in bound.law._get_targets():
@@ -221,30 +226,30 @@ class LinearProgramsPass(BasePass):
         return issues
 
     @staticmethod
-    def _form_issues(group: Sequence[_BoundLawSpec]) -> list[IssueSpec]:
+    def _get_form_issues(group: Sequence[_BoundLawSpec]) -> list[IssueSpec]:
         """Return the relations and objectives of a program not linear in its variables."""
-        columns = LinearProgramsPass._columns_of(group)
+        columns = LinearProgramsPass._get_columns_of(group)
         fix = 'Move the term to the right side or to a bound, and keep every coefficient of a variable free of states.'
         issues = []
         for bound in group:
             spec = bound.spec
             for constraint in bound.law.constraints:
-                problem = LinearProgramsPass._form_problem(spec, constraint.lhs() - constraint.rhs(), columns)
+                problem = LinearProgramsPass._get_form_problem(spec, constraint.lhs() - constraint.rhs(), columns)
                 if problem is not None:
                     message = f'The relation {constraint} of {spec.owner} cannot enter a linear program: {problem}.'
                     issues.append(IssueSpec('linear-program-form', spec.owner, message, fix))
             for objective in bound.law.objectives:
-                linear = LinearProgramsPass._without_absolutes(objective)
-                problem = LinearProgramsPass._form_problem(spec, linear, columns)
+                linear = LinearProgramsPass._copy_without_absolutes(objective)
+                problem = LinearProgramsPass._get_form_problem(spec, linear, columns)
                 if problem is None:
-                    problem = LinearProgramsPass._absolute_problem(spec, objective, columns)
+                    problem = LinearProgramsPass._get_absolute_problem(spec, objective, columns)
                 if problem is not None:
                     message = f'The objective {objective.expression} of {spec.owner} is not usable: {problem}.'
                     issues.append(IssueSpec('linear-program-form', spec.owner, message, fix))
         return issues
 
     @staticmethod
-    def _objective_issues(group: Sequence[_BoundLawSpec]) -> list[IssueSpec]:
+    def _get_objective_issues(group: Sequence[_BoundLawSpec]) -> list[IssueSpec]:
         """Return the issue of a program with two laws that hold objectives."""
         holders = [bound.spec.owner for bound in group if bound.law.objectives]
         if len(holders) <= 1:
@@ -254,7 +259,7 @@ class LinearProgramsPass(BasePass):
         return [IssueSpec('linear-program-objectives', holders[0], message, fix)]
 
     @staticmethod
-    def _issues_of(compilation: Compilation, algebraic: set[str]) -> list[IssueSpec]:
+    def _get_issues_of(compilation: Compilation, algebraic: set[str]) -> list[IssueSpec]:
         """Return the issues of the linear program laws of a system.
 
         Args:
@@ -268,28 +273,28 @@ class LinearProgramsPass(BasePass):
             issues:
                 The issues, each with its path and fix.
         """
-        bounds = LinearProgramsPass._bound_laws(compilation, owned=False)
-        issues = [issue for bound in bounds for issue in LinearProgramsPass._variable_issues(bound, algebraic)]
+        bounds = LinearProgramsPass._get_bound_laws(compilation, owned=False)
+        issues = [issue for bound in bounds for issue in LinearProgramsPass._get_variable_issues(bound, algebraic)]
         if issues:
             return issues
-        for group in LinearProgramsPass._merged(bounds):
-            issues += LinearProgramsPass._form_issues(group)
-            issues += LinearProgramsPass._objective_issues(group)
+        for group in LinearProgramsPass._get_merged(bounds):
+            issues += LinearProgramsPass._get_form_issues(group)
+            issues += LinearProgramsPass._get_objective_issues(group)
         return issues
 
     @staticmethod
-    def _without_absolutes(objective: LinearObjectiveSpec) -> Expression:
+    def _copy_without_absolutes(objective: LinearObjectiveSpec) -> Expression:
         """Return an objective with every absolute value replaced by a placeholder symbol."""
         expression = SR(objective.expression)
         return expression.subs(
             {
                 call: symbol(f'_absolute_{position}')
-                for position, call in enumerate(BasePass._calls_of(expression, ABSOLUTE))
+                for position, call in enumerate(BasePass._get_calls_of(expression, ABSOLUTE))
             },
         )
 
     @staticmethod
-    def _absolute_problem(
+    def _get_absolute_problem(
         spec: KernelSpec,
         objective: LinearObjectiveSpec,
         columns: Mapping[_Key, int],
@@ -299,10 +304,10 @@ class LinearProgramsPass(BasePass):
         The absolute values split into parts, and the result is `None` when nothing keeps them.
         """
         expression = SR(objective.expression)
-        linear = LinearProgramsPass._without_absolutes(objective)
-        for position, call in enumerate(BasePass._calls_of(expression, ABSOLUTE)):
+        linear = LinearProgramsPass._copy_without_absolutes(objective)
+        for position, call in enumerate(BasePass._get_calls_of(expression, ABSOLUTE)):
             argument = call.operands()[0]
-            if LinearProgramsPass._key_of(spec, argument) not in columns:
+            if LinearProgramsPass._get_key_of(spec, argument) not in columns:
                 return f'the absolute value {call} does not hold a single variable'
             coefficient = linear.diff(symbol(f'_absolute_{position}'))
             if not coefficient.is_numeric():
@@ -313,7 +318,7 @@ class LinearProgramsPass(BasePass):
         return None
 
     @staticmethod
-    def _printed_values(
+    def _get_printed_values(
         expressions: Sequence[Expression],
         references: Mapping[Expression, ReferenceSpec],
         time: Expression,
@@ -332,7 +337,7 @@ class LinearProgramsPass(BasePass):
         return function, tuple(references[item] for item in arguments)
 
     @staticmethod
-    def _lowered(
+    def _get_lowered(
         group: Sequence[_BoundLawSpec],
         states: LayoutSpec,
         time: Expression,
@@ -342,10 +347,10 @@ class LinearProgramsPass(BasePass):
 
         It holds its constant matrix and its compiled values.
         """
-        return _Lowering(group, states, time, offsets).lowered_program()
+        return _Lowering(group, states, time, offsets).get_lowered_program()
 
     @staticmethod
-    def _solving_problem(problem: ProblemSpec, kernels: tuple[LinearProgramKernel, ...]) -> ProblemSpec:
+    def _get_solving_problem(problem: ProblemSpec, kernels: tuple[LinearProgramKernel, ...]) -> ProblemSpec:
         """Return a problem whose functions solve the programs first.
 
         There is no compiled shortcut around them.
@@ -402,12 +407,12 @@ class _Lowering:
         self.time = time
         self.offsets = offsets
 
-    def _indices_of(self, name: str) -> Indices:
+    def _get_indices_of(self, name: str) -> Indices:
         """Return the flat indices of a hidden state."""
         entry = self.states.entry(name)
         return entry.start + np.arange(entry.size)
 
-    def _value(self, expression: Expression) -> int:
+    def _get_value(self, expression: Expression) -> int:
         """Return the position of a compiled value."""
         self._expressions.append(expression)
         return len(self._expressions) - 1
@@ -430,7 +435,7 @@ class _Lowering:
                 else:
                     self._upper[column] = min(self._upper[column], value)
             else:
-                self._sides.append(LinearProgramSideSpec(kind, column, self._value(side), coefficient))
+                self._sides.append(LinearProgramSideSpec(kind, column, self._get_value(side), coefficient))
         return kinds[sense]
 
     def _add_row(self, coefficients: Mapping[int, Expression], sense: object, side: Expression, text: str) -> int:
@@ -451,12 +456,12 @@ class _Lowering:
             if side.is_numeric():
                 (self._row_lower if kind == LinearProgramBound.ROW_LOWER else self._row_upper)[row] = float(side)
             else:
-                self._sides.append(LinearProgramSideSpec(kind, row, self._value(side)))
+                self._sides.append(LinearProgramSideSpec(kind, row, self._get_value(side)))
         for column, coefficient in coefficients.items():
             if coefficient.is_numeric():
                 self._triplets.append((row, column, float(coefficient)))
             else:
-                self._entries.append(LinearProgramEntrySpec(row, column, self._value(coefficient)))
+                self._entries.append(LinearProgramEntrySpec(row, column, self._get_value(coefficient)))
         return row
 
     def _add_relation(self, bound: _BoundLawSpec, relation: Expression, position: int) -> None:
@@ -465,7 +470,7 @@ class _Lowering:
         The dual has a place when the law records it.
         """
         spec = bound.spec
-        parts = LinearProgramsPass._linear_parts(spec, relation.lhs() - relation.rhs(), self._columns)
+        parts = LinearProgramsPass._get_linear_parts(spec, relation.lhs() - relation.rhs(), self._columns)
         side = -parts.rest
         sense = relation.operator()
         text = str(relation)
@@ -484,7 +489,7 @@ class _Lowering:
             index = self.offsets[id(bound.law)][1] + position
             self._duals.append(
                 LinearProgramDualSpec(
-                    self._indices_of(f'{bound.owner}.dual_{index}'),
+                    self._get_indices_of(f'{bound.owner}.dual_{index}'),
                     text,
                     row=row,
                     column=column,
@@ -493,28 +498,28 @@ class _Lowering:
                 ),
             )
 
-    def _objective_row(self, bound: _BoundLawSpec, objective: LinearObjectiveSpec, position: int) -> None:
+    def _add_objective_row(self, bound: _BoundLawSpec, objective: LinearObjectiveSpec, position: int) -> None:
         """Add the costs of an objective.
 
         The absolute values of its variables get parts.
         """
         spec = bound.spec
         expression = SR(objective.expression)
-        linear = LinearProgramsPass._without_absolutes(objective)
+        linear = LinearProgramsPass._copy_without_absolutes(objective)
         sign = 1.0 if objective.sense == 'min' else -1.0
-        parts = LinearProgramsPass._linear_parts(spec, linear, self._columns)
+        parts = LinearProgramsPass._get_linear_parts(spec, linear, self._columns)
         costs: dict[int, float] = {}
         for column, coefficient in parts.coefficients.items():
             if coefficient.is_numeric():
                 costs[column] = sign * float(coefficient)
             else:
-                self._cost_entries.append(LinearProgramEntrySpec(position, column, self._value(coefficient)))
+                self._cost_entries.append(LinearProgramEntrySpec(position, column, self._get_value(coefficient)))
         rest = parts.rest
-        for index, call in enumerate(BasePass._calls_of(expression, ABSOLUTE)):
+        for index, call in enumerate(BasePass._get_calls_of(expression, ABSOLUTE)):
             placeholder = symbol(f'_absolute_{index}')
             coefficient = float(linear.diff(placeholder))
             rest = rest.subs({placeholder: 0})
-            key = LinearProgramsPass._key_of(spec, call.operands()[0])
+            key = LinearProgramsPass._get_key_of(spec, call.operands()[0])
             column = self._columns[key] if key is not None else -1
             place = self._parts.setdefault(column, len(self._parts))
             costs[-1 - place] = sign * coefficient
@@ -522,7 +527,7 @@ class _Lowering:
         self._signs.append(sign)
         self._offsets.append(float(rest) if rest.is_numeric() else 0.0)
 
-    def _cost_matrix(self) -> Array:
+    def _get_cost_matrix(self) -> Array:
         """Return the costs of every objective, with the parts after the variables."""
         size, count = len(self._columns), len(self._parts)
         matrix = np.zeros((len(self._costs), size + 2 * count))
@@ -553,22 +558,22 @@ class _Lowering:
         self._offsets: list[float] = []
         self._parts: dict[int, int] = {}
 
-    def lowered_program(self) -> LinearProgramSpec:
+    def get_lowered_program(self) -> LinearProgramSpec:
         """Return the lowered program."""
         group = self.group
-        self._columns = LinearProgramsPass._columns_of(group)
+        self._columns = LinearProgramsPass._get_columns_of(group)
         self._set_empty()
-        names, indices = self._names_and_indices()
-        activity = [self._value(SR(bound.law.active)) for bound in group if bound.law.active is not None]
+        names, indices = self._get_names_and_indices()
+        activity = [self._get_value(SR(bound.law.active)) for bound in group if bound.law.active is not None]
         for bound in group:
             for position, relation in enumerate(bound.law.constraints):
                 self._add_relation(bound, relation, position)
         holder = next((bound for bound in group if bound.law.objectives), group[0])
         objectives = []
         for position, objective in enumerate(holder.law.objectives):
-            self._objective_row(holder, objective, position)
+            self._add_objective_row(holder, objective, position)
             index = self.offsets[id(holder.law)][0] + position
-            objectives.append(self._indices_of(f'{holder.owner}.objective_{index}'))
+            objectives.append(self._get_indices_of(f'{holder.owner}.objective_{index}'))
         rows = len(self._row_lower)
         triplets = np.asarray(self._triplets, dtype=float).reshape(-1, 3)
         matrix = sparse.csr_array(
@@ -576,7 +581,7 @@ class _Lowering:
             shape=(rows, len(self._columns)),
         )
         references = {key: value for bound in group for key, value in bound.spec.references.items()}
-        function, arguments = LinearProgramsPass._printed_values(self._expressions, references, self.time)
+        function, arguments = LinearProgramsPass._get_printed_values(self._expressions, references, self.time)
         return LinearProgramSpec(
             path=holder.owner,
             names=names,
@@ -594,7 +599,7 @@ class _Lowering:
             arguments=arguments,
             members=max(bound.spec.rows for bound in group),
             activity=tuple(activity),
-            costs=self._cost_matrix(),
+            costs=self._get_cost_matrix(),
             cost_entries=tuple(self._cost_entries),
             signs=tuple(self._signs),
             offsets=tuple(self._offsets),
@@ -604,7 +609,7 @@ class _Lowering:
             infeasible=holder.law.infeasible,
         )
 
-    def _names_and_indices(self) -> tuple[tuple[str, ...], tuple[Indices, ...]]:
+    def _get_names_and_indices(self) -> tuple[tuple[str, ...], tuple[Indices, ...]]:
         """Return the name and the flat indices of every variable.
 
         The name of a vector holds the component.

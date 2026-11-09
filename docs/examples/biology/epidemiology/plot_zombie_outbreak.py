@@ -29,8 +29,8 @@ trajectory = simulate(ZombieOutbreakSystem(), observers=[observer])
 times = trajectory.times
 fig, ax = plt.subplots(figsize=(7, 4.5))
 for label, name in (('S.x', 'humans'), ('Z.x', 'zombies'), ('R.x', 'removed')):
-    ax.plot(times, trajectory.values(label), label=name)
-total = trajectory.values('S.x') + trajectory.values('Z.x') + trajectory.values('R.x')
+    ax.plot(times, trajectory.get_values(label), label=name)
+total = trajectory.get_values('S.x') + trajectory.get_values('Z.x') + trajectory.get_values('R.x')
 ax.plot(times, total, '--', color='black', label='total')
 ax.set_xlabel('time (days)')
 ax.set_ylabel('individuals')

@@ -61,7 +61,7 @@ def test_crossing_with_functions_equals_the_symbolic_crossing(law):
     """Test that a crossing with a function fires where the symbolic crossing fires and applies the same reset."""
     reference, trajectory = _trajectory('symbols'), _trajectory(law)
     assert [event.time for event in trajectory.events] == pytest.approx([event.time for event in reference.events])
-    assert trajectory.values('ball.y') == pytest.approx(reference.values('ball.y'), abs=1e-9)
+    assert trajectory.get_values('ball.y') == pytest.approx(reference.get_values('ball.y'), abs=1e-9)
 
 
 def test_crossing_with_functions_on_numba_runs_in_python():
@@ -69,7 +69,7 @@ def test_crossing_with_functions_on_numba_runs_in_python():
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', BackendWarning)
         trajectory = _trajectory('functions', NumbaBackend())
-    assert trajectory.values('ball.y') == pytest.approx(_trajectory('symbols').values('ball.y'), abs=1e-9)
+    assert trajectory.get_values('ball.y') == pytest.approx(_trajectory('symbols').get_values('ball.y'), abs=1e-9)
 
 
 def test_crossing_with_a_function_reads_every_member_of_a_group():
@@ -95,7 +95,7 @@ def test_crossing_with_a_function_reads_every_member_of_a_group():
 
     group = GroupElement('herd', element=FallingElement, size=2, values={'y': [1.0, 2.0]})
     trajectory = simulate(CompositeSystem(elements=[group]), until=1.5, dt=0.01)
-    assert np.asarray(trajectory.values('herd.y'))[-1] == pytest.approx([4.5, 0.5], abs=1e-6)
+    assert np.asarray(trajectory.get_values('herd.y'))[-1] == pytest.approx([4.5, 0.5], abs=1e-6)
 
 
 def test_crossing_rejects_a_call_with_arguments():

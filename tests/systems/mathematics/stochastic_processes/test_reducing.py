@@ -26,7 +26,7 @@ def test_fragmentation_conserves_the_total_size():
     trajectory = _run(FragmentationSystem(500), 20)
     lengths = trajectory.get_agents('fragments', 20).values['length']
     assert lengths.sum() == 500
-    assert trajectory.values('fragments.count')[-1] > trajectory.values('fragments.count')[5] > 1
+    assert trajectory.get_values('fragments.count')[-1] > trajectory.get_values('fragments.count')[5] > 1
 
 
 @pytest.mark.parametrize(('mu', 'n_cascades'), [(0.5, 3000), (1.0, 1000), (2.0, 50)])
@@ -38,4 +38,4 @@ def test_cascading_sample_space_reducing_visits_follow_the_multiplication_expone
     states = np.arange(2, 31)
     slope = np.polyfit(np.log(states), np.log(counts[states]), 1)[0]
     assert slope == pytest.approx(-mu, abs=0.15)
-    assert trajectory.values('balls.count')[-1] == 0
+    assert trajectory.get_values('balls.count')[-1] == 0

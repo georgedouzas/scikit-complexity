@@ -33,7 +33,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=30)
 trajectory = simulate(InverseJuliaSystem(), observers=[observer])
-z = trajectory.values('points.z')[-1]
+z = trajectory.get_values('points.z')[-1]
 observer.recording_.log(
     'julia',
     rr.Points2D(100 * np.column_stack([z.real, -z.imag]), radii=0.4, colors=[90, 170, 255]),
@@ -53,7 +53,7 @@ cases = [(0.0, 0.5), (-1.0, 0.5), (-0.123 + 0.745j, 0.5), (-0.123 + 0.745j, 0.9)
 fig, axes = plt.subplots(2, 3, figsize=(12, 8))
 for axis, (omega, p) in zip(axes.ravel(), cases, strict=True):
     run = simulate(InverseJuliaSystem(omega=omega, p=p, n_points=8000), until=40)
-    points = run.values('points.z')[-1]
+    points = run.get_values('points.z')[-1]
     axis.plot(points.real, points.imag, ',', color='C0')
     axis.set_aspect('equal')
     axis.set_title(f'omega = {omega:g}, p = {p}')

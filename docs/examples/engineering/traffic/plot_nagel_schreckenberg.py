@@ -35,7 +35,7 @@ densities = np.linspace(0.02, 0.8, 27)
 flows = []
 for density in densities:
     run = simulate(NagelSchreckenbergSystem(density=float(density), random_state=1))
-    speeds = run.lattice('road.velocity')[100:]
+    speeds = run.get_lattice('road.velocity')[100:]
     flows.append(density * speeds[speeds >= 0].mean())
 fig, ax = plt.subplots(figsize=(6, 4.5))
 ax.plot(densities, flows, 'o-', markersize=3, label='simulation')

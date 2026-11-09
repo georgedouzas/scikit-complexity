@@ -41,7 +41,11 @@ trajectory = simulate(IntrinsicInstabilitySystem(), observers=[observer], random
 # slope `log(1 + beta)` on a log scale, and the trajectory in the `xy`-plane should leave the axis `y = 0` and turn
 # towards `x = 0`, as in Jensen's Figure 13.2.
 
-times, x, y = np.asarray(trajectory.times), trajectory.values('populations.x'), trajectory.values('populations.y')
+times, x, y = (
+    np.asarray(trajectory.times),
+    trajectory.get_values('populations.x'),
+    trajectory.get_values('populations.y'),
+)
 seeded = int(np.argmax(y > 0))
 growth = y[seeded] * (1 + 0.01) ** (times[seeded:] - times[seeded])
 fig, (plane, invader) = plt.subplots(1, 2, figsize=(10, 4))

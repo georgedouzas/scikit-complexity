@@ -30,5 +30,5 @@ class LowerFlowsPass(BasePass):
         """Lower the flows and their delays."""
         compilation = self.compilation_
         flows = TransferLowering().prepare(compilation)
-        lowered = Compilation._required(compilation.lowered, 'lowered')
+        lowered = Compilation._get_required(compilation.lowered, 'lowered')
         compilation.transfer_network = flows._lower_flows([(spec, laws) for spec, laws, _ in lowered])

@@ -30,7 +30,7 @@ trajectory = simulate(YeastCellCycleSystem(), observers=[observer])
 # then Cdc20 and Swi5, ending with Cdh1 and Sic1 on, the stationary G1 state.
 
 proteins = ['Cln3', 'MBF', 'SBF', 'Cln1_2', 'Cdh1', 'Swi5', 'Cdc20', 'Clb5_6', 'Sic1', 'Clb1_2', 'Mcm1']
-states = np.column_stack([trajectory.values(f'{protein}.x') for protein in proteins])
+states = np.column_stack([trajectory.get_values(f'{protein}.x') for protein in proteins])
 changes = np.nonzero(np.any(states[1:] != states[:-1], axis=1))[0]
 settled = changes[-1] + 1
 fig, ax = plt.subplots(figsize=(8, 4.5))

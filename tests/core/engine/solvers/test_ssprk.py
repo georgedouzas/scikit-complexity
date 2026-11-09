@@ -93,6 +93,8 @@ def test_viscous_burgers_respects_diffusive_limit():
     )
     with warnings.catch_warnings():
         warnings.simplefilter('error')
-        values = simulate(CompositeSystem(elements=[field]), until=0.5, solver=SSPRKSolver(), dt=0.05).values('line.u')
+        values = simulate(CompositeSystem(elements=[field]), until=0.5, solver=SSPRKSolver(), dt=0.05).get_values(
+            'line.u',
+        )
     assert values.min() >= initial.min() - 1e-12
     assert values.max() <= initial.max() + 1e-12

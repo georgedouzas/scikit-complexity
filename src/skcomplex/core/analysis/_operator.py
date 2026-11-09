@@ -272,7 +272,7 @@ def _states_of(trajectory: Trajectory) -> tuple[OperatorProblemSpec, npt.NDArray
     if not isinstance(problem, OperatorProblemSpec):
         error_msg = 'The trajectory is not the trajectory of an operator system.'
         raise AnalysisError(error_msg)
-    return problem, np.asarray(trajectory.values(problem.states.names[0]))
+    return problem, np.asarray(trajectory.get_values(problem.states.names[0]))
 
 
 def _lowest_states(
@@ -286,7 +286,7 @@ def _lowest_states(
     They are found through QuTiP, within a basis.
     """
     dimension = math.prod(problem.dimensions)
-    matrix = problem._generator_at(0.0, p)
+    matrix = problem._get_generator_at(0.0, p)
     indices = np.arange(dimension) if basis is None else np.asarray(basis, dtype=np.intp)
     matrix = sp.csr_array(matrix[indices][:, indices])
     count = min(k, indices.size)

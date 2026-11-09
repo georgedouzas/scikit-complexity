@@ -30,11 +30,9 @@ from ._base import BaseLowering, BasePass
 from ._compilation import Compilation
 from ._members import MemberLowering
 
-_NORMAL_KINDS = frozenset({'normal'})
-_SHIFT = 'shift_member'
+NORMAL_KINDS = frozenset({'normal'})
+SHIFT = 'shift_member'
 RELAXATION_FLOOR = 1e-12
-
-
 DISTRIBUTIONS = tuple(
     sorted(
         name
@@ -120,9 +118,9 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
                 One draw name has two declarations in a component.
         """
         self.lowered_ = [(spec, self._lower(spec, laws)) for spec, laws in inputs or []]
-        self._allocate(DrawLowering._orders_of([spec for spec, _ in self.lowered_]))
+        self._allocate(DrawLowering._get_orders_of([spec for spec, _ in self.lowered_]))
 
-    def _slots(self, spec: KernelSpec, laws: list[BaseLaw]) -> dict[str, Expression]:
+    def _get_slots(self, spec: KernelSpec, laws: list[BaseLaw]) -> dict[str, Expression]:
         """Return the value symbol of every draw of a component.
 
         It first checks that each name has one declaration. A draw read at a member offset is the draw of another
@@ -134,7 +132,7 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
             if not isinstance(law, UpdateLaw) or not self._is_symbolic(law.value):
                 continue
             items = [SR(item) for item in (*components_of(law.value), *([] if law.order is None else [law.order]))]
-            shifted = [call for item in items for call in self._shifted_draws(item)]
+            shifted = [call for item in items for call in self._get_shifted_draws(item)]
             outside = [item.subs(dict.fromkeys(shifted, 0)) for item in items]
             for draw in draws_in(outside):
                 known = declared.setdefault(draw.name, draw)
@@ -161,7 +159,7 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
             request = _RequestSpec(
                 owner,
                 name,
-                draw.kind in _NORMAL_KINDS,
+                draw.kind in NORMAL_KINDS,
                 spec.rows,
                 slot,
                 spec,
@@ -193,7 +191,7 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
             ValidationError:
                 One draw name has two declarations in the component.
         """
-        slots = self._slots(spec, laws)
+        slots = self._get_slots(spec, laws)
         if not slots:
             return laws
         lowered: list[BaseLaw] = []
@@ -203,20 +201,20 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
                 continue
             relaxes = self.relaxes_
             values = [
-                self._lowered(self._unshifted(spec, SR(item), slots), slots, relaxes=relaxes)
+                self._get_lowered(self._get_unshifted(spec, SR(item), slots), slots, relaxes=relaxes)
                 for item in components_of(law.value)
             ]
             value = vector(values) if isinstance(law.value, FreeModuleElement) else values[0]
-            order = None if law.order is None else self._lowered(SR(law.order), slots, relaxes=relaxes)
-            lowered.append(BasePass._replaced(law, value=value, order=order))
+            order = None if law.order is None else self._get_lowered(SR(law.order), slots, relaxes=relaxes)
+            lowered.append(BasePass._get_replaced(law, value=value, order=order))
         return lowered
 
     @staticmethod
-    def _shifted_draws(expression: Expression) -> list[Expression]:
+    def _get_shifted_draws(expression: Expression) -> list[Expression]:
         """Return the member offset reads of draws in an expression."""
-        return [call for call in BasePass._calls_of(expression, _SHIFT) if draws_in(call.operands()[0])]
+        return [call for call in BasePass._get_calls_of(expression, SHIFT) if draws_in(call.operands()[0])]
 
-    def _unshifted(self, spec: KernelSpec, expression: Expression, slots: Mapping[str, Expression]) -> Expression:
+    def _get_unshifted(self, spec: KernelSpec, expression: Expression, slots: Mapping[str, Expression]) -> Expression:
         """Return an expression with every draw at a member offset replaced.
 
         The replacement is the value the offset member draws.
@@ -236,16 +234,16 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
                 The expression with the offset reads of draws replaced.
         """
         replacements = {}
-        for call in self._shifted_draws(expression):
+        for call in self._get_shifted_draws(expression):
             drawn, offset, boundary, fill = MemberLowering._shift_arguments(call)
             draw = draws_in(drawn)[0]
             key = (id(spec), draw.name, offset, boundary, fill)
             slot = self.shifted_.setdefault(key, symbol(f'{slots[draw.name]}__shift{len(self.shifted_)}'))
-            replacements[call] = self._replacement(draw, list(draw.arguments), slot, relaxes=self.relaxes_)
+            replacements[call] = self._get_replacement(draw, list(draw.arguments), slot, relaxes=self.relaxes_)
         return expression.subs(replacements) if replacements else expression
 
     @staticmethod
-    def _orders_of(specs: list[KernelSpec]) -> tuple[Indices, ...]:
+    def _get_orders_of(specs: list[KernelSpec]) -> tuple[Indices, ...]:
         """Return the distinct orders drawn at every step.
 
         The gather tables of kernel specs read through these orders.
@@ -274,12 +272,12 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
             grouped = request.rows > 1
             shape = (request.rows,) if grouped else ()
             members = request.rows if grouped else None
-            entry = EntrySpec(self._entry_name(request, names), start, shape, RR, members)
+            entry = EntrySpec(self._get_entry_name(request, names), start, shape, RR, members)
             source = ReadKind.MEMBER if grouped else ReadKind.SINGLE
             self._add_reference(request.spec, request.slot, ReferenceSpec(entry, False, 0, source))
             for (spec, name, offset, boundary, fill), slot in self.shifted_.items():
                 if spec == id(request.spec) and name == request.name:
-                    read = MemberLowering._neighbor_read(request.rows, offset, boundary, fill)
+                    read = MemberLowering._get_neighbor_read(request.rows, offset, boundary, fill)
                     self._add_reference(request.spec, slot, ReferenceSpec(entry, False, 0, ReadKind.NEIGHBOR, read))
             if request.draw is None:
                 flags.extend([request.normal] * request.rows)
@@ -289,12 +287,12 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
         position = self.offset_
         for request in ordered:
             if request.draw is None:
-                named.append(self._named(request, position))
+                named.append(self._get_named(request, position))
                 position += request.rows
         for request in ordered:
             if request.draw is not None:
-                sampled.append(SampledDrawSpec(position, request.rows, self._sampler(request)))
-                named.append(self._named(request, position))
+                sampled.append(SampledDrawSpec(position, request.rows, self._get_sampler(request)))
+                named.append(self._get_named(request, position))
                 position += request.rows
         self.draws_ = DrawKernel(
             self.offset_,
@@ -304,7 +302,7 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
             tuple(named),
         ).prepare()
 
-    def _named(self, request: _RequestSpec, start: int) -> NamedDrawSpec:
+    def _get_named(self, request: _RequestSpec, start: int) -> NamedDrawSpec:
         """Return a draw of a request as runs record and replay it.
 
         Its arguments are evaluated from the states and parameters of the member.
@@ -314,10 +312,10 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
             error_msg = f'The draw {request.name!r} of {request.owner} declares no distribution.'
             raise ValidationError(error_msg)
         nested = draws_in(list(draw.arguments))
-        arguments = None if nested else self._arguments_of(request, draw)
+        arguments = None if nested else self._get_arguments_of(request, draw)
         return NamedDrawSpec(f'{request.owner}.{request.name}', draw, start, request.rows, arguments)
 
-    def _arguments_of(
+    def _get_arguments_of(
         self,
         request: _RequestSpec,
         draw: DrawSpec,
@@ -328,11 +326,11 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
         members, such as the mean of a group.
         """
         time = self.time_
-        arguments = [DrawLowering._lowered(SR(item), request.slots) for item in draw.arguments]
+        arguments = [DrawLowering._get_lowered(SR(item), request.slots) for item in draw.arguments]
         if any(reductions_in(item) for item in arguments):
             return None
         symbols = sorted(symbols_of(arguments) - {time}, key=str)
-        found = [self._reference_of(item, request.spec) for item in symbols]
+        found = [self._get_reference_of(item, request.spec) for item in symbols]
         readers = [
             reader for reader in found if reader is not None and reader.source in {ReadKind.SINGLE, ReadKind.MEMBER}
         ]
@@ -346,12 +344,12 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
             raise TypeError(error_msg)
 
         def evaluate(t: float, x: Array, q: Array) -> list[Array]:
-            return list(function(t, *(reader.column_of(x, q) for reader in readers)))
+            return list(function(t, *(reader.get_column_of(x, q) for reader in readers)))
 
         return evaluate
 
     @staticmethod
-    def _entry_name(request: _RequestSpec, names: dict[str, int]) -> str:
+    def _get_entry_name(request: _RequestSpec, names: dict[str, int]) -> str:
         """Return the name of the entry of the drawn values of a request.
 
         The name is unique among the entries of the draws. A component with several kernel specs, such as a hyperedge
@@ -376,7 +374,7 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
         return name if count == 0 else f'{name}{count}'
 
     @staticmethod
-    def _replacement(
+    def _get_replacement(
         draw: DrawSpec,
         arguments: list[Expression],
         slot: Expression,
@@ -408,13 +406,13 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
                 exact = exact + where(slot * total >= cumulative, 1, 0)
         if not relaxes or draw.temperature is None:
             return exact
-        relaxed = DrawLowering._relaxation(draw, arguments, slot)
+        relaxed = DrawLowering._get_relaxation(draw, arguments, slot)
         if not draw.hard:
             return relaxed
         return exact + where(slot >= 0, relaxed - stop_gradient(relaxed), 0)
 
     @staticmethod
-    def _relaxation(draw: DrawSpec, arguments: list[Expression], slot: Expression) -> Expression:
+    def _get_relaxation(draw: DrawSpec, arguments: list[Expression], slot: Expression) -> Expression:
         """Return the continuous relaxation of a Bernoulli or categorical draw of a uniform value.
 
         A Bernoulli draw of probability `p` gives `sigmoid((logit p - logit u) / T)`, the binary concrete relaxation of
@@ -435,7 +433,7 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
         return relaxed
 
     @staticmethod
-    def _lowered(expression: Expression, slots: Mapping[str, Expression], *, relaxes: bool = False) -> Expression:
+    def _get_lowered(expression: Expression, slots: Mapping[str, Expression], *, relaxes: bool = False) -> Expression:
         """Return an expression with every draw replaced by its value expression.
 
         The innermost draws are replaced first, relaxed draws by their relaxation when `relaxes` is true.
@@ -443,12 +441,12 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
         found = draws_in(expression)
         while found:
             draw = next(item for item in found if not draws_in(list(item.arguments)))
-            replacement = DrawLowering._replacement(draw, list(draw.arguments), slots[draw.name], relaxes=relaxes)
+            replacement = DrawLowering._get_replacement(draw, list(draw.arguments), slots[draw.name], relaxes=relaxes)
             expression = expression.subs({draw.call: replacement})
             found = draws_in(expression)
         return expression
 
-    def _sampler(self, request: _RequestSpec) -> Callable[[float, Array, Array, np.random.Generator], Array]:
+    def _get_sampler(self, request: _RequestSpec) -> Callable[[float, Array, Array, np.random.Generator], Array]:
         """Return the function that samples a draw for every row of a request.
 
         It samples from a `scipy.stats` distribution.
@@ -464,7 +462,7 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
                 'draws.'
             )
             raise ValidationError(error_msg)
-        evaluate = self._arguments_of(request, draw)
+        evaluate = self._get_arguments_of(request, draw)
         if evaluate is None:
             error_msg = (
                 f'The draw {draw.name!r} of {request.owner} reads a symbol that is not a state or a parameter of its '
@@ -487,7 +485,7 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
         return isinstance(value, Expression | FreeModuleElement) or not (isinstance(value, CallSpec) or callable(value))
 
     @staticmethod
-    def _distribution_of(owner: str, description: str, draw: DrawSpec) -> stats.rv_continuous | stats.rv_discrete:
+    def _get_distribution_of(owner: str, description: str, draw: DrawSpec) -> stats.rv_continuous | stats.rv_discrete:
         """Return the `scipy.stats` distribution of a draw.
 
         It first checks the name and the keywords of the draw.

@@ -47,8 +47,8 @@ for coupling in (0.2, 0.4):
         random_state=0,
     )
     times = np.asarray(trajectory.times)
-    axes[0].plot(times, np.ravel(trajectory.values('follower.y')), label=f'follower, coupling = {coupling}')
-axes[0].plot(times, np.ravel(trajectory.values('leader.x')), '--', color='black', label='leader')
+    axes[0].plot(times, np.ravel(trajectory.get_values('follower.y')), label=f'follower, coupling = {coupling}')
+axes[0].plot(times, np.ravel(trajectory.get_values('leader.x')), '--', color='black', label='leader')
 axes[0].set_xlabel('time')
 axes[0].set_title('Fold follower')
 axes[0].legend()
@@ -59,8 +59,14 @@ trajectory = simulate(
     solver=EulerMaruyamaSolver(dt=0.01),
     random_state=0,
 )
-axes[1].plot(np.asarray(trajectory.times), np.ravel(trajectory.values('follower.y')), label='Hopf follower')
-axes[1].plot(np.asarray(trajectory.times), np.ravel(trajectory.values('leader.x')), '--', color='black', label='leader')
+axes[1].plot(np.asarray(trajectory.times), np.ravel(trajectory.get_values('follower.y')), label='Hopf follower')
+axes[1].plot(
+    np.asarray(trajectory.times),
+    np.ravel(trajectory.get_values('leader.x')),
+    '--',
+    color='black',
+    label='leader',
+)
 axes[1].set_xlabel('time')
 axes[1].set_title('Hopf follower')
 axes[1].legend()

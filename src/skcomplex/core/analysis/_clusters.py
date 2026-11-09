@@ -253,7 +253,7 @@ def _read_points(
     if name is None:
         raise _get_missing_error(source, 'vector state of positions')
     faces = np.asarray(space.extent, dtype=float) if isinstance(space, ContinuousSpace) and space.extent else None
-    return np.asarray(source.values(name), dtype=float)[-1:], faces
+    return np.asarray(source.get_values(name), dtype=float)[-1:], faces
 
 
 def _contacts(points: npt.NDArray[np.float64], radius: float) -> IntArray:

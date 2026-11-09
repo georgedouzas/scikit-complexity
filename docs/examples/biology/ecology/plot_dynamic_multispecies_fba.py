@@ -31,9 +31,9 @@ trajectory = simulate(DynamicMultispeciesFBASystem(), solver=solver, dt=FRAME, o
 # The share should rise from one half while glucose lasts, and then stay, since the strains grow no more.
 
 times = trajectory.times
-fast = trajectory.values('culture/biomass_fast.x')
-slow = trajectory.values('culture/biomass_slow.x')
-glucose = trajectory.values('culture/glucose.c')
+fast = trajectory.get_values('culture/biomass_fast.x')
+slow = trajectory.get_values('culture/biomass_slow.x')
+glucose = trajectory.get_values('culture/glucose.c')
 share = fast / (fast + slow)
 fig, axes = plt.subplots(2, 1, figsize=(9, 6), sharex=True)
 axes[0].plot(times, fast, label='fast strain')

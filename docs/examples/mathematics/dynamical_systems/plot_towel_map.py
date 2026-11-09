@@ -39,7 +39,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=24)
 trajectory = simulate(TowelMapSystem(), until=6000, observers=[observer])
-points = np.column_stack([trajectory.values(f'map.{name}') for name in 'xyz'])[50:]
+points = np.column_stack([trajectory.get_values(f'map.{name}') for name in 'xyz'])[50:]
 colors = plt.get_cmap('plasma')(points[:, 1] / np.ptp(points[:, 1]) - points[:, 1].min() / np.ptp(points[:, 1]))
 observer.recording_.log('attractor', rr.Points3D(points * [1, 4, 1], radii=0.004, colors=colors[:, :3]), static=True)
 observer.recording_.flush()

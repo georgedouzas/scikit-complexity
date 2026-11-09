@@ -45,7 +45,7 @@ blueprint = rrb.Blueprint(
 system = BakerMapSystem(alpha=ALPHA, lambda_a=LAMBDA_A, lambda_b=LAMBDA_B)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=80)
 trajectory = simulate(system, until=20000, observers=[observer])
-x, y = trajectory.values('map.x')[20:], trajectory.values('map.y')[20:]
+x, y = trajectory.get_values('map.x')[20:], trajectory.get_values('map.y')[20:]
 observer.recording_.log(
     'attractor',
     rr.Points2D(np.column_stack([100 * x, -100 * y]), radii=0.15, colors=[90, 170, 255]),

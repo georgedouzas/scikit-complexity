@@ -33,7 +33,7 @@ class RequestJumpsPass(BasePass):
         """Note the requests of the jumps."""
         compilation = self.compilation_
         compilation.reduced, compilation.request_jumps = self._set_request_jumps_apart(
-            Compilation._required(compilation.reduced, 'reduced'),
+            Compilation._get_required(compilation.reduced, 'reduced'),
         )
 
     @staticmethod

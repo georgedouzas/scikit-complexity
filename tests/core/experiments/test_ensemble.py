@@ -54,7 +54,7 @@ class PeakResult:
 
 def peak(trajectory):
     """Return the height and time of the peak of the infected."""
-    values = np.asarray(trajectory.values('I.x'), dtype=float)
+    values = np.asarray(trajectory.get_values('I.x'), dtype=float)
     return PeakResult(float(values.max()), float(trajectory.times[values.argmax()]))
 
 

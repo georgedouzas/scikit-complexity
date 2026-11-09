@@ -54,7 +54,7 @@ def test_simulate_reads_the_run_settings_of_an_instance():
     observables = AxelrodSystem(width=4, height=4).get_run_settings()['observables']
     trajectory = simulate(AxelrodSystem(width=4, height=4), until=1, random_state=0)
     assert observables
-    assert all(len(trajectory.values(spec.label)) == len(trajectory.times) for spec in observables)
+    assert all(len(trajectory.get_values(spec.label)) == len(trajectory.times) for spec in observables)
     assert OrderBookSystem().get_run_settings()['invariants'] == {'total_money': 1e-6, 'total_shares': 1e-6}
 
 
@@ -135,7 +135,7 @@ PROBED_COLUMNS = 40
 
 def _probe_pattern(problem, x, p, rng):
     """Check that the central differences of a drift in sampled columns lie inside the derived Jacobian pattern."""
-    pattern = problem.jacobian.pattern()
+    pattern = problem.jacobian.get_pattern()
     if pattern is None:
         return
     pattern = pattern.tocsc()
@@ -216,9 +216,9 @@ def test_system_conforms(system: type[BaseSystem], tmp_path: Path):
     assert _undeclared_laws(built.system_) == []
     assert observer.logged_frames_ == len(trajectory.times)
     for name in problem.states.names:
-        assert len(trajectory.values(name)) == len(trajectory.times)
+        assert len(trajectory.get_values(name)) == len(trajectory.times)
     for scope, observable in problem.observables:
-        assert len(trajectory.values(f'{scope}/{observable.label}' if scope else observable.label)) == len(
+        assert len(trajectory.get_values(f'{scope}/{observable.label}' if scope else observable.label)) == len(
             trajectory.times,
         )
     copy = clone(built)
@@ -242,12 +242,12 @@ def test_jacobian_pattern_holds_finite_differences(system: type[BaseSystem]):
 @pytest.mark.slow
 def test_seeded_runs_of_a_stochastic_system_repeat():
     """Test that seeded runs repeat, for random initial conditions and for stochastic dynamics."""
-    gas = simulate(IdealGasSystem(), random_state=0).values('gas.x_d1')
-    np.testing.assert_array_equal(gas, simulate(IdealGasSystem(), random_state=0).values('gas.x_d1'))
-    assert not np.array_equal(gas, simulate(IdealGasSystem(random_state=None), random_state=0).values('gas.x_d1'))
-    counts = simulate(PoissonProcessSystem(), random_state=0).values('counters.count')
-    np.testing.assert_array_equal(counts, simulate(PoissonProcessSystem(), random_state=0).values('counters.count'))
-    assert not np.array_equal(counts, simulate(PoissonProcessSystem(), random_state=None).values('counters.count'))
+    gas = simulate(IdealGasSystem(), random_state=0).get_values('gas.x_d1')
+    np.testing.assert_array_equal(gas, simulate(IdealGasSystem(), random_state=0).get_values('gas.x_d1'))
+    assert not np.array_equal(gas, simulate(IdealGasSystem(random_state=None), random_state=0).get_values('gas.x_d1'))
+    counts = simulate(PoissonProcessSystem(), random_state=0).get_values('counters.count')
+    np.testing.assert_array_equal(counts, simulate(PoissonProcessSystem(), random_state=0).get_values('counters.count'))
+    assert not np.array_equal(counts, simulate(PoissonProcessSystem(), random_state=None).get_values('counters.count'))
 
 
 # Fields whose component modules are not yet folded into their systems. The change that folds a field removes it here.

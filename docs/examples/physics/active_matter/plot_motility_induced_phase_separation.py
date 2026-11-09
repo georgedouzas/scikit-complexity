@@ -48,7 +48,7 @@ def local_packing(positions):
     return counts * (np.pi / 4) / (np.pi * radius**2)
 
 
-positions = trajectory.values('swimmers.x')
+positions = trajectory.get_values('swimmers.x')
 fig, ax = plt.subplots(figsize=(7, 4))
 bins = (np.arange(27) + 0.5) * (np.pi / 4) / (np.pi * radius**2)
 ax.hist(local_packing(positions[0]), bins=bins, density=True, alpha=0.5, label='start, uniform disks')

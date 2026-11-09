@@ -52,16 +52,19 @@ class MarkovPass(BasePass):
         compilation = self.compilation_
         lowered: BlockLaws = []
         markov: list[tuple[KernelSpec, MatrixLawSpec]] = []
-        for spec, laws, block in Compilation._required(compilation.lowered, 'lowered'):
-            kept, matrices = self._markov_laws(spec, laws)
+        for spec, laws, block in Compilation._get_required(compilation.lowered, 'lowered'):
+            kept, matrices = self._get_markov_laws(spec, laws)
             lowered.append((spec, kept, block))
             markov.extend((spec, matrix) for matrix in matrices)
         compilation.lowered = lowered
         compilation.markov = markov
-        compilation.matrices = self._checked_matrices(markov, Compilation._required(compilation.layout, 'layout'))
+        compilation.matrices = self._get_checked_matrices(
+            markov,
+            Compilation._get_required(compilation.layout, 'layout'),
+        )
 
     @staticmethod
-    def _checked_matrices(
+    def _get_checked_matrices(
         markov: list[tuple[KernelSpec, MatrixLawSpec]],
         declarations: DeclarationsSpec,
     ) -> tuple[MarkovKernel, ...]:
@@ -84,7 +87,7 @@ class MarkovPass(BasePass):
         return tuple(matrices)
 
     @staticmethod
-    def _alphabet_size(description: str, reference: ReferenceSpec | None) -> int | None:
+    def _get_alphabet_size(description: str, reference: ReferenceSpec | None) -> int | None:
         """Return the number of values of a state over a finite alphabet.
 
         It is `None` for the integers.
@@ -135,7 +138,7 @@ class MarkovPass(BasePass):
         return f'_{kind}_{re.sub(r"[^0-9A-Za-z]", "_", str(target))}'
 
     @staticmethod
-    def _matrix_reader(reference: ReferenceSpec) -> Callable[[Array], Array]:
+    def _get_matrix_reader(reference: ReferenceSpec) -> Callable[[Array], Array]:
         """Return the function that reads a parameter of a matrix for every evaluation row."""
         if reference.source is ReadKind.MEMBER:
             members = reference.members
@@ -144,7 +147,7 @@ class MarkovPass(BasePass):
         return lambda p: p[index]
 
     @staticmethod
-    def _selected_row(selector: Expression, matrix: Sequence[Sequence[object]]) -> list[Expression]:
+    def _get_selected_row(selector: Expression, matrix: Sequence[Sequence[object]]) -> list[Expression]:
         """Return the row of a matrix that the value of a selecting expression picks.
 
         It is written as nested conditions.
@@ -201,7 +204,7 @@ class MarkovPass(BasePass):
         if not callable(function):
             error_msg = f'The printer returned a {type(function).__name__}, not the function of the matrix entries.'
             raise TypeError(error_msg)
-        readers = [MarkovPass._matrix_reader(references[item]) for item in arguments]
+        readers = [MarkovPass._get_matrix_reader(references[item]) for item in arguments]
         shape = (len(law.matrix), len(law.matrix[0]))
         reads = frozenset(
             int(index)
@@ -224,7 +227,7 @@ class MarkovPass(BasePass):
         return MarkovKernel(law.description, evaluate, reads).prepare()
 
     @staticmethod
-    def _emission(
+    def _get_emission(
         owner: str,
         law: TransitionLaw,
         references: Mapping[Expression, ReferenceSpec],
@@ -238,8 +241,8 @@ class MarkovPass(BasePass):
         if isinstance(law.matrix, CallSpec) or callable(law.matrix):
             error_msg = f'The {description} has a function as its matrix. Give a symbolic matrix.'
             raise ValidationError(error_msg)
-        columns = MarkovPass._alphabet_size(description, references.get(law._get_targets()[0]))
-        rows = MarkovPass._alphabet_size(description, references.get(law.source))
+        columns = MarkovPass._get_alphabet_size(description, references.get(law._get_targets()[0]))
+        rows = MarkovPass._get_alphabet_size(description, references.get(law.source))
         MarkovPass._check_shape(description, law.matrix, rows, columns)
         hidden = updates.get(str(law.source))
         if hidden is None:
@@ -250,31 +253,31 @@ class MarkovPass(BasePass):
             raise ValidationError(error_msg)
         value = categorical(
             MarkovPass._draw_name('emission', law._get_targets()[0]),
-            MarkovPass._selected_row(SR(hidden), law.matrix),
+            MarkovPass._get_selected_row(SR(hidden), law.matrix),
         )
         return UpdateLaw(law._get_targets()[0], value), MatrixLawSpec(owner, description, law.matrix)
 
     @staticmethod
-    def _transition(spec: KernelSpec, law: TransitionLaw) -> tuple[UpdateLaw, MatrixLawSpec | None]:
+    def _get_transition(spec: KernelSpec, law: TransitionLaw) -> tuple[UpdateLaw, MatrixLawSpec | None]:
         """Return the update law a transition law becomes, and its matrix.
 
         The matrix is left out when a function gives it.
         """
         owner, references = spec.owner, spec.references
         if isinstance(law.matrix, CallSpec) or callable(law.matrix):
-            return MarkovPass._function_transition(spec, law, law.matrix), None
+            return MarkovPass._get_function_transition(spec, law, law.matrix), None
         description = f'transition law of {owner}.{law._get_targets()[0]}'
-        size = MarkovPass._alphabet_size(description, references.get(law._get_targets()[0]))
+        size = MarkovPass._get_alphabet_size(description, references.get(law._get_targets()[0]))
         MarkovPass._check_shape(description, law.matrix, size, size)
         MarkovPass._check_shape(description, law.matrix, len(law.matrix), len(law.matrix))
         value = categorical(
             MarkovPass._draw_name('transition', law._get_targets()[0]),
-            MarkovPass._selected_row(law._get_targets()[0], law.matrix),
+            MarkovPass._get_selected_row(law._get_targets()[0], law.matrix),
         )
         return UpdateLaw(law._get_targets()[0], value), MatrixLawSpec(owner, description, law.matrix)
 
     @staticmethod
-    def _next_values(rows: Array, draws: Array, description: str) -> npt.NDArray[np.intp]:
+    def _get_next_values(rows: Array, draws: Array, description: str) -> npt.NDArray[np.intp]:
         """Return the next value of every member from the row of its matrix.
 
         It first checks the rows.
@@ -287,7 +290,7 @@ class MarkovPass(BasePass):
         return np.minimum((draws[:, None] >= np.cumsum(rows, axis=1)).sum(axis=1), rows.shape[1] - 1)
 
     @staticmethod
-    def _function_transition(
+    def _get_function_transition(
         spec: KernelSpec,
         law: TransitionLaw,
         given: CallSpec | Callable[..., object],
@@ -299,7 +302,7 @@ class MarkovPass(BasePass):
         target = law._get_targets()[0]
         reference = spec.references.get(target)
         description = f'transition law of {spec.owner}.{target}'
-        size = MarkovPass._alphabet_size(description, reference)
+        size = MarkovPass._get_alphabet_size(description, reference)
         call = given if isinstance(given, CallSpec) else CallSpec(given, None)
         function = call.function
         if call.arguments or call.random or call.vectorized or not callable(function) or reference is None:
@@ -308,7 +311,7 @@ class MarkovPass(BasePass):
                 '`CallSpec(f, relative=True)`.'
             )
             raise ValidationError(error_msg)
-        names = spec._relative_names([reference.entry.name])
+        names = spec._get_relative_names([reference.entry.name])
         name = next(iter(names)) if call.relative else reference.entry.name
 
         def step(t: float, values: Mapping[str, object], *, rng: np.random.Generator) -> npt.NDArray[np.intp]:
@@ -320,12 +323,12 @@ class MarkovPass(BasePass):
                 error_msg = f'The {description} returned a matrix of shape {matrix.shape}, not one row per value.'
                 raise ValidationError(error_msg)
             rows = matrix[current] if matrix.ndim == SHARED_NDIM else matrix[np.arange(current.size), current]
-            return MarkovPass._next_values(rows, rng.random(current.size), description)
+            return MarkovPass._get_next_values(rows, rng.random(current.size), description)
 
         return UpdateLaw(target, replace(call, function=step, random=True))
 
     @staticmethod
-    def _markov_laws(
+    def _get_markov_laws(
         spec: KernelSpec,
         laws: list[BaseLaw],
     ) -> tuple[list[BaseLaw], list[MatrixLawSpec]]:
@@ -354,7 +357,7 @@ class MarkovPass(BasePass):
         rewritten: list[BaseLaw] = []
         for law in laws:
             if isinstance(law, TransitionLaw) and law.source is None:
-                update, found = MarkovPass._transition(spec, law)
+                update, found = MarkovPass._get_transition(spec, law)
                 rewritten.append(update)
                 matrices.extend([found] if found is not None else [])
             else:
@@ -362,6 +365,6 @@ class MarkovPass(BasePass):
         updates = {str(law._get_targets()[0]): law.value for law in rewritten if isinstance(law, UpdateLaw)}
         for index, law in enumerate(rewritten):
             if isinstance(law, TransitionLaw) and law.source is not None:
-                rewritten[index], matrix = MarkovPass._emission(owner, law, references, updates)
+                rewritten[index], matrix = MarkovPass._get_emission(owner, law, references, updates)
                 matrices.append(matrix)
         return rewritten, matrices

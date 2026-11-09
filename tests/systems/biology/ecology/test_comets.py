@@ -18,7 +18,7 @@ FAR_DISTANCE = 15
 
 def _field(trajectory: Trajectory, name: str) -> np.ndarray:
     """Return a state of a square lattice with one row per frame."""
-    values = trajectory.values(name)
+    values = trajectory.get_values(name)
     side = round(np.sqrt(np.reshape(values, (trajectory.times.size, -1)).shape[1]))
     return np.reshape(values, (trajectory.times.size, side, side))
 

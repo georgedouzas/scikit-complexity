@@ -30,7 +30,7 @@ trajectory = simulate(system, until=24.8, dt=0.05, observers=[observer])
 # The orbit should lie on the ellipse `r(θ) = p / (1 + e cos θ)` with `p = 10 (1 + e)`, and the areal velocity
 # `|x p_y - y p_x| / 2`, half the angular momentum, should stay constant along the orbit.
 
-x, y, px, py = (np.ravel(trajectory.values(f'planet.{name}')) for name in ('x', 'y', 'px', 'py'))
+x, y, px, py = (np.ravel(trajectory.get_values(f'planet.{name}')) for name in ('x', 'y', 'px', 'py'))
 areal = np.abs(x * py - y * px) / 2
 angles = np.linspace(0, 2 * np.pi, 400)
 radius = 10 * 1.6 / (1 + 0.6 * np.cos(angles))

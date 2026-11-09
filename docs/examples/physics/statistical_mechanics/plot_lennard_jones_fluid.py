@@ -43,7 +43,7 @@ for density in (0.2, 0.8):
         dt=0.05,
         random_state=1,
     )
-    positions = np.mod(run.values('fluid.x')[100:], side)
+    positions = np.mod(run.get_values('fluid.x')[100:], side)
     pairs = neighbors(positions, kind='radial-distribution', box=[side, side], bins=120, r_max=5.0)
     distances, g = pairs.radii, pairs.distribution
     ax.plot(distances, g, label=f'density {density}')

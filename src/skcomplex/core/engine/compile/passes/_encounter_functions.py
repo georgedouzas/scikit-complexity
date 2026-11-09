@@ -34,11 +34,11 @@ class EncounterFunctionsPass(BasePass):
         if functions is None or encounters is None:
             error_msg = 'EncounterFunctionsPass reads the numeric functions and the encounters, which no pass wrote.'
             raise PipelineError(error_msg)
-        size = Compilation._required(compilation.layout, 'layout').ends[True]
-        compilation.functions = self._with_encounters(functions, encounters, size)
+        size = Compilation._get_required(compilation.layout, 'layout').ends[True]
+        compilation.functions = self._copy_with_encounters(functions, encounters, size)
 
     @staticmethod
-    def _with_encounters(
+    def _copy_with_encounters(
         functions: _ProblemFunctionsSpec,
         encounters: tuple[EncounterKernel, ...],
         size: int,

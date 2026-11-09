@@ -10,7 +10,7 @@ from skcomplex.systems.economics.innovation import TapCatalysisSystem
 def _final(seed, **arguments):
     """Return the network of the last frame of a TAP run."""
     trajectory = simulate(TapCatalysisSystem(**arguments).prepare().system_, until=400, random_state=seed)
-    return trajectory.network(-1)
+    return trajectory.get_network(-1)
 
 
 def test_tap_grows_one_production_function_per_new_good_from_older_parents():

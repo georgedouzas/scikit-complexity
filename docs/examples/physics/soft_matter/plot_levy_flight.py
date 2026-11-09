@@ -32,7 +32,7 @@ trajectory = simulate(system, observers=[observer], random_state=0)
 # 1/2 of a random walk. The distribution of the jump lengths should follow the power law `l^(-1 - mu)`.
 
 steps = trajectory.times[1:]
-positions = trajectory.values('walkers.x')
+positions = trajectory.get_values('walkers.x')
 distance = np.median(np.linalg.norm(positions[1:], axis=-1), axis=1)
 slope = np.polyfit(np.log(steps), np.log(distance), 1)[0]
 lengths = np.linalg.norm(np.diff(positions, axis=0), axis=-1).ravel()

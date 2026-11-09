@@ -88,8 +88,8 @@ class DrawKernel(BaseKernel):
         time and the state vector of the state. The orders are drawn last, in place.
         """
         self.values_ = None
-        state = self._state_of(inputs)
-        q, rng, t, x = state.p, self._generator_of(state), state.t, state.x
+        state = self._get_state_of(inputs)
+        q, rng, t, x = state.p, self._get_generator_of(state), state.t, state.x
         cuts = [0, *(np.flatnonzero(np.diff(self.normal)) + 1).tolist(), self.normal.size]
         for start, end in itertools.pairwise(cuts):
             if start == end:
@@ -120,7 +120,7 @@ class DrawKernel(BaseKernel):
             ValidationError:
                 A draw reads more than the states and parameters of its member, so it cannot be recorded.
         """
-        q, rng, t, x = state.p, self._generator_of(state), state.t, state.x
+        q, rng, t, x = state.p, self._get_generator_of(state), state.t, state.x
         for item in self.named:
             if item.arguments is None:
                 error_msg = (
@@ -131,12 +131,12 @@ class DrawKernel(BaseKernel):
             arguments = item.arguments(t, x, q)
             sampled = self._sample_draw(item.draw, arguments, item.rows, rng)
             values = recorder.draw(item.label, item.draw, arguments, sampled)
-            q[item.start : item.start + item.rows] = self._slot_values(item.draw, arguments, values)
+            q[item.start : item.start + item.rows] = self._get_slot_values(item.draw, arguments, values)
         for order in self.orders:
             order[:] = rng.permutation(order.size)
 
     @staticmethod
-    def _slot_values(draw: DrawSpec, arguments: Sequence[npt.ArrayLike], values: Array) -> Array:
+    def _get_slot_values(draw: DrawSpec, arguments: Sequence[npt.ArrayLike], values: Array) -> Array:
         """Return the uniform or normal values that the lowered law turns into given values of a draw.
 
         A draw from `scipy.stats` keeps its values.

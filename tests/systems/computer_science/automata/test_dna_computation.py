@@ -22,7 +22,7 @@ def test_dna_computation_finds_the_only_hamiltonian_path_of_adlemans_graph():
     assert np.all(solved == np.arange(7))
     counts = _filtered_counts(paths, 0, 6, 7)
     assert counts[0] >= counts[1] >= counts[2] == len(solved)
-    assert trajectory.values('solutions')[-1] == len(solved)
+    assert trajectory.get_values('solutions')[-1] == len(solved)
 
 
 def test_dna_computation_leaves_no_strand_without_a_hamiltonian_path():

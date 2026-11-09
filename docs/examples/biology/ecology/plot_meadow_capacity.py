@@ -30,7 +30,7 @@ trajectory = simulate(MeadowCapacitySystem(cows=80, random_state=0), dt=1, obser
 fig, ax = plt.subplots(figsize=(8, 4))
 for herd in [40, 80, 160, 320]:
     trajectory = simulate(MeadowCapacitySystem(cows=herd, random_state=0), dt=1, random_state=0)
-    ax.plot(trajectory.times, trajectory.values('cows.count'), 'o-', markersize=3, label=f'{herd} cows')
+    ax.plot(trajectory.times, trajectory.get_values('cows.count'), 'o-', markersize=3, label=f'{herd} cows')
 ax.axhline(64, color='black', linestyle='--', label='capacity without regrowth')
 ax.set_xlabel('week')
 ax.set_ylabel('cows alive')

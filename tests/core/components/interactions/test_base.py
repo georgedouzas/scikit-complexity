@@ -205,7 +205,9 @@ def _run_nodes(interaction, discrete):
         on='sites',
     )
     system = CompositeSystem(elements=[nodes], interactions=[interaction], time=DiscreteTime() if discrete else None)
-    return simulate(system, until=5 if discrete else 1.0, dt=1 if discrete else 0.1, random_state=0).values('nodes.x')
+    return simulate(system, until=5 if discrete else 1.0, dt=1 if discrete else 0.1, random_state=0).get_values(
+        'nodes.x',
+    )
 
 
 class WeightedInteraction(BaseInteraction):

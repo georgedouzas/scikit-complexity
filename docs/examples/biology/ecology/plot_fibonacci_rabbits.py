@@ -27,7 +27,7 @@ trajectory = simulate(FibonacciRabbitsSystem(pairs=1.0, previous=0.0), observers
 # The ratio of successive Fibonacci numbers tends to the golden ratio `(1 + sqrt 5) / 2 ≈ 1.618`, alternately from
 # above and below. The simulated ratio should converge to it within a few months.
 
-pairs = trajectory.values('rabbits.pairs')
+pairs = trajectory.get_values('rabbits.pairs')
 months = trajectory.times
 golden = (1 + np.sqrt(5)) / 2
 fig, (counts, ratio) = plt.subplots(1, 2, figsize=(10, 4))

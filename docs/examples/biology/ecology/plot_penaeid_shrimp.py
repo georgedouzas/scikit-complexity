@@ -29,14 +29,14 @@ trajectory = simulate(PenaeidShrimpSystem(), dt=1.0, observers=[observer], until
 
 times = trajectory.times
 fig, (length, stocks) = plt.subplots(1, 2, figsize=(11, 4.5))
-length.plot(times, trajectory.values('shrimp.length'), label='model')
+length.plot(times, trajectory.get_values('shrimp.length'), label='model')
 length.plot(times, 29.9 * (1 - np.exp(-0.013 * times)), '--', color='black', label='von Bertalanffy')
 length.set_xlabel('day')
 length.set_ylabel('carapace length (mm)')
 length.set_title('Length growth')
 length.legend()
 for state in ('gut', 'biomass', 'gonads'):
-    stocks.plot(times, trajectory.values(f'shrimp.{state}'), label=state)
+    stocks.plot(times, trajectory.get_values(f'shrimp.{state}'), label=state)
 stocks.set_xlabel('day')
 stocks.set_ylabel('dry weight (g)')
 stocks.set_title('Stocks of the shrimp')

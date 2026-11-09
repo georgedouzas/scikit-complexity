@@ -28,7 +28,7 @@ trajectory = simulate(GrayScottSystem(random_state=0), until=10000, observers=[o
 # average should show a peak at the wavenumber of the spot spacing, beyond the low wavenumbers of the round outline
 # of the patterned region.
 
-v = trajectory.lattice('cells.v')[-1]
+v = trajectory.get_lattice('cells.v')[-1]
 power = np.abs(np.fft.fftshift(np.fft.fft2(v - v.mean()))) ** 2
 size = v.shape[0]
 radius = np.hypot(*np.indices(v.shape) - size // 2).astype(int)

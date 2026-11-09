@@ -49,8 +49,8 @@ grids = [('default ring', {}), ('added line (0, 2)', None), ('doubled line (0, 1
 for ax, (label, arguments) in zip(axes, grids, strict=True):
     run = trajectory if arguments is None else simulate(PowerGridSystem(**arguments))
     for node in range(8):
-        ax.plot(run.times, run.values(f'node_{node}.phi_d1'), linewidth=0.8)
-    spread = np.abs([run.values(f'node_{node}.phi_d1')[-50:] for node in range(8)]).max()
+        ax.plot(run.times, run.get_values(f'node_{node}.phi_d1'), linewidth=0.8)
+    spread = np.abs([run.get_values(f'node_{node}.phi_d1')[-50:] for node in range(8)]).max()
     ax.set_title(f'{label}: max |phi\'| {spread:.2f}', fontsize=10)
     ax.set_xlabel('time')
 axes[0].set_ylabel("frequency deviation phi'")

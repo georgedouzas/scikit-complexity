@@ -31,13 +31,13 @@ trajectory = simulate(system, observers=[observer])
 # on a fixed pivot, so the measured frequency of runs with a lighter and lighter cart should follow that curve.
 
 times = np.asarray(trajectory.times)
-cart = np.ravel(trajectory.values('cart.y'))
-bob = cart + np.sin(np.ravel(trajectory.values('cart.theta')))
+cart = np.ravel(trajectory.get_values('cart.y'))
+bob = cart + np.sin(np.ravel(trajectory.get_values('cart.theta')))
 ratios = np.linspace(0.25, 4.0, 10)
 frequencies = []
 for ratio in ratios:
     run = simulate(CartPendulumSystem(theta=0.05, m1=ratio, m2=1.0, l=1.0), until=20, dt=0.01)
-    velocity, steps = np.ravel(run.values('cart.theta_d1')), np.asarray(run.times)
+    velocity, steps = np.ravel(run.get_values('cart.theta_d1')), np.asarray(run.times)
     crossings = steps[1:][(velocity[:-1] < 0) & (velocity[1:] >= 0)]
     frequencies.append(2 * np.pi / np.diff(crossings).mean())
 grid = np.linspace(0.2, 4.0, 200)

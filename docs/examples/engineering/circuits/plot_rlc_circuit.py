@@ -38,10 +38,10 @@ frequencies = np.linspace(0.5, 1.5, 21)
 amplitudes = []
 for omega in frequencies:
     driven = simulate(RlcCircuitSystem(q=0.0, V=0.1, omega=omega), until=150, dt=0.1)
-    amplitudes.append(np.abs(driven.values('circuit.q')[-300:]).max())
+    amplitudes.append(np.abs(driven.get_values('circuit.q')[-300:]).max())
 grid = np.linspace(0.5, 1.5, 300)
 fig, (ringing, resonance) = plt.subplots(1, 2, figsize=(10, 4))
-ringing.plot(times, trajectory.values('circuit.q'), label='simulation')
+ringing.plot(times, trajectory.get_values('circuit.q'), label='simulation')
 ringing.plot(times, exact, color='black', linestyle='--', linewidth=1, label='exact solution')
 ringing.plot(times, np.exp(-R * times / (2 * L)), color='gray', linewidth=0.8, label='envelope exp(-R t / 2L)')
 ringing.set_xlabel('time')

@@ -45,12 +45,12 @@ final_sizes = [
         HeterogeneousMeanFieldSIRSystem(k_max=30, beta=rate, infected=1e-6),
         until=300,
         dt=1.0,
-    ).values(
+    ).get_values(
         'recovered',
     )[-1]
     for rate in rates
 ]
-infected = trajectory.values('network.i')
+infected = trajectory.get_values('network.i')
 
 fig, (sizes, timing) = plt.subplots(1, 2, figsize=(10, 4))
 sizes.plot(rates, final_sizes, 'o-', label='simulated')

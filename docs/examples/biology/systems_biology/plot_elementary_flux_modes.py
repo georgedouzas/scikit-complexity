@@ -34,7 +34,7 @@ trajectory = simulate(system, observers=[observer], until=0.0)
 analysis = elementary_modes(system, normalize='cell.v_b1', sort='cell.v_vbio')
 modes = np.asarray(analysis.modes, dtype=float)
 names = [label.rpartition('v_')[2] for label in analysis.labels]
-optimum = np.array([float(trajectory.values(f'cell.v_{name}')[0]) for name in names])
+optimum = np.array([float(trajectory.get_values(f'cell.v_{name}')[0]) for name in names])
 weights, residual = nnls(modes.T, optimum)
 fig, axes = plt.subplots(1, 2, figsize=(10, 4))
 image = axes[0].imshow(modes.T, cmap='viridis')

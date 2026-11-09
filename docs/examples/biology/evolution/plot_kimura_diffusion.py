@@ -34,10 +34,10 @@ starts = np.linspace(0.1, 0.9, 5)
 fixed = []
 for start in starts:
     run = simulate(KimuraDiffusionSystem(x=start, replicates=500), until=10, dt=1.0, solver=solver, random_state=1)
-    fixed.append((run.values('alleles.x')[-1] > 0.999).mean())
+    fixed.append((run.get_values('alleles.x')[-1] > 0.999).mean())
 grid = np.linspace(0, 1, 100)
 fig, (paths, probability) = plt.subplots(1, 2, figsize=(11, 4.5))
-paths.plot(trajectory.times, trajectory.values('alleles.x')[:, :30], lw=0.6)
+paths.plot(trajectory.times, trajectory.get_values('alleles.x')[:, :30], lw=0.6)
 paths.set_xlabel('time (N generations)')
 paths.set_ylabel('allele frequency')
 paths.set_title('Drift to loss or fixation')

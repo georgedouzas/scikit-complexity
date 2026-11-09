@@ -175,7 +175,9 @@ def _read_values(source: Source, variables: str | None) -> tuple[Array, float]:
             error_msg = 'cell_complex reads a trajectory by the dotted name of a state. Give `variables`.'
             raise AnalysisError(error_msg)
         period = source.problem.states.entry(variables).period
-        return np.asarray(source.values(variables), dtype=float), DEFAULT_PERIOD if period is None else float(period)
+        return np.asarray(source.get_values(variables), dtype=float), (
+            DEFAULT_PERIOD if period is None else float(period)
+        )
     return np.atleast_2d(np.asarray(source, dtype=float)), DEFAULT_PERIOD
 
 

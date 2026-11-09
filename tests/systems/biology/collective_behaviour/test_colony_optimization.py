@@ -22,7 +22,7 @@ def test_colony_finds_a_short_path_and_heals_a_disruption():
         system = AntColonyOptimizationSystem(cut=50, seed=seed).prepare().system_
         search = system.interactions[0]
         trajectory = simulate(system, random_state=seed, until=100)
-        lengths = trajectory.values('search.shortest')
+        lengths = trajectory.get_values('search.shortest')
         assert lengths[49] < 1.1 * _shortest(search)
         is_open = trajectory.get_agents('roads', 100).values['passable']
         assert (is_open == 0).sum() == 2

@@ -42,9 +42,9 @@ system = CompositeSystem(
     interactions=[ConnectionInteraction('node', members=['first', 'second'], ports=['a', 'a'])],
 )
 trajectory = simulate(system, until=1.0, dt=0.5)
-assert trajectory.values('first.a_mu')[-1] == 2.0
-assert trajectory.values('second.a_n')[-1] == -1.0
-trajectory.values('first.a_mu')[-1], trajectory.values('second.a_n')[-1]
+assert trajectory.get_values('first.a_mu')[-1] == 2.0
+assert trajectory.get_values('second.a_n')[-1] == -1.0
+trajectory.get_values('first.a_mu')[-1], trajectory.get_values('second.a_n')[-1]
 ```
 
 The two reservoirs share one node. The node makes their potentials equal and their flows sum to zero, so the potential
@@ -179,9 +179,9 @@ circuit = CompositeSystem(
     ],
 )
 trajectory = simulate(circuit, until=1.0, dt=0.1)
-assert np.isclose(trajectory.values('tank.u')[-1], np.exp(-1.0), rtol=1e-3)
-assert np.allclose(trajectory.values('load.p_i').ravel(), trajectory.values('tank.u').ravel() / 2.0)
-trajectory.values('tank.u')[-1].round(4)
+assert np.isclose(trajectory.get_values('tank.u')[-1], np.exp(-1.0), rtol=1e-3)
+assert np.allclose(trajectory.get_values('load.p_i').ravel(), trajectory.get_values('tank.u').ravel() / 2.0)
+trajectory.get_values('tank.u')[-1].round(4)
 ```
 
 The voltage of the capacitor decays as `exp(-t / RC)`, and the current through the load is that voltage over `R`. The

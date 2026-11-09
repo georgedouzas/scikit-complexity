@@ -46,7 +46,7 @@ def measure(temperature):
         until=400,
         random_state=1,
     )
-    theta = np.asarray(run.lattice('spins.theta'))[-100:]
+    theta = np.asarray(run.get_lattice('spins.theta'))[-100:]
     right, down = np.roll(theta, -1, axis=-1), np.roll(theta, -1, axis=-2)
     energy = -(np.cos(theta - right) + np.cos(theta - down)).mean()
     winding = wrap_angle(right - theta) + wrap_angle(np.roll(right, -1, -2) - right)

@@ -97,7 +97,7 @@ class ExtremalKernel(BaseKernel):
         sites = self.members[site, : self.counts[site]]
         random = rng.random(sites.size)
         values = [x[state.start + sites] for state in self.targets]
-        result = self.rule(*values, random=random, **self.arguments.values(x, p, sites))
+        result = self.rule(*values, random=random, **self.arguments.get_values(x, p, sites))
         several = len(self.targets) > 1
         results = list(result) if several and isinstance(result, Iterable) else [result]
         if len(results) != len(self.targets):
@@ -115,8 +115,8 @@ class ExtremalKernel(BaseKernel):
         The records are set too. Every record holds the time of the state, the site, and the extremal value of one
         application.
         """
-        state = self._state_of(inputs)
-        x, p, rng, time = state.x, state.p, self._generator_of(state), state.t
+        state = self._get_state_of(inputs)
+        x, p, rng, time = state.x, state.p, self._get_generator_of(state), state.t
         if self.loop is None:
             found = [self._apply_once(x, p, rng) for _ in range(self.repeat)]
             self.values_ = [ExtremalRecordSpec(self.label, time, site, value) for site, value in found]

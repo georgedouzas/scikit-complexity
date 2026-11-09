@@ -10,8 +10,8 @@ from ....errors import IncompatibleLawsError
 from ....types import FormKind
 from .._base import BasePass
 from .._compilation import Compilation
-from .._forms import _COMBINED, _FORMS
-from .._laws import _FORMLESS_LAWS
+from .._forms import COMBINED, FORMS
+from .._laws import FORMLESS_LAWS
 
 
 class FormPass(BasePass):
@@ -28,7 +28,7 @@ class FormPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Infer the form of the problem."""
         compilation = self.compilation_
-        kinds = Compilation._required(compilation.kinds, 'kinds').values()
+        kinds = Compilation._get_required(compilation.kinds, 'kinds').values()
         compilation.form = (
             FormKind.STATIC if isinstance(compilation.system.time, StaticTime) else self._infer_form(kinds)
         )
@@ -52,18 +52,18 @@ class FormPass(BasePass):
             IncompatibleLawsError:
                 No form takes the law classes.
         """
-        kinds = FormPass._form_kinds(owners)
-        if kinds not in _FORMS:
+        kinds = FormPass._get_form_kinds(owners)
+        if kinds not in FORMS:
             found = ', '.join(sorted(kind.__name__ for kind in kinds))
             supported = '; '.join(
-                ', '.join(sorted(kind.__name__ for kind in combination)) for combination in _FORMS if combination
+                ', '.join(sorted(kind.__name__ for kind in combination)) for combination in FORMS if combination
             )
             error_msg = f'The system mixes the law kinds {found}. Supported combinations are: {supported}.'
             raise IncompatibleLawsError(error_msg)
-        return _FORMS[kinds]
+        return FORMS[kinds]
 
     @staticmethod
-    def _form_kinds(owners: Iterable[set[type]]) -> frozenset[type]:
+    def _get_form_kinds(owners: Iterable[set[type]]) -> frozenset[type]:
         """Return the law classes that decide the form of components.
 
         They are the components with their own law classes. A combined class, such as a renewal, drops out of the
@@ -71,9 +71,9 @@ class FormPass(BasePass):
         that class alone next to components with other laws keeps it, so the system does not fit one form and runs as
         partitions.
         """
-        owned = [{kind for kind in kinds if not issubclass(kind, _FORMLESS_LAWS)} for kinds in owners]
+        owned = [{kind for kind in kinds if not issubclass(kind, FORMLESS_LAWS)} for kinds in owners]
         kinds: set[type] = set().union(*owned)
-        for kind, companions in _COMBINED.items():
+        for kind, companions in COMBINED.items():
             rest = kinds - {kind}
             if kind not in kinds or not rest:
                 continue

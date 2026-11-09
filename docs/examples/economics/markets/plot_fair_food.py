@@ -44,7 +44,7 @@ shares = {}
 for social_weight in (0.0, 2.0):
     shares[social_weight] = [
         simulate(FairFoodSystem(premium=premium, social_weight=social_weight, random_state=0), until=15, random_state=0)
-        .values('fair_share')[-5:]
+        .get_values('fair_share')[-5:]
         .mean()
         for premium in premiums
     ]

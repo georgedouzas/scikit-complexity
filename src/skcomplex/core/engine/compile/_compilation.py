@@ -316,7 +316,7 @@ class Compilation:
             for key, (spec, request) in self.request_jumps.items():
                 self.request_jumps[key] = (replaced.get(id(spec), spec), request)
         if self.transfer is not None:
-            self.transfer = self.transfer.replaced(replaced)
+            self.transfer = self.transfer.get_replaced(replaced)
 
     @staticmethod
     def _replace_in[*Rest](items: list[tuple[KernelSpec, *Rest]], replaced: Mapping[int, KernelSpec]) -> None:
@@ -334,7 +334,7 @@ class Compilation:
             items[index] = (replaced.get(id(spec), spec), *item[1:])
 
     @staticmethod
-    def _required[T](value: T | None, name: str) -> T:
+    def _get_required[T](value: T | None, name: str) -> T:
         """Return the value of a field that a pass has set.
 
         A field that no pass has set yet raises an error.

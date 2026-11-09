@@ -1,4 +1,7 @@
-"""List the passes that the general compiler runs by default."""
+"""List the passes that the general compiler runs by default.
+
+`PASSES` holds them in the order the compiler keeps where their fields leave them unordered.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -59,7 +62,7 @@ from ._towards import TowardsPass
 from ._unpack_matches import UnpackMatchesPass
 from ._unpack_renewals import UnpackRenewalsPass
 
-_PASSES: tuple[type[BasePass], ...] = (
+PASSES: tuple[type[BasePass], ...] = (
     FlattenPass,
     CensusPass,
     PlanPass,
@@ -115,4 +118,3 @@ _PASSES: tuple[type[BasePass], ...] = (
     TopologyProblemPass,
     LinearProgramsPass,
 )
-"""Passes of the general compiler, in the order it keeps where their fields leave them unordered."""

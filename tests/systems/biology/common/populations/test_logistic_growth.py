@@ -13,7 +13,7 @@ def _run(interaction, n0, until=4.0, dt=0.01):
     """Return the times and the population of one compartment under one interaction."""
     system = CompositeSystem(elements=[CompartmentElement('population', x=n0)], interactions=[interaction])
     trajectory = simulate(system, dt=dt, until=until)
-    return np.asarray(trajectory.times), np.asarray(trajectory.values('population.x'))
+    return np.asarray(trajectory.times), np.asarray(trajectory.get_values('population.x'))
 
 
 def test_logistic_growth_follows_its_closed_solution():
@@ -36,4 +36,4 @@ def test_logistic_growth_saturates():
         elements=[PopulationElement('p', x=5)],
         interactions=[LogisticGrowthInteraction('g', target='p', r=1.0, K=200)],
     )
-    assert simulate(system, dt=1.0, until=30).values('p.x')[-1] == pytest.approx(200, rel=1e-3)
+    assert simulate(system, dt=1.0, until=30).get_values('p.x')[-1] == pytest.approx(200, rel=1e-3)

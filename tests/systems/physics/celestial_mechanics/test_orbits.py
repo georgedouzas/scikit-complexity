@@ -34,7 +34,7 @@ def test_gravity_keeps_circular_orbit():
         space=ContinuousSpace(n_dim=2),
     )
     trajectory = simulate(system, until=6, dt=0.5, solver=ScipyODESolver(rtol=1e-10, atol=1e-12))
-    radius = np.linalg.norm(trajectory.values('planet.x') - trajectory.values('sun.x'), axis=1)
+    radius = np.linalg.norm(trajectory.get_values('planet.x') - trajectory.get_values('sun.x'), axis=1)
     assert np.allclose(radius, 10.0, rtol=1e-4)
 
 
@@ -59,7 +59,7 @@ def test_kepler_orbit_conserves_energy_and_momentum_and_follows_the_third_law():
 def test_kepler_orbit_records_its_energy_within_its_invariant_tolerance():
     """Test that the default run of the Kepler problem records its energy and passes its invariant check."""
     trajectory = simulate(TwoBodyOrbitSystem(), random_state=0)
-    energy = np.asarray(trajectory.values('planet.energy'), dtype=float)
+    energy = np.asarray(trajectory.get_values('planet.energy'), dtype=float)
     assert np.ptp(energy) < 1e-6
 
 
@@ -94,7 +94,7 @@ def test_restricted_three_body_conserves_the_jacobi_constant():
 def test_restricted_three_body_records_its_hamiltonian_within_its_invariant_tolerance():
     """Test that the default run of the restricted three-body problem passes its invariant check."""
     trajectory = simulate(RestrictedThreeBodySystem(), random_state=0)
-    assert np.ptp(np.asarray(trajectory.values('body.energy'), dtype=float)) < 1e-6
+    assert np.ptp(np.asarray(trajectory.get_values('body.energy'), dtype=float)) < 1e-6
 
 
 def test_restricted_three_body_admits_no_split_of_the_yoshida_solver():

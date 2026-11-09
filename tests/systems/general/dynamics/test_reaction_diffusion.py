@@ -41,7 +41,7 @@ def test_reaction_diffusion_front_moves_at_the_fisher_speed():
         parameters={'r': r},
     )
     trajectory = simulate(system, until=80.0, dt=20.0)
-    values = trajectory.values('medium.u')
+    values = trajectory.get_values('medium.u')
     speed = (front_position(values[4], spacing) - front_position(values[2], spacing)) / 40.0
     assert speed == pytest.approx(2 * np.sqrt(r * D), rel=0.05)
 
@@ -54,7 +54,7 @@ def test_reaction_diffusion_field_without_diffusivity_changes_site_by_site():
         diffusivities={'w': 1.0},
         shape=4,
     )
-    values = simulate(system, until=1.0, dt=1.0).values('medium.u')
+    values = simulate(system, until=1.0, dt=1.0).get_values('medium.u')
     np.testing.assert_allclose(values[-1], np.array([1.0, 0.0, 2.0, 0.0]) * np.exp(-1.0), rtol=1e-5)
 
 
@@ -64,7 +64,7 @@ def test_reaction_diffusion_takes_boundaries_per_field_and_its_own_kinetics():
     field = system.prepare().system_.elements[0]
     assert field.boundary == {'u': 'zero-flux'}
     assert [interaction.label for interaction in system.system_.interactions] == ['decay', 'u_diffusion']
-    values = simulate(system, until=1.0, dt=1.0).values('medium.u')
+    values = simulate(system, until=1.0, dt=1.0).get_values('medium.u')
     np.testing.assert_allclose(values[-1], np.exp(-1.0), rtol=1e-5)
 
 
@@ -79,7 +79,7 @@ def test_reaction_diffusion_spectral_diffusion_damps_a_mode():
         shape=size,
         discretization='spectral',
     )
-    values = simulate(system, until=10.0, dt=10.0).values('medium.u')
+    values = simulate(system, until=10.0, dt=10.0).get_values('medium.u')
     np.testing.assert_allclose(values[-1], initial * np.exp(-2.0 * k**2 * 10.0), atol=1e-4)
 
 

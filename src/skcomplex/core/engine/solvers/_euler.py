@@ -87,13 +87,13 @@ class EulerSolver(Solver):
         Every step is interpolated for delays, and events are located in it.
         """
         problem = self.problem_
-        drift = self._drift()
+        drift = self._get_drift()
         history = self.history_ = History._open_history(problem, self.history_, t, x)
 
         def take(time: float, state: Array, step: float, ceiling: float) -> tuple[Array, Interpolant]:
             """Return the state after one step and its straight line over the step."""
             start = min(time, ceiling)
-            slope = drift(start, state, History._with_delays(problem, history, start, state, p))
+            slope = drift(start, state, History._copy_with_delays(problem, history, start, state, p))
             following = state + step * slope
 
             def interpolant(moment: float) -> Array:
@@ -110,7 +110,7 @@ class EulerSolver(Solver):
             dt=self.dt,
             locator=self.locator_,
             history=history,
-            bounded=self._bounded,
+            bounded=self._get_bounded,
             take=take,
         )
 
@@ -147,11 +147,11 @@ class EulerSolver(Solver):
             return x
         if BaseSolver._is_hybrid(self.problem_, t, until):
             return self._advance_hybrid(t, x, p, until)
-        drift = self._drift()
+        drift = self._get_drift()
         n_steps = step_count(t, until, self.dt)
         step = (until - t) / n_steps
         state = x.copy()
         for index in range(n_steps):
             time = t + index * step
-            state = self._bounded(time + step, state + step * drift(time, state, p), p)
+            state = self._get_bounded(time + step, state + step * drift(time, state, p), p)
         return state

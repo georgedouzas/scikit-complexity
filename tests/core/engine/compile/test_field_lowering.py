@@ -135,7 +135,7 @@ def test_uniform_decay():
         dt=0.5,
     )
     expected = 2 * np.exp(-0.5 * trajectory.times)[:, None] * np.ones(2500)
-    assert trajectory.values('grid.u') == pytest.approx(expected, rel=1e-5)
+    assert trajectory.get_values('grid.u') == pytest.approx(expected, rel=1e-5)
 
 
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
@@ -152,7 +152,7 @@ def test_diffusion_on_network():
     system = CompositeSystem(
         elements=[FieldElement('net', element=HeatElement, space=NetworkSpace(graph), values={'u': initial})],
     )
-    values = simulate(system, until=60, dt=1).values('net.u')
+    values = simulate(system, until=60, dt=1).get_values('net.u')
     assert values.sum(axis=1) == pytest.approx(np.full(len(values), initial.sum()))
     assert np.abs(values[-1] - initial.mean()).max() < 1e-4
 
@@ -165,7 +165,7 @@ def test_diffusion_on_network_without_edges():
             FieldElement('net', element=HeatElement, space=NetworkSpace(nx.empty_graph(2)), values={'u': initial}),
         ],
     )
-    values = simulate(system, until=3, dt=1).values('net.u')
+    values = simulate(system, until=3, dt=1).get_values('net.u')
     assert values[-1] == pytest.approx(initial)
 
 
@@ -180,7 +180,7 @@ def test_zero_flux_conserves_mass(backend):
         boundary={'u': 'zero-flux'},
         values={'u': initial},
     )
-    totals = simulate(CompositeSystem(elements=[plate]), until=30, dt=1, backend=backend()).values('plate.u').sum(1)
+    totals = simulate(CompositeSystem(elements=[plate]), until=30, dt=1, backend=backend()).get_values('plate.u').sum(1)
     assert np.abs(totals - initial.sum()).max() < 1e-10 * initial.sum()
     assert totals.std() < 1e-10 * initial.sum()
 
@@ -302,7 +302,7 @@ def test_agents_read_and_deposit_fields():
         ],
     )
     trajectory = simulate(system, until=5, dt=1)
-    level = trajectory.lattice('ground/level.u')[-1]
+    level = trajectory.get_lattice('ground/level.u')[-1]
     assert level[1, 2] == pytest.approx(5.0)
     assert level.sum() == pytest.approx(5.0)
     assert trajectory.get_agents('walkers/markers', 5).values['seen'][0] == pytest.approx(4.0)
@@ -339,7 +339,7 @@ def test_laplacian_damps_the_checkerboard_mode(discretization):
         discretization=discretization,
     )
     final = np.asarray(
-        simulate(CompositeSystem(elements=[field]), until=0.5, dt=0.01).values('m.u'),
+        simulate(CompositeSystem(elements=[field]), until=0.5, dt=0.01).get_values('m.u'),
     )[-1]
     expected = (
         0.01 * np.exp((1 - 8) * 0.5)

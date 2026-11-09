@@ -46,7 +46,7 @@ grid = np.linspace(0, speed**2 / g, 200)
 ax.plot(grid, grid - g * grid**2 / speed**2, color='black', linewidth=3, alpha=0.3, label='parabola')
 for drag in [0.0, 0.3, 1.0]:
     run = simulate(ProjectileSystem(speed=speed, angle=45.0, drag=drag), until=1.5, dt=0.005)
-    position = np.asarray(run.values('ball.x'))
+    position = np.asarray(run.get_values('ball.x'))
     above = position[:, 1] >= 0
     ax.plot(position[above, 0], position[above, 1], label=f'drag = {drag}')
 ax.set_xlabel('horizontal distance')

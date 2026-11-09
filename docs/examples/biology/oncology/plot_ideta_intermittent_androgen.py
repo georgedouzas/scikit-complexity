@@ -28,7 +28,7 @@ trajectory = simulate(IdetaIntermittentAndrogenSystem(), dt=1.0, observers=[obse
 # follows the therapy with a delay of about `1 / du = 12.5` days, so the PSA overshoots the thresholds a little before
 # it turns.
 
-times, psa = trajectory.times, trajectory.values('tumour.AD') + trajectory.values('tumour.AI')
+times, psa = trajectory.times, trajectory.get_values('tumour.AD') + trajectory.get_values('tumour.AI')
 fig, (level, androgen) = plt.subplots(1, 2, figsize=(10, 4))
 level.plot(times, psa, label='PSA')
 level.axhline(15.0, color='black', linestyle='--', label='upper threshold')
@@ -39,7 +39,7 @@ level.set_xlabel('time (days)')
 level.set_ylabel('PSA (ng/mL)')
 level.set_title('Therapy on (red) and off (green)')
 level.legend()
-androgen.plot(times, trajectory.values('tumour.U'))
+androgen.plot(times, trajectory.get_values('tumour.U'))
 androgen.set_xlabel('time (days)')
 androgen.set_ylabel('serum androgen (nmol/L)')
 androgen.set_title('The androgen falls during therapy')

@@ -36,7 +36,7 @@ def _values(elements, interactions, until, path='value.x'):
     """Return the values of a state at every step of a discrete-time system."""
     system = CompositeSystem(elements=elements, interactions=interactions, time=DiscreteTime())
     trajectory = simulate(system, until=until, random_state=0)
-    return trajectory.values(path)
+    return trajectory.get_values(path)
 
 
 def _agent_values(group, interaction, until):
@@ -110,7 +110,7 @@ def _hopfield(schedule, backend, start, patterns, until):
     )
     system = CompositeSystem(elements=[group], interactions=[network], time=DiscreteTime())
     trajectory = simulate(system, until=until, random_state=0, backend=backend)
-    return trajectory.values('neurons.x')
+    return trajectory.get_values('neurons.x')
 
 
 class NeuronElement(Element):

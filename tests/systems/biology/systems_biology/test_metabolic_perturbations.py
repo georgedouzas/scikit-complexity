@@ -10,7 +10,7 @@ from skcomplex.systems.biology.systems_biology import MetabolicPerturbationsSyst
 def test_essential_gene_stops_growth():
     """Test that knocking out `gapA` leaves no growth."""
     trajectory = simulate(MetabolicPerturbationsSystem(genes=('b1779',)))
-    assert float(trajectory.values('cell.objective_0')[0]) == pytest.approx(0.0, abs=1e-6)
+    assert float(trajectory.get_values('cell.objective_0')[0]) == pytest.approx(0.0, abs=1e-6)
 
 
 def test_single_deletion_scan_finds_seven_essential_genes():

@@ -42,7 +42,7 @@ for alpha in (0.3, 0.5, 0.7):
         random_state=0,
         observables=BiasedTrapWalkSystem.observables,
     )
-    times, position = trajectory.times[1:], trajectory.values('position')[1:]
+    times, position = trajectory.times[1:], trajectory.get_values('position')[1:]
     (line,) = scaling.loglog(times, position, label=f'alpha = {alpha}')
     prediction = times**alpha * np.sin(np.pi * alpha) / (np.pi * alpha)
     scaling.loglog(times, prediction, color=line.get_color(), linestyle='--')
@@ -50,7 +50,7 @@ scaling.set_xlabel('time t')
 scaling.set_ylabel('mean displacement <x>')
 scaling.set_title('Subdiffusion, <x> ~ t^alpha (dashed: renewal theory)')
 scaling.legend()
-visited = simulation.values('traps.visited')[-1].reshape(56, 80)
+visited = simulation.get_values('traps.visited')[-1].reshape(56, 80)
 spread.hist(visited.sum(axis=1) - 1, bins=15)
 spread.set_xlabel('displacement at t = 1495')
 spread.set_ylabel('number of walkers')

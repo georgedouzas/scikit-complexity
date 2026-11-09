@@ -92,4 +92,4 @@ class RenewalSolver(Solver):
         if until <= t or clock is None:
             return x
         clock.begin(t, x, p)
-        return self._bounded(until, clock.fire_until(until, x, p), p)
+        return self._get_bounded(until, clock.fire_until(until, x, p), p)

@@ -108,7 +108,7 @@ class VelocityVerletSolver(Solver):
         super()._prepare(context)
         problem = self.problem_
         BaseSolver._reject_hybrid(problem, type(self).__name__)
-        self.positions_, self.velocities_ = self._position_pairs(problem)
+        self.positions_, self.velocities_ = self._get_position_pairs(problem)
 
     def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
         """Integrate positions and velocities from time `t` to time `until`.
@@ -153,13 +153,13 @@ class VelocityVerletSolver(Solver):
             time = t + (index + 1) * step
             state[self.velocities_] += step / 2 * rates[self.velocities_]
             state[self.positions_] += step * state[self.velocities_]
-            state = self._bounded(time, state, p)
+            state = self._get_bounded(time, state, p)
             rates = drift(time, state, p)
             state[self.velocities_] += step / 2 * rates[self.velocities_]
         return state
 
     @staticmethod
-    def _position_pairs(problem: ProblemSpec) -> tuple[npt.NDArray[np.int64], npt.NDArray[np.int64]]:
+    def _get_position_pairs(problem: ProblemSpec) -> tuple[npt.NDArray[np.int64], npt.NDArray[np.int64]]:
         """Return the flat indices of the position components and of their velocities.
 
         They come in matching order.

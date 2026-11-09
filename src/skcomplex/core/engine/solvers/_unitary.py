@@ -59,7 +59,7 @@ class UnitarySolver(OperatorSolver):
         -1.0
     """
 
-    def _unsupported(self, problem: OperatorProblemSpec) -> list[str]:
+    def _get_unsupported(self, problem: OperatorProblemSpec) -> list[str]:
         """Return the dissipators or the density matrix of a problem.
 
         Unitary evolution does not run them.
@@ -70,4 +70,4 @@ class UnitarySolver(OperatorSolver):
 
     def _create(self, p: Array) -> solver_base.Solver:
         """Return QuTiP's Schrödinger solver at fixed parameters."""
-        return qutip.SESolver(self._operator(self.operator_.generator, p), options=self._options)
+        return qutip.SESolver(self._get_operator(self.operator_.generator, p), options=self._options)

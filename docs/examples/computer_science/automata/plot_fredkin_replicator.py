@@ -28,7 +28,7 @@ trajectory = simulate(FredkinReplicatorSystem(), observers=[observer], random_st
 # The snapshots should show the circle at step 0, a crowded pattern at steps 13 and 26, and exactly four circles at
 # steps 16 and 32, each shifted by that many cells in one of the four directions.
 
-cells = trajectory.lattice('cells.alive')
+cells = trajectory.get_lattice('cells.alive')
 fig, axes = plt.subplots(1, 5, figsize=(14, 3))
 for ax, step in zip(axes, (0, 13, 16, 26, 32), strict=True):
     ax.imshow(np.asarray(cells[step]), cmap='viridis')

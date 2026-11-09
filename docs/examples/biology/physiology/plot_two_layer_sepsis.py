@@ -34,7 +34,7 @@ betas = np.linspace(0.2, 0.6, 5) * math.pi
 spreads = []
 for beta in betas:
     run = simulate(TwoLayerSepsisSystem(beta=beta))
-    phases = np.unwrap(run.values('cells.phi'), axis=0)
+    phases = np.unwrap(run.get_values('cells.phi'), axis=0)
     spreads.append(((phases[-1] - phases[-51]) / 50)[:20].std())
 fig, ax = plt.subplots(figsize=(7, 4.5))
 ax.plot(betas / math.pi, spreads, 'o-')

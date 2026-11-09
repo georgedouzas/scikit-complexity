@@ -43,5 +43,5 @@ class UnpackRenewalsPass(BasePass):
                 ],
                 block,
             )
-            for spec, laws, block in Compilation._required(compilation.collected, 'collected')
+            for spec, laws, block in Compilation._get_required(compilation.collected, 'collected')
         ]

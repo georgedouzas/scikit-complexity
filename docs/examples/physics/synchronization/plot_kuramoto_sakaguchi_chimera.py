@@ -35,7 +35,7 @@ trajectory = simulate(system, until=300, observers=[observer])
 
 def order(population):
     """Return the order parameter of a population at every frame."""
-    phases = np.asarray(trajectory.values(f'{population}.theta'))
+    phases = np.asarray(trajectory.get_values(f'{population}.theta'))
     return np.abs(np.exp(1j * phases).mean(axis=1))
 
 

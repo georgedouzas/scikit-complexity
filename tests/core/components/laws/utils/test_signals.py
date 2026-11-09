@@ -126,8 +126,8 @@ def test_series_of_a_state_interpolates_and_stays_flat():
     """Test that the fertility, observed as an expression of the element, interpolates the table and holds its ends."""
     fertility = ObservableSpec('fertility', _fertility, element='f')
     trajectory = simulate(CompositeSystem(elements=[FertilityElement('f')]), until=4, dt=0.5, observables=[fertility])
-    food = trajectory.values('f.food')
+    food = trajectory.get_values('f.food')
     expected = np.interp(food, [0, 1, 2], [0.0, 2.0, 3.0])
-    assert trajectory.values('f.fertility') == pytest.approx(expected)
-    assert trajectory.values('f.fertility')[0] == 0.0
-    assert trajectory.values('f.fertility')[-1] == 3.0
+    assert trajectory.get_values('f.fertility') == pytest.approx(expected)
+    assert trajectory.get_values('f.fertility')[0] == 0.0
+    assert trajectory.get_values('f.fertility')[-1] == 3.0

@@ -45,7 +45,7 @@ below = stability(
     kind='dispersion',
 )
 edge = np.sqrt(1 - 0.1)
-phi = trajectory.lattice('mixture.phi')
+phi = trajectory.get_lattice('mixture.phi')
 times = 2.0 * np.arange(len(phi))
 modes = np.fft.rfft(phi, axis=1)
 mode = 1 + np.argmax(np.abs(modes[-1, 1:]))

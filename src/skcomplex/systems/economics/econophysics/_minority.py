@@ -209,15 +209,15 @@ class MinorityGameInteraction(Interaction):
         """
         return [RuleLaw(self.play, phase=self.phase)]
 
-    def _table(self, code: float, system: SystemView) -> IntArray:
+    def _get_table(self, code: float, system: SystemView) -> IntArray:
         """Return the table of a strategy, cached for the run in the state of the game."""
-        state = self._state(system)
+        state = self._get_state(system)
         if code not in state.tables:
             state = replace(state, tables={**state.tables, code: strategy_table(code, self.memory)})
             system.storage['game'] = state
         return state.tables[code]
 
-    def _state(self, system: SystemView) -> _GameStateSpec:
+    def _get_state(self, system: SystemView) -> _GameStateSpec:
         """Return the state of the game in the storage of the system.
 
         The first round starts a random history.
@@ -236,15 +236,15 @@ class MinorityGameInteraction(Interaction):
                 The system.
         """
         agents = system.get_agents('players', MinorityPlayerView)
-        history = self._state(system).history
+        history = self._get_state(system).history
         for agent in agents:
             code = agent.second if agent.strategy else agent.first
-            agent.action = float(2 * int(self._table(code, system)[history]) - 1)
+            agent.action = float(2 * int(self._get_table(code, system)[history]) - 1)
         attendance = sum(agent.action for agent in agents)
         winner = -1 if attendance > 0 else 1
         for agent in agents:
             agent.wealth += agent.action * winner
-        state = self._state(system)
+        state = self._get_state(system)
         system.storage['game'] = replace(state, history=(2 * history + (winner > 0)) % 2**self.memory)
         system.report('attendance', attendance)
         system.report('history', float(history))

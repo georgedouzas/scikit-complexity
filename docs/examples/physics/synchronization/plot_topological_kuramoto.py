@@ -31,7 +31,7 @@ orders = []
 for coupling in couplings:
     system_system = TopologicalKuramotoSystem(coupling=coupling)
     run = simulate(system_system, until=20, dt=0.5)
-    orders.append(np.mean(run.values('link_order')[-10:]))
+    orders.append(np.mean(run.get_values('link_order')[-10:]))
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.plot(couplings, orders, 'o-')
 ax.set_xlabel('coupling K')
@@ -53,7 +53,7 @@ for model in ('NL', 'NLT'):
     for coupling in weak:
         system_system = TopologicalKuramotoSystem(coupling=coupling, model=model)
         run = simulate(system_system, until=20, dt=0.5)
-        orders.append(np.mean(run.values('node_order')[-10:]))
+        orders.append(np.mean(run.get_values('node_order')[-10:]))
     ax.plot(weak, orders, 'o-', label=model)
 ax.set_xlabel('coupling K')
 ax.set_ylabel('order parameter of the node phases')

@@ -33,12 +33,12 @@ trajectory = simulate(system, observers=[observer])
 # the current oscillate instead, which the sweep stops short of.
 
 torques = np.linspace(3.0, 9.0, 13)
-speeds = [simulate(FaradayDiskSystem(M=torque)).values('charger.omega')[-1] for torque in torques]
+speeds = [simulate(FaradayDiskSystem(M=torque)).get_values('charger.omega')[-1] for torque in torques]
 fig, (settling, speed) = plt.subplots(1, 2, figsize=(10, 4))
-settling.plot(trajectory.values('charger.omega'), trajectory.values('charger.I'))
+settling.plot(trajectory.get_values('charger.omega'), trajectory.get_values('charger.I'))
 settling.plot(
-    trajectory.values('charger.omega')[-1],
-    trajectory.values('charger.I')[-1],
+    trajectory.get_values('charger.omega')[-1],
+    trajectory.get_values('charger.I')[-1],
     'o',
     color='black',
     label='steady state',

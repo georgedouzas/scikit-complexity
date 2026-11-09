@@ -125,7 +125,7 @@ class SDESolver(Solver):
         history = self.history_ = History._open_history(problem, self.history_, t, x)
 
         def take(time: float, state: Array, step: float, ceiling: float) -> tuple[Array, Interpolant]:
-            parameters = History._with_delays(problem, history, time, state, p)
+            parameters = History._copy_with_delays(problem, history, time, state, p)
             noise = self._draw_increments(math.sqrt(step))
             following = self._increment(time, state, parameters, step=step, noise=noise, end=min(time + step, ceiling))
             start, end = state.copy(), following.copy()
@@ -143,7 +143,7 @@ class SDESolver(Solver):
             dt=self.dt,
             locator=self.locator_,
             history=history,
-            bounded=self._bounded,
+            bounded=self._get_bounded,
             take=take,
         )
 

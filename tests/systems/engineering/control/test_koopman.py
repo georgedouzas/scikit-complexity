@@ -16,7 +16,7 @@ from skcomplex.systems.engineering.control import KoopmanModelPredictiveControlS
 
 def _tracking_error(trajectory):
     """Return the mean squared error of the output from the reference."""
-    return float(np.mean((trajectory.values('plant/state.y') - trajectory.values('reference')) ** 2))
+    return float(np.mean((trajectory.get_values('plant/state.y') - trajectory.get_values('reference')) ** 2))
 
 
 @pytest.mark.parametrize(('plant', 'until'), [('duffing', 100.0), ('van_der_pol', 100.0), ('motor', 300.0)])
@@ -39,7 +39,7 @@ def test_koopman_model_predictive_control_duffing_reads_the_input_through_its_ga
 def test_koopman_model_predictive_control_keeps_input_in_bounds():
     """Test that the controller sets the input inside its bounds and that it changes over the run."""
     found = simulate(KoopmanModelPredictiveControlSystem(n_runs=20, duration=200), until=60.0)
-    inputs = found.values('controller/input.u')
+    inputs = found.get_values('controller/input.u')
     assert np.all(np.abs(inputs) <= 1.0)
     assert np.ptp(inputs) > 0.5
 
@@ -47,7 +47,7 @@ def test_koopman_model_predictive_control_keeps_input_in_bounds():
 def test_koopman_model_predictive_control_holds_input_at_zero_without_control():
     """Test that the uncontrolled system holds the input at 0 and needs no fit."""
     trajectory = simulate(KoopmanModelPredictiveControlSystem(plant='motor', controlled=False), until=5.0)
-    assert np.all(trajectory.values('controller/input.u') == 0.0)
+    assert np.all(trajectory.get_values('controller/input.u') == 0.0)
 
 
 def test_koopman_model_predictive_control_is_a_co_simulation():
@@ -69,7 +69,7 @@ def test_koopman_model_predictive_control_reads_reference_of_time():
     trajectory = simulate(KoopmanModelPredictiveControlSystem(plant='motor', controlled=False), until=30.0)
     times = trajectory.times
     expected = 0.5 * np.cos(2 * np.pi * 0.01 * times / 3)
-    assert np.allclose(trajectory.values('reference'), expected)
+    assert np.allclose(trajectory.get_values('reference'), expected)
 
 
 def test_koopman_model_predictive_control_takes_a_dictionary():

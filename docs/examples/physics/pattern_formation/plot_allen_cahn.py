@@ -33,7 +33,7 @@ trajectory = simulate(system, observers=[observer], random_state=0)
 # follow a line of slope -1/2 on log-log axes once the domains have formed. The mean of the order parameter is not
 # conserved: it wanders as domains of one sign win over the other.
 
-phi = trajectory.lattice('mixture.phi')
+phi = trajectory.get_lattice('mixture.phi')
 times = trajectory.times
 signs = np.sign(phi)
 walls = 0.5 * (

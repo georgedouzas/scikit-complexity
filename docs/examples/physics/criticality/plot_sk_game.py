@@ -49,7 +49,7 @@ for temperature in temperatures:
     run = SKGameSystem(temperature=temperature)
     couplings = run.prepare().system_.elements[0].values['couplings']
     actions = np.asarray(
-        simulate(run, until=150, dt=1, random_state=0).values('agents.sigma'),
+        simulate(run, until=150, dt=1, random_state=0).get_values('agents.sigma'),
     )[-50:]
     rewards.append(np.einsum('ti,ij,tj->t', actions, couplings, actions).mean() / actions.shape[1])
     flips.append((actions[1:] != actions[:-1]).mean())

@@ -290,7 +290,7 @@ class RedesignInteraction(Interaction):
         """
         components = sorted(system.get_agents('components', PartView), key=lambda component: component.id)
         cost = np.array([component.cost for component in components])
-        proposal, changed = RedesignInteraction._components(
+        proposal, changed = RedesignInteraction._get_components(
             cost,
             np.asarray(self.dependencies, dtype=float),
             system.rng,
@@ -301,7 +301,11 @@ class RedesignInteraction(Interaction):
             components[index].cost = float(proposal[index])
 
     @staticmethod
-    def _components(cost: Array, dependencies: Array, rng: np.random.Generator) -> tuple[Array, npt.NDArray[np.intp]]:
+    def _get_components(
+        cost: Array,
+        dependencies: Array,
+        rng: np.random.Generator,
+    ) -> tuple[Array, npt.NDArray[np.intp]]:
         """Return the proposed costs of a redesign of a random component.
 
         They include the components that depend on it.

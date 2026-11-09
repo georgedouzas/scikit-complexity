@@ -70,7 +70,7 @@ critical = np.log(RATE / (STRENGTH - RATE)) / COST
 intensities = np.linspace(0.0, 8.0, 81)
 samples = {intensity: mean_field(intensity)[-300:] for intensity in intensities}
 simulated = {
-    intensity: simulate(BrockHommesSystem(n_traders=200, intensity=intensity), random_state=0).values(
+    intensity: simulate(BrockHommesSystem(n_traders=200, intensity=intensity), random_state=0).get_values(
         'pricing.deviation',
     )[-50:]
     for intensity in (1.0, 2.0, 4.0, 6.0)

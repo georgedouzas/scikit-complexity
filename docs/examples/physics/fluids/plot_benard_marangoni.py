@@ -38,9 +38,9 @@ trajectory = simulate(system, observers=[observer], random_state=0)
 # quadratic term also makes the rising cells stronger than the sinking rims, so the values of the hexagons should be
 # skewed, while the rolls of the same layer with `g = 0` are symmetric.
 
-hexagons = trajectory.lattice('layer.u')[-1]
+hexagons = trajectory.get_lattice('layer.u')[-1]
 rolls_run = simulate(BenardMarangoniSystem(g=0.0), random_state=0)
-rolls = rolls_run.lattice('layer.u')[-1]
+rolls = rolls_run.get_lattice('layer.u')[-1]
 spacing = LENGTH / hexagons.shape[0]
 
 fig, (spectrum_axes, histogram) = plt.subplots(1, 2, figsize=(10, 4))

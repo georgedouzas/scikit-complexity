@@ -11,7 +11,7 @@ N_DIM = 2
 
 def _wall_pressure_times_area(trajectory, size):
     """Return the pressure times area measured from wall impulses."""
-    velocities = trajectory.values('gas.x_d1')
+    velocities = trajectory.get_values('gas.x_d1')
     flipped = np.sign(velocities[1:]) != np.sign(velocities[:-1])
     impulse = float((2 * np.abs(velocities[1:]) * flipped).sum())
     return impulse / (2 * N_DIM * size * trajectory.times[-1]) * size**2
@@ -22,7 +22,7 @@ def test_ideal_gas_obeys_ideal_gas_law(kT, size):
     """Test that pressure times area equals N times kT within 2 percent."""
     n = 500
     trajectory = simulate(IdealGasSystem(n, kT=kT, size=size, random_state=0), until=4 * size, dt=0.002 * size)
-    velocities = trajectory.values('gas.x_d1')[0]
+    velocities = trajectory.get_values('gas.x_d1')[0]
     measured_kT = float((velocities**2).sum(axis=1).mean()) / N_DIM
     assert _wall_pressure_times_area(trajectory, size) == pytest.approx(n * measured_kT, rel=0.02)
 
@@ -30,7 +30,7 @@ def test_ideal_gas_obeys_ideal_gas_law(kT, size):
 def test_ideal_gas_molecules_stay_inside_and_keep_speed():
     """Test that molecules stay inside the box and keep their speed."""
     trajectory = simulate(IdealGasSystem(100, kT=3.0, random_state=2), until=5)
-    positions, velocities = trajectory.values('gas.x'), trajectory.values('gas.x_d1')
+    positions, velocities = trajectory.get_values('gas.x'), trajectory.get_values('gas.x_d1')
     assert np.all((positions >= 0) & (positions <= 1))
     speeds = np.linalg.norm(velocities, axis=2)
     assert np.allclose(speeds, speeds[0])

@@ -44,7 +44,7 @@ def stationary(tax):
     """Return the stationary distribution and Gini coefficient of a run with a policy of a tax rate."""
     system_system = KineticWealthWelfareSystem(tax=tax)
     run = simulate(system_system, until=200, dt=100.0)
-    return run.values('wealth.x')[-1], run.values('gini')[-1]
+    return run.get_values('wealth.x')[-1], run.get_values('gini')[-1]
 
 
 wealth = wealth_classes(9)

@@ -16,9 +16,7 @@ from ...types import Array
 from ._operator import OperatorSolver
 
 MAX_SEED = 2**32
-
-
-_PURITY_TOLERANCE = 1e-8
+PURITY_TOLERANCE = 1e-8
 
 
 class JumpTrajectoriesSolver(OperatorSolver):
@@ -75,8 +73,8 @@ class JumpTrajectoriesSolver(OperatorSolver):
     def _create(self, p: Array) -> solver_base.Solver:
         """Return QuTiP's Monte Carlo solver at fixed parameters."""
         problem = self.operator_
-        generator = self._operator(problem.generator, p)
-        collapses = [self._operator(terms, p) for terms in problem.dissipators]
+        generator = self._get_operator(problem.generator, p)
+        collapses = [self._get_operator(terms, p) for terms in problem.dissipators]
         return qutip.MCSolver(generator, c_ops=collapses, options=self._options)
 
     def _start_state(self, x: Array) -> qutip.Qobj:
@@ -85,17 +83,17 @@ class JumpTrajectoriesSolver(OperatorSolver):
         It is the eigenvector of a pure density matrix.
         """
         problem = self.operator_
-        state = problem._state_of(x)
+        state = problem._get_state_of(x)
         if problem.pure:
-            return self._ket(state)
+            return self._get_ket(state)
         weights, vectors = np.linalg.eigh(state)
-        if abs(weights[-1] - 1) > _PURITY_TOLERANCE:
+        if abs(weights[-1] - 1) > PURITY_TOLERANCE:
             error_msg = (
                 f'Operator trajectories start from a pure state, but the state has purity {np.sum(weights**2):.6g}. '
                 'Use the lindblad solver for mixed states.'
             )
             raise SolverError(error_msg)
-        return self._ket(vectors[:, -1])
+        return self._get_ket(vectors[:, -1])
 
     def _start(self, solver: solver_base.Solver, x: Array, t: float) -> None:
         """Start the Monte Carlo solver from a state at a time.

@@ -34,7 +34,7 @@ trajectory = simulate(system, observers=[observer], random_state=0)
 # at one node should burn, at every step, exactly the nodes at that graph distance from it.
 
 steady = simulate(HexagonalForestFireSystem(shape=(64, 64)), until=5000, dt=1, random_state=1)
-burning = (steady.values('forest.cover')[1000:] == 2).sum(axis=1)
+burning = (steady.get_values('forest.cover')[1000:] == 2).sum(axis=1)
 histogram = distribution(burning[burning > 0], kind='histogram', bins=15, log=True)
 bins, density = histogram.edges, histogram.density
 centers = np.sqrt(bins[1:] * bins[:-1])
@@ -43,7 +43,7 @@ graph = nx.connected_watts_strogatz_graph(500, 4, 0.1, seed=0)
 start = np.ones(500)
 start[0] = 2
 spread = simulate(HexagonalForestFireSystem(graph=graph, growth=0.0, lightning=0.0, cover=start), until=15, dt=1)
-front = (spread.values('forest.cover') == 2).sum(axis=1)
+front = (spread.get_values('forest.cover') == 2).sum(axis=1)
 distances = np.bincount(list(nx.single_source_shortest_path_length(graph, 0).values()), minlength=len(front))
 
 fig, (fires, fronts) = plt.subplots(1, 2, figsize=(10, 4))

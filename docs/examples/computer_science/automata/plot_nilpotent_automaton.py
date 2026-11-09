@@ -37,11 +37,11 @@ for n in classes:
     steps = []
     for configuration in configurations[::41]:
         values = simulate(NilpotentAutomatonSystem(n=n, initial=configuration), until=n)
-        alive = values.values('cells.alive').any(axis=1)
+        alive = values.get_values('cells.alive').any(axis=1)
         steps.append(int(np.argmin(alive)) if not alive[-1] else n + 1)
     largest.append(max(steps))
 fig, (image, check) = plt.subplots(1, 2, figsize=(10, 4))
-image.imshow(trajectory.values('cells.alive'), aspect='auto', cmap='Greys', interpolation='nearest')
+image.imshow(trajectory.get_values('cells.alive'), aspect='auto', cmap='Greys', interpolation='nearest')
 image.set_xlabel('cell n')
 image.set_ylabel('step')
 image.set_title('Runs of ones lose their left ends')

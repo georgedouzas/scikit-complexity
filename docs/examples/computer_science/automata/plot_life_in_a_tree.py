@@ -32,11 +32,11 @@ trajectory = simulate(system, observers=[observer])
 # failure of pre-injectivity on the whole tree.
 
 space = system.prepare().system_.elements[0].space.prepare()
-alive = trajectory.values('cells.alive')
+alive = trajectory.get_values('cells.alive')
 lone = np.zeros(space.size_)
 lone[0] = 1.0
 images = [
-    simulate(LifeInATreeSystem(radius=4, initial=cells), until=1).values('cells.alive')
+    simulate(LifeInATreeSystem(radius=4, initial=cells), until=1).get_values('cells.alive')
     for cells in (lone, np.zeros(space.size_))
 ]
 fig, ax = plt.subplots(figsize=(7, 4))

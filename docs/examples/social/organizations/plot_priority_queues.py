@@ -35,7 +35,7 @@ trajectory = simulate(system, until=100_000, dt=1, observers=[observer], random_
 # from 2 to 300 steps should lie near 1, and the log-binned distribution should fall by about one decade per decade
 # before it bends down past the cutoff.
 
-waits = trajectory.values('execution.wait')[1:]
+waits = trajectory.get_values('execution.wait')[1:]
 fit = fit_law(waits, discrete=True, minimum=2, maximum=300, bootstrap=0)
 edges = np.unique(np.logspace(0, np.log10(waits.max() + 1), 20).astype(int))
 counts, _ = np.histogram(waits, edges)

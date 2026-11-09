@@ -11,7 +11,7 @@ def test_maki_thompson_leaves_a_fifth_ignorant():
     """Test that a rumour stops with about 20% of the population never hearing it."""
     finals = [
         (
-            simulate(MakiThompsonSystem(1000).prepare().system_, until=40, dt=0.5, random_state=seed).values(
+            simulate(MakiThompsonSystem(1000).prepare().system_, until=40, dt=0.5, random_state=seed).get_values(
                 'ignorants.n',
             )[-1]
         )

@@ -43,8 +43,8 @@ rate.set_title('Three steady states')
 rate.legend()
 for c0 in np.linspace(0.02, 1.0, 21):
     run = simulate(CatalystPelletSystem(c=c0), dt=0.5)
-    runs.plot(run.times, run.values('pellet.c'), color='C1' if c0 > roots[1] else 'C0', linewidth=0.8)
-runs.plot(trajectory.times, trajectory.values('pellet.c'), color='black', linewidth=2)
+    runs.plot(run.times, run.get_values('pellet.c'), color='C1' if c0 > roots[1] else 'C0', linewidth=0.8)
+runs.plot(trajectory.times, trajectory.get_values('pellet.c'), color='black', linewidth=2)
 for root in roots:
     runs.axhline(root, color='gray', linestyle='--', linewidth=0.8)
 runs.set_xlabel('time')

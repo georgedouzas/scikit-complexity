@@ -516,7 +516,7 @@ def test_observable_read_in_its_own_partition():
     index = problem.states.entry('account.x').start
     for row, values in enumerate(trajectory.states):
         rate = problem.drift(0.0, values, problem.initial_parameters)[index]
-        assert rate == pytest.approx(trajectory.values('mean_wealth')[row], abs=1e-12)
+        assert rate == pytest.approx(trajectory.get_values('mean_wealth')[row], abs=1e-12)
 
 
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
@@ -555,7 +555,7 @@ def test_propensity_after_event(backend):
         if rates[channel] > 0:
             state = state + problem.stoichiometry[channel]
     trajectory = simulate(system, until=2, backend=backend())
-    assert set(np.unique(trajectory.values('units.x'))) <= {0.0, 1.0}
+    assert set(np.unique(trajectory.get_values('units.x'))) <= {0.0, 1.0}
 
 
 def test_backends_agree():

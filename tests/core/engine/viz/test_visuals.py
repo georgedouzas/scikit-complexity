@@ -180,7 +180,7 @@ def test_points_visual_logs_trail_of_small_groups():
     assert type(trails[-1]).__name__ == 'LineStrips2D'
     strips = trails[-1].strips.as_arrow_array().to_pylist()
     assert [len(strip) for strip in strips] == [3, 3]
-    assert np.allclose(strips[0][-1], frames[-1].value(problem.elements[0].states['x'])[0])
+    assert np.allclose(strips[0][-1], frames[-1].get_value(problem.elements[0].states['x'])[0])
 
 
 @pytest.mark.parametrize(('count', 'trail'), [(11, 256), (2, 0)])

@@ -40,7 +40,7 @@ class PersistentElement(Element):
 
 
 walkers = CompositeSystem(elements=[GroupElement('walkers', element=PersistentElement, size=500)])
-final = simulate(walkers, until=200, dt=1.0, random_state=0).values('walkers.x')[-1]
+final = simulate(walkers, until=200, dt=1.0, random_state=0).get_values('walkers.x')[-1]
 round(float(final.var() / 200), 1)
 ```
 
@@ -99,7 +99,7 @@ class SourceElement(Element):
 
 
 trajectory = simulate(CompositeSystem(elements=[SourceElement('source')]), until=10000, dt=1.0, random_state=0)
-round(float((trajectory.values('source.hidden') == 'calm').mean()), 1)
+round(float((trajectory.get_values('source.hidden') == 'calm').mean()), 1)
 ```
 
 - The target of a `TransitionLaw` is a state over a finite alphabet, a `FiniteEnumeratedSet` of labels or the integers

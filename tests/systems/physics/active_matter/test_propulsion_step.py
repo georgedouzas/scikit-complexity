@@ -41,4 +41,4 @@ def test_position_steps_along_the_heading_every_step():
     )
     trajectory = simulate(system, until=4)
     expected = [1.0 + 2.0 * math.cos(math.pi / 3), 1.0 + 2.0 * math.sin(math.pi / 3)]
-    np.testing.assert_allclose(trajectory.values('walker.x')[-1], expected, atol=1e-12)
+    np.testing.assert_allclose(trajectory.get_values('walker.x')[-1], expected, atol=1e-12)

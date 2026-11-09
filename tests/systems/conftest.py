@@ -31,7 +31,7 @@ def _run_monitored(system: CompositeSystem, dt: float, until: float, observed: B
 
 def _peak(trajectory: Trajectory, name: str) -> float:
     """Return the time at which a recorded series peaks."""
-    return float(np.asarray(trajectory.times)[np.argmax(trajectory.values(name))])
+    return float(np.asarray(trajectory.times)[np.argmax(trajectory.get_values(name))])
 
 
 def _series(system: BaseSystem, until: float) -> Trajectory:

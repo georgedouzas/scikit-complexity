@@ -18,20 +18,20 @@ from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
 from ...errors import ValidationError
 from ..problems import BaseProblemSpec, FrameSpec
 from ..types import Colors, Marks, Outline, Positions
-from ._base import _UPWARD, BaseVisual
-from ._points import _TRAIL_LENGTH
+from ._base import UPWARD, BaseVisual
+from ._points import TRAIL_LENGTH
 
-_BODY_COLOR = (250, 180, 60)
-_ROD_COLOR = (220, 220, 220)
-_TRAIL_COLOR = (90, 170, 230)
-_OUTLINE_COLOR = (200, 200, 200)
-_MARK_COLOR = (150, 150, 150)
-_FAINTEST = 20
-_ROD_SHARE = 0.25
-_TRAIL_SHARE = 0.1
+BODY_COLOR = (250, 180, 60)
+ROD_COLOR = (220, 220, 220)
+TRAIL_COLOR = (90, 170, 230)
+OUTLINE_COLOR = (200, 200, 200)
+MARK_COLOR = (150, 150, 150)
+FAINTEST = 20
+ROD_SHARE = 0.25
+TRAIL_SHARE = 0.1
 MARGIN = 0.1
 PAIR = 2
-_SPACE = 3
+SPACE = 3
 
 
 class BodiesVisual(BaseVisual):
@@ -99,7 +99,7 @@ class BodiesVisual(BaseVisual):
         pivot: Sequence[float] | None = None,
         rods: bool = False,
         traced: Sequence[int] | None = None,
-        trail: int | None = _TRAIL_LENGTH,
+        trail: int | None = TRAIL_LENGTH,
         outline: Outline = (),
         marks: Marks = (),
         radius: float | None = None,
@@ -126,14 +126,14 @@ class BodiesVisual(BaseVisual):
         self.drawn_: set[str] = set()
         super()._prepare(context)
 
-    def _bodies(self, values: dict[str, object]) -> npt.NDArray[np.float64]:
+    def _get_bodies(self, values: dict[str, object]) -> npt.NDArray[np.float64]:
         """Return the positions of the bodies as rows `(x, y)` or `(x, y, z)`."""
         if callable(self.positions):
             points = np.asarray(self.positions(**values), dtype=float)
         else:
             points = np.array([[float(np.ravel(np.asarray(values[name]))[0]) for name in self.positions]])
         points = np.atleast_2d(points)
-        if points.ndim != PAIR or points.shape[1] not in {PAIR, _SPACE}:
+        if points.ndim != PAIR or points.shape[1] not in {PAIR, SPACE}:
             error_msg = (
                 f'The positions of the bodies visual have shape {points.shape}, but they must be pairs of coordinates, '
                 'one row (x, y) per body, or triples, one row (x, y, z) per body.'
@@ -141,7 +141,7 @@ class BodiesVisual(BaseVisual):
             raise ValidationError(error_msg)
         return points
 
-    def _static(
+    def _get_static(
         self,
         values: dict[str, object],
         dimension: int,
@@ -156,7 +156,7 @@ class BodiesVisual(BaseVisual):
         points = np.asarray(marks, dtype=float).reshape(-1, dimension)
         return strips, points
 
-    def _chain(self, bodies: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+    def _get_chain(self, bodies: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
         """Return the points the rods join, from the pivot when there is one."""
         return bodies if self.pivot is None else np.vstack([np.asarray(self.pivot, dtype=float), bodies])
 
@@ -165,8 +165,8 @@ class BodiesVisual(BaseVisual):
 
         It covers the outline, the marks, the pivot, and the rods at full length.
         """
-        chain = self._chain(bodies)
-        strips, marks = self._static(values, bodies.shape[1])
+        chain = self._get_chain(bodies)
+        strips, marks = self._get_static(values, bodies.shape[1])
         points = np.vstack([chain, *strips, marks])
         extent = float(np.ptp(points, axis=0).max())
         if self.rods and len(chain) > 1:
@@ -185,11 +185,11 @@ class BodiesVisual(BaseVisual):
             return
         self.drawn_.add(path)
         dimension, radius = sizes
-        strips, marks = self._static(values, dimension)
+        strips, marks = self._get_static(values, dimension)
         if strips:
-            recording.log(f'{path}/outline', self._strips(strips, None, _OUTLINE_COLOR), static=True)
+            recording.log(f'{path}/outline', self._strips(strips, None, OUTLINE_COLOR), static=True)
         if len(marks):
-            recording.log(f'{path}/marks', self._points(marks, radius, _MARK_COLOR), static=True)
+            recording.log(f'{path}/marks', self._get_points(marks, radius, MARK_COLOR), static=True)
 
     def _log_trail(
         self,
@@ -206,7 +206,7 @@ class BodiesVisual(BaseVisual):
         if len(self.history_) < PAIR:
             return
         history = np.stack(self.history_)
-        segments, colors = self._fading_segments([history[:, column] for column in range(len(traced))])
+        segments, colors = self._get_fading_segments([history[:, column] for column in range(len(traced))])
         recording.log(f'{path}/trail', self._strips(segments, width, colors))
 
     def _log(self, recording: rr.RecordingStream, element: CompiledElementSpec, frame: FrameSpec) -> None:
@@ -227,22 +227,22 @@ class BodiesVisual(BaseVisual):
                 The positions are not pairs of coordinates.
         """
         path = element.path
-        values = self._values_of(element, frame.value)
-        bodies = self._bodies(values)
-        share = BaseVisual._radius_of(self._scale(bodies, values), len(bodies))
+        values = self._get_values_of(element, frame.get_value)
+        bodies = self._get_bodies(values)
+        share = BaseVisual._get_radius_of(self._scale(bodies, values), len(bodies))
         radius = share if self.radius is None else float(self.radius)
         self._log_static(recording, path, values, (bodies.shape[1], radius))
-        recording.log(f'{path}/bodies', self._points(bodies, radius, _BODY_COLOR))
+        recording.log(f'{path}/bodies', self._get_points(bodies, radius, BODY_COLOR))
         if self.rods:
             recording.log(
                 f'{path}/rods',
-                self._strips([self._chain(bodies)], share * _ROD_SHARE, _ROD_COLOR),
+                self._strips([self._get_chain(bodies)], share * ROD_SHARE, ROD_COLOR),
             )
-        self._log_trail(recording, path, bodies, share * _TRAIL_SHARE)
+        self._log_trail(recording, path, bodies, share * TRAIL_SHARE)
         for state, name in element.states.items():
-            BaseVisual._log_scalars(recording, f'{path}/{state}', frame.value(name))
+            BaseVisual._log_scalars(recording, f'{path}/{state}', frame.get_value(name))
 
-    def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return a 2D view of the bodies and a time series view of the states.
 
         The 2D view covers the drawing.
@@ -270,21 +270,21 @@ class BodiesVisual(BaseVisual):
             )
             return layout.read(vector, name)
 
-        values = self._values_of(element, read)
-        bodies = self._bodies(values)
+        values = self._get_values_of(element, read)
+        bodies = self._get_bodies(values)
         path = element.path
         contents = [f'+ {path}/{state}/**' for state in element.states]
         series = rrb.TimeSeriesView(origin=path, contents=contents, name=f'{path} states')
-        if bodies.shape[1] == _SPACE:
+        if bodies.shape[1] == SPACE:
             return [rrb.Spatial3DView(origin=path, name=path), series]
-        chain = self._chain(bodies)
-        strips, marks = self._static(values, PAIR)
+        chain = self._get_chain(bodies)
+        strips, marks = self._get_static(values, PAIR)
         bounds = None
         if self.rods and self.pivot is not None:
             half = self._scale(bodies, values) / 2
-            bounds = self._bounds_of(np.vstack([chain[0] - half, chain[0] + half]))
+            bounds = self._get_bounds_of(np.vstack([chain[0] - half, chain[0] + half]))
         elif strips:
-            bounds = self._bounds_of(np.vstack([chain, *strips, marks]))
+            bounds = self._get_bounds_of(np.vstack([chain, *strips, marks]))
         return [rrb.Spatial2DView(origin=path, name=path, visual_bounds=bounds), series]
 
     @staticmethod
@@ -294,12 +294,12 @@ class BodiesVisual(BaseVisual):
         colors: Colors,
     ) -> rr.LineStrips2D | rr.LineStrips3D:
         """Return the line strips archetype of the dimension of some polylines."""
-        if strips and strips[0].shape[-1] == _SPACE:
+        if strips and strips[0].shape[-1] == SPACE:
             return rr.LineStrips3D(list(strips), radii=radius, colors=colors)
-        return rr.LineStrips2D([BodiesVisual._shown(strip) for strip in strips], radii=radius, colors=colors)
+        return rr.LineStrips2D([BodiesVisual._get_shown(strip) for strip in strips], radii=radius, colors=colors)
 
     @staticmethod
-    def _values_of(element: CompiledElementSpec, read: Callable[[str], object]) -> dict[str, object]:
+    def _get_values_of(element: CompiledElementSpec, read: Callable[[str], object]) -> dict[str, object]:
         """Return the parameters and states of an element by their short names.
 
         They are read by dotted name.
@@ -308,7 +308,7 @@ class BodiesVisual(BaseVisual):
         return {name: read(dotted) for name, dotted in names.items()}
 
     @staticmethod
-    def _fading_segments(
+    def _get_fading_segments(
         paths: Sequence[npt.NDArray[np.float64]],
     ) -> tuple[list[npt.NDArray[np.float64]], list[tuple[int, int, int, int]]]:
         """Return the segments of paths and their colors.
@@ -321,12 +321,12 @@ class BodiesVisual(BaseVisual):
             count = len(path) - 1
             for index in range(count):
                 segments.append(path[index : index + 2])
-                alpha = round(_FAINTEST + (255 - _FAINTEST) * (index + 1) / count)
-                colors.append((*_TRAIL_COLOR, alpha))
+                alpha = round(FAINTEST + (255 - FAINTEST) * (index + 1) / count)
+                colors.append((*TRAIL_COLOR, alpha))
         return segments, colors
 
     @staticmethod
-    def _bounds_of(points: npt.NDArray[np.float64]) -> rrb.VisualBounds2D | None:
+    def _get_bounds_of(points: npt.NDArray[np.float64]) -> rrb.VisualBounds2D | None:
         """Return 2D view bounds around points with a margin.
 
         The bounds are in logged coordinates, or `None` for one point.
@@ -342,20 +342,20 @@ class BodiesVisual(BaseVisual):
         )
 
     @staticmethod
-    def _shown(points: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+    def _get_shown(points: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
         """Return points as logged.
 
         In two dimensions the vertical axis is up, and in three they are unchanged.
         """
-        return points * _UPWARD if points.shape[-1] == PAIR else points
+        return points * UPWARD if points.shape[-1] == PAIR else points
 
     @staticmethod
-    def _points(
+    def _get_points(
         points: npt.NDArray[np.float64],
         radius: float,
         colors: Colors,
     ) -> rr.Points2D | rr.Points3D:
         """Return the points archetype of the dimension of some points."""
         if points.shape[-1] == PAIR:
-            return rr.Points2D(BodiesVisual._shown(points), radii=radius, colors=colors)
+            return rr.Points2D(BodiesVisual._get_shown(points), radii=radius, colors=colors)
         return rr.Points3D(points, radii=radius, colors=colors)

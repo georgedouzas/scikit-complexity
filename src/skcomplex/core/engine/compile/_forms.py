@@ -1,6 +1,10 @@
 """Name the forms of sets of law classes and infer the form of components.
 
 A set of law classes compiles to a form, and the form of a set of components is inferred.
+
+`FORMS` maps the law classes to the forms they compile to, and `STEPWISE_FORMS` the forms whose solvers evaluate
+kernels step by step on the NumPy backend. `COMBINED` lists the law classes that combine with laws of other classes
+of the same components into their form, with those classes.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -34,9 +38,7 @@ STEPWISE_FORMS: dict[frozenset[type], FormKind] = {
         for kinds in itertools.combinations(LATTICE_LAWS, count)
     },
 }
-"""Forms whose solvers evaluate kernels step by step on the NumPy backend, by the law classes that compile to them."""
-
-_FORMS: dict[frozenset[type], FormKind] = {
+FORMS: dict[frozenset[type], FormKind] = {
     frozenset(): FormKind.ODE,
     frozenset({RateLaw}): FormKind.ODE,
     frozenset({NoiseLaw}): FormKind.SDE,
@@ -45,7 +47,4 @@ _FORMS: dict[frozenset[type], FormKind] = {
     frozenset({UpdateLaw}): FormKind.DISCRETE,
     **STEPWISE_FORMS,
 }
-"""Forms by the law classes that compile to them."""
-
-_COMBINED: dict[type, frozenset[type]] = {RenewalLaw: frozenset({RateLaw, NoiseLaw})}
-"""Law classes that combine with laws of other classes of the same components into their form, with those classes."""
+COMBINED: dict[type, frozenset[type]] = {RenewalLaw: frozenset({RateLaw, NoiseLaw})}

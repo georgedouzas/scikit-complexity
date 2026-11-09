@@ -38,6 +38,7 @@ DIFFERENTIABLE = (EquationLaw, RateLaw, UpdateLaw)
 INNER_FORMS = (FormKind.DISCRETE, FormKind.ODE)
 REDUCTIONS = ('sum', 'mean', 'max', 'min', 'var', 'count')
 
+
 type TracedRead = Callable[[TracedArray, TracedArray], TracedArray]
 
 
@@ -115,14 +116,14 @@ class _LearningCompiler(BaseCompiler):
             found = next((item for item in found.systems if item.label == label), None) if found is not None else None
         return found
 
-    def _setting_issues(self, system: CompositeSystem, training: TrainingInteraction) -> list[IssueSpec]:
+    def _get_setting_issues(self, system: CompositeSystem, training: TrainingInteraction) -> list[IssueSpec]:
         """Return the issues of the time and the solver of a system that trains."""
         issues = []
         if not isinstance(system.time, DiscreteTime):
             given = type(system.time).__name__ if system.time is not None else 'no time'
             message = f'The GradientStepLaw of {training.label} needs DiscreteTime, one step per epoch, not {given}.'
             issues.append(IssueSpec('law-time', training.label, message, 'Declare `DiscreteTime()` for the system.'))
-        if self.solver is not None and self._form_of(type(self.solver)) != FormKind.LEARNING:
+        if self.solver is not None and self._get_form_of(type(self.solver)) != FormKind.LEARNING:
             message = (
                 f'The solver {type(self.solver).__name__} does not run GradientStepLaw. Use GradientDescentSolver.'
             )
@@ -130,7 +131,7 @@ class _LearningCompiler(BaseCompiler):
             issues.append(IssueSpec('solver-unsupported', system.label, message, fix, error=SolverError))
         return issues
 
-    def _differentiable_issues(self, system: CompositeSystem, training: TrainingInteraction) -> list[IssueSpec]:
+    def _get_differentiable_issues(self, system: CompositeSystem, training: TrainingInteraction) -> list[IssueSpec]:
         """Return the laws of the nested system that the JAX backend cannot differentiate."""
         compiler = clone(self.inner).prepare(system)
         compilation = getattr(compiler, 'compilation_', None)
@@ -160,15 +161,15 @@ class _LearningCompiler(BaseCompiler):
         try:
             problem = compiler.run().problem_
         except SkcomplexError as error:
-            return [self._issue_of(error, training.label, 'learning-not-differentiable', 'Write symbolic laws.')]
+            return [self._get_issue_of(error, training.label, 'learning-not-differentiable', 'Write symbolic laws.')]
         if not isinstance(problem, ProblemSpec) or problem.form not in INNER_FORMS:
             message = f'The nested system {training.system} compiles to a {problem.form}, which learning cannot unroll.'
             fix = 'Train a discrete map or ordinary differential equations.'
             return [IssueSpec('learning-not-differentiable', training.label, message, fix)]
-        self.inner_, self.step_ = problem, self._phased_step(compiler)
+        self.inner_, self.step_ = problem, self._get_phased_step(compiler)
         return []
 
-    def _phased_step(self, compiler: BaseCompiler) -> TracedFunction:
+    def _get_phased_step(self, compiler: BaseCompiler) -> TracedFunction:
         """Return the pure JAX function of the inner problem.
 
         It runs the phases of a step of a discrete map in order. A phase runs in the steps `k`, counted from one, for
@@ -177,10 +178,10 @@ class _LearningCompiler(BaseCompiler):
         """
         compilation = getattr(compiler, 'compilation_', None)
         lowered = compilation.kernels if isinstance(compilation, Compilation) else None
-        phases = FunctionsPass._phases_of(compilation, lowered) if compilation is not None and lowered else None
+        phases = FunctionsPass._get_phases_of(compilation, lowered) if compilation is not None and lowered else None
         if compilation is None or lowered is None or phases is None:
             return self.backend_.traced_
-        layout = Compilation._required(compilation.layout, 'layout')
+        layout = Compilation._get_required(compilation.layout, 'layout')
         complete = dataclasses.replace(
             lowered,
             form=FormKind.DISCRETE,
@@ -206,7 +207,7 @@ class _LearningCompiler(BaseCompiler):
         return phased
 
     @staticmethod
-    def _adaptive_names(problem: ProblemSpec) -> set[str]:
+    def _get_adaptive_names(problem: ProblemSpec) -> set[str]:
         """Return the names of the adaptive parameters of a problem.
 
         The parameters are those of its elements and interactions.
@@ -218,12 +219,12 @@ class _LearningCompiler(BaseCompiler):
                     names.add(f'{compiled.path}.{name}')
         return names
 
-    def _trained_issues(self, problem: ProblemSpec, training: TrainingInteraction) -> list[IssueSpec]:
+    def _get_trained_issues(self, problem: ProblemSpec, training: TrainingInteraction) -> list[IssueSpec]:
         """Return the trained paths that are not adaptive parameters of the nested system.
 
         This includes the paths that are not parameters at all.
         """
-        adaptive = self._adaptive_names(problem)
+        adaptive = self._get_adaptive_names(problem)
         parameters = sorted(adaptive | set(problem.parameters.names))
         issues = []
         for path in training.trained:
@@ -243,13 +244,13 @@ class _LearningCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _shape_issue(training: TrainingInteraction, path: str, expected: object, given: object) -> IssueSpec:
+    def _get_shape_issue(training: TrainingInteraction, path: str, expected: object, given: object) -> IssueSpec:
         """Return the issue of a dataset array whose shape does not fit."""
         message = f'The dataset of {training.label} gives {path} the shape {given}, but it needs {expected}.'
         fix = 'Give every array the shape (sequences, steps) followed by the shape of its parameter.'
         return IssueSpec('learning-data-shape', training.label, message, fix)
 
-    def _data_issues(self, problem: ProblemSpec, training: TrainingInteraction) -> list[IssueSpec]:
+    def _get_data_issues(self, problem: ProblemSpec, training: TrainingInteraction) -> list[IssueSpec]:
         """Return the dataset arrays that do not fit.
 
         An array does not fit by its path, number of sequences and steps, or trailing shape.
@@ -265,7 +266,7 @@ class _LearningCompiler(BaseCompiler):
                 continue
             expected = (sequences, steps, *problem.parameters.entry(path).shape)
             if np.shape(values) != expected:
-                issues.append(self._shape_issue(training, path, expected, np.shape(values)))
+                issues.append(self._get_shape_issue(training, path, expected, np.shape(values)))
         weights = data.weights if isinstance(data.weights, Mapping) else {'loss': data.weights}
         labels = {'loss', *(item.label for item in training.metrics)}
         for label, array in weights.items():
@@ -274,19 +275,19 @@ class _LearningCompiler(BaseCompiler):
                 issues.append(IssueSpec('learning-data-shape', training.label, message, 'Weight the loss or a metric.'))
             elif array is not None and np.shape(array) != (sequences, steps):
                 issues.append(
-                    self._shape_issue(training, f'the weights of {label}', (sequences, steps), np.shape(array)),
+                    self._get_shape_issue(training, f'the weights of {label}', (sequences, steps), np.shape(array)),
                 )
         if data.times is not None and (np.shape(data.times) != (steps,) or not np.all(np.diff(data.times) > 0)):
-            issues.append(self._shape_issue(training, 'the times', f'({steps},) increasing', np.shape(data.times)))
+            issues.append(self._get_shape_issue(training, 'the times', f'({steps},) increasing', np.shape(data.times)))
         return issues
 
     @staticmethod
-    def _reader(is_state: bool, indices: int | np.ndarray) -> TracedRead:
+    def _get_reader(is_state: bool, indices: int | np.ndarray) -> TracedRead:
         """Return the function that reads entries of the state or the parameter vector."""
         return lambda x, p: (x if is_state else p)[indices]
 
     @staticmethod
-    def _scalar_reads(problem: ProblemSpec) -> dict[Expression, TracedRead]:
+    def _get_scalar_reads(problem: ProblemSpec) -> dict[Expression, TracedRead]:
         """Return the readers of the symbols of the single elements and interactions.
 
         They are the elements and interactions of a problem.
@@ -296,26 +297,26 @@ class _LearningCompiler(BaseCompiler):
             for entry in layout.entries:
                 if entry.members is not None or entry.name not in problem.symbols or entry.shape:
                     continue
-                reads[problem.symbols[entry.name]] = _LearningCompiler._reader(is_state, entry.start)
+                reads[problem.symbols[entry.name]] = _LearningCompiler._get_reader(is_state, entry.start)
         return reads
 
     @staticmethod
-    def _member_reads(problem: ProblemSpec, names: Mapping[str, str]) -> dict[Expression, TracedRead]:
+    def _get_member_reads(problem: ProblemSpec, names: Mapping[str, str]) -> dict[Expression, TracedRead]:
         """Return the readers of the scalar variables of the members of a group.
 
         Each reader returns one array of members.
         """
         reads: dict[Expression, TracedRead] = {}
         for name in names.values():
-            entry = ObservableEvaluator._entry_of(problem, name)
+            entry = ObservableEvaluator._get_entry_of(problem, name)
             if entry is None or entry.columns != 1:
                 continue
             is_state, members = problem.states.has(name), np.arange(entry.start, entry.start + entry.size)
-            reads[problem.symbols[name]] = _LearningCompiler._reader(is_state, members)
+            reads[problem.symbols[name]] = _LearningCompiler._get_reader(is_state, members)
         return reads
 
     @staticmethod
-    def _printed(
+    def _get_printed(
         path: str,
         expression: object,
         reads: Mapping[Expression, TracedRead],
@@ -329,7 +330,7 @@ class _LearningCompiler(BaseCompiler):
             error_msg = f'The observable {path} reads {", ".join(missing)}, which the nested system does not have.'
             raise ValidationError(error_msg)
         printer = ExpressionPrinter('jax', time=time, compiled=True).prepare(arguments)
-        function = ExpressionPrinter._function_of(printer.run([expression]).code_)
+        function = ExpressionPrinter._get_function_of(printer.run([expression]).code_)
         readers = [reads[item] for item in arguments]
 
         def value(t: object, x: TracedArray, p: TracedArray) -> TracedArray:
@@ -338,7 +339,7 @@ class _LearningCompiler(BaseCompiler):
         return value
 
     @staticmethod
-    def _evaluated(observable: ObservableSpec, namespace: SimpleNamespace) -> object:
+    def _get_evaluated(observable: ObservableSpec, namespace: SimpleNamespace) -> object:
         """Return the expression of an observable in a namespace.
 
         It raises an error that names the variable it misses.
@@ -357,9 +358,9 @@ class _LearningCompiler(BaseCompiler):
         The function is a value of its states and parameters.
         """
         if observable.group is None:
-            namespace = ObservableEvaluator._namespace_of(problem)
-            expression = self._evaluated(observable, namespace)
-            return self._printed(observable.label, expression, self._scalar_reads(problem), problem.time)
+            namespace = ObservableEvaluator._get_namespace_of(problem)
+            expression = self._get_evaluated(observable, namespace)
+            return self._get_printed(observable.label, expression, self._get_scalar_reads(problem), problem.time)
         element = next((item for item in problem.elements if item.path == observable.group), None)
         if element is None or observable.reduce not in REDUCTIONS:
             error_msg = (
@@ -368,7 +369,7 @@ class _LearningCompiler(BaseCompiler):
             )
             raise ValidationError(error_msg)
         names = {**element.states, **element.parameters}
-        reads = {**self._scalar_reads(problem), **self._member_reads(problem, names)}
+        reads = {**self._get_scalar_reads(problem), **self._get_member_reads(problem, names)}
         if observable.variable is not None:
             if observable.variable not in names:
                 error_msg = f'The observable {observable.label} reads {observable.variable}, which is not in the group.'
@@ -376,16 +377,16 @@ class _LearningCompiler(BaseCompiler):
             member: object = problem.symbols[names[observable.variable]]
         else:
             members = SimpleNamespace(**{key: problem.symbols[name] for key, name in names.items()}, t=problem.time)
-            member = self._evaluated(observable, members)
+            member = self._get_evaluated(observable, members)
         value, kind, size = (
-            self._printed(observable.label, member, reads, problem.time),
+            self._get_printed(observable.label, member, reads, problem.time),
             observable.reduce,
             element.members or 1,
         )
 
         def reduced(t: object, x: TracedArray, p: TracedArray) -> TracedArray:
             argument = jnp.broadcast_to(value(t, x, p), (size,))
-            return JaxBackend._reduced(str(kind), argument, jnp.ones(size, dtype=bool))
+            return JaxBackend._get_reduced(str(kind), argument, jnp.ones(size, dtype=bool))
 
         return reduced
 
@@ -404,7 +405,7 @@ class _LearningCompiler(BaseCompiler):
                 issues.append(IssueSpec('learning-unknown-observable', training.label, str(error), fix))
         return issues
 
-    def _issues(self, system: CompositeSystem) -> list[IssueSpec]:
+    def _get_issues(self, system: CompositeSystem) -> list[IssueSpec]:
         """Return the issues of a system that trains.
 
         It compiles the nested system as far as it can.
@@ -425,22 +426,22 @@ class _LearningCompiler(BaseCompiler):
         try:
             training.prepare()
         except ValidationError as error:
-            return [self._issue_of(error, training.label, 'value', 'Correct the training interaction.')]
+            return [self._get_issue_of(error, training.label, 'value', 'Correct the training interaction.')]
         self.law_ = next(item for item in training.run(SimpleNamespace()).laws_ if isinstance(item, GradientStepLaw))
-        issues = self._setting_issues(system, training)
+        issues = self._get_setting_issues(system, training)
         trained = self._find_system(system, training.system)
         if trained is None:
             message = f'{training.label} trains {training.system}, which is not a nested system of {system.label}.'
             fix = f'Bind `system` to one of {", ".join(item.label for item in system.systems) or "no nested system"}.'
             return [*issues, IssueSpec('learning-system', training.label, message, fix)]
-        stops = self._differentiable_issues(trained, training) or self._compile_inner(trained, training)
+        stops = self._get_differentiable_issues(trained, training) or self._compile_inner(trained, training)
         if stops or self.inner_ is None:
             return [*issues, *stops]
-        issues += self._trained_issues(self.inner_, training)
-        issues += self._data_issues(self.inner_, training)
+        issues += self._get_trained_issues(self.inner_, training)
+        issues += self._get_data_issues(self.inner_, training)
         return issues + self._measure_issues(self.inner_, training)
 
-    def _layouts(
+    def _get_layouts(
         self,
         problem: ProblemSpec,
         training: TrainingInteraction,
@@ -479,7 +480,7 @@ class _LearningCompiler(BaseCompiler):
         if problem is None or training is None:
             error_msg = 'The nested system did not compile. Prepare the compiler on a valid system.'
             raise ValidationError(error_msg)
-        states, parameters, trained = self._layouts(problem, training)
+        states, parameters, trained = self._get_layouts(problem, training)
         initial = np.concatenate(
             [np.asarray(problem.states.read(problem.initial_state, name), dtype=float).ravel() for name in trained],
         )
@@ -503,10 +504,13 @@ class _LearningCompiler(BaseCompiler):
             step=step,
             measures=dict(self.measures_),
         )
-        return self._with_initial_state(learning, initial_state)
+        return self._copy_with_initial_state(learning, initial_state)
 
     @staticmethod
-    def _with_initial_state(problem: LearningProblemSpec, initial_state: Mapping[str, object]) -> LearningProblemSpec:
+    def _copy_with_initial_state(
+        problem: LearningProblemSpec,
+        initial_state: Mapping[str, object],
+    ) -> LearningProblemSpec:
         """Return a learning problem whose trained parameters start from given values."""
         state = problem.initial_state.copy()
         for name, value in initial_state.items():

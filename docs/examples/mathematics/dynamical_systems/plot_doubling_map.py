@@ -44,7 +44,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 trajectory = simulate(system, until=100, observers=[observer])
-occupied = [np.histogram(row, bins=25, range=(0, 1))[0] > 0 for row in trajectory.values('points.x')[:30]]
+occupied = [np.histogram(row, bins=25, range=(0, 1))[0] > 0 for row in trajectory.get_values('points.x')[:30]]
 image = np.where(np.array(occupied).T[::-1, :, None], [255, 170, 40], [20, 20, 30]).astype(np.uint8)
 observer.recording_.log('spreading', rr.Image(image.repeat(12, axis=0).repeat(12, axis=1)), static=True)
 observer.recording_.flush()
@@ -56,7 +56,7 @@ observer.recording_.flush()
 # iterated with `2x mod 1` in floating point should all reach exactly 0 after about 55 steps. The system's points should
 # stay spread, with a flat histogram at the uniform invariant density `p(x) = 1` of Bertin's Exercise 7.2.
 
-values = trajectory.values('points.x')
+values = trajectory.get_values('points.x')
 naive = [values[0]]
 for _ in range(len(values) - 1):
     naive.append(np.mod(2 * naive[-1], 1.0))

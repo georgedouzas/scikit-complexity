@@ -67,9 +67,9 @@ def test_ground_state_is_stationary():
     initial = settings['initial_state']
     assert initial == {'system.state': 'ground'}
     trajectory = simulate(system, until=3.0, dt=0.5, observables=settings['observables'], initial_state=initial)
-    assert np.ptp(trajectory.values('energy')) < 1e-8
-    assert np.ptp(trajectory.values('sz'), axis=0).max() < 1e-8
-    assert trajectory.values('energy')[0] == pytest.approx(energy)
+    assert np.ptp(trajectory.get_values('energy')) < 1e-8
+    assert np.ptp(trajectory.get_values('sz'), axis=0).max() < 1e-8
+    assert trajectory.get_values('energy')[0] == pytest.approx(energy)
 
 
 def test_entanglement_entropy_of_a_singlet_is_log_two():

@@ -60,7 +60,7 @@ class EdgeSearch(BaseSearch):
 
     def _run(self, inputs: RunStateSpec | None) -> None:
         """Set the source and target node of every edge."""
-        state = self._state_of(inputs)
+        state = self._get_state_of(inputs)
         p = state.p
         if self.source is None or self.target is None:
             self.pairs_ = self.sources, self.targets

@@ -41,32 +41,36 @@ class OwnersPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Keep the laws of the owners of the compilation and find their kinds."""
         compilation = self.compilation_
-        declarations = Compilation._required(compilation.layout, 'layout')
-        agents = {node.path for node in Compilation._required(compilation.nodes, 'nodes') if node.is_agent}
-        owned = self._owned(Compilation._required(compilation.shifted, 'shifted'), compilation.owners, agents)
-        compilation.drawn = [(spec, self._masked(spec, laws, declarations)) for spec, laws in owned]
-        apart = Compilation._required(compilation.apart, 'apart')
-        compilation.drawn_apart = self._owned(apart, compilation.owners, agents)
-        programs = self._owned(Compilation._required(compilation.programs, 'programs'), compilation.owners, agents)
-        compilation.kinds = self._law_kinds([*compilation.drawn, *compilation.drawn_apart, *programs], agents)
-        self._set_program_steps(compilation.kinds, FractionalFormPass._declared_times(compilation.system))
+        declarations = Compilation._get_required(compilation.layout, 'layout')
+        agents = {node.path for node in Compilation._get_required(compilation.nodes, 'nodes') if node.is_agent}
+        owned = self._get_owned(Compilation._get_required(compilation.shifted, 'shifted'), compilation.owners, agents)
+        compilation.drawn = [(spec, self._get_masked(spec, laws, declarations)) for spec, laws in owned]
+        apart = Compilation._get_required(compilation.apart, 'apart')
+        compilation.drawn_apart = self._get_owned(apart, compilation.owners, agents)
+        programs = self._get_owned(
+            Compilation._get_required(compilation.programs, 'programs'),
+            compilation.owners,
+            agents,
+        )
+        compilation.kinds = self._get_law_kinds([*compilation.drawn, *compilation.drawn_apart, *programs], agents)
+        self._set_program_steps(compilation.kinds, FractionalFormPass._get_declared_times(compilation.system))
 
     @staticmethod
-    def _kept_update(law: UpdateLaw, mask: Expression) -> UpdateLaw:
+    def _get_kept_update(law: UpdateLaw, mask: Expression) -> UpdateLaw:
         """Return an update law that keeps the value of its target on the free rows.
 
         The free rows are those of a capacity layout.
         """
         value, kept = (
-            MaskRequestsPass._masked_value(law.value, mask),
-            MaskRequestsPass._masked_value(law._get_targets()[0], 1 - mask),
+            MaskRequestsPass._get_masked_value(law.value, mask),
+            MaskRequestsPass._get_masked_value(law._get_targets()[0], 1 - mask),
         )
         if isinstance(value, FreeModuleElement) and isinstance(kept, FreeModuleElement):
-            return BasePass._replaced(law, value=vector(a + b for a, b in zip(value, kept, strict=True)))
-        return BasePass._replaced(law, value=SR(value) + SR(kept))
+            return BasePass._get_replaced(law, value=vector(a + b for a, b in zip(value, kept, strict=True)))
+        return BasePass._get_replaced(law, value=SR(value) + SR(kept))
 
     @staticmethod
-    def _masked(spec: KernelSpec, laws: list[BaseLaw], declarations: DeclarationsSpec) -> list[BaseLaw]:
+    def _get_masked(spec: KernelSpec, laws: list[BaseLaw], declarations: DeclarationsSpec) -> list[BaseLaw]:
         """Return laws that leave the free rows of a capacity layout unchanged.
 
         They fire no event for those rows.
@@ -77,22 +81,26 @@ class OwnersPass(BasePass):
         masked: list[BaseLaw] = []
         for law in laws:
             if isinstance(law, RateLaw | NoiseLaw):
-                masked.append(BasePass._replaced(law, value=MaskRequestsPass._masked_value(law.value, mask)))
+                masked.append(BasePass._get_replaced(law, value=MaskRequestsPass._get_masked_value(law.value, mask)))
             elif isinstance(law, JumpLaw) and law.rate is not None:
-                masked.append(BasePass._replaced(law, rate=MaskRequestsPass._masked_value(law.rate, mask)))
+                masked.append(BasePass._get_replaced(law, rate=MaskRequestsPass._get_masked_value(law.rate, mask)))
             elif isinstance(law, UpdateLaw) and isinstance(law.value, Expression | FreeModuleElement | int | float):
-                masked.append(OwnersPass._kept_update(law, mask))
+                masked.append(OwnersPass._get_kept_update(law, mask))
             else:
                 masked.append(law)
         return masked
 
     @staticmethod
-    def _owned(specs: Laws, owners: frozenset[str] | None, agents: set[str]) -> Laws:
+    def _get_owned(specs: Laws, owners: frozenset[str] | None, agents: set[str]) -> Laws:
         """Return the laws of the components in `owners`, or every law."""
         return [
             (
                 spec,
-                laws if owners is None else [law for law in laws if CensusPass._law_owner(spec, law, agents) in owners],
+                (
+                    laws
+                    if owners is None
+                    else [law for law in laws if CensusPass._get_law_owner(spec, law, agents) in owners]
+                ),
             )
             for spec, laws in specs
         ]
@@ -109,10 +117,10 @@ class OwnersPass(BasePass):
                 classes.add(UpdateLaw)
 
     @staticmethod
-    def _law_kinds(specs: list[tuple[KernelSpec, list[BaseLaw]]], agents: set[str]) -> dict[str, set[type]]:
+    def _get_law_kinds(specs: list[tuple[KernelSpec, list[BaseLaw]]], agents: set[str]) -> dict[str, set[type]]:
         """Return the kinds of the laws of every component."""
         kinds: dict[str, set[type]] = defaultdict(set)
         for spec, laws in specs:
             for law in laws:
-                kinds[CensusPass._law_owner(spec, law, agents)].add(KernelsPass._kind_of(law))
+                kinds[CensusPass._get_law_owner(spec, law, agents)].add(KernelsPass._get_kind_of(law))
         return kinds

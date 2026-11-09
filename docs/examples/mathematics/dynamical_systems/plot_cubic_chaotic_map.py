@@ -39,18 +39,18 @@ trajectory = simulate(CubicChaoticMapSystem(n_walkers=200, lam=15.0), until=250,
 # The histogram of `x` should be far from uniform, with peaks near both ends, as in Bertin's Figure 7.5.
 
 times = np.asarray(trajectory.times)
-steps = 2 * trajectory.values('walkers.x')[50:] - 1
+steps = 2 * trajectory.get_values('walkers.x')[50:] - 1
 covariances = [np.mean(steps[: len(steps) - lag] * steps[lag:]) for lag in range(21)]
 predicted = covariances[0] + 2 * sum(covariances[1:])
 fig, (spread, density) = plt.subplots(1, 2, figsize=(10, 4))
-spread.plot(times, trajectory.values('square_displacement'), label=r'$\langle y_t^2 \rangle$')
-spread.plot(times, trajectory.values('displacement'), label=r'$\langle y_t \rangle$')
+spread.plot(times, trajectory.get_values('square_displacement'), label=r'$\langle y_t^2 \rangle$')
+spread.plot(times, trajectory.get_values('displacement'), label=r'$\langle y_t \rangle$')
 spread.plot(times, predicted * times, '--', color='black', label='Green-Kubo slope')
 spread.set_xlabel('step t')
 spread.set_ylabel('moment of the position')
 spread.set_title('Linear spreading without drift')
 spread.legend()
-density.hist(trajectory.values('walkers.x')[50:].ravel(), bins=50, range=(0, 1), density=True)
+density.hist(trajectory.get_values('walkers.x')[50:].ravel(), bins=50, range=(0, 1), density=True)
 density.set_xlabel('x')
 density.set_ylabel('density')
 density.set_title('Invariant density of the cubic map, λ = 15')

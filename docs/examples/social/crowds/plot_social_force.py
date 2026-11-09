@@ -51,7 +51,7 @@ fig, (order, speed) = plt.subplots(1, 2, figsize=(10, 4))
 for index, walkers in enumerate((20, 40, 60)):
     system = SocialForceSystem(n_walkers=walkers, length=LENGTH, speed=SPEED, random_state=0)
     trajectory = simulate(system, until=UNTIL, solver=RK4Solver(dt=0.05), random_state=0)
-    rightward, leftward = trajectory.values('rightward.x'), trajectory.values('leftward.x')
+    rightward, leftward = trajectory.get_values('rightward.x'), trajectory.get_values('leftward.x')
     order.plot(
         trajectory.times,
         [lane_order(right, left) for right, left in zip(rightward, leftward, strict=True)],
@@ -59,8 +59,8 @@ for index, walkers in enumerate((20, 40, 60)):
         label=f'{walkers} each way',
     )
     velocity = (
-        trajectory.values('rightward.x_d1')[:, :, 0].mean(axis=1)
-        - trajectory.values('leftward.x_d1')[:, :, 0].mean(axis=1)
+        trajectory.get_values('rightward.x_d1')[:, :, 0].mean(axis=1)
+        - trajectory.get_values('leftward.x_d1')[:, :, 0].mean(axis=1)
     ) / 2
     speed.plot(trajectory.times, velocity, color=f'C{index}', label=f'{walkers} each way')
 order.set_xlabel('time (s)')

@@ -52,9 +52,9 @@ def tub(inflow: float, outflow: float) -> StockFlowSystem:
 def test_stock_flow_bathtub_stays_level_and_reports_its_flows():
     """Test that equal faucet and drain keep the water constant and that the trajectory holds both flows."""
     trajectory = simulate(tub(5.0, 5.0), until=10.0, dt=1.0)
-    np.testing.assert_allclose(trajectory.values('tub.water'), 50.0)
+    np.testing.assert_allclose(trajectory.get_values('tub.water'), 50.0)
     assert {'tub.faucet', 'tub.drain'} <= set(trajectory.names)
-    np.testing.assert_allclose(trajectory.values('tub.faucet'), 5.0)
+    np.testing.assert_allclose(trajectory.get_values('tub.faucet'), 5.0)
 
 
 def test_stock_flow_rejects_a_flow_of_an_unknown_stock():
@@ -82,8 +82,8 @@ def test_stock_flow_between_stocks_keeps_the_total():
         flows={'forth': ('a', 'b', lambda s: 0.3 * s.source.a), 'back': ('b', 'a', lambda s: 0.1 * s.source.b)},
     )
     trajectory = simulate(system, until=40.0, dt=1.0)
-    np.testing.assert_allclose(trajectory.values('stocks.a') + trajectory.values('stocks.b'), 10.0, rtol=1e-9)
-    assert trajectory.values('stocks.a')[-1] == pytest.approx(2.5, rel=1e-3)
+    np.testing.assert_allclose(trajectory.get_values('stocks.a') + trajectory.get_values('stocks.b'), 10.0, rtol=1e-9)
+    assert trajectory.get_values('stocks.a')[-1] == pytest.approx(2.5, rel=1e-3)
 
 
 def test_stock_flow_subclass_takes_its_own_parameters():
@@ -91,7 +91,7 @@ def test_stock_flow_subclass_takes_its_own_parameters():
     system = TankSystem()
     assert sorted(system.get_params(deep=False)) == ['k', 'label', 'level']
     trajectory = simulate(system, until=2.0, dt=1.0)
-    assert trajectory.values('tank.level')[-1] == pytest.approx(np.exp(-1.0), rel=1e-5)
+    assert trajectory.get_values('tank.level')[-1] == pytest.approx(np.exp(-1.0), rel=1e-5)
     assert 'tank.drain' in trajectory.names
 
 
@@ -107,7 +107,7 @@ def test_stock_flow_takes_a_labelled_source_and_sink():
     interactions = system.prepare().system_.interactions
     assert [interactions[0].state.label, interactions[1].into.label] == ['farms', 'consumers']
     trajectory = simulate(system, until=3.0, dt=1.0)
-    np.testing.assert_allclose(trajectory.values('stocks.grain'), 5.0)
+    np.testing.assert_allclose(trajectory.get_values('stocks.grain'), 5.0)
 
 
 def test_stock_flow_rejects_a_flow_between_two_environments():

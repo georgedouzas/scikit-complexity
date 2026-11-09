@@ -86,7 +86,7 @@ def test_observer_streams_a_batch_culture_to_a_file(tmp_path: Path):
     trajectory = simulate(DynamicFBASystem().prepare().system_, until=1.0, dt=0.05, observers=[observer])
     assert (tmp_path / 'run.rrd').exists()
     assert observer.logged_frames_ == 3
-    objective = trajectory.values('fba/cell.objective_0')
+    objective = trajectory.get_values('fba/cell.objective_0')
     assert objective[-1] == pytest.approx(0.8739, rel=0.01)
 
 

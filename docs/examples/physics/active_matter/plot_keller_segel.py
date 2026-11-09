@@ -36,7 +36,7 @@ trajectory = simulate(system, observers=[observer], random_state=0)
 # fluctuations of the density should rise towards the largest of these rates over the modes of the lattice, and then
 # grow faster than exponentially as the aggregates collapse. The total number of cells should stay constant.
 
-rho = trajectory.lattice('colony.rho')
+rho = trajectory.get_lattice('colony.rho')
 times = trajectory.times
 axis = 2 * np.pi * np.fft.fftfreq(32)
 qx, qy = np.meshgrid(axis, axis)

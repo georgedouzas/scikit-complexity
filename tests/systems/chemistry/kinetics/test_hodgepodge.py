@@ -8,7 +8,7 @@ from skcomplex.systems.chemistry.kinetics import HodgepodgeSystem
 
 def test_hodgepodge_stays_in_range():
     """Test that the hodgepodge machine keeps every level between healthy and ill, with waves of infection."""
-    levels = simulate(HodgepodgeSystem((50, 50)), until=100, random_state=0).values('cells.level')
+    levels = simulate(HodgepodgeSystem((50, 50)), until=100, random_state=0).get_values('cells.level')
     assert levels.min() >= 0
     assert levels.max() <= 100
     assert np.ptp(levels[-1]) > 50
@@ -16,7 +16,7 @@ def test_hodgepodge_stays_in_range():
 
 def test_hodgepodge_keeps_waves():
     """Test that the default hodgepodge machine keeps travelling waves, with more than a tenth of the cells ill."""
-    levels = simulate(HodgepodgeSystem(), until=300, random_state=0).values('cells.level')
+    levels = simulate(HodgepodgeSystem(), until=300, random_state=0).get_values('cells.level')
     assert (levels[-1] == 100).mean() > 0.1
 
 

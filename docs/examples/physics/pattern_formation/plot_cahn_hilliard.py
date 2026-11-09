@@ -33,7 +33,7 @@ trajectory = simulate(system, observers=[observer], random_state=0)
 # the bulk, the Lifshitz-Slyozov law, makes it grow as `t^(1/3)`, so it should follow a line of slope 1/3 on log-log
 # axes. The mean of the order parameter is conserved by the dynamics and should stay at its initial value.
 
-phi = trajectory.lattice('mixture.phi')
+phi = trajectory.get_lattice('mixture.phi')
 times = trajectory.times
 sizes = []
 for field in phi[1:]:

@@ -45,7 +45,7 @@ for intake in intakes:
         dt=0.5,
         random_state=1,
     )
-    speeds.append(np.linalg.norm(run.values('walkers.v')[-20:], axis=-1).mean())
+    speeds.append(np.linalg.norm(run.get_values('walkers.v')[-20:], axis=-1).mean())
 grid = np.linspace(0.5, 12, 300)
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(intakes, speeds, 'o', label='simulation, 50 particles')

@@ -45,7 +45,7 @@ trajectory = simulate(
 def measure_current(asymmetry, rate, duration):
     run = FlashingRatchetSystem(n_particles=200, asymmetry=asymmetry, rate=rate, duration=duration, random_state=1)
     positions = simulate(run, until=duration, dt=1.0, solver=EulerMaruyamaSolver(dt=0.004), random_state=2)
-    velocities = positions.values('particles.x')[-1, :, 0] / duration
+    velocities = positions.get_values('particles.x')[-1, :, 0] / duration
     return velocities.mean(), 3 * velocities.std() / np.sqrt(velocities.size)
 
 

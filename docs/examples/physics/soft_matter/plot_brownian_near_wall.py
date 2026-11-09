@@ -38,7 +38,7 @@ trajectory = simulate(system, until=250, solver=solver, dt=1.0, observers=[obser
 # fill this exponential profile.
 
 run = simulate(BrownianNearWallSystem(z=1.0), until=15000, solver=EulerMaruyamaSolver(dt=0.02), dt=0.5, random_state=1)
-heights = run.values('particle.z')[200:]
+heights = run.get_values('particle.z')[200:]
 histogram = distribution(heights, kind='histogram', bins=30)
 edges, density = histogram.edges, histogram.density
 grid = np.linspace(0, edges[-1], 200)

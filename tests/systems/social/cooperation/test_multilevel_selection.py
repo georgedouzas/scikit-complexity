@@ -16,7 +16,7 @@ from skcomplex.systems.social.cooperation import (
 def _final_density(system, until, dt=0.02):
     """Return the initial and final density of a system of group compositions."""
     trajectory = simulate(system, until=until, dt=until, solver=RK4Solver(dt=dt))
-    values = trajectory.values('groups.x')
+    values = trajectory.get_values('groups.x')
     return values[0], values[-1]
 
 

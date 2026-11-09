@@ -43,16 +43,16 @@ class PairSearch(BaseSearch):
 
     def _run(self, inputs: RunStateSpec | None) -> None:
         """Set the indices of the first and second members of every pair within the cutoff."""
-        self.pairs_ = self._pairs(self._state_of(inputs))
+        self.pairs_ = self._get_pairs(self._get_state_of(inputs))
 
-    def _pairs(self, state: RunStateSpec) -> tuple[Indices, Indices]:
+    def _get_pairs(self, state: RunStateSpec) -> tuple[Indices, Indices]:
         """Return the indices of the members of every pair within the cutoff.
 
         They are the first and second members of every pair.
         """
         x, p = state.x, state.p
         cutoff = float(self.cutoff.view(p)[0, 0])
-        first, second = self._positions(self.first.view(x)), self._positions(self.second.view(x))
+        first, second = self._get_positions(self.first.view(x)), self._get_positions(self.second.view(x))
         boxsize = self.period
         first_tree = cKDTree(first, boxsize=boxsize)
         if self.first == self.second:
@@ -61,11 +61,11 @@ class PairSearch(BaseSearch):
         matrix = first_tree.sparse_distance_matrix(cKDTree(second, boxsize=boxsize), cutoff, output_type='ndarray')
         return matrix['i'].astype(np.intp), matrix['j'].astype(np.intp)
 
-    def _positions(self, positions: Array) -> Array:
+    def _get_positions(self, positions: Array) -> Array:
         """Return positions wrapped into the periodic box when there is one."""
         return np.mod(positions, self.period) if self.period is not None else positions
 
-    def second_images(self, x: Array, first: Indices, second: Indices) -> Array:
+    def get_second_images(self, x: Array, first: Indices, second: Indices) -> Array:
         """Return the positions of the second members as seen from the first.
 
         They are taken at minimum image distances.

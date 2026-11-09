@@ -52,7 +52,7 @@ fractions = np.linspace(0.3, 0.7, 9)
 shares = []
 for k in fractions:
     run = simulate(CascadeClassifierSystem(k=float(k)), until=300, dt=1.0)
-    shares.append(run.values('fine.m')[-1] - run.values('fine.m')[-2])
+    shares.append(run.get_values('fine.m')[-1] - run.get_values('fine.m')[-2])
 grid = np.linspace(0.3, 0.7, 200)
 feed = z // 2
 ratio = (1 - grid) / grid

@@ -17,7 +17,7 @@ class AlgaeElement(WordElement):
 
 algae = CompositeSystem(elements=[AlgaeElement('algae', axiom='A')])
 trajectory = simulate(algae, until=5)
-trajectory.values('algae.size').tolist(), trajectory.structure('algae', 5).text
+trajectory.get_values('algae.size').tolist(), trajectory.get_structure('algae', 5).text
 ```
 
 There are two kinds of rewritten element:
@@ -28,7 +28,7 @@ There are two kinds of rewritten element:
 `simulate` compiles a system of words or patches to the rewriting form, and every step is one generation.
 `simulate(system, until=n)` records the generations `0` to `n`. The structure itself lives next to the state vector. The
 states are the count of every symbol or prototile that is a word, and the size `<element>.size`.
-`Trajectory.structure(path, frame)` returns the recorded structure of a frame, which later generations do not change.
+`Trajectory.get_structure(path, frame)` returns the recorded structure of a frame, which later generations do not change.
 
 ## Words and productions
 
@@ -61,7 +61,7 @@ class ShrinkingElement(WordElement):
 
 
 plant = CompositeSystem(elements=[ShrinkingElement('plant', axiom=[ModuleSpec('A', (1.0,))], alphabet={'A': 1, 'F': 1})])
-simulate(plant, until=5).structure('plant', 5).text
+simulate(plant, until=5).get_structure('plant', 5).text
 ```
 
 A production can take several forms:
@@ -99,7 +99,7 @@ class KochElement(WordElement):
 
 
 koch = CompositeSystem(elements=[KochElement('koch', axiom='F', geometry=GeometrySpec(angle=60.0, contraction=1 / 3))])
-curve = simulate(koch, until=4).structure('koch', 4)
+curve = simulate(koch, until=4).get_structure('koch', 4)
 len(curve.segments()), round(curve.length(), 6)
 ```
 
@@ -127,8 +127,8 @@ class CantorElement(PatchElement):
 
 cantor = CompositeSystem(elements=[CantorElement('cantor', prototiles=[interval])])
 trajectory = simulate(cantor, until=5)
-trajectory.values('cantor.size')[-1], round(trajectory.values('cantor.length')[-1], 6)
-grid = trajectory.structure('cantor', 5).raster(729)
+trajectory.get_values('cantor.size')[-1], round(trajectory.get_values('cantor.length')[-1], 6)
+grid = trajectory.get_structure('cantor', 5).raster(729)
 round(scaling(grid, kind='box-counting', scales=[3, 9, 27]).exponent, 2)
 ```
 

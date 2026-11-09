@@ -313,7 +313,7 @@ class Mark0EconomyInteraction(PolicyRuleInteraction[SystemView]):
         return theta
 
     @staticmethod
-    def _stored(system: SystemView, name: str, default: float) -> float:
+    def _get_stored(system: SystemView, name: str, default: float) -> float:
         """Return a number the economy stored in an earlier step.
 
         Before it is stored, it is the default.
@@ -381,9 +381,13 @@ class Mark0EconomyInteraction(PolicyRuleInteraction[SystemView]):
         keys = ('n', 'd', 'p', 'w', 'e', 'profit', 'active')
         state = {key: np.array([getattr(firm, name) for firm in firms]) for key, name in zip(keys, names, strict=True)}
         store = system.storage
-        month = int(self._stored(system, 'month', 0.0))
-        savings, inflation_ema = self._stored(system, 'savings', 0.0), self._stored(system, 'inflation_ema', 0.0)
-        rho_l, rho_d = self._stored(system, 'rho_l', 0.0), self._stored(system, 'rho_d', 0.0)
+        month = int(self._get_stored(system, 'month', 0.0))
+        savings, inflation_ema = self._get_stored(system, 'savings', 0.0), self._get_stored(
+            system,
+            'inflation_ema',
+            0.0,
+        )
+        rho_l, rho_d = self._get_stored(system, 'rho_l', 0.0), self._get_stored(system, 'rho_d', 0.0)
         start, length = system.get_parameter('shock_time'), system.get_parameter('shock_length')
         shocked = start <= month < start + length
         zeta = system.get_parameter('zeta') * (1 - system.get_parameter('dzeta') * shocked)
@@ -427,7 +431,7 @@ class Mark0EconomyInteraction(PolicyRuleInteraction[SystemView]):
         state['p'] = np.where(revived, mean_price, state['p'])
         state['w'] = np.where(revived, mean_wage, state['w'])
         state['active'] = np.where(revived, 1.0, state['active'])
-        previous = self._stored(system, 'price', mean_price)
+        previous = self._get_stored(system, 'price', mean_price)
         inflation = (mean_price - previous) / previous
         inflation_ema = system.get_parameter('omega') * inflation + (1 - system.get_parameter('omega')) * inflation_ema
         debts, deposits = float(-np.minimum(state['e'], 0.0).sum()), float(np.maximum(state['e'], 0.0).sum())

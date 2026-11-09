@@ -94,7 +94,7 @@ class OperatorSpec(BaseSpec):
             ValidationError:
                 The operand is not a number or a symbolic expression.
         """
-        coefficient = self._coefficient(other)
+        coefficient = self._get_coefficient(other)
         if coefficient is None:
             error_msg = (
                 f'An operator cannot {operation} {other!r} of type {type(other).__name__}. The operand must be an '
@@ -245,7 +245,7 @@ class OperatorSpec(BaseSpec):
         return [{subsystem for subsystem, _ in key} for key in self.terms]
 
     @staticmethod
-    def _coefficient(value: object) -> Expression | None:
+    def _get_coefficient(value: object) -> Expression | None:
         """Return a number or a symbolic expression as a Sage expression.
 
         It returns `None` for any other value.

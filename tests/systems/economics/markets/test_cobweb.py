@@ -14,5 +14,5 @@ def test_cobweb_converges_to_equilibrium():
         elements=[MarketElement('m', price=1.0)],
         interactions=[CobwebInteraction('c', target='m', a=a, b=b, c=c, d=d)],
     )
-    price = simulate(system, until=60).values('m.price')[-1]
+    price = simulate(system, until=60).get_values('m.price')[-1]
     assert price == pytest.approx((a - c) / (b + d))

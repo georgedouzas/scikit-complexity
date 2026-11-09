@@ -15,20 +15,20 @@ def test_replicate_runs_many_initial_conditions_at_once():
     """Test that member i of a replicated logistic map follows the single map from the i-th initial value."""
     starts = np.linspace(0.05, 0.95, 100)
     replicated = _replicate(LogisticMapSystem(r=3.7).prepare().system_, 100, {'map.x': starts})
-    values = np.asarray(simulate(replicated, until=50, dt=1).values('map.x'))
+    values = np.asarray(simulate(replicated, until=50, dt=1).get_values('map.x'))
     for index in (0, 37, 99):
         single = simulate(LogisticMapSystem(x=float(starts[index]), r=3.7), until=50, dt=1)
-        np.testing.assert_allclose(values[:, index], np.ravel(single.values('map.x')), atol=1e-12)
+        np.testing.assert_allclose(values[:, index], np.ravel(single.get_values('map.x')), atol=1e-12)
 
 
 def test_replicate_runs_systems_with_interactions():
     """Test that member i of replicated predators and prey follows the single system from the i-th initial prey."""
     starts = np.asarray([20.0, 40.0, 60.0])
     replicated = _replicate(LotkaVolterraSystem().prepare().system_, 3, {'prey.x': starts})
-    values = np.asarray(simulate(replicated, until=5, dt=0.1).values('predators.x'))
+    values = np.asarray(simulate(replicated, until=5, dt=0.1).get_values('predators.x'))
     for index, start in enumerate(starts):
         single = simulate(LotkaVolterraSystem(prey=float(start)), until=5, dt=0.1)
-        np.testing.assert_allclose(values[:, index], np.ravel(single.values('predators.x')), rtol=1e-5)
+        np.testing.assert_allclose(values[:, index], np.ravel(single.get_values('predators.x')), rtol=1e-5)
 
 
 def test_replicate_rejects_systems_with_groups():

@@ -46,7 +46,7 @@ def test_price_adjustment_steps_multiplicatively_up_to_the_bound():
         step=0.5,
         upper=2.0,
     )
-    assert _run(QuoteElement('quote'), search, 3).values('quote.x').tolist() == [1.0, 1.5, 2.0, 2.0]
+    assert _run(QuoteElement('quote'), search, 3).get_values('quote.x').tolist() == [1.0, 1.5, 2.0, 2.0]
 
 
 def test_price_adjustment_steps_additively_and_stops_at_a_zero_signal():
@@ -59,7 +59,7 @@ def test_price_adjustment_steps_additively_and_stops_at_a_zero_signal():
         step=0.5,
         stepping='additive',
     )
-    assert _run(QuoteElement('quote', x=3.0), search, 3).values('quote.x').tolist() == [3.0, 2.5, 2.0, 2.0]
+    assert _run(QuoteElement('quote', x=3.0), search, 3).get_values('quote.x').tolist() == [3.0, 2.5, 2.0, 2.0]
 
 
 def test_price_adjustment_agent_form_steps_every_agent_within_its_bound():

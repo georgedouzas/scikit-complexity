@@ -30,7 +30,7 @@ trajectory = simulate(PheromoneForagingSystem(n_ants=40), observers=[observer], 
 
 frames = range(len(trajectory.times))
 carrying = [np.sum(trajectory.get_agents('colony/ants', frame).values['carrying']) for frame in frames]
-pheromone = trajectory.lattice('ground/pheromone.level')
+pheromone = trajectory.get_lattice('ground/pheromone.level')
 fig, (image, traffic) = plt.subplots(1, 2, figsize=(11, 4))
 image.imshow(pheromone[-1].T, cmap='magma', origin='lower', aspect='auto')
 image.set_title('Pheromone at the end of the run')

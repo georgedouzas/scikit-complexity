@@ -13,11 +13,11 @@ import rerun.blueprint as rrb
 from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
 from ...specs import EntrySpec
 from ..problems import BaseProblemSpec, FrameSpec
-from ._base import _UPWARD, BaseVisual
+from ._base import UPWARD, BaseVisual
 
-_PHASE_MARGIN = 0.1
-_HEIGHT_SHARE = 0.6
-_POSITION_MARGIN = 0.05
+PHASE_MARGIN = 0.1
+HEIGHT_SHARE = 0.6
+POSITION_MARGIN = 0.05
 
 
 class PhaseRingVisual(BaseVisual):
@@ -77,24 +77,24 @@ class PhaseRingVisual(BaseVisual):
             frame:
                 The frame.
         """
-        phases = EntrySpec._wrap_angle(np.ravel(frame.value(element.states[self.phase])))
+        phases = EntrySpec._wrap_angle(np.ravel(frame.get_value(element.states[self.phase])))
         if self.position is None:
             positions = np.arange(phases.size, dtype=float)
         else:
-            coordinates = np.asarray(frame.value(element.states[self.position]), dtype=float)
+            coordinates = np.asarray(frame.get_value(element.states[self.position]), dtype=float)
             positions = coordinates.reshape(phases.size, -1)[:, 0]
         extent = float(np.ptp(positions)) if positions.size else 1.0
-        points = np.column_stack([positions, phases * self._phase_scale(extent)]) * _UPWARD
-        radius = BaseVisual._radius_of(max(extent, 1.0), phases.size)
+        points = np.column_stack([positions, phases * self._get_phase_scale(extent)]) * UPWARD
+        radius = BaseVisual._get_radius_of(max(extent, 1.0), phases.size)
         recording.log(
             f'{element.path}/phases',
-            rr.Points2D(points, radii=radius, colors=BaseVisual._phase_colors(phases)),
+            rr.Points2D(points, radii=radius, colors=BaseVisual._get_phase_colors(phases)),
         )
         for state, name in element.states.items():
             if state not in {self.phase, self.position}:
-                BaseVisual._log_scalars(recording, f'{element.path}/{state}', frame.value(name))
+                BaseVisual._log_scalars(recording, f'{element.path}/{state}', frame.get_value(name))
 
-    def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return a 2D view of the phases against the positions.
 
         It is bounded by one turn of phase.
@@ -119,8 +119,8 @@ class PhaseRingVisual(BaseVisual):
             entry = problem.states.read(problem.initial_state, element.states[self.position])
             positions = np.asarray(entry, dtype=float).reshape(count, -1)[:, 0]
             low, high = float(positions.min()), float(positions.max())
-        margin = max(high - low, 1.0) * _POSITION_MARGIN
-        height = (np.pi + _PHASE_MARGIN) * self._phase_scale(high - low)
+        margin = max(high - low, 1.0) * POSITION_MARGIN
+        height = (np.pi + PHASE_MARGIN) * self._get_phase_scale(high - low)
         bounds = rrb.VisualBounds2D(
             x_range=(low - margin, high + margin),
             y_range=(-height, height),
@@ -129,9 +129,9 @@ class PhaseRingVisual(BaseVisual):
         return [rrb.Spatial2DView(origin=path, name=element.path, visual_bounds=bounds)]
 
     @staticmethod
-    def _phase_scale(extent: float) -> float:
+    def _get_phase_scale(extent: float) -> float:
         """Return the height of one radian.
 
         One turn of phase then spans a share of the extent of the positions.
         """
-        return _HEIGHT_SHARE * max(extent, 1.0) / (2 * np.pi)
+        return HEIGHT_SHARE * max(extent, 1.0) / (2 * np.pi)

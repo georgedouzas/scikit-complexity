@@ -68,13 +68,13 @@ class CascadeKernel(BaseKernel):
         self.max_iterations = max_iterations
         self.activity = activity
 
-    def _arrays(self, x: Array) -> list[Array]:
+    def _get_arrays(self, x: Array) -> list[Array]:
         """Return the targets' arrays in lattice shape."""
         return [np.reshape(x[state.sites], state.shape) for state in self.targets]
 
     def _is_stable(self, x: Array) -> bool:
         """Check the stability condition on the current state."""
-        return bool(self.stable(*self._arrays(x)))
+        return bool(self.stable(*self._get_arrays(x)))
 
     def _run(self, inputs: RunStateSpec | None) -> None:
         """Apply the drive, then relax until stable, and set the record of a cascade.
@@ -86,7 +86,7 @@ class CascadeKernel(BaseKernel):
             inputs:
                 The state.
         """
-        self.values_ = self._relax(self._state_of(inputs))
+        self.values_ = self._relax(self._get_state_of(inputs))
 
     def _relax(self, state: RunStateSpec) -> CascadeRecordSpec | None:
         """Apply the drive, then relax until stable, and return the record of a cascade.
@@ -120,7 +120,9 @@ class CascadeKernel(BaseKernel):
                 raise SolverError(error_msg)
             before = x[sites].copy()
             active = (
-                np.ravel(np.asarray(self.activity(*self._arrays(x)), dtype=bool)) if self.activity is not None else None
+                np.ravel(np.asarray(self.activity(*self._get_arrays(x)), dtype=bool))
+                if self.activity is not None
+                else None
             )
             for law in self.relax:
                 if active is not None and isinstance(law, RuleKernel) and law.schedule == 'synchronous':

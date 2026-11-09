@@ -49,7 +49,7 @@ class TransferStateSpec(BaseSpec):
     delays: tuple[_CompiledDelaySpec, ...]
     terms: tuple[_FlowTermSpec, ...]
 
-    def replaced(self, specs: Mapping[int, KernelSpec]) -> TransferStateSpec:
+    def get_replaced(self, specs: Mapping[int, KernelSpec]) -> TransferStateSpec:
         """Return the state with replaced kernel specs.
 
         An example is specs whose rows are settled.

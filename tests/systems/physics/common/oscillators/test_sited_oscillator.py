@@ -16,5 +16,5 @@ def test_sited_oscillator_keeps_its_place_and_turns():
         space=ContinuousSpace(n_dim=2),
     )
     trajectory = simulate(system, until=1.0, dt=0.5)
-    assert trajectory.values('unit.theta')[-1] == pytest.approx(2.0)
-    np.testing.assert_allclose(trajectory.values('unit.x')[-1], [1.0, 2.0])
+    assert trajectory.get_values('unit.theta')[-1] == pytest.approx(2.0)
+    np.testing.assert_allclose(trajectory.get_values('unit.x')[-1], [1.0, 2.0])

@@ -358,7 +358,7 @@ def test_gauss_law_holds_for_rate_laws_of_a_first_order_pair():
     ]
     system = CompositeSystem(elements=[links], interactions=interactions)
     trajectory = simulate(system, until=2.0, solver=RK4Solver(dt=0.02))
-    residual = -space.incidences_[0].T @ trajectory.values('links.e').T - density[:, None]
+    residual = -space.incidences_[0].T @ trajectory.get_values('links.e').T - density[:, None]
     assert np.abs(residual).max() < GAUSS_LIMIT
 
 
@@ -375,7 +375,7 @@ def test_gauss_law_holds_for_velocity_verlet():
     )
     system = CompositeSystem(elements=[links], interactions=[rate])
     trajectory = simulate(system, until=50.0, solver=VelocityVerletSolver(dt=0.05))
-    electric = -trajectory.values('links.a_d1')
+    electric = -trajectory.get_values('links.a_d1')
     residual = -space.incidences_[0].T @ electric.T - density[:, None]
     assert np.abs(residual).max() < GAUSS_LIMIT
 
@@ -403,7 +403,7 @@ def test_lattice_dispersion_follows_the_lattice_laplacian(spacing):
     until = 4 * period
     step = period / 200
     trajectory = simulate(system, until=until, solver=VelocityVerletSolver(dt=step / 4), dt=step)
-    series = trajectory.values('links.a')[:, size * size]
+    series = trajectory.get_values('links.a')[:, size * size]
     crossings = np.flatnonzero(np.diff(np.sign(series)) != 0)
     measured = np.pi * (crossings.size - 1) / (trajectory.times[crossings[-1]] - trajectory.times[crossings[0]])
     assert abs(measured - expected) / expected < DISPERSION_LIMIT

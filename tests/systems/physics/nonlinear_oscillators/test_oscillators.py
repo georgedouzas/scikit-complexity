@@ -33,29 +33,29 @@ def _run_van_der_pol(**parameters):
 def test_unforced_oscillator_reaches_its_limit_cycle():
     """Test that a small displacement grows to the limit cycle of amplitude near 2."""
     trajectory = _run_van_der_pol(x=0.1, mu=1.0)
-    assert np.abs(trajectory.values('oscillator.x')[-400:]).max() == pytest.approx(2.0, abs=0.02)
+    assert np.abs(trajectory.get_values('oscillator.x')[-400:]).max() == pytest.approx(2.0, abs=0.02)
 
 
 def test_undamped_forced_oscillator_follows_the_forcing():
     """Test that without damping and from rest the forced oscillator follows `A (cos(w t) - cos(t)) / (1 - w^2)`."""
     trajectory = _run_van_der_pol(x=0.0, mu=0.0, A=0.5, omega=2.0)
     expected = 0.5 * (np.cos(2.0 * trajectory.times) - np.cos(trajectory.times)) / (1 - 4.0)
-    np.testing.assert_allclose(trajectory.values('oscillator.x'), expected, atol=1e-6)
+    np.testing.assert_allclose(trajectory.get_values('oscillator.x'), expected, atol=1e-6)
 
 
 def test_van_der_pol_reaches_limit_cycle():
     """Test that the Van der Pol oscillator settles on a cycle of amplitude near 2."""
-    x = simulate(VanDerPolSystem(), random_state=0).values('oscillator.x')
+    x = simulate(VanDerPolSystem(), random_state=0).get_values('oscillator.x')
     assert 1.9 < np.abs(x[-200:]).max() < 2.1
 
 
 def test_henon_heiles_conserves_energy():
     """Test that the Hénon-Heiles star keeps its energy within its invariant tolerance."""
     trajectory = simulate(HenonHeilesSystem(), random_state=0)
-    x, y, px, py = (trajectory.values(name) for name in ('star.x', 'star.y', 'star.px', 'star.py'))
+    x, y, px, py = (trajectory.get_values(name) for name in ('star.x', 'star.y', 'star.px', 'star.py'))
     energy = (px**2 + py**2 + x**2 + y**2) / 2 + x**2 * y - y**3 / 3
     assert np.abs(energy - energy[0]).max() < 1e-6
-    np.testing.assert_allclose(trajectory.values('star.energy'), energy)
+    np.testing.assert_allclose(trajectory.get_values('star.energy'), energy)
 
 
 def test_henon_heiles_stays_bounded_below_the_escape_energy():
@@ -63,8 +63,8 @@ def test_henon_heiles_stays_bounded_below_the_escape_energy():
     y, py = 0.0, 0.0
     px = math.sqrt(2 / 12)
     trajectory = simulate(HenonHeilesSystem(x=0.0, y=y, px=px, py=py), until=1000.0, random_state=0)
-    x, y = (np.asarray(trajectory.values(name)) for name in ('star.x', 'star.y'))
-    energy = np.asarray(trajectory.values('star.energy'))
+    x, y = (np.asarray(trajectory.get_values(name)) for name in ('star.x', 'star.y'))
+    energy = np.asarray(trajectory.get_values('star.energy'))
     assert energy[0] == pytest.approx(1 / 12)
     assert np.hypot(x, y).max() < 1.0
     assert np.ptp(energy) < 1e-6
@@ -101,12 +101,12 @@ def test_adler_equation_locks_inside_the_tongue_and_slips_outside(detuning):
 def test_nuclear_quadrupole_conserves_energy():
     """Test that the quadrupole Hamiltonian stays within its invariant tolerance along a chaotic orbit."""
     trajectory = simulate(NuclearQuadrupoleSystem(), random_state=0)
-    q1, q2, p1, p2 = (np.asarray(trajectory.values(f'nucleus.{name}')) for name in ('q1', 'q2', 'p1', 'p2'))
+    q1, q2, p1, p2 = (np.asarray(trajectory.get_values(f'nucleus.{name}')) for name in ('q1', 'q2', 'p1', 'p2'))
     q = q1**2 + q2**2
     energy = (q + p1**2 + p2**2) / 2 + 0.5 * q1 * (3 * q2**2 - q1**2) / math.sqrt(2) + q**2 / 8
     assert energy[0] == pytest.approx(0.75)
     assert np.abs(energy - energy[0]).max() < 1e-6
-    np.testing.assert_allclose(trajectory.values('nucleus.energy'), energy)
+    np.testing.assert_allclose(trajectory.get_values('nucleus.energy'), energy)
 
 
 def test_free_toda_oscillator_conserves_energy_and_swings_further_on_the_soft_side():

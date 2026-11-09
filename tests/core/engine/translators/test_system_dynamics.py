@@ -112,7 +112,7 @@ def test_run_teacup_runs_like_pysd(fixtures_folder, translate, file_name):
     module = translate(file_name)
     reference = _load_reference(fixtures_folder, file_name)
     trajectory = _simulate(module)
-    values = _at_saved_times(trajectory, trajectory.values('teacup.teacup_temperature'), module, reference)
+    values = _at_saved_times(trajectory, trajectory.get_values('teacup.teacup_temperature'), module, reference)
     assert np.max(np.abs(values - reference['Teacup Temperature'].to_numpy())) < TOLERANCE
 
 
@@ -136,7 +136,7 @@ def test_run_default_solver_finds_the_exact_solution(translate):
     module = translate('teacup.mdl')
     trajectory = simulate(_create(module), dt=module.DT)
     exact = 70.0 + 110.0 * np.exp(-np.asarray(trajectory.times) / 10.0)
-    assert np.max(np.abs(trajectory.values('teacup.teacup_temperature') - exact)) < 1e-3
+    assert np.max(np.abs(trajectory.get_values('teacup.teacup_temperature') - exact)) < 1e-3
 
 
 def test_run_xmile_reads_like_vensim(fixtures_folder, translate):
@@ -176,7 +176,7 @@ def test_run_auxiliaries_are_observables(fixtures_folder, translate):
         ('sir.infection', 'Infection'),
         ('sir.recovery', 'Recovery'),
     ):
-        values = _at_saved_times(trajectory, trajectory.values(name), module, reference)
+        values = _at_saved_times(trajectory, trajectory.get_values(name), module, reference)
         assert np.max(np.abs(values - reference[column].to_numpy())) < TOLERANCE
 
 
@@ -195,7 +195,7 @@ def test_run_sir_flows_are_named_transfers(translate):
         observables=[total],
         invariants={'sir.people': 1e-6},
     )
-    assert np.max(trajectory.values('sir.infection')) > 0
+    assert np.max(trajectory.get_values('sir.infection')) > 0
 
 
 def test_run_invariant_catches_a_total_that_changes(translate):
@@ -239,9 +239,9 @@ def test_run_goal_seeking_becomes_relaxation(fixtures_folder, translate):
     assert '(_goal__stock(namespace) - namespace.target.stock) / _time__stock(namespace)' in source
     reference = _load_reference(fixtures_folder, 'goal_seeking.mdl')
     trajectory = _simulate(module)
-    values = _at_saved_times(trajectory, trajectory.values('goal_seeking.stock'), module, reference)
+    values = _at_saved_times(trajectory, trajectory.get_values('goal_seeking.stock'), module, reference)
     assert np.max(np.abs(values - reference['Stock'].to_numpy())) < TOLERANCE
-    observed = _at_saved_times(trajectory, trajectory.values('goal_seeking.stock_adjustment'), module, reference)
+    observed = _at_saved_times(trajectory, trajectory.get_values('goal_seeking.stock_adjustment'), module, reference)
     assert np.max(np.abs(observed - (100.0 - values) / 4.0)) < TOLERANCE
 
 
@@ -282,7 +282,7 @@ def test_run_third_order_delay(fixtures_folder, translate):
     trajectory = _simulate(module)
     label = 'third_order_delay'
     for name, column in (('shipments', 'Shipments'), ('backlog', 'Backlog')):
-        values = _at_saved_times(trajectory, trajectory.values(f'{label}.{name}'), module, reference)
+        values = _at_saved_times(trajectory, trajectory.get_values(f'{label}.{name}'), module, reference)
         assert np.max(np.abs(values - reference[column].to_numpy())) < TOLERANCE
     assert reference['Shipments'].iloc[-1] > 14.0
 
@@ -299,7 +299,7 @@ def test_run_built_in_functions_run_like_pysd(fixtures_folder, translate, file_n
     trajectory = _simulate(module)
     for column in set(reference.columns) - skipped:
         name = f'{label}.{column.lower().replace(" ", "_")}'
-        values = _at_saved_times(trajectory, trajectory.values(name), module, reference)
+        values = _at_saved_times(trajectory, trajectory.get_values(name), module, reference)
         assert np.max(np.abs(values - reference[column].to_numpy())) < TOLERANCE, column
 
 
@@ -338,7 +338,7 @@ def test_run_regional_populations(fixtures_folder, translate):
     assert _parts(module).elements[0].get_params()['size'] == 3
     reference = _load_reference(fixtures_folder, 'regions.mdl')
     trajectory = _simulate(module)
-    values = _at_saved_times(trajectory, trajectory.values('regions.population'), module, reference)
+    values = _at_saved_times(trajectory, trajectory.get_values('regions.population'), module, reference)
     for row, region in enumerate(('North', 'Middle', 'South')):
         assert np.max(np.abs(values[:, row] - reference[f'Population[{region}]'].to_numpy())) < TOLERANCE
 
@@ -348,11 +348,11 @@ def test_run_group_records_flows_and_auxiliaries(fixtures_folder, translate):
     module = translate('regions.mdl')
     reference = _load_reference(fixtures_folder, 'regions.mdl')
     trajectory = _simulate(module)
-    births = _at_saved_times(trajectory, trajectory.values('regions.births'), module, reference)
+    births = _at_saved_times(trajectory, trajectory.get_values('regions.births'), module, reference)
     assert np.max(np.abs(births[:, 2] - reference['Births[South]'].to_numpy())) < TOLERANCE
-    bonus = _at_saved_times(trajectory, trajectory.values('bonus'), module, reference)
+    bonus = _at_saved_times(trajectory, trajectory.get_values('bonus'), module, reference)
     assert np.max(np.abs(bonus[:, 1] - reference['Bonus[Middle]'].to_numpy())) < TOLERANCE
-    total = _at_saved_times(trajectory, trajectory.values('total_population'), module, reference)
+    total = _at_saved_times(trajectory, trajectory.get_values('total_population'), module, reference)
     assert np.max(np.abs(total - reference['Total Population'].to_numpy())) < TOLERANCE
 
 

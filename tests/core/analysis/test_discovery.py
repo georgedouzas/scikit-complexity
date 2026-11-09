@@ -78,7 +78,7 @@ def test_discovery_of_a_jump_path():
     discovery = _discover(trajectory)
     assert 'path' in discovery.kinds
     assert any(item.func is markov for item in discovery.analyses['path'])
-    states = np.asarray(trajectory.values(trajectory.problem.states.names[0]), dtype=int).ravel() % 3
+    states = np.asarray(trajectory.get_values(trajectory.problem.states.names[0]), dtype=int).ravel() % 3
     system = markov(np.tile(states, 20), kind='state-system')
     assert system.transition_matrix.shape[0] >= 2
 

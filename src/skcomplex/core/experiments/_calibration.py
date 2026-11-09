@@ -242,7 +242,7 @@ class _CalibrationObjective:
     def _at_times(self, trajectory: Trajectory) -> dict[str, Array]:
         """Return the values of a trajectory interpolated at the data times by path."""
         return {
-            path: np.interp(times, trajectory.times, np.asarray(trajectory.values(path), dtype=float))
+            path: np.interp(times, trajectory.times, np.asarray(trajectory.get_values(path), dtype=float))
             for path, (times, _) in self.series.items()
         }
 
@@ -307,7 +307,7 @@ class _CalibrationObjective:
             return np.concatenate([np.asarray(simulated[path], dtype=float) for path in self.series])
         return np.atleast_1d(np.asarray(self.summary(simulated), dtype=float))
 
-    def _compiled(self, values: Sequence[float]) -> tuple[ProblemSpec, TracedFunction]:
+    def _get_compiled(self, values: Sequence[float]) -> tuple[ProblemSpec, TracedFunction]:
         """Return the problem of the candidate of a parameter vector compiled on JAX, and its pure function.
 
         Args:
@@ -358,7 +358,7 @@ class _CalibrationObjective:
                 The problem changes its structure or is not affine in a model parameter, or a path is not a state.
         """
         center = np.asarray([float(prior.median()) for prior in self.priors.values()])
-        problem, function = self._compiled(center)
+        problem, function = self._get_compiled(center)
         columns = []
         for index, name in enumerate(self.names):
             step = 1e-3 * max(1.0, abs(center[index]))
@@ -366,7 +366,7 @@ class _CalibrationObjective:
             for factor in (1.0, 2.0):
                 shifted = center.copy()
                 shifted[index] += factor * step
-                other = self._compiled(shifted)[0]
+                other = self._get_compiled(shifted)[0]
                 if other.initial_state.size != problem.initial_state.size or (
                     other.initial_parameters.size != problem.initial_parameters.size
                 ):
@@ -514,7 +514,7 @@ def _series_of(data: Mapping[str, tuple[npt.ArrayLike, npt.ArrayLike]] | Traject
     if isinstance(data, Trajectory):
         states = data.problem.states
         return {
-            name: (np.asarray(data.times, dtype=float), np.asarray(data.values(name), dtype=float))
+            name: (np.asarray(data.times, dtype=float), np.asarray(data.get_values(name), dtype=float))
             for name in states.names
             if states.entry(name).size == 1
         }

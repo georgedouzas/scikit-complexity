@@ -43,20 +43,20 @@ class FractionalProblemPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Add the fractional noise rows and the state orders to the problem."""
         compilation = self.compilation_
-        problem = Compilation._required(compilation.problem, 'problem')
-        lowered = Compilation._required(compilation.kernels, 'kernels')
+        problem = Compilation._get_required(compilation.problem, 'problem')
+        lowered = Compilation._get_required(compilation.kernels, 'kernels')
         compilation.problem = replace(
             problem,
-            fractional=self._fractional_rows(lowered) if problem.form == FormKind.SDE else (),
+            fractional=self._get_fractional_rows(lowered) if problem.form == FormKind.SDE else (),
             orders=(
-                self._state_orders(FractionalFormPass._owned_fractional(compilation), problem.states)
+                self._get_state_orders(FractionalFormPass._get_owned_fractional(compilation), problem.states)
                 if problem.form == FormKind.FRACTIONAL
                 else np.zeros(0)
             ),
         )
 
     @staticmethod
-    def _hurst_function(kernel: LawKernel, hurst: object) -> Callable[[Array], Array]:
+    def _get_hurst_function(kernel: LawKernel, hurst: object) -> Callable[[Array], Array]:
         """Return the function of the parameter vector that gives the Hurst index.
 
         It gives the index of every row of a noise kernel.
@@ -67,10 +67,10 @@ class FractionalProblemPass(BasePass):
             return lambda p: np.full(rows, value)
         reference = kernel.references[SR(hurst)]
         empty = np.zeros(0)
-        return lambda p: np.broadcast_to(np.asarray(reference.column_of(empty, p), dtype=float), (rows,)).copy()
+        return lambda p: np.broadcast_to(np.asarray(reference.get_column_of(empty, p), dtype=float), (rows,)).copy()
 
     @staticmethod
-    def _fractional_rows(lowered: LoweredKernelsSpec) -> tuple[FractionalRowsSpec, ...]:
+    def _get_fractional_rows(lowered: LoweredKernelsSpec) -> tuple[FractionalRowsSpec, ...]:
         """Return the noise rows that noise laws with a Hurst index drive.
 
         They are in the order of the noise rows.
@@ -84,19 +84,19 @@ class FractionalProblemPass(BasePass):
                         error_msg = f'The fractional noise law of output {id(item)} has no kernel spec.'
                         raise TypeError(error_msg)
                     positions = position + np.arange(kernel.rows, dtype=np.intp)
-                    description = CheckFractionalNoisePass._fractional_description(spec, law)
+                    description = CheckFractionalNoisePass._get_fractional_description(spec, law)
                     rows.append(
                         FractionalRowsSpec(
                             description,
                             positions,
-                            FractionalProblemPass._hurst_function(kernel, law.hurst),
+                            FractionalProblemPass._get_hurst_function(kernel, law.hurst),
                         ),
                     )
                 position += kernel.rows
         return tuple(rows)
 
     @staticmethod
-    def _state_orders(states: list[FractionalStateSpec], layout: LayoutSpec) -> Array:
+    def _get_state_orders(states: list[FractionalStateSpec], layout: LayoutSpec) -> Array:
         """Return the order of every state component.
 
         It is 1 for the states outside the fractional ones.

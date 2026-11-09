@@ -107,16 +107,16 @@ class MatrixVisual(BaseVisual):
             raise ValidationError(error_msg)
         self.shape_ = layouts[0].entry(self.name_).shape
 
-    def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return the 2D spatial view of the matrix."""
         del problem
         return [rrb.Spatial2DView(origin=f'{element.path}/{self.variable}', name=f'{element.path}.{self.variable}')]
 
     def _log_matrix(self, recording: rr.RecordingStream, frame: FrameSpec) -> None:
         """Log the matrix at a frame as an image colored by value."""
-        values = np.reshape(np.asarray(frame.value(self.name_), dtype=float), self.shape_)
+        values = np.reshape(np.asarray(frame.get_value(self.name_), dtype=float), self.shape_)
         low, high = self.color_range if self.color_range is not None else (float(values.min()), float(values.max()))
-        colors = BaseVisual._palette_colors(values, low, high)
+        colors = BaseVisual._get_palette_colors(values, low, high)
         height, width = values.shape
         image = rr.Image(bytes=colors.tobytes(), width=width, height=height, color_model='RGB', datatype='U8')
         recording.log(f'{self.path}/{self.variable}', image)

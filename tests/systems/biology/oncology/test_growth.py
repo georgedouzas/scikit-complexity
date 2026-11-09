@@ -25,21 +25,21 @@ def _run_compartment(interaction, n0, until=4.0, dt=0.01):
     """Return the times and the population of one compartment under one interaction."""
     system = CompositeSystem(elements=[CompartmentElement('population', x=n0)], interactions=[interaction])
     trajectory = simulate(system, dt=dt, until=until)
-    return np.asarray(trajectory.times), np.asarray(trajectory.values('population.x'))
+    return np.asarray(trajectory.times), np.asarray(trajectory.get_values('population.x'))
 
 
 def test_gompertz_matches_closed_form():
     """Test that Gompertz growth from a small tumour follows its closed form and approaches the capacity."""
     trajectory = _run_precise(GompertzSystem(n=10.0, r=0.0719, K=1964.0), until=150.0, dt=1.0)
     exact = 1964.0 * np.exp(np.log(10.0 / 1964.0) * np.exp(-0.0719 * trajectory.times))
-    assert np.max(np.abs(trajectory.values('tumour.x') / exact - 1)) < 1e-6
-    assert abs(trajectory.values('tumour.x')[-1] / 1964.0 - 1) < 1e-3
+    assert np.max(np.abs(trajectory.get_values('tumour.x') / exact - 1)) < 1e-6
+    assert abs(trajectory.get_values('tumour.x')[-1] / 1964.0 - 1) < 1e-3
 
 
 def test_exponential_linear_growth_switches_to_linear():
     """Test that the tumour grows exponentially until `r0 n` reaches `r`, at `tau`, and linearly at rate `r` after."""
     trajectory = _run_precise(ExponentialLinearGrowthSystem(n=2.0, r0=0.31, r=67.8), until=40.0, dt=0.5)
-    times, n = trajectory.times, trajectory.values('tumour.x')
+    times, n = trajectory.times, trajectory.get_values('tumour.x')
     tau = np.log(67.8 / (0.31 * 2.0)) / 0.31
     early = times <= tau
     assert np.allclose(n[early], 2.0 * np.exp(0.31 * times[early]), rtol=1e-6)
@@ -50,7 +50,7 @@ def test_power_law_growth_matches_closed_form():
     """Test that power-law growth follows `(n0^(1-p) + (1-p) r t)^(1/(1-p))`."""
     trajectory = _run_precise(PowerLawGrowthSystem(n=10.0, r=1.32, p=0.58), until=40.0, dt=1.0)
     exact = (10.0**0.42 + 0.42 * 1.32 * trajectory.times) ** (1 / 0.42)
-    assert np.allclose(trajectory.values('tumour.x'), exact, rtol=1e-6)
+    assert np.allclose(trajectory.get_values('tumour.x'), exact, rtol=1e-6)
 
 
 def test_von_bertalanffy_matches_closed_form():
@@ -58,8 +58,8 @@ def test_von_bertalanffy_matches_closed_form():
     r, p, d = 2.32, 2 / 3, 0.808
     trajectory = _run_precise(VonBertalanffySystem(n=1.0, r=r, p=p, d=d), until=40.0, dt=1.0)
     exact = (r / d + (1.0 - r / d) * np.exp(-d * (1 - p) * trajectory.times)) ** (1 / (1 - p))
-    assert np.allclose(trajectory.values('tumour.x'), exact, rtol=1e-6)
-    assert abs(trajectory.values('tumour.x')[-1] / (r / d) ** 3 - 1) < 1e-2
+    assert np.allclose(trajectory.get_values('tumour.x'), exact, rtol=1e-6)
+    assert abs(trajectory.get_values('tumour.x')[-1] / (r / d) ** 3 - 1) < 1e-2
 
 
 def test_generalized_logistic_matches_closed_form():
@@ -67,13 +67,13 @@ def test_generalized_logistic_matches_closed_form():
     r, K, p, n0 = 0.305, 1221.0, 2.0, 10.0
     trajectory = _run_precise(GeneralizedLogisticSystem(n=n0, r=r, K=K, p=p), until=40.0, dt=1.0)
     exact = n0 * K / (n0**p + (K**p - n0**p) * np.exp(-r * p * trajectory.times)) ** (1 / p)
-    assert np.allclose(trajectory.values('tumour.x'), exact, rtol=1e-6)
+    assert np.allclose(trajectory.get_values('tumour.x'), exact, rtol=1e-6)
 
 
 def test_dynamic_carrying_capacity_raises_the_capacity():
     """Test that the capacity grows by `d n^(2/3)` and that the tumour stays close to it once it has filled it."""
     trajectory = _run_precise(DynamicCarryingCapacitySystem(), until=20.0, dt=0.5)
-    n, K = trajectory.values('tumour.x'), trajectory.values('vessels.K')
+    n, K = trajectory.get_values('tumour.x'), trajectory.get_values('vessels.K')
     assert np.all(np.diff(K) > 0)
     assert K[-1] > 20 * K[0]
     assert np.all(np.abs(np.log(n[trajectory.times > 5.0] / K[trajectory.times > 5.0])) < 0.1)
@@ -86,14 +86,14 @@ def test_skipper_log_kill_lowers_the_logarithm_by_equal_steps():
         until=35.0,
         dt=1.0,
     )
-    starts = np.log(trajectory.values('tumour.x')[np.isin(trajectory.times, 7.0 * np.arange(6))])
+    starts = np.log(trajectory.get_values('tumour.x')[np.isin(trajectory.times, 7.0 * np.arange(6))])
     assert np.allclose(np.diff(starts), -2.0, atol=1e-6)
 
 
 def test_norton_simon_regrows_faster_after_a_dose():
     """Test that a Gompertzian tumour regrows faster just after a dose than before it, at a smaller size."""
     trajectory = _run_precise(NortonSimonSystem(), until=63.0, dt=0.5)
-    times, n = trajectory.times, trajectory.values('tumour.x')
+    times, n = trajectory.times, trajectory.get_values('tumour.x')
     rate = np.gradient(np.log(n), times)
     before, after = rate[np.isclose(times, 41.5)][0], rate[np.isclose(times, 44.0)][0]
     assert n[np.isclose(times, 43.0)][0] < n[np.isclose(times, 42.0)][0]

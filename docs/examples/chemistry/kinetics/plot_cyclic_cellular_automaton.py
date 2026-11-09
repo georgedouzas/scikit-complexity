@@ -30,7 +30,7 @@ trajectory = simulate(CyclicCellularAutomatonSystem((128, 128), random_state=0),
 # should rise to a plateau as the spirals take over. The waves also correlate the levels over growing distances, so
 # the spatial correlation function should decay more slowly at later steps.
 
-levels = trajectory.lattice('cells.level')
+levels = trajectory.get_lattice('cells.level')
 advancing = np.mean(levels[1:] != levels[:-1], axis=(1, 2))
 fig, (activity, reach) = plt.subplots(1, 2, figsize=(10, 4))
 activity.plot(trajectory.times[1:], advancing)

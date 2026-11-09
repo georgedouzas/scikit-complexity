@@ -162,7 +162,7 @@ class CabElement(Element):
         """Collect the fare of the rider, take it on board, and head for its destination."""
         rider = next(item for item in system.get_agents('riders', RiderView) if item.id == int(agent.rider))
         destination = (int(agent.destination_x), int(agent.destination_y))
-        blocks = CabElement._blocks(CabElement._cell(agent.location), destination)
+        blocks = CabElement._get_blocks(CabElement._cell(agent.location), destination)
         fare = system.get_parameter('base_fare') + system.get_parameter('block_fare') * blocks
         transfer(rider, agent, fare, 'money')
         rider.remove()
@@ -203,7 +203,7 @@ class CabElement(Element):
         return int(x), int(y)
 
     @staticmethod
-    def _blocks(first: tuple[int, int], second: tuple[int, int]) -> int:
+    def _get_blocks(first: tuple[int, int], second: tuple[int, int]) -> int:
         """Return the number of blocks between two cells of the grid.
 
         It is the Manhattan distance.
@@ -458,7 +458,7 @@ class RidesharingSystem(BaseSystem):
         if not isinstance(rider, RiderView) or not isinstance(cab, CabView):
             error_msg = f'A rider ranks cabs, but got {rider!r} and {cab!r}.'
             raise ArgumentError(error_msg)
-        return -float(CabElement._blocks(CabElement._cell(rider.location), CabElement._cell(cab.location)))
+        return -float(CabElement._get_blocks(CabElement._cell(rider.location), CabElement._cell(cab.location)))
 
     @staticmethod
     def _patience(cab: object, rider: object) -> float:

@@ -36,7 +36,7 @@ starts = np.linspace(-2.0, 2.0, 80)
 winners = []
 for start in starts:
     run = simulate(MagneticPendulumSystem(x=start, y=1.5, n_magnets=3), until=40, dt=0.1)
-    final = np.asarray(run.values('bob.x'))[-1]
+    final = np.asarray(run.get_values('bob.x'))[-1]
     winners.append(np.argmin(np.linalg.norm(magnets - final, axis=1)))
 fig, ax = plt.subplots(figsize=(8, 3))
 ax.scatter(starts, winners, c=winners, cmap='viridis', s=18)

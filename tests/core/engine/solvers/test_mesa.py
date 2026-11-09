@@ -274,7 +274,7 @@ def test_agents_are_born_every_step():
         CompositeSystem(elements=[GroupElement('herd', element=BreederElement, size=10, variable=True)]),
         until=3,
     )
-    assert trajectory.values('herd.count').tolist() == [10.0, 20.0, 40.0, 80.0]
+    assert trajectory.get_values('herd.count').tolist() == [10.0, 20.0, 40.0, 80.0]
     assert len(trajectory.get_agents('herd', 3).ids) == 80
 
 
@@ -292,7 +292,7 @@ def test_system_rules_remove_agents():
         space=LatticeSpace((5, 5), boundary='fixed'),
     )
     trajectory = simulate(system, until=3, random_state=0)
-    assert trajectory.values('walkers.count').tolist() == [5.0, 4.0, 3.0, 2.0]
+    assert trajectory.get_values('walkers.count').tolist() == [5.0, 4.0, 3.0, 2.0]
     assert 1 not in trajectory.get_agents('walkers', 1).ids.tolist()
 
 
@@ -522,7 +522,7 @@ def _views(space, locations):
         space=space,
     )
     stepper = _stepped(system, until=0)
-    return [AgentView(agent, stepper) for agent in stepper._group_agents('cows')]
+    return [AgentView(agent, stepper) for agent in stepper._get_group_agents('cows')]
 
 
 def test_displacement_across_torus_seam():
@@ -1031,7 +1031,7 @@ def test_observables_read_agent_views():
     """Test that an observable of an agent group reads the views of its agents, with the parameters of the group."""
     observables = [ObservableSpec('weights', group='visited', expression=_weight_of, reduce='sum')]
     trajectory = simulate(_visited_system(1.0), until=1, observables=observables)
-    assert trajectory.values('weights').tolist() == [8.0, 8.0]
+    assert trajectory.get_values('weights').tolist() == [8.0, 8.0]
 
 
 class HolderElement(Element):

@@ -47,7 +47,7 @@ trajectory = simulate(RandomGraphEnsemblesSystem(), observers=[observer], random
 
 degrees, giants = [], []
 for frame in range(len(trajectory.times)):
-    graph = trajectory.network(frame).graph()
+    graph = trajectory.get_network(frame).graph()
     degrees.append(2 * graph.number_of_edges() / 200)
     giants.append(max(len(component) for component in nx.connected_components(graph)) / 200)
 mean = np.linspace(0.01, 4, 200)
@@ -60,7 +60,7 @@ ring = nx.watts_strogatz_graph(300, 6, 0.0)
 paths, clustering = [], []
 for share in shares:
     system = RandomGraphEnsemblesSystem(n_nodes=300, ensemble='watts_strogatz', mean_degree=6, rewiring=share, steps=20)
-    graph = simulate(system, until=20).network(-1).graph()
+    graph = simulate(system, until=20).get_network(-1).graph()
     graph = graph.subgraph(max(nx.connected_components(graph), key=len))
     paths.append(nx.average_shortest_path_length(graph) / nx.average_shortest_path_length(ring))
     clustering.append(nx.average_clustering(graph) / nx.average_clustering(ring))

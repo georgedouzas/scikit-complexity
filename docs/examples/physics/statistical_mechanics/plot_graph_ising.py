@@ -39,7 +39,7 @@ simulation = simulate(system, until=60, observers=[observer], random_state=0)
 
 def magnetization(trajectory):
     """Return the mean absolute magnetization of the recorded frames."""
-    return float(np.abs(trajectory.values('spins.spin').mean(axis=1)).mean())
+    return float(np.abs(trajectory.get_values('spins.spin').mean(axis=1)).mean())
 
 
 graph = nx.random_regular_graph(4, 1000, seed=0)

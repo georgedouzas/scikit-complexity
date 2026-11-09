@@ -29,7 +29,7 @@ def graphs(turnover, until=10000):
     run = simulate(DavidsenEbelBornholdtSystem(turnover=turnover), until=until, random_state=0)
     found = []
     for frame in range(until // 5, until + 1, 200):
-        network = run.network(frame)
+        network = run.get_network(frame)
         graph = nx.Graph(list(zip(network.sources.tolist(), network.targets.tolist(), strict=True)))
         graph.add_nodes_from(network.nodes.tolist())
         found.append(graph)

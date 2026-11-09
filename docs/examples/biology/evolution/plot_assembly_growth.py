@@ -32,7 +32,7 @@ trajectory = simulate(AssemblyGrowthSystem(), observers=[observer])
 fig, ax = plt.subplots(figsize=(8, 4.5))
 for alpha in (1.0, 0.7, 0.4):
     run = simulate(AssemblyGrowthSystem(alpha=alpha))
-    ax.semilogy(range(1, 11), run.values('levels.N')[-1], 'o-', label=f'alpha = {alpha}')
+    ax.semilogy(range(1, 11), run.get_values('levels.N')[-1], 'o-', label=f'alpha = {alpha}')
 ax.semilogy(range(1, 11), [10**a / math.factorial(a) for a in range(1, 11)], 'k--', label='(k t)^a / a!')
 ax.set_xlabel('assembly index a')
 ax.set_ylabel('objects N_a at t = 10')

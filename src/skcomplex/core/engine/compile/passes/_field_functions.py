@@ -60,23 +60,23 @@ class FieldFunctionsPass(BasePass):
         if functions is None or written is None:
             error_msg = 'FieldFunctionsPass reads the numeric functions and the written operators, which no pass wrote.'
             raise PipelineError(error_msg)
-        declarations = Compilation._required(compilation.layout, 'layout')
+        declarations = Compilation._get_required(compilation.layout, 'layout')
         states = LayoutSpec(tuple(declarations.states))
-        functions = replace(functions, equations=self._written_equations(functions.equations, states, written))
+        functions = replace(functions, equations=self._get_written_equations(functions.equations, states, written))
         blocks = list(declarations.blocks.values())
-        functions, volumes, constrained = self._with_discretizations(
+        functions, volumes, constrained = self._copy_with_discretizations(
             functions,
-            Compilation._required(compilation.reduced, 'reduced'),
+            Compilation._get_required(compilation.reduced, 'reduced'),
             declarations,
             blocks,
         )
         compilation.functions = functions
         compilation.volumes = volumes
-        compilation.symmetries = tuple(self._symmetries(blocks))
+        compilation.symmetries = tuple(self._get_symmetries(blocks))
         compilation.constrained = constrained
 
     @staticmethod
-    def _written_equations(
+    def _get_written_equations(
         equations: Mapping[str, Expression],
         states: LayoutSpec,
         written: dict[tuple[str, int], list[tuple[Expression, Expression]]],
@@ -107,7 +107,7 @@ class FieldFunctionsPass(BasePass):
             for law in laws:
                 if not isinstance(law, FluxLaw):
                     continue
-                reference = spec._target_references(law._get_targets()[0])[0]
+                reference = spec._get_target_references(law._get_targets()[0])[0]
                 owner = reference.entry.name.rpartition('.')[0]
                 if not isinstance(declarations.blocks[owner].node.component, FieldElement):
                     error_msg = f'{spec.owner} declares fluxes of {owner}, which is not a field.'
@@ -123,7 +123,7 @@ class FieldFunctionsPass(BasePass):
         return tuple(volumes)
 
     @staticmethod
-    def _mesh_constraints(blocks: list[BlockSpec]) -> tuple[npt.NDArray[np.intp], npt.NDArray[np.float64]]:
+    def _get_mesh_constraints(blocks: list[BlockSpec]) -> tuple[npt.NDArray[np.intp], npt.NDArray[np.float64]]:
         """Return the state indices and values of the fixed boundary nodes.
 
         They are the boundary nodes of finite element fields with fixed boundaries.
@@ -153,7 +153,9 @@ class FieldFunctionsPass(BasePass):
         return np.concatenate(indices).astype(np.intp), np.concatenate(values)
 
     @staticmethod
-    def _component_parities(symmetry: Mapping[str, Sequence[object]]) -> list[tuple[str, Sequence[str | None], int]]:
+    def _get_component_parities(
+        symmetry: Mapping[str, Sequence[object]],
+    ) -> list[tuple[str, Sequence[str | None], int]]:
         """Return the state, parities, and column of the components with own parities.
 
         Each such component has a parity of its own.
@@ -166,7 +168,7 @@ class FieldFunctionsPass(BasePass):
         return found
 
     @staticmethod
-    def _symmetries(
+    def _get_symmetries(
         blocks: list[BlockSpec],
     ) -> list[SymmetrySpec]:
         """Return the mirror symmetries of the field states."""
@@ -179,7 +181,7 @@ class FieldFunctionsPass(BasePass):
             if not isinstance(space, LatticeSpace) or space.boundary != 'periodic':
                 error_msg = f'Field {block.node.path} declares symmetries, which need a periodic lattice.'
                 raise ValidationError(error_msg)
-            for variable, parities, column in FieldFunctionsPass._component_parities(place.symmetry):
+            for variable, parities, column in FieldFunctionsPass._get_component_parities(place.symmetry):
                 entry = block.entries.get(variable)
                 if entry is None or len(parities) != space.n_dim_:
                     error_msg = f'The symmetry of {block.node.path}.{variable} needs a state and one parity per axis.'
@@ -198,7 +200,7 @@ class FieldFunctionsPass(BasePass):
         return found
 
     @staticmethod
-    def _with_symmetries(
+    def _copy_with_symmetries(
         drift: VectorFunction | None,
         symmetries: list[SymmetrySpec],
     ) -> VectorFunction | None:
@@ -223,7 +225,7 @@ class FieldFunctionsPass(BasePass):
         return symmetric
 
     @staticmethod
-    def _with_constraints(
+    def _copy_with_constraints(
         drift: VectorFunction | None,
         indices: npt.NDArray[np.intp],
     ) -> VectorFunction | None:
@@ -239,7 +241,7 @@ class FieldFunctionsPass(BasePass):
         return constrained
 
     @staticmethod
-    def _with_volumes(
+    def _copy_with_volumes(
         drift: VectorFunction | None,
         volumes: tuple[FiniteVolumeKernel, ...],
     ) -> VectorFunction | None:
@@ -256,7 +258,7 @@ class FieldFunctionsPass(BasePass):
         return conserved
 
     @staticmethod
-    def _with_discretizations(
+    def _copy_with_discretizations(
         functions: _ProblemFunctionsSpec,
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
         declarations: DeclarationsSpec,
@@ -271,18 +273,18 @@ class FieldFunctionsPass(BasePass):
         It returns the laws and the fixed nodes.
         """
         volumes = FieldFunctionsPass._compile_fluxes(specs, declarations)
-        symmetries = FieldFunctionsPass._symmetries(blocks)
-        constrained, fixed = FieldFunctionsPass._mesh_constraints(blocks)
-        drift = FieldFunctionsPass._with_volumes(functions.drift, volumes)
-        drift = FieldFunctionsPass._with_symmetries(drift, symmetries)
-        drift = FieldFunctionsPass._with_constraints(drift, constrained)
+        symmetries = FieldFunctionsPass._get_symmetries(blocks)
+        constrained, fixed = FieldFunctionsPass._get_mesh_constraints(blocks)
+        drift = FieldFunctionsPass._copy_with_volumes(functions.drift, volumes)
+        drift = FieldFunctionsPass._copy_with_symmetries(drift, symmetries)
+        drift = FieldFunctionsPass._copy_with_constraints(drift, constrained)
         if volumes or symmetries or constrained.size:
             sources = functions.drift if volumes else None
             functions = replace(functions, drift=drift, sources=sources, accelerated=None)
         return functions, volumes, (constrained, fixed)
 
     @staticmethod
-    def _canonical(
+    def _get_canonical(
         laws: Sequence[tuple[FluxLaw, ReferenceSpec, Mapping[Expression, ReferenceSpec]]],
         owner: str,
     ) -> tuple[list[list[Expression]], list[Expression], list[ReferenceSpec]]:
@@ -319,7 +321,7 @@ class FieldFunctionsPass(BasePass):
         return expressions, states, [reference for _, reference in parameters.values()]
 
     @staticmethod
-    def _function_of(printed: object, owner: str) -> Callable[..., object]:
+    def _get_function_of(printed: object, owner: str) -> Callable[..., object]:
         """Return the function a compiled printer returns for the fluxes of a field.
 
         Args:
@@ -343,7 +345,7 @@ class FieldFunctionsPass(BasePass):
         return printed
 
     @staticmethod
-    def _eigenvalues(jacobian: list[list[Expression]]) -> list[Expression] | None:
+    def _get_eigenvalues(jacobian: list[list[Expression]]) -> list[Expression] | None:
         """Return the closed-form eigenvalues of a flux Jacobian.
 
         It is `None` when Sage finds no explicit real ones.
@@ -373,7 +375,7 @@ class FieldFunctionsPass(BasePass):
         return [SR(value) for value in found]
 
     @staticmethod
-    def _function_speeds(
+    def _get_function_speeds(
         laws: Sequence[tuple[FluxLaw, ReferenceSpec, Mapping[Expression, ReferenceSpec]]],
         parameters: Sequence[ReferenceSpec],
         n_dim: int,
@@ -454,11 +456,13 @@ class FieldFunctionsPass(BasePass):
         """
         found = []
         for column in columns:
-            eigenvalues = FieldFunctionsPass._eigenvalues([[value.diff(state) for state in states] for value in column])
+            eigenvalues = FieldFunctionsPass._get_eigenvalues(
+                [[value.diff(state) for state in states] for value in column],
+            )
             if eigenvalues is None:
                 return ()
             found.append(eigenvalues)
-        return tuple(FieldFunctionsPass._function_of(printer.run(values).code_, owner) for values in found)
+        return tuple(FieldFunctionsPass._get_function_of(printer.run(values).code_, owner) for values in found)
 
     @staticmethod
     def _reads_along_axis(
@@ -485,7 +489,7 @@ class FieldFunctionsPass(BasePass):
         )
 
     @staticmethod
-    def _linear_drifts(
+    def _get_linear_drifts(
         columns: Sequence[tuple[Expression, ...]],
         states: Sequence[Expression],
         symbols: Sequence[Expression],
@@ -536,11 +540,11 @@ class FieldFunctionsPass(BasePass):
             )
             if not linear:
                 return ()
-            functions.append(FieldFunctionsPass._function_of(printer.run(drifts).code_, owner))
+            functions.append(FieldFunctionsPass._get_function_of(printer.run(drifts).code_, owner))
         return tuple(functions)
 
     @staticmethod
-    def _class_edges(space: LatticeSpace) -> tuple[str | None, ...]:
+    def _get_class_edges(space: LatticeSpace) -> tuple[str | None, ...]:
         """Return the edges of every class axis of a phase space.
 
         Its position axes give `None`, and the result is nothing without a phase space.
@@ -552,7 +556,7 @@ class FieldFunctionsPass(BasePass):
         )
 
     @staticmethod
-    def _parameter_reads(
+    def _get_parameter_reads(
         parameters: Sequence[ReferenceSpec],
         references: Mapping[Expression, ReferenceSpec],
         declarations: DeclarationsSpec,
@@ -617,7 +621,7 @@ class FieldFunctionsPass(BasePass):
         if place.discretization != 'finite-volume' or not isinstance(space, LatticeSpace):
             error_msg = f'{owner} declares fluxes, which need a finite-volume field on a lattice.'
             raise ValidationError(error_msg)
-        expressions, states, parameters = FieldFunctionsPass._canonical(laws, owner)
+        expressions, states, parameters = FieldFunctionsPass._get_canonical(laws, owner)
         n_dim = space.n_dim_
         if any(len(row) != n_dim for row in expressions):
             error_msg = f'A flux of {owner} has not one component per dimension of its {n_dim}D lattice.'
@@ -629,9 +633,11 @@ class FieldFunctionsPass(BasePass):
         symbols = [SR.var(f'_volume_parameter_{index}') for index in range(len(parameters))]
         columns = list(zip(*expressions, strict=True))
         printer = ExpressionPrinter(time=TIME, compiled=True).prepare([*states, *symbols])
-        fluxes = tuple(FieldFunctionsPass._function_of(printer.run(list(column)).code_, owner) for column in columns)
+        fluxes = tuple(
+            FieldFunctionsPass._get_function_of(printer.run(list(column)).code_, owner) for column in columns
+        )
         jacobians = tuple(
-            FieldFunctionsPass._function_of(
+            FieldFunctionsPass._get_function_of(
                 printer.run([value.diff(state) for value in column for state in states]).code_,
                 owner,
             )
@@ -646,7 +652,7 @@ class FieldFunctionsPass(BasePass):
             critical_printer = ExpressionPrinter(time=TIME, compiled=True).prepare(symbols)
             for column in columns:
                 found = [item.rhs() for item in solve(column[0].diff(states[0]) == 0, states[0])]
-                roots.append(FieldFunctionsPass._function_of(critical_printer.run(found).code_, owner))
+                roots.append(FieldFunctionsPass._get_function_of(critical_printer.run(found).code_, owner))
             critical = tuple(roots)
         references = {key: item for _, _, read in laws for key, item in read.items()}
         boundaries = tuple(
@@ -665,8 +671,8 @@ class FieldFunctionsPass(BasePass):
             fluxes=fluxes,
             jacobians=jacobians,
             parameters=tuple(parameters),
-            reads=FieldFunctionsPass._parameter_reads(parameters, references, declarations, owner),
-            drifts=FieldFunctionsPass._linear_drifts(
+            reads=FieldFunctionsPass._get_parameter_reads(parameters, references, declarations, owner),
+            drifts=FieldFunctionsPass._get_linear_drifts(
                 columns,
                 states,
                 symbols,
@@ -675,13 +681,13 @@ class FieldFunctionsPass(BasePass):
                 owner=owner,
                 space=space,
             ),
-            edges=FieldFunctionsPass._class_edges(space),
+            edges=FieldFunctionsPass._get_class_edges(space),
             limiter=first.limiter,
             riemann=first.riemann,
             critical=critical,
             expressions=tuple(columns),
             speeds=(
-                FieldFunctionsPass._function_speeds(laws, parameters, n_dim, owner)
+                FieldFunctionsPass._get_function_speeds(laws, parameters, n_dim, owner)
                 or FieldFunctionsPass._compile_speeds(columns, states, printer, owner)
             ),
             volumes=space.volumes_ if isinstance(space, SimplexSpace) else None,

@@ -51,7 +51,7 @@ phase.set_title('Phase line: P1 attracts, P2 repels')
 phase.legend()
 for index, start in enumerate((0.0, 10.0, 20.0, 25.0, 26.5)):
     run = simulate(RiccatiPricesSystem(price=start), until=4, dt=0.02)
-    paths.plot(run.times[::10], run.values('market.P')[::10], 'o', ms=3, color=f'C{index}', label=f'P(0) = {start}')
+    paths.plot(run.times[::10], run.get_values('market.P')[::10], 'o', ms=3, color=f'C{index}', label=f'P(0) = {start}')
     paths.plot(run.times, exact(start, run.times), color=f'C{index}', lw=0.8)
 paths.axhline(LOW, color='grey', linestyle=':')
 paths.set_xlabel('time')

@@ -51,7 +51,7 @@ def _run(element, *interactions):
     values = {'u': 1.0 + 0.5 * np.sin((np.arange(CELLS) + 0.5) * spacing)}
     space = LatticeSpace((CELLS,), spacing=spacing, boundary='periodic')
     field = FieldElement('line', element=element, space=space, values=values, discretization='finite-volume')
-    return simulate(CompositeSystem(elements=[field], interactions=list(interactions)), until=1.0, dt=0.1).values(
+    return simulate(CompositeSystem(elements=[field], interactions=list(interactions)), until=1.0, dt=0.1).get_values(
         'line.u',
     )
 
@@ -123,7 +123,7 @@ def _run_water(element, gravity, *interactions):
     values = {'h': 1.0 + 0.2 * np.exp(-(((centers - 0.5) / 0.1) ** 2)), 'q': np.zeros(CELLS), 'g': gravity}
     space = LatticeSpace((CELLS,), spacing=1 / CELLS, boundary='periodic')
     field = FieldElement('channel', element=element, space=space, values=values, discretization='finite-volume')
-    return simulate(CompositeSystem(elements=[field], interactions=list(interactions)), until=0.2, dt=0.05).values(
+    return simulate(CompositeSystem(elements=[field], interactions=list(interactions)), until=0.2, dt=0.05).get_values(
         'channel.h',
     )
 
@@ -171,7 +171,7 @@ def test_run_without_numerical_flux_takes_the_divergence_on_a_spectral_field():
         riemann=None,
     )
     simulation = simulate(CompositeSystem(elements=[field], interactions=[burgers]), until=1.0, dt=0.1)
-    trajectory = simulation.values('line.u')
+    trajectory = simulation.get_values('line.u')
     assert trajectory[-1].sum() == pytest.approx(trajectory[0].sum(), abs=1e-9)
     assert not np.allclose(trajectory[-1], trajectory[0])
 

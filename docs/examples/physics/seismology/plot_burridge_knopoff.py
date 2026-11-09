@@ -38,7 +38,7 @@ trajectory = simulate(system, until=2000, dt=10.0, observers=[observer])
 # the size of the earthquakes in it: most frames should be quiet, and the others should spread over a wide range of
 # sizes.
 
-x = trajectory.values('fault.x')
+x = trajectory.get_values('fault.x')
 steps = np.diff(x, axis=0)
 slips = np.where(steps > 0.3, steps, 0.0)
 sizes = slips.sum(axis=1)

@@ -29,8 +29,8 @@ class CrankNicolsonSolver(SplitSolver):
 
     def _step(self, t: float, x: Array, p: Array, h: float) -> Array:
         """Return the state after one Crank-Nicolson step with a predicted remainder."""
-        explicit = x + h / 2 * self._linear(x)
-        start = self._remainder(t, x, p)
+        explicit = x + h / 2 * self._get_linear(x)
+        start = self._get_remainder(t, x, p)
         predicted = self._solve_linear(h / 2, explicit + h * start)
-        average = (start + self._remainder(t + h, predicted, p)) / 2
+        average = (start + self._get_remainder(t + h, predicted, p)) / 2
         return self._solve_linear(h / 2, explicit + h * average)

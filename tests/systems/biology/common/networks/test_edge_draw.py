@@ -25,7 +25,7 @@ def _weights(noise, fresh, until=3):
     draw = EdgeDrawInteraction('draw', target='nodes', edges='edges', noise=noise)
     system = CompositeSystem(elements=[nodes, edges], interactions=[draw], time=DiscreteTime())
     trajectory = simulate(system, random_state=0, until=until)
-    return np.asarray(trajectory.values('edges.w'))
+    return np.asarray(trajectory.get_values('edges.w'))
 
 
 def test_edge_draw_draws_new_weights_once_in_the_range():

@@ -30,7 +30,7 @@ trajectory = simulate(system, dt=0.1, observers=[observer], until=20)
 # At the fixed point of `dC/dt = C (alpha1 |dp|^gamma - alpha2)` every pressure drop is `(alpha2 / alpha1)^(1 /
 # gamma) = 1`, and the conductances grow towards the source at the corner.
 
-conductances = trajectory.values('vessels.C')
+conductances = trajectory.get_values('vessels.C')
 adaptation = system.interactions[0]
 drops = np.abs(adaptation._pressure_drops(conductances[-1]))
 graph = nx.convert_node_labels_to_integers(nx.grid_2d_graph(6, 6), label_attribute='position')

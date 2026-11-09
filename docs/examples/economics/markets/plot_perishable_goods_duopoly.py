@@ -83,11 +83,11 @@ asymmetries = []
 for temperature in temperatures:
     system_system = PerishableGoodsDuopolySystem(customers=100, T=temperature, random_state=1)
     run = simulate(system_system, random_state=1)
-    asymmetries.append(np.abs(run.values('m')[-100:]).mean())
+    asymmetries.append(np.abs(run.get_values('m')[-100:]).mean())
 grid = np.linspace(0.2, 1.7, 200) * CRITICAL
 
 fig, (series, transition) = plt.subplots(1, 2, figsize=(10, 4))
-series.plot(trajectory.times, trajectory.values('m'))
+series.plot(trajectory.times, trajectory.get_values('m'))
 series.axhline(mean_field_asymmetry(0.1), color='black', linestyle='--', label='+-m* of mean field')
 series.axhline(-mean_field_asymmetry(0.1), color='black', linestyle='--')
 series.set_xlabel('time')

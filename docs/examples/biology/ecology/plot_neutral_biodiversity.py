@@ -52,7 +52,7 @@ counts /= np.sum(times >= 200)
 bins = list(itertools.pairwise(2 ** np.arange(9)))
 
 fig, (richness, distribution) = plt.subplots(1, 2, figsize=(10, 4))
-richness.plot(times, trajectory.values('richness'), label='simulated')
+richness.plot(times, trajectory.get_values('richness'), label='simulated')
 richness.axhline(expected_richness, color='black', linestyle='--', label='S_N')
 richness.set_xlabel('time')
 richness.set_ylabel('number of species')

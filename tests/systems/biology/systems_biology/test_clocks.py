@@ -18,7 +18,7 @@ def test_circadian_clock_period_is_about_a_day():
     """Test that Goldbeter's PER system oscillates with a period of about 23.7 hours."""
     trajectory = simulate(CircadianClockSystem(), dt=0.5, until=240)
     keep = trajectory.times > 48
-    mrna = trajectory.values('clock.M')[keep]
+    mrna = trajectory.get_values('clock.M')[keep]
     periods = _crossing_periods(trajectory.times[keep], mrna, mrna.mean())
     assert abs(periods.mean() - 23.7) < 1.0
 
@@ -29,7 +29,7 @@ def test_circadian_clock_period_lengthens_with_degradation():
     for v_d in (0.8, 1.6):
         trajectory = simulate(CircadianClockSystem(v_d=v_d), dt=0.1, until=480)
         keep = trajectory.times > 240
-        mrna = trajectory.values('clock.M')[keep]
+        mrna = trajectory.get_values('clock.M')[keep]
         periods.append(_crossing_periods(trajectory.times[keep], mrna, mrna.mean()).mean())
     assert periods[0] == pytest.approx(22.6, abs=0.5)
     assert periods[1] == pytest.approx(29.3, abs=0.5)

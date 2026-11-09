@@ -42,20 +42,20 @@ from ._rings import PhaseRingVisual
 from ._scalars import ScalarsVisual
 from ._sites import SiteVisual
 
-_RENEWAL_MEMBERS = 20
-_VIEWER_FLUSH_SECONDS = 30.0
-_FILE_FLUSH_TICK_SECONDS = 10**9
-_EXTRA = 'extra'
-_UNSAFE = re.compile(r'[^A-Za-z0-9_/.-]')
-_MAX_SERIES_PER_VIEW = 6
-_MAX_VIEWS_PER_ROW = 3
-_SERIES_WIDTH = 2.5
-_SPATIAL_ROW_SHARE = 2.0
-_SERIES_ROW_SHARE = 1.0
-_WHOLE_RUN = rrb.TimeAxis(
+RENEWAL_MEMBERS = 20
+VIEWER_FLUSH_SECONDS = 30.0
+FILE_FLUSH_TICK_SECONDS = 10**9
+EXTRA = 'extra'
+UNSAFE = re.compile(r'[^A-Za-z0-9_/.-]')
+MAX_SERIES_PER_VIEW = 6
+MAX_VIEWS_PER_ROW = 3
+SERIES_WIDTH = 2.5
+SPATIAL_ROW_SHARE = 2.0
+SERIES_ROW_SHARE = 1.0
+WHOLE_RUN = rrb.TimeAxis(
     view_range=rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite()),
 )
-_VISUALS: dict[str, type[BaseVisual]] = {
+VISUALS: dict[str, type[BaseVisual]] = {
     'agents': AgentsVisual,
     'axes': AxisVisual,
     'bodies': BodiesVisual,
@@ -226,17 +226,17 @@ class RerunObserver(BaseObserver):
         # Rerun keeps the threads of a recording until its orphans are cleaned up, so a process running many
         # simulations, such as the docs build, would otherwise run out of threads.
         bindings.flush_and_cleanup_orphaned_recordings()
-        self.recording_ = rr.RecordingStream(self.application_id, batcher_config=self._batcher_config())
+        self.recording_ = rr.RecordingStream(self.application_id, batcher_config=self._get_batcher_config())
         agents = problem.agents
         self.visuals_: list[BaseVisual] = [
-            *(self._visual_of(element).prepare(problem) for element in problem.elements),
-            *(self._agents_visual_of(group, problem).prepare(problem) for group in agents),
-            *self._matrix_visuals(problem),
+            *(self._get_visual_of(element).prepare(problem) for element in problem.elements),
+            *(self._get_agents_visual_of(group, problem).prepare(problem) for group in agents),
+            *self._get_matrix_visuals(problem),
         ]
-        spatial, series = self._ordered_views(problem)
-        rows = [spatial, series] if self.primary is None else self._with_primary(spatial, series, self.primary)
+        spatial, series = self._get_ordered_views(problem)
+        rows = [spatial, series] if self.primary is None else self._copy_with_primary(spatial, series, self.primary)
         self.views_ = [view for row in rows for view in row]
-        self.blueprint_ = self._default_blueprint(rows, spatial) if self.blueprint == 'default' else self.blueprint
+        self.blueprint_ = self._get_default_blueprint(rows, spatial) if self.blueprint == 'default' else self.blueprint
         if self.save_path is not None:
             self.recording_.save(self.save_path, default_blueprint=self.blueprint_)
             if self.blueprint_ is not None:
@@ -246,7 +246,7 @@ class RerunObserver(BaseObserver):
             warnings.warn(warning_msg, UserWarning, stacklevel=2)
         elif self.spawn:
             rr.spawn(
-                executable_path=self._viewer_executable(),
+                executable_path=self._get_viewer_executable(),
                 recording=self.recording_,
                 default_blueprint=self.blueprint_,
             )
@@ -268,21 +268,21 @@ class RerunObserver(BaseObserver):
         names = ('DISPLAY', 'WAYLAND_DISPLAY', 'WAYLAND_SOCKET')
         return sys.platform == 'linux' and not any(os.environ.get(name) for name in names)
 
-    def _visual_of(self, element: CompiledElementSpec | CompiledAgentsSpec) -> BaseVisual:
+    def _get_visual_of(self, element: CompiledElementSpec | CompiledAgentsSpec) -> BaseVisual:
         """Return the visual the spec of an element names.
 
         It is built with the options of the spec.
         """
         spec = element.visual
-        visual = _VISUALS[spec.kind] if isinstance(spec.kind, str) else spec.kind
+        visual = VISUALS[spec.kind] if isinstance(spec.kind, str) else spec.kind
         return visual(**dict(spec.options), path=element.path, recording=self.recording_)
 
-    def _agents_visual_of(self, agents: CompiledAgentsSpec, problem: BaseProblemSpec) -> AgentsVisual:
+    def _get_agents_visual_of(self, agents: CompiledAgentsSpec, problem: BaseProblemSpec) -> AgentsVisual:
         """Return the visual of an agent group.
 
         It is its declared agents visual, or the histogram visual without a space.
         """
-        visual = self._visual_of(agents)
+        visual = self._get_visual_of(agents)
         if not isinstance(visual, AgentsVisual):
             visual = AgentsVisual(path=agents.path, recording=self.recording_)
         if problem.agent_space is None and type(visual) is AgentsVisual and visual.position is None:
@@ -294,7 +294,7 @@ class RerunObserver(BaseObserver):
             )
         return visual
 
-    def _scalar_views(self, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_scalar_views(self, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return the time series views of the scalar elements.
 
         There is one per element type with at most six series each.
@@ -303,16 +303,16 @@ class RerunObserver(BaseObserver):
         for visual in self.visuals_:
             if isinstance(visual, ScalarsVisual) and isinstance(visual.element_, CompiledElementSpec):
                 element = visual.element_
-                groups.setdefault(self._type_name(element), []).extend((element, view) for view in visual.views_)
+                groups.setdefault(self._get_type_name(element), []).extend((element, view) for view in visual.views_)
         views: list[rrb.View] = []
         for name, members in groups.items():
-            chunks = list(self._chunks(members, problem))
+            chunks = list(self._get_chunks(members, problem))
             for number, chunk in enumerate(chunks, start=1):
                 label = name if len(chunks) == 1 else f'{name} {number}'
-                views.append(self._series_view([view for _, view in chunk], label))
+                views.append(self._get_series_view([view for _, view in chunk], label))
         return views
 
-    def _element_views(self) -> tuple[list[rrb.View], list[rrb.View]]:
+    def _get_element_views(self) -> tuple[list[rrb.View], list[rrb.View]]:
         """Return the spatial and time series views of the elements of other visuals.
 
         Points share one spatial view per dimension, since the elements of a system share its space.
@@ -330,9 +330,9 @@ class RerunObserver(BaseObserver):
                     points.setdefault(type(view), []).append(view)
                 else:
                     spatial.append(view)
-        return [*spatial, *(self._merged(views, 'points') for views in points.values())], series
+        return [*spatial, *(self._get_merged(views, 'points') for views in points.values())], series
 
-    def _agent_views(self, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_agent_views(self, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return the views of the agents.
 
         They are merged into one per view class when the groups share a space.
@@ -344,9 +344,9 @@ class RerunObserver(BaseObserver):
         by_class: dict[type, list[rrb.View]] = {}
         for view in views:
             by_class.setdefault(type(view), []).append(view)
-        return [self._merged(group, 'agents') for group in by_class.values()]
+        return [self._get_merged(group, 'agents') for group in by_class.values()]
 
-    def _summary_views(self, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_summary_views(self, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return the time series views of the observables and the agent reporters.
 
         Optionally, the parameters get views too.
@@ -356,14 +356,16 @@ class RerunObserver(BaseObserver):
         problems = (problem, *problem.partition_problems)
         paths += [f'{renewal.label}.renewals' for item in problems for renewal in getattr(item, 'renewals', ())]
         if paths:
-            views.append(self._series_view([rrb.TimeSeriesView(origin=f'/{path}') for path in paths], 'observables'))
+            views.append(
+                self._get_series_view([rrb.TimeSeriesView(origin=f'/{path}') for path in paths], 'observables'),
+            )
         if problem.agents:
-            views.append(self._series_view([rrb.TimeSeriesView(origin='/reporters')], 'reporters'))
+            views.append(self._get_series_view([rrb.TimeSeriesView(origin='/reporters')], 'reporters'))
         if self.parameters and problem.parameters.names:
-            views.append(self._series_view([rrb.TimeSeriesView(origin='/parameters')], 'parameters'))
+            views.append(self._get_series_view([rrb.TimeSeriesView(origin='/parameters')], 'parameters'))
         return views
 
-    def _matrix_visuals(self, problem: BaseProblemSpec) -> list[BaseVisual]:
+    def _get_matrix_visuals(self, problem: BaseProblemSpec) -> list[BaseVisual]:
         """Return the heat maps of the trained matrices of a system that trains.
 
         Other problems get none.
@@ -378,7 +380,7 @@ class RerunObserver(BaseObserver):
             for name in matrices
         ]
 
-    def _learning_views(self, problem: LearningProblemSpec) -> list[rrb.View]:
+    def _get_learning_views(self, problem: LearningProblemSpec) -> list[rrb.View]:
         """Return the time series view of the loss and the metrics over epochs.
 
         The heat maps of the matrices follow it.
@@ -386,27 +388,27 @@ class RerunObserver(BaseObserver):
         loss = rrb.TimeSeriesView(origin=f'/reporters/{problem.training}', name='loss')
         return [loss, *(view for visual in self.visuals_ for view in visual.views_)]
 
-    def _ordered_views(self, problem: BaseProblemSpec) -> tuple[list[rrb.View], list[rrb.View]]:
+    def _get_ordered_views(self, problem: BaseProblemSpec) -> tuple[list[rrb.View], list[rrb.View]]:
         """Return the spatial views and the time series views of a problem.
 
         Each comes in order of importance. A system that trains has no spatial view of its own, and its loss leads the
         heat maps of its matrices.
         """
         if isinstance(problem, LearningProblemSpec):
-            return [], [self._whole_run(view) for view in self._learning_views(problem)]
-        spatial, series = self._element_views()
-        spatial = [*spatial, *self._agent_views(problem)]
-        series = [*self._scalar_views(problem), *series, *self._summary_views(problem)]
-        return [self._whole_run(view) for view in spatial], [self._whole_run(view) for view in series]
+            return [], [self._get_whole_run(view) for view in self._get_learning_views(problem)]
+        spatial, series = self._get_element_views()
+        spatial = [*spatial, *self._get_agent_views(problem)]
+        series = [*self._get_scalar_views(problem), *series, *self._get_summary_views(problem)]
+        return [self._get_whole_run(view) for view in spatial], [self._get_whole_run(view) for view in series]
 
-    def _default_blueprint(self, rows: list[list[rrb.View]], spatial: list[rrb.View]) -> rrb.Blueprint:
+    def _get_default_blueprint(self, rows: list[list[rrb.View]], spatial: list[rrb.View]) -> rrb.Blueprint:
         """Return the blueprint of rows of views.
 
         A row of spatial views is taller than a row of time series views.
         """
-        containers = [self._row(views) for views in rows if views]
+        containers = [self._get_row(views) for views in rows if views]
         if len(containers) > 1:
-            shares = [_SPATIAL_ROW_SHARE, _SERIES_ROW_SHARE] if rows[0] is spatial else [_SERIES_ROW_SHARE] * 2
+            shares = [SPATIAL_ROW_SHARE, SERIES_ROW_SHARE] if rows[0] is spatial else [SERIES_ROW_SHARE] * 2
             root: rrb.View | rrb.Container = rrb.Vertical(*containers, row_shares=shares)
         else:
             root = containers[0] if containers else rrb.Vertical()
@@ -433,17 +435,17 @@ class RerunObserver(BaseObserver):
         owners = {element.path for element in frame.problem.elements}
         for name, observed in frame.observables.items():
             values = np.atleast_1d(np.abs(observed) if np.iscomplexobj(observed) else observed)
-            self.recording_.log(self._entity_path(name, owners), rr.Scalars(values))
+            self.recording_.log(self._get_entity_path(name, owners), rr.Scalars(values))
         for name in frame.problem.parameters.names:
-            parameter = frame.value(name)
+            parameter = frame.get_value(name)
             if np.ndim(parameter) <= MATRIX_RANK:
                 BaseVisual._log_scalars(self.recording_, f'parameters/{name}', parameter)
         for record in frame.events:
             if isinstance(record, RenewalRecordSpec):
-                self.recording_.log(f'renewals/{record.label}', rr.TextLog(self._renewal_text(record)))
+                self.recording_.log(f'renewals/{record.label}', rr.TextLog(self._get_renewal_text(record)))
         self.logged_frames_ += 1
 
-    def _batcher_config(self) -> rr.ChunkBatcherConfig:
+    def _get_batcher_config(self) -> rr.ChunkBatcherConfig:
         """Return the batching of the recording.
 
         It batches by size alone when no viewer waits for the frames. Rerun flushes its batches every 200 ms by default,
@@ -453,7 +455,7 @@ class RerunObserver(BaseObserver):
         """
         config = rr.ChunkBatcherConfig.DEFAULT()
         if not (self.spawn or self.connect):
-            config.flush_tick = _FILE_FLUSH_TICK_SECONDS
+            config.flush_tick = FILE_FLUSH_TICK_SECONDS
         return config
 
     def _release(self) -> None:
@@ -465,7 +467,7 @@ class RerunObserver(BaseObserver):
             self.recording_.flush()
             return
         try:
-            self.recording_.flush(timeout_sec=_VIEWER_FLUSH_SECONDS)
+            self.recording_.flush(timeout_sec=VIEWER_FLUSH_SECONDS)
         except RuntimeError as error:
             warning_msg = f'The Rerun viewer did not receive the whole recording: {error}'
             warnings.warn(warning_msg, UserWarning, stacklevel=2)
@@ -487,37 +489,37 @@ class RerunObserver(BaseObserver):
             static:
                 Whether the archetype holds for the whole recording.
         """
-        self.recording_.log(f'{_EXTRA}/{self._sanitised(path)}', archetype, static=static)
+        self.recording_.log(f'{EXTRA}/{self._get_sanitised(path)}', archetype, static=static)
 
     @staticmethod
-    def _sanitised(path: str) -> str:
+    def _get_sanitised(path: str) -> str:
         """Return an entity path with every character Rerun would escape replaced.
 
         Such a character, like a space, is replaced by an underscore.
         """
-        return _UNSAFE.sub('_', path)
+        return UNSAFE.sub('_', path)
 
     @staticmethod
-    def _entity_path(name: str, owners: set[str]) -> str:
+    def _get_entity_path(name: str, owners: set[str]) -> str:
         """Return the entity path of an observable.
 
         It is under its element when it is an element's dotted output.
         """
         owner, _, leaf = name.rpartition('.')
-        return RerunObserver._sanitised(f'{owner}/{leaf}' if owner in owners else name)
+        return RerunObserver._get_sanitised(f'{owner}/{leaf}' if owner in owners else name)
 
     @staticmethod
-    def _renewal_text(record: RenewalRecordSpec) -> str:
+    def _get_renewal_text(record: RenewalRecordSpec) -> str:
         """Return the text log entry of the renewals of one pass.
 
         It names the members that renewed.
         """
-        shown = ', '.join(str(member) for member in record.members[:_RENEWAL_MEMBERS].tolist())
-        more = f' and {record.members.size - _RENEWAL_MEMBERS} more' if record.members.size > _RENEWAL_MEMBERS else ''
+        shown = ', '.join(str(member) for member in record.members[:RENEWAL_MEMBERS].tolist())
+        more = f' and {record.members.size - RENEWAL_MEMBERS} more' if record.members.size > RENEWAL_MEMBERS else ''
         return f'{record.members.size} renewals up to t = {record.time:.6g} of members {shown}{more}'
 
     @staticmethod
-    def _viewer_executable() -> str | None:
+    def _get_viewer_executable() -> str | None:
         """Return the Rerun viewer installed next to the running interpreter.
 
         It returns `None` to search `PATH`.
@@ -529,7 +531,7 @@ class RerunObserver(BaseObserver):
         return None
 
     @staticmethod
-    def _contents(view: rrb.View) -> list[str]:
+    def _get_contents(view: rrb.View) -> list[str]:
         """Return the entity path expressions of a view with its origin written out."""
         contents = view.contents if isinstance(view.contents, list | tuple) else [view.contents]
         origin = '/' + str(view.origin).strip('/')
@@ -537,34 +539,34 @@ class RerunObserver(BaseObserver):
         return [expression if expression[0] in '+-/' else f'/{expression}' for expression in expressions]
 
     @staticmethod
-    def _merged(views: list[rrb.View], name: str) -> rrb.View:
+    def _get_merged(views: list[rrb.View], name: str) -> rrb.View:
         """Return one view that shows the contents of every view.
 
         It is of the class of the first view.
         """
         if len(views) == 1:
             return views[0]
-        contents = [expression for view in views for expression in RerunObserver._contents(view)]
+        contents = [expression for view in views for expression in RerunObserver._get_contents(view)]
         kind: Callable[..., rrb.View] = type(views[0])
         return kind(origin='/', contents=contents, name=name)
 
     @staticmethod
-    def _series_view(views: list[rrb.View], name: str) -> rrb.TimeSeriesView:
+    def _get_series_view(views: list[rrb.View], name: str) -> rrb.TimeSeriesView:
         """Return a time series view of several time series views over the whole run.
 
         Its lines are wide enough to read.
         """
-        contents = [expression for view in views for expression in RerunObserver._contents(view)]
+        contents = [expression for view in views for expression in RerunObserver._get_contents(view)]
         return rrb.TimeSeriesView(
             origin='/',
             contents=contents,
             name=name,
-            defaults=[rr.SeriesLines.from_fields(widths=_SERIES_WIDTH)],
-            axis_x=_WHOLE_RUN,
+            defaults=[rr.SeriesLines.from_fields(widths=SERIES_WIDTH)],
+            axis_x=WHOLE_RUN,
         )
 
     @staticmethod
-    def _whole_run(view: rrb.View) -> rrb.View:
+    def _get_whole_run(view: rrb.View) -> rrb.View:
         """Return a time series view with the whole-run time axis and readable lines.
 
         Any other view is returned unchanged.
@@ -576,19 +578,19 @@ class RerunObserver(BaseObserver):
             origin=view.origin,
             contents=view.contents,
             name=view.name,
-            defaults=[rr.SeriesLines.from_fields(widths=_SERIES_WIDTH)],
-            axis_x=_WHOLE_RUN,
+            defaults=[rr.SeriesLines.from_fields(widths=SERIES_WIDTH)],
+            axis_x=WHOLE_RUN,
             plot_legend=legend if isinstance(legend, rrb.PlotLegend) else None,
         )
 
     @staticmethod
-    def _type_name(element: CompiledElementSpec) -> str:
+    def _get_type_name(element: CompiledElementSpec) -> str:
         """Return the name of the element type of an element or of the members of a group."""
         kind = getattr(element.element, 'element', None) or type(element.element)
         return str(getattr(kind, '__name__', type(element.element).__name__))
 
     @staticmethod
-    def _chunks(
+    def _get_chunks(
         elements: list[tuple[CompiledElementSpec, rrb.View]],
         problem: BaseProblemSpec,
     ) -> Iterator[list[tuple[CompiledElementSpec, rrb.View]]]:
@@ -601,7 +603,7 @@ class RerunObserver(BaseObserver):
         for element, view in elements:
             shown = [name for name in element.states.values() if problem.companions.get(name, ('',))[0] != 'lag']
             series = len(shown) * (element.members or 1)
-            if chunk and count + series > _MAX_SERIES_PER_VIEW:
+            if chunk and count + series > MAX_SERIES_PER_VIEW:
                 yield chunk
                 chunk, count = [], 0
             chunk.append((element, view))
@@ -610,7 +612,7 @@ class RerunObserver(BaseObserver):
             yield chunk
 
     @staticmethod
-    def _with_primary(spatial: list[rrb.View], series: list[rrb.View], primary: str) -> list[list[rrb.View]]:
+    def _copy_with_primary(spatial: list[rrb.View], series: list[rrb.View], primary: str) -> list[list[rrb.View]]:
         """Return the rows of views with the view of a name or an origin first.
 
         It comes first in the first row.
@@ -624,10 +626,10 @@ class RerunObserver(BaseObserver):
         raise ValidationError(error_msg)
 
     @staticmethod
-    def _row(views: list[rrb.View]) -> rrb.View | rrb.Container:
+    def _get_row(views: list[rrb.View]) -> rrb.View | rrb.Container:
         """Return a single view, views side by side, or a grid of views."""
         if len(views) == 1:
             return views[0]
-        if len(views) <= _MAX_VIEWS_PER_ROW:
+        if len(views) <= MAX_VIEWS_PER_ROW:
             return rrb.Horizontal(*views)
         return rrb.Grid(*views, grid_columns=math.ceil(math.sqrt(len(views))))

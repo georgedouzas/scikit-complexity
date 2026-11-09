@@ -27,7 +27,7 @@ from ....conftest import CallableGrowthInteraction, HoldingElement, _correlated,
 def _final(system, backend, until):
     """Return the last recorded state of a run of a system on a backend."""
     trajectory = simulate(system, until=until, backend=backend, random_state=0)
-    return np.array([trajectory.values(name)[-1] for name in trajectory.names])
+    return np.array([trajectory.get_values(name)[-1] for name in trajectory.names])
 
 
 @pytest.mark.parametrize(('factory', 'until'), [(LogisticMapSystem, 50), (LotkaVolterraSystem, 20.0)])

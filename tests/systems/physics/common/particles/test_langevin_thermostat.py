@@ -26,5 +26,5 @@ def test_langevin_thermostat_reaches_its_temperature(solver, dt):
         space=gas.space,
     )
     trajectory = simulate(system, until=20, solver=solver, dt=dt, random_state=0)
-    temperature = (trajectory.values('gas.x_d1')[-5:] ** 2).sum(axis=2).mean() / 2
+    temperature = (trajectory.get_values('gas.x_d1')[-5:] ** 2).sum(axis=2).mean() / 2
     assert temperature == pytest.approx(2.0, rel=0.05)

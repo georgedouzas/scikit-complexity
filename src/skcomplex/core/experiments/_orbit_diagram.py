@@ -120,7 +120,7 @@ def orbit_diagram(
     until = transient + (keep - 1) * step
     if vectorized:
         trajectory, _ = _run_replicated(system, {parameter: list(values)}, until, step, random_state)
-        observed = np.asarray(trajectory.values(observable), dtype=np.float64)
+        observed = np.asarray(trajectory.get_values(observable), dtype=np.float64)
         series = observed[np.asarray(trajectory.times) >= transient - 1e-9]
         points = [series[:, index] for index in range(len(values))]
     else:

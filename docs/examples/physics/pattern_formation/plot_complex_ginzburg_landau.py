@@ -38,8 +38,8 @@ trajectory = simulate(system, until=150, observers=[observer])
 # cycle, the number of defects should settle to fluctuate around a steady value, the signature of defect turbulence,
 # while the mean amplitude `|A|` stays a little below 1, held down by the defects and the phase gradients.
 
-real = np.asarray(trajectory.lattice('medium.u'))
-imaginary = np.asarray(trajectory.lattice('medium.v'))
+real = np.asarray(trajectory.get_lattice('medium.u'))
+imaginary = np.asarray(trajectory.get_lattice('medium.v'))
 phase = np.angle(real + 1j * imaginary)
 right, down = np.roll(phase, -1, axis=-1), np.roll(phase, -1, axis=-2)
 corner = np.roll(right, -1, axis=-2)

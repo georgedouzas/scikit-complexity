@@ -34,7 +34,7 @@ def _core_system(**values):
 def _objective(system):
     """Return the objective of the only program of a static system."""
     trajectory = simulate(system, until=0.0)
-    return float(trajectory.values('cell.objective_0')[0])
+    return float(trajectory.get_values('cell.objective_0')[0])
 
 
 def test_cobra_variability_fixes_growth_at_the_optimum():

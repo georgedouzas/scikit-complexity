@@ -52,8 +52,8 @@ for site in np.argsort(space.lengths_, kind='stable'):
             assigned[fresh] = True
 image = simulate(SurjectiveLinearAutomatonSystem(radius=5, initial=preimage), until=1)
 inner = space.lengths_ <= 3
-hits = (image.values('cells.first')[-1][inner] == target[inner, 0]) & (
-    image.values('cells.second')[-1][inner] == target[inner, 1]
+hits = (image.get_values('cells.first')[-1][inner] == target[inner, 0]) & (
+    image.get_values('cells.second')[-1][inner] == target[inner, 1]
 )
 fig, ax = plt.subplots(figsize=(7, 4))
 lengths = space.lengths_[inner]
@@ -61,6 +61,6 @@ ax.plot(np.unique(lengths), [hits[lengths == length].mean() for length in np.uni
 ax.set_xlabel('word length')
 ax.set_ylabel('fraction of cells where the image hits the target')
 ax.set_ylim(0, 1.05)
-zero = not (vanishing.values('cells.first')[-1].any() or vanishing.values('cells.second')[-1].any())
+zero = not (vanishing.get_values('cells.first')[-1].any() or vanishing.get_values('cells.second')[-1].any())
 ax.set_title(f'(0, 1) at the identity maps to 0: {zero}')
 plt.show()

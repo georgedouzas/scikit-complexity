@@ -31,7 +31,7 @@ trajectory = simulate(system, observers=[observer])
 # consumption, computed from the solution, should match the marginal product of capital net of depreciation and the
 # discount rate. It falls to 0 as capital approaches the golden rule `k* = (alpha / (delta + rho))^(1 / (1 - alpha))`.
 
-times, capital, consumption = trajectory.times, trajectory.values('economy.k'), trajectory.values('economy.c')
+times, capital, consumption = trajectory.times, trajectory.get_values('economy.k'), trajectory.get_values('economy.c')
 growth = np.gradient(np.log(consumption), times)
 euler = 0.3 * capital ** (0.3 - 1) - 0.05 - 0.03
 golden = (0.3 / 0.08) ** (1 / 0.7)

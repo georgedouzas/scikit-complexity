@@ -13,7 +13,7 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.epidemiology import SIRSystem
 
 trajectory = simulate(SIRSystem())
-trajectory.values('I.x').max().round()
+trajectory.get_values('I.x').max().round()
 ```
 
 A system class tells you what it is through plain attributes and methods:

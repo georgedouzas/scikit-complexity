@@ -243,7 +243,7 @@ def test_validation_reports_an_element_with_an_invalid_label_by_its_path():
 def test_element_decays_at_its_own_rate():
     """Test that the laws of an element run with its own parameters."""
     trajectory = simulate(CompositeSystem(elements=[DecayingElement('a', n=1.0)]), until=1, dt=1)
-    assert np.isclose(trajectory.values('a.n')[-1], np.exp(-0.2), rtol=1e-3)
+    assert np.isclose(trajectory.get_values('a.n')[-1], np.exp(-0.2), rtol=1e-3)
 
 
 def test_expression_of_states_is_an_observable_of_the_laws():
@@ -255,8 +255,8 @@ def test_expression_of_states_is_an_observable_of_the_laws():
     )
     leverage = ObservableSpec('leverage', _firm_leverage)
     trajectory = simulate(system, until=2, dt=0.5, observables=[leverage])
-    debt, equity = trajectory.values('firm.debt'), trajectory.values('firm.equity')
-    np.testing.assert_allclose(trajectory.values('leverage'), debt / equity)
+    debt, equity = trajectory.get_values('firm.debt'), trajectory.get_values('firm.equity')
+    np.testing.assert_allclose(trajectory.get_values('leverage'), debt / equity)
 
 
 def test_agent_state_named_like_view_raises_error():
@@ -277,7 +277,7 @@ def test_numpy_scalar_times_vector_is_rejected():
 def test_numpy_scalar_values_match_floats():
     """Test that NumPy scalar law values run like the same laws written with Python floats."""
     first, second = (
-        simulate(CompositeSystem(elements=[element('d')]), until=2, dt=0.5).values('d.x')
+        simulate(CompositeSystem(elements=[element('d')]), until=2, dt=0.5).get_values('d.x')
         for element in (NumpyDecayElement, FloatDecayElement)
     )
     assert np.array_equal(first, second)

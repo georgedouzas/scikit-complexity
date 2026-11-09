@@ -12,7 +12,7 @@ def _run(interaction, n0, until=4.0, dt=0.01):
     """Return the times and the population of one compartment under one interaction."""
     system = CompositeSystem(elements=[CompartmentElement('population', x=n0)], interactions=[interaction])
     trajectory = simulate(system, dt=dt, until=until)
-    return np.asarray(trajectory.times), np.asarray(trajectory.values('population.x'))
+    return np.asarray(trajectory.times), np.asarray(trajectory.get_values('population.x'))
 
 
 def test_exponential_growth_follows_its_closed_solution():

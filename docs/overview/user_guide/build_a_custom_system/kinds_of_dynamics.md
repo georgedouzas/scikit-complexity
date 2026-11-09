@@ -9,7 +9,7 @@ from skcomplex.systems.biology.epidemiology import SIRSystem
 
 system = SIRSystem()
 trajectory = simulate(system)
-sorted(system.get_tags().laws), sorted(system.get_tags().time), trajectory.values('R.x')[-1].round(1)
+sorted(system.get_tags().laws), sorted(system.get_tags().time), trajectory.get_values('R.x')[-1].round(1)
 ```
 
 The SIR model returns rates in continuous time, so its tags choose an ordinary differential equation solver.

@@ -39,8 +39,8 @@ def effective(x, y):
     return x**2 + y**2 + 2 * (1 - MU) / np.hypot(x + MU, y) + 2 * MU / np.hypot(x - 1 + MU, y)
 
 
-x, y = np.ravel(trajectory.values('body.x')), np.ravel(trajectory.values('body.y'))
-px, py = np.ravel(trajectory.values('body.px')), np.ravel(trajectory.values('body.py'))
+x, y = np.ravel(trajectory.get_values('body.x')), np.ravel(trajectory.get_values('body.y'))
+px, py = np.ravel(trajectory.get_values('body.px')), np.ravel(trajectory.get_values('body.py'))
 vx, vy = px + y, py - x
 jacobi = effective(x, y) - vx**2 - vy**2
 grid_x, grid_y = np.meshgrid(np.linspace(-1.6, 1.6, 400), np.linspace(-1.6, 1.6, 400))

@@ -31,7 +31,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 trajectory = simulate(PolyaUrnSystem(n_urns=6), until=200, observers=[observer], random_state=0)
-share = trajectory.values('urns.red') / (trajectory.values('urns.red') + trajectory.values('urns.blue'))
+share = trajectory.get_values('urns.red') / (trajectory.get_values('urns.red') + trajectory.get_values('urns.blue'))
 for urn in range(6):
     observer.recording_.send_columns(
         f'share/urn_{urn}',
@@ -55,7 +55,7 @@ shares.set_title('Each urn freezes at its own share')
 grid = np.linspace(0, 1, 100)
 for red, color in ((1, 'C0'), (2, 'C1')):
     urns = simulate(PolyaUrnSystem(n_urns=2000, red=red), until=200, random_state=1)
-    share = urns.values('urns.red')[-1] / (urns.values('urns.red')[-1] + urns.values('urns.blue')[-1])
+    share = urns.get_values('urns.red')[-1] / (urns.get_values('urns.red')[-1] + urns.get_values('urns.blue')[-1])
     limits.hist(share, bins=20, range=(0, 1), density=True, alpha=0.5, color=color, label=f'red = {red}, blue = 1')
     limits.plot(grid, stats.beta.pdf(grid, red, 1), color=color)
 limits.set_xlabel('share of red after 200 draws')

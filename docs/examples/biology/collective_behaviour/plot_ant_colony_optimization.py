@@ -39,7 +39,7 @@ for (first, second), length, kept in zip(search.edges, search.lengths, is_open, 
     graph.add_edge(first, second, weight=length if kept else np.inf)
 before = nx.Graph([(a, b, {'weight': length}) for (a, b), length in zip(search.edges, search.lengths, strict=True)])
 fig, (series, roads) = plt.subplots(1, 2, figsize=(11, 4.5))
-series.plot(trajectory.times, trajectory.values('search.shortest'), label='shortest path of a round')
+series.plot(trajectory.times, trajectory.get_values('search.shortest'), label='shortest path of a round')
 series.axhline(nx.shortest_path_length(before, search.start, search.target, weight='weight'), color='black', ls='--')
 series.axhline(nx.shortest_path_length(graph, search.start, search.target, weight='weight'), color='gray', ls=':')
 series.axvline(50, color='tab:red', alpha=0.5, label='cut')

@@ -38,7 +38,7 @@ cases[(0.9, 4.0)] = 'monotone, explosive'
 fig, (paths, regions) = plt.subplots(1, 2, figsize=(10, 4))
 for index, ((c, v), name) in enumerate(cases.items()):
     trajectory = simulate(MultiplierAcceleratorSystem(income=110.0, previous=100.0, c=c, v=v, G=G), until=25)
-    deviation = trajectory.values('economy.Y') - G / (1 - c)
+    deviation = trajectory.get_values('economy.Y') - G / (1 - c)
     root = np.roots([1, -c * (1 + v), c * v])[0]
     label = f'{name}, period {2 * np.pi / abs(np.angle(root)):.1f}' if np.iscomplex(root) else name
     paths.plot(trajectory.times, deviation, 'o-', ms=3, color=f'C{index}', label=label)

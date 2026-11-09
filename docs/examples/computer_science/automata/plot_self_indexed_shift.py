@@ -32,18 +32,18 @@ trajectory = simulate(SelfIndexedShiftSystem(radius=4, random_state=0), observer
 # 4 with every product a site, translating a configuration by an element `h` should translate its image by `h`, the
 # equivariance `τ(h x) = h τ(x)` that holds on every group.
 
-values = trajectory.values('cells.value')
+values = trajectory.get_values('cells.value')
 lost = (values == -1).mean(axis=1)
 finite = SelfIndexedShiftSystem(group=SymmetricGroup(4), radius=None, random_state=1)
 space = finite.prepare().system_.elements[0].space.prepare()
 products = space._get_translation_table(StateTranslationNeighborhood())[:, :, 0]
 start = finite.prepare().system_.elements[0].values['value']
-image = simulate(finite, until=1).values('cells.value')[-1]
+image = simulate(finite, until=1).get_values('cells.value')[-1]
 gaps = []
 for element in range(space.size_):
     inverse = int(np.flatnonzero(products[element] == 0)[0])
     moved = SelfIndexedShiftSystem(group=SymmetricGroup(4), radius=None, initial=start[products[inverse]])
-    moved_image = simulate(moved, until=1).values('cells.value')[-1]
+    moved_image = simulate(moved, until=1).get_values('cells.value')[-1]
     gaps.append(int((moved_image != image[products[inverse]]).sum()))
 fig, (truncation, equivariance) = plt.subplots(1, 2, figsize=(10, 4))
 truncation.plot(trajectory.times, lost, 'o-')

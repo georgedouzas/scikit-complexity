@@ -460,7 +460,7 @@ def test_composition_runs_in_a_simulation():
     )
     system = CompositeSystem(elements=[cells], interactions=composition.interactions)
     trajectory = simulate(system, until=1, dt=1)
-    np.testing.assert_array_equal(trajectory.values('cells.alive')[-1].astype(int), start)
+    np.testing.assert_array_equal(trajectory.get_values('cells.alive')[-1].astype(int), start)
 
 
 def test_golden_mean_shift_counts_follow_fibonacci():

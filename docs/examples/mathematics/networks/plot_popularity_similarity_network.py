@@ -50,7 +50,7 @@ temperatures = np.linspace(0.1, 0.9, 5)
 clustering = []
 for temperature in temperatures:
     run = simulate(PopularitySimilarityNetworkSystem(n_nodes=1000, temperature=temperature), until=997, random_state=1)
-    clustering.append(nx.average_clustering(run.network(-1).graph()))
+    clustering.append(nx.average_clustering(run.get_network(-1).graph()))
 fig, axis = plt.subplots(figsize=(6, 4))
 axis.plot(temperatures, clustering, 'o-')
 axis.set_xlabel('temperature')

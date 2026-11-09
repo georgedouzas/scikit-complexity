@@ -18,13 +18,13 @@ from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
 from ...errors import ValidationError
 from ..problems import BaseProblemSpec, FrameSpec, ProblemSpec
 from ..problems._linear_program_kernel import LinearProgramKernel
-from ._base import _GRID_RADIUS, _NODE_SPACING, _SERIES_COLORS, BaseVisual
+from ._base import GRID_RADIUS, NODE_SPACING, SERIES_COLORS, BaseVisual
 
 GRAPH_LIMIT = 100
 LAYOUT_SEED = 0
-NODE_RADIUS = _GRID_RADIUS * _NODE_SPACING / 2
-MAXIMUM_WIDTH = 0.2 * _NODE_SPACING
-MINIMUM_WIDTH = 0.005 * _NODE_SPACING
+NODE_RADIUS = GRID_RADIUS * NODE_SPACING / 2
+MAXIMUM_WIDTH = 0.2 * NODE_SPACING
+MINIMUM_WIDTH = 0.005 * NODE_SPACING
 
 
 class LinearProgramVisual(BaseVisual):
@@ -83,7 +83,7 @@ class LinearProgramVisual(BaseVisual):
         self.path = path
         self.recording = recording
 
-    def _kernel_of(self, problem: BaseProblemSpec | None) -> LinearProgramKernel:
+    def _get_kernel_of(self, problem: BaseProblemSpec | None) -> LinearProgramKernel:
         """Return the kernel of the linear program of the element at the visual's path."""
         kernels = problem.programs if isinstance(problem, ProblemSpec) else ()
         prefix = f'{self.path}.'
@@ -104,18 +104,18 @@ class LinearProgramVisual(BaseVisual):
             ValidationError:
                 No linear program sets a state of the element.
         """
-        self.kernel_ = self._kernel_of(context)
+        self.kernel_ = self._get_kernel_of(context)
         program = self.kernel_.program
         self.names_ = tuple(program.names if self.variables is None else self.variables)
-        self.positions_ = self._layout_graph() if self._draws_graph() else {}
+        self.positions_ = self._get_layout_graph() if self._get_draws_graph() else {}
         self._logged_graph = False
         super()._prepare(context)
 
-    def _draws_graph(self) -> bool:
+    def _get_draws_graph(self) -> bool:
         """Check whether the visual logs a graph."""
         return len(self.kernel_.program.names) <= GRAPH_LIMIT if self.graph is None else bool(self.graph)
 
-    def _edges(self) -> list[tuple[str, str, int]]:
+    def _get_edges(self) -> list[tuple[str, str, int]]:
         """Return an edge per nonzero coefficient.
 
         An edge holds its row, its variable, and the column of the variable.
@@ -123,36 +123,36 @@ class LinearProgramVisual(BaseVisual):
         program = self.kernel_.program
         matrix = program.matrix.tocoo()
         return [
-            (self._row_name(int(row)), program.names[int(column)], int(column))
+            (self._get_row_name(int(row)), program.names[int(column)], int(column))
             for row, column in zip(matrix.row, matrix.col, strict=True)
         ]
 
     @staticmethod
-    def _row_name(row: int) -> str:
+    def _get_row_name(row: int) -> str:
         """Return the name of the node of a row of the matrix."""
         return f'row_{row}'
 
-    def _layout_graph(self) -> dict[str, npt.NDArray[np.float64]]:
+    def _get_layout_graph(self) -> dict[str, npt.NDArray[np.float64]]:
         """Return the position of every node from a seeded spring layout.
 
         It is scaled so nodes lie the spacing apart.
         """
         program = self.kernel_.program
         graph = nx.Graph()
-        graph.add_nodes_from(self._row_name(row) for row in range(len(program.constraints)))
+        graph.add_nodes_from(self._get_row_name(row) for row in range(len(program.constraints)))
         graph.add_nodes_from(program.names)
-        graph.add_edges_from((row, name) for row, name, _ in self._edges())
-        scale = _NODE_SPACING * np.sqrt(graph.number_of_nodes())
+        graph.add_edges_from((row, name) for row, name, _ in self._get_edges())
+        scale = NODE_SPACING * np.sqrt(graph.number_of_nodes())
         layout = nx.spring_layout(graph, seed=self.seed, scale=scale)
         return {name: np.asarray(position, dtype=float) for name, position in layout.items()}
 
-    def _graph_bounds(self) -> rrb.VisualBounds2D:
+    def _get_graph_bounds(self) -> rrb.VisualBounds2D:
         """Return the bounds of the laid out graph with a margin.
 
         A graph view does not fit its nodes itself.
         """
         positions = np.stack(list(self.positions_.values()))
-        low, high = positions.min(axis=0) - _NODE_SPACING, positions.max(axis=0) + _NODE_SPACING
+        low, high = positions.min(axis=0) - NODE_SPACING, positions.max(axis=0) + NODE_SPACING
         return rrb.VisualBounds2D(x_range=(low[0], high[0]), y_range=(low[1], high[1]))
 
     def _log_graph(self, recording: rr.RecordingStream, path: str) -> None:
@@ -162,7 +162,7 @@ class LinearProgramVisual(BaseVisual):
         labels = [*program.constraints, *(item.rpartition('.')[2] for item in program.names)]
         positions = np.stack([self.positions_[name] for name in names])
         rows = len(program.constraints)
-        colors = [_SERIES_COLORS[0]] * rows + [_SERIES_COLORS[1]] * (len(names) - rows)
+        colors = [SERIES_COLORS[0]] * rows + [SERIES_COLORS[1]] * (len(names) - rows)
         nodes = rr.GraphNodes(
             names,
             positions=positions,
@@ -172,7 +172,7 @@ class LinearProgramVisual(BaseVisual):
             show_labels=False,
         )
         recording.log(f'{path}/graph', nodes, static=True)
-        edges = rr.GraphEdges([(row, name) for row, name, _ in self._edges()], graph_type='undirected')
+        edges = rr.GraphEdges([(row, name) for row, name, _ in self._get_edges()], graph_type='undirected')
         recording.log(f'{path}/graph', edges, static=True)
 
     def _log_widths(self, recording: rr.RecordingStream, path: str, values: npt.NDArray[np.float64]) -> None:
@@ -180,7 +180,7 @@ class LinearProgramVisual(BaseVisual):
 
         The widths are proportional to the absolute values.
         """
-        edges = self._edges()
+        edges = self._get_edges()
         if not edges:
             return
         amounts = np.asarray([abs(values[column]) for _, _, column in edges], dtype=float)
@@ -204,10 +204,10 @@ class LinearProgramVisual(BaseVisual):
         """
         path = element.path
         program = self.kernel_.program
-        chart = np.asarray([float(np.ravel(frame.value(name))[0]) for name in self.names_], dtype=float)
+        chart = np.asarray([float(np.ravel(frame.get_value(name))[0]) for name in self.names_], dtype=float)
         recording.log(f'{path}/variables', rr.BarChart(chart))
         for position in range(len(program.objectives)):
-            value = frame.value(f'{program.path}.objective_{position}')
+            value = frame.get_value(f'{program.path}.objective_{position}')
             name = 'objective' if position == 0 else f'objective_{position}'
             BaseVisual._log_scalars(recording, f'{path}/{name}', value)
         if not self.positions_:
@@ -215,10 +215,10 @@ class LinearProgramVisual(BaseVisual):
         if not self._logged_graph:
             self._log_graph(recording, path)
             self._logged_graph = True
-        values = np.asarray([float(np.ravel(frame.value(name))[0]) for name in program.names], dtype=float)
+        values = np.asarray([float(np.ravel(frame.get_value(name))[0]) for name in program.names], dtype=float)
         self._log_widths(recording, path, values)
 
-    def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return the bar chart, the series of the objective values, and the graph views.
 
         There are two graph views when there is a graph.
@@ -239,9 +239,9 @@ class LinearProgramVisual(BaseVisual):
             rrb.BarChartView(origin=f'{path}/variables', name=f'{path} variables'),
             rrb.TimeSeriesView(origin=f'{path}/objective', name=f'{path} objective'),
         ]
-        if self._draws_graph():
+        if self._get_draws_graph():
             views += [
-                rrb.GraphView(origin=f'{path}/graph', name=f'{path} graph', visual_bounds=self._graph_bounds()),
+                rrb.GraphView(origin=f'{path}/graph', name=f'{path} graph', visual_bounds=self._get_graph_bounds()),
                 rrb.Spatial2DView(origin=f'{path}/flows', name=f'{path} flows'),
             ]
         return views

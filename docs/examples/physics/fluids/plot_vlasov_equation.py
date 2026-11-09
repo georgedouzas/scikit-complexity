@@ -53,7 +53,7 @@ def dispersion(rate):
 
 def wave_amplitude(trajectory, positions, velocities):
     """Return the amplitude of the density wave of every frame."""
-    density = np.asarray(trajectory.values('gas.x')).reshape(-1, positions, velocities).sum(axis=2)
+    density = np.asarray(trajectory.get_values('gas.x')).reshape(-1, positions, velocities).sum(axis=2)
     return np.abs(np.fft.rfft(density, axis=1)[:, 1])
 
 

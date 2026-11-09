@@ -36,7 +36,7 @@ alpha, beta = (total + root) / 2, (total - root) / 2
 times = trajectory.times
 exact = ((alpha - k21) * np.exp(-alpha * times) + (k21 - beta) * np.exp(-beta * times)) / (alpha - beta)
 fig, (central, drug) = plt.subplots(1, 2, figsize=(10, 4))
-central.semilogy(times, trajectory.values('patient.Uc'), label='simulated')
+central.semilogy(times, trajectory.get_values('patient.Uc'), label='simulated')
 central.semilogy(times, exact, '--', color='black', label='bi-exponential')
 central.semilogy(times, (k21 - beta) / (alpha - beta) * np.exp(-beta * times), ':', label='slow phase')
 central.set_ylim(1e-5, 1.5)
@@ -44,11 +44,11 @@ central.set_xlabel('time (min)')
 central.set_ylabel('central concentration')
 central.set_title('Distribution then elimination')
 central.legend()
-drug.plot(times, trajectory.values('patient.Uc'), label='central')
-drug.plot(times, trajectory.values('patient.Up'), label='peripheral')
+drug.plot(times, trajectory.get_values('patient.Uc'), label='central')
+drug.plot(times, trajectory.get_values('patient.Up'), label='peripheral')
 drug.plot(
     times,
-    trajectory.values('patient.Uc') + trajectory.values('patient.Up'),
+    trajectory.get_values('patient.Uc') + trajectory.get_values('patient.Up'),
     '--',
     label='total',
 )

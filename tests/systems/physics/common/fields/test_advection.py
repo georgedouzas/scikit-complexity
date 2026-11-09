@@ -51,7 +51,7 @@ def _run(*interactions, discretization='finite-volume'):
     values = {'u': np.exp(-(((centers - 0.5) / 0.1) ** 2)), 'v': 1.0 + 0.5 * np.sin(2 * np.pi * centers)}
     space = LatticeSpace((CELLS,), spacing=spacing, boundary='periodic')
     field = FieldElement('tube', element=TracerElement, space=space, values=values, discretization=discretization)
-    return simulate(CompositeSystem(elements=[field], interactions=list(interactions)), until=0.2, dt=0.05).values(
+    return simulate(CompositeSystem(elements=[field], interactions=list(interactions)), until=0.2, dt=0.05).get_values(
         'tube.u',
     )
 

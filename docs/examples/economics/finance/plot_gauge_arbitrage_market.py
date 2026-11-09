@@ -29,8 +29,8 @@ trajectory = simulate(system, solver=RK4Solver(dt=0.02), observables=observables
 # The Gauss residual stays at roundoff while the density relaxes.
 
 fig, ax = plt.subplots(figsize=(6, 4))
-ax.semilogy(trajectory.times, trajectory.values('gauss_residual') + 1e-16, label='Gauss residual')
-ax.semilogy(trajectory.times, trajectory.values('sites.rho').std(axis=1), label='spread of the density')
+ax.semilogy(trajectory.times, trajectory.get_values('gauss_residual') + 1e-16, label='Gauss residual')
+ax.semilogy(trajectory.times, trajectory.get_values('sites.rho').std(axis=1), label='spread of the density')
 ax.set_xlabel('time')
 ax.set_title('The field tracks the good')
 ax.legend()

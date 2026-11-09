@@ -33,7 +33,7 @@ fig, (left, right) = plt.subplots(1, 2, figsize=(10, 4))
 for linear in (False, True):
     trajectory = simulate(VibratingTableSystem(linear=linear))
     times = trajectory.times
-    x, current = np.ravel(trajectory.values('shaker.x')), np.ravel(trajectory.values('shaker.i2'))
+    x, current = np.ravel(trajectory.get_values('shaker.x')), np.ravel(trajectory.get_values('shaker.i2'))
     label = 'linearized' if linear else 'nonlinear'
     left.plot(times, x, label=label)
     late = times > 20

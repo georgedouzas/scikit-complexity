@@ -36,7 +36,7 @@ simulation = simulate(system, until=3, dt=0.015, observers=[observer])
 # should decay towards zero as the gas relaxes to the equilibrium `f_plus = f_minus`, over a longer run.
 
 trajectory = simulate(DiscreteVelocityBoltzmannSystem(), until=10, dt=0.05)
-right, left = trajectory.values('gas.f_plus'), trajectory.values('gas.f_minus')
+right, left = trajectory.get_values('gas.f_plus'), trajectory.get_values('gas.f_minus')
 mass = (right + left).sum(axis=1)
 current = (right - left).sum(axis=1)
 fig, (conserved, relaxing) = plt.subplots(1, 2, figsize=(10, 4))

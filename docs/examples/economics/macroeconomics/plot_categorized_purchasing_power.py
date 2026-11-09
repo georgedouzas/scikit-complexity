@@ -32,7 +32,7 @@ coupled = simulate(CategorizedPurchasingPowerSystem(feedback=False))
 fig, axes = plt.subplots(1, 2, figsize=(10, 4), sharey=True)
 for axis, trajectory, title in ((axes[0], coupled, 'Without feedback'), (axes[1], decoupled, 'With feedback')):
     for index, name in enumerate(('basic', 'desired', 'luxury'), start=1):
-        axis.plot(trajectory.times, trajectory.values(f'economy.y{index}'), label=name)
+        axis.plot(trajectory.times, trajectory.get_values(f'economy.y{index}'), label=name)
     axis.set_xlabel('time')
     axis.set_title(title)
     axis.legend()

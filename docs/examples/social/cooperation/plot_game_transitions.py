@@ -36,7 +36,7 @@ for name, transitions in (('with transitions', True), ('game 1 only', False)):
     trajectory = simulate(system, until=50, random_state=0)
     share = [np.mean(trajectory.get_agents('players', frame).values['strategy']) for frame in range(51)]
     strategies.plot(trajectory.times, share, label=name)
-    games.plot(trajectory.times[1:], trajectory.values('evolution.game_one')[1:], label=name)
+    games.plot(trajectory.times[1:], trajectory.get_values('evolution.game_one')[1:], label=name)
 strategies.set_xlabel('generations')
 strategies.set_ylabel('share of cooperators')
 strategies.set_title('Transitions favour cooperation')

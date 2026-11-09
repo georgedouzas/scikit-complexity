@@ -62,7 +62,7 @@ spectrum.set_title('Distance to instability')
 spectrum.legend()
 for share in (0.0, 0.8, 1.0, 1.2):
     run = simulate(NanotubeGapJunctionExchangeSystem(graph=graph, xi=share * critical, x=0.01))
-    totals.semilogy(run.times, run.values('cells.x').sum(axis=1), label=f'xi = {share} xi_crit')
+    totals.semilogy(run.times, run.get_values('cells.x').sum(axis=1), label=f'xi = {share} xi_crit')
 totals.set_xlabel('time')
 totals.set_ylabel('total substance')
 totals.set_title('Decay below and growth above the threshold')

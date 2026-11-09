@@ -37,7 +37,7 @@ trajectory = simulate(system, backend=NumbaBackend(), observers=[observer], rand
 # form and then level off well below the `t^(1/3)` curve through its early values. The noise is the divergence of a
 # random flux, so the mean density should stay at its initial value to rounding.
 
-phi = trajectory.lattice('fluid.phi')
+phi = trajectory.get_lattice('fluid.phi')
 times = trajectory.times
 sizes = []
 for field in phi[1:]:

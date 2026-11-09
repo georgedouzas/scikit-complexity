@@ -35,7 +35,7 @@ fig, (wages, slaves) = plt.subplots(1, 2, figsize=(10, 4))
 for name, run in (('1000 workers', trajectory), ('600 workers', scarce)):
     mean = [np.mean(run.get_agents('employers', frame).values['wage']) for frame in range(len(run.times))]
     wages.plot(run.times, mean, label=name)
-    slaves.plot(run.times[1:], np.cumsum(run.values('day.slaves')[1:]), label=name)
+    slaves.plot(run.times[1:], np.cumsum(run.get_values('day.slaves')[1:]), label=name)
 wages.axhline(1.0, color='black', linestyle=':', label='minimum wage')
 wages.set_xlabel('days')
 wages.set_ylabel('mean wage')

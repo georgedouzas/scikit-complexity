@@ -45,7 +45,7 @@ def _walkers(hurst, members=1000, fractional=True):
 @pytest.mark.parametrize('hurst', [0.2, 0.5, 0.8])
 def test_fractional_gaussian_noise_has_the_covariance_of_fractional_noise(hurst):
     """Test that sample covariances of 10000 paths match the covariance of fractional Gaussian noise."""
-    noise = FractionalEulerMaruyamaSolver._fractional_gaussian_noise(64, hurst, 10000, np.random.default_rng(0))
+    noise = FractionalEulerMaruyamaSolver._get_fractional_gaussian_noise(64, hurst, 10000, np.random.default_rng(0))
     for lag in (0, 1, 2, 10):
         products = noise[: 64 - lag] * noise[lag:]
         expected = 0.5 * (abs(lag + 1) ** (2 * hurst) - 2 * lag ** (2 * hurst) + abs(lag - 1) ** (2 * hurst))
@@ -62,7 +62,7 @@ def test_fractional_euler_maruyama_correlates_consecutive_increments():
         dt=1.0,
         random_state=0,
     )
-    increments = np.diff(trajectory.values('w.x'), axis=0)
+    increments = np.diff(trajectory.get_values('w.x'), axis=0)
     correlation = np.mean(increments[1:] * increments[:-1]) / np.mean(increments**2)
     assert correlation == pytest.approx(2 ** (2 * 0.75 - 1) - 1, abs=0.02)
 
@@ -76,7 +76,7 @@ def test_fractional_euler_maruyama_gives_superdiffusion():
         dt=0.1,
         random_state=0,
     )
-    squared = np.mean(trajectory.values('w.x')[1:] ** 2, axis=1)
+    squared = np.mean(trajectory.get_values('w.x')[1:] ** 2, axis=1)
     assert np.polyfit(np.log(trajectory.times[1:]), np.log(squared), 1)[0] == pytest.approx(1.5, abs=0.05)
 
 
@@ -86,7 +86,7 @@ def test_fractional_euler_maruyama_matches_noise_at_one_half():
     for fractional in (True, False):
         system = _walkers(0.5, members=4000, fractional=fractional)
         solver = FractionalEulerMaruyamaSolver(dt=0.01) if fractional else EulerMaruyamaSolver(dt=0.01)
-        final = simulate(system, until=1, solver=solver, dt=0.5, random_state=1).values('w.x')[-1]
+        final = simulate(system, until=1, solver=solver, dt=0.5, random_state=1).get_values('w.x')[-1]
         variances.append((final.var(), final.var() * np.sqrt(2 / final.size)))
     (first, first_error), (second, second_error) = variances
     assert abs(first - second) < 2 * np.hypot(first_error, second_error)
@@ -101,7 +101,7 @@ def test_fractional_euler_maruyama_takes_the_horizon_from_the_run():
             solver=FractionalEulerMaruyamaSolver(dt=0.01),
             dt=0.1,
             random_state=0,
-        ).values('w.x')
+        ).get_values('w.x')
         for _ in range(2)
     ]
     assert runs[0].shape == (21, 20)
@@ -129,8 +129,8 @@ class TaggedWalkerElement(Element):
 def test_fractional_noise_runs_with_the_fractional_euler_maruyama_by_default(system):
     """Test that a system of fractional noise runs without a solver, whether or not its tags name its laws."""
     trajectory = simulate(system, until=1, dt=0.5, random_state=0)
-    assert trajectory.values('w.x').shape == (3, 2)
-    assert np.all(trajectory.values('w.x')[-1] != 0.0)
+    assert trajectory.get_values('w.x').shape == (3, 2)
+    assert np.all(trajectory.get_values('w.x')[-1] != 0.0)
 
 
 def test_euler_maruyama_rejects_fractional_noise():
@@ -149,7 +149,7 @@ def test_a_simulation_with_the_euler_maruyama_stepper_rejects_fractional_noise()
 def test_a_hurst_index_of_one_half_runs_with_the_euler_maruyama_stepper():
     """Test that a noise law with a Hurst index of 1/2 runs with the Euler-Maruyama stepper."""
     trajectory = simulate(_walkers(0.5, members=2), until=1, solver=EulerMaruyamaSolver(dt=0.1), random_state=0)
-    assert trajectory.values('w.x').shape[1] == 2
+    assert trajectory.get_values('w.x').shape[1] == 2
 
 
 def test_fractional_euler_maruyama_rejects_a_changed_hurst_index():

@@ -19,12 +19,12 @@ def _decay_rate(times, values, start):
 def test_oscillator_death_follows_lorentzian_threshold():
     """Test that oscillations die at the rate `ω0 - 1` above the critical width 1 and persist below it."""
     dying = simulate(OscillatorDeathSystem(100, K=3.0, width=1.5), dt=0.5)
-    amplitude = np.asarray(dying.values('amplitude'))
+    amplitude = np.asarray(dying.get_values('amplitude'))
     rate = _decay_rate(np.asarray(dying.times), amplitude, start=8.0)
     assert amplitude[-1] < 1e-3
     assert rate == pytest.approx(1 - 1.5, rel=0.1)
     living = simulate(OscillatorDeathSystem(100, K=3.0, width=0.5), dt=0.5)
-    assert living.values('amplitude')[-1] > 0.3
+    assert living.get_values('amplitude')[-1] > 0.3
 
 
 def test_oscillator_death_follows_quartic_threshold():
@@ -33,10 +33,12 @@ def test_oscillator_death_follows_quartic_threshold():
     above = OscillatorDeathSystem(100, K=2.0, width=1.2 * critical, distribution='quartic').prepare().system_
     below = OscillatorDeathSystem(100, K=2.0, width=0.8 * critical, distribution='quartic').prepare().system_
     assert (
-        simulate(above, until=40, dt=0.5, observables=OscillatorDeathSystem.observables).values('amplitude')[-1] < 1e-3
+        simulate(above, until=40, dt=0.5, observables=OscillatorDeathSystem.observables).get_values('amplitude')[-1]
+        < 1e-3
     )
     assert (
-        simulate(below, until=40, dt=0.5, observables=OscillatorDeathSystem.observables).values('amplitude')[-1] > 0.3
+        simulate(below, until=40, dt=0.5, observables=OscillatorDeathSystem.observables).get_values('amplitude')[-1]
+        > 0.3
     )
 
 
@@ -50,7 +52,7 @@ def test_oscillator_death_rejects_unknown_distribution():
 def test_heterogeneous_global_coupling_restabilizes_fixed_point():
     """Test that intermediate coupling kills the oscillations, while weak and very strong coupling do not."""
     amplitudes = {
-        k: simulate(HeterogeneousGlobalCouplingSystem(100, k=k), until=60, dt=0.5).values('amplitude')[-1]
+        k: simulate(HeterogeneousGlobalCouplingSystem(100, k=k), until=60, dt=0.5).get_values('amplitude')[-1]
         for k in (0.0, 2.0, 15.0)
     }
     assert amplitudes[0.0] > 0.1
@@ -66,6 +68,6 @@ def test_heterogeneous_global_coupling_decays_as_order_parameters_predict():
     roots = [nu - 2.0 + sign * np.sqrt(4.0 + variance * nu**2) for sign in (1, -1)]
     predicted = max(root.real for root in roots)
     trajectory = simulate(system, until=60, dt=0.5, observables=HeterogeneousGlobalCouplingSystem.observables)
-    rate = _decay_rate(np.asarray(trajectory.times), np.asarray(trajectory.values('amplitude')), start=20.0)
+    rate = _decay_rate(np.asarray(trajectory.times), np.asarray(trajectory.get_values('amplitude')), start=20.0)
     assert predicted < 0
     assert rate == pytest.approx(predicted, rel=0.15)

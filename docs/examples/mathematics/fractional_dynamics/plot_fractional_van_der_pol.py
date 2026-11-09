@@ -43,7 +43,8 @@ observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint,
 trajectory = simulate(FractionalVanDerPolSystem(x=3.0), observers=[observer])
 inside = simulate(FractionalVanDerPolSystem(x=0.1))
 strips = [
-    np.column_stack([25 * run.values('oscillator.x'), -25 * run.values('oscillator.y')]) for run in (trajectory, inside)
+    np.column_stack([25 * run.get_values('oscillator.x'), -25 * run.get_values('oscillator.y')])
+    for run in (trajectory, inside)
 ]
 observer.recording_.log(
     'phase_plane',
@@ -62,7 +63,7 @@ observer.recording_.flush()
 def cycle_amplitude(start, order):
     """Return the largest displacement over the last 10 time units of a run of 40."""
     run = simulate(FractionalVanDerPolSystem(x=start, order=order))
-    return np.max(np.abs(run.values('oscillator.x')[-100:]))
+    return np.max(np.abs(run.get_values('oscillator.x')[-100:]))
 
 
 orders = np.linspace(0.7, 1.0, 7)

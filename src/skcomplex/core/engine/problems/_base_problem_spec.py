@@ -147,7 +147,7 @@ class BaseProblemSpec(BaseSpec):
         """
         return {}
 
-    def lattice_shape(self, name: str) -> tuple[int, ...] | None:
+    def get_lattice_shape(self, name: str) -> tuple[int, ...] | None:
         """Return the lattice shape of a state that lives on the sites of a lattice.
 
         Other states return `None`.

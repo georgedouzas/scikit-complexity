@@ -42,6 +42,6 @@ class StaticSearch(BaseSearch):
 
     def _run(self, inputs: RunStateSpec | None) -> None:
         """Set the neighbours of every member."""
-        state = self._state_of(inputs)
+        state = self._get_state_of(inputs)
         del state
         self.pairs_ = self.indptr, self.indices, self.edges

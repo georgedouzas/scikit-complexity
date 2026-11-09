@@ -108,7 +108,7 @@ def test_run_small_perceptron_matches_enumeration() -> None:
     """Test that the verdict of every step equals enumerating all weights and that assignments satisfy the patterns."""
     system, patterns, outputs = _perceptron(3, 8, 0)
     trajectory = simulate(system, until=8, random_state=0)
-    verdicts = trajectory.values('decide.satisfiable')
+    verdicts = trajectory.get_values('decide.satisfiable')
     candidates = [np.asarray(item) for item in itertools.product([-1, 1], repeat=3)]
     for step in range(1, 9):
         revealed = patterns[:step], outputs[:step]
@@ -124,7 +124,7 @@ def test_run_capacity_of_binary_perceptron() -> None:
     loads = []
     for seed in range(20):
         system, _, _ = _perceptron(21, 40, seed)
-        verdicts = simulate(system, until=40, random_state=seed).values(
+        verdicts = simulate(system, until=40, random_state=seed).get_values(
             'decide.satisfiable',
         )
         loads.append(int(np.argmax(verdicts[1:] == 0)) + 1)

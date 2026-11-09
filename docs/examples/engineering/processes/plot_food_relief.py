@@ -44,10 +44,10 @@ trajectory = simulate(FoodReliefSystem(), observers=[observer])
 # between is the cost of the delay.
 
 times = np.asarray(trajectory.times)
-need, distribution = trajectory.values('relief.need'), trajectory.values('relief.distribution')
+need, distribution = trajectory.get_values('relief.need'), trajectory.get_values('relief.distribution')
 fig, (flows, gap) = plt.subplots(1, 2, figsize=(10, 4))
-flows.plot(times, trajectory.values('relief.shipping'), label='shipping')
-flows.plot(times, trajectory.values('relief.arrivals'), label='arrivals')
+flows.plot(times, trajectory.get_values('relief.shipping'), label='shipping')
+flows.plot(times, trajectory.get_values('relief.arrivals'), label='arrivals')
 flows.plot(times, distribution, label='distribution')
 flows.set_xlabel('days')
 flows.set_ylabel('tonnes per day')

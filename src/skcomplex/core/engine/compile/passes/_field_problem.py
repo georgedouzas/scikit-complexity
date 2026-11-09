@@ -40,7 +40,7 @@ class FieldProblemPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Add the discretizations of the fields to the problem."""
         compilation = self.compilation_
-        problem = Compilation._required(compilation.problem, 'problem')
+        problem = Compilation._get_required(compilation.problem, 'problem')
         constrained, limits, volume_limits = compilation.constrained, compilation.limits, compilation.volume_limits
         linear, volumes = compilation.linear, compilation.volumes
         if constrained is None or limits is None or volume_limits is None or linear is None or volumes is None:
@@ -57,33 +57,33 @@ class FieldProblemPass(BasePass):
             linear=tuple(linear),
             volumes=volumes,
             constrained=indices,
-            observed=self._observed(compilation),
+            observed=self._get_observed(compilation),
         )
 
     @staticmethod
-    def _observed(compilation: Compilation) -> dict[str, LawKernel]:
+    def _get_observed(compilation: Compilation) -> dict[str, LawKernel]:
         """Return the kernel of every field observable that applies field operators.
 
         The kernels are given by path.
         """
         specs = {
             spec.owner: spec
-            for spec, block in Compilation._required(compilation.specs, 'specs')
+            for spec, block in Compilation._get_required(compilation.specs, 'specs')
             if spec.owner == block.node.path and isinstance(block.node.component, FieldElement)
         }
         kernels = {}
-        for scope, observable in BaseCompiler._observables_of(compilation.system):
+        for scope, observable in BaseCompiler._get_observables_of(compilation.system):
             path = f'{scope}/{observable.label}' if scope else observable.label
             group = f'{scope}/{observable.group}' if scope else observable.group
             spec = specs.get(group or '')
             if spec is not None:
-                kernel = FieldProblemPass._observed_kernel(compilation, spec, path, observable)
+                kernel = FieldProblemPass._get_observed_kernel(compilation, spec, path, observable)
                 if kernel is not None:
                     kernels[path] = kernel
         return kernels
 
     @staticmethod
-    def _observed_kernel(
+    def _get_observed_kernel(
         compilation: Compilation,
         spec: KernelSpec,
         path: str,
@@ -100,7 +100,7 @@ class FieldProblemPass(BasePass):
         lowering = FieldLowering(observed).prepare(compilation)
         lowered = lowering._lower(expression)
         _, added = lowering.added_.get(id(observed), (observed, {}))
-        declarations = Compilation._required(compilation.layout, 'layout')
+        declarations = Compilation._get_required(compilation.layout, 'layout')
         return LawKernel(
             path,
             declarations.time,

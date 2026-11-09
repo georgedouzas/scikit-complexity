@@ -330,7 +330,7 @@ def _read_outputs(
             else:
                 scalars[name] = value
             continue
-        array = np.asarray(trajectory.values(output))
+        array = np.asarray(trajectory.get_values(output))
         series[output] = array[keep]
         if array.ndim == 1 and array.size:
             scalars[output] = array[-1]

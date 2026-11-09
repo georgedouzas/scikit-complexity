@@ -23,10 +23,9 @@ from ..problems._control_problem_spec import _ControlProblemSpec
 from ..types import Cost, GridFunction
 from ._optimal_control import OptimalControlSolver
 
-_MIN_RELAXATION = 1e-3
+MIN_RELAXATION = 1e-3
 MIN_NODES = 2
-
-_CONTROL_SUPPORT = SupportSpec(
+CONTROL_SUPPORT = SupportSpec(
     time={ContinuousTime},
     space={None},
     laws={RateLaw, FluxLaw, EquationLaw, BoundaryLaw},
@@ -117,7 +116,7 @@ class PontryaginSolver(OptimalControlSolver):
     @classmethod
     def _get_support(cls) -> SupportSpec:
         """Return the times, spaces, laws, noise, and orders the solver solves."""
-        return _CONTROL_SUPPORT
+        return CONTROL_SUPPORT
 
     def __init__(
         self,
@@ -166,7 +165,7 @@ class PontryaginSolver(OptimalControlSolver):
             raise ValidationError(error_msg)
         super()._prepare(context)
 
-    def _costates(self, times: Array, states: Array, controls: Array, p: Array) -> Array:
+    def _get_costates(self, times: Array, states: Array, controls: Array, p: Array) -> Array:
         """Return the costates on a grid.
 
         They are integrated backward from the horizon by Runge-Kutta steps.
@@ -217,17 +216,17 @@ class PontryaginSolver(OptimalControlSolver):
         controls = control_problem.control_symbols
         gradients = [hamiltonian.diff(control) for control in controls]
         self._bang_bang = self._is_linear(gradients, controls)
-        law = gradients if self._bang_bang else self._stationary_controls(gradients, controls)
-        self._adjoint: GridFunction = self._function(
+        law = gradients if self._bang_bang else self._get_stationary_controls(gradients, controls)
+        self._adjoint: GridFunction = self._get_function(
             control_problem,
             [-hamiltonian.diff(item) for item in control_problem.states],
             costates,
         )
-        self._final: GridFunction = self._function(
+        self._final: GridFunction = self._get_function(
             control_problem,
             [control_problem.terminal.diff(item) for item in control_problem.states],
         )
-        self._law: GridFunction = self._function(control_problem, law, costates)
+        self._law: GridFunction = self._get_function(control_problem, law, costates)
 
     def _solve(self, x0: Array, p: Array, horizon: float) -> ControlSolutionSpec:
         """Return the optimal solution by a forward-backward sweep.
@@ -259,17 +258,17 @@ class PontryaginSolver(OptimalControlSolver):
         controls = np.tile(start, (times.size, 1))
         initial = x0[control_problem.indices]
         states = self._integrate(initial, controls, times, p)
-        costates = self._costates(times, states, controls, p)
+        costates = self._get_costates(times, states, controls, p)
         weight, distance = self.relaxation, np.inf
         for iteration in range(1, self.max_iterations + 1):
             update = self._update(times, states, controls, costates, p)
             gap = float(np.abs(update - controls).sum())
             if gap >= distance:
-                weight = max(weight / 2, _MIN_RELAXATION)
+                weight = max(weight / 2, MIN_RELAXATION)
             distance = gap
             new_controls = (1 - weight) * controls + weight * update
             new_states = self._integrate(initial, new_controls, times, p)
-            new_costates = self._costates(times, new_states, new_controls, p)
+            new_costates = self._get_costates(times, new_states, new_controls, p)
             if not (np.all(np.isfinite(new_states)) and np.all(np.isfinite(new_costates))):
                 error_msg = (
                     f'The forward-backward sweep diverged at sweep {iteration}, as it does near unstable saddle paths. '
@@ -278,9 +277,9 @@ class PontryaginSolver(OptimalControlSolver):
                 raise SolverError(error_msg)
             pairs = [(new_controls, controls), (new_states, states), (new_costates, costates)]
             controls, states, costates = new_controls, new_states, new_costates
-            if self._converged(self.tolerance, pairs):
+            if self._get_converged(self.tolerance, pairs):
                 named = {name: costates[:, index] for index, name in enumerate(control_problem.names)}
-                return self._solution(x0, times, states, controls, p, iterations=iteration, costates=named)
+                return self._get_solution(x0, times, states, controls, p, iterations=iteration, costates=named)
         error_msg = (
             f'The forward-backward sweep did not converge in {self.max_iterations} sweeps. Lower the relaxation, raise '
             'max_iterations, or use the CollocationSolver solver.'
@@ -296,7 +295,7 @@ class PontryaginSolver(OptimalControlSolver):
         return all(gradient.diff(control).is_trivial_zero() for gradient in gradients for control in controls)
 
     @staticmethod
-    def _stationary_controls(gradients: list[Expression], controls: list[Expression]) -> list[Expression]:
+    def _get_stationary_controls(gradients: list[Expression], controls: list[Expression]) -> list[Expression]:
         """Return the controls that make every gradient of the Hamiltonian vanish.
 
         They are solved symbolically.
@@ -317,7 +316,7 @@ class PontryaginSolver(OptimalControlSolver):
         return [SR(explicit[0][control]) for control in controls]
 
     @staticmethod
-    def _converged(tolerance: float, pairs: list[tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]]) -> bool:
+    def _get_converged(tolerance: float, pairs: list[tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]]) -> bool:
         """Check whether every new array is close to the old one.
 
         Close means a difference of at most a relative tolerance in the sum norm.

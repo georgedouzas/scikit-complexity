@@ -41,7 +41,7 @@ variances = []
 for coupling in couplings:
     system_system = CoupledMapLatticesOnNetworksSystem(n_nodes=100, degree=20, epsilon=coupling, seed=0)
     run = simulate(system_system, until=200)
-    variances.append(np.mean(np.asarray(run.values('spread'))[-20:]))
+    variances.append(np.mean(np.asarray(run.get_values('spread'))[-20:]))
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.semilogy(couplings, np.maximum(variances, 1e-32), 'o-', label='late variance of the states')
 for bound in (low, high):

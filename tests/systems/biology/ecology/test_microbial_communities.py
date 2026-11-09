@@ -21,7 +21,7 @@ def test_generalized_lotka_volterra_reaches_coexistence():
         dt=0.5,
         solver=SYSTEMS_PRECISE,
     )
-    assert np.allclose(trajectory.values('species.x')[-1], -np.linalg.solve(a, b), rtol=1e-4)
+    assert np.allclose(trajectory.get_values('species.x')[-1], -np.linalg.solve(a, b), rtol=1e-4)
 
 
 def test_generalized_lotka_volterra_keeps_the_trajectory_of_the_constant_matrix():
@@ -36,7 +36,7 @@ def test_generalized_lotka_volterra_keeps_the_trajectory_of_the_constant_matrix(
         rtol=1e-12,
         atol=1e-12,
     )
-    np.testing.assert_allclose(trajectory.values('species.x'), expected.y.T, atol=1e-6)
+    np.testing.assert_allclose(trajectory.get_values('species.x'), expected.y.T, atol=1e-6)
 
 
 def test_generalized_lotka_volterra_matrix_swept_by_an_experiment():

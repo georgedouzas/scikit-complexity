@@ -29,8 +29,8 @@ trajectory = simulate(system, observers=[observer])
 # The rules are deterministic, so the run should reach a fixed point or a short cycle: the number of cells that change
 # colour should drop quickly and then reach zero, and the shares of coloured employers and workers should freeze.
 
-colours = trajectory.lattice('cells.colour')
-employers = trajectory.lattice('cells.employer')[0] > 0
+colours = trajectory.get_lattice('cells.colour')
+employers = trajectory.get_lattice('cells.employer')[0] > 0
 changes = np.sum(colours[1:] != colours[:-1], axis=(1, 2))
 fig, (activity, shares) = plt.subplots(1, 2, figsize=(10, 4))
 activity.plot(trajectory.times[1:], changes, 'o-', markersize=3)

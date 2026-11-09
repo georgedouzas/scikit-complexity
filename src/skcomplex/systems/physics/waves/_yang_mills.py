@@ -211,7 +211,7 @@ def gauge_observables(
         raise AnalysisError(error_msg)
     space.prepare()
     if isinstance(source, Trajectory):
-        values = np.asarray(source.values(str(variables)), dtype=float)
+        values = np.asarray(source.get_values(str(variables)), dtype=float)
     else:
         values = np.asarray(source, dtype=float)
         frame = 1 if group is None else 2

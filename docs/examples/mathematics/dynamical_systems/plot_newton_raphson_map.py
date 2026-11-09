@@ -72,7 +72,8 @@ observer.recording_.flush()
 # fractal curve, unlike the smooth boundary of a straight cut.
 
 finals = [
-    np.angle(run.values('map.x')[-1] + 1j * run.values('map.y')[-1], deg=True).round().astype(int) for run in orbits
+    np.angle(run.get_values('map.x')[-1] + 1j * run.get_values('map.y')[-1], deg=True).round().astype(int)
+    for run in orbits
 ]
 fine = basins(1024)
 boundary = (np.diff(fine, axis=0, prepend=fine[:1]) != 0) | (np.diff(fine, axis=1, prepend=fine[:, :1]) != 0)
@@ -80,7 +81,7 @@ dimension = scaling(boundary, kind='box-counting').exponent
 fig, (picture, edges) = plt.subplots(1, 2, figsize=(10, 4.5))
 picture.imshow(palette[labels], extent=(-1.5, 1.5, -1.5, 1.5))
 for run in orbits:
-    picture.plot(run.values('map.x'), run.values('map.y'), 'k.-', markersize=3, linewidth=0.8)
+    picture.plot(run.get_values('map.x'), run.get_values('map.y'), 'k.-', markersize=3, linewidth=0.8)
 picture.plot(ROOTS.real, ROOTS.imag, 'w*', markersize=10)
 picture.set_xlabel('Re z')
 picture.set_ylabel('Im z')

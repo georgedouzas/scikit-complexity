@@ -34,8 +34,8 @@ masses = [0.05, 0.2, 0.5, 1.0, 2.0]
 measured, expected = [], []
 for mass in masses:
     trajectory = simulate(InertialActiveBrownianParticlesSystem(mass=mass), until=20, random_state=0)
-    velocity = np.asarray(trajectory.values('swimmers.x_d1'))
-    heading = np.asarray(trajectory.values('swimmers.theta'))
+    velocity = np.asarray(trajectory.get_values('swimmers.x_d1'))
+    heading = np.asarray(trajectory.get_values('swimmers.theta'))
     measured.append((velocity[..., 0] * np.cos(heading) + velocity[..., 1] * np.sin(heading))[10:].mean())
     expected.append(
         3.0 * quad(lambda t, m=mass: np.exp(-t / m) / m * np.exp(-(t - 0.1 * (1 - np.exp(-t / 0.1)))), 0, 60)[0],

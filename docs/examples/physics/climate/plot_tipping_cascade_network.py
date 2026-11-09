@@ -41,7 +41,7 @@ simulation = simulate(system, until=18, observers=[observer])
 # below 1, since the neighbours that the first element lifts slightly out of their lower states lift it in return.
 
 trajectory = simulate(TippingCascadeNetworkSystem(graph=graph, c=controls, d=0.2))
-states = trajectory.values('elements.x')
+states = trajectory.get_values('elements.x')
 tipped_at = trajectory.times[np.argmax(states > 0, axis=0)]
 distance = nx.single_source_shortest_path_length(graph, 0)
 hops = np.array([distance[node] for node in graph.nodes])
@@ -53,7 +53,7 @@ for d in (0.0, 0.2):
     for first in sweep:
         controls[0] = first
         final = simulate(TippingCascadeNetworkSystem(graph=graph, c=controls, d=d), until=200, dt=1.0)
-        counts[d].append(int((final.values('elements.x')[-1] > 0).sum()))
+        counts[d].append(int((final.get_values('elements.x')[-1] > 0).sum()))
 
 fig, (order, cascade) = plt.subplots(1, 2, figsize=(10, 4))
 order.plot(hops, tipped_at, 'o')

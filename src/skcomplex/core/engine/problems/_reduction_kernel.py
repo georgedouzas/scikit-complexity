@@ -112,7 +112,7 @@ class ReductionKernel(BaseKernel):
         """NumPy function of the argument and the condition, compiled once."""
         expressions = [self.argument, self.condition if self.condition is not None else 1]
         printer = ExpressionPrinter(time=self.time, compiled=True).prepare(self._symbols)
-        return ExpressionPrinter._function_of(printer.run(expressions).code_)
+        return ExpressionPrinter._get_function_of(printer.run(expressions).code_)
 
     @property
     def symbols(self) -> list[Expression]:
@@ -127,7 +127,7 @@ class ReductionKernel(BaseKernel):
         """Number of reading members of a weighted reduction, 1 without weights."""
         return 1 if self.weights is None else int(self.weights.shape[0])
 
-    def weight_matrix(self, x: Array, q: Array) -> scipy.sparse.csr_array | Array:
+    def get_weight_matrix(self, x: Array, q: Array) -> scipy.sparse.csr_array | Array:
         """Return the weight matrix.
 
         It is read from the vectors for the weights of a shaped parameter.
@@ -171,7 +171,7 @@ class ReductionKernel(BaseKernel):
         """
         return [(x if read.is_state else q)[read.index] for read in (self.reads[item] for item in self._symbols)]
 
-    def values(self, t: float, x: Array, q: Array) -> tuple[Array, npt.NDArray[np.bool_]]:
+    def get_values(self, t: float, x: Array, q: Array) -> tuple[Array, npt.NDArray[np.bool_]]:
         """Return the argument and the condition of every reduced member.
 
         Args:
@@ -188,7 +188,7 @@ class ReductionKernel(BaseKernel):
             values:
                 The argument and the condition, one value per reduced member.
         """
-        argument, condition = ExpressionPrinter._values_of(self._function(t, *self.gather(x, q)))
+        argument, condition = ExpressionPrinter._get_values_of(self._function(t, *self.gather(x, q)))
         return (
             np.broadcast_to(np.asarray(argument, dtype=float), (self.size,)),
             np.broadcast_to(np.asarray(condition, dtype=bool), (self.size,)),
@@ -200,13 +200,13 @@ class ReductionKernel(BaseKernel):
         The vector is the `p` of `inputs`.
         """
         self.values_ = None
-        state = self._state_of(inputs)
+        state = self._get_state_of(inputs)
         q = state.p
-        argument, condition = self.values(state.t, state.x, q)
+        argument, condition = self.get_values(state.t, state.x, q)
         if self.weights is None:
             q[self.entry.start] = self._reduce_values(argument[condition], self.function or self.kind)
             return
-        weighted = self.weight_matrix(state.x, q) @ np.where(condition, argument, 0.0)
+        weighted = self.get_weight_matrix(state.x, q) @ np.where(condition, argument, 0.0)
         if self.kind == 'mean':
             selected = int(np.count_nonzero(condition))
             weighted = weighted / selected if selected else np.zeros_like(weighted)

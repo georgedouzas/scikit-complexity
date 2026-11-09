@@ -31,7 +31,7 @@ trajectory = simulate(system, observers=[observer])
 
 run = simulate(SaltzmanGlaciationSystem(), until=400)
 settled = run.times > 20
-ice, carbon = run.values('climate.x')[settled], run.values('climate.y')[settled]
+ice, carbon = run.get_values('climate.x')[settled], run.get_values('climate.y')[settled]
 power = spectrum(ice, dt=0.05)
 frequencies, density = power.frequencies, power.power[0]
 peak = frequencies[1:][np.argmax(density[1:])]

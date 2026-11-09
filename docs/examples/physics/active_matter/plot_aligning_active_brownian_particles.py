@@ -63,9 +63,9 @@ for gamma in strengths:
         random_state=1,
         observables=AligningActiveBrownianParticlesSystem.observables,
     )
-    polarizations.append(np.abs(run.values('polarization')[75:]).mean())
+    polarizations.append(np.abs(run.get_values('polarization')[75:]).mean())
 fig, (series, transition) = plt.subplots(1, 2, figsize=(10, 4))
-series.plot(trajectory.times, np.abs(trajectory.values('polarization')))
+series.plot(trajectory.times, np.abs(trajectory.get_values('polarization')))
 series.set_ylim(0, 1)
 series.set_xlabel('time')
 series.set_ylabel('polarization')

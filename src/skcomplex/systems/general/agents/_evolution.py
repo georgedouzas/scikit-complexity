@@ -259,7 +259,7 @@ class EvolutionInteraction(Interaction):
         self._check_probabilities()
         self._check_counts()
 
-    def _value(self, name: str, system: SystemViewProtocol) -> float:
+    def _get_value(self, name: str, system: SystemViewProtocol) -> float:
         """Return a probability.
 
         It is the parameter of the system when the class declares it as one.
@@ -396,8 +396,8 @@ class EvolutionInteraction(Interaction):
         """Return the strategies of the next generation, one row per member."""
         rng = system.rng
         parents = flat[self._select(fitness, len(flat), rng)]
-        children = self._cross(parents, self._value('crossover', system), rng)
-        children = self._mutate(children, self._value('mutation', system), rng, flat)
+        children = self._cross(parents, self._get_value('crossover', system), rng)
+        children = self._mutate(children, self._get_value('mutation', system), rng, flat)
         if self.elite:
             best = np.argsort(-fitness, kind='stable')[: self.elite]
             children[: len(best)] = flat[best]
@@ -414,7 +414,7 @@ class EvolutionInteraction(Interaction):
 
         The events happen one after the other.
         """
-        rng, probability = system.rng, self._value('mutation', system)
+        rng, probability = system.rng, self._get_value('mutation', system)
         strategies, fitness = flat.copy(), fitness.copy()
         for _ in range(len(strategies)):
             parent = int(self._select(fitness, 1, rng)[0])
@@ -436,14 +436,14 @@ class EvolutionInteraction(Interaction):
         It also returns the dead members.
         """
         rng = system.rng
-        dead = rng.random(len(flat)) < self._value('death', system)
+        dead = rng.random(len(flat)) < self._get_value('death', system)
         if not dead.any():
             return flat, dead
         everyone = self.parents == 'all' or dead.all()
         survivors = np.arange(len(flat)) if everyone else np.flatnonzero(~dead)
         parents = survivors[self._select(fitness[survivors], int(dead.sum()), rng)]
         strategies = flat.copy()
-        strategies[dead] = self._mutate(flat[parents], self._value('mutation', system), rng, flat)
+        strategies[dead] = self._mutate(flat[parents], self._get_value('mutation', system), rng, flat)
         return strategies, dead
 
     def _breed_truncation(
@@ -456,7 +456,7 @@ class EvolutionInteraction(Interaction):
 
         It also returns the replaced members.
         """
-        count = round(self._value('fraction', system) * len(flat))
+        count = round(self._get_value('fraction', system) * len(flat))
         replaced = np.zeros(len(flat), dtype=bool)
         replaced[np.argsort(fitness, kind='stable')[:count]] = True
         if not count:
@@ -464,7 +464,7 @@ class EvolutionInteraction(Interaction):
         others = np.arange(len(flat)) if replaced.all() else np.flatnonzero(~replaced)
         parents = others[self._select(fitness[others], count, system.rng)]
         strategies = flat.copy()
-        strategies[replaced] = self._mutate(flat[parents], self._value('mutation', system), system.rng, flat)
+        strategies[replaced] = self._mutate(flat[parents], self._get_value('mutation', system), system.rng, flat)
         return strategies, replaced
 
     def _breed_best_mutant(
@@ -478,7 +478,7 @@ class EvolutionInteraction(Interaction):
 
         A member takes it when it is fitter or all mutated.
         """
-        mutants = self._mutate(flat, self._value('mutation', system), system.rng, flat)
+        mutants = self._mutate(flat, self._get_value('mutation', system), system.rng, flat)
         mutated = np.any(mutants != flat, axis=1)
         if not mutated.any():
             return flat

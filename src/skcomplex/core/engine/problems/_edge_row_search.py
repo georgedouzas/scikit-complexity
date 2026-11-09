@@ -64,7 +64,7 @@ class EdgeRowSearch(BaseSearch):
 
     def _run(self, inputs: RunStateSpec | None) -> None:
         """Set the neighbours of every node along the active edges."""
-        state = self._state_of(inputs)
+        state = self._get_state_of(inputs)
         q = state.p
         keep = self.active.view(q)[:, 0] > ACTIVE_THRESHOLD
         edges = np.flatnonzero(keep).astype(np.intp)

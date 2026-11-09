@@ -35,7 +35,7 @@ trajectory = simulate(system, observers=[observer])
 # matrix of `a^-1 + a - 2`, whose rank over GF(3) decides whether a configuration can be recovered from its image, and
 # on the integers its Laurent polynomial is surjective, not being zero, but not invertible, not being a monomial.
 
-values = trajectory.values('cells.value')
+values = trajectory.get_values('cells.value')
 steps = np.arange(values.shape[0])
 laplacian = CompositeSystem(
     elements=system.prepare().system_.elements,

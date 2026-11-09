@@ -118,7 +118,7 @@ def _run(space: SpacetimeSpace, x: list[float], x_d1: list[float], until: float)
     geodesic = GeodesicInteraction('geodesic', target='point', space=space)
     system = CompositeSystem(elements=[point], interactions=[geodesic], space=space)
     trajectory = simulate(system, until=until, dt=until / 50, solver=ACCURATE)
-    return np.hstack([trajectory.values('point.x'), trajectory.values('point.x_d1')])
+    return np.hstack([trajectory.get_values('point.x'), trajectory.get_values('point.x_d1')])
 
 
 def test_geodesic_of_the_polar_plane_is_a_straight_line():

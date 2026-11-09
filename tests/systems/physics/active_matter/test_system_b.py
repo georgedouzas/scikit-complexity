@@ -18,7 +18,7 @@ def _bubble_areas(zeta):
         elements=[FieldElement('fluid', element=ActiveScalarElement, space=LatticeSpace((24, 48)), values=values)],
     )
     trajectory = simulate(system, until=300, dt=50.0)
-    phi = trajectory.lattice('fluid.phi')[[1, -1]] < 0
+    phi = trajectory.get_lattice('fluid.phi')[[1, -1]] < 0
     return phi[:, :, :24].sum(axis=(1, 2)), phi[:, :, 24:].sum(axis=(1, 2))
 
 
@@ -26,7 +26,7 @@ def test_active_system_b_keeps_the_mean_and_phase_separates():
     """Test that Active System B+ keeps the mean of phi under its conserved noise and separates into two phases."""
     system = ActiveSystemBSystem((32, 32))
     trajectory = simulate(system, until=300, dt=50.0, random_state=0)
-    phi = trajectory.lattice('fluid.phi')
+    phi = trajectory.get_lattice('fluid.phi')
     np.testing.assert_allclose(phi.mean(axis=(1, 2)), phi[0].mean(), rtol=1e-9)
     assert phi[-1].max() > 0.9
     assert phi[-1].min() < -0.9

@@ -34,6 +34,7 @@ FORMS = (FormKind.ODE, FormKind.DISCRETE)
 MEMBER_READS = (ReadKind.MEMBER, ReadKind.REDUCED)
 UNIFORM_FLOOR = 1e-12
 
+
 type TracedRead = Callable[[TracedArray, TracedArray], TracedArray]
 type TracedValues = Callable[[object, TracedArray, TracedArray], list[TracedArray]]
 
@@ -191,7 +192,7 @@ class JaxBackend(BaseBackend):
             ends = np.unique(times[times > 0])
             starts = np.concatenate([[0.0], ends[:-1]])
             indices = np.searchsorted(np.concatenate([[0.0], ends]), times)
-        drawn = JaxBackend._drawn(draws, form)
+        drawn = JaxBackend._get_drawn(draws, form)
 
         def run(x0: TracedArray, p: TracedArray, key: TracedArray | None = None) -> TracedArray:
             if drawn is not None and key is None:
@@ -212,7 +213,7 @@ class JaxBackend(BaseBackend):
         return run
 
     @staticmethod
-    def _drawn(
+    def _get_drawn(
         draws: DrawKernel | None,
         form: FormKind | str,
     ) -> Callable[[TracedArray, TracedArray], TracedArray] | None:
@@ -272,7 +273,7 @@ class JaxBackend(BaseBackend):
         return 'jax'
 
     @staticmethod
-    def _reader(reference: ReferenceSpec, owner: str) -> TracedRead:
+    def _get_reader(reference: ReferenceSpec, owner: str) -> TracedRead:
         """Return the function that reads one symbol of a law kernel.
 
         It reads it from the state and extended parameter vectors.
@@ -291,7 +292,7 @@ class JaxBackend(BaseBackend):
         raise BackendError(error_msg)
 
     @staticmethod
-    def _values_of(kernel: LawKernel) -> TracedValues:
+    def _get_values_of(kernel: LawKernel) -> TracedValues:
         """Return the pure function of the values of every output of a law kernel.
 
         It gives one value per evaluation index.
@@ -303,9 +304,9 @@ class JaxBackend(BaseBackend):
             )
             raise BackendError(error_msg)
         arguments = kernel.arguments
-        readers = [JaxBackend._reader(kernel.references[item], kernel.owner) for item in arguments]
+        readers = [JaxBackend._get_reader(kernel.references[item], kernel.owner) for item in arguments]
         printer = ExpressionPrinter('jax', time=kernel.time, compiled=True).prepare(arguments)
-        function = ExpressionPrinter._function_of(printer.run([item.expression for item in kernel.outputs]).code_)
+        function = ExpressionPrinter._get_function_of(printer.run([item.expression for item in kernel.outputs]).code_)
         rows = kernel.rows
 
         def values(t: object, x: TracedArray, q: TracedArray) -> list[TracedArray]:
@@ -315,7 +316,7 @@ class JaxBackend(BaseBackend):
         return values
 
     @staticmethod
-    def _target_of(target: ReferenceSpec | None, owner: str) -> ReferenceSpec:
+    def _get_target_of(target: ReferenceSpec | None, owner: str) -> ReferenceSpec:
         """Return the target of an output.
 
         It checks first that the target is a member or single read.
@@ -328,12 +329,12 @@ class JaxBackend(BaseBackend):
         return target
 
     @staticmethod
-    def _adding(kernels: list[LawKernel], size: int) -> TracedFunction:
+    def _get_adding(kernels: list[LawKernel], size: int) -> TracedFunction:
         """Return the pure function that sums the outputs of kernels into a zero vector."""
         parts = [
             (
-                JaxBackend._values_of(kernel),
-                [JaxBackend._target_of(item.target, kernel.owner) for item in kernel.outputs],
+                JaxBackend._get_values_of(kernel),
+                [JaxBackend._get_target_of(item.target, kernel.owner) for item in kernel.outputs],
             )
             for kernel in kernels
         ]
@@ -351,7 +352,7 @@ class JaxBackend(BaseBackend):
         return evaluate
 
     @staticmethod
-    def _assigning(kernels: list[LawKernel]) -> TracedFunction:
+    def _get_assigning(kernels: list[LawKernel]) -> TracedFunction:
         """Return the pure function that sets the outputs of kernels on the state.
 
         It adds the changes of combined outputs.
@@ -361,8 +362,8 @@ class JaxBackend(BaseBackend):
             if any(item.reduce is not None for item in kernel.outputs):
                 error_msg = f'A law of {kernel.owner} reduces over rows, which the JAX backend does not write.'
                 raise BackendError(error_msg)
-            targets = [JaxBackend._target_of(item.target, kernel.owner) for item in kernel.outputs]
-            parts.append((JaxBackend._values_of(kernel), targets, [item.combined for item in kernel.outputs]))
+            targets = [JaxBackend._get_target_of(item.target, kernel.owner) for item in kernel.outputs]
+            parts.append((JaxBackend._get_values_of(kernel), targets, [item.combined for item in kernel.outputs]))
 
         def evaluate(t: object, x: TracedArray, q: TracedArray) -> TracedArray:
             output = x
@@ -376,7 +377,7 @@ class JaxBackend(BaseBackend):
         return evaluate
 
     @staticmethod
-    def _reduced(kind: str, argument: TracedArray, condition: TracedArray) -> TracedArray:
+    def _get_reduced(kind: str, argument: TracedArray, condition: TracedArray) -> TracedArray:
         """Return the reduction of the selected members of a group.
 
         It is 0 for no member, except for the count.
@@ -402,7 +403,7 @@ class JaxBackend(BaseBackend):
         raise BackendError(error_msg)
 
     @staticmethod
-    def _weight_matrix(weights: scipy.sparse.csr_array | ReadSpec) -> Callable[[TracedArray, TracedArray], object]:
+    def _get_weight_matrix(weights: scipy.sparse.csr_array | ReadSpec) -> Callable[[TracedArray, TracedArray], object]:
         """Return the function that gives the weight matrix of a reduction.
 
         The matrix is a shaped parameter or a constant matrix.
@@ -414,7 +415,7 @@ class JaxBackend(BaseBackend):
         return lambda x, q: matrix
 
     @staticmethod
-    def _reduction_step(reduction: object) -> TracedFunction:
+    def _get_reduction_step(reduction: object) -> TracedFunction:
         """Return the pure function that writes one reduction into the parameters.
 
         It writes it into the extended parameter vector.
@@ -429,16 +430,16 @@ class JaxBackend(BaseBackend):
         reads = [(reduction.reads[item].is_state, reduction.reads[item].index) for item in symbols]
         printer = ExpressionPrinter('jax', time=reduction.time, compiled=True).prepare(symbols)
         condition = reduction.condition if reduction.condition is not None else 1
-        function = ExpressionPrinter._function_of(printer.run([reduction.argument, condition]).code_)
+        function = ExpressionPrinter._get_function_of(printer.run([reduction.argument, condition]).code_)
         kind, size, entry = reduction.kind, reduction.size, reduction.entry
-        matrix = JaxBackend._weight_matrix(reduction.weights) if reduction.weights is not None else None
+        matrix = JaxBackend._get_weight_matrix(reduction.weights) if reduction.weights is not None else None
 
         def step(t: object, x: TracedArray, q: TracedArray) -> TracedArray:
             argument, selected = function(t, *[(x if is_state else q)[index] for is_state, index in reads])
             argument = jnp.broadcast_to(jnp.asarray(argument, dtype=float), (size,))
             selected = jnp.broadcast_to(jnp.asarray(selected, dtype=bool), (size,))
             if matrix is None:
-                return q.at[entry.start].set(JaxBackend._reduced(kind, argument, selected))
+                return q.at[entry.start].set(JaxBackend._get_reduced(kind, argument, selected))
             weighted = jnp.asarray(matrix(x, q)) @ jnp.where(selected, argument, 0.0)
             if kind == 'mean':
                 weighted = weighted / jnp.maximum(selected.sum(), 1)
@@ -447,14 +448,14 @@ class JaxBackend(BaseBackend):
         return step
 
     @staticmethod
-    def _extending(function: TracedFunction, reductions: ReductionScheduleSpec | None) -> TracedFunction:
+    def _get_extending(function: TracedFunction, reductions: ReductionScheduleSpec | None) -> TracedFunction:
         """Return a pure function of the parameter vector that evaluates the reductions.
 
         The reductions are evaluated before the function.
         """
         if reductions is None or not reductions.steps:
             return function
-        steps = [JaxBackend._reduction_step(item) for item in reductions.steps]
+        steps = [JaxBackend._get_reduction_step(item) for item in reductions.steps]
         extent, parameters = reductions.extent, reductions.parameters
 
         def extended(t: object, x: TracedArray, p: TracedArray) -> TracedArray:
@@ -467,7 +468,7 @@ class JaxBackend(BaseBackend):
         return extended
 
     @staticmethod
-    def _forward(function: TracedFunction) -> Callable[[float, Array, Array], Array]:
+    def _get_forward(function: TracedFunction) -> Callable[[float, Array, Array], Array]:
         """Return the function on NumPy arrays that runs a pure function compiled by JAX.
 
         It runs in double precision.
@@ -504,8 +505,11 @@ class JaxBackend(BaseBackend):
             error_msg = f'The JAX backend writes discrete maps and ordinary differential equations, not {form}.'
             raise BackendError(error_msg)
         if form == FormKind.ODE:
-            self.traced_ = self._extending(self._adding(kernels.get(RateLaw, []), inputs.size), inputs.reductions)
-            self.functions_ = LoweredFunctionsSpec(drift=self._forward(self.traced_))
+            self.traced_ = self._get_extending(
+                self._get_adding(kernels.get(RateLaw, []), inputs.size),
+                inputs.reductions,
+            )
+            self.functions_ = LoweredFunctionsSpec(drift=self._get_forward(self.traced_))
             return
-        self.traced_ = self._extending(self._assigning(kernels.get(UpdateLaw, [])), inputs.reductions)
-        self.functions_ = LoweredFunctionsSpec(update=self._forward(self.traced_))
+        self.traced_ = self._get_extending(self._get_assigning(kernels.get(UpdateLaw, [])), inputs.reductions)
+        self.functions_ = LoweredFunctionsSpec(update=self._get_forward(self.traced_))

@@ -35,7 +35,7 @@ trajectory = simulate(system, dt=1 / 60, solver=SSPRKSolver(cfl=0.4), observers=
 # freeways, and this system should give about 20, from the jump between the jam and its outflow. The density should stay
 # conserved.
 
-rho = trajectory.lattice('road.rho')
+rho = trajectory.get_lattice('road.rho')
 minutes = trajectory.times * 60
 shifts = []
 for earlier, later in zip(rho[30:-10], rho[40:], strict=True):

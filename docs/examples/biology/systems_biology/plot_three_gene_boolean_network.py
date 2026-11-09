@@ -31,7 +31,7 @@ fig, ax = plt.subplots(figsize=(7, 4))
 for start in range(8):
     bits = tuple(int(bit) for bit in format(start, '03b'))
     run = simulate(ThreeGeneBooleanNetworkSystem(x=bits), until=8)
-    code = 4 * run.values('g1.x') + 2 * run.values('g2.x') + run.values('g3.x')
+    code = 4 * run.get_values('g1.x') + 2 * run.get_values('g2.x') + run.get_values('g3.x')
     ax.plot(run.times, code + 0.06 * (start - 3.5), 'o-', label=format(start, '03b'))
 ax.set_yticks(np.arange(8), [format(code, '03b') for code in range(8)])
 ax.set_xlabel('step')

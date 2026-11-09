@@ -36,7 +36,7 @@ trajectory = simulate(system, until=149.5, dt=0.5, observers=[observer])
 # decay.
 
 run = simulate(KuramotoSivashinskySystem(), until=1000)
-field = run.values('line.u')[200:]
+field = run.get_values('line.u')[200:]
 length = 32 * np.pi
 wavenumbers = 2 * np.pi * np.fft.rfftfreq(field.shape[1], d=length / field.shape[1])
 power = np.mean(np.abs(np.fft.rfft(field, axis=1)) ** 2, axis=0)

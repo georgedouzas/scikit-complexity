@@ -29,14 +29,14 @@ trajectory = simulate(GapSubshiftSystem(size=120, random_state=0), until=2000, o
 # by `φ^2` per allowed length. The entropy of the even subshift is `log φ`, and the gap set `{1, 4}` gives another
 # S-gap subshift whose gaps take only those lengths.
 
-alive = trajectory.values('cells.alive')
+alive = trajectory.get_values('cells.alive')
 stream = np.concatenate([alive[0], alive[1:, -1]])
 ones = np.flatnonzero(stream)
 gaps = np.diff(ones) - 1
 golden = (1 + 5**0.5) / 2
 lengths = np.arange(0, 12, 2)
 other = GapSubshiftSystem(size=120, gaps=(1, 4), random_state=0)
-other_alive = simulate(other, until=500, random_state=0).values('cells.alive')
+other_alive = simulate(other, until=500, random_state=0).get_values('cells.alive')
 other_ones = np.flatnonzero(np.concatenate([other_alive[0], other_alive[1:, -1]]))
 fig, (histogram, other_ax) = plt.subplots(1, 2, figsize=(10, 4))
 histogram.bar(*np.unique(gaps, return_counts=True), label='gaps of the stream')

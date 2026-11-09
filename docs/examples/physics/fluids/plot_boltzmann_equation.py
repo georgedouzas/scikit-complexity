@@ -58,7 +58,7 @@ fig, axis = plt.subplots(figsize=(7, 4))
 for knudsen, step in ((1000.0, 0.05), (1.0, 0.05), (0.2, 0.05), (0.02, 0.02)):
     gas = BoltzmannEquationSystem(positions=POSITIONS, velocities=VELOCITIES, knudsen=knudsen)
     run = simulate(gas, until=5.5, solver=solver_of(step), observables=observables)
-    wave = run.values('density_wave')
+    wave = run.get_values('density_wave')
     axis.plot(run.times, wave / wave[0], label=f'Knudsen {knudsen:g}')
 axis.plot(times, np.exp(-(times**2) / 2), 'k--', label='free streaming')
 axis.plot(times, (1 + np.cos(np.sqrt(2) * times)) / 2, 'k:', label='Euler fluid')

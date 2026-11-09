@@ -51,8 +51,8 @@ trajectory = simulate(system, backend=NumbaBackend(), observers=[observer], rand
 # is the better guide to the flocks.
 
 SETTINGS = {'backend': NumbaBackend(), 'random_state': 0}
-positions = trajectory.values('agents.x')[-1]
-active = trajectory.values('agents.active')[-1] == 1.0
+positions = trajectory.get_values('agents.x')[-1]
+active = trajectory.get_values('agents.active')[-1] == 1.0
 fig, (snapshot, distance) = plt.subplots(1, 2, figsize=(10, 4.5))
 snapshot.scatter(*positions[~active].T, s=14, color='tab:green', label='passive')
 snapshot.scatter(*positions[active].T, s=14, color='tab:red', label='active')
@@ -62,18 +62,23 @@ snapshot.set_aspect('equal')
 snapshot.set_title('Agents after 50 time units')
 snapshot.legend(loc='upper right')
 without = simulate(ActivePassiveFlockingSystem(alpha=0.0), **SETTINGS)
-distance.plot(trajectory.times, trajectory.values('active_distance'), color='tab:red', label='active, flocking on')
-distance.plot(trajectory.times, trajectory.values('passive_distance'), color='tab:green', label='passive, flocking on')
+distance.plot(trajectory.times, trajectory.get_values('active_distance'), color='tab:red', label='active, flocking on')
+distance.plot(
+    trajectory.times,
+    trajectory.get_values('passive_distance'),
+    color='tab:green',
+    label='passive, flocking on',
+)
 distance.plot(
     without.times,
-    without.values('active_distance'),
+    without.get_values('active_distance'),
     color='tab:red',
     linestyle=':',
     label='active, flocking off',
 )
 distance.plot(
     without.times,
-    without.values('passive_distance'),
+    without.get_values('passive_distance'),
     color='tab:green',
     linestyle=':',
     label='passive, flocking off',

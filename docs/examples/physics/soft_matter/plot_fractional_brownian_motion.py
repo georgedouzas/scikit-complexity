@@ -35,7 +35,7 @@ trajectory = simulate(system, solver=solver, observers=[observer], random_state=
 # should give Hurst exponents spread around `H = 0.3`, below the 0.5 of independent increments.
 
 times = trajectory.times[1:]
-positions = trajectory.values('walkers.x')
+positions = trajectory.get_values('walkers.x')
 squared = np.mean(np.sum(positions[1:] ** 2, axis=-1), axis=1)
 exponents = scaling(np.diff(positions[:, :100, 0], axis=0)).exponent
 fig, (displacement, memory) = plt.subplots(1, 2, figsize=(10, 4))

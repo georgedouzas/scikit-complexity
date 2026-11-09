@@ -17,4 +17,4 @@ def test_el_farol_attendance_near_capacity():
         random_state=0,
         observables=ElFarolSystem().get_run_settings()['observables'],
     )
-    assert abs(np.mean(attendance.values('attendance')[100:]) - 60) < 5
+    assert abs(np.mean(attendance.get_values('attendance')[100:]) - 60) < 5

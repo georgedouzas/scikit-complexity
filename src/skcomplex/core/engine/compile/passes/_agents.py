@@ -14,12 +14,11 @@ from ....components.interactions import BaseInteraction
 from ....components.laws import MatchLaw, RuleLaw
 from ....components.specs import NodeSpec
 from ....types import VariableKind
-from ..._utils import bound_labels, declarations_of
+from ..._utils import bound_labels, declarations_of, probe_laws
 from .._base import BasePass
 from .._compilation import Compilation
-from .._probe import probe_laws
 
-_MEMBER_SUFFIX = re.compile(r'\[-?\d+\]$')
+MEMBER_SUFFIX = re.compile(r'\[-?\d+\]$')
 
 
 class AgentsPass(BasePass):
@@ -43,8 +42,8 @@ class AgentsPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Mark the agent nodes."""
         compilation = self.compilation_
-        nodes = Compilation._required(compilation.nodes, 'nodes')
-        agents = self._agent_paths(nodes)
+        nodes = Compilation._get_required(compilation.nodes, 'nodes')
+        agents = self._get_agent_paths(nodes)
         compilation.nodes = [dataclasses.replace(node, agent=node.path in agents) for node in nodes]
 
     @staticmethod
@@ -56,7 +55,7 @@ class AgentsPass(BasePass):
         return isinstance(component, GroupElement) and component.on is None and probe_laws(component) == []
 
     @staticmethod
-    def _bound_paths(node: NodeSpec) -> set[str]:
+    def _get_bound_paths(node: NodeSpec) -> set[str]:
         """Return the paths of the components the roles of an interaction bind.
 
         The paths have no member indices.
@@ -64,11 +63,11 @@ class AgentsPass(BasePass):
         paths = set()
         for name in declarations_of(type(node.component), VariableKind.ROLE):
             for item in bound_labels(getattr(node.component, name)):
-                paths.add(_MEMBER_SUFFIX.sub('', f'{node.scope}{item}'))
+                paths.add(MEMBER_SUFFIX.sub('', f'{node.scope}{item}'))
         return paths
 
     @staticmethod
-    def _agent_paths(nodes: list[NodeSpec]) -> set[str]:
+    def _get_agent_paths(nodes: list[NodeSpec]) -> set[str]:
         """Return the paths of the rule-running components and the passive groups read.
 
         The components are elements and groups, and rules read the passive groups.
@@ -87,7 +86,7 @@ class AgentsPass(BasePass):
             path
             for node, laws in interactions
             if laws is None or not all(isinstance(law, RuleLaw | MatchLaw) for law in laws)
-            for path in AgentsPass._bound_paths(node)
+            for path in AgentsPass._get_bound_paths(node)
         }
         return agents | {node.path for node in passive if node.path not in bound}
 

@@ -47,15 +47,13 @@ class CompileEncountersPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Compile the encounter laws of the drawn laws."""
         compilation = self.compilation_
-        specs = Compilation._required(compilation.drawn, 'drawn')
-        declarations = Compilation._required(compilation.layout, 'layout')
-        compilation.encounters = self._compiled_encounters(specs, declarations, compilation.backend)
-        compilation.drawn = [
-            (spec, [law for law in laws if not isinstance(law, BilinearLaw)]) for spec, laws in specs
-        ]
+        specs = Compilation._get_required(compilation.drawn, 'drawn')
+        declarations = Compilation._get_required(compilation.layout, 'layout')
+        compilation.encounters = self._get_compiled_encounters(specs, declarations, compilation.backend)
+        compilation.drawn = [(spec, [law for law in laws if not isinstance(law, BilinearLaw)]) for spec, laws in specs]
 
     @staticmethod
-    def _compiled_encounters(
+    def _get_compiled_encounters(
         specs: Laws,
         declarations: DeclarationsSpec,
         backend: BaseBackend | None,
@@ -75,7 +73,7 @@ class CompileEncountersPass(BasePass):
         return CompileEncountersPass._compile_encounters(components, declarations.time, fused=fused, phases=phases)
 
     @staticmethod
-    def _nonzero(table: npt.NDArray[np.generic]) -> tuple[Indices, ...]:
+    def _get_nonzero(table: npt.NDArray[np.generic]) -> tuple[Indices, ...]:
         """Return the indices of the nonzero entries of a table.
 
         The entries are numbers or Sage expressions.
@@ -86,7 +84,11 @@ class CompileEncountersPass(BasePass):
         return tuple(np.asarray(item, dtype=np.intp) for item in np.nonzero(mask))
 
     @staticmethod
-    def _group_indices(item: Expression | None, references: Mapping[Expression, ReferenceSpec], owner: str) -> Indices:
+    def _get_group_indices(
+        item: Expression | None,
+        references: Mapping[Expression, ReferenceSpec],
+        owner: str,
+    ) -> Indices:
         """Return the flat state indices of the density an encounter symbol stands for.
 
         There is one index per activity.
@@ -101,7 +103,7 @@ class CompileEncountersPass(BasePass):
         return reference.flat_indices.astype(np.intp)
 
     @staticmethod
-    def _parameter_indices(
+    def _get_parameter_indices(
         table: npt.NDArray[np.generic],
         references: Mapping[Expression, ReferenceSpec],
         owner: str,
@@ -125,7 +127,7 @@ class CompileEncountersPass(BasePass):
         return indices
 
     @staticmethod
-    def _rate_of_classes(rate: object, space: PhaseSpace | None, sizes: tuple[int, int, int]) -> object:
+    def _get_rate_of_classes(rate: object, space: PhaseSpace | None, sizes: tuple[int, int, int]) -> object:
         """Return a rate that reads class coordinates as its table `eta[h, k]`.
 
         It is taken at the classes of the candidate.
@@ -140,7 +142,7 @@ class CompileEncountersPass(BasePass):
         return np.tile(np.asarray(rows, dtype=object)[:, None], (1, sizes[1]))
 
     @staticmethod
-    def _checked_rate(
+    def _get_checked_rate(
         law: BilinearLaw,
         sizes: tuple[int, int, int],
         owner: str,
@@ -150,7 +152,9 @@ class CompileEncountersPass(BasePass):
 
         It must have one row per candidate and one column per field.
         """
-        rate = CompileEncountersPass._kinetic_table(CompileEncountersPass._rate_of_classes(law.rate, space, sizes))
+        rate = CompileEncountersPass._get_kinetic_table(
+            CompileEncountersPass._get_rate_of_classes(law.rate, space, sizes),
+        )
         if rate.ndim and rate.shape != sizes[:2]:
             error_msg = (
                 f'An encounter law of {owner} has a rate of shape {rate.shape}, but its candidate and field groups '
@@ -160,7 +164,7 @@ class CompileEncountersPass(BasePass):
         return rate
 
     @staticmethod
-    def _outcome_table(law: BilinearLaw, sizes: tuple[int, int, int], owner: str) -> npt.NDArray[np.generic]:
+    def _get_outcome_table(law: BilinearLaw, sizes: tuple[int, int, int], owner: str) -> npt.NDArray[np.generic]:
         """Return the outcome table of a law.
 
         Without one, it is the identity on the activity of the candidate.
@@ -177,7 +181,7 @@ class CompileEncountersPass(BasePass):
             identity = np.zeros(sizes)
             identity[np.arange(sizes[0]), :, np.arange(sizes[0])] = 1.0
             return identity
-        table = CompileEncountersPass._kinetic_table(value)
+        table = CompileEncountersPass._get_kinetic_table(value)
         if table.shape != sizes:
             error_msg = (
                 f'An encounter law of {owner} has an outcome table of shape {table.shape}, but its candidate, field, '
@@ -228,24 +232,29 @@ class CompileEncountersPass(BasePass):
                 A density is not a state of a group, a table has the wrong shape, or a table reads a state.
         """
         first, second = law.first, law.second
-        candidate = CompileEncountersPass._group_indices(first, references, owner)
+        candidate = CompileEncountersPass._get_group_indices(first, references, owner)
         linear = second is None
         empty = np.zeros(0, dtype=np.intp)
-        field_indices = empty if linear else CompileEncountersPass._group_indices(second, references, owner)
+        field_indices = empty if linear else CompileEncountersPass._get_group_indices(second, references, owner)
         space = (phases or {}).get(references[first].entry.name)
         positions = 1 if space is None else space.position_size_
-        test = CompileEncountersPass._group_indices(law.target, references, owner)
+        test = CompileEncountersPass._get_group_indices(law.target, references, owner)
         sizes = (candidate.size // positions, max(field_indices.size // positions, 1), test.size // positions)
-        rates = CompileEncountersPass._checked_rate(law, sizes, owner, space)
-        table = CompileEncountersPass._outcome_table(law, sizes, owner)
+        rates = CompileEncountersPass._get_checked_rate(law, sizes, owner, space)
+        table = CompileEncountersPass._get_outcome_table(law, sizes, owner)
         grid = tuple(item.ravel().astype(np.intp) for item in np.indices(sizes[:2]))
-        rate = TableValuesSpec(rates, grid, CompileEncountersPass._parameter_indices(rates, references, owner), time)
-        nonzero = CompileEncountersPass._nonzero(table)
+        rate = TableValuesSpec(
+            rates,
+            grid,
+            CompileEncountersPass._get_parameter_indices(rates, references, owner),
+            time,
+        )
+        nonzero = CompileEncountersPass._get_nonzero(table)
         entries = (nonzero[0], nonzero[1], nonzero[2])
         probabilities = TableValuesSpec(
             table,
             nonzero,
-            CompileEncountersPass._parameter_indices(table, references, owner),
+            CompileEncountersPass._get_parameter_indices(table, references, owner),
             time,
         )
         return EncounterKernel(
@@ -296,7 +305,7 @@ class CompileEncountersPass(BasePass):
         )
 
     @staticmethod
-    def _kinetic_table(value: object) -> npt.NDArray[np.generic]:
+    def _get_kinetic_table(value: object) -> npt.NDArray[np.generic]:
         """Return a rate or outcome table of an encounter law as an array.
 
         The array holds floats or Sage expressions.

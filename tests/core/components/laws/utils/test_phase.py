@@ -80,7 +80,7 @@ def test_coordinate_lowering_gives_maxwellian_start_unit_density() -> None:
     field = FieldElement('gas', element=AmountElement, space=space, values={'x': start})
     observables = [ObservableSpec('rho', density, group='gas')]
     trajectory = simulate(CompositeSystem(elements=[field]), until=0.1, dt=0.1, observables=observables)
-    values = np.asarray(trajectory.values('rho'))
+    values = np.asarray(trajectory.get_values('rho'))
     assert np.abs(values - 1.0).max() < 1e-6
 
 
@@ -100,7 +100,7 @@ def test_coordinate_lowers_on_numpy_and_numba(backend: object) -> None:
     grow = RateInteraction('g', target='gas', state='x', rate=lambda s: coordinate('v') * s.target.x)
     system = CompositeSystem(elements=[gas], interactions=[stream, grow])
     trajectory = simulate(system, until=0.1, backend=backend, solver=RK4Solver(dt=0.01))
-    final = trajectory.values('gas.x')[-1].reshape(8, 4)
+    final = trajectory.get_values('gas.x')[-1].reshape(8, 4)
     grown = np.exp(0.1 * space.coordinates_['v'])
     assert final.sum(axis=0) == pytest.approx(start.sum(axis=0) * grown, rel=1e-3)
 
@@ -159,9 +159,9 @@ def test_moments_of_a_shifted_maxwellian_return_density_mean_and_temperature() -
         ObservableSpec('temperature', temperature_at, group='gas'),
     ]
     trajectory = simulate(CompositeSystem(elements=[field]), until=0.1, dt=0.1, observables=observables)
-    assert np.abs(np.asarray(trajectory.values('rho'))[-1] - 2.0).max() < 1e-8
-    assert np.abs(np.asarray(trajectory.values('mean'))[-1] - 0.5).max() < 1e-8
-    assert np.abs(np.asarray(trajectory.values('temperature'))[-1] - 1.5).max() < 1e-8
+    assert np.abs(np.asarray(trajectory.get_values('rho'))[-1] - 2.0).max() < 1e-8
+    assert np.abs(np.asarray(trajectory.get_values('mean'))[-1] - 0.5).max() < 1e-8
+    assert np.abs(np.asarray(trajectory.get_values('temperature'))[-1] - 1.5).max() < 1e-8
 
 
 def mean_at(namespace: SimpleNamespace) -> object:
@@ -194,7 +194,7 @@ def test_rate_over_position_reads_moment_of_phase_field_through_operators() -> N
         flux=lambda s: [component * s.target.x for component in potential_force(s)],
     )
     system = CompositeSystem(elements=[field], interactions=[drift])
-    final = simulate(system, until=0.5, solver=RK4Solver(dt=0.05)).values('gas.x')[-1]
+    final = simulate(system, until=0.5, solver=RK4Solver(dt=0.05)).get_values('gas.x')[-1]
     assert abs(final.sum() / start.sum() - 1.0) < 1e-12
 
 
@@ -220,7 +220,7 @@ def test_drift_reads_field_over_position_through_sources() -> None:
     )
     system = CompositeSystem(elements=[gas, force], interactions=[drift], space=space)
     final = simulate(system, until=0.5, solver=RK4Solver(dt=0.01))
-    values = final.values('gas.x')[-1].reshape(2, 32)
+    values = final.get_values('gas.x')[-1].reshape(2, 32)
     assert np.array_equal(values[1], start[1])
     assert np.average(space.coordinates_['v'], weights=values[0]) == pytest.approx(0.5, abs=0.01)
 
@@ -241,7 +241,7 @@ def test_rate_over_position_reads_moment_through_sources() -> None:
     )
     system = CompositeSystem(elements=[gas, level], interactions=[rate], space=space)
     final = simulate(system, until=1.0, solver=RK4Solver(dt=0.1))
-    assert final.values('level.x')[-1] == pytest.approx([2.0, 4.0, 6.0])
+    assert final.get_values('level.x')[-1] == pytest.approx([2.0, 4.0, 6.0])
 
 
 def test_maximum_entropy_rejects_an_order_above_two() -> None:
@@ -265,7 +265,7 @@ def test_relaxation_to_maximum_entropy_conserves_moments_and_raises_entropy() ->
     )
     system = CompositeSystem(elements=[gas], interactions=[relax])
     trajectory = simulate(system, until=50.0, dt=1.0, solver=RK4Solver(dt=0.1))
-    values = np.asarray(trajectory.values('gas.x'))
+    values = np.asarray(trajectory.get_values('gas.x'))
     moments = values @ np.stack([np.ones(v.size), v, v**2], axis=1) * width
     assert np.abs(moments[-1] / moments[0] - 1.0).max() < 1e-12
     entropy = -np.sum(values * np.log(values), axis=1)
@@ -291,7 +291,7 @@ def test_maximum_entropy_of_two_axes_keeps_every_moment_at_every_position() -> N
         rate=lambda s: maximum_entropy(s.target.x, axes=('a', 'b')) - s.target.x,
     )
     trajectory = simulate(CompositeSystem(elements=[gas], interactions=[relax]), until=1.0, solver=RK4Solver(dt=0.2))
-    final = trajectory.values('gas.x')[-1].reshape(start.shape)
+    final = trajectory.get_values('gas.x')[-1].reshape(start.shape)
     for basis in (np.ones(a.shape), a, b, a**2 + b**2):
         assert np.sum(final * basis, axis=(1, 2)) == pytest.approx(np.sum(start * basis, axis=(1, 2)), rel=1e-11)
 
@@ -321,7 +321,7 @@ def test_landau_damping_decays_at_the_linear_rate() -> None:
     observables = [ObservableSpec('energy', electric_energy, group='gas')]
     system = CompositeSystem(elements=[field], interactions=[drift])
     trajectory = simulate(system, until=30.0, dt=0.1, solver=RK4Solver(dt=0.05), observables=observables)
-    energy = np.asarray(trajectory.values('energy'), dtype=float)
+    energy = np.asarray(trajectory.get_values('energy'), dtype=float)
     times = np.asarray(trajectory.times)
     energy = energy.reshape(times.size, -1).sum(axis=1)
     peaks = [

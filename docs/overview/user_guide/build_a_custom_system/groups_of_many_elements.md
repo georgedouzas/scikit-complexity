@@ -31,7 +31,7 @@ gas = CompositeSystem(
     space=ContinuousSpace(extent=(1.0, 1.0), boundary='reflecting'),
 )
 trajectory = simulate(gas, until=0.5, dt=0.01)
-trajectory.values('gas.x').shape
+trajectory.get_values('gas.x').shape
 ```
 
 A group holds N identical elements of one type as arrays, with one row per member. It compiles once, whatever its
@@ -83,7 +83,7 @@ class UnitElement(Element):
 
 
 units = CompositeSystem(elements=[GroupElement('units', element=UnitElement, size=50, values={'x': np.linspace(-1, 1, 50)})])
-simulate(units, until=2, dt=0.5).values('units.x')[-1, :3].round(3).tolist()
+simulate(units, until=2, dt=0.5).get_values('units.x')[-1, :3].round(3).tolist()
 ```
 
 `total`, `mean`, `maximum`, `minimum`, `variance`, and `count` of `skcomplex.core.components.laws.utils` reduce an
@@ -124,7 +124,7 @@ game = CompositeSystem(
     elements=[GroupElement('population', element=StrategyElement, size=2, values={'x': [0.1, 0.9]})],
     interactions=[ReplicationInteraction('replication', population='population')],
 )
-simulate(game, until=40, dt=1.0).values('population.x')[-1].round(3).tolist()
+simulate(game, until=40, dt=1.0).get_values('population.x')[-1].round(3).tolist()
 ```
 
 The arguments of a reduction are:
@@ -240,7 +240,7 @@ summed = CompositeSystem(
     interactions=[WeightedSumInteraction('sum', target='out', inputs=['a', 'b', 'nodes[3]'], weights=[1.0, 1.0, 10.0])],
 )
 trajectory = simulate(summed, until=2, dt=1, schedule={'sum.weights[2]': lambda t: 10.0 if t < 1 else 0.0})
-trajectory.values('out.x').tolist(), trajectory.values('sum.weights')[-1].tolist()
+trajectory.get_values('out.x').tolist(), trajectory.get_values('sum.weights')[-1].tolist()
 ```
 
 - A role declared with `RoleSpec(variadic=True)` binds a list of element paths and group member references
@@ -303,7 +303,7 @@ ring = CompositeSystem(
     elements=[GroupElement('cars', element=CarElement, size=20, values={'x': positions})],
     interactions=[FollowingInteraction('following', cars='cars', length=40.0)],
 )
-bool(simulate(ring, until=50, dt=1.0).values('cars.v')[-1].std() > 0.1)
+bool(simulate(ring, until=50, dt=1.0).get_values('cars.v')[-1].std() > 0.1)
 ```
 
 `shift_member(expression, offset, boundary='periodic', fill=0.0)` reads an expression of a group's members at the
@@ -352,7 +352,7 @@ units = CompositeSystem(elements=[GroupElement('units', element=UnitElement, siz
 problem = simulate(units, until=1).problem
 state = RunStateSpec(0.0, problem.initial_state, problem.initial_parameters)
 jacobian = problem.jacobian.prepare(problem).run(state).values_
-jacobian.shape, problem.jacobian.pattern().nnz
+jacobian.shape, problem.jacobian.get_pattern().nnz
 ```
 
 A reduction makes every reading member depend on every reduced member. The Jacobian of a drift with reductions
@@ -360,7 +360,7 @@ therefore has the rank-one block `dF_i/dR dR/dx_j` of every reduction `R`.
 
 - `problem.jacobian` of an ODE problem is a kernel. Prepared with the problem and run at a `RunStateSpec`, it sets in
   `values_` the exact Jacobian, by the chain rule through every reduction, as a SciPy sparse matrix.
-- `problem.jacobian.pattern()` states its structure, which the implicit methods of `ScipyODESolver` receive (see
+- `problem.jacobian.get_pattern()` states its structure, which the implicit methods of `ScipyODESolver` receive (see
   [Discretizations and stiff solvers](fields.md#discretizations-and-stiff-solvers)).
 - When the dense blocks exceed 4 million entries, `pattern()` returns `None` and an implicit solver estimates a dense
   Jacobian.
@@ -409,7 +409,7 @@ liquid = CompositeSystem(
     interactions=[PairInteraction('lj', 'atoms', 'atoms', cutoff=2.5, potential=lennard_jones)],
     space=ContinuousSpace(n_dim=2),
 )
-simulate(liquid, until=1, dt=0.05).values('atoms.x').shape
+simulate(liquid, until=1, dt=0.05).get_values('atoms.x').shape
 ```
 
 A pair interaction is written once for a pair of members and summed over every pair closer than its cutoff, inside one

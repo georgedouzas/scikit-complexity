@@ -226,7 +226,7 @@ class BackboneVisual(PointsVisual):
 
         They are rebuilt from the angles when the visual holds a structure.
         """
-        values = np.asarray(frame.value(element.states[self.position]), dtype=float)
+        values = np.asarray(frame.get_value(element.states[self.position]), dtype=float)
         if self.geometry_ is None:
             return values.reshape(-1, CHAIN_DIMENSIONS)
         return self.geometry_.run(values.ravel()).read_effective_atoms()
@@ -407,7 +407,7 @@ def _read_positions(source: object, structure: StructureSpec, state: str | None)
         return structure.effective_atoms
     if isinstance(source, Trajectory):
         name = state if state is not None else source.problem.states.names[0]
-        return np.asarray(source.lattice(name), dtype=float)
+        return np.asarray(source.get_lattice(name), dtype=float)
     return np.asarray(source, dtype=float)
 
 

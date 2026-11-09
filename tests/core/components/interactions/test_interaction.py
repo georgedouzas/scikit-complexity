@@ -193,8 +193,8 @@ def test_group_of_members_grows_like_one_member():
         interactions=[GrowthInteraction('g', target='herd')],
     )
     trajectory = simulate(system, until=1, dt=1)
-    assert trajectory.values('herd.n').shape == (2, 100)
-    assert np.allclose(trajectory.values('herd.n')[-1], np.linspace(1, 2, 100) * np.exp(0.5), rtol=1e-3)
+    assert trajectory.get_values('herd.n').shape == (2, 100)
+    assert np.allclose(trajectory.get_values('herd.n')[-1], np.linspace(1, 2, 100) * np.exp(0.5), rtol=1e-3)
 
 
 def test_single_element_bound_with_group_receives_sum():
@@ -250,7 +250,7 @@ def test_correlated_noise():
         random_state=0,
         dt=0.5,
     )
-    increments = np.diff(np.stack([trajectory.values('a.n'), trajectory.values('b.n')]), axis=1)
+    increments = np.diff(np.stack([trajectory.get_values('a.n'), trajectory.get_values('b.n')]), axis=1)
     np.testing.assert_allclose(np.cov(increments), 0.5 * np.asarray(covariance), atol=0.05)
     assert not issubclass(WienerProcessSpec, BaseElement)
 
@@ -259,7 +259,7 @@ def test_interactions_share_processes_of_one_label():
     """Test that two interactions that bind processes of one label draw the same increments."""
     market = WienerProcessSpec('market')
     trajectory = simulate(_shocked(market, WienerProcessSpec('market')), until=1, random_state=0)
-    np.testing.assert_array_equal(trajectory.values('a.n'), trajectory.values('b.n'))
+    np.testing.assert_array_equal(trajectory.get_values('a.n'), trajectory.get_values('b.n'))
     assert PassCompiler().prepare(_shocked(market, market)).run().problem_.n_processes == 1
 
 

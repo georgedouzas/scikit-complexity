@@ -146,25 +146,25 @@ class SplitSolver(Solver):
             groups: dict[int, list[tuple[LinearTermSpec, complex]]] = {}
             triplets: list[tuple[ReferenceSpec, ReferenceSpec, csr_matrix]] = []
             for term in self.problem_.linear:
-                coefficient = self._coefficient(term, p)
+                coefficient = self._get_coefficient(term, p)
                 if term.place.discretization != 'spectral':
-                    triplets.append((term.target, term.source, self._term_matrix(term, coefficient)))
+                    triplets.append((term.target, term.source, self._get_term_matrix(term, coefficient)))
                 elif not np.ndim(coefficient) or np.ptp(coefficient) == 0:
                     groups.setdefault(id(term.place), []).append((term, complex(np.ravel(coefficient)[0])))
             self.sparse_ = self._get_sparse(triplets, self.problem_)
-            self.blocks_ = [self._spectral_block(terms) for terms in groups.values()]
+            self.blocks_ = [self._get_spectral_block(terms) for terms in groups.values()]
             self._inverses: dict[float, tuple[SuperLU | None, list[ComplexArray]]] = {}
             self._parameters = p.copy()
-            self._built(p)
+            self._check_built(p)
 
-    def _built(self, p: Array) -> None:
+    def _check_built(self, p: Array) -> None:
         """Hook that runs after the linear part is rebuilt."""
 
-    def _remainder(self, t: float, x: Array, p: Array) -> Array:
+    def _get_remainder(self, t: float, x: Array, p: Array) -> Array:
         """Return the nonlinear remainder of the rates, the rates minus their linear part."""
-        return self._drift()(t, x, p) - self._linear(x)
+        return self._get_drift()(t, x, p) - self._get_linear(x)
 
-    def _linear(self, x: Array) -> Array:
+    def _get_linear(self, x: Array) -> Array:
         """Return the linear part of the rates at a state vector.
 
         Args:
@@ -271,14 +271,14 @@ class SplitSolver(Solver):
         for index in range(n_steps):
             time = t + (index + 1) * step
             following = self._step(t + index * step, state, p, step)
-            state = self._bounded(time, following, p)
+            state = self._get_bounded(time, following, p)
             if not np.array_equal(state, following):
                 self._forget()
         self._last = (until, state.copy(), step)
         return state
 
     @staticmethod
-    def _lattice_operator(name: str, axis: int, place: FieldElement, reference: ReferenceSpec) -> csr_matrix:
+    def _get_lattice_operator(name: str, axis: int, place: FieldElement, reference: ReferenceSpec) -> csr_matrix:
         """Return the stencil matrix of a finite-difference operator on a field state.
 
         Its boundary values are left out.
@@ -317,7 +317,7 @@ class SplitSolver(Solver):
         raise SolverError(error_msg)
 
     @staticmethod
-    def _term_matrix(term: LinearTermSpec, coefficient: float | Array) -> csr_matrix:
+    def _get_term_matrix(term: LinearTermSpec, coefficient: float | Array) -> csr_matrix:
         """Return the sparse matrix of a linear term of a field.
 
         The field is a finite-difference or finite element field.
@@ -326,9 +326,9 @@ class SplitSolver(Solver):
         matrix = identity(place.size_, format='csr')
         for name, axis in reversed(term.chain):
             operator = (
-                SplitSolver._mesh_operator(place.space, name)
+                SplitSolver._get_mesh_operator(place.space, name)
                 if isinstance(place.space, MeshSpace)
-                else SplitSolver._lattice_operator(name, axis, place, term.source)
+                else SplitSolver._get_lattice_operator(name, axis, place, term.source)
             )
             matrix = operator @ matrix
         return diags(np.broadcast_to(np.asarray(coefficient, dtype=float), place.size_)) @ matrix
@@ -348,8 +348,8 @@ class SplitSolver(Solver):
         rows, columns, values = [], [], []
         for target, source, matrix in triplets:
             block = matrix.tocoo()
-            rows.append(SplitSolver._rows(target)[block.row])
-            columns.append(SplitSolver._rows(source)[block.col])
+            rows.append(SplitSolver._get_rows(target)[block.row])
+            columns.append(SplitSolver._get_rows(source)[block.col])
             values.append(block.data)
         sparse = csr_matrix(
             (np.concatenate(values), (np.concatenate(rows), np.concatenate(columns))),
@@ -362,7 +362,7 @@ class SplitSolver(Solver):
         return sparse
 
     @staticmethod
-    def _spectral_block(terms: list[tuple[LinearTermSpec, complex]]) -> SpectralBlock:
+    def _get_spectral_block(terms: list[tuple[LinearTermSpec, complex]]) -> SpectralBlock:
         """Return the Fourier block of the linear terms of one spectral field.
 
         The terms are those of the states of the field.
@@ -382,22 +382,22 @@ class SplitSolver(Solver):
         for term, coefficient in terms:
             multiplier: complex | ComplexArray = 1.0
             for name, axis in term.chain:
-                multiplier = multiplier * FieldLowering._spectral_multiplier(name, axis, dimensions, spacings)
+                multiplier = multiplier * FieldLowering._get_spectral_multiplier(name, axis, dimensions, spacings)
             target = order[(term.target.entry.name, term.target.column)]
             source = order[(term.source.entry.name, term.source.column)]
             matrix[..., target, source] += coefficient * multiplier
-        return dimensions, [SplitSolver._rows(reference) for reference in states.values()], matrix
+        return dimensions, [SplitSolver._get_rows(reference) for reference in states.values()], matrix
 
     @staticmethod
-    def _mesh_operator(space: MeshSpace, name: str) -> csr_matrix:
+    def _get_mesh_operator(space: MeshSpace, name: str) -> csr_matrix:
         """Return the finite element Laplacian of a mesh."""
         if name != 'laplacian':
             error_msg = f'Only Laplacians act on finite element fields, but a term takes the {name}.'
             raise SolverError(error_msg)
-        return FieldLowering._mesh_laplacian(space)
+        return FieldLowering._get_mesh_laplacian(space)
 
     @staticmethod
-    def _coefficient(term: LinearTermSpec, p: Array) -> float | Array:
+    def _get_coefficient(term: LinearTermSpec, p: Array) -> float | Array:
         """Return the value of a linear term's coefficient.
 
         It is a number or one value per member.
@@ -420,6 +420,6 @@ class SplitSolver(Solver):
         return float(coefficient) if coefficient.ndim == 0 else coefficient
 
     @staticmethod
-    def _rows(reference: ReferenceSpec) -> npt.NDArray[np.intp]:
+    def _get_rows(reference: ReferenceSpec) -> npt.NDArray[np.intp]:
         """Return the flat state index of a component for every member."""
         return reference.flat_indices

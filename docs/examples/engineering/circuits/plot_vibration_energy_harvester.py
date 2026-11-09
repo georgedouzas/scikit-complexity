@@ -38,7 +38,7 @@ amplitudes = []
 for omega in frequencies:
     system_system = VibrationEnergyHarvesterSystem(omega=omega)
     run = simulate(system_system)
-    amplitudes.append(np.abs(run.values('voltage')[-300:]).max())
+    amplitudes.append(np.abs(run.get_values('voltage')[-300:]).max())
 fig, ax = plt.subplots(figsize=(7, 4.5))
 ax.semilogy(frequencies, amplitudes, 'o-', markersize=3, label='simulated voltage amplitude')
 for value in natural:

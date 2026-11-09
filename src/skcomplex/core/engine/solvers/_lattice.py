@@ -79,5 +79,5 @@ class LatticeSolver(Solver):
                     self.locator_.records.append(result)
                 elif isinstance(result, list):
                     self.locator_.records.extend(result)
-            state = self._bounded(float(step + 1), state, p)
+            state = self._get_bounded(float(step + 1), state, p)
         return state

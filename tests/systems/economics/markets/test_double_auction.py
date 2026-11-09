@@ -11,13 +11,13 @@ from ..conftest import _run_observed
 @pytest.mark.parametrize('protocol', ['order_book', 'call_auction'])
 def test_double_auction_budget_constraint_is_efficient(protocol):
     """Zero-intelligence traders with budget constraints realise over 90% of the surplus, without them much less."""
-    constrained = _run_observed(DoubleAuctionSystem(30, 30, protocol=protocol).prepare().system_, 10).values(
+    constrained = _run_observed(DoubleAuctionSystem(30, 30, protocol=protocol).prepare().system_, 10).get_values(
         'ledger.efficiency',
     )[1:]
     unconstrained = _run_observed(
         DoubleAuctionSystem(30, 30, protocol=protocol, constrained=False).prepare().system_,
         10,
-    ).values('ledger.efficiency')[1:]
+    ).get_values('ledger.efficiency')[1:]
     assert constrained.mean() > 0.9
     assert unconstrained.mean() < constrained.mean() - 0.1
 

@@ -52,7 +52,7 @@ random = simulate(
 fig, ax = plt.subplots(figsize=(7, 4))
 times = trajectory.times
 for label, run in [('random', random), ('crowd avoiding', trajectory)]:
-    values = run.values('restaurants.utilization')
+    values = run.get_values('restaurants.utilization')
     ax.plot(times, values, lw=0.8, label=f'{label}, mean {np.nanmean(values[20:]):.3f}')
 ax.axhline(1 - 1 / np.e, color='C0', linestyle='--', label='1 - 1/e')
 ax.axhline(0.8, color='C1', linestyle='--', label='0.8')

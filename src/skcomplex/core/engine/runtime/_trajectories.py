@@ -95,19 +95,19 @@ class Trajectory:
         self.draws = draws
         self.log_probability = log_probability
 
-    def _present(self, name: str, values: AnyArray) -> AnyArray:
+    def _get_present(self, name: str, values: AnyArray) -> AnyArray:
         """Return the values of a variable with NaN where a group holds no member.
 
         The NaN fill the rows of a variable group that hold no member at a frame.
         """
         topology = self.problem.topology
-        if topology is None or topology.presence(name, self.parameters[0]) is None:
+        if topology is None or topology.get_presence(name, self.parameters[0]) is None:
             return values
-        present = np.array([topology.presence(name, row) for row in self.parameters])
+        present = np.array([topology.get_presence(name, row) for row in self.parameters])
         shaped = present.reshape(present.shape + (1,) * (np.ndim(values) - present.ndim))
         return np.where(shaped, np.asarray(values, dtype=float), np.nan)
 
-    def values(self, name: str) -> AnyArray:
+    def get_values(self, name: str) -> AnyArray:
         """Return the values of a state or a parameter over time by dotted name.
 
         Args:
@@ -125,11 +125,11 @@ class Trajectory:
         """
         if self.problem.states.has(name):
             entry = self.problem.states.entry(name)
-            return self._present(name, entry.read(np.asarray(self.problem.states.read(self.states, name))))
+            return self._get_present(name, entry.read(np.asarray(self.problem.states.read(self.states, name))))
         if self.problem.parameters.has(name):
             entry = self.problem.parameters.entry(name)
             values = entry.read(np.asarray(self.problem.parameters.read(self.parameters, name)))
-            return self._present(name, values)
+            return self._get_present(name, values)
         if self.reporters and name in self.reporters[0]:
             found = [frame[name] for frame in self.reporters]
             if all(isinstance(item, numbers.Real) for item in found):
@@ -143,7 +143,7 @@ class Trajectory:
         error_msg = f'No state or parameter named {name!r}. Available names are: {", ".join(names)}.'
         raise KeyError(error_msg)
 
-    def member(self, index: int, problem: BaseProblemSpec) -> 'Trajectory':
+    def get_member(self, index: int, problem: BaseProblemSpec) -> 'Trajectory':
         """Return the trajectory of one member of a replicated system.
 
         It is a trajectory of the original system.
@@ -203,7 +203,7 @@ class Trajectory:
         observables = list(self.observables[0]) if self.observables else []
         return [*self.problem.states.names, *self.problem.parameters.names, *reporters, *observables]
 
-    def agent_locations(self, group: str) -> list[AnyArray]:
+    def get_agent_locations(self, group: str) -> list[AnyArray]:
         """Return the locations of the agents of a group.
 
         There is one array per frame with one row per agent alive.
@@ -229,7 +229,7 @@ class Trajectory:
             for snapshot in frames
         ]
 
-    def lattice(self, name: str) -> AnyArray:
+    def get_lattice(self, name: str) -> AnyArray:
         """Return the values of a lattice state over time in lattice shape.
 
         Args:
@@ -245,11 +245,11 @@ class Trajectory:
             KeyError:
                 The name is not a state of a lattice group.
         """
-        shape = self.problem.lattice_shape(name)
+        shape = self.problem.get_lattice_shape(name)
         if shape is None:
             error_msg = f'{name!r} is not a state of a lattice group.'
             raise KeyError(error_msg)
-        return self.values(name).reshape(len(self.times), *shape, *self.problem.states.entry(name).member_shape)
+        return self.get_values(name).reshape(len(self.times), *shape, *self.problem.states.entry(name).member_shape)
 
     def get_agents(self, group: str, frame: int) -> AgentSnapshotSpec:
         """Return the agents of a group alive at a frame.
@@ -277,7 +277,7 @@ class Trajectory:
             raise KeyError(error_msg)
         return groups[group]
 
-    def network(self, frame: int, nodes: str | None = None, layer: str | None = None) -> NetworkSnapshotSpec:
+    def get_network(self, frame: int, nodes: str | None = None, layer: str | None = None) -> NetworkSnapshotSpec:
         """Return the nodes and edges of a changing network at a frame.
 
         The network is one whose topology changes.
@@ -306,7 +306,7 @@ class Trajectory:
             raise KeyError(error_msg)
         return topology.read_network(self.parameters[frame], nodes, layer)
 
-    def structure(self, path: str, frame: int) -> object:
+    def get_structure(self, path: str, frame: int) -> object:
         """Return the word or patch of a rewritten element at a frame.
 
         Args:

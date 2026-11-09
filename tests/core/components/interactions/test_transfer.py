@@ -111,7 +111,7 @@ def test_transfer_conserves_the_total_of_a_continuous_flow():
         interactions=[exchange],
     )
     trajectory = _run(system, 5.0)
-    upper, lower = trajectory.values('upper.level'), trajectory.values('lower.level')
+    upper, lower = trajectory.get_values('upper.level'), trajectory.get_values('lower.level')
     assert np.allclose(upper + lower, 4.0)
     assert upper[-1] == pytest.approx(2.0 + 2.0 * np.exp(-10.0), abs=1e-4)
 
@@ -129,7 +129,7 @@ def test_transfer_moves_between_the_members_of_groups_and_the_environment():
         amount=lambda s: s.source.level / 2,
     )
     trajectory = _run(CompositeSystem(elements=[tanks], interactions=[inflow, outflow]), 20.0)
-    assert np.asarray(trajectory.values('tanks.level'))[-1] == pytest.approx([2.0, 2.0], abs=1e-3)
+    assert np.asarray(trajectory.get_values('tanks.level'))[-1] == pytest.approx([2.0, 2.0], abs=1e-3)
 
 
 def test_transfer_guard_stops_a_flow_where_it_does_not_hold():
@@ -147,7 +147,7 @@ def test_transfer_guard_stops_a_flow_where_it_does_not_hold():
         CompositeSystem(elements=[StockElement('tank', level=3.0)], interactions=[drain]),
         until=4.0,
         dt=0.01,
-    ).values('tank.level')[-1]
+    ).get_values('tank.level')[-1]
     assert level == pytest.approx(1.0, abs=0.02)
 
 
@@ -163,7 +163,7 @@ def test_transfer_rate_moves_units_by_jumps_and_conserves_the_total():
     )
     system = CompositeSystem(elements=[StockElement('left', level=50.0), StockElement('right')], interactions=[hop])
     trajectory = _run(system, 1.0)
-    left, right = trajectory.values('left.level'), trajectory.values('right.level')
+    left, right = trajectory.get_values('left.level'), trajectory.get_values('right.level')
     assert np.allclose(left + right, 50.0)
     assert np.allclose(right, np.round(right))
     assert 20 < right[-1] < 40
@@ -211,8 +211,8 @@ def test_transfer_reports_named_flows_under_the_element_they_move_within():
     )
     trajectory = _run(system, 1.0)
     assert {'tank.filling', 'tank.spill', 'within.flow_2', 'between.leak'} <= set(trajectory.names)
-    assert trajectory.values('tank.filling')[-1] == pytest.approx(1.0)
-    assert trajectory.values('between.leak')[-1] == pytest.approx(0.5)
+    assert trajectory.get_values('tank.filling')[-1] == pytest.approx(1.0)
+    assert trajectory.get_values('between.leak')[-1] == pytest.approx(0.5)
     nested = CompositeSystem(
         systems=[CompositeSystem('plant', elements=[StockElement('tank', level=10.0)], interactions=[within])],
     )
@@ -370,7 +370,7 @@ def test_transfer_symbolic_flows_run_in_discrete_time():
         time=DiscreteTime(),
     )
     trajectory = simulate(system, until=2, dt=1, random_state=0)
-    assert trajectory.values('lower.level').tolist() == [0.0, 1.0, 2.0]
+    assert trajectory.get_values('lower.level').tolist() == [0.0, 1.0, 2.0]
 
 
 @pytest.mark.parametrize(
@@ -480,7 +480,7 @@ def test_transfer_site_deposits_from_the_agents_into_the_field_at_their_cells(sc
         interactions=[marking],
     )
     trajectory = simulate(system, until=3, dt=1)
-    level = trajectory.lattice('ground/level.u')[-1]
+    level = trajectory.get_lattice('ground/level.u')[-1]
     assert (level[1, 2], level[0, 0], level.sum()) == (3.0, 3.0, 6.0)
     assert trajectory.get_agents('walkers/markers', 3).values['level'].tolist() == [7.0, 7.0]
 
@@ -522,9 +522,9 @@ def test_transfer_legs_move_between_the_holders_of_several_roles_at_a_parameter_
     relay = RelayInteraction('relay', first='a', middle='b', last='c', k=0.5)
     holders = [StockElement('a', level=2.0), StockElement('b'), StockElement('c')]
     trajectory = _run(CompositeSystem(elements=holders, interactions=[relay]), 40.0)
-    levels = [trajectory.values(f'{label}.level')[-1] for label in 'abc']
+    levels = [trajectory.get_values(f'{label}.level')[-1] for label in 'abc']
     assert levels == pytest.approx([0.0, 0.0, 2.0], abs=1e-3)
-    assert trajectory.values('relay.inner')[0] == pytest.approx(1.0)
+    assert trajectory.get_values('relay.inner')[0] == pytest.approx(1.0)
 
 
 def test_transfer_offset_moves_along_the_group_order_in_discrete_time():
@@ -540,7 +540,7 @@ def test_transfer_offset_moves_along_the_group_order_in_discrete_time():
     )
     system = CompositeSystem(elements=[cells], interactions=[shift], time=DiscreteTime())
     trajectory = simulate(system, until=4, dt=1, random_state=0)
-    levels = np.asarray(trajectory.values('cells.level'))[1:].tolist()
+    levels = np.asarray(trajectory.get_values('cells.level'))[1:].tolist()
     assert levels == [[0.0, 4.0, 0.0, 0.0], [0.0, 0.0, 4.0, 0.0], [0.0, 0.0, 0.0, 4.0], [4.0, 0.0, 0.0, 0.0]]
 
 
@@ -557,7 +557,7 @@ def test_transfer_offset_moves_nothing_past_a_fixed_boundary():
         boundary='fixed',
     )
     trajectory = _run(CompositeSystem(elements=[cells], interactions=[flow]), 30.0)
-    levels = np.asarray(trajectory.values('cells.level'))
+    levels = np.asarray(trajectory.get_values('cells.level'))
     assert np.allclose(levels.sum(axis=1), 3.0)
     assert levels[-1] == pytest.approx([0.0, 0.0, 3.0], abs=1e-3)
 
@@ -576,11 +576,11 @@ def test_transfer_offset_shares_one_draw_per_edge():
     )
     system = CompositeSystem(elements=[cells], interactions=[hops], time=DiscreteTime())
     trajectory = simulate(system, until=50, dt=1, random_state=0)
-    levels = np.asarray(trajectory.values('cells.level'))
+    levels = np.asarray(trajectory.get_values('cells.level'))
     assert set(np.unique(levels)) == {0.0, 1.0}
     assert set(levels.sum(axis=1)) == {25.0}
     current = (1 - np.sqrt(1 - 4 * 0.5 * 0.5 * 0.5)) / 2
-    assert np.asarray(trajectory.values('cells.hops'))[25:].mean() == pytest.approx(current, rel=0.2)
+    assert np.asarray(trajectory.get_values('cells.hops'))[25:].mean() == pytest.approx(current, rel=0.2)
 
 
 def test_transfer_reverse_rate_returns_units_to_the_environment():
@@ -596,7 +596,7 @@ def test_transfer_reverse_rate_returns_units_to_the_environment():
         reverse_rate=lambda s: s.target.level,
     )
     trajectory = _run(CompositeSystem(elements=[StockElement('tank')], interactions=[bath]), 400.0)
-    levels = np.asarray(trajectory.values('tank.level'))
+    levels = np.asarray(trajectory.get_values('tank.level'))
     assert np.allclose(levels, np.round(levels))
     assert levels[50:].mean() == pytest.approx(2.0, rel=0.25)
 
@@ -651,8 +651,8 @@ def test_transfer_subclass_resolves_its_own_role_names_in_both_forms(form, pairi
     if variable:
         assert _levels(trajectory, 1, 'givers') + _levels(trajectory, 1, 'takers') == [3.0, 1.0]
     else:
-        assert np.asarray(trajectory.values('givers.level'))[-1] == pytest.approx([3.0])
-        assert np.asarray(trajectory.values('takers.level'))[-1] == pytest.approx([1.0])
+        assert np.asarray(trajectory.get_values('givers.level'))[-1] == pytest.approx([3.0])
+        assert np.asarray(trajectory.get_values('takers.level'))[-1] == pytest.approx([1.0])
 
 
 def test_transfer_symbolic_reads_a_renamed_target():

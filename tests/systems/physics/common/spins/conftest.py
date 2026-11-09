@@ -41,4 +41,4 @@ def _run(interaction: BaseInteraction, state: str, values: dict[str, object]) ->
     sites = GroupElement('sites', element=SiteElement, space=LatticeSpace((12, 12)), values=values, on='sites')
     system = CompositeSystem(elements=[sites], interactions=[interaction], time=DiscreteTime())
     trajectory = simulate(system, until=100, random_state=0)
-    return np.asarray(trajectory.values(f'sites.{state}'))
+    return np.asarray(trajectory.get_values(f'sites.{state}'))

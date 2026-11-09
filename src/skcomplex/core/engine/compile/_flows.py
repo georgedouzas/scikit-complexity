@@ -52,8 +52,8 @@ from ._base import BaseLowering, BasePass
 from ._compilation import Compilation
 from ._members import MemberLowering
 
-_BOUNDARY_PREFIX = '__boundary'
-_SHIFT = 'shift_member'
+BOUNDARY_PREFIX = '__boundary'
+SHIFT = 'shift_member'
 
 
 class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tuple[KernelSpec, list[BaseLaw]]]]):
@@ -109,7 +109,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         super()._prepare(context)
         state = self.compilation_.transfer
         if state is None:
-            self.quantities_ = self._quantities_of(self._declarations().blocks)
+            self.quantities_ = self._get_quantities_of(self._get_declarations().blocks)
             self.born_, self.flows_, self.records_, self.delays_, self.terms_ = {}, [], [], [], []
             return
         self.quantities_, self.born_ = dict(state.quantities), dict(state.born)
@@ -135,7 +135,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         self.claimed_ = set()
         self.lowered_ = [(spec, self._expand(spec, list(laws))) for spec, laws in inputs or []]
 
-    def _declarations(self) -> DeclarationsSpec:
+    def _get_declarations(self) -> DeclarationsSpec:
         """Return the layout of the compilation.
 
         An error is raised before the layout pass has run.
@@ -154,7 +154,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
             raise ValidationError(error_msg)
         return layout
 
-    def _state(self) -> TransferStateSpec:
+    def _get_state(self) -> TransferStateSpec:
         """Return the state of the lowering.
 
         The compilation keeps it for the pass that lowers the flows.
@@ -177,12 +177,12 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
             specs:
                 The new spec of every replaced spec, by the identity of the replaced spec.
         """
-        state = self._state().replaced(specs)
+        state = self._get_state().get_replaced(specs)
         self.born_, self.flows_, self.records_ = dict(state.born), list(state.flows), list(state.records)
         self.terms_ = list(state.terms)
 
     @staticmethod
-    def _quantities_of(blocks: Mapping[str, BlockSpec]) -> dict[str, str]:
+    def _get_quantities_of(blocks: Mapping[str, BlockSpec]) -> dict[str, str]:
         """Return the quantity of every state tagged with one, by entry name."""
         quantities = {}
         for block in blocks.values():
@@ -193,24 +193,24 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
                     quantities[block.entries[variable].name] = declaration.quantity
         return quantities
 
-    def _quantity_of(self, target: object, spec: KernelSpec) -> tuple[str, str | None]:
+    def _get_quantity_of(self, target: object, spec: KernelSpec) -> tuple[str, str | None]:
         """Return the state name and the quantity of a law target."""
         reference = spec.references.get(target)
         name = reference.entry.name if reference is not None else str(target)
         return name, self.quantities_.get(name)
 
     @staticmethod
-    def _offset_of(holder: object) -> tuple[Expression, int, str, float] | None:
+    def _get_offset_of(holder: object) -> tuple[Expression, int, str, float] | None:
         """Return the symbol, offset, boundary, and fill of a holder read at an offset.
 
         The symbol is that of the state of the holder. The offset is a member offset.
         """
-        if not isinstance(holder, Expression) or getattr(holder.operator(), 'name', lambda: '')() != _SHIFT:
+        if not isinstance(holder, Expression) or getattr(holder.operator(), 'name', lambda: '')() != SHIFT:
             return None
         return MemberLowering._shift_arguments(holder)
 
     @staticmethod
-    def _presence(offset: tuple[Expression, int, str, float] | None) -> Expression:
+    def _get_presence(offset: tuple[Expression, int, str, float] | None) -> Expression:
         """Return 1 where the member at the offset of a holder exists, and 0 otherwise.
 
         The member is missing past the ends of a fixed boundary.
@@ -221,7 +221,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         return 1 + shift_member(state, step, boundary='fixed') - shift_member(state, step, boundary='fixed', fill=1.0)
 
     @staticmethod
-    def _expected(amount: Expression) -> Expression:
+    def _get_expected(amount: Expression) -> Expression:
         """Return an amount with every draw replaced by its mean.
 
         It is the amount that a flow that draws records.
@@ -253,12 +253,12 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
             found = draws_in(amount)
         return amount
 
-    def _rate_law(self, holder: Expression, change: Expression, presence: Expression) -> RateLaw:
+    def _get_rate_law(self, holder: Expression, change: Expression, presence: Expression) -> RateLaw:
         """Return the rate law of a holder.
 
         A holder read at an offset takes the rate law from the member behind it.
         """
-        offset = self._offset_of(holder)
+        offset = self._get_offset_of(holder)
         if offset is None:
             return RateLaw(holder, change * presence)
         state, step, boundary, _ = offset
@@ -276,32 +276,33 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         the holder at the offset takes the amount of the member behind it, and past the ends of a fixed boundary no
         member moves anything.
         """
-        source, source_label = self._holder(flow.source, spec.references, spec.owner)
-        sink, sink_label = self._holder(flow.sink, spec.references, spec.owner)
+        source, source_label = self._get_holder(flow.source, spec.references, spec.owner)
+        sink, sink_label = self._get_holder(flow.sink, spec.references, spec.owner)
         tags = {self.quantities_.get(name) for name in (source, sink) if name is not None}
         if len(tags) > 1:
             error_msg = (
-                f'The flow {self._owner_of(flow, spec)}.{label} moves a quantity from {source_label} to {sink_label}, '
+                f'The flow {self._get_owner_of(flow, spec)}.{label} moves a quantity from {source_label} to '
+                f'{sink_label}, '
                 f'which hold different quantities {sorted(map(str, tags))}. A flow connects holders of one quantity.'
             )
             raise ConservationError(error_msg)
-        path = f'{self._owner_of(flow, spec)}.{label}'
+        path = f'{self._get_owner_of(flow, spec)}.{label}'
         compiled = _CompiledFlowSpec(path, source, sink, source_label, sink_label, next(iter(tags)))
         holders = [(item, sign) for item, sign in ((flow.source, -1), (flow.sink, 1)) if isinstance(item, Expression)]
-        presence = self._presence(next(filter(None, map(self._offset_of, (flow.source, flow.sink))), None))
+        presence = self._get_presence(next(filter(None, map(self._get_offset_of, (flow.source, flow.sink))), None))
         if flow.rate is not None:
             amount = SR(flow.amount)
             laws: list[BaseLaw] = [
                 JumpLaw(SR(flow.rate) * presence, {item: sign * amount for item, sign in holders}),
             ]
         else:
-            laws = [self._rate_law(item, sign * SR(flow.amount), presence) for item, sign in holders]
+            laws = [self._get_rate_law(item, sign * SR(flow.amount), presence) for item, sign in holders]
             amount = SR(flow.amount) * presence
         sign = 1 if source is None else -1 if sink is None else 0
         born = _BornSpec(spec, compiled, amount, sign)
         self.flows_.append(born)
         self.born_.update({id(law): born for law in laws})
-        self.records_.append(_RecordSpec(path, self._expected(amount), spec))
+        self.records_.append(_RecordSpec(path, self._get_expected(amount), spec))
         self.terms_.append(_FlowTermSpec(spec, 'flow', path, amount, source, sink))
         return laws
 
@@ -330,7 +331,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         for index, law in enumerate(laws):
             if isinstance(law, TransferLaw):
                 label = law.label or f'flow_{index}'
-                self._claim_label(self._owner_of(law, spec), label, spec.set_index)
+                self._claim_label(self._get_owner_of(law, spec), label, spec.set_index)
                 expanded.extend(self._expand_flow(spec, law, label))
                 continue
             if (
@@ -338,7 +339,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
                 and isinstance(law.value, Expression)
                 and isinstance(law._get_targets()[0], Expression)
             ):
-                target, _ = self._quantity_of(law._get_targets()[0], spec)
+                target, _ = self._get_quantity_of(law._get_targets()[0], spec)
                 self.terms_.append(_FlowTermSpec(spec, 'rate', target, law.value))
             expanded.append(law)
         return expanded
@@ -358,7 +359,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
                 return
             targets = [(law._get_targets()[0], value)]
         for target, value in targets:
-            name, quantity = self._quantity_of(target, spec)
+            name, quantity = self._get_quantity_of(target, spec)
             if quantity is not None:
                 error_msg = (
                     f'A {type(law).__name__} of {spec.owner} changes {name}, which holds the quantity '
@@ -367,7 +368,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
                 )
                 raise ConservationError(error_msg)
 
-    def _to_updates(self, specs: list[tuple[KernelSpec, list[BaseLaw]]]) -> None:
+    def _rewrite_to_updates(self, specs: list[tuple[KernelSpec, list[BaseLaw]]]) -> None:
         """Rewrite the rate laws of flows of a discrete system as update increments.
 
         The increments are those of the update laws of their states.
@@ -401,7 +402,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
             for spec, _, increment in items:
                 self._merge_references(host_spec, spec, increment)
                 value += increment
-            host[index] = BasePass._replaced(found, value=value)
+            host[index] = BasePass._get_replaced(found, value=value)
 
     def _accumulate(
         self,
@@ -423,7 +424,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         for quantity, items in boundary.items():
             if discrete and any(born.spec.rows > 1 for born in items):
                 continue
-            name = f'{_BOUNDARY_PREFIX}.{quantity}'
+            name = f'{BOUNDARY_PREFIX}.{quantity}'
             declarations, entry = self._declare_state(declarations, name, np.zeros(1), ())
             accumulator = symbol(f'_boundary_{re.sub(r"[^0-9A-Za-z]", "_", quantity)}')
             names[quantity] = name
@@ -466,7 +467,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         counter = 0
         while True:
             values = [law.value for law in laws if isinstance(law, RateLaw)] + [record.expression for record in records]
-            calls = [call for value in values for call in self._delay_calls(value)]
+            calls = [call for value in values for call in self._get_delay_calls(value)]
             if not calls:
                 return declarations
             if discrete or spec.rows > 1:
@@ -478,11 +479,11 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
             call = calls[0]
             kind = str(call.operator().name())
             value, time = call.operands()
-            material, order = self._delay_parts(kind)
+            material, order = self._get_delay_parts(kind)
             owner = re.sub(r'[^0-9A-Za-z]', '_', spec.owner)
             stages = [symbol(f'_{kind}_{counter}_{owner}_{index}') for index in range(order)]
-            start = self._initial(value, spec, declarations)
-            each = self._initial(SR(time), spec, declarations) / order if material else 1.0
+            start = self._get_initial(value, spec, declarations)
+            each = self._get_initial(SR(time), spec, declarations) / order if material else 1.0
             declarations, entry = self._declare_state(
                 declarations,
                 f'{spec.owner}.{kind}_{counter}',
@@ -497,8 +498,8 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
             output = stages[-1] / (time / order) if material else stages[-1]
             mapping = {call: output}
             self.delays_.append(_CompiledDelaySpec(call, output, references))
-            laws[:] = [self._substituted_law(law, mapping) for law in laws]
-            laws.extend(self._delay_laws(kind, stages, value, time))
+            laws[:] = [self._get_substituted_law(law, mapping) for law in laws]
+            laws.extend(self._get_delay_laws(kind, stages, value, time))
             self.records_ = [
                 replace(record, expression=SR(record.expression).subs(mapping)) if record.spec is spec else record
                 for record in self.records_
@@ -528,7 +529,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
             ValidationError:
                 A delay reads a group or belongs to a discrete system.
         """
-        declarations = self._declarations()
+        declarations = self._get_declarations()
         for spec, laws in specs:
             for law in laws:
                 self._check_conserved(spec, law)
@@ -537,7 +538,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
             isinstance(law, UpdateLaw) and id(law) not in self.born_ for _, laws in specs for law in laws
         )
         if discrete:
-            self._to_updates(specs)
+            self._rewrite_to_updates(specs)
         declarations, boundary = self._accumulate(specs, declarations, discrete)
         for spec, laws in specs:
             declarations = self._expand_delays(spec, laws, declarations, discrete)
@@ -577,14 +578,14 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         return replace(declarations, states=states, initial_states=initial_states), entry
 
     @staticmethod
-    def _substituted(value: object, mapping: Mapping[Expression, Expression]) -> object:
+    def _get_substituted(value: object, mapping: Mapping[Expression, Expression]) -> object:
         """Return a symbolic value with symbols replaced, and any other value unchanged."""
         if not mapping or not hasattr(value, 'subs'):
             return value
         return value.subs(mapping)
 
     @staticmethod
-    def _substituted_law(law: BaseLaw, mapping: Mapping[Expression, Expression]) -> BaseLaw:
+    def _get_substituted_law(law: BaseLaw, mapping: Mapping[Expression, Expression]) -> BaseLaw:
         """Return a law with symbols replaced by expressions.
 
         An example is the calls of delays replaced by their hidden states.
@@ -592,20 +593,20 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         if not mapping:
             return law
         if isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
-            return BasePass._replaced(law, value=TransferLowering._substituted(law.value, mapping))
+            return BasePass._get_replaced(law, value=TransferLowering._get_substituted(law.value, mapping))
         if isinstance(law, JumpLaw):
-            return JumpLaw(TransferLowering._substituted(law.rate, mapping), law.changes)
+            return JumpLaw(TransferLowering._get_substituted(law.rate, mapping), law.changes)
         if isinstance(law, CrossingLaw):
             reset = (
                 None
                 if law.reset is None
-                else {key: TransferLowering._substituted(item, mapping) for key, item in law.reset.items()}
+                else {key: TransferLowering._get_substituted(item, mapping) for key, item in law.reset.items()}
             )
-            return BasePass._replaced(law, guard=TransferLowering._substituted(law.guard, mapping), reset=reset)
+            return BasePass._get_replaced(law, guard=TransferLowering._get_substituted(law.guard, mapping), reset=reset)
         return law
 
     @staticmethod
-    def _delay_parts(kind: str) -> tuple[bool, int]:
+    def _get_delay_parts(kind: str) -> tuple[bool, int]:
         """Return whether a delay function conserves its input, and its order.
 
         The name must be known to be a delay.
@@ -617,17 +618,17 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         return parts
 
     @staticmethod
-    def _delay_laws(kind: str, stages: list[Expression], value: Expression, time: Expression) -> list[BaseLaw]:
+    def _get_delay_laws(kind: str, stages: list[Expression], value: Expression, time: Expression) -> list[BaseLaw]:
         """Return the rate laws of the hidden states of a delay or a smoothing."""
         each = time / len(stages)
-        if TransferLowering._delay_parts(kind)[0]:
+        if TransferLowering._get_delay_parts(kind)[0]:
             inflows = [value, *(stage / each for stage in stages[:-1])]
             return [RateLaw(stage, inflow - stage / each) for stage, inflow in zip(stages, inflows, strict=True)]
         inputs = [value, *stages[:-1]]
         return [RateLaw(stage, (item - stage) / each) for stage, item in zip(stages, inputs, strict=True)]
 
     @staticmethod
-    def _holder(
+    def _get_holder(
         holder: object,
         references: Mapping[Expression, ReferenceSpec],
         owner: str,
@@ -638,7 +639,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         """
         if isinstance(holder, Source | Sink):
             return None, holder.label
-        offset = TransferLowering._offset_of(holder)
+        offset = TransferLowering._get_offset_of(holder)
         reference = references.get(holder if offset is None else offset[0])
         if reference is None or not reference.is_state:
             error_msg = (
@@ -676,10 +677,10 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         The other spec lowers the expression.
         """
         for item in symbols_of([value]):
-            reference = self._reference_of(item, spec)
+            reference = self._get_reference_of(item, spec)
             if reference is None:
                 continue
-            known = self._reference_of(item, host)
+            known = self._get_reference_of(item, host)
             if known is not None and known != reference:
                 error_msg = (
                     f'A flow of {spec.owner} reads {item} differently from {host.owner}, which updates its state. '
@@ -689,7 +690,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
             self._add_reference(host, item, reference)
 
     @staticmethod
-    def _owner_of(flow: TransferLaw, spec: KernelSpec) -> str:
+    def _get_owner_of(flow: TransferLaw, spec: KernelSpec) -> str:
         """Return the path a flow is reported under.
 
         It is its owner in the system of the declaring part, or that part.
@@ -709,7 +710,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
             raise LabelError(error_msg)
         self.claimed_.add((f'{owner}.{label}', set_index))
 
-    def _initial(self, item: Expression, spec: KernelSpec, declarations: DeclarationsSpec) -> float:
+    def _get_initial(self, item: Expression, spec: KernelSpec, declarations: DeclarationsSpec) -> float:
         """Return the value of an expression of a spec's single symbols initially.
 
         The value is taken at the initial state and time zero.
@@ -718,7 +719,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         parameters = np.concatenate([np.zeros(0), *declarations.initial_parameters])
         values: dict[Expression, float] = {declarations.time: 0.0}
         for name in symbols_of([item]) - {declarations.time}:
-            reference = self._reference_of(name, spec)
+            reference = self._get_reference_of(name, spec)
             if (
                 reference is None
                 or reference.source not in {ReadKind.SINGLE, ReadKind.MEMBER}
@@ -735,7 +736,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         return float(SR(item).subs(values))
 
     @staticmethod
-    def _delay_calls(expression: object) -> list[Expression]:
+    def _get_delay_calls(expression: object) -> list[Expression]:
         """Return the calls of delay functions in an expression.
 
         The inputs of the calls hold no other delay.
@@ -748,7 +749,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
             if item.operator() is None:
                 continue
             name = getattr(item.operator(), 'name', lambda: '')()
-            if delay_parts(name) is not None and not TransferLowering._delay_calls(item.operands()[0]):
+            if delay_parts(name) is not None and not TransferLowering._get_delay_calls(item.operands()[0]):
                 found.append(item)
             stack.extend(item.operands())
         return found

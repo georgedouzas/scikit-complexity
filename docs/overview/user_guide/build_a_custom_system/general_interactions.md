@@ -21,7 +21,7 @@ class AmountElement(Element):
 
 decay = RateInteraction('decay', target='stock', state='x', rate=lambda s: -0.5 * s.target.x)
 system = CompositeSystem(elements=[AmountElement('stock', x=8.0)], interactions=[decay])
-round(float(simulate(system, until=2.0, dt=0.01).values('stock.x')[-1]), 3)
+round(float(simulate(system, until=2.0, dt=0.01).get_values('stock.x')[-1]), 3)
 ```
 
 `skcomplex.core.components.interactions` holds one general class per mathematical operation: a rate, a gradient, a
@@ -116,7 +116,7 @@ from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
 
 stock = DeclaredElement('stock', variables={'x': DeclaredVariableSpec(5.0, StateSpec())})
 decay = RateInteraction('decay', target='stock', state='x', rate=lambda s: -s.target.x)
-round(float(simulate(CompositeSystem(elements=[stock], interactions=[decay]), until=1.0).values('stock.x')[-1]), 3)
+round(float(simulate(CompositeSystem(elements=[stock], interactions=[decay]), until=1.0).get_values('stock.x')[-1]), 3)
 ```
 
 - `Element` declares states and parameters as annotated arguments of its `__init__`, and `DeclaredElement` takes
@@ -158,7 +158,7 @@ class AmountElement(Element):
 
 smoothing = RateInteraction('smoothing', target='belief', state='x', rate=lambda s: (10.0 - s.target.x) / 0.5)
 system = CompositeSystem(elements=[AmountElement('belief', x=0.0)], interactions=[smoothing])
-round(float(simulate(system, until=5.0, dt=0.01).values('belief.x')[-1]), 3)
+round(float(simulate(system, until=5.0, dt=0.01).get_values('belief.x')[-1]), 3)
 ```
 
 The rate `(goal - x) / time` relaxes a state towards a goal. With noise, it is an Ornstein-Uhlenbeck process. A field
@@ -195,7 +195,7 @@ class BallElement(Element):
 
 well = GradientInteraction('well', target='walker', states='x', potential=lambda s: s.target.x**2 / 2)
 flow = CompositeSystem(elements=[AmountElement('walker', x=1.0)], interactions=[well])
-round(float(simulate(flow, until=1.0, dt=0.01).values('walker.x')[-1]), 4)
+round(float(simulate(flow, until=1.0, dt=0.01).get_values('walker.x')[-1]), 4)
 ```
 
 On a state of order 2, such as the position of a point, the same class gives Newton's equations:
@@ -204,7 +204,7 @@ On a state of order 2, such as the position of a point, the same class gives New
 spring = GradientInteraction('spring', target='point', states='x', potential=lambda s: s.target.x * s.target.x / 2)
 ball = BallElement('point', x=[1.0])
 newton = CompositeSystem(elements=[ball], interactions=[spring], space=ContinuousSpace(n_dim=1))
-round(float(simulate(newton, until=3.1416, dt=0.01).values('point.x')[-1][0]), 3)
+round(float(simulate(newton, until=3.1416, dt=0.01).get_values('point.x')[-1][0]), 3)
 ```
 
 `GradientInteraction(target, states, potential, sources=(), divisor=None, variational=False, conserved=False)` also
@@ -236,7 +236,7 @@ class AngleElement(Element):
 lagrangian = lambda s: derivative(s.target.q, 1) ** 2 / 2 + cos(s.target.q)
 swing = EulerLagrangeInteraction('swing', target='bob', states='q', lagrangian=lagrangian)
 system = CompositeSystem(elements=[AngleElement('bob')], interactions=[swing])
-round(float(simulate(system, until=3.2, dt=0.01).values('bob.q')[-1]), 2)
+round(float(simulate(system, until=3.2, dt=0.01).get_values('bob.q')[-1]), 2)
 ```
 
 `EulerLagrangeInteraction(target, states, lagrangian, dissipation=None, forcing=None)` writes the equations of motion
@@ -283,7 +283,7 @@ coordinates, momenta = ('x', 'y'), ('px', 'py')
 gravity = HamiltonianInteraction('gravity', target='sun', coordinates=coordinates, momenta=momenta, hamiltonian=kepler)
 system = CompositeSystem(elements=[PlanetElement('sun')], interactions=[gravity])
 trajectory = simulate(system, until=6.2832, solver=Yoshida4Solver(dt=0.01), dt=1.0)
-round(float(trajectory.values('sun.x')[-1]), 6)
+round(float(trajectory.get_values('sun.x')[-1]), 6)
 ```
 
 `HamiltonianInteraction(target, coordinates='q', momenta='p', hamiltonian=None)` writes Hamilton's equations
@@ -363,7 +363,7 @@ totals = {}
 for label, interaction in interactions.items():
     field = FieldElement('wave', element=CellElement, space=space, values=values, discretization='finite-volume')
     system = CompositeSystem(elements=[field], interactions=[interaction])
-    total = simulate(system, until=0.5, dt=0.01).values('wave.u')[-1].sum()
+    total = simulate(system, until=0.5, dt=0.01).get_values('wave.u')[-1].sum()
     totals[label] = round(float(total), 6)
 totals
 ```
@@ -400,7 +400,7 @@ class ValueElement(Element):
 
 logistic = MapInteraction('map', target='value', state='x', function=lambda s: 3 * s.target.x * (1 - s.target.x))
 system = CompositeSystem(elements=[ValueElement('value')], interactions=[logistic], time=DiscreteTime())
-simulate(system, until=2).values('value.x').tolist()
+simulate(system, until=2).get_values('value.x').tolist()
 ```
 
 `MapInteraction(target, state, function, sources=(), mode='replace', schedule='synchronous', form='symbolic')` sets
@@ -435,7 +435,7 @@ class QuoteElement(Element):
 step = lambda s: clip(s.target.x * (1 + 0.5 * sign(2 - s.target.x)), None, 2.0)
 search = MapInteraction('search', target='quote', state='x', function=step)
 system = CompositeSystem(elements=[QuoteElement('quote')], interactions=[search], time=DiscreteTime())
-simulate(system, until=3).values('quote.x').tolist()
+simulate(system, until=3).get_values('quote.x').tolist()
 ```
 
 The next value is `x (1 + step sign(signal))` kept within `[lower, upper]`. Economics names this search
@@ -535,7 +535,7 @@ kuramoto = CouplingInteraction(
     mode='group',
 )
 system = CompositeSystem(elements=[oscillators], interactions=[kuramoto])
-phases = simulate(system, until=10, dt=1.0).values('oscillators.theta')[-1]
+phases = simulate(system, until=10, dt=1.0).get_values('oscillators.theta')[-1]
 round(float(np.abs(np.exp(1j * phases).mean())), 2)
 ```
 
@@ -575,7 +575,7 @@ class AtomElement(Element):
 morse = PairInteraction('morse', 'pair', 'pair', cutoff=3.0, potential=lambda s, r: 2 * (1 - exp(1 - r)) ** 2)
 pair = GroupElement('pair', element=AtomElement, size=2, values={'x': [[0.0, 0.0], [1.5, 0.0]]})
 system = CompositeSystem(elements=[pair], interactions=[morse], space=ContinuousSpace(n_dim=2))
-positions = simulate(system, until=5, dt=0.1).values('pair.x')
+positions = simulate(system, until=5, dt=0.1).get_values('pair.x')
 distances = np.linalg.norm(positions[:, 1] - positions[:, 0], axis=1)
 round(float(distances.min()), 2), round(float(distances.max()), 2)
 ```
@@ -637,7 +637,7 @@ class AmountElement(Element):
 
 arrivals = JumpInteraction('arrivals', target='queue', changes={'x': 1}, rate=lambda s: 2.0)
 queue = CompositeSystem(elements=[AmountElement('queue')], interactions=[arrivals])
-counts = simulate(queue, until=5, dt=1.0, random_state=0).values('queue.x')
+counts = simulate(queue, until=5, dt=1.0, random_state=0).get_values('queue.x')
 all(count == round(count) for count in counts)
 ```
 
@@ -677,7 +677,7 @@ move = TransitionInteraction(
 )
 holders = GroupElement('holders', element=HolderElement, size=1000)
 system = CompositeSystem(elements=[holders], interactions=[move], time=DiscreteTime())
-values = simulate(system, until=3, random_state=0).values('holders.state')
+values = simulate(system, until=3, random_state=0).get_values('holders.state')
 round(float((values[-1] == 1).mean()), 1)
 ```
 
@@ -700,7 +700,7 @@ contact = TransitionInteraction(
 recovery = TransitionInteraction('recovery', target='sites', state='state', source=1, destination=0, rate=lambda s: 1.0)
 sites = GroupElement('sites', element=HolderElement, space=LatticeSpace((20, 20)), on='sites')
 system = CompositeSystem(elements=[sites], interactions=[contact, recovery])
-values = simulate(system, until=10, dt=1.0, random_state=0).values('sites.state')
+values = simulate(system, until=10, dt=1.0, random_state=0).get_values('sites.state')
 values[-1].mean() > 0.3
 ```
 
@@ -905,7 +905,7 @@ learning = [
 learners = GroupElement('learners', element=LearnerElement, size=2)
 system = CompositeSystem(elements=[learners], interactions=learning, time=DiscreteTime())
 trajectory = simulate(system, until=10, random_state=0)
-first, second = trajectory.values('learners.first')[-1][0], trajectory.values('learners.second')[-1][0]
+first, second = trajectory.get_values('learners.first')[-1][0], trajectory.get_values('learners.second')[-1][0]
 round(float(first), 2), round(float(second), 2)
 ```
 
@@ -941,7 +941,7 @@ class TankElement(Element):
 flow = TransferInteraction('flow', source='upper', target='lower', state='level', amount=lambda s: s.source.level / 2)
 system = CompositeSystem(elements=[TankElement('upper', level=4.0), TankElement('lower')], interactions=[flow])
 trajectory = simulate(system, until=1.0)
-round(float(trajectory.values('upper.level')[-1] + trajectory.values('lower.level')[-1]), 6)
+round(float(trajectory.get_values('upper.level')[-1] + trajectory.get_values('lower.level')[-1]), 6)
 ```
 
 `TransferInteraction(source, target, state, into=None, amount, ...)` moves amounts of states between members, the
@@ -982,7 +982,7 @@ hops = TransferInteraction(
 lane = GroupElement('lane', element=SiteElement, size=20, values={'occupied': np.tile([1.0, 0.0], 10)})
 system = CompositeSystem(elements=[lane], interactions=[hops], time=DiscreteTime())
 trajectory = simulate(system, until=10, dt=1, random_state=0)
-set(trajectory.values('lane.occupied').sum(axis=1))
+set(trajectory.get_values('lane.occupied').sum(axis=1))
 ```
 
 - With `offset=k`, a symbolic transfer within one group moves amounts along the edges of the group order, from every
@@ -1050,7 +1050,7 @@ links = GroupElement('links', element=Element, on='edges', variable=True, capaci
 expiry = TopologyInteraction('expiry', target='nodes', action='remove-edge')
 system = CompositeSystem(elements=[nodes, links], interactions=[expiry], space=NetworkSpace(nx.cycle_graph(5)))
 trajectory = simulate(system, until=1, random_state=0)
-len(trajectory.network(0).sources), len(trajectory.network(1).sources)
+len(trajectory.get_network(0).sources), len(trajectory.get_network(1).sources)
 ```
 
 `TopologyInteraction(target=None, action='add-edge', rate=None, probability=None, toward=None, ...)` adds or removes
@@ -1142,7 +1142,7 @@ film = FieldElement(
     discretization='spectral',
 )
 trajectory = simulate(CompositeSystem(elements=[film]), until=0.2, dt=0.01)
-bool(np.max(np.abs(trajectory.values('film.Q')[-1])) < np.max(np.abs(start)))
+bool(np.max(np.abs(trajectory.get_values('film.Q')[-1])) < np.max(np.abs(start)))
 ```
 
 `StateSpec(tensor=symmetry)` declares a rank-2 tensor state of a field on a lattice of 2 or 3 dimensions. The symmetry

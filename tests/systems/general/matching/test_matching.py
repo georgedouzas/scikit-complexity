@@ -86,7 +86,7 @@ def test_match_settles_transfers_and_realises_the_surplus():
     maximum = np.sum(np.maximum(np.sort(values)[::-1] - np.sort(costs), 0))
     assert realised > 0.9 * maximum
     assert requesters['money'].sum() + providers['money'].sum() == pytest.approx(values.sum())
-    assert np.nansum(trajectory.values('auction.volume')) == bought.sum()
+    assert np.nansum(trajectory.get_values('auction.volume')) == bought.sum()
     assert np.all(requesters['quantity'][bought] == 0.0)
 
 
@@ -108,8 +108,8 @@ def test_match_reads_the_states_named_by_a_pair():
         ],
     )
     trajectory = simulate(system, until=1, random_state=0)
-    assert trajectory.values('matching.value')[-1] == 7.0
-    assert trajectory.values('matching.unmatched')[-1] == 0.0
+    assert trajectory.get_values('matching.value')[-1] == 7.0
+    assert trajectory.get_values('matching.unmatched')[-1] == 0.0
 
 
 def test_init_defaults_to_random_search():
@@ -313,7 +313,7 @@ def test_match_partners_considers_local_cells_and_distances_only():
         space = LatticeSpace((5, 5), metric='chebyshev', boundary='fixed')
         system = CompositeSystem(elements=[requesters, providers], interactions=[matching], space=space)
         trajectory = simulate(system, until=1, random_state=0)
-        assert trajectory.values('matching.volume')[-1] == pytest.approx(expected)
+        assert trajectory.get_values('matching.volume')[-1] == pytest.approx(expected)
 
 
 def test_check_rejects_a_transfer_without_a_sign():

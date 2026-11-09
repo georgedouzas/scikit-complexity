@@ -31,7 +31,7 @@ def test_perishable_goods_duopoly_symmetry_breaking(ratio):
             until=300,
             random_state=0,
             observables=PerishableGoodsDuopolySystem().get_run_settings()['observables'],
-        ).values('m')[-50:],
+        ).get_values('m')[-50:],
     ).mean()
     if ratio < 1:
         assert asymmetry == pytest.approx(_asymmetry_at_mean_field(ratio * critical, control), abs=0.1)

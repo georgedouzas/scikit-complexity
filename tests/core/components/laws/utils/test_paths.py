@@ -93,9 +93,9 @@ def test_neighborhood_kernel_reuses_the_paths_of_unchanged_links():
     kernel = NeighborhoodKernel.__new__(NeighborhoodKernel)
     kernel.kind, kernel.paths_ = 'path-betweenness', None
     kernel.entry = type('Entry', (), {'rows': 4})()
-    first = kernel._cached_paths(np.array([0, 1, 2]), np.array([1, 2, 3]))
-    assert kernel._cached_paths(np.array([0, 1, 2]), np.array([1, 2, 3])) is first
-    assert kernel._cached_paths(np.array([0, 1]), np.array([1, 2])).tolist() == [0.0, 1.0, 0.0, 0.0]
+    first = kernel._get_cached_paths(np.array([0, 1, 2]), np.array([1, 2, 3]))
+    assert kernel._get_cached_paths(np.array([0, 1, 2]), np.array([1, 2, 3])) is first
+    assert kernel._get_cached_paths(np.array([0, 1]), np.array([1, 2])).tolist() == [0.0, 1.0, 0.0, 0.0]
 
 
 @pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
@@ -112,9 +112,9 @@ def test_shortest_paths_follow_a_network_whose_nodes_are_removed(backend):
         warnings.simplefilter('ignore', BackendWarning)
         trajectory = simulate(system, until=6, backend=backend, random_state=0)
     for frame in range(5):
-        expected = nx.betweenness_centrality(trajectory.network(frame).graph(), normalized=False)
-        kept = trajectory.network(frame + 1).nodes
-        values = trajectory.values('nodes.a')[frame + 1]
+        expected = nx.betweenness_centrality(trajectory.get_network(frame).graph(), normalized=False)
+        kept = trajectory.get_network(frame + 1).nodes
+        values = trajectory.get_values('nodes.a')[frame + 1]
         np.testing.assert_allclose(values[kept], [expected[node] for node in kept.tolist()])
 
 

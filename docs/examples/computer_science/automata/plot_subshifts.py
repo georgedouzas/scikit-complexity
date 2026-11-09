@@ -32,7 +32,7 @@ trajectory = simulate(system, observers=[observer], random_state=0)
 # of the measure of maximal entropy, and no configuration should ever hold a forbidden pattern. The entropy of the
 # words of length `n` approaches the logarithm of the golden ratio.
 
-alive = trajectory.values('cells.alive')
+alive = trajectory.get_values('cells.alive')
 admissible = all(automaton(system, kind='admissible', configuration=row.astype(int)).admissible for row in alive)
 lengths = np.arange(2, 31, 4)
 windows = [LatticeSpace(int(length), boundary='fixed') for length in lengths]

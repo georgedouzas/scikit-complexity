@@ -32,9 +32,7 @@ from ._reference_spec import ReferenceSpec
 from ._symmetry_spec import SymmetrySpec
 from ._too_dense import _TooDenseError
 
-"""Index of the expression and symbol of every nonzero derivative, with the NumPy function of the derivatives."""
-
-_PATTERN_LIMIT = 4_000_000
+PATTERN_LIMIT = 4_000_000
 
 
 class JacobianKernel(BaseKernel):
@@ -149,14 +147,14 @@ class JacobianKernel(BaseKernel):
         for kernel in self.kernels:
             expressions = [output.expression for output in kernel.outputs]
             by = [item for item in kernel.arguments if self._is_variable(kernel.references[item])]
-            self.kernel_partials_.append(self._partials(kernel.arguments, expressions, by))
+            self.kernel_partials_.append(self._get_partials(kernel.arguments, expressions, by))
         self.reduction_partials_ = {}
         for reduction in self.reductions.reductions:
             by = [item for item in reduction.symbols if reduction.reads[item].is_state or item in self._by_symbol]
-            self.reduction_partials_[reduction.symbol] = self._partials(reduction.symbols, [reduction.argument], by)
+            self.reduction_partials_[reduction.symbol] = self._get_partials(reduction.symbols, [reduction.argument], by)
         self.operand_partials_: dict[int, PartialsSpec] = {}
 
-    def _partials(
+    def _get_partials(
         self,
         arguments: list[Expression],
         expressions: list[Expression],
@@ -176,10 +174,10 @@ class JacobianKernel(BaseKernel):
         if not derivatives:
             return PartialsSpec(pairs, None)
         printer = ExpressionPrinter(time=self.time, compiled=True).prepare(arguments)
-        return PartialsSpec(pairs, ExpressionPrinter._function_of(printer.run(derivatives).code_))
+        return PartialsSpec(pairs, ExpressionPrinter._get_function_of(printer.run(derivatives).code_))
 
     @staticmethod
-    def _derivatives(
+    def _get_derivatives(
         partials: PartialsSpec,
         t: float,
         values: Sequence[object],
@@ -190,7 +188,7 @@ class JacobianKernel(BaseKernel):
         """
         if partials.function is None:
             return []
-        results = ExpressionPrinter._values_of(partials.function(t, *values))
+        results = ExpressionPrinter._get_values_of(partials.function(t, *values))
         return [(index, item, value) for (index, item), value in zip(partials.pairs, results, strict=True)]
 
     @property
@@ -198,7 +196,7 @@ class JacobianKernel(BaseKernel):
         """Reductions by placeholder symbol."""
         return {item.symbol: item for item in self.reductions.reductions}
 
-    def _member_gradients(
+    def _get_member_gradients(
         self,
         reduction: ReductionKernel,
         t: float,
@@ -212,7 +210,11 @@ class JacobianKernel(BaseKernel):
         """
         total = scipy.sparse.csr_array((reduction.size, self.size))
         members = np.arange(reduction.size)
-        for _, item, value in self._derivatives(self.reduction_partials_[reduction.symbol], t, reduction.gather(x, q)):
+        for _, item, value in self._get_derivatives(
+            self.reduction_partials_[reduction.symbol],
+            t,
+            reduction.gather(x, q),
+        ):
             derivative = np.broadcast_to(np.asarray(value, dtype=float), (reduction.size,))
             read = reduction.reads[item]
             if item in gradients:
@@ -221,10 +223,10 @@ class JacobianKernel(BaseKernel):
                 total = total + scipy.sparse.diags_array(derivative) @ block
                 continue
             columns = np.broadcast_to(np.asarray(read.index, dtype=np.intp), (reduction.size,))
-            total = total + self._selection(members, columns, derivative, self.size)
+            total = total + self._get_selection(members, columns, derivative, self.size)
         return scipy.sparse.csr_array(total)
 
-    def _reduction_gradient(
+    def _get_reduction_gradient(
         self,
         reduction: ReductionKernel,
         t: float,
@@ -236,14 +238,14 @@ class JacobianKernel(BaseKernel):
 
         For weights, there is one row per reading member.
         """
-        argument, condition = reduction.values(t, x, q)
+        argument, condition = reduction.get_values(t, x, q)
         mask = condition.astype(float)
         selected = float(mask.sum())
-        members = self._member_gradients(reduction, t, x, q, gradients)
+        members = self._get_member_gradients(reduction, t, x, q, gradients)
         if reduction.kind == 'count' or not selected:
             return scipy.sparse.csr_array((reduction.readers, self.size))
         if reduction.weights is not None:
-            weighted = reduction.weight_matrix(x, q) @ scipy.sparse.diags_array(mask) @ members
+            weighted = reduction.get_weight_matrix(x, q) @ scipy.sparse.diags_array(mask) @ members
             return scipy.sparse.csr_array(weighted / selected if reduction.kind == 'mean' else weighted)
         if reduction.kind in {'max', 'min'}:
             values = np.where(condition, argument, -np.inf if reduction.kind == 'max' else np.inf)
@@ -258,7 +260,7 @@ class JacobianKernel(BaseKernel):
             factors = mask / selected if reduction.kind == 'mean' else mask
         return scipy.sparse.csr_array(factors[np.newaxis, :] @ members)
 
-    def _reduced_rows(self, kernel: LawKernel, reference: ReferenceSpec, rows: Sparse) -> Sparse:
+    def _get_reduced_rows(self, kernel: LawKernel, reference: ReferenceSpec, rows: Sparse) -> Sparse:
         """Return the rows of a reduction's gradient or support for every evaluation index.
 
         They are the rows read by every evaluation index of a kernel.
@@ -267,7 +269,7 @@ class JacobianKernel(BaseKernel):
             rows = rows[[min(reference.column, rows.shape[0] - 1)]]
         return rows if rows.shape[0] == kernel.rows else scipy.sparse.vstack([rows] * kernel.rows, format='csr')
 
-    def _symbol_gradient(
+    def _get_symbol_gradient(
         self,
         kernel: LawKernel,
         item: Expression,
@@ -284,17 +286,17 @@ class JacobianKernel(BaseKernel):
         reference = kernel.references[item]
         rows = np.arange(kernel.rows)
         if reference.source is ReadKind.REDUCED:
-            return self._reduced_rows(kernel, reference, gradients[item])
+            return self._get_reduced_rows(kernel, reference, gradients[item])
         if reference.source is ReadKind.DERIVED:
             read = reference.derived
             key = id(read)
             if key not in self.operand_partials_:
                 by = [symbol for symbol in read.symbols if self._is_variable(kernel.references[symbol])]
-                self.operand_partials_[key] = self._partials(read.symbols, [read.operand], by)
+                self.operand_partials_[key] = self._get_partials(read.symbols, [read.operand], by)
             values = [kernel.read(symbol, t, x, q) for symbol in read.symbols]
             total = scipy.sparse.csr_array((kernel.rows, self.size))
-            for _, symbol, value in self._derivatives(self.operand_partials_[key], t, values):
-                inner = self._symbol_gradient(kernel, symbol, t=t, x=x, q=q, gradients=gradients)
+            for _, symbol, value in self._get_derivatives(self.operand_partials_[key], t, values):
+                inner = self._get_symbol_gradient(kernel, symbol, t=t, x=x, q=q, gradients=gradients)
                 if inner is not None:
                     derivative = np.broadcast_to(np.asarray(value, dtype=float), (kernel.rows,))
                     total = total + scipy.sparse.diags_array(derivative) @ inner
@@ -302,11 +304,11 @@ class JacobianKernel(BaseKernel):
         if not reference.is_state:
             return None
         if reference.source is ReadKind.NEIGHBOR:
-            members, columns = self._neighbor_columns(reference)
-            return self._selection(members, columns, 1.0, self.size, height=kernel.rows)
-        return self._selection(
+            members, columns = self._get_neighbor_columns(reference)
+            return self._get_selection(members, columns, 1.0, self.size, height=kernel.rows)
+        return self._get_selection(
             rows,
-            LawKernel._member_indices(reference, kernel.rows),
+            LawKernel._get_member_indices(reference, kernel.rows),
             1.0,
             self.size,
             height=kernel.rows,
@@ -314,35 +316,35 @@ class JacobianKernel(BaseKernel):
 
     def _run(self, inputs: RunStateSpec | None) -> None:
         """Set the Jacobian of the drift at the state as the sparse matrix of `dF_i/dx_j`."""
-        state = self._state_of(inputs)
+        state = self._get_state_of(inputs)
         t, x, p = state.t, state.x, state.p
         partials = self.kernel_partials_
         q = self.reductions.extend(t, x, p)
         gradients: dict[Expression, Sparse] = {}
         for reduction in self.reductions.reductions:
-            gradients[reduction.symbol] = self._reduction_gradient(reduction, t, x, q, gradients)
+            gradients[reduction.symbol] = self._get_reduction_gradient(reduction, t, x, q, gradients)
         jacobian = scipy.sparse.csr_array((self.size, self.size))
         for kernel, kernel_partials in zip(self.kernels, partials, strict=True):
-            for index, item, value in self._derivatives(kernel_partials, t, kernel.gather(t, x, q)):
-                gradient = self._symbol_gradient(kernel, item, t=t, x=x, q=q, gradients=gradients)
+            for index, item, value in self._get_derivatives(kernel_partials, t, kernel.gather(t, x, q)):
+                gradient = self._get_symbol_gradient(kernel, item, t=t, x=x, q=q, gradients=gradients)
                 if gradient is None:
                     continue
-                target = LawKernel._member_indices(self._target_of(kernel.outputs[index]), kernel.rows)
-                scatter = self._selection(np.arange(kernel.rows), target, 1.0, self.size).T
+                target = LawKernel._get_member_indices(self._get_target_of(kernel.outputs[index]), kernel.rows)
+                scatter = self._get_selection(np.arange(kernel.rows), target, 1.0, self.size).T
                 derivative = np.broadcast_to(np.asarray(value, dtype=float), (kernel.rows,))
                 jacobian = jacobian + scatter @ scipy.sparse.diags_array(derivative) @ gradient
         for projection in self._mirror_projections(self.symmetries, self.size):
             jacobian = projection @ jacobian
-        self.values_ = scipy.sparse.csr_array(self._free_rows() @ jacobian)
+        self.values_ = scipy.sparse.csr_array(self._get_free_rows() @ jacobian)
 
-    def _free_rows(self) -> Sparse:
+    def _get_free_rows(self) -> Sparse:
         """Return the diagonal matrix that empties the fixed rows."""
         diagonal = np.ones(self.size)
         if self.constrained is not None:
             diagonal[self.constrained] = 0.0
         return scipy.sparse.diags_array(diagonal, format='csr')
 
-    def pattern(self) -> Sparse | None:
+    def get_pattern(self) -> Sparse | None:
         """Return the boolean structure of the Jacobian.
 
         It is `None` when its dense blocks are too large to state.
@@ -350,7 +352,7 @@ class JacobianKernel(BaseKernel):
         Returns:
             pattern:
                 A boolean sparse matrix that holds every entry the Jacobian can make nonzero and the diagonal of free
-                rows, with fixed rows empty, or `None` when the dense blocks exceed `_PATTERN_LIMIT` entries or the
+                rows, with fixed rows empty, or `None` when the dense blocks exceed `PATTERN_LIMIT` entries or the
                 laws reduce over neighbourhoods, whose neighbours can change.
         """
         return self._pattern
@@ -376,38 +378,44 @@ class JacobianKernel(BaseKernel):
             raise _TooDenseError
         supports: dict[Expression, Sparse] = {}
         for reduction in self.reductions.reductions:
-            supports[reduction.symbol] = self._reduction_support(reduction, supports)
+            supports[reduction.symbol] = self._get_reduction_support(reduction, supports)
         blocks = [scipy.sparse.eye_array(self.size, format='csr')]
         for kernel in self.kernels:
-            blocks.extend(self._kernel_pattern(kernel, supports))
-        blocks.extend(volume.pattern(self.size) for volume in self.volumes)
+            blocks.extend(self._get_kernel_pattern(kernel, supports))
+        blocks.extend(volume.get_pattern(self.size) for volume in self.volumes)
         total = scipy.sparse.csr_array((self.size, self.size))
         for block in blocks:
             total = total + scipy.sparse.csr_array(block, dtype=float)
-        pattern = self._boolean(total)
+        pattern = self._get_boolean(total)
         for projection in self._mirror_projections(self.symmetries, self.size):
-            pattern = self._product(self._boolean(projection), pattern)
-        return self._product(self._free_rows(), pattern)
+            pattern = self._get_product(self._get_boolean(projection), pattern)
+        return self._get_product(self._get_free_rows(), pattern)
 
     def _note_dense(self, entries: int) -> None:
         """Count the entries of a dense block and stop above the size limit."""
         self._dense += entries
-        if self._dense > _PATTERN_LIMIT:
+        if self._dense > PATTERN_LIMIT:
             raise _TooDenseError
 
-    def _dense_rows(self, rows: int, columns: Indices) -> Sparse:
+    def _get_dense_rows(self, rows: int, columns: Indices) -> Sparse:
         """Return the block where every evaluation index reads every one of the columns."""
         columns = np.unique(columns)
         self._note_dense(rows * columns.size)
-        return self._selection(np.repeat(np.arange(rows), columns.size), np.tile(columns, rows), 1.0, self.size, rows)
+        return self._get_selection(
+            np.repeat(np.arange(rows), columns.size),
+            np.tile(columns, rows),
+            1.0,
+            self.size,
+            rows,
+        )
 
-    def _all_columns(self, kernel: LawKernel, item: Expression, supports: dict[Expression, Sparse]) -> Indices:
+    def _get_all_columns(self, kernel: LawKernel, item: Expression, supports: dict[Expression, Sparse]) -> Indices:
         """Return every state index a symbol can read at any evaluation index."""
         reference = kernel.references[item]
         if reference.source is ReadKind.REDUCED:
             return np.unique(supports[item].indices).astype(np.intp)
         if reference.source is ReadKind.DERIVED:
-            parts = [self._all_columns(kernel, symbol, supports) for symbol in reference.derived.symbols]
+            parts = [self._get_all_columns(kernel, symbol, supports) for symbol in reference.derived.symbols]
             return np.unique(np.concatenate([np.zeros(0, dtype=np.intp), *parts]))
         if not reference.is_state:
             return np.zeros(0, dtype=np.intp)
@@ -415,7 +423,12 @@ class JacobianKernel(BaseKernel):
             return np.array([reference.index], dtype=np.intp)
         return reference.flat_indices.astype(np.intp)
 
-    def _symbol_support(self, kernel: LawKernel, item: Expression, supports: dict[Expression, Sparse]) -> Sparse | None:
+    def _get_symbol_support(
+        self,
+        kernel: LawKernel,
+        item: Expression,
+        supports: dict[Expression, Sparse],
+    ) -> Sparse | None:
         """Return the states a symbol reads at every evaluation index of a member kernel.
 
         Parameters return `None`.
@@ -424,49 +437,55 @@ class JacobianKernel(BaseKernel):
         if reference is None:
             return None
         if reference.source is ReadKind.REDUCED:
-            block = self._reduced_rows(kernel, reference, supports[item])
+            block = self._get_reduced_rows(kernel, reference, supports[item])
             self._note_dense(block.nnz)
             return block
         if reference.source is ReadKind.DERIVED:
-            return self._derived_support(kernel, item, supports)
+            return self._get_derived_support(kernel, item, supports)
         if not reference.is_state:
             return None
-        return self._state_support(kernel, reference)
+        return self._get_state_support(kernel, reference)
 
-    def _derived_support(self, kernel: LawKernel, item: Expression, supports: dict[Expression, Sparse]) -> Sparse:
+    def _get_derived_support(self, kernel: LawKernel, item: Expression, supports: dict[Expression, Sparse]) -> Sparse:
         """Return the states a derived read reads.
 
         They come through its sparse operator or as a dense block.
         """
         read = kernel.references[item].derived
         if read.matrix is None:
-            return self._dense_rows(kernel.rows, self._all_columns(kernel, item, supports))
+            return self._get_dense_rows(kernel.rows, self._get_all_columns(kernel, item, supports))
         operand = scipy.sparse.csr_array((kernel.rows, self.size))
         for symbol in read.symbols:
-            block = self._symbol_support(kernel, symbol, supports)
+            block = self._get_symbol_support(kernel, symbol, supports)
             if block is not None:
                 operand = operand + scipy.sparse.csr_array(block, dtype=float)
-        return self._product(self._boolean(read.matrix), operand)
+        return self._get_product(self._get_boolean(read.matrix), operand)
 
-    def _state_support(self, kernel: LawKernel, reference: ReferenceSpec) -> Sparse:
+    def _get_state_support(self, kernel: LawKernel, reference: ReferenceSpec) -> Sparse:
         """Return the states a state symbol reads at every evaluation index."""
         rows = kernel.rows
         if reference.source is ReadKind.NEIGHBOR:
-            members, columns = self._neighbor_columns(reference)
-            return self._selection(members, columns, 1.0, self.size, height=rows)
+            members, columns = self._get_neighbor_columns(reference)
+            return self._get_selection(members, columns, 1.0, self.size, height=rows)
         if reference.source is ReadKind.SINGLE:
-            return self._selection(np.arange(rows), np.full(rows, reference.index, dtype=np.intp), 1.0, self.size, rows)
+            return self._get_selection(
+                np.arange(rows),
+                np.full(rows, reference.index, dtype=np.intp),
+                1.0,
+                self.size,
+                rows,
+            )
         if reference.source is ReadKind.MEMBER and reference.entry.rows == rows:
-            return self._selection(np.arange(rows), reference.flat_indices, 1.0, self.size, height=rows)
-        return self._dense_rows(rows, reference.flat_indices)
+            return self._get_selection(np.arange(rows), reference.flat_indices, 1.0, self.size, height=rows)
+        return self._get_dense_rows(rows, reference.flat_indices)
 
-    def _kernel_pattern(self, kernel: LawKernel, supports: dict[Expression, Sparse]) -> list[Sparse]:
+    def _get_kernel_pattern(self, kernel: LawKernel, supports: dict[Expression, Sparse]) -> list[Sparse]:
         """Return the blocks of the pattern that the outputs of one kernel add."""
         blocks = []
         everything = np.arange(self.size, dtype=np.intp)
         for output in kernel.outputs:
-            target = self._target_of(output)
-            used = self._output_symbols(output)
+            target = self._get_target_of(output)
+            used = self._get_output_symbols(output)
             if kernel.pairs is not None or target.source in {ReadKind.FIRST, ReadKind.SECOND}:
                 targets = np.unique(target.flat_indices if target.source is not ReadKind.SINGLE else [target.index])
                 columns = (
@@ -475,35 +494,41 @@ class JacobianKernel(BaseKernel):
                     else np.unique(
                         np.concatenate(
                             [np.zeros(0, dtype=np.intp)]
-                            + [self._all_columns(kernel, item, supports) for item in used if item in kernel.references],
+                            + [
+                                self._get_all_columns(kernel, item, supports)
+                                for item in used
+                                if item in kernel.references
+                            ],
                         ),
                     )
                 )
-                block = self._dense_rows(targets.size, columns)
-                blocks.append(self._selection(targets, np.arange(targets.size), 1.0, targets.size, self.size) @ block)
+                block = self._get_dense_rows(targets.size, columns)
+                blocks.append(
+                    self._get_selection(targets, np.arange(targets.size), 1.0, targets.size, self.size) @ block,
+                )
                 continue
-            scatter = self._selection(
+            scatter = self._get_selection(
                 np.arange(kernel.rows),
-                LawKernel._member_indices(target, kernel.rows),
+                LawKernel._get_member_indices(target, kernel.rows),
                 1.0,
                 self.size,
             ).T
             if used is None:
-                blocks.append(scatter @ self._dense_rows(kernel.rows, everything))
+                blocks.append(scatter @ self._get_dense_rows(kernel.rows, everything))
                 continue
             if output.vectorized:
                 # A call over the whole group gives every member a value of the arguments of all members.
-                reads = [self._all_columns(kernel, item, supports) for item in used if item in kernel.references]
+                reads = [self._get_all_columns(kernel, item, supports) for item in used if item in kernel.references]
                 read = np.unique(np.concatenate([np.zeros(0, dtype=np.intp), *reads]))
-                blocks.append(scatter @ self._dense_rows(kernel.rows, read))
+                blocks.append(scatter @ self._get_dense_rows(kernel.rows, read))
                 continue
             for item in used:
-                support = self._symbol_support(kernel, item, supports)
+                support = self._get_symbol_support(kernel, item, supports)
                 if support is not None:
                     blocks.append(scatter @ support)
         return blocks
 
-    def _reduction_support(self, reduction: ReductionKernel, supports: dict[Expression, Sparse]) -> Sparse:
+    def _get_reduction_support(self, reduction: ReductionKernel, supports: dict[Expression, Sparse]) -> Sparse:
         """Return the states a reduction depends on.
 
         For weights, there is one row per reading member.
@@ -518,7 +543,7 @@ class JacobianKernel(BaseKernel):
                 support = support + (block != 0)
             elif read.is_state:
                 columns = np.broadcast_to(np.asarray(read.index, dtype=np.intp), (reduction.size,))
-                support = support + (self._selection(members, columns, 1.0, self.size) != 0)
+                support = support + (self._get_selection(members, columns, 1.0, self.size) != 0)
         if reduction.kind == 'count':
             return scipy.sparse.csr_array((1, self.size), dtype=bool)
         if reduction.weights is not None:
@@ -528,7 +553,7 @@ class JacobianKernel(BaseKernel):
         return scipy.sparse.csr_array(np.asarray(support.astype(float).sum(axis=0)).reshape(1, -1) != 0)
 
     @staticmethod
-    def _selection(
+    def _get_selection(
         rows: npt.NDArray[np.intp],
         columns: npt.NDArray[np.intp],
         values: npt.ArrayLike,
@@ -544,14 +569,14 @@ class JacobianKernel(BaseKernel):
         return scipy.sparse.csr_array((data, (rows, columns)), shape=shape)
 
     @staticmethod
-    def _product(first: Sparse, second: Sparse) -> Sparse:
+    def _get_product(first: Sparse, second: Sparse) -> Sparse:
         """Return the structure of the product of two boolean structures."""
-        return JacobianKernel._boolean(
+        return JacobianKernel._get_boolean(
             scipy.sparse.csr_array(first, dtype=float) @ scipy.sparse.csr_array(second, dtype=float),
         )
 
     @staticmethod
-    def _target_of(output: OutputSpec) -> ReferenceSpec:
+    def _get_target_of(output: OutputSpec) -> ReferenceSpec:
         """Return the target component of a rate output.
 
         An error is raised for an output without one.
@@ -574,7 +599,7 @@ class JacobianKernel(BaseKernel):
         return output.target
 
     @staticmethod
-    def _output_symbols(output: OutputSpec) -> set[Expression] | None:
+    def _get_output_symbols(output: OutputSpec) -> set[Expression] | None:
         """Return the symbols an output reads.
 
         A callable law reads every state and returns `None`.
@@ -586,7 +611,7 @@ class JacobianKernel(BaseKernel):
         return None
 
     @staticmethod
-    def _neighbor_columns(reference: ReferenceSpec) -> tuple[Indices, Indices]:
+    def _get_neighbor_columns(reference: ReferenceSpec) -> tuple[Indices, Indices]:
         """Return the members that read a neighbour.
 
         Each comes with the flat index of the neighbour it reads.
@@ -628,7 +653,7 @@ class JacobianKernel(BaseKernel):
         return reference.source in {ReadKind.REDUCED, ReadKind.DERIVED} or reference.is_state
 
     @staticmethod
-    def _boolean(matrix: scipy.sparse.sparray) -> Sparse:
+    def _get_boolean(matrix: scipy.sparse.sparray) -> Sparse:
         """Return the nonzero structure of a sparse matrix as a boolean CSR matrix."""
         matrix = scipy.sparse.csr_array(matrix)
         matrix.eliminate_zeros()

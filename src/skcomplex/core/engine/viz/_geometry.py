@@ -16,9 +16,9 @@ from ._base import BaseVisual
 
 MARGIN = 0.03
 SPACE_DIMENSION = 3
-_RESOLUTION = 512
-_FILL = np.array([94, 201, 98], dtype=np.uint8)
-_BACKGROUND = np.array([20, 20, 30], dtype=np.uint8)
+RESOLUTION = 512
+FILL = np.array([94, 201, 98], dtype=np.uint8)
+BACKGROUND = np.array([20, 20, 30], dtype=np.uint8)
 
 
 class GeometryVisual(BaseVisual):
@@ -50,7 +50,7 @@ class GeometryVisual(BaseVisual):
     def __init__(
         self,
         filled: bool | None = None,
-        resolution: int = _RESOLUTION,
+        resolution: int = RESOLUTION,
         *,
         path: str | None = None,
         recording: rr.RecordingStream | None = None,
@@ -78,22 +78,22 @@ class GeometryVisual(BaseVisual):
                 The frame.
         """
         for state, name in element.states.items():
-            BaseVisual._log_scalars(recording, f'{element.path}/counts/{state}', frame.value(name))
+            BaseVisual._log_scalars(recording, f'{element.path}/counts/{state}', frame.get_value(name))
         structure = frame.structures.get(element.path)
         if not isinstance(structure, BaseStructureSpec):
             return
         if isinstance(structure, PatchStructureSpec) and self._is_filled(element):
-            grid = structure.raster(self.resolution, self._bounds_of(element))
-            pixels = np.where(grid[..., None], _FILL, _BACKGROUND).astype(np.uint8)
+            grid = structure.raster(self.resolution, self._get_bounds_of(element))
+            pixels = np.where(grid[..., None], FILL, BACKGROUND).astype(np.uint8)
             recording.log(element.path, rr.Image(pixels))
             return
         strips, values = self._strips(structure)
-        colors = BaseVisual._colors_of(values, 0.0, max(float(values.max(initial=0.0)), 1.0))
+        colors = BaseVisual._get_colors_of(values, 0.0, max(float(values.max(initial=0.0)), 1.0))
         dimension = strips[0].shape[1] if strips else 2
         archetype = rr.LineStrips3D if dimension == SPACE_DIMENSION else rr.LineStrips2D
         recording.log(element.path, archetype(strips, colors=colors))
 
-    def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return the view of the geometry and a time series view of the counts.
 
         The view of the geometry has the bounds of the element.
@@ -136,7 +136,7 @@ class GeometryVisual(BaseVisual):
             return [rrb.Spatial3DView(origin=path, name=path), series]
         if not isinstance(element, CompiledElementSpec):
             return [rrb.Spatial2DView(origin=path, name=path), series]
-        bounds = self._bounds_of(element)
+        bounds = self._get_bounds_of(element)
         if bounds is None or self._is_filled(element):
             return [rrb.Spatial2DView(origin=path, name=path), series]
         xmin, ymin, xmax, ymax = bounds
@@ -144,7 +144,7 @@ class GeometryVisual(BaseVisual):
         return [rrb.Spatial2DView(origin=path, name=path, visual_bounds=visual_bounds), series]
 
     @staticmethod
-    def _bounds_of(element: CompiledElementSpec) -> tuple[float, float, float, float] | None:
+    def _get_bounds_of(element: CompiledElementSpec) -> tuple[float, float, float, float] | None:
         """Return the box an element's geometry is drawn in.
 
         It is its declared bounds or the box of a patch's first tiles.

@@ -15,8 +15,8 @@ from skcomplex.systems.mathematics.fractals import CantorSetSystem, KochCurveSys
 def test_koch_curve():
     """Test the symbols, the length, and the box-counting dimension of the Koch curve at generation 5."""
     trajectory = simulate(KochCurveSystem(), until=5)
-    curve = trajectory.structure('koch', 5)
-    assert trajectory.values('koch.F')[-1] == 1024
+    curve = trajectory.get_structure('koch', 5)
+    assert trajectory.get_values('koch.F')[-1] == 1024
     assert curve.length() == pytest.approx((4 / 3) ** 5, abs=1e-12)
     grid = curve.raster(2048)
     dimension = scaling(grid, kind='box-counting', scales=[16, 32, 64, 128, 256]).exponent
@@ -28,8 +28,8 @@ def test_cantor_set():
     """Test the number and the total length of the Cantor intervals at every generation."""
     trajectory = simulate(CantorSetSystem(), until=8)
     generations = np.arange(9)
-    assert np.array_equal(trajectory.values('cantor.size'), 2.0**generations)
-    assert np.allclose(trajectory.values('cantor.length'), (2 / 3) ** generations, rtol=0, atol=1e-12)
+    assert np.array_equal(trajectory.get_values('cantor.size'), 2.0**generations)
+    assert np.allclose(trajectory.get_values('cantor.length'), (2 / 3) ** generations, rtol=0, atol=1e-12)
     with pytest.raises(ValidationError, match='between 0 and 1/2'):
         CantorSetSystem(ratio=0.6).prepare()
 
@@ -37,7 +37,7 @@ def test_cantor_set():
 def test_sierpinski_carpet():
     """Test the number and the area of the squares of the carpet at generation 4."""
     trajectory = simulate(SierpinskiSubstitutionSystem(shape='carpet'), until=4)
-    carpet = trajectory.structure('sierpinski', 4)
+    carpet = trajectory.get_structure('sierpinski', 4)
     assert carpet.parts == 4096
     assert carpet.area() == pytest.approx((8 / 9) ** 4, abs=1e-12)
     with pytest.raises(ValidationError, match='Unknown shape'):
@@ -47,7 +47,7 @@ def test_sierpinski_carpet():
 def test_filled_gasket():
     """Test that the raster of the filled gasket covers (3/4)^6 of the pixels of the triangle."""
     trajectory = simulate(SierpinskiSubstitutionSystem(), until=6)
-    first, last = trajectory.structure('sierpinski', 0), trajectory.structure('sierpinski', 6)
+    first, last = trajectory.get_structure('sierpinski', 0), trajectory.get_structure('sierpinski', 6)
     bounds = first.bounds()
     share = last.raster(512, bounds).sum() / first.raster(512, bounds).sum()
     assert share == pytest.approx(0.75**6, rel=0.02)
@@ -56,10 +56,10 @@ def test_filled_gasket():
 def test_koch_curve_reference_values():
     """Test the word, the counts, the length, and the points of the Koch curve at generation 2 against literals."""
     trajectory = simulate(KochCurveSystem(), until=2)
-    curve = trajectory.structure('koch', 2)
+    curve = trajectory.get_structure('koch', 2)
     assert curve.text == 'F+F--F+F+F+F--F+F--F+F--F+F+F+F--F+F'
-    assert trajectory.values('koch.F').tolist() == [1.0, 4.0, 16.0]
-    assert trajectory.values('koch.size').tolist() == [1.0, 8.0, 36.0]
+    assert trajectory.get_values('koch.F').tolist() == [1.0, 4.0, 16.0]
+    assert trajectory.get_values('koch.size').tolist() == [1.0, 8.0, 36.0]
     assert curve.length() == pytest.approx(1.777777777777778, abs=1e-12)
     assert curve.bounds() == pytest.approx((0.0, 0.0, 1.0, 0.28867513459481287), abs=1e-12)
     segments = curve.segments()
@@ -75,9 +75,11 @@ def test_koch_curve_reference_values():
 def test_cantor_set_reference_values():
     """Test the counts, the lengths, and the intervals of the Cantor set at generation 2 against literal values."""
     trajectory = simulate(CantorSetSystem(), until=2)
-    assert trajectory.values('cantor.size').tolist() == [1.0, 2.0, 4.0]
-    assert trajectory.values('cantor.length').tolist() == pytest.approx([1.0, 0.6666666666666665, 0.4444444444444444])
-    intervals = trajectory.structure('cantor', 2).segments()[:, :, 0].tolist()
+    assert trajectory.get_values('cantor.size').tolist() == [1.0, 2.0, 4.0]
+    assert trajectory.get_values('cantor.length').tolist() == pytest.approx(
+        [1.0, 0.6666666666666665, 0.4444444444444444],
+    )
+    intervals = trajectory.get_structure('cantor', 2).segments()[:, :, 0].tolist()
     expected = [
         [0.0, 0.111111111111],
         [0.222222222222, 0.333333333333],
@@ -90,16 +92,16 @@ def test_cantor_set_reference_values():
 def test_sierpinski_substitution_reference_values():
     """Test the counts, the areas, the rasters, and the corners of the gasket and the carpet against literal values."""
     trajectory = simulate(SierpinskiSubstitutionSystem(), until=2)
-    gasket = trajectory.structure('sierpinski', 2)
-    assert trajectory.values('sierpinski.size').tolist() == [1.0, 3.0, 9.0]
+    gasket = trajectory.get_structure('sierpinski', 2)
+    assert trajectory.get_values('sierpinski.size').tolist() == [1.0, 3.0, 9.0]
     assert gasket.area() == pytest.approx(0.24356964481437335, abs=1e-12)
     assert gasket.bounds() == pytest.approx((0.0, 0.0, 1.0, 0.8660254037844386), abs=1e-12)
     assert gasket.raster(32).sum() == 264
     corners = [[[0.0, 0.0], [0.25, 0.0], [0.125, 0.216506350946]], [[0.25, 0.0], [0.5, 0.0], [0.375, 0.216506350946]]]
     assert np.allclose(gasket.polygons()[0][:2], corners, rtol=0, atol=1e-11)
     trajectory = simulate(SierpinskiSubstitutionSystem(shape='carpet'), until=2)
-    carpet = trajectory.structure('sierpinski', 2)
-    assert trajectory.values('sierpinski.size').tolist() == [1.0, 8.0, 64.0]
+    carpet = trajectory.get_structure('sierpinski', 2)
+    assert trajectory.get_values('sierpinski.size').tolist() == [1.0, 8.0, 64.0]
     assert carpet.area() == pytest.approx(0.7901234567901236, abs=1e-12)
     assert carpet.raster(27).sum() == 576
 

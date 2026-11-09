@@ -17,8 +17,8 @@ def test_stigmergic_marks_follow_emotions():
             .system_
         )
         trajectory = _run_until(system, 10, random_state=0)
-        marks[emotions] = trajectory.values('ground/marks.prey_happiness')[-1].sum()
-        assert trajectory.values('life/prey.count')[-1] > 0
+        marks[emotions] = trajectory.get_values('ground/marks.prey_happiness')[-1].sum()
+        assert trajectory.get_values('life/prey.count')[-1] > 0
     assert marks[True] > 0
     assert marks[False] == 0
 

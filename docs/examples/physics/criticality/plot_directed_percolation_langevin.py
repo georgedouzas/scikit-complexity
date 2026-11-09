@@ -51,7 +51,7 @@ for energy in energies:
         dt=1.0,
         solver=EulerMaruyamaSolver(dt=0.01),
     )
-    densities.append(np.asarray(run.values('neurons.rho'))[-10:].mean())
+    densities.append(np.asarray(run.get_values('neurons.rho'))[-10:].mean())
 
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.plot(energies, densities, 'o', label='Langevin field, 16 x 16')

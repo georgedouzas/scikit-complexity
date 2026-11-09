@@ -210,7 +210,7 @@ def test_renewal_stepper_counts_power_law_renewals():
         10000,
         100,
     )
-    times, counts = trajectory.times[10:], trajectory.values('w.n')[10:].mean(axis=1)
+    times, counts = trajectory.times[10:], trajectory.get_values('w.n')[10:].mean(axis=1)
     assert np.polyfit(np.log(times), np.log(counts), 1)[0] == pytest.approx(0.5, abs=0.05)
 
 
@@ -219,7 +219,7 @@ def test_renewal_stepper_holds_states_between_renewals():
     trajectory = _trajectory(CompositeSystem(elements=[CounterElement('c')]), 20, 0.1)
     times = np.concatenate([record.times for record in trajectory.events])
     expected = np.searchsorted(times, trajectory.times, side='right')
-    assert np.array_equal(trajectory.values('c.n'), expected)
+    assert np.array_equal(trajectory.get_values('c.n'), expected)
 
 
 def test_renewal_stepper_exposes_the_renewal_count_observable():
@@ -227,7 +227,7 @@ def test_renewal_stepper_exposes_the_renewal_count_observable():
     trajectory = _trajectory(CompositeSystem(elements=[GroupElement('c', element=CounterElement, size=5)]), 10, 0.5)
     times = np.concatenate([record.times for record in trajectory.events])
     assert np.array_equal(
-        trajectory.values('ticks.renewals'),
+        trajectory.get_values('ticks.renewals'),
         np.searchsorted(np.sort(times), trajectory.times, 'right'),
     )
 

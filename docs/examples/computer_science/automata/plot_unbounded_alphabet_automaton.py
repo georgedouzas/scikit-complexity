@@ -37,7 +37,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 trajectory = simulate(UnboundedAlphabetAutomatonSystem(), observers=[observer])
-values = trajectory.lattice('cells.value')
+values = trajectory.get_lattice('cells.value')
 logarithm = np.where(values > 0, np.log10(np.maximum(values, 1)) + 1, 0)
 start, steps_run = values.shape[1] // 2, values.shape[0] - 1
 triangle = np.zeros((steps_run + 1, 2 * (steps_run + 1)))

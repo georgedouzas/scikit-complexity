@@ -13,10 +13,8 @@ from sage.all__sagemath_symbolics import Expression
 from ...specs._base_spec import BaseSpec
 from ._reference_spec import ReferenceSpec
 
-_MEMBER_REFERENCE = re.compile(r'^(?P<path>.+)\[(?P<index>-?\d+)\]$')
-
-
-_EDGE_NAMES = ('source', 'target', 'edge')
+MEMBER_REFERENCE = re.compile(r'^(?P<path>.+)\[(?P<index>-?\d+)\]$')
+EDGE_NAMES = ('source', 'target', 'edge')
 
 
 @dataclass(frozen=True)

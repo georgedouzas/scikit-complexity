@@ -29,13 +29,13 @@ trajectory = simulate(ActivityDrivenEpidemicsSystem(), observers=[observer], ran
 # Sweeping the infection probability at a fixed recovery probability, the late prevalence should stay at zero for
 # small probabilities and rise beyond a threshold. The edges of every step number about `2 m <a> n`.
 
-edges = np.mean([trajectory.network(frame).sources.size for frame in range(1, len(trajectory.times))])
+edges = np.mean([trajectory.get_network(frame).sources.size for frame in range(1, len(trajectory.times))])
 activity = ActivityDrivenEpidemicsSystem().prepare().system_.elements[0].values['a']
 probabilities = np.linspace(0.05, 0.9, 8)
 prevalence = []
 for lam in probabilities:
     run = simulate(ActivityDrivenEpidemicsSystem(lam=lam), dt=10.0, random_state=1)
-    prevalence.append(np.nanmean(run.values('hosts.i')[-5:]))
+    prevalence.append(np.nanmean(run.get_values('hosts.i')[-5:]))
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(probabilities / 0.1, prevalence, 'o-')
 ax.set_xlabel('lam / mu')

@@ -154,8 +154,8 @@ class LedgerElement(Element):
 def test_transfer_conserves_across_time_classes(time):
     """Test that a transfer keeps the total of two stocks in continuous and in discrete time."""
     trajectory = simulate(CompositeSystem(elements=[TanksElement('t')], time=time), until=5, dt=1.0)
-    np.testing.assert_allclose(trajectory.values('t.a') + trajectory.values('t.b'), 4.0, atol=1e-12)
-    assert trajectory.values('t.a')[-1] < 3.0
+    np.testing.assert_allclose(trajectory.get_values('t.a') + trajectory.get_values('t.b'), 4.0, atol=1e-12)
+    assert trajectory.get_values('t.a')[-1] < 3.0
 
 
 def test_transfer_from_the_environment_takes_a_source():
@@ -179,7 +179,7 @@ def test_transfer_from_the_environment_takes_a_source():
             return [TransferLaw(Source(), s.n, 1.0, label='inflow')]
 
     trajectory = simulate(CompositeSystem(elements=[FilledElement('f')]), until=3, dt=1.0)
-    assert trajectory.values('f.n')[-1] == pytest.approx(3.0)
+    assert trajectory.get_values('f.n')[-1] == pytest.approx(3.0)
     with pytest.raises(ValidationError, match='or `Source\\(\\)`, but got None'):
         TransferLaw(None, var('n'), 1.0).prepare()
 
@@ -187,10 +187,13 @@ def test_transfer_from_the_environment_takes_a_source():
 def test_bathtub_approaches_the_balance_of_its_flows_and_records_them():
     """Test that the stock approaches inflow / k = 10, with both flows recorded and the inflow accumulated."""
     trajectory = simulate(CompositeSystem(elements=[TubElement('tub')]), until=30, dt=1)
-    assert trajectory.values('tub.water')[-1] == pytest.approx(10.0, rel=1e-3)
-    assert trajectory.values('tub.faucet')[-1] == pytest.approx(5.0)
-    assert trajectory.values('tub.drain')[-1] == pytest.approx(5.0, rel=1e-3)
-    assert trajectory.values('__boundary.water')[-1] == pytest.approx(trajectory.values('tub.water')[-1], rel=1e-6)
+    assert trajectory.get_values('tub.water')[-1] == pytest.approx(10.0, rel=1e-3)
+    assert trajectory.get_values('tub.faucet')[-1] == pytest.approx(5.0)
+    assert trajectory.get_values('tub.drain')[-1] == pytest.approx(5.0, rel=1e-3)
+    assert trajectory.get_values('__boundary.water')[-1] == pytest.approx(
+        trajectory.get_values('tub.water')[-1],
+        rel=1e-6,
+    )
 
 
 def test_flow_between_quantities_is_rejected():
@@ -301,10 +304,10 @@ def test_flow_owner_reports_the_flow_under_another_part():
 def test_discrete_flows_are_per_step_and_join_the_updates():
     """Test that in a discrete map a flow moves its amount once per step and money changes only by lending."""
     trajectory = simulate(CompositeSystem(elements=[LedgerElement('ledger')]), until=5, dt=1)
-    assert trajectory.values('ledger.a').tolist() == pytest.approx([10.0] * 6)
-    assert trajectory.values('ledger.b').tolist() == pytest.approx([0.0, 1.0, 2.0, 3.0, 4.0, 5.0])
-    assert trajectory.values('__boundary.money')[-1] == pytest.approx(5.0)
-    assert trajectory.values('ledger.c')[-1] == pytest.approx(5.0)
+    assert trajectory.get_values('ledger.a').tolist() == pytest.approx([10.0] * 6)
+    assert trajectory.get_values('ledger.b').tolist() == pytest.approx([0.0, 1.0, 2.0, 3.0, 4.0, 5.0])
+    assert trajectory.get_values('__boundary.money')[-1] == pytest.approx(5.0)
+    assert trajectory.get_values('ledger.c')[-1] == pytest.approx(5.0)
 
 
 def test_jump_flows_move_their_size_at_random_times():
@@ -331,8 +334,8 @@ def test_jump_flows_move_their_size_at_random_times():
 
     jumping = JumpingElement
     trajectory = simulate(CompositeSystem(elements=[jumping('j')]), until=10, dt=1, random_state=0)
-    assert np.all(trajectory.values('j.a') + trajectory.values('j.b') == 50.0)
-    assert trajectory.values('j.b')[-1] > 0
+    assert np.all(trajectory.get_values('j.a') + trajectory.get_values('j.b') == 50.0)
+    assert trajectory.get_values('j.b')[-1] > 0
 
 
 def test_population_has_one_reinforcing_and_one_balancing_loop():

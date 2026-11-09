@@ -30,9 +30,9 @@ trajectory = simulate(CardiovascularSystem(heart_rate=75.0), observers=[observer
 # of the solver.
 
 ventricle, arteries, veins = (
-    trajectory.values('ventricle.V'),
-    trajectory.values('arteries.V'),
-    trajectory.values('veins.V'),
+    trajectory.get_values('ventricle.V'),
+    trajectory.get_values('arteries.V'),
+    trajectory.get_values('veins.V'),
 )
 total = ventricle + arteries + veins
 fig, (volumes, conservation) = plt.subplots(1, 2, figsize=(10, 4))

@@ -72,7 +72,7 @@ def test_higher_order_random_lotka_volterra_without_interactions_reaches_the_cap
     """Test that with a tensor of zeros every species converges to its carrying capacity within 1e-6."""
     system = HigherOrderRandomLotkaVolterraSystem(8, mu=0.0, sigma=0.0, k=1.5).prepare().system_
     assert np.all(system.interactions[1].a == 0)
-    final = _run_with_solver(system, 40.0, 1.0, SYSTEMS_PRECISE).values('species.x')[-1]
+    final = _run_with_solver(system, 40.0, 1.0, SYSTEMS_PRECISE).get_values('species.x')[-1]
     np.testing.assert_allclose(final, 1.5, atol=1e-6)
 
 

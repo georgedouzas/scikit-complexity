@@ -50,12 +50,12 @@ triads = np.linspace(0.0, 1.0, 6)
 clustering = []
 for triad in triads:
     run = simulate(HolmeKimSystem(n_nodes=1004, triad=triad), until=1000, dt=500.0, random_state=1)
-    clustering.append(nx.average_clustering(run.network(-1).graph()))
+    clustering.append(nx.average_clustering(run.get_network(-1).graph()))
 baseline = simulate(BarabasiAlbertSystem(n_nodes=1003, edges=3), until=1000, dt=500.0, random_state=1)
 fig, axis = plt.subplots(figsize=(6, 4))
 axis.plot(triads, clustering, 'o-', label='Holme-Kim')
 axis.axhline(
-    nx.average_clustering(baseline.network(-1).graph()),
+    nx.average_clustering(baseline.get_network(-1).graph()),
     color='k',
     ls='--',
     label='Barabási-Albert',

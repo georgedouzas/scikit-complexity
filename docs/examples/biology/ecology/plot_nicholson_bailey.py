@@ -28,7 +28,7 @@ trajectory = simulate(NicholsonBaileySystem(hosts=25.0, parasitoids=12.0), obser
 # The equilibrium is `H = k ln k / ((k - 1) a c)` and `P = ln k / a`. In the phase plane the generations should
 # spiral outwards from it, until a crash leaves almost no hosts and the parasitoids starve.
 
-hosts, parasitoids = trajectory.values('hosts.x'), trajectory.values('parasitoids.x')
+hosts, parasitoids = trajectory.get_values('hosts.x'), trajectory.get_values('parasitoids.x')
 before_crash = np.cumprod((hosts > 1) & (parasitoids > 1)).astype(bool)
 hosts, parasitoids = hosts[before_crash], parasitoids[before_crash]
 k, a, c = 2.0, 0.05, 1.0

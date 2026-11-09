@@ -13,12 +13,12 @@ from ...components.spaces import BaseSpace, ContinuousSpace, LatticeSpace, Netwo
 from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
 from ...specs import AgentSnapshotSpec
 from ..problems import BaseProblemSpec
-from ._base import _GRID_RADIUS, _NODE_SPACING, _UPWARD, BaseVisual
+from ._base import GRID_RADIUS, NODE_SPACING, UPWARD, BaseVisual
 
-_PATH_COLOR = (86, 180, 233)
-_PATH_WIDTH = 1.0
-_VIEW_MARGIN = 0.05
-_POSITION_RANK = 2
+PATH_COLOR = (86, 180, 233)
+PATH_WIDTH = 1.0
+VIEW_MARGIN = 0.05
+POSITION_RANK = 2
 THREE_DIMENSIONS = 3
 
 
@@ -97,7 +97,7 @@ class AgentsVisual(BaseVisual):
         self.span_: tuple[float, float] | None = None
         super()._prepare(context)
 
-    def _agent_colors(self, snapshot: AgentSnapshotSpec) -> npt.NDArray[np.uint8] | None:
+    def _get_agent_colors(self, snapshot: AgentSnapshotSpec) -> npt.NDArray[np.uint8] | None:
         """Return one color per agent over the given range or a widened one.
 
         Without a given range, the range widens to every value so far.
@@ -106,11 +106,11 @@ class AgentsVisual(BaseVisual):
             return None
         values = np.asarray(snapshot.values[self.color_by], dtype=float)
         if self.color_range is not None:
-            return BaseVisual._colors_of(values, *self.color_range)
-        self.span_ = BaseVisual._widened(self.span_, values)
-        return BaseVisual._colors_of(values, *self.span_)
+            return BaseVisual._get_colors_of(values, *self.color_range)
+        self.span_ = BaseVisual._get_widened(self.span_, values)
+        return BaseVisual._get_colors_of(values, *self.span_)
 
-    def _radius(self, space: BaseSpace | None, positions: npt.NDArray[np.float64]) -> float:
+    def _get_radius(self, space: BaseSpace | None, positions: npt.NDArray[np.float64]) -> float:
         """Return the radius of the agents.
 
         It is the given radius, a radius in cells on grids and networks, or a share of the side of other spaces.
@@ -118,11 +118,11 @@ class AgentsVisual(BaseVisual):
         if self.radius is not None:
             return float(self.radius)
         if space is None or isinstance(space, LatticeSpace | NetworkSpace):
-            return _GRID_RADIUS
+            return GRID_RADIUS
         if isinstance(space, ContinuousSpace):
-            return BaseVisual._radius_of(float(max(space.extent_)), len(positions))
+            return BaseVisual._get_radius_of(float(max(space.extent_)), len(positions))
         extent = float(np.ptp(positions, axis=0).max()) if len(positions) else 0.0
-        return BaseVisual._radius_of(extent, len(positions))
+        return BaseVisual._get_radius_of(extent, len(positions))
 
     def _log_regions(self, recording: rr.RecordingStream, path: str, space: ContinuousSpace) -> None:
         """Log every layer of regions of a space once.
@@ -134,7 +134,7 @@ class AgentsVisual(BaseVisual):
             if entity in self.styled_:
                 continue
             rings = [ring for polygon in index.geometries for ring in (polygon.exterior, *polygon.interiors)]
-            strips = [np.asarray(ring.coords) * _UPWARD for ring in rings]
+            strips = [np.asarray(ring.coords) * UPWARD for ring in rings]
             recording.log(entity, rr.LineStrips2D(strips), static=True)
             self.styled_.add(entity)
 
@@ -160,7 +160,7 @@ class AgentsVisual(BaseVisual):
             space:
                 The space the agents live in, or `None`.
         """
-        colors, labels = self._agent_colors(snapshot), [str(agent) for agent in snapshot.ids]
+        colors, labels = self._get_agent_colors(snapshot), [str(agent) for agent in snapshot.ids]
         if isinstance(space, ContinuousSpace):
             self._log_regions(recording, path, space)
         if self.position is not None:
@@ -168,20 +168,20 @@ class AgentsVisual(BaseVisual):
             if positions.shape[1] == 1:
                 entity = f'{path}/{self.position}'
                 if entity not in self.styled_:
-                    style = rr.SeriesLines(colors=[_PATH_COLOR] * len(positions), widths=_PATH_WIDTH)
+                    style = rr.SeriesLines(colors=[PATH_COLOR] * len(positions), widths=PATH_WIDTH)
                     recording.log(entity, style, static=True)
                     self.styled_.add(entity)
                 recording.log(entity, rr.Scalars(positions[:, 0]))
                 return
-            positions = positions[:, :2] * _UPWARD
+            positions = positions[:, :2] * UPWARD
             extent = float(np.ptp(positions, axis=0).max()) if len(positions) else 0.0
-            radius = BaseVisual._radius_of(extent, len(positions)) if self.radius is None else float(self.radius)
+            radius = BaseVisual._get_radius_of(extent, len(positions)) if self.radius is None else float(self.radius)
             recording.log(path, rr.Points2D(positions, colors=colors, radii=radius, labels=labels, show_labels=False))
             return
         if snapshot.locations is None:
             return
         if isinstance(space, NetworkSpace):
-            layout = self._layout(space)
+            layout = self._get_layout(space)
             nodes = [str(node) for node in np.ravel(snapshot.locations).tolist()]
             recording.log(
                 path,
@@ -191,23 +191,23 @@ class AgentsVisual(BaseVisual):
                     colors=colors,
                     labels=labels,
                     show_labels=False,
-                    radii=self._radius(space, np.zeros((0, 2))) * _NODE_SPACING / 2,
+                    radii=self._get_radius(space, np.zeros((0, 2))) * NODE_SPACING / 2,
                 ),
             )
             return
         positions = np.asarray(snapshot.locations, dtype=float).reshape(len(snapshot.ids), -1)
         if isinstance(space, LatticeSpace):
             positions = positions + 0.5
-        radius = self._radius(space, positions)
+        radius = self._get_radius(space, positions)
         if isinstance(space, ContinuousSpace) and space.n_dim_ == THREE_DIMENSIONS:
             recording.log(path, rr.Points3D(positions, colors=colors, radii=radius, labels=labels, show_labels=False))
             return
         if isinstance(space, ContinuousSpace):
-            positions = positions * _UPWARD
+            positions = positions * UPWARD
         recording.log(path, rr.Points2D(positions, colors=colors, radii=radius, labels=labels, show_labels=False))
 
     @staticmethod
-    def _continuous_view(path: str, space: ContinuousSpace) -> rrb.View:
+    def _get_continuous_view(path: str, space: ContinuousSpace) -> rrb.View:
         """Return a 3D view of a box of three sides, or a 2D view of a box of two sides.
 
         The 2D view is bounded by the box.
@@ -215,14 +215,14 @@ class AgentsVisual(BaseVisual):
         if space.n_dim_ == THREE_DIMENSIONS:
             return rrb.Spatial3DView(origin=path, name=path)
         width, height = space.extent_[:2]
-        margin = _VIEW_MARGIN * max(width, height)
+        margin = VIEW_MARGIN * max(width, height)
         bounds = rrb.VisualBounds2D(
             x_range=(-margin, width + margin),
             y_range=(-height - margin, margin),
         )
         return rrb.Spatial2DView(origin=path, name=path, visual_bounds=bounds)
 
-    def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return the view of the agents.
 
         It is a graph view of the whole network, or a 2D or 3D spatial view for agents in a space, or none without one.
@@ -248,7 +248,7 @@ class AgentsVisual(BaseVisual):
             'GraphView'
         """
         if self.position is not None and isinstance(element, CompiledAgentsSpec):
-            if np.ndim(np.asarray(element.values[self.position])) < _POSITION_RANK:
+            if np.ndim(np.asarray(element.values[self.position])) < POSITION_RANK:
                 origin = f'{element.path}/{self.position}'
                 return [rrb.TimeSeriesView(origin=origin, name=origin, plot_legend=rrb.PlotLegend(visible=False))]
             return [rrb.Spatial2DView(origin=element.path, name=element.path)]
@@ -256,11 +256,11 @@ class AgentsVisual(BaseVisual):
         if space is None:
             return []
         if isinstance(space, NetworkSpace):
-            positions = np.array([[0.0, 0.0], *self._layout(space).values()])
-            low, high = positions.min(axis=0) - _NODE_SPACING, positions.max(axis=0) + _NODE_SPACING
+            positions = np.array([[0.0, 0.0], *self._get_layout(space).values()])
+            low, high = positions.min(axis=0) - NODE_SPACING, positions.max(axis=0) + NODE_SPACING
             bounds = rrb.VisualBounds2D(x_range=(low[0], high[0]), y_range=(low[1], high[1]))
             return [rrb.GraphView(origin=element.path, name=element.path, visual_bounds=bounds)]
         space = problem.agent_space
         if isinstance(space, ContinuousSpace):
-            return [self._continuous_view(element.path, space)]
+            return [self._get_continuous_view(element.path, space)]
         return [rrb.Spatial2DView(origin=element.path, name=element.path)]

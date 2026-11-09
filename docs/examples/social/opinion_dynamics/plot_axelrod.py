@@ -36,9 +36,9 @@ traits = [2, 4, 8, 16, 32]
 shares = []
 for q in traits:
     run = simulate(AxelrodSystem(width=8, height=8, features=3, traits=q, random_state=0), until=300, random_state=0)
-    shares.append(run.values('largest_region')[-1])
+    shares.append(run.get_values('largest_region')[-1])
 fig, (series, transition) = plt.subplots(1, 2, figsize=(10, 4))
-series.plot(trajectory.times, trajectory.values('largest_region'))
+series.plot(trajectory.times, trajectory.get_values('largest_region'))
 series.set_xlabel('step')
 series.set_ylabel('share of the largest region')
 series.set_title('Growth of the largest region, F = 3, q = 5')

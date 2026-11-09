@@ -36,7 +36,7 @@ def relaxation_time(temperature):
     """Return the relaxation time from the late exponential decay of the distance to the minimum."""
     until = 10 / abs(temperature - 1)
     run = simulate(LandauRelaxationSystem(T=temperature), until=until, dt=until / 400)
-    phi = run.values('magnet.phi')
+    phi = run.get_values('magnet.phi')
     target = np.sqrt(max(1 - temperature, 0))
     distance = np.abs(phi - target)
     late = slice(120, 240)

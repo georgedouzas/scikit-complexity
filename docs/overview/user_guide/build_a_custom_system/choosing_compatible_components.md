@@ -179,7 +179,7 @@ try:
     simulate(system, until=1, solver=IterationSolver())
 except TagError as error:
     message = str(error)
-message, simulate(system, until=1, dt=0.1, solver=RK4Solver()).values('rabbits.n')[-1].round(1)
+message, simulate(system, until=1, dt=0.1, solver=RK4Solver()).get_values('rabbits.n')[-1].round(1)
 ```
 
 `RK4Solver` integrates the differential equations of `growth`, and `IterationSolver`, which iterates maps, does not.

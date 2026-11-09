@@ -27,7 +27,7 @@ from ..problems._reference_spec import ReferenceSpec
 from ..types import ReadKind
 from ._observables import Declared, ObservableEvaluator
 
-_REDUCERS: dict[str, Callable[..., Expression]] = {
+REDUCERS: dict[str, Callable[..., Expression]] = {
     'sum': total,
     'mean': mean,
     'max': maximum,
@@ -97,10 +97,10 @@ class Observer(BaseConfig[None, tuple[NodeSpec, object]]):
             self.observed_ = None
             return
         scope, observable = self.live[path]
-        value, references = self._value(path, scope, observable)
+        value, references = self._get_value(path, scope, observable)
         self.observed_ = ObservedSpec(SimpleNamespace(value=value), dict(references))
 
-    def _system_value(
+    def _get_system_value(
         self,
         path: str,
         scope: str,
@@ -120,21 +120,21 @@ class Observer(BaseConfig[None, tuple[NodeSpec, object]]):
                     references.update(
                         {
                             item: block.references[item]
-                            for item in ProblemSpec._real_components_of(block.symbols[variable])
+                            for item in ProblemSpec._get_real_components_of(block.symbols[variable])
                         },
                     )
-        namespace = ObservableEvaluator._tree(items, t=self.declarations.time)
+        namespace = ObservableEvaluator._get_tree(items, t=self.declarations.time)
         for other, (other_scope, earlier) in self.live.items():
             if other == path:
                 break
             if other_scope == scope:
-                value, other_references = self._value(other, other_scope, earlier)
+                value, other_references = self._get_value(other, other_scope, earlier)
                 setattr(namespace, earlier.label, value)
                 references.update(other_references)
         expression = observable.expression(namespace) if callable(observable.expression) else observable.expression
         return expression, references
 
-    def _value(
+    def _get_value(
         self,
         path: str,
         scope: str,
@@ -144,16 +144,16 @@ class Observer(BaseConfig[None, tuple[NodeSpec, object]]):
         if path in self.values_:
             return self.values_[path]
         if observable.group is None:
-            self.values_[path] = self._system_value(path, scope, observable)
+            self.values_[path] = self._get_system_value(path, scope, observable)
             return self.values_[path]
         block = self.declarations.blocks[ObservableEvaluator._join(scope, observable.group)]
-        source = self._source_of(block)
+        source = self._get_source_of(block)
         references = {item: replace(reference, source=source) for item, reference in block.references.items()}
-        self.values_[path] = (self._reduced_value(path, observable, block), references)
+        self.values_[path] = (self._get_reduced_value(path, observable, block), references)
         return self.values_[path]
 
     @staticmethod
-    def _source_of(block: BlockSpec) -> ReadKind:
+    def _get_source_of(block: BlockSpec) -> ReadKind:
         """Return how laws read the variables of a block from outside it.
 
         A group is read per member.
@@ -161,7 +161,7 @@ class Observer(BaseConfig[None, tuple[NodeSpec, object]]):
         return ReadKind.MEMBER if block.node.members is not None else ReadKind.SINGLE
 
     @staticmethod
-    def _namespace_of(block: BlockSpec) -> SimpleNamespace:
+    def _get_namespace_of(block: BlockSpec) -> SimpleNamespace:
         """Return the namespace of the variables of a block.
 
         Per-entry parameters and tensor states are tuples.
@@ -176,9 +176,9 @@ class Observer(BaseConfig[None, tuple[NodeSpec, object]]):
         return SimpleNamespace(**symbols)
 
     @staticmethod
-    def _reduced_value(path: str, observable: ObservableSpec, block: BlockSpec) -> object:
+    def _get_reduced_value(path: str, observable: ObservableSpec, block: BlockSpec) -> object:
         """Return an observable that reduces a group over its member symbols."""
-        namespace = Observer._namespace_of(block)
+        namespace = Observer._get_namespace_of(block)
         if observable.reduce == 'count':
             return count(over=namespace)
         if observable.variable is not None:
@@ -195,7 +195,7 @@ class Observer(BaseConfig[None, tuple[NodeSpec, object]]):
             raise ValidationError(error_msg)
         else:
             value = observable.expression(namespace) if callable(observable.expression) else observable.expression
-        reducer = _REDUCERS[str(observable.reduce)]
+        reducer = REDUCERS[str(observable.reduce)]
         if isinstance(value, FreeModuleElement):
             return vector(reducer(item, over=namespace) for item in value)
         return reducer(value, over=namespace)

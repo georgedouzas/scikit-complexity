@@ -46,19 +46,19 @@ class RowsPass(BasePass):
         the laws, the laws set apart, and the flows, which later passes read.
         """
         compilation = self.compilation_
-        apart = Compilation._required(compilation.apart, 'apart')
-        lowered = Compilation._required(compilation.lowered, 'lowered')
-        stepped = self._stepped_flows(compilation, [laws for _, laws, _ in lowered])
+        apart = Compilation._get_required(compilation.apart, 'apart')
+        lowered = Compilation._get_required(compilation.lowered, 'lowered')
+        stepped = self._get_stepped_flows(compilation, [laws for _, laws, _ in lowered])
         settled: dict[int, KernelSpec] = {}
         for spec, laws, _ in lowered:
             self._check_draw_placement(spec.owner, [law for law in laws if id(law) not in stepped])
-            new = self._settled(spec, [*laws, *(law for other, items in apart if other is spec for law in items)])
+            new = self._get_settled(spec, [*laws, *(law for other, items in apart if other is spec for law in items)])
             if new is not spec:
                 settled[id(spec)] = new
         compilation._replace_specs(settled)
 
     @staticmethod
-    def _stepped_flows(compilation: Compilation, laws: list[list[BaseLaw]]) -> set[int]:
+    def _get_stepped_flows(compilation: Compilation, laws: list[list[BaseLaw]]) -> set[int]:
         """Return the identities of the rate laws of flows that move once per step.
 
         They move their amounts once per step and may draw. The flows of a system that declares discrete time, or that
@@ -90,7 +90,7 @@ class RowsPass(BasePass):
         raise RoleError(error_msg)
 
     @staticmethod
-    def _outside_reductions(value: object) -> set[Expression]:
+    def _get_outside_reductions(value: object) -> set[Expression]:
         """Return the symbols of a law value that occur outside its reductions."""
         expressions = [item for item in components_of(value) if isinstance(item, Expression)]
         found = [reduction.call for item in expressions for reduction in reductions_in(item)]
@@ -108,7 +108,7 @@ class RowsPass(BasePass):
         return symbols
 
     @staticmethod
-    def _settled(spec: KernelSpec, laws: list[BaseLaw]) -> KernelSpec:
+    def _get_settled(spec: KernelSpec, laws: list[BaseLaw]) -> KernelSpec:
         """Return a spec with the groups it is evaluated over.
 
         They are set from the member symbols its laws read. Only the symbols outside reductions count.
@@ -122,7 +122,7 @@ class RowsPass(BasePass):
             return spec
         read: set[Expression] = set()
         for law, value in zip(laws, values, strict=True):
-            read |= RowsPass._outside_reductions(value)
+            read |= RowsPass._get_outside_reductions(value)
             read |= {item for target in law._get_targets() for item in components_of(target)}
         owners = {
             reference.entry.name.rpartition('.')[0]
@@ -172,4 +172,4 @@ class RowsPass(BasePass):
                 raise IncompatibleLawsError(error_msg)
             for item in found:
                 if item.kind == 'draw':
-                    DrawLowering._distribution_of(owner, f'{type(law).__name__}', item)
+                    DrawLowering._get_distribution_of(owner, f'{type(law).__name__}', item)

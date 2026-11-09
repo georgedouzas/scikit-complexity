@@ -274,7 +274,7 @@ class FairFoodProgramSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _sizes(count: int, acres: float, rng: np.random.Generator) -> tuple[Array, Array]:
+    def _get_sizes(count: int, acres: float, rng: np.random.Generator) -> tuple[Array, Array]:
         """Return random weights of the agents and their shares of the acres.
 
         The shares are `farm_size / total_sizes * acres`.
@@ -285,8 +285,8 @@ class FairFoodProgramSystem(BaseSystem):
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
-        _, needs = self._sizes(self.n_shops, self.acres, rng)
-        _, grown = self._sizes(self.n_farms, self.acres, rng)
+        _, needs = self._get_sizes(self.n_shops, self.acres, rng)
+        _, grown = self._get_sizes(self.n_farms, self.acres, rng)
         shops = GroupElement(
             'shops',
             element=ProgramMemberElement,

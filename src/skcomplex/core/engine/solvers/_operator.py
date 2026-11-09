@@ -85,7 +85,7 @@ class OperatorSolver(BaseSolver[OperatorProblemSpec]):
         self.random_state = random_state
         self.until = until
 
-    def _operator(self, terms: Sequence[OperatorKernel], p: Array) -> qutip.Qobj | qutip.QobjEvo:
+    def _get_operator(self, terms: Sequence[OperatorKernel], p: Array) -> qutip.Qobj | qutip.QobjEvo:
         """Return the QuTiP operator of terms at fixed parameters.
 
         The operator is constant or a function of time.
@@ -98,12 +98,12 @@ class OperatorSolver(BaseSolver[OperatorProblemSpec]):
         for term in terms:
             matrix = qutip.Qobj(term.matrix, dims=dims)
             if term.time_dependent:
-                varying.append([matrix, self._coefficient(term, p)])
+                varying.append([matrix, self._get_coefficient(term, p)])
             else:
                 constant = constant + term.run(RunStateSpec(0.0, np.zeros(0), p)).values_ * matrix
         return qutip.QobjEvo([constant, *varying]) if varying else constant
 
-    def _ket(self, vector: npt.NDArray[np.complex128]) -> qutip.Qobj:
+    def _get_ket(self, vector: npt.NDArray[np.complex128]) -> qutip.Qobj:
         """Return a state vector as a QuTiP ket with the dimensions of the problem."""
         dimensions = list(self.operator_.dimensions)
         return qutip.Qobj(vector.reshape(-1, 1), dims=[dimensions, [1] * len(dimensions)])
@@ -111,12 +111,12 @@ class OperatorSolver(BaseSolver[OperatorProblemSpec]):
     def _start_state(self, x: Array) -> qutip.Qobj:
         """Return the QuTiP state a solver starts from."""
         problem = self.operator_
-        state = problem._state_of(x)
+        state = problem._get_state_of(x)
         if problem.pure:
-            return self._ket(state)
+            return self._get_ket(state)
         return qutip.Qobj(state, dims=[list(problem.dimensions)] * 2)
 
-    def _stored(self, state: qutip.Qobj) -> Array:
+    def _get_stored(self, state: qutip.Qobj) -> Array:
         """Return a QuTiP state as a state vector of the problem."""
         problem = self.operator_
         entry = problem.states.entry(problem.states.names[0])
@@ -153,7 +153,7 @@ class OperatorSolver(BaseSolver[OperatorProblemSpec]):
         """Start a QuTiP solver from a state at a time."""
         solver.start(self._start_state(x), t)
 
-    def _unsupported(self, problem: OperatorProblemSpec) -> list[str]:
+    def _get_unsupported(self, problem: OperatorProblemSpec) -> list[str]:
         """Return a description of every part of an operator problem the solver skips.
 
         These are the parts the solver does not run.
@@ -177,7 +177,7 @@ class OperatorSolver(BaseSolver[OperatorProblemSpec]):
         super()._prepare(context)
         problem = self.problem_
         unsupported = (
-            self._unsupported(problem) if isinstance(problem, OperatorProblemSpec) else ['a classical problem']
+            self._get_unsupported(problem) if isinstance(problem, OperatorProblemSpec) else ['a classical problem']
         )
         if unsupported:
             error_msg = f'{type(self).__name__} cannot run this system. Unsupported: {", ".join(unsupported)}.'
@@ -210,10 +210,10 @@ class OperatorSolver(BaseSolver[OperatorProblemSpec]):
             self.solver_ = self._create(p)
             self.parameters_ = p.copy()
             self._start(self.solver_, x, t)
-        return self._stored(self.solver_.step(until))
+        return self._get_stored(self.solver_.step(until))
 
     @staticmethod
-    def _coefficient(term: OperatorKernel, p: Array) -> Callable[[float], complex]:
+    def _get_coefficient(term: OperatorKernel, p: Array) -> Callable[[float], complex]:
         """Return the coefficient of a term as a function of time, at fixed parameters."""
         parameters = p.copy()
 

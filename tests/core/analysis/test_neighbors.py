@@ -61,7 +61,7 @@ def test_radial_distribution_of_a_gas_and_a_fluid():
     assert np.all(np.abs(density - 1) < 0.05)
     trajectory = simulate(LennardJonesFluidSystem(), random_state=0)
     box = np.asarray(trajectory.problem.system.space.extent_, dtype=float)
-    positions = np.mod(np.asarray(trajectory.values('fluid.x'), dtype=float)[-10:], box)
+    positions = np.mod(np.asarray(trajectory.get_values('fluid.x'), dtype=float)[-10:], box)
     fluid = _neighbors('radial-distribution', positions, box=box, bins=150, r_max=3.0)
     assert fluid.radii[fluid.distribution.argmax()] == pytest.approx(2 ** (1 / 6), rel=0.05)
 
@@ -81,7 +81,7 @@ def test_like_neighbor_share_same_index_on_two_domains():
     rng = np.random.default_rng(0)
     schelling = _schelling_grid(40)
     quench = simulate(IsingSystem(size=64, temperature=1.0).prepare().system_, until=200, dt=1)
-    ising = quench.lattice('spins.spin')[-1]
+    ising = quench.get_lattice('spins.spin')[-1]
     for grid, empty in ((schelling, EMPTY), (ising, None)):
         assert _neighbors('like-share', grid, empty=empty).share[0] > 0.75
         occupied = grid != EMPTY if empty is not None else np.ones(grid.shape, dtype=bool)

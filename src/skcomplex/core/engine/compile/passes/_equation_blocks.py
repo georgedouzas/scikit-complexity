@@ -31,12 +31,13 @@ from ...problems._relation_spec import _RelationSpec
 from .._algebraic_law import AlgebraicLaw
 from .._base import BaseLowering, BasePass
 from .._compilation import Compilation, Laws
-from .._laws import _KERNEL_FREE_LAWS
+from .._laws import KERNEL_FREE_LAWS
 from .._renewal_law import RenewalLaw
 
-_SYMBOLIC_UNKNOWNS = 6
-_ROOT_TOLERANCE = 1e-12
-_RESIDUAL_TOLERANCE = 1e-8
+SYMBOLIC_UNKNOWNS = 6
+ROOT_TOLERANCE = 1e-12
+RESIDUAL_TOLERANCE = 1e-8
+
 
 type _Printed = Callable[..., list[npt.ArrayLike]]
 type _BlockSolution = Callable[[float, list[float]], list[float]]
@@ -100,12 +101,12 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
         self.unknowns = unknowns
 
     @staticmethod
-    def _held(relation: _RelationSpec, unknowns: Mapping[Expression, Expression]) -> list[Expression]:
+    def _get_held(relation: _RelationSpec, unknowns: Mapping[Expression, Expression]) -> list[Expression]:
         """Return the unknowns a relation holds, in the order of its variables."""
         return [item for item in relation.expression.variables() if item in unknowns]
 
     @staticmethod
-    def _matching(relations: Sequence[_RelationSpec], unknowns: Mapping[Expression, Expression]) -> dict[int, int]:
+    def _get_matching(relations: Sequence[_RelationSpec], unknowns: Mapping[Expression, Expression]) -> dict[int, int]:
         """Return a maximum matching of relations to unknowns.
 
         It gives the position of the unknown of every relation.
@@ -117,14 +118,14 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
         graph.add_edges_from(
             (('relation', position), ('unknown', positions[item]))
             for position, relation in enumerate(relations)
-            for item in EquationBlocksLowering._held(relation, unknowns)
+            for item in EquationBlocksLowering._get_held(relation, unknowns)
         )
         top = [('relation', position) for position in range(len(relations))]
         matching = bipartite.hopcroft_karp_matching(graph, top_nodes=top)
         return {node[1]: matching[node][1] for node in top if node in matching}
 
     @staticmethod
-    def _overdetermined(
+    def _get_overdetermined(
         relations: Sequence[_RelationSpec],
         unknowns: Mapping[Expression, Expression],
         matching: Mapping[int, int],
@@ -138,7 +139,7 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
         found = [position for position in range(len(relations)) if position not in matching]
         stack = list(found)
         while stack:
-            for item in EquationBlocksLowering._held(relations[stack.pop()], unknowns):
+            for item in EquationBlocksLowering._get_held(relations[stack.pop()], unknowns):
                 owner = owners.get(names.index(item))
                 if owner is not None and owner not in found:
                     found.append(owner)
@@ -146,13 +147,13 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
         return sorted(found)
 
     @staticmethod
-    def _state_names(relation: _RelationSpec, items: Sequence[Expression]) -> list[str]:
+    def _get_state_names(relation: _RelationSpec, items: Sequence[Expression]) -> list[str]:
         """Return the dotted names of the states that symbols of a relation stand for."""
         references = relation.spec.references
         return [references[item].entry.name for item in items if item in references and references[item].is_state]
 
     @staticmethod
-    def _structure_issues(
+    def _get_structure_issues(
         relations: Sequence[_RelationSpec],
         unknowns: Mapping[Expression, Expression],
         references: Mapping[Expression, ReferenceSpec],
@@ -179,18 +180,18 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
             issues:
                 The issue, or none for a system whose relations and unknowns all match.
         """
-        matching = EquationBlocksLowering._matching(relations, unknowns)
+        matching = EquationBlocksLowering._get_matching(relations, unknowns)
         names = list(unknowns)
         free = [unknowns[names[position]] for position in range(len(names)) if position not in matching.values()]
         if len(matching) == len(relations) and not free:
             return []
         constraining = [
-            relations[item] for item in EquationBlocksLowering._overdetermined(relations, unknowns, matching)
+            relations[item] for item in EquationBlocksLowering._get_overdetermined(relations, unknowns, matching)
         ]
         constrained = {
             name
             for relation in constraining
-            for name in EquationBlocksLowering._state_names(
+            for name in EquationBlocksLowering._get_state_names(
                 relation,
                 [item for item in relation.expression.variables() if item not in unknowns],
             )
@@ -209,7 +210,7 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
         return [IssueSpec('structural-singularity', path, message, fix)]
 
     @staticmethod
-    def _blocks(
+    def _get_blocks(
         relations: Sequence[_RelationSpec],
         unknowns: Mapping[Expression, Expression],
         matching: Mapping[int, int],
@@ -225,14 +226,14 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
         graph.add_edges_from(
             (owners[positions[item]], position)
             for position, relation in enumerate(relations)
-            for item in EquationBlocksLowering._held(relation, unknowns)
+            for item in EquationBlocksLowering._get_held(relation, unknowns)
             if owners[positions[item]] != position
         )
         condensed = nx.condensation(graph)
         return [sorted(condensed.nodes[node]['members']) for node in nx.topological_sort(condensed)]
 
     @staticmethod
-    def _printed(expressions: Sequence[Expression], arguments: Sequence[Expression], time: Expression) -> _Printed:
+    def _get_printed(expressions: Sequence[Expression], arguments: Sequence[Expression], time: Expression) -> _Printed:
         """Return the function of time and arguments that evaluates expressions."""
         function = ExpressionPrinter(time=time, compiled=True).prepare(list(arguments)).run(expressions).code_
         if not callable(function):
@@ -240,12 +241,15 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
             raise TypeError(error_msg)
         return function
 
-    def _guesses_of(self, specs: Sequence[tuple[KernelSpec, list[BaseLaw | _RelationSpec]]]) -> dict[Expression, float]:
+    def _get_guesses_of(
+        self,
+        specs: Sequence[tuple[KernelSpec, list[BaseLaw | _RelationSpec]]],
+    ) -> dict[Expression, float]:
         """Return the initial value of every algebraic unknown.
 
         It is the starting guess of a nonlinear solve.
         """
-        layout = Compilation._required(self.compilation_.layout, 'layout')
+        layout = Compilation._get_required(self.compilation_.layout, 'layout')
         initial = np.concatenate([np.zeros(0), *layout.initial_states])
         references = {key: value for spec, _ in specs for key, value in spec.references.items()}
         return {
@@ -254,7 +258,7 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
             if item in references
         }
 
-    def _solved_linear(
+    def _get_solved_linear(
         self,
         block: list[Expression],
         residuals: list[Expression],
@@ -265,7 +269,7 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
         """
         coefficients = [[residual.diff(item) for item in block] for residual in residuals]
         names = set(block)
-        if len(block) > _SYMBOLIC_UNKNOWNS or any(
+        if len(block) > SYMBOLIC_UNKNOWNS or any(
             names & set(entry.variables()) for row in coefficients for entry in row
         ):
             return None
@@ -279,7 +283,7 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
         right = vector(-residual.subs(zero) for residual in residuals)
         return dict(zip(block, system.solve_right(right, check=False), strict=True))
 
-    def _numeric_block(self, block: list[Expression], residuals: list[Expression]) -> _NumericBlockSpec:
+    def _get_numeric_block(self, block: list[Expression], residuals: list[Expression]) -> _NumericBlockSpec:
         """Return the numeric solve of a block.
 
         It is linear when its coefficients hold none of its unknowns.
@@ -288,7 +292,7 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
         linear = not any(names & set(residual.diff(item).variables()) for residual in residuals for item in block)
         return _NumericBlockSpec(tuple(block), tuple(residuals), linear)
 
-    def _linear_solution(
+    def _get_linear_solution(
         self,
         block: _NumericBlockSpec,
         arguments: Sequence[Expression],
@@ -299,7 +303,7 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
         zero = dict.fromkeys(block.unknowns, 0)
         entries = [residual.diff(item) for residual in block.residuals for item in block.unknowns]
         offsets = [residual.subs(zero) for residual in block.residuals]
-        function = self._printed([*entries, *offsets], arguments, time)
+        function = self._get_printed([*entries, *offsets], arguments, time)
 
         def solve(t: float, known: list[float]) -> list[float]:
             values = np.asarray(function(t, *known), dtype=float)
@@ -313,7 +317,7 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
 
         return solve
 
-    def _root_solution(
+    def _get_root_solution(
         self,
         block: _NumericBlockSpec,
         arguments: Sequence[Expression],
@@ -325,9 +329,9 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
         """
         size = len(block.unknowns)
         names = [*arguments, *block.unknowns]
-        residual = self._printed(block.residuals, names, time)
+        residual = self._get_printed(block.residuals, names, time)
         derivatives = [equation.diff(item) for equation in block.residuals for item in block.unknowns]
-        jacobian = self._printed(derivatives, names, time)
+        jacobian = self._get_printed(derivatives, names, time)
         last = [np.asarray([self.guesses_.get(item, 0.0) for item in block.unknowns], dtype=float)]
 
         def solve(t: float, known: list[float]) -> list[float]:
@@ -338,10 +342,10 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
                 return np.asarray(jacobian(t, *known, *values), dtype=float).reshape(size, size)
 
             with np.errstate(all='ignore'):
-                result = root(residuals, last[0], jac=slopes, tol=_ROOT_TOLERANCE)
-                if not np.all(np.abs(result.fun) <= _RESIDUAL_TOLERANCE):
-                    result = root(residuals, last[0] + 1.0, jac=slopes, tol=_ROOT_TOLERANCE)
-            if not np.all(np.abs(result.fun) <= _RESIDUAL_TOLERANCE):
+                result = root(residuals, last[0], jac=slopes, tol=ROOT_TOLERANCE)
+                if not np.all(np.abs(result.fun) <= RESIDUAL_TOLERANCE):
+                    result = root(residuals, last[0] + 1.0, jac=slopes, tol=ROOT_TOLERANCE)
+            if not np.all(np.abs(result.fun) <= RESIDUAL_TOLERANCE):
                 states = ', '.join(map(str, block.unknowns))
                 error_msg = (
                     f'The nonlinear equations of {states} have no solution near the last values at time {t}: '
@@ -353,7 +357,7 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
 
         return solve
 
-    def _chained_solution(self, blocks: Sequence[_NumericBlockSpec], time: Expression) -> None:
+    def _get_chained_solution(self, blocks: Sequence[_NumericBlockSpec], time: Expression) -> None:
         """Set `arguments_` and `solve_`.
 
         `solve_` is the function of the arguments that returns the numeric unknowns.
@@ -366,7 +370,7 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
         solutions = []
         before = list(self.arguments_)
         for block in blocks:
-            make = self._linear_solution if block.linear else self._root_solution
+            make = self._get_linear_solution if block.linear else self._get_root_solution
             solutions.append(make(block, before, time))
             before += block.unknowns
         memory: list[tuple[tuple[float, ...], list[float]]] = []
@@ -385,11 +389,11 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
 
         self.solve_ = solve
 
-    def _numeric_value(self, expressions: Sequence[Expression], time: Expression) -> CallSpec:
+    def _get_numeric_value(self, expressions: Sequence[Expression], time: Expression) -> CallSpec:
         """Return the call that evaluates expressions at the numeric block unknowns."""
         chained = list(self.arguments_)
         own = sorted(symbols_of(expressions) - set(self.numeric_) - set(chained) - {time}, key=str)
-        function = self._printed(expressions, [*chained, *own, *self.numeric_], time)
+        function = self._get_printed(expressions, [*chained, *own, *self.numeric_], time)
         count, solve = len(chained), self.solve_
 
         def evaluate(t: float, *values: float) -> list[npt.ArrayLike]:
@@ -397,14 +401,14 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
 
         return CallSpec(evaluate, (*chained, *own))
 
-    def _value_of(self, value: Expression, time: Expression) -> Expression | CallSpec:
+    def _get_value_of(self, value: Expression, time: Expression) -> Expression | CallSpec:
         """Return a value that reads the numeric unknowns as a call.
 
         Any other value is returned as it is.
         """
-        return self._numeric_value([value], time) if set(self.numeric_) & set(value.variables()) else value
+        return self._get_numeric_value([value], time) if set(self.numeric_) & set(value.variables()) else value
 
-    def _substituted_vector(self, value: FreeModuleElement, time: Expression) -> object:
+    def _get_substituted_vector(self, value: FreeModuleElement, time: Expression) -> object:
         """Return a vector value reading the solutions.
 
         It is a call when it reads the numeric unknowns.
@@ -414,23 +418,23 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
             return value
         replaced = [item.subs(self.algebraic_) for item in items]
         if any(set(self.numeric_) & set(item.variables()) for item in replaced):
-            return self._numeric_value(replaced, time)
+            return self._get_numeric_value(replaced, time)
         return vector(replaced)
 
-    def _substituted(self, value: object, time: Expression, owner: str) -> object:
+    def _get_substituted(self, value: object, time: Expression, owner: str) -> object:
         """Return the value of a law or a jump, reading the solutions.
 
         The law is a rate, noise, update, or boundary law.
         """
         if isinstance(value, FreeModuleElement):
-            return self._substituted_vector(value, time)
+            return self._get_substituted_vector(value, time)
         if isinstance(value, CallSpec) and value.arguments:
-            return replace(value, arguments=tuple(self._symbolic_only(SR(item), owner) for item in value.arguments))
+            return replace(value, arguments=tuple(self._get_symbolic_only(SR(item), owner) for item in value.arguments))
         if isinstance(value, Expression) and set(self.algebraic_) & set(value.variables()):
-            return self._value_of(value.subs(self.algebraic_), time)
+            return self._get_value_of(value.subs(self.algebraic_), time)
         return value
 
-    def _symbolic_only(self, value: Expression, owner: str) -> Expression:
+    def _get_symbolic_only(self, value: Expression, owner: str) -> Expression:
         """Return a value with the symbolic solutions.
 
         A value that a numeric solve determines raises an error.
@@ -445,24 +449,24 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
             raise ValidationError(error_msg)
         return replaced
 
-    def _with_solutions(self, law: BaseLaw, owner: str, time: Expression) -> BaseLaw:
+    def _copy_with_solutions(self, law: BaseLaw, owner: str, time: Expression) -> BaseLaw:
         """Return a law whose values read the solutions of the algebraic states.
 
         It is the law itself when it reads none.
         """
-        if isinstance(law, _KERNEL_FREE_LAWS):
+        if isinstance(law, KERNEL_FREE_LAWS):
             return law
         if isinstance(law, JumpLaw):
-            rate = self._substituted(law.rate, time, owner)
-            return law if rate is law.rate else BasePass._replaced(law, rate=rate)
+            rate = self._get_substituted(law.rate, time, owner)
+            return law if rate is law.rate else BasePass._get_replaced(law, rate=rate)
         if isinstance(law, CrossingLaw | RenewalLaw):
-            return self._with_event_solutions(law, owner)
+            return self._copy_with_event_solutions(law, owner)
         if isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
-            value = self._substituted(law.value, time, owner)
-            return law if value is law.value else BasePass._replaced(law, value=value)
+            value = self._get_substituted(law.value, time, owner)
+            return law if value is law.value else BasePass._get_replaced(law, value=value)
         return law
 
-    def _with_event_solutions(self, law: CrossingLaw | RenewalLaw, owner: str) -> BaseLaw:
+    def _copy_with_event_solutions(self, law: CrossingLaw | RenewalLaw, owner: str) -> BaseLaw:
         """Return an event or renewal that reads the symbolic solutions.
 
         Its guard, waiting time, and reset read them.
@@ -471,15 +475,15 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
         value = getattr(law, name)
         changes: dict[str, object] = {}
         if isinstance(value, Expression):
-            changes[name] = self._symbolic_only(value, owner)
+            changes[name] = self._get_symbolic_only(value, owner)
         if law.reset is not None:
             changes['reset'] = {
-                target: self._symbolic_only(item, owner) if isinstance(item, Expression) else item
+                target: self._get_symbolic_only(item, owner) if isinstance(item, Expression) else item
                 for target, item in law.reset.items()
             }
-        return BasePass._replaced(law, **changes) if changes else law
+        return BasePass._get_replaced(law, **changes) if changes else law
 
-    def _kept_spec(
+    def _get_kept_spec(
         self,
         spec: KernelSpec,
         laws: Sequence[BaseLaw],
@@ -490,7 +494,7 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
 
         The spec has the references of the symbols they now read.
         """
-        kept = [self._with_solutions(law, spec.owner, time) for law in laws]
+        kept = [self._copy_with_solutions(law, spec.owner, time) for law in laws]
         if all(new is old for new, old in zip(kept, laws, strict=True)):
             return spec, kept
         return replace(spec, references={**references, **spec.references}), kept
@@ -512,9 +516,9 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
             unknowns = [names[matching[position]] for position in block]
             residuals = [relations[position].expression for position in block]
             residuals = [item.subs(solutions) if solutions else item for item in residuals]
-            solved = self._solved_linear(unknowns, residuals)
+            solved = self._get_solved_linear(unknowns, residuals)
             if solved is None:
-                numeric.append(self._numeric_block(unknowns, residuals))
+                numeric.append(self._get_numeric_block(unknowns, residuals))
             else:
                 solutions.update(solved)
         return solutions, numeric
@@ -529,13 +533,17 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
                 The laws and relations of every spec.
         """
         specs = list(inputs or [])
-        time = Compilation._required(self.compilation_.layout, 'layout').time
+        time = Compilation._get_required(self.compilation_.layout, 'layout').time
         relations = self.relations
-        self.guesses_ = self._guesses_of(specs)
-        matching = self._matching(relations, self.unknowns)
-        solutions, numeric = self._solve_blocks(relations, self._blocks(relations, self.unknowns, matching), matching)
+        self.guesses_ = self._get_guesses_of(specs)
+        matching = self._get_matching(relations, self.unknowns)
+        solutions, numeric = self._solve_blocks(
+            relations,
+            self._get_blocks(relations, self.unknowns, matching),
+            matching,
+        )
         self.numeric_ = [item for block in numeric for item in block.unknowns]
-        self._chained_solution(numeric, time)
+        self._get_chained_solution(numeric, time)
         references = {key: value for relation in relations for key, value in relation.spec.references.items()}
         self.algebraic_ = {
             item: solutions.get(item, item) for item, state in self.unknowns.items() if item.is_trivially_equal(state)
@@ -545,10 +553,10 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
         merged = KernelSpec(owner, SimpleNamespace(), references, rows)
         laws: list[BaseLaw] = []
         for item, state in self.unknowns.items():
-            value = self._value_of(SR(solutions.get(item, item)), time)
+            value = self._get_value_of(SR(solutions.get(item, item)), time)
             laws.append(AlgebraicLaw(state, value) if item.is_trivially_equal(state) else RateLaw(state, value))
         kept = [
-            self._kept_spec(spec, [law for law in items if not isinstance(law, _RelationSpec)], references, time)
+            self._get_kept_spec(spec, [law for law in items if not isinstance(law, _RelationSpec)], references, time)
             for spec, items in specs
         ]
         self.lowered_ = [*kept, (merged, laws)]

@@ -35,7 +35,7 @@ trajectory = simulate(system, until=25, dt=0.1, observers=[observer])
 # volumes conserve the total number of waves, the integral of `k`, which should stay at its initial value.
 
 times = trajectory.times
-numbers = trajectory.values('train.k')
+numbers = trajectory.get_values('train.k')
 spacing = 2 * np.pi / numbers.shape[1]
 slope = np.abs(np.diff(numbers, axis=1, append=numbers[:, :1])).max(axis=1) / spacing
 grid = np.linspace(0, 2 * np.pi, 2000)

@@ -20,7 +20,7 @@ def test_speed_adapts_towards_a_moving_desired_speed():
     )
     trajectory = simulate(system, until=3.0, solver=ScipyODESolver(rtol=1e-10, atol=1e-12), dt=0.5)
     expected = trajectory.times - 2.0 * (1 - np.exp(-trajectory.times / 2.0))
-    np.testing.assert_allclose(trajectory.values('car.x'), expected, rtol=1e-7, atol=1e-9)
+    np.testing.assert_allclose(trajectory.get_values('car.x'), expected, rtol=1e-7, atol=1e-9)
 
 
 def test_check_rejects_a_time_that_is_not_a_function():

@@ -53,7 +53,7 @@ def test_delayed_lif_network_rates():
 def test_legion_segments_objects():
     """Test that LEGION synchronizes each object, alternates between objects, and keeps the background silent."""
     trajectory = simulate(LegionSystem(epsilon=0.1), dt=0.5, until=120)
-    active = trajectory.values('oscillators.x').reshape(len(trajectory.times), -1) > 0
+    active = trajectory.get_values('oscillators.x').reshape(len(trajectory.times), -1) > 0
     first, second = active[:, [0, 1, 4]], active[:, [11, 15]]
     assert first.mean() > 0.1
     assert second.mean() > 0.1
@@ -69,7 +69,7 @@ def test_legion_segments_objects():
 def test_legion_defaults_fire_both_objects_in_a_short_run():
     """Test that both objects of the default LEGION network start an active phase within 100 time units."""
     trajectory = simulate(LegionSystem(), dt=0.5, until=100)
-    active = trajectory.values('oscillators.x').reshape(len(trajectory.times), -1) > 0
+    active = trajectory.get_values('oscillators.x').reshape(len(trajectory.times), -1) > 0
     for sites in ([0, 1, 4], [11, 15]):
         on = active[:, sites].any(axis=1)
         assert (on[1:] & ~on[:-1]).any()
@@ -106,8 +106,8 @@ def test_legion_short_trajectory_equals_the_coupling_written_in_the_element():
     """Test that the trajectory of the rebuilt coupling equals the previous one before rounding grows."""
     trajectory = simulate(LegionSystem(), dt=0.5, until=1.5)
     expected = simulate(_previous_legion(), dt=0.5, until=1.5)
-    assert np.abs(trajectory.values('oscillators.x') - expected.values('oscillators.x')).max() < 1e-10
-    assert np.abs(trajectory.values('oscillators.y') - expected.values('oscillators.y')).max() < 1e-10
+    assert np.abs(trajectory.get_values('oscillators.x') - expected.get_values('oscillators.x')).max() < 1e-10
+    assert np.abs(trajectory.get_values('oscillators.y') - expected.get_values('oscillators.y')).max() < 1e-10
 
 
 def test_inhibitor_drive_interaction_follows_most_active_oscillator():
@@ -117,4 +117,4 @@ def test_inhibitor_drive_interaction_follows_most_active_oscillator():
     drive = InhibitorDriveInteraction('drive', inhibitor='inhibitor', oscillators='oscillators')
     system = CompositeSystem(elements=[oscillators, InhibitorElement('inhibitor')], interactions=[drive])
     trajectory = simulate(system, dt=0.01, until=0.1)
-    assert trajectory.values('inhibitor.z')[-1] == pytest.approx(1 - np.exp(-0.3), rel=1e-3)
+    assert trajectory.get_values('inhibitor.z')[-1] == pytest.approx(1 - np.exp(-0.3), rel=1e-3)

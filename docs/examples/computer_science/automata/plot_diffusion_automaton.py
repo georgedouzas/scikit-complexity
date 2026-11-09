@@ -30,7 +30,7 @@ trajectory = simulate(DiffusionAutomatonSystem(shape=(80, 80), r=R, width=10), u
 # `(10² - 1) / 12 + 2 r t` from the square's start, the profile through the centre should approach a Gaussian of that
 # variance, and the total content should stay 100 to rounding error.
 
-levels = trajectory.lattice('cells.level')
+levels = trajectory.get_lattice('cells.level')
 times = trajectory.times
 coordinates = np.arange(80) - 39.5
 total = levels.sum(axis=(1, 2))

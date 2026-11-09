@@ -34,7 +34,7 @@ trajectory = simulate(ChemicalLangevinEquationSystem(), observers=[observer], ra
 c1, c2, c3, c4, A, B = 1.5e-6, 2.5e-3, 2e-4, 3.5, 1e5, 2e5
 drift = np.polynomial.Polynomial([c3 * B, -c1 * A / 2 - c4 - c2 / 3, c1 * A / 2 + c2 / 2, -c2 / 6])
 roots = np.sort(drift.roots().real)
-x = trajectory.values('reactor.x')
+x = trajectory.get_values('reactor.x')
 histogram = distribution(x[trajectory.times > 5], kind='histogram', bins=40)
 edges, density = histogram.edges, histogram.density
 fig, (series, distribution) = plt.subplots(1, 2, figsize=(10, 4))

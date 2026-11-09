@@ -12,7 +12,7 @@ def test_vibrating_table_settles_on_a_steady_vibration_close_to_the_linear_model
     swings = []
     for linear in (False, True):
         trajectory = simulate(VibratingTableSystem(linear=linear))
-        times, x = trajectory.times, np.ravel(trajectory.values('shaker.x'))
+        times, x = trajectory.times, np.ravel(trajectory.get_values('shaker.x'))
         late = times > 20
         swing = [np.ptp(x[(times > start) & (times < start + 4)]) for start in (20, 28, 36)]
         assert np.ptp(swing) < 1e-3 * swing[0]

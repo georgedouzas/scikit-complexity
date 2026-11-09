@@ -29,7 +29,7 @@ trajectory = simulate(NodeMergingSystem(), until=10000, dt=100.0, observers=[obs
 # The degrees after 20 steps per node should have a fat tail, with hubs far above the largest degree of a random
 # graph of the same size and number of links, whose degrees are Poisson.
 
-network = trajectory.network(-1)
+network = trajectory.get_network(-1)
 degrees = np.bincount(np.concatenate([network.sources, network.targets]))[network.nodes]
 random = nx.gnm_random_graph(len(network.nodes), len(network.sources), seed=0)
 random_degrees = np.array([degree for _, degree in random.degree()])

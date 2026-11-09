@@ -49,7 +49,7 @@ class MackeyGlassElement(Element):
 
 
 cells = CompositeSystem(elements=[MackeyGlassElement('cells')])
-round(float(simulate(cells, until=300, dt=0.5).values('cells.x')[-1]), 3)
+round(float(simulate(cells, until=300, dt=0.5).get_values('cells.x')[-1]), 3)
 ```
 
 - The delay is a constant or depends on the state.
@@ -137,7 +137,7 @@ class FilterElement(Element):
 
 
 filtered = simulate(CompositeSystem(elements=[FilterElement('filter')]), until=10, dt=0.5)
-round(float(filtered.values('filter.y')[-1]), 4)
+round(float(filtered.get_values('filter.y')[-1]), 4)
 ```
 
 `series` interpolates data with `'linear'` or `'previous'` interpolation. The compiler finds the times where the inputs
@@ -239,7 +239,7 @@ market = CompositeSystem(
 )
 solver = EulerMaruyamaSolver(dt=1.0)
 trajectory = simulate(market, until=2000, solver=solver, dt=1.0, random_state=0)
-round(float(np.corrcoef(np.diff(trajectory.values('a.n')), np.diff(trajectory.values('b.n')))[0, 1]), 1)
+round(float(np.corrcoef(np.diff(trajectory.get_values('a.n')), np.diff(trajectory.get_values('b.n')))[0, 1]), 1)
 ```
 
 The measured correlation of the increments is the 0.8 of the covariance.
@@ -305,7 +305,7 @@ class DensityElement(Element):
 
 gas = CompositeSystem(elements=[FieldElement('gas', element=DensityElement, space=LatticeSpace((16, 16)))])
 solver = EulerMaruyamaSolver(dt=0.01)
-density = simulate(gas, until=5, solver=solver, random_state=0).values('gas.rho')
+density = simulate(gas, until=5, solver=solver, random_state=0).get_values('gas.rho')
 round(float(density[-1].sum()), 6), bool(density[-1].std() > 0)
 ```
 

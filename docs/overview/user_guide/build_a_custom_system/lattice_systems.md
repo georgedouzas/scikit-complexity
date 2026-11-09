@@ -56,7 +56,7 @@ glider[1, 2] = glider[2, 3] = glider[3, 1] = glider[3, 2] = glider[3, 3] = 1
 space = LatticeSpace((20, 20))
 cells = CompositeSystem(elements=[GroupElement('cells', element=LifeElement, space=space, values={'alive': glider}, on='sites')])
 trajectory = simulate(cells, until=4, dt=1)
-np.array_equal(trajectory.lattice('cells.alive')[-1], np.roll(glider, (1, 1), axis=(0, 1)))
+np.array_equal(trajectory.get_lattice('cells.alive')[-1], np.roll(glider, (1, 1), axis=(0, 1)))
 ```
 
 `LocalRuleLaw(targets, over, rule)` computes a cell's next value from the ordered values of its neighbourhood.
@@ -70,7 +70,7 @@ np.array_equal(trajectory.lattice('cells.alive')[-1], np.roll(glider, (1, 1), ax
 - Tables and totalistic rules run as lookups, fused into one compiled loop on the Numba backend.
 - Rules update synchronously by default, every cell from the previous configuration. `schedule='random-sequential'`,
   `'random-site'`, `'checkerboard'`, or `'colored'` update cells one at a time, or one class of sites at a time.
-- One unit of time is one application of every rule, so `dt` is an integer. `trajectory.lattice(name)` returns the
+- One unit of time is one application of every rule, so `dt` is an integer. `trajectory.get_lattice(name)` returns the
   states in lattice shape.
 - `ArrayUpdateLaw(target, function)` changes a whole lattice at once, such as dropping a grain on a random site.
 
@@ -182,7 +182,7 @@ fire = np.zeros((40, 40))
 fire[20, 20] = 1
 space = LatticeSpace((40, 40), geometry='triangular')
 forest = CompositeSystem(elements=[GroupElement('forest', element=BurnElement, space=space, values={'fire': fire}, on='sites')])
-burning = simulate(forest, until=3, dt=1).lattice('forest.fire')
+burning = simulate(forest, until=3, dt=1).get_lattice('forest.fire')
 [int(item.sum()) for item in burning]
 ```
 
@@ -317,7 +317,7 @@ shift = CompositeSystem(
         ),
     ],
 )
-simulate(shift, until=1).values('cells.value')[-1].tolist()
+simulate(shift, until=1).get_values('cells.value')[-1].tolist()
 
 start = np.zeros((6, 4))
 start[3, 0] = 1
@@ -333,7 +333,7 @@ series = CompositeSystem(
         ),
     ],
 )
-final = simulate(series, until=3).values('cells.value')[-1]
+final = simulate(series, until=3).get_values('cells.value')[-1]
 RING.series_of(final[2])
 ```
 

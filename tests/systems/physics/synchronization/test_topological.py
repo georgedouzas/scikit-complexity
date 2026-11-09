@@ -12,7 +12,7 @@ SYNCHRONIZATION_GAP = 0.3
 def _final_order(coupling):
     """Return the mean over the last frames of the order parameter of the link phases of a run at a coupling."""
     trajectory = simulate(TopologicalKuramotoSystem(coupling=coupling), until=40.0, dt=0.2)
-    return float(np.mean(trajectory.values('link_order')[-20:]))
+    return float(np.mean(trajectory.get_values('link_order')[-20:]))
 
 
 def test_link_synchronization_grows_with_coupling():
@@ -70,6 +70,6 @@ def test_nodes_links_triangles_system_stays_incoherent_where_the_nodes_links_sys
     orders = {}
     for model in ('NL', 'NLT'):
         trajectory = simulate(TopologicalKuramotoSystem(coupling=0.5, model=model), until=40.0, dt=0.2)
-        orders[model] = float(np.mean(trajectory.values('node_order')[-20:]))
+        orders[model] = float(np.mean(trajectory.get_values('node_order')[-20:]))
     assert orders['NL'] > 0.9
     assert orders['NLT'] < 0.4

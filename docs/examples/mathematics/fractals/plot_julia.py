@@ -32,7 +32,7 @@ trajectory = simulate(system, observers=[observer])
 # itself turned by half a turn. The histogram shows most points escape within a few steps, and a slowly decaying tail
 # of points near the boundary takes many more.
 
-counts = trajectory.lattice('plane.n')[-1]
+counts = trajectory.get_lattice('plane.n')[-1]
 mismatch = np.mean(counts != counts[::-1, ::-1])
 fig, (image, histogram) = plt.subplots(1, 2, figsize=(11, 4))
 image.imshow(np.log1p(counts), extent=WINDOW, cmap='magma')

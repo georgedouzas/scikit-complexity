@@ -140,7 +140,7 @@ class SemiLagrangianSolver(Solver):
                 )
                 raise SolverError(error_msg)
 
-    def _shifted_periodic(self, values: Array, displacement: Array, axis: int, spacing: float) -> Array:
+    def _get_shifted_periodic(self, values: Array, displacement: Array, axis: int, spacing: float) -> Array:
         """Return slices of an axis shifted by a displacement per slice.
 
         The shift uses the Fourier shift theorem.
@@ -155,7 +155,7 @@ class SemiLagrangianSolver(Solver):
             modes = np.where(waves.reshape(shape) == waves[-1], np.cos(waves[-1] * slices), modes)
         return np.asarray(scipy.fft.irfft(scipy.fft.rfft(values, axis=axis) * modes, n=length, axis=axis))
 
-    def _shifted_spline(self, values: Array, displacement: Array, axis: int, *, spacing: float, kind: str) -> Array:
+    def _get_shifted_spline(self, values: Array, displacement: Array, axis: int, *, spacing: float, kind: str) -> Array:
         """Return slices of an axis shifted by a displacement per slice.
 
         The shift uses a cubic spline, slice by slice.
@@ -173,24 +173,33 @@ class SemiLagrangianSolver(Solver):
             )
         return np.moveaxis(result, -1, axis)
 
-    def _shifted_state(self, volume: FiniteVolumeKernel, x: Array, p: Array, *, t: float, h: float, axis: int) -> Array:
+    def _get_shifted_state(
+        self,
+        volume: FiniteVolumeKernel,
+        x: Array,
+        p: Array,
+        *,
+        t: float,
+        h: float,
+        axis: int,
+    ) -> Array:
         """Return the state vector after one field shifts along one axis.
 
         The states of the field shift for a time.
         """
         result = x.copy()
-        states = volume._states(x)
-        drifts = volume.drift_of(axis, states, x, p, t)
+        states = volume._get_states(x)
+        drifts = volume.get_drift_of(axis, states, x, p, t)
         spacing = volume.spacings[axis]
         for start, values, drift, (given, _) in zip(volume.starts, states, drifts, volume.boundaries, strict=True):
-            kind = volume._kind(axis, given)
+            kind = volume._get_kind(axis, given)
             displacement = np.broadcast_to(drift, values.shape) * h
             if not np.any(displacement):
                 continue
             if kind == 'periodic':
-                shifted = self._shifted_periodic(values, displacement, axis, spacing)
+                shifted = self._get_shifted_periodic(values, displacement, axis, spacing)
             else:
-                shifted = self._shifted_spline(values, displacement, axis, spacing=spacing, kind=kind)
+                shifted = self._get_shifted_spline(values, displacement, axis, spacing=spacing, kind=kind)
             result[start : start + volume.size] = shifted.ravel()
         return result
 
@@ -204,10 +213,10 @@ class SemiLagrangianSolver(Solver):
             axes = range(len(volume.dimensions))
             *outer, inner = axes
             for axis in outer:
-                state = self._shifted_state(volume, state, p, t=t, h=h / 2, axis=axis)
-            state = self._shifted_state(volume, state, p, t=t, h=h, axis=inner)
+                state = self._get_shifted_state(volume, state, p, t=t, h=h / 2, axis=axis)
+            state = self._get_shifted_state(volume, state, p, t=t, h=h, axis=inner)
             for axis in reversed(outer):
-                state = self._shifted_state(volume, state, p, t=t + h / 2, h=h / 2, axis=axis)
+                state = self._get_shifted_state(volume, state, p, t=t + h / 2, h=h / 2, axis=axis)
         return state
 
     def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:

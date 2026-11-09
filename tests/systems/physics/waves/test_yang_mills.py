@@ -33,7 +33,7 @@ def _gauge_transform(links, space, group, seed=1):
 def test_four_dimensional_su2_plaquette_is_near_the_known_value():
     """Test that SU(2) at `beta = 2.3` on a 4^4 lattice has a mean plaquette within 0.03 of 0.60."""
     series = simulate(LatticeYangMillsSystem(size=4), until=100, random_state=0)
-    assert abs(series.values('mean_plaquette')[30:].mean() - 0.60) < 0.03
+    assert abs(series.get_values('mean_plaquette')[30:].mean() - 0.60) < 0.03
 
 
 def test_polyakov_loop_orders_above_the_deconfinement_coupling():
@@ -41,7 +41,7 @@ def test_polyakov_loop_orders_above_the_deconfinement_coupling():
     loops = []
     for beta in (1.5, 2.6):
         trajectory = simulate(LatticeYangMillsSystem(size=4, extent=2, beta=beta), until=100, random_state=0)
-        loops.append(trajectory.values('polyakov_loop')[30:].mean())
+        loops.append(trajectory.get_values('polyakov_loop')[30:].mean())
     assert loops[1] > 3 * loops[0]
 
 
@@ -51,10 +51,10 @@ def test_su3_links_stay_in_the_group_and_order_from_a_cold_start():
     cold = np.broadcast_to(np.eye(3), (space.incidences_[0].shape[0], 3, 3))
     system = LatticeYangMillsSystem(4, dimension=3, colors=3, beta=1.0, links=cold)
     trajectory = simulate(system, until=10, dt=1, random_state=0)
-    plaquettes = trajectory.values('mean_plaquette')
+    plaquettes = trajectory.get_values('mean_plaquette')
     assert plaquettes[0] == pytest.approx(1.0)
     assert plaquettes[-1] < 0.5
-    matrices = COLOR.matrices_of(trajectory.values('links.U')[-1])
+    matrices = COLOR.matrices_of(trajectory.get_values('links.U')[-1])
     assert np.allclose(COLOR.projection_of(matrices), matrices, atol=1e-12)
 
 

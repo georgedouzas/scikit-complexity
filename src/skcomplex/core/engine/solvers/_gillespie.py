@@ -77,7 +77,7 @@ class GillespieSolver(Solver):
         problem = self.problem_
         BaseSolver._reject_hybrid(problem, type(self).__name__)
 
-    def _rates(self, t: float, state: Array, p: Array) -> Array:
+    def _get_rates(self, t: float, state: Array, p: Array) -> Array:
         """Return the propensities at a state, after checking them.
 
         Args:
@@ -114,12 +114,12 @@ class GillespieSolver(Solver):
         topology = self.problem_.topology
         if topology is not None and channel in (topology.channels or {}):
             state = topology._fire(channel, event - channels.offset, t, state, p, rng=self.rng_)
-            return self._bounded(t, state, p)
+            return self._get_bounded(t, state, p)
         targets = channels.targets[:, event - channels.offset]
         kept = targets >= 0
         increments = channels.increments_at(t, state, p, event - channels.offset)
         np.add.at(state, targets[kept], increments[kept])
-        return self._bounded(t, state, p)
+        return self._get_bounded(t, state, p)
 
     def _replay(self, t: float, x: Array, p: Array, until: float, recorder: DrawRecorder) -> Array:
         """Fire the recorded laws at their recorded times from time `t` until `until`.
@@ -130,15 +130,15 @@ class GillespieSolver(Solver):
         state = x.copy()
         log_probability = 0.0
         with np.errstate(divide='ignore'):
-            for time, event in recorder.firings(t, until):
-                rates = self._rates(t, state, p)
+            for time, event in recorder.get_firings(t, until):
+                rates = self._get_rates(t, state, p)
                 if event >= rates.size:
                     error_msg = f'The replayed trajectory fires the jump law {event}, but the system has {rates.size}.'
                     raise ValidationError(error_msg)
                 log_probability += float(np.log(rates[event]) - rates.sum() * (time - t))
                 t = time
                 state = self._fire(t, state, p, event)
-            log_probability -= float(self._rates(t, state, p).sum() * (until - t))
+            log_probability -= float(self._get_rates(t, state, p).sum() * (until - t))
         recorder.add_log_probability(log_probability)
         return state
 
@@ -183,7 +183,7 @@ class GillespieSolver(Solver):
                 raise SolverError(error_msg) from error
         state = x.copy()
         while True:
-            rates = self._rates(t, state, p)
+            rates = self._get_rates(t, state, p)
             total = float(rates.sum())
             if total == 0:
                 return state

@@ -99,7 +99,7 @@ def test_point_fit_searches_the_central_part_of_a_scipy_prior():
 def _brock_hommes_data():
     """Return the price deviations of a small Brock-Hommes market."""
     truth = simulate(BrockHommesSystem(20, intensity=4.0, strength=1.3), until=60, random_state=0)
-    return {'pricing.deviation': (truth.times[1:], truth.values('pricing.deviation')[1:])}
+    return {'pricing.deviation': (truth.times[1:], truth.get_values('pricing.deviation')[1:])}
 
 
 @pytest.mark.slow
@@ -249,7 +249,7 @@ def test_abc_smc_covers_the_rates_of_a_stochastic_epidemic():
     system = SIRSystem(198, 2, beta=0.0015, gamma=0.1, stochastic=True)
     truth = simulate(system, until=60, random_state=3)
     times = np.arange(0.0, 61.0, 3.0)
-    data = {'I.x': (times, np.interp(times, truth.times, truth.values('I.x')))}
+    data = {'I.x': (times, np.interp(times, truth.times, truth.get_values('I.x')))}
     bounds = {'beta': (0.0003, 0.005), 'gamma': (0.02, 0.4)}
     result = calibrate(
         SIRSystem(198, 2, stochastic=True),
@@ -274,7 +274,7 @@ def test_abc_smc_compares_summary_statistics():
     """Test that ABC-SMC compares the summaries of the series, here the three final counts."""
     truth = simulate(SIRSystem(48, 2, beta=0.006, stochastic=True), until=30, random_state=0)
     times = np.arange(0.0, 31.0, 5.0)
-    data = {path: (times, np.interp(times, truth.times, truth.values(path))) for path in ('S.x', 'I.x', 'R.x')}
+    data = {path: (times, np.interp(times, truth.times, truth.get_values(path))) for path in ('S.x', 'I.x', 'R.x')}
 
     def finals(series):
         return [series[path][-1] for path in ('S.x', 'I.x', 'R.x')]

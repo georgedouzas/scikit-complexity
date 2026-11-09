@@ -127,7 +127,7 @@ def basin_stability(
         if not isinstance(problem, ProblemSpec):
             error_msg = f'A vectorised basin reads the members of a general problem, not of a {type(problem).__name__}.'
             raise ValidationError(error_msg)
-        labels = [classifier(trajectory.member(index, problem)) for index in range(n)]
+        labels = [classifier(trajectory.get_member(index, problem)) for index in range(n)]
     else:
 
         def attractor(trajectory: Trajectory) -> object:

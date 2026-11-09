@@ -44,7 +44,7 @@ balance.set_title('Three climates balance the energy')
 balance.legend()
 for T0 in np.linspace(220.0, 300.0, 17):
     run = simulate(EnergyBalanceSystem(T=T0))
-    runs.plot(run.times, run.values('earth.T'), color='C1' if roots[1] < T0 else 'C0', linewidth=0.8)
+    runs.plot(run.times, run.get_values('earth.T'), color='C1' if roots[1] < T0 else 'C0', linewidth=0.8)
 for root in roots:
     runs.axhline(root, color='gray', linestyle='--', linewidth=0.8)
 runs.set_xlabel('time')

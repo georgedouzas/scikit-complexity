@@ -40,7 +40,7 @@ measured = {}
 for colors, betas in couplings.items():
     measured[colors] = [
         simulate(LatticeYangMillsSystem(size=8, dimension=2, colors=colors, beta=beta), until=150, random_state=0)
-        .values('mean_plaquette')[50:]
+        .get_values('mean_plaquette')[50:]
         .mean()
         for beta in betas
     ]
@@ -65,7 +65,7 @@ plt.show()
 
 betas = np.linspace(1.4, 2.6, 5)
 loops = [
-    simulate(LatticeYangMillsSystem(size=6, extent=2, beta=beta), until=150, random_state=0).values('polyakov_loop')
+    simulate(LatticeYangMillsSystem(size=6, extent=2, beta=beta), until=150, random_state=0).get_values('polyakov_loop')
     for beta in betas
 ]
 
@@ -86,7 +86,7 @@ cold = np.broadcast_to(np.eye(3), (1024, 3, 3))
 fig, ax = plt.subplots(figsize=(6, 4))
 for label, links in (('hot start', None), ('cold start', cold)):
     system = LatticeYangMillsSystem(size=4, colors=3, beta=5.0, width=0.3, links=links)
-    ax.plot(simulate(system, until=100, random_state=0).values('mean_plaquette'), label=label)
+    ax.plot(simulate(system, until=100, random_state=0).get_values('mean_plaquette'), label=label)
 ax.set_xlabel('sweep')
 ax.set_ylabel('mean plaquette')
 ax.set_title('SU(3) Wilson action at beta = 5')

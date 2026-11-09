@@ -51,8 +51,8 @@ herfindahl, spread = [], []
 for intensity in intensities:
     system_system = CreditNetworksSystem(intensity=intensity, random_state=0)
     trajectory = simulate(system_system, random_state=0)
-    herfindahl.append(trajectory.values('herfindahl')[50:].mean())
-    spread.append(np.nanmean(trajectory.values('credit.spread')[50:]))
+    herfindahl.append(trajectory.get_values('herfindahl')[50:].mean())
+    spread.append(np.nanmean(trajectory.get_values('credit.spread')[50:]))
 fig, (left, right) = plt.subplots(1, 2, figsize=(10, 4))
 left.plot(intensities, herfindahl, 'o-')
 left.axhline(0.1, ls='--', color='grey', label='equal shares')

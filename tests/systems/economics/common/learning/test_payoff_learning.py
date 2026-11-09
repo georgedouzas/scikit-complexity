@@ -87,8 +87,8 @@ def test_reinforcement_interaction_moves_scores_as_a_weighted_mean_of_payoffs():
     )
     trajectory = _run([reinforcement], {'value': np.array([2.0, 4.0])}, 2, 5)
     expected = 1 - 0.75 ** np.arange(6)
-    assert np.allclose(trajectory.values('learners.first'), 0.0)
-    assert np.allclose(trajectory.values('learners.second'), np.outer(expected, [2.0, 4.0]))
+    assert np.allclose(trajectory.get_values('learners.first'), 0.0)
+    assert np.allclose(trajectory.get_values('learners.second'), np.outer(expected, [2.0, 4.0]))
 
 
 def test_reinforcement_interaction_agent_scores_steer_a_best_choice():
@@ -126,7 +126,7 @@ def test_reinforcement_interaction_cumulative_rule_adds_the_payoffs():
         rule='cumulative',
     )
     trajectory = _run([reinforcement], {'value': np.array([2.0, 4.0])}, 2, 3)
-    assert np.allclose(trajectory.values('learners.second')[-1], [12.0, 24.0])
+    assert np.allclose(trajectory.get_values('learners.second')[-1], [12.0, 24.0])
 
 
 def test_reinforcement_interaction_reinforces_the_components_of_a_vector_state():
@@ -177,8 +177,8 @@ def test_reinforcement_interaction_moves_only_the_score_of_the_chosen_option():
         chosen='choice',
     )
     trajectory = _run([reinforcement], {'value': 2.0, 'choice': np.array([0.0, 1.0])}, 2, 1)
-    assert trajectory.values('learners.first')[-1].tolist() == [1.0, 0.0]
-    assert trajectory.values('learners.second')[-1].tolist() == [0.0, 1.0]
+    assert trajectory.get_values('learners.first')[-1].tolist() == [1.0, 0.0]
+    assert trajectory.get_values('learners.second')[-1].tolist() == [0.0, 1.0]
 
 
 def _scarce_payoff(agent: LearnerView, system: SystemView, index: int) -> float:

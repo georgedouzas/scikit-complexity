@@ -28,8 +28,8 @@ trajectory = simulate(TuringMachineSystem(), observers=[observer], random_state=
 # Each row is the tape at one step, ones in yellow, and the marker shows the head and its state. The head should halt,
 # state H, at step 13 with six ones on the tape, which then stays unchanged.
 
-symbols = np.asarray(trajectory.lattice('tape.symbol'))
-heads = np.asarray(trajectory.lattice('tape.head'))
+symbols = np.asarray(trajectory.get_lattice('tape.symbol'))
+heads = np.asarray(trajectory.get_lattice('tape.head'))
 names = 'ABCH'
 fig, ax = plt.subplots(figsize=(6, 6))
 ax.imshow(symbols[:15], cmap='viridis')

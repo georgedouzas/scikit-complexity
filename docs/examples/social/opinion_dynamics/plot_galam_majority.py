@@ -34,7 +34,7 @@ trajectory = simulate(system, until=10, observers=[observer], random_state=0)
 def after_one_round(share, seed):
     """Return the share of opinion 1 after one round of discussions in a large population."""
     run = simulate(GalamMajoritySystem(n_agents=3000, share=share, random_state=seed), until=1, random_state=seed)
-    return run.values('citizens.opinion')[1].mean()
+    return run.get_values('citizens.opinion')[1].mean()
 
 
 shares = np.linspace(0.05, 0.95, 10)

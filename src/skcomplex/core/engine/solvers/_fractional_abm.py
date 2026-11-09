@@ -13,7 +13,7 @@ from scipy.special import gamma
 
 from ...types import Array
 from ._caputo import CaputoSolver
-from ._rows import _INITIAL_ROWS, _Rows
+from ._rows import INITIAL_ROWS, _Rows
 
 
 class FractionalABMSolver(CaputoSolver):
@@ -77,15 +77,15 @@ class FractionalABMSolver(CaputoSolver):
         """Start the history of drifts and the weights of the predictor and the corrector."""
         del t, x
         self._drifts: _Rows | None = None
-        self._resize(_INITIAL_ROWS)
+        self._resize(INITIAL_ROWS)
         alpha = self._unique
-        self._predictor_scale = self._per_state(self.dt**alpha / gamma(alpha + 1))
-        self._corrector_scale = self._per_state(self.dt**alpha / gamma(alpha + 2))
+        self._predictor_scale = self._get_per_state(self.dt**alpha / gamma(alpha + 1))
+        self._corrector_scale = self._get_per_state(self.dt**alpha / gamma(alpha + 2))
 
     def _resize(self, count: int) -> None:
         """Compute the weights of the predictor and the corrector up to a lag."""
-        self._predictor = self._predictor_weights(self._unique, count)
-        self._corrector = self._corrector_weights(self._unique, count)
+        self._predictor = self._get_predictor_weights(self._unique, count)
+        self._corrector = self._get_corrector_weights(self._unique, count)
 
     def _carry(self, x: Array) -> None:
         """Take the states of order 1 that changed between frames.
@@ -97,7 +97,7 @@ class FractionalABMSolver(CaputoSolver):
 
     def _step(self, p: Array) -> None:
         """Advance the run by one predictor-corrector step."""
-        drift = self._drift()
+        drift = self._get_drift()
         step = self._step_index
         time = self._origin + step * self.dt
         current = drift(time, self._state, p)
@@ -107,20 +107,20 @@ class FractionalABMSolver(CaputoSolver):
             self._drifts.append(current)
         if step + 1 >= self._predictor.shape[0]:
             self._resize(2 * (step + 1))
-        drifts = self._drifts.rows(0, step + 1)
+        drifts = self._drifts.get_rows(0, step + 1)
         ordinary = ~self._fractional
         predicted = self._initial + self._predictor_scale * self._convolve(self._predictor[step::-1], drifts)
         predicted[ordinary] = self._state[ordinary] + self.dt * current[ordinary]
         alpha = self._unique
-        first = self._per_state(step ** (alpha + 1) - (step - alpha) * (step + 1) ** alpha) * drifts[0]
+        first = self._get_per_state(step ** (alpha + 1) - (step - alpha) * (step + 1) ** alpha) * drifts[0]
         past = self._convolve(self._corrector[step - 1 :: -1], drifts[1:]) if step else 0.0
         following = drift(time + self.dt, predicted, p)
         corrected = self._initial + self._corrector_scale * (following + first + past)
         corrected[ordinary] = self._state[ordinary] + self.dt / 2 * (current[ordinary] + following[ordinary])
-        self._state = self._bounded(time + self.dt, corrected, p)
+        self._state = self._get_bounded(time + self.dt, corrected, p)
 
     @staticmethod
-    def _predictor_weights(alpha: Array, count: int) -> Array:
+    def _get_predictor_weights(alpha: Array, count: int) -> Array:
         """Return the weights `(m + 1)^alpha - m^alpha` of the predictor.
 
         They cover lags 0 to `count`, with one column per order.
@@ -129,7 +129,7 @@ class FractionalABMSolver(CaputoSolver):
         return (lags + 1) ** alpha[None, :] - lags ** alpha[None, :]
 
     @staticmethod
-    def _corrector_weights(alpha: Array, count: int) -> Array:
+    def _get_corrector_weights(alpha: Array, count: int) -> Array:
         """Return the corrector weights at lags 0 to `count`.
 
         They cover every value but the first, with one column per order.

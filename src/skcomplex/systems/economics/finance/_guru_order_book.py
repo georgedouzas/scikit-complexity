@@ -198,7 +198,7 @@ class GuruMarketInteraction(PolicyRuleInteraction[SystemView]):
         self.opening = opening
 
     @staticmethod
-    def _stored(system: SystemView, name: str, default: float) -> float:
+    def _get_stored(system: SystemView, name: str, default: float) -> float:
         """Return a number the market stored in an earlier step.
 
         Before it is stored, it is the default.
@@ -333,14 +333,14 @@ class GuruMarketInteraction(PolicyRuleInteraction[SystemView]):
         """
         traders = sorted(system.get_agents('traders', GuruTraderView), key=lambda trader: trader.id)
         rng, store = system.rng, system.storage
-        price = self._stored(system, 'price', system.get_parameter('opening'))
-        beta = self._stored(system, 'beta', 1.0)
+        price = self._get_stored(system, 'price', system.get_parameter('opening'))
+        beta = self._get_stored(system, 'beta', 1.0)
         cash = np.array([trader.cash for trader in traders])
         stocks = np.array([trader.stocks for trader in traders])
         follows = np.array([int(trader.follows) for trader in traders])
         sigma = np.array([trader.sigma for trader in traders])
         guru = int(np.argmax(np.bincount(follows, minlength=len(traders))))
-        beta = beta + system.get_parameter('beta_step') if guru == self._stored(system, 'guru', -1.0) else 1.0
+        beta = beta + system.get_parameter('beta_step') if guru == self._get_stored(system, 'guru', -1.0) else 1.0
         wealth = cash + price * stocks
         follows = self._rewire(follows, wealth / wealth.max(), beta, rng)
         own = sigma * rng.normal(size=len(traders))

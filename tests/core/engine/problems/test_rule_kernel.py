@@ -54,7 +54,7 @@ def _translated(space, values, schedule='synchronous', rule=lambda value: value)
 def _values(system, until, schedule_random_state=0):
     """Return the values of the cells at every step of a run."""
     trajectory = simulate(system, until=until, dt=1, random_state=schedule_random_state)
-    return trajectory.values('cells.value')
+    return trajectory.get_values('cells.value')
 
 
 def test_translated_memory_reads_the_product_of_every_site_and_its_value():

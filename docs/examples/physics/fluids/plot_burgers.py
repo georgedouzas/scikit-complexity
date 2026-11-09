@@ -35,7 +35,7 @@ trajectory = simulate(system, until=2.99, dt=0.01, observers=[observer])
 # total of `u`, which should stay at its initial value through the shock.
 
 times = trajectory.times
-values = trajectory.values('line.u')
+values = trajectory.get_values('line.u')
 spacing = 2 * np.pi / values.shape[1]
 slope = np.abs(np.diff(values, axis=1, append=values[:, :1])).max(axis=1) / spacing
 drift = np.abs(values.sum(axis=1) - values[0].sum()) / values[0].sum()

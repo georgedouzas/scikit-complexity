@@ -35,7 +35,11 @@ def test_two_compartment_pharmacokinetics_matches_bi_exponential():
     c0, k10, k12, k21 = 2.0, 0.082, 0.0475, 0.00125
     system = TwoCompartmentPharmacokineticsSystem(c0=c0, k10=k10, k12=k12, k21=k21).prepare().system_
     trajectory = simulate(system, dt=10.0, solver=PRECISE, until=3000.0)
-    times, central, peripheral = trajectory.times, trajectory.values('patient.Uc'), trajectory.values('patient.Up')
+    times, central, peripheral = (
+        trajectory.times,
+        trajectory.get_values('patient.Uc'),
+        trajectory.get_values('patient.Up'),
+    )
     assert np.max(np.abs(central / _central_concentration(times, c0, k10, k12, k21) - 1)) < 1e-6
     assert np.max(np.abs((central + peripheral) / _total_drug(times, c0, k10, k12, k21) - 1)) < 1e-6
     assert np.all(np.diff(central + peripheral) < 0)
@@ -49,6 +53,6 @@ def test_two_compartment_pharmacokinetics_conserves_drug_without_elimination():
         dt=10.0,
         solver=PRECISE,
     )
-    total = trajectory.values('patient.Uc') + trajectory.values('patient.Up')
+    total = trajectory.get_values('patient.Uc') + trajectory.get_values('patient.Up')
     assert np.allclose(total, 1.0, rtol=1e-9)
-    assert abs(trajectory.values('patient.Uc')[-1] - 0.00125 / (0.00125 + 0.0475)) < 1e-6
+    assert abs(trajectory.get_values('patient.Uc')[-1] - 0.00125 / (0.00125 + 0.0475)) < 1e-6

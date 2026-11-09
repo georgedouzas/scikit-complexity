@@ -59,7 +59,7 @@ for name, arm in arms.items():
     trajectory = simulate(arm, dt=0.1, solver=solver, until=20)
     volume.semilogy(
         trajectory.times,
-        (trajectory.values('site.AU') + trajectory.values('site.AV')).clip(1e-6),
+        (trajectory.get_values('site.AU') + trajectory.get_values('site.AV')).clip(1e-6),
         label=name,
     )
 times = trajectory.times
@@ -69,8 +69,8 @@ volume.set_xlabel('time (days)')
 volume.set_ylabel('tumour volume (mm³)')
 volume.set_title('The virus clears the tumour, the T cells dilute it')
 volume.legend()
-cells.semilogy(times, trajectory.values('site.V'), label='virions')
-cells.semilogy(times, trajectory.values('site.E'), label='activated T cells')
+cells.semilogy(times, trajectory.get_values('site.V'), label='virions')
+cells.semilogy(times, trajectory.get_values('site.E'), label='activated T cells')
 cells.set_xlabel('time (days)')
 cells.set_ylabel('count')
 cells.set_title('Virions and T cells under both therapies')

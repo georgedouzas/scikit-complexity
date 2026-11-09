@@ -240,7 +240,7 @@ class ReadoutCouplingInteraction(CouplingInteraction):
             source=source,
             read='s',
             write='y',
-            function=self._activity,
+            function=self._get_activity,
             mode='group',
             weights='W',
             form='map',
@@ -249,7 +249,7 @@ class ReadoutCouplingInteraction(CouplingInteraction):
         )
         self.W = W
 
-    def _activity(self, namespace: SimpleNamespace) -> object:
+    def _get_activity(self, namespace: SimpleNamespace) -> object:
         """Return the activity of the hidden unit."""
         return namespace.other.s
 
@@ -294,7 +294,7 @@ class RecurrenceCouplingInteraction(CouplingInteraction):
             target=target,
             read='s',
             write='s',
-            function=self._activity,
+            function=self._get_activity,
             mode='group',
             weights='A',
             include_self=True,
@@ -304,7 +304,7 @@ class RecurrenceCouplingInteraction(CouplingInteraction):
         )
         self.A = A
 
-    def _activity(self, namespace: SimpleNamespace) -> object:
+    def _get_activity(self, namespace: SimpleNamespace) -> object:
         """Return the activity of the other unit."""
         return namespace.other.s
 

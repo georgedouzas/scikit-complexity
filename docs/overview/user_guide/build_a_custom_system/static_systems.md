@@ -63,7 +63,7 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.physics.statistical_mechanics import RandomEnergySystem
 
 trajectory = simulate(RandomEnergySystem(n_spins=12, temperature=2.0), until=1.0)
-trajectory.values('ensemble.entropy')[0]
+trajectory.get_values('ensemble.entropy')[0]
 ```
 
 `log_sum_exp(expression, over=None)` reduces over the members of a group like `total`, as `log sum_j exp(a_j)`, without

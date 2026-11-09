@@ -30,7 +30,7 @@ trajectory = simulate(PopulationPollutionSystem(), until=50, observers=[observer
 times = np.asarray(trajectory.times)
 fig, axes = plt.subplots(2, 2, figsize=(9, 6), sharex=True)
 for ax, name in zip(axes.ravel(), ['pollution', 'population', 'food_per_capita', 'quality_of_life'], strict=True):
-    ax.plot(times, np.ravel(trajectory.values(f'region.{name}')))
+    ax.plot(times, np.ravel(trajectory.get_values(f'region.{name}')))
     ax.set_title(name.replace('_', ' '))
 for ax in axes[1]:
     ax.set_xlabel('years')

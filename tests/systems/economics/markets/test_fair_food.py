@@ -12,7 +12,7 @@ def _fair_share(**kwargs):
         random_state=0,
         observables=FairFoodSystem().get_run_settings()['observables'],
     )
-    return trajectory.values('fair_share')[-10:].mean()
+    return trajectory.get_values('fair_share')[-10:].mean()
 
 
 def test_fair_food_ethics_price_and_influence():

@@ -163,7 +163,7 @@ def test_dust_universe_follows_the_einstein_de_sitter_solution():
     system = CompositeSystem(elements=[universe], interactions=[einstein])
     trajectory = simulate(system, until=2.0, dt=0.1, solver=ACCURATE)
     expected = (1.5 * np.asarray(trajectory.times) + 1) ** (2 / 3)
-    assert np.ravel(trajectory.values('universe.a')) == pytest.approx(expected, rel=1e-8)
+    assert np.ravel(trajectory.get_values('universe.a')) == pytest.approx(expected, rel=1e-8)
 
 
 def test_warped_plane_reduces_to_the_wave_equation_of_a_field():
@@ -189,7 +189,7 @@ def test_warped_plane_reduces_to_the_wave_equation_of_a_field():
     system = CompositeSystem(elements=[plane], interactions=[einstein])
     trajectory = simulate(system, until=1.0, dt=0.1, solver=ACCURATE)
     expected = 2 + 0.1 * np.sin(positions) * np.cos(1.0)
-    assert np.asarray(trajectory.values('plane.u'))[-1] == pytest.approx(expected, abs=1e-6)
+    assert np.asarray(trajectory.get_values('plane.u'))[-1] == pytest.approx(expected, abs=1e-6)
 
 
 def test_warped_plane_law_reads_the_second_derivative_along_the_lattice_axis():

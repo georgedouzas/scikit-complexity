@@ -34,7 +34,8 @@ errors = []
 for k in couplings:
     trajectory = simulate(RosslerDrivenLorenzSystem(k=k), dt=0.05)
     squares = [
-        (np.ravel(trajectory.values(f'response.{name}')) - np.ravel(trajectory.values(f'auxiliary.{name}'))) ** 2
+        (np.ravel(trajectory.get_values(f'response.{name}')) - np.ravel(trajectory.get_values(f'auxiliary.{name}')))
+        ** 2
         for name in 'xyz'
     ]
     errors.append(np.sqrt(sum(squares))[len(squares[0]) // 2 :].mean())

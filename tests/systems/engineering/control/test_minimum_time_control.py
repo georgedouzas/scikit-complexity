@@ -12,7 +12,7 @@ from skcomplex.systems.engineering.control import (
 
 def _distance_to_origin(trajectory):
     """Return the times and the distance of a controlled plant to the origin of its phase space."""
-    x, y = np.ravel(trajectory.values('plant.x')), np.ravel(trajectory.values('plant.y'))
+    x, y = np.ravel(trajectory.get_values('plant.x')), np.ravel(trajectory.get_values('plant.y'))
     return trajectory.times, np.hypot(x, y)
 
 

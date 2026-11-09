@@ -35,7 +35,7 @@ def _run(interaction, until=1.0, dt=0.1, **values):
     """Return the times and the substrate of one cell under one reaction."""
     system = CompositeSystem(elements=[CellElement('cell', **values)], interactions=[interaction])
     trajectory = simulate(system, dt=dt, until=until)
-    return np.asarray(trajectory.times), np.asarray(trajectory.values('cell.S'))
+    return np.asarray(trajectory.times), np.asarray(trajectory.get_values('cell.S'))
 
 
 def test_michaelis_menten_saturates_at_the_maximal_rate():

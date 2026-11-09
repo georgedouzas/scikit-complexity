@@ -35,11 +35,11 @@ trajectory = simulate(system, until=3, dt=0.02, solver=solver, observers=[observ
 # sample correlation of the two series of log returns should be close to `rho`, and their scatter should be an ellipse
 # tilted along the diagonal.
 
-first, second = (np.diff(np.log(trajectory.values(f'{label}.price'))) for label in ('first', 'second'))
+first, second = (np.diff(np.log(trajectory.get_values(f'{label}.price'))) for label in ('first', 'second'))
 correlation = np.corrcoef(first, second)[0, 1]
 fig, (paths, returns) = plt.subplots(1, 2, figsize=(10, 4))
-paths.plot(trajectory.times, trajectory.values('first.price'), label='first')
-paths.plot(trajectory.times, trajectory.values('second.price'), label='second')
+paths.plot(trajectory.times, trajectory.get_values('first.price'), label='first')
+paths.plot(trajectory.times, trajectory.get_values('second.price'), label='second')
 paths.set_xlabel('time (years)')
 paths.set_ylabel('price')
 paths.set_title('Prices that move together')

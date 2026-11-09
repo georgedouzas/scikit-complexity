@@ -140,7 +140,7 @@ class CollisionKernel(BaseKernel):
 
         The density is the `x` of `inputs`.
         """
-        state = self._state_of(inputs)
+        state = self._get_state_of(inputs)
         sizes = self.dimensions[-PLANE:]
         grid = np.reshape(state.x, self.dimensions)
         axes = (-2, -1)

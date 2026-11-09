@@ -56,7 +56,7 @@ training = TrainingInteraction(
 )
 fitting = CompositeSystem('fitting', systems=[system], interactions=[training], time=DiscreteTime())
 trajectory = simulate(fitting, until=300, random_state=0)
-round(float(trajectory.values('decay/unit.a')[-1]), 3), bool(trajectory.values('fit/loss')[-1] < 1e-6)
+round(float(trajectory.get_values('decay/unit.a')[-1]), 3), bool(trajectory.get_values('fit/loss')[-1] < 1e-6)
 ```
 
 `TrainingInteraction`, of `skcomplex.core.components.interactions`, writes this with the existing parts:
@@ -165,7 +165,7 @@ system = CompositeSystem(
 )
 schedule = {'drive.W': lambda t: W if t < 20 else 2 * W}
 trajectory = simulate(system, until=40, dt=0.1, schedule=schedule)
-trajectory.values('cells.x')[200].round(3).tolist(), trajectory.values('cells.x')[-1].round(3).tolist()
+trajectory.get_values('cells.x')[200].round(3).tolist(), trajectory.get_values('cells.x')[-1].round(3).tolist()
 ```
 
 `ParameterSpec(shape=('target', 'source'))` declares a parameter of an interaction whose shape is the sizes of the
@@ -207,7 +207,7 @@ species = GroupElement('species', element=NodeElement, size=4, values={'x': 0.1}
 triplets = TripletInteraction('triplets', target='species', T=-np.ones((4, 4, 4)))
 community = CompositeSystem(elements=[species], interactions=[triplets])
 trajectory = simulate(community, until=50, dt=0.1)
-trajectory.values('species.x')[-1].round(3).tolist()
+trajectory.get_values('species.x')[-1].round(3).tolist()
 ```
 
 A tensor of order `k` over `N` members holds `N^k` entries, a million for order 3 over 100 members.

@@ -30,7 +30,7 @@ trajectory = simulate(system, observers=[observer])
 # its power spectrum should have a sharp peak at the period of the oscillation, nearly three times the delay, with
 # harmonics at its multiples.
 
-anomaly = trajectory.values('pacific.T')
+anomaly = trajectory.get_values('pacific.T')
 shift = int(6.0 / 0.5)
 settled = slice(len(anomaly) // 2, None)
 power = spectrum(anomaly[settled], dt=0.5)

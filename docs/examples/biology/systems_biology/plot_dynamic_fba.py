@@ -35,8 +35,8 @@ trajectory = simulate(DynamicFBASystem(), solver=solver, dt=FRAME, observers=[ob
 # optimum, 0.874 per hour. After depletion the biomass should stay at the yield of the glucose.
 
 times = trajectory.times
-biomass = trajectory.values('culture/biomass.x')
-glucose = trajectory.values('culture/glucose.c')
+biomass = trajectory.get_values('culture/biomass.x')
+glucose = trajectory.get_values('culture/glucose.c')
 plenty = glucose > 10 * KM
 slope, intercept = np.polyfit(times[plenty], np.log(biomass[plenty]), 1)
 fig, axes = plt.subplots(2, 1, figsize=(9, 6), sharex=True)

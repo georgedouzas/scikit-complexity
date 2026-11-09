@@ -45,7 +45,7 @@ for axis, mu in zip(axes, (0.0, 0.5, 1.0), strict=True):
     means = []
     for p1 in probabilities:
         run = simulate(RandomBranchMapSystem(n_orbits=300, p1=p1, mu=mu), until=100)
-        x = run.values('orbits.x')[-1]
+        x = run.get_values('orbits.x')[-1]
         axis.plot(np.full_like(x, p1), x, ',', color='C0')
         means.append(x.mean())
     axis.plot(probabilities, means, color='C3', label='mean')

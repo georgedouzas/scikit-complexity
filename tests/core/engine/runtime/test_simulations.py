@@ -174,7 +174,7 @@ def test_simulation_updates_one_per_entry_weight_live():
     """Test that a live update of one component of a per-entry parameter changes that entry only."""
     schedule = {'sum.weights[1]': lambda t: 1.0 if t < 1 else 10.0}
     trajectory = simulate(_summed(['a', 'b', 'c']), until=2, dt=1, schedule=schedule)
-    assert trajectory.values('target.x').tolist() == [0.0, 7.0, 25.0]
+    assert trajectory.get_values('target.x').tolist() == [0.0, 7.0, 25.0]
 
 
 def test_closed_economy_changes_money_only_by_lending_and_repayment():
@@ -186,11 +186,11 @@ def test_closed_economy_changes_money_only_by_lending_and_repayment():
         observers=[ConservationObserver()],
     )
     money = (
-        trajectory.values('households.deposits')
-        + trajectory.values('firms.deposits')
-        + trajectory.values('bank.deposits')
+        trajectory.get_values('households.deposits')
+        + trajectory.get_values('firms.deposits')
+        + trajectory.get_values('bank.deposits')
     )
-    created = trajectory.values('circuit.lending') - trajectory.values('circuit.repayments')
+    created = trajectory.get_values('circuit.lending') - trajectory.get_values('circuit.repayments')
     assert np.diff(money) == pytest.approx(created[:-1], abs=1e-9)
     for frame in (0, 50, 100):
         matrix = loops(trajectory, kind='flow-matrix', frame=frame).matrix
@@ -200,17 +200,17 @@ def test_closed_economy_changes_money_only_by_lending_and_repayment():
 def test_trajectory_returns_group_arrays():
     """Test that a group state over 100 frames has the shape `(100, 500, 2)`."""
     trajectory = simulate(_pushed_gas(), until=0.99, dt=0.01)
-    assert trajectory.values('gas.x').shape == (100, 500, 2)
-    assert trajectory.values('gas.m').shape == (100, 500)
+    assert trajectory.get_values('gas.x').shape == (100, 500, 2)
+    assert trajectory.get_values('gas.m').shape == (100, 500)
 
 
 def test_group_parameter_changes_by_schedule():
     """Test that a scheduled mass of every member applies to the frames after the change."""
     schedule = {'gas.m': lambda t: 1.0 if t < 0.2 - 1e-9 else 2.0}
     trajectory = simulate(_pushed_gas(), until=0.4, dt=0.01, schedule=schedule)
-    changed = int(np.argmax(np.all(trajectory.values('gas.m') == 2.0, axis=1)))
+    changed = int(np.argmax(np.all(trajectory.get_values('gas.m') == 2.0, axis=1)))
     assert changed > 0
-    accelerations = np.diff(trajectory.values('gas.x_d1')[:, :, 0], axis=0) / 0.01
+    accelerations = np.diff(trajectory.get_values('gas.x_d1')[:, :, 0], axis=0) / 0.01
     assert np.allclose(accelerations[changed:], 0.5)
     assert np.allclose(accelerations[: changed - 1], 1.0)
 
@@ -218,7 +218,7 @@ def test_group_parameter_changes_by_schedule():
 def test_group_parameter_takes_per_member_values():
     """Test that a scheduled group parameter accepts one value per member."""
     trajectory = simulate(_pushed_gas(3), until=0.1, dt=0.1, schedule={'gas.m': lambda t: [1.0, 2.0, 4.0]})
-    assert trajectory.values('gas.m')[-1].tolist() == [1.0, 2.0, 4.0]
+    assert trajectory.get_values('gas.m')[-1].tolist() == [1.0, 2.0, 4.0]
 
 
 def test_group_parameter_with_wrong_shape_raises_error():
@@ -230,7 +230,7 @@ def test_group_parameter_with_wrong_shape_raises_error():
 def test_reflecting_box_keeps_members_inside_ode_run():
     """Test that no member crosses a wall of a reflecting box in an ODE system."""
     trajectory = simulate(IdealGasSystem(500, kT=4.0, random_state=1).prepare().system_, until=2, dt=0.01)
-    positions = trajectory.values('gas.x')
+    positions = trajectory.get_values('gas.x')
     assert np.all((positions >= 0) & (positions <= 1))
 
 
@@ -322,7 +322,7 @@ def test_trajectory_unknown_name_raises_error():
     """Test that a trajectory names the available variables."""
     trajectory = simulate(_growth(), until=0.1)
     with pytest.raises(KeyError, match=r'a\.x, g\.r'):
-        trajectory.values('b.x')
+        trajectory.get_values('b.x')
 
 
 def test_simulation_same_random_state_is_reproducible():
@@ -344,10 +344,10 @@ def test_simulation_extend_runs_in_two_parts():
     schedule = {'growth.r': lambda t: 1.0 if t < 5 else 0.0}
     simulation = Simulation(_logistic(), dt=1.0, schedule=schedule).prepare().run(until=5)
     trajectory = simulation.extend(until=10).trajectory_
-    reference = simulate(_logistic(), until=5, dt=1.0).values('rabbits.x')
+    reference = simulate(_logistic(), until=5, dt=1.0).get_values('rabbits.x')
     assert trajectory.times.tolist() == [float(time) for time in range(11)]
-    assert trajectory.values('rabbits.x')[:6] == pytest.approx(reference)
-    assert np.all(trajectory.values('rabbits.x')[5:] == trajectory.values('rabbits.x')[5])
+    assert trajectory.get_values('rabbits.x')[:6] == pytest.approx(reference)
+    assert np.all(trajectory.get_values('rabbits.x')[5:] == trajectory.get_values('rabbits.x')[5])
 
 
 def test_simulation_extend_backwards_raises_error():
@@ -385,7 +385,7 @@ def test_trajectory_lists_its_names():
 def test_trajectory_gives_agent_locations_over_frames():
     """Test that the locations of a group of agents come as one array per frame."""
     trajectory = simulate(BoidsSystem().prepare().system_, until=3, random_state=0)
-    locations = trajectory.agent_locations('flock')
+    locations = trajectory.get_agent_locations('flock')
     assert len(locations) == len(trajectory.times)
     np.testing.assert_allclose(locations[-1], trajectory.get_agents('flock', len(trajectory.times) - 1).locations)
 
@@ -397,7 +397,7 @@ def test_initial_state_replaces_the_values_of_components():
         interactions=[ExponentialGrowthInteraction('growth', target='rabbits', r=0.0)],
     )
     trajectory = simulate(system, until=1.0, dt=1.0, initial_state={'rabbits.x': 20.0})
-    assert trajectory.values('rabbits.x')[0] == pytest.approx(20.0)
+    assert trajectory.get_values('rabbits.x')[0] == pytest.approx(20.0)
     with pytest.raises(ValidationError, match=r'foxes\.x'):
         Simulation(system, dt=1.0, initial_state={'foxes.x': 1.0}).prepare().run(until=1.0)
 
@@ -406,9 +406,9 @@ def test_simulation_schedules_a_bounded_control():
     """Test that a scheduled control takes its value at every frame, which laws read and trajectories record."""
     schedule = {'heater.power': lambda t: 1.0 if t >= 1.0 else 0.0}
     trajectory = simulate(CompositeSystem(elements=[HeaterElement('heater')]), until=3.0, dt=0.5, schedule=schedule)
-    np.testing.assert_array_equal(trajectory.values('heater.power'), [0, 0, 1, 1, 1, 1, 1])
-    assert trajectory.values('heater.T')[2] == pytest.approx(0.0)
-    assert trajectory.values('heater.T')[-1] == pytest.approx(1 - np.exp(-2.0), rel=1e-3)
+    np.testing.assert_array_equal(trajectory.get_values('heater.power'), [0, 0, 1, 1, 1, 1, 1])
+    assert trajectory.get_values('heater.T')[2] == pytest.approx(0.0)
+    assert trajectory.get_values('heater.T')[-1] == pytest.approx(1 - np.exp(-2.0), rel=1e-3)
 
 
 def test_correlated_noise_repeats_with_same_seed():
@@ -421,7 +421,7 @@ def test_correlated_noise_repeats_with_same_seed():
 def test_perfect_correlation_keeps_states_equal():
     """Test that processes of correlation 1 keep two states with unit noise equal at every frame."""
     trajectory = simulate(_correlated([[1.0, 1.0], [1.0, 1.0]]), until=2, random_state=0, dt=0.1)
-    np.testing.assert_allclose(trajectory.values('a.n'), trajectory.values('b.n'), atol=1e-12)
+    np.testing.assert_allclose(trajectory.get_values('a.n'), trajectory.get_values('b.n'), atol=1e-12)
 
 
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
@@ -435,7 +435,7 @@ def test_unnamed_noise_reproduces_stored_trajectory(backend):
         dt=0.05,
     )
     trajectory = simulation
-    np.testing.assert_array_equal(trajectory.values('asset.price'), STORED_GEOMETRIC_BROWNIAN_MOTION)
+    np.testing.assert_array_equal(trajectory.get_values('asset.price'), STORED_GEOMETRIC_BROWNIAN_MOTION)
 
 
 class _ReleaseCountingSolver(RK4Solver):
@@ -490,7 +490,7 @@ def test_trajectory_values_shaped_parameter_has_its_shape():
     """Test that a matrix parameter is read from a trajectory with its shape after a change as a whole."""
     weights = np.arange(8.0).reshape(4, 2)
     schedule = {'input.W': lambda t: weights if t < 0.2 else 2 * weights}
-    values = simulate(_weighted(weights, [1.0, 2.0]), until=0.3, dt=0.1, schedule=schedule).values('input.W')
+    values = simulate(_weighted(weights, [1.0, 2.0]), until=0.3, dt=0.1, schedule=schedule).get_values('input.W')
     assert values.shape[1:] == (4, 2)
     np.testing.assert_array_equal(values[-1], 2 * weights)
 
@@ -501,8 +501,8 @@ def test_trajectory_values_adaptive_shaped_parameter_of_an_interaction(backend):
     weights = np.arange(8.0).reshape(4, 2)
     system = _weighted(weights, [1.0, 2.0], interaction=AdaptiveInputInteraction)
     trajectory = simulate(system, until=1.0, dt=0.1, backend=backend())
-    assert trajectory.values('input.W').shape == (11, 4, 2)
-    np.testing.assert_allclose(trajectory.values('hidden.x')[-1], weights @ [1.0, 2.0], atol=1e-12)
+    assert trajectory.get_values('input.W').shape == (11, 4, 2)
+    np.testing.assert_allclose(trajectory.get_values('hidden.x')[-1], weights @ [1.0, 2.0], atol=1e-12)
 
 
 HEALTH = FiniteEnumeratedSet(['susceptible', 'infected', 'recovered'])
@@ -549,7 +549,7 @@ def test_checked_mode_catches_values_outside_alphabet():
     )
     with pytest.raises(ValidationError, match=r'ann\.health took the values 3\.0 at t = 1\.0, outside its domain'):
         simulate(system, until=1, checked=True)
-    assert simulate(system, until=1).values('ann.health').shape == (2,)
+    assert simulate(system, until=1).get_values('ann.health').shape == (2,)
 
 
 @pytest.mark.benchmark

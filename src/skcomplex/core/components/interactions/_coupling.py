@@ -416,7 +416,9 @@ class CouplingInteraction(NeighborInteraction):
         """
         if not callable(self.weights):
             return SR(1)
-        return self.weights(SimpleNamespace(**self._get_parameters(namespace), member=member, other=other, edge=edge))
+        return self.weights(
+            SimpleNamespace(**self._get_parameters(namespace), member=member, other=other, edge=edge),
+        )
 
     def _get_matrix(self, namespace: SimpleNamespace) -> npt.ArrayLike | scipy.sparse.sparray | Expression | None:
         """Return the matrix of weights, or `None`.

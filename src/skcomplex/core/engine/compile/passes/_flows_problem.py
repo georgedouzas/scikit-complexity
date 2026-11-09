@@ -30,6 +30,6 @@ class FlowsProblemPass(BasePass):
         """Add the transfer network to the problem."""
         compilation = self.compilation_
         compilation.problem = replace(
-            Compilation._required(compilation.problem, 'problem'),
-            transfer_network=Compilation._required(compilation.transfer_network, 'transfer_network'),
+            Compilation._get_required(compilation.problem, 'problem'),
+            transfer_network=Compilation._get_required(compilation.transfer_network, 'transfer_network'),
         )

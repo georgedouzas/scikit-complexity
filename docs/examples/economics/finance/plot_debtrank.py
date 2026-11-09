@@ -32,7 +32,7 @@ def cascade(bank):
 
 def debtrank(trajectory):
     """Return the DebtRank of a cascade, the final value at risk minus the initial one."""
-    return trajectory.values('value_at_risk')[-1] - trajectory.values('value_at_risk')[0]
+    return trajectory.get_values('value_at_risk')[-1] - trajectory.get_values('value_at_risk')[0]
 
 
 ranks = np.array([debtrank(cascade(bank)) for bank in range(N_BANKS)])

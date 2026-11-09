@@ -15,7 +15,7 @@ def _peaks(values):
 def test_commodity_cycle_oscillates_after_a_demand_step():
     """Test that the market rests until demand steps up, then the capacity and the price cycle."""
     trajectory = _run_seeded(CommodityCycleSystem().prepare().system_, 40.0, 0.5, CommodityCycleSystem())
-    capacity, price = trajectory.values('market.capacity'), trajectory.values('market.price')
+    capacity, price = trajectory.get_values('market.capacity'), trajectory.get_values('market.price')
     assert np.allclose(price[:4], 1.0)
     assert len(_peaks(capacity)) >= 2
     assert price.max() > 1.2

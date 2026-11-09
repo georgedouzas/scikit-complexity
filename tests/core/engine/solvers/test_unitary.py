@@ -131,8 +131,8 @@ def test_unitary_evolution_follows_rabi_oscillations():
     """Test that a driven qubit oscillates as cos(omega t) with a constant norm."""
     system = CompositeSystem(elements=[RabiElement('q')])
     trajectory = simulate(system, until=np.pi / OMEGA, solver=UnitarySolver(), dt=0.05, observables=Z)
-    assert np.allclose(trajectory.values('z'), np.cos(OMEGA * trajectory.times), atol=1e-6)
-    assert np.allclose(np.linalg.norm(trajectory.values('system.state'), axis=1), 1, atol=1e-8)
+    assert np.allclose(trajectory.get_values('z'), np.cos(OMEGA * trajectory.times), atol=1e-6)
+    assert np.allclose(np.linalg.norm(trajectory.get_values('system.state'), axis=1), 1, atol=1e-8)
 
 
 def test_unitary_evolution_conserves_magnetization_and_energy():
@@ -144,8 +144,8 @@ def test_unitary_evolution_conserves_magnetization_and_energy():
         solver=UnitarySolver(atol=1e-14, rtol=1e-13),
         dt=1.0,
     )
-    assert np.ptp(trajectory.values('magnetization')) < 1e-8
-    assert np.ptp(trajectory.values('energy')) < 1e-8
+    assert np.ptp(trajectory.get_values('magnetization')) < 1e-8
+    assert np.ptp(trajectory.get_values('energy')) < 1e-8
 
 
 def test_unitary_evolution_rejects_open_systems():
@@ -158,15 +158,15 @@ def test_lindblad_evolution_follows_spontaneous_decay():
     """Test that the excited population decays as exp(-gamma t) with trace 1."""
     system = CompositeSystem(elements=[DecayingElement('q')])
     trajectory = simulate(system, until=4.0, dt=0.5, observables=Z)
-    assert np.allclose((1 + trajectory.values('z')) / 2, np.exp(-GAMMA * trajectory.times), atol=1e-6)
-    traces = np.trace(trajectory.values('system.state'), axis1=1, axis2=2)
+    assert np.allclose((1 + trajectory.get_values('z')) / 2, np.exp(-GAMMA * trajectory.times), atol=1e-6)
+    traces = np.trace(trajectory.get_values('system.state'), axis1=1, axis2=2)
     assert np.allclose(traces, 1, atol=1e-10)
 
 
 def test_lindblad_evolution_lowers_purity():
     """Test that dephasing lowers the purity from 1 frame after frame."""
     trajectory = simulate(CompositeSystem(elements=[DephasedElement('q')]), until=4.0, dt=0.2)
-    purity = trajectory.values('purity')
+    purity = trajectory.get_values('purity')
     assert purity[0] == pytest.approx(1)
     assert np.all(np.diff(purity) <= 1e-10)
 
@@ -178,8 +178,8 @@ def test_jump_trajectories_are_reproducible():
         simulate(system, until=10.0, solver=JumpTrajectoriesSolver(), dt=0.5, random_state=3, observables=Z)
         for _ in range(2)
     ]
-    assert np.array_equal(runs[0].values('z'), runs[1].values('z'))
-    assert set(np.round(runs[0].values('z'), 8)) <= {-1.0, 1.0}
+    assert np.array_equal(runs[0].get_values('z'), runs[1].get_values('z'))
+    assert set(np.round(runs[0].get_values('z'), 8)) <= {-1.0, 1.0}
 
 
 def test_jump_trajectories_average_to_the_master_equation():
@@ -195,7 +195,7 @@ def test_jump_trajectories_average_to_the_master_equation():
                 dt=0.5,
                 random_state=rng,
                 observables=Z,
-            ).values(
+            ).get_values(
                 'z',
             )
             for _ in range(500)
@@ -216,7 +216,7 @@ def test_operator_solvers_follow_parameter_updates():
         dt=0.5,
         schedule={'xxz.delta': lambda t: 1.0 if t < 1.0 else 0.0},
     )
-    energy = trajectory.values('energy')
+    energy = trajectory.get_values('energy')
     assert np.ptp(energy[:2]) < 1e-8
     assert abs(energy[2] - energy[1]) > 0.1
     assert np.ptp(energy[2:]) < 1e-8

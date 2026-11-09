@@ -406,7 +406,7 @@ def _flow_matrix(problem: ProblemSpec, trajectory: Trajectory, frame: int, quant
     holders = list(dict.fromkeys(name for flow in flows for name in (flow.source_label, flow.sink_label)))
     values = np.zeros((len(flows), len(holders)))
     for row, flow in enumerate(flows):
-        amount = float(np.sum(trajectory.values(flow.path)[frame]))
+        amount = float(np.sum(trajectory.get_values(flow.path)[frame]))
         values[row, holders.index(flow.source_label)] -= amount
         values[row, holders.index(flow.sink_label)] += amount
     return LoopsResult(

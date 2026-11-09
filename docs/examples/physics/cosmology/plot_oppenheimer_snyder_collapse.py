@@ -33,7 +33,7 @@ trajectory = simulate(system, solver=solver, observers=[observer])
 # `t = (η + sin η) / (2 √k)` and `k = 2 M / R₀³`. The surface crosses `2 M`, where light can no longer leave it.
 
 times = np.asarray(trajectory.times)
-radii = np.asarray(trajectory.values('ball.R'))
+radii = np.asarray(trajectory.get_values('ball.R'))
 k = 2 / 10.0**3
 eta = np.linspace(0, 0.99 * np.pi, 400)
 fig, (shells, ratio) = plt.subplots(1, 2, figsize=(10, 4))

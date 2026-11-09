@@ -40,7 +40,7 @@ def _states(space, spreading, initial, until, seed=0):
         interactions=[spreading],
     )
     trajectory = simulate(system, until=until, dt=1.0, random_state=seed)
-    return trajectory.values('sites.state')
+    return trajectory.get_values('sites.state')
 
 
 def test_contact_process_dies_out_below_and_survives_above_the_critical_rate():

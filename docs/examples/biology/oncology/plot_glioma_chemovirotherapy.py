@@ -33,17 +33,17 @@ arms = {
 }
 untreated = trajectory
 fig, (glioma, neurons) = plt.subplots(1, 2, figsize=(10, 4))
-glioma.semilogy(untreated.times, untreated.values('brain.AU'), label='untreated', color='black')
+glioma.semilogy(untreated.times, untreated.get_values('brain.AU'), label='untreated', color='black')
 neurons.plot(
     untreated.times,
-    untreated.values('brain.N') / untreated.values('brain.N')[0],
+    untreated.get_values('brain.N') / untreated.get_values('brain.N')[0],
     label='untreated',
     color='black',
 )
 for name, arm in arms.items():
     trajectory = simulate(arm, dt=1.0, until=300)
-    glioma.semilogy(trajectory.times, trajectory.values('brain.AU').clip(1.0), label=name)
-    neurons.plot(trajectory.times, trajectory.values('brain.N') / trajectory.values('brain.N')[0], label=name)
+    glioma.semilogy(trajectory.times, trajectory.get_values('brain.AU').clip(1.0), label=name)
+    neurons.plot(trajectory.times, trajectory.get_values('brain.N') / trajectory.get_values('brain.N')[0], label=name)
 glioma.set_xlabel('time (days)')
 glioma.set_ylabel('glioma cells')
 glioma.set_title('Each therapy clears the glioma')

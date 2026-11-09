@@ -56,7 +56,7 @@ def test_apply_runs_tied_crossings_in_declaration_order(solver):
     ):
         system = CompositeSystem(elements=[CounterElement('counter')], interactions=list(crossings))
         trajectory = simulate(system, until=1.0, solver=solver)
-        assert trajectory.values('counter.tally')[-1] == pytest.approx(expected)
+        assert trajectory.get_values('counter.tally')[-1] == pytest.approx(expected)
         assert [event.label for event in trajectory.events] == order
 
 
@@ -71,5 +71,5 @@ def test_apply_fires_every_member_of_a_group_that_crosses_at_one_time():
     )
     system = CompositeSystem(elements=[group], interactions=[crossing])
     trajectory = simulate(system, until=1.0)
-    assert np.allclose(trajectory.values('counter.tally')[-1], 1.0)
+    assert np.allclose(trajectory.get_values('counter.tally')[-1], 1.0)
     assert sorted(event.member for event in trajectory.events) == [0, 1, 2]

@@ -33,7 +33,7 @@ fig, ax = plt.subplots(figsize=(6, 4))
 for gamma in (0.0, 0.2, 0.4):
     run = simulate(ImpulsiveOscillatorSystem(gamma=gamma), until=5, dt=0.005)
     times = np.asarray(run.times)
-    ax.plot(times, np.ravel(run.values('oscillator.x')), label=f'gamma = {gamma}')
+    ax.plot(times, np.ravel(run.get_values('oscillator.x')), label=f'gamma = {gamma}')
 ax.set_xlabel('time')
 ax.set_ylabel('x')
 ax.set_title('Impulsive oscillator with a dipole shift')

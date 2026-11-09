@@ -100,8 +100,8 @@ def test_shared_process_keeps_difference(backend, stepper):
         random_state=0,
         dt=0.1,
     )
-    np.testing.assert_array_equal(trajectory.values('pair.x'), trajectory.values('pair.y'))
-    assert np.corrcoef(trajectory.values('pair.x'), trajectory.values('pair.y'))[0, 1] == pytest.approx(1.0)
+    np.testing.assert_array_equal(trajectory.get_values('pair.x'), trajectory.get_values('pair.y'))
+    assert np.corrcoef(trajectory.get_values('pair.x'), trajectory.get_values('pair.y'))[0, 1] == pytest.approx(1.0)
 
 
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend], ids=['numpy', 'numba'])
@@ -116,7 +116,7 @@ def test_correlated_increments_reproduce_covariance(backend):
         random_state=0,
         dt=1.0,
     )
-    increments = np.diff(np.stack([trajectory.values('a.n'), trajectory.values('b.n')]), axis=1)
+    increments = np.diff(np.stack([trajectory.get_values('a.n'), trajectory.get_values('b.n')]), axis=1)
     np.testing.assert_allclose(np.cov(increments), covariance, atol=0.1)
 
 

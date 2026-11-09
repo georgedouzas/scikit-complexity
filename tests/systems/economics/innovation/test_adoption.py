@@ -16,7 +16,7 @@ def test_phone_adoption_spreads_among_households_that_can_afford_it():
         50,
         observables=PhoneAdoptionSystem().get_run_settings()['observables'],
     )
-    share = trajectory.values('share')
+    share = trajectory.get_values('share')
     assert np.all(np.diff(share) >= 0)
     assert share[-1] > 2 * share[0]
     households = _agents(trajectory, 'households', 50)
@@ -25,5 +25,5 @@ def test_phone_adoption_spreads_among_households_that_can_afford_it():
         PhoneAdoptionSystem((20, 20), threshold=100.0).prepare().system_,
         20,
         observables=PhoneAdoptionSystem().get_run_settings()['observables'],
-    ).values('share')
+    ).get_values('share')
     assert set(stuck.tolist()) == {0.0}

@@ -257,7 +257,7 @@ class OptimizationInteraction(Interaction):
         return algorithm
 
     @staticmethod
-    def _members_of(generation: Array, size: int) -> Array:
+    def _get_members_of(generation: Array, size: int) -> Array:
         """Return one row per member from the candidates of a generation.
 
         It repeats them when they are fewer.
@@ -266,7 +266,7 @@ class OptimizationInteraction(Interaction):
 
     def _write(self, agents: Sequence[object], candidates: Array) -> None:
         """Write the candidates into the members."""
-        for agent, row in zip(agents, self._members_of(candidates, len(agents)), strict=True):
+        for agent, row in zip(agents, self._get_members_of(candidates, len(agents)), strict=True):
             setattr(agent, self.state, row)
 
     def _advance(self, system: SystemViewProtocol) -> None:

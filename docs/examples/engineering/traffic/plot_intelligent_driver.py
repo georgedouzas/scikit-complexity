@@ -56,7 +56,7 @@ def equilibrium(gap):
 
 
 counts = np.arange(10, 61, 5)
-finals = [simulate(IntelligentDriverSystem(n_cars=int(n)), until=200).values('cars.v')[-1].mean() for n in counts]
+finals = [simulate(IntelligentDriverSystem(n_cars=int(n)), until=200).get_values('cars.v')[-1].mean() for n in counts]
 grid = np.arange(10, 61)
 fig, ax = plt.subplots(figsize=(6, 4.5))
 ax.plot(grid, [equilibrium(length / n - car_length) for n in grid], color='black', label='equilibrium of the IDM')

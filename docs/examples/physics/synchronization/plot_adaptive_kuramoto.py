@@ -31,12 +31,12 @@ trajectory = simulate(system, observers=[observer])
 # clusters, and the matrix of weights in that order should show strong blocks on the diagonal, the clusters, with weak
 # weights between them.
 
-theta = np.asarray(trajectory.values('nodes.theta'))
+theta = np.asarray(trajectory.get_values('nodes.theta'))
 frequencies = (theta[-1] - theta[-201]) / 200
 order = np.argsort(frequencies)
 sources, targets = system.prepare().system_.elements[0].space.prepare().edges_[None]
 weights = np.zeros((len(order), len(order)))
-weights[targets, sources] = np.asarray(trajectory.values('links.kappa'))[-1]
+weights[targets, sources] = np.asarray(trajectory.get_values('links.kappa'))[-1]
 fig, axes = plt.subplots(1, 2, figsize=(10, 4))
 axes[0].plot(frequencies[order], 'o')
 axes[0].set_xlabel('oscillator, by frequency')

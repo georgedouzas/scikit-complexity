@@ -11,7 +11,9 @@ def _channels(system, until):
     """Return the four channels of a run, as arrays of frames, rows, and columns."""
     trajectory = simulate(system, until=until, dt=1)
     shape = (-1, *system.elements[0].space.shape)
-    return [np.asarray(trajectory.values(f'gas.n{direction}'), dtype=float).reshape(shape) for direction in range(4)]
+    return [
+        np.asarray(trajectory.get_values(f'gas.n{direction}'), dtype=float).reshape(shape) for direction in range(4)
+    ]
 
 
 def test_hpp_particle_moves_one_site_per_step_along_its_direction():

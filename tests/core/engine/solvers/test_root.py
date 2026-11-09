@@ -208,7 +208,7 @@ def _issues(system: CompositeSystem, code: str) -> list[IssueSpec]:
 def test_run_survival_at_dose() -> None:
     """Test that a closed form under static time gives one frame with its value."""
     system = CompositeSystem(elements=[SurvivalElement('a')], time=StaticTime())
-    frames = _simulated(system).values('a.S')
+    frames = _simulated(system).get_values('a.S')
     assert PassCompiler().prepare(system).run().problem_.form == FormKind.STATIC
     assert frames.shape == (1,)
     assert abs(frames[0] - np.exp(-0.72)) < 1e-12
@@ -221,8 +221,8 @@ def test_run_without_equations() -> None:
         CompositeSystem(elements=[group], time=StaticTime()),
         observables=[ObservableSpec('all', group='g', variable='x', reduce='sum')],
     )
-    assert trajectory.values('g.x').tolist() == [[1.0, 2.0, 3.0, 4.0]]
-    assert trajectory.values('all').tolist() == [10.0]
+    assert trajectory.get_values('g.x').tolist() == [[1.0, 2.0, 3.0, 4.0]]
+    assert trajectory.get_values('all').tolist() == [10.0]
 
 
 def test_compiler_exact_linear_solution() -> None:
@@ -238,8 +238,8 @@ def test_compiler_exact_linear_solution() -> None:
 def test_run_cyclic_equations() -> None:
     """Test that two equations that give each other solve jointly."""
     trajectory = _simulated(CompositeSystem(elements=[CyclicElement('a')], time=StaticTime()))
-    assert abs(trajectory.values('a.x')[0] - 2) < 1e-12
-    assert abs(trajectory.values('a.y')[0] - 2) < 1e-12
+    assert abs(trajectory.get_values('a.x')[0] - 2) < 1e-12
+    assert abs(trajectory.get_values('a.y')[0] - 2) < 1e-12
 
 
 def test_run_adds_equations_of_one_target() -> None:
@@ -249,20 +249,20 @@ def test_run_adds_equations_of_one_target() -> None:
         interactions=[TermInteraction('i', target='a')],
         time=StaticTime(),
     )
-    assert abs(_simulated(system).values('a.x')[0] - 5.0) < 1e-12
+    assert abs(_simulated(system).get_values('a.x')[0] - 5.0) < 1e-12
 
 
 def test_run_numerical_solution() -> None:
     """Test that an equation without an explicit solution solves numerically."""
     system = CompositeSystem(elements=[FixedPointElement('a')], time=StaticTime())
     assert PassCompiler().prepare(system).run().problem_.unknowns.tolist() == [0]
-    assert abs(_simulated(system).values('a.x')[0] - 0.7390851332151607) < 1e-9
+    assert abs(_simulated(system).get_values('a.x')[0] - 0.7390851332151607) < 1e-9
 
 
 def test_run_group_coupled_through_total() -> None:
     """Test that a group target gives one unknown per member, coupled through a reduction."""
     group = GroupElement('g', element=MeanFieldElement, size=5, values={'b': np.arange(1.0, 6.0)})
-    frames = _simulated(CompositeSystem(elements=[group], time=StaticTime())).values('g.x')
+    frames = _simulated(CompositeSystem(elements=[group], time=StaticTime())).get_values('g.x')
     assert frames[0].tolist() == pytest.approx([4.0, 5.0, 6.0, 7.0, 8.0], abs=1e-8)
 
 
@@ -270,7 +270,7 @@ def test_run_group_coupled_through_log_sum_exp() -> None:
     """Test that the Jacobian of a log-sum-exp solves members that read it, from a guess far from the solution."""
     values = {'b': np.arange(1.0, 6.0), 'x': np.full(5, 10.0)}
     group = GroupElement('g', element=SoftmaxFieldElement, size=5, values=values)
-    x = _simulated(CompositeSystem(elements=[group], time=StaticTime())).values('g.x')[0]
+    x = _simulated(CompositeSystem(elements=[group], time=StaticTime())).get_values('g.x')[0]
     assert x == pytest.approx(np.arange(1.0, 6.0) - logsumexp(x), abs=1e-8)
 
 

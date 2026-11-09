@@ -46,10 +46,10 @@ measured = []
 for temperature in temperatures:
     ordered = CurieWeissSystem(n_spins=1000, temperature=temperature, initial='up')
     run = simulate(ordered, until=40, dt=1.0, random_state=0)
-    measured.append(np.abs(run.values('magnetization')[10:]).mean())
+    measured.append(np.abs(run.get_values('magnetization')[10:]).mean())
 grid = np.linspace(0.3, 1.7, 200)
 fig, (series, curve) = plt.subplots(1, 2, figsize=(10, 4))
-series.plot(trajectory.times, trajectory.values('magnetization'))
+series.plot(trajectory.times, trajectory.get_values('magnetization'))
 series.axhline(mean_field_magnetization(0.5), color='black', linestyle='--', label='root of m = tanh(2 m)')
 series.set_xlabel('time')
 series.set_ylabel('magnetization')

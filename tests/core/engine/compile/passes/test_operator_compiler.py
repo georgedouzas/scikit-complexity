@@ -127,7 +127,7 @@ def test_compiler_counts_one_exchange_term_per_bond():
         interactions=[HeisenbergInteraction('h', target='chain')],
     )
     problem = OperatorCompiler().prepare(system).run().problem_
-    matrix = problem._generator_at(0.0, problem.initial_parameters).toarray()
+    matrix = problem._get_generator_at(0.0, problem.initial_parameters).toarray()
     spins = [[qutip.jmat(0.5, axis) for axis in 'xyz'] for _ in range(8)]
     expected = 0
     for site in range(8):
@@ -186,7 +186,7 @@ def test_compiler_stores_neel_states():
         ],
     )
     problem = OperatorCompiler().prepare(system).run().problem_
-    state = problem._state_of(problem.initial_state)
+    state = problem._get_state_of(problem.initial_state)
     assert np.linalg.norm(state) == pytest.approx(1)
     assert np.flatnonzero(state).tolist() == [int('010101', 2)]
 
@@ -202,7 +202,7 @@ def test_compiler_stores_density_matrices_of_open_systems():
     """Test that an open system and a mixed initial state compile to density matrices."""
     problem = OperatorCompiler().prepare(CompositeSystem(elements=[DecayingElement('q')])).run().problem_
     assert not problem.pure
-    assert problem._state_of(problem.initial_state).shape == (2, 2)
+    assert problem._get_state_of(problem.initial_state).shape == (2, 2)
     system = CompositeSystem(elements=[QubitElement('q')])
     mixed = OperatorCompiler().prepare(system).run({'system.state': np.eye(2) / 2}).problem_
     assert not mixed.pure

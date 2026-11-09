@@ -22,7 +22,7 @@ def test_goodwin_oscillator_switches_at_hill_coefficient_eight():
             dt=0.1,
             solver=SYSTEMS_PRECISE,
         )
-        late = trajectory.values('x3.x')[trajectory.times >= 150.0]
+        late = trajectory.get_values('x3.x')[trajectory.times >= 150.0]
         amplitudes[n] = late.max() - late.min()
     assert amplitudes[6.0] < 1e-4
     assert amplitudes[12.0] > 0.5
@@ -38,7 +38,7 @@ def test_phosphorylation_oscillator_cycles():
     )
     times = trajectory.times
     for name in ('A', 'B', 'C'):
-        late = trajectory.values(f'loop.{name}')[times >= 20.0]
+        late = trajectory.get_values(f'loop.{name}')[times >= 20.0]
         assert late.max() > 0.9
         assert late.min() < 0.1
 
@@ -55,17 +55,17 @@ def test_biochemical_systems_theory_reaches_log_linear_steady_state():
             dt=0.5,
             solver=SYSTEMS_PRECISE,
         )
-        final = np.array([trajectory.values(f'X{index}.x')[-1] for index in (1, 2, 3)])
+        final = np.array([trajectory.get_values(f'X{index}.x')[-1] for index in (1, 2, 3)])
         assert np.allclose(final, expected, rtol=1e-4)
 
 
 def test_glycolysis_oscillates_and_balances_its_nicotinamide_pool():
     """Test Nielsen et al.: NADH oscillates with a steady period, and `NAD + NADH` relaxes to the feed of 4.24 mM."""
     trajectory = _run_with_solver(GlycolysisOscillationsSystem(), until=600.0, dt=0.5, solver=SYSTEMS_PRECISE)
-    nadh = trajectory.values('extract.NADH')[600:]
+    nadh = trajectory.get_values('extract.NADH')[600:]
     peaks = np.flatnonzero((nadh[1:-1] > nadh[:-2]) & (nadh[1:-1] > nadh[2:]))
     periods = np.diff(trajectory.times[600:][1:-1][peaks])
     assert np.ptp(nadh) > 0.1
     assert periods.std() < 0.05 * periods.mean()
-    pool = trajectory.values('extract.NAD') + trajectory.values('extract.NADH')
+    pool = trajectory.get_values('extract.NAD') + trajectory.get_values('extract.NADH')
     assert abs(pool[-1] - 4.24) < abs(pool[0] - 4.24)

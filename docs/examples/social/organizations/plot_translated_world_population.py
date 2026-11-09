@@ -66,7 +66,7 @@ trajectory = simulate(system, dt=module.DT, observers=[observer])
 dominance = loops(trajectory, kind='dominance')
 years = module.START + dominance.times
 fig, (stocks, gains) = plt.subplots(1, 2, figsize=(10, 4))
-stocks.plot(years, trajectory.values('world.population'))
+stocks.plot(years, trajectory.get_values('world.population'))
 stocks.set_xlabel('year')
 stocks.set_ylabel('billion people')
 stocks.set_title('The population levels off')

@@ -102,7 +102,7 @@ def test_moment_over_a_simplex_weights_every_cell_by_its_volume() -> None:
     groups = FieldElement('groups', element=AmountElement, space=space, values={'x': start})
     observables = [ObservableSpec('total', total, group='groups')]
     trajectory = simulate(CompositeSystem(elements=[groups]), until=0.1, dt=0.1, observables=observables)
-    values = np.asarray(trajectory.values('total'), dtype=float)
+    values = np.asarray(trajectory.get_values('total'), dtype=float)
     assert np.abs(values - 1.0).max() < 1e-12
 
 
@@ -126,7 +126,7 @@ def test_replicator_flow_on_a_simplex_conserves_the_density(solver: object) -> N
         limiter=None,
     )
     trajectory = simulate(CompositeSystem(elements=[groups], interactions=[flow]), until=2.0, dt=0.5, solver=solver)
-    final = trajectory.values('groups.x')[-1].reshape(space.shape_)
+    final = trajectory.get_values('groups.x')[-1].reshape(space.shape_)
     weights = space.volumes_ / SIZE**2
     assert abs((final * weights).sum() - 1.0) < 1e-10
     assert np.all(final[space.volumes_ == 0] == 0.0)

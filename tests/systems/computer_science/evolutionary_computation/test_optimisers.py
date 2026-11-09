@@ -31,7 +31,7 @@ PATHS = {
 def _best(algorithm: str, landscape: str = 'rastrigin') -> np.ndarray:
     """Return the best value of a run of 100 generations after the initial frame."""
     system = EvolutionaryOptimisersSystem(algorithm=algorithm, landscape=landscape, random_state=1)
-    return simulate(system, until=100, random_state=1).values(PATHS.get(algorithm, 'search.best'))[1:]
+    return simulate(system, until=100, random_state=1).get_values(PATHS.get(algorithm, 'search.best'))[1:]
 
 
 @pytest.mark.parametrize('algorithm', PATHS)
@@ -92,7 +92,7 @@ def _system(algorithm: object, count: int = 40) -> CompositeSystem:
 def test_run_differential_evolution_on_rastrigin() -> None:
     """Test that the best value is below 1e-3 by step 50 and never increases."""
     trajectory = simulate(_system(DifferentialEvolutionSpec()), until=50, random_state=1)
-    best = trajectory.values('search.best')[1:]
+    best = trajectory.get_values('search.best')[1:]
     assert best[-1] < 1e-3
     assert np.all(np.diff(best) <= 0)
     assert np.asarray(trajectory.get_agents('swarm', 50).values['x'].tolist()).shape == (40, 2)
@@ -105,17 +105,17 @@ def test_run_differential_evolution_on_rastrigin() -> None:
 def test_run_same_seed_identical(algorithm: object) -> None:
     """Test that runs with the same seed are identical and the best value never increases."""
     first, second = (simulate(_system(algorithm), until=10, random_state=1) for _ in range(2))
-    assert np.array_equal(first.values('search.best')[1:], second.values('search.best')[1:])
+    assert np.array_equal(first.get_values('search.best')[1:], second.get_values('search.best')[1:])
     first_final = np.asarray(first.get_agents('swarm', 10).values['x'].tolist())
     second_final = np.asarray(second.get_agents('swarm', 10).values['x'].tolist())
     assert np.array_equal(first_final, second_final)
-    assert np.all(np.diff(first.values('search.best')[1:]) <= 0)
+    assert np.all(np.diff(first.get_values('search.best')[1:]) <= 0)
 
 
 def test_run_algorithm_that_converges_keeps_its_population() -> None:
     """Test that the steps after the algorithm stops itself report the same values and keep the candidates."""
     trajectory = simulate(_system(CovarianceAdaptationSpec()), until=400, random_state=1)
-    best = trajectory.values('search.best')
+    best = trajectory.get_values('search.best')
     assert best[-1] == best[-2]
     assert np.array_equal(
         trajectory.get_agents('swarm', 399).values['x'].tolist(),

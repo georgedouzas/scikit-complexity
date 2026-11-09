@@ -443,7 +443,7 @@ class LinearRingAutomatonSystem(BaseSystem):
         self.modulus = modulus
 
     @staticmethod
-    def _laplacian(left: Array, center: Array, right: Array, *, modulus: float) -> Array:
+    def _get_laplacian(left: Array, center: Array, right: Array, *, modulus: float) -> Array:
         """Return the discrete Laplacian `x(g - 1) + x(g + 1) - 2 x(g)`.
 
         It is taken modulo the field size.
@@ -473,7 +473,7 @@ class LinearRingAutomatonSystem(BaseSystem):
                     'laplacian',
                     target='cells',
                     state='value',
-                    rule=self._laplacian,
+                    rule=self._get_laplacian,
                     neighborhood=BallNeighborhood(n_dim=1, center='inline'),
                 ),
             ],

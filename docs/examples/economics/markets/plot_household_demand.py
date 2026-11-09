@@ -31,13 +31,13 @@ practical = simulate(HouseholdDemandSystem(demand='elasticity'), until=1)
 # of Box 3.6, a price rise of 10 percent should lower the demand by about 4 percent and raise the expenditure by about
 # 5 percent, by more in the richer quintiles, whose elasticities are smaller.
 
-prices = utility.values('households.price')[:, 0]
-budgets = practical.values('households.budget')[0]
-change = practical.values('households.expenditure')[1] / practical.values('households.expenditure')[0] - 1
+prices = utility.get_values('households.price')[:, 0]
+budgets = practical.get_values('households.budget')[0]
+change = practical.get_values('households.expenditure')[1] / practical.get_values('households.expenditure')[0] - 1
 quintiles = np.minimum((np.argsort(np.argsort(budgets)) * 5) // len(budgets), 4)
 fig, (curve, quintile) = plt.subplots(1, 2, figsize=(10, 4))
-curve.plot(utility.values('total_demand'), prices, 'o-', label='simulation')
-curve.plot(utility.values('total_demand')[0] / prices, prices, 'k--', lw=0.8, label='sum(alpha m) / p')
+curve.plot(utility.get_values('total_demand'), prices, 'o-', label='simulation')
+curve.plot(utility.get_values('total_demand')[0] / prices, prices, 'k--', lw=0.8, label='sum(alpha m) / p')
 curve.set_xlabel('total demand for food')
 curve.set_ylabel('price of food')
 curve.set_title('Cobb-Douglas demand curve')

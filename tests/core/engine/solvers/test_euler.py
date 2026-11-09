@@ -44,7 +44,7 @@ def test_run_takes_explicit_steps():
     expected = [0.0]
     for _ in range(6):
         expected.append(expected[-1] + 0.5 * (10.0 - expected[-1]) / 2.0)
-    assert np.allclose(trajectory.values('tank.x'), expected)
+    assert np.allclose(trajectory.get_values('tank.x'), expected)
 
 
 def test_run_splits_a_frame_into_steps():
@@ -52,7 +52,7 @@ def test_run_splits_a_frame_into_steps():
     system = _relaxing_system()
     frames = simulate(system, until=3, solver=EulerSolver(dt=0.5), dt=1.0)
     steps = simulate(system, until=3, solver=EulerSolver(dt=0.5), dt=0.5)
-    assert np.allclose(frames.values('tank.x'), steps.values('tank.x')[::2])
+    assert np.allclose(frames.get_values('tank.x'), steps.get_values('tank.x')[::2])
 
 
 def test_run_rejects_a_step_that_is_not_positive():
@@ -81,7 +81,7 @@ def test_run_reads_delays_from_the_steps_of_the_run():
     )
     trajectory = simulate(system, until=2, solver=EulerSolver(dt=0.25), dt=0.25)
     expected = [1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5625, 2.9375, 3.375]
-    assert np.allclose(trajectory.values('tank.x'), expected)
+    assert np.allclose(trajectory.get_values('tank.x'), expected)
 
 
 def test_run_steps_over_a_signal():
@@ -91,4 +91,4 @@ def test_run_steps_over_a_signal():
         interactions=[RateInteraction('rate', target='tank', state='x', rate=_stepped_rate)],
     )
     trajectory = simulate(system, until=2, solver=EulerSolver(dt=0.25), dt=0.25)
-    assert np.allclose(trajectory.values('tank.x'), [0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 1.5, 2.0])
+    assert np.allclose(trajectory.get_values('tank.x'), [0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 1.5, 2.0])

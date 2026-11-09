@@ -146,7 +146,7 @@ class LayoutSpec(BaseSpec):
             return values
         return complex(values) if entry.is_complex else float(values)
 
-    def values(self, vector: npt.NDArray[np.float64]) -> dict[str, Array | ComplexArray | float | complex]:
+    def get_values(self, vector: npt.NDArray[np.float64]) -> dict[str, Array | ComplexArray | float | complex]:
         """Return the value of every variable of a flat vector.
 
         Args:

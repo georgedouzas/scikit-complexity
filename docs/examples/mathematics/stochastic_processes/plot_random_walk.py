@@ -34,7 +34,7 @@ trajectory = simulate(RandomWalkSystem(n_walkers=6), dt=0.5, observers=[observer
 fig, (spread, distribution) = plt.subplots(1, 2, figsize=(11, 4))
 for bias in (0.5, 0.7):
     run = simulate(RandomWalkSystem(n_walkers=2000, bias=bias), random_state=1)
-    positions = run.values('walkers.x')
+    positions = run.get_values('walkers.x')
     spread.plot(run.times, positions.var(axis=1), label=f'variance, bias {bias}')
     spread.plot(run.times, positions.mean(axis=1), '--', label=f'mean, bias {bias}')
     if bias == 0.5:

@@ -22,7 +22,7 @@ def diffusion(states: dict[str, object]) -> NetworkDynamicalSystem:
 def test_network_dynamical_system_diffuses_on_a_path():
     """Test that diffusion on a path spreads to `1/3` on every node and keeps the total."""
     trajectory = simulate(diffusion({'u': [1.0, 0.0, 0.0]}), until=30.0, dt=1.0)
-    values = trajectory.values('nodes.u')
+    values = trajectory.get_values('nodes.u')
     np.testing.assert_allclose(values.sum(axis=1), 1.0, rtol=1e-6)
     np.testing.assert_allclose(values[-1], 1 / 3, atol=1e-4)
 
@@ -36,9 +36,9 @@ def test_network_dynamical_system_asks_for_a_graph():
 
 def test_network_dynamical_system_broadcasts_a_number_to_every_node():
     """Test that a number is the initial value of every node and an array gives one value per node."""
-    broadcast = simulate(diffusion({'u': 0.5}), until=1.0, dt=1.0).values('nodes.u')
+    broadcast = simulate(diffusion({'u': 0.5}), until=1.0, dt=1.0).get_values('nodes.u')
     np.testing.assert_allclose(broadcast, 0.5)
-    per_node = simulate(diffusion({'u': [0.0, 1.0, 2.0]}), until=0.0, dt=1.0).values('nodes.u')
+    per_node = simulate(diffusion({'u': [0.0, 1.0, 2.0]}), until=0.0, dt=1.0).get_values('nodes.u')
     np.testing.assert_allclose(per_node[0], [0.0, 1.0, 2.0])
 
 

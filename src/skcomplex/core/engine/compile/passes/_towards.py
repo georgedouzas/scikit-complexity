@@ -40,15 +40,15 @@ class TowardsPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Set the weights of the requests apart."""
         compilation = self.compilation_
-        apart = Compilation._required(compilation.drawn_apart, 'drawn_apart')
-        towards = self._toward_specs(
-            [*Compilation._required(compilation.drawn, 'drawn'), *apart],
-            Compilation._required(compilation.layout, 'layout'),
+        apart = Compilation._get_required(compilation.drawn_apart, 'drawn_apart')
+        towards = self._get_toward_specs(
+            [*Compilation._get_required(compilation.drawn, 'drawn'), *apart],
+            Compilation._get_required(compilation.layout, 'layout'),
         )
         compilation.drawn_apart = [*apart, *towards]
 
     @staticmethod
-    def _node_block(space: object, declarations: DeclarationsSpec) -> BlockSpec:
+    def _get_node_block(space: object, declarations: DeclarationsSpec) -> BlockSpec:
         """Return the first variable group on the nodes of a network."""
         for block in declarations.capacity.values():
             if getattr(block.node.component, 'on', None) == 'sites' and block.node.space is space:
@@ -57,7 +57,7 @@ class TowardsPass(BasePass):
         raise ValidationError(error_msg)
 
     @staticmethod
-    def _toward_specs(
+    def _get_toward_specs(
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
         declarations: DeclarationsSpec,
     ) -> list[tuple[KernelSpec, list[BaseLaw]]]:
@@ -72,10 +72,10 @@ class TowardsPass(BasePass):
                 if request is None or (request.toward is None and request.score is None):
                     continue
                 space, _ = TopologyFunctionsPass._request_network(spec, declarations)
-                nodes = TowardsPass._node_block(space, declarations)
-                node_spec = SpecsPass._member_spec(nodes, declarations.time)
+                nodes = TowardsPass._get_node_block(space, declarations)
+                node_spec = SpecsPass._get_member_spec(nodes, declarations.time)
                 references = dict(node_spec.references)
-                namespace = SpecsPass._with_source(nodes, node_spec.namespace, references)
+                namespace = SpecsPass._copy_with_source(nodes, node_spec.namespace, references)
                 weights = [
                     UpdateLaw(_WeightSpec(request, score=part == 'score'), SR(function(namespace)))
                     for part, function in (('toward', request.toward), ('score', request.score))

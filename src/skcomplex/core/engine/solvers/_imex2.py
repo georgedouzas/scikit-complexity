@@ -34,13 +34,13 @@ class IMEX2Solver(SplitSolver):
         """
         self._previous: Array | None = None
 
-    def _built(self, p: Array) -> None:
+    def _check_built(self, p: Array) -> None:
         """Forget the previous remainder when the linear part changes."""
         self._forget()
 
     def _step(self, t: float, x: Array, p: Array, h: float) -> Array:
         """Return the state after one Crank-Nicolson Adams-Bashforth step."""
-        remainder = self._remainder(t, x, p)
+        remainder = self._get_remainder(t, x, p)
         extrapolated = remainder if self._previous is None else 1.5 * remainder - 0.5 * self._previous
         self._previous = remainder
-        return self._solve_linear(h / 2, x + h / 2 * self._linear(x) + h * extrapolated)
+        return self._solve_linear(h / 2, x + h / 2 * self._get_linear(x) + h * extrapolated)

@@ -32,9 +32,9 @@ trajectory = simulate(OregonatorSystem(), observers=[observer])
 
 times, x, y, z = (
     trajectory.times,
-    trajectory.values('reactor.x'),
-    trajectory.values('reactor.y'),
-    trajectory.values('reactor.z'),
+    trajectory.get_values('reactor.x'),
+    trajectory.get_values('reactor.y'),
+    trajectory.get_values('reactor.z'),
 )
 spikes = events(trajectory, variables=['reactor.y'], threshold=10.0).starts
 periods = np.diff(spikes[1:])

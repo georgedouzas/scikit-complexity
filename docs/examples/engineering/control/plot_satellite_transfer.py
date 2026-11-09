@@ -47,8 +47,8 @@ trajectory = simulate(system, solver=RK4Solver(dt=0.005), observers=[observer])
 # switches off. In the plane, the satellite should leave the inner ellipse and settle on the outer one, both with the
 # angular momentum 0.7.
 
-s, theta = trajectory.values('satellite.s'), trajectory.values('satellite.theta')
-energy = trajectory.values('energy')
+s, theta = trajectory.get_values('satellite.s'), trajectory.get_values('satellite.theta')
+energy = trajectory.get_values('energy')
 fig, (orbit, rise) = plt.subplots(1, 2, figsize=(10, 4.5))
 orbit.plot(s * np.cos(theta), s * np.sin(theta), label='satellite')
 orbit.plot(0.0, 0.0, 'o', color='black', label='planet')

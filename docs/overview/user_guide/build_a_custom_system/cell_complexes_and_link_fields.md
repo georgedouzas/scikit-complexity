@@ -71,7 +71,7 @@ interactions = [
 ]
 system = CompositeSystem(elements=[links], interactions=interactions)
 trajectory = simulate(system, until=2.0, dt=0.1)
-bool(np.abs(space.incidences_[0].T @ trajectory.values('links.E').T).max() < 1e-10)
+bool(np.abs(space.incidences_[0].T @ trajectory.get_values('links.E').T).max() < 1e-10)
 ```
 
 The law utilities `exterior_derivative`, `codifferential`, and `hodge_star` act on the states of groups on the cells of
@@ -131,7 +131,7 @@ sampling = SamplingInteraction(
     schedule='colored',
 )
 system = CompositeSystem(elements=[links], interactions=[sampling], time=DiscreteTime())
-states = simulate(system, until=200, random_state=0).values('links.theta')
+states = simulate(system, until=200, random_state=0).get_values('links.theta')
 round(float(np.cos(space.incidences_[1] @ states[-50:].T).mean()), 1)
 ```
 

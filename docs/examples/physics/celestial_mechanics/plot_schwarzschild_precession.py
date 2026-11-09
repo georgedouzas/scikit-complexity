@@ -32,8 +32,8 @@ trajectory = simulate(system, solver=solver, observers=[observer])
 # Far from the horizon the periapsis advances by `6 π M / (a (1 - e²))` per turn, about 0.25 radians here. The angles
 # where the radial velocity turns positive, less whole turns, should step by about that much.
 
-x = np.asarray(trajectory.values('particle.x'))
-u = np.asarray(trajectory.values('particle.x_d1'))
+x = np.asarray(trajectory.get_values('particle.x'))
+u = np.asarray(trajectory.get_values('particle.x_d1'))
 radius, angle = x[:, 1], x[:, 3]
 index = np.flatnonzero((u[:-1, 1] < 0) & (u[1:, 1] >= 0))
 advances = np.diff(np.concatenate([[0.0], angle[index]])) - 2 * np.pi

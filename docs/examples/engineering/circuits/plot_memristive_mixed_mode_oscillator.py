@@ -30,7 +30,7 @@ trajectory = simulate(MemristiveMixedModeOscillatorSystem(), observers=[observer
 # reports: two spikes far above the rest, followed by eleven small peaks.
 
 settled = trajectory.times > 100
-x = np.ravel(trajectory.values('circuit.x'))[settled]
+x = np.ravel(trajectory.get_values('circuit.x'))[settled]
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(trajectory.times[settled], x, linewidth=0.8)
 ax.set_xlabel('time')

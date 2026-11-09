@@ -32,7 +32,7 @@ trajectory = simulate(system, observers=[observer])
 
 space = system.prepare().system_.elements[0].space
 sizes = np.asarray(space.ball_sizes_, dtype=float)
-alive = trajectory.values('cells.alive')
+alive = trajectory.get_values('cells.alive')
 fig, (left, right) = plt.subplots(1, 2, figsize=(9, 4))
 left.plot(np.arange(1, sizes.size), sizes[1:] / sizes[:-1], 'o-')
 left.set_xlabel('radius $n$')

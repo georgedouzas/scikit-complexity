@@ -30,7 +30,7 @@ blueprint = rrb.Blueprint(
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 trajectory = simulate(ChaosGameSystem(preset='sierpinski', n_points=20000), observers=[observer], random_state=0)
 # Rerun's 2D views point y downward, so the last cloud is logged again with y flipped to stand the triangle upright.
-last = trajectory.values('points.p')[-1]
+last = trajectory.get_values('points.p')[-1]
 observer.recording_.log('upright', rr.Points2D(last * [1, -1], radii=0.002, colors=[200, 90, 220]), static=True)
 observer.recording_.flush()
 
@@ -41,7 +41,7 @@ observer.recording_.flush()
 # dimension `D = log 3 / log 2`, about 1.585, on a grid of 128 by 128 cells. The same game with the four maps of
 # Barnsley, drawn with the probabilities 0.01, 0.85, 0.07, and 0.07, draws a fern.
 
-points = trajectory.values('points.p')[-1]
+points = trajectory.get_values('points.p')[-1]
 cells = np.clip((points * 128).astype(int), 0, 127)
 grid = np.zeros((128, 128), dtype=bool)
 grid[cells[:, 1], cells[:, 0]] = True
@@ -49,7 +49,7 @@ sizes = np.array([1, 2, 4, 8, 16, 32])
 counts = [grid.reshape(128 // size, size, 128 // size, size).any(axis=(1, 3)).sum() for size in sizes]
 dimension = scaling(grid, kind='box-counting', scales=sizes).exponent
 fern = simulate(ChaosGameSystem(preset='barnsley', n_points=20000), dt=30, random_state=0)
-leaves = fern.values('points.p')[-1]
+leaves = fern.get_values('points.p')[-1]
 fig, (boxes, plant) = plt.subplots(1, 2, figsize=(10, 4.5))
 boxes.loglog(sizes, counts, 'o', label='occupied boxes')
 boxes.loglog(sizes, counts[0] * sizes ** -(np.log(3) / np.log(2)), '--', color='black', label='slope -log 3 / log 2')

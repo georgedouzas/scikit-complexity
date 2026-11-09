@@ -37,7 +37,7 @@ class ExternalSolver(Solver):
         raise NotImplementedError
 
     @abstractmethod
-    def _unsupported(self, problem: ProblemSpec) -> list[str]:
+    def _get_unsupported(self, problem: ProblemSpec) -> list[str]:
         """Return a description of every part of a problem the library cannot run.
 
         The parts are elements, interactions, or laws.
@@ -93,7 +93,7 @@ class ExternalSolver(Solver):
         forms = {self._get_form(), *self._get_forms()}
         unsupported = [] if problem.form in forms else [f'the {problem.form} form']
         unsupported += [f'the complex state {entry.name}' for entry in problem.states.entries if entry.is_complex]
-        unsupported += self._unsupported(problem)
+        unsupported += self._get_unsupported(problem)
         if unsupported:
             items = '; '.join(unsupported)
             error_msg = f'The {self._get_name()} backend cannot run this system. Unsupported: {items}.'

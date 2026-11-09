@@ -31,7 +31,7 @@ trajectory = simulate(system, observers=[observer])
 # The points still bounded after `k` steps cover a region that shrinks towards the set as `k` grows. Its area should
 # fall quickly at first and then level off near the area of the Mandelbrot set, about 1.506.
 
-counts = trajectory.lattice('plane.n')
+counts = trajectory.get_lattice('plane.n')
 cell = (WINDOW[1] - WINDOW[0]) / (counts.shape[2] - 1) * (WINDOW[3] - WINDOW[2]) / (counts.shape[1] - 1)
 steps = trajectory.times
 bounded = (counts == steps[:, np.newaxis, np.newaxis]).sum(axis=(1, 2)) * cell

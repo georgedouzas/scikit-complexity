@@ -48,7 +48,7 @@ trajectory = simulate(system, until=30, observers=[observer])
 # tilted stripes of travelling waves. The lagged correlation between neighbouring sites should peak away from zero lag,
 # at the time a wave takes to travel from one site to the next.
 
-x = trajectory.values('ring.x')
+x = trajectory.get_values('ring.x')
 times = trajectory.times
 late = x[times > 10] - x[times > 10].mean()
 lags = np.arange(-20, 21)

@@ -54,7 +54,7 @@ trajectory = simulate(system, until=5.5, solver=solver, observers=[observer], ob
 def relative_wave(gas):
     """Return the times and the density wave of a gas, relative to its start."""
     run = simulate(gas, until=5.5, solver=solver, dt=0.1, observables=observables)
-    wave = run.values('density_wave')
+    wave = run.get_values('density_wave')
     return run.times, wave / wave[0]
 
 

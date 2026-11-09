@@ -32,7 +32,7 @@ noises = np.linspace(0.0, 0.3, 13)
 order = []
 for eta in noises:
     run = simulate(NoisyBooleanNetworkSystem(eta=eta), random_state=0, until=150)
-    order.append(np.abs(run.values('nodes.sigma').mean(axis=1)[50:]).mean())
+    order.append(np.abs(run.get_values('nodes.sigma').mean(axis=1)[50:]).mean())
 fig, ax = plt.subplots(figsize=(7, 4.5))
 ax.plot(noises, order, 'o-')
 ax.axvline(1 / 6, color='black', linestyle='--', label='eta_c = 1/6')

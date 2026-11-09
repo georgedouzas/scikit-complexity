@@ -11,7 +11,7 @@ from skcomplex.systems.physics.active_matter import DeformableActiveParticlesSys
 def _velocities(kappa):
     """Return the speeds and the unwrapped directions of the velocities over a run at a relaxation rate."""
     trajectory = simulate(DeformableActiveParticlesSystem(kappa=kappa), random_state=0)
-    velocity = np.asarray(trajectory.values('cells.v'))
+    velocity = np.asarray(trajectory.get_values('cells.v'))
     return np.hypot(velocity[..., 0], velocity[..., 1]), np.unwrap(
         np.arctan2(velocity[..., 1], velocity[..., 0]),
         axis=0,

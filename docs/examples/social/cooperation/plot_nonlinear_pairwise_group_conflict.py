@@ -38,7 +38,7 @@ trajectory = simulate(system, solver=RK4Solver(dt=0.01), observers=[observer])
 # of punishers they reach rises with the strength of conflict.
 
 centres = (np.arange(CELLS) + 0.5) / CELLS
-density = trajectory.values('groups.x').reshape(-1, CELLS)
+density = trajectory.get_values('groups.x').reshape(-1, CELLS)
 times = trajectory.times
 strengths = np.linspace(0.1, 3.0, 8)
 fig, (profiles, means) = plt.subplots(1, 2, figsize=(11, 4))
@@ -52,7 +52,7 @@ for victory in ('fermi', 'local', 'tullock'):
     for strength in strengths:
         model = NonlinearPairwiseGroupConflictSystem(cells=50, victory=victory, group_strength=strength, exponent=2.0)
         run = simulate(model, dt=15.0, solver=RK4Solver(dt=0.02))
-        finals.append(run.values('groups.x')[-1].reshape(50) @ ((np.arange(50) + 0.5) / 50) / 50)
+        finals.append(run.get_values('groups.x')[-1].reshape(50) @ ((np.arange(50) + 0.5) / 50) / 50)
     means.plot(strengths, finals, 'o-', label=victory)
 means.set_xlabel('strength of between-group conflict lambda')
 means.set_ylabel('mean fraction of punishers at t = 15')

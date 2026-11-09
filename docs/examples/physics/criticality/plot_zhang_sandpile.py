@@ -28,7 +28,7 @@ trajectory = simulate(ZhangSandpileSystem(), until=10000, observers=[observer], 
 # of the sites, unlike their uniform start, should pile up near a few values, the quasi-units of the Zhang pile.
 
 sizes = np.array([event.size for event in trajectory.events if event.time > 3000])
-energies = np.ravel(np.asarray(trajectory.values('pile.energy'))[-1])
+energies = np.ravel(np.asarray(trajectory.get_values('pile.energy'))[-1])
 bins = np.logspace(0, np.log10(sizes.max()), 20)
 fig, (left, right) = plt.subplots(1, 2, figsize=(10, 4))
 left.hist(sizes, bins=bins, density=True, log=True)

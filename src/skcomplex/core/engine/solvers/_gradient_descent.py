@@ -27,6 +27,7 @@ from ._base import BaseSolver
 
 PRECISIONS = ('float64', 'float32')
 
+
 type Batch = tuple[tuple[TracedArray, ...], TracedArray]
 type Unroll = Callable[[TracedArray, tuple[TracedArray, ...]], TracedArray]
 
@@ -110,7 +111,7 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
         """Return that the solver advances in whole epochs."""
         return True
 
-    def _law(self) -> GradientStepLaw:
+    def _get_law(self) -> GradientStepLaw:
         """Return the gradient-step law of the problem."""
         law = self.problem_.law
         if law is None:
@@ -118,13 +119,13 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
             raise SolverError(error_msg)
         return law
 
-    def _optimizer(self) -> tuple[optax.GradientTransformation, dict[str, str]]:
+    def _get_optimizer(self) -> tuple[optax.GradientTransformation, dict[str, str]]:
         """Return the Optax optimizer of the law and the names of its hyperparameters.
 
         The optimizer reads its hyperparameters from the state of the law. The names map every hyperparameter of the
         Optax optimizer to the parameter of the training that sets it.
         """
-        name = self._law().optimizer
+        name = self._get_law().optimizer
         names = {'learning_rate': 'learning_rate'}
         if name == OPTIMIZERS[1]:
             names['momentum'] = 'momentum'
@@ -133,16 +134,16 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
         elif name == OPTIMIZERS[3]:
             names.update(b1='beta1', b2='beta2')
         factory = {OPTIMIZERS[2]: optax.rmsprop, OPTIMIZERS[3]: optax.adam}.get(name, optax.sgd)
-        values = self._hyperparameters(self.problem_.initial_parameters)
+        values = self._get_hyperparameters(self.problem_.initial_parameters)
         optimizer = optax.inject_hyperparams(factory)(**{key: values[item] for key, item in names.items()})
         return optimizer, names
 
-    def _hyperparameters(self, p: Array) -> dict[str, float]:
+    def _get_hyperparameters(self, p: Array) -> dict[str, float]:
         """Return the hyperparameters of the optimizer in a parameter vector, by name."""
         layout = self.problem_.parameters
         return {name: float(p[layout.entry(path).start]) for name, path in self.problem_.hyperparameters.items()}
 
-    def _inner_indices(self) -> TracedArray:
+    def _get_inner_indices(self) -> TracedArray:
         """Return the indices of the trained parameters in the states of the inner problem."""
         inner = self.problem_.inner
         if inner is None:
@@ -154,12 +155,12 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
         ]
         return jnp.asarray(np.concatenate(indices))
 
-    def _data(self) -> tuple[tuple[slice, ...], tuple[Array, ...], dict[str, Array]]:
+    def _get_data(self) -> tuple[tuple[slice, ...], tuple[Array, ...], dict[str, Array]]:
         """Return the parameter slices the dataset sets, its values, and the step weights.
 
         The values are flattened per step.
         """
-        law, inner = self._law(), self.problem_.inner
+        law, inner = self._get_law(), self.problem_.inner
         if inner is None:
             error_msg = 'The learning problem holds no inner problem. Compile a system that trains.'
             raise SolverError(error_msg)
@@ -176,7 +177,7 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
         }
         return slices, values, weights
 
-    def _inputs_of(self, p: TracedArray, slices: tuple[slice, ...], step: tuple[TracedArray, ...]) -> TracedArray:
+    def _get_inputs_of(self, p: TracedArray, slices: tuple[slice, ...], step: tuple[TracedArray, ...]) -> TracedArray:
         """Return a parameter vector with the values of the dataset at one inner step.
 
         The values are written into the vector.
@@ -185,7 +186,7 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
             p = p.at[where].set(value)
         return p
 
-    def _advanced(self, t: TracedArray, t1: TracedArray, x: TracedArray, p: TracedArray) -> TracedArray:
+    def _get_advanced(self, t: TracedArray, t1: TracedArray, x: TracedArray, p: TracedArray) -> TracedArray:
         """Return the inner state after one inner step, an update or the solution of the ODE over the step."""
         function = self.problem_.step
         if function is None:
@@ -201,12 +202,12 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
         It takes the trained parameters and the values of the sequence. The function returns one row per inner step and
         one column per measure, the loss first.
         """
-        law, problem = self._law(), self.problem_
+        law, problem = self._get_law(), self.problem_
         inner = problem.inner
         if inner is None:
             error_msg = 'The learning problem holds no inner problem. Compile a system that trains.'
             raise SolverError(error_msg)
-        indices, slices = self._inner_indices(), self._data()[0]
+        indices, slices = self._get_inner_indices(), self._get_data()[0]
         measures = [problem.measures['loss'], *(problem.measures[item.label] for item in law.metrics)]
         steps = law.data.steps
         ends = np.arange(1.0, steps + 1) if law.data.times is None else np.asarray(law.data.times, dtype=float)
@@ -220,8 +221,8 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
                 if truncation is not None:
                     x = jnp.where(k % truncation == 0, jax.lax.stop_gradient(x), x)
                 x = x.at[indices].set(theta)
-                p = self._inputs_of(p0, slices, tuple(step))
-                following = self._advanced(t, t1, x, p)
+                p = self._get_inputs_of(p0, slices, tuple(step))
+                following = self._get_advanced(t, t1, x, p)
                 return following, jnp.stack([measure(t1, following, p) for measure in measures])
 
             scanned = (jnp.arange(steps), jnp.asarray(starts), jnp.asarray(ends), *sequence)
@@ -241,7 +242,7 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
             values = unroll(theta, sequences)[..., 0]
             return jnp.sum(weights * values) / jnp.sum(weights)
 
-        optimizer, self._names = self._optimizer()
+        optimizer, self._names = self._get_optimizer()
 
         def update(
             theta: TracedArray,
@@ -256,13 +257,13 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
         self._update = jax.jit(update)
         self._measures = jax.jit(unroll)
 
-    def _reporters(self, theta: TracedArray, loss: float | None) -> StructureStateSpec:
+    def _get_reporters(self, theta: TracedArray, loss: float | None) -> StructureStateSpec:
         """Return the loss and the metrics over the whole dataset.
 
         When given, the loss of the epoch is used.
         """
-        law, path = self._law(), self.problem_.training
-        _, values, weights = self._data()
+        law, path = self._get_law(), self.problem_.training
+        _, values, weights = self._get_data()
         measured = np.asarray(self._measures(theta, tuple(jnp.asarray(item) for item in values)))
         labels = ['loss', *(item.label for item in law.metrics)]
         means = {
@@ -305,14 +306,14 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
             self._prepare_functions()
             self.theta_ = jnp.asarray(self.problem_.initial_state)
             self.optimizer_state_ = self._optimizer_.init(self.theta_)
-            self.snapshot_ = self._reporters(self.theta_, None)
+            self.snapshot_ = self._get_reporters(self.theta_, None)
 
-    def _epoch(self, values: tuple[Array, ...], weights: Array) -> float:
+    def _get_epoch(self, values: tuple[Array, ...], weights: Array) -> float:
         """Run one epoch of shuffled batches and update the trained parameters.
 
         The mean batch loss is returned.
         """
-        law = self._law()
+        law = self._get_law()
         order = self.rng_.permutation(law.data.sequences)
         losses = []
         for start in range(0, len(order), law.batch_size):
@@ -344,16 +345,16 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
             state:
                 The trained parameters after the epochs.
         """
-        _, values, weights = self._data()
+        _, values, weights = self._get_data()
         loss = math.nan
         with jax.enable_x64(self.precision == PRECISIONS[0]):
             self.theta_ = jnp.asarray(x)
-            values_of = self._hyperparameters(p)
+            values_of = self._get_hyperparameters(p)
             for name, item in self._names.items():
                 self.optimizer_state_.hyperparams[name] = jnp.asarray(values_of[item])
             for _ in range(round(until - t)):
-                loss = self._epoch(values, weights['loss'])
-            self.snapshot_ = self._reporters(self.theta_, loss)
+                loss = self._get_epoch(values, weights['loss'])
+            self.snapshot_ = self._get_reporters(self.theta_, loss)
             return np.asarray(self.theta_, dtype=float)
 
     def _collect(self) -> None:

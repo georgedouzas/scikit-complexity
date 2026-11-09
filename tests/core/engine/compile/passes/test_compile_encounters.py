@@ -134,9 +134,9 @@ def _wealth_system(table=None, time=None, space=None):
 def test_conservative_encounters_keep_the_density():
     """Test that conservative encounters keep the total density within 1e-10 over 100 time units."""
     trajectory = simulate(_wealth_system(), until=100, dt=1.0)
-    totals = np.asarray(trajectory.values('wealth.x')).sum(axis=1)
+    totals = np.asarray(trajectory.get_values('wealth.x')).sum(axis=1)
     np.testing.assert_allclose(totals, totals[0], rtol=1e-10)
-    assert not np.allclose(trajectory.values('wealth.x')[-1], _profile())
+    assert not np.allclose(trajectory.get_values('wealth.x')[-1], _profile())
 
 
 def test_encounter_rates_follow_gain_and_loss():
@@ -159,7 +159,7 @@ def test_conserved_bilinear_law_without_a_second_density_redistributes_linearly(
         time=ContinuousTime(),
     )
     trajectory = simulate(system, until=3, dt=0.5, solver=RK4Solver(dt=1e-3))
-    values = np.asarray(trajectory.values('mass.x'))
+    values = np.asarray(trajectory.get_values('mass.x'))
     np.testing.assert_allclose(values[:, 0], np.exp(-np.asarray(trajectory.times)), atol=1e-6)
     np.testing.assert_allclose(values.sum(axis=1), 1.0, atol=1e-12)
 
@@ -287,8 +287,8 @@ def test_encounter_in_discrete_time_is_reported():
 
 def test_rk4_runs_encounters():
     """Test that a fixed-step Runge-Kutta solver runs encounters like the default solver."""
-    first = simulate(_wealth_system(), until=5, dt=1.0).values('wealth.x')[-1]
-    second = simulate(_wealth_system(), until=5, dt=1.0, solver=RK4Solver(dt=0.01)).values('wealth.x')[-1]
+    first = simulate(_wealth_system(), until=5, dt=1.0).get_values('wealth.x')[-1]
+    second = simulate(_wealth_system(), until=5, dt=1.0, solver=RK4Solver(dt=0.01)).get_values('wealth.x')[-1]
     np.testing.assert_allclose(first, second, atol=1e-5)
 
 

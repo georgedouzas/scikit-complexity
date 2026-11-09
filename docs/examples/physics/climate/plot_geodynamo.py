@@ -32,7 +32,7 @@ trajectory = simulate(system, until=600, observers=[observer])
 
 run = simulate(GeodynamoSystem(), until=20000)
 settled = run.times > 500
-times, Q, D = run.times[settled], run.values('dynamo.Q')[settled], run.values('dynamo.D')[settled]
+times, Q, D = run.times[settled], run.get_values('dynamo.Q')[settled], run.get_values('dynamo.D')[settled]
 strong = np.abs(D) > 0.5
 polarity = np.sign(D[strong])
 flips = times[strong][1:][polarity[1:] != polarity[:-1]]

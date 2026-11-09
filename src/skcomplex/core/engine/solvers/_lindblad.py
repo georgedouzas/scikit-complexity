@@ -66,8 +66,8 @@ class LindbladSolver(OperatorSolver):
         A pure closed problem gets its Schrödinger solver.
         """
         problem = self.operator_
-        generator = self._operator(problem.generator, p)
+        generator = self._get_operator(problem.generator, p)
         if problem.pure:
             return qutip.SESolver(generator, options=self._options)
-        collapses = [self._operator(terms, p) for terms in problem.dissipators]
+        collapses = [self._get_operator(terms, p) for terms in problem.dissipators]
         return qutip.MESolver(generator, c_ops=collapses, options=self._options)

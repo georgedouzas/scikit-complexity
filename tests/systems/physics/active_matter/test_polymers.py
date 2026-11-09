@@ -14,7 +14,7 @@ DURATION = 600.0
 def _chain(v0):
     """Return the coordinates of the beads of a run of an active polymer, with frames every half time unit."""
     trajectory = simulate(ActivePolymerSystem(v0=v0), until=DURATION, random_state=0)
-    return np.asarray(trajectory.values('chain.x')), np.asarray(trajectory.values('chain.y'))
+    return np.asarray(trajectory.get_values('chain.x')), np.asarray(trajectory.get_values('chain.y'))
 
 
 @pytest.mark.parametrize('v0', [0.0, 1.0])

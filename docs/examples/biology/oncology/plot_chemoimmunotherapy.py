@@ -38,11 +38,11 @@ arms = {
 fig, (tumour, tcells) = plt.subplots(1, 2, figsize=(10, 4))
 for name, arm in arms.items():
     trajectory = simulate(arm, dt=0.25, solver=SOLVER, until=60)
-    tumour.semilogy(trajectory.times, trajectory.values('tumour.A').clip(1e-2), label=name)
-    tcells.semilogy(trajectory.times, trajectory.values('tumour.E').clip(1e-2), label=name)
+    tumour.semilogy(trajectory.times, trajectory.get_values('tumour.A').clip(1e-2), label=name)
+    tcells.semilogy(trajectory.times, trajectory.get_values('tumour.E').clip(1e-2), label=name)
 combined = trajectory
-tumour.semilogy(combined.times, combined.values('tumour.A').clip(1e-2), label='combination', color='black')
-tcells.semilogy(combined.times, combined.values('tumour.E').clip(1e-2), label='combination', color='black')
+tumour.semilogy(combined.times, combined.get_values('tumour.A').clip(1e-2), label='combination', color='black')
+tcells.semilogy(combined.times, combined.get_values('tumour.E').clip(1e-2), label='combination', color='black')
 tumour.axhline(1.0, color='grey', linestyle=':', label='one cell')
 tumour.set_xlabel('time (days)')
 tumour.set_ylabel('tumour cells')

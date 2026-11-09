@@ -47,9 +47,9 @@ trajectory = simulate(EnergyReturnSystem(), until=250, dt=1.0, observers=[observ
 
 times = np.asarray(trajectory.times)
 series = {
-    'gross energy': trajectory.values('energy.gross_energy'),
-    'net energy': trajectory.values('energy.net_energy'),
-    'extraction cost': trajectory.values('energy.energy_cost'),
+    'gross energy': trajectory.get_values('energy.gross_energy'),
+    'net energy': trajectory.get_values('energy.net_energy'),
+    'extraction cost': trajectory.get_values('energy.energy_cost'),
 }
 fig, (flows, per_capita) = plt.subplots(1, 2, figsize=(10, 4))
 for name, values in series.items():
@@ -59,7 +59,7 @@ flows.set_xlabel('years')
 flows.set_ylabel('energy per year')
 flows.set_title('Gross energy, its cost, and the net energy')
 flows.legend(fontsize=8)
-net_per_capita = trajectory.values('energy.net_per_capita')
+net_per_capita = trajectory.get_values('energy.net_per_capita')
 per_capita.plot(times, net_per_capita, label=f'peak at year {times[np.argmax(net_per_capita)]:.0f}')
 per_capita.set_xlabel('years')
 per_capita.set_ylabel('net energy per person per year')

@@ -31,13 +31,13 @@ trajectory = simulate(NetworkHerdingSystem(), observers=[observer])
 strengths = [0.0, 0.2, 0.4, 0.6, 0.8]
 correlations = []
 for herding in strengths:
-    mean = simulate(NetworkHerdingSystem(sigma=1.0, herding=herding, density=0.3), until=2000).values('mean_choice')[
-        100:
-    ]
+    mean = simulate(NetworkHerdingSystem(sigma=1.0, herding=herding, density=0.3), until=2000).get_values(
+        'mean_choice',
+    )[100:]
     correlations.append(np.corrcoef(mean[:-1], mean[1:])[0, 1])
 fig, (paths, persistence) = plt.subplots(1, 2, figsize=(10, 4))
-paths.plot(trajectory.times, trajectory.values('agents.c')[:, :10], lw=0.8)
-paths.plot(trajectory.times, trajectory.values('mean_choice'), 'k', lw=2, label='mean')
+paths.plot(trajectory.times, trajectory.get_values('agents.c')[:, :10], lw=0.8)
+paths.plot(trajectory.times, trajectory.get_values('mean_choice'), 'k', lw=2, label='mean')
 paths.set_xlabel('period')
 paths.set_ylabel('choice c')
 paths.set_title('Choices of ten agents and the mean')

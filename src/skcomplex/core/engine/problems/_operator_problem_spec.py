@@ -74,14 +74,14 @@ class OperatorProblemSpec(BaseProblemSpec):
     cache: dict[str, list[sp.csr_array]] = field(default_factory=dict, repr=False, compare=False)
 
     @staticmethod
-    def _matrix_at(terms: Iterable[OperatorKernel], t: float, p: Array, size: int) -> sp.csr_array:
+    def _get_matrix_at(terms: Iterable[OperatorKernel], t: float, p: Array, size: int) -> sp.csr_array:
         """Return the sum of the terms at a time and a parameter vector."""
         return OperatorKernel._sum_matrices(
             (term.run(RunStateSpec(t, np.zeros(0), p)).values_ * term.matrix for term in terms),
             size,
         )
 
-    def _state_of(self, x: Array) -> npt.NDArray[np.complex128]:
+    def _get_state_of(self, x: Array) -> npt.NDArray[np.complex128]:
         """Return the complex state of an operator problem from a state vector.
 
         The complex state is a vector or a density matrix.
@@ -116,7 +116,7 @@ class OperatorProblemSpec(BaseProblemSpec):
             value:
                 `<psi|O|psi>` or `Tr(rho O)`, a float when its imaginary part vanishes.
         """
-        state = self._state_of(x)
+        state = self._get_state_of(x)
         total = 0j
         for term in terms:
             value = np.vdot(state, term.matrix @ state) if self.pure else term.matrix.multiply(state.T).sum()
@@ -125,7 +125,7 @@ class OperatorProblemSpec(BaseProblemSpec):
             return float(total.real)
         return total
 
-    def _generator_at(self, t: float, p: Array) -> sp.csr_array:
+    def _get_generator_at(self, t: float, p: Array) -> sp.csr_array:
         """Return the generator matrix of an operator problem.
 
         It is taken at a time and a parameter vector.
@@ -141,4 +141,4 @@ class OperatorProblemSpec(BaseProblemSpec):
             matrix:
                 The sparse generator.
         """
-        return OperatorProblemSpec._matrix_at(self.generator, t, p, math.prod(self.dimensions))
+        return OperatorProblemSpec._get_matrix_at(self.generator, t, p, math.prod(self.dimensions))

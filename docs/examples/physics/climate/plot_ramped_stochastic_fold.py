@@ -43,8 +43,8 @@ trajectory = simulate(system, solver=solver, observers=[observer], random_state=
 # than the relaxation should carry the control past the fold before the state tips, by a lag that grows with the rate.
 
 times = trajectory.times
-quiet = simulate(RampedStochasticFoldSystem(sigma=0.0), solver=solver).values('system.x')
-residual = trajectory.values('system.x') - quiet
+quiet = simulate(RampedStochasticFoldSystem(sigma=0.0), solver=solver).get_values('system.x')
+residual = trajectory.get_values('system.x') - quiet
 windows = [(start, start + 40.0) for start in np.arange(0.0, 320.0, 20.0)]
 variances = [residual[(times >= start) & (times < end)].var() for start, end in windows]
 centres = [-1 + 0.004 * (start + end) / 2 for start, end in windows]
@@ -52,7 +52,7 @@ rates = np.array([0.002, 0.004, 0.01, 0.02, 0.05, 0.1])
 tipped = []
 for rate in rates:
     run = simulate(RampedStochasticFoldSystem(rate=rate), until=2.0 / rate, dt=0.1, solver=solver, random_state=0)
-    tipped.append(-1 + rate * run.times[np.argmax(run.values('system.x') > 0)])
+    tipped.append(-1 + rate * run.times[np.argmax(run.get_values('system.x') > 0)])
 fig, (slowing, lags) = plt.subplots(1, 2, figsize=(10, 4))
 slowing.semilogy(centres, variances, 'o-')
 slowing.axvline(FOLD, color='black', linestyle=':', label='static fold')

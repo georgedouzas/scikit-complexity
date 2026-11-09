@@ -38,12 +38,12 @@ class BoundaryLawsPass(BasePass):
         """Add the boundary laws of continuous spaces."""
         compilation = self.compilation_
         compilation.collected = [
-            (spec, [*laws, *self._space_boundary_laws(block, spec)], block)
-            for spec, laws, block in Compilation._required(compilation.collected, 'collected')
+            (spec, [*laws, *self._get_space_boundary_laws(block, spec)], block)
+            for spec, laws, block in Compilation._get_required(compilation.collected, 'collected')
         ]
 
     @staticmethod
-    def _space_boundary_laws(block: BlockSpec, spec: KernelSpec) -> list[BaseLaw]:
+    def _get_space_boundary_laws(block: BlockSpec, spec: KernelSpec) -> list[BaseLaw]:
         """Return the laws by which a continuous space boundary acts on a component.
 
         It acts on the position states of the component. A periodic boundary wraps every position component into the

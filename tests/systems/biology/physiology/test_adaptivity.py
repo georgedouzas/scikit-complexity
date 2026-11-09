@@ -12,7 +12,7 @@ def test_adaptive_response_costs_fall_with_adaptivity():
     for strategy in ('stimulus-response', 'adaptive', 'anticipatory'):
         trajectory = simulate(AdaptiveResponseCostsSystem(strategy), dt=0.1, until=200)
         costs = [
-            trajectory.values(f'organism.{kind}_cost')[-1] for kind in ('response', 'restore', 'repair', 'prepare')
+            trajectory.get_values(f'organism.{kind}_cost')[-1] for kind in ('response', 'restore', 'repair', 'prepare')
         ]
         totals[strategy], repairs[strategy] = sum(costs), costs[2]
     assert totals['stimulus-response'] > totals['adaptive'] > totals['anticipatory']

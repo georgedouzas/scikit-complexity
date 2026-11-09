@@ -169,7 +169,7 @@ def test_neighborhoods_are_ordered():
 def test_rule_30_matches_published_pattern():
     """Test that rule 30 from a single live cell reproduces its space-time diagram for 15 steps."""
     trajectory = simulate(ElementaryAutomatonSystem(30, size=41).prepare().system_, until=15, dt=1)
-    assert np.array_equal(trajectory.lattice('cells.alive').astype(int), _rule_30(15, 41))
+    assert np.array_equal(trajectory.get_lattice('cells.alive').astype(int), _rule_30(15, 41))
 
 
 def test_glider_moves_diagonally():
@@ -177,7 +177,7 @@ def test_glider_moves_diagonally():
     glider = np.zeros((20, 20))
     glider[1, 2] = glider[2, 3] = glider[3, 1] = glider[3, 2] = glider[3, 3] = 1
     trajectory = simulate(GameOfLifeSystem((20, 20), initial=glider).prepare().system_, until=4, dt=1)
-    cells = trajectory.lattice('cells.alive')
+    cells = trajectory.get_lattice('cells.alive')
     assert np.array_equal(cells[-1], np.roll(glider, (1, 1), axis=(0, 1)))
     assert not np.array_equal(cells[2], cells[0])
 
@@ -541,14 +541,14 @@ def test_temperature_changes_live():
         random_state=0,
         schedule={'spins.temperature': lambda time: 0.5 if time < 100 else 20.0},
     )
-    magnetization = np.abs(trajectory.values('spins.spin').mean(axis=1))
+    magnetization = np.abs(trajectory.get_values('spins.spin').mean(axis=1))
     assert magnetization[2] > 0.95
     assert magnetization[-1] < 0.3
 
 
 def test_monte_carlo_wraps_angles_after_every_sweep():
     """Test that Monte Carlo rotations of the XY system keep every angle in (-π, π]."""
-    values = simulate(XYSystem(16).prepare().system_, until=50).values('spins.theta')
+    values = simulate(XYSystem(16).prepare().system_, until=50).get_values('spins.theta')
     assert np.all((values > -np.pi) & (values <= np.pi))
 
 
@@ -601,7 +601,7 @@ def test_relaxation_over_active_sites_matches_the_full_update():
     sparse_sites, full_sites = [], []
     sparse = simulate(_pile(lambda heights: heights >= 4, sparse_sites), until=5000, dt=5000, random_state=0)
     full = simulate(_pile(None, full_sites), until=5000, dt=5000, random_state=0)
-    np.testing.assert_array_equal(sparse.values('pile.height')[-1], full.values('pile.height')[-1])
+    np.testing.assert_array_equal(sparse.get_values('pile.height')[-1], full.get_values('pile.height')[-1])
     assert [event.duration for event in sparse.events] == [event.duration for event in full.events]
     assert [event.time for event in sparse.events] == [event.time for event in full.events]
     assert sum(sparse_sites) < sum(full_sites) / 10

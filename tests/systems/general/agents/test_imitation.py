@@ -79,7 +79,9 @@ def _final(space, values, rule, until, seed=0, **arguments):
         interactions=[ImitationInteraction('imitation', target='players', rule=rule, **arguments)],
         time=DiscreteTime() if discrete else ContinuousTime(),
     )
-    return simulate(system, until=until, dt=1.0 if discrete else until, random_state=seed).values('players.state')[-1]
+    return simulate(system, until=until, dt=1.0 if discrete else until, random_state=seed).get_values('players.state')[
+        -1
+    ]
 
 
 def _alternating(size):
@@ -173,7 +175,7 @@ def test_fermi_copies_a_random_neighbour_with_the_fermi_probability_from_either_
         time=DiscreteTime(),
     )
     trajectory = simulate(system, until=1.0, dt=1.0, random_state=SEED)
-    final = trajectory.values('players.state')[-1].reshape(strategies.shape)
+    final = trajectory.get_values('players.state')[-1].reshape(strategies.shape)
     for switched, exact in _fermi_switching(strategies, final):
         assert switched == pytest.approx(exact, abs=0.01)
 
@@ -292,7 +294,7 @@ def test_get_laws_reads_a_renamed_target_and_probability(rule, form):
             time=DiscreteTime() if discrete else ContinuousTime(),
         )
         trajectory = simulate(system, until=5, dt=1.0, random_state=SEED)
-        finals.append(trajectory.values('players.state'))
+        finals.append(trajectory.get_values('players.state'))
     np.testing.assert_array_equal(finals[1], finals[0])
 
 

@@ -33,7 +33,7 @@ trajectory = simulate(system, until=5, observers=[observer])
 def measured_period(amplitude):
     """Return the mean period of a pendulum released from rest at an amplitude."""
     run = simulate(PendulumSystem(theta=amplitude, omega=0.0), until=30, dt=0.005)
-    times, velocity = np.asarray(run.times), np.ravel(run.values('bob.theta_d1'))
+    times, velocity = np.asarray(run.times), np.ravel(run.get_values('bob.theta_d1'))
     crossings = times[1:][(velocity[:-1] < 0) & (velocity[1:] >= 0)]
     return np.diff(crossings).mean()
 

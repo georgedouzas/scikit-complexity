@@ -23,19 +23,19 @@ from skcomplex.systems.engineering.control import (
 def test_pid_inverted_pendulum_returns_upright():
     """Test that the PID controller brings the pendulum from a tilt of 0.1 to within 0.01 of upright within 5 s."""
     trajectory = simulate(PidInvertedPendulumSystem())
-    assert trajectory.values('cart.theta')[0] == pytest.approx(0.1)
+    assert trajectory.get_values('cart.theta')[0] == pytest.approx(0.1)
     late = trajectory.times >= 2.0
-    assert np.all(np.abs(trajectory.values('cart.theta')[late]) < 0.01)
-    assert np.all(np.abs(trajectory.values('tilt')) <= 0.1 + 1e-12)
+    assert np.all(np.abs(trajectory.get_values('cart.theta')[late]) < 0.01)
+    assert np.all(np.abs(trajectory.get_values('tilt')) <= 0.1 + 1e-12)
 
 
 def test_lqr_oscillator_comes_to_rest():
     """Test that the regulated oscillator loses its energy, unlike the free oscillator, which keeps it."""
     trajectory = simulate(LqrOscillatorSystem())
-    assert trajectory.values('energy')[0] == pytest.approx(0.5)
-    assert trajectory.values('energy')[-1] < 1e-4
+    assert trajectory.get_values('energy')[0] == pytest.approx(0.5)
+    assert trajectory.get_values('energy')[-1] < 1e-4
     free = simulate(LqrOscillatorSystem(r=1e6))
-    assert free.values('energy')[-1] > 0.4
+    assert free.get_values('energy')[-1] > 0.4
 
 
 def test_lqr_oscillator_is_controllable():
@@ -47,7 +47,7 @@ def test_lqr_oscillator_is_controllable():
 def test_pendulum_without_control_falls():
     """Test that the pendulum without its controller falls away from upright."""
     trajectory = simulate(CompositeSystem(elements=[CartPendulumElement('cart', theta=0.1)]), until=1.0, dt=0.1)
-    assert trajectory.values('cart.theta')[-1] > 0.5
+    assert trajectory.get_values('cart.theta')[-1] > 0.5
 
 
 def test_integrator_lives_only_in_the_control_systems():

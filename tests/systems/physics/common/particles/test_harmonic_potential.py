@@ -17,4 +17,4 @@ def test_harmonic_potential_oscillates_about_its_center():
         space=ContinuousSpace(n_dim=1),
     )
     trajectory = simulate(system, until=3, solver=ScipyODESolver(rtol=1e-10, atol=1e-12), dt=0.1)
-    np.testing.assert_allclose(trajectory.values('ball.x')[:, 0], 1.0 + np.cos(2.0 * trajectory.times), atol=1e-6)
+    np.testing.assert_allclose(trajectory.get_values('ball.x')[:, 0], 1.0 + np.cos(2.0 * trajectory.times), atol=1e-6)

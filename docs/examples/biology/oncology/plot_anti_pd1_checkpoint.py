@@ -34,8 +34,8 @@ runs = {dose: simulate(AntiPD1CheckpointSystem(u_ap=dose), dt=1.0, solver=solver
 runs[1e-10] = trajectory
 fig, (tumour, t_cells) = plt.subplots(1, 2, figsize=(10, 4))
 for dose, run in sorted(runs.items()):
-    tumour.plot(run.times, run.values('site.A'), label=f'u = {dose:g}')
-    t_cells.semilogy(run.times, run.values('site.E'), label=f'u = {dose:g}')
+    tumour.plot(run.times, run.get_values('site.A'), label=f'u = {dose:g}')
+    t_cells.semilogy(run.times, run.get_values('site.E'), label=f'u = {dose:g}')
 tumour.set_xlabel('time (days)')
 tumour.set_ylabel('tumour (g/cm³)')
 tumour.set_title('More drug, smaller tumour')

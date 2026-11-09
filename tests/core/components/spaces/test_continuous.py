@@ -127,8 +127,8 @@ def test_reflecting_box_reverses_crossing_particle():
         space=ContinuousSpace(extent=(1.0,), boundary='reflecting'),
     )
     trajectory = simulate(system, until=0.2, dt=0.2)
-    assert trajectory.values('p.x')[-1, 0] == pytest.approx(0.9)
-    assert trajectory.values('p.x_d1')[-1, 0] == pytest.approx(-1.0)
+    assert trajectory.get_values('p.x')[-1, 0] == pytest.approx(0.9)
+    assert trajectory.get_values('p.x_d1')[-1, 0] == pytest.approx(-1.0)
 
 
 def test_periodic_box_wraps_leaving_particle():
@@ -138,8 +138,8 @@ def test_periodic_box_wraps_leaving_particle():
         space=ContinuousSpace(extent=(1.0,), boundary='periodic'),
     )
     trajectory = simulate(system, until=0.2, dt=0.2)
-    assert trajectory.values('p.x')[-1, 0] == pytest.approx(0.1)
-    assert trajectory.values('p.x_d1')[-1, 0] == pytest.approx(1.0)
+    assert trajectory.get_values('p.x')[-1, 0] == pytest.approx(0.1)
+    assert trajectory.get_values('p.x_d1')[-1, 0] == pytest.approx(1.0)
 
 
 @pytest.mark.parametrize('solver', [RK4Solver(), ScipyODESolver()], ids=['rk4', 'scipy'])
@@ -150,5 +150,5 @@ def test_long_frame_keeps_particle_in_reflecting_box(solver):
         space=ContinuousSpace(extent=(1.0,), boundary='reflecting'),
     )
     trajectory = simulate(system, until=5, solver=solver, dt=5.0)
-    assert trajectory.values('p.x')[-1, 0] == pytest.approx(0.5, abs=1e-6)
-    assert trajectory.values('p.x_d1')[-1, 0] == pytest.approx(-1.0, abs=1e-6)
+    assert trajectory.get_values('p.x')[-1, 0] == pytest.approx(0.5, abs=1e-6)
+    assert trajectory.get_values('p.x_d1')[-1, 0] == pytest.approx(-1.0, abs=1e-6)

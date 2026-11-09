@@ -38,7 +38,7 @@ temperatures = np.linspace(0.2, 2.0, 7)
 energies, frozen = [], []
 for temperature in temperatures:
     sample = SherringtonKirkpatrickSystem(n_spins=200, temperature=temperature)
-    spins = simulate(sample, until=100, dt=1.0, random_state=0).values('spins.spin')[50:]
+    spins = simulate(sample, until=100, dt=1.0, random_state=0).get_values('spins.spin')[50:]
     energies.append(-0.5 * np.einsum('ti,ij,tj->t', spins, couplings, spins).mean() / 200)
     frozen.append(np.mean(spins.mean(axis=0) ** 2))
 grid = np.linspace(1.0, 2.1, 50)

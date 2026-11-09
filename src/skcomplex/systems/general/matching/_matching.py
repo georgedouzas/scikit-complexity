@@ -471,7 +471,7 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
             else MatchingInteraction._get_affordable(offer, offer.reserve)
         )
 
-    def _pair(
+    def _get_pair(
         self,
         requesters: list[SimpleNamespace],
         providers: list[SimpleNamespace],
@@ -505,7 +505,7 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
 
         The last pair is the last crossing pair.
         """
-        pairs, marginal = self._pair(requesters, providers)
+        pairs, marginal = self._get_pair(requesters, providers)
         trades: list[MatchSpec] = []
         for requester, provider in pairs:
             self._book(trades, requester, provider, marginal)

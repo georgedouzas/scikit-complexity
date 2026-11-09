@@ -73,7 +73,7 @@ rising = times <= PEAK
 
 fig, (share, order) = plt.subplots(1, 2, figsize=(10, 4))
 for axis, name in ((share, 'q'), (order, 'm')):
-    values = np.abs(trajectory.values(name))
+    values = np.abs(trajectory.get_values(name))
     axis.plot(ramp[rising], values[rising], '.', markersize=3, label='temperature rising')
     axis.plot(ramp[~rising], values[~rising], '.', markersize=3, label='temperature falling')
     axis.plot(temperatures, maxima[:, 0 if name == 'q' else 1], color='black', label='maximum of f')

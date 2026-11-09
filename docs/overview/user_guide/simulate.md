@@ -14,7 +14,7 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 trajectory = simulate(LotkaVolterraSystem(), until=10, dt=0.1)
-trajectory.values('prey.x')[-1].round(3)
+trajectory.get_values('prey.x')[-1].round(3)
 ```
 
 `simulate` validates the system, compiles it, chooses the solver, and runs from time 0 to `until`. The trajectory holds
@@ -37,9 +37,9 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 first = simulate(LotkaVolterraSystem(), until=10, dt=0.1)
-last = {name: first.values(name)[-1] for name in ('prey.x', 'predators.x')}
+last = {name: first.get_values(name)[-1] for name in ('prey.x', 'predators.x')}
 second = simulate(LotkaVolterraSystem(), until=10, dt=0.1, initial_state=last, schedule={'predation.a': lambda t: 0.0})
-second.values('prey.x')[0] == first.values('prey.x')[-1], second.values('predation.a')[-1]
+second.get_values('prey.x')[0] == first.get_values('prey.x')[-1], second.get_values('predation.a')[-1]
 ```
 
 - `schedule={'predation.a': lambda t: 0.0}` sets a parameter from a function of time at every frame, here switching
@@ -64,7 +64,7 @@ trajectory = simulate(
     initial_state={'prey.x': 20},
     random_state=0,
 )
-trajectory.values('prey.x')[0], trajectory.times[-1]
+trajectory.get_values('prey.x')[0], trajectory.times[-1]
 ```
 
 - `until` sets the end time. Without it, `simulate` uses the tuned end time of the class of the system, and a system
@@ -127,7 +127,7 @@ from skcomplex.systems.physics.statistical_mechanics import IdealGasSystem
 
 gas = IdealGasSystem(n_molecules=50_000, random_state=0)
 trajectory = simulate(gas, until=0.5, dt=0.01, solver=RK4Solver(dt=0.01), backend=NumbaBackend())
-trajectory.values('gas.x').shape
+trajectory.get_values('gas.x').shape
 ```
 
 The library has three backends:
@@ -188,7 +188,7 @@ herds = CompositeSystem(
     elements=[GroupElement('herds', element=PopulationElement, size=2000, values={'n': 1.0})],
     interactions=[SaturationInteraction('growth', target='herds')],
 )
-round(float(simulate(herds, until=1, dt=0.1).values('herds.n')[-1, 0]), 4)
+round(float(simulate(herds, until=1, dt=0.1).get_values('herds.n')[-1, 0]), 4)
 ```
 
 A Numba-compiled function runs inside the compiled kernels, and the NumPy backend calls it from Python. The group above
@@ -263,7 +263,7 @@ def get_pair_coefficients(value):
 
 
 def get_drag_fix(fix):
-    return f'fix {fix.name} {fix.group} viscous {float(fix.value("gamma")[0])}'
+    return f'fix {fix.name} {fix.group} viscous {float(fix.get_value("gamma")[0])}'
 
 
 side = np.arange(10) * 1.2
@@ -280,7 +280,7 @@ pairs = {LennardJonesInteraction: ('lj/cut', get_pair_coefficients)}
 fixes = {DragInteraction: get_drag_fix}
 solver = LammpsSolver(dt=0.005, pairs=pairs, fixes=fixes)
 trajectory = simulate(atoms, until=1, dt=0.05, solver=solver, random_state=0)
-trajectory.values('atoms.x').shape
+trajectory.get_values('atoms.x').shape
 ```
 
 Two maps tell the solver how to write your interactions in LAMMPS:
@@ -319,8 +319,8 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.economics.resources import HarvestingSystem
 
 trajectory = simulate(HarvestingSystem(farmers=10, effort=0.05), until=50, random_state=0)
-round(trajectory.values('land/stock.n')[-1]), trajectory.get_agents('village/farmers', 50).values['wealth'].size
-trajectory.values('village/farmers_count.value')[-1]
+round(trajectory.get_values('land/stock.n')[-1]), trajectory.get_agents('village/farmers', 50).values['wealth'].size
+trajectory.get_values('village/farmers_count.value')[-1]
 ```
 
 Here the land is a differential equation and the village holds agents, so each runs as its own partition.

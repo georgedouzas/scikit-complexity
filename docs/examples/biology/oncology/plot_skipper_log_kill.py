@@ -28,7 +28,7 @@ trajectory = simulate(SkipperLogKillSystem(), observers=[observer])
 # Every week the logarithm of the tumour changes by the same amount, the growth `7 r` minus the kill `a dose width`,
 # whatever the size of the tumour. The weekly changes should all equal `7 * 0.223 - 2 = -0.439`.
 
-times, cells = trajectory.times, trajectory.values('tumour.x')
+times, cells = trajectory.times, trajectory.get_values('tumour.x')
 weeks = np.isin(np.round(times, 6), 7.0 * np.arange(7))
 steps = np.diff(np.log(cells[weeks]))
 fig, (curve, change) = plt.subplots(1, 2, figsize=(10, 4))

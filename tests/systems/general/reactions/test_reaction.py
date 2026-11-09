@@ -63,7 +63,7 @@ def _epidemic(mode):
 def _states(mode, random_state=None):
     """Return the amounts of `S`, `I`, and `R` over 40 time units, one row per time."""
     trajectory = simulate(_epidemic(mode), until=40, dt=1.0, random_state=random_state)
-    return np.column_stack([trajectory.values(f'{name}.x') for name in ('S', 'I', 'R')])
+    return np.column_stack([trajectory.get_values(f'{name}.x') for name in ('S', 'I', 'R')])
 
 
 def test_reaction_is_a_jump():
@@ -130,8 +130,8 @@ def test_reaction_reads_modifiers_without_changing_them():
         ],
     )
     trajectory = simulate(system, until=2, dt=0.5)
-    assert trajectory.values('E.x').tolist() == [1.0] * 5
-    np.testing.assert_allclose(trajectory.values('S.x'), np.exp(-np.asarray(trajectory.times)), rtol=1e-4)
+    assert trajectory.get_values('E.x').tolist() == [1.0] * 5
+    np.testing.assert_allclose(trajectory.get_values('S.x'), np.exp(-np.asarray(trajectory.times)), rtol=1e-4)
 
 
 def test_reaction_moves_states_of_one_element_with_real_coefficients():
@@ -143,7 +143,7 @@ def test_reaction_moves_states_of_one_element_with_real_coefficients():
         ],
     )
     trajectory = simulate(system, until=4, dt=0.5)
-    x, y = trajectory.values('cell.x'), trajectory.values('cell.y')
+    x, y = trajectory.get_values('cell.x'), trajectory.get_values('cell.y')
     times = np.asarray(trajectory.times)
     np.testing.assert_allclose(x, 1 / (1 + times), rtol=1e-4)
     np.testing.assert_allclose(y, 0.75 * (1 - x), rtol=1e-4)
@@ -159,7 +159,7 @@ def test_reaction_sources_and_sinks_reach_their_balance():
         ],
     )
     trajectory = simulate(system, until=40, dt=1.0)
-    assert trajectory.values('X.x')[-1] == pytest.approx(4.0, rel=1e-4)
+    assert trajectory.get_values('X.x')[-1] == pytest.approx(4.0, rel=1e-4)
 
 
 def test_reaction_takes_a_propensity_function():
@@ -177,7 +177,7 @@ def test_reaction_takes_a_propensity_function():
         ],
     )
     trajectory = simulate(system, until=0.001, dt=0.001)
-    rate = (trajectory.values('B.x')[-1] - trajectory.values('B.x')[0]) / 0.001
+    rate = (trajectory.get_values('B.x')[-1] - trajectory.get_values('B.x')[0]) / 0.001
     assert rate == pytest.approx(8 / 9, rel=1e-3)
 
 
@@ -249,7 +249,7 @@ def test_reaction_runs_at_every_site_of_a_field():
     cells = FieldElement('cells', element=ConcentrationElement, space=LatticeSpace((3,)), values=values)
     dimerization = ReactionInteraction('dimerization', target='cells', reactants={'x': 2}, products={'y': 1.5}, k=0.5)
     trajectory = simulate(CompositeSystem(elements=[cells], interactions=[dimerization]), until=4, dt=0.5)
-    x, y = trajectory.lattice('cells.x')[-1], trajectory.lattice('cells.y')[-1]
+    x, y = trajectory.get_lattice('cells.x')[-1], trajectory.get_lattice('cells.y')[-1]
     np.testing.assert_allclose(x, values['x'] / (1 + values['x'] * 4), rtol=1e-4)
     np.testing.assert_allclose(y, 0.75 * (values['x'] - x), rtol=1e-4)
 
@@ -279,8 +279,8 @@ def test_reaction_subclass_reads_species_under_its_own_roles():
     )
     trajectory = simulate(system, until=2, dt=0.5)
     times = np.asarray(trajectory.times)
-    np.testing.assert_allclose(trajectory.values('A.x'), 8 * np.exp(-0.5 * times), rtol=1e-4)
-    np.testing.assert_allclose(trajectory.values('A.x') + trajectory.values('B.x'), 8.0)
+    np.testing.assert_allclose(trajectory.get_values('A.x'), 8 * np.exp(-0.5 * times), rtol=1e-4)
+    np.testing.assert_allclose(trajectory.get_values('A.x') + trajectory.get_values('B.x'), 8.0)
 
 
 class ScaledElement(Element):
@@ -316,8 +316,8 @@ def test_reaction_scales_changes_by_parametric_coefficients(epsilon, delta):
     system = CompositeSystem(elements=[ScaledElement('box', epsilon=epsilon, delta=delta)], interactions=[conversion])
     trajectory = simulate(system, until=1, dt=0.01)
     x = np.exp(-np.asarray(trajectory.times) / epsilon)
-    np.testing.assert_allclose(trajectory.values('box.x'), x, rtol=1e-4)
-    np.testing.assert_allclose(trajectory.values('box.y'), epsilon / delta * (1 - x), rtol=1e-4, atol=1e-8)
+    np.testing.assert_allclose(trajectory.get_values('box.x'), x, rtol=1e-4)
+    np.testing.assert_allclose(trajectory.get_values('box.y'), epsilon / delta * (1 - x), rtol=1e-4, atol=1e-8)
 
 
 def _agent_decay(mode, size=2000):

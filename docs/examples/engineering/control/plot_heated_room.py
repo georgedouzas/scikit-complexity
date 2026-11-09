@@ -29,7 +29,7 @@ trajectory = simulate(system, observers=[observer])
 
 hours = trajectory.times / 3600
 fig, ax = plt.subplots(figsize=(6, 4))
-ax.plot(hours, trajectory.values('room.T'))
+ax.plot(hours, trajectory.get_values('room.T'))
 ax.axhline(19.5, color='black', linestyle='--')
 ax.axhline(20.5, color='black', linestyle='--')
 ax.set_xlabel('hours')

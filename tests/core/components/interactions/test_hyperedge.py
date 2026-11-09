@@ -188,7 +188,7 @@ def test_hyperedge_group_takes_an_update_once_per_hyperedge():
         time=DiscreteTime(),
     )
     trajectory = simulate(system, until=1, dt=1)
-    activities = trajectory.values('groups.a')[-1]
+    activities = trajectory.get_values('groups.a')[-1]
     expected = [values[list(item)].max() + values[list(item)].mean() if len(item) == 3 else -1.0 for item in HYPEREDGES]
     assert np.allclose(activities, expected, atol=1e-12)
 
@@ -207,7 +207,7 @@ def test_edge_group_takes_the_update_of_the_regulating_member():
         time=DiscreteTime(),
     )
     trajectory = simulate(system, until=1, dt=1)
-    assert trajectory.values('links.a')[-1].tolist() == [3.0, -1.0, 0.0]
+    assert trajectory.get_values('links.a')[-1].tolist() == [3.0, -1.0, 0.0]
 
 
 def test_edge_group_of_a_hyperedge_without_an_edge_is_reported():

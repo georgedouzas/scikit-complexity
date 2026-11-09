@@ -51,19 +51,19 @@ fig, (shares, balance) = plt.subplots(1, 2, figsize=(10, 4))
 total = 36.0
 hours = long_run.times[1:] / 3600
 for name in PROTEINS:
-    shares.semilogx(hours, long_run.values(f'{name}_corona.x')[1:] / total, label=name)
+    shares.semilogx(hours, long_run.get_values(f'{name}_corona.x')[1:] / total, label=name)
 shares.set_xlabel('time (hours)')
 shares.set_ylabel('share of the nanoparticles')
 shares.set_title('Lipoprotein displaces albumin')
 shares.legend()
 sites = {'albumin': 4 * 40**2 / 5**2, 'lipoprotein': 4 * 39**2 / 4**2, 'fibrinogen': 4 * 43.3**2 / 8.3**2}
 rates = {'albumin': (2.4e3, 2e-3), 'lipoprotein': (3e4, 3e-5), 'fibrinogen': (2e3, 2e-3)}
-free = long_run.values('nanoparticle.x')[-1]
+free = long_run.get_values('nanoparticle.x')[-1]
 simulated, predicted = [], []
 for name in PROTEINS:
     association, dissociation = rates[name]
-    simulated.append(long_run.values(f'{name}_corona.x')[-1])
-    predicted.append(sites[name] * association * 1e-9 * free * long_run.values(f'{name}.x')[-1] / dissociation)
+    simulated.append(long_run.get_values(f'{name}_corona.x')[-1])
+    predicted.append(sites[name] * association * 1e-9 * free * long_run.get_values(f'{name}.x')[-1] / dissociation)
 balance.loglog(predicted, simulated, 'o')
 balance.loglog(predicted, predicted, ':', color='black', label='equilibrium')
 for name, x, y in zip(PROTEINS, predicted, simulated, strict=True):

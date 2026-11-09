@@ -48,7 +48,7 @@ curves = {
 fig, axes = plt.subplots(1, 3, figsize=(12, 4))
 for ax, (plant, (x, v)) in zip(axes, starts.items(), strict=True):
     trajectory = simulate(MinimumTimeControlSystem(plant=plant, x=x, v=v, interval=0.01))
-    ax.plot(np.ravel(trajectory.values('plant.x')), np.ravel(trajectory.values('plant.y')))
+    ax.plot(np.ravel(trajectory.get_values('plant.x')), np.ravel(trajectory.get_values('plant.y')))
     ax.plot(grid[plant], curves[plant](grid[plant]), linestyle=':', color='black')
     ax.set_title(plant.replace('_', ' '))
     ax.set_xlabel('position x')

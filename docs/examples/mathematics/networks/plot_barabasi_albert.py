@@ -46,7 +46,7 @@ trajectory = simulate(BarabasiAlbertSystem(), dt=2.0, observers=[observer], rand
 # larger network grown with the same law, with the mean-field prediction `P(K >= k) = m^2 / k^2` for `m = 2` edges.
 
 grown = simulate(BarabasiAlbertSystem(n_nodes=5003), until=5000, dt=1000.0, random_state=0)
-snapshot = grown.network(-1)
+snapshot = grown.get_network(-1)
 degrees = np.bincount(np.concatenate([snapshot.sources, snapshot.targets]))
 ccdf = distribution(degrees, kind='ccdf')
 values, shares = ccdf.support, ccdf.survival

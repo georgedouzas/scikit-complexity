@@ -52,7 +52,7 @@ shares = (0.0, 0.25, 0.5, 0.75)
 volatility, deviation = [], []
 for share in shares:
     run = simulate(OrderBookSystem(chartists=share, imitation=0.0, random_state=0), until=STEPS, random_state=0)
-    prices = run.values('book.price')[1:]
+    prices = run.get_values('book.price')[1:]
     volatility.append(np.diff(np.log(prices)).std())
     deviation.append(np.abs(np.log(prices / 100)).mean())
 fig, (returns, chartists) = plt.subplots(1, 2, figsize=(11, 4))
@@ -62,7 +62,7 @@ returns.set_xlabel('share of chartists, without imitation')
 returns.set_ylabel('size')
 returns.set_title('Chartists amplify the swings of the price')
 returns.legend()
-chartists.plot(trajectory.times, trajectory.values('chartists'))
+chartists.plot(trajectory.times, trajectory.get_values('chartists'))
 chartists.set_xlabel('step')
 chartists.set_ylabel('share of chartists')
 chartists.set_title('Imitation favours fundamentalists')

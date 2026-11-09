@@ -173,7 +173,7 @@ class PredictorPoolElement(Element):
         """
         return [RuleLaw(self.forecast, phase='forecast')]
 
-    def _history(self, system: SystemView) -> Array:
+    def _get_history(self, system: SystemView) -> Array:
         """Return the attendances, after ten random weeks drawn at the first week."""
         seeded = system.storage.get('seeded')
         if not isinstance(seeded, np.ndarray):
@@ -191,7 +191,7 @@ class PredictorPoolElement(Element):
             system:
                 The system.
         """
-        agent.forecasts = forecasts(self._history(system))
+        agent.forecasts = forecasts(self._get_history(system))
 
     @staticmethod
     def error(agent: PredictorPoolView, system: SystemView, index: int) -> float:

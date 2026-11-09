@@ -107,8 +107,8 @@ def test_density_over_a_state_starts_a_distribution():
         ObservableSpec('mean', mean_class, group='wealth'),
     ]
     trajectory = simulate(system, until=0, observables=observables, dt=1.0)
-    assert trajectory.values('density')[0] == pytest.approx(1.0)
-    assert trajectory.values('mean')[0] == pytest.approx(wealth.mean())
+    assert trajectory.get_values('density')[0] == pytest.approx(1.0)
+    assert trajectory.get_values('mean')[0] == pytest.approx(wealth.mean())
 
 
 def test_density_over_a_state_of_a_trajectory():

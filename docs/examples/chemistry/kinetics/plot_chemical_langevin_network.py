@@ -30,13 +30,13 @@ trajectory = simulate(ChemicalLangevinNetworkSystem(), observers=[observer], ran
 # and 300 to rounding error at every frame.
 
 deterministic = simulate(MichaelisMentenSystem())
-enzyme = trajectory.values('E.x') + trajectory.values('C.x')
-substrate = trajectory.values('S.x') + trajectory.values('C.x') + trajectory.values('P.x')
+enzyme = trajectory.get_values('E.x') + trajectory.get_values('C.x')
+substrate = trajectory.get_values('S.x') + trajectory.get_values('C.x') + trajectory.get_values('P.x')
 fig, (amounts, totals) = plt.subplots(1, 2, figsize=(10, 4))
-amounts.plot(trajectory.times, trajectory.values('C.x'), label='complex, Langevin')
+amounts.plot(trajectory.times, trajectory.get_values('C.x'), label='complex, Langevin')
 amounts.plot(
     deterministic.times,
-    deterministic.values('C.x'),
+    deterministic.get_values('C.x'),
     color='black',
     linestyle='--',
     label='complex, rate equations',

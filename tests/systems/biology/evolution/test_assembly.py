@@ -12,9 +12,9 @@ from ..conftest import _run_precise
 
 def test_undirected_assembly_follows_the_poisson_expansion():
     """Test that without selection `N_a(t) = (k t)^a / a!`, and that selection slows the deeper levels."""
-    free = _run_precise(AssemblyGrowthSystem(6), 5, dt=0.5).values('levels.N')[-1]
+    free = _run_precise(AssemblyGrowthSystem(6), 5, dt=0.5).get_values('levels.N')[-1]
     np.testing.assert_allclose(free, [5**a / math.factorial(a) for a in range(1, 7)], rtol=1e-6)
-    selected = _run_precise(AssemblyGrowthSystem(6, alpha=0.5), 5, dt=0.5).values('levels.N')[-1]
+    selected = _run_precise(AssemblyGrowthSystem(6, alpha=0.5), 5, dt=0.5).get_values('levels.N')[-1]
     assert np.all(selected[1:] < free[1:])
 
 

@@ -46,9 +46,9 @@ class NoisePass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Add the drift corrections of the noise laws."""
         compilation = self.compilation_
-        compilation.corrected = self._with_noise_corrections(
-            Compilation._required(compilation.delayed, 'delayed'),
-            Compilation._required(compilation.layout, 'layout'),
+        compilation.corrected = self._copy_with_noise_corrections(
+            Compilation._get_required(compilation.delayed, 'delayed'),
+            Compilation._get_required(compilation.layout, 'layout'),
         )
 
     @staticmethod
@@ -62,7 +62,7 @@ class NoisePass(BasePass):
         )
 
     @staticmethod
-    def _noise_correction(
+    def _get_noise_correction(
         term: _NoiseTermSpec,
         terms: list[_NoiseTermSpec],
         wieners: Mapping[str, WienerProcessSpec],
@@ -85,7 +85,7 @@ class NoisePass(BasePass):
         amplitude = SR(term.amplitude)
         parts = []
         for other in terms:
-            covariance = NoisePass._process_covariance(term.process, other.process, wieners)
+            covariance = NoisePass._get_process_covariance(term.process, other.process, wieners)
             if not covariance:
                 continue
             if other.spec is not term.spec:
@@ -114,7 +114,7 @@ class NoisePass(BasePass):
         return None if correction.is_zero() else RateLaw(term.target, correction)
 
     @staticmethod
-    def _with_noise_corrections(
+    def _copy_with_noise_corrections(
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
         declarations: DeclarationsSpec,
     ) -> list[tuple[KernelSpec, list[BaseLaw]]]:
@@ -122,7 +122,7 @@ class NoisePass(BasePass):
 
         The correction follows the law, in the Itô form.
         """
-        terms = NoisePass._noise_terms(specs, declarations)
+        terms = NoisePass._get_noise_terms(specs, declarations)
         by_law: dict[int, list[_NoiseTermSpec]] = defaultdict(list)
         for term in terms:
             by_law[id(term.law)].append(term)
@@ -132,14 +132,14 @@ class NoisePass(BasePass):
             for law in laws:
                 corrected.append(law)
                 for term in by_law.get(id(law), []):
-                    correction = NoisePass._noise_correction(term, terms, declarations.wieners)
+                    correction = NoisePass._get_noise_correction(term, terms, declarations.wieners)
                     if correction is not None:
                         corrected.append(correction)
             result.append((spec, corrected))
         return result
 
     @staticmethod
-    def _noise_terms(
+    def _get_noise_terms(
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
         declarations: DeclarationsSpec,
     ) -> list[_NoiseTermSpec]:
@@ -158,7 +158,7 @@ class NoisePass(BasePass):
                     if isinstance(law.value, FreeModuleElement | list | tuple)
                     else [law.value] * len(targets)
                 )
-                keys = NoisePass._process_keys(spec, law, declarations)
+                keys = NoisePass._get_process_keys(spec, law, declarations)
                 for index, (target, value, key) in enumerate(zip(targets, values, keys, strict=True)):
                     reference = spec.references[target]
                     process = key if key is not None else ('independent', id(law), index)
@@ -168,7 +168,7 @@ class NoisePass(BasePass):
         return terms
 
     @staticmethod
-    def _process_key(spec: KernelSpec, item: object, declarations: DeclarationsSpec) -> ProcessKey:
+    def _get_process_key(spec: KernelSpec, item: object, declarations: DeclarationsSpec) -> ProcessKey:
         """Return the process a label or a handle of a noise law names.
 
         It is a local label or a Wiener process.
@@ -185,7 +185,7 @@ class NoisePass(BasePass):
         return ('wiener', *found)
 
     @staticmethod
-    def _process_keys(spec: KernelSpec, law: NoiseLaw, declarations: DeclarationsSpec) -> list[ProcessKey | None]:
+    def _get_process_keys(spec: KernelSpec, law: NoiseLaw, declarations: DeclarationsSpec) -> list[ProcessKey | None]:
         """Return the process of every component of the target of a noise law.
 
         It is `None` for an independent process.
@@ -203,10 +203,10 @@ class NoisePass(BasePass):
                 'one process, or one per component.'
             )
             raise ValidationError(error_msg)
-        return [NoisePass._process_key(spec, item, declarations) for item in items]
+        return [NoisePass._get_process_key(spec, item, declarations) for item in items]
 
     @staticmethod
-    def _process_covariance(first: object, second: object, wieners: Mapping[str, WienerProcessSpec]) -> float:
+    def _get_process_covariance(first: object, second: object, wieners: Mapping[str, WienerProcessSpec]) -> float:
         """Return the covariance per unit time of the increments of two processes.
 
         The processes are keys or independent markers.

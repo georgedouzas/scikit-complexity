@@ -44,7 +44,7 @@ for index, k0 in enumerate((1.0, 4.0, 12.0)):
     trajectory = simulate(SolowSystem(k=k0, s=0.2), until=UNTIL)
     paths.plot(
         trajectory.times[::5],
-        trajectory.values('economy.k')[::5],
+        trajectory.get_values('economy.k')[::5],
         'o',
         ms=3,
         color=f'C{index}',
@@ -57,7 +57,7 @@ paths.set_ylabel('capital per worker k')
 paths.set_title('Simulated (dots) and exact (lines) paths')
 paths.legend()
 savings = np.linspace(0.05, 0.9, 18)
-final = [(simulate(SolowSystem(k=1.0, s=s), until=400).values('economy.k')[-1]) for s in savings]
+final = [(simulate(SolowSystem(k=1.0, s=s), until=400).get_values('economy.k')[-1]) for s in savings]
 grid = np.linspace(0.02, 0.95, 200)
 golden.plot(savings, (1 - savings) * np.array(final) ** ALPHA, 'o', label='simulation at t = 400')
 golden.plot(grid, (1 - grid) * (grid / DELTA) ** (ALPHA / (1 - ALPHA)), 'k', lw=0.8, label='(1 - s) k*^alpha')

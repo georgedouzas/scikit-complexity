@@ -16,7 +16,7 @@ def test_recorder_builds_the_trajectory_of_its_frames():
     simulate(CompositeSystem(elements=[PopulationElement('a', x=2)]), until=2, dt=1, observers=[recorder])
     assert len(recorder.frames_) == 3
     assert recorder.trajectory_.times.tolist() == [0.0, 1.0, 2.0]
-    assert recorder.trajectory_.values('a.x').tolist() == [2.0, 2.0, 2.0]
+    assert recorder.trajectory_.get_values('a.x').tolist() == [2.0, 2.0, 2.0]
 
 
 def test_recorder_keeps_one_row_of_parameters_that_stay_the_same():

@@ -200,9 +200,9 @@ def _read_frame(trajectory: Trajectory) -> nx.Graph:
     topology = trajectory.problem.topology
     if topology is None:
         return _read_networks(trajectory)[-1]
-    graph = trajectory.network(-1).graph()
+    graph = trajectory.get_network(-1).graph()
     for name, (entry, _) in topology.networks[0].nodes[0].variables.items():
-        values = np.asarray(trajectory.values(entry.name)[-1])
+        values = np.asarray(trajectory.get_values(entry.name)[-1])
         nx.set_node_attributes(graph, {node: values[node] for node in graph}, name)
     return graph
 

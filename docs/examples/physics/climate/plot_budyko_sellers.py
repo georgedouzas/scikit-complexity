@@ -32,8 +32,8 @@ trajectory = simulate(system, until=16, dt=0.25, observers=[observer])
 # to keep it frozen.
 
 x = (np.arange(30) + 0.5) / 30
-warm = trajectory.lattice('bands.T')[-1]
-cold = simulate(BudykoSellersSystem(T=-40.0)).lattice('bands.T')[-1]
+warm = trajectory.get_lattice('bands.T')[-1]
+cold = simulate(BudykoSellersSystem(T=-40.0)).get_lattice('bands.T')[-1]
 latitude = np.degrees(np.arcsin(x))
 fig, ax = plt.subplots(figsize=(6, 4.5))
 ax.plot(latitude, warm, 'o-', markersize=3, color='C3', label='started at 15 °C')

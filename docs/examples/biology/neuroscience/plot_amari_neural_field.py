@@ -29,7 +29,7 @@ trajectory = simulate(AmariNeuralFieldSystem(), observers=[observer])
 # The bump should stop changing, with its width at the root of `W(a) + h = 0` where the kernel is negative. With the
 # defaults, `W(a) = a exp(-a)` and `h = -0.2`, and the width should be within 5% of the larger root.
 
-potential = np.reshape(trajectory.values('field.u'), (-1, 800))
+potential = np.reshape(trajectory.get_values('field.u'), (-1, 800))
 positions = (np.arange(800) + 0.5) * 20 / 800
 root = brentq(lambda a: a * np.exp(-a) - 0.2, 1.0, 10.0)
 widths = (potential > 0).sum(axis=1) * 20 / 800

@@ -34,7 +34,7 @@ couplings = np.linspace(0.0, 1.0, 41)
 differences = []
 for coupling in couplings:
     run = simulate(AggregateAveragingSynchronizationSystem(x1=0.3, x2=0.6, kappa=coupling), until=200)
-    gap = np.abs(np.ravel(run.values('first.x')) - np.ravel(run.values('second.x')))
+    gap = np.abs(np.ravel(run.get_values('first.x')) - np.ravel(run.get_values('second.x')))
     differences.append(gap[-50:].mean())
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.semilogy(couplings, np.maximum(differences, 1e-17), 'o-')
@@ -59,7 +59,7 @@ for delay in (0, 1, 2):
     for coupling in couplings:
         system = AggregateAveragingSynchronizationSystem(kind='bernoulli', r=1.5, kappa=coupling, delay=delay)
         run = simulate(system, until=300)
-        gap = np.abs(np.ravel(run.values('first.x')) - np.ravel(run.values('second.x')))
+        gap = np.abs(np.ravel(run.get_values('first.x')) - np.ravel(run.get_values('second.x')))
         gaps.append(np.minimum(gap, 1 - gap)[-50:].max())
     ax.semilogy(couplings, np.maximum(gaps, 1e-17), 'o-', markersize=3, label=f'delay T = {delay}')
 ax.set_xlabel('coupling κ')

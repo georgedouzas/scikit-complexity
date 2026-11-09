@@ -32,8 +32,8 @@ class SplitRequestsPass(BasePass):
         """Set the update laws that request topology changes apart."""
         compilation = self.compilation_
         collected: BlockLaws = []
-        apart = Compilation._required(compilation.apart, 'apart')
-        for spec, laws, block in Compilation._required(compilation.collected, 'collected'):
+        apart = Compilation._get_required(compilation.apart, 'apart')
+        for spec, laws, block in Compilation._get_required(compilation.collected, 'collected'):
             kept, updates = self._split_requests(spec, laws)
             collected.append((spec, kept, block))
             if updates:

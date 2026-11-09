@@ -30,7 +30,7 @@ trajectory = simulate(OncolyticVirusSystem(), observers=[observer])
 # `AU = d / alpha - r AV = 1/3`. The trajectory should end on that point.
 
 alpha, r, d = 1.0, 0.5, 0.5
-AU, AV = trajectory.values('tumour.AU'), trajectory.values('tumour.AV')
+AU, AV = trajectory.get_values('tumour.AU'), trajectory.get_values('tumour.AV')
 grid = np.linspace(0, 1, 50)
 fig, (series, plane) = plt.subplots(1, 2, figsize=(10, 4))
 series.plot(trajectory.times, AU, label='uninfected')

@@ -31,10 +31,12 @@ trajectory = simulate(system, until=0.5, dt=0.025, solver=RK4Solver(dt=5e-4), ob
 # Every defect of a periodic lattice has a partner of the opposite charge, so the total charge should stay 0 at every
 # frame. The kinetic energy should rise from the nearly still start while the instability grows, and then settle.
 
-tensors = trajectory.lattice('gel.Q')
+tensors = trajectory.get_lattice('gel.Q')
 axes = alignment(tensors, kind='principal-axis').axes
 found = defects(np.arctan2(axes[..., 1], axes[..., 0]), period=np.pi)
-energy = 0.5 * (np.asarray(trajectory.values('u_x')) ** 2 + np.asarray(trajectory.values('u_y')) ** 2).mean(axis=1)
+energy = 0.5 * (np.asarray(trajectory.get_values('u_x')) ** 2 + np.asarray(trajectory.get_values('u_y')) ** 2).mean(
+    axis=1,
+)
 
 fig, (count, kinetic) = plt.subplots(1, 2, figsize=(10, 4))
 count.plot(trajectory.times, [len(item) for item in found.charges])

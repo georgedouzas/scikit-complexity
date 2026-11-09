@@ -12,7 +12,7 @@ from skcomplex.systems.physics.oceanography import DoubleGyreSystem
 def test_double_gyre_forms_western_intensified_gyres_in_sverdrup_balance():
     """Test that the wind spins up two gyres of opposite sign with western extrema and a Sverdrup interior."""
     trajectory = simulate(DoubleGyreSystem(), random_state=0)
-    frames = np.asarray(trajectory.values('psi'))
+    frames = np.asarray(trajectory.get_values('psi'))
     psi, earlier = frames[-1].reshape(64, 64), frames[-11].reshape(64, 64)
     positions = (np.arange(64) + 0.5) / 64
     south, north = psi[:, :32], psi[:, 32:]

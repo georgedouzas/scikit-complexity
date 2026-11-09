@@ -182,7 +182,7 @@ from skcomplex.core.engine.runtime import simulate
 
 trajectory = simulate(LotkaVolterraSystem())
 fast_prey = simulate(LotkaVolterraSystem(r=1.5), until=50, dt=0.1)
-round(float(fast_prey.values('prey.x').max()))
+round(float(fast_prey.get_values('prey.x').max()))
 ```
 
 Each run can stream to the Rerun viewer:
@@ -251,7 +251,7 @@ system = CompositeSystem(
     ],
 )
 trajectory = simulate(system, until=30, dt=0.05)
-round(float(trajectory.values('rabbits.n').max()))
+round(float(trajectory.get_values('rabbits.n').max()))
 ```
 
 A `RerunObserver` records the run for the Rerun viewer, and `RerunObserver('predators', spawn=True)` opens the viewer

@@ -207,7 +207,7 @@ def test_pendulum_as_written_matches_solved_form():
     """Test that `m l theta'' = -m g sin theta` runs exactly like the rate law `theta'' = -(g / l) sin theta`."""
     written = simulate(CompositeSystem(elements=[WrittenElement('bob')]), until=5, solver=PRECISE, dt=0.1)
     solved = simulate(CompositeSystem(elements=[SolvedElement('bob')]), until=5, solver=PRECISE, dt=0.1)
-    assert np.array_equal(written.values('bob.theta'), solved.values('bob.theta'))
+    assert np.array_equal(written.get_values('bob.theta'), solved.get_values('bob.theta'))
 
 
 def test_rates_add_to_equation():
@@ -217,7 +217,7 @@ def test_rates_add_to_equation():
         interactions=[PushInteraction('push', target='bob')],
     )
     trajectory = simulate(pushed, until=0.1, solver=PRECISE, dt=0.01)
-    assert trajectory.values('bob.theta')[-1] == pytest.approx(0.5 * 0.1**2, rel=1e-2)
+    assert trajectory.get_values('bob.theta')[-1] == pytest.approx(0.5 * 0.1**2, rel=1e-2)
 
 
 def test_nonlinear_highest_derivative_is_rejected():
@@ -231,7 +231,7 @@ def test_many_equations_are_solved_numerically():
     trajectory = simulate(CompositeSystem(elements=[OscillatorsElement('o')]), until=3, solver=PRECISE, dt=0.1)
     expected = np.cos(trajectory.times / np.sqrt(2))
     for index in range(7):
-        assert np.allclose(trajectory.values(f'o.x{index}'), expected, atol=1e-7)
+        assert np.allclose(trajectory.get_values(f'o.x{index}'), expected, atol=1e-7)
 
 
 @pytest.mark.parametrize(
@@ -243,7 +243,7 @@ def test_equation_with_driver_or_condition_matches_rate(equation, rate):
     """Test that equations with a driver or a condition on the right side run like their rate laws."""
     first = simulate(CompositeSystem(elements=[equation('mass')]), until=3, solver=PRECISE, dt=0.1)
     second = simulate(CompositeSystem(elements=[rate('mass')]), until=3, solver=PRECISE, dt=0.1)
-    assert first.values('mass.x') == pytest.approx(second.values('mass.x'), abs=1e-8)
+    assert first.get_values('mass.x') == pytest.approx(second.get_values('mass.x'), abs=1e-8)
 
 
 def test_check_names_equations_as_symbolic_only():

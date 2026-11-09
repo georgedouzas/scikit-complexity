@@ -40,7 +40,7 @@ def _values(element, interactions, until, *, time=None, state='s', dt=1.0, backe
     """Return the values of a state of the members at every unit of time."""
     system = CompositeSystem(elements=[element], interactions=interactions, time=time)
     trajectory = simulate(system, until=until, dt=dt, random_state=0, backend=backend)
-    return trajectory.values(f'members.{state}')
+    return trajectory.get_values(f'members.{state}')
 
 
 def _agent_values(element, interactions, until, state='s'):

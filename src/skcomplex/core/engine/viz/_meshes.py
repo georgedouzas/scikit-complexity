@@ -14,9 +14,9 @@ from ...components.spaces import MeshSpace
 from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
 from ...errors import ValidationError
 from ..problems import BaseProblemSpec, FrameSpec
-from ._base import _MODULUS, _PHASE, BaseVisual
+from ._base import MODULUS, PHASE, BaseVisual
 
-_SURFACE_DIMENSION = 2
+SURFACE_DIMENSION = 2
 
 
 class MeshVisual(BaseVisual):
@@ -75,7 +75,7 @@ class MeshVisual(BaseVisual):
         The triangle mesh has the values as its height.
         """
         nodes, cells = mesh.positions_, np.asarray(mesh.cells)
-        if mesh.n_dim_ != _SURFACE_DIMENSION:
+        if mesh.n_dim_ != SURFACE_DIMENSION:
             recording.log(path, rr.Points3D(nodes, colors=colors))
             return
         positions = np.column_stack([nodes, values])
@@ -107,16 +107,22 @@ class MeshVisual(BaseVisual):
         for state, name in element.states.items():
             if self.states is not None and state not in self.states:
                 continue
-            values = np.ravel(frame.value(name))
+            values = np.ravel(frame.get_value(name))
             path = f'{element.path}/{state}'
             if not np.iscomplexobj(values):
-                self._log_mesh(recording, path, mesh, values, self._colors(values, self.low, self.high))
+                self._log_mesh(recording, path, mesh, values, self._get_colors(values, self.low, self.high))
                 continue
             modulus, phase = np.abs(values), np.angle(values)
-            self._log_mesh(recording, f'{path}/{_MODULUS}', mesh, modulus, self._colors(modulus, self.low, self.high))
-            self._log_mesh(recording, f'{path}/{_PHASE}', mesh, phase, BaseVisual._phase_colors(phase))
+            self._log_mesh(
+                recording,
+                f'{path}/{MODULUS}',
+                mesh,
+                modulus,
+                self._get_colors(modulus, self.low, self.high),
+            )
+            self._log_mesh(recording, f'{path}/{PHASE}', mesh, phase, BaseVisual._get_phase_colors(phase))
 
-    def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return one 3D spatial view per chosen state.
 
         Meshes are drawn with the value as their height.
@@ -150,7 +156,7 @@ class MeshVisual(BaseVisual):
             path = f'{element.path}/{state}'
             if problem.states.entry(name).is_complex:
                 views += [
-                    rrb.Spatial3DView(origin=f'{path}/{part}', name=f'{state} {part}') for part in (_MODULUS, _PHASE)
+                    rrb.Spatial3DView(origin=f'{path}/{part}', name=f'{state} {part}') for part in (MODULUS, PHASE)
                 ]
             else:
                 views.append(rrb.Spatial3DView(origin=path, name=state))

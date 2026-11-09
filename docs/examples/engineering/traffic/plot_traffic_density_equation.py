@@ -31,7 +31,7 @@ trajectory = simulate(system, solver=RK4Solver(dt=0.1), observers=[observer])
 # real part of its eigenvalues is the growth rate of the density wave. While the waves are small, the logarithm of each
 # Fourier amplitude of the simulated density should grow at that rate, with the fastest growth near `q = 0.9`.
 
-times, rho = trajectory.times, trajectory.values('road.rho')
+times, rho = trajectory.times, trajectory.get_values('road.rho')
 length, D1, gamma, density = 50.0, 0.2, 1.0, 0.5
 speed, slope = 1 - density, 1 - 2 * density
 amplitudes = np.abs(np.fft.rfft(rho - rho.mean(axis=1, keepdims=True), axis=1))

@@ -121,7 +121,7 @@ class FitnessElement(Element):
 
 def _ising_magnetization(trajectory):
     """Return the mean absolute magnetisation of the recorded frames."""
-    return float(np.abs(trajectory.values('spins.spin').mean(axis=1)).mean())
+    return float(np.abs(trajectory.get_values('spins.spin').mean(axis=1)).mean())
 
 
 class Recording:
@@ -183,7 +183,7 @@ def test_triangular_rule_spreads_as_hexagons(backend):
             ),
         ],
     )
-    burning = simulate(system, until=10, dt=1, backend=backend()).lattice('forest.fire')
+    burning = simulate(system, until=10, dt=1, backend=backend()).get_lattice('forest.fire')
     assert [int(item.sum()) for item in burning] == [3 * k * (k + 1) + 1 for k in range(11)]
 
 
@@ -221,8 +221,8 @@ def test_grid_graph_matches_square_lattice():
             ),
         ],
     )
-    expected = simulate(on_lattice, until=40, dt=1).values('cells.alive')
-    found = simulate(on_graph, until=40, dt=1).values('cells.alive')
+    expected = simulate(on_lattice, until=40, dt=1).get_values('cells.alive')
+    found = simulate(on_graph, until=40, dt=1).get_values('cells.alive')
     assert np.array_equal(found, expected)
     assert expected[-1].sum() == 5
 
@@ -570,7 +570,7 @@ def test_extremal_runs_are_reproducible_across_backends():
             ],
         )
         trajectory = simulate(system, until=20, dt=1, backend=backend(), random_state=7)
-        runs.append((trajectory.values('ring.value'), trajectory.events))
+        runs.append((trajectory.get_values('ring.value'), trajectory.events))
     system = CompositeSystem(
         elements=[
             GroupElement('ring', element=FitnessElement, space=LatticeSpace(50), values={'value': values}, on='sites'),
@@ -636,7 +636,7 @@ def test_linear_rule_runs_as_its_law_steps():
         neighborhood=LatticeNeighborhood(((-1,), (1,))),
     )
     trajectory = simulate(CompositeSystem(elements=[cells], interactions=[rule90]), until=2, dt=1)
-    values = trajectory.values('cells.alive')
+    values = trajectory.get_values('cells.alive')
     assert values[1].astype(int).tolist() == [0, 1, 0, 1, 0, 0]
     assert values[2].astype(int).tolist() == [1, 0, 0, 0, 1, 0]
 
@@ -652,4 +652,4 @@ def test_life_simulation_agrees_with_the_run_of_its_law():
     trajectory = simulate(CompositeSystem(elements=[cells], interactions=[life]), until=1, dt=1)
     law = LocalRuleLaw(var('alive'), BallNeighborhood(), rule).prepare()
     image = law.run({'space': space, 'alive': start.astype(int)}).value_
-    np.testing.assert_array_equal(trajectory.values('cells.alive')[-1].astype(int), image)
+    np.testing.assert_array_equal(trajectory.get_values('cells.alive')[-1].astype(int), image)

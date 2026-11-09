@@ -249,7 +249,7 @@ class ColonySearchInteraction(Interaction):
             else:
                 visited.append(vertex)
             if vertex == self.target:
-                index = self._index()
+                index = self._get_index()
                 return [index[frozenset(pair)] for pair in itertools.pairwise(visited)]
         return []
 
@@ -284,7 +284,7 @@ class ColonySearchInteraction(Interaction):
             neighbours.setdefault(second, []).append((first, index))
         return neighbours
 
-    def _index(self) -> dict[frozenset[int], int]:
+    def _get_index(self) -> dict[frozenset[int], int]:
         """Return the index of the segment between every pair of vertices."""
         return {frozenset(pair): index for index, pair in enumerate(self.edges)}
 

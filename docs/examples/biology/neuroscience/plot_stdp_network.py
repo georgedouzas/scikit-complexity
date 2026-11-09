@@ -30,12 +30,12 @@ trajectory = simulate(STDPNetworkSystem(A_minus=1.3), observers=[observer])
 fig, (drift, spread) = plt.subplots(1, 2, figsize=(11, 4.5))
 for a_minus in (0.6, 1.0, 1.3):
     run = simulate(STDPNetworkSystem(A_minus=a_minus))
-    drift.plot(run.times, run.values('synapses.kappa').mean(axis=1), label=f'A_minus = {a_minus}')
+    drift.plot(run.times, run.get_values('synapses.kappa').mean(axis=1), label=f'A_minus = {a_minus}')
 drift.set_xlabel('time')
 drift.set_ylabel('mean efficacy')
 drift.set_title('The window decides the drift')
 drift.legend()
-final = trajectory.values('synapses.kappa')[-1]
+final = trajectory.get_values('synapses.kappa')[-1]
 spread.hist(final, bins=20)
 spread.set_xlabel('efficacy at the end')
 spread.set_ylabel('synapses')

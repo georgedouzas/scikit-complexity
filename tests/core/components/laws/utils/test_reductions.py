@@ -627,8 +627,8 @@ def test_kuramoto_synchronizes_above_the_critical_coupling():
     """Test that 1000 oscillators on a complete graph stay incoherent below `2 gamma` and synchronize above it."""
     below = simulate(_kuramoto(0.5 * CRITICAL), until=10.0, dt=0.5, solver=RK4Solver(dt=0.1), backend=NumbaBackend())
     above = simulate(_kuramoto(3 * CRITICAL), until=10.0, dt=0.5, solver=RK4Solver(dt=0.1), backend=NumbaBackend())
-    weak, strong = _order(below.values('oscillators.theta')), _order(
-        above.values('oscillators.theta'),
+    weak, strong = _order(below.get_values('oscillators.theta')), _order(
+        above.get_values('oscillators.theta'),
     )
     assert weak[-5:].max() < 0.1
     assert strong[-5:].min() > 0.7
@@ -641,7 +641,12 @@ def test_kuramoto_agrees_across_backends():
         simulate(_kuramoto(3 * CRITICAL), until=2.0, dt=0.5, solver=RK4Solver(dt=0.1), backend=backend)
         for backend in BACKENDS
     ]
-    assert np.allclose(runs[0].values('oscillators.theta'), runs[1].values('oscillators.theta'), rtol=0, atol=1e-12)
+    assert np.allclose(
+        runs[0].get_values('oscillators.theta'),
+        runs[1].get_values('oscillators.theta'),
+        rtol=0,
+        atol=1e-12,
+    )
 
 
 RADIUS = 1.0
@@ -700,7 +705,7 @@ def _vicsek(size=400, side=5.0):
 def test_vicsek_flocks_at_low_noise_and_high_density():
     """Test that the polar order parameter of the Vicsek system exceeds 0.9 at low noise and high density."""
     trajectory = simulate(_vicsek(), until=100, dt=1.0, random_state=0, backend=NumbaBackend())
-    order = _order(trajectory.values('movers.theta'))
+    order = _order(trajectory.get_values('movers.theta'))
     assert order[0] < 0.2
     assert order[-1] > 0.9
 
@@ -708,9 +713,9 @@ def test_vicsek_flocks_at_low_noise_and_high_density():
 def test_vicsek_agrees_across_backends():
     """Test that the Vicsek system gives the same headings and positions on NumPy and Numba for one seed."""
     runs = [simulate(_vicsek(), until=50, dt=1.0, random_state=0, backend=backend) for backend in BACKENDS]
-    turns = np.angle(np.exp(1j * (runs[0].values('movers.theta') - runs[1].values('movers.theta'))))
+    turns = np.angle(np.exp(1j * (runs[0].get_values('movers.theta') - runs[1].get_values('movers.theta'))))
     assert np.abs(turns).max() < 1e-12
-    assert np.allclose(runs[0].values('movers.x'), runs[1].values('movers.x'), rtol=0, atol=1e-12)
+    assert np.allclose(runs[0].get_values('movers.x'), runs[1].get_values('movers.x'), rtol=0, atol=1e-12)
 
 
 class PhaseElement(Element):
@@ -1232,9 +1237,9 @@ def test_neighbour_hyperedges_follow_a_neighbour_that_leaves(backend):
     group = GroupElement('g', element=DriftingSetElement, size=3, values=values)
     system = CompositeSystem(elements=[group], space=ContinuousSpace(extent=(10.0, 10.0)), time=DiscreteTime())
     trajectory = simulate(system, until=6, dt=1.0, backend=backend)
-    distance = 5.0 - trajectory.values('g.x')[:, 2, 0]
+    distance = 5.0 - trajectory.get_values('g.x')[:, 2, 0]
     left = int(np.argmax(distance > 1.0))
-    counts = trajectory.values('g.y')[:, 0]
+    counts = trajectory.get_values('g.y')[:, 0]
     assert left == 3
     assert counts[1 : left + 1].tolist() == [1.0] * left
     assert counts[left + 1 :].tolist() == [0.0] * (len(counts) - left - 1)
@@ -1303,7 +1308,7 @@ def test_log_sum_exp_large_values(backend: type) -> None:
     reader = LogPartitionInteraction('reader', target='reduced', energies='energies')
     system = CompositeSystem(elements=[group, LogPartitionElement('reduced')], interactions=[reader], time=StaticTime())
     trajectory = simulate(system, until=1.0, backend=backend())
-    result = trajectory.values('reduced.value')[0]
+    result = trajectory.get_values('reduced.value')[0]
     assert np.isfinite(result)
     assert values.max() <= result <= values.max() + math.log(1000)
     assert result == pytest.approx(scipy.special.logsumexp(values))

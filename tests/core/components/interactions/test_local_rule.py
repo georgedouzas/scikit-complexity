@@ -57,7 +57,7 @@ def test_totalistic_rule_of_the_neighbours_draws_rule_90():
         rule=parity,
         neighborhood=BallNeighborhood(metric='manhattan', n_dim=1),
     )
-    values = _run(rule, 2).values('cells.c')
+    values = _run(rule, 2).get_values('cells.c')
     assert values[1].tolist() == [0, 0, 0, 1, 0, 1, 0, 0, 0]
     assert values[2].tolist() == [0, 0, 1, 0, 0, 0, 1, 0, 0]
 
@@ -67,7 +67,7 @@ def test_table_rule_reads_the_ordered_neighbourhood():
     shift = TableSpec({(0, 1, 0): 1, (1, 0, 0): 0}, default=0)
     around = BallNeighborhood(metric='manhattan', n_dim=1, center='first')
     rule = LocalRuleInteraction('shift', target='cells', state='c', rule=shift, neighborhood=around)
-    values = _run(rule, 1).values('cells.c')
+    values = _run(rule, 1).get_values('cells.c')
     assert int(np.argmax(values[1])) == int(np.argmax(values[0])) + 1
 
 
@@ -81,8 +81,8 @@ def test_function_rule_sets_two_states_together():
 
     rule = LocalRuleInteraction('shift', target='cells', state=('c', 'm'), rule=shift, neighborhood=around)
     trajectory = _run(rule, 1)
-    assert int(np.argmax(trajectory.values('cells.c')[1])) == SIZE // 2 - 1
-    assert trajectory.values('cells.m')[1].sum() == 2.0
+    assert int(np.argmax(trajectory.get_values('cells.c')[1])) == SIZE // 2 - 1
+    assert trajectory.get_values('cells.m')[1].sum() == 2.0
 
 
 @pytest.mark.parametrize(

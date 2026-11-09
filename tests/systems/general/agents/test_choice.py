@@ -114,7 +114,7 @@ def test_choice_interaction_logit_reaches_mean_field():
         intensity=2.0,
     )
     initial = np.where(np.random.default_rng(0).random(1000) < 0.7, 1.0, -1.0)
-    magnetization = _run_choice(choice, initial, 40).values('members.option').mean(axis=1)
+    magnetization = _run_choice(choice, initial, 40).get_values('members.option').mean(axis=1)
     assert abs(magnetization[-10:].mean() - GLAUBER_ROOT) < 0.02
     assert abs(np.tanh(2 * GLAUBER_ROOT) - GLAUBER_ROOT) < 1e-12
 
@@ -139,7 +139,7 @@ def test_choice_interaction_agent_logit_reaches_mean_field():
 def test_choice_interaction_logit_draws_softmax_probabilities():
     """Test that the logit rule draws every option with probability `exp(beta u) / sum`."""
     choice = ChoiceInteraction('choice', target='members', state='option', options=(0, 1, 2), utility=_fixed)
-    values = _run_choice(choice, np.zeros(20000), 10).values('members.option')[1:]
+    values = _run_choice(choice, np.zeros(20000), 10).get_values('members.option')[1:]
     expected = np.exp([0.0, 1.0, 2.0]) / np.exp([0.0, 1.0, 2.0]).sum()
     assert np.allclose(_frequencies(values, 3), expected, atol=0.01)
 
@@ -156,7 +156,7 @@ def test_choice_interaction_proposal_rules_reach_boltzmann_distribution(rule):
         rule=rule,
         intensity=0.5,
     )
-    values = _run_choice(choice, np.zeros(5000), 60).values('members.option')[-20:]
+    values = _run_choice(choice, np.zeros(5000), 60).get_values('members.option')[-20:]
     expected = np.exp([0.0, 0.5, 1.0]) / np.exp([0.0, 0.5, 1.0]).sum()
     assert np.allclose(_frequencies(values, 3), expected, atol=0.01)
 
@@ -196,7 +196,7 @@ def test_choice_interaction_heat_bath_proposals_reach_boltzmann_distribution(for
     )
     trajectory = _run_choice(choice, np.zeros(2000), 60)
     if form == 'symbolic':
-        values = trajectory.values('members.option')[-20:]
+        values = trajectory.get_values('members.option')[-20:]
     else:
         values = np.concatenate([trajectory.get_agents('members', frame).values['option'] for frame in range(40, 61)])
     expected = np.exp([0.0, 0.5, 1.0]) / np.exp([0.0, 0.5, 1.0]).sum()
@@ -230,7 +230,7 @@ def test_choice_interaction_best_draws_among_the_largest_utilities():
         utility=lambda s, option: min(option, 1),
         rule='best',
     )
-    values = _run_choice(choice, np.zeros(10000), 3).values('members.option')[1:]
+    values = _run_choice(choice, np.zeros(10000), 3).get_values('members.option')[1:]
     assert np.allclose(_frequencies(values, 3), [0.0, 0.5, 0.5], atol=0.01)
 
 
@@ -259,7 +259,7 @@ def test_choice_interaction_activity_revises_a_share_of_members():
         rule='best',
         activity=0.3,
     )
-    values = _run_choice(choice, np.zeros(20000), 1).values('members.option')[1]
+    values = _run_choice(choice, np.zeros(20000), 1).get_values('members.option')[1]
     assert abs(values.mean() - 0.3) < 0.015
 
 
@@ -339,7 +339,7 @@ def test_choice_interaction_keeps_values_among_options():
         utility=_fixed,
         rule='metropolis',
     )
-    values = _run_choice(choice, np.ones(200), 10).values('members.option')
+    values = _run_choice(choice, np.ones(200), 10).get_values('members.option')
     assert set(np.unique(values).tolist()) <= {-1.0, 1.0}
 
 
@@ -386,7 +386,7 @@ def test_choice_best_rule_takes_the_first_of_tied_options_by_the_first_ties():
         ties='first',
     )
     agent = ChoiceInteraction(**{**symbolic.get_params(), 'utility': _flat_agent, 'form': 'agent'})
-    assert set(_run_choice(symbolic, np.zeros(200), 1).values('members.option')[1].tolist()) == {2.0}
+    assert set(_run_choice(symbolic, np.zeros(200), 1).get_values('members.option')[1].tolist()) == {2.0}
     assert set(_run_choice(agent, np.zeros(200), 1).get_agents('members', 1).values['option'].tolist()) == {2.0}
 
 
@@ -403,7 +403,7 @@ def test_choice_best_rule_draws_tied_options_uniformly_by_the_random_ties(form):
         form=form,
     )
     trajectory = _run_choice(choice, np.zeros(6000), 1)
-    values = trajectory.values('members.option')[1] if form == 'symbolic' else trajectory.get_agents('members', 1)
+    values = trajectory.get_values('members.option')[1] if form == 'symbolic' else trajectory.get_agents('members', 1)
     options = values if form == 'symbolic' else values.values['option']
     np.testing.assert_allclose(_frequencies(np.asarray(options), 3), [1 / 3] * 3, atol=0.03)
 

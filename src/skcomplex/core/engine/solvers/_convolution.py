@@ -14,15 +14,11 @@ import numpy as np
 from ...errors import SolverError
 from ...types import Array
 from ._caputo import CaputoSolver
-from ._rows import _INITIAL_ROWS, _Rows
+from ._rows import INITIAL_ROWS, _Rows
 
-_SLOWEST_MODE = 1e-7
-
-
-_FASTEST_MODE = 60.0
-
-
-_MODE_SPACING = 0.35
+SLOWEST_MODE = 1e-7
+FASTEST_MODE = 60.0
+MODE_SPACING = 0.35
 
 
 class ConvolutionSolver(CaputoSolver):
@@ -47,7 +43,7 @@ class ConvolutionSolver(CaputoSolver):
         self.until = until
 
     @abstractmethod
-    def _weights(self, alpha: Array, count: int) -> Array:
+    def _get_weights(self, alpha: Array, count: int) -> Array:
         """Return the weights `c_0` to `c_count`, one column per order.
 
         Args:
@@ -68,7 +64,7 @@ class ConvolutionSolver(CaputoSolver):
         raise NotImplementedError
 
     @abstractmethod
-    def _tail(self, alpha: Array, rates: Array, window: int) -> Array:
+    def _get_tail(self, alpha: Array, rates: Array, window: int) -> Array:
         """Return the coefficients of the exponential modes past a window.
 
         The modes give the weights past the window, with one column per order.
@@ -94,7 +90,7 @@ class ConvolutionSolver(CaputoSolver):
         raise NotImplementedError
 
     @abstractmethod
-    def _gain(self, alpha: Array) -> Array:
+    def _get_gain(self, alpha: Array) -> Array:
         """Return the factor `g` of the drift of every order.
 
         Args:
@@ -122,21 +118,21 @@ class ConvolutionSolver(CaputoSolver):
             raise SolverError(error_msg)
         self._window = None if self.memory is None else max(1, round(self.memory / self.dt))
         self._rows = _Rows(np.zeros(x.size), self._window)
-        self._table = self._weights(self._unique, _INITIAL_ROWS if self._window is None else self._window)
-        self._scale = self._per_state(self._gain(self._unique) * self.dt**self._unique)
+        self._table = self._get_weights(self._unique, INITIAL_ROWS if self._window is None else self._window)
+        self._scale = self._get_per_state(self._get_gain(self._unique) * self.dt**self._unique)
         if self._window is not None:
-            rates = self._tail_rates(self._window)
+            rates = self._get_tail_rates(self._window)
             self._decay = np.exp(-rates)[:, None]
-            self._modes = self._tail(self._unique, rates, self._window)[:, self._groups]
+            self._modes = self._get_tail(self._unique, rates, self._window)[:, self._groups]
             self._amplitudes = np.zeros((rates.size, x.size))
 
     def _carry(self, x: Array) -> None:
         """Replace the last displacement of the states of order 1 by the given state."""
         ordinary = ~self._fractional
         self._state[ordinary] = x[ordinary]
-        self._rows.row(self._step_index)[ordinary] = x[ordinary] - self._initial[ordinary]
+        self._rows.get_row(self._step_index)[ordinary] = x[ordinary] - self._initial[ordinary]
 
-    def _history_sum(self, step: int) -> Array:
+    def _get_history_sum(self, step: int) -> Array:
         """Return the weighted sum of the displacements before a step.
 
         It includes the tail of a memory window.
@@ -144,27 +140,27 @@ class ConvolutionSolver(CaputoSolver):
         window = self._window
         lags = step - 1 if window is None else min(step - 1, window)
         if lags >= self._table.shape[0]:
-            self._table = self._weights(self._unique, 2 * lags)
-        total = self._convolve(self._table[lags:0:-1], self._rows.rows(step - lags, step)) if lags else 0.0
+            self._table = self._get_weights(self._unique, 2 * lags)
+        total = self._convolve(self._table[lags:0:-1], self._rows.get_rows(step - lags, step)) if lags else 0.0
         if window is None or step <= window + 1:
             return np.asarray(total + np.zeros(self._state.size))
-        self._amplitudes = self._decay * self._amplitudes + self._rows.row(step - window - 1)
+        self._amplitudes = self._decay * self._amplitudes + self._rows.get_row(step - window - 1)
         return np.asarray(total + np.sum(self._modes * self._amplitudes, axis=0))
 
     def _step(self, p: Array) -> None:
         """Advance the displacements by one explicit step."""
         step = self._step_index + 1
         time = self._origin + self._step_index * self.dt
-        drift = self._drift()(time, self._state, p)
-        displacement = self._scale * drift - self._history_sum(step)
-        self._state = self._bounded(time + self.dt, self._initial + displacement, p)
+        drift = self._get_drift()(time, self._state, p)
+        displacement = self._scale * drift - self._get_history_sum(step)
+        self._state = self._get_bounded(time + self.dt, self._initial + displacement, p)
         self._rows.append(self._state - self._initial)
 
     @staticmethod
-    def _tail_rates(window: int) -> Array:
+    def _get_tail_rates(window: int) -> Array:
         """Return the decay rates per step of the exponential modes of the tail.
 
         These modes hold the history older than a window.
         """
-        exponents = np.arange(math.log(_SLOWEST_MODE), math.log(_FASTEST_MODE / (window + 1)), _MODE_SPACING)
+        exponents = np.arange(math.log(SLOWEST_MODE), math.log(FASTEST_MODE / (window + 1)), MODE_SPACING)
         return np.exp(exponents)

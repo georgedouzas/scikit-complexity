@@ -35,7 +35,7 @@ trajectory = simulate(system, solver=solver, observers=[observer], random_state=
 # since small coefficients last longer.
 
 times = trajectory.times[1:]
-squared = np.mean(np.sum(trajectory.values('walkers.x')[1:] ** 2, axis=-1), axis=1)
+squared = np.mean(np.sum(trajectory.get_values('walkers.x')[1:] ** 2, axis=-1), axis=1)
 late = times > 50
 slope = np.polyfit(np.log(times[late]), np.log(squared[late]), 1)[0]
 fig, (displacement, coefficients) = plt.subplots(1, 2, figsize=(10, 4))
@@ -45,8 +45,8 @@ displacement.set_xlabel('time t')
 displacement.set_ylabel('ensemble mean squared displacement')
 displacement.set_title('Subdiffusion, <x^2> ~ t^(sigma / gamma)')
 displacement.legend()
-coefficients.hist(trajectory.values('walkers.D')[0], bins=20, alpha=0.6, label='at t = 0, drawn from B(1/2, 1)')
-coefficients.hist(trajectory.values('walkers.D')[-1], bins=20, alpha=0.6, label='at t = 500')
+coefficients.hist(trajectory.get_values('walkers.D')[0], bins=20, alpha=0.6, label='at t = 0, drawn from B(1/2, 1)')
+coefficients.hist(trajectory.get_values('walkers.D')[-1], bins=20, alpha=0.6, label='at t = 500')
 coefficients.set_xlabel('diffusion coefficient D')
 coefficients.set_ylabel('number of walkers')
 coefficients.set_title('Small coefficients last longer')

@@ -42,8 +42,8 @@ trajectory = simulate(
 # the biomass, so the glucose falls under the colony and also far beyond its edge.
 
 times = trajectory.times
-biomass = np.reshape(trajectory.values('biomass.x'), (times.size, *SHAPE))
-glucose = np.reshape(trajectory.values('glucose.c'), (times.size, *SHAPE))
+biomass = np.reshape(trajectory.get_values('biomass.x'), (times.size, *SHAPE))
+glucose = np.reshape(trajectory.get_values('glucose.c'), (times.size, *SHAPE))
 level = biomass[0].max() / INOCULUM_PER_LEVEL
 radii = np.sqrt(np.count_nonzero(biomass > level, axis=(1, 2)) / np.pi)
 late = times > times[-1] / 3

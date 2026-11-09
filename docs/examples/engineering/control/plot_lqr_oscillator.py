@@ -37,7 +37,7 @@ parts = system.prepare().system_
 linear = linearization(CompositeSystem(elements=list(parts.elements)))
 gain = np.array([parts.interactions[0].gain])
 slowest = max(np.linalg.eigvals(linear.A - linear.B @ gain).real)
-times, energy = trajectory.times, trajectory.values('energy')
+times, energy = trajectory.times, trajectory.get_values('energy')
 decay = energy[40] * np.exp(2 * slowest * (times - times[40]))
 fig, ax = plt.subplots(figsize=(7, 4.5))
 ax.semilogy(times, energy, label='energy of the oscillator')

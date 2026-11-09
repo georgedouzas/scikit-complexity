@@ -103,7 +103,7 @@ class GeneralizedLotkaVolterraInteraction(CouplingInteraction):
             target=target,
             read=state,
             write=state,
-            function=self._product,
+            function=self._get_product,
             mode='group',
             weights='a',
             include_self=True,
@@ -111,7 +111,7 @@ class GeneralizedLotkaVolterraInteraction(CouplingInteraction):
         self.a = a
         self.state = state
 
-    def _product(self, namespace: SimpleNamespace) -> object:
+    def _get_product(self, namespace: SimpleNamespace) -> object:
         """Return the product `x_i x_j` of the abundances of two species.
 
         The species are the member `i` and the other species `j`.

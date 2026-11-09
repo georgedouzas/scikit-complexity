@@ -33,10 +33,10 @@ trajectory = simulate(MajorityRuleSystem(density=0.5, random_state=0), until=STE
 # should follow an S-shaped curve steeper than the diagonal: a majority of 55 percent grows to a larger one, and a
 # minority shrinks.
 
-grids = trajectory.lattice('voters.opinion')
+grids = trajectory.get_lattice('voters.opinion')
 densities = np.linspace(0.3, 0.7, 17)
 finals = [
-    simulate(MajorityRuleSystem(density=density, random_state=0), until=STEPS).values('voters.opinion')[-1].mean()
+    simulate(MajorityRuleSystem(density=density, random_state=0), until=STEPS).get_values('voters.opinion')[-1].mean()
     for density in densities
 ]
 fig, (interfaces, amplification) = plt.subplots(1, 2, figsize=(10, 4))

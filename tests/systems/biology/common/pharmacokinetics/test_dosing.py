@@ -14,7 +14,7 @@ def _run(interaction, until=40.0, dt=0.5):
     """Return the times and the drug of one compartment under one dosing."""
     system = CompositeSystem(elements=[CompartmentElement('patient', x=0.0)], interactions=[interaction])
     trajectory = simulate(system, dt=dt, until=until)
-    return np.asarray(trajectory.times), np.asarray(trajectory.values('patient.x'))
+    return np.asarray(trajectory.times), np.asarray(trajectory.get_values('patient.x'))
 
 
 def test_dosing_without_period_is_a_constant_input():

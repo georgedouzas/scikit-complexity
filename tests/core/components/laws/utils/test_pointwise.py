@@ -103,6 +103,6 @@ def test_stop_gradient_stops_gradients_on_jax():
     """Test that the JAX printer lowers `stop_gradient` so the value is kept and its gradient is zero."""
     t, x = var('t'), var('x')
     printer = ExpressionPrinter('jax', time=t, compiled=True).prepare([x])
-    function = ExpressionPrinter._function_of(printer.run([x * stop_gradient(x**2)]).code_)
+    function = ExpressionPrinter._get_function_of(printer.run([x * stop_gradient(x**2)]).code_)
     value, gradient = jax.value_and_grad(lambda y: function(0.0, y)[0])(3.0)
     assert (float(value), float(gradient)) == (27.0, 9.0)

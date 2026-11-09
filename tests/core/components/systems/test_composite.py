@@ -215,7 +215,7 @@ def test_four_part_system_runs():
         time=ContinuousTime(),
     )
     trajectory = simulate(system, until=1, dt=0.5)
-    assert trajectory.values('rabbits.n')[-1] > 1.0
+    assert trajectory.get_values('rabbits.n')[-1] > 1.0
     assert simulate(system, until=0).problem.parameters.names == ['growth.r']
 
 
@@ -226,7 +226,7 @@ def test_systems_nest_and_interactions_couple_them_by_path():
         interactions=[GrowthInteraction('growth', target='meadow/rabbits')],
     )
     trajectory = simulate(system, until=1, dt=0.5)
-    assert trajectory.values('meadow/rabbits.n')[-1] > 2.0
+    assert trajectory.get_values('meadow/rabbits.n')[-1] > 2.0
 
 
 def test_system_classes_nest_twice_under_their_labels():
@@ -239,8 +239,8 @@ def test_system_classes_nest_twice_under_their_labels():
     assert system.prepare().system_.systems[0].elements[0].label == 'S'
     trajectory = simulate(system, until=10, dt=1.0)
     alone = simulate(SIRSystem(), until=10, dt=1.0)
-    assert trajectory.values('town/S.x')[-1] > alone.values('S.x')[-1]
-    assert trajectory.values('region/city/S.x')[-1] < alone.values('S.x')[-1]
+    assert trajectory.get_values('town/S.x')[-1] > alone.get_values('S.x')[-1]
+    assert trajectory.get_values('region/city/S.x')[-1] < alone.get_values('S.x')[-1]
 
 
 def test_duplicate_labels_are_reported():
@@ -288,7 +288,7 @@ def test_periodic_space_wraps_positions():
         space=ContinuousSpace(extent=(1.0, 1.0), boundary='periodic'),
     )
     trajectory = simulate(system, until=0.2, dt=0.2)
-    assert trajectory.values('p.x')[-1].tolist() == pytest.approx([0.1, 0.5])
+    assert trajectory.get_values('p.x')[-1].tolist() == pytest.approx([0.1, 0.5])
 
 
 def test_periodic_box_wraps_member_with_same_velocity():
@@ -300,15 +300,15 @@ def test_periodic_box_wraps_member_with_same_velocity():
         space=ContinuousSpace(extent=(1.0, 1.0), boundary='periodic'),
     )
     trajectory = simulate(system, until=0.2, dt=0.1)
-    assert np.allclose(trajectory.values('gas.x')[-1], [[0.15, 0.5]])
-    assert np.allclose(trajectory.values('gas.x_d1')[-1], [[1.0, 0.0]])
+    assert np.allclose(trajectory.get_values('gas.x')[-1], [[0.15, 0.5]])
+    assert np.allclose(trajectory.get_values('gas.x_d1')[-1], [[1.0, 0.0]])
 
 
 def test_variable_group_of_elements_grows():
     """Test that a variable group of 10 dividing members has 20, 40, and 80 after one, two, and three steps."""
     system = CompositeSystem(elements=[GroupElement('cells', element=CellElement, size=10, variable=True)])
     trajectory = simulate(system, until=3)
-    assert trajectory.values('cells.count').tolist() == [10.0, 20.0, 40.0, 80.0]
+    assert trajectory.get_values('cells.count').tolist() == [10.0, 20.0, 40.0, 80.0]
 
 
 def test_group_on_edges_has_one_member_per_edge():

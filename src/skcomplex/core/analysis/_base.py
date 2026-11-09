@@ -280,7 +280,7 @@ def _compiled_problem(system: CompositeSystem | BaseProblemSpec, purpose: str) -
 
 def _get_lattice_names(problem: BaseProblemSpec) -> list[str]:
     """Return the states of a problem that live on lattices or grids."""
-    return [name for name in problem.states.names if problem.lattice_shape(name) is not None]
+    return [name for name in problem.states.names if problem.get_lattice_shape(name) is not None]
 
 
 def _get_path_names(problem: BaseProblemSpec) -> list[str]:
@@ -513,7 +513,7 @@ def _read_axes(trajectory: Trajectory, states: Sequence[str]) -> Array:
 
     A scalar state is one dimension.
     """
-    values = [np.asarray(trajectory.values(name), dtype=float) for name in states]
+    values = [np.asarray(trajectory.get_values(name), dtype=float) for name in states]
     return np.concatenate(
         [item[..., None] if item.ndim == SNAPSHOT_DIMENSIONS else item for item in values],
         axis=-1,
@@ -540,7 +540,7 @@ def _read_particle_snapshots(trajectory: Trajectory, group: str) -> SnapshotsSpe
     moving = derivatives or _get_role_states(element, 'velocity')
     velocities = _read_axes(trajectory, [element.states[name] for name in moving]) if moving else None
     others = {
-        name: np.asarray(trajectory.values(dotted)).reshape(len(trajectory.times), -1)
+        name: np.asarray(trajectory.get_values(dotted)).reshape(len(trajectory.times), -1)
         for name, dotted in element.states.items()
         if name not in {*located, *moving}
     }
@@ -590,7 +590,7 @@ def _read_series(source: Source, names: Sequence[str] | None = None) -> SeriesSp
         for spec in source.problem.agents:
             if name.rpartition('.')[0] == spec.path:
                 _refuse_objects(source, spec.path, [name.rpartition('.')[2]])
-        values = np.asarray(source.values(name), dtype=float).reshape(len(source.times), -1)
+        values = np.asarray(source.get_values(name), dtype=float).reshape(len(source.times), -1)
         columns.append(values)
         labels.extend([name] if values.shape[1] == 1 else [f'{name}[{index}]' for index in range(values.shape[1])])
     return SeriesSpec(np.asarray(source.times, dtype=float), np.concatenate(columns, axis=1), labels)
@@ -627,7 +627,7 @@ def _read_path(source: Source, name: str | None = None) -> JumpPathSpec:
     chosen = names[0] if name is None and names else name
     if chosen is None:
         raise _get_missing_error(source, 'discrete state')
-    values = np.asarray(source.values(chosen), dtype=float).reshape(len(source.times), -1)
+    values = np.asarray(source.get_values(chosen), dtype=float).reshape(len(source.times), -1)
     changed = np.concatenate([[True], np.any(values[1:] != values[:-1], axis=1)])
     states = values[changed]
     times = np.asarray(source.times, dtype=float)[changed]
@@ -660,7 +660,7 @@ def _read_fields(source: Source, name: str | None = None) -> Array:
     chosen = names[0] if name is None and names else name
     if chosen is None:
         raise _get_missing_error(source, 'lattice or grid state')
-    return np.asarray(source.lattice(chosen), dtype=float)
+    return np.asarray(source.get_lattice(chosen), dtype=float)
 
 
 def _read_snapshots(source: Source, group: str | None = None) -> SnapshotsSpec:

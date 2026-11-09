@@ -24,7 +24,7 @@ from .._compilation import Compilation
 from ._layout import LayoutPass
 from ._problem import ProblemPass
 
-_AGENT_VIEW_NAMES = frozenset(
+AGENT_VIEW_NAMES = frozenset(
     {
         'id',
         'group',
@@ -45,12 +45,8 @@ _AGENT_VIEW_NAMES = frozenset(
         'get_referenced',
     },
 )
-
-
-_MESA_AGENT_NAMES = frozenset({'position', 'pos', 'cell', 'unique_id', 'system'})
-
-
-AGENT_RESERVED_NAMES = _AGENT_VIEW_NAMES | _MESA_AGENT_NAMES
+MESA_AGENT_NAMES = frozenset({'position', 'pos', 'cell', 'unique_id', 'system'})
+AGENT_RESERVED_NAMES = AGENT_VIEW_NAMES | MESA_AGENT_NAMES
 
 
 class AgentsProblemPass(BasePass):
@@ -70,14 +66,14 @@ class AgentsProblemPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Add the agents and the rules to the problem."""
         compilation = self.compilation_
-        blocks = list(Compilation._required(compilation.layout, 'layout').blocks.values())
-        rules = Compilation._required(compilation.rules, 'rules')
+        blocks = list(Compilation._get_required(compilation.layout, 'layout').blocks.values())
+        rules = Compilation._get_required(compilation.rules, 'rules')
         agents = {block.node.path for block in blocks if block.node.is_agent}
         compilation.problem = replace(
-            Compilation._required(compilation.problem, 'problem'),
-            agents=self._compiled_agents(blocks, rules),
+            Compilation._get_required(compilation.problem, 'problem'),
+            agents=self._get_compiled_agents(blocks, rules),
             system_rules=tuple((spec.owner, law) for spec, items in rules for law in items if spec.owner not in agents),
-            agent_space=self._agent_space(blocks),
+            agent_space=self._get_agent_space(blocks),
         )
 
     @staticmethod
@@ -99,16 +95,16 @@ class AgentsProblemPass(BasePass):
             raise LabelError(error_msg)
 
     @staticmethod
-    def _agent_visual(node: NodeSpec) -> VisualSpec:
+    def _get_agent_visual(node: NodeSpec) -> VisualSpec:
         """Return the visual of agents and the points of the agents without one.
 
         The visual is their own or that of their element type.
         """
-        visual = ProblemPass._visual_of(node)
+        visual = ProblemPass._get_visual_of(node)
         return VisualSpec('agents') if visual == VisualSpec() else visual
 
     @staticmethod
-    def _agent_space(blocks: list[BlockSpec]) -> BaseSpace | None:
+    def _get_agent_space(blocks: list[BlockSpec]) -> BaseSpace | None:
         """Return the one space every agent group lives in.
 
         Groups that live in different spaces raise an error.
@@ -120,7 +116,7 @@ class AgentsProblemPass(BasePass):
         return next(iter(spaces.values()), None)
 
     @staticmethod
-    def _compiled_agents(
+    def _get_compiled_agents(
         blocks: list[BlockSpec],
         rules: list[tuple[KernelSpec, tuple[RuleLaw, ...]]],
     ) -> tuple[CompiledAgentsSpec, ...]:
@@ -150,10 +146,10 @@ class AgentsProblemPass(BasePass):
                     element=node.as_element,
                     size=node.members or 1,
                     states=states,
-                    values={name: LayoutPass._value_of(node, name) for name in states},
+                    values={name: LayoutPass._get_value_of(node, name) for name in states},
                     parameters={name: entry.name for name, entry in block.entries.items()},
                     rules=by_owner.get(node.path, ()),
-                    visual=AgentsProblemPass._agent_visual(node),
+                    visual=AgentsProblemPass._get_agent_visual(node),
                     objects=tuple(
                         name for name, item in declared.items() if item.domain is None or item.domain is object
                     ),

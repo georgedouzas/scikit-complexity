@@ -80,15 +80,15 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
         }
         self._collect()
 
-    def _state(self) -> Array:
+    def _get_state(self) -> Array:
         """Return the state vector of the counts and sizes of the current structures."""
         counts: list[float] = []
         for item in self.systems_:
             structure = self.structures_[item.path]
             if isinstance(item, WordKernel) and isinstance(structure, WordStructureSpec):
-                counts += item.counts(structure)
+                counts += item.get_counts(structure)
             if isinstance(item, PatchKernel) and isinstance(structure, PatchStructureSpec):
-                counts += item.counts(structure)
+                counts += item.get_counts(structure)
         return np.asarray(counts, dtype=float)
 
     def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
@@ -114,7 +114,7 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
         for generation in range(round(until - t)):
             state = RunStateSpec(t + generation, x, p, self.rng_)
             self.structures_ = {item.path: item.run(state).values_ for item in self.systems_}
-        return self._state()
+        return self._get_state()
 
     def _collect(self) -> None:
         """Set the snapshot of the current structures and their measures.

@@ -30,7 +30,7 @@ trajectory = simulate(system, solver=SSPRKSolver(cfl=0.15), observers=[observer]
 # The bump should grow until the density in the cluster saturates far above the mean 0.25, while the density outside
 # falls below it, and the cluster should then keep its shape and travel around the ring.
 
-rho = trajectory.lattice('road.rho')
+rho = trajectory.get_lattice('road.rho')
 x = (np.arange(rho.shape[1]) + 0.5) * 10.0 / rho.shape[1]
 fig, (growth, profiles) = plt.subplots(1, 2, figsize=(10, 4))
 growth.plot(trajectory.times, rho.max(axis=1), label='largest density')

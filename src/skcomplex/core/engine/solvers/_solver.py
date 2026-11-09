@@ -17,7 +17,7 @@ from ...types import Array, VectorFunction
 from ..problems import ProblemSpec
 from ._base import BaseSolver
 from ._event_locator import EventLocator
-from ._history import _RESTART, History
+from ._history import RESTART, History
 from ._renewals import RenewalClock
 
 
@@ -48,7 +48,7 @@ class Solver(BaseSolver[ProblemSpec]):
             )
             raise SolverError(error_msg)
 
-    def _drift(self) -> VectorFunction:
+    def _get_drift(self) -> VectorFunction:
         """Return the drift `f(t, x, p)` of the problem.
 
         An error is raised for a problem without one.
@@ -59,7 +59,7 @@ class Solver(BaseSolver[ProblemSpec]):
             raise SolverError(error_msg)
         return drift
 
-    def _diffusion(self) -> VectorFunction:
+    def _get_diffusion(self) -> VectorFunction:
         """Return the diffusion `g(t, x, p)` of the problem.
 
         An error is raised for a problem without one.
@@ -70,7 +70,7 @@ class Solver(BaseSolver[ProblemSpec]):
             raise SolverError(error_msg)
         return diffusion
 
-    def _bounded(self, t: float, x: Array, p: Array) -> Array:
+    def _get_bounded(self, t: float, x: Array, p: Array) -> Array:
         """Return a state after the boundary laws of the problem.
 
         Without boundary laws, the state itself is returned.
@@ -101,7 +101,7 @@ class Solver(BaseSolver[ProblemSpec]):
         advance = clock.advance_split if problem.has_group_sums else clock.advance_members
         state, time = x.copy(), t
         for bound in EventLocator._find_bounds(problem, t, until):
-            while time < bound - _RESTART * max(1.0, abs(bound)):
+            while time < bound - RESTART * max(1.0, abs(bound)):
                 end = min(time + dt, bound)
                 state, time = advance(time, end, state, p, step), end
             time = bound

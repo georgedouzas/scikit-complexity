@@ -25,8 +25,7 @@ from ..components.laws import (
     UpdateLaw,
 )
 from ..components.systems import CompositeSystem
-from ..engine._utils import declared_variables
-from ..engine.compile._probe import probe_laws
+from ..engine._utils import declared_variables, probe_laws
 from ..engine.runtime import Trajectory, simulate
 from ..errors import ValidationError
 from ..types import VariableKind

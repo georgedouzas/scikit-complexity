@@ -40,6 +40,6 @@ def test_fitzhugh_nagumo_neuron_needs_current_to_oscillate():
     amplitudes = []
     for current in (0.0, 0.5):
         trajectory = simulate(FitzhughNagumoODESystem(I=current), dt=0.5, until=200)
-        amplitudes.append(np.ptp(trajectory.values('neuron.v')[trajectory.times > 100]))
+        amplitudes.append(np.ptp(trajectory.get_values('neuron.v')[trajectory.times > 100]))
     assert amplitudes[0] < 0.01
     assert amplitudes[1] > 3

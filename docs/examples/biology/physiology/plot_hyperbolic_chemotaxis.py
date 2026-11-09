@@ -30,7 +30,7 @@ trajectory = simulate(HyperbolicChemotaxisSystem(), solver=solver, observers=[ob
 # The total cell mass should stay at `2 n0 = 0.5` while the peak density falls, and the chemical should grow where the
 # cells are.
 
-cells, chemical = trajectory.lattice('tissue.n'), trajectory.lattice('tissue.c')
+cells, chemical = trajectory.get_lattice('tissue.n'), trajectory.get_lattice('tissue.c')
 area = (0.8 / 40) ** 2
 fig, (start, end, mass) = plt.subplots(1, 3, figsize=(14, 4.2))
 extent = (-0.4, 0.4, -0.4, 0.4)

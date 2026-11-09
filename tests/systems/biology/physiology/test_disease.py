@@ -12,7 +12,7 @@ from ..conftest import _run_until
 def _frequency_spread(beta: float) -> float:
     """Return the spread of the mean frequencies of the parenchymal cells over the last 100 time units."""
     trajectory = _run_until(TwoLayerSepsisSystem(beta=beta), 300, dt=1.0)
-    phases = np.unwrap(trajectory.values('cells.phi'), axis=0)
+    phases = np.unwrap(trajectory.get_values('cells.phi'), axis=0)
     frequencies = (phases[-1] - phases[-101]) / 100
     return float(frequencies[:20].std())
 
@@ -27,4 +27,4 @@ def test_adaptive_couplings_stay_bounded():
     """Test that the cytokine couplings stay in `[-1, 1]`, where the adaptation keeps them."""
     trajectory = _run_until(TwoLayerSepsisSystem(), 100, dt=1.0)
     for links in ('parenchymal_links', 'immune_links'):
-        assert np.abs(trajectory.values(f'{links}.kappa')).max() <= 1.0 + 1e-6
+        assert np.abs(trajectory.get_values(f'{links}.kappa')).max() <= 1.0 + 1e-6

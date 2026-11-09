@@ -12,7 +12,7 @@ def test_fisher_front_speed():
     for r, diffusion in [(1.0, 1.0), (0.5, 2.0)]:
         trajectory = simulate(FisherKPPSystem(D=diffusion, r=r), dt=2.0, until=80)
         positions = np.arange(800) * 0.25
-        fronts = np.asarray([positions[np.argmax(values < 0.5)] for values in trajectory.values('line.u')])
+        fronts = np.asarray([positions[np.argmax(values < 0.5)] for values in trajectory.get_values('line.u')])
         late = trajectory.times >= 40
         speed = np.polyfit(trajectory.times[late], fronts[late], 1)[0]
         assert speed == pytest.approx(2 * np.sqrt(r * diffusion), rel=0.05)

@@ -103,5 +103,5 @@ class IterationSolver(Solver):
             if topology is not None:
                 fired = topology._decide(float(step), state, p, self.rng_)
                 following = topology._apply(fired, float(step), following, p, self.rng_)
-            state = self._bounded(float(step + 1), following, p)
+            state = self._get_bounded(float(step + 1), following, p)
         return state

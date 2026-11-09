@@ -519,7 +519,7 @@ def test_categorical_values_round_trip_as_labels():
         interactions=[ProgressionInteraction('p', target='ann')],
     )
     trajectory = simulate(system, until=1)
-    assert trajectory.values('ann.health').tolist() == ['infected', 'recovered']
+    assert trajectory.get_values('ann.health').tolist() == ['infected', 'recovered']
 
 
 def test_categorical_rejects_unknown_label():
@@ -541,7 +541,7 @@ def test_simulate_does_not_check_values_outside_alphabet():
 def test_angle_wraps_into_one_turn():
     """Test that an angle growing past pi lies in (-pi, pi] after every step."""
     system = CompositeSystem(elements=[RotorElement('r', theta=6.0, omega=1.0)])
-    values = simulate(system, until=3, dt=0.5).values('r.theta')
+    values = simulate(system, until=3, dt=0.5).get_values('r.theta')
     assert np.all((values[1:] > -np.pi) & (values[1:] <= np.pi))
     assert values[-1] == pytest.approx(9.0 - 2 * np.pi, abs=1e-6)
 
@@ -549,7 +549,7 @@ def test_angle_wraps_into_one_turn():
 def test_angle_swings_around_zero_without_jumping():
     """Test that an angle decreasing through zero stays near zero instead of jumping a full turn."""
     system = CompositeSystem(elements=[RotorElement('r', theta=0.1, omega=-1.0)])
-    values = simulate(system, until=1, dt=0.1).values('r.theta')
+    values = simulate(system, until=1, dt=0.1).get_values('r.theta')
     assert np.all((values > -np.pi) & (values <= np.pi))
     assert values[-1] == pytest.approx(-0.9, abs=1e-6)
 
@@ -557,10 +557,10 @@ def test_angle_swings_around_zero_without_jumping():
 def test_order_parameter_every_frame():
     """Test that the modulus of the mean of exp(i theta) is recorded at every frame between 0 and 1."""
     trajectory = simulate(_oscillators(), until=10, dt=0.5, observables=ORDER)
-    order = trajectory.values('order')
+    order = trajectory.get_values('order')
     assert order.shape == (21,)
     assert np.all((order >= 0) & (order <= 1))
-    expected = np.abs(np.exp(1j * np.asarray(trajectory.values('osc.theta'))).mean(axis=1))
+    expected = np.abs(np.exp(1j * np.asarray(trajectory.get_values('osc.theta'))).mean(axis=1))
     assert np.allclose(order, expected)
 
 
@@ -568,15 +568,15 @@ def test_expression_observable_of_elements():
     """Test that a system observable combines symbols of single elements and earlier observables."""
     observables = [ObservableSpec('total', _total), ObservableSpec('share', _share)]
     trajectory = simulate(_two_populations(), until=1, dt=0.5, observables=observables)
-    assert np.allclose(trajectory.values('total'), trajectory.values('a.n') + trajectory.values('b.n'))
-    assert np.allclose(trajectory.values('share'), trajectory.values('a.n') / trajectory.values('total'))
+    assert np.allclose(trajectory.get_values('total'), trajectory.get_values('a.n') + trajectory.get_values('b.n'))
+    assert np.allclose(trajectory.get_values('share'), trajectory.get_values('a.n') / trajectory.get_values('total'))
 
 
 def test_observable_by_subsystem_path():
     """Test that an observable of a subsystem is recorded under the subsystem's path."""
     system = CompositeSystem(systems=[CompositeSystem('market', elements=[PopulationElement('a', n=3.0)])])
     trajectory = simulate(system, until=2, dt=1, observables=[ObservableSpec('market/volume', _volume)])
-    assert trajectory.values('market/volume').tolist() == [6.0, 6.0, 6.0]
+    assert trajectory.get_values('market/volume').tolist() == [6.0, 6.0, 6.0]
 
 
 def test_agent_reduction_read_by_other_partition():
@@ -590,8 +590,8 @@ def test_agent_reduction_read_by_other_partition():
     )
     observables = [ObservableSpec('village/mean_wealth', group='savers', variable='wealth')]
     trajectory = simulate(system, until=2, dt=1, observables=observables)
-    assert trajectory.values('village/mean_wealth').tolist() == [1.0, 2.0, 3.0]
-    assert trajectory.values('land/soil.n')[-1] == pytest.approx(2.0 + 3.0)
+    assert trajectory.get_values('village/mean_wealth').tolist() == [1.0, 2.0, 3.0]
+    assert trajectory.get_values('land/soil.n')[-1] == pytest.approx(2.0 + 3.0)
 
 
 def test_observable_read_in_one_form_is_lowered():
@@ -605,7 +605,7 @@ def test_observable_read_in_one_form_is_lowered():
     )
     observables = [ObservableSpec('mean_n', group='herd', variable='n')]
     trajectory = simulate(system, until=1, dt=1.0, observables=observables)
-    assert trajectory.values('soil.n')[-1] == pytest.approx(trajectory.values('soil.n')[0] + 3.0)
+    assert trajectory.get_values('soil.n')[-1] == pytest.approx(trajectory.get_values('soil.n')[0] + 3.0)
 
 
 def test_observable_of_a_member_symbol_outside_a_reduction_is_rejected():
@@ -634,8 +634,8 @@ def test_observable_module_function_pickles():
     """Test that a module-level observable pickles and records the same values once restored."""
     observables = [ObservableSpec('total', _total)]
     restored = ForkingPickler.loads(ForkingPickler.dumps(observables))
-    expected = simulate(_two_populations(), until=1, dt=0.5, observables=observables).values('total')
-    values = simulate(_two_populations(), until=1, dt=0.5, observables=restored).values('total')
+    expected = simulate(_two_populations(), until=1, dt=0.5, observables=observables).get_values('total')
+    values = simulate(_two_populations(), until=1, dt=0.5, observables=restored).get_values('total')
     assert np.allclose(values, expected)
 
 
@@ -649,23 +649,27 @@ def test_observables_read_time():
     )
     observables = [ObservableSpec('timed', _timed), ObservableSpec('member_timed', _member_timed, group='herd')]
     trajectory = simulate(system, until=2, dt=1.0, observables=observables)
-    assert trajectory.values('timed').tolist() == [0.0, 2.0, 4.0]
-    assert trajectory.values('member_timed').tolist() == [2.0, 3.0, 4.0]
+    assert trajectory.get_values('timed').tolist() == [0.0, 2.0, 4.0]
+    assert trajectory.get_values('member_timed').tolist() == [2.0, 3.0, 4.0]
 
 
 def test_observable_reads_weighted_reduction_of_its_members():
     """Test that a member expression with a weighted total gives the local field energy at every frame."""
     trajectory = _decaying_group(ObservableSpec('energy', _local_field_energy, group='u', reduce='sum'), until=2)
-    x = np.asarray(trajectory.values('u.x'))
-    np.testing.assert_allclose(trajectory.values('energy'), np.einsum('fi,ij,fj->f', x, FIELD_WEIGHTS, x), rtol=1e-12)
+    x = np.asarray(trajectory.get_values('u.x'))
+    np.testing.assert_allclose(
+        trajectory.get_values('energy'),
+        np.einsum('fi,ij,fj->f', x, FIELD_WEIGHTS, x),
+        rtol=1e-12,
+    )
 
 
 def test_observable_reads_plain_reduction_of_its_members():
     """Test that a member expression with a plain mean gives the variance of the group at every frame."""
     trajectory = _decaying_group(ObservableSpec('spread', _deviation, group='u', reduce='var'), until=2)
     np.testing.assert_allclose(
-        trajectory.values('spread'),
-        np.asarray(trajectory.values('u.x')).var(axis=1),
+        trajectory.get_values('spread'),
+        np.asarray(trajectory.get_values('u.x')).var(axis=1),
         rtol=1e-12,
     )
 
@@ -680,8 +684,8 @@ def test_observable_of_an_element_records_its_expression_with_delays():
     """Test that an observable of an element's expression records it under the element and reads its delays."""
     observed = ObservableSpec('perceived', _perceived, element='tank')
     trajectory = simulate(CompositeSystem(elements=[SmoothedElement('tank')]), until=4, dt=0.5, observables=[observed])
-    perceived = trajectory.values('tank.perceived')
-    np.testing.assert_allclose(perceived, trajectory.values('tank.smoothing_delay1_0')[:, 0])
+    perceived = trajectory.get_values('tank.perceived')
+    np.testing.assert_allclose(perceived, trajectory.get_values('tank.smoothing_delay1_0')[:, 0])
     assert perceived[0] == pytest.approx(1.0)
     assert perceived[-1] > perceived[0]
 

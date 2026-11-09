@@ -108,7 +108,7 @@ def test_dynamical_system_decays_exponentially():
     )
     trajectory = simulate(system, until=2.0, dt=0.1)
     assert 'tank.x' in trajectory.names
-    assert trajectory.values('tank.x')[-1] == pytest.approx(np.exp(-1.0), rel=1e-5)
+    assert trajectory.get_values('tank.x')[-1] == pytest.approx(np.exp(-1.0), rel=1e-5)
 
 
 def test_dynamical_system_rejects_an_equation_of_an_unknown_state():
@@ -127,7 +127,7 @@ def test_dynamical_system_iterates_the_logistic_map():
         time='discrete',
     )
     trajectory = simulate(system, until=30)
-    assert trajectory.values('state.x')[-1] == pytest.approx(0.5, abs=1e-9)
+    assert trajectory.get_values('state.x')[-1] == pytest.approx(0.5, abs=1e-9)
     tags = system.get_tags()
     assert tags.laws == frozenset({'update'})
     assert tags.time == frozenset({'discrete'})
@@ -158,7 +158,7 @@ def test_dynamical_system_maps_read_the_start_of_the_step():
     first = simulate(henon('xy'), until=10)
     second = simulate(henon('yx'), until=10)
     for name in ('map.x', 'map.y'):
-        np.testing.assert_array_equal(first.values(name), second.values(name))
+        np.testing.assert_array_equal(first.get_values(name), second.get_values(name))
 
 
 def test_dynamical_system_subclass_takes_its_own_parameters():
@@ -175,4 +175,4 @@ def test_dynamical_system_equals_the_same_equations_as_element_laws():
     original = simulate(LorenzElementSystem(), until=5.0, dt=0.01)
     assert rebased.names == original.names
     for name in original.names:
-        np.testing.assert_array_equal(rebased.values(name), original.values(name))
+        np.testing.assert_array_equal(rebased.get_values(name), original.get_values(name))

@@ -59,7 +59,7 @@ def test_large_transport_steps_stay_stable_and_conserve_total() -> None:
     solver = SemiLagrangianSolver(dt=5 * spacing)
     system = CompositeSystem(elements=[gas], interactions=[stream])
     trajectory = simulate(system, until=4.0, dt=5 * spacing, solver=solver)
-    final = trajectory.values('gas.x')[-1].reshape(size, 8)
+    final = trajectory.get_values('gas.x')[-1].reshape(size, 8)
     assert np.abs(final).max() < 1.01 * start.max()
     assert abs(final.sum() / start.sum() - 1.0) < 1e-12
     exact = np.stack(
@@ -132,7 +132,7 @@ def test_landau_damping_with_large_steps() -> None:
     system = CompositeSystem(elements=[gas], interactions=[drift])
     solver = SemiLagrangianSolver(dt=0.25)
     trajectory = simulate(system, until=30.0, dt=0.25, solver=solver)
-    values = np.asarray(trajectory.values('gas.x')).reshape(-1, positions, velocities)
+    values = np.asarray(trajectory.get_values('gas.x')).reshape(-1, positions, velocities)
     density = values.sum(axis=2) * space.spacings_[1]
     field = np.fft.ifft(np.fft.fft(density - density.mean(axis=1, keepdims=True), axis=1), axis=1).real
     amplitude = np.abs(np.fft.rfft(field, axis=1)[:, 1])

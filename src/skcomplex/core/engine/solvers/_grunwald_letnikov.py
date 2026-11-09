@@ -9,7 +9,7 @@ It is of order 1.
 import numpy as np
 
 from ...types import Array
-from ._convolution import _MODE_SPACING, ConvolutionSolver
+from ._convolution import MODE_SPACING, ConvolutionSolver
 
 
 class GrunwaldLetnikovSolver(ConvolutionSolver):
@@ -55,30 +55,30 @@ class GrunwaldLetnikovSolver(ConvolutionSolver):
         0.43
     """
 
-    def _weights(self, alpha: Array, count: int) -> Array:
+    def _get_weights(self, alpha: Array, count: int) -> Array:
         """Return the Grünwald-Letnikov weights `w_0` to `w_count`, one column per order."""
-        return self._grunwald_letnikov_weights(alpha, count)
+        return self._get_grunwald_letnikov_weights(alpha, count)
 
-    def _tail(self, alpha: Array, rates: Array, window: int) -> Array:
+    def _get_tail(self, alpha: Array, rates: Array, window: int) -> Array:
         """Return the coefficients of the exponential modes of the tail weights.
 
         They are the modes of the Grünwald-Letnikov weights past a window.
         """
-        return self._grunwald_letnikov_tail(alpha, rates, window)
+        return self._get_grunwald_letnikov_tail(alpha, rates, window)
 
-    def _gain(self, alpha: Array) -> Array:
+    def _get_gain(self, alpha: Array) -> Array:
         """Return the factor 1 of the drift of every order."""
         return np.ones_like(alpha)
 
     @staticmethod
-    def _grunwald_letnikov_weights(alpha: Array, count: int) -> Array:
+    def _get_grunwald_letnikov_weights(alpha: Array, count: int) -> Array:
         """Return the Grünwald-Letnikov weights `w_0` to `w_count`, one column per order."""
         lags = np.arange(1, count + 1, dtype=float)[:, None]
         factors = 1 - (alpha[None, :] + 1) / lags
         return np.vstack([np.ones((1, alpha.size)), np.cumprod(factors, axis=0)])
 
     @staticmethod
-    def _grunwald_letnikov_tail(alpha: Array, rates: Array, window: int) -> Array:
+    def _get_grunwald_letnikov_tail(alpha: Array, rates: Array, window: int) -> Array:
         """Return the coefficients of the exponential modes of the tail weights.
 
         The sum of the modes gives the Grünwald-Letnikov weights past a window. The weights have the Laplace
@@ -87,4 +87,4 @@ class GrunwaldLetnikovSolver(ConvolutionSolver):
         """
         s, a = rates[:, None], alpha[None, :]
         density = -np.sin(np.pi * a) / np.pi * np.exp(-s * (window + 1 - a)) * (-np.expm1(-s)) ** a
-        return _MODE_SPACING * s * density
+        return MODE_SPACING * s * density

@@ -60,7 +60,7 @@ def test_invariant_observer_passes_when_the_laws_conserve_the_invariant():
     """Test that a run whose laws only move wealth between traders keeps the total wealth invariant."""
     observer = InvariantObserver({'total_wealth': 1e-9})
     trajectory = simulate(_traders(TraderElement), until=5, observables=[TOTAL_WEALTH], observers=[observer])
-    np.testing.assert_allclose(trajectory.values('total_wealth'), 40.0)
+    np.testing.assert_allclose(trajectory.get_values('total_wealth'), 40.0)
     assert observer.initial_ == {'total_wealth': 40.0}
 
 

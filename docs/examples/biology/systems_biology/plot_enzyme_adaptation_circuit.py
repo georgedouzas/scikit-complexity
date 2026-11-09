@@ -34,13 +34,13 @@ scores = []
 for _ in range(30):
     factors = rng.uniform(0.8, 1.2, (4, 3))
     run = simulate(EnzymeAdaptationCircuitSystem(k=(rates * factors).tolist()))
-    output, times = run.values('C.X'), run.times
+    output, times = run.get_values('C.X'), run.times
     before, after = output[times < 300][-1], output[times >= 300]
     peak = after[np.argmax(np.abs(after - before))]
     scores.append((abs(peak - before) / before / 0.2, 0.2 * before / max(abs(output[-1] - before), 1e-12)))
 fig, (series, robustness) = plt.subplots(1, 2, figsize=(11, 4.5))
 for node in ('A', 'B', 'C'):
-    series.plot(trajectory.times, trajectory.values(f'{node}.X'), label=node)
+    series.plot(trajectory.times, trajectory.get_values(f'{node}.X'), label=node)
 series.axvline(300, color='gray', linestyle='--', label='input step')
 series.set_xlabel('time')
 series.set_ylabel('active fraction')

@@ -25,7 +25,7 @@ def _amplitude(r):
         dt=1.0,
         solver=ETDRK4Solver(dt=0.1),
     )
-    return np.abs(trajectory.values('cells.phi')[-1]).max()
+    return np.abs(trajectory.get_values('cells.phi')[-1]).max()
 
 
 def test_rolls_grow_above_onset_and_decay_below():

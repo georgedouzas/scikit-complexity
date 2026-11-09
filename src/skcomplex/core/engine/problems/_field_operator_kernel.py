@@ -79,9 +79,9 @@ class FieldOperatorKernel(BaseKernel):
     def _function(self) -> Callable[..., object]:
         """NumPy function of the operand and the displacement, compiled once."""
         printer = ExpressionPrinter(time=symbol('t'), compiled=True).prepare(self.symbols)
-        return ExpressionPrinter._function_of(printer.run([self.operand, *(self.displacement or [])]).code_)
+        return ExpressionPrinter._get_function_of(printer.run([self.operand, *(self.displacement or [])]).code_)
 
-    def operand_values(self, t: float, values: Sequence[object], size: int) -> npt.NDArray[np.float64]:
+    def get_operand_values(self, t: float, values: Sequence[object], size: int) -> npt.NDArray[np.float64]:
         """Return the operand at every site, stacked over the displacement.
 
         The operand is evaluated from the values of its symbols.
@@ -102,7 +102,7 @@ class FieldOperatorKernel(BaseKernel):
         """
         computed = [
             np.broadcast_to(np.asarray(item, dtype=float), (size,))
-            for item in ExpressionPrinter._values_of(self._function(t, *values))
+            for item in ExpressionPrinter._get_values_of(self._function(t, *values))
         ]
         return computed[0] if self.displacement is None else np.stack(computed)
 
@@ -111,5 +111,5 @@ class FieldOperatorKernel(BaseKernel):
 
         The operand values are the `x` of `inputs`.
         """
-        state = self._state_of(inputs)
+        state = self._get_state_of(inputs)
         self.values_ = self.apply(state.x) if self.displacement is None else self.apply(state.x[0], state.x[1:])

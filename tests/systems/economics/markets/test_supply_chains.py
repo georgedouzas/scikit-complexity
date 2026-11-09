@@ -14,7 +14,7 @@ def test_beer_game_amplifies_orders_upstream():
     trajectory = _run_seeded(BeerGameSystem().prepare().system_, 36.0, 0.5, BeerGameSystem())
     echelons = ('retailer', 'wholesaler', 'distributor', 'factory')
     for echelon in echelons:
-        assert np.allclose(trajectory.values(f'{echelon}.orders')[:11], 4.0)
-    peaks = [trajectory.values(f'{echelon}.orders').max() for echelon in echelons]
+        assert np.allclose(trajectory.get_values(f'{echelon}.orders')[:11], 4.0)
+    peaks = [trajectory.get_values(f'{echelon}.orders').max() for echelon in echelons]
     assert all(upstream > downstream for downstream, upstream in pairwise(peaks))
     assert peaks[-1] > 3 * peaks[0]

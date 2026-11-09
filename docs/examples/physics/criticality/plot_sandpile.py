@@ -34,7 +34,7 @@ trajectory = simulate(system, until=14950, dt=50, observers=[observer], random_s
 # sizes should follow a power law `P(s) ~ s^-tau` with `tau` near `1.2` on the square lattice over two decades, up
 # to a cutoff set by the size of the lattice where it falls off steeply.
 
-heights = trajectory.values('pile.height').mean(axis=1)
+heights = trajectory.get_values('pile.height').mean(axis=1)
 found = events(
     [record for record in trajectory.events if record.time > 5000 and record.size > 0],
     kind='excursions',

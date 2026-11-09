@@ -42,8 +42,8 @@ simulation = simulate(
 # relation of the linearised laws should show positive growth rates with nonzero frequencies.
 
 trajectory = simulation
-mind_total = sum(trajectory.values(f'cell.{name}') for name in ('md', 'mde', 'cdt', 'cdd')).sum(axis=1)
-mine_total = sum(trajectory.values(f'cell.{name}') for name in ('mde', 'ce')).sum(axis=1)
+mind_total = sum(trajectory.get_values(f'cell.{name}') for name in ('md', 'mde', 'cdt', 'cdd')).sum(axis=1)
+mine_total = sum(trajectory.get_values(f'cell.{name}') for name in ('mde', 'ce')).sum(axis=1)
 relation = stability(MinProteinSkeletonSystem(n_sites=512, length=400.0).prepare().system_, kind='dispersion')
 order = np.argsort(relation.magnitudes)
 

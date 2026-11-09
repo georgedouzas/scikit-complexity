@@ -13,9 +13,9 @@ from ..conftest import _run_precise
 def test_macarthur_consumers_coexist_where_their_isoclines_cross():
     """Test that the consumers of MacArthur's model settle where both zero net growth isoclines `c R = m` cross."""
     trajectory = _run_precise(ConsumerResourceSystem(), 200, dt=1.0)
-    resources = trajectory.values('resources.R')[-1]
+    resources = trajectory.get_values('resources.R')[-1]
     np.testing.assert_allclose(resources, [5 / 3, 5 / 9], rtol=1e-5)
-    assert np.all(trajectory.values('consumers.N')[-1] > 0.1)
+    assert np.all(trajectory.get_values('consumers.N')[-1] > 0.1)
 
 
 def test_gros_competition_for_one_resource_leaves_the_fastest_consumer():
@@ -36,9 +36,9 @@ def test_gros_competition_for_one_resource_leaves_the_fastest_consumer():
         .system_
     )
     trajectory = _run_precise(system, 300, dt=1.0)
-    consumers = trajectory.values('consumers.N')[-1]
+    consumers = trajectory.get_values('consumers.N')[-1]
     assert consumers.sum() == pytest.approx(a / d, rel=1e-4)
-    assert trajectory.values('resources.R')[-1, 0] == pytest.approx(d / 2.0, rel=1e-4)
+    assert trajectory.get_values('resources.R')[-1, 0] == pytest.approx(d / 2.0, rel=1e-4)
     assert consumers[:2].max() < 1e-3
 
 
@@ -59,8 +59,8 @@ def test_essential_resources_follow_their_equations():
     reference = solve_ivp(rates, (0, 50), [0.1, 0.1, 4.8, 2.85], rtol=1e-10, atol=1e-12).y[:, -1]
     system = ConsumerResourceSystem(supply='chemostat', kind='essential', n=n, v=v, m=m).prepare().system_
     trajectory = _run_precise(system, 50, dt=1.0)
-    np.testing.assert_allclose(trajectory.values('consumers.N')[-1], reference[:2], rtol=1e-5, atol=1e-8)
-    np.testing.assert_allclose(trajectory.values('resources.R')[-1], reference[2:], rtol=1e-5)
+    np.testing.assert_allclose(trajectory.get_values('consumers.N')[-1], reference[:2], rtol=1e-5, atol=1e-8)
+    np.testing.assert_allclose(trajectory.get_values('resources.R')[-1], reference[2:], rtol=1e-5)
 
 
 def test_consumer_resource_rejects_mismatched_initial_values():

@@ -121,25 +121,25 @@ class NumpyBackend(BaseBackend):
         boundary = kernels.get(BoundaryLaw)
         lowering = LoweredFunctionsSpec(
             drift=(
-                BaseBackend._adding_function(kernels.get(RateLaw, []), size)
+                BaseBackend._get_adding_function(kernels.get(RateLaw, []), size)
                 if form in (FormKind.ODE, FormKind.FRACTIONAL, FormKind.SDE, FormKind.STATIC)
                 else None
             ),
             diffusion=(
-                BaseBackend._concatenating_function(kernels.get(NoiseLaw, [])) if form == FormKind.SDE else None
+                BaseBackend._get_concatenating_function(kernels.get(NoiseLaw, [])) if form == FormKind.SDE else None
             ),
             propensities=(
-                BaseBackend._concatenating_function(kernels.get(JumpLaw, [])) if form == FormKind.JUMP else None
+                BaseBackend._get_concatenating_function(kernels.get(JumpLaw, [])) if form == FormKind.JUMP else None
             ),
             jumps=(
                 LawKernel._jump_channels(kernels.get(JumpLaw, []), inputs.jump_changes) if form == FormKind.JUMP else ()
             ),
             update=(
-                BaseBackend._assigning_function(kernels.get(UpdateLaw, []))
+                BaseBackend._get_assigning_function(kernels.get(UpdateLaw, []))
                 if form in (FormKind.DISCRETE, FormKind.STATIC)
                 else None
             ),
-            boundary=BaseBackend._assigning_function(boundary) if boundary else None,
+            boundary=BaseBackend._get_assigning_function(boundary) if boundary else None,
         )
         if form == FormKind.SDE:
             rows, columns, processes, blocks = LawKernel._lower_noise(kernels.get(NoiseLaw, []))
@@ -150,10 +150,10 @@ class NumpyBackend(BaseBackend):
                 n_processes=processes,
                 noise_blocks=blocks,
             )
-        self.functions_ = self._with_reductions(lowering, inputs.reductions, kernels)
+        self.functions_ = self._copy_with_reductions(lowering, inputs.reductions, kernels)
 
     @staticmethod
-    def _with_reductions(
+    def _copy_with_reductions(
         lowering: LoweredFunctionsSpec,
         reductions: ReductionScheduleSpec | None,
         kernels: Mapping[type, list[LawKernel]] | None = None,
@@ -181,15 +181,15 @@ class NumpyBackend(BaseBackend):
             return lowering
         return replace(
             lowering,
-            drift=NumpyBackend._wrapped(lowering.drift, RateLaw, reductions, kernels),
-            diffusion=NumpyBackend._wrapped(lowering.diffusion, NoiseLaw, reductions, kernels),
-            propensities=NumpyBackend._wrapped(lowering.propensities, JumpLaw, reductions, kernels),
-            update=NumpyBackend._wrapped(lowering.update, UpdateLaw, reductions, kernels),
-            boundary=NumpyBackend._wrapped(lowering.boundary, BoundaryLaw, reductions, kernels),
+            drift=NumpyBackend._get_wrapped(lowering.drift, RateLaw, reductions, kernels),
+            diffusion=NumpyBackend._get_wrapped(lowering.diffusion, NoiseLaw, reductions, kernels),
+            propensities=NumpyBackend._get_wrapped(lowering.propensities, JumpLaw, reductions, kernels),
+            update=NumpyBackend._get_wrapped(lowering.update, UpdateLaw, reductions, kernels),
+            boundary=NumpyBackend._get_wrapped(lowering.boundary, BoundaryLaw, reductions, kernels),
         )
 
     @staticmethod
-    def _wrapped(
+    def _get_wrapped(
         function: VectorFunction | None,
         kind: type,
         reductions: ReductionScheduleSpec,

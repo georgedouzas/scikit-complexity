@@ -56,7 +56,7 @@ class ConservationObserver(BaseObserver):
         self.rtol = rtol
         self.atol = atol
 
-    def _totals(self, state: Array) -> dict[str, float]:
+    def _get_totals(self, state: Array) -> dict[str, float]:
         """Return the total of every quantity minus its accumulated inflow.
 
         The inflow is the one from the environment.
@@ -114,7 +114,7 @@ class ConservationObserver(BaseObserver):
         """
         if frame is None:
             return
-        balances = self._totals(frame.state)
+        balances = self._get_totals(frame.state)
         if self.initial_ is None:
             self.initial_ = balances
         for quantity, balance in balances.items():

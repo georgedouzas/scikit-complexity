@@ -207,7 +207,7 @@ def test_simulation_runs_fractional_system_with_default_solver():
     trajectory = simulate(CompositeSystem(elements=[RelaxingElement('a')]), until=5.0, dt=0.5)
     assert DEFAULT_SOLVERS[trajectory.problem.form] is FractionalABMSolver
     exact = float(_mittag_leffler(0.6, 1.0, -(5.0**0.6)))
-    assert trajectory.values('a.x')[-1] == pytest.approx(exact, abs=1e-4)
+    assert trajectory.get_values('a.x')[-1] == pytest.approx(exact, abs=1e-4)
 
 
 def test_cosimulation_runs_fractional_partition():
@@ -222,5 +222,5 @@ def test_cosimulation_runs_fractional_partition():
     forms = {partition.name: partition.problem.form for partition in trajectory.problem.partitions}
     assert forms == {'memory': FormKind.FRACTIONAL, 'steps': FormKind.DISCRETE}
     exact = float(_mittag_leffler(0.6, 1.0, -(5.0**0.6)))
-    assert trajectory.values('memory/a.x')[-1] == pytest.approx(exact, abs=1e-4)
-    assert trajectory.values('steps/c.k')[-1] == 5
+    assert trajectory.get_values('memory/a.x')[-1] == pytest.approx(exact, abs=1e-4)
+    assert trajectory.get_values('steps/c.k')[-1] == 5

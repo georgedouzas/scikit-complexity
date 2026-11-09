@@ -54,9 +54,9 @@ def test_run_keeps_the_momentum_and_damps_the_relative_motion():
     system = CompositeSystem(elements=[TwoMassElement('body')], interactions=[joint])
     simulation = simulate(system, until=30.0, solver=ScipyODESolver(rtol=1e-9, atol=1e-11), dt=1.0)
     trajectory = simulation
-    momentum = trajectory.values('body.a_d1') + 2.0 * trajectory.values('body.b_d1')
+    momentum = trajectory.get_values('body.a_d1') + 2.0 * trajectory.get_values('body.b_d1')
     np.testing.assert_allclose(momentum, 0.0, atol=1e-7)
-    gap = trajectory.values('body.a') - trajectory.values('body.b')
+    gap = trajectory.get_values('body.a') - trajectory.get_values('body.b')
     assert abs(gap[-1]) < 0.01
 
 

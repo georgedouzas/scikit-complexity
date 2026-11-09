@@ -30,7 +30,7 @@ trajectory = simulate(PoissonProcessSystem(n_processes=6), dt=0.2, observers=[ob
 # error of 2000 counters, the signature of independent events.
 
 counts = simulate(PoissonProcessSystem(n_processes=2000), random_state=1)
-values = counts.values('counters.count')
+values = counts.get_values('counters.count')
 fig, (distribution_axes, fano) = plt.subplots(1, 2, figsize=(11, 4))
 grid = np.arange(25, 80)
 distribution_axes.hist(values[-1], bins=np.arange(24.5, 80.5), density=True, label='simulated, t = 50')

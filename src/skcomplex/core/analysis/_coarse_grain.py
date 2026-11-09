@@ -171,7 +171,7 @@ def _read_state(source: Source, state: str | None) -> Array:
         if state is None:
             error_msg = 'coarse_grain reads a trajectory with `over` at the state it names. Set `state`.'
             raise AnalysisError(error_msg)
-        read = np.asarray(source.values(state), dtype=float)
+        read = np.asarray(source.get_values(state), dtype=float)
         positions = read.reshape(read.shape[0], -1)
     else:
         positions = np.asarray(source, dtype=float)

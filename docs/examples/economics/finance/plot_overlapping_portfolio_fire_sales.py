@@ -35,12 +35,12 @@ shocks = [0.2, 0.4, 0.6]
 fig, axis = plt.subplots(figsize=(6, 4))
 for shock in shocks:
     defaults = [
-        simulate(OverlappingPortfolioFireSalesSystem(shock=shock, alpha=alpha)).values('sales.defaults')[-1]
+        simulate(OverlappingPortfolioFireSalesSystem(shock=shock, alpha=alpha)).get_values('sales.defaults')[-1]
         for alpha in impacts
     ]
     axis.plot(impacts, defaults, 'o-', label=f'shock {shock}, thresholds')
 defaults = [
-    simulate(OverlappingPortfolioFireSalesSystem(shock=0.2, alpha=alpha, selling='leverage')).values(
+    simulate(OverlappingPortfolioFireSalesSystem(shock=0.2, alpha=alpha, selling='leverage')).get_values(
         'sales.defaults',
     )[-1]
     for alpha in impacts

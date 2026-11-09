@@ -32,11 +32,13 @@ trajectory = simulate(RosenzweigMacarthurSystem(rate=0.002), observers=[observer
 fast = trajectory
 slow = simulate(RosenzweigMacarthurSystem(rate=0.0002), until=149)
 fig, ax = plt.subplots(figsize=(8, 4))
-ax.semilogy(slow.times, slow.values('prey.x'), label='rate 0.0002: tracks the point')
-ax.semilogy(fast.times, fast.values('prey.x'), label='rate 0.002: tips')
+ax.semilogy(slow.times, slow.get_values('prey.x'), label='rate 0.0002: tracks the point')
+ax.semilogy(fast.times, fast.get_values('prey.x'), label='rate 0.002: tips')
 ax.set_xlim(0, 40)
 ax.set_xlabel('time')
 ax.set_ylabel('prey (log scale)')
-ax.set_title(f'Lowest prey: {slow.values("prey.x").min():.2g} when slow, {fast.values("prey.x").min():.2g} when fast')
+ax.set_title(
+    f'Lowest prey: {slow.get_values("prey.x").min():.2g} when slow, {fast.get_values("prey.x").min():.2g} when fast',
+)
 ax.legend()
 plt.show()

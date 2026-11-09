@@ -30,7 +30,7 @@ trajectory = simulate(LangtonsAntSystem(shape=(120, 120)), until=12000, observer
 # Once on the highway its distance should grow linearly, by `2√2` cells every 104 steps, and the number of black cells
 # by 12 every 104 steps.
 
-colors, ant = trajectory.lattice('cells.color'), trajectory.lattice('cells.ant')
+colors, ant = trajectory.get_lattice('cells.color'), trajectory.get_lattice('cells.ant')
 positions = np.array([np.argwhere(frame >= 0)[0] for frame in ant])
 distance = np.hypot(*(positions - CENTER).T)
 steps = trajectory.times

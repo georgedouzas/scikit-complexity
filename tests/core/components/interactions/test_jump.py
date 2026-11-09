@@ -38,7 +38,7 @@ def _final(interactions, until, *, time=None, size=MEMBERS, dt=1.0, state='x'):
     group = GroupElement('counters', element=CounterElement, size=size)
     system = CompositeSystem(elements=[group], interactions=interactions, time=time)
     trajectory = simulate(system, until=until, dt=dt, random_state=0)
-    return np.atleast_1d(trajectory.values(f'counters.{state}')[-1])
+    return np.atleast_1d(trajectory.get_values(f'counters.{state}')[-1])
 
 
 def test_jumps_at_a_rate_count_a_poisson_process():
@@ -134,4 +134,4 @@ def test_jumps_after_waits_reset_every_component_of_a_vector_state():
         space=ContinuousSpace(n_dim=2),
     )
     trajectory = simulate(system, until=3.5, dt=1.0, random_state=0)
-    np.testing.assert_allclose(trajectory.values('walker.x')[-1], [3.0, 3.0])
+    np.testing.assert_allclose(trajectory.get_values('walker.x')[-1], [3.0, 3.0])

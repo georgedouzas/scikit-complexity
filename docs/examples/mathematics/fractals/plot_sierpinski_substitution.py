@@ -40,8 +40,8 @@ trajectory = simulate(SierpinskiSubstitutionSystem(), until=6, observers=[observ
 
 carpet = simulate(SierpinskiSubstitutionSystem(shape='carpet'), until=4)
 generations = trajectory.times
-gasket_area = trajectory.values('sierpinski.area') / trajectory.values('sierpinski.area')[0]
-carpet_area = carpet.values('sierpinski.area')
+gasket_area = trajectory.get_values('sierpinski.area') / trajectory.get_values('sierpinski.area')[0]
+carpet_area = carpet.get_values('sierpinski.area')
 sizes = np.array([4, 8, 16, 32, 64, 128])
 fig, (decay, boxes) = plt.subplots(1, 2, figsize=(10, 4.5))
 decay.semilogy(generations, gasket_area, 'o', label='gasket')
@@ -53,8 +53,8 @@ decay.set_ylabel('area relative to generation 0')
 decay.set_title('Area of the substitutions')
 decay.legend()
 for name, structure, dimension in [
-    ('gasket', trajectory.structure('sierpinski', 6), np.log(3) / np.log(2)),
-    ('carpet', carpet.structure('sierpinski', 4), np.log(8) / np.log(3)),
+    ('gasket', trajectory.get_structure('sierpinski', 6), np.log(3) / np.log(2)),
+    ('carpet', carpet.get_structure('sierpinski', 4), np.log(8) / np.log(3)),
 ]:
     grid = structure.raster(512)
     counts = np.array([grid.reshape(512 // size, size, 512 // size, size).any(axis=(1, 3)).sum() for size in sizes])

@@ -29,9 +29,9 @@ trajectory = simulate(AddingMachineSystem(digits=6, base=2), observers=[observer
 # back. In base 3 the digit at level `k` turns once every `3^k` steps, the self-similar portrait of the odometer, whose
 # restriction to a subtree below the digit `q - 1` is the odometer again.
 
-digits = trajectory.values('cells.digit')
+digits = trajectory.get_values('cells.digit')
 numbers = digits @ 2 ** np.arange(6)
-ternary = simulate(AddingMachineSystem(digits=4, base=3), until=81).values('cells.digit')
+ternary = simulate(AddingMachineSystem(digits=4, base=3), until=81).get_values('cells.digit')
 turns = (np.diff(ternary, axis=0) != 0).sum(axis=0)
 fig, (count, portrait) = plt.subplots(1, 2, figsize=(10, 4))
 count.plot(trajectory.times, numbers, 'o', markersize=3, label='digits read in base 2')

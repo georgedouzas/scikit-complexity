@@ -34,7 +34,7 @@ trajectory = simulate(system, observables=observables, observers=[observer])
 fig, axes = plt.subplots(1, 2, figsize=(9, 4))
 for reinforcement in (0.0, -1.0):
     run = simulate(HypergraphConsensusSystem(reinforcement=reinforcement))
-    opinions = np.asarray(run.values('nodes.x'))
+    opinions = np.asarray(run.get_values('nodes.x'))
     opinions = opinions.reshape(len(opinions), -1)
     label = f'reinforcement {reinforcement}'
     axes[0].plot(opinions.mean(axis=1), label=label)

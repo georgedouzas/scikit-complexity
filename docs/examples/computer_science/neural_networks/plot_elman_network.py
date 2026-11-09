@@ -45,13 +45,13 @@ def errors_by_position(frame, bits):
     """Return the mean squared error of the predictions at each position of the triple, with the weights of a frame."""
     net = ElmanNetworkSystem().prepare().system_.systems[0]
     for interaction, name in zip(net.interactions, ('D', 'A', 'W'), strict=True):
-        interaction.set_params(**{name: trajectory.values(f'net/{interaction.label}.{name}')[frame]})
-    net.elements[1].set_params(values={'b': trajectory.values('net/hidden.b')[frame]})
-    net.elements[2].set_params(values={'c': trajectory.values('net/outputs.c')[frame]})
+        interaction.set_params(**{name: trajectory.get_values(f'net/{interaction.label}.{name}')[frame]})
+    net.elements[1].set_params(values={'b': trajectory.get_values('net/hidden.b')[frame]})
+    net.elements[2].set_params(values={'c': trajectory.get_values('net/outputs.c')[frame]})
     schedule = {'inputs.x': lambda t: bits[round(t)], 'outputs.target': lambda t: bits[round(t)]}
     error = ObservableSpec('error', group='outputs', reduce='sum', expression=squared_error)
     run = simulate(net, until=len(bits) - 1, backend=NumpyBackend(), schedule=schedule, observables=[error])
-    values = run.values('error')
+    values = run.get_values('error')
     steps = np.arange(len(bits))
     return [values[(steps % 3 == position) & (steps > 3)].mean() for position in range(3)]
 
@@ -61,7 +61,7 @@ stream = rng.integers(0, 2, 600).astype(float)
 stream[2::3] = np.logical_xor(stream[0::3], stream[1::3])
 fig, (losses, positions) = plt.subplots(1, 2, figsize=(10, 4))
 for name in ('loss', 'xor_error', 'random_error'):
-    losses.plot(trajectory.times, trajectory.values(f'training/{name}'), label=name)
+    losses.plot(trajectory.times, trajectory.get_values(f'training/{name}'), label=name)
 losses.set_xlabel('epoch')
 losses.set_ylabel('mean squared error')
 losses.set_title('Training')

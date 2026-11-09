@@ -34,11 +34,11 @@ class ReductionsPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Lower the reductions of the drawn laws, the laws set apart, and the events."""
         compilation = self.compilation_
-        declarations = Compilation._required(compilation.layout, 'layout')
+        declarations = Compilation._get_required(compilation.layout, 'layout')
         reductions = ReductionLowering().prepare(compilation)
-        specs = Compilation._required(compilation.drawn, 'drawn')
-        apart = Compilation._required(compilation.drawn_apart, 'drawn_apart')
-        crossings = Compilation._required(compilation.events, 'events')
+        specs = Compilation._get_required(compilation.drawn, 'drawn')
+        apart = Compilation._get_required(compilation.drawn_apart, 'drawn_apart')
+        crossings = Compilation._get_required(compilation.events, 'events')
         lowered = reductions.run([*specs, *apart]).lowered_
         events = reductions.run([(spec, [event]) for spec, event in crossings]).lowered_
         compilation.reduced = lowered[: len(specs)]
@@ -47,7 +47,7 @@ class ReductionsPass(BasePass):
         reductions._apply_references()
         compilation._replace_specs(
             {
-                id(spec): self._pruned(spec, declarations)
+                id(spec): self._get_pruned(spec, declarations)
                 for spec, _ in [*compilation.reduced, *compilation.reduced_apart]
             },
         )
@@ -59,7 +59,7 @@ class ReductionsPass(BasePass):
         )
 
     @staticmethod
-    def _pruned(spec: KernelSpec, declarations: DeclarationsSpec) -> KernelSpec:
+    def _get_pruned(spec: KernelSpec, declarations: DeclarationsSpec) -> KernelSpec:
         """Return a spec without the references of the groups read only in reductions.
 
         Operands are kept. Kernels then loop over its own group.

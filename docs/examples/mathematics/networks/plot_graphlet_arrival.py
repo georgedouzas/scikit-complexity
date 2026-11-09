@@ -47,7 +47,7 @@ trajectory = simulate(GraphletArrivalSystem(), dt=2.0, observers=[observer], ran
 alphas = np.linspace(0.0, 1.0, 11)
 ones, twos = [], []
 for alpha in alphas:
-    snapshot = simulate(GraphletArrivalSystem(n_nodes=2002, alpha=alpha), until=1000, random_state=0).network(-1)
+    snapshot = simulate(GraphletArrivalSystem(n_nodes=2002, alpha=alpha), until=1000, random_state=0).get_network(-1)
     degrees = np.bincount(np.concatenate([snapshot.sources, snapshot.targets]))
     ones.append(np.mean(degrees == 1))
     twos.append(np.mean(degrees == 2))

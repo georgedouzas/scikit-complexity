@@ -199,7 +199,7 @@ def test_rerun_observer_warns_when_a_viewer_cannot_be_reached(monkeypatch):
             until=0.0,
         )
     assert timeouts == [pytest.approx(30.0)]
-    assert trajectory.values('a.x').size > 0
+    assert trajectory.get_values('a.x').size > 0
 
 
 def test_rerun_observer_spawns_no_viewer_without_a_display(monkeypatch):
@@ -216,7 +216,7 @@ def test_rerun_observer_spawns_no_viewer_without_a_display(monkeypatch):
             until=0.0,
         )
     assert calls == []
-    assert trajectory.values('a.x').size > 0
+    assert trajectory.get_values('a.x').size > 0
 
 
 def test_rerun_observer_waits_for_a_file_without_limit(monkeypatch, tmp_path):

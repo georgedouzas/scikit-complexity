@@ -35,8 +35,8 @@ simulation = simulate(SchrodingerSystem(), observers=[observer], random_state=0)
 spacing = 40.0 / 128
 fields = simulate(SchrodingerSystem(n_sites=128), dt=0.5, solver=ETDRK4Solver(dt=0.01))
 operators = simulate(SchrodingerSystem(n_sites=128, formulation='operators'), dt=0.5)
-density = (fields.values('packet.u') ** 2 + fields.values('packet.w') ** 2) * spacing
-probability = np.abs(operators.values('system.state')) ** 2
+density = (fields.get_values('packet.u') ** 2 + fields.get_values('packet.w') ** 2) * spacing
+probability = np.abs(operators.get_values('system.state')) ** 2
 positions = spacing * np.arange(128) - 20.0
 fig, (agreement, coherence) = plt.subplots(1, 2, figsize=(10, 4))
 agreement.plot(positions, density[-1], label='fields, u² + w²')

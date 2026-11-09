@@ -36,7 +36,7 @@ class RoutesElement(Element):
 
 system = CompositeSystem(elements=[RoutesElement('flows')], time=StaticTime())
 trajectory = simulate(system, until=0.0)
-trajectory.values('flows.objective_0')[0]
+trajectory.get_values('flows.objective_0')[0]
 ```
 
 The objective reaches 7, three on the direct route at its capacity and four on the detour. The rules of a program are

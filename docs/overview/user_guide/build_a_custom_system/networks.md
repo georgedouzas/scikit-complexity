@@ -105,7 +105,7 @@ system = CompositeSystem(
     interactions=[HebbianInteraction('hebb', neurons='neurons', synapses='synapses')],
 )
 trajectory = simulate(system, until=1.0, dt=0.5)
-np.round(trajectory.values('synapses.w')[-1], 3).tolist()
+np.round(trajectory.get_values('synapses.w')[-1], 3).tolist()
 ```
 
 - A group on the edges of a network, `GroupElement(..., on='edges')`, holds one member per edge of its layer.
@@ -244,7 +244,7 @@ galam = GroupingInteraction(
     function=lambda g: where(mean(g.members.s, over=g.members) > 1 / 2, 1, 0),
 )
 run = simulate(CompositeSystem(elements=[voters], interactions=[galam]), until=5, random_state=0)
-run.values('voters.s').mean(axis=1).round(2).tolist()
+run.get_values('voters.s').mean(axis=1).round(2).tolist()
 
 players = GroupElement(
     'players',
@@ -261,7 +261,7 @@ goods = GroupingInteraction(
     function=lambda g: 4.5 * mean(g.members.s, over=g.members) - g.member.s,
 )
 run = simulate(CompositeSystem(elements=[players], interactions=[goods]), until=1)
-run.values('players.payoff')[-1][:5].round(2).tolist()
+run.get_values('players.payoff')[-1][:5].round(2).tolist()
 ```
 
 `GroupingInteraction(form='symbolic', write=..., function=..., reduce='sum')` runs a function of one group on the same
@@ -352,7 +352,7 @@ goods = CouplingInteraction(
     function=lambda s: 3 * total(s.members.s, over=s.members) / count(over=s.members) - s.member.s,
 )
 run = simulate(CompositeSystem(elements=[players], interactions=[goods]), until=1)
-run.values('players.payoff')[-1].round(2).tolist()
+run.get_values('players.payoff')[-1].round(2).tolist()
 ```
 
 The reduction `hyperedges(expression, reduce='sum', size=None, weight=None, over=None)` of
@@ -508,7 +508,7 @@ imitation = MapInteraction('imitation', target='players', state='s', function=ad
 time = DiscreteTime(schedule=PhasesScheduleSpec((PhaseSpec('play'), PhaseSpec('imitate'))))
 system = CompositeSystem(elements=[players], interactions=[play, imitation], time=time)
 run = simulate(system, until=30, random_state=0)
-round(float(run.values('players.s')[0].mean()), 2), round(float(run.values('players.s')[-1].mean()), 2)
+round(float(run.get_values('players.s')[0].mean()), 2), round(float(run.get_values('players.s')[-1].mean()), 2)
 ```
 
 By default every update law of a step reads the states at the start of the step, so a payoff and an imitation that
@@ -684,7 +684,7 @@ overload = TopologyInteraction(
 )
 system = CompositeSystem(elements=[nodes, links], interactions=[overload], space=NetworkSpace(graph), time=DiscreteTime())
 trajectory = simulate(system, until=10)
-[len(trajectory.network(frame).nodes) for frame in range(4)]
+[len(trajectory.get_network(frame).nodes) for frame in range(4)]
 ```
 
 `shortest_paths(active, over=None, reduce='betweenness')` reduces over the shortest paths of the active links between
@@ -747,7 +747,7 @@ system = CompositeSystem(
     time=DiscreteTime(),
 )
 trajectory = simulate(system, until=200, dt=50.0, random_state=1)
-snapshot = trajectory.network(-1)
+snapshot = trajectory.get_network(-1)
 degrees = np.bincount(np.concatenate([snapshot.sources, snapshot.targets]))
 snapshot.nodes.size, snapshot.sources.size, int(degrees.max()) > 10
 ```
@@ -775,7 +775,7 @@ with weights from `toward`. This is a module-level function of the namespace of 
 returns `neighbors(1)` for its degree. A request on a group that is not variable gets the validation issue
 `group-fixed`, and a full capacity raises `CapacityError`.
 
-Trajectories hold the values of absent members as NaN, and `trajectory.network(frame)` returns the nodes and edges
+Trajectories hold the values of absent members as NaN, and `trajectory.get_network(frame)` returns the nodes and edges
 present at a frame. Rerun draws the nodes present, and the edges at every frame where they change.
 
 New nodes can also attach by their distance to the others. Here every new node draws an angle and links to the nodes
@@ -814,8 +814,8 @@ growth = TopologyInteraction(
 space = NetworkSpace(nx.empty_graph(80))
 system = CompositeSystem(elements=[nodes, links], interactions=[growth], space=space, time=DiscreteTime())
 trajectory = simulate(system, until=50, random_state=0)
-network = trajectory.network(-1)
-placed = trajectory.values('nodes.angle')[-1]
+network = trajectory.get_network(-1)
+placed = trajectory.get_values('nodes.angle')[-1]
 network.sources.size, bool((abs(placed[network.sources] - placed[network.targets]) <= 0.1).all())
 ```
 
@@ -855,7 +855,7 @@ system = CompositeSystem(
     time=DiscreteTime(),
 )
 trajectory = simulate(system, until=20, random_state=0)
-trajectory.network(-1).hyperedges.shape, trajectory.network(-1).sources.size
+trajectory.get_network(-1).hyperedges.shape, trajectory.get_network(-1).sources.size
 ```
 
 `TopologyInteraction(action='add-node', hyperedge=k)`, or `TopologyRequestSpec('add-node', hyperedge=k)`, makes every
@@ -865,7 +865,7 @@ new node form a hyperedge of `k` members with `k - 1` existing nodes, and join e
   the last member. So an edge joins the first two members of every hyperedge.
 - The hyperedges are the rows of a variable group on the hyperedges, `GroupElement(on='hyperedges', variable=True,
   capacity=n)`. The initial hyperedges and the new ones have one size.
-- Hyperedge interactions read the hyperedges present at every step, and `trajectory.network(frame).hyperedges` holds
+- Hyperedge interactions read the hyperedges present at every step, and `trajectory.get_network(frame).hyperedges` holds
   the members of those present at a frame.
 
 Hyperedges also come and go on their own, and hyperedges of several sizes share one group. Nodes form random triangles
@@ -895,7 +895,7 @@ system = CompositeSystem(
     time=DiscreteTime(),
 )
 trajectory = simulate(system, until=10, random_state=0)
-trajectory.network(-1).hyperedges[:3].tolist()
+trajectory.get_network(-1).hyperedges[:3].tolist()
 ```
 
 - `'add-hyperedge'`, as an action or a `TopologyRequestSpec` kind, runs for every node, which forms a hyperedge of
@@ -904,7 +904,7 @@ trajectory.network(-1).hyperedges[:3].tolist()
   laws read the hyperedge member as `s.source`.
 - A variable group with a rank, `GroupElement(on='hyperedges', variable=True, rank=k)`, holds hyperedges of every size
   up to `k`. Its rows hold `k` members, and a smaller hyperedge fills its last ones with -1, as
-  `trajectory.network(frame).hyperedges` shows. Hyperedge interactions run on groups of one size, without a rank.
+  `trajectory.get_network(frame).hyperedges` shows. Hyperedge interactions run on groups of one size, without a rank.
 - With `edges=0` or `independent=True`, a new node with a hyperedge draws every other member by `toward`, and joins
   them by no edge of its own.
 
@@ -956,7 +956,7 @@ system = CompositeSystem(
     time=DiscreteTime(),
 )
 trajectory = simulate(system, until=400, random_state=0)
-int(trajectory.values('nodes.size')[-1].max()) < 100
+int(trajectory.get_values('nodes.size')[-1].max()) < 100
 ```
 
 - `candidates` draws that many candidate ends for every new edge of `'add-edge'`, and `score`, a function of the
@@ -1004,7 +1004,7 @@ system = CompositeSystem(
     time=DiscreteTime(),
 )
 trajectory = simulate(system, until=500, random_state=0)
-len(trajectory.network(-1).nodes)
+len(trajectory.get_network(-1).nodes)
 ```
 
 The catalog systems `ExplosivePercolationSystem`, `DavidsenEbelBornholdtSystem`, `NodeMergingSystem`, and

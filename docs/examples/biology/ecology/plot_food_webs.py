@@ -32,12 +32,12 @@ trajectory = simulate(system, dt=0.5, observers=[observer], until=100)
 # the damped oscillations of the approach.
 
 species = ['frogs', 'mice', 'snakes', 'hawks']
-final = {f'{name}.x': trajectory.values(f'{name}.x')[-1] for name in species}
+final = {f'{name}.x': trajectory.get_values(f'{name}.x')[-1] for name in species}
 result = stability(system, points=[final])
 eigenvalues = np.asarray(result.eigenvalues[0], dtype=complex)
 fig, (series, spectrum) = plt.subplots(1, 2, figsize=(11, 4))
 for name in species:
-    series.plot(trajectory.times, trajectory.values(f'{name}.x'), label=name)
+    series.plot(trajectory.times, trajectory.get_values(f'{name}.x'), label=name)
 series.set_xlabel('time')
 series.set_ylabel('population')
 series.set_title('Four species settle together')

@@ -30,8 +30,8 @@ trajectory = simulate(system, solver=solver, observers=[observer])
 # A particle without angular momentum turns with the frames at its radius, at the angular velocity
 # `dφ/dt = 2 M a / (r³ + a² r + 2 M a²)` that the term `g_tφ` of the metric sets.
 
-x = np.asarray(trajectory.values('particle.x'))
-u = np.asarray(trajectory.values('particle.x_d1'))
+x = np.asarray(trajectory.get_values('particle.x'))
+u = np.asarray(trajectory.get_values('particle.x_d1'))
 radius, angle = x[:, 1], x[:, 3]
 fig, (path, rate) = plt.subplots(1, 2, figsize=(10, 4))
 path.plot(radius * np.cos(angle), radius * np.sin(angle))

@@ -248,7 +248,7 @@ def test_run_cooling_reduces_accepted_moves() -> None:
     )
     candidates = GroupElement('candidates', element=CandidateElement, space=LatticeSpace((200,)), on='sites')
     system = CompositeSystem(elements=[candidates], interactions=[anneal], time=DiscreteTime())
-    frames = simulate(system, until=500, random_state=0).values('candidates.x')
+    frames = simulate(system, until=500, random_state=0).get_values('candidates.x')
     accepted = np.mean(frames[1:] != frames[:-1], axis=1)
     assert accepted[:50].mean() > 0.8
     assert accepted[-50:].mean() < 0.2
@@ -275,7 +275,7 @@ def test_two_dimensional_u1_reproduces_the_exact_plaquette():
     initial = np.random.default_rng(0).uniform(-np.pi, np.pi, 2048)
     space, system = _link_system((32, 32), sampling, {'theta': initial})
     trajectory = simulate(system, until=5000, random_state=3)
-    states = trajectory.values('links.theta')
+    states = trajectory.get_values('links.theta')
     plaquettes = np.cos(space.incidences_[1] @ states.T).mean(axis=0)
     assert abs(plaquettes[1001:].mean() - iv(1, 2) / iv(0, 2)) < 0.01
 
@@ -295,7 +295,7 @@ def test_z3_heat_bath_is_reproducible_with_a_seed():
     )
     initial = np.random.default_rng(1).choice(values, 72)
     frames = [
-        simulate(_link_system((6, 6), sampling, {'theta': initial})[1], until=20, random_state=seed).values(
+        simulate(_link_system((6, 6), sampling, {'theta': initial})[1], until=20, random_state=seed).get_values(
             'links.theta',
         )
         for seed in (5, 5, 6)
@@ -441,7 +441,7 @@ def _plaquettes(space, group, values):
 def test_two_dimensional_su2_reproduces_the_exact_plaquette():
     """Test that 300 sweeps after 100 of transient on a 16 by 16 lattice give `I_2(2) / I_1(2)` within 0.01."""
     space, system = _matrix_system((16, 16), ISOSPIN, _matrix_sampling(ISOSPIN))
-    values = simulate(system, until=400, random_state=3).values('links.U')
+    values = simulate(system, until=400, random_state=3).get_values('links.U')
     assert abs(_plaquettes(space, ISOSPIN, values)[101:].mean() - iv(2, 2) / iv(1, 2)) < 0.01
 
 
@@ -456,7 +456,7 @@ def test_two_dimensional_su3_reproduces_the_one_plaquette_integral():
     exact = (weights * traces).sum() / weights.sum()
     sampling = _matrix_sampling(COLOR)
     space, system = _matrix_system((12, 12), COLOR, sampling, element=ColorLinkElement)
-    values = simulate(system, until=300, random_state=4).values('links.U')
+    values = simulate(system, until=300, random_state=4).get_values('links.U')
     assert abs(_plaquettes(space, COLOR, values)[101:].mean() - exact) < 0.01
 
 
@@ -464,7 +464,7 @@ def test_two_dimensional_su3_reproduces_the_one_plaquette_integral():
 def test_matrix_links_stay_in_the_group(schedule):
     """Test that SU(3) links stay unitary of unit determinant within 1e-12 after 20 sweeps."""
     _, system = _matrix_system((4, 4), COLOR, _matrix_sampling(COLOR, schedule=schedule), element=ColorLinkElement)
-    values = simulate(system, until=20, random_state=0).values('links.U')
+    values = simulate(system, until=20, random_state=0).get_values('links.U')
     matrices = COLOR.matrices_of(values[-1])
     assert np.abs(matrices @ np.conj(np.swapaxes(matrices, -1, -2)) - np.eye(3)).max() < 1e-12
     assert np.abs(np.linalg.det(matrices) - 1.0).max() < 1e-12
@@ -474,7 +474,7 @@ def test_infinite_intensity_never_raises_the_action_of_matrix_links():
     """Test that at an infinite intensity the total plaquette never falls, since links of a class share no face."""
     sampling = _matrix_sampling(ISOSPIN, intensity=float('inf'), move='random-value', hits=1)
     space, system = _matrix_system((5, 4), ISOSPIN, sampling)
-    values = simulate(system, until=10, random_state=1).values('links.U')
+    values = simulate(system, until=10, random_state=1).get_values('links.U')
     plaquettes = _plaquettes(space, ISOSPIN, values)
     assert np.all(np.diff(plaquettes) >= -1e-12)
     assert plaquettes[-1] > plaquettes[0]
@@ -489,7 +489,7 @@ def test_matrix_sampling_is_reproducible_with_a_seed_and_takes_function_moves():
     runs = []
     for seed in (5, 5, 6):
         _, system = _matrix_system((4, 4), ISOSPIN, _matrix_sampling(ISOSPIN, move=move, rule='glauber'))
-        runs.append(simulate(system, until=5, random_state=seed).values('links.U'))
+        runs.append(simulate(system, until=5, random_state=seed).get_values('links.U'))
     assert np.array_equal(runs[0], runs[1])
     assert not np.array_equal(runs[0], runs[2])
 

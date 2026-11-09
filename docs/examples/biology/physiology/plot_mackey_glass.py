@@ -30,7 +30,7 @@ trajectory = simulate(MackeyGlassSystem(tau=17.0), observers=[observer])
 fig, axes = plt.subplots(1, 2, figsize=(10, 4.5))
 for ax, tau in zip(axes, [6.0, 17.0], strict=True):
     trajectory = simulate(MackeyGlassSystem(tau=tau), until=1000)
-    values = trajectory.values('cells.x')[trajectory.times > 200]
+    values = trajectory.get_values('cells.x')[trajectory.times > 200]
     vectors = embedding(values, delay=int(tau / 0.5), dimension=2).points
     ax.plot(vectors[:, 1], vectors[:, 0], linewidth=0.6)
     ax.set_xlabel('x(t)')

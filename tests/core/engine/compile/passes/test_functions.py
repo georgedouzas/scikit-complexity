@@ -70,7 +70,7 @@ def _system(*phases: PhaseSpec, count: str | None = 'count', copy: str | None = 
 def _run(system: CompositeSystem, until: int, backend: NumpyBackend | NumbaBackend) -> np.ndarray:
     """Return the count and the copy at every frame of a run."""
     trajectory = simulate(system, until=until, backend=backend)
-    return np.stack([trajectory.values('c.count'), trajectory.values('c.copy')], axis=1)
+    return np.stack([trajectory.get_values('c.count'), trajectory.get_values('c.copy')], axis=1)
 
 
 @BACKENDS
@@ -126,4 +126,4 @@ def test_lower_reads_the_phases_of_a_nested_system():
     nested = _system(PhaseSpec('count'), PhaseSpec('copy'))
     nested.label = 'counter'
     trajectory = simulate(CompositeSystem(systems=[nested]), until=1)
-    assert trajectory.values('counter/c.copy')[1] == 1.0
+    assert trajectory.get_values('counter/c.copy')[1] == 1.0

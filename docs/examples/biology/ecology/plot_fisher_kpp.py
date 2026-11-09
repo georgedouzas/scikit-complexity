@@ -32,7 +32,7 @@ trajectory = simulate(
 # Tracking the position where the density crosses one half, the front should move along a straight line whose slope
 # approaches `2 sqrt(r D) = 2` once its shape has settled.
 
-density = trajectory.values('line.u')
+density = trajectory.get_values('line.u')
 positions = np.arange(density.shape[1]) * 0.25
 front = np.array([positions[np.argmax(row < 0.5)] for row in density])
 moving = (trajectory.times > 20) & (front < positions[-1] - 10)

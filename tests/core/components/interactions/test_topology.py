@@ -104,7 +104,7 @@ def _run(graph: nx.Graph, change: TopologyInteraction, until: float, dt: float =
 
 def _sizes(trajectory: Trajectory, frame: int) -> tuple[int, int]:
     """Return the numbers of nodes and edges of the network at a frame."""
-    network = trajectory.network(frame)
+    network = trajectory.get_network(frame)
     return len(network.nodes), len(network.sources)
 
 
@@ -129,7 +129,7 @@ def test_get_laws_draws_the_values_of_new_nodes():
         values={'mark': lambda rng: rng.uniform(1.0, 2.0)},
     )
     trajectory = _run(nx.empty_graph(20), change, 1)
-    marks = np.asarray(trajectory.values('nodes.mark')[-1])[20:40]
+    marks = np.asarray(trajectory.get_values('nodes.mark')[-1])[20:40]
     assert len(set(marks.tolist())) == 20
     assert ((marks >= 1.0) & (marks <= 2.0)).all()
 
@@ -183,7 +183,7 @@ def test_get_laws_rewire_moves_edges_towards_the_weight():
         keep='source',
     )
     trajectory = _run(nx.cycle_graph(20), change, 5, mark=marks)
-    graph = trajectory.network(5).graph()
+    graph = trajectory.get_network(5).graph()
     assert graph.number_of_edges() == 20
     marked = set(range(5))
     assert all(source in marked or target in marked for source, target in graph.edges)
@@ -202,14 +202,14 @@ def test_get_laws_add_node_with_a_hyperedge_attaches_a_triangle_per_step(backend
     growth = TopologyInteraction('growth', action='add-node', hyperedge=3)
     ageing = AgeingInteraction('ageing', nodes='nodes', triangles='triangles')
     trajectory = simulate(_triangles(growth, ageing), until=50, backend=backend, random_state=0)
-    network = trajectory.network(-1)
+    network = trajectory.get_network(-1)
     graph = network.graph()
     assert network.hyperedges.shape == (51, 3)
     assert (len(network.nodes), len(network.sources)) == (53, 3 + 2 * 50)
     assert set(range(3, 53)) <= set(network.hyperedges.ravel().tolist())
     assert all(graph.has_edge(first, second) for first, second, _ in network.hyperedges)
     assert all(graph.has_edge(member, new) for *ends, new in network.hyperedges for member in ends)
-    ages = np.asarray(trajectory.values('triangles.age')[-1])
+    ages = np.asarray(trajectory.get_values('triangles.age')[-1])
     assert sorted(ages[~np.isnan(ages)].tolist()) == list(range(51))
 
 
@@ -224,8 +224,8 @@ def test_get_laws_remove_node_removes_the_hyperedges_that_hold_it():
     system = _triangles(removal)
     system.elements[0].values = {'mark': [1.0, 0.0, 0.0]}
     trajectory = simulate(system, until=1, random_state=0)
-    assert trajectory.network(0).hyperedges.shape == (1, 3)
-    assert trajectory.network(1).hyperedges.shape == (0, 3)
+    assert trajectory.get_network(0).hyperedges.shape == (1, 3)
+    assert trajectory.get_network(1).hyperedges.shape == (0, 3)
 
 
 def test_get_laws_add_node_with_a_hyperedge_needs_a_hyperedge_group_of_its_size():
@@ -285,7 +285,8 @@ def test_get_laws_reads_a_renamed_target_end():
         **arguments,
     )
     graphs = [
-        sorted(_run(nx.cycle_graph(20), change, 5, mark=marks).network(5).graph().edges) for change in (plain, renamed)
+        sorted(_run(nx.cycle_graph(20), change, 5, mark=marks).get_network(5).graph().edges)
+        for change in (plain, renamed)
     ]
     assert graphs[1] == graphs[0]
 
@@ -333,8 +334,8 @@ def _grown(
 
 def _mark_gaps(trajectory: Trajectory) -> np.ndarray:
     """Return the difference of the marks of the ends of every edge of the last frame."""
-    network = trajectory.network(-1)
-    marks = np.asarray(trajectory.values('nodes.mark')[-1])
+    network = trajectory.get_network(-1)
+    marks = np.asarray(trajectory.get_values('nodes.mark')[-1])
     return np.abs(marks[network.sources] - marks[network.targets])
 
 
@@ -373,7 +374,7 @@ def test_get_laws_add_node_condition_reads_the_drawn_values():
         condition=lambda s: s.source.mark < 0.5,
     )
     trajectory = _grown(growth, seeds=1, until=100)
-    marks = np.asarray(trajectory.values('nodes.mark')[-1])[1:]
+    marks = np.asarray(trajectory.get_values('nodes.mark')[-1])[1:]
     added = marks[~np.isnan(marks)]
     assert 20 < added.size < 80
     assert (added < 0.5).all()
@@ -388,7 +389,7 @@ def test_get_laws_add_node_probability_reads_the_drawn_values():
         values={'mark': lambda rng: rng.uniform(0.0, 1.0)},
         probability=lambda s: s.source.mark,
     )
-    marks = np.asarray(_grown(growth, seeds=1, capacity=400, until=300).values('nodes.mark')[-1])[1:]
+    marks = np.asarray(_grown(growth, seeds=1, capacity=400, until=300).get_values('nodes.mark')[-1])[1:]
     added = marks[~np.isnan(marks)]
     assert added.mean() == pytest.approx(2 / 3, abs=0.05)
 
@@ -436,7 +437,7 @@ def test_get_laws_rewire_weight_reads_the_kept_end_as_the_source():
     )
     graph = nx.empty_graph(4)
     graph.add_edge(0, 2)
-    network = _run(graph, rewire, 1, mark=[0.0, 0.05, 5.0, 5.05]).network(-1)
+    network = _run(graph, rewire, 1, mark=[0.0, 0.05, 5.0, 5.05]).get_network(-1)
     assert (network.sources.tolist(), network.targets.tolist()) == ([0], [1])
 
 
@@ -451,7 +452,7 @@ def test_get_laws_replace_node_weight_reads_the_new_node_as_the_source():
         toward=lambda node: where(abs(node.mark - node.source.mark) <= 0.1, 1, 0),
     )
     marks = [1.0, 1.05, 3.0, 3.05, 10.0]
-    network = _run(nx.empty_graph(5), replacement, 1, mark=marks).network(1)
+    network = _run(nx.empty_graph(5), replacement, 1, mark=marks).get_network(1)
     assert network.sources.size == 1
     assert {2, 3}.isdisjoint(network.sources.tolist() + network.targets.tolist())
 
@@ -515,7 +516,7 @@ def test_get_laws_add_node_forms_hyperedges_of_every_size_up_to_the_rank(backend
     """Test that new nodes of hyperedges of two, three, and four members fill a ranked group, padded with -1."""
     growth = [TopologyInteraction(f'growth_{size}', action='add-node', hyperedge=size, edges=0) for size in (2, 3, 4)]
     trajectory = simulate(_ranked(*growth), until=10, backend=backend, random_state=0)
-    network = trajectory.network(-1)
+    network = trajectory.get_network(-1)
     sizes = (network.hyperedges >= 0).sum(axis=1)
     assert network.hyperedges.shape == (30, 4)
     assert sorted(np.bincount(sizes).tolist()) == [0, 0, 10, 10, 10]
@@ -535,7 +536,7 @@ def test_get_laws_add_node_joins_independent_ends_both_ways():
         toward=lambda node: 0.5,
     )
     trajectory = simulate(_ranked(growth, directed=True), until=60, random_state=0)
-    network = trajectory.network(-1)
+    network = trajectory.get_network(-1)
     edges = set(zip(network.sources.tolist(), network.targets.tolist(), strict=True))
     pairs = 65 * 64 / 2 - 5 * 4 / 2
     assert len(edges) == len(network.sources)
@@ -549,9 +550,9 @@ def test_get_laws_add_hyperedge_and_remove_hyperedge_change_the_hyperedges():
     dissolve = TopologyInteraction('dissolve', target='triangles', action='remove-hyperedge', probability=0.25)
     system = _triangles(form, dissolve, capacity=200)
     trajectory = simulate(system, until=200, random_state=0)
-    counts = [trajectory.network(frame).hyperedges.shape[0] for frame in range(100, 201)]
+    counts = [trajectory.get_network(frame).hyperedges.shape[0] for frame in range(100, 201)]
     assert np.mean(counts) == pytest.approx(3 * 0.2 / 0.25, rel=0.3)
-    network = trajectory.network(-1)
+    network = trajectory.get_network(-1)
     assert len(network.nodes) == 3
     assert len(network.sources) == 3
     assert all(len(set(row.tolist())) == 3 for row in network.hyperedges)
@@ -571,7 +572,7 @@ def test_get_laws_hyperedges_beyond_the_rank_or_interactions_on_a_ranked_group_a
 
 def _edges(trajectory: Trajectory, frame: int) -> set[tuple[int, int]]:
     """Return the edges of the network at a frame as pairs of node rows in increasing order."""
-    network = trajectory.network(frame)
+    network = trajectory.get_network(frame)
     return {
         (min(first, second), max(first, second))
         for first, second in zip(network.sources.tolist(), network.targets.tolist(), strict=True)
@@ -609,7 +610,7 @@ def test_get_laws_contract_edge_keeps_the_union_of_the_links():
     change = _marked(action='contract-edge', toward=lambda node: where(abs(node.mark - 1) < 0.5, 1, 0))
     marks = {3: 0.0, 0: 2.0, 1: 1.0, 2: 0.0}
     trajectory = _run(graph, change, 1, mark=[marks[node] for node in graph.nodes])
-    network = trajectory.network(1)
+    network = trajectory.get_network(1)
     rows = {node: row for row, node in enumerate(graph.nodes)}
     assert sorted(network.nodes.tolist()) == sorted(rows[node] for node in (0, 2, 3))
     assert _edges(trajectory, 1) == {tuple(sorted((rows[0], rows[node]))) for node in (2, 3)}
@@ -626,7 +627,7 @@ def test_get_laws_duplicate_node_copies_the_values_and_the_links():
     """Test that an exact copy of a node of a cycle takes its mark and its neighbours, and may join it."""
     trajectory = _run(nx.cycle_graph(6), _marked(action='duplicate-node', edges=0), 1, mark=[2.0] + [0.0] * 5)
     assert _edges(trajectory, 1) - _edges(trajectory, 0) == {(1, 6), (5, 6)}
-    assert trajectory.values('nodes.mark')[-1][6] == 2.0
+    assert trajectory.get_values('nodes.mark')[-1][6] == 2.0
     change = _marked(action='duplicate-node', edges=0, inherit=0.0, parent=1.0)
     trajectory = _run(nx.cycle_graph(6), change, 1, mark=[2.0] + [0.0] * 5)
     assert _edges(trajectory, 1) - _edges(trajectory, 0) == {(0, 6)}

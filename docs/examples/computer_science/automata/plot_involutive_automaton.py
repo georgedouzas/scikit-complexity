@@ -30,12 +30,12 @@ trajectory = simulate(InvolutiveAutomatonSystem(n=3, size=80, density=0.6, rando
 # Every configuration should come back after two steps, so the distance to the start alternates between a positive
 # value and 0, and over all rings of 12 cells the second step returns every one of them.
 
-alive = trajectory.values('cells.alive')
+alive = trajectory.get_values('cells.alive')
 distance = (alive != alive[0]).sum(axis=1)
 configurations = np.asarray(list(itertools.product((0, 1), repeat=12)), dtype=float)
 returned = [
     np.array_equal(
-        simulate(InvolutiveAutomatonSystem(n=3, initial=configuration), until=2).values(
+        simulate(InvolutiveAutomatonSystem(n=3, initial=configuration), until=2).get_values(
             'cells.alive',
         )[-1],
         configuration,

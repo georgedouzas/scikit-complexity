@@ -10,7 +10,7 @@ from skcomplex.systems.general.elements import PointElement
 def test_point_moves_with_its_first_derivative():
     """Test that a free point moves along its first derivative."""
     system = CompositeSystem(elements=[PointElement('ball', x_d1=[1.0, 0.5])], space=ContinuousSpace(n_dim=2))
-    assert simulate(system, until=2.0, dt=1.0).values('ball.x')[-1].tolist() == [2.0, 1.0]
+    assert simulate(system, until=2.0, dt=1.0).get_values('ball.x')[-1].tolist() == [2.0, 1.0]
 
 
 def test_point_declares_a_vector_position_of_order_two():

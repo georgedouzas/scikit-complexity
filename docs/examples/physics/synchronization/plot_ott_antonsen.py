@@ -30,7 +30,7 @@ trajectory = simulate(system, until=20, observers=[observer])
 # order parameters of a sweep of `K` should follow `sqrt(1 - 2 Δ / K)` above `K_c = 1` and vanish below.
 
 times = np.asarray(trajectory.times)
-r = np.hypot(np.ravel(trajectory.values('field.x')), np.ravel(trajectory.values('field.y')))
+r = np.hypot(np.ravel(trajectory.get_values('field.x')), np.ravel(trajectory.get_values('field.y')))
 final = 1 - 2 * 0.5 / 2.0
 exact = np.sqrt(final / (1 + (final / 0.1**2 - 1) * np.exp(-(2.0 - 1.0) * times)))
 couplings = np.linspace(0.2, 5.0, 25)
@@ -38,7 +38,7 @@ settled = []
 for coupling in couplings:
     run = simulate(OttAntonsenSystem(r=0.1, K=coupling, Delta=0.5), until=200, dt=0.5)
     settled.append(
-        np.hypot(np.ravel(run.values('field.x'))[-1], np.ravel(run.values('field.y'))[-1]),
+        np.hypot(np.ravel(run.get_values('field.x'))[-1], np.ravel(run.get_values('field.y'))[-1]),
     )
 grid = np.linspace(1.0, 5.0, 200)
 fig, (growth, diagram) = plt.subplots(1, 2, figsize=(10, 4))

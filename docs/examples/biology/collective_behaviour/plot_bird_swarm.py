@@ -29,7 +29,7 @@ trajectory = simulate(BirdSwarmSystem(n_birds=30, random_state=0), observers=[ob
 # angular momentum about the centre, is one for a mill. As the swarm organizes, one of the two should approach one,
 # and every bird should approach the preferred speed `sqrt(alpha / beta) = sqrt(2)`.
 
-positions, velocities = trajectory.values('birds.x'), trajectory.values('birds.x_d1')
+positions, velocities = trajectory.get_values('birds.x'), trajectory.get_values('birds.x_d1')
 fig, (order, path) = plt.subplots(1, 2, figsize=(11, 4))
 polar = alignment(trajectory, kind='mean-vector').order
 milling = alignment(trajectory, kind='mean-rotation').order

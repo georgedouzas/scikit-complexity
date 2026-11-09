@@ -17,13 +17,13 @@ from ...components.spaces import LatticeSpace, NetworkSpace
 from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
 from ...specs import NetworkSnapshotSpec
 from ..problems import BaseProblemSpec, FrameSpec
-from ._base import _GRID_RADIUS, _NODE_SPACING, BaseVisual
+from ._base import GRID_RADIUS, NODE_SPACING, BaseVisual
 
-_HEXAGON_RADIUS = float(1 / np.sqrt(3.0))
-_CHANGING_REACH = 10.0
-_CHANGING_LINK = 40.0
-_CHANGING_REPULSION = -60.0
-_CHANGING_CENTRING = 0.05
+HEXAGON_RADIUS = float(1 / np.sqrt(3.0))
+CHANGING_REACH = 10.0
+CHANGING_LINK = 40.0
+CHANGING_REPULSION = -60.0
+CHANGING_CENTRING = 0.05
 
 
 class SiteVisual(BaseVisual):
@@ -93,18 +93,18 @@ class SiteVisual(BaseVisual):
         values: npt.NDArray[np.float64],
     ) -> None:
         """Log the nodes of a network colored by value, and its edges once."""
-        layout = self._layout(space)
+        layout = self._get_layout(space)
         nodes = [str(node) for node in space.graph.nodes]
         if path not in self.edges_:
             edges = [(str(source), str(target)) for source, target in space.graph.edges]
             recording.log(path, rr.GraphEdges(edges), static=True)
             self.edges_.add(path)
         positions = [layout[node] for node in nodes]
-        radius = _GRID_RADIUS * _NODE_SPACING / 2
+        radius = GRID_RADIUS * NODE_SPACING / 2
         drawn = rr.GraphNodes(
             nodes,
             positions=positions,
-            colors=self._colors(values, self.low, self.high),
+            colors=self._get_colors(values, self.low, self.high),
             radii=radius,
             show_labels=False,
         )
@@ -128,9 +128,9 @@ class SiteVisual(BaseVisual):
             self.changing_[path] = key
         nodes = [str(node) for node in snapshot.nodes]
         colors = (
-            self._colors(values[snapshot.nodes], self.low, self.high) if nodes else np.zeros((0, 4), dtype=np.uint8)
+            self._get_colors(values[snapshot.nodes], self.low, self.high) if nodes else np.zeros((0, 4), dtype=np.uint8)
         )
-        radius = _GRID_RADIUS * _NODE_SPACING / 2
+        radius = GRID_RADIUS * NODE_SPACING / 2
         recording.log(path, rr.GraphNodes(nodes, colors=colors, radii=radius, show_labels=False))
 
     def _log(self, recording: rr.RecordingStream, element: CompiledElementSpec, frame: FrameSpec) -> None:
@@ -152,7 +152,7 @@ class SiteVisual(BaseVisual):
         for state, name in element.states.items():
             if self.states is not None and state not in self.states:
                 continue
-            values = np.ravel(np.asarray(frame.value(name), dtype=float))
+            values = np.ravel(np.asarray(frame.get_value(name), dtype=float))
             path = f'{element.path}/{state}'
             topology = frame.problem.topology
             if topology is not None and self._changes_topology(element, frame.problem):
@@ -166,10 +166,13 @@ class SiteVisual(BaseVisual):
             positions = lattice.positions_
             if positions.shape[1] == 1:
                 positions = np.column_stack([positions[:, 0], np.zeros(len(positions))])
-            radius = _HEXAGON_RADIUS * min(lattice.spacings_)
-            recording.log(path, rr.Points2D(positions, colors=self._colors(values, self.low, self.high), radii=radius))
+            radius = HEXAGON_RADIUS * min(lattice.spacings_)
+            recording.log(
+                path,
+                rr.Points2D(positions, colors=self._get_colors(values, self.low, self.high), radii=radius),
+            )
 
-    def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return the views of the chosen states of a group.
 
         A group on a network or a changing topology gets one graph view per state, and others 2D spatial views.
@@ -210,23 +213,23 @@ class SiteVisual(BaseVisual):
         space = getattr(element.element, 'space', None)
         states = [state for state in element.states if self.states is None or state in self.states]
         if self._changes_topology(element, problem):
-            reach = _CHANGING_REACH * float(np.sqrt(element.members or 1))
+            reach = CHANGING_REACH * float(np.sqrt(element.members or 1))
             bounds = rrb.VisualBounds2D(x_range=(-reach, reach), y_range=(-reach, reach))
             return [
                 rrb.GraphView(
                     origin=f'{element.path}/{state}',
                     name=state,
                     visual_bounds=bounds,
-                    force_link=rrb.archetypes.ForceLink(distance=_CHANGING_LINK),
-                    force_many_body=rrb.archetypes.ForceManyBody(strength=_CHANGING_REPULSION),
-                    force_position=rrb.archetypes.ForcePosition(strength=_CHANGING_CENTRING),
+                    force_link=rrb.archetypes.ForceLink(distance=CHANGING_LINK),
+                    force_many_body=rrb.archetypes.ForceManyBody(strength=CHANGING_REPULSION),
+                    force_position=rrb.archetypes.ForcePosition(strength=CHANGING_CENTRING),
                 )
                 for state in states
             ]
         if not isinstance(space, NetworkSpace):
             return [rrb.Spatial2DView(origin=f'{element.path}/{state}', name=state) for state in states]
-        positions = np.array(list(self._layout(space).values()))
-        low, high = positions.min(axis=0) - _NODE_SPACING, positions.max(axis=0) + _NODE_SPACING
+        positions = np.array(list(self._get_layout(space).values()))
+        low, high = positions.min(axis=0) - NODE_SPACING, positions.max(axis=0) + NODE_SPACING
         bounds = rrb.VisualBounds2D(x_range=(low[0], high[0]), y_range=(low[1], high[1]))
         return [rrb.GraphView(origin=f'{element.path}/{state}', name=state, visual_bounds=bounds) for state in states]
 

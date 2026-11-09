@@ -37,7 +37,7 @@ fig, ax = plt.subplots(figsize=(7, 4))
 for alpha, color in ((0.5, 'tab:blue'), (1.5, 'tab:orange')):
     run = simulate(ScaledBrownianMotionSystem(n_particles=2000, alpha=alpha), solver=solver, dt=0.05, random_state=1)
     times = run.times[1:]
-    squared = np.mean(run.values('walkers.x')[1:] ** 2, axis=1)
+    squared = np.mean(run.get_values('walkers.x')[1:] ** 2, axis=1)
     ax.loglog(times, squared, 'o', markersize=3, color=color, label=f'simulation, alpha = {alpha}')
     exact = 2 * ((times + 0.01) ** alpha - 0.01**alpha)
     ax.loglog(times, exact, color=color, label=f'2 K ((t + t0)^{alpha} - t0^{alpha})')

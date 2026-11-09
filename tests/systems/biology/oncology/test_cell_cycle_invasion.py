@@ -12,7 +12,7 @@ PHASES = ('g1', 'es', 'sg2m')
 
 def _cells(trajectory):
     """Return the occupation of every site at every frame."""
-    return sum(np.asarray(trajectory.values(f'cells.{phase}')) for phase in PHASES)
+    return sum(np.asarray(trajectory.get_values(f'cells.{phase}')) for phase in PHASES)
 
 
 def test_cells_invade_the_scratch():
@@ -33,15 +33,15 @@ def test_full_lattice_keeps_its_cells_in_g1():
     trajectory = simulate(system, until=48, random_state=0)
     occupied = _cells(trajectory)
     assert np.all(occupied.sum(axis=1) == 60)
-    g1 = trajectory.values('g1_cells')
+    g1 = trajectory.get_values('g1_cells')
     assert np.all(g1 == g1[0])
-    assert trajectory.values('es_cells')[-1] < trajectory.values('es_cells')[0]
+    assert trajectory.get_values('es_cells')[-1] < trajectory.get_values('es_cells')[0]
 
 
 def test_phases_are_observables():
     """Test that the cells per phase are observables that add up to the occupied sites."""
     trajectory = simulate(CellCycleInvasionSystem(12, 6), until=10, random_state=1)
-    total = sum(trajectory.values(f'{phase}_cells') for phase in PHASES)
+    total = sum(trajectory.get_values(f'{phase}_cells') for phase in PHASES)
     np.testing.assert_array_equal(total, _cells(trajectory).sum(axis=1))
 
 
@@ -52,7 +52,7 @@ def test_abc_smc_compares_the_three_phase_counts():
     trajectory = simulate(system, until=24, random_state=0)
     times = np.arange(0.0, 25.0, 6.0)
     data = {
-        f'{phase}_cells': (times, np.interp(times, trajectory.times, trajectory.values(f'{phase}_cells')))
+        f'{phase}_cells': (times, np.interp(times, trajectory.times, trajectory.get_values(f'{phase}_cells')))
         for phase in PHASES
     }
 

@@ -240,7 +240,7 @@ def _stream(seed: int = 0) -> np.random.Generator:
 def _symbolic_run(system: CompositeSystem, until: int, backend: BaseBackend, seed: int = 0) -> np.ndarray:
     """Return the opinions of the voters at every frame of a run of a symbolic grouping."""
     trajectory = simulate(system, until=until, random_state=seed, backend=backend)
-    return trajectory.values('voters.s')
+    return trajectory.get_values('voters.s')
 
 
 @BACKENDS
@@ -385,8 +385,8 @@ def test_get_laws_symbolic_phases_imitate_the_payoffs_of_the_same_step(backend):
         state = np.array(
             [state[best[site]] if payoff[best[site]] > payoff[site] else state[site] for site in range(36)],
         )
-        assert np.allclose(trajectory.values('players.payoff')[step], payoff, atol=1e-12)
-        assert trajectory.values('players.state')[step].tolist() == state.tolist()
+        assert np.allclose(trajectory.get_values('players.payoff')[step], payoff, atol=1e-12)
+        assert trajectory.get_values('players.state')[step].tolist() == state.tolist()
 
 
 @pytest.mark.parametrize('groups', ['partition', 'neighborhood'])

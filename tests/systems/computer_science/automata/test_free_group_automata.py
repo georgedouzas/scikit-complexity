@@ -16,7 +16,7 @@ from ..conftest import _run
 def _pairs(system):
     """Return the first and second coordinates after one step."""
     trajectory = _run(system, 1)
-    return trajectory.values('cells.first')[-1], trajectory.values('cells.second')[-1]
+    return trajectory.get_values('cells.first')[-1], trajectory.get_values('cells.second')[-1]
 
 
 def test_muller_automaton_has_its_image_in_the_first_factor():
@@ -30,12 +30,12 @@ def test_muller_automaton_reads_the_projections_at_the_generators():
     system = MullerAutomatonSystem(radius=3, modulus=5).prepare().system_
     space = system.elements[0].space.prepare()
     trajectory = _run(system, 1)
-    first, second = trajectory.values('cells.first')[0], trajectory.values('cells.second')[0]
+    first, second = trajectory.get_values('cells.first')[0], trajectory.get_values('cells.second')[0]
     padded_first, padded_second = np.append(first, 0), np.append(second, 0)
     table = np.where(space.generator_table_ >= 0, space.generator_table_, space.size_)
     expected = padded_first[table[:, 0]] + padded_first[table[:, 1]] + padded_second[table[:, 2]]
     expected = (expected + padded_second[table[:, 3]]) % 5
-    np.testing.assert_array_equal(trajectory.values('cells.first')[-1], expected)
+    np.testing.assert_array_equal(trajectory.get_values('cells.first')[-1], expected)
 
 
 def test_muller_automaton_sends_no_finite_nonzero_configuration_to_zero():
@@ -67,10 +67,16 @@ def test_surjective_linear_automaton_sums_the_first_coordinates():
     system = SurjectiveLinearAutomatonSystem(radius=3, modulus=3).prepare().system_
     space = system.elements[0].space.prepare()
     trajectory = _run(system, 1)
-    first = np.append(trajectory.values('cells.first')[0], 0)
+    first = np.append(trajectory.get_values('cells.first')[0], 0)
     table = np.where(space.generator_table_ >= 0, space.generator_table_, space.size_)
-    np.testing.assert_array_equal(trajectory.values('cells.first')[-1], (first[table[:, 0]] + first[table[:, 1]]) % 3)
-    np.testing.assert_array_equal(trajectory.values('cells.second')[-1], (first[table[:, 2]] + first[table[:, 3]]) % 3)
+    np.testing.assert_array_equal(
+        trajectory.get_values('cells.first')[-1],
+        (first[table[:, 0]] + first[table[:, 1]]) % 3,
+    )
+    np.testing.assert_array_equal(
+        trajectory.get_values('cells.second')[-1],
+        (first[table[:, 2]] + first[table[:, 3]]) % 3,
+    )
 
 
 def test_pair_automata_reject_a_trivial_group():
@@ -84,9 +90,9 @@ def test_life_in_a_tree_follows_the_rule_of_the_exercise():
     system = LifeInATreeSystem(radius=3, density=0.4).prepare().system_
     space = system.elements[0].space.prepare()
     trajectory = _run(system, 1)
-    cells = np.append(trajectory.values('cells.alive')[0], 0)
+    cells = np.append(trajectory.get_values('cells.alive')[0], 0)
     table = np.where(space.generator_table_ >= 0, space.generator_table_, space.size_)
     total = cells[:-1] + cells[table].sum(axis=1)
     expected = (total == 3) | ((total == 4) & (cells[:-1] == 1))
-    np.testing.assert_array_equal(trajectory.values('cells.alive')[-1], expected)
+    np.testing.assert_array_equal(trajectory.get_values('cells.alive')[-1], expected)
     assert space.size_ == 1 + 8 + 8 * 7 + 8 * 49

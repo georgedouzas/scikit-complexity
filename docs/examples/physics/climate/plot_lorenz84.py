@@ -32,7 +32,11 @@ trajectory = simulate(system, observers=[observer])
 settled = trajectory.times > 10
 exponents = lyapunov(system.prepare().system_, until=500.0, dt=0.01).exponents
 fig, (attractor, spectrum) = plt.subplots(1, 2, figsize=(10, 4))
-attractor.plot(trajectory.values('atmosphere.x')[settled], trajectory.values('atmosphere.y')[settled], linewidth=0.5)
+attractor.plot(
+    trajectory.get_values('atmosphere.x')[settled],
+    trajectory.get_values('atmosphere.y')[settled],
+    linewidth=0.5,
+)
 attractor.set_xlabel('jet x')
 attractor.set_ylabel('eddy phase y')
 attractor.set_title('Strange attractor')

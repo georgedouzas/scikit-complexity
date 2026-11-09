@@ -29,9 +29,9 @@ trajectory = simulate(ActiveViscoelasticGelSystem(), observers=[observer], rando
 # The largest density should rise far above 1 while the total stays fixed, and the cells should flow toward the peak.
 # Applying `gamma - eta d_xx` to the streamed velocity should return the gradient of the stress to rounding.
 
-density = trajectory.lattice('gel.c')
-displacement = trajectory.lattice('gel.u')
-velocity = np.asarray(trajectory.values('v'))
+density = trajectory.get_lattice('gel.c')
+displacement = trajectory.get_lattice('gel.u')
+velocity = np.asarray(trajectory.get_values('v'))
 spacing = 10 / 128
 centers = (np.arange(128) + 0.5) * spacing
 

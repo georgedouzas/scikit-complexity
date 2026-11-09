@@ -30,7 +30,7 @@ trajectory = simulate(system, observers=[observer])
 # an image. A nonzero configuration supported inside the ball of radius 3 should never map to 0: its element of
 # largest length leaves a nonzero value one step further out, which the proof of the theorem reads.
 
-second = trajectory.values('cells.second')
+second = trajectory.get_values('cells.second')
 space = system.prepare().system_.elements[0].space.prepare()
 interior = np.flatnonzero(space.lengths_ <= 3)
 rng = np.random.default_rng(1)
@@ -42,12 +42,12 @@ for _ in range(40):
     pairs[chosen[0], 0] = 1
     image = simulate(MullerAutomatonSystem(radius=5, initial=pairs), until=1)
     supports.append(int(pairs.any(axis=1).sum()))
-    images.append(int(image.values('cells.first')[-1].astype(bool).sum()))
+    images.append(int(image.get_values('cells.first')[-1].astype(bool).sum()))
 fig, (coordinates, check) = plt.subplots(1, 2, figsize=(10, 4))
 coordinates.plot(trajectory.times, (second != 0).mean(axis=1), 'o-', label='second coordinate')
 coordinates.plot(
     trajectory.times,
-    (trajectory.values('cells.first') != 0).mean(axis=1),
+    (trajectory.get_values('cells.first') != 0).mean(axis=1),
     's-',
     label='first coordinate',
 )

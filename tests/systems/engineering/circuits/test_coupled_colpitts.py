@@ -20,7 +20,10 @@ def test_coupled_colpitts_lock_their_phases_for_moderate_coupling(k, locked):
     trajectory = simulate(CoupledColpittsSystem(k=k), until=400)
     settled = trajectory.times > 100
     phases = [
-        _phase(trajectory.values(f'oscillator_{index}.y')[settled], trajectory.values(f'oscillator_{index}.z')[settled])
+        _phase(
+            trajectory.get_values(f'oscillator_{index}.y')[settled],
+            trajectory.get_values(f'oscillator_{index}.z')[settled],
+        )
         for index in range(2)
     ]
     assert (np.ptp(phases[0] - phases[1]) < 2 * math.pi) == locked

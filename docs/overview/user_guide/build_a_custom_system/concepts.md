@@ -22,7 +22,7 @@ class PopulationElement(Element):
 rabbits = PopulationElement('rabbits', x=10)
 growth = RateInteraction('growth', target='rabbits', state='x', rate=lambda s: 0.5 * s.target.x)
 system = CompositeSystem(elements=[rabbits], interactions=[growth])
-simulate(system, until=2, dt=0.1).values('rabbits.x')[-1].round(2)
+simulate(system, until=2, dt=0.1).get_values('rabbits.x')[-1].round(2)
 ```
 
 The element `rabbits` carries the state `x`, the interaction `growth` adds the rate `0.5 x` to it, and the system holds

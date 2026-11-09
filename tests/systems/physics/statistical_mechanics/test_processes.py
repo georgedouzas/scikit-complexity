@@ -22,7 +22,7 @@ def _ising_energy(spins):
 def test_q2r_conserves_energy():
     """Test that the Q2R automaton keeps the Ising energy while the magnetisation changes."""
     trajectory = simulate(Q2rSystem((32, 32)), until=50, random_state=0)
-    spins = trajectory.lattice('spins.spin')
+    spins = trajectory.get_lattice('spins.spin')
     assert {_ising_energy(frame) for frame in spins} == {_ising_energy(spins[0])}
     assert abs(spins[-1].mean()) < abs(spins[0].mean())
 
@@ -33,7 +33,7 @@ def test_site_percolation_burns_the_clusters_of_the_top_row(p, spans):
     system = SitePercolationSystem((40, 40), p=p, random_state=1).prepare().system_
     occupied = np.reshape(system.elements[0].values['cover'], (40, 40)) > 0
     trajectory = simulate(system, until=200, random_state=0)
-    burnt = trajectory.lattice('lattice.cover')[-1] == 3
+    burnt = trajectory.get_lattice('lattice.cover')[-1] == 3
     labels, _ = ndimage.label(occupied)
     lit = np.isin(labels, np.setdiff1d(labels[0], [0]))
     assert np.array_equal(burnt, lit)
@@ -44,13 +44,13 @@ def test_site_percolation_burns_the_clusters_of_the_top_row(p, spans):
 def test_contact_process_has_an_absorbing_transition(rate, survives):
     """Test that the infection dies out below the critical rate and persists above it."""
     trajectory = simulate(ContactProcessSystem((32, 32), rate=rate), until=300, random_state=0)
-    assert (trajectory.lattice('lattice.infected')[-1].mean() > 0.3) == survives
+    assert (trajectory.get_lattice('lattice.infected')[-1].mean() > 0.3) == survives
 
 
 def test_tasep_ring_current():
     """Test that the parallel exclusion process on a ring keeps its particles and carries the exact current."""
     trajectory = simulate(TASEPSystem(400, ring=True, p=0.5), until=1000, random_state=0)
-    occupied = trajectory.lattice('lane.occupied')
+    occupied = trajectory.get_lattice('lane.occupied')
     current = ((occupied[:-1] == 1) & (occupied[1:] == 0)).sum(axis=1).mean() / 400
     assert set(occupied.sum(axis=1)) == {200}
     assert current == pytest.approx((1 - np.sqrt(0.5)) / 2, rel=0.03)
@@ -59,16 +59,16 @@ def test_tasep_ring_current():
 def test_tasep_open_line_stays_an_exclusion_process():
     """Test that the open exclusion process keeps one particle at most per site."""
     trajectory = simulate(TASEPSystem(100), until=200, random_state=0)
-    assert set(np.unique(trajectory.lattice('lane.occupied'))) <= {0.0, 1.0}
+    assert set(np.unique(trajectory.get_lattice('lane.occupied'))) <= {0.0, 1.0}
 
 
 def test_tasep_reports_the_hops_and_carries_the_exact_current_of_an_open_line():
     """Test that the reported hops on a ring and the exits of an open line give the exact parallel-update current."""
     exact = (1 - np.sqrt(0.5)) / 2
     ring = simulate(TASEPSystem(400, ring=True, p=0.5), random_state=0)
-    assert np.asarray(ring.values('lane.hops'))[50:].sum(axis=1).mean() / 400 == pytest.approx(exact, rel=0.03)
+    assert np.asarray(ring.get_values('lane.hops'))[50:].sum(axis=1).mean() / 400 == pytest.approx(exact, rel=0.03)
     line = simulate(TASEPSystem(100, alpha=0.6, beta=0.6), until=3000, random_state=0)
-    occupied = line.lattice('lane.occupied')[300:]
+    occupied = line.get_lattice('lane.occupied')[300:]
     exits = ((occupied[:-1, -1] == 1) & (occupied[1:, -1] == 0)).mean()
     assert exits == pytest.approx(exact, rel=0.05)
 

@@ -26,7 +26,7 @@ from ..types import ReadKind
 from ._base import BaseLowering, BasePass
 from ._compilation import Compilation
 
-_SHIFT = 'shift_member'
+SHIFT = 'shift_member'
 
 
 class MemberLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
@@ -98,7 +98,7 @@ class MemberLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
                         changes[key] += float(SR(increment))
                 result.append(JumpLaw(self._lower(law.rate), {**changes, **functions}))
             elif isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
-                result.append(BasePass._replaced(law, value=self._lower(law.value)))
+                result.append(BasePass._get_replaced(law, value=self._lower(law.value)))
             else:
                 result.append(law)
         self.lowered_ = result
@@ -118,7 +118,7 @@ class MemberLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         The lowering of draws reads the wrapped draws.
         """
         draws = draws_in(expression)
-        if draws and BasePass._calls_of(expression, _SHIFT):
+        if draws and BasePass._get_calls_of(expression, SHIFT):
             error_msg = (
                 f'A law of {self.spec.owner} nests member offsets around a draw. Read a draw at one member offset.'
             )
@@ -126,7 +126,7 @@ class MemberLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         calls = {draw.call: shift_member(draw.call, offset, boundary=boundary, fill=fill) for draw in draws}
         return expression.subs(calls) if calls else expression
 
-    def _member(self, item: Expression) -> tuple[Expression, int, str | None, float]:
+    def _get_member(self, item: Expression) -> tuple[Expression, int, str | None, float]:
         """Return the member symbol a symbol reads, with its offset, boundary, and fill.
 
         They are the ones it is already read at.
@@ -156,7 +156,7 @@ class MemberLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
                 return item
         reference = self.spec.references[base]
         target = symbol(f'{base}__shift{len(self.shifted_)}', domain_of(base))
-        read = self._neighbor_read(reference.entry.rows, offset, boundary, fill)
+        read = self._get_neighbor_read(reference.entry.rows, offset, boundary, fill)
         self._add_reference(
             self.spec,
             target,
@@ -192,7 +192,7 @@ class MemberLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
                 The expression reads a single element, two groups, or nests reads with different boundaries.
         """
         expression = self._shift_draws(SR(expression), offset, boundary, fill)
-        members = {item: self._member(item) for item in expression.variables() if not self._is_single(item)}
+        members = {item: self._get_member(item) for item in expression.variables() if not self._is_single(item)}
         groups = {self.spec.references[base].entry.name.rpartition('.')[0] for base, *_ in members.values()}
         if len(groups) > 1:
             error_msg = (
@@ -226,16 +226,16 @@ class MemberLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         """
         if isinstance(value, FreeModuleElement):
             return vector(self._lower(item) for item in value)
-        if not isinstance(value, Expression) or not BasePass._calls_of(value, _SHIFT):
+        if not isinstance(value, Expression) or not BasePass._get_calls_of(value, SHIFT):
             return value
         operator = value.operator()
-        if getattr(operator, 'name', lambda: '')() != _SHIFT:
+        if getattr(operator, 'name', lambda: '')() != SHIFT:
             return operator(*(self._lower(item) for item in value.operands()))
         expression, offset, boundary, fill = self._shift_arguments(value)
         return self._shift(SR(self._lower(expression)), offset, boundary, fill)
 
     @staticmethod
-    def _neighbor_read(rows: int, offset: int, boundary: str, fill: float) -> NeighborReadSpec:
+    def _get_neighbor_read(rows: int, offset: int, boundary: str, fill: float) -> NeighborReadSpec:
         """Return the read of the member at an offset of every member of a group.
 
         The group has `rows` members.

@@ -37,7 +37,9 @@ trajectory = simulate(system, until=12, dt=0.005, observers=[observer])
 # pendulum itself.
 
 runs = [simulate(DoublePendulumSystem(theta1=np.pi / 2 + shift, theta2=np.pi / 2), dt=0.005) for shift in [0.0, 1e-8]]
-lower = [bobs(np.ravel(run.values('pendulum.theta1')), np.ravel(run.values('pendulum.theta2')))[1] for run in runs]
+lower = [
+    bobs(np.ravel(run.get_values('pendulum.theta1')), np.ravel(run.get_values('pendulum.theta2')))[1] for run in runs
+]
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.semilogy(runs[0].times, np.linalg.norm(lower[0] - lower[1], axis=0))
 ax.set_xlabel('time')

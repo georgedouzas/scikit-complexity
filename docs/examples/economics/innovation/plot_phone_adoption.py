@@ -50,7 +50,7 @@ by_class.set_xlabel('year')
 by_class.set_ylabel('share of households')
 by_class.set_title('Phones (solid) lag affordability (dashed)')
 by_class.legend(fontsize=8)
-overall.plot(1951 + trajectory.times, trajectory.values('share'), label='with a phone')
+overall.plot(1951 + trajectory.times, trajectory.get_values('share'), label='with a phone')
 overall.plot(
     1951 + trajectory.times,
     [(values['income'] >= THRESHOLD).mean() for values in households],

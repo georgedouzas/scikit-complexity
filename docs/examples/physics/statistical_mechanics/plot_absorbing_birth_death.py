@@ -49,12 +49,12 @@ long = simulate(
     random_state=1,
     backend=NumbaBackend(),
 )
-density = long.values('particles.n')[100:] / 100
+density = long.get_values('particles.n')[100:] / 100
 kappas = np.linspace(0.6, 2.4, 10)
 means = []
 for kappa in kappas:
     run = simulate(AbsorbingBirthDeathSystem(kappa=kappa), until=200, dt=0.5, random_state=0, backend=NumbaBackend())
-    means.append((run.values('particles.n')[100:] / 100).mean())
+    means.append((run.get_values('particles.n')[100:] / 100).mean())
 grid = np.linspace(0.5, 1.5, 200)
 weights = np.exp(-100 * large_deviation(grid, 2.0))
 fig, (distribution, transition) = plt.subplots(1, 2, figsize=(10, 4))

@@ -30,7 +30,7 @@ trajectory = simulate(AdaptiveDelayNetworkSystem(), observers=[observer])
 
 
 def order(trajectory):
-    phases = np.array([trajectory.values(f'unit_{index}.theta') for index in range(5)]).T
+    phases = np.array([trajectory.get_values(f'unit_{index}.theta') for index in range(5)]).T
     return np.abs(np.exp(1j * phases).mean(axis=1))
 
 
@@ -47,7 +47,7 @@ for source in range(5):
         if source != target:
             delays.plot(
                 trajectory.times,
-                trajectory.values(f'axon_{source}_{target}.tau'),
+                trajectory.get_values(f'axon_{source}_{target}.tau'),
                 lw=0.8,
             )
 delays.set_xlabel('time')

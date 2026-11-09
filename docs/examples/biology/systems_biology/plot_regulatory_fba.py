@@ -35,10 +35,10 @@ trajectory = simulate(RegulatoryFBASystem(), solver=solver, dt=FRAME, observers=
 # the biomass stands still.
 
 times = trajectory.times
-biomass = trajectory.values('culture/biomass.x')
-glucose = trajectory.values('culture/glucose.c')
-acetate = trajectory.values('culture/acetate.c')
-uptake = -trajectory.values('control/cell.v_EX_ac_e')
+biomass = trajectory.get_values('culture/biomass.x')
+glucose = trajectory.get_values('culture/glucose.c')
+acetate = trajectory.get_values('culture/acetate.c')
+uptake = -trajectory.get_values('control/cell.v_EX_ac_e')
 depleted = times[np.argmax(glucose <= 1e-3)]
 released = times[np.argmax(uptake > 1e-6)]
 fig, axes = plt.subplots(2, 1, figsize=(9, 6), sharex=True)

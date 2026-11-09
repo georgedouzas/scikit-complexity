@@ -73,7 +73,7 @@ class _SystemClasses:
         """
         wanted = {topics} if isinstance(topics, str) else set(topics)
         found = []
-        for name, (module, path, listed) in self._listed().items():
+        for name, (module, path, listed) in self._get_listed().items():
             if field is not None and path != field and not path.startswith(f'{field}/'):
                 continue
             if not wanted <= set(listed):
@@ -113,7 +113,7 @@ class _SystemClasses:
                 return False
         return True
 
-    def _listed(self) -> dict[str, tuple[str, str, tuple[str, ...]]]:
+    def _get_listed(self) -> dict[str, tuple[str, str, tuple[str, ...]]]:
         """Return the module, the field path, and the topics of every system class.
 
         They are given by class name and read once.

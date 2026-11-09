@@ -79,7 +79,7 @@ economy = CompositeSystem(
     space=LatticeSpace(9, boundary='fixed'),
     time=ContinuousTime(),
 )
-densities = simulate(economy, until=100, dt=10.0).values('wealth.f')
+densities = simulate(economy, until=100, dt=10.0).get_values('wealth.f')
 densities.sum(axis=1)[[0, -1]].round(12).tolist(), densities[-1].round(3).tolist()
 ```
 
@@ -148,7 +148,7 @@ welfare = CompositeSystem(
     space=LatticeSpace(9, boundary='fixed'),
     time=ContinuousTime(),
 )
-simulate(welfare, until=100, dt=10.0).values('wealth.f')[-1].round(3).tolist()
+simulate(welfare, until=100, dt=10.0).get_values('wealth.f')[-1].round(3).tolist()
 ```
 
 ## Moments
@@ -173,8 +173,8 @@ observables = [
     ObservableSpec('wealth_variance', wealth_variance, group='wealth'),
 ]
 trajectory = simulate(economy, until=100, dt=10.0, observables=observables)
-variance = trajectory.values('wealth_variance')
-round(float(trajectory.values('mean_wealth')[-1]), 3), variance[[0, -1]].round(3).tolist()
+variance = trajectory.get_values('wealth_variance')
+round(float(trajectory.get_values('mean_wealth')[-1]), 3), variance[[0, -1]].round(3).tolist()
 ```
 
 `moment(expression, order, coordinates)` is the reduction `sum_j c_j^r f_j` over the members of a group, with the
@@ -196,9 +196,9 @@ Run the same declarations with individual particles instead of densities, and co
 from skcomplex.core.engine.solvers import KineticSolver
 
 sampled = simulate(economy, until=100, dt=10.0, solver=KineticSolver(n=20_000), random_state=0)
-round(float(np.abs(sampled.values('wealth.f')[-1] - densities[-1]).sum()), 2)
+round(float(np.abs(sampled.get_values('wealth.f')[-1] - densities[-1]).sum()), 2)
 policed = simulate(welfare, until=100, dt=10.0, solver=KineticSolver(n=20_000), random_state=0)
-policed.values('wealth.f')[-1].round(2).tolist()
+policed.get_values('wealth.f')[-1].round(2).tolist()
 ```
 
 `KineticSolver(n, dt)` runs the declarations by direct simulation Monte Carlo. It holds every density as counts of
@@ -281,7 +281,7 @@ class MajorityElement(Element):
 alive = (np.random.default_rng(0).random(tree.size_) < 0.5).astype(float)
 cells = GroupElement('cells', element=MajorityElement, space=tree, on='sites', values={'alive': alive})
 majority = CompositeSystem(elements=[cells])
-tree.ball_sizes_, simulate(majority, until=3, dt=1).values('cells.alive').shape
+tree.ball_sizes_, simulate(majority, until=3, dt=1).get_values('cells.alive').shape
 CayleySpace(PermutationGroup([[(1, 2)], [(1, 2, 3)]])).prepare().words_
 ```
 
@@ -383,7 +383,7 @@ for _ in range(2):
     cells = step.run({'space': ring, 'alive': cells}).value_
 start = GroupElement('cells', element=CellElement, space=ring, values={'alive': [1, 0, 1, 1, 0, 0, 0, 0]}, on='sites')
 started = CompositeSystem(elements=[start], interactions=shift.interactions)
-frames = simulate(started, until=2, dt=1).values('cells.alive')
+frames = simulate(started, until=2, dt=1).get_values('cells.alive')
 cells.tolist() == frames[-1].astype(int).tolist()
 ```
 
@@ -467,7 +467,7 @@ keep = LocalRuleInteraction(
 )
 held = CompositeSystem(elements=[cells], interactions=[keep])
 automaton(held, kind='admissible', configuration=forbidden).admissible
-simulate(held, until=2, dt=1).values('cells.alive')[-1].astype(int).tolist()
+simulate(held, until=2, dt=1).get_values('cells.alive')[-1].astype(int).tolist()
 ```
 
 The rule `LinearRuleSpec(coefficients, field)` is the element `sum_s a_s s` of the group ring over `'GF(p)'` or

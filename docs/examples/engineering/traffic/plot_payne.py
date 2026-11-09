@@ -30,7 +30,7 @@ trajectory = simulate(system, dt=0.01, solver=SSPRKSolver(), observers=[observer
 # The density obeys a conservation law on a ring, so the number of cars should stay exactly constant, while the peak of
 # the bump should fall as it spreads.
 
-rho = trajectory.lattice('road.rho')
+rho = trajectory.get_lattice('road.rho')
 x = (np.arange(rho.shape[1]) + 0.5) / rho.shape[1]
 cars = rho.sum(axis=1) / rho.shape[1]
 fig, (profiles, totals) = plt.subplots(1, 2, figsize=(10, 4))

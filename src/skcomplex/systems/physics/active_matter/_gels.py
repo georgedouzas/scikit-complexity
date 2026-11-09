@@ -211,7 +211,7 @@ class ActiveViscoelasticGelSystem(BaseSystem):
         return _gel_velocity(s.target)
 
     @staticmethod
-    def _diffusion(s: SimpleNamespace) -> Expression:
+    def _get_diffusion(s: SimpleNamespace) -> Expression:
         """Return the diffusion coefficient of the cells."""
         diffusion: Expression = s.target.D
         return diffusion
@@ -246,6 +246,6 @@ class ActiveViscoelasticGelSystem(BaseSystem):
             limiter=None,
             riemann=None,
         )
-        diffusion = DiffusivityInteraction('diffusion', target='gel', state='c', coefficient=self._diffusion)
+        diffusion = DiffusivityInteraction('diffusion', target='gel', state='c', coefficient=self._get_diffusion)
         displacement = RateInteraction('displacement', target='gel', state='u', rate=self._transport)
         return CompositeSystem(self.label, elements=[gel], interactions=[transport, diffusion, displacement])

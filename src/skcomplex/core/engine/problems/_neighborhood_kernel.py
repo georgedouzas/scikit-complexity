@@ -1,6 +1,8 @@
 """Neighbourhood reduction that laws read, one value per member.
 
 It is compiled into a function of its symbols.
+
+`SPACES_OF` names the spaces every kind of neighbourhood is read on.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -43,17 +45,16 @@ from ._expression_printer import ExpressionPrinter
 from ._metric_search import MetricSearch
 from ._static_search import StaticSearch
 
-_SPACES_OF: tuple[tuple[type | tuple[type, ...], tuple[type, ...]], ...] = (
+SPACES_OF: tuple[tuple[type | tuple[type, ...], tuple[type, ...]], ...] = (
     (AdjacencyNeighborhood, (NetworkSpace,)),
     ((LatticeNeighborhood, MemoryNeighborhood), (LatticeSpace, CayleySpace)),
     ((RadiusNeighborhood, NearestNeighborhood, DelaunayNeighborhood), (ContinuousSpace,)),
     (CofaceNeighborhood, (CellComplexSpace,)),
 )
-"""Spaces every kind of neighbourhood is read on."""
+PLANE = 2
+
 
 type NeighborSearch = StaticSearch | EdgeRowSearch | MetricSearch
-
-_PLANE = 2
 
 
 class NeighborhoodKernel(BaseKernel):
@@ -144,7 +145,7 @@ class NeighborhoodKernel(BaseKernel):
     def _function(self) -> Callable[..., object]:
         """NumPy function of the argument and the weight, compiled once."""
         printer = ExpressionPrinter(time=self.time, compiled=True).prepare(self._symbols)
-        return ExpressionPrinter._function_of(printer.run([self.argument, self.weight]).code_)
+        return ExpressionPrinter._get_function_of(printer.run([self.argument, self.weight]).code_)
 
     @property
     def symbols(self) -> list[Expression]:
@@ -185,7 +186,7 @@ class NeighborhoodKernel(BaseKernel):
                     error_msg = f'The reduction {self.symbol} reads a periodic image, which only a metric search finds.'
                     raise ValidationError(error_msg)
                 if pair.position not in differences:
-                    differences[pair.position] = self.search.differences(x, readers, neighbours)
+                    differences[pair.position] = self.search.get_differences(x, readers, neighbours)
                 values.append(column[readers] - differences[pair.position][:, read.column])
             elif pair.table is not None:
                 values.append(column[pair.table[neighbours]])
@@ -199,31 +200,33 @@ class NeighborhoodKernel(BaseKernel):
         The vector is the `p` of `inputs`.
         """
         self.values_ = None
-        state = self._state_of(inputs)
+        state = self._get_state_of(inputs)
         t, x, q = state.t, state.x, state.p
         indptr, others, edges = self.search.run(state).pairs_
         size = self.size
         if self.hyperedge is not None:
-            indptr, others = self._neighbor_sets(indptr, others, self.hyperedge - 1)
+            indptr, others = self._get_neighbor_sets(indptr, others, self.hyperedge - 1)
         counts = np.diff(indptr)
         readers = np.repeat(np.arange(size, dtype=np.intp), counts)
-        argument, weight = ExpressionPrinter._values_of(self._function(t, *self._gather(x, q, readers, others, edges)))
+        argument, weight = ExpressionPrinter._get_values_of(
+            self._function(t, *self._gather(x, q, readers, others, edges)),
+        )
         pairs = readers.size
         argument = np.broadcast_to(np.asarray(argument, dtype=float), (pairs,))
         weight = np.broadcast_to(np.asarray(weight, dtype=float), (pairs,))
         if self.kind.startswith('component-'):
             active = argument != 0
-            q[self.entry.indices] = self._components_of(self.kind, readers[active], others[active], size)
+            q[self.entry.indices] = self._get_components_of(self.kind, readers[active], others[active], size)
             return
         if self.kind.startswith('path-'):
-            q[self.entry.indices] = self._cached_paths(readers[argument != 0], others[argument != 0])
+            q[self.entry.indices] = self._get_cached_paths(readers[argument != 0], others[argument != 0])
             return
         if self.coefficients is not None:
             weight = weight * self.coefficients
         q[self.entry.indices] = self._reduce_pairs(self.kind, readers, weight, argument, counts)
 
     @staticmethod
-    def _neighbor_sets(indptr: Indices, others: Indices, number: int) -> tuple[Indices, Indices]:
+    def _get_neighbor_sets(indptr: Indices, others: Indices, number: int) -> tuple[Indices, Indices]:
         """Return the sets of a number of neighbours of every member in CSR form.
 
         The sets of a member are the combinations of its neighbours, each in increasing neighbour order. The members of
@@ -266,7 +269,7 @@ class NeighborhoodKernel(BaseKernel):
         sets = np.concatenate(rows)[order].astype(np.intp)
         return np.concatenate([np.zeros(1, dtype=np.intp), np.cumsum(found)]).astype(np.intp), sets
 
-    def _cached_paths(self, readers: Indices, others: Indices) -> Array:
+    def _get_cached_paths(self, readers: Indices, others: Indices) -> Array:
         """Return the shortest paths reduction of the active links.
 
         It is computed again only when the links changed.
@@ -285,12 +288,12 @@ class NeighborhoodKernel(BaseKernel):
         cached = self.paths_
         if cached is not None and np.array_equal(cached[0], readers) and np.array_equal(cached[1], others):
             return cached[2]
-        values = self._paths_of(self.kind, readers, others, self.size)
+        values = self._get_paths_of(self.kind, readers, others, self.size)
         self.paths_ = (readers.copy(), others.copy(), values)
         return values
 
     @staticmethod
-    def _paths_of(kind: str, readers: Indices, others: Indices, size: int) -> Array:
+    def _get_paths_of(kind: str, readers: Indices, others: Indices, size: int) -> Array:
         """Return the betweenness or the closeness of every member.
 
         They are taken on the undirected graph of the active links.
@@ -336,7 +339,7 @@ class NeighborhoodKernel(BaseKernel):
         return np.asarray([found[member] for member in range(size)], dtype=float)
 
     @staticmethod
-    def _components_of(kind: str, readers: Indices, others: Indices, size: int) -> Array:
+    def _get_components_of(kind: str, readers: Indices, others: Indices, size: int) -> Array:
         """Return a giant component reduction of every member.
 
         The reduction is the label, the size, the largest size, or the membership of the giant component. The components
@@ -460,7 +463,7 @@ class NeighborhoodKernel(BaseKernel):
         raise ValidationError(error_msg)
 
     @staticmethod
-    def _network_rows(space: NetworkSpace, neighborhood: AdjacencyNeighborhood) -> tuple[Indices, Indices, Indices]:
+    def _get_network_rows(space: NetworkSpace, neighborhood: AdjacencyNeighborhood) -> tuple[Indices, Indices, Indices]:
         """Return the neighbours of every node of a layer in CSR form, with their edges.
 
         On a directed graph, the neighbours are the successors.
@@ -491,7 +494,7 @@ class NeighborhoodKernel(BaseKernel):
             return indptr, others, edges
         readers = np.repeat(np.arange(size, dtype=np.intp), np.diff(indptr))
         keep = readers != others
-        readers, others = MetricSearch._with_center(readers[keep], others[keep], size)
+        readers, others = MetricSearch._copy_with_center(readers[keep], others[keep], size)
         edges = np.concatenate([edges[keep], np.full(size, -1, dtype=np.intp)])
         order = np.lexsort((others, readers))
         counts = np.bincount(readers, minlength=size)
@@ -499,7 +502,7 @@ class NeighborhoodKernel(BaseKernel):
         return indptr, others[order].astype(np.intp), edges[order].astype(np.intp)
 
     @staticmethod
-    def _lattice_rows(space: BaseSpace, neighborhood: LatticeNeighborhood | MemoryNeighborhood) -> Pairs:
+    def _get_lattice_rows(space: BaseSpace, neighborhood: LatticeNeighborhood | MemoryNeighborhood) -> Pairs:
         """Return the neighbours of every site of a space in CSR form.
 
         They come in neighbourhood order, without outside sites.
@@ -560,7 +563,7 @@ class NeighborhoodKernel(BaseKernel):
         return None
 
     @staticmethod
-    def _position_state(states: Mapping[str, VariableSpec]) -> str | None:
+    def _get_position_state(states: Mapping[str, VariableSpec]) -> str | None:
         """Return the position state of an element type.
 
         It is the first vector state with the role position or site.
@@ -576,7 +579,7 @@ class NeighborhoodKernel(BaseKernel):
         return next((name for name, item in states.items() if item.is_place), None)
 
     @staticmethod
-    def _cone_direction(cone: RadiusNeighborhood, states: Mapping[str, VariableSpec], n_dim: int) -> str:
+    def _get_cone_direction(cone: RadiusNeighborhood, states: Mapping[str, VariableSpec], n_dim: int) -> str:
         """Return the state that holds the direction of a cone.
 
         It is the named state, else the derivative of the position.
@@ -623,14 +626,14 @@ class NeighborhoodKernel(BaseKernel):
         """
         if cone.direction is not None:
             declaration = states.get(cone.direction)
-            if declaration is not None and (declaration.vector or n_dim == _PLANE):
+            if declaration is not None and (declaration.vector or n_dim == PLANE):
                 return cone.direction
             error_msg = (
                 f'The cone reads the direction {cone.direction!r}, which is not a vector state of the members, or a '
                 'scalar angle state in two dimensions.'
             )
             raise ValidationError(error_msg)
-        position = NeighborhoodKernel._position_state(states)
+        position = NeighborhoodKernel._get_position_state(states)
         if position is None or states[position].order <= 1:
             error_msg = (
                 'The cone has no direction: the position of the members has no first derivative. Declare the position '
@@ -664,7 +667,7 @@ class NeighborhoodKernel(BaseKernel):
             raise ValidationError(error_msg)
 
     @staticmethod
-    def _neighbor_search(
+    def _get_neighbor_search(
         over: (
             AdjacencyNeighborhood
             | LatticeNeighborhood
@@ -712,7 +715,7 @@ class NeighborhoodKernel(BaseKernel):
                 The space does not offer the neighbourhood, the group does not hold one member per node or site, or the
                 members lack a position or a direction.
         """
-        offered = NeighborhoodKernel._spaces_of(over)
+        offered = NeighborhoodKernel._get_spaces_of(over)
         if not isinstance(space, offered):
             names = ' or '.join(item.__name__ for item in offered)
             error_msg = f'The neighbourhood {over!r} needs a {names}, but the group lives on {space!r}.'
@@ -723,11 +726,11 @@ class NeighborhoodKernel(BaseKernel):
                 directed = space.graphs_[over.layer].is_directed()
                 return EdgeRowSearch(source, target, active, rows, directed, center=over.center).prepare()
             NeighborhoodKernel._check_rows(space, rows)
-            return StaticSearch(*NeighborhoodKernel._network_rows(space, over)).prepare()
+            return StaticSearch(*NeighborhoodKernel._get_network_rows(space, over)).prepare()
         if isinstance(over, LatticeNeighborhood | MemoryNeighborhood) and isinstance(space, BaseSpace):
             NeighborhoodKernel._check_rows(space, rows)
-            return StaticSearch(*NeighborhoodKernel._lattice_rows(space, over)).prepare()
-        position = NeighborhoodKernel._position_state(states)
+            return StaticSearch(*NeighborhoodKernel._get_lattice_rows(space, over)).prepare()
+        position = NeighborhoodKernel._get_position_state(states)
         if position is None or not isinstance(space, ContinuousSpace):
             error_msg = (
                 f'A reduction over {over!r} measures distances between positions, but the members declare no vector '
@@ -738,7 +741,7 @@ class NeighborhoodKernel(BaseKernel):
         periods = continuous.extent_ if continuous.periodic_ else None
         direction = None
         if isinstance(over, RadiusNeighborhood) and float(over.angle) < math.pi:
-            name = NeighborhoodKernel._cone_direction(over, states, continuous.n_dim_)
+            name = NeighborhoodKernel._get_cone_direction(over, states, continuous.n_dim_)
             direction = DirectionSpec(entries[name], not states[name].vector) if name in entries else None
             if direction is None:
                 error_msg = f'The cone reads the direction {name!r}, which the members do not hold.'
@@ -746,7 +749,7 @@ class NeighborhoodKernel(BaseKernel):
         return MetricSearch(over, entries[position], periods, direction).prepare()
 
     @staticmethod
-    def _spaces_of(neighborhood: BaseNeighborhood) -> tuple[type, ...]:
+    def _get_spaces_of(neighborhood: BaseNeighborhood) -> tuple[type, ...]:
         """Return the classes of the spaces a neighbourhood is read on.
 
         Args:
@@ -763,4 +766,4 @@ class NeighborhoodKernel(BaseKernel):
             >>> NeighborhoodKernel._spaces_of(RadiusNeighborhood(1.0))
             (<class 'skcomplex.core.components.spaces._continuous.ContinuousSpace'>,)
         """
-        return next(spaces for neighborhoods, spaces in _SPACES_OF if isinstance(neighborhood, neighborhoods))
+        return next(spaces for neighborhoods, spaces in SPACES_OF if isinstance(neighborhood, neighborhoods))

@@ -13,9 +13,9 @@ def test_glucose_represses_acetate_uptake():
     """Test that acetate is untouched while glucose lasts, and that biomass grows in two phases with a lag."""
     trajectory = simulate(RegulatoryFBASystem())
     times = trajectory.times
-    glucose = trajectory.values('culture/glucose.c')
-    biomass = trajectory.values('culture/biomass.x')
-    uptake = -trajectory.values('control/cell.v_EX_ac_e')
+    glucose = trajectory.get_values('culture/glucose.c')
+    biomass = trajectory.get_values('culture/biomass.x')
+    uptake = -trajectory.get_values('control/cell.v_EX_ac_e')
     assert np.all(uptake[glucose > THRESHOLD] == pytest.approx(0.0, abs=1e-9))
     assert np.max(uptake[glucose <= THRESHOLD]) > 1
     growth = np.gradient(np.log(biomass), times)

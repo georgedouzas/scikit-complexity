@@ -102,6 +102,7 @@ VERBS = frozenset(
         'continues',
         'controls',
         'contract',
+        'convert',
         'convolve',
         'coerce',
         'copy',
@@ -354,9 +355,9 @@ VERBS = frozenset(
     ],
 )
 SYMBOLIC_CHECKED = ('skcomplex',)
-CONSTANTS_CHECKED = ('src/skcomplex/core/components',)
-HELPERS_CHECKED = ('skcomplex.core.components',)
-VERBS_CHECKED = ('skcomplex.core.components',)
+CONSTANTS_CHECKED = ('src/skcomplex/core/components', 'src/skcomplex/core/engine')
+HELPERS_CHECKED = ('skcomplex.core.components', 'skcomplex.core.engine')
+VERBS_CHECKED = ('skcomplex.core.components', 'skcomplex.core.engine')
 
 
 def _sources(root: Path) -> list[Path]:

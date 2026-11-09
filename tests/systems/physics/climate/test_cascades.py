@@ -20,7 +20,7 @@ def _final(system):
 def test_fold_follower_tips_only_when_the_tipped_leader_pushes_it_past_its_fold(coupling, tips):
     """Test that the follower tips when `coupling x` of the tipped leader exceeds `2 / (3 √3)`, a domino cascade."""
     trajectory = _final(LeadingFollowingCascadeSystem(coupling=coupling).prepare().system_)
-    leader, follower = (np.ravel(trajectory.values(name)) for name in ('leader.x', 'follower.y'))
+    leader, follower = (np.ravel(trajectory.get_values(name)) for name in ('leader.x', 'follower.y'))
     assert leader[0] < -1
     assert leader[-1] > 1
     assert (coupling * 1.32 > 2 / (3 * math.sqrt(3))) == tips
@@ -30,7 +30,7 @@ def test_fold_follower_tips_only_when_the_tipped_leader_pushes_it_past_its_fold(
 def test_hopf_follower_oscillates_after_the_leader_tips():
     """Test that the tipped leader carries a Hopf follower onto a cycle of radius `sqrt(coupling x)`."""
     trajectory = _final(LeadingFollowingCascadeSystem('hopf').prepare().system_)
-    leader, y, z = (np.ravel(trajectory.values(name)) for name in ('leader.x', 'follower.y', 'follower.z'))
+    leader, y, z = (np.ravel(trajectory.get_values(name)) for name in ('leader.x', 'follower.y', 'follower.z'))
     radius = np.hypot(y, z)
     times = np.asarray(trajectory.times)
     assert radius[times < 50].max() < 0.15

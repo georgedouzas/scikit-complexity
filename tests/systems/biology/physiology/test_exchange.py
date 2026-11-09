@@ -48,8 +48,8 @@ class _PreviousCellElement(ExchangingCellElement):
 
 def test_closed_contour_cell_exchange_synchronizes_in_the_stability_domain():
     """Test that the contour cells synchronize at a stable equilibrium in its domain, and a chaotic one does not."""
-    stable = simulate(ClosedContourCellExchangeSystem(r=2.5), dt=1, until=200).values('cells.x')
-    chaotic = simulate(ClosedContourCellExchangeSystem(r=3.9), dt=1, until=200).values('cells.x')
+    stable = simulate(ClosedContourCellExchangeSystem(r=2.5), dt=1, until=200).get_values('cells.x')
+    chaotic = simulate(ClosedContourCellExchangeSystem(r=3.9), dt=1, until=200).get_values('cells.x')
     equilibrium = stable[-1]
     assert np.ptp(stable[-20:], axis=0).max() < 1e-9
     assert np.ptp(equilibrium) < 1e-9
@@ -65,7 +65,7 @@ def test_nanotube_gap_junction_exchange_destabilizes_past_the_threshold():
     final = {}
     for share in (0.8, 1.2):
         system = NanotubeGapJunctionExchangeSystem(graph, xi=share * critical, x=0.1).prepare().system_
-        final[share] = simulate(system, dt=0.5, until=200).values('cells.x')[-1].mean()
+        final[share] = simulate(system, dt=0.5, until=200).get_values('cells.x')[-1].mean()
     assert final[0.8] < 0.01
     assert final[1.2] > 10
 
@@ -86,7 +86,7 @@ def test_nanotube_gap_junction_exchange_keeps_the_trajectory_of_the_coupling_in_
     previous = CompositeSystem(elements=[cells], time=ContinuousTime())
     trajectory = simulate(system, dt=0.5, until=100)
     expected = simulate(previous, dt=0.5, until=100)
-    assert np.abs(trajectory.values('cells.x') - expected.values('cells.x')).max() < 1e-10
+    assert np.abs(trajectory.get_values('cells.x') - expected.get_values('cells.x')).max() < 1e-10
 
 
 def test_contour_uptake_interaction_mixes_logistic_map_and_next_cell():
@@ -95,6 +95,6 @@ def test_contour_uptake_interaction_mixes_logistic_map_and_next_cell():
     cells = GroupElement('cells', element=ContourCellElement, size=3, values={'x': x, 'r': r, 'c': c, 'p': p})
     uptake = ContourUptakeInteraction('uptake', target='cells')
     system = CompositeSystem(elements=[cells], interactions=[uptake], time=DiscreteTime())
-    found = simulate(system, until=1).values('cells.x')[-1]
+    found = simulate(system, until=1).get_values('cells.x')[-1]
     expected = (1 - c) * r * x * (1 - x) + c * np.roll(x, -1) ** p
     np.testing.assert_allclose(found, expected)

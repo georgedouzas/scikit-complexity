@@ -199,13 +199,13 @@ def test_default_solver_finishes_a_state_resting_on_a_discontinuity():
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', UserWarning)
         trajectory = simulate(_tubs(), until=6, dt=1)
-    np.testing.assert_allclose(np.ravel(trajectory.values('tubs.water'))[:5], [20, 15, 10, 5, 0], atol=1e-3)
+    np.testing.assert_allclose(np.ravel(trajectory.get_values('tubs.water'))[:5], [20, 15, 10, 5, 0], atol=1e-3)
 
 
 def test_default_solver_leaves_lsoda_when_it_stalls(monkeypatch):
     """Test that a stall moves the default method on to RK45, and raises an error on an explicit LSODA."""
-    monkeypatch.setattr(_scipy_ode, '_STALL_STEP', math.inf)
-    monkeypatch.setattr(_scipy_ode, '_STALL_STEPS', 1)
+    monkeypatch.setattr(_scipy_ode, 'STALL_STEP', math.inf)
+    monkeypatch.setattr(_scipy_ode, 'STALL_STEPS', 1)
     with pytest.warns(UserWarning, match='LSODA stalled'):
         solver = _stepped_solver(PassCompiler().prepare(_tubs()).run().problem_, 6, 1)
     assert solver.method_ == 'RK45'
@@ -238,7 +238,7 @@ def test_default_solver_starts_from_rest_with_a_vanishing_drift():
     trajectory = simulate(CompositeSystem(elements=[ForcedElement('oscillator')]), until=5, dt=0.01)
     times = trajectory.times
     expected = (np.sin(times) - np.sin(2 * times) / 2) / 3
-    np.testing.assert_allclose(trajectory.values('oscillator.x'), expected, atol=1e-6)
+    np.testing.assert_allclose(trajectory.get_values('oscillator.x'), expected, atol=1e-6)
 
 
 def _decay():
@@ -272,7 +272,12 @@ def test_scipy_ode_keeps_integrator_across_frames():
 
 def test_scipy_ode_restarts_on_parameter_change():
     """Test that a decay rate set to zero at time 5 keeps the state constant from then on."""
-    values = simulate(_decay(), until=10, dt=0.01, schedule={'g.r': lambda t: -1.0 if t < 5 - 1e-9 else 0.0}).values(
+    values = simulate(
+        _decay(),
+        until=10,
+        dt=0.01,
+        schedule={'g.r': lambda t: -1.0 if t < 5 - 1e-9 else 0.0},
+    ).get_values(
         'a.x',
     )
     assert values[500] == pytest.approx(np.exp(-5.0), rel=1e-5)
@@ -312,7 +317,7 @@ def test_default_solver_names_a_blow_up():
 def test_default_solver_follows_fast_exponential_growth():
     """Test that a state on a fast manifold, growing exponentially without a blow-up, stays close to its growth rate."""
     system = TakensBogdanovFormSystem(x=5.0, y=5.0, beta1=0.1, beta2=-1.0).prepare().system_
-    values = simulate(system, until=20, dt=0.1).values('form.x')
+    values = simulate(system, until=20, dt=0.1).get_values('form.x')
     assert np.log(values[-1] / values[-11]) == pytest.approx(1.0, rel=0.01)
 
 

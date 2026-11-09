@@ -9,7 +9,7 @@ from ..conftest import _run
 
 def _prevalence(share: float) -> np.ndarray:
     """Return the share of infected nodes at every frame of a run from an initial share."""
-    infected = _run(SimplicialContagionSystem(share=share, seed=0), 30.0, dt=0.5).values('nodes.infected')
+    infected = _run(SimplicialContagionSystem(share=share, seed=0), 30.0, dt=0.5).get_values('nodes.infected')
     return infected.reshape(len(infected), -1).mean(axis=1)
 
 
@@ -26,5 +26,5 @@ def test_simplicial_contagion_infects_only_through_links_without_triangles():
         .prepare()
         .system_
     )
-    infected = _run(system, 30.0, dt=0.5).values('nodes.infected')
+    infected = _run(system, 30.0, dt=0.5).get_values('nodes.infected')
     assert infected[-1].sum() == 0

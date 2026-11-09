@@ -94,17 +94,17 @@ from ..problems import BaseProblemSpec, ProblemSpec
 from ..problems._neighborhood_kernel import NeighborhoodKernel
 from ..problems._partition_spec import PartitionSpec
 from ..problems._topology_kernel import TopologyKernel
-from ._base import _FIXES, BaseCompiler, BasePass
+from ._base import FIXES, BaseCompiler, BasePass
 from ._compilation import Compilation
 from ._field_lowering import FieldLowering
 from ._learning_compiler import _LearningCompiler
-from ._observables import _check_held_reads, _held_observables, _with_held_observables, _with_held_reductions
+from ._observables import ObservableEvaluator
 from .passes._cells import DEGREES
 from .passes._census import CensusPass
 from .passes._check_fractional_noise import BROWNIAN_HURST
 from .passes._compile_encounters import CompileEncountersPass
 from .passes._conserved_noise import ConservedNoisePass
-from .passes._core import _PASSES
+from .passes._core import PASSES
 from .passes._fractional_form import FractionalFormPass
 from .passes._lattices import LatticeProblemPass
 from .passes._layout import LayoutPass
@@ -114,30 +114,30 @@ from .passes._operator_compiler import OperatorCompiler
 from .passes._orders import OrdersPass
 from .passes._reduction_lowering import ReductionLowering
 
-_COVARIANCE_TOLERANCE = 1e-12
-_PROBABILITY_TOLERANCE = 1e-9
-_LISTED_ENCOUNTERS = 3
-_COLLISION_AXES = 2
-_TIME_CLASSES: dict[type, str] = {
+COVARIANCE_TOLERANCE = 1e-12
+PROBABILITY_TOLERANCE = 1e-9
+LISTED_ENCOUNTERS = 3
+COLLISION_AXES = 2
+TIME_CLASSES: dict[type, str] = {
     ContinuousTime: 'ContinuousTime()',
     DiscreteTime: 'DiscreteTime()',
     StaticTime: 'StaticTime()',
 }
-_OWN_NEIGHBORHOOD = (LatticeSpace, NetworkSpace, CayleySpace, MeshSpace)
-_REPLACEMENTS = {
+OWN_NEIGHBORHOOD = (LatticeSpace, NetworkSpace, CayleySpace, MeshSpace)
+REPLACEMENTS = {
     DomainKind.CATEGORICAL: 'a jump, transition, or update law',
     DomainKind.INTEGER: 'a jump or update law',
     DomainKind.BOOLEAN: 'a jump or update law',
     DomainKind.HILBERT: 'a generator or dissipator law',
 }
-_PARTITIONS = ('plan', 'subsystems')
+PARTITIONS = ('plan', 'subsystems')
 POLYGON_COORDINATES = 2
 NONLOCAL_OPERATORS = ('convolve', 'shifted', 'inverse_helmholtz', 'integral_transform', 'cumulative_integral')
 LOCAL_OPERATORS = ('laplacian', 'partial', 'upwind')
 KERNEL_OPERATORS = ('convolve', 'integral_transform')
 NEIGHBOR_SET_BACKENDS = ('numpy', 'numba')
-_PLANNING = frozenset({'nodes', 'census', 'plan'})
-_FIELDS = (
+PLANNING = frozenset({'nodes', 'census', 'plan'})
+FIELDS = (
     'system',
     'backend',
     'solver',
@@ -238,12 +238,12 @@ class PassCompiler(BaseCompiler):
         if self.passes is not None and not all(isinstance(item, BasePass) for item in self.passes):
             error_msg = 'The passes hold an object that is not a pass. Pass instances of BasePass.'
             raise ValidationError(error_msg)
-        if self.partition not in _PARTITIONS:
-            error_msg = f'The partition is {self.partition!r}. Choose one of {", ".join(map(repr, _PARTITIONS))}.'
+        if self.partition not in PARTITIONS:
+            error_msg = f'The partition is {self.partition!r}. Choose one of {", ".join(map(repr, PARTITIONS))}.'
             raise ValidationError(error_msg)
         super()._prepare(context)
 
-    def _issues(self, system: CompositeSystem) -> list[IssueSpec]:
+    def _get_issues(self, system: CompositeSystem) -> list[IssueSpec]:
         """Return every issue of a system, of its solver, and of its backend.
 
         The compilation is planned along the way.
@@ -256,7 +256,7 @@ class PassCompiler(BaseCompiler):
             issues:
                 The issues, in the order they were found.
         """
-        passes = self.passes if self.passes is not None else [item() for item in _PASSES]
+        passes = self.passes if self.passes is not None else [item() for item in PASSES]
         self.passes_ = tuple(clone(item) for item in passes)
         self.learning_ = None
         if _LearningCompiler._find_training(system) is not None:
@@ -264,14 +264,14 @@ class PassCompiler(BaseCompiler):
             self.learning_ = _LearningCompiler(inner, self.backend, self.solver).prepare(system)
             self.compilation_ = None
             return list(self.learning_.report_.issues)
-        self.compilation_, issues = self._counted(system)
+        self.compilation_, issues = self._get_counted(system)
         if self.compilation_ is None or self.compilation_.census is None:
             return issues
-        issues = self._issues_of(self.compilation_)
+        issues = self._get_issues_of(self.compilation_)
         if not any(issue.severity == _ERROR for issue in issues):
-            issues += self._program_issues(self.compilation_)
+            issues += self._get_program_issues(self.compilation_)
         if not any(issue.severity == _ERROR for issue in issues):
-            issues += self._structure_issues(self.compilation_)
+            issues += self._get_structure_issues(self.compilation_)
         if not any(issue.severity == _ERROR for issue in issues):
             issues += self._plan_issues(self.compilation_)
         return issues
@@ -296,13 +296,13 @@ class PassCompiler(BaseCompiler):
             error_msg = 'The system stopped compiling before its census. Prepare the compiler on a valid system.'
             raise PipelineError(error_msg)
         if self.partition == 'subsystems':
-            return self._with_initial_state(self._subsystem_problem(compilation), initial_state)
-        problem = self._planned_problem(compilation)
-        _check_held_reads(problem, list(compilation.held))
-        return self._with_initial_state(problem, initial_state)
+            return self._copy_with_initial_state(self._get_subsystem_problem(compilation), initial_state)
+        problem = self._get_planned_problem(compilation)
+        ObservableEvaluator._check_held_reads(problem, list(compilation.held))
+        return self._copy_with_initial_state(problem, initial_state)
 
     @staticmethod
-    def _with_initial_state(problem: BaseProblemSpec, initial_state: Mapping[str, object]) -> BaseProblemSpec:
+    def _copy_with_initial_state(problem: BaseProblemSpec, initial_state: Mapping[str, object]) -> BaseProblemSpec:
         """Return a problem whose initial state takes given values of some states.
 
         Args:
@@ -340,19 +340,19 @@ class PassCompiler(BaseCompiler):
                 raise ValidationError(error_msg) from error
         return dataclasses.replace(problem, initial_state=state)
 
-    def _new_compilation(self, system: CompositeSystem, held: tuple[str, ...] = ()) -> Compilation:
+    def _get_new_compilation(self, system: CompositeSystem, held: tuple[str, ...] = ()) -> Compilation:
         """Return a new compilation of a system, with no pass run yet."""
         compilation = Compilation(system, self.backend, self.solver, held=held)
         compilation.done = set()
         return compilation
 
     @staticmethod
-    def _present(compilation: Compilation) -> set[str]:
+    def _get_present(compilation: Compilation) -> set[str]:
         """Return the fields a compilation holds.
 
         They are its inputs and the fields set so far.
         """
-        return {name for name in _FIELDS if getattr(compilation, name) is not None}
+        return {name for name in FIELDS if getattr(compilation, name) is not None}
 
     @staticmethod
     def _fork(compilation: Compilation, owners: frozenset[str]) -> Compilation:
@@ -364,8 +364,8 @@ class PassCompiler(BaseCompiler):
         fork.nodes, fork.census, fork.plan = compilation.nodes, compilation.census, compilation.plan
         fork.done = {
             item
-            for item in Compilation._required(compilation.done, 'done')
-            if isinstance(item, BasePass) and set(item._get_writes()) <= _PLANNING
+            for item in Compilation._get_required(compilation.done, 'done')
+            if isinstance(item, BasePass) and set(item._get_writes()) <= PLANNING
         }
         return fork
 
@@ -390,19 +390,19 @@ class PassCompiler(BaseCompiler):
             PipelineError:
                 The passes cannot be ordered.
         """
-        needed = self._needed(self.passes_, until)
-        done = Compilation._required(compilation.done, 'done')
-        for item in self._ordered(self.passes_, self._present(compilation)):
+        needed = self._get_needed(self.passes_, until)
+        done = Compilation._get_required(compilation.done, 'done')
+        for item in self._get_ordered(self.passes_, self._get_present(compilation)):
             if item in needed and item not in done:
                 item.prepare(compilation).run()
                 done.add(item)
         return compilation
 
-    def _compiled(self, compilation: Compilation) -> ProblemSpec:
+    def _get_compiled(self, compilation: Compilation) -> ProblemSpec:
         """Return the problem of a compilation, running every pass it has not run yet."""
-        return Compilation._required(self._run_passes(compilation).problem, 'problem')
+        return Compilation._get_required(self._run_passes(compilation).problem, 'problem')
 
-    def _partitioned(self, compilation: Compilation, plan: list[tuple[str, frozenset[str]]]) -> ProblemSpec:
+    def _get_partitioned(self, compilation: Compilation, plan: list[tuple[str, frozenset[str]]]) -> ProblemSpec:
         """Return the problem of a system split into partitions.
 
         Each partition is compiled with the laws of its owners.
@@ -410,7 +410,7 @@ class PassCompiler(BaseCompiler):
         partitions = []
         problems = []
         for name, owners in plan:
-            problem = self._compiled(self._fork(compilation, owners))
+            problem = self._get_compiled(self._fork(compilation, owners))
             owned = [entry.indices for entry in problem.states.entries if entry.name.rpartition('.')[0] in owners]
             indices = np.concatenate([np.arange(item.start, item.stop) for item in owned]) if owned else np.zeros(0)
             partitions.append(PartitionSpec(name, problem, indices.astype(np.intp), owners))
@@ -465,34 +465,34 @@ class PassCompiler(BaseCompiler):
 
         return solve
 
-    def _planned_problem(self, compilation: Compilation) -> ProblemSpec:
+    def _get_planned_problem(self, compilation: Compilation) -> ProblemSpec:
         """Return the problem of a validated compilation.
 
         It is one problem, or one partition per planned subsystem. The owners of a partition are the elements and groups
         of its subsystem whose lowered laws it holds.
         """
-        plan = Compilation._required(compilation.plan, 'plan')
+        plan = Compilation._get_required(compilation.plan, 'plan')
         if len(plan.partitions) <= 1:
-            return self._compiled(compilation)
-        kinds = Compilation._required(self._run_passes(compilation, until='kinds').kinds, 'kinds')
+            return self._get_compiled(compilation)
+        kinds = Compilation._get_required(self._run_passes(compilation, until='kinds').kinds, 'kinds')
         owners = [(item.name, frozenset(owner for owner in kinds if item.holds(owner))) for item in plan.partitions]
-        return self._partitioned(compilation, owners)
+        return self._get_partitioned(compilation, owners)
 
-    def _subsystem_problem(self, compilation: Compilation) -> ProblemSpec:
+    def _get_subsystem_problem(self, compilation: Compilation) -> ProblemSpec:
         """Return the problem of a system as partitions of its root and children.
 
         There is one partition for the elements of its root and one per child system.
         """
         system = compilation.system
-        elements = {node.path for node in Compilation._required(compilation.nodes, 'nodes') if not node.interaction}
+        elements = {node.path for node in Compilation._get_required(compilation.nodes, 'nodes') if not node.interaction}
         own = frozenset(path for path in elements if '/' not in path)
         plan = [(system.label, own)] if own else []
         for child in system.systems:
             plan.append((child.label, frozenset(path for path in elements if path.startswith(f'{child.label}/'))))
-        return self._partitioned(compilation, plan)
+        return self._get_partitioned(compilation, plan)
 
     @staticmethod
-    def _compiler_issue(system: CompositeSystem, compiler: str) -> IssueSpec:
+    def _get_compiler_issue(system: CompositeSystem, compiler: str) -> IssueSpec:
         """Return the issue of a system that another compiler compiles.
 
         The issue names that compiler.
@@ -500,14 +500,14 @@ class PassCompiler(BaseCompiler):
         message = f'The system {system.label} is compiled by {compiler}, not by PassCompiler.'
         return IssueSpec('compiler', system.label, message, f'Pass `compiler={compiler}()`.')
 
-    def _counted(self, system: CompositeSystem) -> tuple[Compilation | None, list[IssueSpec]]:
+    def _get_counted(self, system: CompositeSystem) -> tuple[Compilation | None, list[IssueSpec]]:
         """Return the compilation of a system through the census of its laws.
 
         It returns the issues instead when they stop it before. The compilation stops after flattening for a system that
         another compiler compiles. When laws read reductions of agents, the compilation starts again from a system tree
         that holds each of them in an element.
         """
-        compilation = self._new_compilation(system)
+        compilation = self._get_new_compilation(system)
         try:
             self._run_passes(compilation, until='nodes')
         except PhaseSpaceTooLargeError as error:
@@ -515,75 +515,75 @@ class PassCompiler(BaseCompiler):
             return None, [IssueSpec('space-size', system.label, str(error), fix, error=PhaseSpaceTooLargeError)]
         except SkcomplexError as error:
             fix = 'Pass elements, groups, interactions, and systems as children.'
-            return None, [self._issue_of(error, system.label, 'structure', fix)]
+            return None, [self._get_issue_of(error, system.label, 'structure', fix)]
         issues = (
-            [self._compiler_issue(system, 'OperatorCompiler')]
+            [self._get_compiler_issue(system, 'OperatorCompiler')]
             if OperatorCompiler._contains_operator(system)
-            else self._port_issues(Compilation._required(compilation.nodes, 'nodes'))
+            else self._get_port_issues(Compilation._get_required(compilation.nodes, 'nodes'))
         )
         if issues:
             return compilation, issues
-        held = _held_observables(system, Compilation._required(compilation.nodes, 'nodes'))
+        held = ObservableEvaluator._get_held_observables(system, Compilation._get_required(compilation.nodes, 'nodes'))
         if held:
-            tree, paths = _with_held_observables(system, held)
-            compilation = self._new_compilation(tree, held=tuple(paths))
+            tree, paths = ObservableEvaluator._copy_with_held_observables(system, held)
+            compilation = self._get_new_compilation(tree, held=tuple(paths))
         self._run_passes(compilation, until='census')
         try:
-            reductions = self._held_reductions(Compilation._required(compilation.census, 'census'), symbol('t'))
+            reductions = self._get_held_reductions(Compilation._get_required(compilation.census, 'census'), symbol('t'))
         except ValidationError as error:
             fix = 'Reduce an expression of the agents of one group.'
-            return None, [self._issue_of(error, system.label, 'reduction', fix)]
+            return None, [self._get_issue_of(error, system.label, 'reduction', fix)]
         if not reductions:
             return compilation, []
-        tree = _with_held_reductions(compilation.system, reductions)
-        compilation = self._new_compilation(tree, held=compilation.held)
+        tree = ObservableEvaluator._copy_with_held_reductions(compilation.system, reductions)
+        compilation = self._get_new_compilation(tree, held=compilation.held)
         return self._run_passes(compilation, until='census'), []
 
-    def _program_issues(self, compilation: Compilation) -> list[IssueSpec]:
+    def _get_program_issues(self, compilation: Compilation) -> list[IssueSpec]:
         """Return the issues of the linear program laws of a system.
 
         The laws are collected as needed.
         """
-        records = Compilation._required(compilation.census, 'census').records
+        records = Compilation._get_required(compilation.census, 'census').records
         if not any(isinstance(record.law, LinearProgramLaw) for record in records):
             return []
         try:
             self._run_passes(compilation, until='programs')
         except SkcomplexError as error:
             fix = 'Correct the component as the message describes.'
-            return [self._issue_of(error, compilation.system.label, 'value', fix)]
-        return LinearProgramsPass._issues_of(compilation, self._algebraic_names(compilation))
+            return [self._get_issue_of(error, compilation.system.label, 'value', fix)]
+        return LinearProgramsPass._get_issues_of(compilation, self._get_algebraic_names(compilation))
 
-    def _structure_issues(self, compilation: Compilation) -> list[IssueSpec]:
+    def _get_structure_issues(self, compilation: Compilation) -> list[IssueSpec]:
         """Return the issue of equations that cannot be matched to their unknowns.
 
         The laws are lowered as needed.
         """
-        if not self._algebraic_names(compilation):
+        if not self._get_algebraic_names(compilation):
             return []
         try:
             self._run_passes(compilation, until='lowered')
-            return OrdersPass._structure_issues(compilation)
+            return OrdersPass._get_structure_issues(compilation)
         except SkcomplexError as error:
             fix = 'Correct the component as the message describes.'
-            return [self._issue_of(error, compilation.system.label, 'value', fix)]
+            return [self._get_issue_of(error, compilation.system.label, 'value', fix)]
 
     @staticmethod
-    def _algebraic_names(compilation: Compilation) -> set[str]:
+    def _get_algebraic_names(compilation: Compilation) -> set[str]:
         """Return the dotted names of the algebraic states of a system.
 
         They are those of its elements and groups.
         """
         return {
             f'{node.path}.{name}'
-            for node in Compilation._required(compilation.nodes, 'nodes')
+            for node in Compilation._get_required(compilation.nodes, 'nodes')
             if not node.interaction
             for name, declaration in declarations_of(node.component_type, VariableKind.STATE).items()
             if declaration.algebraic
         }
 
     @staticmethod
-    def _port_state_issues(nodes: list[NodeSpec]) -> list[IssueSpec]:
+    def _get_port_state_issues(nodes: list[NodeSpec]) -> list[IssueSpec]:
         """Return the variables of declared ports that have no algebraic state."""
         issues = []
         for node in nodes:
@@ -603,7 +603,7 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _connector_issue(
+    def _get_connector_issue(
         node: NodeSpec,
         connector_names: Mapping[str, str | None],
     ) -> IssueSpec | None:
@@ -625,7 +625,7 @@ class PassCompiler(BaseCompiler):
         return IssueSpec('port-connector', node.path, message, 'Connect ports of one connector.')
 
     @staticmethod
-    def _port_issues(nodes: list[NodeSpec]) -> list[IssueSpec]:
+    def _get_port_issues(nodes: list[NodeSpec]) -> list[IssueSpec]:
         """Return the issues of declared ports and of the connections between them.
 
         Args:
@@ -637,7 +637,7 @@ class PassCompiler(BaseCompiler):
                 The ports without their states, the connections of ports of different connectors, and the ports in more
                 than one connection.
         """
-        issues = PassCompiler._port_state_issues(nodes)
+        issues = PassCompiler._get_port_state_issues(nodes)
         by_path = {node.path: node for node in nodes}
         connections: defaultdict[str, list[str]] = defaultdict(list)
         for node in nodes:
@@ -652,7 +652,7 @@ class PassCompiler(BaseCompiler):
                 )
                 names[f'{path}.{port}'] = ports[port].name if port in ports else None
                 connections[f'{path}.{port}'].append(node.path)
-            issue = PassCompiler._connector_issue(node, names)
+            issue = PassCompiler._get_connector_issue(node, names)
             issues += [] if issue is None else [issue]
         for port, paths in connections.items():
             if len(paths) > 1:
@@ -662,11 +662,11 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _algebraic_issues(compilation: Compilation) -> list[IssueSpec]:
+    def _get_algebraic_issues(compilation: Compilation) -> list[IssueSpec]:
         """Return the laws other than equations that target an algebraic state."""
-        algebraic = PassCompiler._algebraic_names(compilation)
+        algebraic = PassCompiler._get_algebraic_names(compilation)
         issues = []
-        for record in Compilation._required(compilation.census, 'census').records:
+        for record in Compilation._get_required(compilation.census, 'census').records:
             determined = isinstance(record.law, EquationLaw | LinearProgramLaw)
             names = [] if determined else [item.name for item in record.targets]
             for name in names:
@@ -689,41 +689,41 @@ class PassCompiler(BaseCompiler):
             self._run_passes(compilation, until='plan')
         except SkcomplexError as error:
             fix = 'Correct the component as the message describes.'
-            return [self._issue_of(error, compilation.system.label, 'value', fix)]
-        return list(Compilation._required(compilation.plan, 'plan').issues)
+            return [self._get_issue_of(error, compilation.system.label, 'value', fix)]
+        return list(Compilation._get_required(compilation.plan, 'plan').issues)
 
     @staticmethod
-    def _issues_of(compilation: Compilation) -> list[IssueSpec]:
+    def _get_issues_of(compilation: Compilation) -> list[IssueSpec]:
         """Return the issues of a compilation planned past the census."""
         system, solver = compilation.system, compilation.solver
-        nodes = Compilation._required(compilation.nodes, 'nodes')
-        census = Compilation._required(compilation.census, 'census')
+        nodes = Compilation._get_required(compilation.nodes, 'nodes')
+        census = Compilation._get_required(compilation.census, 'census')
         records = census.records
-        issues = PassCompiler._census_issues(compilation)
-        issues += PassCompiler._bound_issues(nodes)
-        issues += PassCompiler._law_issues(records, FractionalFormPass._declared_times(system))
-        issues += PassCompiler._algebraic_issues(compilation)
-        issues += PassCompiler._equation_issues(compilation)
-        issues += PassCompiler._neighborhood_issues(records, nodes)
-        issues += PassCompiler._around_issues(records, compilation.backend)
+        issues = PassCompiler._get_census_issues(compilation)
+        issues += PassCompiler._get_bound_issues(nodes)
+        issues += PassCompiler._get_law_issues(records, FractionalFormPass._get_declared_times(system))
+        issues += PassCompiler._get_algebraic_issues(compilation)
+        issues += PassCompiler._get_equation_issues(compilation)
+        issues += PassCompiler._get_neighborhood_issues(records, nodes)
+        issues += PassCompiler._get_around_issues(records, compilation.backend)
         issues += PassCompiler._draw_issues(records, compilation.backend)
-        issues += PassCompiler._degree_issues(records)
-        issues += PassCompiler._nonlocal_issues(records, nodes)
-        issues += PassCompiler._coordinate_issues(records, nodes)
-        issues += PassCompiler._space_issues(system, nodes)
-        issues += PassCompiler._location_issues(nodes)
+        issues += PassCompiler._get_degree_issues(records)
+        issues += PassCompiler._get_nonlocal_issues(records, nodes)
+        issues += PassCompiler._get_coordinate_issues(records, nodes)
+        issues += PassCompiler._get_space_issues(system, nodes)
+        issues += PassCompiler._get_location_issues(nodes)
         issues += LatticeProblemPass._schedule_issues(compilation)
-        issues += ConservedNoisePass._conserved_issues(compilation)
-        issues += FractionalFormPass._order_issues(compilation)
-        issues += PassCompiler._probability_issues(compilation)
+        issues += ConservedNoisePass._get_conserved_issues(compilation)
+        issues += FractionalFormPass._get_order_issues(compilation)
+        issues += PassCompiler._get_probability_issues(compilation)
         issues += PassCompiler._request_issues(compilation)
         if solver is not None:
-            issues += PassCompiler._solver_issues(solver, census, system)
-        issues += PassCompiler._noise_issues(compilation, records)
+            issues += PassCompiler._get_solver_issues(solver, census, system)
+        issues += PassCompiler._get_noise_issues(compilation, records)
         return issues
 
     @staticmethod
-    def _roles(passes: Sequence['BasePass']) -> dict[str, tuple[list[int], list[int], list[int]]]:
+    def _get_roles(passes: Sequence['BasePass']) -> dict[str, tuple[list[int], list[int], list[int]]]:
         """Return the producers, refiners, and readers of every field.
 
         They are given by the positions of their passes. A producer writes a field without reading it, a refiner reads
@@ -764,7 +764,7 @@ class PassCompiler(BaseCompiler):
                 raise PipelineError(error_msg)
 
     @staticmethod
-    def _edges(roles: dict[str, tuple[list[int], list[int], list[int]]]) -> dict[int, set[int]]:
+    def _get_edges(roles: dict[str, tuple[list[int], list[int], list[int]]]) -> dict[int, set[int]]:
         """Return the passes that must run after every pass.
 
         Refiners run after producers, and readers after both.
@@ -778,7 +778,7 @@ class PassCompiler(BaseCompiler):
         return edges
 
     @staticmethod
-    def _needed(passes: Sequence['BasePass'], field: str) -> set['BasePass']:
+    def _get_needed(passes: Sequence['BasePass'], field: str) -> set['BasePass']:
         """Return the passes that write a field and the passes they depend on.
 
         In turn, it adds the passes that write the fields they read.
@@ -801,7 +801,7 @@ class PassCompiler(BaseCompiler):
         return needed
 
     @staticmethod
-    def _ordered(passes: Sequence['BasePass'], present: Collection[str] = ()) -> list['BasePass']:
+    def _get_ordered(passes: Sequence['BasePass'], present: Collection[str] = ()) -> list['BasePass']:
         """Return passes in an order where every field is produced, refined, then read.
 
         A pass that writes a field without reading it produces the field, and runs before the passes that refine it,
@@ -841,9 +841,9 @@ class PassCompiler(BaseCompiler):
             >>> [type(item).__name__ for item in ordered]
             ['DeclarePass', 'LowerPass']
         """
-        roles = PassCompiler._roles(passes)
+        roles = PassCompiler._get_roles(passes)
         PassCompiler._check_inputs(passes, roles, present)
-        edges = PassCompiler._edges(roles)
+        edges = PassCompiler._get_edges(roles)
         waiting = [0] * len(passes)
         for targets in edges.values():
             for target in targets:
@@ -865,12 +865,12 @@ class PassCompiler(BaseCompiler):
         return [passes[index] for index in ordered]
 
     @staticmethod
-    def _names(classes: tuple[type | None, ...]) -> str:
+    def _get_names(classes: tuple[type | None, ...]) -> str:
         """Return the names of classes joined by `or`, with `no space` for `None`."""
         return ' or '.join('no space' if item is None else item.__name__ for item in classes)
 
     @staticmethod
-    def _layer_issues(node: NodeSpec, space: BaseSpace | None) -> list[IssueSpec]:
+    def _get_layer_issues(node: NodeSpec, space: BaseSpace | None) -> list[IssueSpec]:
         """Return the issue of an interaction over neighbours with an unknown layer.
 
         The network of the interaction does not have the layer it names.
@@ -890,7 +890,7 @@ class PassCompiler(BaseCompiler):
         return [IssueSpec('binding', node.path, message, fix)]
 
     @staticmethod
-    def _hyperedge_issues(node: NodeSpec, space: NetworkSpace, edges: NodeSpec | None) -> list[IssueSpec]:
+    def _get_hyperedge_issues(node: NodeSpec, space: NetworkSpace, edges: NodeSpec | None) -> list[IssueSpec]:
         """Return the issues of a hyperedge interaction its hyperedges do not fit.
 
         The hyperedges do not fit its size or its edge group.
@@ -940,7 +940,7 @@ class PassCompiler(BaseCompiler):
         return [IssueSpec('binding', node.path, message, fix)]
 
     @staticmethod
-    def _binding_issues(nodes: list[NodeSpec]) -> list[IssueSpec]:
+    def _get_binding_issues(nodes: list[NodeSpec]) -> list[IssueSpec]:
         """Return the interactions over hyperedges or edge groups a space lacks.
 
         They are interactions over hyperedges, or over neighbours with an edge group, on a space without them. An
@@ -981,13 +981,13 @@ class PassCompiler(BaseCompiler):
                 continue
             if over == 'hyperedges' and isinstance(space, NetworkSpace):
                 edges = next((item for item in bound if item is not None and item not in members), None)
-                issues += PassCompiler._hyperedge_issues(node, space, edges)
+                issues += PassCompiler._get_hyperedge_issues(node, space, edges)
                 continue
-            issues += PassCompiler._layer_issues(node, space)
+            issues += PassCompiler._get_layer_issues(node, space)
         return issues
 
     @staticmethod
-    def _bound_nodes(node: NodeSpec, role: str, by_path: dict[str, NodeSpec]) -> list[tuple[ElementKind, NodeSpec]]:
+    def _get_bound_nodes(node: NodeSpec, role: str, by_path: dict[str, NodeSpec]) -> list[tuple[ElementKind, NodeSpec]]:
         """Return the kind and node of every element or group a role binds.
 
         A member of a group counts as an element.
@@ -996,13 +996,13 @@ class PassCompiler(BaseCompiler):
         for label in bound_labels(getattr(node.component, role, None)):
             path = f'{node.scope}{label}'
             if path in by_path:
-                found.append((CensusPass._component_kind(by_path[path]), by_path[path]))
+                found.append((CensusPass._get_component_kind(by_path[path]), by_path[path]))
             elif path.partition('[')[0] in by_path:
                 found.append((ElementKind.ELEMENT, by_path[path.partition('[')[0]]))
         return found
 
     @staticmethod
-    def _carried_issues(node: NodeSpec, role: str, needs: RoleSpec, bound: NodeSpec) -> list[IssueSpec]:
+    def _get_carried_issues(node: NodeSpec, role: str, needs: RoleSpec, bound: NodeSpec) -> list[IssueSpec]:
         """Return the states a role reads that its bound element or group lacks.
 
         The element or group it binds does not carry these states.
@@ -1017,12 +1017,12 @@ class PassCompiler(BaseCompiler):
                 f'The role {role!r} of {node.path} reads the state {state!r}, but the element {bound.path} bound to it '
                 f'carries {", ".join(carried) or "nothing"}.'
             )
-            code, fix = _FIXES[RoleElementError]
+            code, fix = FIXES[RoleElementError]
             issues.append(IssueSpec(code, node.path, message, fix, error=RoleElementError))
         return issues
 
     @staticmethod
-    def _role_issues(nodes: list[NodeSpec]) -> list[IssueSpec]:
+    def _get_role_issues(nodes: list[NodeSpec]) -> list[IssueSpec]:
         """Return the roles bound to a wrong kind of element or one without a read state.
 
         A role is wrong when it does not accept the kind of the element, or the element lacks a state it reads.
@@ -1041,8 +1041,8 @@ class PassCompiler(BaseCompiler):
             if not isinstance(node.component, BaseInteraction):
                 continue
             for role, needs in node.component.get_requirements().roles.items():
-                for kind, bound in PassCompiler._bound_nodes(node, role, by_path):
-                    issues += PassCompiler._carried_issues(node, role, needs, bound)
+                for kind, bound in PassCompiler._get_bound_nodes(node, role, by_path):
+                    issues += PassCompiler._get_carried_issues(node, role, needs, bound)
                     if needs.accepts(kind):
                         continue
                     accepted = ', '.join(needs.elements)
@@ -1054,9 +1054,9 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _shape_issues(nodes: list[NodeSpec]) -> list[IssueSpec]:
+    def _get_shape_issues(nodes: list[NodeSpec]) -> list[IssueSpec]:
         """Return the shaped parameters whose roles are not bound to groups."""
-        groups = LayoutPass._group_sizes(nodes)
+        groups = LayoutPass._get_group_sizes(nodes)
         issues = []
         for node in nodes:
             declarations = {
@@ -1067,7 +1067,7 @@ class PassCompiler(BaseCompiler):
                 if declaration.shape is None:
                     continue
                 try:
-                    LayoutPass._role_shape(node, name, declaration, groups)
+                    LayoutPass._get_role_shape(node, name, declaration, groups)
                 except ValidationError as error:
                     path = f'{node.path}.{name}'
                     fix = f'Bind every role of the shape {declaration.shape} of {path} to a group.'
@@ -1075,7 +1075,7 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _bound_issues(nodes: list[NodeSpec]) -> list[IssueSpec]:
+    def _get_bound_issues(nodes: list[NodeSpec]) -> list[IssueSpec]:
         """Return the adaptive parameters whose initial values lie outside their bounds."""
         issues = []
         for node in nodes:
@@ -1083,7 +1083,7 @@ class PassCompiler(BaseCompiler):
                 if declaration.bounds is None:
                     continue
                 lower, upper = declaration.bounds
-                value = np.asarray(LayoutPass._value_of(node, name), dtype=float)
+                value = np.asarray(LayoutPass._get_value_of(node, name), dtype=float)
                 if np.all((value >= lower) & (value <= upper)):
                     continue
                 path = f'{node.path}.{name}'
@@ -1095,7 +1095,7 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _space_issues(system: CompositeSystem, nodes: list[NodeSpec]) -> list[IssueSpec]:
+    def _get_space_issues(system: CompositeSystem, nodes: list[NodeSpec]) -> list[IssueSpec]:
         """Return the visuals that need options their space lacks and failing spaces.
 
         A space fails when its own check fails.
@@ -1129,7 +1129,7 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _location_issue(path: str, group: GroupElement, size: int, sides: int) -> IssueSpec | None:
+    def _get_location_issue(path: str, group: GroupElement, size: int, sides: int) -> IssueSpec | None:
         """Return the first initial location of a group with a wrong coordinate count.
 
         Its number of coordinates differs from that of its space.
@@ -1146,7 +1146,7 @@ class PassCompiler(BaseCompiler):
         return None
 
     @staticmethod
-    def _location_issues(nodes: list[NodeSpec]) -> list[IssueSpec]:
+    def _get_location_issues(nodes: list[NodeSpec]) -> list[IssueSpec]:
         """Return the groups whose initial locations do not fit their space.
 
         Each location must have one coordinate per dimension of the space.
@@ -1157,12 +1157,12 @@ class PassCompiler(BaseCompiler):
             if not isinstance(group, GroupElement) or group.location is None or not isinstance(space, ContinuousSpace):
                 continue
             sides = len(tuple(space.extent)) or space.n_dim
-            issue = PassCompiler._location_issue(node.path, group, node.members or 1, sides) if sides else None
+            issue = PassCompiler._get_location_issue(node.path, group, node.members or 1, sides) if sides else None
             issues += [issue] if issue is not None else []
         return issues
 
     @staticmethod
-    def _law_issues(records: list[CensusRecordSpec], times: dict[str, type | None]) -> list[IssueSpec]:
+    def _get_law_issues(records: list[CensusRecordSpec], times: dict[str, type | None]) -> list[IssueSpec]:
         """Return the laws whose space or time their requirements do not accept."""
         issues = []
         for record in records:
@@ -1172,26 +1172,26 @@ class PassCompiler(BaseCompiler):
             name = f'{type(law).__name__} of {record.path}'
             if requires.space and not isinstance(record.space, requires.space):
                 lives = type(record.space).__name__ if record.space is not None else 'no space'
-                needs = PassCompiler._names(requires.space)
+                needs = PassCompiler._get_names(requires.space)
                 message = f'The {name} needs a {needs}, but the component lives on {lives}.'
                 issues.append(
                     IssueSpec('law-space', record.path, message, 'Give the system a space of a supported class.'),
                 )
             if time is not None and requires.time and not issubclass(time, requires.time):
-                needs = PassCompiler._names(requires.time)
+                needs = PassCompiler._get_names(requires.time)
                 message = f'The {name} needs {needs}, but its system declares {time.__name__}.'
-                classes = ' or '.join(f'`{_TIME_CLASSES[item]}`' for item in requires.time)
+                classes = ' or '.join(f'`{TIME_CLASSES[item]}`' for item in requires.time)
                 fix = f'Declare {classes} for its system, or use laws that run in {time.__name__}.'
                 issues.append(IssueSpec('law-time', record.path, message, fix))
         return issues
 
     @staticmethod
-    def _equation_issues(compilation: Compilation) -> list[IssueSpec]:
+    def _get_equation_issues(compilation: Compilation) -> list[IssueSpec]:
         """Return the equations under static time with no target or a non-state target."""
         if not isinstance(compilation.system.time, StaticTime):
             return []
         issues = []
-        for record in Compilation._required(compilation.census, 'census').records:
+        for record in Compilation._get_required(compilation.census, 'census').records:
             law = record.law
             if not isinstance(law, EquationLaw) or record.targets:
                 continue
@@ -1202,7 +1202,7 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _reductions_of(value: object) -> list[NeighborReductionSpec]:
+    def _get_reductions_of(value: object) -> list[NeighborReductionSpec]:
         """Return every neighbourhood reduction of a law value, nested ones included."""
         found = []
         stack = neighborhoods_in(value)
@@ -1214,7 +1214,7 @@ class PassCompiler(BaseCompiler):
         return found
 
     @staticmethod
-    def _degree_problem(name: str, degree: int, top: int) -> tuple[str, str] | None:
+    def _get_degree_problem(name: str, degree: int, top: int) -> tuple[str, str] | None:
         """Return the message and fix of an exterior operation on a wrong degree.
 
         The operation acts on a state of a degree it does not act on.
@@ -1232,7 +1232,7 @@ class PassCompiler(BaseCompiler):
         return None
 
     @staticmethod
-    def _degree_of(value: object, degrees: Mapping[str, int], top: int) -> tuple[set[int], tuple[str, str] | None]:
+    def _get_degree_of(value: object, degrees: Mapping[str, int], top: int) -> tuple[set[int], tuple[str, str] | None]:
         """Return the degrees of the values an expression adds up.
 
         It also returns the first exterior operation it misapplies. A reduction over a whole group is the same number
@@ -1243,17 +1243,17 @@ class PassCompiler(BaseCompiler):
         reached: set[int] = set()
         found: list[NeighborReductionSpec | ReductionSpec] = [*neighborhoods_in(expression), *reductions_in(expression)]
         for reduction in found:
-            problem = PassCompiler._degree_of(reduction.argument, degrees, top)[1]
+            problem = PassCompiler._get_degree_of(reduction.argument, degrees, top)[1]
             if problem is not None:
                 return reached, problem
             expression = expression.subs({reduction.call: 0})
         for call in cell_operations_in(expression):
-            inner, problem = PassCompiler._degree_of(call.operands()[0], degrees, top)
+            inner, problem = PassCompiler._get_degree_of(call.operands()[0], degrees, top)
             if problem is not None:
                 return reached, problem
             name = call.operator().name()
             for degree in inner:
-                problem = PassCompiler._degree_problem(name, degree, top)
+                problem = PassCompiler._get_degree_problem(name, degree, top)
                 if problem is not None:
                     return reached, problem
                 reached.add(degree + {'exterior_derivative': 1, 'codifferential': -1}.get(name, 0))
@@ -1284,7 +1284,7 @@ class PassCompiler(BaseCompiler):
         return None
 
     @staticmethod
-    def _degree_issues(records: list[CensusRecordSpec]) -> list[IssueSpec]:
+    def _get_degree_issues(records: list[CensusRecordSpec]) -> list[IssueSpec]:
         """Return the exterior operations and samplings of the wrong degree or place.
 
         They act on a state of the wrong degree, or outside a cell complex.
@@ -1315,7 +1315,7 @@ class PassCompiler(BaseCompiler):
                 if isinstance(target, Expression)
             }
             for value in values:
-                reached, problem = PassCompiler._degree_of(value, record.degrees, top)
+                reached, problem = PassCompiler._get_degree_of(value, record.degrees, top)
                 if problem is not None:
                     issues.append(IssueSpec('law-degree', record.path, f'The {name} {problem[0]}.', problem[1]))
                     break
@@ -1353,7 +1353,7 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _around_issues(records: list[CensusRecordSpec], backend: BaseBackend | None) -> list[IssueSpec]:
+    def _get_around_issues(records: list[CensusRecordSpec], backend: BaseBackend | None) -> list[IssueSpec]:
         """Return the reductions over hyperedges of a component outside a fitting space or backend.
 
         The network must have hyperedges of their size. The hyperedges of current neighbours need a continuous space and
@@ -1369,7 +1369,7 @@ class PassCompiler(BaseCompiler):
             sizes = sorted({len(item) for item in getattr(space, 'hyperedges_', ())})
             for reduction in reductions.values():
                 if reduction.over is not None:
-                    issue = PassCompiler._neighbor_set_issue(name, record, reduction.over, backend)
+                    issue = PassCompiler._get_neighbor_set_issue(name, record, reduction.over, backend)
                     if issue is not None:
                         issues.append(issue)
                         break
@@ -1393,7 +1393,7 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _field_symbols(nodes: list[NodeSpec]) -> tuple[dict[str, FieldElement], dict[str, float]]:
+    def _get_field_symbols(nodes: list[NodeSpec]) -> tuple[dict[str, FieldElement], dict[str, float]]:
         """Return the field of every state symbol of a field and the parameter numbers.
 
         Every parameter symbol that has a number is included.
@@ -1426,7 +1426,7 @@ class PassCompiler(BaseCompiler):
         return not squared.variables() and (not squared.is_real() or float(squared) < 0)
 
     @staticmethod
-    def _operator_issue(
+    def _get_operator_issue(
         record: CensusRecordSpec,
         call: Expression,
         fields: Mapping[str, FieldElement],
@@ -1434,7 +1434,7 @@ class PassCompiler(BaseCompiler):
     ) -> IssueSpec | None:
         """Return the issue of one nonlocal operator call in a field law, or `None`."""
         name = getattr(call.operator(), 'name', lambda: '')()
-        law = PassCompiler._law_name(record)
+        law = PassCompiler._get_law_name(record)
         operands = call.operands()
         places = {id(fields[str(item)]): fields[str(item)] for item in operands[0].variables() if str(item) in fields}
         if name in LOCAL_OPERATORS:
@@ -1464,7 +1464,7 @@ class PassCompiler(BaseCompiler):
 
         The space or discretization of its field lacks it, and the issue is `None` otherwise.
         """
-        law = PassCompiler._law_name(record)
+        law = PassCompiler._get_law_name(record)
         space = place.space
         if isinstance(space, SimplexSpace) and name in LOCAL_OPERATORS:
             message = f'The {law} applies {name} to a field on a simplex, which only takes finite-volume fluxes.'
@@ -1490,12 +1490,12 @@ class PassCompiler(BaseCompiler):
         return None
 
     @staticmethod
-    def _nonlocal_issues(records: list[CensusRecordSpec], nodes: list[NodeSpec]) -> list[IssueSpec]:
+    def _get_nonlocal_issues(records: list[CensusRecordSpec], nodes: list[NodeSpec]) -> list[IssueSpec]:
         """Return the nonlocal operators of laws with a wrong space, kernel, or screening.
 
         They are convolutions, shifted reads, and inversions.
         """
-        fields, numbers = PassCompiler._field_symbols(nodes)
+        fields, numbers = PassCompiler._get_field_symbols(nodes)
         issues = []
         for record in records:
             include = ('rate',) if isinstance(record.law, JumpLaw) else ('value',)
@@ -1505,14 +1505,14 @@ class PassCompiler(BaseCompiler):
                 calls = [
                     call
                     for name in (*NONLOCAL_OPERATORS, *LOCAL_OPERATORS)
-                    for call in FieldLowering._operator_calls(SR(value), name)
+                    for call in FieldLowering._get_operator_calls(SR(value), name)
                 ]
-                found = [PassCompiler._operator_issue(record, call, fields, numbers) for call in calls]
+                found = [PassCompiler._get_operator_issue(record, call, fields, numbers) for call in calls]
                 issues += [issue for issue in found if issue is not None]
         return issues
 
     @staticmethod
-    def _held_axes(record: CensusRecordSpec, nodes: Mapping[str, NodeSpec]) -> list[str]:
+    def _get_held_axes(record: CensusRecordSpec, nodes: Mapping[str, NodeSpec]) -> list[str]:
         """Return the class axes of the space of the group of a law and of its fields.
 
         The fields are those its interaction reads.
@@ -1526,31 +1526,35 @@ class PassCompiler(BaseCompiler):
         return [axis.name for space in spaces if isinstance(space, PhaseSpace) for axis in space.axes]
 
     @staticmethod
-    def _collision_issue(record: CensusRecordSpec) -> IssueSpec | None:
+    def _get_collision_issue(record: CensusRecordSpec) -> IssueSpec | None:
         """Return the issue of a collision law on a wrong phase space, or `None`.
 
         The phase space must have two interval class axes.
         """
         space = record.space
-        reads = any(BasePass._calls_of(value, 'collision_integral') for value in PassCompiler._law_values(record))
+        reads = any(
+            BasePass._get_calls_of(value, 'collision_integral') for value in PassCompiler._get_law_values(record)
+        )
         if not (isinstance(record.law, RateLaw) and reads):
             return None
         axes = space.axes if isinstance(space, PhaseSpace) else []
-        if len(axes) == _COLLISION_AXES and not any(axis.periodic for axis in axes):
+        if len(axes) == COLLISION_AXES and not any(axis.periodic for axis in axes):
             return None
         lives = type(space).__name__ if space is not None else 'no space'
-        message = f'The {PassCompiler._law_name(record)} needs two interval class axes, but the field lives on {lives}.'
+        message = (
+            f'The {PassCompiler._get_law_name(record)} needs two interval class axes, but the field lives on {lives}.'
+        )
         fix = "Declare two interval axes, each an `AxisSpec(name, size, low, high)`, such as 'vx' and 'vy'."
         return IssueSpec('law-space', record.path, message, fix)
 
     @staticmethod
-    def _coordinate_issues(records: list[CensusRecordSpec], nodes: list[NodeSpec]) -> list[IssueSpec]:
+    def _get_coordinate_issues(records: list[CensusRecordSpec], nodes: list[NodeSpec]) -> list[IssueSpec]:
         """Return the coordinates and axis reductions of laws off a fitting phase space.
 
         The group of the law is not on a phase space with them.
         """
         by_path = {node.path: node for node in nodes}
-        issues = [issue for record in records if (issue := PassCompiler._collision_issue(record)) is not None]
+        issues = [issue for record in records if (issue := PassCompiler._get_collision_issue(record)) is not None]
         for record in records:
             names = {
                 str(item).removeprefix(COORDINATE_PREFIX)
@@ -1559,10 +1563,10 @@ class PassCompiler(BaseCompiler):
                 for item in value.variables()
                 if str(item).startswith(COORDINATE_PREFIX)
             }
-            held = PassCompiler._held_axes(record, by_path)
+            held = PassCompiler._get_held_axes(record, by_path)
             missing = sorted(names - set(held))
             if missing:
-                law = PassCompiler._law_name(record)
+                law = PassCompiler._get_law_name(record)
                 lives = type(record.space).__name__ if record.space is not None else 'no space'
                 message = (
                     f'The {law} reads the class axes {", ".join(missing)}, but the component lives on {lives}, '
@@ -1573,7 +1577,7 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _space_fix(spaces: tuple[type, ...]) -> str:
+    def _get_space_fix(spaces: tuple[type, ...]) -> str:
         """Return the fix of a neighbourhood that the space does not offer."""
         if ContinuousSpace in spaces:
             return (
@@ -1588,7 +1592,7 @@ class PassCompiler(BaseCompiler):
         )
 
     @staticmethod
-    def _layer_reduction_issue(name: str, path: str, over: object, space: object) -> IssueSpec | None:
+    def _get_layer_reduction_issue(name: str, path: str, over: object, space: object) -> IssueSpec | None:
         """Return the issue of a reduction over a layer its network lacks, or `None`."""
         if (
             not isinstance(over, AdjacencyNeighborhood)
@@ -1605,7 +1609,7 @@ class PassCompiler(BaseCompiler):
         return IssueSpec('binding', path, message, fix)
 
     @staticmethod
-    def _neighbor_set_issue(
+    def _get_neighbor_set_issue(
         name: str,
         record: CensusRecordSpec,
         over: object,
@@ -1650,7 +1654,7 @@ class PassCompiler(BaseCompiler):
         return None
 
     @staticmethod
-    def _neighborhood_issues(records: list[CensusRecordSpec], nodes: list[NodeSpec]) -> list[IssueSpec]:
+    def _get_neighborhood_issues(records: list[CensusRecordSpec], nodes: list[NodeSpec]) -> list[IssueSpec]:
         """Return the unoffered neighbourhood reductions and the cones without a direction.
 
         A reduction is unoffered when its space does not offer it.
@@ -1661,23 +1665,24 @@ class PassCompiler(BaseCompiler):
             name = f'{type(record.law).__name__} of {record.path}'
             include = ('rate',) if isinstance(record.law, JumpLaw) else ('value',)
             values = record.law._get_values(include=include)
-            reductions = {str(item.call): item for value in values for item in PassCompiler._reductions_of(value)}
+            reductions = {str(item.call): item for value in values for item in PassCompiler._get_reductions_of(value)}
             for reduction in reductions.values():
                 over = reduction.over
                 if over is not None and not isinstance(over, BaseNeighborhood):
                     error_msg = f'The {name} reduces over {over!r}, which is not a neighbourhood.'
                     raise ValidationError(error_msg)
-                spaces = _OWN_NEIGHBORHOOD if over is None else NeighborhoodKernel._spaces_of(over)
+                spaces = OWN_NEIGHBORHOOD if over is None else NeighborhoodKernel._get_spaces_of(over)
                 described = 'the neighbours of its space' if over is None else repr(over)
                 if not isinstance(record.space, spaces):
                     lives = type(record.space).__name__ if record.space is not None else 'no space'
                     message = (
-                        f'The {name} reduces over {described}, which needs a {PassCompiler._names(spaces)}, but the '
+                        f'The {name} reduces over {described}, which needs a {PassCompiler._get_names(spaces)}, but '
+                        'the '
                         f'component lives on {lives}.'
                     )
-                    issues.append(IssueSpec('law-space', record.path, message, PassCompiler._space_fix(spaces)))
+                    issues.append(IssueSpec('law-space', record.path, message, PassCompiler._get_space_fix(spaces)))
                     continue
-                layered = PassCompiler._layer_reduction_issue(name, record.path, over, record.space)
+                layered = PassCompiler._get_layer_reduction_issue(name, record.path, over, record.space)
                 if layered is not None:
                     issues.append(layered)
                     continue
@@ -1685,7 +1690,7 @@ class PassCompiler(BaseCompiler):
                 if node is None or not isinstance(record.space, ContinuousSpace) or over is None:
                     continue
                 states = declarations_of(node.component_type, VariableKind.STATE)
-                if NeighborhoodKernel._position_state(states) is None:
+                if NeighborhoodKernel._get_position_state(states) is None:
                     message = (
                         f'The {name} reduces over {over!r}, which measures distances between positions, but '
                         f'{record.owner} declares no vector position state.'
@@ -1695,7 +1700,7 @@ class PassCompiler(BaseCompiler):
                     continue
                 if isinstance(over, RadiusNeighborhood) and float(over.angle) < math.pi:
                     try:
-                        NeighborhoodKernel._cone_direction(over, states, getattr(record.space, 'n_dim_', 0))
+                        NeighborhoodKernel._get_cone_direction(over, states, getattr(record.space, 'n_dim_', 0))
                     except ValidationError as error:
                         fix = (
                             "Declare the position of order 2, `StateSpec(vector=True, order=2, role='position')`, or "
@@ -1705,7 +1710,7 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _solver_issues(solver: object, census: CensusSpec, system: CompositeSystem) -> list[IssueSpec]:
+    def _get_solver_issues(solver: object, census: CensusSpec, system: CompositeSystem) -> list[IssueSpec]:
         """Return the solver arguments rejected and the requirements it does not support.
 
         They are the arguments the solver passed rejects and the requirements of a system it does not support.
@@ -1713,7 +1718,7 @@ class PassCompiler(BaseCompiler):
         records = census.records
         stepper = type(solver)
         needs: dict[str, Iterable[object]] = {
-            'time': {kind for kind in FractionalFormPass._declared_times(system).values() if kind is not None},
+            'time': {kind for kind in FractionalFormPass._get_declared_times(system).values() if kind is not None},
             'laws': {type(record.law) for record in records},
             'space': {None if record.space is None else type(record.space) for record in records},
         }
@@ -1735,22 +1740,22 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _matrix_problem(matrix: np.ndarray) -> str | None:
+    def _get_matrix_problem(matrix: np.ndarray) -> str | None:
         """Return why a square covariance matrix is not symmetric positive semidefinite.
 
         It is `None` when the matrix is.
         """
         asymmetry = np.abs(matrix - matrix.T)
-        if np.max(asymmetry) > _COVARIANCE_TOLERANCE * max(1.0, float(np.max(np.abs(matrix)))):
+        if np.max(asymmetry) > COVARIANCE_TOLERANCE * max(1.0, float(np.max(np.abs(matrix)))):
             row, column = np.unravel_index(int(np.argmax(asymmetry)), matrix.shape)
             return f'Its covariance is not symmetric: entry ({row}, {column}) is {matrix[row, column]}.'
         values = np.linalg.eigvalsh(matrix)
-        if values[0] < -_COVARIANCE_TOLERANCE * max(1.0, float(np.max(np.abs(values)))):
+        if values[0] < -COVARIANCE_TOLERANCE * max(1.0, float(np.max(np.abs(values)))):
             return f'Its covariance is not positive semidefinite: it has the negative eigenvalue {values[0]:.6g}.'
         return None
 
     @staticmethod
-    def _covariance_problem(wiener: WienerProcessSpec) -> str | None:
+    def _get_covariance_problem(wiener: WienerProcessSpec) -> str | None:
         """Return why the dimension or covariance of a `WienerProcessSpec` is invalid.
 
         It is `None` when they are valid.
@@ -1766,22 +1771,22 @@ class PassCompiler(BaseCompiler):
             return f'Its covariance {wiener.covariance!r} is not a matrix of numbers.'
         if matrix.shape != (dimension, dimension):
             return f'Its covariance has the shape {matrix.shape}, not ({dimension}, {dimension}).'
-        return PassCompiler._matrix_problem(matrix)
+        return PassCompiler._get_matrix_problem(matrix)
 
     @staticmethod
-    def _wiener_issues(system: CompositeSystem, nodes: list[NodeSpec]) -> list[IssueSpec]:
+    def _get_wiener_issues(system: CompositeSystem, nodes: list[NodeSpec]) -> list[IssueSpec]:
         """Return the Wiener processes outside continuous time or with a bad covariance.
 
         A bad covariance is an invalid one.
         """
-        times = FractionalFormPass._declared_times(system)
+        times = FractionalFormPass._get_declared_times(system)
         issues = []
-        for path, wiener in LayoutPass._noise_processes(nodes).items():
+        for path, wiener in LayoutPass._get_noise_processes(nodes).items():
             time = times.get(path.rpartition('/')[0])
             if time is not None and not issubclass(time, ContinuousTime):
                 message = f'The Wiener processes {path} exist only in continuous time.'
                 issues.append(IssueSpec('wiener-time', path, message, 'Declare continuous time for its system.'))
-            problem = PassCompiler._covariance_problem(wiener)
+            problem = PassCompiler._get_covariance_problem(wiener)
             if problem is not None:
                 message = f'The Wiener processes {path} are invalid. {problem}'
                 fix = 'Give a symmetric positive semidefinite covariance with one row and column per process.'
@@ -1789,12 +1794,12 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _law_name(record: CensusRecordSpec) -> str:
+    def _get_law_name(record: CensusRecordSpec) -> str:
         """Return the name of the law of a census record."""
         return f'{type(record.law).__name__} of {record.path}'
 
     @staticmethod
-    def _process_name(key: ProcessKey) -> str:
+    def _get_process_name(key: ProcessKey) -> str:
         """Return the name of a process key."""
         kind, path, item = key
         return (
@@ -1804,7 +1809,7 @@ class PassCompiler(BaseCompiler):
         )
 
     @staticmethod
-    def _noise_records(records: list[CensusRecordSpec]) -> list[CensusRecordSpec]:
+    def _get_noise_records(records: list[CensusRecordSpec]) -> list[CensusRecordSpec]:
         """Return the records of noise laws."""
         return [record for record in records if isinstance(record.law, NoiseLaw)]
 
@@ -1818,7 +1823,7 @@ class PassCompiler(BaseCompiler):
         for record in records:
             if record.handles:
                 message = (
-                    f'The {PassCompiler._law_name(record)} uses the Wiener handle {", ".join(record.handles)} in a '
+                    f'The {PassCompiler._get_law_name(record)} uses the Wiener handle {", ".join(record.handles)} in a '
                     'value, but a handle is only the process of a noise law.'
                 )
                 fix = 'Name the handle as the process of a noise law, `NoiseLaw(target, value, process=s.<role>.dW)`.'
@@ -1826,10 +1831,10 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _convention_issues(records: list[CensusRecordSpec]) -> list[IssueSpec]:
+    def _get_convention_issues(records: list[CensusRecordSpec]) -> list[IssueSpec]:
         """Return the processes that noise laws of different conventions share."""
         sharing: dict[ProcessKey, list[CensusRecordSpec]] = {}
-        for record in PassCompiler._noise_records(records):
+        for record in PassCompiler._get_noise_records(records):
             for key in dict.fromkeys(record.processes):
                 if key is not None:
                     sharing.setdefault(key, []).append(record)
@@ -1838,18 +1843,18 @@ class PassCompiler(BaseCompiler):
             conventions = {record.law.convention for record in sharers if isinstance(record.law, NoiseLaw)}
             if len(conventions) > 1:
                 laws = ' and '.join(
-                    f'the {item.law.convention} {PassCompiler._law_name(item)}'
+                    f'the {item.law.convention} {PassCompiler._get_law_name(item)}'
                     for item in sharers
                     if isinstance(item.law, NoiseLaw)
                 )
-                shared = PassCompiler._process_name(process)
+                shared = PassCompiler._get_process_name(process)
                 message = f'{laws[0].upper()}{laws[1:]} share {shared} with different conventions.'
                 fix = 'Declare one convention for every noise law of the process.'
                 issues.append(IssueSpec('noise-convention-mixed', sharers[0].path, message, fix))
         return issues
 
     @staticmethod
-    def _sharer(
+    def _get_sharer(
         record: CensusRecordSpec,
         noisy: list[CensusRecordSpec],
         wieners: dict[str, WienerProcessSpec],
@@ -1865,25 +1870,30 @@ class PassCompiler(BaseCompiler):
                 if item.path == record.path:
                     continue
                 for state, process in zip(item.driven, item.processes, strict=True):
-                    if process is not None and state in reads and NoisePass._process_covariance(key, process, wieners):
+                    if (
+                        process is not None
+                        and state in reads
+                        and NoisePass._get_process_covariance(key, process, wieners)
+                    ):
                         return item
         return None
 
     @staticmethod
-    def _scope_issues(records: list[CensusRecordSpec], wieners: dict[str, WienerProcessSpec]) -> list[IssueSpec]:
+    def _get_scope_issues(records: list[CensusRecordSpec], wieners: dict[str, WienerProcessSpec]) -> list[IssueSpec]:
         """Return the noise laws whose drift correction needs another amplitude.
 
         The convention of the law has a drift correction that needs an amplitude of another component.
         """
-        noisy = PassCompiler._noise_records(records)
+        noisy = PassCompiler._get_noise_records(records)
         issues = []
         for record in noisy:
             if not isinstance(record.law, NoiseLaw) or record.law.convention == 'ito':
                 continue
-            other = PassCompiler._sharer(record, noisy, wieners)
+            other = PassCompiler._get_sharer(record, noisy, wieners)
             if other is not None:
                 message = (
-                    f'The {PassCompiler._law_name(record)} depends on a state that the {PassCompiler._law_name(other)} '
+                    f'The {PassCompiler._get_law_name(record)} depends on a state that the '
+                    f'{PassCompiler._get_law_name(other)} '
                     'drives through a shared process, so its drift correction needs an amplitude outside its component.'
                 )
                 fix = 'Use the Itô convention, or write both laws in one component.'
@@ -1902,7 +1912,7 @@ class PassCompiler(BaseCompiler):
         return not (SR(hurst).is_numeric() and float(SR(hurst)) == BROWNIAN_HURST)
 
     @staticmethod
-    def _noise_needs(
+    def _get_noise_needs(
         records: list[CensusRecordSpec],
         wieners: dict[str, WienerProcessSpec],
     ) -> dict[NoiseKind, CensusRecordSpec]:
@@ -1914,7 +1924,7 @@ class PassCompiler(BaseCompiler):
         states: dict[object, set[tuple[str, int]]] = {}
         first: dict[object, CensusRecordSpec] = {}
         spread: set[object] = set()
-        for record in PassCompiler._noise_records(records):
+        for record in PassCompiler._get_noise_records(records):
             if isinstance(record.law, NoiseLaw) and record.law.conserved:
                 needs.setdefault(NoiseKind.CONSERVED, record)
                 continue
@@ -1937,7 +1947,7 @@ class PassCompiler(BaseCompiler):
         return needs
 
     @staticmethod
-    def _noise_runners(solver: object, backend: object) -> list[tuple[str, type]]:
+    def _get_noise_runners(solver: object, backend: object) -> list[tuple[str, type]]:
         """Return the classes of the solver and backend passed that run the noise.
 
         It is the noise of a system.
@@ -1950,7 +1960,7 @@ class PassCompiler(BaseCompiler):
         return runners
 
     @staticmethod
-    def _noise_fix(term: NoiseKind) -> str:
+    def _get_noise_fix(term: NoiseKind) -> str:
         """Return the fix of a noise structure the solver or backend passed lacks.
 
         The solver or backend passed does not support the structure.
@@ -1960,7 +1970,7 @@ class PassCompiler(BaseCompiler):
         return f'Pass a solver and a backend that support {term} noise.'
 
     @staticmethod
-    def _noise_support_issues(
+    def _get_noise_support_issues(
         records: list[CensusRecordSpec],
         wieners: dict[str, WienerProcessSpec],
         solver: object,
@@ -1970,35 +1980,35 @@ class PassCompiler(BaseCompiler):
 
         The chosen solver or backend does not support them.
         """
-        needs = PassCompiler._noise_needs(records, wieners)
+        needs = PassCompiler._get_noise_needs(records, wieners)
         if not needs:
             return []
         issues = []
-        for role, runner in PassCompiler._noise_runners(solver, backend):
+        for role, runner in PassCompiler._get_noise_runners(solver, backend):
             supported = BaseCompiler._support_of(runner).noise
             for term, record in needs.items():
                 if term not in supported:
-                    name = PassCompiler._law_name(record)
+                    name = PassCompiler._get_law_name(record)
                     message = f'The {name} needs {term} noise, which the {role} {runner.__name__} lacks.'
-                    fix = PassCompiler._noise_fix(term)
+                    fix = PassCompiler._get_noise_fix(term)
                     issues.append(IssueSpec('noise-unsupported', record.path, message, fix, error=SolverError))
         return issues
 
     @staticmethod
-    def _noise_issues(compilation: Compilation, records: list[CensusRecordSpec]) -> list[IssueSpec]:
+    def _get_noise_issues(compilation: Compilation, records: list[CensusRecordSpec]) -> list[IssueSpec]:
         """Return the problems of the Wiener processes and the noise laws of a system."""
-        nodes = Compilation._required(compilation.nodes, 'nodes')
+        nodes = Compilation._get_required(compilation.nodes, 'nodes')
         solver, backend = compilation.solver, compilation.backend
-        wieners = LayoutPass._noise_processes(nodes)
-        issues = PassCompiler._wiener_issues(compilation.system, nodes) + PassCompiler._handle_issues(records)
+        wieners = LayoutPass._get_noise_processes(nodes)
+        issues = PassCompiler._get_wiener_issues(compilation.system, nodes) + PassCompiler._handle_issues(records)
         if any(issue.code == 'wiener-covariance' for issue in issues):
             return issues
-        issues += PassCompiler._convention_issues(records)
-        issues += PassCompiler._scope_issues(records, wieners)
-        return issues + PassCompiler._noise_support_issues(records, wieners, solver, backend)
+        issues += PassCompiler._get_convention_issues(records)
+        issues += PassCompiler._get_scope_issues(records, wieners)
+        return issues + PassCompiler._get_noise_support_issues(records, wieners, solver, backend)
 
     @staticmethod
-    def _law_values(record: CensusRecordSpec) -> Iterator[object]:
+    def _get_law_values(record: CensusRecordSpec) -> Iterator[object]:
         """Yield the symbolic values of the law of a census record.
 
         The items of vectors are included.
@@ -2010,42 +2020,42 @@ class PassCompiler(BaseCompiler):
                 yield value
 
     @staticmethod
-    def _held_reductions(census: CensusSpec, time: Expression) -> list[_HeldReductionSpec]:
+    def _get_held_reductions(census: CensusSpec, time: Expression) -> list[_HeldReductionSpec]:
         """Return the reductions of agents that the laws of a census read.
 
         Each comes once, in the order they are read.
         """
         found: dict[tuple[str, ...], _HeldReductionSpec] = {}
         for record in census.records:
-            for value in PassCompiler._law_values(record):
+            for value in PassCompiler._get_law_values(record):
                 for reduction in reductions_in(value):
-                    held = ReductionLowering._held_reduction(reduction, census.agents, time, record.path)
+                    held = ReductionLowering._get_held_reduction(reduction, census.agents, time, record.path)
                     if held is not None:
                         found.setdefault(held.key, held)
         return list(found.values())
 
     @staticmethod
-    def _census_issues(compilation: Compilation) -> list[IssueSpec]:
+    def _get_census_issues(compilation: Compilation) -> list[IssueSpec]:
         """Return the issues of the components that fail to declare or collect.
 
         Components whose binding is the problem are left out.
         """
-        census = Compilation._required(compilation.census, 'census')
-        nodes = Compilation._required(compilation.nodes, 'nodes')
-        bindings = PassCompiler._binding_issues(nodes)
-        shapes = PassCompiler._shape_issues(nodes)
-        roles = PassCompiler._role_issues(nodes)
+        census = Compilation._get_required(compilation.census, 'census')
+        nodes = Compilation._get_required(compilation.nodes, 'nodes')
+        bindings = PassCompiler._get_binding_issues(nodes)
+        shapes = PassCompiler._get_shape_issues(nodes)
+        roles = PassCompiler._get_role_issues(nodes)
         unbound = {issue.path for issue in [*bindings, *roles]} | {issue.path.rpartition('.')[0] for issue in shapes}
         issues = []
         for path, failure in census.errors:
             if path in unbound:
                 continue
-            code, fix = _FIXES.get(type(failure), ('value', 'Correct the component as the message describes.'))
+            code, fix = FIXES.get(type(failure), ('value', 'Correct the component as the message describes.'))
             issues.append(IssueSpec(code, path, str(failure), fix, error=type(failure)))
         return issues + bindings + shapes + roles
 
     @staticmethod
-    def _probability_sum(total: object) -> float | None:
+    def _get_probability_sum(total: object) -> float | None:
         """Return the sum of the outcome probabilities of one encounter as a number.
 
         It is `None` for a symbol.
@@ -2054,7 +2064,7 @@ class PassCompiler(BaseCompiler):
         return float(value) if value.is_numeric() else None
 
     @staticmethod
-    def _unnormalized(law: BilinearLaw) -> list[tuple[int, int, float]]:
+    def _get_unnormalized(law: BilinearLaw) -> list[tuple[int, int, float]]:
         """Return the activities of the encounters whose probabilities do not sum to one.
 
         The activities are candidate and field activities, and the probabilities are those of the outcomes.
@@ -2062,20 +2072,20 @@ class PassCompiler(BaseCompiler):
         value = law.outcomes
         if value is None:
             return []
-        sums = CompileEncountersPass._kinetic_table(value).sum(axis=2)
-        rates = np.broadcast_to(CompileEncountersPass._kinetic_table(law.rate), sums.shape)
+        sums = CompileEncountersPass._get_kinetic_table(value).sum(axis=2)
+        rates = np.broadcast_to(CompileEncountersPass._get_kinetic_table(law.rate), sums.shape)
         found = []
         for (candidate, field_activity), total in np.ndenumerate(sums):
             rate = rates[candidate, field_activity]
             if SR(rate).is_numeric() and float(SR(rate)) == 0:
                 continue
-            value = PassCompiler._probability_sum(total)
-            if value is not None and abs(value - 1) > _PROBABILITY_TOLERANCE:
+            value = PassCompiler._get_probability_sum(total)
+            if value is not None and abs(value - 1) > PROBABILITY_TOLERANCE:
                 found.append((candidate, field_activity, value))
         return found
 
     @staticmethod
-    def _probability_issues(compilation: Compilation) -> list[IssueSpec]:
+    def _get_probability_issues(compilation: Compilation) -> list[IssueSpec]:
         """Return the encounter laws whose outcome probabilities do not sum to one.
 
         The sum runs over the outcomes of an encounter.
@@ -2089,18 +2099,18 @@ class PassCompiler(BaseCompiler):
                 The issues.
         """
         issues = []
-        for record in Compilation._required(compilation.census, 'census').records:
+        for record in Compilation._get_required(compilation.census, 'census').records:
             law = record.law
             if not isinstance(law, BilinearLaw):
                 continue
-            found = PassCompiler._unnormalized(law)
+            found = PassCompiler._get_unnormalized(law)
             if not found:
                 continue
             listed = '; '.join(
                 f'candidate activity {candidate} with field activity {field_activity} sums to {value:.6g}'
-                for candidate, field_activity, value in found[:_LISTED_ENCOUNTERS]
+                for candidate, field_activity, value in found[:LISTED_ENCOUNTERS]
             )
-            more = f', and {len(found) - _LISTED_ENCOUNTERS} more' if len(found) > _LISTED_ENCOUNTERS else ''
+            more = f', and {len(found) - LISTED_ENCOUNTERS} more' if len(found) > LISTED_ENCOUNTERS else ''
             message = (
                 f'The {type(law).__name__} of {record.path} has outcome probabilities that do not sum to one over the '
                 f'outcomes of an encounter: {listed}{more}.'
@@ -2110,7 +2120,7 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _fixed_groups(
+    def _get_fixed_groups(
         request: TopologyRequestSpec,
         owner: NodeSpec | None,
         groups: list[NodeSpec],
@@ -2129,7 +2139,7 @@ class PassCompiler(BaseCompiler):
         return fixed, TopologyKernel._changes_edges(request) and not edges
 
     @staticmethod
-    def _fixed_group_issues(records: list[CensusRecordSpec], nodes: list[NodeSpec]) -> list[IssueSpec]:
+    def _get_fixed_group_issues(records: list[CensusRecordSpec], nodes: list[NodeSpec]) -> list[IssueSpec]:
         """Return the topology requests that change fixed groups or bad layers.
 
         A bad layer is one without a variable edge group whose edges they change.
@@ -2153,7 +2163,11 @@ class PassCompiler(BaseCompiler):
             groups = [node for node in nodes if isinstance(node.component, GroupElement) and node.space is space]
             owner = by_path.get(record.owner)
             owner = owner if owner is not None and isinstance(owner.component, GroupElement) else None
-            fixed, missing = PassCompiler._fixed_groups(request, owner, [node for node in groups if node.as_group.on])
+            fixed, missing = PassCompiler._get_fixed_groups(
+                request,
+                owner,
+                [node for node in groups if node.as_group.on],
+            )
             if not fixed and not missing:
                 continue
             listed = ', '.join(fixed) or 'none'
@@ -2177,5 +2191,5 @@ class PassCompiler(BaseCompiler):
 
         A bad layer is one without an edge group.
         """
-        records = Compilation._required(compilation.census, 'census').records
-        return PassCompiler._fixed_group_issues(records, Compilation._required(compilation.nodes, 'nodes'))
+        records = Compilation._get_required(compilation.census, 'census').records
+        return PassCompiler._get_fixed_group_issues(records, Compilation._get_required(compilation.nodes, 'nodes'))

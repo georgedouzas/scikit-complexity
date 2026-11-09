@@ -31,10 +31,10 @@ trajectory = simulate(AdaptrodeSystem(period=10.0, stop=150.0), observers=[obser
 stop = trajectory.times.searchsorted(150)
 fig, (weights, decay) = plt.subplots(1, 2, figsize=(11, 4))
 for name, label in [('w0', 'fast'), ('w1', 'medium'), ('w2', 'slow')]:
-    weights.plot(trajectory.times, trajectory.values(f'synapse.{name}'), label=f'{label} {name}')
+    weights.plot(trajectory.times, trajectory.get_values(f'synapse.{name}'), label=f'{label} {name}')
     decay.semilogy(
         trajectory.times[stop:] - 150,
-        trajectory.values(f'synapse.{name}')[stop:] / trajectory.values(f'synapse.{name}')[stop],
+        trajectory.get_values(f'synapse.{name}')[stop:] / trajectory.get_values(f'synapse.{name}')[stop],
         label=label,
     )
 weights.axvline(150, color='grey', linestyle=':', label='input stops')

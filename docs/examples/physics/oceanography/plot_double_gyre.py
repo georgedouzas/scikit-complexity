@@ -30,7 +30,7 @@ trajectory = simulate(DoubleGyreSystem(), observers=[observer], random_state=0)
 # western wall. Along the central latitude of each gyre, it should follow the Sverdrup balance `beta psi_x = curl(tau)`
 # away from the boundary layer.
 
-psi = np.asarray(trajectory.values('psi'))[-1].reshape(64, 64)
+psi = np.asarray(trajectory.get_values('psi'))[-1].reshape(64, 64)
 positions = (np.arange(64) + 0.5) / 64
 sverdrup = 1e-5 * 2 * np.pi * np.sin(2 * np.pi * positions[16]) * (1 - positions)
 

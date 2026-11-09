@@ -43,7 +43,7 @@ start = np.outer(1.0 + 0.5 * np.sin(x), np.exp(-(v**2) / 2) / np.sqrt(2 * np.pi)
 gas = FieldElement('gas', element=DensityElement, space=space, values={'x': start}, discretization='finite-volume')
 stream = ConservationInteraction('stream', target='gas', state='x', flux=lambda s: [coordinate('v') * s.target.x, 0])
 system = CompositeSystem(elements=[gas], interactions=[stream])
-final = simulate(system, until=0.5, dt=0.1, solver=RK4Solver(dt=0.01)).values('gas.x')[-1]
+final = simulate(system, until=0.5, dt=0.1, solver=RK4Solver(dt=0.01)).get_values('gas.x')[-1]
 abs(final.sum() / start.sum() - 1.0) < 1e-12
 ```
 
@@ -127,7 +127,7 @@ conflict = RateInteraction(
     'conflict', target='groups', state='x', rate=lambda s: s.target.x * integral_transform(s.target.x, gain, ('z',))
 )
 trajectory = simulate(CompositeSystem(elements=[groups], interactions=[conflict]), until=5.0, dt=1.0, solver=RK4Solver(dt=0.05))
-final = trajectory.values('groups.x')[-1]
+final = trajectory.get_values('groups.x')[-1]
 round(float(final.sum() / 50), 10), bool(final[-1] > final[0])
 ```
 
@@ -180,7 +180,7 @@ simplex = SimplexSpace(LatticeSpace((1,)), axes).prepare()
 groups = FieldElement('groups', element=DensityElement, space=simplex, values={'x': 2.0 * (simplex.volumes_ > 0)})
 observables = [ObservableSpec('total', total, group='groups')]
 trajectory = simulate(CompositeSystem(elements=[groups]), until=0.1, dt=0.1, observables=observables)
-round(float(np.asarray(trajectory.values('total'))[-1]), 10)
+round(float(np.asarray(trajectory.get_values('total'))[-1]), 10)
 ```
 
 - `volumes_` holds the fraction of every cell inside the simplex: whole cells below the slanted face, partial cells

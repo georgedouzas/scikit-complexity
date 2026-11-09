@@ -33,8 +33,8 @@ trajectory = simulate(system, observers=[observer], random_state=0)
 # traps should keep growing as `T ln t` instead of settling at the mean depth 1 of the landscape.
 
 times = trajectory.times[1:]
-escapes = trajectory.values('escapes.renewals')[1:] / 500
-depth = np.mean(trajectory.values('walkers.E')[1:], axis=1)
+escapes = trajectory.get_values('escapes.renewals')[1:] / 500
+depth = np.mean(trajectory.get_values('walkers.E')[1:], axis=1)
 late = times > 500
 slope = np.polyfit(np.log(times[late]), np.log(escapes[late]), 1)[0]
 fig, (counts, aging) = plt.subplots(1, 2, figsize=(10, 4))

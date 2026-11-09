@@ -40,7 +40,7 @@ speeds = []
 for density in densities:
     system_d = TonerTuSystem(shape=(16, 16), rho0=density, random_state=1)
     run = simulate(system_d, until=60, solver=solver, dt=1.0, random_state=1)
-    velocity = np.stack([run.values('flock.vx')[-10:], run.values('flock.vy')[-10:]], axis=-1)
+    velocity = np.stack([run.get_values('flock.vx')[-10:], run.get_values('flock.vy')[-10:]], axis=-1)
     speeds.append(np.linalg.norm(velocity.mean(axis=1), axis=-1).mean())
 grid = np.linspace(0.2, 2.0, 300)
 fig, ax = plt.subplots(figsize=(7, 4))

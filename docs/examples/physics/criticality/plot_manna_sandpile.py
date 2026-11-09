@@ -35,7 +35,7 @@ trajectory = simulate(system, until=8970, dt=30, observers=[observer], random_st
 # In the critical state the density of sizes should follow a power law `P(s) ~ s^-tau` with `tau` near `1.27`, the
 # Manna exponent, over two decades, up to a cutoff set by the size of the lattice where it falls off steeply.
 
-heights = trajectory.values('pile.height').mean(axis=1)
+heights = trajectory.get_values('pile.height').mean(axis=1)
 found = events(
     [record for record in trajectory.events if record.time > 3000 and record.size > 0],
     kind='excursions',

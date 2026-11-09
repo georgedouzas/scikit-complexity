@@ -37,7 +37,7 @@ trajectory = simulate(
 fig, ax = plt.subplots(figsize=(6, 4.5))
 for noise in (0.0, 0.001, 0.01):
     run = simulate(NoisyAutomataSystem(rule=18, noise=noise, size=2000), until=1000, random_state=0)
-    alive = run.lattice('cells.alive')
+    alive = run.get_lattice('cells.alive')
     defects = (alive[:, :-1] * alive[:, 1:]).mean(axis=1)
     ax.loglog(run.times[1:], defects[1:], label=f'noise {noise}')
 times = np.array([3, 1000])

@@ -34,7 +34,7 @@ fig, ax = plt.subplots(figsize=(6, 4))
 for start, marker in [(0.9, 'o'), (0.1, 'x')]:
     final = [
         np.ravel(
-            simulate(ForestDiebackSystem(v=start, Tv=t), until=300, dt=1.0).values('forest.v'),
+            simulate(ForestDiebackSystem(v=start, Tv=t), until=300, dt=1.0).get_values('forest.v'),
         )[-1]
         for t in temperatures
     ]

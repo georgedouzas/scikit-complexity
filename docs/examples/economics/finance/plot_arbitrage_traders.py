@@ -38,7 +38,7 @@ trajectory = simulate(system, until=UNTIL, dt=0.02, observers=[observer])
 times = trajectory.times
 spacing = LENGTH / N_SITES
 positions = (np.arange(N_SITES) + 0.5) * spacing - LENGTH / 2
-rho = trajectory.values('market.rho')
+rho = trajectory.get_values('market.rho')
 mass = rho.sum(axis=1) * spacing
 centre = rho @ positions * spacing / mass
 variance = rho @ positions**2 * spacing / mass - centre**2

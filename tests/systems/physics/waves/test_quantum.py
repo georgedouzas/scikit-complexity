@@ -33,8 +33,8 @@ def test_schrodinger_formulations_agree():
     spacing = 40.0 / 128
     fields = simulate(SchrodingerSystem(n_sites=128), dt=0.5, solver=ETDRK4Solver(dt=0.01))
     operators = simulate(SchrodingerSystem(n_sites=128, formulation='operators'), dt=0.5)
-    density = fields.values('packet.u') ** 2 + fields.values('packet.w') ** 2
-    probability = np.abs(operators.values('system.state')) ** 2
+    density = fields.get_values('packet.u') ** 2 + fields.get_values('packet.w') ** 2
+    probability = np.abs(operators.get_values('system.state')) ** 2
     assert np.allclose(density * spacing, probability, atol=1e-6)
 
 
@@ -43,7 +43,7 @@ def test_schrodinger_dephased_packet_keeps_its_trace(tmp_path):
     system = SchrodingerSystem(n_sites=32, length=20.0, formulation='operators', gamma=0.5)
     observer = RerunObserver('dephased', save_path=tmp_path / 'run.rrd')
     trajectory = simulate(system, until=2.0, dt=0.5, observers=[observer])
-    traces = np.trace(trajectory.values('system.state'), axis1=1, axis2=2)
+    traces = np.trace(trajectory.get_values('system.state'), axis1=1, axis2=2)
     assert np.allclose(traces, 1, atol=1e-10)
     assert np.all(np.diff(operator_measures(trajectory, kind='purity').purity) <= 1e-10)
     with pytest.raises(ValidationError, match='formulation'):
@@ -53,7 +53,7 @@ def test_schrodinger_dephased_packet_keeps_its_trace(tmp_path):
 def test_site_operators_hold_projectors_and_the_adjacency():
     """Test that a particle on sites has projectors, the adjacency, and the Laplacian of its network."""
     site = SiteElement('p', hilbert=site_space(NetworkSpace(nx.cycle_graph(4)), projectors=True))
-    operators = OperatorCompiler._view_of(site).get_local_operators()
+    operators = OperatorCompiler._get_view_of(site).get_local_operators()
     assert operators['site_2'].matrix.toarray()[2, 2] == 1
     assert operators['adjacency'].matrix.sum() == 8
     assert operators['laplacian'].matrix.toarray()[0, 0] == -2

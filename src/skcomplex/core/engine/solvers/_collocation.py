@@ -176,7 +176,7 @@ class CollocationSolver(OptimalControlSolver):
         n, m = len(self.control_problem_.states), len(self.control_problem_.controls)
         return z[: points * n].reshape(points, n), z[points * n :].reshape(points, m)
 
-    def _cost_and_gradient(self, z: Array, points: Array, weights: Array, p: Array) -> tuple[float, Array]:
+    def _get_cost_and_gradient(self, z: Array, points: Array, weights: Array, p: Array) -> tuple[float, Array]:
         """Return the transcribed cost and its gradient by the variables."""
         x, u = self._unpack(z, points.size)
         values = self.running_(points, x, u, p)[:, 0]
@@ -186,14 +186,14 @@ class CollocationSolver(OptimalControlSolver):
         gradient_u = weights[:, None] * self._running_controls(points, x, u, p)
         return cost, np.concatenate([gradient_x.ravel(), gradient_u.ravel()])
 
-    def _defects(self, z: Array, points: Array, coefficients: tuple[Array, Array], x0: Array, p: Array) -> Array:
+    def _get_defects(self, z: Array, points: Array, coefficients: tuple[Array, Array], x0: Array, p: Array) -> Array:
         """Return the defects of the collocation conditions and of the initial state."""
         x, u = self._unpack(z, points.size)
         states, rates = coefficients
         defects = states @ x + rates @ self.rates_(points, x, u, p)
         return np.concatenate([defects.T.ravel(), x[0] - x0])
 
-    def _jacobian(self, z: Array, points: Array, coefficients: tuple[Array, Array], p: Array) -> Array:
+    def _get_jacobian(self, z: Array, points: Array, coefficients: tuple[Array, Array], p: Array) -> Array:
         """Return the Jacobian of the defects by the variables.
 
         It comes from the symbolic Jacobians of the rates.
@@ -214,7 +214,7 @@ class CollocationSolver(OptimalControlSolver):
             jacobian[rows * n + i, i] = 1.0
         return jacobian
 
-    def _bounds(self, points: int) -> Bounds:
+    def _get_bounds(self, points: int) -> Bounds:
         """Return the bounds of the variables.
 
         They are the lower bounds of the states and the bounds of the controls.
@@ -236,20 +236,23 @@ class CollocationSolver(OptimalControlSolver):
         """
         states, controls = control_problem.states, control_problem.control_symbols
         rates, running = control_problem.rates, control_problem.running
-        self._rates_states: GridFunction = self._function(
+        self._rates_states: GridFunction = self._get_function(
             control_problem,
             [rate.diff(item) for rate in rates for item in states],
         )
-        self._rates_controls: GridFunction = self._function(
+        self._rates_controls: GridFunction = self._get_function(
             control_problem,
             [rate.diff(item) for rate in rates for item in controls],
         )
-        self._running_states: GridFunction = self._function(control_problem, [running.diff(item) for item in states])
-        self._running_controls: GridFunction = self._function(
+        self._running_states: GridFunction = self._get_function(
+            control_problem,
+            [running.diff(item) for item in states],
+        )
+        self._running_controls: GridFunction = self._get_function(
             control_problem,
             [running.diff(item) for item in controls],
         )
-        self._terminal_states: GridFunction = self._function(
+        self._terminal_states: GridFunction = self._get_function(
             control_problem,
             [control_problem.terminal.diff(item) for item in states],
         )
@@ -276,7 +279,7 @@ class CollocationSolver(OptimalControlSolver):
                 The optimiser does not converge.
         """
         control_problem = self.control_problem_
-        transcribe = self._trapezoidal if self.scheme == 'trapezoidal' else self._hermite_simpson
+        transcribe = self._get_trapezoidal if self.scheme == 'trapezoidal' else self._get_hermite_simpson
         points, states, rates, weights = transcribe(np.linspace(0.0, horizon, self.nodes))
         lower, upper = control_problem.bounds
         initial = x0[control_problem.indices]
@@ -288,14 +291,14 @@ class CollocationSolver(OptimalControlSolver):
         coefficients = (states, rates)
         constraint: dict[str, object] = {
             'type': 'eq',
-            'fun': lambda z: self._defects(z, points, coefficients, initial, p),
-            'jac': lambda z: self._jacobian(z, points, coefficients, p),
+            'fun': lambda z: self._get_defects(z, points, coefficients, initial, p),
+            'jac': lambda z: self._get_jacobian(z, points, coefficients, p),
         }
         result = minimize(
-            lambda z: self._cost_and_gradient(z, points, weights, p),
+            lambda z: self._get_cost_and_gradient(z, points, weights, p),
             np.concatenate([guess_states.ravel(), guess_controls.ravel()]),
             jac=True,
-            bounds=self._bounds(points.size),
+            bounds=self._get_bounds(points.size),
             constraints=[constraint],
             method=self.method,
             tol=self.tolerance,
@@ -308,10 +311,10 @@ class CollocationSolver(OptimalControlSolver):
             )
             raise SolverError(error_msg)
         x, u = self._unpack(result.x, points.size)
-        return self._solution(x0, points, x, u, p, iterations=int(result.nit))
+        return self._get_solution(x0, points, x, u, p, iterations=int(result.nit))
 
     @staticmethod
-    def _trapezoidal(times: Array) -> tuple[Array, Array, Array, Array]:
+    def _get_trapezoidal(times: Array) -> tuple[Array, Array, Array, Array]:
         """Return the points, the defect coefficients, and the weights of trapezoids.
 
         The defect coefficients are those of states and rates, and the weights are quadrature weights.
@@ -328,7 +331,7 @@ class CollocationSolver(OptimalControlSolver):
         return times, states, rates, weights
 
     @staticmethod
-    def _hermite_simpson(times: Array) -> tuple[Array, Array, Array, Array]:
+    def _get_hermite_simpson(times: Array) -> tuple[Array, Array, Array, Array]:
         """Return the points, the defect coefficients, and Simpson's weights.
 
         The points include the midpoints.

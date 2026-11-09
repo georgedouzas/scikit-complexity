@@ -86,8 +86,8 @@ class MilsteinSolver(SDESolver):
             state:
                 The state at the end of the step.
         """
-        problem, diffusion = self.problem_, self._diffusion()
-        drift = self._drift()(time, state, p)
+        problem, diffusion = self.problem_, self._get_diffusion()
+        drift = self._get_drift()(time, state, p)
         amplitudes = diffusion(time, state, p)
         root = np.sqrt(step)
         support = state + drift * step

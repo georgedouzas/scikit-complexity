@@ -108,7 +108,7 @@ def autocatalytic_sets(
         snapshots = [source]
     elif isinstance(source, Trajectory):
         chosen = range(len(source.times)) if frames is None else frames
-        snapshots = [source.network(int(frame)) for frame in chosen]
+        snapshots = [source.get_network(int(frame)) for frame in chosen]
     else:
         error_msg = f'Autocatalytic sets are read from a network snapshot or a trajectory, not {type(source).__name__}.'
         raise AnalysisError(error_msg)

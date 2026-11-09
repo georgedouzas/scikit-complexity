@@ -45,15 +45,20 @@ trajectory = simulate(system, until=100, observers=[observer])
 # recruitment crime should spread through most of the society.
 
 unchecked = simulate(CriminalitySystem(deterrence=0.0, recruitment=0.0), until=100, dt=0.5)
-unchecked_criminality = unchecked.values('mean_criminality')
+unchecked_criminality = unchecked.get_values('mean_criminality')
 fig, (phase_axis, time_axis) = plt.subplots(1, 2, figsize=(10, 4))
-phase_axis.plot(trajectory.values('mean_criminality'), trajectory.values('security_forces'))
-phase_axis.plot(trajectory.values('mean_criminality')[0], trajectory.values('security_forces')[0], 'o', label='start')
+phase_axis.plot(trajectory.get_values('mean_criminality'), trajectory.get_values('security_forces'))
+phase_axis.plot(
+    trajectory.get_values('mean_criminality')[0],
+    trajectory.get_values('security_forces')[0],
+    'o',
+    label='start',
+)
 phase_axis.set_xlabel('mean criminality')
 phase_axis.set_ylabel('density of security forces')
 phase_axis.set_title('Crime and security spiral into a balance')
 phase_axis.legend()
-time_axis.plot(trajectory.times, trajectory.values('mean_criminality'), label='with security forces')
+time_axis.plot(trajectory.times, trajectory.get_values('mean_criminality'), label='with security forces')
 time_axis.plot(trajectory.times, unchecked_criminality, label='without deterrence or recruitment')
 time_axis.set_xlabel('time')
 time_axis.set_ylabel('mean criminality')

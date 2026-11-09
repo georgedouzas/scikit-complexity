@@ -56,7 +56,7 @@ for sigma in sigmas:
     responses[sigma] = []
     for rate in rates:
         run = simulate(KinouchiCopelliSystem(graph=graph, sigma=sigma, stimulus=rate), until=600, random_state=0)
-        responses[sigma].append((run.values('neurons.phase')[100:] == 1).mean())
+        responses[sigma].append((run.get_values('neurons.phase')[100:] == 1).mean())
 
 
 def dynamic_range(response):

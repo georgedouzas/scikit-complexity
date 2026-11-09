@@ -37,7 +37,7 @@ def fold_of(sequence):
     return fold_sequence(sequence)[0]
 
 
-letters = trajectory.lattice('walkers.base')
+letters = trajectory.get_lattice('walkers.base')
 sequences = np.array([[''.join(row) for row in frame] for frame in letters], dtype=object)
 distances = (letters != letters[0]).sum(axis=2)
 samples = sequences[::10]

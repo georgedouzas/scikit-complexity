@@ -35,7 +35,7 @@ class LogisticMapElement(Element):
 
 def last_value(trajectory):
     """Return the last infected count."""
-    return float(trajectory.values('I.x')[-1])
+    return float(trajectory.get_values('I.x')[-1])
 
 
 def test_sweep_of_one_parameter_gives_one_row_per_value():

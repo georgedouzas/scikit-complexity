@@ -17,4 +17,4 @@ def test_position_drifts_along_a_turning_heading():
     propulsion = SelfPropulsionInteraction('propulsion', target='swimmer', speed=2.0)
     system = CompositeSystem(elements=[swimmer], interactions=[propulsion], space=ContinuousSpace(n_dim=2))
     trajectory = simulate(system, until=math.pi, dt=0.1)
-    np.testing.assert_allclose(trajectory.values('swimmer.x')[-1], [0.0, 4.0], atol=1e-5)
+    np.testing.assert_allclose(trajectory.get_values('swimmer.x')[-1], [0.0, 4.0], atol=1e-5)

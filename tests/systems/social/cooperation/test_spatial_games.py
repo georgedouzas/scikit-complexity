@@ -17,7 +17,7 @@ from ..conftest import _run
 
 def _cooperation(trajectory):
     """Return the share of cooperators at every frame of a lattice game."""
-    strategies = trajectory.values('players.strategy')
+    strategies = trajectory.get_values('players.strategy')
     return strategies.reshape(len(strategies), -1).mean(axis=1)
 
 
@@ -36,7 +36,7 @@ def test_spatial_cooperation_survives_in_clusters():
     trajectory = _run(SpatialPrisonersDilemmaSystem((40, 40), temptation=1.6), 200, dt=1)
     shares = _cooperation(trajectory)
     assert shares.min() > 0.2
-    lattice = trajectory.values('players.strategy')[-1].reshape(40, 40)
+    lattice = trajectory.get_values('players.strategy')[-1].reshape(40, 40)
     shifts = [np.roll(lattice, shift, axis) for shift in (-1, 1) for axis in (0, 1)]
     cooperating_neighbours = np.mean(shifts, axis=0)[lattice == 1]
     assert cooperating_neighbours.mean() > shares[-1]
@@ -74,7 +74,7 @@ def test_iterated_dilemma_with_two_strategies_has_three_regimes():
     shares = {}
     for reward in (0.82, 0.84, 0.86):
         system = IteratedLatticeDilemmaSystem(reward=reward, extremes=True).prepare().system_
-        strategies = simulate(system, until=100, random_state=0).values('players.strategy')
+        strategies = simulate(system, until=100, random_state=0).get_values('players.strategy')
         shares[reward] = np.mean(strategies[-20:] == 7)
         assert set(np.unique(strategies)) <= {0.0, 7.0}
     assert shares[0.82] > 0.8
@@ -85,7 +85,7 @@ def test_iterated_dilemma_with_two_strategies_has_three_regimes():
 def test_iterated_dilemma_with_every_strategy_cycles():
     """Test that in the coexistence regime cooperative and defecting strategies alternate in dominance."""
     system = IteratedLatticeDilemmaSystem().prepare().system_
-    strategies = simulate(system, until=200, random_state=0).values('players.strategy')
+    strategies = simulate(system, until=200, random_state=0).get_values('players.strategy')
     means = strategies.reshape(len(strategies), -1).mean(axis=1)
     assert means[50:].max() - means[50:].min() > 2.0
     assert len(np.unique(strategies[-1])) > 3

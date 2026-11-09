@@ -60,9 +60,9 @@ policies = {
 }
 for name, changes in policies.items():
     scenario = trajectory if not changes else simulate(FoodSecuritySystem(**changes))
-    ax.plot(np.asarray(scenario.times), scenario.values('rice.self_sufficiency'), label=name)
+    ax.plot(np.asarray(scenario.times), scenario.get_values('rice.self_sufficiency'), label=name)
 times = np.asarray(trajectory.times)
-start = trajectory.values('rice.self_sufficiency')[0]
+start = trajectory.get_values('rice.self_sufficiency')[0]
 ax.plot(times, start * np.exp(-0.03 * times), 'k:', label='exp(-0.03 t)')
 ax.axhline(1.0, color='grey', lw=0.8)
 ax.set_xlabel('years')

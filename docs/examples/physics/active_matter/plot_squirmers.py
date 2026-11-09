@@ -48,7 +48,7 @@ for beta, color in ((-3.0, 'tab:blue'), (0.0, 'tab:gray'), (3.0, 'tab:orange')):
     slip = SquirmerSlipInteraction('slip', target='squirmers', B1=1.5, B2=1.5 * beta)
     system = CompositeSystem(elements=[pair], interactions=[slip], space=ContinuousSpace(n_dim=3))
     trajectory = simulate(system, until=12, dt=0.25)
-    positions = trajectory.values('squirmers.x')
+    positions = trajectory.get_values('squirmers.x')
     gap = np.linalg.norm(positions[:, 1] - positions[:, 0], axis=1)
     kind = 'pushers' if beta < 0 else 'pullers' if beta > 0 else 'neutral squirmers'
     ax.plot(trajectory.times, gap, color=color, label=f'{kind}, beta = {beta:.0f}')

@@ -31,8 +31,8 @@ trajectory = simulate(system, backend=NumbaBackend(), observers=[observer], rand
 # The scalar order should rise from the small initial noise to a nonzero value, and the total density should stay at its
 # initial value to rounding, since the current is a divergence.
 
-tensors = alignment(trajectory.lattice('nematic.Q'), kind='principal-axis')
-density = trajectory.lattice('nematic.rho')
+tensors = alignment(trajectory.get_lattice('nematic.Q'), kind='principal-axis')
+density = trajectory.get_lattice('nematic.rho')
 
 fig, (order, total) = plt.subplots(1, 2, figsize=(10, 4))
 order.plot(trajectory.times, tensors.order.mean(axis=(1, 2)))

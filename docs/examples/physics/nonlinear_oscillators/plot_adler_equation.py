@@ -33,7 +33,7 @@ detunings = np.linspace(0.0, 3.0, 25)
 rates = []
 for detuning in detunings:
     run = simulate(AdlerEquationSystem(phi=0.0, detuning=detuning, epsilon=1.0), until=400, dt=0.05)
-    phase = np.unwrap(np.ravel(run.values('difference.phi')))
+    phase = np.unwrap(np.ravel(run.get_values('difference.phi')))
     times = np.asarray(run.times)
     half = times > 200
     rates.append(np.polyfit(times[half], phase[half], 1)[0])

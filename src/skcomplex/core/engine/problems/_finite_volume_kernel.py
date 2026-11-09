@@ -21,7 +21,7 @@ from ._expression_printer import ExpressionPrinter
 from ._reference_spec import ReferenceSpec
 
 TIME = symbol('t')
-_STENCIL = 2
+STENCIL = 2
 
 
 class FiniteVolumeKernel(BaseKernel):
@@ -153,7 +153,7 @@ class FiniteVolumeKernel(BaseKernel):
         """
         return bool(self.speeds)
 
-    def _window(self, axis: int, first: int, last: int) -> tuple[slice, ...]:
+    def _get_window(self, axis: int, first: int, last: int) -> tuple[slice, ...]:
         """Return the index that selects positions along an axis.
 
         The positions run from first to last, excluded.
@@ -162,7 +162,7 @@ class FiniteVolumeKernel(BaseKernel):
         index[axis] = slice(first, last)
         return tuple(index)
 
-    def _states(self, x: Array) -> list[Array]:
+    def _get_states(self, x: Array) -> list[Array]:
         """Return the conserved states in lattice shape."""
         return [np.reshape(x[start : start + self.size], self.dimensions) for start in self.starts]
 
@@ -174,14 +174,14 @@ class FiniteVolumeKernel(BaseKernel):
         values: list[float | Array] = []
         reads = self.reads or (None,) * len(self.parameters)
         for reference, read in zip(self.parameters, reads, strict=True):
-            column = np.asarray(reference.column_of(x, p) if read is None else read(t, x, p), dtype=float)
+            column = np.asarray(reference.get_column_of(x, p) if read is None else read(t, x, p), dtype=float)
             if column.size == self.size and not np.all(column == column[0]):
                 values.append(np.reshape(column, self.dimensions))
             else:
                 values.append(float(column[0]))
         return values
 
-    def _sides(self, parameters: list[float | Array], axis: int) -> tuple[list[float | Array], list[float | Array]]:
+    def _get_sides(self, parameters: list[float | Array], axis: int) -> tuple[list[float | Array], list[float | Array]]:
         """Return the parameters of the cells around every interface along an axis.
 
         Numbers stay as they are.
@@ -189,8 +189,8 @@ class FiniteVolumeKernel(BaseKernel):
         n = self.dimensions[axis]
         width = [(0, 0)] * len(self.dimensions)
         width[axis] = (2, 2)
-        periodic = self._kind(axis, self.boundaries[0][0]) == 'periodic'
-        before, after = self._window(axis, 1, n + 2), self._window(axis, 2, n + 3)
+        periodic = self._get_kind(axis, self.boundaries[0][0]) == 'periodic'
+        before, after = self._get_window(axis, 1, n + 2), self._get_window(axis, 2, n + 3)
         left: list[float | Array] = []
         right: list[float | Array] = []
         for value in parameters:
@@ -203,7 +203,7 @@ class FiniteVolumeKernel(BaseKernel):
             right.append(padded[after])
         return left, right
 
-    def _closed_speed(self, axis: int, states: Sequence[Array], parameters: Sequence[float | Array]) -> Array:
+    def _get_closed_speed(self, axis: int, states: Sequence[Array], parameters: Sequence[float | Array]) -> Array:
         """Return the largest absolute closed-form eigenvalue of the flux Jacobian.
 
         There is one value for every cell or interface.
@@ -228,7 +228,7 @@ class FiniteVolumeKernel(BaseKernel):
         """
         shape = np.broadcast_shapes(*(np.shape(item) for item in states))
         with np.errstate(invalid='ignore'):
-            values = ExpressionPrinter._values_of(self.speeds[axis](0.0, *states, *parameters))
+            values = ExpressionPrinter._get_values_of(self.speeds[axis](0.0, *states, *parameters))
         speed = np.abs(np.broadcast_to(np.asarray(values[0], dtype=float), shape))
         for value in values[1:]:
             speed = np.maximum(speed, np.abs(np.asarray(value, dtype=float)))
@@ -241,14 +241,14 @@ class FiniteVolumeKernel(BaseKernel):
             raise SolverError(error_msg)
         return speed
 
-    def _speed(self, axis: int, states: Sequence[Array], parameters: Sequence[float | Array]) -> Array:
+    def _get_speed(self, axis: int, states: Sequence[Array], parameters: Sequence[float | Array]) -> Array:
         """Return the largest wave speed of every cell or interface.
 
         It is the spectral radius of the flux Jacobian.
         """
         if self.speeds:
-            return self._closed_speed(axis, states, parameters)
-        entries = ExpressionPrinter._values_of(self.jacobians[axis](0.0, *states, *parameters))
+            return self._get_closed_speed(axis, states, parameters)
+        entries = ExpressionPrinter._get_values_of(self.jacobians[axis](0.0, *states, *parameters))
         count = len(states)
         shape = np.broadcast_shapes(*(np.shape(item) for item in states))
         matrix = np.stack([np.broadcast_to(np.asarray(item, dtype=float), shape) for item in entries], axis=-1)
@@ -257,13 +257,13 @@ class FiniteVolumeKernel(BaseKernel):
         eigenvalues = np.linalg.eigvals(matrix.reshape(*shape, count, count))
         return np.abs(eigenvalues).max(axis=-1)
 
-    def _flux(self, axis: int, states: Sequence[Array], parameters: Sequence[float | Array]) -> list[Array]:
+    def _get_flux(self, axis: int, states: Sequence[Array], parameters: Sequence[float | Array]) -> list[Array]:
         """Return the physical flux of every state along an axis."""
         shape = np.broadcast_shapes(*(np.shape(item) for item in states))
-        values = ExpressionPrinter._values_of(self.fluxes[axis](0.0, *states, *parameters))
+        values = ExpressionPrinter._get_values_of(self.fluxes[axis](0.0, *states, *parameters))
         return [np.broadcast_to(np.asarray(item, dtype=float), shape) for item in values]
 
-    def _godunov(self, axis: int, left: Array, right: Array, parameters: list[float | Array]) -> Array:
+    def _get_godunov(self, axis: int, left: Array, right: Array, parameters: list[float | Array]) -> Array:
         """Return the exact Godunov flux of one state.
 
         It is the minimum flux between rising states, else the maximum.
@@ -293,16 +293,16 @@ class FiniteVolumeKernel(BaseKernel):
             error_msg = f'The Godunov flux of {self.owner} takes uniform parameters. Use the Rusanov flux.'
             raise ValidationError(error_msg)
         low, high = np.minimum(left, right), np.maximum(left, right)
-        candidates = [self._flux(axis, [left], parameters)[0], self._flux(axis, [right], parameters)[0]]
-        for root in ExpressionPrinter._values_of(self.critical[axis](0.0, *parameters)):
+        candidates = [self._get_flux(axis, [left], parameters)[0], self._get_flux(axis, [right], parameters)[0]]
+        for root in ExpressionPrinter._get_values_of(self.critical[axis](0.0, *parameters)):
             value = float(np.real(root))
             inside = (low <= value) & (value <= high)
-            flux = self._flux(axis, [np.full(left.shape, value)], parameters)[0]
+            flux = self._get_flux(axis, [np.full(left.shape, value)], parameters)[0]
             candidates.append(np.where(inside, flux, np.where(left <= right, np.inf, -np.inf)))
         stacked = np.stack(candidates)
         return np.where(left <= right, stacked.min(axis=0), stacked.max(axis=0))
 
-    def _kind(self, axis: int, given: str) -> str:
+    def _get_kind(self, axis: int, given: str) -> str:
         """Return the boundary of a state along an axis.
 
         On a class axis of a phase space, it is the boundary of the axis.
@@ -318,7 +318,7 @@ class FiniteVolumeKernel(BaseKernel):
         width[axis] = (2, 2)
         padded = []
         for values, (given, value) in zip(states, self.boundaries, strict=True):
-            kind = self._kind(axis, given)
+            kind = self._get_kind(axis, given)
             if kind == 'periodic':
                 padded.append(np.pad(values, width, mode='wrap'))
             elif kind == 'zero-flux':
@@ -332,35 +332,35 @@ class FiniteVolumeKernel(BaseKernel):
 
         The rates are minus the divergence of the numerical fluxes.
         """
-        state = self._state_of(inputs)
+        state = self._get_state_of(inputs)
         x, p = state.x, state.p
-        states = self._states(x)
+        states = self._get_states(x)
         parameters = self._get_parameters(x, p, state.t)
         totals = [np.zeros(self.dimensions) for _ in states]
         for axis in range(len(self.dimensions)):
             padded = self._pad(states, axis)
             n = self.dimensions[axis]
-            behind, centre, ahead = (self._window(axis, offset, n + 2 + offset) for offset in range(3))
-            left_cells, right_cells = (self._window(axis, offset, n + 1 + offset) for offset in range(2))
-            left_faces, right_faces = (self._window(axis, offset, n + offset) for offset in range(2))
+            behind, centre, ahead = (self._get_window(axis, offset, n + 2 + offset) for offset in range(3))
+            left_cells, right_cells = (self._get_window(axis, offset, n + 1 + offset) for offset in range(2))
+            left_faces, right_faces = (self._get_window(axis, offset, n + offset) for offset in range(2))
             left, right = [], []
             for values in padded:
                 cells = values[centre]
-                slopes = self._limited(cells - values[behind], values[ahead] - cells, self.limiter)
+                slopes = self._get_limited(cells - values[behind], values[ahead] - cells, self.limiter)
                 left.append((cells + slopes / 2)[left_cells])
                 right.append((cells - slopes / 2)[right_cells])
             if self.riemann == 'godunov' and len(states) == 1:
-                interfaces = [self._godunov(axis, left[0], right[0], parameters)]
+                interfaces = [self._get_godunov(axis, left[0], right[0], parameters)]
             else:
-                before, after = self._sides(parameters, axis)
-                speed = np.maximum(self._speed(axis, left, before), self._speed(axis, right, after))
-                left_flux, right_flux = self._flux(axis, left, before), self._flux(axis, right, after)
+                before, after = self._get_sides(parameters, axis)
+                speed = np.maximum(self._get_speed(axis, left, before), self._get_speed(axis, right, after))
+                left_flux, right_flux = self._get_flux(axis, left, before), self._get_flux(axis, right, after)
                 interfaces = [
                     (first + second) / 2 - speed / 2 * (upper - lower)
                     for first, second, lower, upper in zip(left_flux, right_flux, left, right, strict=True)
                 ]
             for index, flux in enumerate(interfaces):
-                walled = self._walled(flux, axis, n) * (self.apertures[axis] if self.apertures else 1.0)
+                walled = self._get_walled(flux, axis, n) * (self.apertures[axis] if self.apertures else 1.0)
                 totals[index] = totals[index] - (walled[right_faces] - walled[left_faces]) / self.spacings[axis]
         if self.volumes is not None:
             inside = self.volumes > 0
@@ -370,7 +370,7 @@ class FiniteVolumeKernel(BaseKernel):
             rates[start : start + self.size] = total.ravel()
         self.values_ = rates
 
-    def _walled(self, flux: Array, axis: int, n: int) -> Array:
+    def _get_walled(self, flux: Array, axis: int, n: int) -> Array:
         """Return the flux through the interfaces of an axis.
 
         It is zero at the two ends of an interval class axis.
@@ -378,11 +378,11 @@ class FiniteVolumeKernel(BaseKernel):
         if not self.edges or self.edges[axis] != 'reflecting':
             return flux
         result = np.array(flux)
-        result[self._window(axis, 0, 1)] = 0.0
-        result[self._window(axis, n, n + 1)] = 0.0
+        result[self._get_window(axis, 0, 1)] = 0.0
+        result[self._get_window(axis, n, n + 1)] = 0.0
         return result
 
-    def max_speed(self, x: Array, p: Array) -> float:
+    def get_max_speed(self, x: Array, p: Array) -> float:
         """Return the largest wave speed over the cells and the dimensions.
 
         It is divided by the smallest cell volume.
@@ -398,14 +398,14 @@ class FiniteVolumeKernel(BaseKernel):
             speed:
                 The largest wave speed.
         """
-        states = self._states(x)
+        states = self._get_states(x)
         parameters = self._get_parameters(x, p)
-        speed = max(float(self._speed(axis, states, parameters).max()) for axis in range(len(self.dimensions)))
+        speed = max(float(self._get_speed(axis, states, parameters).max()) for axis in range(len(self.dimensions)))
         if self.volumes is None:
             return speed
         return speed / float(self.volumes[self.volumes > 0].min())
 
-    def drift_of(self, axis: int, states: Sequence[Array], x: Array, p: Array, t: float) -> list[Array]:
+    def get_drift_of(self, axis: int, states: Sequence[Array], x: Array, p: Array, t: float) -> list[Array]:
         """Return the coefficient of the linear drift of every state along an axis.
 
         Args:
@@ -428,10 +428,10 @@ class FiniteVolumeKernel(BaseKernel):
             drifts:
                 The coefficient of every state, in lattice shape where it varies.
         """
-        values = ExpressionPrinter._values_of(self.drifts[axis](t, *states, *self._get_parameters(x, p, t)))
+        values = ExpressionPrinter._get_values_of(self.drifts[axis](t, *states, *self._get_parameters(x, p, t)))
         return [np.asarray(item, dtype=float) for item in values]
 
-    def pattern(self, size: int) -> scipy.sparse.csr_array:
+    def get_pattern(self, size: int) -> scipy.sparse.csr_array:
         """Return the band of the reconstruction stencil.
 
         The band couples all the conserved states.
@@ -448,7 +448,7 @@ class FiniteVolumeKernel(BaseKernel):
         kinds = {kind for kind, _ in self.boundaries}
         rows, columns = [], []
         for axis, length in enumerate(self.dimensions):
-            for offset in range(-_STENCIL, _STENCIL + 1):
+            for offset in range(-STENCIL, STENCIL + 1):
                 shifted = np.arange(length) + offset
                 neighbours = []
                 if 'periodic' in kinds:
@@ -465,7 +465,7 @@ class FiniteVolumeKernel(BaseKernel):
         return scipy.sparse.csr_array((np.ones(first.size), (first, second)), shape=(size, size))
 
     @staticmethod
-    def _limited(backward: Array, forward: Array, limiter: str | None) -> Array:
+    def _get_limited(backward: Array, forward: Array, limiter: str | None) -> Array:
         """Return the limited slope of every cell.
 
         It comes from the backward and forward differences of the cell.

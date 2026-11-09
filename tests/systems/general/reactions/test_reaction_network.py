@@ -27,7 +27,7 @@ def test_reaction_network_rate_equations_reach_the_equilibrium_of_product_propen
         until=200.0,
         dt=1.0,
     )
-    monomers, dimers = trajectory.values('A.x'), trajectory.values('D.x')
+    monomers, dimers = trajectory.get_values('A.x'), trajectory.get_values('D.x')
     np.testing.assert_allclose(monomers + 2 * dimers, 100.0, rtol=1e-6)
     assert 0.01 * monomers[-1] ** 2 == pytest.approx(0.1 * dimers[-1], rel=1e-3)
 
@@ -36,7 +36,7 @@ def test_reaction_network_takes_sources_and_sinks_as_empty_sides():
     """Test that a reaction without reactants is a source and one without products a sink."""
     reactions = {'birth': ({}, {'X': 1}, 2.0), 'death': ({'X': 1}, {}, 0.5)}
     trajectory = simulate(ReactionNetworkSystem(species={'X': 0.0}, reactions=reactions), until=40.0, dt=1.0)
-    assert trajectory.values('X.x')[-1] == pytest.approx(4.0, rel=1e-3)
+    assert trajectory.get_values('X.x')[-1] == pytest.approx(4.0, rel=1e-3)
 
 
 def test_reaction_network_jumps_move_whole_units():

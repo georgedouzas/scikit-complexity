@@ -30,10 +30,10 @@ trajectory = simulate(system, until=48, observers=[observer])
 # setting by a gap that grows with the leak. Runs with several leaks, without the daily swing, should end on that line.
 
 leaks = np.linspace(0.02, 0.5, 13)
-steady = [(simulate(ThermostatSystem(leak=leak), until=72).values('room.T')[-1]) for leak in leaks]
+steady = [(simulate(ThermostatSystem(leak=leak), until=72).get_values('room.T')[-1]) for leak in leaks]
 grid = np.linspace(0.0, 0.5, 100)
 fig, (day, theory) = plt.subplots(1, 2, figsize=(10, 4))
-day.plot(trajectory.times, trajectory.values('room.T'), label='room')
+day.plot(trajectory.times, trajectory.get_values('room.T'), label='room')
 day.axhline(18.0, color='black', linestyle='--', linewidth=0.8, label='setting')
 day.set_xlabel('time (hours)')
 day.set_ylabel('temperature (°C)')

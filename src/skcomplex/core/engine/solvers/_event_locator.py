@@ -40,7 +40,7 @@ class EventLocator:
         self._slot_of = {slot: position for position, slot in enumerate(self._slots)}
 
     @staticmethod
-    def _member_event(event: EventKernel, member: int) -> EventKernel:
+    def _get_member_event(event: EventKernel, member: int) -> EventKernel:
         """Return the event of one member of a group.
 
         Its guard and reset are those of the member.
@@ -56,7 +56,7 @@ class EventLocator:
         return EventKernel(event.label, guard, apply, event.direction, event.terminal).prepare()
 
     @staticmethod
-    def _crossed(direction: int, g0: Array, g1: Array) -> Array:
+    def _get_crossed(direction: int, g0: Array, g1: Array) -> Array:
         """Return whether guards cross zero in their direction between two values.
 
         There is one result per member.
@@ -65,7 +65,7 @@ class EventLocator:
         downwards = (g0 > 0) & (g1 <= 0)
         return np.asarray((direction >= 0) & upwards | (direction <= 0) & downwards)
 
-    def crossing(
+    def get_crossing(
         self,
         t0: float,
         t1: float,
@@ -115,13 +115,13 @@ class EventLocator:
                 continue
             g0 = np.atleast_1d(np.asarray(event.guard(t0, x0, p), dtype=float))
             g1 = np.atleast_1d(np.asarray(event.guard(t1, x1, p), dtype=float))
-            for member in np.flatnonzero(self._crossed(event.direction, g0, g1)):
+            for member in np.flatnonzero(self._get_crossed(event.direction, g0, g1)):
                 slot = int(member) if event.members else None
-                single = event if slot is None else self._member_event(event, slot)
+                single = event if slot is None else self._get_member_event(event, slot)
                 time = (
                     t1
                     if g1[member] == 0
-                    else self._past_root(single, float(g0[member]), t0, t1, p=p, interpolant=interpolant)
+                    else self._get_past_root(single, float(g0[member]), t0, t1, p=p, interpolant=interpolant)
                 )
                 found.append((time, self._slot_of[(index, slot)]))
         if not found:
@@ -132,7 +132,7 @@ class EventLocator:
         return earliest
 
     @staticmethod
-    def _past_root(
+    def _get_past_root(
         event: EventKernel,
         g0: float,
         t0: float,
@@ -172,7 +172,7 @@ class EventLocator:
             )
             raise SolverError(error_msg)
         self._last[(event.label, member)] = time
-        single = event if member is None else self._member_event(event, member)
+        single = event if member is None else self._get_member_event(event, member)
         after = single.run(RunStateSpec(time, state, p)).values_
         self.records.append(EventRecordSpec(event.label, time, state.copy(), after.copy(), member))
         if event.terminal:

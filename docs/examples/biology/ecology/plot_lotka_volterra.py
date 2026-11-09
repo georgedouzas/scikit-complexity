@@ -29,7 +29,7 @@ trajectory = simulate(LotkaVolterraSystem(prey=10.0, predators=5.0), observers=[
 # should be one closed orbit around the equilibrium `(d / b, r / a)`, and `V` should stay constant up to the error
 # of the solver.
 
-prey, predators = trajectory.values('prey.x'), trajectory.values('predators.x')
+prey, predators = trajectory.get_values('prey.x'), trajectory.get_values('predators.x')
 r, a, b, d = 1.1, 0.4, 0.1, 0.4
 conserved = b * prey - d * np.log(prey) + a * predators - r * np.log(predators)
 fig, (orbit, drift) = plt.subplots(1, 2, figsize=(10, 4))

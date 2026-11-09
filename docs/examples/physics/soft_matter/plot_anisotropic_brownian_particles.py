@@ -30,8 +30,8 @@ simulation = simulate(AnisotropicBrownianParticlesSystem(), until=10, observers=
 
 trajectory = simulate(AnisotropicBrownianParticlesSystem(D_par=1.5, D_perp=0.5, D_r=0.5), until=10, random_state=0)
 times = np.asarray(trajectory.times)
-axes = np.stack([np.asarray(trajectory.values(f'particles.u{name}')) for name in 'xyz'], axis=-1)
-positions = np.stack([np.asarray(trajectory.values(f'particles.{name}')) for name in 'xyz'], axis=-1)
+axes = np.stack([np.asarray(trajectory.get_values(f'particles.u{name}')) for name in 'xyz'], axis=-1)
+positions = np.stack([np.asarray(trajectory.get_values(f'particles.{name}')) for name in 'xyz'], axis=-1)
 along = (positions * axes[0]).sum(axis=-1)
 across = (positions**2).sum(axis=-1) - along**2
 fig, (left, right) = plt.subplots(1, 2, figsize=(10, 4))

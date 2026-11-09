@@ -19,12 +19,11 @@ from ....components.systems import CompositeSystem
 from ....errors import LabelError, RoleError, SkcomplexError, ValidationError
 from ....specs import WienerProcessSpec
 from ....types import VariableKind
-from ..._utils import declarations_of
+from ..._utils import declarations_of, probe_laws
 from .._base import BasePass
-from .._laws import _AGENT_LAWS
-from .._probe import probe_laws
+from .._laws import AGENT_LAWS
 
-_LABEL_PATTERN = re.compile(r'^[A-Za-z0-9_\-]+$')
+LABEL_PATTERN = re.compile(r'^[A-Za-z0-9_\-]+$')
 TOPOLOGY_PARTS = ('sites', 'edges', 'hyperedges')
 
 
@@ -45,7 +44,7 @@ class FlattenPass(BasePass):
         compilation.nodes = self._flatten_system(compilation.system)
 
     @staticmethod
-    def _same_network(first: NetworkSpace, second: NetworkSpace) -> bool:
+    def _get_same_network(first: NetworkSpace, second: NetworkSpace) -> bool:
         """Check whether two prepared network spaces are alike.
 
         Like network clones, they have the same nodes, edges, and layers.
@@ -62,7 +61,7 @@ class FlattenPass(BasePass):
         )
 
     @staticmethod
-    def _same_process(first: WienerProcessSpec, second: WienerProcessSpec) -> bool:
+    def _get_same_process(first: WienerProcessSpec, second: WienerProcessSpec) -> bool:
         """Check whether two Wiener processes of one label match.
 
         They match when they have the same dimension and covariance.
@@ -76,7 +75,7 @@ class FlattenPass(BasePass):
     @staticmethod
     def _check_label(label: object, scope: str) -> None:
         """Raise an error for a label that is not a non-empty word."""
-        if isinstance(label, str) and _LABEL_PATTERN.match(label):
+        if isinstance(label, str) and LABEL_PATTERN.match(label):
             return
         where = scope or 'the root system'
         error_msg = (
@@ -133,7 +132,7 @@ class FlattenPass(BasePass):
             raise type(error)(error_msg) from error
 
     @staticmethod
-    def _bound_processes(interaction: BaseInteraction, scope: str) -> list[WienerProcessSpec]:
+    def _get_bound_processes(interaction: BaseInteraction, scope: str) -> list[WienerProcessSpec]:
         """Return the Wiener processes that the noise roles of an interaction bind.
 
         Every role is checked first. A noise or optional role bound to `None` binds nothing, so an interaction may leave
@@ -163,10 +162,10 @@ class FlattenPass(BasePass):
         """
         found: dict[str, WienerProcessSpec] = {}
         for interaction in system.interactions:
-            for process in FlattenPass._bound_processes(interaction, scope):
+            for process in FlattenPass._get_bound_processes(interaction, scope):
                 FlattenPass._check_label(process.label, scope)
                 known = found.setdefault(process.label, process)
-                if not FlattenPass._same_process(known, process):
+                if not FlattenPass._get_same_process(known, process):
                     error_msg = (
                         f'The interactions of {scope or "the root system"} bind two different Wiener processes '
                         f'labelled {process.label!r}. Bind one process to every interaction that shares it, or give '
@@ -212,7 +211,7 @@ class FlattenPass(BasePass):
         FlattenPass._check_processes(system, scope, labels)
 
     @staticmethod
-    def _canonical(space: BaseSpace | None, seen: list[BaseSpace]) -> BaseSpace | None:
+    def _get_canonical(space: BaseSpace | None, seen: list[BaseSpace]) -> BaseSpace | None:
         """Return a prepared space, or the first equal network space seen.
 
         Clones of a network thus share one space. A space is prepared here unless it was prepared before, such as a
@@ -234,14 +233,14 @@ class FlattenPass(BasePass):
             if (
                 isinstance(known, NetworkSpace)
                 and isinstance(space, NetworkSpace)
-                and FlattenPass._same_network(known, space)
+                and FlattenPass._get_same_network(known, space)
             ):
                 return known
         seen.append(space)
         return space
 
     @staticmethod
-    def _sized(element: Element | GroupElement, space: BaseSpace | None) -> Element | GroupElement:
+    def _get_sized(element: Element | GroupElement, space: BaseSpace | None) -> Element | GroupElement:
         """Return a group prepared with its size.
 
         It is a copy when the size counts the parts of the space it inherits.
@@ -275,10 +274,10 @@ class FlattenPass(BasePass):
             return False
         if not isinstance(space, NetworkSpace):
             return False
-        return not any(isinstance(law, _AGENT_LAWS) for law in probe_laws(component) or [])
+        return not any(isinstance(law, AGENT_LAWS) for law in probe_laws(component) or [])
 
     @staticmethod
-    def _with_capacity(
+    def _copy_with_capacity(
         element: Element | GroupElement,
         space: BaseSpace | None,
     ) -> tuple[Element | GroupElement, int | None]:
@@ -313,8 +312,10 @@ class FlattenPass(BasePass):
             error_msg = f'{system!r} is not an instance of CompositeSystem.'
             raise ValidationError(error_msg)
         seen = [] if seen is None else seen
-        space = FlattenPass._canonical(system.space if system.space is not None else space, seen)
-        places = [FlattenPass._canonical(getattr(element, 'space', None) or space, seen) for element in system.elements]
+        space = FlattenPass._get_canonical(system.space if system.space is not None else space, seen)
+        places = [
+            FlattenPass._get_canonical(getattr(element, 'space', None) or space, seen) for element in system.elements
+        ]
         FlattenPass._check_children(
             system,
             scope,
@@ -322,7 +323,7 @@ class FlattenPass(BasePass):
         )
         nodes = []
         for element, place in zip(system.elements, places, strict=True):
-            sized, active = FlattenPass._with_capacity(FlattenPass._sized(element, space), place)
+            sized, active = FlattenPass._copy_with_capacity(FlattenPass._get_sized(element, space), place)
             if isinstance(sized, GroupElement):
                 path, members = f'{scope}{element.label}', sized.size_
                 node = NodeSpec(path, scope, sized, place, sized.get_declaring_part(), members, active=active)

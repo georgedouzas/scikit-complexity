@@ -201,7 +201,7 @@ class _SystemPartsSpec(BaseSpec):
         visiting.remove(name)
         ordered.append(name)
 
-    def order_auxiliaries(self, problems: list[str]) -> list[str]:
+    def get_order_auxiliaries(self, problems: list[str]) -> list[str]:
         """Return the auxiliaries so that each comes after those it reads.
 
         It collects those that read themselves.

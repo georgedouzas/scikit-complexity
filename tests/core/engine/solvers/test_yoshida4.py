@@ -50,7 +50,7 @@ def _oscillator() -> CompositeSystem:
 def _final_error(backend: type, dt: float) -> float:
     """Return the error of the oscillator at time 10 for an internal step."""
     trajectory = simulate(_oscillator(), until=10.0, backend=backend(), solver=Yoshida4Solver(dt=dt), dt=10.0)
-    return float(abs(trajectory.values('mass.x')[-1] - np.cos(10.0)))
+    return float(abs(trajectory.get_values('mass.x')[-1] - np.cos(10.0)))
 
 
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend], ids=['numpy', 'numba'])
@@ -63,7 +63,7 @@ def test_run_converges_at_fourth_order(backend):
 def test_run_bounds_the_energy_of_a_long_run():
     """Test that the energy of the oscillator drifts by less than 1e-6 over a thousand periods."""
     trajectory = simulate(_oscillator(), until=6000.0, solver=Yoshida4Solver(dt=0.05), dt=100.0)
-    energy = sum(trajectory.values(f'mass.{name}') ** 2 for name in ('x', 'y', 'px', 'py')) / 2
+    energy = sum(trajectory.get_values(f'mass.{name}') ** 2 for name in ('x', 'y', 'px', 'py')) / 2
     assert np.ptp(energy) < 1e-6
 
 

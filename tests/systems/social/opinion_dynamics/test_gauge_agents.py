@@ -13,12 +13,12 @@ from skcomplex.systems.social.opinion_dynamics import GaugeNetworkAgentsSystem
 def test_frustration_blocks_agreement():
     """Test that a flat ring of 12 agents agrees with zero energy, and a flux of pi keeps an energy and a twist."""
     flat = simulate(GaugeNetworkAgentsSystem())
-    assert flat.values('energy')[-1] < 1e-10
-    assert flat.values('twist')[-1] < 1e-5
-    assert np.ptp(np.angle(np.exp(1j * flat.values('agents.theta')[-1]))) < 1e-5
+    assert flat.get_values('energy')[-1] < 1e-10
+    assert flat.get_values('twist')[-1] < 1e-5
+    assert np.ptp(np.angle(np.exp(1j * flat.get_values('agents.theta')[-1]))) < 1e-5
     frustrated = simulate(GaugeNetworkAgentsSystem(flux=np.pi))
-    assert frustrated.values('energy')[-1] == pytest.approx(12 * (1 - np.cos(np.pi / 12)), abs=1e-6)
-    assert frustrated.values('twist')[-1] == pytest.approx(np.pi, abs=1e-6)
+    assert frustrated.get_values('energy')[-1] == pytest.approx(12 * (1 - np.cos(np.pi / 12)), abs=1e-6)
+    assert frustrated.get_values('twist')[-1] == pytest.approx(np.pi, abs=1e-6)
 
 
 def test_curvature_and_betti_numbers_read_the_connection():

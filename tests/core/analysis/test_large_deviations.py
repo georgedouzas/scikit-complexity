@@ -132,7 +132,7 @@ def test_cloning_takes_a_function_of_the_segment():
     by_function = _deviations(
         'cloning',
         system,
-        observable=lambda trajectory: trajectory.values('counter.n')[-1] - trajectory.values('counter.n')[0],
+        observable=lambda trajectory: trajectory.get_values('counter.n')[-1] - trajectory.get_values('counter.n')[0],
         **settings,
     )
     assert by_function.scgf == pytest.approx(by_name.scgf)

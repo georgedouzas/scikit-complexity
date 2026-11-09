@@ -31,5 +31,5 @@ class SetRenewalsApartPass(BasePass):
         compilation = self.compilation_
         compilation.reduced = [
             (spec, [law for law in laws if not isinstance(law, RenewalLaw)])
-            for spec, laws in Compilation._required(compilation.reduced, 'reduced')
+            for spec, laws in Compilation._get_required(compilation.reduced, 'reduced')
         ]

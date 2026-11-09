@@ -37,7 +37,7 @@ times = trajectory.times
 first, second = roots
 linear = 0.1 * (second * np.exp(first * times) - first * np.exp(second * times)) / (second - first)
 fig, ax = plt.subplots(figsize=(7, 4.5))
-ax.plot(times, trajectory.values('cart.theta'), label='simulated angle')
+ax.plot(times, trajectory.get_values('cart.theta'), label='simulated angle')
 ax.plot(times, np.real(linear), '--', label='linear closed loop')
 ax.axhspan(-0.01, 0.01, color='gray', alpha=0.2, label='within 0.01 of upright')
 ax.set_xlabel('time (s)')

@@ -478,7 +478,7 @@ class StigmergicPredatorPreySystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _kind(agent: AgentViewProtocol) -> str:
+    def _get_kind(agent: AgentViewProtocol) -> str:
         """Return the label of an agent's group, without the path of its system."""
         return agent.group.rpartition('/')[2]
 
@@ -526,7 +526,7 @@ class StigmergicPredatorPreySystem(BaseSystem):
     def _get_fear(self, prey: AgentViewProtocol, system: SystemViewProtocol) -> float:
         """Return the number of predators around a prey, its experience of fear."""
         del system
-        return float(sum(self._kind(other) == PREDATORS for other in self._occupants(prey).values()))
+        return float(sum(self._get_kind(other) == PREDATORS for other in self._occupants(prey).values()))
 
     @staticmethod
     def _get_anger(predator: AgentViewProtocol, system: SystemViewProtocol) -> float:
@@ -547,7 +547,7 @@ class StigmergicPredatorPreySystem(BaseSystem):
         It depends on its food and the marks it reads.
         """
         food, happiness_mark, distress_mark = marks
-        meal = 1.0 if occupant is not None and self._kind(occupant) == food else 0.0
+        meal = 1.0 if occupant is not None and self._get_kind(occupant) == food else 0.0
         if not animal.emotions:
             return meal
         happiness = system.get_field(f'{MARKS}.{happiness_mark}', cell) - animal.happiness
@@ -570,7 +570,7 @@ class StigmergicPredatorPreySystem(BaseSystem):
         options = [
             (cell, occupants.get(cell))
             for cell in animal.get_neighbor_cells()
-            if cell not in occupants or self._kind(occupants[cell]) == marks[0]
+            if cell not in occupants or self._get_kind(occupants[cell]) == marks[0]
         ]
         if not options:
             return None

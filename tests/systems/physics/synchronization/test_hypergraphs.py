@@ -12,7 +12,7 @@ from .conftest import _random_drift
 def _final_order(K2: float, phases: np.ndarray | None) -> float:
     """Return the order parameter over the last quarter of a run of 40 oscillators coupled by triangles."""
     system = HypergraphKuramotoSystem(40, K2=K2, phases=phases)
-    order = np.asarray(_run_observed(system, 40.0, 0.5).values('order'))
+    order = np.asarray(_run_observed(system, 40.0, 0.5).get_values('order'))
     return float(order[-20:].mean())
 
 

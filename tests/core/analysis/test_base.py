@@ -85,7 +85,7 @@ def test_analysis_reads_a_trajectory():
     trajectory = simulate(LotkaVolterraSystem(), until=1.0, random_state=0)
     series = _read_series(trajectory, ['prey.x'])
     assert series.labels == ['prey.x']
-    assert series.values.mean(axis=0).tolist() == pytest.approx([trajectory.values('prey.x').mean()])
+    assert series.values.mean(axis=0).tolist() == pytest.approx([trajectory.get_values('prey.x').mean()])
 
 
 def test_analysis_reads_arrays_as_columns():
@@ -112,8 +112,8 @@ def test_series_of_an_ode():
     trajectory = simulate(LotkaVolterraSystem(), until=5.0, random_state=0)
     series = _read_series(trajectory, ['prey.x', 'predators.x'])
     assert series.values.shape == (len(trajectory.times), 2)
-    np.testing.assert_array_equal(series.values[:, 0], trajectory.values('prey.x'))
-    np.testing.assert_array_equal(series.values[:, 1], trajectory.values('predators.x'))
+    np.testing.assert_array_equal(series.values[:, 0], trajectory.get_values('prey.x'))
+    np.testing.assert_array_equal(series.values[:, 1], trajectory.get_values('predators.x'))
     np.testing.assert_array_equal(series.times, trajectory.times)
 
 
@@ -148,7 +148,7 @@ def test_fields_of_a_lattice():
     trajectory = simulate(IsingSystem(size=64), until=99, random_state=0)
     frames = _read_fields(trajectory, 'spins.spin')
     assert frames.shape == (100, 64, 64)
-    np.testing.assert_array_equal(frames, trajectory.lattice('spins.spin'))
+    np.testing.assert_array_equal(frames, trajectory.get_lattice('spins.spin'))
 
 
 def test_snapshots_unwrap_agent_positions():
@@ -212,7 +212,7 @@ def test_series_of_group_states(system, state):
     """Test that the scalar states of a group without positions are series, one column per member."""
     trajectory = simulate(system(), until=1.0, random_state=0)
     series = _read_series(trajectory)
-    np.testing.assert_array_equal(series.values, trajectory.values(state))
+    np.testing.assert_array_equal(series.values, trajectory.get_values(state))
     assert series.labels[0] == f'{state}[0]'
 
 
@@ -234,7 +234,7 @@ def test_series_leave_out_variable_groups(system):
     with pytest.raises(AnalysisError, match='no scalar series'):
         _read_series(trajectory)
     series = _read_series(trajectory, ['species.x'])
-    np.testing.assert_array_equal(series.values, trajectory.values('species.x'))
+    np.testing.assert_array_equal(series.values, trajectory.get_values('species.x'))
 
 
 def test_sites_are_read_as_series_and_not_as_particles():
@@ -249,7 +249,7 @@ def test_snapshots_of_phases():
     """Test that a state with the role phase gives the phases of the snapshots, not a direction or another state."""
     trajectory = simulate(SwarmalatorsSystem(), until=0.5, random_state=0)
     snapshots = _read_snapshots(trajectory)
-    np.testing.assert_array_equal(snapshots.phases, trajectory.values('units.theta'))
+    np.testing.assert_array_equal(snapshots.phases, trajectory.get_values('units.theta'))
     assert snapshots.directions is None
     assert 'theta' not in snapshots.states
 
@@ -265,7 +265,7 @@ def test_networks_of_a_network_space():
 def test_networks_of_a_changing_network_snapshot():
     """Test that a snapshot of a network whose topology changes is read as its graph."""
     trajectory = simulate(CoevolvingVoterSystem(), until=2.0, random_state=0)
-    snapshot = trajectory.network(-1)
+    snapshot = trajectory.get_network(-1)
     graph = _read_networks(snapshot)[0]
     assert sorted(graph.nodes()) == snapshot.nodes.tolist()
     assert graph.number_of_edges() == snapshot.graph().number_of_edges()

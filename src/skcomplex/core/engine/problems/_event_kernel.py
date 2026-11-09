@@ -66,5 +66,5 @@ class EventKernel(BaseKernel):
 
     def _run(self, inputs: RunStateSpec | None) -> None:
         """Set the state vector after the event at the state, a copy of it without a reset."""
-        state = self._state_of(inputs)
+        state = self._get_state_of(inputs)
         self.values_ = state.x.copy() if self.reset is None else self.reset(state.t, state.x, state.p)

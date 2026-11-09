@@ -32,7 +32,7 @@ years = np.arange(1, 301)
 counts = []
 for seed in range(20):
     run = simulate(RecordDynamicsEpidemicSystem(n=2000, seed=seed), until=300, random_state=seed)
-    counts.append(np.cumsum(run.values('residents.infected').sum(axis=1)[1:] > 0))
+    counts.append(np.cumsum(run.get_values('residents.infected').sum(axis=1)[1:] > 0))
 fig, ax = plt.subplots(figsize=(7, 4.5))
 ax.plot(years, np.mean(counts, axis=0), label='mean of 20 runs')
 ax.plot(years, np.cumsum(1 / years) - 1 / years, '--', color='black', label='harmonic number of the strains drawn')

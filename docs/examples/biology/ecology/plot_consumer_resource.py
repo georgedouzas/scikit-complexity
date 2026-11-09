@@ -28,7 +28,7 @@ trajectory = simulate(ConsumerResourceSystem(), observers=[observer])
 # A consumer stops growing on its isocline `sum_b c_ib R_b = m_i`. The resources should travel from the supply point
 # `K` to the crossing of both isoclines at `R = (5/3, 5/9)`.
 
-resources = trajectory.values('resources.R')
+resources = trajectory.get_values('resources.R')
 uptake = np.array([[0.5, 0.3], [0.4, 0.6]])
 first = np.linspace(0, 5, 50)
 fig, ax = plt.subplots(figsize=(6, 5))

@@ -40,7 +40,7 @@ def _run(until=10.0, dt=0.05, **arguments):
         interactions=[GrowthInteraction('growth', target='population', **arguments)],
     )
     trajectory = simulate(system, dt=dt, until=until)
-    return np.asarray(trajectory.times), np.asarray(trajectory.values('population.x'))
+    return np.asarray(trajectory.times), np.asarray(trajectory.get_values('population.x'))
 
 
 def _bertalanffy(t, r, p):
@@ -77,7 +77,7 @@ def test_growth_logistic_inflects_at_half_the_capacity():
         interactions=[GrowthInteraction('growth', target='population', r=1.0, K=100.0, form='logistic')],
     )
     trajectory = simulate(system, dt=0.01, until=20)
-    population = np.asarray(trajectory.values('population.x'))
+    population = np.asarray(trajectory.get_values('population.x'))
     assert population[-1] == pytest.approx(100.0, rel=1e-6)
     inflection = population[np.argmax(np.diff(population))]
     assert inflection == pytest.approx(50.0, rel=1e-2)
@@ -109,7 +109,7 @@ def test_growth_reads_the_named_state():
         interactions=[GrowthInteraction('growth', target='cells', r=0.5, state='x')],
     )
     trajectory = simulate(system, dt=1.0, until=2)
-    assert trajectory.values('cells.x')[-1] == pytest.approx(np.exp(1.0), rel=1e-4)
+    assert trajectory.get_values('cells.x')[-1] == pytest.approx(np.exp(1.0), rel=1e-4)
 
 
 @pytest.mark.parametrize(

@@ -49,7 +49,7 @@ rates = np.linspace(2.0, 4.0, 41)
 fig, (diagram, spread) = plt.subplots(1, 2, figsize=(10, 4))
 spreads = []
 for rate in rates:
-    late = simulate(ClosedContourCellExchangeSystem(r=rate)).values('cells.x')[-30:]
+    late = simulate(ClosedContourCellExchangeSystem(r=rate)).get_values('cells.x')[-30:]
     diagram.plot(np.full(late.size, rate), late.ravel(), '.', markersize=2, color='tab:blue')
     spreads.append(np.ptp(late, axis=1).max())
 diagram.fill_between(rates, (rates - 1) / (2 * rates), (rates + 1) / (2 * rates), color='tab:green', alpha=0.2)

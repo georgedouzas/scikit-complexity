@@ -24,9 +24,9 @@ class ExpandFlowsPass(BasePass):
         """Expand the flows of the collected laws."""
         compilation = self.compilation_
         flows = TransferLowering().prepare(compilation)
-        collected = Compilation._required(compilation.collected, 'collected')
+        collected = Compilation._get_required(compilation.collected, 'collected')
         expanded = flows.run([(spec, laws) for spec, laws, _ in collected]).lowered_
         compilation.collected = [
             (spec, laws, block) for (spec, laws), (_, _, block) in zip(expanded, collected, strict=True)
         ]
-        compilation.transfer = flows._state()
+        compilation.transfer = flows._get_state()

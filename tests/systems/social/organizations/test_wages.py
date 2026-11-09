@@ -10,10 +10,10 @@ from ..conftest import _run, _values
 def test_ajanis_choice_pays_below_the_minimum_only_when_workers_are_plentiful():
     """Test that wages fall below the minimum and slaves appear when workers outnumber jobs, and not otherwise."""
     plentiful = _run(AjanisChoiceSystem(), 60)
-    assert plentiful.values('day.slaves')[1:].sum() > 0
+    assert plentiful.get_values('day.slaves')[1:].sum() > 0
     assert np.min([np.mean(_values(plentiful, 'employers', 'wage', frame)) for frame in range(61)]) < 1.0
     scarce = _run(AjanisChoiceSystem(n_workers=300), 60)
-    assert scarce.values('day.slaves')[1:].sum() == 0
+    assert scarce.get_values('day.slaves')[1:].sum() == 0
     assert np.mean(_values(scarce, 'employers', 'wage')) > 1.5
 
 

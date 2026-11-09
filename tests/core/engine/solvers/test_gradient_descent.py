@@ -123,13 +123,13 @@ def _gradient(system, rate=1.0):
     training.set_params(optimizer='sgd', learning_rate=rate, batch_size=training.data.sequences)
     trajectory = _trajectory(system, 1)
     names = trajectory.problem.states.names
-    return {name: (trajectory.values(name)[0] - trajectory.values(name)[1]) / rate for name in names}
+    return {name: (trajectory.get_values(name)[0] - trajectory.get_values(name)[1]) / rate for name in names}
 
 
 def _loss(system, values):
     """Return the loss of the whole dataset at given trained values, the reporter of frame 0."""
     trajectory = simulate(system, until=1, random_state=0, initial_state=values)
-    return trajectory.values('training/loss')[0]
+    return trajectory.get_values('training/loss')[0]
 
 
 def test_check_unknown_precision():
@@ -151,8 +151,8 @@ def test_epochs_as_frames():
     weights = system.systems[0].interactions[2].W
     trajectory = _trajectory(system, 5)
     assert trajectory.times.tolist() == [0.0, 1.0, 2.0, 3.0, 4.0, 5.0]
-    assert trajectory.values('net/readout.W').shape == (6, 1, 4)
-    np.testing.assert_array_equal(trajectory.values('net/readout.W')[0], weights)
+    assert trajectory.get_values('net/readout.W').shape == (6, 1, 4)
+    np.testing.assert_array_equal(trajectory.get_values('net/readout.W')[0], weights)
 
 
 def test_time_between_frames():
@@ -175,8 +175,8 @@ def test_loss_at_the_start():
             'outputs.target': lambda t, values=targets: values[max(round(t) - 1, 0)],
         }
         run = simulate(net, until=data.steps, backend=NumpyBackend(), schedule=schedule, observables=[error])
-        losses.append(run.values('error')[1:].mean())
-    assert trajectory.values('training/loss')[0] == pytest.approx(np.mean(losses), abs=1e-10)
+        losses.append(run.get_values('error')[1:].mean())
+    assert trajectory.get_values('training/loss')[0] == pytest.approx(np.mean(losses), abs=1e-10)
 
 
 def test_masked_steps():
@@ -201,7 +201,7 @@ def test_same_seed():
         20,
     )
     np.testing.assert_array_equal(first.states, second.states)
-    np.testing.assert_array_equal(first.values('training/loss'), second.values('training/loss'))
+    np.testing.assert_array_equal(first.get_values('training/loss'), second.get_values('training/loss'))
 
 
 def test_updates_per_epoch():
@@ -222,7 +222,7 @@ def test_zero_learning_rate():
 def test_learning_rate_schedule():
     """Test that a schedule that halves the learning rate every 50 epochs halves the recorded parameter."""
     schedule = {'training.learning_rate': lambda t: 0.05 * 0.5 ** (t // 50)}
-    values = _trajectory(ElmanNetworkSystem(n_bits=30).prepare().system_, 150, schedule=schedule).values(
+    values = _trajectory(ElmanNetworkSystem(n_bits=30).prepare().system_, 150, schedule=schedule).get_values(
         'training.learning_rate',
     )
     assert values[[49, 50, 100, 150]].tolist() == pytest.approx([0.05, 0.025, 0.0125, 0.00625])
@@ -262,7 +262,7 @@ def test_gradient_through_an_ode():
         value = float(problem.states.read(problem.initial_state, name))
         up = simulate(_fitting(), until=1, random_state=0, initial_state={name: value + step})
         down = simulate(_fitting(), until=1, random_state=0, initial_state={name: value - step})
-        loss_up, loss_down = (item.values('fit/loss')[0] for item in (up, down))
+        loss_up, loss_down = (item.get_values('fit/loss')[0] for item in (up, down))
         assert gradient[name] == pytest.approx((loss_up - loss_down) / (2 * step), rel=1e-5)
 
 
@@ -270,8 +270,8 @@ def test_lotka_volterra_fit():
     """Test that Adam fits the four rates of a Lotka-Volterra system within 1% and lowers the loss 10^4 times."""
     trajectory = _trajectory(_fitting(), 500)
     for name, value in RATES.items():
-        assert trajectory.values(f'lv/pair.{name}')[-1] == pytest.approx(value, rel=1e-2)
-    loss = trajectory.values('fit/loss')
+        assert trajectory.get_values(f'lv/pair.{name}')[-1] == pytest.approx(value, rel=1e-2)
+    loss = trajectory.get_values('fit/loss')
     assert loss[-1] < 1e-4 * loss[0]
 
 
@@ -343,7 +343,7 @@ def test_trained_system_agrees_with_training():
     system = ElmanNetworkSystem(n_bits=30).prepare().system_
     data, net = system.interactions[0].data, system.systems[0]
     trajectory = _trajectory(system, 3)
-    trained = {name: trajectory.values(name)[-1] for name in trajectory.problem.states.names}
+    trained = {name: trajectory.get_values(name)[-1] for name in trajectory.problem.states.names}
     single = ElmanNetworkSystem(n_bits=30).prepare().system_
     first = DatasetSpec({path: values[:1] for path, values in data.values.items()})
     single.interactions[0].set_params(data=first, metrics=())
@@ -359,4 +359,4 @@ def test_trained_system_agrees_with_training():
     }
     error = ObservableSpec('error', group='outputs', reduce='sum', expression=_output_error)
     run = simulate(net, until=data.steps, backend=NumpyBackend(), schedule=schedule, observables=[error])
-    assert run.values('error')[1:].mean() == pytest.approx(expected, abs=1e-10)
+    assert run.get_values('error')[1:].mean() == pytest.approx(expected, abs=1e-10)

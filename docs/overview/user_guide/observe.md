@@ -49,7 +49,7 @@ def order_parameter(s):
 values = {'theta': np.linspace(0, 1, 100), 'omega': np.linspace(0.9, 1.1, 100)}
 oscillators = CompositeSystem(elements=[GroupElement('phases', element=OscillatorElement, size=100, values=values)])
 observables = [ObservableSpec('z', phase_vector, group='phases'), ObservableSpec('order', order_parameter)]
-order = simulate(oscillators, until=50, dt=1.0, observables=observables).values('order')
+order = simulate(oscillators, until=50, dt=1.0, observables=observables).get_values('order')
 round(float(order[0]), 3), round(float(order[-1]), 3)
 ```
 
@@ -111,7 +111,7 @@ coupled = CompositeSystem(
 )
 observables = [ObservableSpec('X', cosine, group='phases'), ObservableSpec('Y', sine, group='phases')]
 synchronised = simulate(coupled, until=20, dt=1.0, observables=observables)
-round(float(synchronised.values('X')[-1]), 2)
+round(float(synchronised.get_values('X')[-1]), 2)
 ```
 
 When the law reads the value depends on where the observable and the law live:

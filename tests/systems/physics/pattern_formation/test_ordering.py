@@ -18,7 +18,7 @@ def test_phase_field_holds_its_order_parameter_without_interactions():
     values = {'phi': np.linspace(-1.0, 1.0, 8)}
     field = FieldElement('mixture', element=PhaseFieldElement, space=LatticeSpace((8,)), values=values)
     trajectory = simulate(CompositeSystem(elements=[field]), until=1.0, dt=0.5)
-    np.testing.assert_allclose(trajectory.values('mixture.phi')[-1], values['phi'])
+    np.testing.assert_allclose(trajectory.get_values('mixture.phi')[-1], values['phi'])
 
 
 def _run(conserved):
@@ -27,7 +27,7 @@ def _run(conserved):
     field = FieldElement('mixture', element=PhaseFieldElement, space=LatticeSpace((32,), spacing=0.5), values=values)
     energy = LandauEnergyInteraction('energy', target='mixture', kappa=0.5, conserved=conserved)
     system = CompositeSystem(elements=[field], interactions=[energy])
-    return simulate(system, until=40.0, dt=1.0).values('mixture.phi')
+    return simulate(system, until=40.0, dt=1.0).get_values('mixture.phi')
 
 
 def test_non_conserved_field_falls_into_the_nearer_well():
@@ -50,7 +50,7 @@ def _mean_domain_size(field):
 def test_allen_cahn_does_not_conserve_the_order_parameter():
     """Test that System A from an off-critical mean relaxes to the uniform phase of its sign."""
     system = AllenCahnSystem((32, 32), length=32.0, mean=0.1)
-    phi = simulate(system, until=100, dt=20.0, solver=ETDRK4Solver(dt=0.2)).lattice('mixture.phi')
+    phi = simulate(system, until=100, dt=20.0, solver=ETDRK4Solver(dt=0.2)).get_lattice('mixture.phi')
     np.testing.assert_allclose(phi[-1], 1.0, atol=1e-3)
 
 
@@ -58,7 +58,7 @@ def test_cahn_hilliard_conserves_the_mean_and_coarsens_as_t_one_third():
     """Test that System B keeps the mean of the order parameter and its domains grow as t^(1/3)."""
     system = CahnHilliardSystem((64, 64), length=64.0, mean=0.1)
     trajectory = simulate(system, dt=100.0)
-    phi = trajectory.lattice('mixture.phi')
+    phi = trajectory.get_lattice('mixture.phi')
     np.testing.assert_allclose(phi.mean(axis=(1, 2)), phi[0].mean(), atol=1e-10)
     assert np.abs(phi[-1]).max() > 0.9
     sizes = [_mean_domain_size(field) for field in phi[1:]]
@@ -70,7 +70,7 @@ def test_cahn_hilliard_with_temperature_keeps_the_mean_under_conserved_noise():
     """Test that thermal System B keeps the mean of the order parameter while its noise roughens the field."""
     system = CahnHilliardSystem((16, 16), length=16.0, mean=0.2, temperature=0.05)
     trajectory = simulate(system, until=20, dt=5.0, solver=EulerMaruyamaSolver(dt=0.02), random_state=0)
-    phi = trajectory.lattice('mixture.phi')
+    phi = trajectory.get_lattice('mixture.phi')
     np.testing.assert_allclose(phi.mean(axis=(1, 2)), phi[0].mean(), rtol=1e-9)
     deterministic = CahnHilliardSystem((16, 16), length=16.0, mean=0.2).prepare().system_
     assert deterministic.elements[0].discretization == 'spectral'

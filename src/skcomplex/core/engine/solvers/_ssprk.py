@@ -18,7 +18,7 @@ from ...types import Array, FormKind, OrderKind
 from ..problems import ProblemSpec
 from ._solver import Solver
 
-_SECOND_ORDER = 2
+SECOND_ORDER = 2
 
 
 class SSPRKSolver(Solver):
@@ -113,7 +113,7 @@ class SSPRKSolver(Solver):
         """
         problem = self.problem_
         step = min([self.dt, *(limit.step(p) for limit in problem.diffusive_limits)])
-        speed = max((volume.max_speed(x, p) for volume in problem.volumes), default=None)
+        speed = max((volume.get_max_speed(x, p) for volume in problem.volumes), default=None)
         if speed is None or self.spacing_ is None or speed <= 0:
             return step
         return min(step, self.cfl * self.spacing_ / speed)
@@ -143,11 +143,11 @@ class SSPRKSolver(Solver):
         while drift is not None and time < until - 1e-12 * max(1.0, abs(until)):
             h = min(self._step_size(state, p), until - time)
             first = state + h * drift(time, state, p)
-            if self.order == _SECOND_ORDER:
+            if self.order == SECOND_ORDER:
                 state = (state + first + h * drift(time + h, first, p)) / 2
             else:
                 second = 0.75 * state + 0.25 * (first + h * drift(time + h, first, p))
                 state = state / 3 + 2 / 3 * (second + h * drift(time + h / 2, second, p))
             time += h
-            state = self._bounded(time, state, p)
+            state = self._get_bounded(time, state, p)
         return state

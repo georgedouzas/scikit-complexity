@@ -35,8 +35,8 @@ grid = np.linspace(-2.3, 2.3, 300)
 fig, ax = plt.subplots(figsize=(6, 5))
 ax.plot(grid**3 / 3 - grid, grid, color='gray', linestyle='--', label='nullcline x = y^3 / 3 - y')
 ax.plot(
-    trajectory.values('climate.x')[settled],
-    trajectory.values('climate.y')[settled],
+    trajectory.get_values('climate.x')[settled],
+    trajectory.get_values('climate.y')[settled],
     linewidth=2,
     label='limit cycle',
 )

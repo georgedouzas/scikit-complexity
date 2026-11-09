@@ -41,20 +41,10 @@ from ._hilbert_space_error import HilbertSpaceError
 from ._layout import LayoutPass
 
 DENSE_LIMIT = 1024
-
-
-_HERMITIAN_TOLERANCE = 1e-10
-
-
+HERMITIAN_TOLERANCE = 1e-10
 NORM_TOLERANCE = 1e-8
-
-
-_MATRIX_NDIM = 2
-
-
-_SAMPLE_TIME = 0.37
-
-
+MATRIX_NDIM = 2
+SAMPLE_TIME = 0.37
 DEFAULT_MAX_DIMENSION = 2**20
 
 
@@ -108,7 +98,7 @@ class OperatorCompiler(BaseCompiler):
             raise ValidationError(error_msg)
         super()._prepare(context)
 
-    def _issues(self, system: CompositeSystem) -> list[IssueSpec]:
+    def _get_issues(self, system: CompositeSystem) -> list[IssueSpec]:
         """Return the issue of a system the compiler cannot compile or flatten.
 
         The tree of the system cannot be flattened, or the compiler does not compile it.
@@ -129,7 +119,7 @@ class OperatorCompiler(BaseCompiler):
             FlattenPass._flatten_system(system)
         except SkcomplexError as error:
             fix = 'Pass elements, groups, interactions, and systems as children.'
-            return [self._issue_of(error, system.label, 'structure', fix)]
+            return [self._get_issue_of(error, system.label, 'structure', fix)]
         return []
 
     def _compile(self, initial_state: Mapping[str, object]) -> BaseProblemSpec:
@@ -160,7 +150,7 @@ class OperatorCompiler(BaseCompiler):
         return self._compile_operator(system, initial=initial_state.get(whole), max_dimension=limit)
 
     @staticmethod
-    def _view_of(element: Element) -> OperatorViewSpec:
+    def _get_view_of(element: Element) -> OperatorViewSpec:
         """Return the operator view of an element.
 
         It holds the name of its state and its Hilbert space.
@@ -178,11 +168,11 @@ class OperatorCompiler(BaseCompiler):
                 The element takes no `HilbertSpec`, declares no complex state, or has a state whose dimension differs
                 from the dimension of its space.
         """
-        space = OperatorCompiler._hilbert_of(element)
+        space = OperatorCompiler._get_hilbert_of(element)
         if space is None:
             error_msg = f'{type(element).__name__} {element.label!r} takes no HilbertSpec.'
             raise ValidationError(error_msg)
-        state = OperatorCompiler._hilbert_state(type(element))
+        state = OperatorCompiler._get_hilbert_state(type(element))
         if state is None:
             error_msg = (
                 f'{type(element).__name__} {element.label!r} takes a HilbertSpec but declares no complex state. '
@@ -201,7 +191,7 @@ class OperatorCompiler(BaseCompiler):
         return OperatorViewSpec(element, state, space)
 
     @staticmethod
-    def _hilbert_of(element: BaseElement) -> HilbertSpec | None:
+    def _get_hilbert_of(element: BaseElement) -> HilbertSpec | None:
         """Return the Hilbert space an element takes.
 
         For a group, it is that of a member, and it is `None` for a classical element.
@@ -214,7 +204,7 @@ class OperatorCompiler(BaseCompiler):
             space:
                 The first argument of the element that is a `HilbertSpec`, or `None`.
         """
-        member = OperatorCompiler._member_of(element)
+        member = OperatorCompiler._get_member_of(element)
         if member is None:
             return None
         return next((value for value in member.get_params(deep=False).values() if isinstance(value, HilbertSpec)), None)
@@ -233,10 +223,10 @@ class OperatorCompiler(BaseCompiler):
             operator:
                 Whether the element, or a member of the group, takes a Hilbert space.
         """
-        return isinstance(element, BaseElement) and OperatorCompiler._hilbert_of(element) is not None
+        return isinstance(element, BaseElement) and OperatorCompiler._get_hilbert_of(element) is not None
 
     @staticmethod
-    def _hilbert_state(element_type: type) -> str | None:
+    def _get_hilbert_state(element_type: type) -> str | None:
         """Return the name of the complex state of an element type.
 
         The state is over `CC` or `CC^dimension`, and the result is `None` for none.
@@ -269,7 +259,7 @@ class OperatorCompiler(BaseCompiler):
         return None
 
     @staticmethod
-    def _member_of(element: BaseElement) -> Element | None:
+    def _get_member_of(element: BaseElement) -> Element | None:
         """Return an element itself, or the first member of a group, or `None`.
 
         It is `None` for any other part.
@@ -287,7 +277,7 @@ class OperatorCompiler(BaseCompiler):
         if not isinstance(element, GroupElement) or not isinstance(element.element, type):
             return None
         values = {
-            name: OperatorCompiler._member_value(value, 0, None) for name, value in (element.values or {}).items()
+            name: OperatorCompiler._get_member_value(value, 0, None) for name, value in (element.values or {}).items()
         }
         return element.element(element.label).set_params(**values)
 
@@ -297,7 +287,7 @@ class OperatorCompiler(BaseCompiler):
         return not isinstance(node.component, BaseInteraction) and OperatorCompiler._is_operator(node.component)
 
     @staticmethod
-    def _member_value(value: object, member: int, size: int | None) -> object:
+    def _get_member_value(value: object, member: int, size: int | None) -> object:
         """Return the value of one member.
 
         It comes from a per-member sequence or a value shared by every member.
@@ -326,20 +316,20 @@ class OperatorCompiler(BaseCompiler):
         return items[member] if size is None or len(items) == size else value
 
     @staticmethod
-    def _members_of(node: NodeSpec) -> list[tuple[str, OperatorViewSpec]]:
+    def _get_members_of(node: NodeSpec) -> list[tuple[str, OperatorViewSpec]]:
         """Return the key and the element of every member of an operator element or group."""
         component = node.as_element
         if isinstance(component, Element):
-            return [(node.path, OperatorCompiler._view_of(component))]
+            return [(node.path, OperatorCompiler._get_view_of(component))]
         size = node.members or 0
         members = []
         for member in range(size):
             values = {
-                name: OperatorCompiler._member_value(value, member, size)
+                name: OperatorCompiler._get_member_value(value, member, size)
                 for name, value in (component.values or {}).items()
             }
             element = component.element(f'{component.label}_{member}').set_params(**values).prepare()
-            members.append((f'{node.path}[{member}]', OperatorCompiler._view_of(element)))
+            members.append((f'{node.path}[{member}]', OperatorCompiler._get_view_of(element)))
         return members
 
     @staticmethod
@@ -368,7 +358,7 @@ class OperatorCompiler(BaseCompiler):
             states = {
                 name: item
                 for name, item in states.items()
-                if name != OperatorCompiler._hilbert_state(node.component_type)
+                if name != OperatorCompiler._get_hilbert_state(node.component_type)
             }
             if states:
                 error_msg = (
@@ -386,7 +376,7 @@ class OperatorCompiler(BaseCompiler):
         parts = []
         for node in nodes:
             if OperatorCompiler._is_operator_node(node):
-                members = OperatorCompiler._members_of(node)
+                members = OperatorCompiler._get_members_of(node)
                 parts.append(f'{node.path} of dimension {math.prod(element.dimension for _, element in members)}')
         error_msg = (
             f'The Hilbert space of {", ".join(parts)} has dimension {total}, above the limit max_dimension = {limit}. '
@@ -395,7 +385,7 @@ class OperatorCompiler(BaseCompiler):
         raise HilbertSpaceError(error_msg)
 
     @staticmethod
-    def _parameter_symbols(
+    def _get_parameter_symbols(
         node: NodeSpec,
         symbols: Mapping[str, Expression],
         member: int | None,
@@ -408,7 +398,7 @@ class OperatorCompiler(BaseCompiler):
         return found
 
     @staticmethod
-    def _role_namespace(
+    def _get_role_namespace(
         node: NodeSpec,
         label: str,
         members: Mapping[str, tuple[SimpleNamespace, ...]],
@@ -446,7 +436,7 @@ class OperatorCompiler(BaseCompiler):
                 raise IncompatibleLawsError(error_msg)
 
     @staticmethod
-    def _interaction_laws(
+    def _get_interaction_laws(
         node: NodeSpec,
         interaction: BaseInteraction,
         *,
@@ -460,7 +450,7 @@ class OperatorCompiler(BaseCompiler):
 
         A neighbour interaction adds them once per pair of neighbours of its group.
         """
-        parameters = {**OperatorCompiler._parameter_symbols(node, symbols, None), 't': symbol('t')}
+        parameters = {**OperatorCompiler._get_parameter_symbols(node, symbols, None), 't': symbol('t')}
         if isinstance(interaction, NeighborInteraction):
             role_names = list(declarations_of(interaction, VariableKind.ROLE))
             if len(role_names) != 1:
@@ -487,7 +477,7 @@ class OperatorCompiler(BaseCompiler):
                 )
             return
         roles = {
-            name: OperatorCompiler._role_namespace(node, getattr(interaction, name), members, set(groups))
+            name: OperatorCompiler._get_role_namespace(node, getattr(interaction, name), members, set(groups))
             for name in declarations_of(interaction, VariableKind.ROLE)
         }
         OperatorCompiler._collect_laws(
@@ -498,7 +488,7 @@ class OperatorCompiler(BaseCompiler):
         )
 
     @staticmethod
-    def _terms(lowering: OperatorLowering, operator: Expression, owner: str) -> tuple[OperatorKernel, ...]:
+    def _get_terms(lowering: OperatorLowering, operator: Expression, owner: str) -> tuple[OperatorKernel, ...]:
         """Return the terms an operator lowers to.
 
         Args:
@@ -525,15 +515,17 @@ class OperatorCompiler(BaseCompiler):
         sample = p * (1 + 0.1 * rng.random(p.size)) + 0.01 * rng.random(p.size)
 
         def asymmetry(terms: Iterable[OperatorKernel]) -> float:
-            matrix = OperatorProblemSpec._matrix_at(terms, _SAMPLE_TIME, sample, size)
+            matrix = OperatorProblemSpec._get_matrix_at(terms, SAMPLE_TIME, sample, size)
             difference = matrix - matrix.conj().T
             return float(abs(difference).max()) if difference.nnz else 0.0
 
-        total = [term for owner, operator in generators for term in OperatorCompiler._terms(lowering, operator, owner)]
-        if asymmetry(total) <= _HERMITIAN_TOLERANCE:
+        total = [
+            term for owner, operator in generators for term in OperatorCompiler._get_terms(lowering, operator, owner)
+        ]
+        if asymmetry(total) <= HERMITIAN_TOLERANCE:
             return
         owners = [
-            owner for owner, operator in generators if asymmetry(OperatorCompiler._terms(lowering, operator, owner))
+            owner for owner, operator in generators if asymmetry(OperatorCompiler._get_terms(lowering, operator, owner))
         ]
         error_msg = (
             f'The generator of {", ".join(owners)} is not Hermitian. Add the adjoint of every non-Hermitian '
@@ -542,7 +534,7 @@ class OperatorCompiler(BaseCompiler):
         raise ValidationError(error_msg)
 
     @staticmethod
-    def _dissipator_terms(
+    def _get_dissipator_terms(
         dissipators: Dissipators,
         lowering: OperatorLowering,
         p: Array,
@@ -554,15 +546,15 @@ class OperatorCompiler(BaseCompiler):
         collapses = []
         for owner, collapse, rate in dissipators:
             value = SR(rate)
-            initial = lowering._function(value, owner)(0.0, p) if value.variables() else complex(value)
+            initial = lowering._get_function(value, owner)(0.0, p) if value.variables() else complex(value)
             if initial.real < 0 or abs(initial.imag) > REAL_TOLERANCE:
                 error_msg = f'The dissipator of {owner} has the rate {initial}, which is not a non-negative number.'
                 raise ValidationError(error_msg)
-            collapses.append(OperatorCompiler._terms(lowering, collapse * value.sqrt(), owner))
+            collapses.append(OperatorCompiler._get_terms(lowering, collapse * value.sqrt(), owner))
         return tuple(collapses)
 
     @staticmethod
-    def _system_initial(
+    def _get_system_initial(
         system: CompositeSystem,
         initial: object,
         product: npt.NDArray[np.complex128],
@@ -594,13 +586,13 @@ class OperatorCompiler(BaseCompiler):
                 '1. Normalise it.'
             )
             raise ValidationError(error_msg)
-        if state.ndim == _MATRIX_NDIM and not np.allclose(state, state.conj().T, atol=NORM_TOLERANCE):
+        if state.ndim == MATRIX_NDIM and not np.allclose(state, state.conj().T, atol=NORM_TOLERANCE):
             error_msg = f'The initial density matrix of system {system.label!r} is not Hermitian.'
             raise ValidationError(error_msg)
         return state
 
     @staticmethod
-    def _namespaces(
+    def _get_namespaces(
         system: CompositeSystem,
         members: Mapping[str, tuple[SimpleNamespace, ...]],
         groups: set[str],
@@ -626,20 +618,20 @@ class OperatorCompiler(BaseCompiler):
         return namespaces
 
     @staticmethod
-    def _subsystems_of(operator_nodes: list[NodeSpec]) -> dict[str, SubsystemSpec]:
+    def _get_subsystems_of(operator_nodes: list[NodeSpec]) -> dict[str, SubsystemSpec]:
         """Return the subsystems of the operator elements and groups in tensor order.
 
         Each comes with its state symbol.
         """
         subsystems: dict[str, SubsystemSpec] = {}
         for node in operator_nodes:
-            for key, element in OperatorCompiler._members_of(node):
-                state = symbol(f'{element.state}_{OperatorCompiler._name_of(key)}', CC)
+            for key, element in OperatorCompiler._get_members_of(node):
+                state = symbol(f'{element.state}_{OperatorCompiler._get_name_of(key)}', CC)
                 subsystems[key] = SubsystemSpec(key, element, len(subsystems), state, element.get_local_operators())
         return subsystems
 
     @staticmethod
-    def _arguments_of(entries: list[EntrySpec], symbols: Mapping[str, Expression]) -> dict[Expression, int]:
+    def _get_arguments_of(entries: list[EntrySpec], symbols: Mapping[str, Expression]) -> dict[Expression, int]:
         """Return the index in the parameter vector of every parameter symbol."""
         arguments = {}
         for entry in entries:
@@ -649,7 +641,7 @@ class OperatorCompiler(BaseCompiler):
         return arguments
 
     @staticmethod
-    def _element_laws(
+    def _get_element_laws(
         operator_nodes: list[NodeSpec],
         subsystems: Mapping[str, SubsystemSpec],
         *,
@@ -666,10 +658,10 @@ class OperatorCompiler(BaseCompiler):
         members: dict[str, tuple[SimpleNamespace, ...]] = {}
         for node in operator_nodes:
             namespaces = []
-            for member, (key, element) in enumerate(OperatorCompiler._members_of(node)):
+            for member, (key, element) in enumerate(OperatorCompiler._get_members_of(node)):
                 index = member if node.members is not None else None
                 state = {element.state: subsystems[key].symbol}
-                namespace = SimpleNamespace(**state, **OperatorCompiler._parameter_symbols(node, symbols, index))
+                namespace = SimpleNamespace(**state, **OperatorCompiler._get_parameter_symbols(node, symbols, index))
                 namespaces.append(namespace)
                 OperatorCompiler._collect_laws(
                     generators,
@@ -681,7 +673,7 @@ class OperatorCompiler(BaseCompiler):
         return members
 
     @staticmethod
-    def _stored_state(
+    def _get_stored_state(
         system: CompositeSystem,
         initial: object,
         *,
@@ -700,14 +692,14 @@ class OperatorCompiler(BaseCompiler):
         size = product.size
 
         def ground() -> npt.NDArray[np.complex128]:
-            matrix = OperatorProblemSpec._matrix_at(generator, 0.0, p, size)
+            matrix = OperatorProblemSpec._get_matrix_at(generator, 0.0, p, size)
             return np.asarray(qutip.Qobj(matrix).groundstate(sparse=size > DENSE_LIMIT)[1].full().ravel())
 
-        state = OperatorCompiler._system_initial(system, initial, product, ground)
+        state = OperatorCompiler._get_system_initial(system, initial, product, ground)
         return np.outer(state, state.conj()) if is_open and state.ndim == 1 else state
 
     @staticmethod
-    def _compiled_element(node: NodeSpec) -> CompiledElementSpec:
+    def _get_compiled_element(node: NodeSpec) -> CompiledElementSpec:
         """Return the compiled element of an operator element or group.
 
         It has no states in the state vector.
@@ -720,7 +712,7 @@ class OperatorCompiler(BaseCompiler):
         return CompiledElementSpec(node.path, component, {}, parameters, visual, node.members)
 
     @staticmethod
-    def _compiled_interaction(node: NodeSpec) -> CompiledInteractionSpec:
+    def _get_compiled_interaction(node: NodeSpec) -> CompiledInteractionSpec:
         """Return the compiled interaction of an operator system.
 
         It holds the paths its roles bind to.
@@ -771,17 +763,17 @@ class OperatorCompiler(BaseCompiler):
         nodes = FlattenPass._flatten_system(system)
         OperatorCompiler._check_classical(nodes)
         operator_nodes = [node for node in nodes if OperatorCompiler._is_operator_node(node)]
-        subsystems = OperatorCompiler._subsystems_of(operator_nodes)
+        subsystems = OperatorCompiler._get_subsystems_of(operator_nodes)
         dimensions = tuple(item.element.dimension for item in subsystems.values())
         OperatorCompiler._check_dimension(nodes, list(dimensions), max_dimension)
         entries, values, symbols = OperatorCompiler._get_parameters(nodes)
         p = np.concatenate(values) if values else np.zeros(0)
-        arguments = OperatorCompiler._arguments_of(entries, symbols)
+        arguments = OperatorCompiler._get_arguments_of(entries, symbols)
         lowering = OperatorLowering(time, subsystems, dimensions, arguments).prepare()
         groups = {node.path: node for node in operator_nodes if isinstance(node.component, GroupElement)}
         generators: Generators = []
         dissipators: Dissipators = []
-        members = OperatorCompiler._element_laws(
+        members = OperatorCompiler._get_element_laws(
             operator_nodes,
             subsystems,
             symbols=symbols,
@@ -791,7 +783,7 @@ class OperatorCompiler(BaseCompiler):
         )
         for node in nodes:
             if isinstance(node.component, BaseInteraction):
-                OperatorCompiler._interaction_laws(
+                OperatorCompiler._get_interaction_laws(
                     node,
                     node.component,
                     symbols=symbols,
@@ -802,9 +794,9 @@ class OperatorCompiler(BaseCompiler):
                 )
         OperatorCompiler._check_hermitian(generators, lowering, p)
         total = sum((item for _, item in generators), SR(0))
-        generator = OperatorCompiler._terms(lowering, total, 'the generator')
-        collapses = OperatorCompiler._dissipator_terms(dissipators, lowering, p)
-        state = OperatorCompiler._stored_state(
+        generator = OperatorCompiler._get_terms(lowering, total, 'the generator')
+        collapses = OperatorCompiler._get_dissipator_terms(dissipators, lowering, p)
+        state = OperatorCompiler._get_stored_state(
             system,
             initial,
             subsystems=subsystems,
@@ -814,9 +806,9 @@ class OperatorCompiler(BaseCompiler):
         )
         pure = state.ndim == 1
         state_entry = EntrySpec(f'{system.label}.state', 0, state.shape, CC, None, is_complex=True)
-        elements = tuple(OperatorCompiler._compiled_element(node) for node in operator_nodes)
+        elements = tuple(OperatorCompiler._get_compiled_element(node) for node in operator_nodes)
         interactions = tuple(
-            OperatorCompiler._compiled_interaction(node)
+            OperatorCompiler._get_compiled_interaction(node)
             for node in nodes
             if isinstance(node.component, BaseInteraction)
         )
@@ -836,14 +828,14 @@ class OperatorCompiler(BaseCompiler):
             generator=generator,
             dissipators=collapses,
             pure=pure,
-            namespaces=OperatorCompiler._namespaces(system, members, set(groups)),
+            namespaces=OperatorCompiler._get_namespaces(system, members, set(groups)),
             members=members,
             lowering=lowering,
             generator_operator=total,
         )
 
     @staticmethod
-    def _name_of(path: str) -> str:
+    def _get_name_of(path: str) -> str:
         """Return a path, such as `chain[3]`, as a valid part of a symbol name.
 
         An example of such a part is `chain_3`.
@@ -872,14 +864,14 @@ class OperatorCompiler(BaseCompiler):
                 values.append(
                     LayoutPass._coerce_value(
                         name,
-                        LayoutPass._value_of(node, variable),
+                        LayoutPass._get_value_of(node, variable),
                         (),
                         declaration.domain,
                         members,
                     ),
                 )
                 entries.append(EntrySpec(name, sum(item.size for item in entries), shape, declaration.domain, members))
-                base = f'{variable}_{OperatorCompiler._name_of(node.path)}'
+                base = f'{variable}_{OperatorCompiler._get_name_of(node.path)}'
                 if members is None:
                     symbols[name] = symbol(base, declaration.domain)
                 else:

@@ -33,14 +33,14 @@ trajectory = simulate(system, observers=[observer])
 loads = np.linspace(250.0, 2000.0, 8)
 peaks = [
     np.abs(
-        simulate(WheelRailContactSystem(F=load), until=10).values('rail.z'),
+        simulate(WheelRailContactSystem(F=load), until=10).get_values('rail.z'),
     ).max()
     for load in loads
 ]
 fig, (bogie, linear) = plt.subplots(1, 2, figsize=(10, 4))
 window = (trajectory.times >= 10) & (trajectory.times < 20)
-bogie.plot(trajectory.times[window], trajectory.values('rail.z')[window], label='rail')
-bogie.plot(trajectory.times[window], trajectory.values('rail.zs')[window], label='sleeper')
+bogie.plot(trajectory.times[window], trajectory.get_values('rail.z')[window], label='rail')
+bogie.plot(trajectory.times[window], trajectory.get_values('rail.zs')[window], label='sleeper')
 bogie.set_xlabel('time')
 bogie.set_ylabel('deflection')
 bogie.set_title('One bogie: one dip per wheel')

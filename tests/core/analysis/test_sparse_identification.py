@@ -63,7 +63,7 @@ def test_sparse_identification_system_follows_trajectory():
     trajectory = _lorenz_trajectory()
     system = _fit(trajectory)
     run = simulate(system.system, until=0.5, dt=0.002)
-    assert np.allclose(run.values('surrogate.x'), trajectory.values('lorenz.x')[:251], atol=0.05)
+    assert np.allclose(run.get_values('surrogate.x'), trajectory.get_values('lorenz.x')[:251], atol=0.05)
     assert system.training_error < 1e-3
 
 
@@ -80,7 +80,7 @@ def test_sparse_identification_run_continues_lotka_volterra():
     solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-10)
     trajectory = simulate(LotkaVolterraSystem().prepare().system_, until=20.0, solver=solver, dt=0.01)
     names = ['prey.x', 'predators.x']
-    values = np.column_stack([trajectory.values(name) for name in names])
+    values = np.column_stack([trajectory.get_values(name) for name in names])
     system = _fit(values[:1001], variables=names, degree=2, threshold=0.01, horizon=50, dt=0.01)
     assert isinstance(system.system, CompositeSystem)
     assert isinstance(system.training_error, float)

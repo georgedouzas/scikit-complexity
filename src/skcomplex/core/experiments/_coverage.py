@@ -93,7 +93,7 @@ def _calibrate_truth(
     names = list(paths) if paths is not None else list(_series_of(trajectory))
     data = {}
     for path in names:
-        values = np.interp(times, trajectory.times, np.asarray(trajectory.values(path), dtype=float))
+        values = np.interp(times, trajectory.times, np.asarray(trajectory.get_values(path), dtype=float))
         data[path] = (times, values + noise * rng.standard_normal(times.size))
     return calibrate(
         source,

@@ -75,8 +75,8 @@ def test_act_changes_a_parameter_only_above_the_target():
     )
     observables = [ObservableSpec('total', group='counters', variable='level', reduce='sum')]
     trajectory = simulate(system, until=10, random_state=0, observables=observables)
-    totals = trajectory.values('controller.total')[1:]
-    changes = np.diff(trajectory.values('controller.rate'))
+    totals = trajectory.get_values('controller.total')[1:]
+    changes = np.diff(trajectory.get_values('controller.rate'))
     np.testing.assert_array_equal(changes, (totals > 5.0).astype(float))
 
 

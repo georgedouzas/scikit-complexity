@@ -55,7 +55,7 @@ intensities, distances = [], {}
 for delay in delays:
     run = simulate(LightSeekingRobotsSystem(n_robots=40, delay=delay), until=150, solver=solver, random_state=1)
     trajectory = run
-    r = np.hypot(trajectory.values('robots.x'), trajectory.values('robots.y'))[trajectory.times > 50]
+    r = np.hypot(trajectory.get_values('robots.x'), trajectory.get_values('robots.y'))[trajectory.times > 50]
     intensities.append(np.exp(-(r**2)).mean())
     distances[delay] = r.ravel()
 fig, (light, radii) = plt.subplots(1, 2, figsize=(10, 4))

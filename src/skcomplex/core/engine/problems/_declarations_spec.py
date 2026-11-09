@@ -15,7 +15,7 @@ from ...specs._wiener_process_spec import WienerProcessSpec
 from ...types import Array
 from ._block_spec import BlockSpec
 
-_ACTIVE = '_active'
+ACTIVE = '_active'
 ENDS = ('_source', '_target')
 MEMBERS = '_members'
 
@@ -98,7 +98,7 @@ class DeclarationsSpec(BaseSpec):
         """Paths of the declared groups."""
         return frozenset(path for path, block in self.blocks.items() if block.node.members is not None)
 
-    def changing_edges(self, space: object) -> dict[str | None, BlockSpec]:
+    def get_changing_edges(self, space: object) -> dict[str | None, BlockSpec]:
         """Return the variable edge group of every layer of a network whose edges change.
 
         Args:
@@ -115,7 +115,7 @@ class DeclarationsSpec(BaseSpec):
             if getattr(block.node.component, 'on', None) == 'edges' and block.node.space is space
         }
 
-    def changing_entries(self, space: object) -> dict[str | None, tuple[EntrySpec, EntrySpec, EntrySpec]]:
+    def get_changing_entries(self, space: object) -> dict[str | None, tuple[EntrySpec, EntrySpec, EntrySpec]]:
         """Return the source, target, and activity entries of every changing layer.
 
         The entries are those of the variable edge group of the layer.
@@ -129,6 +129,6 @@ class DeclarationsSpec(BaseSpec):
                 The entries by layer.
         """
         return {
-            layer: (block.entries[ENDS[0]], block.entries[ENDS[1]], block.entries[_ACTIVE])
-            for layer, block in self.changing_edges(space).items()
+            layer: (block.entries[ENDS[0]], block.entries[ENDS[1]], block.entries[ACTIVE])
+            for layer, block in self.get_changing_edges(space).items()
         }

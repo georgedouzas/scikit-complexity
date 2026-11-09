@@ -111,8 +111,6 @@ SYSTEM_CLASS = '''class {name}(BaseSystem):
 {interactions}
             ],
         )'''
-
-
 STOCK_FLOW_CLASS = '''class {name}(StockFlowSystem):
     """Run the stock-and-flow system translated from the file `{stem}`.
 
@@ -264,7 +262,7 @@ class _ModuleWriter:
                     self._write_return(f'{series}(x, {expressions.write_points(table)})'),
                 ),
             )
-        for name in parts.order_auxiliaries(expressions.problems):
+        for name in parts.get_order_auxiliaries(expressions.problems):
             helpers.append(
                 self._write_function(
                     f'_{name}(s: SimpleNamespace, t: Expression) -> Expression',

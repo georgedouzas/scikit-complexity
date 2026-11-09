@@ -28,7 +28,7 @@ def connectance(inherit, n_nodes=100, until=4000):
     system = DuplicationDeletionSystem(n_nodes=n_nodes, inherit=inherit)
     run = simulate(system, until=until, random_state=0)
     steps = np.arange(0, until + 1, 40)
-    links = np.array([len(run.network(int(step)).sources) for step in steps])
+    links = np.array([len(run.get_network(int(step)).sources) for step in steps])
     return steps, links / (n_nodes * (n_nodes - 1) / 2)
 
 

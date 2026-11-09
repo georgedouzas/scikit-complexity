@@ -278,7 +278,7 @@ class ProblemSpec(BaseProblemSpec):
 
     def _flatten_symbols(self, layout: LayoutSpec) -> list[Expression]:
         """Return the symbols of the entries of a layout as a flat list."""
-        return [item for entry in layout.entries for item in self._real_components_of(self.symbols[entry.name])]
+        return [item for entry in layout.entries for item in self._get_real_components_of(self.symbols[entry.name])]
 
     @property
     def partition_problems(self) -> tuple[BaseProblemSpec, ...]:
@@ -325,7 +325,7 @@ class ProblemSpec(BaseProblemSpec):
         """
         return self._flatten_symbols(self.parameters)
 
-    def lattice_shape(self, name: str) -> tuple[int, ...] | None:
+    def get_lattice_shape(self, name: str) -> tuple[int, ...] | None:
         """Return the lattice shape of a state that lattice laws read or change.
 
         Other states return `None`.
@@ -364,7 +364,7 @@ class ProblemSpec(BaseProblemSpec):
         return matrix
 
     @staticmethod
-    def _real_components_of(value: object) -> list[object]:
+    def _get_real_components_of(value: object) -> list[object]:
         """Return the components of a value with complex components split.
 
         Every complex component is split into its real and imaginary parts.

@@ -39,7 +39,7 @@ trajectory = simulate(system, dt=5.0, solver=RK4Solver(dt=0.1), observers=[obser
 space = system.elements[0].space.prepare()
 heights = space.coordinates_['h']
 positions = (np.arange(POSITIONS) + 0.5) * 10 / POSITIONS
-density = trajectory.values('forest.x')[-1].reshape(POSITIONS, HEIGHTS)
+density = trajectory.get_values('forest.x')[-1].reshape(POSITIONS, HEIGHTS)
 bulk, edge = density[POSITIONS // 2], density[0]
 fig, (sizes, profile) = plt.subplots(1, 2, figsize=(11, 4))
 sizes.loglog(heights, bulk, label='bulk')

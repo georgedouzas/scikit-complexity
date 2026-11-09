@@ -67,7 +67,7 @@ def test_drive_replays_an_ensemble_by_the_time_of_the_step():
     )
     replay = ReplayInteraction('replay', target='chain', ensemble=ensemble)
     system = CompositeSystem(elements=[chain], interactions=[replay], time=DiscreteTime())
-    frames = simulate(system, until=40, random_state=0).lattice('chain.x')
+    frames = simulate(system, until=40, random_state=0).get_lattice('chain.x')
     assert frames[10] == pytest.approx(ensemble[10])
     assert frames[40] == pytest.approx(ensemble[37])
 
@@ -141,7 +141,7 @@ def test_drive_of_a_matrix_state_receives_the_components_on_a_last_axis_and_the_
         interactions=[RotationInteraction('turn', target='links')],
         time=DiscreteTime(),
     )
-    values = simulate(system, until=1, random_state=0).values('links.U')
+    values = simulate(system, until=1, random_state=0).get_values('links.U')
     faces = (space.cofaces_[1] < space.boundaries_.shape[0]).sum(axis=1)
     assert values.shape == (2, 12, 2)
     assert np.allclose(values[1, :, 0] + 1j * values[1, :, 1], np.exp(1j * faces))

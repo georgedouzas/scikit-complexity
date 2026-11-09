@@ -56,7 +56,7 @@ def test_ensemble_of_the_trp_cage():
     """Test 38 frames, every `RD` in `[0, 1]`, equal within 1e-12 to the `RD` of the analysis of each system."""
     trajectory = simulate(FuzzyOilDropSystem())
     assert len(trajectory.times) == 38
-    recorded = trajectory.values('RD')
+    recorded = trajectory.get_values('RD')
     assert recorded.min() >= 0
     assert recorded.max() <= 1
     expected = fuzzy_oil_drop_measures(structure=read_structure('1L2Y')).values
@@ -66,14 +66,14 @@ def test_ensemble_of_the_trp_cage():
 def test_ensemble_records_the_environment_factor():
     """Test that the recorded `K` of each frame equals the one of the analysis."""
     structure = read_structure('1L2Y')
-    recorded = simulate(FuzzyOilDropSystem(), until=3).values('K')
+    recorded = simulate(FuzzyOilDropSystem(), until=3).get_values('K')
     expected = fuzzy_oil_drop_measures(structure=structure, kind='environment-factor').values[:4]
     assert recorded == pytest.approx(expected, abs=1e-12)
 
 
 def test_ensemble_positions_replay_the_effective_atoms():
     """Test that the positions at frame 10 are the effective atoms of system 10."""
-    frames = simulate(FuzzyOilDropSystem(), until=12).lattice('chain.x')
+    frames = simulate(FuzzyOilDropSystem(), until=12).get_lattice('chain.x')
     assert frames[10] == pytest.approx(read_structure('1L2Y').effective_atoms[10])
 
 
@@ -82,19 +82,19 @@ def test_analysis_reads_the_replay_of_a_trajectory():
     structure = read_structure('1L2Y')
     trajectory = simulate(FuzzyOilDropSystem(), until=2)
     values = fuzzy_oil_drop_measures(trajectory, structure=structure, state='chain.x').values
-    assert values == pytest.approx(trajectory.values('RD'), abs=1e-12)
+    assert values == pytest.approx(trajectory.get_values('RD'), abs=1e-12)
 
 
 def test_folding_lowers_the_relative_distance_and_compacts_the_chain():
     """Test that `RD` never grows at temperature zero, and that the radius of gyration falls from an extended start."""
     system = FuzzyOilDropSystem(dynamics='folding').prepare().system_
     trajectory = simulate(system, random_state=0, until=300)
-    relative_distance = trajectory.values('folding.score')[:, 0]
+    relative_distance = trajectory.get_values('folding.score')[:, 0]
     assert np.all(np.diff(relative_distance) <= 1e-12)
     assert relative_distance[-1] < relative_distance[0]
     structure = read_structure('1L2Y')
     geometry = BackboneGeometry(structure).prepare()
-    angles = trajectory.lattice('chain.angle').astype(float)[[0, -1], 0]
+    angles = trajectory.get_lattice('chain.angle').astype(float)[[0, -1], 0]
     chains = np.array([geometry.run(row).read_effective_atoms() for row in angles])
     radii = chain_shape(chains).values
     assert radii[1] < radii[0]
@@ -103,7 +103,7 @@ def test_folding_lowers_the_relative_distance_and_compacts_the_chain():
 def test_folding_at_a_positive_temperature_records_rd():
     """Test that the folding at a positive temperature records the `RD` of its angles."""
     trajectory = simulate(FuzzyOilDropSystem(dynamics='folding', temperature=0.1, proposals=2), until=2, random_state=0)
-    assert trajectory.values('RD') == pytest.approx(trajectory.values('folding.score')[:, 0], abs=1e-9)
+    assert trajectory.get_values('RD') == pytest.approx(trajectory.get_values('folding.score')[:, 0], abs=1e-9)
 
 
 def test_system_rejects_unknown_dynamics():
@@ -235,7 +235,7 @@ def test_ellipse_rejects_bad_settings_and_pairs():
 def test_sampled_cells_follow_the_probabilities_of_the_sequence():
     """Test that each residue's frequency of each cell over the last 200 frames matches the probability within 0.15."""
     trajectory = simulate(EarlyStageFoldingIntermediateSystem(), random_state=0, until=300)
-    cells = trajectory.lattice('residues.cell').astype(int)[-200:, 0]
+    cells = trajectory.get_lattice('residues.cell').astype(int)[-200:, 0]
     probabilities = read_cell_probabilities()
     names = [residue for _, _, residue in read_structure('5PTI').residues]
     for site, name in enumerate(names):

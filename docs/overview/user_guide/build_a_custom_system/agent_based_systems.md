@@ -50,7 +50,7 @@ foragers = CompositeSystem(
     space=LatticeSpace((30, 30), boundary='periodic'),
 )
 trajectory = simulate(foragers, until=20, random_state=0)
-int(trajectory.values('foragers.count')[-1]), len(trajectory.get_agents('foragers', 20).ids)
+int(trajectory.get_values('foragers.count')[-1]), len(trajectory.get_agents('foragers', 20).ids)
 ```
 
 Agents are ordinary elements whose laws are rules written as code.
@@ -221,7 +221,7 @@ market = CompositeSystem(
     time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('quote'), PhaseSpec('settle')])),
 )
 trajectory = simulate(market, until=3, random_state=0)
-[round(float(best), 3) for best in trajectory.values('clerk.best')[1:]], round(float(trajectory.values('clerk.fee')[-1]), 4)
+[round(float(best), 3) for best in trajectory.get_values('clerk.best')[1:]], round(float(trajectory.get_values('clerk.fee')[-1]), 4)
 ```
 
 **Phases.** `DiscreteTime(schedule=PhasesScheduleSpec([...]))` lists the phases of a step.

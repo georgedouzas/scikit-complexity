@@ -1,4 +1,7 @@
-"""Define the source loader."""
+"""Define the source loader.
+
+`CACHE_DIR` is the default directory of the generated sources and of Numba's cache.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,7 +18,6 @@ from ...base import BaseConfig
 from ...errors import ValidationError
 
 CACHE_DIR = Path.home() / '.cache' / 'skcomplex' / 'kernels'
-"""The default directory of the generated sources and of Numba's cache."""
 
 
 class SourceLoader(BaseConfig[str | Path | None, str]):

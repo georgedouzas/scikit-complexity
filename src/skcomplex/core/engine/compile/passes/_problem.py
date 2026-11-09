@@ -36,7 +36,7 @@ from ...problems._reference_spec import ReferenceSpec
 from ...types import ReadKind, ScalarsFunction
 from .._base import BasePass
 from .._compilation import Compilation
-from ._events import _SWITCHES, RELATIONS
+from ._events import RELATIONS, SWITCHES
 
 
 class ProblemPass(BasePass):
@@ -64,10 +64,10 @@ class ProblemPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Assemble the problem."""
         compilation = self.compilation_
-        compilation.problem = self._problem_of(compilation)
+        compilation.problem = self._get_problem_of(compilation)
 
     @staticmethod
-    def _companions(blocks: list[BlockSpec]) -> dict[str, tuple[str, str, int]]:
+    def _get_companions(blocks: list[BlockSpec]) -> dict[str, tuple[str, str, int]]:
         """Return every companion state by name.
 
         It comes with its kind, the name of its state, and its index.
@@ -90,7 +90,7 @@ class ProblemPass(BasePass):
         return companions
 
     @staticmethod
-    def _compiled_elements(blocks: list[BlockSpec]) -> tuple[CompiledElementSpec, ...]:
+    def _get_compiled_elements(blocks: list[BlockSpec]) -> tuple[CompiledElementSpec, ...]:
         """Return the elements and groups that are not agents with their names.
 
         The names are the dotted names of their states and parameters.
@@ -107,14 +107,14 @@ class ProblemPass(BasePass):
                     name: f'{block.node.path}.{name}'
                     for name in declarations_of(block.node.component_type, VariableKind.PARAMETER)
                 },
-                visual=ProblemPass._visual_of(block.node),
+                visual=ProblemPass._get_visual_of(block.node),
                 members=block.node.members,
                 adaptive={
                     name: declaration
                     for name, declaration in declarations_of(block.node.component_type, VariableKind.STATE).items()
                     if declaration.adaptive
                 },
-                lattice_shape=ProblemPass._lattice_shape(block.node.component),
+                lattice_shape=ProblemPass._get_lattice_shape(block.node.component),
                 roles={
                     name: declaration.role
                     for name, declaration in declarations_of(block.node.component_type, VariableKind.STATE).items()
@@ -126,7 +126,7 @@ class ProblemPass(BasePass):
         )
 
     @staticmethod
-    def _lattice_shape(component: object) -> tuple[int, ...] | None:
+    def _get_lattice_shape(component: object) -> tuple[int, ...] | None:
         """Return the number of sites along every dimension of the lattice of an element.
 
         It is `None` off a lattice.
@@ -135,7 +135,7 @@ class ProblemPass(BasePass):
         return space.shape_ if isinstance(space, LatticeSpace) else None
 
     @staticmethod
-    def _compiled_interactions(
+    def _get_compiled_interactions(
         blocks: list[BlockSpec],
         specs: list[tuple[KernelSpec, BlockSpec]],
     ) -> tuple[CompiledInteractionSpec, ...]:
@@ -151,34 +151,36 @@ class ProblemPass(BasePass):
         )
 
     @staticmethod
-    def _stream_of(compilation: Compilation) -> RandomStream:
+    def _get_stream_of(compilation: Compilation) -> RandomStream:
         """Return the random stream that the kernels of a compilation hold."""
         kernels = compilation.kernels
         return kernels.stream if kernels is not None and kernels.stream is not None else RandomStream()
 
     @staticmethod
-    def _unknowns_of(compilation: Compilation, form: FormKind) -> Indices:
+    def _get_unknowns_of(compilation: Compilation, form: FormKind) -> Indices:
         """Return the positions of the states the residuals of a static problem target.
 
         It is none for other forms.
         """
         rates = (
-            Compilation._required(compilation.kernels, 'kernels').kernels[RateLaw] if form == FormKind.STATIC else []
+            Compilation._get_required(compilation.kernels, 'kernels').kernels[RateLaw]
+            if form == FormKind.STATIC
+            else []
         )
         targets = [item.target.flat_indices for kernel in rates for item in kernel.outputs if item.target is not None]
         return np.unique(np.concatenate([np.zeros(0, dtype=np.intp), *targets]))
 
     @staticmethod
-    def _problem_of(compilation: Compilation) -> ProblemSpec:
+    def _get_problem_of(compilation: Compilation) -> ProblemSpec:
         """Return the problem of the general parts of a compilation.
 
         Passes of formalisms add to it.
         """
-        declarations = Compilation._required(compilation.layout, 'layout')
+        declarations = Compilation._get_required(compilation.layout, 'layout')
         blocks = list(declarations.blocks.values())
-        form = Compilation._required(compilation.form, 'form')
-        reduced = Compilation._required(compilation.reduced, 'reduced')
-        reductions = Compilation._required(compilation.reductions, 'reductions')
+        form = Compilation._get_required(compilation.form, 'form')
+        reduced = Compilation._get_required(compilation.reduced, 'reduced')
+        reductions = Compilation._get_required(compilation.reductions, 'reductions')
         time = declarations.time
         functions, delays, events = compilation.functions, compilation.delays, compilation.events
         if functions is None or delays is None or events is None:
@@ -194,25 +196,25 @@ class ProblemPass(BasePass):
             symbols={
                 entry.name: block.symbols[variable] for block in blocks for variable, entry in block.entries.items()
             },
-            elements=ProblemPass._compiled_elements(blocks),
-            interactions=ProblemPass._compiled_interactions(
+            elements=ProblemPass._get_compiled_elements(blocks),
+            interactions=ProblemPass._get_compiled_interactions(
                 blocks,
-                Compilation._required(compilation.specs, 'specs'),
+                Compilation._get_required(compilation.specs, 'specs'),
             ),
             system=compilation.system,
-            companions=ProblemPass._companions(blocks),
+            companions=ProblemPass._get_companions(blocks),
             delays=ProblemPass._compile_delays(delays, time),
             events=(
                 *ProblemPass._compile_events(events, time, reductions, declarations),
-                *(ProblemPass._hidden_events(reduced, time, reductions) if form == FormKind.ODE else ()),
+                *(ProblemPass._get_hidden_events(reduced, time, reductions) if form == FormKind.ODE else ()),
             ),
             reductions=reductions.reductions,
             jacobian=compilation.jacobian,
-            unknowns=ProblemPass._unknowns_of(compilation, form),
-            stream=ProblemPass._stream_of(compilation),
-            breakpoints=ProblemPass._breakpoints_in(reduced, events, time),
-            history=ProblemPass._history(blocks),
-            matrices=Compilation._required(compilation.matrices, 'matrices'),
+            unknowns=ProblemPass._get_unknowns_of(compilation, form),
+            stream=ProblemPass._get_stream_of(compilation),
+            breakpoints=ProblemPass._get_breakpoints_in(reduced, events, time),
+            history=ProblemPass._get_history(blocks),
+            matrices=Compilation._get_required(compilation.matrices, 'matrices'),
             equations=functions.equations,
             equation_symbols=functions.equation_symbols,
             has_callables=functions.has_callables,
@@ -236,7 +238,7 @@ class ProblemPass(BasePass):
         )
 
     @staticmethod
-    def _same_zeros(first: Expression, second: Expression) -> bool:
+    def _get_same_zeros(first: Expression, second: Expression) -> bool:
         """Check that two conditions are the same expression or opposite ones.
 
         Such conditions switch at the same states.
@@ -244,7 +246,7 @@ class ProblemPass(BasePass):
         return bool(first.is_trivially_equal(second) or (first + second).expand().is_trivially_equal(SR(0)))
 
     @staticmethod
-    def _linear_root(expression: Expression, time: Expression) -> float | None:
+    def _get_linear_root(expression: Expression, time: Expression) -> float | None:
         """Return where a linear expression of time is zero, or `None`.
 
         The expression has numeric coefficients.
@@ -259,7 +261,7 @@ class ProblemPass(BasePass):
         return float(-expression.subs({time: 0}) / slope)
 
     @staticmethod
-    def _first_value(function: ScalarsFunction) -> Callable[[float, Array, Array], float]:
+    def _get_first_value(function: ScalarsFunction) -> Callable[[float, Array, Array], float]:
         """Return a function that gives the single value of a scalar function."""
 
         def first(t: float, x: Array, p: Array) -> float:
@@ -268,7 +270,7 @@ class ProblemPass(BasePass):
         return first
 
     @staticmethod
-    def _reduced_guard(
+    def _get_reduced_guard(
         function: ScalarsFunction,
         reductions: ReductionScheduleSpec,
     ) -> Callable[[float, Array, Array], float]:
@@ -277,7 +279,7 @@ class ProblemPass(BasePass):
         It reads the reductions at its state.
         """
         if not reductions.steps:
-            return ProblemPass._first_value(function)
+            return ProblemPass._get_first_value(function)
 
         def reduced(t: float, x: Array, p: Array) -> float:
             return function(t, x, reductions.extend(t, x, p))[0]
@@ -285,7 +287,10 @@ class ProblemPass(BasePass):
         return reduced
 
     @staticmethod
-    def _flat_sources(references: Mapping[Expression, ReferenceSpec], owner: str) -> dict[Expression, tuple[bool, int]]:
+    def _get_flat_sources(
+        references: Mapping[Expression, ReferenceSpec],
+        owner: str,
+    ) -> dict[Expression, tuple[bool, int]]:
         """Return the vector and flat index of every single component symbol.
 
         The symbols are those in a namespace.
@@ -308,7 +313,7 @@ class ProblemPass(BasePass):
         return np.asarray([reference.entry.start + reference.column], dtype=np.intp)
 
     @staticmethod
-    def _scalar_function(
+    def _get_scalar_function(
         expressions: Sequence[object],
         sources: Mapping[Expression, tuple[bool, int]],
         time: Expression,
@@ -428,7 +433,7 @@ class ProblemPass(BasePass):
         return apply_member if members else apply
 
     @staticmethod
-    def _member_guard(
+    def _get_member_guard(
         spec: KernelSpec,
         guard: Expression,
         time: Expression,
@@ -470,7 +475,7 @@ class ProblemPass(BasePass):
         )
 
     @staticmethod
-    def _state_conditions_of(expressions: Iterable[object], time: Expression) -> list[Expression]:
+    def _get_state_conditions_of(expressions: Iterable[object], time: Expression) -> list[Expression]:
         """Return the expressions whose sign switches a law.
 
         They come from conditions and steps that read more than time.
@@ -486,18 +491,18 @@ class ProblemPass(BasePass):
             if operation in RELATIONS:
                 left, right = item.operands()
                 candidate = left - right
-            elif getattr(operation, 'name', lambda: '')() in _SWITCHES:
+            elif getattr(operation, 'name', lambda: '')() in SWITCHES:
                 candidate = item.operands()[0]
             else:
                 continue
             if set(candidate.variables()) - {time} and not any(
-                ProblemPass._same_zeros(candidate, other) for other in found
+                ProblemPass._get_same_zeros(candidate, other) for other in found
             ):
                 found.append(candidate)
         return found
 
     @staticmethod
-    def _breakpoints_of(expressions: Iterable[object], time: Expression) -> _BreakpointsSpec:
+    def _get_breakpoints_of(expressions: Iterable[object], time: Expression) -> _BreakpointsSpec:
         """Return the times where conditions on time in expressions change.
 
         Examples are step, pulse, and series inputs.
@@ -519,13 +524,13 @@ class ProblemPass(BasePass):
             if operation in RELATIONS:
                 left, right = item.operands()
                 difference = left - right
-                root = ProblemPass._linear_root(difference, time)
+                root = ProblemPass._get_linear_root(difference, time)
                 resolved = root is not None or time not in difference.variables()
                 if root is not None:
                     fixed.add(root)
-                for call in BasePass._calls_of(difference, 'mod'):
+                for call in BasePass._get_calls_of(difference, 'mod'):
                     argument, period = call.operands()
-                    zero, rest = ProblemPass._linear_root(argument, time), difference - call
+                    zero, rest = ProblemPass._get_linear_root(argument, time), difference - call
                     if zero is not None and period.is_numeric() and rest.is_numeric():
                         span = float(period)
                         offset = float(-rest)
@@ -536,7 +541,7 @@ class ProblemPass(BasePass):
         return _BreakpointsSpec(tuple(sorted(fixed)), tuple(sorted(periodic)), unresolved=unresolved)
 
     @staticmethod
-    def _breakpoints_in(
+    def _get_breakpoints_in(
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
         events: list[tuple[KernelSpec, CrossingLaw]],
         time: Expression,
@@ -565,7 +570,7 @@ class ProblemPass(BasePass):
                     [item for item in components_of(value) if isinstance(item, Expression)] if value is not None else []
                 )
         expressions += [event.guard for _, event in events if not BaseLaw._is_function(event.guard)]
-        return ProblemPass._breakpoints_of(expressions, time)
+        return ProblemPass._get_breakpoints_of(expressions, time)
 
     @staticmethod
     def _compile_delays(delays: Sequence[_DelayedStateSpec], time: Expression) -> tuple[_DelaySpec, ...]:
@@ -585,9 +590,9 @@ class ProblemPass(BasePass):
         compiled = []
         for item in delays:
             spec, hidden = item.spec, item.entry
-            tau = ProblemPass._scalar_function(
+            tau = ProblemPass._get_scalar_function(
                 [item.tau],
-                ProblemPass._flat_sources(spec.references, spec.owner),
+                ProblemPass._get_flat_sources(spec.references, spec.owner),
                 time,
                 spec.owner,
             )
@@ -595,7 +600,7 @@ class ProblemPass(BasePass):
                 _DelaySpec(
                     parameters=hidden.start + np.arange(hidden.size),
                     states=item.states,
-                    tau=ProblemPass._first_value(tau),
+                    tau=ProblemPass._get_first_value(tau),
                     minimum=item.minimum,
                     symbol=item.symbol,
                     state=item.state,
@@ -605,7 +610,7 @@ class ProblemPass(BasePass):
         return tuple(compiled)
 
     @staticmethod
-    def _symbolic_value(
+    def _get_symbolic_value(
         spec: KernelSpec,
         value: object,
         reductions: ReductionScheduleSpec,
@@ -636,7 +641,7 @@ class ProblemPass(BasePass):
         return evaluate
 
     @staticmethod
-    def _value_function(
+    def _get_value_function(
         spec: KernelSpec,
         value: object,
         reductions: ReductionScheduleSpec,
@@ -647,7 +652,7 @@ class ProblemPass(BasePass):
         The value is one of an event.
         """
         if not BaseLaw._is_function(value):
-            return ProblemPass._symbolic_value(spec, value, reductions, declarations.time)
+            return ProblemPass._get_symbolic_value(spec, value, reductions, declarations.time)
         if isinstance(value, CallSpec) and (value.arguments or value.random or value.vectorized):
             error_msg = (
                 f'An event of {spec.owner} has the guard or reset {value!r}. An event takes `f(t, values)` or '
@@ -660,16 +665,16 @@ class ProblemPass(BasePass):
         if not callable(function):
             error_msg = f'An event of {spec.owner} calls {function!r}, which is not a function.'
             raise ValidationError(error_msg)
-        names = spec._relative_names((*states.names, *parameters.names))
+        names = spec._get_relative_names((*states.names, *parameters.names))
 
         def evaluate(t: float, x: Array, p: Array) -> object:
-            values = {**states.values(x), **parameters.values(p)}
+            values = {**states.get_values(x), **parameters.get_values(p)}
             return function(t, {name: values[path] for name, path in names.items()} if relative else values)
 
         return evaluate
 
     @staticmethod
-    def _function_event(
+    def _get_function_event(
         spec: KernelSpec,
         event: CrossingLaw,
         label: str,
@@ -680,11 +685,11 @@ class ProblemPass(BasePass):
 
         Over a group, there is one guard value per member.
         """
-        guard = ProblemPass._value_function(spec, event.guard, reductions, declarations)
+        guard = ProblemPass._get_value_function(spec, event.guard, reductions, declarations)
         reset = event.reset or {}
         targets = list(reset)
         places = ProblemPass._reset_places(spec, targets)
-        values = [ProblemPass._value_function(spec, reset[item], reductions, declarations) for item in targets]
+        values = [ProblemPass._get_value_function(spec, reset[item], reductions, declarations) for item in targets]
         rows = spec.rows if spec.rows > 1 else 0
 
         def guard_values(t: float, x: Array, p: Array) -> Array | float:
@@ -746,13 +751,13 @@ class ProblemPass(BasePass):
             positions[spec.owner] += 1
             label = event.label or (spec.owner if counts[spec.owner] == 1 else f'{spec.owner}:{position}')
             if BaseLaw._is_function(event.guard) or any(map(BaseLaw._is_function, (event.reset or {}).values())):
-                compiled.append(ProblemPass._function_event(spec, event, label, reductions, declarations))
+                compiled.append(ProblemPass._get_function_event(spec, event, label, reductions, declarations))
                 continue
             if ProblemPass._reads_members(spec, SR(event.guard)):
                 compiled.append(
                     EventKernel(
                         label,
-                        ProblemPass._member_guard(spec, SR(event.guard), time, reductions),
+                        ProblemPass._get_member_guard(spec, SR(event.guard), time, reductions),
                         ProblemPass._reset_function(spec, event, time, reductions, members=True),
                         int(event.direction),
                         bool(event.terminal),
@@ -760,12 +765,12 @@ class ProblemPass(BasePass):
                     ).prepare(),
                 )
                 continue
-            sources = ProblemPass._flat_sources(spec.references, spec.owner)
-            guard = ProblemPass._scalar_function([event.guard], sources, time, spec.owner)
+            sources = ProblemPass._get_flat_sources(spec.references, spec.owner)
+            guard = ProblemPass._get_scalar_function([event.guard], sources, time, spec.owner)
             compiled.append(
                 EventKernel(
                     label,
-                    ProblemPass._reduced_guard(guard, reductions),
+                    ProblemPass._get_reduced_guard(guard, reductions),
                     ProblemPass._reset_function(spec, event, time, reductions),
                     int(event.direction),
                     bool(event.terminal),
@@ -774,7 +779,7 @@ class ProblemPass(BasePass):
         return tuple(compiled)
 
     @staticmethod
-    def _hidden_events(
+    def _get_hidden_events(
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
         time: Expression,
         reductions: ReductionScheduleSpec,
@@ -799,7 +804,7 @@ class ProblemPass(BasePass):
         """
         compiled = []
         for spec, laws in specs:
-            sources = ProblemPass._flat_sources(spec.references, spec.owner)
+            sources = ProblemPass._get_flat_sources(spec.references, spec.owner)
             values = [
                 value
                 for law in laws
@@ -807,15 +812,15 @@ class ProblemPass(BasePass):
                 for value in law._get_values(include=('value', 'lhs', 'rhs'))
                 if isinstance(value, Expression)
             ]
-            for index, condition in enumerate(ProblemPass._state_conditions_of(values, time)):
+            for index, condition in enumerate(ProblemPass._get_state_conditions_of(values, time)):
                 if not set(condition.variables()) - {time} <= set(sources):
                     continue
-                guard = ProblemPass._scalar_function([condition], sources, time, spec.owner)
+                guard = ProblemPass._get_scalar_function([condition], sources, time, spec.owner)
                 label = f'{spec.owner}:switch:{index}'
                 compiled.append(
                     EventKernel(
                         label,
-                        ProblemPass._reduced_guard(guard, reductions),
+                        ProblemPass._get_reduced_guard(guard, reductions),
                         None,
                         0,
                         False,
@@ -825,7 +830,7 @@ class ProblemPass(BasePass):
         return tuple(compiled)
 
     @staticmethod
-    def _history(blocks: list[BlockSpec]) -> dict[str, object]:
+    def _get_history(blocks: list[BlockSpec]) -> dict[str, object]:
         """Return the history every state declares, by the name of its layout entry."""
         history = {}
         for block in blocks:
@@ -839,7 +844,7 @@ class ProblemPass(BasePass):
         return history
 
     @staticmethod
-    def _visual_of(node: NodeSpec) -> VisualSpec:
+    def _get_visual_of(node: NodeSpec) -> VisualSpec:
         """Return the visual of an element or a group.
 
         It is its own visual when it sets one, and its default otherwise.

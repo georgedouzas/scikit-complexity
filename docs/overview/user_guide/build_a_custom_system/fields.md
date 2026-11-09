@@ -38,7 +38,7 @@ initial[200] = 20.0
 space = LatticeSpace(400, spacing=0.05)
 rod = FieldElement('rod', element=HeatElement, space=space, boundary={'u': 'zero-flux'}, values={'u': initial})
 trajectory = simulate(CompositeSystem(elements=[rod]), until=0.5, dt=0.1)
-heat = trajectory.values('rod.u')
+heat = trajectory.get_values('rod.u')
 round(float(heat[-1].max()), 3), heat.sum(axis=1)[[0, -1]].round(6).tolist()
 ```
 
@@ -105,7 +105,7 @@ line = FieldElement(
     discretization='spectral',
 )
 trajectory = simulate(CompositeSystem(elements=[line]), until=100, dt=10, solver=ETDRK4Solver(dt=0.25))
-round(float(np.abs(trajectory.values('line.u')[-1]).max()), 1)
+round(float(np.abs(trajectory.get_values('line.u')[-1]).max()), 1)
 ```
 
 The argument `FieldElement(..., discretization=...)` chooses how space is discretized:
@@ -140,7 +140,7 @@ from skcomplex.systems.biology.ecology import FisherKPPSystem
 
 stiff = simulate(FisherKPPSystem(length=400, D=1.0, spacing=0.05), until=5, dt=1.0, solver=ScipyODESolver(method='BDF'))
 pattern = ScipyODESolver(method='BDF').prepare(stiff.problem).jacobian_pattern_
-pattern.nnz, stiff.values('line.u')[-1].max().round(3)
+pattern.nnz, stiff.get_values('line.u')[-1].max().round(3)
 ```
 
 The compiler derives the sparsity pattern of the Jacobian from the laws. The pattern covers member and shared reads,
@@ -204,7 +204,7 @@ def rate_of(rate):
     values = {'u': np.exp(-((centers - 6.4) ** 2))}
     line = FieldElement('line', element=SiteElement, space=LatticeSpace(128, spacing=0.1), values=values)
     interaction = RateInteraction('rate', target='line', state='u', rate=rate)
-    return simulate(CompositeSystem(elements=[line], interactions=[interaction]), until=0.2, dt=0.05).values('line.u')
+    return simulate(CompositeSystem(elements=[line], interactions=[interaction]), until=0.2, dt=0.05).get_values('line.u')
 
 
 def smoothing(s):
@@ -291,7 +291,7 @@ exchange = CouplingInteraction(
 )
 system = CompositeSystem(elements=[cells], interactions=[exchange])
 trajectory = simulate(system, until=2.0, dt=0.5)
-trajectory.values('cells.u')[-1].sum().round(6)
+trajectory.get_values('cells.u')[-1].sum().round(6)
 ```
 
 A constant times `s.other.u - s.member.u` lowers to `laplacian`, so spectral and finite-element fields keep their own

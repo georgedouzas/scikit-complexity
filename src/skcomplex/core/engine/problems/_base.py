@@ -52,7 +52,7 @@ class BaseKernel(BaseConfig[object, RunStateSpec]):
         """
 
     @staticmethod
-    def _state_of(inputs: RunStateSpec | None) -> RunStateSpec:
+    def _get_state_of(inputs: RunStateSpec | None) -> RunStateSpec:
         """Return the state a kernel runs at, raising an error when none is passed.
 
         Args:
@@ -73,7 +73,7 @@ class BaseKernel(BaseConfig[object, RunStateSpec]):
         return inputs
 
     @staticmethod
-    def _generator_of(state: RunStateSpec) -> np.random.Generator:
+    def _get_generator_of(state: RunStateSpec) -> np.random.Generator:
         """Return the random number generator of a state.
 
         An error is raised when the state has none.
@@ -117,7 +117,7 @@ class BaseSearch(BaseConfig[None, RunStateSpec]):
         """
 
     @staticmethod
-    def _state_of(inputs: RunStateSpec | None) -> RunStateSpec:
+    def _get_state_of(inputs: RunStateSpec | None) -> RunStateSpec:
         """Return the state a search runs at, raising an error when none is passed.
 
         Args:

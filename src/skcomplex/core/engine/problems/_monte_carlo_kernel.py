@@ -99,7 +99,7 @@ class MonteCarloKernel(BaseKernel):
         self.boundary = boundary
         self.signs = signs
 
-    def _objective_change(
+    def _get_objective_change(
         self,
         x: Array,
         values: Array,
@@ -117,7 +117,7 @@ class MonteCarloKernel(BaseKernel):
             around = np.append(self.boundary @ x[self.target.sites], 0.0)[rows] - signs * values[:, None]
             neighbours = np.hstack([around, signs])
             masks = (rows != self.boundary.shape[0]).astype(float).T
-        change = ExpressionPrinter._values_of(
+        change = ExpressionPrinter._get_values_of(
             self.delta(0.0, values, *neighbours.T, proposal, *masks, *keywords.values()),
         )[0]
         return np.broadcast_to(np.asarray(change, dtype=float), values.shape)
@@ -134,14 +134,14 @@ class MonteCarloKernel(BaseKernel):
             return np.broadcast_to(np.asarray(self.move.function(values.copy(), rng), dtype=float), values.shape)
         return values + rng.uniform(-self.move.width, self.move.width, size=values.size)
 
-    def _intensity_of(self, keywords: Mapping[str, object]) -> Array:
+    def _get_intensity_of(self, keywords: Mapping[str, object]) -> Array:
         """Return the intensity at some sites after checking it is positive.
 
         It is infinite where it divides by zero.
         """
         arguments = [np.asarray(value, dtype=float) for value in keywords.values()]
         with np.errstate(divide='ignore'):
-            value = ExpressionPrinter._values_of(self.intensity(self.time_, *arguments))[0]
+            value = ExpressionPrinter._get_values_of(self.intensity(self.time_, *arguments))[0]
         intensity = np.asarray(value, dtype=float)
         if np.any(intensity <= 0):
             error_msg = f'The intensity of {self.owner} is {intensity}, but it must be positive.'
@@ -149,7 +149,7 @@ class MonteCarloKernel(BaseKernel):
         return intensity
 
     @staticmethod
-    def _scaled(change: Array, intensity: Array) -> Array:
+    def _get_scaled(change: Array, intensity: Array) -> Array:
         """Return a change of the objective times the intensity.
 
         It is 0 for no change at an infinite intensity.
@@ -161,17 +161,19 @@ class MonteCarloKernel(BaseKernel):
         rows = self.table[sites]
         keywords = {
             name: value[:, None] if isinstance(value, np.ndarray) else value
-            for name, value in self.arguments.values(x, p, sites).items()
+            for name, value in self.arguments.get_values(x, p, sites).items()
         }
-        intensity = self._intensity_of(keywords)
+        intensity = self._get_intensity_of(keywords)
         neighbours = np.append(values, self.target.space.fill)[rows]
         if self.bond is None:
             error_msg = f'The Monte Carlo laws of {self.owner} make cluster moves without the objective of a bond.'
             raise SolverError(error_msg)
-        bond = ExpressionPrinter._values_of(self.bond(0.0, values[sites][:, None], neighbours, *keywords.values()))[0]
+        bond = ExpressionPrinter._get_values_of(self.bond(0.0, values[sites][:, None], neighbours, *keywords.values()))[
+            0
+        ]
         bonds = np.broadcast_to(np.asarray(bond, dtype=float), rows.shape)
         with np.errstate(over='ignore'):
-            probability = 1.0 - np.exp(np.minimum(self._scaled(bonds, intensity), 0.0))
+            probability = 1.0 - np.exp(np.minimum(self._get_scaled(bonds, intensity), 0.0))
         added = (rows != self.target.size) & (rng.random(rows.shape) < probability)
         return np.unique(rows[added])
 
@@ -194,8 +196,8 @@ class MonteCarloKernel(BaseKernel):
 
     def _update(self, x: Array, p: Array, sites: Indices, rng: np.random.Generator) -> None:
         """Propose and accept moves at sites that do not neighbour each other."""
-        keywords = self.arguments.values(x, p, sites)
-        intensity = self._intensity_of(keywords)
+        keywords = self.arguments.get_values(x, p, sites)
+        intensity = self._get_intensity_of(keywords)
         values = x[self.target.start + sites]
         if self.sampler.kind == 'heat-bath':
             candidates = (
@@ -205,22 +207,22 @@ class MonteCarloKernel(BaseKernel):
             )
             objectives = np.stack(
                 [
-                    self._objective_change(x, values, sites, np.full(values.shape, value), keywords)
+                    self._get_objective_change(x, values, sites, np.full(values.shape, value), keywords)
                     for value in candidates
                 ],
             )
-            weights = np.exp(-self._scaled(objectives - objectives.min(axis=0), intensity))
+            weights = np.exp(-self._get_scaled(objectives - objectives.min(axis=0), intensity))
             cumulative = np.cumsum(weights / weights.sum(axis=0), axis=0)
             chosen = (rng.random(values.size) > cumulative).sum(axis=0)
             x[self.target.start + sites] = candidates[np.minimum(chosen, candidates.size - 1)]
             return
         proposal = self._propose(values, rng)
-        change = self._objective_change(x, values, sites, proposal, keywords)
+        change = self._get_objective_change(x, values, sites, proposal, keywords)
         with np.errstate(over='ignore'):
             if self.sampler.kind == 'metropolis':
-                probability = np.exp(-self._scaled(np.maximum(change, 0.0), intensity))
+                probability = np.exp(-self._get_scaled(np.maximum(change, 0.0), intensity))
             else:
-                probability = 1.0 / (1.0 + np.exp(self._scaled(change, intensity)))
+                probability = 1.0 / (1.0 + np.exp(self._get_scaled(change, intensity)))
         accepted = rng.random(values.size) < probability
         x[self.target.start + sites[accepted]] = proposal[accepted]
 
@@ -232,8 +234,8 @@ class MonteCarloKernel(BaseKernel):
     def _run(self, inputs: RunStateSpec | None) -> None:
         """Update the state vector of the state in place by one sweep of the lattice."""
         self.values_ = None
-        state = self._state_of(inputs)
-        x, p, rng = state.x, state.p, self._generator_of(state)
+        state = self._get_state_of(inputs)
+        x, p, rng = state.x, state.p, self._get_generator_of(state)
         self.time_ = state.t
         size = self.target.size
         if self.move.kind == 'cluster':

@@ -31,7 +31,7 @@ trajectory = simulate(system, observers=[observer], random_state=0)
 
 lam, sigma = 0.5, 0.3
 run = simulate(HasselmannSystem(), until=2000, random_state=1)
-anomaly = run.values('ocean.T')[100:]
+anomaly = run.get_values('ocean.T')[100:]
 lags = np.arange(80) * 0.1
 histogram = distribution(anomaly, kind='histogram', bins=40)
 edges, density = histogram.edges, histogram.density

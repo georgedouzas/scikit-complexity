@@ -32,7 +32,7 @@ trajectory = simulate(system, observers=[observer])
 fig, ax = plt.subplots(figsize=(6, 6))
 for x in np.linspace(0.2, 4.0, 16):
     run = simulate(BeamBeamMapSystem(x=x, y=0.0), until=1500)
-    ax.plot(np.ravel(run.values('particle.x')), np.ravel(run.values('particle.y')), ',')
+    ax.plot(np.ravel(run.get_values('particle.x')), np.ravel(run.get_values('particle.y')), ',')
 ax.set_xlabel('x')
 ax.set_ylabel('y')
 ax.set_title('Beam-beam map, nu = 0.3, c = 0.05')

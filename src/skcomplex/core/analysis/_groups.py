@@ -93,7 +93,7 @@ class _Expansion(BaseConfig[ProblemSpec, tuple[set[str], int]]):
         mapping = self._member_map(entry_names, member)
         mapping.update(
             {
-                reduction.symbol: self._value(reduction, member if reduction.weights is not None else None)
+                reduction.symbol: self._get_value(reduction, member if reduction.weights is not None else None)
                 for reduction in self.problem_.reductions
             },
         )
@@ -129,14 +129,14 @@ class _Expansion(BaseConfig[ProblemSpec, tuple[set[str], int]]):
         read = reduction.reads[item]
         nested = next((other for other in self.problem_.reductions if other.symbol == item), None)
         if nested is not None:
-            return self._value(nested, member if nested.weights is not None else None)
+            return self._get_value(nested, member if nested.weights is not None else None)
         if not read.per_member:
             return item
         if read.entry is None:
             return self.by_index_[(read.is_state, int(np.asarray(read.index)[member]))]
         return self._member_symbol(read.entry, read.column, member)
 
-    def _value(self, reduction: ReductionKernel, reader: int | None) -> Expression:
+    def _get_value(self, reduction: ReductionKernel, reader: int | None) -> Expression:
         """Return a reduction as an explicit expression of the member symbols.
 
         It is for one reader with weights.

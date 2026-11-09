@@ -50,9 +50,9 @@ peaks = []
 fig, (runs, response) = plt.subplots(1, 2, figsize=(10, 4))
 for w0 in starts:
     run = simulate(CarbonCycleSystem(w=w0))
-    peaks.append(run.values('ocean.c').max())
+    peaks.append(run.get_values('ocean.c').max())
     if w0 in starts[::7]:
-        runs.plot(run.times, run.values('ocean.c'), linewidth=1, label=f'w0 = {w0:.0f}')
+        runs.plot(run.times, run.get_values('ocean.c'), linewidth=1, label=f'w0 = {w0:.0f}')
 runs.set_xlabel('time')
 runs.set_ylabel('carbonate ion c (μmol/kg)')
 runs.set_title('Small and large perturbations')

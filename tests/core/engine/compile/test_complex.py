@@ -225,10 +225,10 @@ def test_complex_parameter_per_site_is_read_and_updated():
     c = np.arange(16).reshape(4, 4) * (1 + 1j)
     grid = FieldElement('grid', element=QuadraticElement, space=LatticeSpace((4, 4)), values={'c': c})
     trajectory = simulate(CompositeSystem(elements=[grid]), until=1, dt=1)
-    assert np.allclose(trajectory.lattice('grid.z')[1], c)
+    assert np.allclose(trajectory.get_lattice('grid.z')[1], c)
     grid.set_params(values={'c': np.full((4, 4), 2j)})
     trajectory = simulate(CompositeSystem(elements=[grid]), until=1, dt=1)
-    assert np.allclose(trajectory.lattice('grid.z')[1], 2j)
+    assert np.allclose(trajectory.get_lattice('grid.z')[1], 2j)
 
 
 def test_layout_of_real_systems_is_unchanged():
@@ -261,7 +261,7 @@ def test_harmonic_phase_turns_on_the_unit_circle():
         solver=ScipyODESolver(rtol=1e-12, atol=1e-12),
         dt=0.5,
     )
-    values = trajectory.values('osc.z')
+    values = trajectory.get_values('osc.z')
     assert values.dtype == np.complex128
     assert abs(values[-1] - np.exp(20j)) < 1e-8
     assert np.max(np.abs(np.abs(values) - 1)) < 1e-8
@@ -271,9 +271,9 @@ def test_harmonic_phase_turns_on_the_unit_circle():
 def test_real_state_reads_modulus_of_complex_state(backend):
     """Test that a real state updated with the modulus of a complex state holds it after every step."""
     trajectory = simulate(CompositeSystem(elements=[ReadoutElement('a')]), until=5, backend=backend(), dt=1)
-    assert trajectory.values('a.r').dtype == np.float64
-    assert np.allclose(trajectory.values('a.r')[1:], 2.0)
-    assert np.allclose(trajectory.values('a.z')[-1], 2 * np.exp(1.5j))
+    assert trajectory.get_values('a.r').dtype == np.float64
+    assert np.allclose(trajectory.get_values('a.r')[1:], 2.0)
+    assert np.allclose(trajectory.get_values('a.z')[-1], 2 * np.exp(1.5j))
 
 
 def test_complex_value_for_real_state_is_rejected():
@@ -400,7 +400,7 @@ def test_ode_solvers_match_split_form(solver):
     """Test that every ODE solver runs a complex law that is not holomorphic as it runs the split real form."""
     joined = simulate(CompositeSystem(elements=[StuartElement('o')]), until=5, solver=solver, dt=0.5)
     split = simulate(CompositeSystem(elements=[SplitStuartElement('o')]), until=5, solver=solver, dt=0.5)
-    assert np.max(np.abs(joined.values('o.z') - (split.values('o.u') + 1j * split.values('o.v')))) < 1e-8
+    assert np.max(np.abs(joined.get_values('o.z') - (split.get_values('o.u') + 1j * split.get_values('o.v')))) < 1e-8
 
 
 @pytest.mark.parametrize(
@@ -415,7 +415,7 @@ def test_stiff_steppers_match_split_form(solver, discretization):
     joined, split = _ginzburg_landau((16, 16), discretization)
     first = simulate(joined, until=5, solver=solver, dt=1.0)
     second = simulate(split, until=5, solver=solver, dt=1.0)
-    assert np.max(np.abs(first.values('m.A') - (second.values('m.u') + 1j * second.values('m.v')))) < 1e-8
+    assert np.max(np.abs(first.get_values('m.A') - (second.get_values('m.u') + 1j * second.get_values('m.v')))) < 1e-8
 
 
 def test_complex_and_split_ginzburg_landau_agree():
@@ -423,10 +423,10 @@ def test_complex_and_split_ginzburg_landau_agree():
     joined, split = _ginzburg_landau()
     first = simulate(joined, until=20, solver=ETDRK4Solver(dt=0.1), dt=1.0)
     second = simulate(split, until=20, solver=ETDRK4Solver(dt=0.1), dt=1.0)
-    amplitude = first.lattice('m.A')
+    amplitude = first.get_lattice('m.A')
     assert amplitude.shape == (21, 32, 32)
     assert amplitude.dtype == np.complex128
-    assert np.max(np.abs(amplitude - (second.lattice('m.u') + 1j * second.lattice('m.v')))) < 1e-10
+    assert np.max(np.abs(amplitude - (second.get_lattice('m.u') + 1j * second.get_lattice('m.v')))) < 1e-10
 
 
 def test_free_schrodinger_equation_keeps_the_norm():
@@ -446,13 +446,13 @@ def test_free_schrodinger_equation_keeps_the_norm():
         ],
     )
     trajectory = simulate(system, until=5, solver=ETDRK4Solver(dt=0.01), dt=0.5)
-    norms = (np.abs(trajectory.values('wave.psi')) ** 2).sum(axis=1)
+    norms = (np.abs(trajectory.get_values('wave.psi')) ** 2).sum(axis=1)
     assert np.max(np.abs(norms / norms[0] - 1)) < 1e-8
 
 
 def test_power_spectrum_rejects_complex_series():
     """Test that the power spectrum of a complex series names the real views to take first."""
-    values = simulate(CompositeSystem(elements=[PhaseElement('osc')]), until=5, dt=0.1).values('osc.z')
+    values = simulate(CompositeSystem(elements=[PhaseElement('osc')]), until=5, dt=0.1).get_values('osc.z')
     with pytest.raises(ValidationError, match=r'complex.*values\.real.*values\.imag.*np\.abs.*np\.angle'):
         spectrum(values)
     assert spectrum(values.real).power.size
@@ -521,7 +521,7 @@ def test_complex_equation_and_event_split_into_parts():
 
     solver = ScipyODESolver(rtol=1e-10, atol=1e-10)
     trajectory = simulate(CompositeSystem(elements=[OscillatorElement('o')]), until=3, solver=solver, dt=0.5)
-    assert np.allclose(trajectory.values('o.z'), np.exp(1j * trajectory.times), atol=1e-7)
+    assert np.allclose(trajectory.get_values('o.z'), np.exp(1j * trajectory.times), atol=1e-7)
 
 
 @pytest.mark.parametrize(
@@ -569,5 +569,5 @@ def test_complex_observable_is_complex():
     )
     observables = [ObservableSpec('double', _double), ObservableSpec('size', _size)]
     trajectory = simulate(system, until=0.5, dt=0.5, observables=observables)
-    assert trajectory.values('double')[0] == 6 + 8j
-    assert trajectory.values('size')[0] == 5.0
+    assert trajectory.get_values('double')[0] == 6 + 8j
+    assert trajectory.get_values('size')[0] == 5.0

@@ -40,7 +40,7 @@ responses = []
 for intensity in intensities:
     run = simulate(StochasticResonanceSystem(D=intensity), until=4000, solver=solver, dt=1.0, random_state=1)
     times = run.times
-    well = np.sign(run.values('particle.x'))
+    well = np.sign(run.get_values('particle.x'))
     responses.append(2 * np.abs(np.mean(well * np.exp(-2j * np.pi * 0.01 * times))))
 matching = 1 / (4 * np.log(50 * np.sqrt(2) / (2 * np.pi)))
 fig, ax = plt.subplots(figsize=(7, 4))

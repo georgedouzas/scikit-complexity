@@ -41,7 +41,7 @@ class InflowInteraction(RateInteraction):
 
 
 inflow = CompositeSystem(elements=[StockElement('tank')], interactions=[InflowInteraction('fill', stock='tank')])
-round(float(simulate(inflow, until=1, dt=0.1).values('tank.level')[-1]), 3)
+round(float(simulate(inflow, until=1, dt=0.1).get_values('tank.level')[-1]), 3)
 ```
 
 `_get_role` renames a role, here `target` to `stock`, in the symbolic form and the agent form alike. `_get_parameter`

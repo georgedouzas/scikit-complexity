@@ -43,7 +43,7 @@ for rho in loads:
         random_state=1,
         backend=NumbaBackend(),
     )
-    lengths = run.values('queues.n')[200:]
+    lengths = run.get_values('queues.n')[200:]
     counts = np.bincount(lengths.astype(int).ravel(), minlength=12)[:12]
     occupations[rho] = np.where(counts >= 100, counts / lengths.size, np.nan)
     means.append(lengths.mean())

@@ -100,8 +100,8 @@ class JerkElement(Element):
 def test_coupled_equations_conserve_energy():
     """Test that the double pendulum's coupled equations are solved jointly and conserve its energy."""
     trajectory = simulate(CompositeSystem(elements=[DoublePendulumElement('dp')]), until=10, solver=PRECISE, dt=0.05)
-    a, b = trajectory.values('dp.a'), trajectory.values('dp.b')
-    a_d1, b_d1 = trajectory.values('dp.a_d1'), trajectory.values('dp.b_d1')
+    a, b = trajectory.get_values('dp.a'), trajectory.get_values('dp.b')
+    a_d1, b_d1 = trajectory.get_values('dp.a_d1'), trajectory.get_values('dp.b_d1')
     energy = a_d1**2 + 0.5 * b_d1**2 + a_d1 * b_d1 * np.cos(a - b) - 2 * 9.81 * np.cos(a) - 9.81 * np.cos(b)
     assert np.abs(energy - energy[0]).max() < 1e-7 * abs(energy[0])
 
@@ -117,10 +117,10 @@ def test_third_order_jerk_is_bounded_and_chaotic():
     first = simulate(CompositeSystem(elements=[JerkElement('j')]), until=300, solver=PRECISE, dt=0.5)
     assert first.problem.states.names == ['j.x', 'j.x_d1', 'j.x_d2']
     second = simulate(CompositeSystem(elements=[JerkElement('j', x=1e-8)]), until=300, solver=PRECISE, dt=0.5)
-    x = first.values('j.x')
+    x = first.get_values('j.x')
     assert np.all(np.isfinite(x))
     assert np.abs(x).max() < 10
-    assert np.abs(x - second.values('j.x')).max() > 0.1
+    assert np.abs(x - second.get_values('j.x')).max() > 0.1
 
 
 def test_derivative_at_order_is_rejected_in_rates():
@@ -174,7 +174,7 @@ def test_residence_counts_the_steps_a_state_holds_its_value():
     group = GroupElement('toggles', element=ToggleElement, size=2, values={'held': [2.0, 1.0]})
     trajectory = simulate(CompositeSystem(elements=[group]), until=6)
     np.testing.assert_array_equal(
-        trajectory.values('toggles.x').T,
+        trajectory.get_values('toggles.x').T,
         [[0, 0, 0, 1, 1, 1, 0], [0, 0, 1, 1, 0, 0, 1]],
     )
 

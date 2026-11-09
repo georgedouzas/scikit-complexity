@@ -47,7 +47,7 @@ def test_pulses_fire_at_the_given_times():
     trajectory = _run(_dose(times=(1.0, 2.5)), 4.0)
     assert [event.time for event in trajectory.events] == pytest.approx([1.0, 2.5], abs=1e-6)
     expected = np.exp(-(4.0 - 2.5)) * (1 + np.exp(-1.5))
-    assert trajectory.values('body.c')[-1] == pytest.approx(expected, rel=1e-3)
+    assert trajectory.get_values('body.c')[-1] == pytest.approx(expected, rel=1e-3)
 
 
 def test_periodic_pulses_fire_a_given_number_of_times():
@@ -69,7 +69,7 @@ def test_pulses_on_a_group_set_every_member_from_its_own_state():
     dose = PulseInteraction('dose', target='bodies', reset={'c': lambda s: s.target.c + 1.0}, times=(1.0,))
     trajectory = simulate(CompositeSystem(elements=[bodies], interactions=[dose]), until=2.0, dt=0.25)
     expected = (np.array([0.0, 1.0, 2.0]) * np.exp(-1.0) + 1.0) * np.exp(-1.0)
-    np.testing.assert_allclose(trajectory.values('bodies.c')[-1], expected, rtol=1e-3)
+    np.testing.assert_allclose(trajectory.get_values('bodies.c')[-1], expected, rtol=1e-3)
 
 
 @pytest.mark.parametrize(

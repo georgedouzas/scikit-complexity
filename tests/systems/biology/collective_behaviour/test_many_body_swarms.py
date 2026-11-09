@@ -87,7 +87,7 @@ def test_swarm_moves_at_a_bounded_speed():
     """Test that the swarm with its defaults stays finite and near its preferred speed for 200 time units."""
     swarm = ManyBodyAlignmentSwarmSystem(40, random_state=0)
     trajectory = simulate(swarm, until=200.0, dt=1.0, backend=NumbaBackend())
-    positions, velocities = trajectory.values('agents.x'), trajectory.values('agents.x_d1')
+    positions, velocities = trajectory.get_values('agents.x'), trajectory.get_values('agents.x_d1')
     speeds = np.linalg.norm(velocities, axis=-1) / np.sqrt(swarm.alpha / swarm.beta)
     assert np.isfinite(positions).all()
     assert np.isfinite(velocities).all()

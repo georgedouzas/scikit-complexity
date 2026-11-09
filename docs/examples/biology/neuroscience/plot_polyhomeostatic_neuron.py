@@ -29,7 +29,11 @@ trajectory = simulate(PolyhomeostaticNeuronSystem(mu=0.2), observers=[observer])
 # input should approach the target `mu`, and the histogram of the late rates should be skewed towards low rates, like
 # the exponential target.
 
-x, gain, threshold = trajectory.values('neuron.x'), trajectory.values('neuron.a'), trajectory.values('neuron.b')
+x, gain, threshold = (
+    trajectory.get_values('neuron.x'),
+    trajectory.get_values('neuron.a'),
+    trajectory.get_values('neuron.b'),
+)
 rate = 1 / (1 + np.exp(-gain * (x - threshold)))
 window = round(2 * np.pi)
 running = np.convolve(rate, np.ones(window) / window, mode='same')

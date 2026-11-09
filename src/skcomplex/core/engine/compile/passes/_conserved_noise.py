@@ -44,23 +44,23 @@ class ConservedNoisePass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Set the outputs of the conserved noise laws."""
         compilation = self.compilation_
-        declarations = Compilation._required(compilation.layout, 'layout')
-        reduced = Compilation._required(compilation.reduced, 'reduced')
-        compilation.outputs = self._conserved_outputs(reduced, declarations)
+        declarations = Compilation._get_required(compilation.layout, 'layout')
+        reduced = Compilation._get_required(compilation.reduced, 'reduced')
+        compilation.outputs = self._get_conserved_outputs(reduced, declarations)
 
     @staticmethod
-    def _conserved_outputs(specs: Laws, declarations: DeclarationsSpec) -> dict[int, list[OutputSpec]]:
+    def _get_conserved_outputs(specs: Laws, declarations: DeclarationsSpec) -> dict[int, list[OutputSpec]]:
         """Return the outputs of every conserved noise law, by law identity.
 
         There is one process per link of its field.
         """
-        places = FieldLowering._field_entries(declarations)
+        places = FieldLowering._get_field_entries(declarations)
         outputs = {}
         for spec, laws in specs:
             for law in laws:
                 if isinstance(law, NoiseLaw) and law.conserved:
-                    targets = spec._target_references(law._get_targets()[0])
-                    outputs[id(law)] = ConservedNoisePass._law_outputs(
+                    targets = spec._get_target_references(law._get_targets()[0])
+                    outputs[id(law)] = ConservedNoisePass._get_law_outputs(
                         spec.owner,
                         law,
                         targets,
@@ -70,7 +70,7 @@ class ConservedNoisePass(BasePass):
         return outputs
 
     @staticmethod
-    def _amplitude(owner: str, law: NoiseLaw, references: Mapping[Expression, ReferenceSpec]) -> Expression:
+    def _get_amplitude(owner: str, law: NoiseLaw, references: Mapping[Expression, ReferenceSpec]) -> Expression:
         """Return the amplitude of a conserved noise.
 
         An amplitude that reads a state or is not symbolic raises an error.
@@ -144,7 +144,7 @@ class ConservedNoisePass(BasePass):
         return tables
 
     @staticmethod
-    def _law_outputs(
+    def _get_law_outputs(
         owner: str,
         law: NoiseLaw,
         targets: list[ReferenceSpec],
@@ -182,7 +182,7 @@ class ConservedNoisePass(BasePass):
                 A target is not a state of a finite-difference field on a square lattice, or the amplitude reads a
                 state.
         """
-        amplitude = ConservedNoisePass._amplitude(owner, law, references)
+        amplitude = ConservedNoisePass._get_amplitude(owner, law, references)
         outputs = []
         for reference in targets:
             place = places.get(reference.entry.name)
@@ -212,7 +212,7 @@ class ConservedNoisePass(BasePass):
         )
 
     @staticmethod
-    def _conserved_issue(record: CensusRecordSpec, components: Mapping[str, object]) -> IssueSpec | None:
+    def _get_conserved_issue(record: CensusRecordSpec, components: Mapping[str, object]) -> IssueSpec | None:
         """Return the issue of a conserved noise law outside a lattice field.
 
         The law drives a state outside a finite-difference lattice field.
@@ -233,15 +233,15 @@ class ConservedNoisePass(BasePass):
         return IssueSpec('noise-unsupported', record.path, message, fix)
 
     @staticmethod
-    def _conserved_issues(compilation: Compilation) -> list[IssueSpec]:
+    def _get_conserved_issues(compilation: Compilation) -> list[IssueSpec]:
         """Return the conserved noise laws that drive a state outside a lattice field.
 
         The field must be a finite-difference field on a lattice.
         """
-        components = {node.path: node.component for node in Compilation._required(compilation.nodes, 'nodes')}
-        records = Compilation._required(compilation.census, 'census').records
+        components = {node.path: node.component for node in Compilation._get_required(compilation.nodes, 'nodes')}
+        records = Compilation._get_required(compilation.census, 'census').records
         found = [
-            ConservedNoisePass._conserved_issue(record, components)
+            ConservedNoisePass._get_conserved_issue(record, components)
             for record in records
             if isinstance(record.law, NoiseLaw) and record.law.conserved
         ]

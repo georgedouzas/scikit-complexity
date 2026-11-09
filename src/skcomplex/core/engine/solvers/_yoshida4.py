@@ -134,7 +134,7 @@ class Yoshida4Solver(Solver):
         """
         size = problem.initial_state.size
         jacobian = problem.jacobian
-        pattern = None if jacobian is None else jacobian.pattern()
+        pattern = None if jacobian is None else jacobian.get_pattern()
         if pattern is None:
             error_msg = (
                 'Yoshida4Solver splits the states by the sparsity of the Jacobian, which the problem does not state. '
@@ -164,7 +164,7 @@ class Yoshida4Solver(Solver):
             names[entry.start : entry.start + entry.size] = entry.component_names
         return names
 
-    def _color(self, reads: list[set[int]]) -> list[int]:
+    def _get_color(self, reads: list[set[int]]) -> list[int]:
         """Return the block of every component, alternating along the reads.
 
         Unread components go to the first block.
@@ -193,7 +193,7 @@ class Yoshida4Solver(Solver):
         An error is raised when the states cannot be split.
         """
         reads = self._get_reads(problem)
-        colors = self._color(reads)
+        colors = self._get_color(reads)
         conflicts = [{item for item in items if colors[item] == colors[index]} for index, items in enumerate(reads)]
         worst = max(range(len(reads)), key=lambda index: len(conflicts[index]), default=None)
         if worst is not None and conflicts[worst]:
@@ -208,7 +208,7 @@ class Yoshida4Solver(Solver):
         second = [index for index, color in enumerate(colors) if color == 1]
         return np.array(first, dtype=np.int64), np.array(second, dtype=np.int64)
 
-    def _stage(self, time: float, state: Array, p: Array, rates: Array, substep: float) -> tuple[Array, Array]:
+    def _get_stage(self, time: float, state: Array, p: Array, rates: Array, substep: float) -> tuple[Array, Array]:
         """Return the state and rates after one velocity Verlet step of a length.
 
         The step starts from the rates at its start.
@@ -218,7 +218,7 @@ class Yoshida4Solver(Solver):
         state[self.second_] += substep / 2 * rates[self.second_]
         rates = drift(time, state, p)
         state[self.first_] += substep * rates[self.first_]
-        state = self._bounded(time + substep, state, p)
+        state = self._get_bounded(time + substep, state, p)
         rates = drift(time + substep, state, p)
         state[self.second_] += substep / 2 * rates[self.second_]
         return state, rates
@@ -265,6 +265,6 @@ class Yoshida4Solver(Solver):
         for index in range(n_steps):
             time = t + index * step
             for weight in WEIGHTS:
-                state, rates = self._stage(time, state, p, rates, weight * step)
+                state, rates = self._get_stage(time, state, p, rates, weight * step)
                 time += weight * step
         return state

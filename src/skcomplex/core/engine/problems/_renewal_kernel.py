@@ -20,13 +20,14 @@ from ._draw_kernel import DrawKernel
 from ._expression_printer import ExpressionPrinter
 from ._reference_spec import ReferenceSpec
 
+READ_SOURCES = frozenset({ReadKind.SINGLE, ReadKind.MEMBER})
+
+
 type MemberFunction = tuple[Callable[..., object], tuple[ReferenceSpec | str, ...]]
 """Function of the states and parameters of renewing members and of the values drawn for them, with its readers."""
 
 type Sampler = tuple[DrawSpec, MemberFunction]
 """DrawSpec of a renewal law with the function of its arguments."""
-
-_READ_SOURCES = frozenset({ReadKind.SINGLE, ReadKind.MEMBER})
 
 
 class RenewalKernel(BaseKernel):
@@ -130,9 +131,9 @@ class RenewalKernel(BaseKernel):
             if isinstance(reader, str):
                 arguments.append(drawn[reader])
                 continue
-            column = reader.column_of(x, p)
+            column = reader.get_column_of(x, p)
             arguments.append(column[fired] if reader.source is ReadKind.MEMBER else column)
-        values = ExpressionPrinter._values_of(compiled(times, *arguments))
+        values = ExpressionPrinter._get_values_of(compiled(times, *arguments))
         return [np.broadcast_to(np.asarray(value, dtype=float), fired.shape).copy() for value in values]
 
     def _sample(
@@ -154,13 +155,13 @@ class RenewalKernel(BaseKernel):
             values = self._evaluate(arguments, times, x, p, fired, drawn=drawn) if draw.arguments else []
             drawn[draw.name] = DrawKernel._sample_draw(draw, values, fired.size, rng)
 
-    def _sampled(self, times: Array, x: Array, p: Array, fired: Indices, *, rng: np.random.Generator) -> Array:
+    def _get_sampled(self, times: Array, x: Array, p: Array, fired: Indices, *, rng: np.random.Generator) -> Array:
         """Return the waiting times a function draws for the renewing members."""
         if self.sampler is None:
             error_msg = f'The renewal law {self.label} has no function of its waiting time.'
             raise ValidationError(error_msg)
         values = {
-            name: reader.column_of(x, p)[fired] if reader.source is ReadKind.MEMBER else reader.column_of(x, p)
+            name: reader.get_column_of(x, p)[fired] if reader.source is ReadKind.MEMBER else reader.get_column_of(x, p)
             for name, reader in (self.reads or {}).items()
         }
         found = self.sampler(rng, size=fired.size, t=times, **values)
@@ -184,7 +185,7 @@ class RenewalKernel(BaseKernel):
         waiting = (
             self._evaluate(self.waiting, times, x, p, fired, drawn=drawn)[0]
             if self.sampler is None
-            else self._sampled(times, x, p, fired, rng=rng)
+            else self._get_sampled(times, x, p, fired, rng=rng)
         )
         if not np.all(waiting >= 0):
             error_msg = (
@@ -199,8 +200,8 @@ class RenewalKernel(BaseKernel):
 
         It is drawn as if every member renewed at its time.
         """
-        state = self._state_of(inputs)
-        x, p, rng = state.x, state.p, self._generator_of(state)
+        state = self._get_state_of(inputs)
+        x, p, rng = state.x, state.p, self._get_generator_of(state)
         fired = np.arange(self.members, dtype=np.intp)
         times = np.full(self.members, state.t)
         drawn: Drawn = {}

@@ -126,7 +126,7 @@ def _system(*others):
 
 def _ode_solution(system):
     """Return the densities of the gain and loss equations at the horizon."""
-    return simulate(system, until=HORIZON, dt=HORIZON).values('wealth.x')[-1]
+    return simulate(system, until=HORIZON, dt=HORIZON).get_values('wealth.x')[-1]
 
 
 def _mean_error(system, particles, solution, replicates):
@@ -134,7 +134,7 @@ def _mean_error(system, particles, solution, replicates):
 
     def error(trajectory):
         """Return the L1 error of the last frame."""
-        return float(np.abs(trajectory.values('wealth.x')[-1] - solution).sum())
+        return float(np.abs(trajectory.get_values('wealth.x')[-1] - solution).sum())
 
     result = ensemble(
         system,
@@ -161,9 +161,9 @@ def test_particles_converge_to_the_ode_solution():
 def test_particles_keep_the_density_of_conservative_encounters():
     """Test that conservative encounters keep the number of particles, so the total density stays exact."""
     trajectory = simulate(_system(), until=2, dt=0.5, solver=KineticSolver(n=2000), random_state=1)
-    totals = np.asarray(trajectory.values('wealth.x')).sum(axis=1)
+    totals = np.asarray(trajectory.get_values('wealth.x')).sum(axis=1)
     np.testing.assert_allclose(totals, totals[0], rtol=1e-12)
-    assert np.all(np.asarray(trajectory.values('wealth.x')) >= 0)
+    assert np.all(np.asarray(trajectory.get_values('wealth.x')) >= 0)
 
 
 def test_particles_sample_proliferation_and_destruction():
@@ -178,7 +178,7 @@ def test_particles_sample_proliferation_and_destruction():
         time=ContinuousTime(),
     )
     trajectory = simulate(system, until=1, dt=1.0, solver=KineticSolver(n=50_000), random_state=2)
-    total = float(np.sum(trajectory.values('wealth.x')[-1]))
+    total = float(np.sum(trajectory.get_values('wealth.x')[-1]))
     assert total == pytest.approx(np.exp(0.4), rel=0.02)
 
 

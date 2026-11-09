@@ -124,11 +124,11 @@ class KineticSolver(Solver):
         super()._prepare(context)
         problem = self.problem_
         self._encounters = self._check_problem(problem).encounters
-        self.densities_ = self._densities(self._encounters)
+        self.densities_ = self._get_densities(self._encounters)
         self.mass_ = 0.0
         self._counts: dict[tuple[int, ...], IntArray] = {}
         self._sample(self.initial_state_)
-        self.initial_state_ = self._state(self.initial_state_)
+        self.initial_state_ = self._get_state(self.initial_state_)
 
     def _sample(self, x: Array) -> None:
         """Draw the particle counts of every density from a state.
@@ -145,7 +145,7 @@ class KineticSolver(Solver):
             weights = x[indices] / total if total > 0 else np.full(indices.size, 1 / indices.size)
             self._counts[tuple(indices.tolist())] = self.rng_.multinomial(count, weights).astype(np.int64)
 
-    def _state(self, x: Array) -> Array:
+    def _get_state(self, x: Array) -> Array:
         """Return a state with every density replaced by its empirical density."""
         state = x.copy()
         for indices in self.densities_:
@@ -158,7 +158,7 @@ class KineticSolver(Solver):
         field = self._counts[tuple(encounter.field.tolist())] * self.mass_
         test = self._counts[tuple(encounter.test.tolist())]
         candidates, fields, outcomes = encounter.entries
-        rates = encounter.weights(p) * field[fields]
+        rates = encounter.get_weights(p) * field[fields]
         totals = np.bincount(candidates, rates, minlength=counts.size)
         movers = self.rng_.binomial(counts, -np.expm1(-totals * step))
         bounds = np.searchsorted(candidates, np.arange(counts.size + 1))
@@ -174,14 +174,14 @@ class KineticSolver(Solver):
         field = self._counts[tuple(encounter.field.tolist())] * self.mass_
         test = self._counts[tuple(encounter.test.tolist())]
         candidates, fields, outcomes = encounter.entries
-        births = self.rng_.poisson(counts[candidates] * encounter.weights(p) * field[fields] * step)
+        births = self.rng_.poisson(counts[candidates] * encounter.get_weights(p) * field[fields] * step)
         np.add.at(test, outcomes, births)
 
     def _destroy(self, encounter: EncounterKernel, p: Array, step: float) -> None:
         """Remove the particles that encounters destroy in one step."""
         counts = self._counts[tuple(encounter.candidate.tolist())]
         field = self._counts[tuple(encounter.field.tolist())] * self.mass_
-        totals = -encounter.rate_matrix(p) @ field
+        totals = -encounter.get_rate_matrix(p) @ field
         counts -= self.rng_.binomial(counts, -np.expm1(-totals * step))
 
     def _apply_bilinear(self, encounter: EncounterKernel, p: Array, step: float) -> None:
@@ -189,7 +189,7 @@ class KineticSolver(Solver):
 
         Particles are removed from the first density.
         """
-        rates = encounter.rate_matrix(p)
+        rates = encounter.get_rate_matrix(p)
         if not np.any(rates < 0):
             self._proliferate(encounter, p, step)
             return
@@ -236,16 +236,16 @@ class KineticSolver(Solver):
         """
         if until <= t:
             return x
-        if not self._counts or not np.allclose(self._state(x), x, rtol=1e-12, atol=0.0):
+        if not self._counts or not np.allclose(self._get_state(x), x, rtol=1e-12, atol=0.0):
             self._sample(x)
         n_steps = max(1, math.ceil((until - t) / self.dt - 1e-12))
         step = (until - t) / n_steps
         for _ in range(n_steps):
             self._step(p, step)
-        return self._state(x)
+        return self._get_state(x)
 
     @staticmethod
-    def _densities(encounters: tuple[EncounterKernel, ...]) -> list[Indices]:
+    def _get_densities(encounters: tuple[EncounterKernel, ...]) -> list[Indices]:
         """Return the state indices of every density the encounters read or change.
 
         Each index appears once.

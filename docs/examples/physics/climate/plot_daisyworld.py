@@ -36,9 +36,9 @@ temperatures, whites, blacks = [], [], []
 for luminosity in luminosities:
     system_system = DaisyworldSystem(L=luminosity, white=0.05, black=0.05)
     run = simulate(system_system, until=200, dt=1.0)
-    temperatures.append(run.values('temperature')[-1] - 273.15)
-    whites.append(run.values('planet.white')[-1])
-    blacks.append(run.values('planet.black')[-1])
+    temperatures.append(run.get_values('temperature')[-1] - 273.15)
+    whites.append(run.get_values('planet.white')[-1])
+    blacks.append(run.get_values('planet.black')[-1])
 bare = (S * luminosities * 0.5 / sigma) ** 0.25 - 273.15
 fig, (climate, areas) = plt.subplots(1, 2, figsize=(10, 4))
 climate.plot(luminosities, bare, color='gray', linestyle='--', label='bare planet')

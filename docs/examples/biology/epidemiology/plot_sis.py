@@ -32,11 +32,11 @@ beta, gamma, total, i0 = 0.0003, 0.1, 1000.0, 10.0
 rate, level = beta * total - gamma, total - gamma / beta
 logistic = level / (1 + (level / i0 - 1) * np.exp(-rate * trajectory.times))
 fig, ax = plt.subplots(figsize=(7, 4))
-ax.plot(trajectory.times, trajectory.values('I.x'), label='infected, random run')
+ax.plot(trajectory.times, trajectory.get_values('I.x'), label='infected, random run')
 ax.plot(trajectory.times, logistic, '--', color='black', label='logistic solution')
 ax.axhline(level, color='grey', linestyle=':', label=f'endemic level {level:.0f}')
 ax.set_xlabel('time')
 ax.set_ylabel('infected')
-ax.set_title(f'Mean of the last 30 days: {trajectory.values("I.x")[-30:].mean():.0f} infected')
+ax.set_title(f'Mean of the last 30 days: {trajectory.get_values("I.x")[-30:].mean():.0f} infected')
 ax.legend()
 plt.show()

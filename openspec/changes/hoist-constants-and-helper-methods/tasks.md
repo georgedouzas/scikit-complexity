@@ -53,16 +53,16 @@ site in the whole tree.
 
 ## 4. Core engine
 
-- [ ] 4.1 In `engine/compile` and `engine/compile/passes`, rename the private constants, renaming `_MEMBERS` of
+- [x] 4.1 In `engine/compile` and `engine/compile/passes`, rename the private constants, renaming `_MEMBERS` of
   `_layout.py` to `HIDDEN_MEMBERS`, and make the helpers of `compile/_complex.py` static methods with verb names of
   `LowerComplexPass` that `ObservableEvaluator` and `ReductionLowering` call through it. Move `probe_laws` and its
   namespace helper into `engine/_utils.py` and remove `compile/_probe.py`. Verify the compile tests and
   `lint-imports` pass.
-- [ ] 4.2 In `engine/problems`, `engine/backends`, and `engine/solvers`, rename and hoist constants, keep every Numba
+- [x] 4.2 In `engine/problems`, `engine/backends`, and `engine/solvers`, rename and hoist constants, keep every Numba
   kernel and `step_count` as module functions after the constants, and move the plain Python helpers into their
   classes. Mark `HELPERS_FINGERPRINT` as a derived value. Verify the backend and solver tests pass and a Numba run
   recompiles once and then hits the cache.
-- [ ] 4.3 In `engine/runtime`, `engine/translators`, and `engine/viz`, rename and hoist constants and move the helpers
+- [x] 4.3 In `engine/runtime`, `engine/translators`, and `engine/viz`, rename and hoist constants and move the helpers
   that classes read. Keep the helpers of `simulate` that no class reads. Give the engine's methods verb names. Verify
   the runtime, translator, and viz tests pass with `skcomplex.core.engine` added to the checked packages.
 

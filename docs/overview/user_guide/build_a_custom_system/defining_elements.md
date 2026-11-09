@@ -116,7 +116,7 @@ decay = DecayElement('decay', variables=declared)
 faster = clone(decay).set_params(k=1.0)
 decay.get_value('k'), faster.get_value('k')
 system = CompositeSystem(elements=[decay], time=ContinuousTime())
-simulate(system, until=1.0, dt=0.1).values('decay.b')[-1]
+simulate(system, until=1.0, dt=0.1).get_values('decay.b')[-1]
 ```
 
 - `variables` maps every name to a `DeclaredVariableSpec`, which holds the initial value and a `StateSpec` or a
@@ -198,7 +198,7 @@ culled = CompositeSystem(
     elements=[PopulationElement('deer', n=60.0)],
     interactions=[CullInteraction('cull', target='deer')],
 )
-round(float(simulate(culled, until=20, dt=1.0).values('deer.n')[-1]))
+round(float(simulate(culled, until=20, dt=1.0).get_values('deer.n')[-1]))
 ```
 
 ## Functions as laws
@@ -241,7 +241,7 @@ class TankElement(Element):
 
 tanks = CompositeSystem(elements=[TankElement('a')], systems=[CompositeSystem('plant', elements=[TankElement('b')])])
 trajectory = simulate(tanks, until=2, dt=0.01)
-len(trajectory.events) > 0, trajectory.values('a.level')[-1] == trajectory.values('plant/b.level')[-1]
+len(trajectory.events) > 0, trajectory.get_values('a.level')[-1] == trajectory.get_values('plant/b.level')[-1]
 ```
 
 A function runs in Python, so on the Numba backend the laws of its kind fall back to Python with a `BackendWarning`.
@@ -279,7 +279,7 @@ class WalkerElement(TankElement):
 
 def walk(seed):
     system = CompositeSystem(elements=[WalkerElement('a')], time=DiscreteTime())
-    return simulate(system, until=5, random_state=seed).values('a.level')
+    return simulate(system, until=5, random_state=seed).get_values('a.level')
 
 
 np.array_equal(walk(1), walk(1))
@@ -302,7 +302,7 @@ class MedianElement(TankElement):
 shapes = []
 for element in (HerdElement, MedianElement):
     herd = CompositeSystem(elements=[GroupElement('herd', element=element, size=3, values={'level': [1.0, 2.0, 4.0]})])
-    shapes.append(simulate(herd, until=1, dt=0.01).values('herd.level').shape)
+    shapes.append(simulate(herd, until=1, dt=0.01).get_values('herd.level').shape)
 shapes
 ```
 
@@ -315,7 +315,7 @@ class DoublerElement(TankElement):
 
 
 doubling = simulate(CompositeSystem(elements=[DoublerElement('a')]), until=10, random_state=0)
-float(np.log2(doubling.values('a.level')[-1])).is_integer()
+float(np.log2(doubling.get_values('a.level')[-1])).is_integer()
 ```
 
 An observable can be a function of the time and the values too. The run records it at every frame.
@@ -327,7 +327,7 @@ def total_level(t, values):
 
 observables = [ObservableSpec('sum', function=total_level)]
 observed = simulate(CompositeSystem(elements=[TankElement('a')]), until=1, dt=0.5, observables=observables)
-observed.values('sum').shape
+observed.get_values('sum').shape
 ```
 
 Some laws need symbols by nature, and each says so when given a function.
@@ -427,7 +427,7 @@ PersonElement('ada').health, RotorElement('rotor').theta
 ```
 
 Values are stored as floats. Labels are stored as their index, and angles are wrapped into one turn after every frame.
-Trajectories return labels, so `trajectory.values('ada.health')` gives the names of the health states over time.
+Trajectories return labels, so `trajectory.get_values('ada.health')` gives the names of the health states over time.
 
 ## Complex states
 
@@ -462,7 +462,7 @@ class PhaseElement(Element):
         return [RateLaw(s.z, I * s.omega * s.z)]
 
 
-z = simulate(CompositeSystem(elements=[PhaseElement('osc')]), until=10, dt=0.5).values('osc.z')
+z = simulate(CompositeSystem(elements=[PhaseElement('osc')]), until=10, dt=0.5).get_values('osc.z')
 z.dtype == np.complex128, bool(np.allclose(np.abs(z), 1.0, atol=1e-4))
 ```
 

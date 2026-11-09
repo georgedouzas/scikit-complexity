@@ -219,7 +219,7 @@ class MetabolicNetworkElement(DeclaredElement):
                 terms.setdefault(metabolite, []).append(float(coefficient) * flux)
         return [sum(items[1:], items[0]) == 0 for items in terms.values()]
 
-    def _bounds(self, namespace: SimpleNamespace) -> list[Expression]:
+    def _get_bounds(self, namespace: SimpleNamespace) -> list[Expression]:
         """Return the lower and upper bound of every reaction, gated by its rule."""
         relations = []
         for reaction, spec in self.reactions.items():
@@ -257,7 +257,7 @@ class MetabolicNetworkElement(DeclaredElement):
                 The linear program law.
         """
         variables = [SR(getattr(namespace, self.flux_name(name))) for name in self.reactions]
-        constraints = [*self._balances(namespace), *self._bounds(namespace)]
+        constraints = [*self._balances(namespace), *self._get_bounds(namespace)]
         objectives = self._objectives(namespace)
         return [LinearProgramLaw(variables, constraints, objectives, infeasible=self.infeasible)]
 

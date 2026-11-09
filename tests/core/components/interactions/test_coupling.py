@@ -141,7 +141,7 @@ def _oscillators(space, theta, omega, **arguments):
 def _phases(system, until, backend=None):
     """Return the phases of the oscillators at every unit of time."""
     trajectory = simulate(system, until=until, dt=1.0, solver=RK4Solver(dt=0.05), backend=backend)
-    return trajectory.values('oscillators.theta')
+    return trajectory.get_values('oscillators.theta')
 
 
 def _drift(system, path='oscillators.theta', backend=None):
@@ -371,7 +371,7 @@ def test_coupling_map_form_combines_with_parameters_and_time():
         combine=lambda s, reduction: (1 - s.lag) * s.member.u + s.lag * reduction + s.t,
     )
     system = CompositeSystem(elements=[cells], interactions=[coupling], time=DiscreteTime())
-    levels = simulate(system, until=1, dt=1).values('cells.u')[-1]
+    levels = simulate(system, until=1, dt=1).get_values('cells.u')[-1]
     np.testing.assert_allclose(levels, 0.5 * u + 0.25 * (np.roll(u, 1) + np.roll(u, -1)))
 
 
@@ -446,7 +446,7 @@ def test_coupling_map_form_combines_the_state_with_the_reduction():
         combine=lambda s, reduction: s.member.u + reduction,
     )
     system = CompositeSystem(elements=[cells], interactions=[coupling], time=DiscreteTime())
-    levels = simulate(system, until=1, dt=1).values('cells.u')[-1]
+    levels = simulate(system, until=1, dt=1).get_values('cells.u')[-1]
     np.testing.assert_allclose(levels, (np.roll(u, 1) + np.roll(u, -1) + u) / 3)
 
 
@@ -487,7 +487,7 @@ def test_coupling_map_form_aligns_a_vicsek_flock_at_low_noise():
         ObservableSpec('polarization', _polarization),
     ]
     trajectory = simulate(system, until=150.0, dt=1.0, random_state=0, observables=observables)
-    polarization = np.asarray(trajectory.values('polarization'), dtype=float)
+    polarization = np.asarray(trajectory.get_values('polarization'), dtype=float)
     assert polarization[0] < 0.2
     assert polarization[-1] > 0.9
 
@@ -539,7 +539,7 @@ def test_coupling_separate_elements_to_each_other():
     )
     system = CompositeSystem(elements=oscillators, interactions=[sine])
     trajectory = simulate(system, until=1.0, dt=0.01)
-    found = [trajectory.values(f'o{index}.theta')[-1] for index in range(3)]
+    found = [trajectory.get_values(f'o{index}.theta')[-1] for index in range(3)]
     expected = scipy.integrate.solve_ivp(
         lambda _, theta: np.sin(theta[None, :] - theta[:, None]).sum(axis=1),
         (0.0, 1.0),
@@ -565,7 +565,7 @@ def test_coupling_hub_by_largest_value_of_group():
     )
     system = CompositeSystem(elements=[cells, CellElement('hub')], interactions=[drive])
     trajectory = simulate(system, until=1.0, dt=0.1)
-    assert trajectory.values('hub.u')[-1] == pytest.approx(3.0)
+    assert trajectory.get_values('hub.u')[-1] == pytest.approx(3.0)
 
 
 def test_coupling_group_to_hub_element():
@@ -582,7 +582,7 @@ def test_coupling_group_to_hub_element():
     )
     system = CompositeSystem(elements=[cells, CellElement('hub', u=2.0)], interactions=[inhibition])
     trajectory = simulate(system, until=1.0, dt=0.1)
-    np.testing.assert_allclose(trajectory.values('cells.u')[-1], [-2.0, -1.0])
+    np.testing.assert_allclose(trajectory.get_values('cells.u')[-1], [-2.0, -1.0])
 
 
 def test_check_separate_elements_need_group_mode():

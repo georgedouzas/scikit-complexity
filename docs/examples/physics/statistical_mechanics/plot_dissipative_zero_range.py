@@ -58,7 +58,7 @@ starts = 2 ** np.arange(6) - 1
 fig, profile = plt.subplots(figsize=(6, 4))
 for alpha in (0.5, -2.0):
     run = simulate(DissipativeZeroRangeSystem(alpha=alpha), until=4000, random_state=0, backend=NumbaBackend())
-    quanta = run.values('nodes.n')[100:] > 0
+    quanta = run.get_values('nodes.n')[100:] > 0
     measured = [-np.log(quanta[:, start:stop].mean()) for start, stop in itertools.pairwise(starts)]
     profile.plot(levels, measured, 'o', label=f'simulation, alpha = {alpha}')
     profile.plot(levels, balance_profile(5, 2, alpha), color='black')

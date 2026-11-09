@@ -41,7 +41,7 @@ alone = simulate(LQRadiosensitizerSystem(Us=0.0), dt=0.25, until=40)
 
 def total(run):
     """Return the total tumour volume of a run."""
-    return sum(run.values(f'tumour.A{index}') for index in range(1, 7))
+    return sum(run.get_values(f'tumour.A{index}') for index in range(1, 7))
 
 
 fig, (bars, volume) = plt.subplots(1, 2, figsize=(10, 4))

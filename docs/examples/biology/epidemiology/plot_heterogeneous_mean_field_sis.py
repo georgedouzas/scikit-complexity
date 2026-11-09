@@ -32,7 +32,7 @@ trajectory = simulate(HeterogeneousMeanFieldSISSystem(lam=0.2), observers=[obser
 degrees = np.arange(3, 31)
 weights = degrees**-2.5 / np.sum(degrees**-2.5)
 threshold = np.sum(weights * degrees) / np.sum(weights * degrees**2)
-final = trajectory.values('network.rho')[-1]
+final = trajectory.get_values('network.rho')[-1]
 theta = np.sum(weights * degrees * final) / np.sum(weights * degrees)
 lam = 0.2
 fig, ax = plt.subplots(figsize=(7, 4))

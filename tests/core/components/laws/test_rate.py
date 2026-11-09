@@ -148,9 +148,9 @@ def test_initial_angular_velocity():
     """Test that a state of order 2 starts from its angle and its angular velocity, both recorded by path."""
     system = CompositeSystem(elements=[PendulumElement('bob', theta=0.1, theta_d1=0.5)])
     trajectory = simulate(system, until=1, dt=0.1)
-    assert trajectory.values('bob.theta')[0] == pytest.approx(0.1)
-    assert trajectory.values('bob.theta_d1')[0] == pytest.approx(0.5)
-    assert trajectory.values('bob.theta')[1] > 0.1
+    assert trajectory.get_values('bob.theta')[0] == pytest.approx(0.1)
+    assert trajectory.get_values('bob.theta_d1')[0] == pytest.approx(0.5)
+    assert trajectory.get_values('bob.theta')[1] > 0.1
 
 
 def test_first_order_unchanged():
@@ -170,7 +170,7 @@ def test_newton_superposition_of_separate_laws():
     omega = np.sqrt(8.0 / 2.0 - gamma**2)
     t = trajectory.times
     expected = np.exp(-gamma * t) * (np.cos(omega * t) + gamma / omega * np.sin(omega * t))
-    assert np.allclose(trajectory.values('mass.x'), expected, atol=1e-7)
+    assert np.allclose(trajectory.get_values('mass.x'), expected, atol=1e-7)
 
 
 def test_order_mismatch_is_rejected():
@@ -187,7 +187,7 @@ def test_velocity_verlet_runs_order_two_position():
     """Test that velocity Verlet recognises a position of order 2 and conserves the oscillator's energy."""
     system = CompositeSystem(elements=[MassElement('mass')], interactions=[SpringInteraction('spring', target='mass')])
     trajectory = simulate(system, until=10, solver=VelocityVerletSolver(dt=0.001), dt=0.1)
-    energy = 0.5 * 2.0 * trajectory.values('mass.x_d1') ** 2 + 0.5 * 8.0 * trajectory.values('mass.x') ** 2
+    energy = 0.5 * 2.0 * trajectory.get_values('mass.x_d1') ** 2 + 0.5 * 8.0 * trajectory.get_values('mass.x') ** 2
     assert np.allclose(energy, energy[0], rtol=1e-4)
 
 

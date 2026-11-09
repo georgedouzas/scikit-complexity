@@ -31,7 +31,7 @@ trajectory = simulate(system, dt=0.02, solver=SSPRKSolver(), observers=[observer
 # `vmax (1 - (rho_u + rho_d) / rho_max) = -0.1`, so its position should fall on a line of that slope from the middle of
 # the road.
 
-rho = trajectory.lattice('road.rho')
+rho = trajectory.get_lattice('road.rho')
 x = (np.arange(rho.shape[1]) + 0.5) / rho.shape[1]
 fronts = [x[np.argmax(row > 0.55)] for row in rho]
 fig, (profiles, front) = plt.subplots(1, 2, figsize=(10, 4))

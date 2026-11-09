@@ -34,7 +34,7 @@ def _run(current: float) -> np.ndarray:
     kinetics = FitzHughNagumoInteraction('kinetics', target='membrane', fast='u', slow='r', I=current)
     system = CompositeSystem(elements=[MembraneElement('membrane')], interactions=[kinetics])
     trajectory = simulate(system, dt=0.1, until=200.0)
-    return trajectory.values('membrane.u')[trajectory.times > 100.0]
+    return trajectory.get_values('membrane.u')[trajectory.times > 100.0]
 
 
 def test_fitzhugh_nagumo_interaction_fires_under_current_and_rests_without():

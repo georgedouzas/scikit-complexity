@@ -224,7 +224,7 @@ class ChaosGameSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _system_of(
+    def _get_system_of(
         label: str,
         maps: Sequence[AffineMap],
         weights: Sequence[float],
@@ -256,7 +256,7 @@ class ChaosGameSystem(BaseSystem):
         chosen_maps, preset_weights = (
             PRESETS[self.preset] if self.maps is None else (self.maps, (1.0,) * len(self.maps))
         )
-        return self._system_of(
+        return self._get_system_of(
             self.label,
             chosen_maps,
             self.weights if self.weights is not None else preset_weights,

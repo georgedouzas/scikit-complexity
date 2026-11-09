@@ -35,10 +35,10 @@ days = trajectory.times / 24
 
 def volume(run):
     """Return the total tumour volume of a run."""
-    return run.values('tumour.Ag') + run.values('tumour.As') + run.values('tumour.Am')
+    return run.get_values('tumour.Ag') + run.get_values('tumour.As') + run.get_values('tumour.Am')
 
 
-exposure = trajectory.values('tumour.X2')[-1] / 8.592 + 25 * trajectory.values('tumour.X3')[-1] / 8.592
+exposure = trajectory.get_values('tumour.X2')[-1] / 8.592 + 25 * trajectory.get_values('tumour.X3')[-1] / 8.592
 fig, (tumour, lymphocytes) = plt.subplots(1, 2, figsize=(10, 4))
 tumour.plot(days, volume(trajectory), label='tamoxifen')
 tumour.plot(days, volume(untreated), label='untreated')
@@ -46,8 +46,8 @@ tumour.set_xlabel('time (days)')
 tumour.set_ylabel('tumour volume (mm³)')
 tumour.set_title('Tamoxifen shrinks the tumour')
 tumour.legend()
-lymphocytes.plot(days, trajectory.values('tumour.E'), label='tamoxifen')
-lymphocytes.plot(days, untreated.values('tumour.E'), label='untreated')
+lymphocytes.plot(days, trajectory.get_values('tumour.E'), label='tamoxifen')
+lymphocytes.plot(days, untreated.get_values('tumour.E'), label='untreated')
 lymphocytes.axhline(0.121 / (0.012 + 0.010 * exposure), color='black', linestyle='--', label='treated balance')
 lymphocytes.set_xlabel('time (days)')
 lymphocytes.set_ylabel('circulating lymphocytes (millions)')

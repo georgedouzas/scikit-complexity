@@ -78,7 +78,7 @@ def test_composition_counts_agents_by_tuple():
 
 def test_history_keeps_reported_objects():
     """Test that the reports of a run keep an object at every frame."""
-    values = _queue_run().values('queues.longest')
+    values = _queue_run().get_values('queues.longest')
     assert values.dtype == object
     assert isinstance(values[-1], tuple)
 
@@ -131,7 +131,7 @@ def test_observable_keeps_a_hashable_value():
     group = GroupElement('queues', element=QueueElement, size=2, values={'orders': [(), (7,)]})
     system = CompositeSystem(elements=[group], time=DiscreteTime())
     trajectory = simulate(system, until=2, observables=observables, random_state=0)
-    assert trajectory.values('lengths')[0] == pytest.approx([0, 1])
+    assert trajectory.get_values('lengths')[0] == pytest.approx([0, 1])
 
 
 def _lengths(values):

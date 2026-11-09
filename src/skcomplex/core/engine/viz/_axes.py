@@ -84,7 +84,7 @@ class AxisVisual(BaseVisual):
             raise ValidationError(error_msg)
         super()._prepare(context)
 
-    def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return the 2D spatial view of the axes and the image.
 
         The sampled sites are found first.
@@ -105,7 +105,7 @@ class AxisVisual(BaseVisual):
                 The state is no tensor or vector state of a two-dimensional lattice.
         """
         name = str(getattr(element, 'states', {}).get(self.state))
-        shape = problem.lattice_shape(name)
+        shape = problem.get_lattice_shape(name)
         if shape is None or len(shape) != IMAGE_RANK or not problem.states.entry(name).member_shape:
             error_msg = f'{self.path}.{self.state} is no tensor or vector state of a two-dimensional lattice.'
             raise ValidationError(error_msg)
@@ -117,7 +117,7 @@ class AxisVisual(BaseVisual):
         self.sites_ = np.stack([rows.ravel(), columns.ravel()], axis=1)
         return [rrb.Spatial2DView(origin=f'{element.path}/{self.state}', name=self.state)]
 
-    def _segments(self, axes: Array) -> list[Array]:
+    def _get_segments(self, axes: Array) -> list[Array]:
         """Return the two ends of a segment through every sampled site.
 
         They are in pixels of the image.
@@ -140,19 +140,19 @@ class AxisVisual(BaseVisual):
                 The frame.
         """
         name = element.states[self.state]
-        values = np.asarray(frame.lattice(name), dtype=float)[self.sites_[:, 0], self.sites_[:, 1]]
+        values = np.asarray(frame.get_lattice(name), dtype=float)[self.sites_[:, 0], self.sites_[:, 1]]
         tensor = frame.problem.states.entry(name).tensor
         path = f'{element.path}/{self.state}'
         if tensor is not None:
             axes, _ = tensor.principal_of(values)
-            recording.log(f'{path}/axes', rr.LineStrips2D(self._segments(axes[:, :IMAGE_RANK])))
+            recording.log(f'{path}/axes', rr.LineStrips2D(self._get_segments(axes[:, :IMAGE_RANK])))
         else:
             centres = self.sites_[:, ::-1].astype(float)
             recording.log(f'{path}/axes', rr.Arrows2D(origins=centres, vectors=values[:, IMAGE_RANK - 1 :: -1]))
         if self.scalar is None:
             return
-        image = np.asarray(frame.lattice(element.states[self.scalar]), dtype=float)
-        colors = BaseVisual._palette_colors(image, float(image.min()), float(image.max()))
+        image = np.asarray(frame.get_lattice(element.states[self.scalar]), dtype=float)
+        colors = BaseVisual._get_palette_colors(image, float(image.min()), float(image.max()))
         height, width = image.shape
         recording.log(
             f'{path}/image',

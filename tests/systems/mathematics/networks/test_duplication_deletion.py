@@ -16,7 +16,7 @@ def test_duplication_deletion_settles_at_the_connectance_of_jensen():
     system = DuplicationDeletionSystem(n_nodes, inherit=inherit, parent=parent, new=new)
     trajectory = simulate(system, until=4000, random_state=0)
     frames = range(2000, 4001, 10)
-    connectance = [len(trajectory.network(frame).sources) / (n_nodes * (n_nodes - 1) / 2) for frame in frames]
+    connectance = [len(trajectory.get_network(frame).sources) / (n_nodes * (n_nodes - 1) / 2) for frame in frames]
     expected = (new * (n_nodes - 2) + parent) / (n_nodes - 1 + (new - inherit) * (n_nodes - 2))
-    assert {len(trajectory.network(frame).nodes) for frame in frames} == {n_nodes}
+    assert {len(trajectory.get_network(frame).nodes) for frame in frames} == {n_nodes}
     assert np.mean(connectance) == pytest.approx(expected, rel=0.15)

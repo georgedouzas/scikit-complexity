@@ -8,7 +8,7 @@ Each part builds only on the ones before it.
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.epidemiology import SIRSystem
 
-simulate(SIRSystem()).values('I.x').max().round()
+simulate(SIRSystem()).get_values('I.x').max().round()
 ```
 
 ## If you know scikit-learn

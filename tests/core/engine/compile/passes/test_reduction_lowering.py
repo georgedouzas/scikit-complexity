@@ -51,7 +51,7 @@ def _step(x, gain, function, reduce):
         form='map',
     )
     system = CompositeSystem(elements=[members], interactions=[coupling], time=DiscreteTime())
-    return simulate(system, until=1).values('members.x')[-1]
+    return simulate(system, until=1).get_values('members.x')[-1]
 
 
 def _separable(s):

@@ -203,7 +203,7 @@ def invariants(
         )
         raise AnalysisError(error_msg)
     dynamics = _dynamics_of(system)
-    namespace = ObservableEvaluator._namespace_of(dynamics.problem)
+    namespace = ObservableEvaluator._get_namespace_of(dynamics.problem)
     result = InvariantsResult(dynamics.problem, system, dynamics, namespace)
     if kind == 'brackets':
         pairs = _get_pairs(system, namespace, dynamics)

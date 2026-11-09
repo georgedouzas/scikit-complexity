@@ -312,7 +312,7 @@ class LeniaSystem(BaseSystem):
         self.kernels = kernels
 
     @staticmethod
-    def _initial_values(shape: tuple[int, ...], channels: int, initial: npt.ArrayLike | None) -> AnyArray:
+    def _get_initial_values(shape: tuple[int, ...], channels: int, initial: npt.ArrayLike | None) -> AnyArray:
         """Return the initial values of every channel, one array of the shape per channel."""
         if initial is None:
             if len(shape) != MIN_AXES or min(shape) < ORBIUM.shape[0]:
@@ -341,7 +341,7 @@ class LeniaSystem(BaseSystem):
                 f'Lenia needs two or more axes and one to three channels, but got {shape!r} and {self.channels!r}.'
             )
             raise ParameterError(error_msg)
-        values = self._initial_values(shape, self.channels, self.initial)
+        values = self._get_initial_values(shape, self.channels, self.initial)
         rings = (
             ((0, 0, 1.0, 1.0, tuple(self.beta), self.mu, self.sigma),) if self.kernels is None else tuple(self.kernels)
         )

@@ -31,7 +31,7 @@ trajectory = simulate(SchnakenbergSystem(random_state=0), dt=2.0, observers=[obs
 
 a, b, Du, Dv = 0.1, 0.9, 1.0, 40.0
 u0, v0 = a + b, b / (a + b) ** 2
-u = trajectory.lattice('cells.u')[-1]
+u = trajectory.get_lattice('cells.u')[-1]
 factor = spectrum(u, kind='structure-factor')
 q = np.linspace(0.01, 1.5, 300)
 growth = np.array(

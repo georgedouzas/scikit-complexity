@@ -107,7 +107,7 @@ def test_jacobian_against_finite_differences(laws):
     exact = problem.jacobian.prepare(problem).run(RunStateSpec(0.0, x, p)).values_.toarray()
     estimate = _finite_differences(problem, x, p)
     np.testing.assert_allclose(exact, estimate, atol=1e-6)
-    pattern = problem.jacobian.pattern().toarray()
+    pattern = problem.jacobian.get_pattern().toarray()
     assert pattern[np.abs(estimate) > 1e-9].all()
 
 
@@ -157,7 +157,7 @@ def test_pattern_is_omitted_above_the_limit():
     MemberElement = WideElement
     system = CompositeSystem(elements=[GroupElement('group', element=MemberElement, size=3000)])
     problem = PassCompiler().prepare(system).run().problem_
-    assert problem.jacobian.pattern() is None
+    assert problem.jacobian.get_pattern() is None
 
 
 class FisherKPPElement(Element):
@@ -230,7 +230,7 @@ def _fisher_line(size, boundary):
 @pytest.mark.parametrize(('boundary', 'entries'), [('zero-flux', 2998), ('periodic', 3000)])
 def test_stencil_pattern(boundary, entries):
     """Test that the three-point Laplacian gives a tridiagonal pattern, closed into a ring by periodic edges."""
-    pattern = PassCompiler().prepare(_fisher_line(1000, boundary)).run().problem_.jacobian.pattern()
+    pattern = PassCompiler().prepare(_fisher_line(1000, boundary)).run().problem_.jacobian.get_pattern()
     assert pattern.nnz == entries
     rows, columns = pattern.nonzero()
     assert set(np.abs(rows - columns)) <= ({0, 1, 999} if boundary == 'periodic' else {0, 1})
@@ -239,9 +239,9 @@ def test_stencil_pattern(boundary, entries):
 def test_mesh_pattern():
     """Test that the mesh pattern is the stiffness pattern with the diagonal on free nodes and empty fixed rows."""
     problem = PassCompiler().prepare(_reactive_mesh()).run().problem_
-    pattern = problem.jacobian.pattern().toarray()
+    pattern = problem.jacobian.get_pattern().toarray()
     grid = skfem.MeshTri.init_lshaped().refined(2)
-    stiffness = FieldLowering._mesh_laplacian(MeshSpace(grid.p, grid.t)).toarray() != 0
+    stiffness = FieldLowering._get_mesh_laplacian(MeshSpace(grid.p, grid.t)).toarray() != 0
     free = np.setdiff1d(np.arange(problem.initial_state.size), problem.constrained)
     assert problem.constrained.size
     assert not pattern[problem.constrained].any()
@@ -260,7 +260,7 @@ def test_pattern_agrees_with_split_solver(system):
     solver = IMEXEulerSolver().prepare(problem)
     solver._build_operator(problem.initial_parameters)
     operator = solver.sparse_
-    pattern = problem.jacobian.pattern().toarray()
+    pattern = problem.jacobian.get_pattern().toarray()
     assert pattern[operator.toarray() != 0].all()
 
 
@@ -271,7 +271,7 @@ def test_pattern_agrees_with_split_solver(system):
 )
 def test_run_time_couplings_are_dense(system, block):
     """Test that pair interactions and spectral operators give the dense block of their group or field."""
-    pattern = PassCompiler().prepare(system).run().problem_.jacobian.pattern().toarray()
+    pattern = PassCompiler().prepare(system).run().problem_.jacobian.get_pattern().toarray()
     assert pattern[:block, :block].all()
 
 
@@ -342,7 +342,7 @@ def test_exact_jacobian_of_callable_law_raises():
     problem = PassCompiler().prepare(system).run().problem_
     with pytest.raises(ValidationError, match=r"line.*jacobian='auto'"):
         problem.jacobian.prepare(problem)
-    assert problem.jacobian.pattern().toarray().all()
+    assert problem.jacobian.get_pattern().toarray().all()
 
 
 def _nonlocal_line(law, size=40, **settings):
@@ -373,10 +373,10 @@ def test_pattern_marks_inversions_dense_and_convolutions_within_their_radius():
     """Test that an inversion couples every site and a convolution of radius two the sites within two spacings."""
     system = _nonlocal_line(lambda s: partial(inverse_helmholtz(s.u, 1), 0))
     inverted = PassCompiler(backend=NumpyBackend()).prepare(system).run().problem_
-    assert inverted.jacobian.pattern().toarray().all()
+    assert inverted.jacobian.get_pattern().toarray().all()
     system = _nonlocal_line(lambda s: convolve(s.u, 1 + displacement(0) ** 2, 2 / 41))
     convolved = PassCompiler(backend=NumpyBackend()).prepare(system).run().problem_
-    rows, columns = convolved.jacobian.pattern().nonzero()
+    rows, columns = convolved.jacobian.get_pattern().nonzero()
     assert set(np.abs(rows - columns)) == {0, 1, 2}
 
 

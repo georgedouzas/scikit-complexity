@@ -9,7 +9,7 @@ from ..conftest import _run_until
 
 def _fates(trajectory) -> np.ndarray:
     """Return the distinct final states of the cells, rounded."""
-    final = np.c_[trajectory.values('cells.x')[-1], trajectory.values('cells.y')[-1]]
+    final = np.c_[trajectory.get_values('cells.x')[-1], trajectory.get_values('cells.y')[-1]]
     return np.unique(np.round(final, 2), axis=0)
 
 
@@ -22,7 +22,7 @@ def test_cells_split_among_three_fates_until_a_signal_removes_two():
 def test_lateral_inhibition_leaves_spaced_neural_cells():
     """Test that the ring ends with binary fates and neural cells at least four cell diameters apart."""
     for seed in range(3):
-        states = _run_until(BristleLateralInhibitionSystem(seed=seed), 60, dt=1.0).values('cells.a')[-1]
+        states = _run_until(BristleLateralInhibitionSystem(seed=seed), 60, dt=1.0).get_values('cells.a')[-1]
         assert np.all((states < 0.05) | (states > 0.95))
         neural = np.flatnonzero(states > 0.5)
         assert np.diff(np.r_[neural, neural[0] + states.size]).min() >= 4

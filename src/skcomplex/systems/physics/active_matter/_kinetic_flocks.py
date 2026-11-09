@@ -75,7 +75,7 @@ class AngularAlignmentInteraction(EncounterInteraction):
         noise: float = 0.5,
         state: str = 'x',
     ) -> None:
-        super().__init__(label, candidate=candidate, field=field, rate=self._rate, kernel=self._kernel, state=state)
+        super().__init__(label, candidate=candidate, field=field, rate=self._rate, kernel=self._get_kernel, state=state)
         self.angles = angles
         self.frequency = frequency
         self.noise = noise
@@ -98,7 +98,7 @@ class AngularAlignmentInteraction(EncounterInteraction):
         gaps = np.angle(np.exp(1j * (centres[None, None, :] - means[:, :, None])))
         return np.exp(-(gaps**2) / (2 * self.noise**2))
 
-    def _kernel(self, _: SimpleNamespace) -> npt.NDArray[np.float64]:
+    def _get_kernel(self, _: SimpleNamespace) -> npt.NDArray[np.float64]:
         """Return the probability of every outcome angle of every pair of angles.
 
         The outcome angles spread around the mean angle of the pair.
@@ -153,7 +153,7 @@ class AngularDiffusionInteraction(EncounterInteraction):
         noise: float = 0.5,
         state: str = 'x',
     ) -> None:
-        super().__init__(label, candidate=candidate, rate=self._rate, kernel=self._kernel, state=state)
+        super().__init__(label, candidate=candidate, rate=self._rate, kernel=self._get_kernel, state=state)
         self.angles = angles
         self.tumbling = tumbling
         self.noise = noise
@@ -162,7 +162,7 @@ class AngularDiffusionInteraction(EncounterInteraction):
         """Return the rate of the events."""
         return self.tumbling
 
-    def _kernel(self, _: SimpleNamespace) -> npt.NDArray[np.float64]:
+    def _get_kernel(self, _: SimpleNamespace) -> npt.NDArray[np.float64]:
         """Return the probability of every angle after an event at every angle."""
         centres = 2 * np.pi * (np.arange(self.angles) + 0.5) / self.angles
         gaps = np.angle(np.exp(1j * np.subtract.outer(centres, centres)))

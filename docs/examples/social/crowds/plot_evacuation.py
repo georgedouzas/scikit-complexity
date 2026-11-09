@@ -41,12 +41,12 @@ trajectory = simulate(system, until=20, dt=0.2, observers=[observer])
 # down more in encounters should take longer to leave.
 
 times = trajectory.times
-particles = simulate(system, until=20, dt=0.2, solver=KineticSolver(n=5000), random_state=0).values('evacuated')
+particles = simulate(system, until=20, dt=0.2, solver=KineticSolver(n=5000), random_state=0).get_values('evacuated')
 crowded = simulate(EvacuationSystem(crowding=8.0), until=20, dt=0.2)
 fig, ax = plt.subplots(figsize=(6, 4))
-ax.plot(times, trajectory.values('evacuated'), label='gain and loss equations')
+ax.plot(times, trajectory.get_values('evacuated'), label='gain and loss equations')
 ax.plot(times, particles, linestyle='--', label='5000 particles')
-ax.plot(times, crowded.values('evacuated'), label='equations, four times the crowding')
+ax.plot(times, crowded.get_values('evacuated'), label='equations, four times the crowding')
 ax.set_xlabel('time')
 ax.set_ylabel('evacuated fraction')
 ax.set_title('Evacuation of a building of seven rooms')

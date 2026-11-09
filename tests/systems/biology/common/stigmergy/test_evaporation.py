@@ -35,7 +35,7 @@ def test_evaporation_decays_every_cell_at_its_own_rate():
     evaporation = EvaporationInteraction('evaporation', target='marks', state='level', evaporation='rate')
     system = CompositeSystem(elements=[marks], interactions=[evaporation])
     trajectory = simulate(system, dt=0.001, until=1.0)
-    np.testing.assert_allclose(np.asarray(trajectory.values('marks.level'))[-1], np.exp(-rates), rtol=1e-3)
+    np.testing.assert_allclose(np.asarray(trajectory.get_values('marks.level'))[-1], np.exp(-rates), rtol=1e-3)
 
 
 def test_evaporation_rejects_a_rate_that_is_no_name():

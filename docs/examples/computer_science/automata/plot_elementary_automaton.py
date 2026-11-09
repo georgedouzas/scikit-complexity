@@ -28,8 +28,8 @@ trajectory = simulate(ElementaryAutomatonSystem(rule=30, size=201), observers=[o
 # live cells at generation `t` should be exactly `2^b(t)`, with `b(t)` the number of ones in the binary digits of `t`.
 # Rule 30 should instead fill its triangle with a density of live cells near 1/2.
 
-rule30 = trajectory.lattice('cells.alive')
-rule90 = simulate(ElementaryAutomatonSystem(rule=90, size=201)).lattice('cells.alive')
+rule30 = trajectory.get_lattice('cells.alive')
+rule90 = simulate(ElementaryAutomatonSystem(rule=90, size=201)).get_lattice('cells.alive')
 generations = np.arange(rule90.shape[0])
 fig, (counts, density) = plt.subplots(1, 2, figsize=(11, 4))
 counts.semilogy(generations, rule90.sum(axis=1), 'o', markersize=3, label='rule 90, simulated')

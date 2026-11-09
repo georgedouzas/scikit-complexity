@@ -32,7 +32,7 @@ chaotic = BarkleySystem(a=0.7, epsilon=0.08, gamma=3.0).prepare().system_
 chaos = simulate(chaotic, dt=4.0, solver=RK4Solver(dt=0.2), until=400)
 fig, (spiral, broken) = plt.subplots(1, 2, figsize=(11, 4.5))
 for ax, run, title in ((spiral, trajectory, 'gamma = 1'), (broken, chaos, 'gamma = 3')):
-    image = ax.imshow(run.lattice('medium.u')[-1], cmap='inferno', origin='lower', vmin=0, vmax=1)
+    image = ax.imshow(run.get_lattice('medium.u')[-1], cmap='inferno', origin='lower', vmin=0, vmax=1)
     ax.set_title(f'Excitation at t = 400, {title}')
     ax.set_xlabel('column')
     ax.set_ylabel('row')

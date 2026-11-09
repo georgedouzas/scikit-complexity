@@ -27,7 +27,7 @@ trajectory = simulate(ActiveWalkersSystem(size=30, n_walkers=20, random_state=0)
 # If the walkers spread evenly the wear of the green would be uniform, with a Gini coefficient near zero. As the
 # trails form and the walkers share them, the Gini coefficient of the trail field should settle well above that.
 
-trails = trajectory.lattice('land/ground.G')
+trails = trajectory.get_lattice('land/ground.G')
 concentration = [distribution(frame.ravel(), kind='gini').gini for frame in trails]
 fig, (image, inequality) = plt.subplots(1, 2, figsize=(11, 4.5))
 image.imshow(trails[-1], cmap='Greens', origin='lower')

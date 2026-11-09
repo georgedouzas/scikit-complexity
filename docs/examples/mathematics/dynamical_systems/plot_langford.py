@@ -37,7 +37,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=20)
 trajectory = simulate(LangfordSystem(), dt=0.01, observers=[observer])
-points = np.column_stack([trajectory.values(f'langford.{state}') for state in 'xyz'])[2000:]
+points = np.column_stack([trajectory.get_values(f'langford.{state}') for state in 'xyz'])[2000:]
 observer.recording_.log('attractor', rr.LineStrips3D([points], radii=0.004, colors=[230, 120, 60]), static=True)
 observer.recording_.flush()
 
@@ -51,7 +51,7 @@ observer.recording_.flush()
 fig, axes = plt.subplots(1, 2, figsize=(10, 4), sharex=True, sharey=True)
 for axis, f in zip(axes, (0.0, 0.1), strict=True):
     run = simulate(LangfordSystem(f=f), until=600, dt=0.01)
-    z = run.values('langford.z')[5000:]
+    z = run.get_values('langford.z')[5000:]
     maxima = z[find_peaks(z)[0]]
     axis.plot(maxima[:-1], maxima[1:], '.', markersize=3)
     axis.set_xlabel('maximum $z_n$')

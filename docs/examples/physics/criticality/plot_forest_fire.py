@@ -31,7 +31,7 @@ trajectory = simulate(system, until=598, observers=[observer], random_state=0)
 # well below that threshold, held there by the balance of growth and burning, with fluctuations from the fires.
 
 steady = simulate(ForestFireSystem(shape=(128, 128), growth=0.02, lightning=1e-5), until=5000, random_state=1)
-trees = (steady.values('forest.cover') == 1).mean(axis=1)
+trees = (steady.get_values('forest.cover') == 1).mean(axis=1)
 
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(trees, label='simulation, 128 x 128')

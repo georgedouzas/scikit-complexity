@@ -48,11 +48,11 @@ quadratic = (adjustment * perception, adjustment + perception, -margin)
 rate = max(np.roots(quadratic).real)
 times = np.asarray(trajectory.times)
 fig, (stocks, gap) = plt.subplots(1, 2, figsize=(10, 4))
-stocks.semilogy(times, trajectory.values('race.a'), label='first party')
-stocks.semilogy(times, trajectory.values('race.b'), label='second party')
+stocks.semilogy(times, trajectory.get_values('race.a'), label='first party')
+stocks.semilogy(times, trajectory.get_values('race.b'), label='second party')
 stocks.semilogy(
     times,
-    trajectory.values('race.a')[-1] * np.exp(rate * (times - times[-1])),
+    trajectory.get_values('race.a')[-1] * np.exp(rate * (times - times[-1])),
     ':',
     color='black',
     label='exp(r t)',
@@ -61,7 +61,7 @@ stocks.set_xlabel('years')
 stocks.set_ylabel('stock')
 stocks.set_title(f'Exponential growth at r = {rate:.4f}')
 stocks.legend()
-gap.plot(times, trajectory.values('race.b') / trajectory.values('race.a'))
+gap.plot(times, trajectory.get_values('race.b') / trajectory.get_values('race.a'))
 gap.set_xlabel('years')
 gap.set_ylabel('b / a')
 gap.set_title('The ratio of the stocks')

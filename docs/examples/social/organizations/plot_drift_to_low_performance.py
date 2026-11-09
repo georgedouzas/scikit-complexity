@@ -35,14 +35,14 @@ runs = {
 }
 fig, (performance, states) = plt.subplots(1, 2, figsize=(10, 4))
 for name, trajectory in runs.items():
-    performance.semilogy(trajectory.times, trajectory.values('performance.performance'), label=name)
+    performance.semilogy(trajectory.times, trajectory.get_values('performance.performance'), label=name)
 performance.set_xlabel('years')
 performance.set_ylabel('performance')
 performance.set_title('Drift down, hold, or drift up')
 performance.legend()
 trajectory = runs['eroding goals']
 for state in ('performance', 'perceived', 'desired'):
-    states.plot(trajectory.times, trajectory.values(f'performance.{state}'), label=state)
+    states.plot(trajectory.times, trajectory.get_values(f'performance.{state}'), label=state)
 states.set_xlabel('years')
 states.set_title('The goal follows the pessimistic view')
 states.legend()

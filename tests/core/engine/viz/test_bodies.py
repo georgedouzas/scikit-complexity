@@ -67,7 +67,9 @@ def test_bodies_visual_draws_double_pendulum():
     for frame in frames:
         visual.run(frame)
     element = problem.elements[0]
-    last = bobs(**{name: frames[-1].value(dotted) for name, dotted in {**element.parameters, **element.states}.items()})
+    last = bobs(
+        **{name: frames[-1].get_value(dotted) for name, dotted in {**element.parameters, **element.states}.items()},
+    )
     bodies = _points(logs.of('pendulum/bodies')[-1], 'positions')
     np.testing.assert_allclose(bodies, last * [1, -1])
     rods = _points(logs.of('pendulum/rods')[-1], 'strips')

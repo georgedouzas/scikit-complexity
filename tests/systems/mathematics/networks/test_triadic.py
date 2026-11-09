@@ -21,7 +21,7 @@ def _giant_fraction(mean_degree):
 
 def _giant(system, backend, until):
     """Return the fraction of nodes in the giant component after every time step of Millán et al., one step each."""
-    return simulate(system, until=until, backend=backend, random_state=0).values('nodes.active').mean(axis=1)
+    return simulate(system, until=until, backend=backend, random_state=0).get_values('nodes.active').mean(axis=1)
 
 
 def test_triadic_percolation_gives_every_link_one_regulator_among_the_other_nodes():

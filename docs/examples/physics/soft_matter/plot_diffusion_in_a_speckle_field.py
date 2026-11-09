@@ -60,7 +60,7 @@ for strength in (0.0, 30.0, 100.0):
         dt=0.25,
         random_state=1,
     )
-    positions = run.values('beads.x')[40:]
+    positions = run.get_values('beads.x')[40:]
     times = run.times[41:] - 10
     squared = np.mean(np.sum((positions[1:] - positions[0]) ** 2, axis=-1), axis=1)
     ax.loglog(times, squared, label=f'strength {strength:.0f}')

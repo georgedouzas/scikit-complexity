@@ -21,7 +21,7 @@ def test_sznajd_reaches_consensus_on_a_ring():
 def test_galam_minority_vanishes():
     """Test that a minority of 40% disappears after a few rounds of discussion in groups of three."""
     trajectory = _run(GalamMajoritySystem(300, share=0.4, random_state=0), 10)
-    assert trajectory.values('citizens.opinion')[-1].sum() == 0
+    assert trajectory.get_values('citizens.opinion')[-1].sum() == 0
 
 
 def test_social_impact_freezes_with_surviving_minority():

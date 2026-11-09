@@ -35,7 +35,7 @@ fig, (traces, intervals) = plt.subplots(1, 2, figsize=(11, 4))
 for offset, (label, (c, d)) in enumerate(patterns.items()):
     trajectory = simulate(IzhikevichSystem(c=c, d=d, I=10.0))
     spikes = np.array([event.time for event in trajectory.events if event.label == 'spike'])
-    traces.plot(trajectory.times, trajectory.values('neuron.v') - 120 * offset, label=label)
+    traces.plot(trajectory.times, trajectory.get_values('neuron.v') - 120 * offset, label=label)
     intervals.plot(np.diff(spikes), 'o-', label=label)
 traces.set_xlabel('time (ms)')
 traces.set_ylabel('potential (mV, offset)')

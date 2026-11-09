@@ -14,7 +14,7 @@ def _largest(candidates: int) -> np.ndarray:
     """Return the share of nodes in the largest component after every edge added to isolated nodes."""
     system = ExplosivePercolationSystem(N_NODES, candidates=candidates)
     trajectory = simulate(system, until=int(0.96 * N_NODES), random_state=0)
-    return trajectory.values('nodes.size').max(axis=1) / N_NODES
+    return trajectory.get_values('nodes.size').max(axis=1) / N_NODES
 
 
 def test_explosive_percolation_jumps_abruptly_under_the_product_rule():

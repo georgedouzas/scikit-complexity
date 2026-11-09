@@ -58,14 +58,14 @@ rates = []
 for ratio in ratios:
     gas = BertinDrozGregoireSystem(positions=1, angles=ANGLES, density=ratio * TRANSITION)
     run = simulate(gas, until=10, solver=solver, dt=10.0, observables=observables)
-    order = run.values('polar_order')
+    order = run.get_values('polar_order')
     rates.append(np.log(order[-1] / order[0]) / 10)
 above = ratios[ratios > 1]
 orders = []
 for ratio in above:
     gas = BertinDrozGregoireSystem(positions=1, angles=ANGLES, density=ratio * TRANSITION, perturbation=0.5)
     run = simulate(gas, until=150, solver=solver, dt=150.0, observables=observables)
-    orders.append(run.values('polar_order')[-1])
+    orders.append(run.get_values('polar_order')[-1])
 grid = np.linspace(ratios[0], ratios[-1], 100)
 theory = 8 * 0.5 * (SURVIVAL - 2 / 3) * (grid - 1) * TRANSITION / np.pi
 

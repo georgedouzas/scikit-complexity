@@ -42,8 +42,8 @@ trajectory = simulate(system, observers=[observer], random_state=0)
 # 1, the static phase wave. Across the phase coupling `K`, the phase coherence should reach 1 for `K > 0`, the
 # synchronized disk, while `S±` and the coherence should all stay small for negative `K`, the asynchronous disk.
 
-positions = np.asarray(trajectory.values('units.x'))
-phases = np.asarray(trajectory.values('units.theta'))
+positions = np.asarray(trajectory.get_values('units.x'))
+phases = np.asarray(trajectory.get_values('units.theta'))
 history = np.array([order_parameters(position, phase) for position, phase in zip(positions, phases, strict=True)])
 couplings = [-1.0, -0.5, -0.1, 0.0, 0.5, 1.0]
 final = []
@@ -51,8 +51,8 @@ for K in couplings:
     run = simulate(SwarmalatorsSystem(n_units=60, J=1.0, K=K), until=60)
     final.append(
         order_parameters(
-            np.asarray(run.values('units.x'))[-1],
-            np.asarray(run.values('units.theta'))[-1],
+            np.asarray(run.get_values('units.x'))[-1],
+            np.asarray(run.get_values('units.theta'))[-1],
         ),
     )
 final = np.array(final)

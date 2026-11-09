@@ -17,7 +17,7 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 LotkaVolterraSystem().get_params()
-simulate(LotkaVolterraSystem(r=1.5, predators=5.0)).values('prey.x').max().round()
+simulate(LotkaVolterraSystem(r=1.5, predators=5.0)).get_values('prey.x').max().round()
 logistic = LotkaVolterraSystem().set_params(K=200.0)
 logistic.prepare().system_.interactions
 ```
@@ -36,7 +36,7 @@ from skcomplex.systems.biology.epidemiology import SIRSystem
 
 epidemic = SIRSystem(stochastic=True)
 tags = epidemic.get_tags()
-tags.laws, tags.randomness, simulate(epidemic, random_state=0).values('I.x').max()
+tags.laws, tags.randomness, simulate(epidemic, random_state=0).get_values('I.x').max()
 ```
 
 ### Run settings of a ready-made system
@@ -51,7 +51,7 @@ from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 settings = LotkaVolterraSystem().get_run_settings()
 settings['until'], settings['dt']
 trajectory = simulate(LotkaVolterraSystem(), until=20.0, dt=0.5, initial_state={'prey.x': 20.0})
-trajectory.times[-1], trajectory.values('prey.x')[0]
+trajectory.times[-1], trajectory.get_values('prey.x')[0]
 ```
 
 A new `initial_state` replaces the whole mapping that the class tuned, so repeat any tuned value you want to keep.
@@ -66,7 +66,7 @@ from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 trajectory = simulate(LotkaVolterraSystem(), until=30.0, dt=0.5, solver=RK4Solver(dt=0.01))
-trajectory.values('predators.x')[-1].round(3)
+trajectory.get_values('predators.x')[-1].round(3)
 ```
 
 States and parameters are named by their dotted path, such as `prey.x` and `predation.a`. The labels of the elements
@@ -125,7 +125,7 @@ landscape = CompositeSystem(
     interactions=[PredationInteraction('hunt', predator='forest/foxes', prey='meadow/rabbits', a=0.02, b=0.01)],
 )
 trajectory = simulate(landscape, until=10, dt=0.1)
-trajectory.values('meadow/rabbits.n')[-1].round(3)
+trajectory.get_values('meadow/rabbits.n')[-1].round(3)
 ```
 
 The interaction `hunt` sits in the outer system and binds `forest/foxes` and `meadow/rabbits` to its roles. States and
@@ -144,7 +144,7 @@ from skcomplex.systems.biology.epidemiology import SIRSystem
 island = LotkaVolterraSystem(label='island').prepare().system_
 town = SIRSystem(label='town').prepare().system_
 trajectory = simulate(CompositeSystem(systems=[island, town]), until=5, dt=0.1)
-trajectory.values('town/I.x')[-1].round(1)
+trajectory.get_values('town/I.x')[-1].round(1)
 ```
 
 To change what a ready-made system builds, rather than its values, subclass it, as the page

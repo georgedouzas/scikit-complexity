@@ -140,7 +140,7 @@ def test_random_mode_drives_a_stochastic_sandpile_to_a_stationary_density():
     """Test that random parcels of two grains on a bounded lattice settle at a mean height below the threshold."""
     space = LatticeSpace((20, 20), boundary='fixed')
     trajectory = _run(space, np.zeros(400), 2, 3000, share=1, mode='random', drive=_drop)
-    heights = trajectory.values('sites.height')
+    heights = trajectory.get_values('sites.height')
     assert heights.max() < 2
     assert 0.5 < heights[-1].mean() < 1.0
     assert max(event.size for event in trajectory.events) > 50

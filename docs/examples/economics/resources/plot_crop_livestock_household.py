@@ -41,16 +41,21 @@ trajectory = simulate(CropLivestockHouseholdSystem(), observers=[observer])
 
 years = np.asarray(trajectory.times)
 fig, (income, herd) = plt.subplots(1, 2, figsize=(10, 4))
-income.step(years, trajectory.values('household.income_from_crop'), where='post', label='income from crop')
-income.step(years, trajectory.values('household.income_from_livestock'), where='post', label='income from livestock')
-income.step(years, trajectory.values('household.wealth'), where='post', label='wealth')
+income.step(years, trajectory.get_values('household.income_from_crop'), where='post', label='income from crop')
+income.step(
+    years,
+    trajectory.get_values('household.income_from_livestock'),
+    where='post',
+    label='income from livestock',
+)
+income.step(years, trajectory.get_values('household.wealth'), where='post', label='wealth')
 income.set_xlabel('years')
 income.set_ylabel('money')
 income.set_title('Incomes and wealth')
 income.legend()
-herd.step(years, trajectory.values('household.purchase'), where='post', label='animals bought')
-herd.step(years, trajectory.values('household.sale'), where='post', label='animals sold')
-herd.step(years, trajectory.values('household.livestock'), where='post', label='herd')
+herd.step(years, trajectory.get_values('household.purchase'), where='post', label='animals bought')
+herd.step(years, trajectory.get_values('household.sale'), where='post', label='animals sold')
+herd.step(years, trajectory.get_values('household.livestock'), where='post', label='herd')
 herd.set_xlabel('years')
 herd.set_ylabel('animals')
 herd.set_title('The herd')

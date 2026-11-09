@@ -17,9 +17,11 @@ def test_spring_conserves_energy():
         space=ContinuousSpace(n_dim=2),
     )
     trajectory = simulate(system, until=5, solver=ScipyODESolver(rtol=1e-10, atol=1e-12), dt=0.1)
-    kinetic = 0.5 * (trajectory.values('a.x_d1') ** 2).sum(axis=1) + 0.5 * 2.0 * (trajectory.values('b.x_d1') ** 2).sum(
+    kinetic = 0.5 * (trajectory.get_values('a.x_d1') ** 2).sum(axis=1) + 0.5 * 2.0 * (
+        trajectory.get_values('b.x_d1') ** 2
+    ).sum(
         axis=1,
     )
-    distance = np.linalg.norm(trajectory.values('a.x') - trajectory.values('b.x'), axis=1)
+    distance = np.linalg.norm(trajectory.get_values('a.x') - trajectory.get_values('b.x'), axis=1)
     energy = kinetic + 0.5 * 3.0 * (distance - 1.0) ** 2
     assert np.allclose(energy, energy[0], rtol=1e-6)

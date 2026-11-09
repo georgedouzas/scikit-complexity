@@ -239,7 +239,7 @@ def test_laws_join_the_partition_of_their_target():
     land, village = PassCompiler().prepare(system).run().problem_.partitions
     assert (land.problem.form, village.problem.form) == (FormKind.ODE, FormKind.AGENT)
     assert [path for path, _ in village.problem.system_rules] == ['tend']
-    assert simulate(system, until=2, dt=1).values('land/soil.x')[-1] == pytest.approx(2 * 2)
+    assert simulate(system, until=2, dt=1).get_values('land/soil.x')[-1] == pytest.approx(2 * 2)
 
 
 def test_mixed_leaf_subsystem_names_itself():
@@ -285,15 +285,15 @@ def test_mix_across_subsystems_gives_partitions():
 def test_held_input_keeps_start_of_interval_value():
     """Test that an ODE reading a count of agents uses its value from the start of the synchronisation interval."""
     trajectory = simulate(_counting_system(3), until=2, solver=CoSimulationSolver(sync_dt=2), dt=2)
-    assert trajectory.values('land/soil.x')[-1] == pytest.approx(3 * 2)
-    assert trajectory.values('village/farmers_count.value').tolist() == [3.0, 12.0]
+    assert trajectory.get_values('land/soil.x')[-1] == pytest.approx(3 * 2)
+    assert trajectory.get_values('village/farmers_count.value').tolist() == [3.0, 12.0]
 
 
 def test_held_reduction_counts_agents():
     """Test that an ODE law reading the count of 12 agents sees the value 12 until the next synchronisation point."""
     trajectory = simulate(_counting_system(12), until=1, solver=CoSimulationSolver(), dt=1)
-    assert trajectory.values('village/farmers_count.value')[0] == 12
-    assert trajectory.values('land/soil.x')[-1] == pytest.approx(12)
+    assert trajectory.get_values('village/farmers_count.value')[0] == 12
+    assert trajectory.get_values('land/soil.x')[-1] == pytest.approx(12)
 
 
 @pytest.mark.parametrize(('reduction', 'expected'), [('sum', 3.0), ('mean', 1.0), ('max', 1.0)])
@@ -309,8 +309,8 @@ def test_held_reductions_of_agent_states(reduction, expected):
         ],
     )
     trajectory = simulate(system, until=1, dt=1)
-    assert trajectory.values(f'village/farmers_{reduction}.value')[0] == expected
-    assert trajectory.values('land/soil.x')[-1] == pytest.approx(1.0 + expected)
+    assert trajectory.get_values(f'village/farmers_{reduction}.value')[0] == expected
+    assert trajectory.get_values('land/soil.x')[-1] == pytest.approx(1.0 + expected)
 
 
 def test_held_reductions_of_one_group_share_an_element():
@@ -326,7 +326,9 @@ def test_held_reductions_of_one_group_share_an_element():
             CountingInteraction('third', target='land/dust', source='village/farmers'),
         ],
     )
-    paths = [path for path, _ in ObservableEvaluator._held_reductions_of(PassCompiler().prepare(system).run().problem_)]
+    paths = [
+        path for path, _ in ObservableEvaluator._get_held_reductions_of(PassCompiler().prepare(system).run().problem_)
+    ]
     assert paths == ['village/farmers_sum', 'village/farmers_count']
 
 
@@ -344,8 +346,8 @@ def test_reduction_of_element_group_reads_other_partition():
         interactions=[TallyInteraction('tally', target='ledger/tally', source='herds/herd')],
     )
     trajectory = simulate(system, until=1, dt=1)
-    assert ObservableEvaluator._held_reductions_of(PassCompiler().prepare(system).run().problem_) == []
-    assert trajectory.values('ledger/tally.k')[-1] == pytest.approx(6.0)
+    assert ObservableEvaluator._get_held_reductions_of(PassCompiler().prepare(system).run().problem_) == []
+    assert trajectory.get_values('ledger/tally.k')[-1] == pytest.approx(6.0)
 
 
 def test_held_observable_reduces_element_group():
@@ -363,8 +365,8 @@ def test_held_observable_reduces_element_group():
     )
     largest = ObservableSpec('herds/largest', group='herd', reduce=np.max, variable='x')
     trajectory = simulate(system, until=1, dt=1, observables=[largest])
-    assert trajectory.values('herds/largest.value')[0] == 3.0
-    assert trajectory.values('ledger/tally.k')[-1] == pytest.approx(3.0)
+    assert trajectory.get_values('herds/largest.value')[0] == 3.0
+    assert trajectory.get_values('ledger/tally.k')[-1] == pytest.approx(3.0)
 
 
 def test_subsystem_partitions_hold_reductions_of_agents():
@@ -418,8 +420,8 @@ def test_gauss_seidel_reads_already_advanced_values():
     )
     gauss_seidel = simulate(village_first, until=1, solver=CoSimulationSolver(), dt=1)
     jacobi = simulate(village_first, until=1, solver=CoSimulationSolver(scheme='jacobi'), dt=1)
-    assert gauss_seidel.values('land/soil.x')[-1] == pytest.approx(6)
-    assert jacobi.values('land/soil.x')[-1] == pytest.approx(3)
+    assert gauss_seidel.get_values('land/soil.x')[-1] == pytest.approx(6)
+    assert jacobi.get_values('land/soil.x')[-1] == pytest.approx(3)
 
 
 def test_unknown_scheme_raises_error():
@@ -450,7 +452,7 @@ def test_split_lotka_volterra_converges():
 def test_mixed_trajectory_holds_states_and_agents():
     """Test that a co-simulation trajectory returns ODE states per frame and agent states per agent."""
     trajectory = simulate(HarvestingSystem(5).prepare().system_, until=10, random_state=0)
-    assert trajectory.values('land/stock.n').shape == (11,)
+    assert trajectory.get_values('land/stock.n').shape == (11,)
     snapshot = trajectory.get_agents('village/farmers', 10)
     assert len(snapshot.values['wealth']) == 5
     assert np.all(snapshot.values['wealth'] > 0)
@@ -469,5 +471,5 @@ def test_live_parameter_reaches_partitions():
         until=30,
         schedule={'harvest.effort': lambda t: 0.05 if t < 12 else 0.0},
     )
-    stock = trajectory.values('land/stock.n')
+    stock = trajectory.get_values('land/stock.n')
     assert stock[-1] > stock[10]

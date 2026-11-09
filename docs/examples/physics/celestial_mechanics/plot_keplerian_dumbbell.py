@@ -32,7 +32,7 @@ simulation = simulate(system, observers=[observer])
 run = simulate(KeplerianDumbbellSystem(epsilon=0.3, spin=1.5), until=60, random_state=0)
 trajectory = run
 times = np.asarray(trajectory.times)
-u, theta_rate, phi_rate = (np.ravel(trajectory.values(f'dumbbell.{name}')) for name in ('u', 'theta_d1', 'phi_d1'))
+u, theta_rate, phi_rate = (np.ravel(trajectory.get_values(f'dumbbell.{name}')) for name in ('u', 'theta_d1', 'phi_d1'))
 inertia = 0.25 / 0.9 * 0.3**2
 orbit, spin = u**2 * theta_rate, inertia * phi_rate
 fig, ax = plt.subplots(figsize=(6, 4))

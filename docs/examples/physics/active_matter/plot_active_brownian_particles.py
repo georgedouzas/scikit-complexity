@@ -55,7 +55,7 @@ fig, ax = plt.subplots(figsize=(7, 4))
 for rotation, color in ((1.0, 'tab:blue'), (0.1, 'tab:orange')):
     system_r = ActiveBrownianParticlesSystem(n_particles=500, D_r=rotation, size=1e5, random_state=1)
     run = simulate(system_r, until=40, solver=solver, dt=0.1, random_state=1)
-    positions = run.values('swimmers.x')
+    positions = run.get_values('swimmers.x')
     times = run.times[1:]
     squared = np.mean(np.sum((positions[1:] - positions[0]) ** 2, axis=-1), axis=1)
     exact = 4 * 0.1 * times + 2 * 9 / rotation * (times - (1 - np.exp(-rotation * times)) / rotation)

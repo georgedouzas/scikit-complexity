@@ -42,7 +42,7 @@ fig, ax = plt.subplots(figsize=(7, 4))
 for noise, power, color in (('ito', 2, 'tab:blue'), ('stratonovich', 1, 'tab:orange'), ('anti-ito', 0, 'tab:green')):
     system_n = MultiplicativeNoiseSystem(n_particles=800, L=10.0, convention=noise)
     run = simulate(system_n, until=300, solver=solver, dt=0.1, random_state=1)
-    histogram = distribution(run.values('particles.x')[1500::20].ravel(), kind='histogram', bins=25)
+    histogram = distribution(run.get_values('particles.x')[1500::20].ravel(), kind='histogram', bins=25)
     edges, density = histogram.edges, histogram.density
     ax.stairs(density, edges, color=color, label=f'{noise}')
     expected = sigma**-power

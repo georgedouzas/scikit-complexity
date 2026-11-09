@@ -21,6 +21,6 @@ def test_lotka_volterra_oscillates():
         ],
     )
     trajectory = simulate(system, dt=0.1, until=50)
-    rabbits = trajectory.values('rabbits.x')
+    rabbits = trajectory.get_values('rabbits.x')
     assert rabbits.min() > 0
     assert rabbits.max() > 2 * rabbits.min()

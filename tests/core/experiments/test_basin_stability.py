@@ -11,7 +11,7 @@ BOUNDS = {'duffing.x': (-2.0, 2.0), 'duffing.x_d1': (-2.0, 2.0)}
 
 def side(trajectory):
     """Return the well an unforced double-well oscillator settles in."""
-    return 'right' if trajectory.values('duffing.x')[-1] > 0 else 'left'
+    return 'right' if trajectory.get_values('duffing.x')[-1] > 0 else 'left'
 
 
 def test_double_well_basins_are_symmetric():

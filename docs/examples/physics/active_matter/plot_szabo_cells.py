@@ -53,7 +53,7 @@ trajectory = simulate(system, backend=NumbaBackend(), observers=[observer], rand
 
 def order_of(trajectory, size):
     """Return the mean normalized velocity of the cells at every frame."""
-    moves = np.diff(trajectory.values('cells.x'), axis=0)
+    moves = np.diff(trajectory.get_values('cells.x'), axis=0)
     moves -= size * np.round(moves / size)
     return np.linalg.norm(moves.mean(axis=1) / np.diff(trajectory.times)[:, None], axis=-1)
 

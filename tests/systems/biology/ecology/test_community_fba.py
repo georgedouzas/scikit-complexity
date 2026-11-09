@@ -13,10 +13,10 @@ def _growth(**arguments):
     """Return the community growth and the growth of the members of a run."""
     trajectory = simulate(CommunityFBASystem(**arguments))
     members = [
-        float(trajectory.values(f'member_{position}.{GROWTH}')[0])
+        float(trajectory.get_values(f'member_{position}.{GROWTH}')[0])
         for position in range(len(arguments.get('knockouts', (0, 0))))
     ]
-    return float(trajectory.values('medium.objective_0')[0]), members
+    return float(trajectory.get_values('medium.objective_0')[0]), members
 
 
 def test_cross_feeding_mutants_grow_only_together():

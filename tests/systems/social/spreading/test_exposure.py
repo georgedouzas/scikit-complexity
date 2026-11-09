@@ -12,7 +12,7 @@ from ..conftest import _run
 
 def _prevalence(**settings) -> np.ndarray:
     """Return the share of infected participants at every frame of a run of 400 steps."""
-    return _run(HypergraphExposureSisSystem(**settings), 400, dt=1).values('participants.infected').mean(axis=1)
+    return _run(HypergraphExposureSisSystem(**settings), 400, dt=1).get_values('participants.infected').mean(axis=1)
 
 
 @pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
@@ -29,7 +29,9 @@ def test_hypergraph_exposure_sis_infects_with_the_probability_of_the_doses(backe
     runs = 200
     hits = np.zeros(60)
     for seed in range(runs):
-        hits += simulate(system, until=1, random_state=seed, dt=1, backend=backend).values('participants.infected')[1]
+        hits += simulate(system, until=1, random_state=seed, dt=1, backend=backend).get_values('participants.infected')[
+            1
+        ]
     error = np.sqrt(np.maximum(expected * (1 - expected), 0.01) / runs)
     assert np.all(np.abs(hits / runs - expected) < 4 * error)
 

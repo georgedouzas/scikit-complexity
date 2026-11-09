@@ -29,7 +29,7 @@ trajectory = simulate(MangroveSuccessionSystem(), observers=[observer], until=29
 # peak later, and Sundari should hold most of the mature forest.
 
 groups = ['keora', 'gewa', 'sundari']
-volumes = np.column_stack([trajectory.values(f'{group}.volume') for group in groups])
+volumes = np.column_stack([trajectory.get_values(f'{group}.volume') for group in groups])
 shares = volumes / np.maximum(volumes.sum(axis=1, keepdims=True), 1e-12)
 peaks = trajectory.times[np.argmax(volumes, axis=0)]
 fig, ax = plt.subplots(figsize=(8, 4))

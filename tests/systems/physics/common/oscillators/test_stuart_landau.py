@@ -22,12 +22,12 @@ def _run(**parameters):
 def test_amplitude_settles_at_the_limit_cycle(mu, kappa):
     """Test that the amplitude settles at `sqrt(mu / kappa)` for `mu > 0` and at 0 for `mu < 0`."""
     trajectory = _run(x=0.3, mu=mu, kappa=kappa)
-    radius = math.hypot(trajectory.values('z.x')[-1], trajectory.values('z.y')[-1])
+    radius = math.hypot(trajectory.get_values('z.x')[-1], trajectory.get_values('z.y')[-1])
     assert radius == pytest.approx(math.sqrt(max(mu, 0) / kappa), abs=1e-6)
 
 
 def test_twist_and_time_scale_set_the_frequency():
     """Test that the oscillator turns on its cycle at the frequency `tau (omega - beta mu)`."""
     trajectory = _run(x=1.0, mu=1.0, omega=2.0, beta=0.5, tau=2.0)
-    angle = np.unwrap(np.arctan2(trajectory.values('z.y'), trajectory.values('z.x')))
+    angle = np.unwrap(np.arctan2(trajectory.get_values('z.y'), trajectory.get_values('z.x')))
     assert angle[-1] - angle[0] == pytest.approx(2.0 * (2.0 - 0.5) * 40.0, rel=1e-6)

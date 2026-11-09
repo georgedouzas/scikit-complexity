@@ -159,10 +159,10 @@ def test_same_resistor_solves_for_the_current_or_the_voltage():
     """Test that a resistor gives the current under a voltage source and the voltage under a current source."""
     voltage = _run(_driven(VoltageSourceElement('source', V=2.0)))
     current = _run(_driven(CurrentSourceElement('source', current=2.0)))
-    assert np.allclose(voltage.values('load.p_i').ravel(), 0.5)
-    assert np.allclose(voltage.values('load.p_v').ravel(), 2.0)
-    assert np.allclose(current.values('load.p_v').ravel(), 8.0)
-    assert np.allclose(current.values('load.p_i').ravel(), 2.0)
+    assert np.allclose(voltage.get_values('load.p_i').ravel(), 0.5)
+    assert np.allclose(voltage.get_values('load.p_v').ravel(), 2.0)
+    assert np.allclose(current.get_values('load.p_v').ravel(), 8.0)
+    assert np.allclose(current.get_values('load.p_i').ravel(), 2.0)
 
 
 def test_divider_records_the_voltage_of_its_middle_node_at_every_frame():
@@ -182,22 +182,22 @@ def test_divider_records_the_voltage_of_its_middle_node_at_every_frame():
     )
     trajectory = _run(system)
     assert trajectory.times.size == 5
-    assert np.allclose(trajectory.values('lower.p_v').ravel(), 9.0)
-    assert np.allclose(trajectory.values('upper.n_v').ravel(), 9.0)
+    assert np.allclose(trajectory.get_values('lower.p_v').ravel(), 9.0)
+    assert np.allclose(trajectory.get_values('upper.n_v').ravel(), 9.0)
 
 
 def test_port_without_a_connection_has_a_zero_flow():
     """Test that the flow of an unconnected port is zero, which fixes the potential the element gives it."""
     trajectory = _run(CompositeSystem(elements=[OpenChannelElement('channel')]))
-    assert np.allclose(trajectory.values('channel.a_i').ravel(), 0.0)
-    assert np.allclose(trajectory.values('channel.a_v').ravel(), 1.0)
+    assert np.allclose(trajectory.get_values('channel.a_i').ravel(), 0.0)
+    assert np.allclose(trajectory.get_values('channel.a_v').ravel(), 1.0)
 
 
 def test_rate_law_reads_the_solution_of_an_algebraic_state():
     """Test that a rate law of an element reads its algebraic state as the solution of the equation of the state."""
     trajectory = _run(CompositeSystem(elements=[WatcherElement('watch')]), until=1.0, dt=0.5)
-    assert np.allclose(trajectory.values('watch.y').ravel(), [2.0, 2.5, 3.0])
-    assert trajectory.values('watch.x')[-1] == pytest.approx(2.5, rel=1e-4)
+    assert np.allclose(trajectory.get_values('watch.y').ravel(), [2.0, 2.5, 3.0])
+    assert trajectory.get_values('watch.x')[-1] == pytest.approx(2.5, rel=1e-4)
 
 
 def test_rate_law_reads_a_nonlinear_solution_through_a_call():
@@ -207,8 +207,8 @@ def test_rate_law_reads_a_nonlinear_solution_through_a_call():
     assert problem.has_callables
     trajectory = _run(system, until=1.0, dt=0.5)
     expected = [brentq(lambda y, t=t: y + np.exp(y) - 1 - t, -5, 5, xtol=1e-14) for t in (0.0, 0.5, 1.0)]
-    assert np.allclose(trajectory.values('watch.y').ravel(), expected, rtol=0, atol=1e-8)
-    assert trajectory.values('watch.x')[-1] > 0.0
+    assert np.allclose(trajectory.get_values('watch.y').ravel(), expected, rtol=0, atol=1e-8)
+    assert trajectory.get_values('watch.x')[-1] > 0.0
 
 
 def test_capacitor_discharges_through_a_nonlinear_block():
@@ -233,7 +233,7 @@ def test_capacitor_discharges_through_a_nonlinear_block():
         return brentq(lambda i: Is * (np.exp((u - R * i) / Vt) - 1) - i, 0.0, max(u / R, 1e-12), xtol=1e-14)
 
     solution = solve_ivp(lambda _, u: -current(u[0]) / C, (0.0, 0.2), [1.0], t_eval=trajectory.times, rtol=1e-8)
-    assert np.allclose(trajectory.values('tank.u').ravel(), solution.y[0], rtol=1e-3)
+    assert np.allclose(trajectory.get_values('tank.u').ravel(), solution.y[0], rtol=1e-3)
 
 
 def test_large_linear_block_is_solved_numerically():
@@ -264,7 +264,7 @@ def test_large_linear_block_is_solved_numerically():
     voltages = np.linalg.solve(matrix, right)
     trajectory = _run(system)
     for index, voltage in enumerate(voltages):
-        assert np.allclose(trajectory.values(f'shunt{index}.p_v').ravel(), voltage)
+        assert np.allclose(trajectory.get_values(f'shunt{index}.p_v').ravel(), voltage)
 
 
 def test_structurally_regular_singular_block_raises_an_error():
@@ -440,12 +440,15 @@ def test_coupled_problem_records_the_algebraic_states_of_its_partition():
     system = CompositeSystem(systems=[circuit, agents])
     trajectory = simulate(system, until=2, dt=1)
     assert trajectory.problem.form == FormKind.COUPLED
-    assert np.allclose(trajectory.values('circuit/load.p_v').ravel(), trajectory.values('circuit/tank.u').ravel())
-    assert trajectory.values('circuit/load.p_i')[-1] == pytest.approx(0.5 * np.exp(-0.5), rel=1e-3)
+    assert np.allclose(
+        trajectory.get_values('circuit/load.p_v').ravel(),
+        trajectory.get_values('circuit/tank.u').ravel(),
+    )
+    assert trajectory.get_values('circuit/load.p_i')[-1] == pytest.approx(0.5 * np.exp(-0.5), rel=1e-3)
 
 
 def test_noise_law_reads_a_symbolic_solution():
     """Test that a noise law reads an algebraic state as its solution."""
     system = CompositeSystem(elements=[VectorWatcherElement('watch', x=1.0)])
     trajectory = simulate(system, until=0.5, dt=0.1, random_state=0)
-    assert np.allclose(trajectory.values('watch.x').ravel(), 1.0)
+    assert np.allclose(trajectory.get_values('watch.x').ravel(), 1.0)

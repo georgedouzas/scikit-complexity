@@ -50,7 +50,7 @@ def _run(space, regions, score, *, until=200, intensity=1.0, neighborhood=None, 
     )
     sites = GroupElement('sites', element=SiteElement, space=space, values={'region': regions}, on='sites')
     system = CompositeSystem(elements=[sites], interactions=[copies], time=DiscreteTime())
-    values = simulate(system, until=until, random_state=seed).values('sites.region')
+    values = simulate(system, until=until, random_state=seed).get_values('sites.region')
     return np.rint(values.reshape(values.shape[0], -1)).astype(int)
 
 

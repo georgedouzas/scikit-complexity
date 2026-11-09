@@ -31,8 +31,8 @@ trajectory = simulate(PairFormationSISSystem(n=200, k=3), observers=[observer], 
 fig, ax = plt.subplots(figsize=(7, 4.5))
 for k in (1, 2, 4):
     run = simulate(PairFormationSISSystem(n=300, k=k), random_state=0, until=30)
-    ax.plot(run.times, run.values('people.i').mean(axis=1), label=f'k = {k}')
-ax.plot(trajectory.times, trajectory.values('people.i').mean(axis=1), ':', label='run above')
+    ax.plot(run.times, run.get_values('people.i').mean(axis=1), label=f'k = {k}')
+ax.plot(trajectory.times, trajectory.get_values('people.i').mean(axis=1), ':', label='run above')
 ax.set_xlabel('time')
 ax.set_ylabel('prevalence')
 ax.set_title('Concurrency raises the prevalence at a fixed contact rate')

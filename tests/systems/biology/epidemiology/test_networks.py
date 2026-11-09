@@ -20,14 +20,14 @@ def test_heterogeneous_mean_field_threshold():
     np.testing.assert_allclose(classes.values['P'], weights)
     below = _run_until(HeterogeneousMeanFieldSISSystem(lam=0.5 * threshold), 100, dt=1.0)
     above = _run_until(HeterogeneousMeanFieldSISSystem(lam=2 * threshold), 100, dt=1.0)
-    assert below.values('network.rho')[-1].max() < 1e-6
-    assert above.values('network.rho')[-1].min() > 1e-3
-    assert np.all(np.diff(above.values('network.rho')[-1]) > 0)
+    assert below.get_values('network.rho')[-1].max() < 1e-6
+    assert above.get_values('network.rho')[-1].min() > 1e-3
+    assert np.all(np.diff(above.get_values('network.rho')[-1]) > 0)
 
 
 def test_metapopulation_conserves_individuals_and_spreads():
     """Test that travellers conserve the total population and carry the epidemic to every node."""
     trajectory = _run_until(MetapopulationSystem(nx.path_graph(5), D=0.05), 200, dt=1.0)
-    totals = trajectory.values('cities.S') + trajectory.values('cities.I') + trajectory.values('cities.R')
+    totals = trajectory.get_values('cities.S') + trajectory.get_values('cities.I') + trajectory.get_values('cities.R')
     assert totals.sum(axis=1) == pytest.approx(np.full(len(totals), 5000.0))
-    assert trajectory.values('cities.R')[-1].min() > 100
+    assert trajectory.get_values('cities.R')[-1].min() > 100

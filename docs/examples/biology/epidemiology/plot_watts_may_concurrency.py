@@ -30,7 +30,7 @@ trajectory = simulate(WattsMayConcurrencySystem(tau=3.0), observers=[observer])
 fig, ax = plt.subplots(figsize=(7, 4.5))
 for tau in (0.25, 1.0, 3.0):
     run = simulate(WattsMayConcurrencySystem(tau=tau))
-    ax.plot(run.times, run.values('population.I'), label=f'tau = {tau}')
+    ax.plot(run.times, run.get_values('population.I'), label=f'tau = {tau}')
 ax.set_xlabel('time (years)')
 ax.set_ylabel('infectious fraction I')
 ax.set_title('The epidemic grows faster with longer partnerships')

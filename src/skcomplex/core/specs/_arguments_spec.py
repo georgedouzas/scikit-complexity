@@ -34,7 +34,7 @@ class ArgumentsSpec(BaseSpec):
     starts: tuple[int, ...] = ()
     sizes: tuple[int, ...] = ()
 
-    def values(self, x: Array, p: Array, sites: Indices | None = None) -> dict[str, Array | float]:
+    def get_values(self, x: Array, p: Array, sites: Indices | None = None) -> dict[str, Array | float]:
         """Return the values of the arguments, per-site values restricted to some sites.
 
         Args:

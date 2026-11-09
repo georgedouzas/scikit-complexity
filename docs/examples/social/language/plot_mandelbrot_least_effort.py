@@ -21,7 +21,7 @@ SYSTEM = 'mandelbrot_least_effort'
 system = MandelbrotLeastEffortSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 trajectory = simulate(system, until=1.0, observers=[observer])
-probabilities = trajectory.values('words.probability')[0]
+probabilities = trajectory.get_values('words.probability')[0]
 
 # %%
 # The exponent against the vocabulary

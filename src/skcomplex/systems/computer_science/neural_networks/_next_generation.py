@@ -188,7 +188,7 @@ class NextGenerationReservoirSystem(BaseSystem):
         solver = ScipyODESolver(method='RK23', rtol=LORENZ_RTOL, atol=LORENZ_ATOL)
         trajectory = simulate(system, until=LORENZ_TRANSIENT + step * (samples - 1), solver=solver, dt=step)
         values: Array = np.column_stack(
-            [np.asarray(trajectory.values(f'flow.{name}'), dtype=np.float64) for name in LORENZ_VARIABLES],
+            [np.asarray(trajectory.get_values(f'flow.{name}'), dtype=np.float64) for name in LORENZ_VARIABLES],
         )
         return values[-samples:]
 
