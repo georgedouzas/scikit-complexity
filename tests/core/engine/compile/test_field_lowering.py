@@ -13,6 +13,7 @@ from skcomplex.core.components.elements import Element, FieldElement, GroupEleme
 from skcomplex.core.components.laws import RateLaw, RuleLaw
 from skcomplex.core.components.laws.utils import (
     advection,
+    collision_integral,
     convolve,
     displacement,
     divergence,
@@ -26,10 +27,11 @@ from skcomplex.core.components.spaces import LatticeSpace, MeshSpace, NetworkSpa
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.problems._collision_kernel import CollisionKernel
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import AxisSpec, ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import AxisSpec, ParameterSpec, RunStateSpec, StateSpec, VisualSpec
 
 
 class HeatElement(Element):
@@ -714,3 +716,59 @@ def test_identical_operators_apply_once_per_evaluation(monkeypatch):
     assert np.allclose(np.ravel(problem.states.read(doubled, 'm.u')), expected)
     assert np.array_equal(problem.drift(0.0, state, parameters), first)
     assert len(transforms) == 6
+
+
+def _colliding_gas(kernel):
+    """Return a system of a gas on two velocity axes whose rate is its collision integral with a kernel."""
+
+    class GasElement(Element):
+        """Gas element whose density relaxes by binary collisions."""
+
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[object, StateSpec()] = 0.0,
+            nu: Annotated[object, ParameterSpec()] = 1.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
+            self.nu = nu
+
+        def _get_laws(self, s):
+            """Return the collision rate of the gas."""
+            return [RateLaw(s.x, collision_integral(s.x, lambda speed, cosine: kernel(speed, cosine, s.nu)))]
+
+    axes = [AxisSpec('vx', 8, -4.0, 4.0), AxisSpec('vy', 8, -4.0, 4.0)]
+    space = PhaseSpace(LatticeSpace((1,)), axes).prepare()
+    vx, vy = np.meshgrid(space.coordinates_['vx'], space.coordinates_['vy'], indexing='ij')
+    start = np.exp(-((vx - 1) ** 2 + vy**2) / 2) + np.exp(-((vx + 1) ** 2 + vy**2) / 2)
+    gas = FieldElement('gas', element=GasElement, space=space, values={'x': start[None]})
+    return System(elements=[gas]), start
+
+
+def test_collision_integral_of_maxwell_molecules_matches_the_fast_spectral_integral():
+    """Test that the kernel 1 / (2 pi) gives the fast spectral integral of the same constant within 1e-12."""
+    system, start = _colliding_gas(lambda speed, cosine, nu: 1 / (2 * pi))
+    problem = PassCompiler(backend=NumpyBackend()).prepare(system).run().problem_
+    rates = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
+    kernel = CollisionKernel((1, 8, 8), (1.0, 1.0), lambda speed, cosine: 1 / (2 * np.pi)).prepare()
+    expected = kernel.run(RunStateSpec(0.0, start.ravel(), np.zeros(0))).values_
+    np.testing.assert_allclose(rates, expected, rtol=1e-12, atol=1e-12)
+
+
+def test_collision_integral_takes_a_kernel_of_the_speed():
+    """Test that a kernel of the speed lowers and keeps the total density within 1e-12."""
+    system, _ = _colliding_gas(lambda speed, cosine, nu: speed / (2 * pi))
+    problem = PassCompiler(backend=NumpyBackend()).prepare(system).run().problem_
+    rates = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
+    assert np.abs(rates).max() > 0
+    assert abs(rates.sum()) < 1e-12
+
+
+def test_collision_integral_rejects_a_kernel_that_reads_a_parameter():
+    """Test that a kernel that reads a parameter raises an error that names the law and the parameter."""
+    system, _ = _colliding_gas(lambda speed, cosine, nu: nu / (2 * pi))
+    with pytest.raises(ValidationError, match=r'law of gas has a kernel that reads gas\.nu'):
+        PassCompiler(backend=NumpyBackend()).prepare(system).run()

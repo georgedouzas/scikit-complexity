@@ -17,7 +17,7 @@ from ...errors import ValidationError
 from ...specs import RoleSpec, Tags
 from ...types import ElementKind
 from ..laws import BaseLaw, BilinearLaw, RateLaw
-from ..laws.utils import collision
+from ..laws.utils import collision_integral
 from ..spaces import BaseSpace
 from ._interaction import Interaction
 
@@ -212,9 +212,7 @@ class EncounterInteraction(Interaction):
         candidate = getattr(self._get_member(namespace, 'candidate'), self.state)
         if self.cross_section is not None:
             factor = SR(1 if self.factor is None else self.factor(namespace))
-            return [
-                RateLaw(candidate, factor * collision(candidate), cross_section=self.cross_section, label=self.label),
-            ]
+            return [RateLaw(candidate, factor * collision_integral(candidate, self.cross_section), label=self.label)]
         if self.field is None:
             return self._linear_laws(candidate, namespace)
         field = getattr(self._get_member(namespace, 'field'), self.state)

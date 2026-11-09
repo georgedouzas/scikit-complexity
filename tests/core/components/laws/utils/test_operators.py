@@ -1,10 +1,11 @@
 """Test the differential and nonlocal operators of fields."""
 
 import pytest
-from sage.all__sagemath_symbolics import exp, var
+from sage.all__sagemath_symbolics import exp, pi, var
 
 from skcomplex.core.components.laws.utils import (
     INVERSION_BOUNDARIES,
+    collision_integral,
     convolve,
     displacement,
     inverse_helmholtz,
@@ -59,3 +60,13 @@ def test_shifted_holds_the_cubic_order():
     assert shifted(u, [0.5], order=3).operands() == [u, 0.5, 3]
     with pytest.raises(ValidationError, match='order of a shifted read'):
         shifted(u, [0.5], order=2)
+
+
+def test_collision_integral_keeps_its_kernel_in_the_call():
+    """Test that the integral calls the kernel once and keeps a constant or an expression of the speed."""
+    f = var('f')
+    constant = collision_integral(f, lambda speed, cosine: 1 / (2 * pi))
+    assert constant.operator().name() == 'collision_integral'
+    assert constant.operands() == [f, 1 / (2 * pi)]
+    speed = collision_integral(f, lambda speed, cosine: speed * cosine).operands()[1]
+    assert sorted(str(item) for item in speed.variables()) == ['collision_cosine', 'collision_speed']

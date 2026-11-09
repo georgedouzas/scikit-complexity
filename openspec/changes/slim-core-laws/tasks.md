@@ -79,10 +79,10 @@ when other agents run tests at the same time.
 
 ## 5. Collision integral
 
-- [ ] 5.1 Add `collision_integral(density, kernel)` to `laws/utils/_operators.py`, which calls the kernel with two
+- [x] 5.1 Add `collision_integral(density, kernel)` to `laws/utils/_operators.py`, which calls the kernel with two
   private real symbols and returns the unevaluated call, re-export it, and verify a doctest and a test
   in `tests/core/components/laws/utils/test_operators.py` show the call of a constant kernel
-- [ ] 5.2 In one step, remove `collision` and its re-export, remove `cross_section` from `RateLaw`, read the kernel
+- [x] 5.2 In one step, remove `collision` and its re-export, remove `cross_section` from `RateLaw`, read the kernel
   from the call in `FieldLowering._collision`, raise for a kernel that reads a state or a parameter, rename the
   operator in `PHASE_OPERATOR_NAMES`, make `PassCompiler._collision_issue` look for the call, and emit
   `RateLaw(candidate, factor * collision_integral(candidate, self.cross_section))` in `EncounterInteraction._get_laws`,

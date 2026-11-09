@@ -8,7 +8,7 @@ field turns it into numbers.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
 from sage.all__sagemath_symbolics import SR, Expression, function, oo, vector
 from sage.modules.free_module_element import FreeModuleElement
@@ -17,7 +17,9 @@ from ....errors import ValidationError
 
 laplacian = function('laplacian', nargs=1, latex_name=r'\nabla^2')
 partial = function('partial', nargs=2)
-collision = function('collision', nargs=1)
+COLLISION_INTEGRAL = function('collision_integral', nargs=2)
+COLLISION_SPEED = SR.symbol('collision_speed', domain='real')
+COLLISION_COSINE = SR.symbol('collision_cosine', domain='real')
 upwind = function('upwind', nargs=3)
 INVERSE_HELMHOLTZ = function('inverse_helmholtz')
 CONVOLVE = function('convolve', nargs=3)
@@ -164,6 +166,36 @@ def inverse_laplacian(expression: object) -> Expression:
         inverse_helmholtz(q, 0)
     """
     return INVERSE_HELMHOLTZ(SR(expression), SR(0))
+
+
+def collision_integral(density: object, kernel: Callable[[Expression, Expression], object]) -> Expression:
+    """Return the binary collision integral of a density with a collision kernel.
+
+    The integral is `Q(f, f)(v) = int int B(|g|, cos t) (f(v') f(v'*) - f(v) f(v*)) ds dv*` over the two velocity
+    axes of the phase space of the density, with the relative speed `|g|` and the cosine `cos t` of the deflection
+    angle. The kernel is called once with two real symbols for the speed and the cosine, and the call keeps its
+    expression, so a rate law that reads the integral needs no other argument. The kernel returns an expression of the
+    speed, the cosine, and numbers, written with Sage functions rather than NumPy functions.
+
+    Args:
+        density:
+            The symbol of a density on a phase space with two interval velocity axes.
+
+        kernel:
+            The function `B(speed, cosine)` of the collision kernel, such as `lambda speed, cosine: 1 / (2 * pi)` for
+            Maxwell molecules.
+
+    Returns:
+        integral:
+            The unevaluated call of the integral, which the compiler lowers to the fast spectral method.
+
+    Examples:
+        >>> from sage.all__sagemath_symbolics import pi, var
+        >>> from skcomplex.core.components.laws.utils import collision_integral
+        >>> collision_integral(var('f'), lambda speed, cosine: 1 / (2 * pi))
+        collision_integral(f, 1/2/pi)
+    """
+    return COLLISION_INTEGRAL(SR(density), SR(kernel(COLLISION_SPEED, COLLISION_COSINE)))
 
 
 def displacement(axis: int) -> Expression:
