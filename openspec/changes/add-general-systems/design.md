@@ -312,6 +312,43 @@ sum order, which chaotic systems such as the Chua circuit amplify within their r
 base, and the task records why. The mirrored tests of the module, with their doctests, must pass unchanged in their
 values.
 
+### The outcome of the rebases
+
+The exact comparison and the placement rule decided every system of the lists above. The tasks name the rebased
+systems per module. The systems below keep their base, for these reasons:
+
+- The trajectory differs in the last bits, as a sum order changes: `WattsMayConcurrencySystem`,
+  `GlycolysisOscillationsSystem`, `PulsedElectrochemicalReactorSystem`, `MixedModeChuaSystem`,
+  `MemristiveMixedModeOscillatorSystem`, `LangfordSystem`, `NoseHooverSystem`, `SprottMixedFlowSystem`,
+  `FractionalVanDerPolSystem`, `SaltzmanGlaciationSystem`, `Lorenz84System`, `IntrinsicInstabilitySystem`, and
+  `AlievPanfilovSystem`.
+- The element extends or is a shared element: `OptimalChemotherapySystem`, `OUDrivenRosslerSystem`,
+  `BrusselatorSystem`, and `HeatDiffusionSystem`, whose element also serves `HeatLShapeSystem`.
+- The build holds another interaction: `PolyhomeostaticNeuronSystem` and `WilsonCowanSystem` with a
+  `LeakyIntegrationInteraction`, `CoolingCoffeeSystem` and `HasselmannSystem` with a `RelaxationTimeInteraction`, and
+  `PiecewiseLinearIASSystem` with the switches of its therapy.
+- The build cannot be written as hooks without branching machinery: `ChuaSystem` chooses one of two element classes,
+  `CategorizedPurchasingPowerSystem` builds its observables from methods of its element and its states from the
+  feedback, `NextGenerationReservoirSystem` fits a reservoir whose maps increment the states, and
+  `KoopmanModelPredictiveControlSystem` joins two nested systems in continuous and discrete time.
+- The shape is not one element: `RotatingBallsOnRodsSystem`, `DelayedSIRSSystem`, `EigenQuasispeciesSystem`,
+  `JuliaSystem`, `MandelbrotSystem`, and `GregoireChateSystem`.
+- A map adds to its state: `CreativePhaseTransitionSystem`.
+- The trajectory names would change: `NanotubeGapJunctionExchangeSystem` and `TippingCascadeNetworkSystem` report the
+  names of their labelled couplings, `KuramotoOnNetworksSystem` reports the state of its edge group, and
+  `FoodReliefSystem` names the stages of its distributed delay after its element.
+- The element bounds its fields with boundary laws: `DirectedPercolationLangevinSystem`.
+- The transfers have several legs: `CommodityCycleSystem`, `CarDealerSystem`, `FisheryCapitalSystem`,
+  `HilsaFisherySystem`, `RiceFoodBalanceSystem`, `UndecidedFlowsSystem`, and the five system traps of social
+  organizations.
+- The rates outside the flows would add flow names: `CascadeClassifierSystem`, `RiceMillingSystem`, `SolidWasteSystem`,
+  `IrrigationSystem`, `CocoaSystem`, and `EnergyReturnSystem`.
+
+`KirmanExchangeRateSystem` declares that it draws, as its element did, so its randomness stays stochastic. A flow of
+`StockFlowSystem` takes a labelled `Source` or `Sink` in place of `None`, so the grain store keeps its suppliers and
+consumers. `LorenzElement`, which the Lorenz flow of mathematics and the chaotic synchronization of physics compose,
+moves by step 3 of the placement rule to `skcomplex.systems.general.flows`, and the copy of physics leaves.
+
 ## Risks / Trade-offs
 
 - [A rate moved from an element law into an interaction compiles to a different sum order] → The exact comparison

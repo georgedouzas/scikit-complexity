@@ -3,7 +3,8 @@
 `skcomplex.systems.general` holds the recipes that systems of several fields share, such as a nonnegative amount, a
 reaction, an agent that moves, or a market that matches buyers with sellers. Each recipe is written with the public
 parts of the core only, so it is also an example of how to build a part of your own. The package has one subpackage per
-concept, `elements`, `agents`, `matching`, `kinetics`, and `reactions`, and you import every recipe from its subpackage.
+concept, `elements`, `flows`, `agents`, `matching`, `kinetics`, `reactions`, and `dynamics`, and you import every recipe
+from its subpackage.
 The core never imports them, and the fields import them freely.
 
 ## Where a part goes
@@ -65,6 +66,20 @@ trajectory.values('stock.x')[-1], trajectory.values('point.x')[-1].tolist()
 - `PointElement` is a member with a vector state `x` of order 2 in a continuous space. Its first derivative is `x_d1`,
   so a backend such as LAMMPS reads the velocity of a point from its declared states.
 
+
+## Flows
+
+`LorenzElement` of `skcomplex.systems.general.flows` is the Lorenz flow, the convection model of mathematics and the
+response that a Rössler oscillator drives in the chaotic synchronization of physics.
+
+```python
+from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.general.flows import LorenzElement
+
+trajectory = simulate(CompositeSystem(elements=[LorenzElement('lorenz', rho=10.0)]), until=2.0, dt=1.0)
+trajectory.values('lorenz.z')
+```
 
 ## Reactions
 
