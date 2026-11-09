@@ -28,7 +28,7 @@ and its visuals are parts of the engine, beside those of every other kind.
 | rewriting | `ProductionLaw`, `SubstitutionLaw`, `WordElement`, `PatchElement` | the rewriting compiler, `RewritingSolver`, `GeometryVisual` |
 | operator | `GeneratorLaw`, `DissipatorLaw`, `HilbertSpec` | the operator compiler, `UnitarySolver`, `LindbladSolver`, `JumpTrajectoriesSolver` |
 | fields | `FieldElement`, `FluxLaw`, `MeshSpace`, `laplacian` and the other operators | the fields passes, `IMEXEulerSolver`, `CrankNicolsonSolver`, `SSPRKSolver` |
-| kinetics | `EncounterLaw`, `moment` | the encounter passes, `KineticSolver` |
+| kinetics | `BilinearLaw`, `moment` | the encounter passes, `KineticSolver` |
 | fractional | `StateSpec(order=...)` in `(0, 1)`, `NoiseLaw(..., hurst=)` | the fractional passes, `FractionalABMSolver`, `GrunwaldLetnikovSolver`, `FractionalEulerMaruyamaSolver` |
 | topology | `TopologyRequestSpec` | the topology passes |
 | particles | `PointElement`, `GradientInteraction`, `PairCouplingInteraction` | `VelocityVerletSolver`, `Yoshida4Solver`, `LammpsSolver` |

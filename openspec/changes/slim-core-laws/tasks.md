@@ -57,7 +57,7 @@ when other agents run tests at the same time.
   `tests/core/components/elements/test_density.py`, `tests/core/components/laws/utils/test_moments.py`, and
   `tests/core/engine/solvers/test_kinetics.py`, and verify `pytest tests/core tests/systems` passes for the kinetic
   systems with the trajectories they had
-- [ ] 3.4 Update `kinetic_systems_of_active_particles.md` and `kinds_of_dynamics.md`, and verify their markdown
+- [x] 3.4 Update `kinetic_systems_of_active_particles.md` and `kinds_of_dynamics.md`, and verify their markdown
   doctests pass
 - [ ] 3.5 Remove `KineticLaw` from `engine/types.py`, `_KINETIC_LAWS` and the `EncounterLaw` branches from the compile
   passes and `compile/_laws.py`, and `EncounterLaw` from the supports of `KineticSolver`, `RK4Solver`,
