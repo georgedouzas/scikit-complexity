@@ -34,53 +34,53 @@ record the trajectories with the script of 1.3, rebase the system, move the laws
 the element class and its export, and compare the trajectories. A system that differs keeps its base, and the task
 notes why. Verify each with the comparison and the mirrored tests and doctests of the module.
 
-- [ ] 3.1 biology: `ecology/_cell_quota.py` (`QuotaPhytoplanktonElement`), `ecology/_factories.py`
+- [x] 3.1 biology: `ecology/_cell_quota.py` (`QuotaPhytoplanktonElement`), `ecology/_factories.py`
   `PenaeidShrimpSystem` (`ShrimpElement`), `epidemiology/_concurrency.py` (`PartnershipEpidemicElement`),
   `epidemiology/_vaccination.py` (`VaccinatedPopulationElement`), `neuroscience/_populations.py`
   (`PolyhomeostaticNeuronElement`, `WilsonCowanElement`), `oncology/_antiangiogenic.py`,
   `oncology/_chemotherapy.py`, `oncology/_combination_therapy.py`, `oncology/_hormone_therapy.py`,
   `oncology/_optimal_therapy.py`, `physiology/_regulation.py`, `systems_biology/_networks.py`
   (`GlycolysisElement`, whose declared variables go to `_get_variables`)
-  Rebased: `DroopCellQuotaSystem`, `PenaeidShrimpSystem`, `SteerableFeedbackLoopSystem`, `VascularCorePeripherySystem`. Kept: `WattsMayConcurrencySystem` (trajectory differs in the last bits), `OptimalChemotherapySystem` (its element extends the shared `TumourImmuneChemotherapyElement`), `PolyhomeostaticNeuronSystem` and `WilsonCowanSystem` (their builds hold a `LeakyIntegrationInteraction`, another interaction). Left to do: `SIRVaccinationSystem`, `DrugResistanceSwitchingSystem`, `HER2TargetedTherapySystem`, `PiecewiseLinearIASSystem`, `GlycolysisOscillationsSystem`.
+  Rebased: `DroopCellQuotaSystem`, `PenaeidShrimpSystem`, `SteerableFeedbackLoopSystem`, `VascularCorePeripherySystem`, `SIRVaccinationSystem`, `DrugResistanceSwitchingSystem`, `HER2TargetedTherapySystem`. Kept: `WattsMayConcurrencySystem` and `GlycolysisOscillationsSystem` (trajectories differ in the last bits), `OptimalChemotherapySystem` (its element extends the shared `TumourImmuneChemotherapyElement`), `PolyhomeostaticNeuronSystem` and `WilsonCowanSystem` (their builds hold a `LeakyIntegrationInteraction`, another interaction), `PiecewiseLinearIASSystem` (its build holds the therapy switches, events of another interaction).
 - [x] 3.2 chemistry: `kinetics/_reactors.py` `PulsedElectrochemicalReactorSystem` (`PulsedElectrodeElement`)
   Kept: `PulsedElectrochemicalReactorSystem`, whose trajectory differs in the last bits.
-- [ ] 3.3 economics: `macroeconomics/_capital.py`, `macroeconomics/_optimal_growth.py`,
+- [x] 3.3 economics: `macroeconomics/_capital.py`, `macroeconomics/_optimal_growth.py`,
   `macroeconomics/_purchasing_power.py`, `markets/_prices.py`, `resources/_optimal_harvesting.py`
-  Rebased: `CapitalStockSystem`, `OptimalConsumptionSystem`, `RiccatiPricesSystem`, `OptimalHarvestingSystem`. Left to do: `CategorizedPurchasingPowerSystem`.
-- [ ] 3.4 engineering: `circuits/_circuits.py` (four systems), `circuits/_memristive_mixed_mode_oscillator.py`,
+  Rebased: `CapitalStockSystem`, `OptimalConsumptionSystem`, `RiccatiPricesSystem`, `OptimalHarvestingSystem`. Kept: `CategorizedPurchasingPowerSystem` (its observables come from methods of its element, and its states depend on the feedback).
+- [x] 3.4 engineering: `circuits/_circuits.py` (four systems), `circuits/_memristive_mixed_mode_oscillator.py`,
   `control/_control.py` (four systems), `mechatronics/_vibrating_table.py`, `power_systems/_electromechanics.py`
-  Rebased: `MemristorOscillatorSystem`, `TunnelDiodeOscillatorSystem`, `PendulumSwingUpSystem`, `PidLoopSystem`, `SatelliteTransferSystem`, `ThermostatSystem`, `VibratingTableSystem`, `FaradayDiskSystem`, `RegenerativeBrakingSystem`. Kept: `MixedModeChuaSystem` and `MemristiveMixedModeOscillatorSystem` (trajectories differ in the last bits). Left to do: `ChuaSystem`.
-- [ ] 3.5 mathematics: `dynamical_systems/_driven_flows.py`, `dynamical_systems/_flows.py` (eight systems, not the
+  Rebased: `MemristorOscillatorSystem`, `TunnelDiodeOscillatorSystem`, `PendulumSwingUpSystem`, `PidLoopSystem`, `SatelliteTransferSystem`, `ThermostatSystem`, `VibratingTableSystem`, `FaradayDiskSystem`, `RegenerativeBrakingSystem`. Kept: `MixedModeChuaSystem` and `MemristiveMixedModeOscillatorSystem` (trajectories differ in the last bits), `ChuaSystem` (its build chooses one of two element classes by its nonlinearity).
+- [x] 3.5 mathematics: `dynamical_systems/_driven_flows.py`, `dynamical_systems/_flows.py` (eight systems, not the
   Lorenz and Rössler systems), `dynamical_systems/_koopman.py`, `dynamical_systems/_normal_forms.py`,
   `dynamical_systems/_subcritical_forms.py`, `fractional_dynamics/_fractional.py` (fractional orders go to
   `_get_variables`)
-  Rebased: `FiniteTimeBlowUpSystem`, `HyperchaoticRosslerSystem`, `IkedaSystem`, `SprottJerkSystem`, `ThomasSystem`, `KoopmanSlowManifoldSystem`, the four normal forms, `FractionalLorenzSystem`, `FractionalOscillatorSystem`, `FractionalRelaxationSystem`. Kept: `LangfordSystem`, `NoseHooverSystem`, `SprottMixedFlowSystem`, `FractionalVanDerPolSystem` (trajectories differ in the last bits), `OUDrivenRosslerSystem` (its element extends the shared `RosslerElement`). Left to do: `SubcriticalHopfFormSystem`.
-- [ ] 3.6 physics: `celestial_mechanics/_spin_orbit.py`, `climate/_energy_balance.py` (Daisyworld and the energy
+  Rebased: `FiniteTimeBlowUpSystem`, `HyperchaoticRosslerSystem`, `IkedaSystem`, `SprottJerkSystem`, `ThomasSystem`, `KoopmanSlowManifoldSystem`, the four normal forms, `FractionalLorenzSystem`, `FractionalOscillatorSystem`, `FractionalRelaxationSystem`, `SubcriticalHopfFormSystem`. Kept: `LangfordSystem`, `NoseHooverSystem`, `SprottMixedFlowSystem`, `FractionalVanDerPolSystem` (trajectories differ in the last bits), `OUDrivenRosslerSystem` (its element extends the shared `RosslerElement`).
+- [x] 3.6 physics: `celestial_mechanics/_spin_orbit.py`, `climate/_energy_balance.py` (Daisyworld and the energy
   balance), `climate/_ice_ages.py`, `climate/_low_order.py`, `climate/_pollution.py`, `climate/_tipping_types.py`,
   `climate/_variability.py`, `heat/_cooling.py`, `mechanics/_accelerators.py` `FrictionOscillatorSystem`,
   `mechanics/_rotations.py`, `nonlinear_oscillators/_oscillators.py` (Adler, Duffing, Toda),
   `oceanography/_thermohaline.py`, `statistical_mechanics/_master_equations.py`
-  Rebased: `EnergyBalanceSystem`, `CarbonCycleSystem`, `VanDerPolIceAgesSystem`, `GeodynamoSystem`, `ENSOSystem`, `DuffingSystem`, `AdlerEquationSystem`, `StommelSystem`, `LandauRelaxationSystem`. Kept: `SaltzmanGlaciationSystem`, `Lorenz84System` (trajectories differ in the last bits), `CoolingCoffeeSystem`, `HasselmannSystem` (their builds hold a `RelaxationTimeInteraction`), `RotatingBallsOnRodsSystem` (two elements). Left to do: `RelativisticOrbitSystem`, `DaisyworldSystem`, `PopulationPollutionSystem`, `FrictionOscillatorSystem`, `ForcedTodaSystem`, `SuteraFraedrichTippingSystem`.
+  Rebased: `EnergyBalanceSystem`, `CarbonCycleSystem`, `VanDerPolIceAgesSystem`, `GeodynamoSystem`, `ENSOSystem`, `DuffingSystem`, `AdlerEquationSystem`, `StommelSystem`, `LandauRelaxationSystem`, `RelativisticOrbitSystem`, `DaisyworldSystem`, `PopulationPollutionSystem`, `FrictionOscillatorSystem`, `ForcedTodaSystem`, `SuteraFraedrichTippingSystem`. Kept: `SaltzmanGlaciationSystem`, `Lorenz84System` (trajectories differ in the last bits), `CoolingCoffeeSystem`, `HasselmannSystem` (their builds hold a `RelaxationTimeInteraction`), `RotatingBallsOnRodsSystem` (two elements).
 
 ## 4. Rebases onto DynamicalSystem in discrete time
 
 Same procedure as group 3, with `time='discrete'`.
 
-- [ ] 4.1 biology: `ecology/_factories.py` `FibonacciRabbitsSystem`, `ecology/_instability.py`,
+- [x] 4.1 biology: `ecology/_factories.py` `FibonacciRabbitsSystem`, `ecology/_instability.py`,
   `epidemiology/_recurrent.py`, `evolution/_prebiotic.py` `EigenQuasispeciesSystem`, `neuroscience/_synapses.py`
-  Rebased: `FibonacciRabbitsSystem`. Kept: `IntrinsicInstabilitySystem` (trajectory differs), `DelayedSIRSSystem` and `EigenQuasispeciesSystem` (several elements). Left to do: `AdaptrodeSystem`.
-- [ ] 4.2 computer science: `neural_networks/_next_generation.py`
-  Left to do: `NextGenerationReservoirSystem`, whose build branches.
-- [ ] 4.3 economics: `finance/_switching_exchange.py`, `innovation/_diversity.py`, `macroeconomics/_growth.py`,
+  Rebased: `FibonacciRabbitsSystem`, `AdaptrodeSystem`. Kept: `IntrinsicInstabilitySystem` (trajectory differs), `DelayedSIRSSystem` and `EigenQuasispeciesSystem` (several elements).
+- [x] 4.2 computer science: `neural_networks/_next_generation.py`
+  Kept: `NextGenerationReservoirSystem` (its build fits a reservoir, and its maps increment the states).
+- [x] 4.3 economics: `finance/_switching_exchange.py`, `innovation/_diversity.py`, `macroeconomics/_growth.py`,
   `resources/_crop_livestock.py`
-  Rebased: `MultiplierAcceleratorSystem`. Kept: `CreativePhaseTransitionSystem` (its map adds to the state, not replaces it). Left to do: `KirmanExchangeRateSystem`, `CropLivestockHouseholdSystem`.
-- [ ] 4.4 engineering: `control/_koopman.py`
-  Left to do: `KoopmanModelPredictiveControlSystem`, whose build branches.
-- [ ] 4.5 mathematics: `dynamical_systems/_maps.py` (thirteen maps), `fractals/_quadratic.py`
+  Rebased: `MultiplierAcceleratorSystem`, `KirmanExchangeRateSystem` (the system declares that it draws, as its element did), `CropLivestockHouseholdSystem`. Kept: `CreativePhaseTransitionSystem` (its map adds to the state, not replaces it).
+- [x] 4.4 engineering: `control/_koopman.py`
+  Kept: `KoopmanModelPredictiveControlSystem` (two nested systems in continuous and discrete time joined by a controller map).
+- [x] 4.5 mathematics: `dynamical_systems/_maps.py` (thirteen maps), `fractals/_quadratic.py`
   Rebased: the thirteen maps. Kept: `JuliaSystem`, `MandelbrotSystem` (a field of points on a lattice, not one element).
-- [ ] 4.6 physics: `active_matter/_flocks.py` `GregoireChateSystem`, `climate/_soil.py`, `criticality/_sandpiles.py`
+- [x] 4.6 physics: `active_matter/_flocks.py` `GregoireChateSystem`, `climate/_soil.py`, `criticality/_sandpiles.py`
   `SelfOrganizedBranchingSystem`, `mechanics/_accelerators.py` `BeamBeamMapSystem`, `statistical_mechanics/_urns.py`
-  Rebased: `SoilTemperatureSystem`, `BeamBeamMapSystem`, `SelfOrganizedBranchingSystem`. Kept: `GregoireChateSystem` (a group on a space, not one element). Left to do: `EhrenfestUrnSystem`.
+  Rebased: `SoilTemperatureSystem`, `BeamBeamMapSystem`, `SelfOrganizedBranchingSystem`, `EhrenfestUrnSystem`. Kept: `GregoireChateSystem` (a group on a space, not one element).
 
 ## 5. NetworkDynamicalSystem
 
@@ -95,13 +95,13 @@ Same procedure as group 3, with `time='discrete'`.
 
 Same procedure as group 3.
 
-- [ ] 6.1 biology: `physiology/_exchange.py`, `epidemiology/_networks.py` `MetapopulationSystem`,
+- [x] 6.1 biology: `physiology/_exchange.py`, `epidemiology/_networks.py` `MetapopulationSystem`,
   `epidemiology/_adaptive.py` `QuenchedMeanFieldSISSystem`
-  Left to do.
-- [ ] 6.2 physics: `climate/_tipping.py` `TippingCascadeNetworkSystem`, and `synchronization/_networks.py`
+  Rebased: `MetapopulationSystem`, `QuenchedMeanFieldSISSystem`, whose local equation sums its neighbours. Kept: `NanotubeGapJunctionExchangeSystem` (its coupling labelled `exchange` reports `exchange.*` names, and its graph and initial values share one random stream).
+- [x] 6.2 physics: `climate/_tipping.py` `TippingCascadeNetworkSystem`, and `synchronization/_networks.py`
   `KuramotoOnNetworksSystem` if its edge group holds no state its trajectory reports. `PhaseOscillatorElement` stays,
   as other systems compose it.
-  Left to do.
+  Kept: `TippingCascadeNetworkSystem` (its coupling labelled `coupling` reports `coupling.*` names), `KuramotoOnNetworksSystem` (its edge group reports `links.w`).
 - [x] 6.3 mathematics: `networks/_processes.py` `NetworkDiffusionSystem`. `PagerankSystem` keeps its base.
   Rebased: `NetworkDiffusionSystem`, whose local equation reads the graph Laplacian. `PagerankSystem` keeps its base.
 
