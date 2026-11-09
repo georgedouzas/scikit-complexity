@@ -51,7 +51,7 @@ list, then follow the link to its subsection.
   `EvolutionInteraction`, in [Choice and learning](#choice-and-learning).
 - Move agents, transfer amounts, create and remove agents, form groups, match partners, or rewire a network:
   `MovementInteraction`, `TransferInteraction`, `BirthDeathInteraction`, `GroupingInteraction`,
-  `MatchingInteraction`, `FeedbackInteraction`, and `TopologyInteraction`, in
+  `MatchingInteraction`, `PolicyRuleInteraction`, and `TopologyInteraction`, in
   [Agents, groups, and exchange](#agents-groups-and-exchange).
 - Place agents in three dimensions or in regions such as census tracts: `ContinuousSpace` and `MovementInteraction`,
   in [Agents in three dimensions and on region layers](#agents-in-three-dimensions-and-on-region-layers).
@@ -1284,16 +1284,16 @@ trajectory.agents('voters', 1).values['s'].tolist()
 by a state every step. It then calls `act(members, system)` on every group.
 
 Use `MatchingInteraction` to pair requesters with providers, such as buyers and sellers in a market, and
-`FeedbackInteraction` to set parameters from what happened in a round:
+`PolicyRuleInteraction` to set parameters from what happened in a round:
 
 ```python
-from skcomplex.core.components.interactions import FeedbackInteraction
+from skcomplex.systems.economics.common.policy import PolicyRuleInteraction
 from skcomplex.systems.general.matching import MatchingInteraction
 from skcomplex.systems.general.matching import QueueSpec, StableMatchingSpec
 
 queue = MatchingInteraction('queue', requesters='buyers', providers='sellers', rule=QueueSpec())
 stable = MatchingInteraction('stable', requesters='buyers', providers='sellers', rule=StableMatchingSpec())
-controller = FeedbackInteraction('controller', rule=lambda system: None, phase='policy')
+controller = PolicyRuleInteraction('controller', rule=lambda system: None, phase='policy')
 queue.reports, type(stable.rule).__name__, controller.phase
 ```
 
@@ -1311,7 +1311,7 @@ with providers by the algorithm its rule names, then moves the states of `transf
 - `StableMatchingSpec(requester_preference, provider_preference, value)`.
 
 The matching runs each algorithm as its own method, chosen by the type of its rule, so a new algorithm is a new spec
-and a method. A `FeedbackInteraction(rule)` reads observables once per round of its phase and sets parameters. The
+and a method. A `PolicyRuleInteraction(rule)` reads observables once per round of its phase and sets parameters. The
 section [Phases, markets, institutions, and learning](agent_based_systems.md#phases-markets-institutions-and-learning) runs both.
 
 ### Network topology

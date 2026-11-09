@@ -5,12 +5,12 @@ from typing import Annotated, ClassVar
 import numpy as np
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import FeedbackInteraction
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from skcomplex.systems.economics.common.policy import PolicyRuleInteraction
 from skcomplex.systems.economics.markets import ShopsSystem
 
 
@@ -38,7 +38,7 @@ class ShopElement(Element):
         agent.price *= 1 + system.parameter('drift') + system.rng.normal(0, 0.02) - system.parameters['bank.rate']
 
 
-class CentralBankInteraction(FeedbackInteraction):
+class CentralBankInteraction(PolicyRuleInteraction):
     """Central bank that raises its rate whenever inflation of the price level exceeds the target."""
 
     reports: ClassVar[tuple[str, ...]] = ('inflation',)

@@ -14,12 +14,12 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import FeedbackInteraction
 from ....core.components.laws import BaseLaw
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
+from ..common.policy import PolicyRuleInteraction
 
 
 class CoalitionPatronView(AgentView):
@@ -94,7 +94,7 @@ class CoalitionPatronElement(Element):
         return []
 
 
-class CoalitionBarInteraction(FeedbackInteraction[SystemView]):
+class CoalitionBarInteraction(PolicyRuleInteraction[SystemView]):
     """El Farol bar of Rand and Wilensky with coalitions of patrons.
 
     The patrons share strategies within coalitions that split and merge. A strategy `s` in `[-1, 1]^(m + 1)` predicts

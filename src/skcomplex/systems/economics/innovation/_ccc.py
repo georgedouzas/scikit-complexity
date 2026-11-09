@@ -13,12 +13,12 @@ import numpy as np
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import FeedbackInteraction
 from ....core.components.laws import BaseLaw
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
+from ..common.policy import PolicyRuleInteraction
 
 
 class CombinatorialEntityView(AgentView):
@@ -86,7 +86,7 @@ class CombinatorialEntityElement(Element):
         return []
 
 
-class CombinatorialUpdateInteraction(FeedbackInteraction[SystemView]):
+class CombinatorialUpdateInteraction(PolicyRuleInteraction[SystemView]):
     """Random sequential update of the CCC model by the sign of the fitness.
 
     Spontaneous flips are added. Every step every entity `i`, in random order, computes its fitness

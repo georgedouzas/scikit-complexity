@@ -14,11 +14,11 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import FeedbackInteraction
 from ....core.components.laws import BaseLaw
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ..common.policy import PolicyRuleInteraction
 
 
 class AdaptiveTraderView(AgentView):
@@ -95,7 +95,7 @@ class AdaptiveTraderElement(Element):
         return []
 
 
-class AdaptiveAuctionInteraction(FeedbackInteraction[SystemView]):
+class AdaptiveAuctionInteraction(PolicyRuleInteraction[SystemView]):
     """Double auction in which every buyer meets a random seller every iteration.
 
     Both adapt their quotes. Every iteration the buyers that still want units, in random order, meet a random seller

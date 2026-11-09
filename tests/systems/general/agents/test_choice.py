@@ -7,7 +7,8 @@ import pytest
 from sage.all__sagemath_symbolics import ZZ
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import FeedbackInteraction
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.laws.utils import mean
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
@@ -45,10 +46,19 @@ class ChooserElement(Element):
         return ChooserView
 
 
-class PayoffFeedback(FeedbackInteraction[SystemView]):
+class PayoffFeedback(Interaction):
     """Reporter of a constant payoff of option 1 after every choice."""
 
+    law_classes = (RuleLaw,)
     reports: ClassVar[tuple[str, ...]] = ('payoff',)
+
+    def __init__(self, label: str, *, phase: str | None = None) -> None:
+        super().__init__(label)
+        self.phase = phase
+
+    def _get_laws(self, namespace):
+        """Return the rule that reports the payoff in its phase."""
+        return [RuleLaw(self.act, phase=self.phase)]
 
     def act(self, system: SystemView) -> None:
         """Report the payoff of option 1."""

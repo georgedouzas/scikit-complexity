@@ -13,16 +13,16 @@ import numpy as np
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import GroupElement
-from ....core.components.interactions import FeedbackInteraction
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import SystemView
 from ....core.specs import ParameterSpec, RoleSpec
 from ....core.types import Array
 from ..common.banking import BalanceSheetElement
 from ..common.banking._balance_sheet import DEFAULTED, DEFAULTING, SOLVENT, BalanceSheetView
+from ..common.policy import PolicyRuleInteraction
 
 
-class DefaultCascadeInteraction(FeedbackInteraction[SystemView]):
+class DefaultCascadeInteraction(PolicyRuleInteraction[SystemView]):
     """Synchronous cascade of defaults.
 
     The creditors of a defaulting bank write off their claims on it. Every step the banks that defaulted in the last
@@ -99,7 +99,7 @@ class DefaultCascadeInteraction(FeedbackInteraction[SystemView]):
         system.report('losses', float(losses.sum()))
 
 
-class PaymentClearingInteraction(FeedbackInteraction[SystemView]):
+class PaymentClearingInteraction(PolicyRuleInteraction[SystemView]):
     """Clearing of interbank payments of Eisenberg and Noe.
 
     It iterates `p <- min(p_bar, e + Pi^T p)`. Every step every bank pays the smaller of what it owes,

@@ -1,4 +1,4 @@
-"""Define feedback interactions.
+"""Define policy rules.
 
 They are single actors whose rules read observables and set the parameters of other parts.
 """
@@ -10,14 +10,14 @@ from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 from typing import ClassVar
 
-from ...errors import ValidationError
-from ..base import BasePart
-from ..laws import BaseLaw, RuleLaw
-from ..types import SystemViewProtocol
-from ._interaction import Interaction
+from .....core.components.base import BasePart
+from .....core.components.interactions import Interaction
+from .....core.components.laws import BaseLaw, RuleLaw
+from .....core.components.types import SystemViewProtocol
+from .....core.errors import ValidationError
 
 
-class FeedbackInteraction[SystemT: SystemViewProtocol](Interaction):
+class PolicyRuleInteraction[SystemT: SystemViewProtocol](Interaction):
     """Single actor that reads the system and sets parameters from what it reads.
 
     It reads the system once per round of its phase. Its rule runs once per round of its phase, after the agents of the
@@ -37,8 +37,8 @@ class FeedbackInteraction[SystemT: SystemViewProtocol](Interaction):
             The phase the feedback acts in, or `None` for the default phase.
 
     Examples:
-        >>> from skcomplex.core.components.interactions import FeedbackInteraction
-        >>> FeedbackInteraction('controller', rule=lambda system: None).phase is None
+        >>> from skcomplex.systems.economics.common.policy import PolicyRuleInteraction
+        >>> PolicyRuleInteraction('controller', rule=lambda system: None).phase is None
         True
     """
 

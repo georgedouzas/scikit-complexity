@@ -1,4 +1,4 @@
-"""Test the `_feedback` module of `skcomplex.core.components.interactions`."""
+"""Test the `_policy_rule` module of `skcomplex.systems.economics.common.policy`."""
 
 from typing import Annotated
 
@@ -6,14 +6,12 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import FeedbackInteraction
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import SimulationError, ValidationError
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
-
-from ....systems.general.matching.conftest import ParticipantElement
+from skcomplex.systems.economics.common.policy import PolicyRuleInteraction
 
 
 class CounterElement(Element):
@@ -38,7 +36,7 @@ class CounterElement(Element):
         agent.level += 1
 
 
-class ControllerInteraction(FeedbackInteraction):
+class ControllerInteraction(PolicyRuleInteraction):
     """Feedback that raises its rate whenever the total level exceeds the target."""
 
     reports = ('total',)
@@ -85,8 +83,8 @@ def test_act_changes_a_parameter_only_above_the_target():
 def test_act_raises_for_an_undeclared_report():
     """Test that reporting a name the feedback does not declare raises an error."""
     system = CompositeSystem(
-        elements=[GroupElement('participants', element=ParticipantElement, size=1)],
-        interactions=[FeedbackInteraction('reader', rule=_report_total)],
+        elements=[GroupElement('participants', element=CounterElement, size=1)],
+        interactions=[PolicyRuleInteraction('reader', rule=_report_total)],
     )
     with pytest.raises(SimulationError, match='declare'):
         simulate(system, until=1)
@@ -95,8 +93,8 @@ def test_act_raises_for_an_undeclared_report():
 def test_act_raises_without_a_rule():
     """Test that a feedback with neither a rule nor its own `act` raises an error."""
     system = CompositeSystem(
-        elements=[GroupElement('participants', element=ParticipantElement, size=1)],
-        interactions=[FeedbackInteraction('reader')],
+        elements=[GroupElement('participants', element=CounterElement, size=1)],
+        interactions=[PolicyRuleInteraction('reader')],
     )
     with pytest.raises(ValidationError, match='no rule'):
         simulate(system, until=1)

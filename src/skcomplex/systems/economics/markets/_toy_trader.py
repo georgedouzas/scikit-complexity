@@ -14,7 +14,6 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import FeedbackInteraction
 from ....core.components.laws import BaseLaw
 from ....core.components.spaces import BaseSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
@@ -22,6 +21,7 @@ from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
+from ..common.policy import PolicyRuleInteraction
 
 FITNESS_TESTS = ('none', 'money', 'assets')
 
@@ -160,7 +160,7 @@ class ToyTraderElement(Element):
         return []
 
 
-class ToyMarketInteraction(FeedbackInteraction[SystemView]):
+class ToyMarketInteraction(PolicyRuleInteraction[SystemView]):
     """Market of the Toy Trader.
 
     Every trader buys the cheapest good it can see, sellers price by inventory, and all move. Every iteration the

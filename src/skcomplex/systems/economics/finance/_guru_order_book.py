@@ -16,12 +16,12 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import FeedbackInteraction
 from ....core.components.laws import BaseLaw
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
+from ..common.policy import PolicyRuleInteraction
 
 
 class GuruTraderView(AgentView):
@@ -130,7 +130,7 @@ PRICE, QUANTITY, TRADER = 0, 1, 2
 TINY = 1e-12
 
 
-class GuruMarketInteraction(FeedbackInteraction[SystemView]):
+class GuruMarketInteraction(PolicyRuleInteraction[SystemView]):
     """Order-driven market of noise traders who imitate the expectation of a guru.
 
     The network is rewired every day. Every step is a trading day. First every trader picks a random trader `j` and

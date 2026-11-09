@@ -171,7 +171,7 @@ from typing import Annotated, ClassVar
 import numpy as np
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import FeedbackInteraction
+from skcomplex.systems.economics.common.policy import PolicyRuleInteraction
 from skcomplex.systems.general.matching import MatchingInteraction
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import DiscreteTime
@@ -211,7 +211,7 @@ class TraderElement(Element):
         agent.ask = system.rng.uniform(agent.value, 2.0) if agent.supply else 2.0
 
 
-class ClerkInteraction(FeedbackInteraction):
+class ClerkInteraction(PolicyRuleInteraction):
     reports: ClassVar[tuple[str, ...]] = ('traded',)
 
     def __init__(self, label, *, rule=None, phase=None, fee: Annotated[float, ParameterSpec()] = 0.0):
@@ -307,7 +307,7 @@ trajectory.values('auction.volume').tolist()
 - `GroupingInteraction` draws pairs, partitions, neighbourhoods, or groups by a state every step, and acts on each.
 - `TopologyInteraction` adds and removes nodes and edges of a network, and rewires edges towards a weight.
 
-**Institutions.** A `FeedbackInteraction`, from `skcomplex.core.components.interactions`, acts once per round of its
+**Institutions.** A `PolicyRuleInteraction`, from `skcomplex.core.components.interactions`, acts once per round of its
 phase with its method `act`.
 
 - It reads `system.observable(name)`, the reporters and the observables of the run at the end of earlier steps through

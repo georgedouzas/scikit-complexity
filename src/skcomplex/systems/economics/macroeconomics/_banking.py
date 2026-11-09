@@ -15,12 +15,13 @@ from sage.all__sagemath_symbolics import ZZ, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import FeedbackInteraction, TransferInteraction
+from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import BaseLaw, RuleLaw, Sink
 from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from ..common.policy import PolicyRuleInteraction
 
 
 class DepositorView(AgentView):
@@ -254,7 +255,7 @@ class ReserveBankElement(Element):
         bank.reserves += excess
 
 
-class PolicySwitchInteraction(FeedbackInteraction[SystemView]):
+class PolicySwitchInteraction(PolicyRuleInteraction[SystemView]):
     """Policy switch of a central bank.
 
     It moves the reserve ratio of the banks from `ratio` to `new_ratio`. The ratio switches at the time `change_at`.

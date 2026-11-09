@@ -15,7 +15,6 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import FeedbackInteraction
 from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
@@ -24,6 +23,7 @@ from ....core.types import Array
 from ...general.agents import ChoiceInteraction
 from ..common.forecasting import heuristics
 from ..common.learning import PayoffLearningInteraction
+from ..common.policy import PolicyRuleInteraction
 
 
 @dataclass(frozen=True)
@@ -154,7 +154,7 @@ class HeuristicTraderElement(Element):
         return float(reported[-1]) if len(reported) else 0.0
 
 
-class HeuristicPricingInteraction(FeedbackInteraction[SystemView]):
+class HeuristicPricingInteraction(PolicyRuleInteraction[SystemView]):
     """Market maker that clears the risky asset.
 
     It clears at the price where the mean forecast of the traders is met. The deviation `x` of the price from its

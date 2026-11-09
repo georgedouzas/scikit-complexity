@@ -13,12 +13,13 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import FeedbackInteraction, MapInteraction
+from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ...general.matching import BatchMatchingSpec, ContinuousMatchingSpec, MatchingInteraction, MatchSpec
+from ..common.policy import PolicyRuleInteraction
 
 
 class ZeroIntelligenceBuyerView(AgentView):
@@ -244,7 +245,7 @@ def maximum_surplus(values: np.ndarray, costs: np.ndarray) -> float:
     return float(np.maximum(demand[:size] - supply[:size], 0).sum())
 
 
-class AuctionLedgerInteraction(FeedbackInteraction[SystemView]):
+class AuctionLedgerInteraction(PolicyRuleInteraction[SystemView]):
     """Ledger that closes every trading period.
 
     It measures its surplus and gives every trader a new unit. The realised surplus is the value of the units bought
