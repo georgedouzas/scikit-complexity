@@ -36,8 +36,9 @@ The library defines its symbolic functions in two ways. Nine are `BuiltinFunctio
 `both`, `mod`, `derivative`, `lag`, `delayed`, `residence`, and `stop_gradient`. The others are built with Sage's
 `function` factory: about 27 at module level in `laws/utils` and `analysis/_symbolic.py`, some of them with
 `print_func`, `eval_func`, or `evalf_func` hooks, plus the delays of `laws/utils/_delays.py` and the draws of
-`specs/_draw_spec.py`, which build one function per name inside a function. `_einstein.py` and `_pseudo_riemannian.py`
-tell an unknown function apart from a library function by `isinstance(..., BuiltinFunction)`.
+`specs/_draw_spec.py`, which build one function per name inside a function. `physics/cosmology/_metric_cosmologies.py`
+and `physics/common/relativity/_spacetime.py`, where `move-recipes-to-systems` moves the former `_pseudo_riemannian.py`
+of the core, tell an unknown function apart from a library function by `isinstance(..., BuiltinFunction)`.
 
 Of about 5700 methods in `src`, a rough count finds that between a quarter and a third begin with a word that is not a
 verb, such as `member`, `lattice`, `views`, or `noise`.
@@ -104,12 +105,11 @@ literal and stays in the block.
 ### 3. Derived values
 
 A module value built by calling a class or a function of its own module cannot sit above that definition. It is a
-derived value. It keeps a public `UPPER_CASE` name and sits in one block, with no gap, right after the last
-definition it reads. The cases found are the reductions of `laws/utils/_reductions.py`, `MITTAG_LEFFLER`,
-`POSITIVE_VALUES`, `STOP_GRADIENT`, `HELPERS_FINGERPRINT`, the four dialects and `DIALECTS` of
-`specs/_dialect_spec.py`, `SYSTEM_CLASSES` of the catalog, and in systems the tracer and atom map tables of
-`_carbon_13_mfa.py`, the landscapes of `_optimisers.py`, the predictors of `_el_farol.py`, the plants of `_koopman.py`,
-the LAMMPS tables, the collisions of `_lattice_gases.py`, `SPIN_HALF`, and the links of `_yang_mills.py`.
+derived value. It keeps a public `UPPER_CASE` name and sits in one block, with no gap, right after the last definition
+it reads. The cases found are the reductions of `laws/utils/_reductions.py`, `MITTAG_LEFFLER`, `POSITIVE_VALUES`,
+`STOP_GRADIENT`, `HELPERS_FINGERPRINT`, `SYSTEM_CLASSES` of the catalog, and in systems the tracer and atom map tables
+of `_carbon_13_mfa.py`, the landscapes of `_optimisers.py`, the predictors of `_el_farol.py`, the plants of
+`_koopman.py`, the LAMMPS tables, the collisions of `_lattice_gases.py`, `SPIN_HALF`, and the links of `_yang_mills.py`.
 
 After decision 4, no Sage hook is a module function. A plain function that a derived value reads, such as an entry of
 a dispatch table or the predicate of a condition set, stays a module function beside the value. It cannot be a method
@@ -142,7 +142,7 @@ The user decided that a symbolic function the library defines is a `BuiltinFunct
 
 A `BuiltinFunction` behaves unlike a factory function in three ways, and each conversion is tested for them. First,
 on a non-symbolic argument it may call the method of the same name on the argument, so a name such as `components`
-or `partial` is checked on numeric and on symbolic arguments. Second, `_einstein.py` and `_pseudo_riemannian.py` stop
+or `partial` is checked on numeric and on symbolic arguments. Second, `_metric_cosmologies.py` and `_spacetime.py` stop
 treating library operators as unknown functions, which is the intent. Each is checked with its tests. Third, printing,
 LaTeX, and the names the printers and the compiler read must stay the same, which the printer tests and the compile
 tests confirm.

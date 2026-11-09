@@ -17,8 +17,8 @@ Nothing checks these rules, so they drift. This change makes the code follow the
 - Every module constant has a public `UPPER_CASE` name. Private constants are renamed. A rename that clashes with a
   name the module already holds takes a more specific name. No package re-exports a renamed constant, so the public
   surface does not grow.
-- A module value built from a class or function of its own module, such as a symbolic function instance or a dialect
-  built from a spec class of its module, is a derived value. It sits in one block right after the last definition it
+- A module value built from a class or function of its own module, such as a symbolic function instance or a table
+  built from a class of its module, is a derived value. It sits in one block right after the last definition it
   reads, with the same naming and spacing rules.
 - Every symbolic function the library defines is a private `BuiltinFunction` subclass, as `where` and `stop_gradient`
   already are, so its print, evaluation, and derivative hooks are methods. Unknown functions of equations keep Sage's
@@ -63,7 +63,7 @@ None.
   `openspec/constitution.md` names the exceptions. `CONTRIBUTING.md` points to the rules where it describes module
   layout.
 - Performance: Numba kernels are unchanged. A static method call costs the same as a module function call.
-- Dependencies: it lands after `add-system-package`, `slim-core-elements-and-spaces`, `slim-core-interactions`, and
-  `slim-core-laws`, because those changes move, merge, and remove many of the same modules. It measures its scope again
-  on the code they leave.
+- Dependencies: it lands after `add-system-package`, `slim-core-elements-and-spaces`, `slim-core-interactions`,
+  `slim-core-laws`, `rename-core-systems`, and `move-recipes-to-systems`, because those changes move, merge, and remove
+  many of the same modules. It measures its scope again on the code they leave.
 - Users: none. Only private names change, and no public name is added or removed. Expressions print as before.

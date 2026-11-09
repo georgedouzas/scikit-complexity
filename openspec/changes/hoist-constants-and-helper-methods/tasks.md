@@ -80,9 +80,9 @@ site in the whole tree.
   with verb names, and keep the run and design helpers that only the experiment functions read. Update the imports of
   `tests/core/experiments/test_calibration.py` to call the moved functions through their class. Verify the experiment
   tests, including the parallel ones, pass.
-- [ ] 6.2 In `core/specs` and the root modules of `core`, rename the private dialects, mark them and `DIALECTS` as
-  derived values, and give the methods verb names. Verify the spec tests pass with `skcomplex.core.experiments`,
-  `skcomplex.core.specs`, and the root modules added to the checked packages.
+- [ ] 6.2 In `core/specs` and the root modules of `core`, give the methods verb names. `DialectSpec` and its dialects
+  are gone with `move-recipes-to-systems`, so no derived value remains there. Verify the spec tests pass with
+  `skcomplex.core.experiments`, `skcomplex.core.specs`, and the root modules added to the checked packages.
 
 ## 7. Systems
 
