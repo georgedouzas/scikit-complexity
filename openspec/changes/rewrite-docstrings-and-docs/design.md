@@ -72,7 +72,13 @@ semicolon. The main fault is the content, not the length of the first line.
 3. **Uses.** For a cross-domain part, which is every public class of `components`, every analysis function, and every
    experiment function, a paragraph names concrete uses from at least two fields, two to four of them, in one or two
    sentences. A solver, a backend, and a spec name uses only where the user picks them by hand. The other engine
-   classes skip this paragraph.
+   classes skip this paragraph. The paragraph starts with "It appears in", so the generator of the parts pages can
+   read it.
+3a. **Comparison.** The docstring of every public class of the core elements, interactions, laws, spaces,
+   neighbourhoods, times, and systems holds a paragraph of two sentences. The first starts with "Unlike" and names
+   what the class adds over its nearest part. The second starts with "Choose it when". For example: "Unlike
+   `Element`, it needs no subclass and keeps its one state at zero or above. Choose it when a system tracks an amount
+   that cannot be negative, such as a count, a mass, or a sum of money."
 4. **Args.** Each entry says what the value means, its units, its range or its allowed values, and an example value
    where it helps. It does not say how the code stores, converts, or passes the value on.
 5. **Jargon.** A field term or an internal term, such as a class axis, an attractor, a Theiler window, or a law
@@ -110,16 +116,117 @@ read the docstrings of modules, public classes, public functions, and public met
   whose suffix is not in the map is checked for the article only. No summary of a public class or function holds a
   word of `FIELD_TERMS`, compared case-insensitively.
 - `test_docstrings_say_main_public_methods`: no docstring holds the word "verb" or "verbs".
+- `test_components_compare_and_name_uses`: the docstring of every public class of the core component families holds
+  a paragraph that starts with "Unlike" and holds "Choose it when", and a paragraph that starts with "It appears in".
 
-The first two hold for the whole core once the few current findings are fixed in the first task group. The last two
-hold only after a package is rewritten. So they read a module constant `REWRITTEN`, the tuple of package prefixes
+The first two hold for the whole core once the few current findings are fixed in the first task group. The other
+three hold only after a package is rewritten. So they read a module constant `REWRITTEN`, the tuple of package prefixes
 already rewritten, which each task group extends. The last group removes the constant and checks the whole core.
 
 `tests/test_sources.py` gains `test_documents_hold_no_semicolon`, which reads the README and the pages of the user
 guide, skips fenced code blocks, and fails on a prose line with `;`.
 
+`tests/test_sources.py` also gains `test_core_components_pages_cover_every_class`. It reads the `__all__` of each
+family package and fails when a public class, other than an abstract base, has no `## ClassName` heading on the page
+of its family.
+
 Alternative considered: one guard test module under `tests/`. The constitution asks the test tree to mirror the
 source tree, and `test_base.py` already holds the cross-cutting checks of the core, so the guard joins it.
+
+### The core components guide
+
+The documents should describe the core components, how they differ, what they offer, and how they support systems in
+any field. Two places exist today. The guide under `docs/overview/user_guide` is hand-written, and
+`pytest-markdown-docs` runs its blocks in the test session. The parts pages under `parts/` are written by
+`docs/generate_parts.py` at build time, with tag tables and examples that `markdown-exec` runs in the documentation
+build. Each fact goes to one place.
+
+- **Hand-written explanations in the guide.** A new section `docs/overview/user_guide/core_components/` holds
+  `index.md` and one page per family: `elements.md`, `interactions.md`, `laws.md`, `spaces.md` with neighbourhoods
+  and times, and `systems.md`. It sits in the navigation after "System classes" and before "Build a custom system".
+  Each page opens with what the family is for and how the families fit: an element holds states, an interaction
+  emits laws that change them, a law is one equation or rule, a space places members, and a system composes them.
+  Then each public class has a `## ClassName` section with one plain sentence of what it is, a link to its row of
+  the comparison table, and runnable examples from at least two fields that use the class unchanged. The section
+  ends with the catalog systems that use the class, through a link to the generated table, not a hand-written list.
+- **Generated tables in the parts pages.** `docs/generate_parts.py` adds a comparison table to the pages of elements,
+  interactions, laws, and systems, and a new page `parts/spaces.md` for spaces, neighbourhoods, and times. The columns
+  are the class, what it adds and when to choose it, taken from the "Unlike" paragraph, its typical uses, taken from
+  the "It appears in" paragraph, and the catalog systems that use it. The tag tables and the compatibility examples
+  stay as they are.
+- **Catalog links.** A system uses a class when its module, or a module of its field `common` package that it
+  imports, defines a subclass of the class or names the class in its globals. The generator finds them by walking
+  the registered systems of `skcomplex.systems` and links each to its system page. Subclasses are shown as field
+  realizations, such as `CompartmentElement` of biology for `NonnegativeElement`. The links are built at build time,
+  so no count goes stale.
+
+The docstring is then the one source of what a class is, what it adds, when to choose it, and where it is used. The
+guide adds what a docstring cannot hold: the story of the family and examples from several fields side by side.
+
+Alternatives considered: replace the parts pages with hand-written pages. That copies the tags and the summaries by
+hand, and they go stale. Or extend only the generated pages. Generated text cannot tell the story of a family, and
+`markdown-exec` blocks do not run in the test session.
+
+The examples of the guide pages use the core alone. Where a field realization exists, the page names it after the
+core example, as the catalog uses it. Planned pairs, among others:
+
+| Class | Example in one field | Example in another field |
+| --- | --- | --- |
+| `NonnegativeElement` with `RateInteraction` | an epidemic, infected people recover at a rate | a bank account, interest grows the balance |
+| `PointElement` | a planet under gravity | a pedestrian walking to an exit |
+| `GroupElement` | a herd of grazing animals | a portfolio of assets |
+| `CouplingInteraction` | fireflies that flash in step | consensus of opinions on a network |
+| `BirthDeathInteraction` | births and deaths of a population | firms that enter and leave a market |
+| `ArrayUpdateLaw` | grains added to a sandpile | a random mutation of a genome |
+| `BallNeighborhood` | toppling sites of a sandpile | the neighbours of a voter model |
+| `NetworkSpace` | an epidemic on a contact network | a power grid of coupled generators |
+| `MassActionSystem` | a chemical reaction network | an SIR epidemic written as reactions |
+
+#### A sketch of the elements page
+
+````text
+# Elements
+
+An element holds the states of a system, the numbers that change as the system runs. An interaction reads these
+states and emits laws that change them. A space places the members of a group, and a system composes elements,
+interactions, and a space into one model. The table on the [elements parts page](../../../parts/elements.md) compares
+every element class.
+
+## NonnegativeElement
+
+A `NonnegativeElement` holds one amount that cannot fall below zero. The same element models people in an epidemic
+and money in a bank account.
+
+```python
+from skcomplex.core.components.elements import NonnegativeElement
+from skcomplex.core.components.interactions import RateInteraction
+from skcomplex.core.components.systems import System
+from skcomplex.core.engine.runtime import simulate
+
+infected = NonnegativeElement('infected', x=100)
+recovery = RateInteraction('recovery', target='infected', state='x', rate=lambda s: -0.1 * s.target.x)
+epidemic = System(elements=[infected], interactions=[recovery])
+simulate(epidemic, until=10, dt=5.0).values('infected.x').round(1).tolist()
+```
+
+```python continuation
+account = NonnegativeElement('account', x=250.0)
+interest = RateInteraction('interest', target='account', state='x', rate=lambda s: 0.05 * s.target.x)
+savings = System(elements=[account], interactions=[interest])
+simulate(savings, until=1, dt=1.0).values('account.x').round(2).tolist()
+```
+
+Biology names it `CompartmentElement`, and physics `PhaseSpaceDensityElement`. The table lists the systems that use
+it.
+
+## PointElement
+
+A `PointElement` is a point that moves in a continuous space, with a position and a velocity. Unlike a nonnegative
+element, its state is a vector, and the laws that act on it give its acceleration. ...
+````
+
+The first block of the sketch shows `[100.0, 60.7, 36.8]` and the second `[250.0, 262.82]`, both checked with
+`CompartmentElement` and the state `n`.
 
 ### The order
 
@@ -133,8 +240,10 @@ been archived.
 The pilot is the package `components/elements` with its `__init__`, and `CouplingInteraction`, the hardest
 interaction docstring. The user approves the style on it before the other packages start. The other packages follow
 in the order a reader meets them: the rest of `components`, then `specs` and the root modules, then `analysis` and
-`experiments`, then the engine. The documents follow the docstrings, so the guide can quote the new summaries. They
-start with their own pilot of two guide pages.
+`experiments`, then the engine. The documents follow the docstrings, so the guide and the generated tables can read
+the new summaries, comparisons, and uses. They start with their own pilot: the elements page of the core components
+guide with the generated comparison table of elements, and the two existing guide pages rewritten in the examples
+below. The user approves that pilot before the other family pages and documents start.
 
 ### Before and after
 
@@ -167,6 +276,9 @@ class NonnegativeElement(Element):
 
     The element holds an amount `x` that cannot fall below zero. Interactions such as rates, reactions, and flows
     change it, and the element has no laws of its own.
+
+    Unlike `Element`, it needs no subclass and keeps its one state at zero or above. Choose it when a system tracks
+    an amount that cannot be negative, such as a count, a mass, or a sum of money.
 
     It appears in many fields. The number of people infected in an epidemic, the moles of a chemical species in a
     reactor, the money in a bank account, and the tokens in a place of a Petri net are all nonnegative elements.
@@ -229,6 +341,10 @@ An interaction that combines a function of each member and its neighbours.
 Every member `i` of a group receives a sum, a mean, a maximum, or another reduction of `function` over the members
 `j` it is coupled to. By default the function is the difference `x_j - x_i` of one state. The result adds to the rate
 of a state, sets its next value at every step, or steers agents, as `form` says.
+
+Unlike `PairInteraction`, which runs its laws for every pair within a cutoff, it reduces over the members each member is coupled to, by
+edges, a group, or hyperedges, and it may set a rate, a map, or an agent rule. Choose it when every member responds to
+an aggregate of its neighbours.
 
 It appears in many fields. Phase oscillators, such as fireflies that flash in step or generators of a power grid, sum
 the sine of their phase differences. Heat flow between the cells of a lattice and consensus in a social network sum
@@ -303,6 +419,9 @@ A law that replaces a whole array state by the output of a function.
 At every step the function receives the state of every member as one array, shaped like the lattice or with one row
 per edge of a network, and returns the new array. It may also receive the random generator, the time, the space, and
 the parameters of the element.
+
+Unlike `UpdateLaw`, which gives the next value of each member by an expression, it hands the whole array to a Python
+function. Choose it when the change depends on the whole array at once, such as one random site.
 
 It appears in many fields. A sandpile adds a grain at a random site, a molecular model replays recorded
 configurations, and a genetic model mutates one random site of a genome.
@@ -477,6 +596,12 @@ A population with several kinds of members, such as traders and banks, is severa
 - [The summary rule "A" or "An" reads awkwardly for some classes, such as results and errors] → "A result of
   `recurrence`." and "An error for a part that runs before it is prepared." keep the rule. The pilot shows whether the
   user accepts it.
+- [The guide pages repeat the docstrings] → The guide holds the family story and the examples. What a class adds, its
+  uses, and its catalog links live in the docstring and the generated table, and the guide links to them.
+- [A guide example needs a field realization to look natural] → The example uses the core class, and the prose names
+  the realization after it, so the core stays the subject of the page.
+- [Catalog links found through module globals miss a system that builds a class indirectly] → The links are a guide
+  to examples, not a complete index. The generator also follows the field `common` packages a system imports.
 - [A large diff is hard to review] → One commit per package, and the pilot comes first.
 
 ## Migration Plan

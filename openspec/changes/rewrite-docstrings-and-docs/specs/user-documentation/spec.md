@@ -32,6 +32,54 @@ of science. Where a use fits as code, the `Examples` section SHALL show it as a 
 - **WHEN** a reader reads the docstring of `recurrence`
 - **THEN** it says what a recurrence is in plain words and names uses from at least two fields
 
+### Requirement: A docstring of a core component compares it with its nearest parts
+The docstring of every public class of the core elements, interactions, laws, spaces, neighbourhoods, times, and
+systems SHALL hold a paragraph that starts with "Unlike" and names what the class adds over its nearest part, followed
+by a sentence that starts with "Choose it when", and a paragraph of uses that starts with "It appears in".
+
+#### Scenario: The nonnegative element compared
+- **WHEN** a reader reads the docstring of `NonnegativeElement`
+- **THEN** it says that, unlike `Element`, it needs no subclass and keeps its one state at zero or above, and when to
+  choose it
+
+#### Scenario: A missing comparison
+- **WHEN** a public class of a rewritten family has no paragraph that starts with "Unlike" or "It appears in"
+- **THEN** the test session fails and names the class
+
+### Requirement: The guide describes the core components family by family
+The user guide SHALL hold a section on the core components with one hand-written page per family: elements,
+interactions, laws, spaces with their neighbourhoods and times, and systems. Each page SHALL open with what the family
+is for and how it fits with the others, then give every public class of the family a section with runnable examples
+from at least two fields that use the same class.
+
+#### Scenario: The elements page
+- **WHEN** a reader opens the elements page of the core components guide
+- **THEN** it says that an element holds states, an interaction emits laws that change them, a space places members,
+  and a system composes them, and the section of `NonnegativeElement` simulates an epidemic and a bank account with
+  the same element and `RateInteraction`
+
+#### Scenario: The examples run
+- **WHEN** an example of a core components page raises an error or shows a wrong value
+- **THEN** the test session fails and names the page and the block
+
+#### Scenario: A class without a section
+- **WHEN** a public class of a family has no section on its page
+- **THEN** the documentation test fails and names the class and the page
+
+### Requirement: Each family has a generated comparison table
+The parts page of each family SHALL hold a comparison table generated from the code, with one row per public class:
+the class, what it adds and when to choose it, its typical uses, and links to the catalog systems that use it or
+subclass it as a field realization. The text of the table SHALL come from the docstrings, so each fact is written once.
+
+#### Scenario: The table of elements
+- **WHEN** a reader opens the parts page of elements
+- **THEN** the row of `NonnegativeElement` shows its comparison and uses from its docstring, and links to systems such
+  as `SIRSystem` that use it or its field realizations
+
+#### Scenario: A new class
+- **WHEN** a contributor adds a public element class with the comparison and uses paragraphs
+- **THEN** the table shows its row with no edit of the generator
+
 ### Requirement: Arguments are described by meaning and units
 Every entry of an `Args` section of the core SHALL say what the value means, with its units, range, or allowed values
 where they apply, and SHALL NOT describe how the code stores or processes it.
