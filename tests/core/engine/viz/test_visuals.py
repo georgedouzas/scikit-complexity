@@ -5,7 +5,7 @@ import pytest
 import rerun as rr
 from shapely import Polygon
 
-from skcomplex.core.components.elements import Element, GroupElement, LatticeElement, PointElement
+from skcomplex.core.components.elements import Element, GroupElement, PointElement
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import ContinuousSpace, LatticeSpace
 from skcomplex.core.components.systems import System
@@ -211,7 +211,13 @@ def test_image_visual_colors_angles_cyclically():
     space = LatticeSpace((2, 2))
     system = System(
         elements=[
-            LatticeElement('spins', element=XYSpinElement, space=space, values={'theta': [[-3.1, 3.1], [0.0, 1.5]]}),
+            GroupElement(
+                'spins',
+                element=XYSpinElement,
+                space=space,
+                values={'theta': [[-3.1, 3.1], [0.0, 1.5]]},
+                on='sites',
+            ),
         ],
     )
     problem, frame = _first_frame(system)
@@ -407,12 +413,12 @@ def test_image_visual_logs_position_velocity_image_and_density_of_two_stream():
     visual = ImageVisual(moments=(0,), history=0, path='gas', recording=logs).prepare(problem)
     for frame in frames:
         visual.run(frame)
-    images = logs.of('gas/f')
+    images = logs.of('gas/x')
     assert [_format(image) for image in images] == [(16, 8)] * len(frames)
-    densities = logs.of('gas/f/moment_0')
+    densities = logs.of('gas/x/moment_0')
     assert [type(item).__name__ for item in densities] == ['BarChart'] * len(frames)
     assert len(densities[-1].values.as_arrow_array().to_pylist()[0]['buffer']) == 8
-    assert [str(view.origin) for view in visual.views_] == ['gas/f/moment_0', 'gas/f']
+    assert [str(view.origin) for view in visual.views_] == ['gas/x/moment_0', 'gas/x']
 
 
 def test_image_visual_logs_a_plane_of_a_phase_space():
@@ -422,8 +428,8 @@ def test_image_visual_logs_a_plane_of_a_phase_space():
     logs = Logs()
     visual = ImageVisual(slices={'vy': 2}, moments=(0,), path='gas', recording=logs).prepare(problem)
     visual.run(frame)
-    assert [_format(image) for image in logs.of('gas/f')] == [(8, 4)]
-    assert len(logs.of('gas/f/moment_0')) == 1
+    assert [_format(image) for image in logs.of('gas/x')] == [(8, 4)]
+    assert len(logs.of('gas/x/moment_0')) == 1
 
 
 def test_image_visual_rejects_slices_that_leave_other_than_two_axes():

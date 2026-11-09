@@ -28,7 +28,7 @@ trajectory = simulate(NortonSimonSystem(), observers=[observer])
 # Between doses the per capita growth rate is `r log(K / n)`, which is larger the smaller the tumour. The rate measured
 # from the simulation should lie on this line, and the doses should show as dips below it.
 
-times, volume = trajectory.times, trajectory.values('tumour.n')
+times, volume = trajectory.times, trajectory.values('tumour.x')
 r, K = 0.0719, 1964.0
 rate = np.gradient(np.log(volume), times)
 fig, (curve, kinetics) = plt.subplots(1, 2, figsize=(10, 4))

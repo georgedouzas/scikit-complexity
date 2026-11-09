@@ -16,7 +16,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import exp, oo, pi, sin
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import HyperedgeInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import where
@@ -229,12 +229,13 @@ class HypergraphConsensusSystem(BaseSystem):
             triad for triad in itertools.combinations(range(self.n_nodes), TRIANGLE) if rng.random() < self.triangles
         ]
         space = NetworkSpace(nx.complete_graph(self.n_nodes), hyperedges=triads)
-        nodes = LatticeElement(
+        nodes = GroupElement(
             'nodes',
             element=OpinionElement,
             space=space,
             values={'x': rng.uniform(-1.0, 1.0, self.n_nodes)},
             visual=VisualSpec('sites', {'states': ['x'], 'low': -1.0, 'high': 1.0}),
+            on='sites',
         )
         schedules = GroupElement(
             'triangles',

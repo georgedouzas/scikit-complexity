@@ -60,7 +60,7 @@ class JaxBackend(BaseBackend):
         >>> from skcomplex.core.engine.backends import JaxBackend
         >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.biology.common.populations import PopulationElement
-        >>> system = System(elements=[PopulationElement('a', n=2.0)])
+        >>> system = System(elements=[PopulationElement('a', x=2.0)])
         >>> problem = simulate(system, until=0, backend=JaxBackend()).problem
         >>> problem.backend
         'jax'

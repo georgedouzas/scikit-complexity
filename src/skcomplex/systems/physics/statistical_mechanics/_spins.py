@@ -14,7 +14,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, Expression, cos, oo, pi
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.laws.utils import neighbors, where
 from ....core.components.spaces import BaseNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, System
@@ -315,11 +315,12 @@ class IsingSystem(BaseSystem):
             else np.random.default_rng(self.random_state).choice([-1.0, 1.0], size=shape)
         )
         space = LatticeSpace(shape)
-        group = LatticeElement(
+        group = GroupElement(
             'spins',
             element=IsingSpinElement,
             space=space,
             values={'spin': spins, 'J': self.J, 'h': self.h, 'temperature': self.temperature},
+            on='sites',
         )
         return System(
             self.label,
@@ -396,11 +397,12 @@ class PottsSystem(BaseSystem):
         shape = _square(self.size)
         colors = np.random.default_rng(self.random_state).integers(0, self.q, size=shape).astype(float)
         space = LatticeSpace(shape)
-        group = LatticeElement(
+        group = GroupElement(
             'spins',
             element=PottsSpinElement,
             space=space,
             values={'color': colors, 'J': self.J, 'temperature': self.temperature},
+            on='sites',
         )
         return System(
             self.label,
@@ -469,11 +471,12 @@ class XYSystem(BaseSystem):
         shape = _square(self.size)
         angles = np.random.default_rng(self.random_state).uniform(0, 2 * np.pi, size=shape)
         space = LatticeSpace(shape)
-        group = LatticeElement(
+        group = GroupElement(
             'spins',
             element=XYSpinElement,
             space=space,
             values={'theta': angles, 'J': self.J, 'temperature': self.temperature},
+            on='sites',
         )
         return System(
             self.label,

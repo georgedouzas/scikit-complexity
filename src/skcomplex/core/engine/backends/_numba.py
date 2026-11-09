@@ -123,7 +123,7 @@ class NumbaBackend(BaseBackend):
         >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> system = System(
-        ...     elements=[GroupElement('herds', element=PopulationElement, size=2, values={'n': [1.0, 2.0]})],
+        ...     elements=[GroupElement('herds', element=PopulationElement, size=2, values={'x': [1.0, 2.0]})],
         ...     interactions=[ExponentialGrowthInteraction('growth', target='herds', r=3.0)],
         ... )
         >>> problem = simulate(system, until=0, backend=NumbaBackend()).problem

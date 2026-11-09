@@ -8,13 +8,13 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import sin
 
-from skcomplex.core.components.elements import Element, GroupElement, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import NeighborInteraction
 from skcomplex.core.components.laws import CascadeLaw, DriveLaw, JumpLaw, LocalRuleLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import delayed, mean
 from skcomplex.core.components.spaces import (
     AdjacencyNeighborhood,
-    BoxNeighborhood,
+    BallNeighborhood,
     DiscreteTime,
     LatticeSpace,
     NetworkSpace,
@@ -285,7 +285,7 @@ def _hebbian(space, activities):
     """Return a network of neurons with fixed activities and Hebbian synapses on its edges."""
     return System(
         elements=[
-            LatticeElement('neurons', element=NeuronElement, space=space, values={'a': activities}),
+            GroupElement('neurons', element=NeuronElement, space=space, values={'a': activities}, on='sites'),
             GroupElement('synapses', element=SynapseElement, space=space, on='edges'),
         ],
         interactions=[HebbianInteraction('hebb', nodes='neurons', synapses='synapses', eta=2.0)],
@@ -318,7 +318,7 @@ def test_edge_laws_read_the_ends_in_the_direction_of_directed_edges(backend):
     space = NetworkSpace(graph)
     system = System(
         elements=[
-            LatticeElement('people', element=PersonElement, space=space),
+            GroupElement('people', element=PersonElement, space=space, on='sites'),
             GroupElement('jobs', element=JobElement, space=space, on='edges', values={'salary': [1.0, 2.0, 4.0]}),
         ],
         interactions=[WagesInteraction('wages', people='people', jobs='jobs')],
@@ -340,7 +340,13 @@ def test_two_layers_carry_infection_and_wages_apart():
 
     def people():
         """Return the people, the first of them infected."""
-        return LatticeElement('people', element=PersonElement, space=space, values={'infected': [1.0, 0, 0, 0, 0]})
+        return GroupElement(
+            'people',
+            element=PersonElement,
+            space=space,
+            values={'infected': [1.0, 0, 0, 0, 0]},
+            on='sites',
+        )
 
     jobs = GroupElement('jobs', element=JobElement, space=space, on='edges', layer='work')
     system = System(
@@ -371,7 +377,7 @@ def test_weighted_kuramoto_on_edges_matches_the_adjacency_coupling(backend):
     theta, weights = rng.uniform(0, 2 * np.pi, 12), rng.uniform(0.5, 1.5, graph.number_of_edges())
     system = System(
         elements=[
-            LatticeElement('oscillators', element=OscillatorElement, space=space, values={'theta': theta}),
+            GroupElement('oscillators', element=OscillatorElement, space=space, values={'theta': theta}, on='sites'),
             GroupElement('links', element=SynapseElement, space=space, on='edges', values={'w': weights}),
         ],
         interactions=[CouplingInteraction('coupling', oscillators='oscillators', links='links')],
@@ -391,7 +397,7 @@ def test_edge_jumps_change_the_ends_of_their_edge():
     space = NetworkSpace(nx.DiGraph([(0, 1), (1, 2), (2, 3)]))
     values = {'s': [0.0, 1.0, 1.0, 1.0], 'i': [1.0, 0.0, 0.0, 0.0]}
     system = System(
-        elements=[LatticeElement('nodes', element=SISElement, space=space, values=values)],
+        elements=[GroupElement('nodes', element=SISElement, space=space, values=values, on='sites')],
         interactions=[SpreadInteraction('spread', nodes='nodes')],
     )
     trajectory = simulate(system, until=60.0, dt=1.0, random_state=0)
@@ -400,7 +406,13 @@ def test_edge_jumps_change_the_ends_of_their_edge():
 
 def test_edge_interactions_run_on_lattice_bonds():
     """Test that an interaction over neighbours on a lattice runs once per bond of neighbouring sites."""
-    cells = LatticeElement('cells', element=OscillatorElement, space=LatticeSpace(4), values={'theta': [1.0, 0, 0, 0]})
+    cells = GroupElement(
+        'cells',
+        element=OscillatorElement,
+        space=LatticeSpace(4),
+        values={'theta': [1.0, 0, 0, 0]},
+        on='sites',
+    )
     system = System(elements=[cells], interactions=[DiffusionInteraction('diffusion', cells='cells')])
     problem = PassCompiler().prepare(system).run().problem_
     drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
@@ -412,7 +424,13 @@ def test_update_laws_set_the_edge_member_only():
     space = NetworkSpace(nx.path_graph(3))
     system = System(
         elements=[
-            LatticeElement('people', element=PersonElement, space=space, values={'infected': [1.0, 0.0, 0.0]}),
+            GroupElement(
+                'people',
+                element=PersonElement,
+                space=space,
+                values={'infected': [1.0, 0.0, 0.0]},
+                on='sites',
+            ),
             GroupElement('contacts', element=ContactElement, space=space, on='edges'),
         ],
         interactions=[InfectionInteraction('infection', people='people', contacts='contacts')],
@@ -427,7 +445,7 @@ def test_edge_group_of_another_layer_is_rejected():
     space = NetworkSpace(nx.path_graph(3), layers=[LayerSpec('work', nx.complete_graph(3))])
     system = System(
         elements=[
-            LatticeElement('people', element=PersonElement, space=space),
+            GroupElement('people', element=PersonElement, space=space, on='sites'),
             GroupElement('jobs', element=JobElement, space=space, on='edges'),
         ],
         interactions=[WagesInteraction('wages', people='people', jobs='jobs', layer='work')],
@@ -521,7 +539,7 @@ class GrainsElement(Element):
 class PileElement(GrainsElement):
     """Pile of grains on the sites of a lattice, which topples over its neighbours."""
 
-    neighborhood: ClassVar[object] = BoxNeighborhood()
+    neighborhood: ClassVar[object] = BallNeighborhood(n_dim=1, center='inline')
 
     def _get_laws(self, s):
         """Return the sandpile of the element's own heights."""
@@ -577,7 +595,7 @@ def test_recovery_runs_once_per_member_beside_spreading_over_the_degree(space, b
     """Test that recovery runs once per member and infection reads the fraction of neighbours through the degree."""
     infected = np.linspace(0.1, 0.8, 8)
     system = System(
-        elements=[LatticeElement('nodes', element=SISElement, space=space, values={'i': infected})],
+        elements=[GroupElement('nodes', element=SISElement, space=space, values={'i': infected}, on='sites')],
         interactions=[RecoveryInteraction('sis', nodes='nodes')],
     )
     adjacency = np.zeros((8, 8))
@@ -593,7 +611,7 @@ def test_degrees_of_the_ends_count_the_edges_both_ways(backend):
     graph = nx.DiGraph([(0, 1), (0, 2), (1, 2), (3, 2)])
     space = NetworkSpace(graph)
     system = System(
-        elements=[LatticeElement('people', element=PersonElement, space=space)],
+        elements=[GroupElement('people', element=PersonElement, space=space, on='sites')],
         interactions=[DegreeInteraction('degrees', people='people')],
     )
     assert _drift(system, backend, 'people.wage').tolist() == [2.0, 2.0, 3.0, 1.0]
@@ -604,7 +622,7 @@ def test_degrees_of_the_ends_count_the_edges_both_ways(backend):
 def test_degrees_on_a_lattice_count_the_bonds_of_every_site(backend):
     """Test that the degree of every site of a periodic square lattice is four, for the source and the target."""
     system = System(
-        elements=[LatticeElement('people', element=PersonElement, space=LatticeSpace((3, 3)))],
+        elements=[GroupElement('people', element=PersonElement, space=LatticeSpace((3, 3)), on='sites')],
         interactions=[DegreeInteraction('degrees', people='people')],
     )
     assert _drift(system, backend, 'people.wage').tolist() == [4.0] * 9
@@ -623,7 +641,7 @@ def test_degrees_on_a_lattice_count_the_bonds_of_every_site(backend):
 def test_delayed_reads_either_end_of_an_edge(end, space, backend):
     """Test that `x' = -x(t - 1)` read through either end, or once per member, matches its method of steps solution."""
     system = System(
-        elements=[LatticeElement('nodes', element=OscillatorElement, space=space, values={'theta': 1.0})],
+        elements=[GroupElement('nodes', element=OscillatorElement, space=space, values={'theta': 1.0}, on='sites')],
         interactions=[DelayedPullInteraction('pull', nodes='nodes', end=end)],
     )
     trajectory = simulate(system, until=2, dt=0.1, solver=RK4Solver(), backend=backend)
@@ -638,11 +656,12 @@ def test_reduction_of_one_end_reads_the_other_end_as_every_member(backend):
     theta = np.array([0.0, 1.0, 2.0])
     system = System(
         elements=[
-            LatticeElement(
+            GroupElement(
                 'cells',
                 element=OscillatorElement,
                 space=NetworkSpace(nx.path_graph(3)),
                 values={'theta': theta},
+                on='sites',
             ),
         ],
         interactions=[MeanFieldInteraction('field', cells='cells')],
@@ -661,11 +680,11 @@ def test_relaxation_of_the_members_records_avalanches(space, element):
     heights = {'height': [2.0, 2.0, 2.0, 1.0, 2.0]}
     runs = [
         System(
-            elements=[LatticeElement('piles', element=element, space=space, values=heights)],
+            elements=[GroupElement('piles', element=element, space=space, values=heights, on='sites')],
             time=DiscreteTime(),
         ),
         System(
-            elements=[LatticeElement('piles', element=GrainsElement, space=space, values=heights)],
+            elements=[GroupElement('piles', element=GrainsElement, space=space, values=heights, on='sites')],
             interactions=[ToppleInteraction('topple', piles='piles', over=element.neighborhood)],
             time=DiscreteTime(),
         ),

@@ -19,7 +19,7 @@ from sage.all__sagemath_symbolics import ZZ, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, LatticeElement, WordElement
+from ....core.components.elements import Element, GroupElement, WordElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.laws import ProductionLaw
 from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
@@ -272,11 +272,12 @@ class GapSubshiftSystem(BaseSystem):
         return System(
             self.label,
             elements=[
-                LatticeElement(
+                GroupElement(
                     'cells',
                     element=BinaryCellElement,
                     space=LatticeSpace(self.size, boundary='fixed', fill=OUTSIDE),
                     values={'alive': cells},
+                    on='sites',
                 ),
             ],
             interactions=[
@@ -416,11 +417,12 @@ class ContextFreeSubshiftSystem(BaseSystem):
         return System(
             self.label,
             elements=[
-                LatticeElement(
+                GroupElement(
                     'cells',
                     element=TernaryCellElement,
                     space=LatticeSpace(self.size),
                     values={'symbol': symbols},
+                    on='sites',
                 ),
             ],
             interactions=[
@@ -552,11 +554,12 @@ class AddingMachineSystem(BaseSystem):
         return System(
             self.label,
             elements=[
-                LatticeElement(
+                GroupElement(
                     'cells',
                     element=DigitCellElement,
                     space=LatticeSpace(self.digits, boundary='fixed', fill=self.base - 1),
                     values={'digit': values, 'base': self.base},
+                    on='sites',
                 ),
             ],
             interactions=[

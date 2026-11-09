@@ -87,7 +87,7 @@ def test_scalars_visual_logs_nested_paths():
     element = trajectory.problem.elements[0]
     frame = FrameSpec(0, 0.0, trajectory.states[-1], trajectory.parameters[-1], trajectory.problem)
     ScalarsVisual(path=element.path, recording=recording).prepare(frame.problem).run(frame)
-    assert recording.logs == [('meadow/rabbits/n', 'Scalars')]
+    assert recording.logs == [('meadow/rabbits/x', 'Scalars')]
 
 
 @pytest.mark.parametrize(('n_dim', 'archetype'), [(3, 'Points3D'), (2, 'Points2D'), (1, 'Scalars')])
@@ -124,7 +124,7 @@ def test_rerun_observer_logs_parameters(monkeypatch, tmp_path):
     system = System(elements=[PopulationElement('a')], interactions=[ExponentialGrowthInteraction('g', target='a')])
     _run(system, RerunObserver('test', save_path=tmp_path / 'run.rrd'), until=0.2)
     assert logged.count('parameters/g.r') == 3
-    assert logged.count('a/n') == 3
+    assert logged.count('a/x') == 3
 
 
 def test_rerun_observer_leaves_out_a_coupling_tensor(monkeypatch, tmp_path):
@@ -186,7 +186,7 @@ def test_rerun_observer_warns_when_a_viewer_cannot_be_reached(monkeypatch):
     with pytest.warns(UserWarning, match='unable to connect'):
         trajectory = _run(System(elements=[PopulationElement('a')]), RerunObserver('test', spawn=True), until=0.0)
     assert timeouts == [pytest.approx(30.0)]
-    assert trajectory.values('a.n').size > 0
+    assert trajectory.values('a.x').size > 0
 
 
 def test_rerun_observer_spawns_no_viewer_without_a_display(monkeypatch):
@@ -199,7 +199,7 @@ def test_rerun_observer_spawns_no_viewer_without_a_display(monkeypatch):
     with pytest.warns(UserWarning, match='needs a display'):
         trajectory = _run(System(elements=[PopulationElement('a')]), RerunObserver('test', spawn=True), until=0.0)
     assert calls == []
-    assert trajectory.values('a.n').size > 0
+    assert trajectory.values('a.x').size > 0
 
 
 def test_rerun_observer_waits_for_a_file_without_limit(monkeypatch, tmp_path):

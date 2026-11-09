@@ -65,7 +65,7 @@ rejects.
 - `GroupElement` is of the kind `group`, many identical members. With `variable=True` it is a `variable-group`, whose
   members appear and disappear.
 - A group on a space is a `site-group`, an `edge-group`, or a `hyperedge-group`, by what its members sit on. A
-  `LatticeElement` and a `FieldElement` are site groups.
+  `GroupElement` on `'sites'` and a `FieldElement` are site groups.
 
 ## Interactions
 

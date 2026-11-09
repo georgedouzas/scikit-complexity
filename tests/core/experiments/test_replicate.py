@@ -24,11 +24,11 @@ def test_replicate_runs_many_initial_conditions_at_once():
 def test_replicate_runs_systems_with_interactions():
     """Test that member i of replicated predators and prey follows the single system from the i-th initial prey."""
     starts = np.asarray([20.0, 40.0, 60.0])
-    replicated = _replicate(LotkaVolterraSystem().prepare().system_, 3, {'prey.n': starts})
-    values = np.asarray(simulate(replicated, until=5, dt=0.1).values('predators.n'))
+    replicated = _replicate(LotkaVolterraSystem().prepare().system_, 3, {'prey.x': starts})
+    values = np.asarray(simulate(replicated, until=5, dt=0.1).values('predators.x'))
     for index, start in enumerate(starts):
         single = simulate(LotkaVolterraSystem(prey=float(start)), until=5, dt=0.1)
-        np.testing.assert_allclose(values[:, index], np.ravel(single.values('predators.n')), rtol=1e-5)
+        np.testing.assert_allclose(values[:, index], np.ravel(single.values('predators.x')), rtol=1e-5)
 
 
 def test_replicate_rejects_systems_with_groups():

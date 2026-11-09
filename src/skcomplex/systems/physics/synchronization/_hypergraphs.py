@@ -17,7 +17,7 @@ import xgi
 from sage.all__sagemath_symbolics import sin
 from scipy import stats
 
-from ....core.components.elements import LatticeElement
+from ....core.components.elements import GroupElement
 from ....core.components.interactions import HyperedgeInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import NetworkSpace
@@ -178,12 +178,13 @@ class HypergraphKuramotoSystem(BaseSystem):
             if self.phases is None
             else np.asarray(self.phases, dtype=float)
         )
-        oscillators = LatticeElement(
+        oscillators = GroupElement(
             'oscillators',
             element=PhaseOscillatorElement,
             space=space,
             values={'theta': theta, 'omega': omega},
             visual=VisualSpec('sites', {'states': ['theta'], 'low': 0.0, 'high': 2 * math.pi}),
+            on='sites',
         )
         coupling = SimplexCouplingInteraction(
             'coupling',

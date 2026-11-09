@@ -17,7 +17,7 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, TopologyInteraction
 from ....core.components.laws.utils import components, maximum, mod, neighbors, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
@@ -664,7 +664,13 @@ class InterdependentNetworkCascadeSystem(BaseSystem):
         second = LayerSpec('dependent', nx.gnp_random_graph(self.n_nodes, probability, seed=int(rng.integers(2**31))))
         space = NetworkSpace(first, layers=[second])
         functional = (rng.uniform(size=self.n_nodes) < self.p).astype(float)
-        nodes = LatticeElement('nodes', element=DependentNodeElement, space=space, values={'active': functional})
+        nodes = GroupElement(
+            'nodes',
+            element=DependentNodeElement,
+            space=space,
+            values={'active': functional},
+            on='sites',
+        )
 
         def _get_cascade(s: SimpleNamespace) -> object:
             """Return the activity of a node after the failures of the network of the step."""

@@ -25,11 +25,11 @@ trajectory = simulate(DynamicCarryingCapacitySystem(), dt=0.1, observers=[observ
 # %%
 # Tumour and capacity
 # -------------------
-# Once the tumour has filled its capacity, `n` stays close to `K`, so `dK/dt = d n^(2/3)` gives `K^(1/3)` rising
+# Once the tumour has filled its capacity, `x` stays close to `K`, so `dK/dt = d x^(2/3)` gives `K^(1/3)` rising
 # linearly at the rate `d / 3`, and the volume grows as the cube of time.
 
 times = trajectory.times
-volume, capacity = trajectory.values('tumour.n'), trajectory.values('vessels.K')
+volume, capacity = trajectory.values('tumour.x'), trajectory.values('vessels.K')
 fig, (curves, cube) = plt.subplots(1, 2, figsize=(10, 4))
 curves.plot(times, volume, label='tumour n')
 curves.plot(times, capacity, label='capacity K')

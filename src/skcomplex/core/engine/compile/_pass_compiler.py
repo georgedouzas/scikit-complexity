@@ -201,14 +201,14 @@ class PassCompiler(BaseCompiler):
         >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> system = System(
-        ...     elements=[PopulationElement('rabbits', n=10)],
+        ...     elements=[PopulationElement('rabbits', x=10)],
         ...     interactions=[ExponentialGrowthInteraction('growth', target='rabbits', r=0.5)],
         ... )
         >>> compiler = PassCompiler().prepare(system)
         >>> compiler.report_.ok
         True
         >>> compiler.run().problem_.equations
-        {'rabbits.n': n_rabbits*r_growth}
+        {'rabbits.x': r_growth*x_rabbits}
     """
 
     passes_: tuple[BasePass, ...]

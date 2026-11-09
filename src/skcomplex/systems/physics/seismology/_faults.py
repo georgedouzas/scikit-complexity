@@ -13,9 +13,9 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CascadeInteraction
-from ....core.components.spaces import LatticeSpace, VonNeumannNeighborhood
+from ....core.components.spaces import BallNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, System
 from ....core.specs import StateSpec, VisualSpec
 from ....core.types import Array
@@ -123,7 +123,7 @@ class EarthquakesSystem(BaseSystem):
         space = LatticeSpace(tuple(self.shape), boundary='fixed')
         return System(
             self.label,
-            elements=[LatticeElement('fault', element=FaultElement, space=space, values={'force': forces})],
+            elements=[GroupElement('fault', element=FaultElement, space=space, values={'force': forces}, on='sites')],
             interactions=[
                 CascadeInteraction(
                     'earthquake',
@@ -133,7 +133,7 @@ class EarthquakesSystem(BaseSystem):
                     share=self.alpha,
                     mode='reset',
                     drive=self._load,
-                    neighborhood=VonNeumannNeighborhood(center=True),
+                    neighborhood=BallNeighborhood(metric='manhattan', center='first'),
                 ),
             ],
         )

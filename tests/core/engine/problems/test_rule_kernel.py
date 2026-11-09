@@ -8,7 +8,7 @@ import pytest
 from sage.all__sagemath_gap import PermutationGroup, libgap
 from sage.all__sagemath_symbolics import ZZ
 
-from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import LocalRuleInteraction
 from skcomplex.core.components.spaces import (
     CayleySpace,
@@ -37,7 +37,7 @@ class GroupValuedElement(Element):
 def _translated(space, values, schedule='synchronous', rule=lambda value: value):
     """Return the system of a rule over the memory translated by the values of the cells."""
     return System(
-        elements=[LatticeElement('cells', element=GroupValuedElement, space=space, values={'value': values})],
+        elements=[GroupElement('cells', element=GroupValuedElement, space=space, values={'value': values}, on='sites')],
         interactions=[
             LocalRuleInteraction(
                 'shift',
@@ -117,11 +117,12 @@ def test_function_rule_updates_a_power_series_state():
 
     system = System(
         elements=[
-            LatticeElement(
+            GroupElement(
                 'cells',
                 element=PowerSeriesCellElement,
                 space=LatticeSpace(6),
                 values={'ring': ring, 'value': values},
+                on='sites',
             ),
         ],
         interactions=[
@@ -137,7 +138,7 @@ def test_function_rule_updates_a_power_series_state():
 def test_lookup_rules_reject_power_series_states():
     """Test that a totalistic rule cannot read a state of several components."""
     system = System(
-        elements=[LatticeElement('cells', element=PowerSeriesCellElement, space=LatticeSpace(5))],
+        elements=[GroupElement('cells', element=PowerSeriesCellElement, space=LatticeSpace(5), on='sites')],
         interactions=[
             LocalRuleInteraction(
                 'sum',

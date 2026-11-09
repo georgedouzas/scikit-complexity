@@ -10,9 +10,9 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
-from ....core.components.spaces import LatticeSpace, VonNeumannNeighborhood
+from ....core.components.spaces import BallNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -132,11 +132,12 @@ class CyclicCellularAutomatonSystem(BaseSystem):
         return System(
             self.label,
             elements=[
-                LatticeElement(
+                GroupElement(
                     'cells',
                     element=CyclicCellElement,
                     space=LatticeSpace(shape),
                     values={'level': levels, 'n': self.n, 'threshold': self.threshold},
+                    on='sites',
                 ),
             ],
             interactions=[
@@ -145,7 +146,7 @@ class CyclicCellularAutomatonSystem(BaseSystem):
                     target='cells',
                     state='level',
                     rule=self._advance_cyclically,
-                    neighborhood=VonNeumannNeighborhood(center=True),
+                    neighborhood=BallNeighborhood(metric='manhattan', center='first'),
                 ),
             ],
         )

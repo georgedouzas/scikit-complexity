@@ -11,7 +11,7 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 from sklearn.base import clone
 
-from skcomplex.core.components.elements import BaseElement, Element, GroupElement, LatticeElement
+from skcomplex.core.components.elements import BaseElement, Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import NoiseLaw, RateLaw
 from skcomplex.core.components.laws.utils import neighbors
@@ -279,7 +279,7 @@ def test_edge_states_weigh_neighbourhood_reductions(backend):
     space = NetworkSpace(nx.path_graph(4))
     system = System(
         elements=[
-            LatticeElement('nodes', element=StockElement, space=space, values={'n': [1.0, 2.0, 3.0, 4.0]}),
+            GroupElement('nodes', element=StockElement, space=space, values={'n': [1.0, 2.0, 3.0, 4.0]}, on='sites'),
             GroupElement('links', element=StockElement, space=space, on='edges', values={'n': [10.0, 100.0, 1000.0]}),
         ],
         interactions=[WeightedInteraction('weighted', nodes='nodes', links='links')],

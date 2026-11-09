@@ -27,7 +27,7 @@ trajectory = simulate(SIRSSystem(), observers=[observer])
 # The endemic equilibrium has `S = gamma / beta` susceptibles and `I = xi (N - S) / (gamma + xi)` infected. In the
 # `(S, I)` plane the trajectory should spiral into that point.
 
-susceptible, infected = trajectory.values('S.n'), trajectory.values('I.n')
+susceptible, infected = trajectory.values('S.x'), trajectory.values('I.x')
 beta, gamma, xi, total = 0.0003, 0.1, 0.02, 1000.0
 s_star = gamma / beta
 i_star = xi * (total - s_star) / (gamma + xi)

@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import CC
 
-from skcomplex.core.components.elements import LatticeElement
+from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.interactions import NeighborInteraction
 from skcomplex.core.components.laws import DissipatorLaw, GeneratorLaw
 from skcomplex.core.components.laws.utils import local_operator
@@ -121,7 +121,7 @@ def _chain(n_sites, **values):
     labels = ['up', 'down'] * (n_sites // 2)
     return System(
         elements=[
-            LatticeElement('chain', element=SpinElement, space=LatticeSpace(n_sites), values={'psi': labels}),
+            GroupElement('chain', element=SpinElement, space=LatticeSpace(n_sites), values={'psi': labels}, on='sites'),
         ],
         interactions=[XXZInteraction('xxz', target='chain', **values)],
     )

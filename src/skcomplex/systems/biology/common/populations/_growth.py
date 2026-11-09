@@ -20,20 +20,20 @@ LIMITED_FORMS = ('logistic', 'gompertz')
 
 
 class GrowthInteraction(RateInteraction):
-    """Growth or decay of a population `n` of a target by a growth law.
+    """Growth or decay of a population `x` of a target by a growth law.
 
     The growth comes with a proportional harvest.
 
-    The rate of `n` is the growth of the form minus the harvest `h n`:
+    The rate of `x` is the growth of the form minus the harvest `h x`:
 
-    - `'exponential'`: `r n`.
-    - `'logistic'`: `r n (1 - (n / K) ** p)`, the generalized logistic of Richards, with `p = 1` for Verhulst's.
-    - `'gompertz'`: `r n log(K / n)`.
-    - `'power'`: `r n ** p`.
-    - `'bertalanffy'`: `r n ** p (1 - (n / K) ** (1 - p))`, von Bertalanffy's growth towards `K`, with `p < 1`.
+    - `'exponential'`: `r x`.
+    - `'logistic'`: `r x (1 - (x / K) ** p)`, the generalized logistic of Richards, with `p = 1` for Verhulst's.
+    - `'gompertz'`: `r x log(K / x)`.
+    - `'power'`: `r x ** p`.
+    - `'bertalanffy'`: `r x ** p (1 - (x / K) ** (1 - p))`, von Bertalanffy's growth towards `K`, with `p < 1`.
 
     With a delay `tau` above 0, the limiting factor of the logistic and the Gompertz forms reads the population
-    `n(t - tau)`, as in Hutchinson's delayed logistic equation. A negative rate `r` gives decay.
+    `x(t - tau)`, as in Hutchinson's delayed logistic equation. A negative rate `r` gives decay.
 
     Args:
         label:
@@ -69,16 +69,16 @@ class GrowthInteraction(RateInteraction):
             von Bertalanffy exponent is 1.
 
     Examples:
-        >>> from skcomplex.core.components.elements import CompartmentElement
+        >>> from skcomplex.systems.biology.common.kinetics import CompartmentElement
         >>> from skcomplex.systems.biology.common.populations import GrowthInteraction
         >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.engine.runtime import simulate
         >>> system = System(
-        ...     elements=[CompartmentElement('population', n=1.0)],
+        ...     elements=[CompartmentElement('population', x=1.0)],
         ...     interactions=[GrowthInteraction('growth', target='population', r=1.0, K=100.0, form='logistic')],
         ... )
         >>> trajectory = simulate(system, until=30, dt=1.0)
-        >>> round(float(trajectory.values('population.n')[-1]), 2)
+        >>> round(float(trajectory.values('population.x')[-1]), 2)
         100.0
     """
 
@@ -93,7 +93,7 @@ class GrowthInteraction(RateInteraction):
         h: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         tau: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         form: str = 'exponential',
-        state: str = 'n',
+        state: str = 'x',
     ) -> None:
         super().__init__(label, target=target, state=state)
         self.r = r
@@ -120,7 +120,7 @@ class GrowthInteraction(RateInteraction):
         return capacity
 
     def _get_crowding(self, namespace: SimpleNamespace) -> Expression:
-        """Return the crowding `(n / K) ** p` of the logistic form.
+        """Return the crowding `(x / K) ** p` of the logistic form.
 
         A subclass overrides it to fix the exponent.
         """

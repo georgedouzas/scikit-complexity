@@ -15,9 +15,9 @@ from skcomplex.systems.biology.epidemiology import SIRSystem
 from skcomplex.systems.economics.resources import HarvestingSystem
 
 replicated = ensemble(SIRSystem(stochastic=True), replicates=10, until=60, random_state=0)
-round(float(replicated.summary()[0]['I.n.mean']), 1)
+round(float(replicated.summary()[0]['I.x.mean']), 1)
 
-swept = sweep(SIRSystem(), {'gamma': [0.1, 0.2]}, until=60, outputs=['I.n'])
+swept = sweep(SIRSystem(), {'gamma': [0.1, 0.2]}, until=60, outputs=['I.x'])
 [row['gamma'] for row in swept.rows]
 
 policies = [ScenarioSpec('baseline'), ScenarioSpec('quota', schedule=[(50.0, 'harvest.effort', 0.025)])]
@@ -69,10 +69,10 @@ from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 times = np.arange(0.0, 21.0)
 observed = 500 / (1 + 49 * np.exp(-0.8 * times))
 bounds = {'r': (0.1, 2.0), 'K': (100, 1000)}
-fit = calibrate(LogisticGrowthSystem(), {'population.n': (times, observed)}, bounds)
+fit = calibrate(LogisticGrowthSystem(), {'population.x': (times, observed)}, bounds)
 round(fit.estimates['r'], 2), round(fit.r2, 4), round(fit.system.r, 2)
 
-ranked = sensitivity(LogisticGrowthSystem(), bounds, output='population.n', method='oat', until=20)
+ranked = sensitivity(LogisticGrowthSystem(), bounds, output='population.x', method='oat', until=20)
 ranked.ranking
 ```
 
@@ -101,7 +101,7 @@ observed = 500 / (1 + 49 * np.exp(-0.8 * times)) * (1 + 0.02 * rng.standard_norm
 bounds = {'r': stats.norm(0.8, 0.2), 'K': (100, 1000)}
 posterior = calibrate(
     LogisticGrowthSystem(n=10.0),
-    {'population.n': (times, observed)},
+    {'population.x': (times, observed)},
     bounds,
     method='mcmc',
     loss='likelihood',

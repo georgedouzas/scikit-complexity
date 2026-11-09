@@ -36,9 +36,9 @@ strengths = np.array([0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 4.0])
 means = []
 for strength in strengths:
     system = TwoLevelReplicatorSystem(group_strength=float(strength))
-    final = simulate(system, until=20, dt=20.0, solver=RK4Solver(dt=0.01)).values('groups.f')[-1].ravel()
+    final = simulate(system, until=20, dt=20.0, solver=RK4Solver(dt=0.01)).values('groups.x')[-1].ravel()
     means.append(np.sum(centres * final) / np.sum(final))
-density = trajectory.values('groups.f')[-1].ravel()
+density = trajectory.values('groups.x')[-1].ravel()
 fig, (steady, threshold) = plt.subplots(1, 2, figsize=(10, 4))
 steady.plot(centres, density)
 steady.set_xlabel('fraction of punishers z')

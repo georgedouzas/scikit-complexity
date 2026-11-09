@@ -13,15 +13,16 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import ZZ, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
-from ....core.components.spaces import CayleySpace, GeneratorNeighborhood
+from ....core.components.spaces import CayleySpace
 from ....core.components.systems import BaseSystem, System
 from ....core.errors import ParameterError
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ._binary_cell import BinaryCellElement
 from ._codes import life
+from ._generator_neighborhood import GeneratorNeighborhood
 from ._groups import free_group
 
 
@@ -109,7 +110,7 @@ def _pair_system(
     values = {'first': pairs[:, 0], 'second': pairs[:, 1], 'modulus': modulus}
     return System(
         label,
-        elements=[LatticeElement('cells', element=PairCellElement, space=space, values=values)],
+        elements=[GroupElement('cells', element=PairCellElement, space=space, values=values, on='sites')],
         interactions=[
             LocalRuleInteraction(
                 'rule',
@@ -360,7 +361,9 @@ class LifeInATreeSystem(BaseSystem):
             cells = np.asarray(self.initial, dtype=float)
         return System(
             self.label,
-            elements=[LatticeElement('cells', element=BinaryCellElement, space=space, values={'alive': cells})],
+            elements=[
+                GroupElement('cells', element=BinaryCellElement, space=space, values={'alive': cells}, on='sites'),
+            ],
             interactions=[
                 LocalRuleInteraction(
                     'life',

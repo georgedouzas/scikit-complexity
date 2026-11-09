@@ -70,7 +70,7 @@ for knudsen, step in ((1.0, 2e-3), (1e-2, 2e-3), (1e-4, 2e-4)):
     fine = BGKEquationSystem(positions=positions, velocities=velocities, knudsen=knudsen)
     stepper = StrangSplittingSolver(SSPRKSolver(dt=0.001), RK4Solver(dt=step), dt=0.001)
     trajectory = simulate(fine, solver=stepper, dt=0.2)
-    density = trajectory.values('gas.f')[-1].reshape(positions, velocities).sum(axis=1) * 12.0 / velocities
+    density = trajectory.values('gas.x')[-1].reshape(positions, velocities).sum(axis=1) * 12.0 / velocities
     axis.plot(centres, density, label=f'Knudsen {knudsen:g}')
 axis.plot(centres, euler_density(centres - 0.5, 0.2, gamma=3.0), 'k--', label='exact Euler solution')
 axis.set_xlabel('position')

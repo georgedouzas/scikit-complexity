@@ -11,9 +11,9 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import ZZ
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
-from ....core.components.spaces import BoxNeighborhood, LatticeSpace, MooreNeighborhood, VonNeumannNeighborhood
+from ....core.components.spaces import BallNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, System
 from ....core.specs import StateSpec, VisualSpec
 from ....core.types import Array
@@ -113,11 +113,12 @@ class ElementaryAutomatonSystem(BaseSystem):
         return System(
             self.label,
             elements=[
-                LatticeElement(
+                GroupElement(
                     'cells',
                     element=BinaryCellElement,
                     space=LatticeSpace(self.size),
                     values={'alive': values},
+                    on='sites',
                 ),
             ],
             interactions=[
@@ -126,7 +127,7 @@ class ElementaryAutomatonSystem(BaseSystem):
                     target='cells',
                     state='alive',
                     rule=Wolfram(self.rule),
-                    neighborhood=BoxNeighborhood(),
+                    neighborhood=BallNeighborhood(n_dim=1, center='inline'),
                 ),
             ],
         )
@@ -205,14 +206,16 @@ class GameOfLifeSystem(BaseSystem):
         space = LatticeSpace(tuple(self.shape))
         return System(
             self.label,
-            elements=[LatticeElement('cells', element=BinaryCellElement, space=space, values={'alive': values})],
+            elements=[
+                GroupElement('cells', element=BinaryCellElement, space=space, values={'alive': values}, on='sites'),
+            ],
             interactions=[
                 LocalRuleInteraction(
                     'rule',
                     target='cells',
                     state='alive',
                     rule=life(self.born, self.survive),
-                    neighborhood=MooreNeighborhood(),
+                    neighborhood=BallNeighborhood(),
                 ),
             ],
         )
@@ -279,11 +282,12 @@ class LangtonsAntSystem(BaseSystem):
         return System(
             self.label,
             elements=[
-                LatticeElement(
+                GroupElement(
                     'cells',
                     element=AntCellElement,
                     space=LatticeSpace(tuple(self.shape)),
                     values={'ant': ant},
+                    on='sites',
                 ),
             ],
             interactions=[
@@ -292,7 +296,7 @@ class LangtonsAntSystem(BaseSystem):
                     target='cells',
                     state=('color', 'ant'),
                     rule=self._ant_rule,
-                    neighborhood=VonNeumannNeighborhood(center=True),
+                    neighborhood=BallNeighborhood(metric='manhattan', center='first'),
                     reads=('color', 'ant'),
                 ),
             ],

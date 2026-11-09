@@ -23,8 +23,8 @@ subsystem of your own with the operators it needs. Typical subsystems have these
 - A mode has `annihilate`, `create`, and `number`, truncated at `quanta`.
 - A particle on the sites of a lattice or a network has its `laplacian` and its `adjacency`.
 
-A group of subsystems, such as a `LatticeElement` of spins, is the tensor product of the spaces of its members, in
-member order. The initial state of every subsystem is a basis label, an index, or a vector.
+A group of subsystems, such as a `GroupElement` of spins on `'sites'`, is the tensor product of the spaces of its
+members, in member order. The initial state of every subsystem is a basis label, an index, or a vector.
 
 ## Operators and laws
 
@@ -36,7 +36,7 @@ from typing import Annotated
 import numpy as np
 from sage.all__sagemath_symbolics import CC
 
-from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import NeighborInteraction
 from skcomplex.core.components.laws import GeneratorLaw
 from skcomplex.core.components.laws.utils import local_operator
@@ -81,7 +81,11 @@ def sites(values):
 
 
 chain = System(
-    elements=[LatticeElement('chain', element=SpinElement, space=LatticeSpace(6), values={'psi': ['up', 'down'] * 3})],
+    elements=[
+        GroupElement(
+            'chain', element=SpinElement, space=LatticeSpace(6), on='sites', values={'psi': ['up', 'down'] * 3}
+        ),
+    ],
     interactions=[CouplingInteraction('coupling', target='chain')],
 )
 observables = [ObservableSpec('sz', sz, group='chain', reduce=sites)]

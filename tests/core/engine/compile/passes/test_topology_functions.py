@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import fit_law
-from skcomplex.core.components.elements import Element, GroupElement, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction, NeighborInteraction
 from skcomplex.core.components.laws import JumpLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import neighbors, total
@@ -423,7 +423,7 @@ def test_validation_reports_a_node_request_on_fixed_site_groups():
     space = NetworkSpace(nx.path_graph(4))
     system = System(
         elements=[
-            LatticeElement('nodes', element=NodeElement, space=space),
+            GroupElement('nodes', element=NodeElement, space=space, on='sites'),
             GroupElement('links', element=LinkElement, space=space, on='edges', variable=True),
             GrowthElement('growth'),
         ],
@@ -455,7 +455,7 @@ def test_validation_reports_a_metric_neighbourhood_on_a_network():
             return [UpdateLaw(s.x, neighbors(s.other.x, over=RadiusNeighborhood(1.0)))]
 
     system = System(
-        elements=[LatticeElement('nodes', element=ReadingElement, space=NetworkSpace(nx.path_graph(3)))],
+        elements=[GroupElement('nodes', element=ReadingElement, space=NetworkSpace(nx.path_graph(3)), on='sites')],
         time=DiscreteTime(),
     )
     issues = PassCompiler().prepare(system).report_.issues
@@ -485,7 +485,10 @@ def test_validation_reports_a_reduction_over_a_missing_layer():
             return [UpdateLaw(s.x, neighbors(s.other.x, over=AdjacencyNeighborhood(layer='trade')))]
 
     space = NetworkSpace(nx.path_graph(3), layers=[LayerSpec('work', nx.path_graph(3))])
-    system = System(elements=[LatticeElement('nodes', element=ReadingElement, space=space)], time=DiscreteTime())
+    system = System(
+        elements=[GroupElement('nodes', element=ReadingElement, space=space, on='sites')],
+        time=DiscreteTime(),
+    )
     report = PassCompiler().prepare(system).report_
     issues = report.issues
     assert [issue.code for issue in issues] == ['binding']

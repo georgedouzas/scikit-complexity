@@ -4,7 +4,7 @@ from typing import Annotated
 
 import numpy as np
 
-from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import SamplingInteraction
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
@@ -29,7 +29,7 @@ def _energy(namespace):
 
 def _system(sampling):
     """Return a square lattice of spins sampled by an interaction."""
-    spins = LatticeElement('spins', element=SpinElement, space=LatticeSpace((16, 16)))
+    spins = GroupElement('spins', element=SpinElement, space=LatticeSpace((16, 16)), on='sites')
     return System(elements=[spins], interactions=[sampling], time=DiscreteTime())
 
 

@@ -83,9 +83,9 @@ class BirthDeathElement(Element):
 def test_analysis_reads_a_trajectory():
     """Test that the series of a trajectory are read by name."""
     trajectory = simulate(LotkaVolterraSystem(), until=1.0, random_state=0)
-    series = _read_series(trajectory, ['prey.n'])
-    assert series.labels == ['prey.n']
-    assert series.values.mean(axis=0).tolist() == pytest.approx([trajectory.values('prey.n').mean()])
+    series = _read_series(trajectory, ['prey.x'])
+    assert series.labels == ['prey.x']
+    assert series.values.mean(axis=0).tolist() == pytest.approx([trajectory.values('prey.x').mean()])
 
 
 def test_analysis_reads_arrays_as_columns():
@@ -110,17 +110,17 @@ def test_missing_data_kind_names_the_kinds():
 def test_series_of_an_ode():
     """Test that the series of the prey and predators equal the trajectory's columns."""
     trajectory = simulate(LotkaVolterraSystem(), until=5.0, random_state=0)
-    series = _read_series(trajectory, ['prey.n', 'predators.n'])
+    series = _read_series(trajectory, ['prey.x', 'predators.x'])
     assert series.values.shape == (len(trajectory.times), 2)
-    np.testing.assert_array_equal(series.values[:, 0], trajectory.values('prey.n'))
-    np.testing.assert_array_equal(series.values[:, 1], trajectory.values('predators.n'))
+    np.testing.assert_array_equal(series.values[:, 0], trajectory.values('prey.x'))
+    np.testing.assert_array_equal(series.values[:, 1], trajectory.values('predators.x'))
     np.testing.assert_array_equal(series.times, trajectory.times)
 
 
 def test_series_labels_of_every_scalar_series():
     """Test that the series of a trajectory default to its scalar series, labelled by name."""
     trajectory = simulate(LotkaVolterraSystem(), until=1.0, random_state=0)
-    assert _read_series(trajectory).labels == ['prey.n', 'predators.n']
+    assert _read_series(trajectory).labels == ['prey.x', 'predators.x']
 
 
 def test_jump_path_of_a_gillespie_run():

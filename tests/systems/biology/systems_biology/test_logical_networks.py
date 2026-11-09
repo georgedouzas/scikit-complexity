@@ -29,8 +29,8 @@ def test_negative_circuit_cycles_and_positive_circuit_settles():
 def test_petri_net_keeps_its_place_invariant_and_integer_tokens():
     """Test that the gene of the Petri net is on or off, never both, and tokens stay nonnegative integers."""
     trajectory = simulate(PetriNetSystem(), dt=0.5, random_state=0, until=100)
-    np.testing.assert_array_equal(trajectory.values('gene_on.n') + trajectory.values('gene_off.n'), 1.0)
+    np.testing.assert_array_equal(trajectory.values('gene_on.x') + trajectory.values('gene_off.x'), 1.0)
     for place in ('mRNA', 'protein'):
-        tokens = trajectory.values(f'{place}.n')
+        tokens = trajectory.values(f'{place}.x')
         assert np.all(tokens >= 0)
         np.testing.assert_array_equal(tokens, np.round(tokens))

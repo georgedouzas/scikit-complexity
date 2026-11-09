@@ -297,7 +297,14 @@ class GaugeArbitrageMarketSystem(BaseSystem):
         space = CellComplexSpace(LatticeSpace((self.size, self.size))).prepare()
         density = 1.0 + self.bump * np.random.default_rng(self.seed).random(self.size * self.size)
         field = self._initial_field(space.incidences_[0], density - density.mean())
-        sites = GroupElement('sites', element=GoodSiteElement, space=space, on='sites', values={'rho': density})
+        sites = GroupElement(
+            'sites',
+            element=GoodSiteElement,
+            space=space,
+            on='sites',
+            values={'rho': density},
+            visual=VisualSpec(),
+        )
         links = GroupElement(
             'links',
             element=ExchangeLinkElement,

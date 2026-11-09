@@ -109,7 +109,7 @@ def basin_stability(
         >>> from skcomplex.core.experiments import basin_stability
         >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
         >>> result = basin_stability(
-        ...     LogisticGrowthSystem(), {'population.n': (0.1, 10)}, lambda trajectory: 'capacity', n=5, until=5
+        ...     LogisticGrowthSystem(), {'population.x': (0.1, 10)}, lambda trajectory: 'capacity', n=5, until=5
         ... )
         >>> result.fractions
         {'capacity': 1.0}

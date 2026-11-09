@@ -11,7 +11,7 @@ import scipy.integrate
 import scipy.optimize
 from sage.all__sagemath_symbolics import SR, I, atan2, cos, exp, pi, sin, sqrt, vector
 
-from skcomplex.core.components.elements import Element, GroupElement, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import CouplingInteraction
 from skcomplex.core.components.laws import BaseLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import count, uniform, where
@@ -127,11 +127,12 @@ def _sine(s):
 
 def _oscillators(space, theta, omega, **arguments):
     """Return oscillators on a space coupled by a function, the sine of the phase difference by default."""
-    oscillators = LatticeElement(
+    oscillators = GroupElement(
         'oscillators',
         element=OscillatorElement,
         space=space,
         values={'theta': theta, 'omega': omega},
+        on='sites',
     )
     coupling = CouplingInteraction('coupling', target='oscillators', read='theta', write='theta', **arguments)
     return System(elements=[oscillators], interactions=[coupling])
@@ -357,7 +358,7 @@ def test_coupling_circular_mean_gives_the_mean_direction_of_the_other_members(ba
 def test_coupling_map_form_combines_with_parameters_and_time():
     """Test that the combination of the map form reads the parameters of the interaction and the time."""
     u = np.array([0.0, 1.0, 2.5, 4.0])
-    cells = LatticeElement('cells', element=CellElement, space=LatticeSpace(4), values={'u': u})
+    cells = GroupElement('cells', element=CellElement, space=LatticeSpace(4), values={'u': u}, on='sites')
     coupling = CouplingInteraction(
         'coupling',
         target='cells',
@@ -391,7 +392,7 @@ def test_coupling_weights_edges_by_a_state_of_the_edge_group(backend):
     theta, weights = rng.uniform(0, 2 * np.pi, 12), rng.uniform(0.5, 1.5, graph.number_of_edges())
     system = System(
         elements=[
-            LatticeElement('oscillators', element=OscillatorElement, space=space, values={'theta': theta}),
+            GroupElement('oscillators', element=OscillatorElement, space=space, values={'theta': theta}, on='sites'),
             GroupElement('links', element=LinkElement, space=space, on='edges', values={'w': weights}),
         ],
         interactions=[WeightedCouplingInteraction('coupling', target='oscillators', links='links')],
@@ -433,7 +434,7 @@ def test_coupling_with_a_delay_locks_two_oscillators_at_the_delayed_frequency():
 def test_coupling_map_form_combines_the_state_with_the_reduction():
     """Test that the map form sets every level to `combine(u_i, reduction)` on the bonds of a lattice."""
     u = np.array([0.0, 1.0, 2.5, 4.0])
-    cells = LatticeElement('cells', element=CellElement, space=LatticeSpace(4), values={'u': u})
+    cells = GroupElement('cells', element=CellElement, space=LatticeSpace(4), values={'u': u}, on='sites')
     coupling = CouplingInteraction(
         'coupling',
         target='cells',
@@ -685,7 +686,13 @@ HYPEREDGES = [(0, 1, 2), (1, 2, 3, 4), (3, 4, 5), (0, 2, 4, 5), (2, 5)]
 def _hyperedge_drift(coupling, theta, backend, space=None):
     """Return the drift of oscillators without natural frequencies coupled over the hyperedges of a network."""
     space = space or NetworkSpace(nx.complete_graph(6), hyperedges=HYPEREDGES)
-    oscillators = LatticeElement('oscillators', element=OscillatorElement, space=space, values={'theta': theta})
+    oscillators = GroupElement(
+        'oscillators',
+        element=OscillatorElement,
+        space=space,
+        values={'theta': theta},
+        on='sites',
+    )
     problem = (
         PassCompiler(backend=backend).prepare(System(elements=[oscillators], interactions=[coupling])).run().problem_
     )
@@ -800,7 +807,9 @@ def _bonded_drift(case: str, renamed: bool) -> np.ndarray:
     """Return the initial rates of the phases of a coupling case, bound by the plain or the renamed roles."""
     theta, phi = np.array([0.0, 1.0, 2.5, 4.0]), np.array([0.5, 3.0, -1.0])
     elements = {
-        'edges': [LatticeElement('a', element=OscillatorElement, space=LatticeSpace(4), values={'theta': theta})],
+        'edges': [
+            GroupElement('a', element=OscillatorElement, space=LatticeSpace(4), values={'theta': theta}, on='sites'),
+        ],
         'group': [GroupElement('a', element=OscillatorElement, size=4, values={'theta': theta})],
         'source': [
             GroupElement('a', element=OscillatorElement, size=4, values={'theta': theta}),

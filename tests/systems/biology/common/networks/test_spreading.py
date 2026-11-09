@@ -6,7 +6,7 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import TransitionInteraction
 from skcomplex.core.components.spaces import LatticeSpace, NetworkSpace
 from skcomplex.core.components.systems import System
@@ -36,7 +36,7 @@ class SiteElement(Element):
 def _states(space, spreading, initial, until, seed=0):
     """Return the states of the sites at every unit of time."""
     system = System(
-        elements=[LatticeElement('sites', element=SiteElement, space=space, values={'state': initial})],
+        elements=[GroupElement('sites', element=SiteElement, space=space, values={'state': initial}, on='sites')],
         interactions=[spreading],
     )
     trajectory = simulate(system, until=until, dt=1.0, random_state=seed)

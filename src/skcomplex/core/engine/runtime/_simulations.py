@@ -154,11 +154,11 @@ class Simulation(BaseConfig[None, float]):
         >>> from skcomplex.systems.biology.common.populations import LogisticGrowthInteraction, PopulationElement
         >>> from skcomplex.core.engine.runtime._simulations import Simulation
         >>> system = System(
-        ...     elements=[PopulationElement('rabbits', n=10)],
+        ...     elements=[PopulationElement('rabbits', x=10)],
         ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
         ... )
         >>> simulation = Simulation(system, dt=1.0).prepare().run(until=20)
-        >>> round(simulation.trajectory_.values('rabbits.n')[-1])
+        >>> round(simulation.trajectory_.values('rabbits.x')[-1])
         100
     """
 
@@ -626,7 +626,7 @@ class Simulation(BaseConfig[None, float]):
             >>> from skcomplex.systems.biology.common.populations import LogisticGrowthInteraction, PopulationElement
             >>> from skcomplex.core.engine.runtime._simulations import Simulation
             >>> system = System(
-            ...     elements=[PopulationElement('rabbits', n=10)],
+            ...     elements=[PopulationElement('rabbits', x=10)],
             ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
             ... )
             >>> schedule = {'growth.r': lambda t: 1.0 if t < 5 else 0.0}
@@ -634,7 +634,7 @@ class Simulation(BaseConfig[None, float]):
             >>> trajectory = simulation.extend(until=10).trajectory_
             >>> trajectory.times.tolist()
             [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]
-            >>> bool(trajectory.values('rabbits.n')[5] == trajectory.values('rabbits.n')[10])
+            >>> bool(trajectory.values('rabbits.x')[5] == trajectory.values('rabbits.x')[10])
             True
         """
         self._check_prepared()

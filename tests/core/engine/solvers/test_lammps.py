@@ -108,7 +108,7 @@ def _hyperbolic(s, r):
 
 
 def _lattice(n, spacing=1.2, offset=0.6):
-    """Return the positions of a square lattice of `n` points."""
+    """Return the positions of a square lattice of `x` points."""
     side = int(np.ceil(np.sqrt(n)))
     grid = np.stack(np.meshgrid(np.arange(side), np.arange(side)), axis=-1).reshape(-1, 2)[:n]
     return grid * spacing + offset
@@ -151,7 +151,7 @@ def test_lammps_trajectory_has_native_names_and_shapes():
 def test_lammps_rejects_population_system():
     """Test that a Lotka-Volterra system names the backend and every unsupported item."""
     system = System(
-        elements=[PopulationElement('rabbits', n=40), PopulationElement('foxes', n=9)],
+        elements=[PopulationElement('rabbits', x=40), PopulationElement('foxes', x=9)],
         interactions=[
             LogisticGrowthInteraction('growth', target='rabbits'),
             PredationInteraction('hunt', predator='foxes', prey='rabbits'),

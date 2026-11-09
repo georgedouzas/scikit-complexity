@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 import qutip
 
-from skcomplex.core.components.elements import LatticeElement
+from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.laws import DissipatorLaw, GeneratorLaw
 from skcomplex.core.components.laws.utils import local_operator
 from skcomplex.core.components.spaces import LatticeSpace, NetworkSpace
@@ -152,5 +152,5 @@ def test_operators_keep_the_projectors_and_the_adjacency_of_their_space():
 
 def test_lattice_group_keeps_the_expectation_visual():
     """Test that a lattice of operator elements is drawn by its expectations."""
-    chain = LatticeElement('chain', element=SpinElement, space=LatticeSpace(3)).prepare()
+    chain = GroupElement('chain', element=SpinElement, space=LatticeSpace(3), on='sites').prepare()
     assert chain.default_visual_.kind == 'expectations'

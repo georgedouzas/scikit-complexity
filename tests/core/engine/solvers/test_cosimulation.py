@@ -61,7 +61,7 @@ class IdleElement(Element):
 
     def observe(self, agent, system):
         """Record the fertility of the soil at the last synchronisation point."""
-        agent.seen = system.inputs['land/soil.n']
+        agent.seen = system.inputs['land/soil.x']
 
 
 REDUCTIONS = {'sum': total, 'mean': mean, 'max': maximum}
@@ -83,7 +83,7 @@ class CountingInteraction(Interaction):
 
     def _get_laws(self, s):
         """Return the rate `count(source)`."""
-        return [RateLaw(s.target.n, count(s.source))]
+        return [RateLaw(s.target.x, count(s.source))]
 
 
 class WealthInteraction(Interaction):
@@ -104,11 +104,11 @@ class WealthInteraction(Interaction):
 
     def _get_laws(self, s):
         """Return the rate, the reduction of the wealth."""
-        return [RateLaw(s.target.n, REDUCTIONS[self.reduction](s.source.wealth))]
+        return [RateLaw(s.target.x, REDUCTIONS[self.reduction](s.source.wealth))]
 
 
 class TallyInteraction(Interaction):
-    """Update that sets a tally to the total of a group, `n <- total(source.n)`."""
+    """Update that sets a tally to the total of a group, `n <- total(source.x)`."""
 
     def __init__(
         self,
@@ -123,7 +123,7 @@ class TallyInteraction(Interaction):
 
     def _get_laws(self, s):
         """Return the update to the total."""
-        return [UpdateLaw(s.target.k, total(s.source.n))]
+        return [UpdateLaw(s.target.k, total(s.source.x))]
 
 
 class CopyInteraction(Interaction):
@@ -177,7 +177,7 @@ class TendingInteraction(Interaction):
 
     def _get_laws(self, s):
         """Return one rate law and one rule."""
-        return [RateLaw(s.soil.n, s.rate), RuleLaw(self.tend)]
+        return [RateLaw(s.soil.x, s.rate), RuleLaw(self.tend)]
 
     def tend(self, system):
         """Do nothing for the agents."""
@@ -190,12 +190,12 @@ def _lotka_volterra():
         systems=[
             System(
                 'prey',
-                elements=[PopulationElement('rabbits', n=40)],
+                elements=[PopulationElement('rabbits', x=40)],
                 interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.1, K=1000)],
             ),
             System(
                 'predators',
-                elements=[PopulationElement('foxes', n=9)],
+                elements=[PopulationElement('foxes', x=9)],
                 interactions=[MortalityInteraction('death', target='foxes', d=0.4)],
             ),
         ],
@@ -207,7 +207,7 @@ def _counting_system(agents=3):
     """Return land first, then a village of breeders whose count a land rate reads."""
     return System(
         systems=[
-            System('land', elements=[PopulationElement('soil', n=0.0)]),
+            System('land', elements=[PopulationElement('soil', x=0.0)]),
             System('village', elements=[GroupElement('farmers', element=BreederElement, size=agents, variable=True)]),
         ],
         interactions=[CountingInteraction('accumulate', target='land/soil', source='village/farmers')],
@@ -228,7 +228,7 @@ def test_laws_join_the_partition_of_their_target():
     """Test that one interaction's rate and rule join the partitions of their targets, the rate counted per farmer."""
     system = System(
         systems=[
-            System('land', elements=[PopulationElement('soil', n=0.0)]),
+            System('land', elements=[PopulationElement('soil', x=0.0)]),
             System('village', elements=[GroupElement('farmers', element=IdleElement, size=2)]),
         ],
         interactions=[TendingInteraction('tend', soil='land/soil', farmers='village/farmers')],
@@ -236,7 +236,7 @@ def test_laws_join_the_partition_of_their_target():
     land, village = PassCompiler().prepare(system).run().problem_.partitions
     assert (land.problem.form, village.problem.form) == (FormKind.ODE, FormKind.AGENT)
     assert [path for path, _ in village.problem.system_rules] == ['tend']
-    assert simulate(system, until=2, dt=1).values('land/soil.n')[-1] == pytest.approx(2 * 2)
+    assert simulate(system, until=2, dt=1).values('land/soil.x')[-1] == pytest.approx(2 * 2)
 
 
 def test_mixed_leaf_subsystem_names_itself():
@@ -282,7 +282,7 @@ def test_mix_across_subsystems_gives_partitions():
 def test_held_input_keeps_start_of_interval_value():
     """Test that an ODE reading a count of agents uses its value from the start of the synchronisation interval."""
     trajectory = simulate(_counting_system(3), until=2, solver=CoSimulationSolver(sync_dt=2), dt=2)
-    assert trajectory.values('land/soil.n')[-1] == pytest.approx(3 * 2)
+    assert trajectory.values('land/soil.x')[-1] == pytest.approx(3 * 2)
     assert trajectory.values('village/farmers_count.value').tolist() == [3.0, 12.0]
 
 
@@ -290,7 +290,7 @@ def test_held_reduction_counts_agents():
     """Test that an ODE law reading the count of 12 agents sees the value 12 until the next synchronisation point."""
     trajectory = simulate(_counting_system(12), until=1, solver=CoSimulationSolver(), dt=1)
     assert trajectory.values('village/farmers_count.value')[0] == 12
-    assert trajectory.values('land/soil.n')[-1] == pytest.approx(12)
+    assert trajectory.values('land/soil.x')[-1] == pytest.approx(12)
 
 
 @pytest.mark.parametrize(('reduction', 'expected'), [('sum', 3.0), ('mean', 1.0), ('max', 1.0)])
@@ -307,7 +307,7 @@ def test_held_reductions_of_agent_states(reduction, expected):
     )
     trajectory = simulate(system, until=1, dt=1)
     assert trajectory.values(f'village/farmers_{reduction}.value')[0] == expected
-    assert trajectory.values('land/soil.n')[-1] == pytest.approx(1.0 + expected)
+    assert trajectory.values('land/soil.x')[-1] == pytest.approx(1.0 + expected)
 
 
 def test_held_reductions_of_one_group_share_an_element():
@@ -334,7 +334,7 @@ def test_reduction_of_element_group_reads_other_partition():
             System('ledger', elements=[TallyElement('tally')]),
             System(
                 'herds',
-                elements=[GroupElement('herd', element=PopulationElement, size=3, values={'n': [1.0, 2.0, 3.0]})],
+                elements=[GroupElement('herd', element=PopulationElement, size=3, values={'x': [1.0, 2.0, 3.0]})],
                 interactions=[ExponentialGrowthInteraction('growth', target='herd')],
             ),
         ],
@@ -352,13 +352,13 @@ def test_held_observable_reduces_element_group():
             System('ledger', elements=[TallyElement('tally')]),
             System(
                 'herds',
-                elements=[GroupElement('herd', element=PopulationElement, size=3, values={'n': [1.0, 2.0, 3.0]})],
+                elements=[GroupElement('herd', element=PopulationElement, size=3, values={'x': [1.0, 2.0, 3.0]})],
                 interactions=[ExponentialGrowthInteraction('growth', target='herd')],
             ),
         ],
         interactions=[CopyInteraction('copy', target='ledger/tally', source='herds/largest')],
     )
-    largest = ObservableSpec('herds/largest', group='herd', reduce=np.max, variable='n')
+    largest = ObservableSpec('herds/largest', group='herd', reduce=np.max, variable='x')
     trajectory = simulate(system, until=1, dt=1, observables=[largest])
     assert trajectory.values('herds/largest.value')[0] == 3.0
     assert trajectory.values('ledger/tally.k')[-1] == pytest.approx(3.0)
@@ -376,7 +376,7 @@ def test_agent_rules_read_other_partitions():
         systems=[
             System(
                 'land',
-                elements=[PopulationElement('soil', n=5.0)],
+                elements=[PopulationElement('soil', x=5.0)],
                 interactions=[ExponentialGrowthInteraction('growth', target='soil', r=1.0)],
             ),
             System('village', elements=[GroupElement('farmers', element=IdleElement, size=2)]),
@@ -403,14 +403,14 @@ def test_gauss_seidel_reads_already_advanced_values():
     village_first = System(
         systems=[
             System('village', elements=[GroupElement('farmers', element=BreederElement, size=3, variable=True)]),
-            System('land', elements=[PopulationElement('soil', n=0.0)]),
+            System('land', elements=[PopulationElement('soil', x=0.0)]),
         ],
         interactions=[CountingInteraction('accumulate', target='land/soil', source='village/farmers')],
     )
     gauss_seidel = simulate(village_first, until=1, solver=CoSimulationSolver(), dt=1)
     jacobi = simulate(village_first, until=1, solver=CoSimulationSolver(scheme='jacobi'), dt=1)
-    assert gauss_seidel.values('land/soil.n')[-1] == pytest.approx(6)
-    assert jacobi.values('land/soil.n')[-1] == pytest.approx(3)
+    assert gauss_seidel.values('land/soil.x')[-1] == pytest.approx(6)
+    assert jacobi.values('land/soil.x')[-1] == pytest.approx(3)
 
 
 def test_unknown_scheme_raises_error():

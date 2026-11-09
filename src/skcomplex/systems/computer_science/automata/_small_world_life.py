@@ -13,7 +13,7 @@ import networkx as nx
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
 
-from ....core.components.elements import LatticeElement
+from ....core.components.elements import GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import both, either, neighbors, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
@@ -137,7 +137,13 @@ class SmallWorldLifeSystem(BaseSystem):
         if swaps:
             nx.double_edge_swap(graph, nswap=swaps, max_tries=100 * swaps, seed=int(rng.integers(2**31)))
         alive = (rng.random(graph.number_of_nodes()) < self.density).astype(float)
-        cells = LatticeElement('cells', element=BinaryCellElement, space=NetworkSpace(graph), values={'alive': alive})
+        cells = GroupElement(
+            'cells',
+            element=BinaryCellElement,
+            space=NetworkSpace(graph),
+            values={'alive': alive},
+            on='sites',
+        )
         return System(
             self.label,
             elements=[cells],

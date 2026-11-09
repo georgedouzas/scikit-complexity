@@ -14,7 +14,7 @@ import numpy as np
 
 from skcomplex.core.analysis import automaton
 from skcomplex.core.components.interactions import LocalRuleInteraction
-from skcomplex.core.components.spaces import BoxNeighborhood
+from skcomplex.core.components.spaces import BallNeighborhood
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
@@ -45,7 +45,7 @@ laplacian = System(
             target='cells',
             state='value',
             rule=LinearRuleSpec((1, -2, 1), 'GF(3)'),
-            neighborhood=BoxNeighborhood(),
+            neighborhood=BallNeighborhood(n_dim=1, center='inline'),
         ),
     ],
 )

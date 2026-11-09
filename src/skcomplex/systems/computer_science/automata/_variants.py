@@ -16,14 +16,12 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import (
-    BoxNeighborhood,
+    BallNeighborhood,
     LatticeNeighborhood,
     LatticeSpace,
-    MooreNeighborhood,
-    VonNeumannNeighborhood,
 )
 from ....core.components.systems import BaseSystem, System
 from ....core.errors import ParameterError
@@ -201,14 +199,16 @@ class HighlifeSystem(BaseSystem):
         space = LatticeSpace(tuple(self.shape))
         return System(
             self.label,
-            elements=[LatticeElement('cells', element=BinaryCellElement, space=space, values={'alive': values})],
+            elements=[
+                GroupElement('cells', element=BinaryCellElement, space=space, values={'alive': values}, on='sites'),
+            ],
             interactions=[
                 LocalRuleInteraction(
                     'rule',
                     target='cells',
                     state='alive',
                     rule=life(born, survive),
-                    neighborhood=MooreNeighborhood(),
+                    neighborhood=BallNeighborhood(),
                 ),
             ],
         )
@@ -294,11 +294,12 @@ class NoisyAutomataSystem(BaseSystem):
         return System(
             self.label,
             elements=[
-                LatticeElement(
+                GroupElement(
                     'cells',
                     element=NoisyElementaryCellElement,
                     space=space,
                     values={'alive': values, 'noise': self.noise},
+                    on='sites',
                 ),
             ],
             interactions=[
@@ -307,7 +308,7 @@ class NoisyAutomataSystem(BaseSystem):
                     target='cells',
                     state='alive',
                     rule=self._noisy_rule(self.rule),
-                    neighborhood=BoxNeighborhood(),
+                    neighborhood=BallNeighborhood(n_dim=1, center='inline'),
                     stochastic=True,
                 ),
             ],
@@ -377,11 +378,12 @@ class DiffusionAutomatonSystem(BaseSystem):
         return System(
             self.label,
             elements=[
-                LatticeElement(
+                GroupElement(
                     'cells',
                     element=DiffusionCellElement,
                     space=LatticeSpace(tuple(self.shape)),
                     values={'level': level, 'r': self.r},
+                    on='sites',
                 ),
             ],
             interactions=[
@@ -390,7 +392,7 @@ class DiffusionAutomatonSystem(BaseSystem):
                     target='cells',
                     state='level',
                     rule=self._diffuse,
-                    neighborhood=VonNeumannNeighborhood(center=True),
+                    neighborhood=BallNeighborhood(metric='manhattan', center='first'),
                 ),
             ],
         )
@@ -449,11 +451,12 @@ class UnboundedAlphabetAutomatonSystem(BaseSystem):
         return System(
             self.label,
             elements=[
-                LatticeElement(
+                GroupElement(
                     'cells',
                     element=PascalCellElement,
                     space=LatticeSpace(self.size),
                     values={'value': value},
+                    on='sites',
                 ),
             ],
             interactions=[

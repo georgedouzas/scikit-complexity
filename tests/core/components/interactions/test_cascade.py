@@ -6,14 +6,14 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import CascadeInteraction
 from skcomplex.core.components.spaces import (
     AdjacencyNeighborhood,
+    BallNeighborhood,
     DiscreteTime,
     LatticeSpace,
     NetworkSpace,
-    VonNeumannNeighborhood,
 )
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
@@ -62,7 +62,7 @@ def _drop(values, *, random):
 def _run(space, heights, threshold, until, seed=0, **arguments):
     """Return the trajectory of a cascade over the sites of a space, run for some steps."""
     system = System(
-        elements=[LatticeElement('sites', element=SiteElement, space=space, values={'height': heights})],
+        elements=[GroupElement('sites', element=SiteElement, space=space, values={'height': heights}, on='sites')],
         interactions=[CascadeInteraction('cascade', target='sites', state='height', threshold=threshold, **arguments)],
         time=DiscreteTime(),
     )
@@ -95,7 +95,7 @@ def test_redistribution_keeps_the_grains_inside_a_periodic_lattice():
         2,
         1,
         share=1,
-        neighborhood=VonNeumannNeighborhood(n_dim=1, center=True),
+        neighborhood=BallNeighborhood(metric='manhattan', n_dim=1, center='first'),
     )
     assert trajectory.states[-1].tolist() == [1.0] * 5
     (event,) = trajectory.events
@@ -151,7 +151,7 @@ def test_random_mode_drives_a_stochastic_sandpile_to_a_stationary_density():
     [
         ({'mode': 'flip'}, 'Unknown mode'),
         ({'drive': 1.0}, 'callable'),
-        ({'neighborhood': VonNeumannNeighborhood()}, 'center=True'),
+        ({'neighborhood': BallNeighborhood(metric='manhattan')}, 'center=True'),
         ({'mode': 'random', 'neighborhood': AdjacencyNeighborhood(center=True)}, 'lattice neighbourhood'),
         ({'mode': 'random', 'threshold': 3.0, 'share': 2.0}, 'divides the threshold'),
     ],
@@ -166,7 +166,9 @@ def test_get_laws_reads_a_renamed_target():
     """Test that a cascade that binds its sites as `pile` relaxes as the plain cascade."""
     heights = np.zeros((9, 9))
     heights[4, 4] = 5.0
-    elements = [LatticeElement('sites', element=SiteElement, space=LatticeSpace((9, 9)), values={'height': heights})]
+    elements = [
+        GroupElement('sites', element=SiteElement, space=LatticeSpace((9, 9)), values={'height': heights}, on='sites'),
+    ]
     finals = []
     for cascade in (
         CascadeInteraction('cascade', target='sites', state='height', threshold=4, share=1),

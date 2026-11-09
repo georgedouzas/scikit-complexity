@@ -187,13 +187,13 @@ def symbolic(source: Source, *, kind: str = 'equations', use_initial_state: bool
         >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> system = System(
-        ...     elements=[PopulationElement('a', n=2)],
+        ...     elements=[PopulationElement('a', x=2)],
         ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=0.5)],
         ... )
-        >>> symbolic(system).equations['a.n']
-        diff(n_a(t), t) == r_g*n_a(t)
-        >>> symbolic(system, kind='solve', use_initial_state=True).solutions['a.n']
-        n_a(t) == 2*e^(r_g*t)
+        >>> symbolic(system).equations['a.x']
+        diff(x_a(t), t) == r_g*x_a(t)
+        >>> symbolic(system, kind='solve', use_initial_state=True).solutions['a.x']
+        x_a(t) == 2*e^(r_g*t)
     """
     source = _composite(source)
     _check_choice('symbolic', 'kind', kind, KINDS)

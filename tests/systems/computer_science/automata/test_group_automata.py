@@ -4,13 +4,14 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import automaton
-from skcomplex.core.components.spaces import GeneratorNeighborhood, MemoryNeighborhood
+from skcomplex.core.components.spaces import MemoryNeighborhood
 from skcomplex.core.engine.problems import FrameSpec
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import CayleyVisual
 from skcomplex.systems.computer_science.automata import (
     BaumslagSolitarAutomatonSystem,
     FreeGroupAutomatonSystem,
+    GeneratorNeighborhood,
     GrigorchukAutomatonSystem,
     HeisenbergAutomatonSystem,
     LamplighterAutomatonSystem,

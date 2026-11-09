@@ -7,7 +7,7 @@ from typing import Annotated
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import Element, GroupElement, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import GroupingInteraction, ImitationInteraction
 from skcomplex.core.components.laws.utils import count, mean, total, where
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
@@ -282,7 +282,7 @@ def test_get_laws_symbolic_neighborhoods_reduce_over_the_groups_of_a_member(back
     """Test that a member takes the sum or the mean over its neighbourhood groups of a function of each group."""
     values = np.arange(16.0)
     space = LatticeSpace((4, 4), metric='manhattan', boundary='fixed')
-    grid = LatticeElement('voters', element=OpinionElement, space=space, values={'s': values})
+    grid = GroupElement('voters', element=OpinionElement, space=space, values={'s': values}, on='sites')
     grouping = _symbolic('neighborhood', _weighted, reduce=reduce)
     result = _symbolic_run(System(elements=[grid], interactions=[grouping]), 1, backend)[1]
     rows, columns = np.divmod(np.arange(16), 4)
@@ -332,7 +332,13 @@ def test_get_laws_symbolic_phases_imitate_the_payoffs_of_the_same_step(backend):
     rng = np.random.default_rng(3)
     strategies, bias = rng.integers(0, 2, 36).astype(float), rng.uniform(0, 0.01, 36)
     space = LatticeSpace((6, 6), metric='manhattan', boundary='periodic')
-    players = LatticeElement('players', element=PlayerElement, space=space, values={'state': strategies, 'bias': bias})
+    players = GroupElement(
+        'players',
+        element=PlayerElement,
+        space=space,
+        values={'state': strategies, 'bias': bias},
+        on='sites',
+    )
     payoffs = GroupingInteraction(
         'goods',
         target='players',
@@ -373,7 +379,7 @@ def test_get_laws_symbolic_phases_imitate_the_payoffs_of_the_same_step(backend):
 def test_get_laws_symbolic_reads_a_renamed_target(groups):
     """Test that a symbolic grouping that binds its members as `council` writes the values of the plain grouping."""
     space = LatticeSpace((4, 4), metric='manhattan', boundary='fixed')
-    grid = LatticeElement('voters', element=OpinionElement, space=space, values={'s': np.arange(16.0) % 3})
+    grid = GroupElement('voters', element=OpinionElement, space=space, values={'s': np.arange(16.0) % 3}, on='sites')
     arguments = {'groups': groups, 'size': 2, 'form': 'symbolic', 'write': 's', 'function': _weighted}
     plain = GroupingInteraction('groups', target='voters', **arguments)
     renamed = CouncilInteraction('groups', council='voters', **arguments)

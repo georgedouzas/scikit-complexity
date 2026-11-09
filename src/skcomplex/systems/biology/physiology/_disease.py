@@ -15,7 +15,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo, pi, sin
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import NeighborInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import NetworkSpace
@@ -365,11 +365,12 @@ class TwoLayerSepsisSystem(BaseSystem):
         frequencies = np.full(2 * n, self.omega_immune)
         sick = rng.random(n) < self.pathological
         frequencies[:n] = np.where(sick, self.omega_pathological, self.omega_healthy)
-        cells = LatticeElement(
+        cells = GroupElement(
             'cells',
             element=CellOscillatorElement,
             space=space,
             values={'phi': rng.uniform(0, 2 * math.pi, 2 * n), 'omega': frequencies},
+            on='sites',
         )
         edges = n * (n - 1)
         parenchymal_links = GroupElement(

@@ -16,7 +16,7 @@ from ._growth import GrowthInteraction
 
 
 class ExponentialGrowthInteraction(GrowthInteraction):
-    """Growth at a constant per capita rate, `dn/dt = r n`.
+    """Growth at a constant per capita rate, `dx/dt = r x`.
 
     It is the exponential form of a growth without harvest.
 
@@ -34,16 +34,16 @@ class ExponentialGrowthInteraction(GrowthInteraction):
             The name of the state of the target that holds the population.
 
     Examples:
-        >>> from skcomplex.core.components.elements import CompartmentElement
+        >>> from skcomplex.systems.biology.common.kinetics import CompartmentElement
         >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction
         >>> from skcomplex.core.engine.runtime import simulate
         >>> system = System(
-        ...     elements=[CompartmentElement('rabbits', n=1.0)],
+        ...     elements=[CompartmentElement('rabbits', x=1.0)],
         ...     interactions=[ExponentialGrowthInteraction('growth', target='rabbits', r=0.5)],
         ... )
         >>> trajectory = simulate(system, until=2.0, dt=0.01)
-        >>> round(float(trajectory.values('rabbits.n')[-1]), 3)
+        >>> round(float(trajectory.values('rabbits.x')[-1]), 3)
         2.718
     """
 
@@ -53,12 +53,12 @@ class ExponentialGrowthInteraction(GrowthInteraction):
         *,
         target: Annotated[str, RoleSpec()],
         r: Annotated[float, ParameterSpec()] = 1.0,
-        state: str = 'n',
+        state: str = 'x',
     ) -> None:
         super().__init__(label, target=target, r=r, form='exponential', state=state)
 
     def _get_rate(self, namespace: SimpleNamespace) -> Expression:
-        """Return the growth `r n`, with no harvest.
+        """Return the growth `r x`, with no harvest.
 
         Args:
             namespace:

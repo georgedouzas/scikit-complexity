@@ -4,23 +4,23 @@ Learn the few words every custom system is written in. You describe what the sys
 how to solve it.
 
 ```python
-from skcomplex.core.components.elements import CompartmentElement
+from skcomplex.core.components.elements import NonnegativeElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 
-rabbits = CompartmentElement('rabbits', n=10)
-growth = RateInteraction('growth', target='rabbits', state='n', rate=lambda s: 0.5 * s.target.n)
+rabbits = NonnegativeElement('rabbits', x=10)
+growth = RateInteraction('growth', target='rabbits', state='x', rate=lambda s: 0.5 * s.target.x)
 system = System(elements=[rabbits], interactions=[growth])
-simulate(system, until=2, dt=0.1).values('rabbits.n')[-1].round(2)
+simulate(system, until=2, dt=0.1).values('rabbits.x')[-1].round(2)
 ```
 
-The element `rabbits` carries the state `n`, the interaction `growth` adds the rate `0.5 n` to it, and the system holds
+The element `rabbits` carries the state `x`, the interaction `growth` adds the rate `0.5 x` to it, and the system holds
 both. `simulate` checks the system, runs it until the time you give, and returns its trajectory, which holds the value
-of `n` at every frame.
+of `x` at every frame.
 
 An element of your own declares its states as arguments of its `__init__`, each annotated with a spec. `StateSpec`
-marks `n` as a state, and the default of the argument is its initial value. `CompartmentElement` is such an element of
+marks `x` as a state, and the default of the argument is its initial value. `NonnegativeElement` is such an element of
 the core.
 
 ```python continuation
@@ -31,13 +31,13 @@ from skcomplex.core.specs import StateSpec
 
 
 class PopulationElement(Element):
-    def __init__(self, label, *, n: Annotated[float, StateSpec()] = 1.0):
+    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 1.0):
         super().__init__(label)
-        self.n = n
+        self.x = x
 
 
-system = System(elements=[PopulationElement('rabbits', n=10)], interactions=[growth])
-simulate(system, until=2, dt=0.1).values('rabbits.n')[-1].round(2)
+system = System(elements=[PopulationElement('rabbits', x=10)], interactions=[growth])
+simulate(system, until=2, dt=0.1).values('rabbits.x')[-1].round(2)
 ```
 
 [Defining elements](defining_elements.md) covers states, parameters, roles, and their specs in full.
@@ -66,7 +66,7 @@ Every part has two main public methods, and both return the part itself.
 A part must be prepared before it runs. Every part also has `get_params`, `set_params`, and `get_tags`, as estimators of
 scikit-learn do. `simulate` is a function, since it is what you do to a system and not a part of it.
 
-The interaction `growth` returns a `RateLaw` on `n`. A law has the two main public methods on its own too, so you can check it
+The interaction `growth` returns a `RateLaw` on `x`. A law has the two main public methods on its own too, so you can check it
 before it joins a system. Here it gives its rate at `n = 10`.
 
 ```python continuation
@@ -74,8 +74,8 @@ from sage.all__sagemath_symbolics import var
 
 from skcomplex.core.components.laws import RateLaw
 
-n = var('n')
-RateLaw(n, 0.5 * n).prepare('growth').run({'n': 10.0}).value_
+x = var('x')
+RateLaw(x, 0.5 * x).prepare('growth').run({'x': 10.0}).value_
 ```
 
 ## Laws

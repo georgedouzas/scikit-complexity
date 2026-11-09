@@ -209,14 +209,14 @@ def test_system_classes_nest_twice_under_their_labels():
     """Test that a ready-made system class nests twice by label, with its paths and its parameters kept apart."""
     system = System(
         systems=[SIRSystem(label='town'), System('region', systems=[SIRSystem(beta=0.0006, label='city')])],
-        interactions=[GrowthInteraction('arrivals', target='town/S', r=0.01)],
+        interactions=[RateInteraction('arrivals', target='town/S', state='x', rate=lambda s: 0.01 * s.target.x)],
     )
     assert PassCompiler().prepare(system).report_.ok
     assert system.prepare().system_.systems[0].elements[0].label == 'S'
     trajectory = simulate(system, until=10, dt=1.0)
     alone = simulate(SIRSystem(), until=10, dt=1.0)
-    assert trajectory.values('town/S.n')[-1] > alone.values('S.n')[-1]
-    assert trajectory.values('region/city/S.n')[-1] < alone.values('S.n')[-1]
+    assert trajectory.values('town/S.x')[-1] > alone.values('S.x')[-1]
+    assert trajectory.values('region/city/S.x')[-1] < alone.values('S.x')[-1]
 
 
 def test_duplicate_labels_are_reported():

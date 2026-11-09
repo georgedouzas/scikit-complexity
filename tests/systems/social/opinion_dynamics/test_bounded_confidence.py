@@ -4,7 +4,7 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import LatticeElement
+from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
@@ -59,11 +59,12 @@ def test_deffuant_conserves_mean_opinion():
 def test_confidence_coupling_takes_the_mean_of_the_trusted_neighbours():
     """Test that one step gives every agent the mean opinion of the trusted neighbours, itself included."""
     opinions = np.array([0.1, 0.2, 0.35, 0.9, 0.95])
-    people = LatticeElement(
+    people = GroupElement(
         'people',
         element=ConfidentElement,
         space=NetworkSpace(nx.complete_graph(5)),
         values={'opinion': opinions, 'confidence': 0.2},
+        on='sites',
     )
     system = System(
         elements=[people],

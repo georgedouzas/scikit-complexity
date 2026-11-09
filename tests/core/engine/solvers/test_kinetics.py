@@ -4,10 +4,8 @@ from typing import Annotated
 
 import numpy as np
 import pytest
-from sage.all__sagemath_symbolics import oo
-from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import GroupElement, NonnegativeElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import BilinearLaw, EncounterLaw, RateLaw
 from skcomplex.core.components.spaces import ContinuousTime, LatticeSpace
@@ -17,25 +15,11 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import KineticSolver
 from skcomplex.core.errors import SolverError
 from skcomplex.core.experiments import ensemble
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec
 
 CLASSES = 9
 HORIZON = 2.0
 PARTICLES = (1_000, 10_000, 100_000)
-
-
-class DensityElement(Element):
-    """Density of particles at one activity value."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        f: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.f = f
 
 
 def _table():
@@ -64,7 +48,7 @@ class ExchangeInteraction(Interaction):
 
     def _get_laws(self, s):
         """Return the encounter."""
-        return [EncounterLaw(s.population.f, s.population.f, s.eta, _table())]
+        return [EncounterLaw(s.population.x, s.population.x, s.eta, _table())]
 
 
 class TurnoverInteraction(Interaction):
@@ -84,8 +68,8 @@ class TurnoverInteraction(Interaction):
     def _get_laws(self, s):
         """Return the proliferation and the destruction."""
         return [
-            BilinearLaw(s.population.f, s.population.f, s.field.f, 0.6),
-            BilinearLaw(s.population.f, s.population.f, s.field.f, -0.2),
+            BilinearLaw(s.population.x, s.population.x, s.field.x, 0.6),
+            BilinearLaw(s.population.x, s.population.x, s.field.x, -0.2),
         ]
 
 
@@ -103,7 +87,7 @@ class DecayInteraction(Interaction):
 
     def _get_laws(self, s):
         """Return the rate."""
-        return [RateLaw(s.population.f, -s.population.f)]
+        return [RateLaw(s.population.x, -s.population.x)]
 
 
 def _profile():
@@ -116,7 +100,7 @@ def _profile():
 def _system(*others):
     """Return a wealth distribution over 9 classes with conservative encounters and other interactions."""
     return System(
-        elements=[GroupElement('wealth', element=DensityElement, on='sites', values={'f': _profile()})],
+        elements=[GroupElement('wealth', element=NonnegativeElement, on='sites', values={'x': _profile()})],
         interactions=[ExchangeInteraction('exchange', population='wealth'), *others],
         space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),
@@ -125,7 +109,7 @@ def _system(*others):
 
 def _ode_solution(system):
     """Return the densities of the gain and loss equations at the horizon."""
-    return simulate(system, until=HORIZON, dt=HORIZON).values('wealth.f')[-1]
+    return simulate(system, until=HORIZON, dt=HORIZON).values('wealth.x')[-1]
 
 
 def _mean_error(system, particles, solution, replicates):
@@ -133,7 +117,7 @@ def _mean_error(system, particles, solution, replicates):
 
     def error(trajectory):
         """Return the L1 error of the last frame."""
-        return float(np.abs(trajectory.values('wealth.f')[-1] - solution).sum())
+        return float(np.abs(trajectory.values('wealth.x')[-1] - solution).sum())
 
     result = ensemble(
         system,
@@ -160,24 +144,24 @@ def test_particles_converge_to_the_ode_solution():
 def test_particles_keep_the_density_of_conservative_encounters():
     """Test that conservative encounters keep the number of particles, so the total density stays exact."""
     trajectory = simulate(_system(), until=2, dt=0.5, solver=KineticSolver(n=2000), random_state=1)
-    totals = np.asarray(trajectory.values('wealth.f')).sum(axis=1)
+    totals = np.asarray(trajectory.values('wealth.x')).sum(axis=1)
     np.testing.assert_allclose(totals, totals[0], rtol=1e-12)
-    assert np.all(np.asarray(trajectory.values('wealth.f')) >= 0)
+    assert np.all(np.asarray(trajectory.values('wealth.x')) >= 0)
 
 
 def test_particles_sample_proliferation_and_destruction():
     """Test that proliferation and destruction change the particle density at the net rate of the equations."""
     system = System(
         elements=[
-            GroupElement('wealth', element=DensityElement, on='sites', values={'f': _profile()}),
-            GroupElement('field', element=DensityElement, on='sites', values={'f': np.full(CLASSES, 1 / CLASSES)}),
+            GroupElement('wealth', element=NonnegativeElement, on='sites', values={'x': _profile()}),
+            GroupElement('field', element=NonnegativeElement, on='sites', values={'x': np.full(CLASSES, 1 / CLASSES)}),
         ],
         interactions=[TurnoverInteraction('turnover', population='wealth', field='field')],
         space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),
     )
     trajectory = simulate(system, until=1, dt=1.0, solver=KineticSolver(n=50_000), random_state=2)
-    total = float(np.sum(trajectory.values('wealth.f')[-1]))
+    total = float(np.sum(trajectory.values('wealth.x')[-1]))
     assert total == pytest.approx(np.exp(0.4), rel=0.02)
 
 

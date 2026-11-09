@@ -14,7 +14,7 @@ from .....core.specs import ParameterSpec, RoleSpec
 
 
 class MortalityInteraction(RateInteraction):
-    """Death or loss at a constant per capita rate, `dn/dt = -d n`.
+    """Death or loss at a constant per capita rate, `dx/dt = -d x`.
 
     Args:
         label:
@@ -30,16 +30,16 @@ class MortalityInteraction(RateInteraction):
             The name of the state of the target that holds the population.
 
     Examples:
-        >>> from skcomplex.core.components.elements import CompartmentElement
+        >>> from skcomplex.systems.biology.common.kinetics import CompartmentElement
         >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.biology.common.populations import MortalityInteraction
         >>> from skcomplex.core.engine.runtime import simulate
         >>> system = System(
-        ...     elements=[CompartmentElement('foxes', n=8.0)],
+        ...     elements=[CompartmentElement('foxes', x=8.0)],
         ...     interactions=[MortalityInteraction('death', target='foxes', d=0.5)],
         ... )
         >>> trajectory = simulate(system, until=2.0, dt=0.01)
-        >>> round(float(trajectory.values('foxes.n')[-1]), 3)
+        >>> round(float(trajectory.values('foxes.x')[-1]), 3)
         2.943
     """
 
@@ -49,13 +49,13 @@ class MortalityInteraction(RateInteraction):
         *,
         target: Annotated[str, RoleSpec()],
         d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        state: str = 'n',
+        state: str = 'x',
     ) -> None:
         super().__init__(label, target=target, state=state)
         self.d = d
 
     def _get_rate(self, namespace: SimpleNamespace) -> Expression:
-        """Return the loss `-d n`.
+        """Return the loss `-d x`.
 
         Args:
             namespace:

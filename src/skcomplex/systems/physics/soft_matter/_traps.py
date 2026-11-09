@@ -14,7 +14,7 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, System
@@ -165,12 +165,13 @@ class BiasedTrapWalkSystem(BaseSystem):
         tau = np.ceil(self.tau0 * (1 - np.random.default_rng(self.random_state).random(shape)) ** (-1 / self.alpha))
         start = np.zeros(shape)
         start[:, 0] = 1.0
-        traps = LatticeElement(
+        traps = GroupElement(
             'traps',
             element=TrapSiteElement,
             space=LatticeSpace(shape, boundary='fixed', fill=-1.0),
             values={'occupied': start, 'visited': start, 'tau': tau},
             visual=VISITED,
+            on='sites',
         )
         hops = LocalRuleInteraction(
             'hops',

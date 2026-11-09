@@ -14,7 +14,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import TopologyInteraction, TransitionInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import neighbors
@@ -203,7 +203,13 @@ class QuenchedMeanFieldSISSystem(BaseSystem):
         return System(
             self.label,
             elements=[
-                LatticeElement('nodes', element=CarrierElement, space=space, values={'p': self.p, 'lam': self.lam}),
+                GroupElement(
+                    'nodes',
+                    element=CarrierElement,
+                    space=space,
+                    values={'p': self.p, 'lam': self.lam},
+                    on='sites',
+                ),
             ],
         )
 

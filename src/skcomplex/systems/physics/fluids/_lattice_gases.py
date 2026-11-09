@@ -14,9 +14,9 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
-from ....core.components.spaces import LatticeNeighborhood, LatticeSpace, TriangularNeighborhood
+from ....core.components.spaces import BallNeighborhood, LatticeNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, System
 from ....core.specs import StateSpec, VisualSpec
 from ....core.types import Array
@@ -85,7 +85,7 @@ class HPPSiteElement(Element):
 DIRECTIONS = 6
 CHANNELS = tuple(f'n{direction}' for direction in range(DIRECTIONS))
 SITE = LatticeNeighborhood(((0, 0),))
-TRIANGULAR = TriangularNeighborhood()
+TRIANGULAR = BallNeighborhood(metric='hexagonal')
 VELOCITIES = np.column_stack(
     [np.cos(np.arange(DIRECTIONS) * np.pi / 3), np.sin(np.arange(DIRECTIONS) * np.pi / 3)],
 )
@@ -282,12 +282,13 @@ class FHPLatticeGasSystem(BaseSystem):
             float,
         )
         channels = {name: occupied[:, direction] for direction, name in enumerate(CHANNELS)}
-        gas = LatticeElement(
+        gas = GroupElement(
             'gas',
             element=FHPSiteElement,
             space=space,
             values={'density': occupied.sum(axis=1), **channels},
             visual=DENSITY_VISUAL,
+            on='sites',
         )
         return System(
             self.label,
@@ -424,12 +425,13 @@ class HPPLatticeGasSystem(BaseSystem):
             probability = np.where(inside, self.bump, self.density)[:, None]
             occupied = (rng.random((space.size_, SQUARE_DIRECTIONS)) < probability).astype(float)
         channels = {name: occupied[:, direction] for direction, name in enumerate(SQUARE_CHANNELS)}
-        gas = LatticeElement(
+        gas = GroupElement(
             'gas',
             element=HPPSiteElement,
             space=space,
             values={'density': occupied.sum(axis=1), **channels},
             visual=DENSITY_VISUAL,
+            on='sites',
         )
         return System(
             self.label,

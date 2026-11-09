@@ -167,8 +167,8 @@ def test_spectral_entropy_of_a_tone_and_of_noise():
 def test_every_series_of_a_trajectory_gets_an_entropy():
     """Test that the named series of a trajectory each get an entropy, labelled by name."""
     trajectory = simulate(LotkaVolterraSystem(), until=5.0, random_state=0)
-    analysis = entropy(trajectory, kind='sample', variables=['prey.n', 'predators.n'], dimension=2)
-    assert analysis.labels == ['prey.n', 'predators.n']
+    analysis = entropy(trajectory, kind='sample', variables=['prey.x', 'predators.x'], dimension=2)
+    assert analysis.labels == ['prey.x', 'predators.x']
     assert analysis.entropy.shape == (2,)
 
 

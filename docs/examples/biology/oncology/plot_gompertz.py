@@ -28,7 +28,7 @@ trajectory = simulate(GompertzSystem(n=10.0), observers=[observer])
 # The Gompertz law `dn/dt = r n log(K / n)` has the solution `n(t) = K exp(log(n0 / K) exp(-r t))`. The simulated
 # volume should lie on it, and `log(log(K / n))` should fall on a straight line of slope `-r`.
 
-times, volume = trajectory.times, trajectory.values('tumour.n')
+times, volume = trajectory.times, trajectory.values('tumour.x')
 r, K = 0.0719, 1964.0
 exact = K * np.exp(np.log(10.0 / K) * np.exp(-r * times))
 fig, (curve, line) = plt.subplots(1, 2, figsize=(10, 4))

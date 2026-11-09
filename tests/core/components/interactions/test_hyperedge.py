@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import sin
 
-from skcomplex.core.components.elements import Element, GroupElement, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import HyperedgeInteraction
 from skcomplex.core.components.laws import RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import count, maximum, mean, total
@@ -112,7 +112,7 @@ def _drift(interaction, backend, values):
     """Return the drift of the nodes of the network of the hyperedges coupled by an interaction."""
     space = NetworkSpace(nx.complete_graph(6), hyperedges=HYPEREDGES)
     system = System(
-        elements=[LatticeElement('nodes', element=NodeElement, space=space, values={'x': values})],
+        elements=[GroupElement('nodes', element=NodeElement, space=space, values={'x': values}, on='sites')],
         interactions=[interaction],
     )
     problem = PassCompiler(backend=backend).prepare(system).run().problem_
@@ -164,7 +164,7 @@ def test_hyperedge_interaction_of_a_missing_size_is_reported():
     """Test that a size no hyperedge of the network has gives a binding issue naming both sizes."""
     space = NetworkSpace(nx.complete_graph(4), hyperedges=[(0, 1, 2), (1, 2, 3)])
     system = System(
-        elements=[LatticeElement('nodes', element=NodeElement, space=space)],
+        elements=[GroupElement('nodes', element=NodeElement, space=space, on='sites')],
         interactions=[PullInteraction('pull', nodes='nodes', size=4)],
     )
     issues = [issue for issue in PassCompiler().prepare(system).report_.issues if issue.code == 'binding']
@@ -181,7 +181,7 @@ def test_hyperedge_group_takes_an_update_once_per_hyperedge():
     values = np.arange(6, dtype=float)
     system = System(
         elements=[
-            LatticeElement('nodes', element=NodeElement, space=space, values={'x': values}),
+            GroupElement('nodes', element=NodeElement, space=space, values={'x': values}, on='sites'),
             GroupElement('groups', element=LinkElement, space=space, on='hyperedges', values={'a': -1.0}),
         ],
         interactions=[RecordInteraction('record', nodes='nodes', links='groups', size=3)],
@@ -200,7 +200,7 @@ def test_edge_group_takes_the_update_of_the_regulating_member():
     values = np.array([0.0, 1.0, 2.0, 3.0])
     system = System(
         elements=[
-            LatticeElement('nodes', element=NodeElement, space=space, values={'x': values}),
+            GroupElement('nodes', element=NodeElement, space=space, values={'x': values}, on='sites'),
             GroupElement('links', element=LinkElement, space=space, on='edges', values={'a': -1.0}),
         ],
         interactions=[RecordInteraction('record', nodes='nodes', links='links', part='edge')],
@@ -215,7 +215,7 @@ def test_edge_group_of_a_hyperedge_without_an_edge_is_reported():
     space = NetworkSpace(nx.path_graph(4), hyperedges=[(0, 2, 1)])
     system = System(
         elements=[
-            LatticeElement('nodes', element=NodeElement, space=space),
+            GroupElement('nodes', element=NodeElement, space=space, on='sites'),
             GroupElement('links', element=LinkElement, space=space, on='edges'),
         ],
         interactions=[RecordInteraction('record', nodes='nodes', links='links', part='edge')],

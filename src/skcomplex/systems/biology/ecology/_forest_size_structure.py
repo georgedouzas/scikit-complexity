@@ -11,7 +11,7 @@ from types import SimpleNamespace
 import numpy as np
 from sage.all__sagemath_symbolics import Expression, exp
 
-from ....core.components.elements import DensityElement, FieldElement
+from ....core.components.elements import FieldElement
 from ....core.components.interactions import AdvectionInteraction, RateInteraction
 from ....core.components.laws.utils import (
     convolve,
@@ -25,6 +25,7 @@ from ....core.components.spaces import LatticeSpace, PhaseSpace
 from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import RK4Solver
 from ....core.specs import AxisSpec
+from ..common.populations import PopulationDensityElement
 
 HEIGHT_AXIS = 1
 
@@ -43,7 +44,7 @@ class ForestSizeStructureSystem(BaseSystem):
     seed comes from beyond the edges of the strip, where the forest was removed. Time and density are rescaled so that
     the growth rate and the canopy mortality are one (Grilletta et al. 2026, arXiv 2608.11918 Eq. 9, 10, 16, and 25).
     The kernel is the exponential of Eq. 35 along the axis across the strip, normalized in one dimension. The system has
-    the density `forest.f` over position and height.
+    the density `forest.x` over position and height.
 
     Args:
         positions:
@@ -133,9 +134,9 @@ class ForestSizeStructureSystem(BaseSystem):
         start = np.tile(0.1 * (centres / self.sapling) ** -2.0, (self.positions, 1))
         forest = FieldElement(
             'forest',
-            element=DensityElement,
+            element=PopulationDensityElement,
             space=space,
-            values={'f': start},
+            values={'x': start},
             discretization='finite-volume',
         )
         h = coordinate('h')
@@ -144,21 +145,21 @@ class ForestSizeStructureSystem(BaseSystem):
 
         def light(s: SimpleNamespace) -> Expression:
             return exp(
-                -self.shading * cumulative_integral(s.target.f * h ** (2 * self.hurst), HEIGHT_AXIS, reverse=True),
+                -self.shading * cumulative_integral(s.target.x * h ** (2 * self.hurst), HEIGHT_AXIS, reverse=True),
             )
 
         def demography(s: SimpleNamespace) -> Expression:
-            consumption = reduce_axes(s.target.f * h ** (1 + 2 * self.hurst), ('h',))
+            consumption = reduce_axes(s.target.x * h ** (1 + 2 * self.hurst), ('h',))
             recruits = where(h < self.sapling + step, light(s) * growth * convolve(consumption, kernel) / step, 0)
-            mortality = light(s) * (h ** (2 * self.hurst) * s.target.f + growth * consumption / (self.resources * h))
-            return recruits - mortality * s.target.f
+            mortality = light(s) * (h ** (2 * self.hurst) * s.target.x + growth * consumption / (self.resources * h))
+            return recruits - mortality * s.target.x
 
         grow = AdvectionInteraction(
             'growth',
             target='forest',
-            state='f',
+            state='x',
             drift=lambda s: [0, light(s) * growth],
             limiter=None,
         )
-        demographics = RateInteraction('demography', target='forest', state='f', rate=demography)
+        demographics = RateInteraction('demography', target='forest', state='x', rate=demography)
         return System(self.label, elements=[forest], interactions=[grow, demographics])

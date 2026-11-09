@@ -8,15 +8,15 @@ import pytest
 from sage.all__sagemath_symbolics import cos, pi
 from scipy.special import iv
 
-from skcomplex.core.components.elements import Element, GroupElement, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import SamplingInteraction
 from skcomplex.core.components.laws.utils import exterior_derivative, neighbors
 from skcomplex.core.components.spaces import (
+    BallNeighborhood,
     CellComplexSpace,
     CofaceNeighborhood,
     DiscreteTime,
     LatticeSpace,
-    VonNeumannNeighborhood,
 )
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
@@ -79,7 +79,13 @@ def _ising(namespace):
 
 def _final(sampling, until, initial, seed=0):
     """Return the values of the sites after some sweeps."""
-    sites = LatticeElement('sites', element=SiteElement, space=LatticeSpace((SIDE, SIDE)), values={'s': initial})
+    sites = GroupElement(
+        'sites',
+        element=SiteElement,
+        space=LatticeSpace((SIDE, SIDE)),
+        values={'s': initial},
+        on='sites',
+    )
     system = System(elements=[sites], interactions=[sampling], time=DiscreteTime())
     return simulate(system, until=until, random_state=seed).states[-1]
 
@@ -159,7 +165,13 @@ def _magnetization(move, temperature, seed):
         intensity=1 / temperature,
         move=move,
     )
-    sites = LatticeElement('sites', element=SiteElement, space=LatticeSpace((SIDE, SIDE)), values={'s': _spins(seed)})
+    sites = GroupElement(
+        'sites',
+        element=SiteElement,
+        space=LatticeSpace((SIDE, SIDE)),
+        values={'s': _spins(seed)},
+        on='sites',
+    )
     system = System(elements=[sites], interactions=[sampling], time=DiscreteTime())
     states = simulate(system, until=300, random_state=seed).states
     return float(np.abs(states[100:].mean(axis=1)).mean())
@@ -230,10 +242,10 @@ def test_run_cooling_reduces_accepted_moves() -> None:
         width=0.5,
         intensity=1 / 5.0,
         schedule='colored',
-        neighborhood=VonNeumannNeighborhood(n_dim=1),
+        neighborhood=BallNeighborhood(metric='manhattan', n_dim=1),
         cooling=_geometric,
     )
-    candidates = LatticeElement('candidates', element=CandidateElement, space=LatticeSpace((200,)))
+    candidates = GroupElement('candidates', element=CandidateElement, space=LatticeSpace((200,)), on='sites')
     system = System(elements=[candidates], interactions=[anneal], time=DiscreteTime())
     frames = simulate(system, until=500, random_state=0).values('candidates.x')
     accepted = np.mean(frames[1:] != frames[:-1], axis=1)
@@ -490,7 +502,7 @@ def test_holonomy_score_rejects_moves_rules_and_schedules_of_scalars(arguments, 
 
 def test_holonomy_score_needs_a_group_on_the_edges_of_a_cell_complex():
     """Test that a matrix state on the sites of a lattice raises an error at the first sweep."""
-    sites = LatticeElement('links', element=IsospinLinkElement, space=LatticeSpace((4, 4)))
+    sites = GroupElement('links', element=IsospinLinkElement, space=LatticeSpace((4, 4)), on='sites')
     system = System(elements=[sites], interactions=[_matrix_sampling(ISOSPIN)], time=DiscreteTime())
     with pytest.raises(ValidationError, match='edges of a CellComplexSpace'):
         simulate(system, until=1, random_state=0)

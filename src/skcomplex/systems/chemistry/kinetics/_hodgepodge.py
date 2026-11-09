@@ -10,9 +10,9 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
-from ....core.components.spaces import LatticeSpace, MooreNeighborhood
+from ....core.components.spaces import BallNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -160,14 +160,22 @@ class HodgepodgeSystem(BaseSystem):
         values = {'level': levels, 'n': self.n, 'k1': self.k1, 'k2': self.k2, 'g': self.g}
         return System(
             self.label,
-            elements=[LatticeElement('cells', element=HodgepodgeCellElement, space=LatticeSpace(shape), values=values)],
+            elements=[
+                GroupElement(
+                    'cells',
+                    element=HodgepodgeCellElement,
+                    space=LatticeSpace(shape),
+                    values=values,
+                    on='sites',
+                ),
+            ],
             interactions=[
                 LocalRuleInteraction(
                     'infection',
                     target='cells',
                     state='level',
                     rule=self._infect,
-                    neighborhood=MooreNeighborhood(center=True),
+                    neighborhood=BallNeighborhood(center='first'),
                 ),
             ],
         )

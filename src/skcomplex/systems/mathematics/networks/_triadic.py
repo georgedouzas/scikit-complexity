@@ -14,7 +14,7 @@ import numpy as np
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import HyperedgeInteraction, Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import bernoulli, components, where
@@ -267,7 +267,7 @@ class TriadicPercolationSystem(BaseSystem):
         graph = nx.gnp_random_graph(self.n_nodes, self.mean_degree / (self.n_nodes - 1), seed=rng)
         hyperedges, signs = self._regulated_links(graph, self.negative, rng)
         space = NetworkSpace(graph, hyperedges=hyperedges)
-        nodes = LatticeElement('nodes', element=RegulatedNodeElement, space=space)
+        nodes = GroupElement('nodes', element=RegulatedNodeElement, space=space, on='sites')
         links = GroupElement('links', element=RegulatedLinkElement, space=space, on='edges', values={'sign': signs})
         interactions = [
             TriadicRegulationInteraction('regulation', nodes='nodes', links='links', p=self.p, phase='regulation'),

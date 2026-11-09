@@ -93,6 +93,10 @@ Where the audit was wrong, this design plans what the code shows:
   spec asks for family packages with no loose module, so it lives in `social/common/kinetics/`.
 - The audit missed that `systems/biology/common/kinetics/_species.py` already defines a copy of the atom. It rebases on
   `NonnegativeElement`.
+- The crowds `SecurityAgentsElement` is a density at one efficacy class that encounters read by the default state. It
+  rebases on `ActivityDensityElement` with the state `x`, so every encounter of the kinetic systems reads `x`.
+- `MassActionSystem` and the epidemiology factories, examples, and tests switch to `x` in the same step as the biology
+  compartments, since the epidemic interactions serve both.
 
 ### `GroupElement` absorbs the lattice group
 

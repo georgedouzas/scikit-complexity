@@ -15,7 +15,7 @@ from sage.all__sagemath_symbolics import SR, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import HyperedgeInteraction, Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import bernoulli, components, where
@@ -389,7 +389,7 @@ class SpatialTriadicPercolationSystem(BaseSystem):
             rng,
         )
         space = NetworkSpace(graph, hyperedges=hyperedges)
-        nodes = LatticeElement('nodes', element=PercolatingNodeElement, space=space)
+        nodes = GroupElement('nodes', element=PercolatingNodeElement, space=space, on='sites')
         values = {'negatives': negatives, 'positives': positives}
         links = GroupElement('links', element=SignedLinkElement, space=space, on='edges', values=values)
         interactions = [

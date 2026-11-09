@@ -93,11 +93,11 @@ isomerization = MassActionSystem(
     species={'A': 10.0, 'B': 0.0},
     reactions={'forth': ({'A': 1}, {'B': 1}, 0.3), 'back': ({'B': 1}, {'A': 1}, 0.1)},
 )
-round(float(simulate(isomerization, until=50.0, dt=1.0).values('A.n')[-1]), 3)
+round(float(simulate(isomerization, until=50.0, dt=1.0).values('A.x')[-1]), 3)
 isomerization.set_params(mode='jump').get_tags().randomness
 ```
 
-Every species is a `CompartmentElement` named after it, whose state `n` holds its amount, and every reaction is a
+Every species is a `NonnegativeElement` named after it, whose state `x` holds its amount, and every reaction is a
 `ReactionInteraction`. The `mode` writes the reactions as rate equations, `'rate'`, as random events of single
 molecules, `'jump'`, or as chemical Langevin equations, `'langevin'`. The amount of `A` relaxes to
 `0.1 / (0.3 + 0.1)` of the total.
@@ -150,8 +150,8 @@ class VaccinatedSIRSystem(SIRSystem):
     def _get_interactions(self):
         vaccination = ReactionInteraction(
             'vaccination',
-            reactants={('S', 'n'): 1},
-            products={('R', 'n'): 1},
+            reactants={('S', 'x'): 1},
+            products={('R', 'x'): 1},
             k=self.nu,
             mode='jump' if self.stochastic else 'rate',
         )
@@ -160,7 +160,7 @@ class VaccinatedSIRSystem(SIRSystem):
 
 vaccinated = VaccinatedSIRSystem()
 [interaction.label for interaction in vaccinated.prepare().system_.interactions]
-simulate(SIRSystem()).values('I.n').max().round(), simulate(vaccinated).values('I.n').max().round()
+simulate(SIRSystem()).values('I.x').max().round(), simulate(vaccinated).values('I.x').max().round()
 ```
 
 The subclass repeats the arguments of its parent in its `__init__`, since `get_params` reads the signature of the
@@ -171,7 +171,7 @@ The subclass is an estimator like its parent, so every function of the library t
 
 ```python continuation
 stochastic = vaccinated.set_params(stochastic=True)
-stochastic.get_tags().randomness, simulate(stochastic, random_state=0).values('I.n').max()
+stochastic.get_tags().randomness, simulate(stochastic, random_state=0).values('I.x').max()
 ```
 
 The [contributing guide](../../development/contributing.md#adding-a-system-to-the-catalog) shows how a system class of

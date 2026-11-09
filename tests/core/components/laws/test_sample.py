@@ -4,12 +4,12 @@ import pytest
 from sage.all__sagemath_symbolics import var
 
 from skcomplex.core.components.laws import SampleLaw
-from skcomplex.core.components.spaces import VonNeumannNeighborhood
+from skcomplex.core.components.spaces import BallNeighborhood
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import MoveSpec, ObjectiveSpec, SamplerSpec
 
 SPIN = var('spin')
-ENERGY = ObjectiveSpec(-SPIN, VonNeumannNeighborhood())
+ENERGY = ObjectiveSpec(-SPIN, BallNeighborhood(metric='manhattan'))
 
 
 def test_sample_targets_the_state_of_its_move():

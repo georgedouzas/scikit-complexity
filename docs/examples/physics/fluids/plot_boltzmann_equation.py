@@ -30,7 +30,7 @@ SPACING = 12.0 / VELOCITIES
 
 def density_wave(_, values):
     """Return the component of wave number 1 of the density over position."""
-    density = np.reshape(values['gas.f'], (POSITIONS, -1)).sum(axis=1) * SPACING**2
+    density = np.reshape(values['gas.x'], (POSITIONS, -1)).sum(axis=1) * SPACING**2
     return 2 * density @ np.sin(2 * np.pi * np.arange(POSITIONS) / POSITIONS) / POSITIONS
 
 

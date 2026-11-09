@@ -12,12 +12,11 @@ import numpy as np
 from sage.all__sagemath_symbolics import ZZ, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import (
-    BoxNeighborhood,
+    BallNeighborhood,
     CayleySpace,
-    GeneratorNeighborhood,
     LatticeNeighborhood,
     LatticeSpace,
     MemoryNeighborhood,
@@ -26,6 +25,7 @@ from ....core.components.systems import BaseSystem, System
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, SubshiftSpec, TotalisticSpec, VisualSpec
 from ....core.types import Array
 from ._binary_cell import BinaryCellElement
+from ._generator_neighborhood import GeneratorNeighborhood
 from ._groups import baumslag_solitar, free_group, grigorchuk_group, heisenberg, lamplighter
 
 GOLDEN_MEAN = SubshiftSpec(LatticeNeighborhood(((0,), (1,))), ((1, 1),))
@@ -132,7 +132,7 @@ def _majority_system(
     cells = _random_cells(space.prepare().size_, density, random_state)
     return System(
         label,
-        elements=[LatticeElement('cells', element=BinaryCellElement, space=space, values={'alive': cells})],
+        elements=[GroupElement('cells', element=BinaryCellElement, space=space, values={'alive': cells}, on='sites')],
         interactions=[
             LocalRuleInteraction('majority', target='cells', state='alive', rule=_majority, neighborhood=memory),
         ],
@@ -255,7 +255,9 @@ class LamplighterAutomatonSystem(BaseSystem):
         parity = TotalisticSpec({total: total % 2 for total in range(len(LAMPLIGHTER_MEMORY.elements) + 1)})
         return System(
             self.label,
-            elements=[LatticeElement('cells', element=BinaryCellElement, space=space, values={'alive': cells})],
+            elements=[
+                GroupElement('cells', element=BinaryCellElement, space=space, values={'alive': cells}, on='sites'),
+            ],
             interactions=[
                 LocalRuleInteraction(
                     'parity',
@@ -458,11 +460,12 @@ class LinearRingAutomatonSystem(BaseSystem):
         return System(
             self.label,
             elements=[
-                LatticeElement(
+                GroupElement(
                     'cells',
                     element=LaplacianCellElement,
                     space=LatticeSpace(self.size),
                     values={'value': values, 'modulus': self.modulus},
+                    on='sites',
                 ),
             ],
             interactions=[
@@ -471,7 +474,7 @@ class LinearRingAutomatonSystem(BaseSystem):
                     target='cells',
                     state='value',
                     rule=self._laplacian,
-                    neighborhood=BoxNeighborhood(),
+                    neighborhood=BallNeighborhood(n_dim=1, center='inline'),
                 ),
             ],
         )
@@ -533,13 +536,13 @@ class SubshiftsSystem(BaseSystem):
             target='cells',
             state='alive',
             rule=self._golden_move,
-            neighborhood=BoxNeighborhood(),
+            neighborhood=BallNeighborhood(n_dim=1, center='inline'),
             schedule='random-sequential',
             stochastic=True,
         )
         return System(
             self.label,
-            elements=[LatticeElement('cells', element=GoldenCellElement, space=LatticeSpace(self.size))],
+            elements=[GroupElement('cells', element=GoldenCellElement, space=LatticeSpace(self.size), on='sites')],
             interactions=[flips],
         )
 

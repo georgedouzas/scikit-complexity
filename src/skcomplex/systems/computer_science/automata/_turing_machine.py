@@ -12,9 +12,9 @@ from typing import Annotated
 import numpy as np
 from sage.all__sagemath_symbolics import NN, ZZ
 
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
-from ....core.components.spaces import BoxNeighborhood, LatticeSpace
+from ....core.components.spaces import BallNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, System
 from ....core.errors import ParameterError
 from ....core.specs import StateSpec, VisualSpec
@@ -180,7 +180,13 @@ class TuringMachineSystem(BaseSystem):
             raise ParameterError(error_msg)
         head = np.full(self.size, -1.0)
         head[self.size // 2] = states.index(self.start)
-        tape = LatticeElement('tape', element=TapeCellElement, space=LatticeSpace(self.size), values={'head': head})
+        tape = GroupElement(
+            'tape',
+            element=TapeCellElement,
+            space=LatticeSpace(self.size),
+            values={'head': head},
+            on='sites',
+        )
         return System(
             self.label,
             elements=[tape],
@@ -190,7 +196,7 @@ class TuringMachineSystem(BaseSystem):
                     target='tape',
                     state=('symbol', 'head'),
                     rule=self._turing_rule(actions),
-                    neighborhood=BoxNeighborhood(),
+                    neighborhood=BallNeighborhood(n_dim=1, center='inline'),
                     reads=('symbol', 'head'),
                 ),
             ],

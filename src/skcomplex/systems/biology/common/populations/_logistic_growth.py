@@ -16,7 +16,7 @@ from ._growth import GrowthInteraction
 class LogisticGrowthInteraction(GrowthInteraction):
     """Verhulst's growth limited by a carrying capacity, without harvest.
 
-    The population follows `dn/dt = r n (1 - n(t - tau) / K)`.
+    The population follows `dx/dt = r x (1 - x(t - tau) / K)`.
 
     A delay `tau` above 0 gives Hutchinson's delayed logistic equation. The generalized logistic of Richards, with an
     exponent on the crowding, is `GrowthInteraction(form='logistic', p=...)`.
@@ -41,16 +41,16 @@ class LogisticGrowthInteraction(GrowthInteraction):
             The name of the state of the target that holds the population.
 
     Examples:
-        >>> from skcomplex.core.components.elements import CompartmentElement
+        >>> from skcomplex.systems.biology.common.kinetics import CompartmentElement
         >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.biology.common.populations import LogisticGrowthInteraction
         >>> from skcomplex.core.engine.runtime import simulate
         >>> system = System(
-        ...     elements=[CompartmentElement('rabbits', n=1.0)],
+        ...     elements=[CompartmentElement('rabbits', x=1.0)],
         ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=50.0)],
         ... )
         >>> trajectory = simulate(system, until=30.0, dt=0.1)
-        >>> round(float(trajectory.values('rabbits.n')[-1]), 3)
+        >>> round(float(trajectory.values('rabbits.x')[-1]), 3)
         50.0
     """
 
@@ -62,12 +62,12 @@ class LogisticGrowthInteraction(GrowthInteraction):
         r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
         tau: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        state: str = 'n',
+        state: str = 'x',
     ) -> None:
         super().__init__(label, target=target, r=r, K=K, tau=tau, form='logistic', state=state)
 
     def _get_crowding(self, namespace: SimpleNamespace) -> Expression:
-        """Return the crowding `n / K` of Verhulst's logistic.
+        """Return the crowding `x / K` of Verhulst's logistic.
 
         Args:
             namespace:

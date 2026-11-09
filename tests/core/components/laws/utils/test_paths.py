@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import var
 
-from skcomplex.core.components.elements import Element, GroupElement, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction, MapInteraction, TopologyInteraction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import neighborhoods_in, shortest_paths
@@ -72,7 +72,7 @@ def test_shortest_paths_agrees_with_networkx_on_the_open_links(reduce):
     space = NetworkSpace(graph)
     system = System(
         elements=[
-            LatticeElement('nodes', element=ValueElement, space=space),
+            GroupElement('nodes', element=ValueElement, space=space, on='sites'),
             GroupElement('links', element=ValueElement, space=space, on='edges', values={'a': weights}),
         ],
         interactions=[PathsInteraction('paths', nodes='nodes', links='links', reduce=reduce)],
@@ -122,7 +122,7 @@ def test_numba_runs_shortest_paths_in_python_with_a_warning():
     space = NetworkSpace(nx.path_graph(4))
     system = System(
         elements=[
-            LatticeElement('nodes', element=ValueElement, space=space),
+            GroupElement('nodes', element=ValueElement, space=space, on='sites'),
             GroupElement('links', element=ValueElement, space=space, on='edges', values={'a': 1.0}),
         ],
         interactions=[PathsInteraction('paths', nodes='nodes', links='links')],

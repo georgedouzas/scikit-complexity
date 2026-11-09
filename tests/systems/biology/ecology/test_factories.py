@@ -18,13 +18,13 @@ from ..conftest import _run_until
 def test_lotka_volterra_by_name_takes_predation_rate():
     """Test that the Lotka-Volterra system created with a predation rate oscillates around its center."""
     trajectory = _run_until(LotkaVolterraSystem(a=0.2), 50, dt=0.1)
-    assert trajectory.values('prey.n').min() < 0.4 / 0.1 < trajectory.values('prey.n').max()
+    assert trajectory.values('prey.x').min() < 0.4 / 0.1 < trajectory.values('prey.x').max()
 
 
 def test_varying_capacity_settles_on_cycle_of_the_season():
     """Test that logistic growth under a periodic capacity settles on a cycle of the same period."""
     trajectory = _run_until(VaryingCapacityLogisticSystem(), 20, dt=0.05)
-    population = trajectory.values('population.n')
+    population = trajectory.values('population.x')
     assert population[-1] == pytest.approx(population[-21], rel=1e-3)
     assert population[-20:].max() - population[-20:].min() > 10
 
@@ -49,9 +49,9 @@ def test_fibonacci_rabbits():
 
 def test_ricker_settles_on_its_fixed_point_and_doubles_its_period():
     """Test that Ricker's map settles on `ln r` below `r = e^2` and on a two-cycle just above it."""
-    stable = _run_until(RickerSystem(r=5.0), 200, dt=1).values('population.n')
+    stable = _run_until(RickerSystem(r=5.0), 200, dt=1).values('population.x')
     assert stable[-1] == pytest.approx(np.log(5.0))
-    cycle = _run_until(RickerSystem(r=9.0), 200, dt=1).values('population.n')
+    cycle = _run_until(RickerSystem(r=9.0), 200, dt=1).values('population.x')
     assert cycle[-1] == pytest.approx(cycle[-3])
     assert abs(cycle[-1] - cycle[-2]) > 1.0
 

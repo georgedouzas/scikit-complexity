@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
-from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import SamplingInteraction
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace, NetworkSpace
@@ -69,7 +69,7 @@ def _mutate(row, random):
 def _bits(shape=(1, 20), objective=None, intensity=INFINITE, **settings):
     """Return a binary lattice sampled by the number of its ones."""
     objective = RowScoreSpec(np.sum) if objective is None else objective
-    bits = LatticeElement('bits', element=BitElement, space=LatticeSpace(shape))
+    bits = GroupElement('bits', element=BitElement, space=LatticeSpace(shape), on='sites')
     sampling = SamplingInteraction(
         'walk',
         target='bits',
@@ -143,11 +143,12 @@ def test_row_score_reads_the_parameters_it_names():
         seen.append(np.shape(weight))
         return float(np.sum(row * weight))
 
-    bits = LatticeElement(
+    bits = GroupElement(
         'bits',
         element=BitElement,
         space=LatticeSpace((2, 4)),
         values={'weight': np.ones((2, 4))},
+        on='sites',
     )
     sampling = SamplingInteraction('walk', target='bits', state='s', objective=RowScoreSpec(score), move=_flip_site)
     system = System(elements=[bits], interactions=[sampling], time=DiscreteTime())
@@ -161,7 +162,7 @@ def test_row_score_reads_the_parameters_it_names():
 )
 def test_row_score_takes_named_moves_at_one_site(move, settings):
     """Test that a named move changes at most one site of a row per proposal."""
-    spins = LatticeElement('spins', element=SpinElement, space=LatticeSpace((1, 8)))
+    spins = GroupElement('spins', element=SpinElement, space=LatticeSpace((1, 8)), on='sites')
     sampling = SamplingInteraction(
         'walk',
         target='spins',
@@ -197,7 +198,7 @@ def test_point_mutation_changes_one_site_to_the_other_letters_equally():
 
 def test_row_score_samples_a_categorical_state_with_labels():
     """Test that a row of letters is sampled as indices and read as its labels."""
-    letters = LatticeElement('letters', element=LetterElement, space=LatticeSpace((2, 6)))
+    letters = GroupElement('letters', element=LetterElement, space=LatticeSpace((2, 6)), on='sites')
     sampling = SamplingInteraction(
         'walk',
         target='letters',
@@ -251,7 +252,7 @@ def test_row_score_heat_bath_at_infinite_intensity_never_raises_the_score():
 def test_row_score_reports_a_target_off_a_lattice():
     """Test that the compiler reports a row score of a group on a network as a law-space issue."""
     space = NetworkSpace(nx.path_graph(4))
-    spins = LatticeElement('spins', element=SpinElement, space=space)
+    spins = GroupElement('spins', element=SpinElement, space=space, on='sites')
     sampling = SamplingInteraction('walk', target='spins', state='s', objective=RowScoreSpec(np.sum), move=_flip_site)
     system = System(elements=[spins], interactions=[sampling], time=DiscreteTime())
     report = PassCompiler().prepare(system).report_
@@ -273,7 +274,7 @@ def _total_energy(spins):
 def _spins_at(sampling):
     """Return the lattice frames of random spins under a sampling."""
     values = {'s': np.random.default_rng(0).choice([-1.0, 1.0], size=(16, 16))}
-    spins = LatticeElement('spins', element=SpinElement, space=LatticeSpace((16, 16)), values=values)
+    spins = GroupElement('spins', element=SpinElement, space=LatticeSpace((16, 16)), values=values, on='sites')
     system = System(elements=[spins], interactions=[sampling], time=DiscreteTime())
     return simulate(system, until=60, random_state=0).lattice('spins.s')
 
@@ -310,7 +311,7 @@ def test_thermal_sampling_at_zero_temperature_never_raises_the_energy():
 
 def test_thermal_sampling_takes_a_row_score_at_zero_temperature():
     """Test that the thin thermal subclass runs a row score at temperature 0."""
-    bits = LatticeElement('bits', element=BitElement, space=LatticeSpace((1, 20)))
+    bits = GroupElement('bits', element=BitElement, space=LatticeSpace((1, 20)), on='sites')
     sampling = ThermalSamplingInteraction(
         'walk',
         target='bits',

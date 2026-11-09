@@ -60,7 +60,7 @@ z1 = brentq(lambda z: heterogeneity(z) - SIGMA, -6.0, -0.84)
 M = mean_abundance(z1)
 q = M**2 * integral(2, z1) / integral(1, z1) ** 2
 sigma_s = np.sqrt(1.5) * SIGMA * q
-abundances = trajectory.values('species.n')
+abundances = trajectory.values('species.x')
 final = abundances[-1]
 fig, (mean, histogram) = plt.subplots(1, 2, figsize=(10, 4))
 mean.plot(trajectory.times, abundances.mean(axis=1), label='mean abundance')

@@ -6,7 +6,7 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import HyperedgeInteraction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import maximum, mean, minimum, total, variance
@@ -53,7 +53,7 @@ def _system(reduce: str, values: np.ndarray) -> System:
     """Return the nodes of a hypergraph whose rates are a reduction over their hyperedges."""
     space = NetworkSpace(nx.complete_graph(5), hyperedges=HYPEREDGES)
     return System(
-        elements=[LatticeElement('nodes', element=NodeElement, space=space, values={'x': values})],
+        elements=[GroupElement('nodes', element=NodeElement, space=space, values={'x': values}, on='sites')],
         interactions=[ReducedInteraction('reduced', nodes='nodes', reduce=reduce)],
     )
 

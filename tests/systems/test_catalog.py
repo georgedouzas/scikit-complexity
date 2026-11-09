@@ -179,7 +179,7 @@ def test_all_systems_filters_by_topic():
 def test_system_class_matches_components():
     """Test that a system class runs like the same system built from its components."""
     built = System(
-        elements=[PopulationElement('prey', n=40.0), PopulationElement('predators', n=9.0)],
+        elements=[PopulationElement('prey', x=40.0), PopulationElement('predators', x=9.0)],
         interactions=[
             ExponentialGrowthInteraction('growth', target='prey', r=1.1),
             PredationInteraction('predation', predator='predators', prey='prey', a=0.2, b=0.1),

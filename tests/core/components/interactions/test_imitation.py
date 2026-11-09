@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 from scipy.special import expit
 
-from skcomplex.core.components.elements import Element, GroupElement, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import ImitationInteraction
 from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime, LatticeSpace, NetworkSpace
 from skcomplex.core.components.systems import System
@@ -75,7 +75,7 @@ def _final(space, values, rule, until, seed=0, **arguments):
     """Return the strategies after imitation by a rule for some time, in continuous or in discrete time."""
     discrete = arguments.get('form') == 'probability'
     system = System(
-        elements=[LatticeElement('players', element=PlayerElement, space=space, values=values)],
+        elements=[GroupElement('players', element=PlayerElement, space=space, values=values, on='sites')],
         interactions=[ImitationInteraction('imitation', target='players', rule=rule, **arguments)],
         time=DiscreteTime() if discrete else ContinuousTime(),
     )
@@ -161,11 +161,12 @@ def test_fermi_copies_a_random_neighbour_with_the_fermi_probability_from_either_
     strategies = (np.random.default_rng(SEED).random((150, 150)) < 0.5).astype(float)
     system = System(
         elements=[
-            LatticeElement(
+            GroupElement(
                 'players',
                 element=PlayerElement,
                 space=LatticeSpace((150, 150), metric='manhattan'),
                 values={'state': strategies.ravel(), 'payoff': strategies.ravel()},
+                on='sites',
             ),
         ],
         interactions=[ImitationInteraction('imitation', target='players', rule='fermi', form='probability')],
@@ -279,7 +280,13 @@ def test_get_laws_reads_a_renamed_target_and_probability(rule, form):
     ):
         system = System(
             elements=[
-                LatticeElement('players', element=PlayerElement, space=LatticeSpace(10), values=_alternating(10)),
+                GroupElement(
+                    'players',
+                    element=PlayerElement,
+                    space=LatticeSpace(10),
+                    values=_alternating(10),
+                    on='sites',
+                ),
             ],
             interactions=[imitation],
             time=DiscreteTime() if discrete else ContinuousTime(),

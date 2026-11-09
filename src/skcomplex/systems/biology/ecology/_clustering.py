@@ -11,17 +11,18 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import CompartmentElement, LatticeElement
+from ....core.components.elements import GroupElement
 from ....core.components.interactions import BaseInteraction, Interaction, JumpInteraction
 from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, System
 from ....core.engine.backends import NumbaBackend
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ..common.kinetics import CompartmentElement
 
 
 class HabitatPatchElement(CompartmentElement):
-    """Patch of space, a compartment of `n` organisms that divide and die.
+    """Patch of space, a compartment of `x` organisms that divide and die.
 
     The organisms divide and die at the same rate `alpha`.
 
@@ -35,7 +36,7 @@ class HabitatPatchElement(CompartmentElement):
         visual:
             How the element is drawn, or `None` for `default_visual_`.
 
-        n:
+        x:
             The initial number of organisms.
 
         alpha:
@@ -43,7 +44,7 @@ class HabitatPatchElement(CompartmentElement):
 
     Examples:
         >>> from skcomplex.systems.biology.ecology import HabitatPatchElement
-        >>> HabitatPatchElement('patch', n=5.0).alpha
+        >>> HabitatPatchElement('patch', x=5.0).alpha
         1.0
     """
 
@@ -52,10 +53,10 @@ class HabitatPatchElement(CompartmentElement):
         label: str,
         visual: VisualSpec | None = VisualSpec('image', {'low': 0.0}),
         *,
-        n: Annotated[float, StateSpec(domain=NN)] = 10.0,
+        x: Annotated[float, StateSpec(domain=NN)] = 10.0,
         alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual, n=n)
+        super().__init__(label, visual=visual, x=x)
         self.alpha = alpha
 
 
@@ -113,7 +114,7 @@ class HoppingInteraction(Interaction):
                 The laws of the component.
         """
         patches = s.patches
-        return [JumpLaw(s.beta * patches[i].n, {patches[i].n: -1, patches[j].n: 1}) for i, j in self.links]
+        return [JumpLaw(s.beta * patches[i].x, {patches[i].x: -1, patches[j].x: 1}) for i, j in self.links]
 
 
 class NeutralClusteringSystem(BaseSystem):
@@ -124,7 +125,7 @@ class NeutralClusteringSystem(BaseSystem):
     Births balance deaths, so the mean number of organisms per patch stays `n` while its variance grows. Without hops it
     grows as `2 alpha n t`, so most patches empty while a few fill. Hops at the rate `beta` slow the growth to `t^(1/2)`
     in one dimension and `ln t` in two, so the clusters persist in low dimension although the mean density obeys a
-    diffusion equation. The system has the numbers `patches.n` of organisms on the lattice `patches`, and their mean
+    diffusion equation. The system has the numbers `patches.x` of organisms on the lattice `patches`, and their mean
     `mean` and variance `variance` over the patches.
 
     Args:
@@ -156,8 +157,8 @@ class NeutralClusteringSystem(BaseSystem):
     dt = 0.5
     backend = NumbaBackend()
     observables = (
-        ObservableSpec('mean', group='patches', variable='n', reduce='mean'),
-        ObservableSpec('variance', group='patches', variable='n', reduce='var'),
+        ObservableSpec('mean', group='patches', variable='x', reduce='mean'),
+        ObservableSpec('variance', group='patches', variable='x', reduce='var'),
     )
 
     def __init__(
@@ -192,16 +193,17 @@ class NeutralClusteringSystem(BaseSystem):
     def _build_system(self) -> System:
         """Return the parts of organisms that divide."""
         lattice = (self.shape,) if isinstance(self.shape, int) else tuple(self.shape)
-        patches = LatticeElement(
+        patches = GroupElement(
             'patches',
             element=HabitatPatchElement,
             space=LatticeSpace(lattice),
-            values={'n': np.full(lattice, float(self.n)), 'alpha': self.alpha},
+            values={'x': np.full(lattice, float(self.n)), 'alpha': self.alpha},
+            on='sites',
         )
         members = [f'patches[{index}]' for index in range(int(np.prod(lattice)))]
         interactions: list[BaseInteraction] = [
-            JumpInteraction('division', target='patches', changes={'n': 1}, rate=lambda s: s.target.alpha * s.target.n),
-            JumpInteraction('death', target='patches', changes={'n': -1}, rate=lambda s: s.target.alpha * s.target.n),
+            JumpInteraction('division', target='patches', changes={'x': 1}, rate=lambda s: s.target.alpha * s.target.x),
+            JumpInteraction('death', target='patches', changes={'x': -1}, rate=lambda s: s.target.alpha * s.target.x),
         ]
         if self.beta:
             interactions.append(

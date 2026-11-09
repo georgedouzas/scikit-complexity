@@ -12,11 +12,11 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, cos, pi
 
 from ....core.components.base import BasePart
-from ....core.components.elements import Element, GroupElement, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction, OptimizationInteraction, SamplingInteraction
 from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import where
-from ....core.components.spaces import DiscreteTime, LatticeSpace, VonNeumannNeighborhood
+from ....core.components.spaces import BallNeighborhood, DiscreteTime, LatticeSpace
 from ....core.components.systems import BaseSystem, RunSettings, System
 from ....core.errors import ValidationError
 from ....core.specs import (
@@ -299,11 +299,12 @@ class EvolutionaryOptimisersSystem(BaseSystem):
 
         The element keeps the lowest energy the candidates reach.
         """
-        candidates = LatticeElement(
+        candidates = GroupElement(
             'candidates',
             element=AnnealedCandidateElement,
             space=LatticeSpace((len(start),)),
             values={'x': start[:, 0], 'y': start[:, 1]},
+            on='sites',
         )
         samplers = [
             SamplingInteraction(
@@ -315,7 +316,7 @@ class EvolutionaryOptimisersSystem(BaseSystem):
                 width=width,
                 intensity=1 / temperature,
                 schedule='colored',
-                neighborhood=VonNeumannNeighborhood(n_dim=1),
+                neighborhood=BallNeighborhood(metric='manhattan', n_dim=1),
                 cooling=lambda t: COOLED ** (t / generations),
             )
             for state in ('x', 'y')

@@ -14,7 +14,7 @@ def test_evacuation_empties_the_building():
     assert evacuated[0] == 0.0
     assert np.all(np.diff(evacuated) >= -1e-12)
     assert evacuated[-1] > 0.99
-    np.testing.assert_allclose(np.asarray(trajectory.values('crowd.f')).sum(axis=1), 1.0, rtol=1e-9)
+    np.testing.assert_allclose(np.asarray(trajectory.values('crowd.x')).sum(axis=1), 1.0, rtol=1e-9)
 
 
 def test_evacuation_runs_with_particles():

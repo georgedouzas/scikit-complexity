@@ -14,12 +14,12 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 trajectory = simulate(LotkaVolterraSystem(), until=10, dt=0.1)
-trajectory.values('prey.n')[-1].round(3)
+trajectory.values('prey.x')[-1].round(3)
 ```
 
 `simulate` validates the system, compiles it, chooses the solver, and runs from time 0 to `until`. The trajectory holds
 the recorded frames, its `times` and the `values` of every state, observable, and parameter. States and parameters are
-named by their dotted path, such as `prey.n` and `predation.a`. The system itself never changes, so the same instance
+named by their dotted path, such as `prey.x` and `predation.a`. The system itself never changes, so the same instance
 runs again with other settings.
 
 The tags of the system choose the default solver before anything compiles, and a solver or a backend that does not
@@ -37,9 +37,9 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 first = simulate(LotkaVolterraSystem(), until=10, dt=0.1)
-last = {name: first.values(name)[-1] for name in ('prey.n', 'predators.n')}
+last = {name: first.values(name)[-1] for name in ('prey.x', 'predators.x')}
 second = simulate(LotkaVolterraSystem(), until=10, dt=0.1, initial_state=last, schedule={'predation.a': lambda t: 0.0})
-second.values('prey.n')[0] == first.values('prey.n')[-1], second.values('predation.a')[-1]
+second.values('prey.x')[0] == first.values('prey.x')[-1], second.values('predation.a')[-1]
 ```
 
 - `schedule={'predation.a': lambda t: 0.0}` sets a parameter from a function of time at every frame, here switching
@@ -61,10 +61,10 @@ trajectory = simulate(
     until=10,
     dt=0.1,
     schedule={'predation.a': lambda t: 0.4 + 0.001 * t},
-    initial_state={'prey.n': 20},
+    initial_state={'prey.x': 20},
     random_state=0,
 )
-trajectory.values('prey.n')[0], trajectory.times[-1]
+trajectory.values('prey.x')[0], trajectory.times[-1]
 ```
 
 - `until` sets the end time. Without it, `simulate` uses the tuned end time of the class of the system, and a system
@@ -78,7 +78,7 @@ trajectory.values('prey.n')[0], trajectory.times[-1]
   and Numba backends.
 - `schedule={'predation.a': lambda t: 0.4 + 0.001 * t}` sets parameters from functions of time at every frame, such as
   a slow ramp of a control parameter.
-- `initial_state={'prey.n': 20}` replaces initial values of the elements for one run.
+- `initial_state={'prey.x': 20}` replaces initial values of the elements for one run.
 - `observables` and `observers` record more quantities and stream the run, as the page [Observe](observe.md) shows.
 - `invariants` names observables that must stay constant, with their tolerances, and the run raises a
   `ConservationError` at the first frame that leaves them.

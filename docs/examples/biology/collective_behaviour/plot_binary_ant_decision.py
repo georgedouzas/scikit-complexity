@@ -32,10 +32,10 @@ trajectory = simulate(BinaryAntDecisionSystem(stochastic=True), observers=[obser
 shares = []
 for seed in range(40):
     trajectory = simulate(BinaryAntDecisionSystem(stochastic=True), random_state=seed)
-    left, right = trajectory.values('left.n')[-1], trajectory.values('right.n')[-1]
+    left, right = trajectory.values('left.x')[-1], trajectory.values('right.x')[-1]
     shares.append(left / (left + right))
 deterministic = simulate(BinaryAntDecisionSystem(stochastic=False))
-even = deterministic.values('left.n')[-1] / (deterministic.values('left.n')[-1] + deterministic.values('right.n')[-1])
+even = deterministic.values('left.x')[-1] / (deterministic.values('left.x')[-1] + deterministic.values('right.x')[-1])
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.hist(shares, bins=np.linspace(0, 1, 21))
 ax.axvline(even, color='black', linestyle='--', label=f'deterministic mode: {even:.2f}')

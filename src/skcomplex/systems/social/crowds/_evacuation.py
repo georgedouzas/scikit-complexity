@@ -16,12 +16,13 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import DensityElement, GroupElement
+from ....core.components.elements import GroupElement
 from ....core.components.interactions import EncounterInteraction
 from ....core.components.laws.utils import moment
 from ....core.components.spaces import ContinuousTime, LatticeSpace
 from ....core.components.systems import BaseSystem, RunSettings, System
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec
+from ..common.kinetics import ActivityDensityElement
 
 
 def crowding_table(rooms: int, speeds: int, step: int) -> tuple[npt.NDArray[np.float64], ...]:
@@ -383,7 +384,7 @@ def evacuated_fraction(s: SimpleNamespace, rooms: int, speeds: int) -> Expressio
             The moment of the indicator of the outside sites, divided by the density.
     """
     outside = (np.arange((rooms + 1) * speeds) >= rooms * speeds).astype(float)
-    return moment(s.f, 1, outside, normalized=True)
+    return moment(s.x, 1, outside, normalized=True)
 
 
 def mean_speed(s: SimpleNamespace, rooms: int, speeds: int) -> Expression:
@@ -403,7 +404,7 @@ def mean_speed(s: SimpleNamespace, rooms: int, speeds: int) -> Expression:
         speed:
             The normalized first moment of the speeds of the sites.
     """
-    return moment(s.f, 1, np.tile(walking_speeds(speeds), rooms + 1), normalized=True)
+    return moment(s.x, 1, np.tile(walking_speeds(speeds), rooms + 1), normalized=True)
 
 
 def _sizes_of(system: System) -> tuple[int, int]:
@@ -521,12 +522,12 @@ class EvacuationSystem(BaseSystem):
             elements=[
                 GroupElement(
                     'crowd',
-                    element=DensityElement,
+                    element=ActivityDensityElement,
                     on='sites',
                     space=crowd_space,
-                    values={'f': initial.ravel()},
+                    values={'x': initial.ravel()},
                 ),
-                GroupElement('signs', element=DensityElement, size=1, values={'f': 1.0}),
+                GroupElement('signs', element=ActivityDensityElement, size=1, values={'x': 1.0}),
             ],
             interactions=[
                 WalkingInteraction(

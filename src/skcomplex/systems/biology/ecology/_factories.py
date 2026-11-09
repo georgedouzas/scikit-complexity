@@ -224,11 +224,11 @@ class RabbitsElement(Element):
 
 
 class RickerGrowthInteraction(Interaction):
-    """Ricker growth of a population in discrete generations, `n' = r n exp(-n)`.
+    """Ricker growth of a population in discrete generations, `x' = r x exp(-x)`.
 
     It overcompensates at high density.
 
-    The size `n` is in units of the density at which the offspring of a generation peak, so a crowded generation
+    The size `x` is in units of the density at which the offspring of a generation peak, so a crowded generation
     leaves fewer offspring than a sparser one.
 
     Args:
@@ -261,7 +261,7 @@ class RickerGrowthInteraction(Interaction):
         self.r = r
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the next generation `r n exp(-n)`.
+        """Return the next generation `r x exp(-x)`.
 
         Args:
             s:
@@ -271,7 +271,7 @@ class RickerGrowthInteraction(Interaction):
             laws:
                 The laws of the component.
         """
-        n = s.target.n
+        n = s.target.x
         return [UpdateLaw(n, s.r * n * exp(-n))]
 
 
@@ -382,7 +382,7 @@ class ExponentialGrowthSystem(BaseSystem):
         """
         return System(
             self.label,
-            elements=[PopulationElement('population', n=self.n)],
+            elements=[PopulationElement('population', x=self.n)],
             interactions=[ExponentialGrowthInteraction('growth', target='population', r=self.r)],
         )
 
@@ -437,7 +437,7 @@ class LogisticGrowthSystem(BaseSystem):
         """
         return System(
             self.label,
-            elements=[PopulationElement('population', n=self.n)],
+            elements=[PopulationElement('population', x=self.n)],
             interactions=[LogisticGrowthInteraction('growth', target='population', r=self.r, K=self.K)],
         )
 
@@ -502,7 +502,7 @@ class VaryingCapacityLogisticSystem(BaseSystem):
         """Return the parts of logistic growth under a seasonal carrying capacity."""
         return System(
             self.label,
-            elements=[PopulationElement('population', n=self.n)],
+            elements=[PopulationElement('population', x=self.n)],
             interactions=[
                 SeasonalLogisticGrowthInteraction(
                     'growth',
@@ -570,7 +570,7 @@ class HutchinsonSystem(BaseSystem):
         """Return the parts of Hutchinson's delayed logistic equation."""
         return System(
             self.label,
-            elements=[PopulationElement('population', n=self.n)],
+            elements=[PopulationElement('population', x=self.n)],
             interactions=[LogisticGrowthInteraction('growth', target='population', r=self.r, K=self.K, tau=self.tau)],
         )
 
@@ -650,7 +650,7 @@ class LotkaVolterraSystem(BaseSystem):
         )
         return System(
             self.label,
-            elements=[PopulationElement('prey', n=self.prey), PopulationElement('predators', n=self.predators)],
+            elements=[PopulationElement('prey', x=self.prey), PopulationElement('predators', x=self.predators)],
             interactions=[
                 growth,
                 PredationInteraction('predation', predator='predators', prey='prey', a=self.a, b=self.b),
@@ -722,7 +722,7 @@ class RickerSystem(BaseSystem):
 
     The positive fixed point `n = ln r` is stable while `1 < r < e^2`. Beyond `e^2`, about 7.39, it loses stability to a
     two-cycle, and further period doublings lead to chaos near `r = 14.8`. The size stays positive for every `r`. The
-    system has the population `population.n`.
+    system has the population `population.x`.
 
     Args:
         n:
@@ -761,7 +761,7 @@ class RickerSystem(BaseSystem):
         """Return the parts of Ricker's map of a population in discrete generations."""
         return System(
             self.label,
-            elements=[PopulationElement('population', n=self.n)],
+            elements=[PopulationElement('population', x=self.n)],
             interactions=[RickerGrowthInteraction('growth', target='population', r=self.r)],
         )
 

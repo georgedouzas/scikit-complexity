@@ -11,16 +11,16 @@ from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 def test_trajectory_reads_values_by_name():
     """Test that a trajectory returns the values of a state by name and is not indexed."""
     trajectory = simulate(LotkaVolterraSystem().prepare().system_, until=1.0, dt=0.1)
-    values = trajectory.values('prey.n')
+    values = trajectory.values('prey.x')
     assert values.shape[0] == trajectory.times.size
     with pytest.raises(TypeError):
-        trajectory['prey.n']
+        trajectory['prey.x']
 
 
 def test_member_keeps_the_parameters_of_interactions():
     """Test that a member of a replicated system reads its own states and the shared parameters of interactions."""
-    ensemble = _replicate(LotkaVolterraSystem().prepare().system_, 2, {'prey.n': [20.0, 40.0]})
+    ensemble = _replicate(LotkaVolterraSystem().prepare().system_, 2, {'prey.x': [20.0, 40.0]})
     trajectory = simulate(ensemble, until=1.0, dt=0.1)
     member = trajectory.member(1, PassCompiler().prepare(LotkaVolterraSystem().prepare().system_).run().problem_)
-    assert float(member.values('prey.n')[0]) == 40.0
+    assert float(member.values('prey.x')[0]) == 40.0
     assert float(member.values('growth.r')[0]) == 1.1

@@ -14,7 +14,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, Expression, exp, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import TransitionInteraction
 from ....core.components.laws.utils import neighbors, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
@@ -187,11 +187,12 @@ class KinouchiCopelliSystem(BaseSystem):
             if self.excited is None
             else (rng.random(size) < self.excited).astype(float)
         )
-        neurons = LatticeElement(
+        neurons = GroupElement(
             'neurons',
             element=ExcitableElement,
             space=NetworkSpace(graph),
             values={'phase': phase, 'p': self.sigma / degree, 'stimulus': self.stimulus},
+            on='sites',
         )
         excitation = TransitionInteraction(
             'excitation',

@@ -6,7 +6,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import DensityElement, FieldElement
+from skcomplex.core.components.elements import FieldElement, NonnegativeElement
 from skcomplex.core.components.interactions import AdvectionInteraction
 from skcomplex.core.components.laws.utils import coordinate
 from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace, PhaseSpace
@@ -23,7 +23,7 @@ def test_prepare_holds_one_value_per_point_of_the_product() -> None:
     space = PhaseSpace(LatticeSpace((64,)), [AxisSpec('v', 128, -6.0, 6.0)]).prepare()
     values = np.ones((64, 128))
     values[3, 5] = 2.0
-    field = FieldElement('gas', element=DensityElement, space=space, values={'f': values}).prepare()
+    field = FieldElement('gas', element=NonnegativeElement, space=space, values={'x': values}).prepare()
     assert field.size_ == 8192
     assert space.class_axes_ == {'v': 1}
     assert space.position_axes_ == (0,)
@@ -59,7 +59,7 @@ def test_prepare_raises_above_limit() -> None:
 def test_check_reports_space_size_issue_with_size() -> None:
     """Report a phase space above its limit through the compile report, with the size it would take."""
     space = PhaseSpace(LatticeSpace((10,)), [AxisSpec('v', 10, -1.0, 1.0)], limit=50)
-    field = FieldElement('gas', element=DensityElement, space=space)
+    field = FieldElement('gas', element=NonnegativeElement, space=space)
     report = PassCompiler().prepare(System(elements=[field])).report_
     issues = [issue for issue in report.issues if issue.code == 'space-size']
     assert issues
@@ -88,10 +88,16 @@ def test_periodic_class_axis_returns_after_one_turn(discretization: str, options
     axis = AxisSpec('theta', 32, 0.0, 2 * np.pi, periodic=True)
     space = PhaseSpace(LatticeSpace((1,)), [axis]).prepare()
     start = 1.0 + 0.5 * np.cos(space.coordinates_['theta'])
-    field = FieldElement('gas', element=DensityElement, space=space, values={'f': start}, discretization=discretization)
-    drift = AdvectionInteraction('turn', target='gas', state='f', drift=lambda _: [0, 1.0], **options)
+    field = FieldElement(
+        'gas',
+        element=NonnegativeElement,
+        space=space,
+        values={'x': start},
+        discretization=discretization,
+    )
+    drift = AdvectionInteraction('turn', target='gas', state='x', drift=lambda _: [0, 1.0], **options)
     trajectory = simulate(System(elements=[field], interactions=[drift]), until=2 * np.pi, solver=RK4Solver(dt=0.02))
-    final = trajectory.values('gas.f')[-1]
+    final = trajectory.values('gas.x')[-1]
     assert np.abs(final - start).max() < 0.05
 
 
@@ -110,10 +116,16 @@ def test_free_streaming_shifts_every_class_slice(discretization: str, options: d
     v = space.coordinates_['v']
     x = np.arange(size) * length / size
     start = np.outer(2.0 + np.sin(x), np.exp(-(v**2)))
-    field = FieldElement('gas', element=DensityElement, space=space, values={'f': start}, discretization=discretization)
-    drift = AdvectionInteraction('stream', target='gas', state='f', drift=lambda _: [coordinate('v'), 0], **options)
+    field = FieldElement(
+        'gas',
+        element=NonnegativeElement,
+        space=space,
+        values={'x': start},
+        discretization=discretization,
+    )
+    drift = AdvectionInteraction('stream', target='gas', state='x', drift=lambda _: [coordinate('v'), 0], **options)
     trajectory = simulate(System(elements=[field], interactions=[drift]), until=1.0, solver=RK4Solver(dt=0.01))
-    final = trajectory.values('gas.f')[-1].reshape(size, 16)
+    final = trajectory.values('gas.x')[-1].reshape(size, 16)
     exact = np.stack([(2.0 + np.sin(x - speed)) * np.exp(-(speed**2)) for speed in v], axis=1)
     assert np.abs(final - exact).max() < 0.02
     assert abs(final.sum() / start.sum() - 1.0) < 1e-12
@@ -125,23 +137,29 @@ def test_zero_drift_leaves_classes_unchanged() -> None:
     start = np.tile(np.exp(-(space.coordinates_['v'] ** 2)), (4, 1))
     field = FieldElement(
         'gas',
-        element=DensityElement,
+        element=NonnegativeElement,
         space=space,
-        values={'f': start},
+        values={'x': start},
         discretization='finite-volume',
     )
-    drift = AdvectionInteraction('still', target='gas', state='f', drift=lambda _: [0, 0])
+    drift = AdvectionInteraction('still', target='gas', state='x', drift=lambda _: [0, 0])
     trajectory = simulate(System(elements=[field], interactions=[drift]), until=1.0, solver=RK4Solver(dt=0.1))
-    final = trajectory.values('gas.f')[-1].reshape(4, 16)
+    final = trajectory.values('gas.x')[-1].reshape(4, 16)
     assert np.array_equal(final, start)
 
 
 def test_transport_conserves_total_through_interval_edges() -> None:
     """Keep the total when a drift along an interval class axis pushes the density into its edge."""
     space = PhaseSpace(LatticeSpace((1,)), [AxisSpec('v', 32, 0.0, 1.0)]).prepare()
-    field = FieldElement('gas', element=DensityElement, space=space, values={'f': 1.0}, discretization='finite-volume')
-    drift = AdvectionInteraction('push', target='gas', state='f', drift=lambda _: [0, 1.0])
+    field = FieldElement(
+        'gas',
+        element=NonnegativeElement,
+        space=space,
+        values={'x': 1.0},
+        discretization='finite-volume',
+    )
+    drift = AdvectionInteraction('push', target='gas', state='x', drift=lambda _: [0, 1.0])
     trajectory = simulate(System(elements=[field], interactions=[drift]), until=0.5, solver=RK4Solver(dt=0.005))
-    final = trajectory.values('gas.f')[-1]
+    final = trajectory.values('gas.x')[-1]
     assert abs(final.sum() / 32 - 1.0) < 1e-12
     assert final[-1] > 1.5

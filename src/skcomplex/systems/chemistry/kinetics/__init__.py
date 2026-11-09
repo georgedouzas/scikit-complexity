@@ -2,7 +2,7 @@
 
 from ._cyclic import CyclicCellElement, CyclicCellularAutomatonSystem
 from ._hodgepodge import HodgepodgeCellElement, HodgepodgeSystem
-from ._nanoparticles import NanoparticleCoronaSystem
+from ._nanoparticles import NanoparticleCoronaSystem, SpeciesElement
 from ._oscillators import (
     BrusselatorODESystem,
     CubicAutocatalysisElement,
@@ -42,4 +42,5 @@ __all__: list[str] = [
     'PulsedElectrochemicalReactorSystem',
     'PulsedElectrodeElement',
     'SchloglElement',
+    'SpeciesElement',
 ]

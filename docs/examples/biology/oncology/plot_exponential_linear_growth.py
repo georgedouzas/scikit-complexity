@@ -27,7 +27,7 @@ trajectory = simulate(ExponentialLinearGrowthSystem(n=2.0), observers=[observer]
 # The growth rate `dn/dt` should rise in proportion to the volume, as `r0 n`, until it reaches `r` at
 # `tau = log(r / (r0 n0)) / r0`, and stay constant after.
 
-times, volume = trajectory.times, trajectory.values('tumour.n')
+times, volume = trajectory.times, trajectory.values('tumour.x')
 r0, r = 0.31, 67.8
 tau = np.log(r / (r0 * 2.0)) / r0
 fig, (curve, rate) = plt.subplots(1, 2, figsize=(10, 4))

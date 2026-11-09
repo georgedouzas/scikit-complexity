@@ -9,7 +9,7 @@ from skcomplex.systems.biology.epidemiology import SIRSystem
 
 system = SIRSystem()
 trajectory = simulate(system)
-sorted(system.get_tags().laws), sorted(system.get_tags().time), trajectory.values('R.n')[-1].round(1)
+sorted(system.get_tags().laws), sorted(system.get_tags().time), trajectory.values('R.x')[-1].round(1)
 ```
 
 The SIR model returns rates in continuous time, so its tags choose an ordinary differential equation solver.
@@ -23,7 +23,7 @@ and its visuals are parts of the engine, beside those of every other kind.
 | Kind | Core | Engine |
 | --- | --- | --- |
 | agents | `RuleLaw`, `MatchLaw` | the agents passes, `MesaSolver` |
-| lattices | `LocalRuleLaw`, `LocalRuleInteraction`, `DriveLaw`, `CascadeLaw`, `ExtremalLaw`, `LatticeElement`, `LatticeSpace`, `ObjectiveSpec`, `SamplerSpec` | `LatticeSolver`, `MonteCarloSolver` |
+| lattices | `LocalRuleLaw`, `LocalRuleInteraction`, `DriveLaw`, `CascadeLaw`, `ExtremalLaw`, `GroupElement`, `LatticeSpace`, `ObjectiveSpec`, `SamplerSpec` | `LatticeSolver`, `MonteCarloSolver` |
 | finitely generated groups | `CayleySpace` | `CayleyVisual` |
 | rewriting | `ProductionLaw`, `SubstitutionLaw`, `WordElement`, `PatchElement` | the rewriting compiler, `RewritingSolver`, `GeometryVisual` |
 | operator | `GeneratorLaw`, `DissipatorLaw`, `HilbertSpec` | the operator compiler, `UnitarySolver`, `LindbladSolver`, `JumpTrajectoriesSolver` |

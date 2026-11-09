@@ -15,12 +15,13 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import DensityElement, GroupElement
+from ....core.components.elements import GroupElement
 from ....core.components.interactions import EncounterInteraction
 from ....core.components.laws.utils import moment
 from ....core.components.spaces import ContinuousTime, LatticeSpace
 from ....core.components.systems import BaseSystem, RunSettings, System
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec
+from ..common.kinetics import ActivityDensityElement
 
 OPINION_REFERENCES = ('Bellomo et al. 2017', 'Toscani 2006', 'Deffuant et al. 2000')
 
@@ -102,7 +103,7 @@ def mean_opinion(s: SimpleNamespace, opinions: npt.NDArray[np.float64]) -> Expre
         mean:
             The normalized first moment.
     """
-    return moment(s.f, 1, opinions, normalized=True)
+    return moment(s.x, 1, opinions, normalized=True)
 
 
 def opinion_variance(s: SimpleNamespace, opinions: npt.NDArray[np.float64]) -> Expression:
@@ -121,7 +122,7 @@ def opinion_variance(s: SimpleNamespace, opinions: npt.NDArray[np.float64]) -> E
         variance:
             The central second moment.
     """
-    return moment(s.f, 2, opinions, central=True)
+    return moment(s.x, 2, opinions, central=True)
 
 
 class OpinionEncountersInteraction(EncounterInteraction):
@@ -286,10 +287,10 @@ class KineticOpinionSystem(BaseSystem):
             elements=[
                 GroupElement(
                     'opinions',
-                    element=DensityElement,
+                    element=ActivityDensityElement,
                     size=self.levels,
                     on='sites',
-                    values={'f': initial / initial.sum()},
+                    values={'x': initial / initial.sum()},
                 ),
             ],
             interactions=[

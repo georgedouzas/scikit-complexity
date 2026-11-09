@@ -9,9 +9,9 @@ from sage.all__sagemath_symbolics import ZZ, matrix
 from sage.groups.matrix_gps.finitely_generated import MatrixGroup
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
-from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import LocalRuleLaw
-from skcomplex.core.components.spaces import BoxNeighborhood, CayleySpace, MemoryNeighborhood
+from skcomplex.core.components.spaces import BallNeighborhood, CayleySpace, MemoryNeighborhood
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import SpaceTooLargeError, ValidationError
@@ -111,7 +111,7 @@ def test_cayley_space_index_table_needs_a_memory_set():
     """Test that a neighbourhood of offsets and a word of unknown generators are rejected on a Cayley space."""
     space = CayleySpace(PermutationGroup([[(1, 2)]])).prepare()
     with pytest.raises(ValidationError, match='memory set'):
-        space._index_table(BoxNeighborhood())
+        space._index_table(BallNeighborhood(n_dim=1, center='inline'))
     with pytest.raises(ValidationError, match='not a generator'):
         space._index_table(MemoryNeighborhood(('z',)))
 
@@ -171,7 +171,9 @@ def test_local_rule_free_group_majority():
     """Test that every interior cell of a ball of radius 6 of the free group takes the majority of its five cells."""
     space = CayleySpace(libgap.FreeGroup(['a', 'b']), ball=6).prepare()
     cells = (np.random.default_rng(0).random(space.size_) < 0.5).astype(float)
-    system = System(elements=[LatticeElement('cells', element=CellElement, space=space, values={'alive': cells})])
+    system = System(
+        elements=[GroupElement('cells', element=CellElement, space=space, values={'alive': cells}, on='sites')],
+    )
     alive = _run(system, 1).values('cells.alive')
     table = space._index_table(FREE_MEMORY)
     interior = (table < space.size_).all(axis=1)
@@ -186,7 +188,9 @@ def test_local_rule_keeps_the_orientation_of_the_memory():
     sites = {word: site for site, word in enumerate(space.words_)}
     cells = np.zeros(space.size_)
     cells[sites['b']] = 1.0
-    system = System(elements=[LatticeElement('cells', element=CopyElement, space=space, values={'alive': cells})])
+    system = System(
+        elements=[GroupElement('cells', element=CopyElement, space=space, values={'alive': cells}, on='sites')],
+    )
     alive = _run(system, 1).values('cells.alive')[1]
     assert alive[sites['b*a^-1']] == 1
     assert alive[sites['a^-1*b']] == 0
@@ -196,7 +200,9 @@ def test_local_rule_runs_on_a_ball_of_an_automaton_group():
     """Test that a rule on a ball of the Grigorchuk group of radius 4 steps on its 40 sites."""
     space = CayleySpace(_grigorchuk(), ball=4).prepare()
     cells = (np.random.default_rng(1).random(space.size_) < 0.5).astype(float)
-    system = System(elements=[LatticeElement('cells', element=CopyElement, space=space, values={'alive': cells})])
+    system = System(
+        elements=[GroupElement('cells', element=CopyElement, space=space, values={'alive': cells}, on='sites')],
+    )
     assert space.level_ > 0
     assert _run(system, 50).values('cells.alive').shape == (51, 40)
 
@@ -205,7 +211,9 @@ def test_local_rule_runs_on_a_level_quotient():
     """Test that the copy rule on the level-2 quotient of the Grigorchuk group is a permutation of the 8 cells."""
     space = CayleySpace(_grigorchuk().PermGroupOnLevel(2)).prepare()
     cells = np.arange(space.size_) % 2.0
-    system = System(elements=[LatticeElement('cells', element=CopyElement, space=space, values={'alive': cells})])
+    system = System(
+        elements=[GroupElement('cells', element=CopyElement, space=space, values={'alive': cells}, on='sites')],
+    )
     alive = _run(system, 3).values('cells.alive')
     assert space.size_ == 8
     assert (alive.sum(axis=1) == cells.sum()).all()

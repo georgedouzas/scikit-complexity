@@ -14,16 +14,15 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CascadeInteraction, LocalRuleInteraction
 from ....core.components.spaces import (
     AdjacencyNeighborhood,
+    BallNeighborhood,
     BaseNeighborhood,
     LatticeNeighborhood,
     LatticeSpace,
     NetworkSpace,
-    TriangularNeighborhood,
-    VonNeumannNeighborhood,
 )
 from ....core.components.systems import BaseSystem, System
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -135,7 +134,7 @@ class AvalancheInteraction(CascadeInteraction):
         return following
 
 
-NEAREST = VonNeumannNeighborhood(center=True)
+NEAREST = BallNeighborhood(metric='manhattan', center='first')
 
 
 BURNING = 2
@@ -193,7 +192,7 @@ class FireInteraction(LocalRuleInteraction):
 
 
 SITE_NEIGHBORHOODS: dict[str, LatticeNeighborhood | AdjacencyNeighborhood] = {
-    'triangular': TriangularNeighborhood(center=True),
+    'triangular': BallNeighborhood(metric='hexagonal', center='first'),
     'graph': AdjacencyNeighborhood(center=True),
 }
 
@@ -251,7 +250,9 @@ class SandpileSystem(BaseSystem):
         space = LatticeSpace(tuple(self.shape), boundary='fixed')
         return System(
             self.label,
-            elements=[LatticeElement('pile', element=SandpileCellElement, space=space, values={'height': heights})],
+            elements=[
+                GroupElement('pile', element=SandpileCellElement, space=space, values={'height': heights}, on='sites'),
+            ],
             interactions=[AvalancheInteraction('avalanche', target='pile')],
         )
 
@@ -308,7 +309,9 @@ class MannaSandpileSystem(BaseSystem):
         space = LatticeSpace(tuple(self.shape), boundary='fixed')
         return System(
             self.label,
-            elements=[LatticeElement('pile', element=SandpileCellElement, space=space, values={'height': heights})],
+            elements=[
+                GroupElement('pile', element=SandpileCellElement, space=space, values={'height': heights}, on='sites'),
+            ],
             interactions=[AvalancheInteraction('avalanche', target='pile', threshold=MANNA_THRESHOLD, mode='random')],
         )
 
@@ -378,11 +381,12 @@ class ForestFireSystem(BaseSystem):
         return System(
             self.label,
             elements=[
-                LatticeElement(
+                GroupElement(
                     'forest',
                     element=ForestElement,
                     space=space,
                     values={'cover': cover, 'growth': self.growth, 'lightning': self.lightning},
+                    on='sites',
                 ),
             ],
             interactions=[FireInteraction('fire', target='forest')],
@@ -470,11 +474,12 @@ class HexagonalForestFireSystem(BaseSystem):
             if self.cover is None
             else np.ravel(np.asarray(self.cover, dtype=float))
         )
-        forest = LatticeElement(
+        forest = GroupElement(
             'forest',
             element=ForestElement,
             space=space,
             values={'cover': initial, 'growth': self.growth, 'lightning': self.lightning},
+            on='sites',
         )
         neighborhood = SITE_NEIGHBORHOODS['triangular' if self.graph is None else 'graph']
         return System(

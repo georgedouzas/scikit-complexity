@@ -109,7 +109,7 @@ class ExperimentResult:
             >>> from skcomplex.core.experiments import ensemble
             >>> from skcomplex.systems.biology.epidemiology import SIRSystem
             >>> result = ensemble(SIRSystem(stochastic=True), replicates=3, until=10, random_state=0)
-            >>> times, values, seeds = result.ensemble('I.n')
+            >>> times, values, seeds = result.ensemble('I.x')
             >>> values.shape == (3, times.size), seeds.tolist()
             (True, [0, 1, 2])
         """

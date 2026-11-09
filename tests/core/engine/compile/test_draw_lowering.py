@@ -11,7 +11,7 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import Element, GroupElement, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import HyperedgeInteraction
 from skcomplex.core.components.laws import EmissionLaw, RateLaw, TransitionLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import bernoulli, categorical, normal, shift_member, total, uniform, where
@@ -488,7 +488,7 @@ def test_compiler_agrees_across_backends_on_draws_of_hyperedges_of_several_sizes
     space = NetworkSpace(nx.cycle_graph(6), hyperedges=hyperedges)
     system = System(
         elements=[
-            LatticeElement('nodes', element=RegulatedElement, space=space, values={'x': np.arange(1.0, 7.0)}),
+            GroupElement('nodes', element=RegulatedElement, space=space, values={'x': np.arange(1.0, 7.0)}, on='sites'),
             GroupElement('links', element=RegulatedElement, space=space, on='edges'),
         ],
         interactions=[KeptRegulationInteraction('regulation', nodes='nodes', links='links', part=part)],

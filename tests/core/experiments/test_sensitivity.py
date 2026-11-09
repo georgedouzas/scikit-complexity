@@ -58,7 +58,7 @@ def test_morris_and_one_at_a_time_rank_parameters(method):
     analysis = sensitivity(
         LogisticGrowthSystem(),
         bounds,
-        output='population.n',
+        output='population.x',
         method=method,
         until=20,
         random_state=0,
@@ -70,7 +70,7 @@ def test_morris_and_one_at_a_time_rank_parameters(method):
 def test_model_parameters_are_inputs():
     """Test that model parameters rank like the dotted paths of the parameters they set."""
     bounds = {'r': (0.5, 1.0), 'K': (50.0, 150.0)}
-    analysis = sensitivity(LogisticGrowthSystem(), bounds, output='population.n', method='oat', until=20)
+    analysis = sensitivity(LogisticGrowthSystem(), bounds, output='population.x', method='oat', until=20)
     assert analysis.ranking == ['K', 'r']
 
 

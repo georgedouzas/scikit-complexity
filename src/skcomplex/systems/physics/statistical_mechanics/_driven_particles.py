@@ -14,7 +14,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN, Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import BaseInteraction, TransferInteraction
 from ....core.components.laws import Source
 from ....core.components.laws.utils import where
@@ -459,11 +459,12 @@ class ZeroRangeProcessSystem(BaseSystem):
     def _build_system(self) -> System:
         """Return the parts of the system, built from its model parameters."""
         occupations = self._scatter(round(self.density * self.n_sites), self.n_sites, self.random_state)
-        sites = LatticeElement(
+        sites = GroupElement(
             'sites',
             element=ParticleSiteElement,
             space=LatticeSpace(self.n_sites),
             values={'n': occupations},
+            on='sites',
         )
         return System(
             self.label,
@@ -675,11 +676,12 @@ class ASEPSystem(BaseSystem):
         The process runs in continuous time.
         """
         occupied = (np.random.default_rng(self.random_state).random(self.n_sites) < self.density).astype(float)
-        lane = LatticeElement(
+        lane = GroupElement(
             'lane',
             element=ParticleSiteElement,
             space=LatticeSpace(self.n_sites, boundary='fixed'),
             values={'n': occupied},
+            on='sites',
         )
         interactions = [
             ExclusionHopsInteraction('hops', sites='lane', p=self.p, q=self.q),

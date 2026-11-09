@@ -18,7 +18,7 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction, ImitationInteraction
 from ....core.components.laws.utils import count, total, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
@@ -321,12 +321,13 @@ class HypergraphPublicGoodsSystem(BaseSystem):
         hypergraph = self._hypergraph(self.n_nodes, self.sizes, self.hyperdegree, rng)
         graph = xgi.to_graph(hypergraph)
         strategies = (rng.random(self.n_nodes) < self.share).astype(float)
-        players = LatticeElement(
+        players = GroupElement(
             'players',
             element=ContributorElement,
             space=NetworkSpace(graph, hyperedges=hypergraph),
             values={'strategy': strategies, 'synergy': self.synergy, 'noise': self.noise},
             visual=VisualSpec('sites', {'states': ['strategy'], 'low': 0.0, 'high': 1.0}),
+            on='sites',
         )
         imitation = ImitationInteraction(
             'imitation',
@@ -465,12 +466,13 @@ class SimplicialSocialDilemmasSystem(BaseSystem):
         for triangle, simplex in zip(triangles, filled, strict=True):
             hyperedges.extend([triangle] if simplex else itertools.combinations(triangle, PAIR))
         held = np.bincount(np.asarray(triangles).ravel(), minlength=self.n_nodes).astype(float)
-        players = LatticeElement(
+        players = GroupElement(
             'players',
             element=DilemmaElement,
             space=NetworkSpace(graph, hyperedges=hyperedges),
             values={'strategy': (rng.random(self.n_nodes) < self.share).astype(float), 'triangles': held},
             visual=VisualSpec('sites', {'states': ['strategy'], 'low': 0.0, 'high': 1.0}),
+            on='sites',
         )
         play = SimplicialDilemmaInteraction(
             'play',

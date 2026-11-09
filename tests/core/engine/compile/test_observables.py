@@ -182,7 +182,7 @@ class MixedReductionInteraction(Interaction):
 
     def _get_laws(self, s):
         """Return a rate that reads the reduction the interaction tests."""
-        return [RateLaw(s.target.n, total(s.first.wealth + s.second.wealth))]
+        return [RateLaw(s.target.x, total(s.first.wealth + s.second.wealth))]
 
 
 class ForeignReductionInteraction(Interaction):
@@ -201,7 +201,7 @@ class ForeignReductionInteraction(Interaction):
 
     def _get_laws(self, s):
         """Return a rate that reduces the wealth of the agents times the target."""
-        return [RateLaw(s.target.n, total(s.first.wealth * s.target.n))]
+        return [RateLaw(s.target.x, total(s.first.wealth * s.target.x))]
 
 
 def _village(interaction):
@@ -230,7 +230,7 @@ def test_held_reduction_reads_only_agents():
     interaction = ForeignReductionInteraction('foreign', target='land/soil', first='village/a')
     (issue,) = PassCompiler().prepare(_village(interaction)).report_.errors
     assert issue.code == 'reduction'
-    assert 'n_land_soil' in issue.message
+    assert 'x_land_soil' in issue.message
 
 
 def _field_streamfunction(s):

@@ -79,7 +79,7 @@ def test_sparse_identification_run_continues_lotka_volterra():
     """Test that a SINDy surrogate of a Lotka-Volterra run forecasts 50 steps that continue the run."""
     solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-10)
     trajectory = simulate(LotkaVolterraSystem().prepare().system_, until=20.0, solver=solver, dt=0.01)
-    names = ['prey.n', 'predators.n']
+    names = ['prey.x', 'predators.x']
     values = np.column_stack([trajectory.values(name) for name in names])
     system = _fit(values[:1001], variables=names, degree=2, threshold=0.01, horizon=50, dt=0.01)
     assert isinstance(system.system, System)

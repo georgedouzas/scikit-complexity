@@ -18,7 +18,7 @@ import rerun as rr
 from scipy.optimize import minimize_scalar
 from scipy.special import rel_entr
 
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction, SamplingInteraction
 from ....core.components.laws import BaseLaw, DriveLaw
 from ....core.components.spaces import DiscreteTime, LatticeSpace
@@ -631,12 +631,13 @@ class FuzzyOilDropSystem(BaseSystem):
             return System(
                 self.label,
                 elements=[
-                    LatticeElement(
+                    GroupElement(
                         'chain',
                         element=ChainCoordinateElement,
                         space=LatticeSpace((ensemble.shape[1], COORDINATES), boundary='fixed'),
                         values={'x': ensemble[0]},
                         visual=VisualSpec(BackboneVisual, {'position': 'x'}),
+                        on='sites',
                     ),
                 ],
                 interactions=[EnsembleReplayInteraction('replay', target='chain', state='x', ensemble=ensemble)],
@@ -647,12 +648,13 @@ class FuzzyOilDropSystem(BaseSystem):
         return System(
             self.label,
             elements=[
-                LatticeElement(
+                GroupElement(
                     'chain',
                     element=DihedralAngleElement,
                     space=LatticeSpace((1, angles.size), boundary='fixed'),
                     values={'angle': angles[None]},
                     visual=VisualSpec(BackboneVisual, {'position': 'angle', 'structure': structure}),
+                    on='sites',
                 ),
             ],
             interactions=[

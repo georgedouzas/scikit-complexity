@@ -8,20 +8,21 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import CompartmentElement, GroupElement
+from ....core.components.elements import GroupElement
 from ....core.components.interactions import JumpInteraction
 from ....core.components.laws.utils import where
 from ....core.components.systems import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ..common.kinetics import CompartmentElement
 
 
 class NeutralSpeciesElement(CompartmentElement):
-    """Species of neutral theory, a compartment of `n` individuals.
+    """Species of neutral theory, a compartment of `x` individuals.
 
     Its birth and death rates are shared by every species.
 
-    The births of `NeutralMacroecologySystem` occur at the rate `b0 + b1 n`, with immigration or speciation `b0`, and
-    its deaths at the rate `d0 + d1 n`, with emigration or extinction `d0` while the species has members.
+    The births of `NeutralMacroecologySystem` occur at the rate `b0 + b1 x`, with immigration or speciation `b0`, and
+    its deaths at the rate `d0 + d1 x`, with emigration or extinction `d0` while the species has members.
 
     Args:
         label:
@@ -30,7 +31,7 @@ class NeutralSpeciesElement(CompartmentElement):
         visual:
             How the element is drawn, or `None` for `default_visual_`.
 
-        n:
+        x:
             The initial number of individuals.
 
         b0:
@@ -57,13 +58,13 @@ class NeutralSpeciesElement(CompartmentElement):
         label: str,
         visual: VisualSpec | None = None,
         *,
-        n: Annotated[float, StateSpec(domain=NN)] = 10.0,
+        x: Annotated[float, StateSpec(domain=NN)] = 10.0,
         b0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         b1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.9,
         d0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual, n=n)
+        super().__init__(label, visual=visual, x=x)
         self.b0 = b0
         self.b1 = b1
         self.d0 = d0
@@ -77,7 +78,7 @@ class NeutralMacroecologySystem(BaseSystem):
 
     Without emigration, `d0 = 0`, the abundances settle on the negative binomial distribution of mean `b0 / (d1 - b1)`,
     the discrete form of the gamma distribution that the Fokker-Planck equation of macroecology predicts and that fits
-    the abundances of tropical trees. The system has the abundances `species.n`.
+    the abundances of tropical trees. The system has the abundances `species.x`.
 
     Args:
         species:
@@ -141,21 +142,21 @@ class NeutralMacroecologySystem(BaseSystem):
                     'species',
                     element=NeutralSpeciesElement,
                     size=self.species,
-                    values={'n': self.n, 'b0': self.b0, 'b1': self.b1, 'd0': self.d0, 'd1': self.d1},
+                    values={'x': self.n, 'b0': self.b0, 'b1': self.b1, 'd0': self.d0, 'd1': self.d1},
                 ),
             ],
             interactions=[
                 JumpInteraction(
                     'birth',
                     target='species',
-                    changes={'n': 1},
-                    rate=lambda s: s.target.b0 + s.target.b1 * s.target.n,
+                    changes={'x': 1},
+                    rate=lambda s: s.target.b0 + s.target.b1 * s.target.x,
                 ),
                 JumpInteraction(
                     'death',
                     target='species',
-                    changes={'n': -1},
-                    rate=lambda s: where(s.target.n > 0, s.target.d0, 0) + s.target.d1 * s.target.n,
+                    changes={'x': -1},
+                    rate=lambda s: where(s.target.x > 0, s.target.d0, 0) + s.target.d1 * s.target.x,
                 ),
             ],
         )

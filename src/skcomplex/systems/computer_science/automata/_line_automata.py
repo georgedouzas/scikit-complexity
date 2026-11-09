@@ -9,7 +9,7 @@ They are a nilpotent automaton and an involution.
 import numpy as np
 import numpy.typing as npt
 
-from ....core.components.elements import LatticeElement
+from ....core.components.elements import GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, System
@@ -32,11 +32,12 @@ def _line_system(label: str, rule: object, offsets: range, values: Array) -> Sys
     return System(
         label,
         elements=[
-            LatticeElement(
+            GroupElement(
                 'cells',
                 element=BinaryCellElement,
                 space=LatticeSpace(values.size),
                 values={'alive': values},
+                on='sites',
             ),
         ],
         interactions=[

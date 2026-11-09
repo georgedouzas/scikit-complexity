@@ -27,7 +27,7 @@ trajectory = simulate(ExponentialGrowthSystem(n=10.0, r=0.2), observers=[observe
 # The law `dn/dt = r n` has the solution `n(t) = n0 exp(r t)`, so `log n` grows linearly with slope `r` and the
 # population doubles every `log 2 / r`. The simulated population should lie on the straight line.
 
-times, population = trajectory.times, trajectory.values('population.n')
+times, population = trajectory.times, trajectory.values('population.x')
 r, n0 = 0.2, 10.0
 slope = np.polyfit(times, np.log(population), 1)[0]
 fig, ax = plt.subplots(figsize=(7, 4))

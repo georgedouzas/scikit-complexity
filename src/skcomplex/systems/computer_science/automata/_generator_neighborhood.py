@@ -3,12 +3,13 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ._memory import MemoryNeighborhood
+from ....core.components.spaces import MemoryNeighborhood
 
 
 class GeneratorNeighborhood(MemoryNeighborhood):
     """Memory set of the generators of a group.
 
+    It is a `MemoryNeighborhood` whose words are the generators of the group of a cellular automaton on a Cayley graph.
     The identity comes first, and the inverses follow when asked.
 
     Args:
@@ -29,7 +30,7 @@ class GeneratorNeighborhood(MemoryNeighborhood):
             The words of the memory set.
 
     Examples:
-        >>> from skcomplex.core.components.spaces import GeneratorNeighborhood
+        >>> from skcomplex.systems.computer_science.automata import GeneratorNeighborhood
         >>> GeneratorNeighborhood(['a', 'b']).prepare().elements_
         ('1', 'a', 'a^-1', 'b', 'b^-1')
     """

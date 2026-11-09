@@ -17,7 +17,7 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import HyperedgeInteraction
 from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.laws.utils import where
@@ -232,12 +232,13 @@ class SimplicialContagionSystem(BaseSystem):
         shared = max(TRIANGLE * sizes.count(TRIANGLE) / self.n_nodes, 1.0)
         rng = np.random.default_rng(self.seed + 1)
         infected = (rng.permutation(self.n_nodes) < round(self.share * self.n_nodes)).astype(float)
-        nodes = LatticeElement(
+        nodes = GroupElement(
             'nodes',
             element=InfectiveElement,
             space=NetworkSpace(graph, hyperedges=hyperedges),
             values={'infected': infected, 'recovery': self.recovery},
             visual=VisualSpec('sites', {'states': ['infected'], 'low': 0.0, 'high': 1.0}),
+            on='sites',
         )
         infection = SimplicialInfectionInteraction(
             'infection',

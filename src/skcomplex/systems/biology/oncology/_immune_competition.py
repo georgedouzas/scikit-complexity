@@ -13,12 +13,13 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
-from ....core.components.elements import DensityElement, GroupElement
+from ....core.components.elements import GroupElement
 from ....core.components.interactions import EncounterInteraction
 from ....core.components.laws.utils import moment
 from ....core.components.spaces import ContinuousTime, LatticeSpace
 from ....core.components.systems import BaseSystem, RunSettings, System
 from ....core.specs import ObservableSpec
+from ..common.populations import PopulationDensityElement
 
 IMMUNE_REFERENCES = ('Bellomo et al. 2017', 'Bellomo and Delitala 2008', 'Bellomo, Bellouquid, and Delitala 2004')
 
@@ -88,7 +89,7 @@ def cell_density(s: SimpleNamespace, activities: npt.NDArray[np.float64]) -> Exp
         density:
             The order-0 moment.
     """
-    return moment(s.f, 0, activities)
+    return moment(s.x, 0, activities)
 
 
 def mean_activity(s: SimpleNamespace, activities: npt.NDArray[np.float64]) -> Expression:
@@ -105,7 +106,7 @@ def mean_activity(s: SimpleNamespace, activities: npt.NDArray[np.float64]) -> Ex
         mean:
             The normalized first moment.
     """
-    return moment(s.f, 1, activities, normalized=True)
+    return moment(s.x, 1, activities, normalized=True)
 
 
 def _classes_of(system: System) -> int:
@@ -246,19 +247,19 @@ class ImmuneCompetitionSystem(BaseSystem):
             elements=[
                 GroupElement(
                     'tumour',
-                    element=DensityElement,
+                    element=PopulationDensityElement,
                     size=self.classes,
                     on='sites',
-                    values={'f': tumour_density},
+                    values={'x': tumour_density},
                 ),
                 GroupElement(
                     'immune',
-                    element=DensityElement,
+                    element=PopulationDensityElement,
                     size=self.classes,
                     on='sites',
-                    values={'f': immune_density},
+                    values={'x': immune_density},
                 ),
-                GroupElement('host', element=DensityElement, size=1, values={'f': 1.0}),
+                GroupElement('host', element=PopulationDensityElement, size=1, values={'x': 1.0}),
             ],
             interactions=[
                 EncounterInteraction(

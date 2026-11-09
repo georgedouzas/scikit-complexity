@@ -13,7 +13,7 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.epidemiology import SIRSystem
 
 trajectory = simulate(SIRSystem())
-trajectory.values('I.n').max().round()
+trajectory.values('I.x').max().round()
 ```
 
 A system class tells you what it is through plain attributes and methods:
@@ -35,7 +35,7 @@ system.get_params(), system.get_tags().laws, system.get_run_settings()['until']
 ```
 
 `simulate` returns a `Trajectory`. Its `values` method returns the recorded values of a state, an observable, or a
-parameter by its dotted path, such as `I.n`, and `names` lists every path.
+parameter by its dotted path, such as `I.x`, and `names` lists every path.
 
 ### Finding a system
 

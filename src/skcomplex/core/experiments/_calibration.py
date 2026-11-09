@@ -975,14 +975,14 @@ def calibrate(
         >>> times = np.arange(0, 21.0)
         >>> values = 100 / (1 + 9 * np.exp(-0.5 * times))
         >>> bounds = {'r': (0.1, 2.0), 'K': (50, 200)}
-        >>> fitted = calibrate(LogisticGrowthSystem(), {'population.n': (times, values)}, bounds).system
+        >>> fitted = calibrate(LogisticGrowthSystem(), {'population.x': (times, values)}, bounds).system
         >>> round(fitted.r, 2), round(fitted.K)
         (0.5, 100)
-        >>> result = calibrate(LogisticGrowthSystem(), {'population.n': (times, values)}, bounds, method='global',
+        >>> result = calibrate(LogisticGrowthSystem(), {'population.x': (times, values)}, bounds, method='global',
         ...     budget=100, random_state=0)
         >>> bool(abs(result.estimates['r'] - 0.5) < 0.1)
         True
-        >>> noisy = {'population.n': (times, values * (1 + 0.02 * np.random.default_rng(0).standard_normal(21)))}
+        >>> noisy = {'population.x': (times, values * (1 + 0.02 * np.random.default_rng(0).standard_normal(21)))}
         >>> posterior = calibrate(LogisticGrowthSystem(), noisy, bounds, method='variational', loss='likelihood',
         ...     n_samples=200, random_state=0)
         >>> round(posterior.estimates['r'], 1), posterior.samples['r'].shape

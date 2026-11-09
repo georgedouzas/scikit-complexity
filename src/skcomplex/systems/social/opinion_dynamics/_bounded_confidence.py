@@ -15,7 +15,7 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 from scipy.special import expit
 
-from ....core.components.elements import Element, GroupElement, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction
 from ....core.components.laws.utils import where
 from ....core.components.spaces import AdjacencyNeighborhood, DiscreteTime, NetworkSpace
@@ -146,16 +146,17 @@ class ConfidenceCouplingInteraction(CouplingInteraction):
     Examples:
         >>> import networkx as nx
         >>> import numpy as np
-        >>> from skcomplex.core.components.elements import LatticeElement
+        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
         >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.social.opinion_dynamics import ConfidenceCouplingInteraction, ConfidentElement
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> people = LatticeElement(
+        >>> people = GroupElement(
         ...     'people',
         ...     element=ConfidentElement,
         ...     space=NetworkSpace(nx.complete_graph(3)),
         ...     values={'opinion': [0.1, 0.2, 0.9], 'confidence': 0.2},
+        ...     on='sites',
         ... )
         >>> coupling = ConfidenceCouplingInteraction('compromise', target='people')
         >>> system = System(elements=[people], interactions=[coupling], time=DiscreteTime())
@@ -377,11 +378,12 @@ class HegselmannKrauseSystem(BaseSystem):
         """Return the parts of the system built from its model parameters."""
         space = NetworkSpace(self.graph if self.graph is not None else nx.complete_graph(self.n_agents)).prepare()
         opinions = np.random.default_rng(self.random_state).random(space.size_)
-        people = LatticeElement(
+        people = GroupElement(
             'people',
             element=ConfidentElement,
             space=space,
             values={'opinion': opinions, 'confidence': self.confidence},
+            on='sites',
         )
         coupling = ConfidenceCouplingInteraction('compromise', target='people')
         return System(self.label, elements=[people], interactions=[coupling], time=DiscreteTime())

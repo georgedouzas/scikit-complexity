@@ -51,13 +51,13 @@ def test_lotka_volterra_centre():
     system = LotkaVolterraSystem().prepare().system_
     analysis = _stability(system)
     d, b, r, a = (SR.var(name) for name in ('d_death', 'b_predation', 'r_growth', 'a_predation'))
-    index = next(index for index, point in enumerate(analysis.fixed_points) if point['prey.n'] != 0)
+    index = next(index for index, point in enumerate(analysis.fixed_points) if point['prey.x'] != 0)
     interior = analysis.fixed_points[index]
-    assert bool(interior['prey.n'] == d / b)
-    assert bool(interior['predators.n'] == r / a)
+    assert bool(interior['prey.x'] == d / b)
+    assert bool(interior['predators.x'] == r / a)
     assert analysis.classifications[index] == 'centre'
     assert abs(analysis.eigenvalues[index].real).max() < 1e-9
-    assert _stability(system, points=[{'prey.n': 0, 'predators.n': 0}]).classifications == ['saddle']
+    assert _stability(system, points=[{'prey.x': 0, 'predators.x': 0}]).classifications == ['saddle']
 
 
 def test_logistic_map_fixed_point_is_stable():
@@ -87,7 +87,7 @@ def test_jacobian_and_nullclines():
     """Test the Jacobian's shape and the nullclines of a two-state system."""
     analysis = _stability(LotkaVolterraSystem().prepare().system_)
     assert analysis.jacobian.dimensions() == (2, 2)
-    assert set(analysis.nullclines) == {'prey.n', 'predators.n'}
+    assert set(analysis.nullclines) == {'prey.x', 'predators.x'}
 
 
 def test_jump_process_has_no_vector_field():
@@ -181,8 +181,8 @@ def test_group_above_limit():
 
 def test_points_are_the_given_points():
     """Test that given points replace the fixed points found by solving."""
-    analysis = _stability(LotkaVolterraSystem().prepare().system_, points=[{'prey.n': 0, 'predators.n': 0}])
-    assert analysis.fixed_points == [{'prey.n': 0, 'predators.n': 0}]
+    analysis = _stability(LotkaVolterraSystem().prepare().system_, points=[{'prey.x': 0, 'predators.x': 0}])
+    assert analysis.fixed_points == [{'prey.x': 0, 'predators.x': 0}]
     assert len(analysis.eigenvalues) == 1
 
 

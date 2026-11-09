@@ -15,11 +15,11 @@ from sage.all__sagemath_symbolics import NN, ZZ, Expression, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction, TransferInteraction
 from ....core.components.laws import BaseLaw, LocalRuleLaw, RuleLaw, Sink, Source
 from ....core.components.laws.utils import bernoulli
-from ....core.components.spaces import DiscreteTime, LatticeSpace, VonNeumannNeighborhood
+from ....core.components.spaces import BallNeighborhood, DiscreteTime, LatticeSpace
 from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
@@ -87,7 +87,12 @@ class ContactSiteElement(Element):
                 The laws of the component.
         """
         return [
-            LocalRuleLaw(s.infected, VonNeumannNeighborhood(center=True), ContactSiteElement._spread, stochastic=True),
+            LocalRuleLaw(
+                s.infected,
+                BallNeighborhood(metric='manhattan', center='first'),
+                ContactSiteElement._spread,
+                stochastic=True,
+            ),
         ]
 
     @staticmethod
@@ -202,7 +207,9 @@ class PercolationSiteElement(Element):
             laws:
                 The laws of the component.
         """
-        return [LocalRuleLaw(s.cover, VonNeumannNeighborhood(center=True), PercolationSiteElement._burn)]
+        return [
+            LocalRuleLaw(s.cover, BallNeighborhood(metric='manhattan', center='first'), PercolationSiteElement._burn),
+        ]
 
     @staticmethod
     def _burn(cover: Array, *around: Array) -> Array:
@@ -410,18 +417,19 @@ class Q2rSystem(BaseSystem):
         shape = tuple(self.shape)
         spins = np.where(np.random.default_rng(self.random_state).random(shape) < self.up, 1.0, -1.0)
         space = LatticeSpace(shape)
-        group = LatticeElement(
+        group = GroupElement(
             'spins',
             element=Q2RSpinElement,
             space=space,
             values={'spin': spins, 'phase': self._checkerboard(shape)},
+            on='sites',
         )
         flip = LocalRuleInteraction(
             'flip',
             target='spins',
             state=('spin', 'phase'),
             rule=self._flip_without_cost,
-            neighborhood=VonNeumannNeighborhood(n_dim=len(shape), center=True),
+            neighborhood=BallNeighborhood(metric='manhattan', n_dim=len(shape), center='first'),
         )
         return System(self.label, elements=[group], interactions=[flip])
 
@@ -480,7 +488,15 @@ class SitePercolationSystem(BaseSystem):
         space = LatticeSpace(shape, boundary='fixed')
         return System(
             self.label,
-            elements=[LatticeElement('lattice', element=PercolationSiteElement, space=space, values={'cover': cover})],
+            elements=[
+                GroupElement(
+                    'lattice',
+                    element=PercolationSiteElement,
+                    space=space,
+                    values={'cover': cover},
+                    on='sites',
+                ),
+            ],
         )
 
 
@@ -548,11 +564,12 @@ class ContactProcessSystem(BaseSystem):
         return System(
             self.label,
             elements=[
-                LatticeElement(
+                GroupElement(
                     'lattice',
                     element=ContactSiteElement,
                     space=space,
                     values={'infected': states, 'rate': self.rate, 'tau': self.tau},
+                    on='sites',
                 ),
             ],
         )
@@ -663,11 +680,12 @@ class TASEPSystem(BaseSystem):
         occupied = np.zeros(self.n_sites)
         occupied[rng.choice(self.n_sites, round(self.density * self.n_sites), replace=False)] = 1.0
         boundary = 'periodic' if self.ring else 'fixed'
-        lane = LatticeElement(
+        lane = GroupElement(
             'lane',
             element=ExclusionSiteElement,
             space=LatticeSpace(self.n_sites, boundary=boundary),
             values={'occupied': occupied, 'p': self.p, 'alpha': self.alpha, 'beta': self.beta},
+            on='sites',
         )
         hops = TransferInteraction(
             'hops',

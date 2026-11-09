@@ -35,9 +35,9 @@ unharvested = simulate(
     dt=0.1,
 )
 fig, ax = plt.subplots(figsize=(6, 5))
-ax.plot(unharvested.values('prey.n'), unharvested.values('predators.n'), color='tab:grey', label='without harvesting')
+ax.plot(unharvested.values('prey.x'), unharvested.values('predators.x'), color='tab:grey', label='without harvesting')
 ax.plot(10.0, 10.0, 'o', color='tab:grey')
-ax.plot(harvested.values('prey.n'), harvested.values('predators.n'), color='tab:blue', label='with harvesting')
+ax.plot(harvested.values('prey.x'), harvested.values('predators.x'), color='tab:blue', label='with harvesting')
 ax.plot(18.0, 6.0, 'o', color='tab:blue')
 ax.set_xlabel('prey')
 ax.set_ylabel('predators')

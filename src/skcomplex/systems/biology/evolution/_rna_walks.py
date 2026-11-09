@@ -13,7 +13,7 @@ import numpy as np
 import numpy.typing as npt
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import SamplingInteraction
 from ....core.components.spaces import DiscreteTime, LatticeSpace
 from ....core.components.systems import BaseSystem, System
@@ -291,12 +291,13 @@ class RNANeutralNetworksSystem(BaseSystem):
         return System(
             self.label,
             elements=[
-                LatticeElement(
+                GroupElement(
                     'walkers',
                     element=NucleotideElement,
                     space=LatticeSpace((self.walkers, self.length), boundary='fixed'),
                     values={'base': bases},
                     visual=VisualSpec('image', {'low': 0.0, 'high': float(LAST_BASE)}),
+                    on='sites',
                 ),
             ],
             interactions=[

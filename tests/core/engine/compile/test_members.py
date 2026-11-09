@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import sin
 
-from skcomplex.core.components.elements import Element, GroupElement, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import JumpLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import shift_member
@@ -242,7 +242,13 @@ def test_jump_at_member_offset_matches_per_link_interactions(backend):
     """Test that a zero-range process of offset jumps and one of per-link interactions have one mean profile."""
     occupations = np.zeros(20)
     occupations[0] = 40.0
-    sites = LatticeElement('sites', element=ParticleSiteElement, space=LatticeSpace(20), values={'n': occupations})
+    sites = GroupElement(
+        'sites',
+        element=ParticleSiteElement,
+        space=LatticeSpace(20),
+        values={'n': occupations},
+        on='sites',
+    )
     links = [
         ZeroRangeHopInteraction(f'hop_{index}', link=[f'sites[{index}]', f'sites[{(index + 1) % 20}]'], q=0.5)
         for index in range(20)

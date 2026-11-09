@@ -482,7 +482,7 @@ def test_rewriting_compiler_reports_a_classical_system():
     """Test that the rewriting compiler accepts a system of words and reports a classical one."""
     compiler = RewritingCompiler()
     assert compiler.prepare(System(elements=[WordElement('algae', axiom='A')])).report_.ok
-    assert not compiler.prepare(System(elements=[PopulationElement('rabbits', n=10)])).report_.ok
+    assert not compiler.prepare(System(elements=[PopulationElement('rabbits', x=10)])).report_.ok
 
 
 def test_rewriting_compiler_runs_the_problem():

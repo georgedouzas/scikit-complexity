@@ -6,9 +6,9 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import SamplingInteraction
-from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace, MooreNeighborhood, NetworkSpace
+from skcomplex.core.components.spaces import BallNeighborhood, DiscreteTime, LatticeSpace, NetworkSpace
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
@@ -48,7 +48,7 @@ def _run(space, regions, score, *, until=200, intensity=1.0, neighborhood=None, 
         intensity=intensity,
         neighborhood=neighborhood,
     )
-    sites = LatticeElement('sites', element=SiteElement, space=space, values={'region': regions})
+    sites = GroupElement('sites', element=SiteElement, space=space, values={'region': regions}, on='sites')
     system = System(elements=[sites], interactions=[copies], time=DiscreteTime())
     values = simulate(system, until=until, random_state=seed).values('sites.region')
     return np.rint(values.reshape(values.shape[0], -1)).astype(int)
@@ -85,7 +85,7 @@ def test_zero_temperature_copies_never_raise_the_objective():
     regions = np.kron(np.arange(4).reshape(2, 2), np.ones((SIDE // 2, SIDE // 2)))
     score = RegionScoreSpec(_unit_contact, _region_volume)
     labels = _run(space, regions, score, until=30, intensity=INFINITE)
-    table = space._index_table(MooreNeighborhood())
+    table = space._index_table(BallNeighborhood())
     energies = [_energy(frame, table, _unit_contact, _region_volume) for frame in labels]
     assert np.all(np.diff(energies) <= 1e-9)
 
@@ -99,7 +99,7 @@ def test_contact_energy_between_labels_sorts_them():
         return np.where(np.asarray(first) == np.asarray(second), 0.0, 1.0)
 
     labels = _run(LatticeSpace((SIDE, SIDE)), regions, RegionScoreSpec(contact), until=100, intensity=2.0)
-    table = LatticeSpace((SIDE, SIDE)).prepare()._index_table(MooreNeighborhood())
+    table = LatticeSpace((SIDE, SIDE)).prepare()._index_table(BallNeighborhood())
     boundary = [(frame[:, None] != frame[table]).sum() for frame in labels]
     assert boundary[-1] < boundary[0] / 3
 
@@ -113,7 +113,7 @@ def test_surface_constraint_holds_the_surface_of_a_region():
     space = LatticeSpace((SIDE, SIDE)).prepare()
     score = RegionScoreSpec(lambda first, second: np.zeros(np.broadcast(first, second).shape), surface=surface)
     labels = _run(space, _single_region(), score)
-    table = space._index_table(MooreNeighborhood())
+    table = space._index_table(BallNeighborhood())
     surfaces = [((frame[:, None] != frame[table]) & (frame[:, None] == 1)).sum() for frame in labels[50:]]
     assert abs(np.mean(surfaces) - 40.0) < 4.0
 

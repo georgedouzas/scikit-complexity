@@ -239,9 +239,9 @@ class ObservableEvaluator:
         >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.biology.common.populations import PopulationElement
         >>> system = System(
-        ...     elements=[GroupElement('herd', element=PopulationElement, size=2, values={'n': [2.0, 6.0]})]
+        ...     elements=[GroupElement('herd', element=PopulationElement, size=2, values={'x': [2.0, 6.0]})]
         ... )
-        >>> total = ObservableSpec('total', group='herd', reduce='sum', variable='n')
+        >>> total = ObservableSpec('total', group='herd', reduce='sum', variable='x')
         >>> problem = PassCompiler(observables=[total]).prepare(system).run().problem_
         >>> ObservableEvaluator(problem).prepare().evaluate(0.0, problem.initial_state, problem.initial_parameters)
         {'total': 8.0}
@@ -955,8 +955,8 @@ class ObservableEvaluator:
             >>> from skcomplex.core.components.systems import System
             >>> from skcomplex.systems.biology.common.populations import PopulationElement
             >>> problem = PassCompiler().prepare(System(elements=[PopulationElement('rabbits')])).run().problem_
-            >>> ObservableEvaluator._namespace_of(problem).rabbits.n
-            n_rabbits
+            >>> ObservableEvaluator._namespace_of(problem).rabbits.x
+            x_rabbits
         """
         prefix = f'{scope}/' if scope else ''
         items: dict[str, object] = {

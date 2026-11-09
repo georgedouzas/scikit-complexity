@@ -9,7 +9,7 @@ A mass-action system holds species in compartments and the reactions between the
 from collections.abc import Mapping, Sequence
 
 from ...types import ReactionTable
-from ..elements import CompartmentElement
+from ..elements import NonnegativeElement
 from ..interactions import ReactionInteraction
 from ._base import BaseSystem
 from ._system import System
@@ -18,7 +18,7 @@ from ._system import System
 class MassActionSystem(BaseSystem[System]):
     """Species in compartments and the reactions between them at mass-action rates.
 
-    Every species is a `CompartmentElement` named after it, whose state `n` holds its amount. Every reaction is a
+    Every species is a `NonnegativeElement` named after it, whose state `x` holds its amount. Every reaction is a
     `ReactionInteraction` with a stoichiometric coefficient for each of its reactants and products and a rate constant
     `k`. Its propensity is `k` times the amount of every reactant to the power of its coefficient, and it changes the
     amount of every species by its coefficient among the products minus its coefficient among the reactants. So
@@ -55,7 +55,7 @@ class MassActionSystem(BaseSystem[System]):
         >>> [element.label for element in isomerization.prepare().system_.elements]
         ['A', 'B']
         >>> trajectory = simulate(isomerization, until=50.0, dt=1.0)
-        >>> round(float(trajectory.values('A.n')[-1]), 3)
+        >>> round(float(trajectory.values('A.x')[-1]), 3)
         2.5
 
         The same reactions as jumps, whose tags are those of a stochastic system:
@@ -118,7 +118,7 @@ class MassActionSystem(BaseSystem[System]):
     def _get_interactions(self) -> Sequence[ReactionInteraction]:
         """Return a reaction for every row of the reactions.
 
-        The reactions act between the states `n` of the compartments they name. A subclass whose reactions are
+        The reactions act between the states `x` of the species they name. A subclass whose reactions are
         subclasses of `ReactionInteraction` with roles of their own names returns them.
 
         Returns:
@@ -129,8 +129,8 @@ class MassActionSystem(BaseSystem[System]):
         return [
             ReactionInteraction(
                 name,
-                reactants={(species, 'n'): coefficient for species, coefficient in reactants.items()} or None,
-                products={(species, 'n'): coefficient for species, coefficient in products.items()} or None,
+                reactants={(species, 'x'): coefficient for species, coefficient in reactants.items()} or None,
+                products={(species, 'x'): coefficient for species, coefficient in products.items()} or None,
                 k=k,
                 mode=mode,
             )
@@ -146,6 +146,6 @@ class MassActionSystem(BaseSystem[System]):
         """
         return System(
             self.label,
-            elements=[CompartmentElement(name, n=amount) for name, amount in self._get_species().items()],
+            elements=[NonnegativeElement(name, x=amount) for name, amount in self._get_species().items()],
             interactions=list(self._get_interactions()),
         )

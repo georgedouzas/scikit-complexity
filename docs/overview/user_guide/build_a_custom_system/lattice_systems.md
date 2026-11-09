@@ -11,8 +11,8 @@ space.size_, space.shape_, space.periodic_, space.positions_[4].tolist()
 ```
 
 - `LatticeSpace(shape, boundary=...)` is a box of `Z^d` with `'periodic'`, `'fixed'`, or `'reflecting'` edges.
-- `LatticeElement(label, element=..., space=space, values={...})` puts one member of an element type on every site,
-  with values given as arrays of the lattice shape.
+- `GroupElement(label, element=..., space=space, on='sites', values={...})` puts one member of an element type on every
+  site, with values given as arrays of the lattice shape.
 
 A space is a part of its system and has the same main public methods. `space.prepare()` checks its arguments and derives its
 facts, whose names end in `_`:
@@ -34,9 +34,9 @@ from typing import Annotated
 import numpy as np
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
-from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import LocalRuleLaw
-from skcomplex.core.components.spaces import LatticeSpace, MooreNeighborhood
+from skcomplex.core.components.spaces import BallNeighborhood, LatticeSpace
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import OuterTotalisticSpec, StateSpec
@@ -48,21 +48,22 @@ class LifeElement(Element):
         self.alive = alive
 
     def _get_laws(self, s):
-        return [LocalRuleLaw(s.alive, MooreNeighborhood(), OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1}))]
+        return [LocalRuleLaw(s.alive, BallNeighborhood(), OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1}))]
 
 
 glider = np.zeros((20, 20))
 glider[1, 2] = glider[2, 3] = glider[3, 1] = glider[3, 2] = glider[3, 3] = 1
 space = LatticeSpace((20, 20))
-cells = System(elements=[LatticeElement('cells', element=LifeElement, space=space, values={'alive': glider})])
+cells = System(elements=[GroupElement('cells', element=LifeElement, space=space, values={'alive': glider}, on='sites')])
 trajectory = simulate(cells, until=4, dt=1)
 np.array_equal(trajectory.lattice('cells.alive')[-1], np.roll(glider, (1, 1), axis=(0, 1)))
 ```
 
 `LocalRuleLaw(targets, over, rule)` computes a cell's next value from the ordered values of its neighbourhood.
 
-- `MooreNeighborhood`, `VonNeumannNeighborhood`, `BoxNeighborhood`, or `LatticeNeighborhood(offsets)` give the
-  offsets of the neighbours.
+- `BallNeighborhood(radius, metric=...)`, the Chebyshev, Manhattan, or hexagonal ball, or `LatticeNeighborhood(offsets)`
+  give the offsets of the neighbours. `center` leaves the site out, puts it first, or keeps it `'inline'`, in its
+  lexicographic place, the order of Wolfram's rule numbers.
 - A rule is a `TableSpec` of patterns, a `TotalisticSpec` or `OuterTotalisticSpec` rule, a rule code whose `table()`
   returns a table, or a function of NumPy arrays, one per neighbour. A function also receives the parameters it names
   and, for stochastic rules, uniform random numbers.
@@ -101,15 +102,15 @@ from typing import Annotated
 
 from sage.all__sagemath_symbolics import ZZ
 
-from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import SampleLaw
 from skcomplex.core.components.laws.utils import neighbors
-from skcomplex.core.components.spaces import LatticeSpace, VonNeumannNeighborhood
+from skcomplex.core.components.spaces import BallNeighborhood, LatticeSpace
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import MoveSpec, ObjectiveSpec, ParameterSpec, SamplerSpec, StateSpec
 
-nearest = VonNeumannNeighborhood()
+nearest = BallNeighborhood(metric='manhattan')
 
 
 class SpinElement(Element):
@@ -132,7 +133,7 @@ class SpinElement(Element):
         return [SampleLaw(ObjectiveSpec(energy, nearest), MoveSpec(s.spin, 'flip'), sampler)]
 
 
-spins = System(elements=[LatticeElement('spins', element=SpinElement, space=LatticeSpace((32, 32)))])
+spins = System(elements=[GroupElement('spins', element=SpinElement, space=LatticeSpace((32, 32)), on='sites')])
 abs(simulate(spins, until=200, dt=50, random_state=0).states[-1].mean()) > 0.9
 ```
 
@@ -156,9 +157,9 @@ from typing import Annotated
 
 import numpy as np
 
-from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import LocalRuleLaw
-from skcomplex.core.components.spaces import LatticeSpace, TriangularNeighborhood
+from skcomplex.core.components.spaces import BallNeighborhood, LatticeSpace
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
@@ -174,13 +175,13 @@ class BurnElement(Element):
         self.fire = fire
 
     def _get_laws(self, s):
-        return [LocalRuleLaw(s.fire, TriangularNeighborhood(center=True), spread)]
+        return [LocalRuleLaw(s.fire, BallNeighborhood(metric='hexagonal', center='first'), spread)]
 
 
 fire = np.zeros((40, 40))
 fire[20, 20] = 1
 space = LatticeSpace((40, 40), geometry='triangular')
-forest = System(elements=[LatticeElement('forest', element=BurnElement, space=space, values={'fire': fire})])
+forest = System(elements=[GroupElement('forest', element=BurnElement, space=space, values={'fire': fire}, on='sites')])
 burning = simulate(forest, until=3, dt=1).lattice('forest.fire')
 [int(item.sum()) for item in burning]
 ```
@@ -188,8 +189,8 @@ burning = simulate(forest, until=3, dt=1).lattice('forest.fire')
 - `LatticeSpace(shape, geometry='triangular')` keeps integer coordinates on a skewed grid, so every boundary works as
   on a square lattice.
 - It places site `(i, j)` at `(j + i / 2, i sqrt(3) / 2)` in the plane, given by the fitted `positions_`.
-- `TriangularNeighborhood()` holds the six neighbours counterclockwise from 0 degrees, so direction `k + 3` modulo 6 is
-  opposite to direction `k`, as lattice gases need.
+- `BallNeighborhood(metric='hexagonal')` holds the six neighbours counterclockwise from 0 degrees, so direction `k + 3`
+  modulo 6 is opposite to direction `k`, as lattice gases need.
 - The cells of the sites are the hexagons of a hexagonal tiling.
 
 ## Lattices on graphs
@@ -203,7 +204,7 @@ from typing import Annotated
 import networkx as nx
 from sage.all__sagemath_symbolics import ZZ
 
-from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import SampleLaw
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import AdjacencyNeighborhood, NetworkSpace
@@ -233,12 +234,12 @@ class GraphSpinElement(Element):
 
 
 graph = nx.random_regular_graph(4, 200, seed=0)
-spins = System(elements=[LatticeElement('spins', element=GraphSpinElement, space=NetworkSpace(graph))])
+spins = System(elements=[GroupElement('spins', element=GraphSpinElement, space=NetworkSpace(graph), on='sites')])
 abs(simulate(spins, until=200, dt=50, random_state=0).states[-1].mean()) > 0.9
 ```
 
-`LatticeElement` also takes a `NetworkSpace`, with one site per node in the order of `graph.nodes`. Initial values are
-arrays in node order, or mappings from node to value.
+A `GroupElement` on `'sites'` also takes a `NetworkSpace`, with one site per node in the order of `graph.nodes`. Initial
+values are arrays in node order, or mappings from node to value.
 
 - `AdjacencyNeighborhood(center=False)` is the neighbourhood of a node, its neighbours along its edges, padded to the
   largest degree with the network's `fill` value.
@@ -258,7 +259,7 @@ from typing import Annotated
 
 import numpy as np
 
-from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import SamplingInteraction
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.components.systems import System
@@ -285,7 +286,7 @@ regions[4:7, 4:7] = 1
 copies = SamplingInteraction(
     'copies', target='sites', state='region', objective=RegionScoreSpec(contact, volume), move='copy'
 )
-sites = LatticeElement('sites', element=SiteElement, space=LatticeSpace((12, 12)), values={'region': regions})
+sites = GroupElement('sites', element=SiteElement, space=LatticeSpace((12, 12)), values={'region': regions}, on='sites')
 system = System(elements=[sites], interactions=[copies], time=DiscreteTime())
 labels = simulate(system, until=200, random_state=0).values('sites.region')
 abs((labels[50:].reshape(-1, 144) == 1).sum(axis=1).mean() - 30) < 2
@@ -327,7 +328,7 @@ import numpy as np
 from sage.all__sagemath_gap import SymmetricGroup
 from sage.all__sagemath_symbolics import ZZ
 
-from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import LocalRuleInteraction
 from skcomplex.core.components.spaces import (
     CayleySpace,
@@ -356,7 +357,11 @@ class SeriesElement(Element):
 
 group = CayleySpace(SymmetricGroup(3))
 shift = System(
-    elements=[LatticeElement('cells', element=GroupValuedElement, space=group, values={'value': [1, 2, 3, 4, 5, 0]})],
+    elements=[
+        GroupElement(
+            'cells', element=GroupValuedElement, space=group, on='sites', values={'value': [1, 2, 3, 4, 5, 0]}
+        ),
+    ],
     interactions=[
         LocalRuleInteraction(
             'translation',
@@ -372,7 +377,7 @@ simulate(shift, until=1).values('cells.value')[-1].tolist()
 start = np.zeros((6, 4))
 start[3, 0] = 1
 series = System(
-    elements=[LatticeElement('cells', element=SeriesElement, space=LatticeSpace(6), values={'value': start})],
+    elements=[GroupElement('cells', element=SeriesElement, space=LatticeSpace(6), values={'value': start}, on='sites')],
     interactions=[
         LocalRuleInteraction(
             'difference',
@@ -418,7 +423,7 @@ from typing import Annotated
 
 import numpy as np
 
-from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import ExtremalLaw
 from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
 from skcomplex.core.components.systems import System
@@ -441,7 +446,8 @@ class SpeciesElement(Element):
 
 fitness = np.random.default_rng(0).random(100)
 space = LatticeSpace(100)
-ring = System(elements=[LatticeElement('ring', element=SpeciesElement, space=space, values={'fitness': fitness})])
+members = GroupElement('ring', element=SpeciesElement, space=space, on='sites', values={'fitness': fitness})
+ring = System(elements=[members])
 trajectory = simulate(ring, until=100, dt=10, random_state=0)
 len(trajectory.events), trajectory.events[0].label
 ```

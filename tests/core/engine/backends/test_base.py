@@ -9,7 +9,7 @@ import pytest
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import CompartmentElement, Element, GroupElement
+from skcomplex.core.components.elements import Element, GroupElement, NonnegativeElement
 from skcomplex.core.components.interactions import Interaction, PairCouplingInteraction
 from skcomplex.core.components.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.spaces import ContinuousSpace
@@ -99,7 +99,7 @@ class CompiledGrowthInteraction(Interaction):
 
     def _get_laws(self, s):
         """Return the compiled rate."""
-        return [RateLaw(s.target.n, CallSpec(_logistic, (s.target.n, s.r)))]
+        return [RateLaw(s.target.x, CallSpec(_logistic, (s.target.x, s.r)))]
 
 
 class PythonGrowthInteraction(Interaction):
@@ -116,8 +116,8 @@ class PythonGrowthInteraction(Interaction):
 
     def _get_laws(self, s):
         """Return the Python rate."""
-        name = f'{self.target}.n'
-        return [RateLaw(s.target.n, lambda t, values: values[name] * (1 - values[name] / 100))]
+        name = f'{self.target}.x'
+        return [RateLaw(s.target.x, lambda t, values: values[name] * (1 - values[name] / 100))]
 
 
 class HalvingInteraction(Interaction):
@@ -134,7 +134,7 @@ class HalvingInteraction(Interaction):
 
     def _get_laws(self, s):
         """Return the next value `n / 2`."""
-        return [UpdateLaw(s.target.n, s.target.n / 2)]
+        return [UpdateLaw(s.target.x, s.target.x / 2)]
 
 
 class VolatilityInteraction(Interaction):
@@ -151,7 +151,7 @@ class VolatilityInteraction(Interaction):
 
     def _get_laws(self, s):
         """Return the noise amplitude."""
-        return [RateLaw(s.target.n, 0.1 * s.target.n), NoiseLaw(s.target.n, 0.2 * s.target.n)]
+        return [RateLaw(s.target.x, 0.1 * s.target.x), NoiseLaw(s.target.x, 0.2 * s.target.x)]
 
 
 class DecayInteraction(Interaction):
@@ -168,7 +168,7 @@ class DecayInteraction(Interaction):
 
     def _get_laws(self, s):
         """Return a jump with a negative rate."""
-        return [JumpLaw(-s.target.n, {s.target.n: -1})]
+        return [JumpLaw(-s.target.x, {s.target.x: -1})]
 
 
 @pytest.fixture(scope='module')
@@ -202,7 +202,7 @@ def _lennard_jones_gas(n=400, period=None):
 def _herds(interaction, n=5):
     """Return a group of populations with one interaction."""
     return System(
-        elements=[GroupElement('herds', element=PopulationElement, size=n, values={'n': np.linspace(1.0, 50.0, n)})],
+        elements=[GroupElement('herds', element=PopulationElement, size=n, values={'x': np.linspace(1.0, 50.0, n)})],
         interactions=[interaction],
     )
 
@@ -210,7 +210,7 @@ def _herds(interaction, n=5):
 def _epidemic():
     """Return a stochastic epidemic over a group of towns."""
     return System(
-        elements=[CompartmentElement('S', n=990), CompartmentElement('I', n=10), CompartmentElement('R')],
+        elements=[NonnegativeElement('S', x=990), NonnegativeElement('I', x=10), NonnegativeElement('R')],
         interactions=[
             InfectionInteraction('infection', susceptible='S', infected='I', beta=0.0005, stochastic=True),
             RecoveryInteraction('recovery', infected='I', recovered='R', gamma=0.1, stochastic=True),
@@ -239,7 +239,7 @@ def test_simulation_uses_given_backend(numba_backend):
     """Test that a simulation compiles with the backend it is given."""
     trajectory = simulate(_herds(HalvingInteraction('half', target='herds')), until=2, backend=numba_backend)
     assert trajectory.problem.backend == 'numba'
-    assert np.allclose(trajectory.values('herds.n')[-1], np.linspace(1.0, 50.0, 5) / 4)
+    assert np.allclose(trajectory.values('herds.x')[-1], np.linspace(1.0, 50.0, 5) / 4)
 
 
 @pytest.mark.parametrize('period', [None, 24.0])
@@ -380,11 +380,11 @@ def test_rk4_matches_exponential(backend, numba_backend):
             self.target = target
 
         def _get_laws(self, s):
-            """Return the rate `n`."""
-            return [RateLaw(s.target.n, s.target.n)]
+            """Return the rate `x`."""
+            return [RateLaw(s.target.x, s.target.x)]
 
     system = System(
-        elements=[GroupElement('a', element=PopulationElement, size=2, values={'n': 1.0})],
+        elements=[GroupElement('a', element=PopulationElement, size=2, values={'x': 1.0})],
         interactions=[GrowthInteraction('g', target='a')],
     )
     problem = (
@@ -466,7 +466,7 @@ def test_velocity_verlet_conserves_energy(backend, numba_backend):
 
 def test_velocity_verlet_needs_position_pairs():
     """Test that velocity Verlet names the states that are neither positions nor velocities."""
-    with pytest.raises(SolverError, match=r'herds\.n are neither'):
+    with pytest.raises(SolverError, match=r'herds\.x are neither'):
         simulate(_herds(CompiledGrowthInteraction('growth', target='herds')), until=1, solver=VelocityVerletSolver())
 
 

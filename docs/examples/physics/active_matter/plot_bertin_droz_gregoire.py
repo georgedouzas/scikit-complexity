@@ -33,7 +33,7 @@ THETA = 2 * np.pi * (np.arange(ANGLES) + 0.5) / ANGLES
 
 def polar_order(_, values):
     """Return the modulus of the mean of the unit vectors of the orientations."""
-    density = np.ravel(values['flock.f'])
+    density = np.ravel(values['flock.x'])
     return np.abs(density @ np.exp(1j * THETA)) / density.sum()
 
 

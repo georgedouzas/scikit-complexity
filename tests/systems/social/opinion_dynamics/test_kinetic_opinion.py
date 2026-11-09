@@ -12,5 +12,5 @@ def test_opinions_reach_consensus_or_polarise():
     polarised = simulate(KineticOpinionSystem(confidence=1, repulsion=0.2), until=60, dt=60.0, random_state=0)
     assert consensus.values('opinion_variance')[-1] < 0.1 < consensus.values('opinion_variance')[0]
     assert polarised.values('opinion_variance')[-1] > 0.9
-    extremes = np.asarray(polarised.values('opinions.f')[-1])[[0, -1]].sum()
+    extremes = np.asarray(polarised.values('opinions.x')[-1])[[0, -1]].sum()
     assert extremes > 0.9

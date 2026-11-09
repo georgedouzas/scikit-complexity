@@ -159,7 +159,7 @@ def sensitivity(
         >>> from skcomplex.core.experiments import sensitivity
         >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
         >>> bounds = {'growth.r': (0.1, 1.0), 'growth.K': (50, 150)}
-        >>> result = sensitivity(LogisticGrowthSystem(), bounds, output='population.n', method='oat', until=20)
+        >>> result = sensitivity(LogisticGrowthSystem(), bounds, output='population.x', method='oat', until=20)
         >>> result.ranking[0]
         'growth.K'
     """

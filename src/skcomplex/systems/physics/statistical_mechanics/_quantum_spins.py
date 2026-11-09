@@ -13,7 +13,7 @@ import qutip
 from sage.all__sagemath_symbolics import CC, Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import BaseInteraction, Interaction, NeighborInteraction
 from ....core.components.laws import BaseLaw, DissipatorLaw, GeneratorLaw
 from ....core.components.laws.utils import local_operator
@@ -407,7 +407,7 @@ class QuantumHeisenbergSystem(BaseSystem):
             raise ValidationError(error_msg)
         space = LatticeSpace(self.n_sites, boundary=BOUNDARIES[self.boundary])
         labels = self._initial_labels(self.n_sites, self.initial)
-        chain = LatticeElement('chain', element=SpinElement, space=space, values={'psi': labels})
+        chain = GroupElement('chain', element=SpinElement, space=space, values={'psi': labels}, on='sites')
         interactions: list[BaseInteraction] = [
             XXZExchangeInteraction('exchange', target='chain', J=self.J, delta=self.delta),
             ZeemanFieldInteraction('field', target='chain', h=self.h),

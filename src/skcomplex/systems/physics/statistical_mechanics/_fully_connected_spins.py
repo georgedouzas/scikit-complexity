@@ -15,7 +15,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import ZZ, Expression, exp, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.laws.utils import count, mean, total, where
 from ....core.components.spaces import LatticeSpace
@@ -183,12 +183,13 @@ class CurieWeissSystem(BaseSystem):
     def _build_system(self) -> System:
         """Return the parts of the system, built from its model parameters."""
         spins = _initial_spins(self.n_spins, self.initial, self.random_state)
-        group = LatticeElement(
+        group = GroupElement(
             'spins',
             element=FullyConnectedSpinElement,
             space=LatticeSpace(self.n_spins),
             values={'spin': spins, 'J': self.J, 'h': self.h, 'temperature': self.temperature},
             visual=SPIN_IMAGE,
+            on='sites',
         )
         return System(self.label, elements=[group])
 
@@ -259,7 +260,7 @@ class SherringtonKirkpatrickSystem(BaseSystem):
         rng = np.random.default_rng(self.random_state)
         upper = np.triu(rng.normal(0.0, 1.0 / np.sqrt(self.n_spins), (self.n_spins, self.n_spins)), 1)
         spins = _initial_spins(self.n_spins, 'random', rng)
-        group = LatticeElement(
+        group = GroupElement(
             'spins',
             element=FullyConnectedSpinElement,
             space=LatticeSpace(self.n_spins),
@@ -271,5 +272,6 @@ class SherringtonKirkpatrickSystem(BaseSystem):
                 'couplings': upper + upper.T,
             },
             visual=SPIN_IMAGE,
+            on='sites',
         )
         return System(self.label, elements=[group])

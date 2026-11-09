@@ -143,7 +143,7 @@ class RerunObserver(BaseObserver):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.viz import RerunObserver
         >>> system = System(
-        ...     elements=[PopulationElement('a', n=1)],
+        ...     elements=[PopulationElement('a', x=1)],
         ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
         ... )
         >>> path = Path(tempfile.mkdtemp()) / 'growth.rrd'

@@ -27,7 +27,7 @@ def test_signature_analysis_of_a_series():
     assert signature.kind == 'series'
     assert signature.title == 'Power spectrum'
     assert (signature.xscale, signature.yscale) == ('log', 'log')
-    assert set(signature.curves) == {'prey.n', 'predators.n'}
+    assert set(signature.curves) == {'prey.x', 'predators.x'}
     assert any(name.startswith('autocorrelation time') for name in signature.values)
 
 

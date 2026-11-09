@@ -10,7 +10,7 @@ from sage.all__sagemath_gap import libgap
 from sage.all__sagemath_symbolics import ZZ, oo
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import Element, GroupElement, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import (
     HyperedgeInteraction,
     Interaction,
@@ -289,7 +289,7 @@ class GroupSpinElement(Element):
 def test_group_space_reports_the_checkerboard_schedule():
     """Test that a sample with the checkerboard schedule on a group space is one issue naming the other schedules."""
     space = CayleySpace(libgap.FreeGroup(['a', 'b']), ball=2)
-    system = System(elements=[LatticeElement('spins', element=GroupSpinElement, space=space)])
+    system = System(elements=[GroupElement('spins', element=GroupSpinElement, space=space, on='sites')])
     report = PassCompiler().prepare(system).report_
     issues = report.issues
     (issue,) = [issue for issue in issues if issue.code == 'schedule-unsupported']
@@ -301,7 +301,7 @@ def test_group_space_reports_the_checkerboard_schedule():
 def test_group_space_reports_an_image_visual():
     """Test that an image visual on a group space is reported with the Cayley visual as its fix."""
     space = CayleySpace(libgap.FreeGroup(['a', 'b']), ball=2)
-    group = LatticeElement('spins', element=GroupSpinElement, space=space, visual=VisualSpec('image'))
+    group = GroupElement('spins', element=GroupSpinElement, space=space, visual=VisualSpec('image'), on='sites')
     system = System(elements=[group])
     report = PassCompiler().prepare(system).report_
     issue = next(issue for issue in report.issues if issue.code == 'visual-unsupported')

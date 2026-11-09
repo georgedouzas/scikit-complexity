@@ -104,18 +104,18 @@ class CoSimulationSolver(Solver):
         ...     systems=[
         ...         System(
         ...             'a',
-        ...             elements=[PopulationElement('x', n=1)],
+        ...             elements=[PopulationElement('x', x=1)],
         ...             interactions=[ExponentialGrowthInteraction('g', target='x')],
         ...         ),
         ...         System(
         ...             'b',
-        ...             elements=[PopulationElement('y', n=1)],
+        ...             elements=[PopulationElement('y', x=1)],
         ...             interactions=[ExponentialGrowthInteraction('g', target='y')],
         ...         ),
         ...     ],
         ... )
         >>> trajectory = simulate(system, until=1, solver=CoSimulationSolver(split=True), dt=0.5)
-        >>> [round(float(trajectory.values(name)[-1]), 2) for name in ('a/x.n', 'b/y.n')]
+        >>> [round(float(trajectory.values(name)[-1]), 2) for name in ('a/x.x', 'b/y.x')]
         [2.72, 2.72]
     """
 

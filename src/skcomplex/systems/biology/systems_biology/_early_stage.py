@@ -13,7 +13,7 @@ import numpy as np
 from scipy.optimize import minimize_scalar
 
 from ....core.base import BaseConfig
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import SamplingInteraction
 from ....core.components.spaces import DiscreteTime, LatticeSpace
 from ....core.components.systems import BaseSystem, System
@@ -364,12 +364,13 @@ class EarlyStageFoldingIntermediateSystem(BaseSystem):
         return System(
             self.label,
             elements=[
-                LatticeElement(
+                GroupElement(
                     'residues',
                     element=PathCellElement,
                     space=LatticeSpace((1, len(names)), boundary='fixed'),
                     values={'amino': amino[None]},
                     visual=VisualSpec('image', {'states': ('cell',), 'low': 0.0, 'high': float(self.cells - 1)}),
+                    on='sites',
                 ),
             ],
             interactions=[

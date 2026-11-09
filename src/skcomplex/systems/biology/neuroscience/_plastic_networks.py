@@ -15,7 +15,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import cos, oo, pi, sin, tanh
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction, NeighborInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import clip, delayed, where
@@ -494,7 +494,7 @@ class STDPNetworkSystem(BaseSystem):
         rng = np.random.default_rng(self.seed)
         graph = nx.gnp_random_graph(self.n_neurons, self.p, seed=int(rng.integers(2**31)), directed=True)
         space = NetworkSpace(graph)
-        neurons = LatticeElement(
+        neurons = GroupElement(
             'neurons',
             element=TracedThetaNeuronElement,
             space=space,
@@ -504,6 +504,7 @@ class STDPNetworkSystem(BaseSystem):
                 'tau_plus': self.tau,
                 'tau_minus': self.tau,
             },
+            on='sites',
         )
         synapses = GroupElement(
             'synapses',

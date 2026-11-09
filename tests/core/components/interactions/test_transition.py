@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import NN
 
-from skcomplex.core.components.elements import Element, GroupElement, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import TransitionInteraction
 from skcomplex.core.components.laws.utils import neighbors, where
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
@@ -57,7 +57,13 @@ def _group(initial=1.0, size=MEMBERS):
 
 def _ring(initial):
     """Return holders on the sites of a ring."""
-    return LatticeElement('members', element=HolderElement, space=LatticeSpace(len(initial)), values={'s': initial})
+    return GroupElement(
+        'members',
+        element=HolderElement,
+        space=LatticeSpace(len(initial)),
+        values={'s': initial},
+        on='sites',
+    )
 
 
 def test_transition_at_a_rate_empties_the_source_exponentially():

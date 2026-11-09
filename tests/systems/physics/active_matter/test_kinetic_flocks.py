@@ -15,7 +15,7 @@ def polarization_change(density: float, transition: float) -> float:
     angles = 32
     system = BertinDrozGregoireSystem(1, angles, density=density * transition, interaction_range=0.5, noise=0.5)
     trajectory = simulate(system, until=2.0, dt=2.0)
-    values = np.asarray(trajectory.values('flock.f'))
+    values = np.asarray(trajectory.values('flock.x'))
     theta = 2 * np.pi * (np.arange(angles) + 0.5) / angles
     return float((values[-1] @ np.cos(theta)) / (values[0] @ np.cos(theta)))
 

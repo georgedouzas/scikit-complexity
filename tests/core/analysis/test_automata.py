@@ -12,16 +12,15 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from scipy.linalg import circulant
 
 from skcomplex.core.analysis import automaton, entropy
-from skcomplex.core.components.elements import DeclaredElement, Element, LatticeElement
+from skcomplex.core.components.elements import DeclaredElement, Element, GroupElement
 from skcomplex.core.components.interactions import LocalRuleInteraction
 from skcomplex.core.components.laws import LocalRuleLaw
 from skcomplex.core.components.spaces import (
-    BoxNeighborhood,
+    BallNeighborhood,
     CayleySpace,
     LatticeNeighborhood,
     LatticeSpace,
     MemoryNeighborhood,
-    MooreNeighborhood,
 )
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
@@ -54,7 +53,7 @@ class CellElement(Element):
 
 def _automaton_system(space, neighborhood, rule, **settings):
     """Return the system of an automaton of a space, a neighbourhood, and a rule."""
-    cells = LatticeElement('cells', element=CellElement, space=space)
+    cells = GroupElement('cells', element=CellElement, space=space, on='sites')
     interaction = LocalRuleInteraction(
         'rule',
         target='cells',
@@ -71,7 +70,9 @@ def _subshift_system(space, neighborhood, forbidden, states=2):
     domain = SubshiftSpec(neighborhood, forbidden, states)
     variables = {'alive': DeclaredVariableSpec(0, StateSpec(domain=domain))}
     return System(
-        elements=[LatticeElement('cells', element=DeclaredElement, space=space, values={'variables': variables})],
+        elements=[
+            GroupElement('cells', element=DeclaredElement, space=space, values={'variables': variables}, on='sites'),
+        ],
     )
 
 
@@ -96,7 +97,7 @@ def _elementary(number, size):
     """Return an elementary automaton by its Wolfram number on a ring."""
     patterns = [(left, center, right) for left in (0, 1) for center in (0, 1) for right in (0, 1)]
     table = TableSpec({pattern: (number >> (4 * pattern[0] + 2 * pattern[1] + pattern[2])) & 1 for pattern in patterns})
-    return _automaton_system(LatticeSpace(size), BoxNeighborhood(), table)
+    return _automaton_system(LatticeSpace(size), BallNeighborhood(n_dim=1, center='inline'), table)
 
 
 def _cycle(size):
@@ -106,7 +107,7 @@ def _cycle(size):
 
 def test_life_is_not_surjective_with_a_garden_of_eden():
     """Test that Life on a 6 x 6 torus is not surjective and that the found configuration has no preimage."""
-    life = _automaton_system(LatticeSpace((6, 6)), MooreNeighborhood(), LIFE)
+    life = _automaton_system(LatticeSpace((6, 6)), BallNeighborhood(), LIFE)
     assert not _automaton('surjective', life, method='sat').surjective
     eden = _automaton('garden-of-eden', life, random_state=0).pattern
     assert eden is not None
@@ -187,7 +188,11 @@ def test_configuration_entropy_of_an_automaton_image():
     """Test that the image of a surjective rule has full entropy and that of the majority rule less."""
     windows = [LatticeSpace(12, boundary='fixed')]
     assert _automaton('entropy', _elementary(90, 12), windows=windows).entropy[0] == pytest.approx(1.0)
-    majority = _automaton_system(LatticeSpace(12), BoxNeighborhood(), TotalisticSpec({2: 1, 3: 1}))
+    majority = _automaton_system(
+        LatticeSpace(12),
+        BallNeighborhood(n_dim=1, center='inline'),
+        TotalisticSpec({2: 1, 3: 1}),
+    )
     assert _automaton('entropy', majority, windows=windows).entropy[0] < 0.9
 
 
@@ -231,11 +236,15 @@ def test_kind_reads_its_system():
 
 def test_reference_values_on_a_lattice():
     """Test that the decisions, gardens of Eden, inverses, and compositions on lattices keep their recorded values."""
-    life = _automaton_system(LatticeSpace((6, 6)), MooreNeighborhood(), LIFE)
+    life = _automaton_system(LatticeSpace((6, 6)), BallNeighborhood(), LIFE)
     assert not _automaton('surjective', life).surjective
     assert not _automaton('injective', life).injective
     assert np.flatnonzero(_automaton('garden-of-eden', life, random_state=0).pattern).tolist() == LIFE_EDEN
-    majority = _automaton_system(LatticeSpace(5), BoxNeighborhood(), TotalisticSpec(lambda total: total >= 2))
+    majority = _automaton_system(
+        LatticeSpace(5),
+        BallNeighborhood(n_dim=1, center='inline'),
+        TotalisticSpec(lambda total: total >= 2),
+    )
     assert _automaton('garden-of-eden', majority).pattern.tolist() == [0, 0, 1, 0, 1]
     assert _automaton('garden-of-eden', _elementary(90, 8)).pattern.tolist() == [0, 0, 0, 0, 0, 0, 0, 1]
     decisions = {
@@ -325,7 +334,11 @@ def test_reference_values_of_linear_decisions_and_measures():
     assert entropies.tolist() == pytest.approx([0.7169925001442313, 0.7056179025755023])
     natural = _automaton('entropy', golden, windows=windows[1:], base=np.e).entropy
     assert natural.tolist() == pytest.approx([0.4890970597228316])
-    majority = _automaton_system(LatticeSpace(12), BoxNeighborhood(), TotalisticSpec({2: 1, 3: 1}))
+    majority = _automaton_system(
+        LatticeSpace(12),
+        BallNeighborhood(n_dim=1, center='inline'),
+        TotalisticSpec({2: 1, 3: 1}),
+    )
     image = _automaton('entropy', majority, windows=[LatticeSpace(12, boundary='fixed')]).entropy
     assert image.tolist() == pytest.approx([0.8954196310386876])
 
@@ -351,13 +364,21 @@ def test_rule_90_matrix_and_step_agree():
 
 def test_reference_values_of_polynomials_and_matrices():
     """Test that the Laplacian over QQ and GF(3) and a rule on a plane keep their recorded matrices and symbols."""
-    laplacian = _automaton_system(LatticeSpace(5), BoxNeighborhood(), LinearRuleSpec((1, -2, 1), 'QQ'))
+    laplacian = _automaton_system(
+        LatticeSpace(5),
+        BallNeighborhood(n_dim=1, center='inline'),
+        LinearRuleSpec((1, -2, 1), 'QQ'),
+    )
     polynomial = _automaton('polynomial', laplacian).polynomial
     assert str(polynomial) == 'x0^-1 - 2 + x0'
     assert sorted(polynomial.exponents()) == [-1, 0, 1]
     assert polynomial(1) == 0
     assert _automaton('matrix', laplacian).matrix.rank() == 4
-    modular = _automaton_system(LatticeSpace(5), BoxNeighborhood(), LinearRuleSpec((1, -2, 1), 'GF(3)'))
+    modular = _automaton_system(
+        LatticeSpace(5),
+        BallNeighborhood(n_dim=1, center='inline'),
+        LinearRuleSpec((1, -2, 1), 'GF(3)'),
+    )
     assert str(_automaton('polynomial', modular).polynomial) == 'x0^-1 + 1 + x0'
     assert [int(entry) for entry in _automaton('matrix', modular).matrix.rows()[0]] == [1, 1, 0, 0, 1]
     offsets = LatticeNeighborhood(((1, 0), (0, -1)))
@@ -367,7 +388,11 @@ def test_reference_values_of_polynomials_and_matrices():
 
 def test_matrix_on_a_ball_and_polynomial_without_offsets_raise():
     """Test that a matrix on a lattice with fixed edges and a polynomial on a memory set are rejected."""
-    fixed = _automaton_system(LatticeSpace(5, boundary='fixed'), BoxNeighborhood(), LinearRuleSpec((1, 1, 1)))
+    fixed = _automaton_system(
+        LatticeSpace(5, boundary='fixed'),
+        BallNeighborhood(n_dim=1, center='inline'),
+        LinearRuleSpec((1, 1, 1)),
+    )
     with pytest.raises(AnalysisError, match='not on a ball'):
         _automaton('matrix', fixed)
     group = _automaton_system(_cycle(5), MemoryNeighborhood(('a',)), LinearRuleSpec((1,)))
@@ -377,11 +402,11 @@ def test_matrix_on_a_ball_and_polynomial_without_offsets_raise():
 
 def test_local_map_is_read_by_the_decisions():
     """Test that Life keeps the hash of its recorded local map, read from the run on a torus of 3 x 3 cells."""
-    neighbors = MooreNeighborhood().prepare().offsets_
+    neighbors = BallNeighborhood().prepare().offsets_
     positions = [4, *[(1 + first) * 3 + (1 + second) for first, second in neighbors]]
     configurations = np.zeros((512, 9), dtype=int)
     configurations[:, positions] = list(itertools.product((0, 1), repeat=9))
-    life = _automaton_system(LatticeSpace((3, 3)), MooreNeighborhood(), LIFE)
+    life = _automaton_system(LatticeSpace((3, 3)), BallNeighborhood(), LIFE)
     local_map = _step(life, configurations)[:, 4]
     assert local_map.size == 512
     assert int(local_map.sum()) == 140
@@ -390,7 +415,11 @@ def test_local_map_is_read_by_the_decisions():
 
 def test_rule_values_outside_the_states_raise():
     """Test that a rule returning a value outside 0 to states - 1 is rejected."""
-    wrong = _automaton_system(LatticeSpace(5), BoxNeighborhood(), TotalisticSpec(lambda total: total))
+    wrong = _automaton_system(
+        LatticeSpace(5),
+        BallNeighborhood(n_dim=1, center='inline'),
+        TotalisticSpec(lambda total: total),
+    )
     with pytest.raises(AnalysisError, match='outside the integers 0 to 1'):
         automaton(wrong)
 
@@ -400,15 +429,17 @@ def test_rules_that_are_no_map_of_configurations_raise():
     rule = TotalisticSpec({1: 1})
     space = LatticeSpace(5)
     with pytest.raises(AnalysisError, match='synchronous'):
-        automaton(_automaton_system(space, BoxNeighborhood(), rule, schedule='random-sequential'))
+        automaton(
+            _automaton_system(space, BallNeighborhood(n_dim=1, center='inline'), rule, schedule='random-sequential'),
+        )
 
     def needs_degree(*values, degree):
         """Return a rule value that needs the degree of the site."""
         return sum(values) // degree
 
     with pytest.raises(AnalysisError, match='of the cells alone'):
-        automaton(_automaton_system(space, BoxNeighborhood(), needs_degree))
-    double = _automaton_system(space, BoxNeighborhood(), rule)
+        automaton(_automaton_system(space, BallNeighborhood(n_dim=1, center='inline'), needs_degree))
+    double = _automaton_system(space, BallNeighborhood(n_dim=1, center='inline'), rule)
     double.interactions = [*double.interactions, *double.interactions]
     with pytest.raises(AnalysisError, match='one local rule'):
         automaton(double)
@@ -420,7 +451,13 @@ def test_composition_runs_in_a_simulation():
     back = _automaton('inverse', shift).inverse
     composition = _automaton('compose', shift, second=back).composition
     start = np.array([1, 0, 1, 1, 0, 0, 0, 1])
-    cells = LatticeElement('cells', element=CellElement, space=shift.elements[0].space, values={'alive': start})
+    cells = GroupElement(
+        'cells',
+        element=CellElement,
+        space=shift.elements[0].space,
+        values={'alive': start},
+        on='sites',
+    )
     system = System(elements=[cells], interactions=composition.interactions)
     trajectory = simulate(system, until=1, dt=1)
     np.testing.assert_array_equal(trajectory.values('cells.alive')[-1].astype(int), start)

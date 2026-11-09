@@ -13,9 +13,9 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction, MapInteraction
-from ....core.components.spaces import LatticeSpace, MooreNeighborhood, NetworkSpace
+from ....core.components.spaces import BallNeighborhood, LatticeSpace, NetworkSpace
 from ....core.components.systems import BaseSystem, System
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.solvers import AgentView
@@ -335,11 +335,12 @@ class MajorityRuleSystem(BaseSystem):
         return System(
             self.label,
             elements=[
-                LatticeElement(
+                GroupElement(
                     'voters',
                     element=MajorityVoterElement,
                     space=LatticeSpace(tuple(self.shape)),
                     values={'opinion': values},
+                    on='sites',
                 ),
             ],
             interactions=[
@@ -348,7 +349,7 @@ class MajorityRuleSystem(BaseSystem):
                     target='voters',
                     state='opinion',
                     rule=TotalisticSpec(self._is_majority),
-                    neighborhood=MooreNeighborhood(center=True),
+                    neighborhood=BallNeighborhood(center='first'),
                 ),
             ],
         )

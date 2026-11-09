@@ -15,10 +15,10 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CascadeInteraction, LocalRuleInteraction, MapInteraction
 from ....core.components.laws.utils import draw, either, where
-from ....core.components.spaces import DiscreteTime, LatticeSpace, VonNeumannNeighborhood
+from ....core.components.spaces import BallNeighborhood, DiscreteTime, LatticeSpace
 from ....core.components.systems import BaseSystem, System
 from ....core.specs import ObservableSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -144,7 +144,7 @@ class ToppleInteraction(LocalRuleInteraction):
             target=target,
             state='height',
             rule=self._topple,
-            neighborhood=VonNeumannNeighborhood(center=True),
+            neighborhood=BallNeighborhood(metric='manhattan', center='first'),
         )
         self.threshold = threshold
 
@@ -233,7 +233,9 @@ class FixedEnergySandpileSystem(BaseSystem):
         space = LatticeSpace(tuple(self.shape), boundary='periodic')
         return System(
             self.label,
-            elements=[LatticeElement('pile', element=SandpileCellElement, space=space, values={'height': heights})],
+            elements=[
+                GroupElement('pile', element=SandpileCellElement, space=space, values={'height': heights}, on='sites'),
+            ],
             interactions=[ToppleInteraction('topple', target='pile', threshold=THRESHOLD)],
         )
 
@@ -317,7 +319,9 @@ class ZhangSandpileSystem(BaseSystem):
         )
         return System(
             self.label,
-            elements=[LatticeElement('pile', element=EnergySiteElement, space=space, values={'energy': energies})],
+            elements=[
+                GroupElement('pile', element=EnergySiteElement, space=space, values={'energy': energies}, on='sites'),
+            ],
             interactions=[avalanche],
         )
 

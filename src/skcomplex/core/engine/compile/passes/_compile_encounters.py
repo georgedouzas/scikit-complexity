@@ -96,7 +96,7 @@ class CompileEncountersPass(BasePass):
         if reference is None or not reference.is_state or reference.source is not ReadKind.MEMBER:
             error_msg = (
                 f'An encounter law of {owner} reads {item}, which is not a state of a group bound to a role. '
-                'Encounters read the densities of groups on the sites of activity lattices, such as `s.candidate.f`.'
+                'Encounters read the densities of groups on the sites of activity lattices, such as `s.candidate.x`.'
             )
             raise ValidationError(error_msg)
         return reference.flat_indices.astype(np.intp)

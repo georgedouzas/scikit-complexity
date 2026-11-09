@@ -8,7 +8,7 @@ import pytest
 from sage.all__sagemath_symbolics import oo, var
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import CompartmentElement, Element, FieldElement, GroupElement
+from skcomplex.core.components.elements import Element, FieldElement, GroupElement, NonnegativeElement
 from skcomplex.core.components.interactions import JumpInteraction, ReactionInteraction
 from skcomplex.core.components.laws import JumpLaw, NoiseLaw, RateLaw
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
@@ -41,19 +41,19 @@ def _epidemic(mode):
     """Return the reactions `S + I -> 2 I` and `I -> R` of 100,000 units in a mode."""
     return System(
         elements=[
-            CompartmentElement('S', n=UNITS - 2_000),
-            CompartmentElement('I', n=2_000),
-            CompartmentElement('R'),
+            NonnegativeElement('S', x=UNITS - 2_000),
+            NonnegativeElement('I', x=2_000),
+            NonnegativeElement('R'),
         ],
         interactions=[
             ReactionInteraction(
                 'infection',
-                reactants={('S', 'n'): 1, ('I', 'n'): 1},
-                products={('I', 'n'): 2},
+                reactants={('S', 'x'): 1, ('I', 'x'): 1},
+                products={('I', 'x'): 2},
                 k=2.5e-6,
                 mode=mode,
             ),
-            ReactionInteraction('recovery', reactants={('I', 'n'): 1}, products={('R', 'n'): 1}, k=0.1, mode=mode),
+            ReactionInteraction('recovery', reactants={('I', 'x'): 1}, products={('R', 'x'): 1}, k=0.1, mode=mode),
         ],
     )
 
@@ -61,7 +61,7 @@ def _epidemic(mode):
 def _states(mode, random_state=None):
     """Return the amounts of `S`, `I`, and `R` over 40 time units, one row per time."""
     trajectory = simulate(_epidemic(mode), until=40, dt=1.0, random_state=random_state)
-    return np.column_stack([trajectory.values(f'{name}.n') for name in ('S', 'I', 'R')])
+    return np.column_stack([trajectory.values(f'{name}.x') for name in ('S', 'I', 'R')])
 
 
 def test_reaction_is_a_jump():
@@ -95,32 +95,32 @@ def test_reaction_runs_into_the_laws_of_its_mode(mode, kinds):
     """Test that a reaction runs into rate laws, one jump law, or rate and noise laws, by its mode."""
     a, b, k = var('a b k')
     namespace = SimpleNamespace(
-        reactants=(SimpleNamespace(n=a),),
-        products=(SimpleNamespace(n=b),),
+        reactants=(SimpleNamespace(x=a),),
+        products=(SimpleNamespace(x=b),),
         modifiers=(),
         k=k,
     )
-    reaction = ReactionInteraction('conversion', reactants={('A', 'n'): 1}, products={('B', 'n'): 1}, mode=mode)
+    reaction = ReactionInteraction('conversion', reactants={('A', 'x'): 1}, products={('B', 'x'): 1}, mode=mode)
     assert [type(law) for law in reaction.prepare().run(namespace).laws_] == kinds
 
 
 def test_reaction_reads_modifiers_without_changing_them():
     """Test that a modifier enters the mass-action propensity, and the reaction does not change it."""
     system = System(
-        elements=[CompartmentElement('E', n=1.0), CompartmentElement('S', n=1.0), CompartmentElement('P')],
+        elements=[NonnegativeElement('E', x=1.0), NonnegativeElement('S', x=1.0), NonnegativeElement('P')],
         interactions=[
             ReactionInteraction(
                 'catalysis',
-                reactants={('S', 'n'): 1},
-                products={('P', 'n'): 1},
-                modifiers={('E', 'n'): 1},
+                reactants={('S', 'x'): 1},
+                products={('P', 'x'): 1},
+                modifiers={('E', 'x'): 1},
                 k=1.0,
             ),
         ],
     )
     trajectory = simulate(system, until=2, dt=0.5)
-    assert trajectory.values('E.n').tolist() == [1.0] * 5
-    np.testing.assert_allclose(trajectory.values('S.n'), np.exp(-np.asarray(trajectory.times)), rtol=1e-4)
+    assert trajectory.values('E.x').tolist() == [1.0] * 5
+    np.testing.assert_allclose(trajectory.values('S.x'), np.exp(-np.asarray(trajectory.times)), rtol=1e-4)
 
 
 def test_reaction_moves_states_of_one_element_with_real_coefficients():
@@ -154,35 +154,35 @@ def test_reaction_sources_and_sinks_reach_their_balance():
 def test_reaction_takes_a_propensity_function():
     """Test that a reaction takes its propensity from a function of its namespace instead of mass action."""
     system = System(
-        elements=[CompartmentElement('A', n=8.0), CompartmentElement('B')],
+        elements=[NonnegativeElement('A', x=8.0), NonnegativeElement('B')],
         interactions=[
             ReactionInteraction(
                 'saturation',
-                reactants={('A', 'n'): 1},
-                products={('B', 'n'): 1},
+                reactants={('A', 'x'): 1},
+                products={('B', 'x'): 1},
                 k=1.0,
-                propensity=lambda s: s.k * s.reactants[0].n / (1 + s.reactants[0].n),
+                propensity=lambda s: s.k * s.reactants[0].x / (1 + s.reactants[0].x),
             ),
         ],
     )
     trajectory = simulate(system, until=0.001, dt=0.001)
-    rate = (trajectory.values('B.n')[-1] - trajectory.values('B.n')[0]) / 0.001
+    rate = (trajectory.values('B.x')[-1] - trajectory.values('B.x')[0]) / 0.001
     assert rate == pytest.approx(8 / 9, rel=1e-3)
 
 
 @pytest.mark.parametrize(
     ('arguments', 'message'),
     [
-        ({'reactants': {('A', 'n'): 1}, 'mode': 'ode'}, 'has the mode'),
+        ({'reactants': {('A', 'x'): 1}, 'mode': 'ode'}, 'has the mode'),
         ({}, 'neither reactants nor products'),
         ({'reactants': ['A']}, 'Map pairs of a path and a state name'),
         ({'reactants': {('A', 'not a name'): 1}}, 'Map pairs of a path and a state name'),
-        ({'reactants': {('A', 'n'): -1}}, 'positive numbers or functions'),
-        ({'reactants': {('A', 'n'): 1}, 'form': 'mesa'}, 'has the form'),
-        ({'reactants': {('A', 'n'): 1}, 'form': 'agent'}, 'agent form but no target'),
-        ({'target': 'cells', 'reactants': {'n': 1}, 'form': 'agent', 'mode': 'langevin'}, 'Use rate or jump'),
-        ({'target': 'cells', 'reactants': {('A', 'n'): 1}, 'form': 'agent'}, 'state names alone'),
-        ({'reactants': {'n': 1}}, 'state names of the target'),
+        ({'reactants': {('A', 'x'): -1}}, 'positive numbers or functions'),
+        ({'reactants': {('A', 'x'): 1}, 'form': 'mesa'}, 'has the form'),
+        ({'reactants': {('A', 'x'): 1}, 'form': 'agent'}, 'agent form but no target'),
+        ({'target': 'cells', 'reactants': {'x': 1}, 'form': 'agent', 'mode': 'langevin'}, 'Use rate or jump'),
+        ({'target': 'cells', 'reactants': {('A', 'x'): 1}, 'form': 'agent'}, 'state names alone'),
+        ({'reactants': {'x': 1}}, 'state names of the target'),
     ],
 )
 def test_reaction_rejects_invalid_arguments(arguments, message):
@@ -192,7 +192,7 @@ def test_reaction_rejects_invalid_arguments(arguments, message):
 
 
 class ConversionInteraction(ReactionInteraction):
-    """Conversion `A -> B` at the rate `c A` between the states `n` of the elements of its roles `source` and `sink`."""
+    """Conversion `A -> B` at the rate `c A` between the states `x` of the elements of its roles `source` and `sink`."""
 
     def __init__(
         self,
@@ -208,12 +208,12 @@ class ConversionInteraction(ReactionInteraction):
         self.c = c
 
     def _get_reactants(self):
-        """Return the state `n` of the source."""
-        return {(self.source, 'n'): 1}
+        """Return the state `x` of the source."""
+        return {(self.source, 'x'): 1}
 
     def _get_products(self):
-        """Return the state `n` of the sink."""
-        return {(self.sink, 'n'): 1}
+        """Return the state `x` of the sink."""
+        return {(self.sink, 'x'): 1}
 
     def _get_rate(self, namespace):
         """Return the mass action at the rate constant `c`."""
@@ -258,13 +258,13 @@ def test_reaction_jumps_in_every_member_of_a_group():
 def test_reaction_subclass_reads_species_under_its_own_roles():
     """Test that a subclass binding its species under roles of its own names follows its mass action."""
     system = System(
-        elements=[CompartmentElement('A', n=8.0), CompartmentElement('B')],
+        elements=[NonnegativeElement('A', x=8.0), NonnegativeElement('B')],
         interactions=[ConversionInteraction('conversion', source='A', sink='B', c=0.5)],
     )
     trajectory = simulate(system, until=2, dt=0.5)
     times = np.asarray(trajectory.times)
-    np.testing.assert_allclose(trajectory.values('A.n'), 8 * np.exp(-0.5 * times), rtol=1e-4)
-    np.testing.assert_allclose(trajectory.values('A.n') + trajectory.values('B.n'), 8.0)
+    np.testing.assert_allclose(trajectory.values('A.x'), 8 * np.exp(-0.5 * times), rtol=1e-4)
+    np.testing.assert_allclose(trajectory.values('A.x') + trajectory.values('B.x'), 8.0)
 
 
 class ScaledElement(Element):
@@ -306,21 +306,21 @@ def test_reaction_scales_changes_by_parametric_coefficients(epsilon, delta):
 
 def _agent_decay(mode, size=2000):
     """Return cells of three units each that decay on their own in the agent form."""
-    cells = GroupElement('cells', element=CompartmentElement, size=size, values={'n': np.full(size, 3.0)})
-    decay = ReactionInteraction('decay', target='cells', reactants={'n': 1}, k=0.1, form='agent', mode=mode)
+    cells = GroupElement('cells', element=NonnegativeElement, size=size, values={'x': np.full(size, 3.0)})
+    decay = ReactionInteraction('decay', target='cells', reactants={'x': 1}, k=0.1, form='agent', mode=mode)
     return System(elements=[cells], interactions=[decay], time=DiscreteTime())
 
 
 def test_reaction_agent_form_steps_every_member_by_its_rate():
     """Test that the agent form in the mode `rate` adds the changes times the propensity of every member per step."""
     trajectory = simulate(_agent_decay('rate', size=3), until=3)
-    np.testing.assert_allclose(trajectory.agents('cells', 3).values['n'], 3 * 0.9**3)
+    np.testing.assert_allclose(trajectory.agents('cells', 3).values['x'], 3 * 0.9**3)
 
 
 def test_reaction_agent_form_jumps_whole_units_at_the_step_probability():
     """Test that the agent form in the mode `jump` moves one unit with the probability `1 - exp(-propensity)`."""
     trajectory = simulate(_agent_decay('jump'), until=1, random_state=0)
-    counts = trajectory.agents('cells', 1).values['n']
+    counts = trajectory.agents('cells', 1).values['x']
     assert set(counts.tolist()) <= {2.0, 3.0}
     assert np.mean(counts == 2.0) == pytest.approx(1 - np.exp(-0.3), abs=0.03)
 
@@ -331,17 +331,17 @@ def test_reaction_agent_schedules_react_in_every_member_once(schedule):
     rate = _agent_decay('rate', size=3)
     rate.interactions[0].set_params(schedule=schedule)
     trajectory = simulate(rate, until=3)
-    np.testing.assert_allclose(trajectory.agents('cells', 3).values['n'], 3 * 0.9**3)
+    np.testing.assert_allclose(trajectory.agents('cells', 3).values['x'], 3 * 0.9**3)
     jump = _agent_decay('jump')
     jump.interactions[0].set_params(schedule=schedule)
-    counts = simulate(jump, until=1, random_state=0).agents('cells', 1).values['n']
+    counts = simulate(jump, until=1, random_state=0).agents('cells', 1).values['x']
     assert np.mean(counts == 2.0) == pytest.approx(1 - np.exp(-0.3), abs=0.03)
 
 
 def test_reaction_symbolic_form_refuses_an_agent_schedule():
     """Test that a symbolic reaction with a schedule other than synchronous raises an error."""
     with pytest.raises(ValidationError, match='runs agent rules'):
-        ReactionInteraction('decay', target='cells', reactants={'n': 1}, schedule='member').prepare()
+        ReactionInteraction('decay', target='cells', reactants={'x': 1}, schedule='member').prepare()
 
 
 @pytest.mark.parametrize('mode', ['rate', 'jump'])

@@ -15,7 +15,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction
 from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.systems import BaseSystem, System
@@ -137,16 +137,17 @@ class LogisticCouplingInteraction(CouplingInteraction):
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.core.components.elements import LatticeElement
+        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
         >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.physics.synchronization import LogisticCouplingInteraction, LogisticNodeElement
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> maps = LatticeElement(
+        >>> maps = GroupElement(
         ...     'maps',
         ...     element=LogisticNodeElement,
         ...     space=NetworkSpace(nx.path_graph(2)),
         ...     values={'x': [0.25, 0.5], 'epsilon': 0.5},
+        ...     on='sites',
         ... )
         >>> coupling = LogisticCouplingInteraction('coupling', target='maps')
         >>> system = System(elements=[maps], interactions=[coupling], time=DiscreteTime())
@@ -280,7 +281,7 @@ class KuramotoOnNetworksSystem(BaseSystem):
         space = _network(self.network, self.n_oscillators, self.degree, self.rewiring, self.seed)
         rng = np.random.default_rng(self.seed + 1)
         mean_degree = 2 * space.graph.number_of_edges() / self.n_oscillators
-        oscillators = LatticeElement(
+        oscillators = GroupElement(
             'oscillators',
             element=PhaseOscillatorElement,
             space=space,
@@ -289,6 +290,7 @@ class KuramotoOnNetworksSystem(BaseSystem):
                 'omega': rng.normal(0.0, self.sigma, self.n_oscillators),
             },
             visual=VisualSpec('sites', {'states': ['theta'], 'low': 0.0, 'high': 2 * math.pi}),
+            on='sites',
         )
         links = GroupElement('links', element=LinkElement, space=space, on='edges')
         coupling = EdgeCouplingInteraction('coupling', target='oscillators', links='links', K=self.K / mean_degree)
@@ -376,12 +378,13 @@ class CoupledMapLatticesOnNetworksSystem(BaseSystem):
         """
         space = _network(self.network, self.n_nodes, self.degree, self.rewiring, self.seed)
         rng = np.random.default_rng(self.seed + 1)
-        maps = LatticeElement(
+        maps = GroupElement(
             'maps',
             element=LogisticNodeElement,
             space=space,
             values={'x': rng.uniform(0.0, 1.0, self.n_nodes), 'r': self.r, 'epsilon': self.epsilon},
             visual=VisualSpec('sites', {'states': ['x'], 'low': 0.0, 'high': 1.0}),
+            on='sites',
         )
         coupling = LogisticCouplingInteraction('coupling', target='maps')
         return System(self.label, elements=[maps], interactions=[coupling], time=DiscreteTime())

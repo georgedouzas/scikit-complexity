@@ -4,7 +4,7 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import LatticeElement
+from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
@@ -24,11 +24,12 @@ def test_logistic_coupling_mixes_the_map_with_the_mean_map_of_the_neighbours():
     graph = nx.path_graph(3)
     graph.add_node(3)
     x = np.array([0.1, 0.3, 0.6, 0.2])
-    maps = LatticeElement(
+    maps = GroupElement(
         'maps',
         element=LogisticNodeElement,
         space=NetworkSpace(graph),
         values={'x': x, 'r': 3.7, 'epsilon': 0.3},
+        on='sites',
     )
     system = System(
         elements=[maps],

@@ -49,7 +49,7 @@ class PeakResult:
     peak_time: float
 
 
-def peak(trajectory, *, variable='I.n'):
+def peak(trajectory, *, variable='I.x'):
     """Return the height and time of the peak of one series of a trajectory."""
     values = np.asarray(trajectory.values(variable), dtype=float)
     return PeakResult(float(values.max()), float(trajectory.times[values.argmax()]))
@@ -78,24 +78,24 @@ def test_surface_holds_functions_and_results():
 def test_system_and_factory_give_the_same_run():
     """Test that a model parameter set on a copy of a system, passed to a factory, or set by path gives one run."""
     results = [
-        sweep(LogisticGrowthSystem(), {'r': [0.7]}, until=10, dt=0.1, outputs=['population.n']),
-        sweep(LogisticGrowthSystem, {'r': [0.7]}, until=10, dt=0.1, outputs=['population.n']),
+        sweep(LogisticGrowthSystem(), {'r': [0.7]}, until=10, dt=0.1, outputs=['population.x']),
+        sweep(LogisticGrowthSystem, {'r': [0.7]}, until=10, dt=0.1, outputs=['population.x']),
         sweep(
             LogisticGrowthSystem().prepare().system_,
             {'growth.r': [0.7]},
             until=10,
             dt=0.1,
-            outputs=['population.n'],
+            outputs=['population.x'],
         ),
     ]
     for result in results[1:]:
-        np.testing.assert_array_equal(results[0].series('population.n'), result.series('population.n'))
+        np.testing.assert_array_equal(results[0].series('population.x'), result.series('population.x'))
 
 
 def test_a_sweep_leaves_the_system_unchanged():
     """Test that a sweep sets model parameters on copies, never on the system it is given."""
     system = LogisticGrowthSystem(r=0.3)
-    sweep(system, {'r': [0.7, 0.9]}, until=1, outputs=['population.n'])
+    sweep(system, {'r': [0.7, 0.9]}, until=1, outputs=['population.x'])
     assert system.r == 0.3
 
 
@@ -108,11 +108,11 @@ def test_paths_of_states_and_parameters_change_one_run():
 
 def test_analyses_of_one_function_are_numbered():
     """Test that two analyses of one function get numbered column prefixes."""
-    analyses = [bind_analysis(peak, variable='I.n'), bind_analysis(peak, variable='S.n')]
+    analyses = [bind_analysis(peak, variable='I.x'), bind_analysis(peak, variable='S.x')]
     result = sweep(SIRSystem(), [{}], analyses=analyses, until=10)
     row = result.rows[0]
     assert row['peak-1.peak'] > 0
-    assert row['peak-2.peak'] == result.series('S.n')[0].max()
+    assert row['peak-2.peak'] == result.series('S.x')[0].max()
 
 
 def test_an_analysis_must_return_a_result():
@@ -135,30 +135,30 @@ def test_serial_and_process_runs_are_identical():
             replicates=20,
             analyses=[peak],
             until=50,
-            outputs=['I.n'],
+            outputs=['I.x'],
             random_state=7,
             executor=executor,
         )
         for executor in ('serial', 'process')
     ]
-    np.testing.assert_array_equal(results[0].series('I.n'), results[1].series('I.n'))
+    np.testing.assert_array_equal(results[0].series('I.x'), results[1].series('I.x'))
     assert results[0].rows == results[1].rows
 
 
 def test_thread_runs_equal_serial_runs():
     """Test that runs on threads give the same results as serial runs."""
     results = [
-        ensemble(SIRSystem(stochastic=True), replicates=4, until=20, outputs=['I.n'], random_state=7, executor=executor)
+        ensemble(SIRSystem(stochastic=True), replicates=4, until=20, outputs=['I.x'], random_state=7, executor=executor)
         for executor in ('serial', 'thread')
     ]
-    np.testing.assert_array_equal(results[0].series('I.n'), results[1].series('I.n'))
+    np.testing.assert_array_equal(results[0].series('I.x'), results[1].series('I.x'))
 
 
 @pytest.mark.parametrize(
     'experiment',
     [
         lambda: sweep('sir', {'gamma': [0.1]}, until=1),
-        lambda: calibrate('logistic_growth', {'population.n': ([0.0], [1.0])}, {}),
+        lambda: calibrate('logistic_growth', {'population.x': ([0.0], [1.0])}, {}),
         lambda: orbit_diagram('logistic_map', 'r', [3.0], 'map.x', transient=1, keep=1),
     ],
 )
@@ -201,11 +201,11 @@ def test_runs_of_one_structure_compile_once_per_call(monkeypatch):
         return compile_problem(system, **settings)
 
     monkeypatch.setattr(experiments._runs, '_compile_problem', counted)
-    rows = [{'I.n': value} for value in (1.0, 5.0, 10.0)]
-    result = sweep(SIRSystem(), rows, replicates=2, until=5, outputs=['I.n'], random_state=0)
+    rows = [{'I.x': value} for value in (1.0, 5.0, 10.0)]
+    result = sweep(SIRSystem(), rows, replicates=2, until=5, outputs=['I.x'], random_state=0)
     assert len(calls) == 1
-    np.testing.assert_allclose(result.series('I.n')[::2, 0], [1.0, 5.0, 10.0])
-    sweep(SIRSystem(), rows, until=5, outputs=['I.n'])
+    np.testing.assert_allclose(result.series('I.x')[::2, 0], [1.0, 5.0, 10.0])
+    sweep(SIRSystem(), rows, until=5, outputs=['I.x'])
     assert len(calls) == 2
-    sweep(SIRSystem(), [{'beta': 0.2}, {'beta': 0.4}, {'beta': 0.2}], until=5, outputs=['I.n'])
+    sweep(SIRSystem(), [{'beta': 0.2}, {'beta': 0.4}, {'beta': 0.2}], until=5, outputs=['I.x'])
     assert len(calls) == 4

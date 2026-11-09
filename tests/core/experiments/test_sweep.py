@@ -35,14 +35,14 @@ class LogisticMapElement(Element):
 
 def last_value(trajectory):
     """Return the last infected count."""
-    return float(trajectory.values('I.n')[-1])
+    return float(trajectory.values('I.x')[-1])
 
 
 def test_sweep_of_one_parameter_gives_one_row_per_value():
     """Test that a sweep over one model parameter gives one tidy row per value with its output."""
-    result = sweep(LogisticGrowthSystem(), {'K': [50.0, 100.0]}, until=40, outputs=['population.n'])
+    result = sweep(LogisticGrowthSystem(), {'K': [50.0, 100.0]}, until=40, outputs=['population.x'])
     assert result.column('K').tolist() == [50.0, 100.0]
-    np.testing.assert_allclose(result.column('population.n'), [50.0, 100.0], rtol=1e-3)
+    np.testing.assert_allclose(result.column('population.x'), [50.0, 100.0], rtol=1e-3)
     assert list(result.to_frame().columns[:4]) == ['K', 'scenario', 'replicate', 'seed']
 
 

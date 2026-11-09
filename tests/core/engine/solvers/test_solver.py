@@ -67,7 +67,7 @@ class WalkerElement(Element):
 def _growth_problem():
     """Return the compiled problem of exponential growth."""
     system = System(
-        elements=[PopulationElement('a', n=1)],
+        elements=[PopulationElement('a', x=1)],
         interactions=[ExponentialGrowthInteraction('g', target='a', r=1.0)],
     )
     return PassCompiler().prepare(system).run().problem_

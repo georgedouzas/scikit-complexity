@@ -11,11 +11,11 @@ from collections.abc import Sequence
 import numpy as np
 import numpy.typing as npt
 
-from ....core.components.elements import LatticeElement
+from ....core.components.elements import GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import (
+    BallNeighborhood,
     LatticeSpace,
-    VonNeumannNeighborhood,
 )
 from ....core.components.systems import BaseSystem, System
 from ._binary_cell import BinaryCellElement
@@ -88,14 +88,16 @@ class FredkinReplicatorSystem(BaseSystem):
         space = LatticeSpace(tuple(self.shape))
         return System(
             self.label,
-            elements=[LatticeElement('cells', element=BinaryCellElement, space=space, values={'alive': values})],
+            elements=[
+                GroupElement('cells', element=BinaryCellElement, space=space, values={'alive': values}, on='sites'),
+            ],
             interactions=[
                 LocalRuleInteraction(
                     'rule',
                     target='cells',
                     state='alive',
                     rule=life((1, 3), (1, 3)),
-                    neighborhood=VonNeumannNeighborhood(),
+                    neighborhood=BallNeighborhood(metric='manhattan'),
                 ),
             ],
         )

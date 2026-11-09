@@ -27,13 +27,13 @@ OUTCOMES = ('conservative', 'destructive', 'proliferative')
 class EncounterInteraction(Interaction):
     """Encounters of a candidate density with a field density over activity classes.
 
-    The encounters move, remove, or create. The candidate and the field are groups of `DensityElement` on the sites of
-    lattices of activity classes, one member per class. A candidate at class `h` meets a field at class `k` at the rate
-    `eta[h, k]`. In the outcome `'conservative'` the candidate moves to class `i` with the probability `kernel[h, k,
-    i]`, in the outcome `'destructive'` it is removed, and in the outcome `'proliferative'` it creates a new candidate
-    at class `i` with the probability `kernel[h, k, i]`, or at its own class without a kernel. The rate and the kernel
-    are functions of the namespace, which holds `namespace.candidate`, `namespace.field`, and the parameters of the
-    interaction.
+    The encounters move, remove, or create. The candidate and the field are groups of `NonnegativeElement` on the
+    sites of lattices of activity classes, one member per class. A candidate at class `h` meets a field at class `k` at
+    the rate `eta[h, k]`. In the outcome `'conservative'` the candidate moves to class `i` with the probability
+    `kernel[h, k, i]`, in the outcome `'destructive'` it is removed, and in the outcome `'proliferative'` it creates a
+    new candidate at class `i` with the probability `kernel[h, k, i]`, or at its own class without a kernel. The rate
+    and the kernel are functions of the namespace, which holds `namespace.candidate`, `namespace.field`, and the
+    parameters of the interaction.
 
     On a `PhaseSpace` the classes are the points of the class axes, and encounters pair classes at the same position. A
     rate that is one expression may read the `coordinate` of the class of the candidate. Without a field the encounter
@@ -121,7 +121,7 @@ class EncounterInteraction(Interaction):
         rate: Callable[[SimpleNamespace], object] | None = None,
         kernel: Callable[[SimpleNamespace], object] | None = None,
         outcome: str = 'conservative',
-        state: str = 'f',
+        state: str = 'x',
         cross_section: Callable[..., object] | None = None,
         factor: Callable[[SimpleNamespace], object] | None = None,
     ) -> None:

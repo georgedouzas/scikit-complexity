@@ -12,7 +12,7 @@ of two elements, so a few ones spread into a growing, flickering pattern over th
 import matplotlib.pyplot as plt
 
 from skcomplex.core.analysis import automaton
-from skcomplex.core.components.elements import LatticeElement
+from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.interactions import LocalRuleInteraction
 from skcomplex.core.components.spaces import CayleySpace, MemoryNeighborhood
 from skcomplex.core.components.systems import System
@@ -37,7 +37,7 @@ trajectory = simulate(LamplighterAutomatonSystem(radius=7, density=0.1, random_s
 alive = trajectory.values('cells.alive')
 quotient = CayleySpace(lamplighter().PermGroupOnLevel(3)).prepare()
 parity = System(
-    elements=[LatticeElement('cells', element=BinaryCellElement, space=quotient)],
+    elements=[GroupElement('cells', element=BinaryCellElement, space=quotient, on='sites')],
     interactions=[
         LocalRuleInteraction(
             'parity',

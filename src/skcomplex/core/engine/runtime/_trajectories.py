@@ -58,13 +58,13 @@ class Trajectory:
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> from skcomplex.core.engine.runtime import simulate
         >>> system = System(
-        ...     elements=[PopulationElement('a', n=1)],
+        ...     elements=[PopulationElement('a', x=1)],
         ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
         ... )
         >>> trajectory = simulate(system, until=1, dt=0.5)
         >>> trajectory.times.tolist()
         [0.0, 0.5, 1.0]
-        >>> trajectory.values('a.n').round(3).tolist()
+        >>> trajectory.values('a.x').round(3).tolist()
         [1.0, 1.649, 2.718]
     """
 

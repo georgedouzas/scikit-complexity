@@ -215,10 +215,10 @@ def simulate(
         >>> from skcomplex.systems.biology.common.populations import LogisticGrowthInteraction, PopulationElement
         >>> from skcomplex.core.engine.runtime import simulate
         >>> system = System(
-        ...     elements=[PopulationElement('rabbits', n=10)],
+        ...     elements=[PopulationElement('rabbits', x=10)],
         ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
         ... )
-        >>> round(simulate(system, until=20).values('rabbits.n')[-1])
+        >>> round(simulate(system, until=20).values('rabbits.x')[-1])
         100
     """
     return _simulate(

@@ -11,9 +11,9 @@ from skcomplex.systems.biology.epidemiology import SIRSystem
 def test_scenarios_override_model_parameters():
     """Test that a scenario that lowers the infection rate lowers the peak of the infected, from the same seeds."""
     scenarios = [ScenarioSpec(), ScenarioSpec('distancing', overrides={'beta': 0.0001})]
-    result = compare_scenarios(SIRSystem(), scenarios, replicates=2, until=100, outputs=['I.n'], random_state=0)
+    result = compare_scenarios(SIRSystem(), scenarios, replicates=2, until=100, outputs=['I.x'], random_state=0)
     assert [row['scenario'] for row in result.rows] == ['baseline', 'baseline', 'distancing', 'distancing']
-    baseline, _, distancing, _ = result.series('I.n')
+    baseline, _, distancing, _ = result.series('I.x')
     assert distancing.max() < baseline.max()
     assert result.runs[0].seed == result.runs[2].seed
 

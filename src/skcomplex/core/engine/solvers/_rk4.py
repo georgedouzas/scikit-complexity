@@ -58,7 +58,7 @@ class RK4Solver(Solver):
         >>> from skcomplex.core.engine.solvers import RK4Solver
         >>> from skcomplex.core.specs import StepSpec
         >>> system = System(
-        ...     elements=[PopulationElement('a', n=1)],
+        ...     elements=[PopulationElement('a', x=1)],
         ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
         ... )
         >>> problem = simulate(system, until=0).problem

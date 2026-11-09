@@ -28,7 +28,7 @@ trajectory = simulate(VonBertalanffySystem(n=1.0, r=r, p=p, d=d), dt=0.2, observ
 # The system `dn/dt = r n^p - d n` has the solution `(r / d + (n0^(1-p) - r / d) exp(-d (1-p) t))^(1/(1-p))`, which
 # tends to the equilibrium `(r / d)^(1/(1-p))`. The simulated volume should lie on it.
 
-times, volume = trajectory.times, trajectory.values('tumour.n')
+times, volume = trajectory.times, trajectory.values('tumour.x')
 exact = (r / d + (1.0 - r / d) * np.exp(-d * (1 - p) * times)) ** (1 / (1 - p))
 fig, (curve, error) = plt.subplots(1, 2, figsize=(10, 4))
 curve.plot(times, volume, label='simulated')

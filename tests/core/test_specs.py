@@ -18,7 +18,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import distributed_delay, mean, total
-from skcomplex.core.components.spaces import ContinuousTime, VonNeumannNeighborhood
+from skcomplex.core.components.spaces import BallNeighborhood, ContinuousTime
 from skcomplex.core.components.specs import ScenarioSpec
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine._utils import symbol
@@ -467,7 +467,7 @@ def test_schedule_spec_has_nothing_to_check():
 def test_monte_carlo_specs_check_their_kinds():
     """Test that an energy has nothing to check, and that moves, samplers, and schedules must be known."""
     spin = var('spin')
-    assert ObjectiveSpec(-spin, VonNeumannNeighborhood()).expression == -spin
+    assert ObjectiveSpec(-spin, BallNeighborhood(metric='manhattan')).expression == -spin
     assert MoveSpec(spin, 'rotate', width=0.5).width == 0.5
     assert MoveSpec(spin, 'gaussian', width=0.5).kind == 'gaussian'
     assert MoveSpec(spin, 'function', function=lambda values, random: values).kind == 'function'

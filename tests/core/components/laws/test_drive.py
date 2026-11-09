@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import var
 
-from skcomplex.core.components.elements import Element, GroupElement, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import DriveLaw
 from skcomplex.core.components.spaces import CellComplexSpace, DiscreteTime, LatticeSpace
@@ -58,11 +58,12 @@ class ReplayInteraction(Interaction):
 def test_drive_replays_an_ensemble_by_the_time_of_the_step():
     """Test that positions at frame 10 are member 10, and positions at frame 40 are member 37 of 38 members."""
     ensemble = np.random.default_rng(0).normal(size=(38, 20, 3))
-    chain = LatticeElement(
+    chain = GroupElement(
         'chain',
         element=ChainCoordinateElement,
         space=LatticeSpace((20, 3), boundary='fixed'),
         values={'x': ensemble[0]},
+        on='sites',
     )
     replay = ReplayInteraction('replay', target='chain', ensemble=ensemble)
     system = System(elements=[chain], interactions=[replay], time=DiscreteTime())
@@ -79,7 +80,12 @@ def test_drive_passes_time_only_to_a_function_that_names_it():
         seen.update(keywords)
         return values
 
-    chain = LatticeElement('chain', element=ChainCoordinateElement, space=LatticeSpace((2, 3), boundary='fixed'))
+    chain = GroupElement(
+        'chain',
+        element=ChainCoordinateElement,
+        space=LatticeSpace((2, 3), boundary='fixed'),
+        on='sites',
+    )
     interaction = _DriveInteraction('drive', target='chain', function=drive)
     system = System(elements=[chain], interactions=[interaction], time=DiscreteTime())
     simulate(system, until=1, random_state=0)

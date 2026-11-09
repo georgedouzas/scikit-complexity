@@ -65,16 +65,16 @@ class MichaelisMentenInteraction(ReactionInteraction):
             cannot take its species or mode.
 
     Examples:
-        >>> from skcomplex.core.components.elements import CompartmentElement
+        >>> from skcomplex.systems.biology.common.kinetics import CompartmentElement
         >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.biology.common.kinetics import MichaelisMentenInteraction
         >>> from skcomplex.core.engine.runtime import simulate
         >>> uptake = MichaelisMentenInteraction(
-        ...     'uptake', target='cell', reactants={'n': 1}, substrate='n', vmax=1.0, km=100.0
+        ...     'uptake', target='cell', reactants={'x': 1}, substrate='x', vmax=1.0, km=100.0
         ... )
-        >>> system = System(elements=[CompartmentElement('cell', n=500.0)], interactions=[uptake])
+        >>> system = System(elements=[CompartmentElement('cell', x=500.0)], interactions=[uptake])
         >>> trajectory = simulate(system, until=10.0, dt=1.0)
-        >>> round(float(trajectory.values('cell.n')[-1]), 3)
+        >>> round(float(trajectory.values('cell.x')[-1]), 3)
         491.679
     """
 
@@ -85,7 +85,7 @@ class MichaelisMentenInteraction(ReactionInteraction):
         target: Annotated[str | None, RoleSpec()] = None,
         reactants: Annotated[Stoichiometry | None, RoleSpec(variadic=True)] = None,
         products: Annotated[Stoichiometry | None, RoleSpec(variadic=True)] = None,
-        substrate: str | Callable[[SimpleNamespace], object] = 'n',
+        substrate: str | Callable[[SimpleNamespace], object] = 'x',
         vmax: Callable[[SimpleNamespace], object] | float = 1.0,
         km: Callable[[SimpleNamespace], object] | float = 1.0,
         modifiers: Annotated[Stoichiometry | None, RoleSpec(variadic=True)] = None,

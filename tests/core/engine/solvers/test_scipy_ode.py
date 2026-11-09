@@ -36,7 +36,7 @@ from skcomplex.systems.physics.mechanics import HarmonicOscillatorSystem
 def _growth_problem():
     """Return the compiled problem of exponential growth."""
     system = System(
-        elements=[PopulationElement('a', n=1)],
+        elements=[PopulationElement('a', x=1)],
         interactions=[ExponentialGrowthInteraction('g', target='a', r=1.0)],
     )
     return PassCompiler().prepare(system).run().problem_
@@ -66,12 +66,12 @@ class ExplosionInteraction(Interaction):
 
     def _get_laws(self, s):
         """Return the rate `n**2`."""
-        return [RateLaw(s.target.n, s.target.n**2)]
+        return [RateLaw(s.target.x, s.target.x**2)]
 
 
 def test_scipy_ode_failure_raises_error():
     """Test that an integrator failure raises a named error."""
-    system = System(elements=[PopulationElement('a', n=1)], interactions=[ExplosionInteraction('boom', target='a')])
+    system = System(elements=[PopulationElement('a', x=1)], interactions=[ExplosionInteraction('boom', target='a')])
     problem = PassCompiler().prepare(system).run().problem_
     stepper = ScipyODESolver()
     stepper.set_params(random_state=np.random.default_rng(0)).prepare(problem)
@@ -217,7 +217,7 @@ def test_default_solver_starts_from_rest_with_a_vanishing_drift():
 def _decay():
     """Return the system of exponential decay."""
     return System(
-        elements=[PopulationElement('a', n=1)],
+        elements=[PopulationElement('a', x=1)],
         interactions=[ExponentialGrowthInteraction('g', target='a', r=-1.0)],
     )
 
@@ -240,13 +240,13 @@ def test_scipy_ode_keeps_integrator_across_frames():
     calls.clear()
     solve_ivp(lambda t, x: counted(t, x, p), (0.0, 10.0), problem.initial_state, rtol=1e-6, atol=1e-9)
     assert frames <= 2 * len(calls)
-    assert float(problem.states.read(state, 'a.n')) == pytest.approx(np.exp(-10.0), rel=1e-4)
+    assert float(problem.states.read(state, 'a.x')) == pytest.approx(np.exp(-10.0), rel=1e-4)
 
 
 def test_scipy_ode_restarts_on_parameter_change():
     """Test that a decay rate set to zero at time 5 keeps the state constant from then on."""
     values = simulate(_decay(), until=10, dt=0.01, schedule={'g.r': lambda t: -1.0 if t < 5 - 1e-9 else 0.0}).values(
-        'a.n',
+        'a.x',
     )
     assert values[500] == pytest.approx(np.exp(-5.0), rel=1e-5)
     assert np.all(values[500:] == values[500])

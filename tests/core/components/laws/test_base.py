@@ -8,7 +8,7 @@ from sage.all__sagemath_symbolics import var, vector
 
 from skcomplex.core.components import laws
 from skcomplex.core.components.laws import BaseLaw, CrossingLaw, EquationLaw, JumpLaw, LocalRuleLaw, NoiseLaw, RateLaw
-from skcomplex.core.components.spaces import BoxNeighborhood
+from skcomplex.core.components.spaces import BallNeighborhood
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import CallSpec, RequirementSpec, TotalisticSpec
 
@@ -47,7 +47,9 @@ def test_targets_are_a_tuple_once_prepared():
     """Test that preparing a law sets its targets as a tuple, and that laws without targets have none."""
     x, y = var('x y')
     assert RateLaw(x, 1).prepare().targets_ == (x,)
-    assert LocalRuleLaw(y, BoxNeighborhood(), TotalisticSpec({2: 1})).prepare().targets_ == (y,)
+    assert LocalRuleLaw(y, BallNeighborhood(n_dim=1, center='inline'), TotalisticSpec({2: 1})).prepare().targets_ == (
+        y,
+    )
     assert CrossingLaw(x - 1).prepare().targets_ == ()
 
 

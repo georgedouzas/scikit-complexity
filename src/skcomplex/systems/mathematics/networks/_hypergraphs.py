@@ -15,7 +15,7 @@ import xgi
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import HyperedgeInteraction, MapInteraction, TopologyInteraction
 from ....core.components.laws import BaseLaw, RateLaw, UpdateLaw
 from ....core.components.laws.utils import neighbors, total
@@ -239,12 +239,13 @@ class HypergraphRandomWalkSystem(BaseSystem):
             weights[list(hyperedge)] += (len(hyperedge) - 1) ** 2
         probabilities = np.zeros(prepared.size_)
         probabilities[self.source] = 1.0
-        nodes = LatticeElement(
+        nodes = GroupElement(
             'nodes',
             element=WalkerDensityElement,
             space=space,
             values={'p': probabilities, 'D': np.maximum(weights, 1.0)},
             visual=VisualSpec('sites', {'states': ['p'], 'low': 0.0, 'high': 1.0}),
+            on='sites',
         )
         return System(self.label, elements=[nodes], interactions=[SizeBiasedMoveInteraction('moves', target='nodes')])
 

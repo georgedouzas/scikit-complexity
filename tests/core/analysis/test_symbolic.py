@@ -7,7 +7,7 @@ import pytest
 from sage.all__sagemath_symbolics import SR, cos, diff, function, sin, sqrt
 
 from skcomplex.core.analysis import symbolic
-from skcomplex.core.components.elements import CompartmentElement, Element
+from skcomplex.core.components.elements import Element, NonnegativeElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import derivative, lag
@@ -32,19 +32,19 @@ from skcomplex.systems.physics.common.particles import (
 )
 from skcomplex.systems.physics.statistical_mechanics import QuantumHeisenbergSystem
 
-from ...conftest import CallableGrowthInteraction
+from ...conftest import CallableGrowthInteraction, HoldingElement
 
 
 def test_equations_of_logistic_growth():
     """Test that logistic growth gives `dn/dt = r * n * (1 - n / K)`."""
     system = System(
-        elements=[PopulationElement('p', n=10)],
+        elements=[PopulationElement('p', x=10)],
         interactions=[LogisticGrowthInteraction('g', target='p')],
     )
     problem = PassCompiler().prepare(system).run().problem_
-    n = function('n_p')(problem.time)
+    n = function('x_p')(problem.time)
     r, K = problem.symbols['g.r'], problem.symbols['g.K']
-    equation = symbolic(system).equations['p.n']
+    equation = symbolic(system).equations['p.x']
     assert equation.is_relational()
     assert bool(equation.lhs() == n.diff(problem.time))
     assert (equation.rhs() - r * n * (1 - n / K)).simplify_full() == 0
@@ -67,7 +67,7 @@ def test_equations_of_group_with_numeric_derivatives_raises_error():
 def test_equations_of_jump_process_raises_error():
     """Test that jump processes have no symbolic equations."""
     system = System(
-        elements=[CompartmentElement('I', n=1), CompartmentElement('R')],
+        elements=[NonnegativeElement('I', x=1), NonnegativeElement('R')],
         interactions=[RecoveryInteraction('r', infected='I', recovered='R', stochastic=True)],
     )
     with pytest.raises(AnalysisError, match='jump process'):
@@ -132,7 +132,7 @@ def test_solve_symbolically_not_ode_raises_error():
 def test_solve_symbolically_callable_raises_error():
     """Test that callable laws cannot be solved."""
     system = System(
-        elements=[PopulationElement('rabbits')],
+        elements=[HoldingElement('rabbits', n=1.0)],
         interactions=[CallableGrowthInteraction('g', target='rabbits')],
     )
     with pytest.raises(AnalysisError, match='callable'):

@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, tanh
 
-from ....core.components.elements import DensityElement, FieldElement
+from ....core.components.elements import FieldElement
 from ....core.components.interactions import AdvectionInteraction, RateInteraction
 from ....core.components.laws.utils import coordinate, integral_transform, integration_variable
 from ....core.components.spaces import LatticeSpace, PhaseSpace, SimplexSpace
@@ -18,6 +18,7 @@ from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import RK4Solver
 from ....core.errors import ValidationError
 from ....core.specs import AxisSpec, VisualSpec
+from ..common.kinetics import ActivityDensityElement
 
 PAIRWISE_VICTORIES = ('fermi', 'local', 'tullock')
 TRIMORPHIC_VICTORIES = ('defectors', 'payoff')
@@ -86,7 +87,7 @@ class NonlinearPairwiseGroupConflictSystem(BaseSystem):
     group (Cooney 2024, arXiv 2405.18419 §3.1 and §6). The density starts uniform, and the integral against the
     two-point kernel `rho(z, u) - rho(u, z)` keeps its total at one.
 
-    The system has the density `groups.f`.
+    The system has the density `groups.x`.
 
     Args:
         cells:
@@ -218,23 +219,23 @@ class NonlinearPairwiseGroupConflictSystem(BaseSystem):
         space = PhaseSpace(LatticeSpace((1,)), [AxisSpec('z', self.cells, 0.0, 1.0)])
         groups = FieldElement(
             'groups',
-            element=DensityElement,
+            element=ActivityDensityElement,
             space=space,
-            values={'f': np.ones((1, self.cells))},
+            values={'x': np.ones((1, self.cells))},
             discretization='finite-volume',
         )
         within = AdvectionInteraction(
             'within',
             target='groups',
-            state='f',
+            state='x',
             drift=lambda _: [0, z * (1 - z) * advantage],
             limiter=None,
         )
         between = RateInteraction(
             'between',
             target='groups',
-            state='f',
-            rate=lambda s: self.group_strength * s.target.f * integral_transform(s.target.f, gain, ('z',)),
+            state='x',
+            rate=lambda s: self.group_strength * s.target.x * integral_transform(s.target.x, gain, ('z',)),
         )
         return System(self.label, elements=[groups], interactions=[within, between])
 
@@ -252,7 +253,7 @@ class TwoLevelReplicatorSystem(BaseSystem):
     all-defector state below the threshold `lambda* = c + q - p`, and above it the mean fraction of punishers tends to
     `1 - (c + q - p) / lambda` (Eq. 5.4).
 
-    The system has the density `groups.f`.
+    The system has the density `groups.x`.
 
     Args:
         cells:
@@ -346,23 +347,23 @@ class TwoLevelReplicatorSystem(BaseSystem):
         space = PhaseSpace(LatticeSpace((1,)), [AxisSpec('z', self.cells, 0.0, 1.0)])
         groups = FieldElement(
             'groups',
-            element=DensityElement,
+            element=ActivityDensityElement,
             space=space,
-            values={'f': np.ones((1, self.cells))},
+            values={'x': np.ones((1, self.cells))},
             discretization='finite-volume',
         )
         within = AdvectionInteraction(
             'within',
             target='groups',
-            state='f',
+            state='x',
             drift=lambda _: [0, z * (1 - z) * advantage],
             limiter=None,
         )
         between = RateInteraction(
             'between',
             target='groups',
-            state='f',
-            rate=lambda s: self.group_strength * s.target.f * integral_transform(s.target.f, gain, ('z',)),
+            state='x',
+            rate=lambda s: self.group_strength * s.target.x * integral_transform(s.target.x, gain, ('z',)),
         )
         return System(self.label, elements=[groups], interactions=[within, between])
 
@@ -378,7 +379,7 @@ class TrimorphicMultilevelSelectionSystem(BaseSystem):
     arXiv 2405.18419 §3.2 and §7). The density starts uniform at two, so its integral is one, the cells along the
     slanted face are half cells, and no flux leaves the simplex.
 
-    The system has the density `groups.f`.
+    The system has the density `groups.x`.
 
     Args:
         cells:
@@ -482,18 +483,18 @@ class TrimorphicMultilevelSelectionSystem(BaseSystem):
         space = SimplexSpace(LatticeSpace((1,)), axes)
         groups = FieldElement(
             'groups',
-            element=DensityElement,
+            element=ActivityDensityElement,
             space=space,
-            values={'f': 2.0 * (space.prepare().volumes_ > 0)},
+            values={'x': 2.0 * (space.prepare().volumes_ > 0)},
             discretization='finite-volume',
             visual=SIMPLEX_VISUAL,
         )
         drift = self._get_simplex_drift(payoffs)
-        within = AdvectionInteraction('within', target='groups', state='f', drift=lambda _: drift, limiter=None)
+        within = AdvectionInteraction('within', target='groups', state='x', drift=lambda _: drift, limiter=None)
         between = RateInteraction(
             'between',
             target='groups',
-            state='f',
-            rate=lambda s: self.group_strength * s.target.f * integral_transform(s.target.f, gain, ('x', 'y')),
+            state='x',
+            rate=lambda s: self.group_strength * s.target.x * integral_transform(s.target.x, gain, ('x', 'y')),
         )
         return System(self.label, elements=[groups], interactions=[within, between])

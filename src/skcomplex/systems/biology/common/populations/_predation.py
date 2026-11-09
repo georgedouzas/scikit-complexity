@@ -69,5 +69,5 @@ class PredationInteraction(Interaction):
             laws:
                 The laws of the component.
         """
-        encounters = s.predator.n * s.prey.n
-        return [RateLaw(s.prey.n, -s.a * encounters), RateLaw(s.predator.n, s.b * encounters)]
+        encounters = s.predator.x * s.prey.x
+        return [RateLaw(s.prey.x, -s.a * encounters), RateLaw(s.predator.x, s.b * encounters)]

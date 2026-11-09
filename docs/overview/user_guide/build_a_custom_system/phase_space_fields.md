@@ -19,7 +19,7 @@ Build a phase space from a position lattice and a velocity axis, and let a gas s
 ```python
 import numpy as np
 
-from skcomplex.core.components.elements import DensityElement, FieldElement
+from skcomplex.core.components.elements import FieldElement, NonnegativeElement
 from skcomplex.core.components.interactions import AdvectionInteraction
 from skcomplex.core.components.laws.utils import coordinate
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
@@ -31,10 +31,10 @@ from skcomplex.core.specs import AxisSpec
 space = PhaseSpace(LatticeSpace((32,), spacing=2 * np.pi / 32), [AxisSpec('v', 64, -6.0, 6.0)]).prepare()
 x, v = np.arange(32) * 2 * np.pi / 32, space.coordinates_['v']
 start = np.outer(1.0 + 0.5 * np.sin(x), np.exp(-(v**2) / 2) / np.sqrt(2 * np.pi))
-gas = FieldElement('gas', element=DensityElement, space=space, values={'f': start}, discretization='finite-volume')
-stream = AdvectionInteraction('stream', target='gas', state='f', drift=lambda s: [coordinate('v'), 0])
+gas = FieldElement('gas', element=NonnegativeElement, space=space, values={'x': start}, discretization='finite-volume')
+stream = AdvectionInteraction('stream', target='gas', state='x', drift=lambda s: [coordinate('v'), 0])
 system = System(elements=[gas], interactions=[stream])
-final = simulate(system, until=0.5, dt=0.1, solver=RK4Solver(dt=0.01)).values('gas.f')[-1]
+final = simulate(system, until=0.5, dt=0.1, solver=RK4Solver(dt=0.01)).values('gas.x')[-1]
 abs(final.sum() / start.sum() - 1.0) < 1e-12
 ```
 
@@ -63,7 +63,7 @@ from skcomplex.core.components.laws.utils import coordinate, gradient, inverse_l
 
 
 def poisson_drift(s):
-    return [coordinate('v'), -gradient(inverse_laplacian(1 - moment(s.target.f, 0, axes=('v',))), 1)[0]]
+    return [coordinate('v'), -gradient(inverse_laplacian(1 - moment(s.target.x, 0, axes=('v',))), 1)[0]]
 
 
 poisson_drift.__name__
@@ -91,7 +91,7 @@ the density changes at the rate `f(z)` times the integral of `rho(z, u) - rho(u,
 import numpy as np
 from sage.all__sagemath_symbolics import tanh
 
-from skcomplex.core.components.elements import DensityElement, FieldElement
+from skcomplex.core.components.elements import FieldElement, NonnegativeElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.laws.utils import coordinate, integral_transform, integration_variable
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
@@ -104,12 +104,12 @@ z, u = coordinate('z'), integration_variable('z')
 rho = (1 + tanh(2 * (z - u))) / 2
 gain = rho - rho.subs({z: u, u: z}, hold=False)
 space = PhaseSpace(LatticeSpace((1,)), [AxisSpec('z', 50, 0.0, 1.0)])
-groups = FieldElement('groups', element=DensityElement, space=space, values={'f': np.ones((1, 50))})
+groups = FieldElement('groups', element=NonnegativeElement, space=space, values={'x': np.ones((1, 50))})
 conflict = RateInteraction(
-    'conflict', target='groups', state='f', rate=lambda s: s.target.f * integral_transform(s.target.f, gain, ('z',))
+    'conflict', target='groups', state='x', rate=lambda s: s.target.x * integral_transform(s.target.x, gain, ('z',))
 )
 trajectory = simulate(System(elements=[groups], interactions=[conflict]), until=5.0, dt=1.0, solver=RK4Solver(dt=0.05))
-final = trajectory.values('groups.f')[-1]
+final = trajectory.values('groups.x')[-1]
 round(float(final.sum() / 50), 10), bool(final[-1] > final[0])
 ```
 
@@ -137,7 +137,7 @@ on the 2-simplex has the integral one:
 ```python
 import numpy as np
 
-from skcomplex.core.components.elements import DensityElement, FieldElement
+from skcomplex.core.components.elements import FieldElement, NonnegativeElement
 from skcomplex.core.components.laws.utils import moment
 from skcomplex.core.components.spaces import LatticeSpace, SimplexSpace
 from skcomplex.core.components.systems import System
@@ -146,12 +146,12 @@ from skcomplex.core.specs import AxisSpec, ObservableSpec
 
 
 def total(s):
-    return moment(s.f, 0, axes=('x', 'y'))
+    return moment(s.x, 0, axes=('x', 'y'))
 
 
 axes = [AxisSpec('x', 20, 0.0, 1.0), AxisSpec('y', 20, 0.0, 1.0)]
 simplex = SimplexSpace(LatticeSpace((1,)), axes).prepare()
-groups = FieldElement('groups', element=DensityElement, space=simplex, values={'f': 2.0 * (simplex.volumes_ > 0)})
+groups = FieldElement('groups', element=NonnegativeElement, space=simplex, values={'x': 2.0 * (simplex.volumes_ > 0)})
 observables = [ObservableSpec('total', total, group='groups')]
 trajectory = simulate(System(elements=[groups]), until=0.1, dt=0.1, observables=observables)
 round(float(np.asarray(trajectory.values('total'))[-1]), 10)
@@ -175,7 +175,7 @@ Move particles between classes at one position, and relax them towards a local e
 from skcomplex.core.components.interactions import RelaxationInteraction
 from skcomplex.core.components.laws.utils import maximum_entropy
 
-relax = RelaxationInteraction('r', target='gas', state='f', goal=lambda s: maximum_entropy(s.target.f, axes=('v',)))
+relax = RelaxationInteraction('r', target='gas', state='x', goal=lambda s: maximum_entropy(s.target.x, axes=('v',)))
 relax.state
 ```
 
@@ -190,7 +190,7 @@ round-off.
 ## Collisions
 
 Add binary collisions between particles of different velocities, as in the Boltzmann equation.
-`EncounterInteraction(label, candidate=..., state='f', cross_section=..., factor=None)` is the binary collision
+`EncounterInteraction(label, candidate=..., state='x', cross_section=..., factor=None)` is the binary collision
 integral over two interval class axes.
 
 - The cross-section is a function of arrays of the relative speed and of the cosine of the deflection angle.

@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import CompartmentElement
+from skcomplex.core.components.elements import NonnegativeElement
 from skcomplex.core.components.interactions import ReactionInteraction
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
@@ -23,12 +23,12 @@ def test_michaelis_menten_conserves_enzyme_and_substrate():
     """Test that the enzyme reaction conserves the total enzyme and substrate as rate equations and as jumps."""
     for stochastic in (False, True):
         trajectory = _run(MichaelisMentenSystem(stochastic=stochastic), until=20.0, dt=1.0)
-        enzyme = trajectory.values('E.n') + trajectory.values('C.n')
-        substrate = trajectory.values('S.n') + trajectory.values('C.n') + trajectory.values('P.n')
+        enzyme = trajectory.values('E.x') + trajectory.values('C.x')
+        substrate = trajectory.values('S.x') + trajectory.values('C.x') + trajectory.values('P.x')
         assert np.allclose(enzyme, 100.0)
         assert np.allclose(substrate, 300.0)
-        assert trajectory.values('P.n')[-1] > 100.0
-    assert np.array_equal(trajectory.values('P.n'), np.round(trajectory.values('P.n')))
+        assert trajectory.values('P.x')[-1] > 100.0
+    assert np.array_equal(trajectory.values('P.x'), np.round(trajectory.values('P.x')))
 
 
 def test_chemical_langevin_equation_keeps_both_states():
@@ -51,8 +51,8 @@ def test_chemical_langevin_equation_switches_by_noise():
 
 def test_langevin_binding_conserves_difference():
     """Test that `A + B -> C` as a chemical Langevin equation keeps `A - B` while `A` fluctuates."""
-    species = [CompartmentElement('A', n=200.0), CompartmentElement('B', n=150.0), CompartmentElement('C')]
-    reactants, products = {('A', 'n'): 1, ('B', 'n'): 1}, {('C', 'n'): 1}
+    species = [NonnegativeElement('A', x=200.0), NonnegativeElement('B', x=150.0), NonnegativeElement('C')]
+    reactants, products = {('A', 'x'): 1, ('B', 'x'): 1}, {('C', 'x'): 1}
     system = System(
         elements=species,
         interactions=[
@@ -60,7 +60,7 @@ def test_langevin_binding_conserves_difference():
         ],
     )
     trajectory = _run(system, 5.0, 0.05, solver=EulerMaruyamaSolver(dt=1e-3))
-    difference = trajectory.values('A.n') - trajectory.values('B.n')
+    difference = trajectory.values('A.x') - trajectory.values('B.x')
     np.testing.assert_allclose(difference, 50.0, rtol=1e-9)
     deterministic = _run(
         System(
@@ -70,18 +70,18 @@ def test_langevin_binding_conserves_difference():
         5.0,
         0.05,
     )
-    assert np.max(np.abs(trajectory.values('A.n') - deterministic.values('A.n'))) > 0.5
+    assert np.max(np.abs(trajectory.values('A.x') - deterministic.values('A.x'))) > 0.5
 
 
 def test_reaction_of_unknown_mode_is_rejected():
     """Test that a reaction of an unknown mode raises an error that names it."""
     system = System(
-        elements=[CompartmentElement('A', n=10.0), CompartmentElement('B', n=10.0), CompartmentElement('C')],
+        elements=[NonnegativeElement('A', x=10.0), NonnegativeElement('B', x=10.0), NonnegativeElement('C')],
         interactions=[
             ReactionInteraction(
                 'binding',
-                reactants={('A', 'n'): 1, ('B', 'n'): 1},
-                products={('C', 'n'): 1},
+                reactants={('A', 'x'): 1, ('B', 'x'): 1},
+                products={('C', 'x'): 1},
                 mode='stochastic',
             ),
         ],
@@ -93,8 +93,8 @@ def test_reaction_of_unknown_mode_is_rejected():
 def test_chemical_langevin_network_conserves_totals():
     """Test that the enzyme network under noise keeps `E + C` and `S + C + P` at every frame."""
     trajectory = simulate(ChemicalLangevinNetworkSystem(), random_state=0)
-    enzyme = trajectory.values('E.n') + trajectory.values('C.n')
-    substrate = trajectory.values('S.n') + trajectory.values('C.n') + trajectory.values('P.n')
+    enzyme = trajectory.values('E.x') + trajectory.values('C.x')
+    substrate = trajectory.values('S.x') + trajectory.values('C.x') + trajectory.values('P.x')
     np.testing.assert_allclose(enzyme, 100.0, rtol=1e-9)
     np.testing.assert_allclose(substrate, 300.0, rtol=1e-9)
-    assert np.std(np.diff(trajectory.values('C.n'))) > 0
+    assert np.std(np.diff(trajectory.values('C.x'))) > 0

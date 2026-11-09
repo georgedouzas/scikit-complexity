@@ -7,7 +7,7 @@ from typing import Annotated
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import DensityElement, Element, FieldElement
+from skcomplex.core.components.elements import Element, FieldElement, NonnegativeElement
 from skcomplex.core.components.interactions import AdvectionInteraction
 from skcomplex.core.components.laws import FluxLaw
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace, SimplexSpace
@@ -138,8 +138,8 @@ def test_max_speed_rejects_states_outside_the_hyperbolic_region():
 def test_max_speed_divides_by_the_smallest_cell_volume(space_type):
     """Test that the wave speed of a field on a simplex is doubled by its half cells, and kept on a phase space."""
     space = space_type(LatticeSpace((1,)), [AxisSpec('x', 8, 0.0, 1.0), AxisSpec('y', 8, 0.0, 1.0)])
-    groups = FieldElement('groups', element=DensityElement, space=space, discretization='finite-volume')
-    flow = AdvectionInteraction('flow', target='groups', state='f', drift=lambda _: [0, 0.5, -0.25])
+    groups = FieldElement('groups', element=NonnegativeElement, space=space, discretization='finite-volume')
+    flow = AdvectionInteraction('flow', target='groups', state='x', drift=lambda _: [0, 0.5, -0.25])
     problem, volume = _volume(System(elements=[groups], interactions=[flow]))
     speed = volume.max_speed(problem.initial_state, problem.initial_parameters)
     assert speed == pytest.approx(1.0 if space_type is SimplexSpace else 0.5)

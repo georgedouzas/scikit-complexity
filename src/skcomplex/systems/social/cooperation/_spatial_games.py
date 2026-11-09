@@ -15,7 +15,7 @@ from sage.all__sagemath_symbolics import NN, Expression, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import GroupingInteraction, ImitationInteraction, LocalRuleInteraction
 from ....core.components.laws.utils import count, total
 from ....core.components.spaces import BaseSpace, DiscreteTime, LatticeNeighborhood, LatticeSpace
@@ -530,7 +530,7 @@ class SpatialPrisonersDilemmaSystem(BaseSystem):
 
     def _build_system(self) -> System:
         """Return the parts of the system built from its model parameters."""
-        players = LatticeElement(
+        players = GroupElement(
             'players',
             element=PrisonerElement,
             space=LatticeSpace(tuple(self.shape)),
@@ -539,6 +539,7 @@ class SpatialPrisonersDilemmaSystem(BaseSystem):
                 'temptation': self.temptation,
                 'noise': self.noise,
             },
+            on='sites',
         )
         return System(
             self.label,
@@ -606,11 +607,12 @@ class PublicGoodsGameSystem(BaseSystem):
     def _build_system(self) -> System:
         """Return the parts of the system built from its model parameters."""
         strategies = _random_strategies(self.shape, self.share, self.random_state)
-        players = LatticeElement(
+        players = GroupElement(
             'players',
             element=ContributorElement,
             space=LatticeSpace(tuple(self.shape), metric='manhattan'),
             values={'strategy': strategies, 'synergy': self.synergy, 'noise': self.noise},
+            on='sites',
         )
         imitation = ImitationInteraction(
             'imitation',
@@ -721,7 +723,7 @@ class IteratedLatticeDilemmaSystem(BaseSystem):
             strategies = self.rounds * rng.integers(2, size=tuple(self.shape)).astype(float)
         else:
             strategies = rng.integers(self.rounds + 1, size=tuple(self.shape)).astype(float)
-        players = LatticeElement(
+        players = GroupElement(
             'players',
             element=IteratedPrisonerElement,
             space=LatticeSpace(tuple(self.shape), metric='manhattan'),
@@ -735,6 +737,7 @@ class IteratedLatticeDilemmaSystem(BaseSystem):
                 'mutation': self.mutation,
                 'extremes': float(self.extremes),
             },
+            on='sites',
         )
         return System(
             self.label,

@@ -5,7 +5,7 @@ import time
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import CompartmentElement
+from skcomplex.core.components.elements import NonnegativeElement
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.backends import NumbaBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
@@ -18,7 +18,7 @@ from skcomplex.systems.biology.epidemiology import InfectionInteraction, Recover
 def test_gillespie_conserves_individuals():
     """Test that recoveries move individuals without creating or destroying them."""
     system = System(
-        elements=[CompartmentElement('I', n=50), CompartmentElement('R')],
+        elements=[NonnegativeElement('I', x=50), NonnegativeElement('R')],
         interactions=[RecoveryInteraction('rec', infected='I', recovered='R', gamma=0.5, stochastic=True)],
     )
     problem = PassCompiler().prepare(system).run().problem_
@@ -33,7 +33,7 @@ def test_gillespie_conserves_individuals():
 def _epidemic():
     """Return a stochastic epidemic of 1000 individuals."""
     return System(
-        elements=[CompartmentElement('S', n=990), CompartmentElement('I', n=10), CompartmentElement('R')],
+        elements=[NonnegativeElement('S', x=990), NonnegativeElement('I', x=10), NonnegativeElement('R')],
         interactions=[
             InfectionInteraction('infection', susceptible='S', infected='I', beta=0.0003, stochastic=True),
             RecoveryInteraction('recovery', infected='I', recovered='R', gamma=0.1, stochastic=True),
@@ -76,9 +76,9 @@ def test_gillespie_records_firings_that_rebuild_the_states():
     for frame, now in enumerate(trajectory.times):
         fired = draws.firing_laws[draws.firing_times <= now]
         infections, recoveries = np.sum(fired == infection), np.sum(fired != infection)
-        assert trajectory.values('S.n')[frame] == 990 - infections
-        assert trajectory.values('I.n')[frame] == 10 + infections - recoveries
-        assert trajectory.values('R.n')[frame] == recoveries
+        assert trajectory.values('S.x')[frame] == 990 - infections
+        assert trajectory.values('I.x')[frame] == 10 + infections - recoveries
+        assert trajectory.values('R.x')[frame] == recoveries
 
 
 def test_gillespie_replay_gives_the_path_log_likelihood_at_other_rates():

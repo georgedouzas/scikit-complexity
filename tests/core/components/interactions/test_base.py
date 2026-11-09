@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components import interactions
-from skcomplex.core.components.elements import GroupElement, LatticeElement
+from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.interactions import (
     BaseInteraction,
     CascadeInteraction,
@@ -43,11 +43,11 @@ from skcomplex.core.components.interactions import (
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import (
+    BallNeighborhood,
     ContinuousSpace,
     ContinuousTime,
     DiscreteTime,
     LatticeSpace,
-    VonNeumannNeighborhood,
 )
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
@@ -80,7 +80,11 @@ RENAMED = {
     'transition': (TransitionInteraction, lambda role: {'state': 'x', 'rate': lambda n: 1.0}, False),
     'local_rule': (
         LocalRuleInteraction,
-        lambda role: {'state': 'x', 'rule': lambda *values: 1.0 - values[0], 'neighborhood': VonNeumannNeighborhood()},
+        lambda role: {
+            'state': 'x',
+            'rule': lambda *values: 1.0 - values[0],
+            'neighborhood': BallNeighborhood(metric='manhattan'),
+        },
         True,
     ),
     'choice': (
@@ -205,11 +209,12 @@ def _get_renamed(interaction):
 
 def _run_nodes(interaction, discrete):
     """Return the trajectory of the state `x` of four lattice nodes driven by an interaction."""
-    nodes = LatticeElement(
+    nodes = GroupElement(
         'nodes',
         element=NodeElement,
         space=LatticeSpace((2, 2)),
         values={'x': np.array([0.0, 1.0, 0.0, 1.0])},
+        on='sites',
     )
     system = System(elements=[nodes], interactions=[interaction], time=DiscreteTime() if discrete else None)
     return simulate(system, until=5 if discrete else 1.0, dt=1 if discrete else 0.1, random_state=0).values('nodes.x')

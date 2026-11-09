@@ -14,13 +14,14 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, cos, sin
 
-from ....core.components.elements import DensityElement, FieldElement
+from ....core.components.elements import FieldElement
 from ....core.components.interactions import AdvectionInteraction, EncounterInteraction
 from ....core.components.laws.utils import coordinate
 from ....core.components.spaces import LatticeSpace, PhaseSpace
 from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import RK4Solver
 from ....core.specs import AxisSpec, RoleSpec
+from ..common.fields import PhaseSpaceDensityElement
 
 ANTIPODAL = 1e-9
 
@@ -72,7 +73,7 @@ class AngularAlignmentInteraction(EncounterInteraction):
         angles: int = 32,
         frequency: float = 1.0,
         noise: float = 0.5,
-        state: str = 'f',
+        state: str = 'x',
     ) -> None:
         super().__init__(label, candidate=candidate, field=field, rate=self._rate, kernel=self._kernel, state=state)
         self.angles = angles
@@ -150,7 +151,7 @@ class AngularDiffusionInteraction(EncounterInteraction):
         angles: int = 32,
         tumbling: float = 1.0,
         noise: float = 0.5,
-        state: str = 'f',
+        state: str = 'x',
     ) -> None:
         super().__init__(label, candidate=candidate, rate=self._rate, kernel=self._kernel, state=state)
         self.angles = angles
@@ -177,7 +178,7 @@ class BertinDrozGregoireSystem(BaseSystem):
     Particles stream along their orientation, tumble at a rate by a wrapped normal noise, and align in binary collisions
     at their mean angle with the same noise. A homogeneous disordered state is unstable above the density `pi tumbling
     (1 - exp(-noise^2 / 2)) / (8 interaction_range speed (exp(-noise^2 / 2) - 2 / 3))`. The system has the density
-    `flock.f`.
+    `flock.x`.
 
     Args:
         positions:
@@ -255,9 +256,9 @@ class BertinDrozGregoireSystem(BaseSystem):
         values = np.broadcast_to(profile, space.shape_).copy()
         flock = FieldElement(
             'flock',
-            element=DensityElement,
+            element=PhaseSpaceDensityElement,
             space=space,
-            values={'f': values},
+            values={'x': values},
             discretization='finite-volume',
         )
 
@@ -268,7 +269,7 @@ class BertinDrozGregoireSystem(BaseSystem):
             self.label,
             elements=[flock],
             interactions=[
-                AdvectionInteraction('stream', target='flock', state='f', drift=drift),
+                AdvectionInteraction('stream', target='flock', state='x', drift=drift),
                 AngularDiffusionInteraction(
                     'tumble',
                     candidate='flock',

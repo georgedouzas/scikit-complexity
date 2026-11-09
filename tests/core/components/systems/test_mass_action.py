@@ -15,15 +15,15 @@ def test_mass_action_builds_a_compartment_per_species_and_a_reaction_per_row():
     assert [element.label for element in system.elements] == ['A', 'D']
     binding = system.interactions[0]
     assert binding.label == 'binding'
-    assert binding.reactants == {('A', 'n'): 2}
-    assert binding.products == {('D', 'n'): 1}
+    assert binding.reactants == {('A', 'x'): 2}
+    assert binding.products == {('D', 'x'): 1}
     assert binding.k == pytest.approx(0.01)
 
 
 def test_mass_action_rate_equations_reach_the_equilibrium_of_mass_action():
     """Test that the dimerization `2 A <-> D` settles where `k_binding A^2 = k_unbinding D` and conserves `A + 2 D`."""
     trajectory = simulate(MassActionSystem(species={'A': 100.0, 'D': 0.0}, reactions=DIMERIZATION), until=200.0, dt=1.0)
-    monomers, dimers = trajectory.values('A.n'), trajectory.values('D.n')
+    monomers, dimers = trajectory.values('A.x'), trajectory.values('D.x')
     np.testing.assert_allclose(monomers + 2 * dimers, 100.0, rtol=1e-6)
     assert 0.01 * monomers[-1] ** 2 == pytest.approx(0.1 * dimers[-1], rel=1e-3)
 
@@ -32,7 +32,7 @@ def test_mass_action_takes_sources_and_sinks_as_empty_sides():
     """Test that a reaction without reactants is a source and one without products a sink."""
     reactions = {'birth': ({}, {'X': 1}, 2.0), 'death': ({'X': 1}, {}, 0.5)}
     trajectory = simulate(MassActionSystem(species={'X': 0.0}, reactions=reactions), until=40.0, dt=1.0)
-    assert trajectory.values('X.n')[-1] == pytest.approx(4.0, rel=1e-3)
+    assert trajectory.values('X.x')[-1] == pytest.approx(4.0, rel=1e-3)
 
 
 def test_mass_action_jumps_move_whole_units():

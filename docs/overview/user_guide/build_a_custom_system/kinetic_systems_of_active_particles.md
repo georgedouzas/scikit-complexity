@@ -257,15 +257,15 @@ import numpy as np
 from sage.all__sagemath_gap import PermutationGroup, libgap
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
-from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import LocalRuleLaw
-from skcomplex.core.components.spaces import CayleySpace, GeneratorNeighborhood
+from skcomplex.core.components.spaces import CayleySpace, MemoryNeighborhood
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec, TotalisticSpec
 
 tree = CayleySpace(libgap.FreeGroup(['a', 'b']), ball=4).prepare()
-memory = GeneratorNeighborhood(tree.generators_)
+memory = MemoryNeighborhood(['1', *[word for name in tree.generators_ for word in (name, f'{name}^-1')]])
 
 
 class MajorityElement(Element):
@@ -277,8 +277,9 @@ class MajorityElement(Element):
         return [LocalRuleLaw(s.alive, memory, TotalisticSpec({3: 1, 4: 1, 5: 1}))]
 
 
-cells = (np.random.default_rng(0).random(tree.size_) < 0.5).astype(float)
-majority = System(elements=[LatticeElement('cells', element=MajorityElement, space=tree, values={'alive': cells})])
+alive = (np.random.default_rng(0).random(tree.size_) < 0.5).astype(float)
+cells = GroupElement('cells', element=MajorityElement, space=tree, on='sites', values={'alive': alive})
+majority = System(elements=[cells])
 tree.ball_sizes_, simulate(majority, until=3, dt=1).values('cells.alive').shape
 CayleySpace(PermutationGroup([[(1, 2)], [(1, 2, 3)]])).prepare().words_
 ```
@@ -296,7 +297,7 @@ elements `s` of a finite memory set (Ceccherini-Silberstein and Coornaert 2023).
   the shortest word of every site, and `ball_sizes_` gives the growth of the balls. Cells outside a ball read the
   space's `fill`.
 - The memory set is a `MemoryNeighborhood` of words such as `'a'`, `'a^-1'`, or `'a*b'`, with `'1'` for the cell
-  itself. `GeneratorNeighborhood(generators)` gives the identity followed by every generator and its inverse.
+  itself, here the identity followed by every generator and its inverse.
 
 The group is a native Sage or GAP group. So any presentation works whose word problem a library solves:
 
@@ -343,10 +344,10 @@ from sage.all__sagemath_symbolics import var
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.core.analysis import automaton
-from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import LocalRuleInteraction
 from skcomplex.core.components.laws import LocalRuleLaw
-from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace, MooreNeighborhood
+from skcomplex.core.components.spaces import BallNeighborhood, LatticeNeighborhood, LatticeSpace
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import OuterTotalisticSpec, StateSpec, TableSpec
@@ -359,13 +360,13 @@ class CellElement(Element):
 
 
 def cellular_automaton(space, neighborhood, rule):
-    cells = LatticeElement('cells', element=CellElement, space=space)
+    cells = GroupElement('cells', element=CellElement, space=space, on='sites')
     interaction = LocalRuleInteraction('rule', target='cells', state='alive', rule=rule, neighborhood=neighborhood)
     return System(elements=[cells], interactions=[interaction])
 
 
 life_rule = OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1})
-life = cellular_automaton(LatticeSpace((6, 6)), MooreNeighborhood(), life_rule)
+life = cellular_automaton(LatticeSpace((6, 6)), BallNeighborhood(), life_rule)
 automaton(life, kind='surjective').surjective
 automaton(life, kind='garden-of-eden', random_state=0).pattern is not None
 ring = LatticeSpace(8)
@@ -379,7 +380,7 @@ step = LocalRuleLaw(var('alive'), shift.interactions[0].neighborhood, shift.inte
 cells = [1, 0, 1, 1, 0, 0, 0, 0]
 for _ in range(2):
     cells = step.run({'space': ring, 'alive': cells}).value_
-start = LatticeElement('cells', element=CellElement, space=ring, values={'alive': [1, 0, 1, 1, 0, 0, 0, 0]})
+start = GroupElement('cells', element=CellElement, space=ring, values={'alive': [1, 0, 1, 1, 0, 0, 0, 0]}, on='sites')
 started = System(elements=[start], interactions=shift.interactions)
 frames = simulate(started, until=2, dt=1).values('cells.alive')
 cells.tolist() == frames[-1].astype(int).tolist()
@@ -407,7 +408,7 @@ from typing import Annotated
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.core.analysis import automaton
-from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import LocalRuleInteraction
 from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
 from skcomplex.core.components.systems import System
@@ -432,11 +433,11 @@ class GoldenCellElement(Element):
 
 
 def golden(space):
-    return System(elements=[LatticeElement('cells', element=GoldenCellElement, space=space)])
+    return System(elements=[GroupElement('cells', element=GoldenCellElement, space=space, on='sites')])
 
 
 laplacian = System(
-    elements=[LatticeElement('cells', element=CellElement, space=LatticeSpace(5))],
+    elements=[GroupElement('cells', element=CellElement, space=LatticeSpace(5), on='sites')],
     interactions=[
         LocalRuleInteraction(
             'laplacian',
@@ -455,7 +456,7 @@ system = golden(windows[0])
 automaton(system, kind='entropy', windows=windows).entropy.round(3)
 
 forbidden = [1, 1, 0, 0, 0]
-cells = LatticeElement('cells', element=GoldenCellElement, space=LatticeSpace(5), values={'alive': forbidden})
+cells = GroupElement('cells', element=GoldenCellElement, space=LatticeSpace(5), values={'alive': forbidden}, on='sites')
 keep = LocalRuleInteraction(
     'keep',
     target='cells',

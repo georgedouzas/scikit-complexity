@@ -13,7 +13,7 @@ import scipy.special
 from sage.all__sagemath_symbolics import RR, SR, atan2, cos, exp, pi, sin, sqrt, tanh, var, vector
 
 from skcomplex.core.components.base import BasePart
-from skcomplex.core.components.elements import Element, GroupElement, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import EquationLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import (
@@ -34,6 +34,7 @@ from skcomplex.core.components.laws.utils import (
     variance,
 )
 from skcomplex.core.components.spaces import (
+    BallNeighborhood,
     ConeNeighborhood,
     ContinuousSpace,
     DiscreteTime,
@@ -42,7 +43,6 @@ from skcomplex.core.components.spaces import (
     NetworkSpace,
     RadiusNeighborhood,
     StaticTime,
-    VonNeumannNeighborhood,
 )
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.backends import JaxBackend, NumbaBackend, NumpyBackend
@@ -217,7 +217,7 @@ def _minimum_image(difference, side):
 
 def test_neighbors_keeps_the_values_at_lattice_offsets():
     """Test that a lattice neighbourhood without a reduction gives the values at every offset, for local energies."""
-    values = neighbors(var('spin'), VonNeumannNeighborhood(), reduce='each')
+    values = neighbors(var('spin'), BallNeighborhood(metric='manhattan'), reduce='each')
     assert [str(item) for item in values] == [f'neighbor(spin, {index})' for index in range(4)]
 
 
@@ -290,8 +290,8 @@ def test_reduction_over_a_lattice_leaves_out_sites_outside_fixed_edges(backend):
     """Test that a sum over a von Neumann neighbourhood of a fixed lattice sums the neighbours inside the lattice."""
     values = np.arange(12.0).reshape(3, 4)
     space = LatticeSpace((3, 4), boundary='fixed')
-    given = {'y': values, 'over': VonNeumannNeighborhood()}
-    system = System(elements=[LatticeElement('g', element=ReducingElement, space=space, values=given)])
+    given = {'y': values, 'over': BallNeighborhood(metric='manhattan')}
+    system = System(elements=[GroupElement('g', element=ReducingElement, space=space, values=given, on='sites')])
     padded = np.pad(values, 1)
     expected = padded[:-2, 1:-1] + padded[2:, 1:-1] + padded[1:-1, :-2] + padded[1:-1, 2:]
     assert np.allclose(_outputs(system, backend), expected.ravel(), atol=1e-12)
@@ -303,7 +303,7 @@ def test_reduction_without_a_neighbourhood_reads_the_lattice_neighbourhood(backe
     values = np.random.default_rng(2).normal(size=(4, 5))
     system = System(
         elements=[
-            LatticeElement('g', element=ReducingElement, space=LatticeSpace((4, 5)), values={'y': values}),
+            GroupElement('g', element=ReducingElement, space=LatticeSpace((4, 5)), values={'y': values}, on='sites'),
         ],
     )
     expected = sum(np.roll(values, (a - 1, b - 1), axis=(0, 1)) for a, b in np.ndindex(3, 3)) - values
@@ -847,7 +847,7 @@ def test_argmax_returns_the_strategy_of_the_neighbour_with_the_largest_payoff(sp
     strategies, payoffs = rng.integers(0, 5, 12).astype(float), rng.normal(size=12)
     values = {'strategy': strategies, 'payoff': payoffs}
     system = System(
-        elements=[LatticeElement('g', element=ImitatingElement, space=space, values=values)],
+        elements=[GroupElement('g', element=ImitatingElement, space=space, values=values, on='sites')],
         time=DiscreteTime(),
     )
     expected = [
@@ -1003,7 +1003,7 @@ def _around_drift(term, values, backend):
     space = NetworkSpace(nx.complete_graph(6), hyperedges=HYPEREDGES)
     system = System(
         elements=[
-            LatticeElement('nodes', element=AroundElement, space=space, values={'x': values, 'term': term}),
+            GroupElement('nodes', element=AroundElement, space=space, values={'x': values, 'term': term}, on='sites'),
         ],
     )
     problem = PassCompiler(backend=backend).prepare(system).run().problem_
@@ -1072,7 +1072,9 @@ def test_hyperedges_rejects_reads_its_hyperedges_do_not_have(term, match):
 def test_validate_reports_a_hyperedge_reduction_of_a_missing_size():
     """Test that a reduction over hyperedges of a size the network does not have gives a binding issue."""
     space = NetworkSpace(nx.complete_graph(6), hyperedges=HYPEREDGES)
-    system = System(elements=[LatticeElement('nodes', element=AroundElement, space=space, values={'term': 'missing'})])
+    system = System(
+        elements=[GroupElement('nodes', element=AroundElement, space=space, values={'term': 'missing'}, on='sites')],
+    )
     (issue,) = [issue for issue in PassCompiler().prepare(system).report_.issues if issue.code == 'binding']
     assert 'size 6' in issue.message
 
@@ -1080,7 +1082,9 @@ def test_validate_reports_a_hyperedge_reduction_of_a_missing_size():
 def test_validate_reports_a_hyperedge_reduction_in_a_lattice():
     """Test that a reduction over hyperedges in a lattice space has a law-space issue."""
     space = LatticeSpace((3, 3))
-    system = System(elements=[LatticeElement('sites', element=AroundElement, space=space, values={'term': 'count'})])
+    system = System(
+        elements=[GroupElement('sites', element=AroundElement, space=space, values={'term': 'count'}, on='sites')],
+    )
     issues = PassCompiler().prepare(system).report_.issues
     assert [issue.code for issue in issues] == ['law-space']
     assert 'hyperedges' in issues[0].message
@@ -1098,7 +1102,7 @@ def test_hyperedges_over_a_neighbourhood_keeps_it():
     ('arguments', 'match'),
     [
         ({'over': RadiusNeighborhood(1.0)}, 'size of 2 or more'),
-        ({'size': 3, 'over': VonNeumannNeighborhood()}, 'continuous space'),
+        ({'size': 3, 'over': BallNeighborhood(metric='manhattan')}, 'continuous space'),
     ],
 )
 def test_hyperedges_over_a_neighbourhood_needs_a_size_and_a_metric_neighbourhood(arguments, match):

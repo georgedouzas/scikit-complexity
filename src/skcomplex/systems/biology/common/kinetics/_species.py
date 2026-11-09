@@ -8,11 +8,11 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from .....core.components.elements import Element
+from .....core.components.elements import NonnegativeElement
 from .....core.specs import StateSpec, VisualSpec
 
 
-class SpeciesElement(Element):
+class SpeciesElement(NonnegativeElement):
     """Molecular species with a nonnegative concentration `x`.
 
     It is an mRNA, an enzyme, a messenger, or a metabolite.
@@ -42,5 +42,4 @@ class SpeciesElement(Element):
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
+        super().__init__(label, visual=visual, x=x)

@@ -15,7 +15,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, ExtremalLaw
 from ....core.components.spaces import AdjacencyNeighborhood, LatticeNeighborhood, LatticeSpace, NetworkSpace
 from ....core.components.systems import BaseSystem, System
@@ -156,7 +156,7 @@ class BakSneppenSystem(BaseSystem):
         space = (LatticeSpace(self.size) if self.graph is None else NetworkSpace(self.graph)).prepare()
         count = int(space.size_ or 0)
         fitness = np.random.default_rng(self.random_state).random(count)
-        species = LatticeElement(
+        species = GroupElement(
             'species',
             element=SpeciesElement,
             space=space,
@@ -166,5 +166,6 @@ class BakSneppenSystem(BaseSystem):
                 'neighbors': 'ring' if self.graph is None else 'graph',
             },
             visual=FITNESS_VISUAL if self.graph is None else FITNESS_SITES,
+            on='sites',
         )
         return System(self.label, elements=[species])

@@ -6,7 +6,7 @@ import numpy as np
 from sage.all__sagemath_gap import libgap
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
-from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import LocalRuleLaw
 from skcomplex.core.components.spaces import CayleySpace, MemoryNeighborhood
 from skcomplex.core.components.systems import System
@@ -51,7 +51,9 @@ def _trajectory():
     cells = np.zeros(space.size_)
     cells[0] = 1.0
     return simulate(
-        System(elements=[LatticeElement('cells', element=ParityElement, space=space, values={'alive': cells})]),
+        System(
+            elements=[GroupElement('cells', element=ParityElement, space=space, values={'alive': cells}, on='sites')],
+        ),
         until=2,
     )
 

@@ -105,8 +105,8 @@ class MichaelisMentenSystem(MassActionSystem):
     It runs as rate equations or as jumps.
 
     The total enzyme `E + C` and the total substrate `S + C + P` are conserved. In stochastic mode the amounts are
-    numbers of molecules and the reactions are the random events of Gillespie's algorithm. The amounts are `E.n`,
-    `S.n`, `C.n`, and `P.n`.
+    numbers of molecules and the reactions are the random events of Gillespie's algorithm. The amounts are `E.x`,
+    `S.x`, `C.x`, and `P.x`.
 
     Args:
         enzyme:
@@ -318,7 +318,7 @@ class ChemicalLangevinNetworkSystem(MassActionSystem):
     Every reaction adds its rate times its change of every species to the drift, and one Wiener process with the
     amplitude the square root of its rate drives every species it changes. Since one increment changes all of them, the
     total enzyme `E + C` and the total substrate `S + C + P` stay constant under the noise, as in the jump process. The
-    amounts are `E.n`, `S.n`, `C.n`, and `P.n`.
+    amounts are `E.x`, `S.x`, `C.x`, and `P.x`.
 
     Args:
         enzyme:

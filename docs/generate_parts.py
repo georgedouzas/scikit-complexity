@@ -122,19 +122,19 @@ their domains with them.
     examples = """
 ## A compatible element
 
-A compartment holds a real amount, and the `target` of a `RateInteraction` accepts real states.
+A nonnegative element holds a real amount, and the `target` of a `RateInteraction` accepts real states.
 
 ```python
-from skcomplex.core.components.elements import CompartmentElement
+from skcomplex.core.components.elements import NonnegativeElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 
-tank = CompartmentElement('tank', n=10.0)
-decay = RateInteraction('decay', target='tank', state='n', rate=lambda s: -0.5 * s.target.n)
+tank = NonnegativeElement('tank', x=10.0)
+decay = RateInteraction('decay', target='tank', state='x', rate=lambda s: -0.5 * s.target.x)
 sorted(tank.get_tags().domains)
 trajectory = simulate(System(elements=[tank], interactions=[decay]), until=2)
-round(trajectory.values('tank.n')[-1], 2)
+round(trajectory.values('tank.x')[-1], 2)
 ```
 
 ## An incompatible element
@@ -202,19 +202,19 @@ interaction returns the law kinds for the arguments you passed.
     examples = """
 ## A compatible interaction
 
-A rate returns a `rate` law of continuous time, and its `target` accepts the real amount of a compartment.
+A rate returns a `rate` law of continuous time, and its `target` accepts the real amount of a nonnegative element.
 
 ```python
-from skcomplex.core.components.elements import CompartmentElement
+from skcomplex.core.components.elements import NonnegativeElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 
-tank = CompartmentElement('tank', n=10.0)
-decay = RateInteraction('decay', target='tank', state='n', rate=lambda s: -0.5 * s.target.n)
+tank = NonnegativeElement('tank', x=10.0)
+decay = RateInteraction('decay', target='tank', state='x', rate=lambda s: -0.5 * s.target.x)
 sorted(decay.get_tags().laws), sorted(decay.get_tags().time)
 trajectory = simulate(System(elements=[tank], interactions=[decay]), until=2)
-round(trajectory.values('tank.n')[-1], 2)
+round(trajectory.values('tank.x')[-1], 2)
 ```
 
 ## An incompatible interaction
@@ -223,15 +223,15 @@ A map returns an `update` law of discrete time. It cannot join the rate in one s
 so the system names the tag the two parts disagree on.
 
 ```python
-from skcomplex.core.components.elements import CompartmentElement
+from skcomplex.core.components.elements import NonnegativeElement
 from skcomplex.core.components.interactions import MapInteraction, RateInteraction
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import TagError
 
-tank = CompartmentElement('tank', n=10.0)
-decay = RateInteraction('decay', target='tank', state='n', rate=lambda s: -0.5 * s.target.n)
-halve = MapInteraction('halve', target='tank', state='n', function=lambda s: s.target.n / 2)
+tank = NonnegativeElement('tank', x=10.0)
+decay = RateInteraction('decay', target='tank', state='x', rate=lambda s: -0.5 * s.target.x)
+halve = MapInteraction('halve', target='tank', state='x', function=lambda s: s.target.x / 2)
 sorted(halve.get_tags().laws), sorted(halve.get_tags().time)
 try:
     simulate(System(elements=[tank], interactions=[decay, halve]), until=1)
@@ -267,18 +267,18 @@ each law class declares.
 An arrival that adds one unit at random times returns a `jump` law, which `GillespieSolver` supports.
 
 ```python
-from skcomplex.core.components.elements import CompartmentElement
+from skcomplex.core.components.elements import NonnegativeElement
 from skcomplex.core.components.interactions import JumpInteraction
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import GillespieSolver
 
-queue = CompartmentElement('queue', n=0.0)
-arrive = JumpInteraction('arrive', target='queue', changes={'n': 1}, rate=lambda s: 2.0)
+queue = NonnegativeElement('queue', x=0.0)
+arrive = JumpInteraction('arrive', target='queue', changes={'x': 1}, rate=lambda s: 2.0)
 sorted(arrive.get_tags().laws)
 system = System(elements=[queue], interactions=[arrive])
 trajectory = simulate(system, until=5, solver=GillespieSolver(), random_state=0)
-trajectory.values('queue.n')[-1]
+trajectory.values('queue.x')[-1]
 ```
 
 ## An incompatible law
@@ -286,15 +286,15 @@ trajectory.values('queue.n')[-1]
 `EulerSolver` integrates rates and does not draw jumps, so it rejects the system and names the law kind.
 
 ```python
-from skcomplex.core.components.elements import CompartmentElement
+from skcomplex.core.components.elements import NonnegativeElement
 from skcomplex.core.components.interactions import JumpInteraction
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerSolver
 from skcomplex.core.errors import TagError
 
-queue = CompartmentElement('queue', n=0.0)
-arrive = JumpInteraction('arrive', target='queue', changes={'n': 1}, rate=lambda s: 2.0)
+queue = NonnegativeElement('queue', x=0.0)
+arrive = JumpInteraction('arrive', target='queue', changes={'x': 1}, rate=lambda s: 2.0)
 try:
     simulate(System(elements=[queue], interactions=[arrive]), until=5, solver=EulerSolver())
 except TagError as error:
@@ -329,18 +329,18 @@ lists the supported tags of every solver, grouped by the mathematical form it so
 A rate with a noise term returns a `rate` and a `noise` law, and `EulerMaruyamaSolver` supports both.
 
 ```python
-from skcomplex.core.components.elements import CompartmentElement
+from skcomplex.core.components.elements import NonnegativeElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 
-tank = CompartmentElement('tank', n=10.0)
-decay = RateInteraction('decay', target='tank', state='n', rate=lambda s: -0.5 * s.target.n, noise=0.1)
+tank = NonnegativeElement('tank', x=10.0)
+decay = RateInteraction('decay', target='tank', state='x', rate=lambda s: -0.5 * s.target.x, noise=0.1)
 system = System(elements=[tank], interactions=[decay])
 sorted(system.get_tags().laws), sorted(EulerMaruyamaSolver.get_supported_tags().laws)
 trajectory = simulate(system, until=1, solver=EulerMaruyamaSolver(), random_state=0)
-round(trajectory.values('tank.n')[-1], 2)
+round(trajectory.values('tank.x')[-1], 2)
 ```
 
 ## An incompatible solver
@@ -348,15 +348,15 @@ round(trajectory.values('tank.n')[-1], 2)
 `RK4Solver` integrates deterministic equations and does not support the `noise` law kind.
 
 ```python
-from skcomplex.core.components.elements import CompartmentElement
+from skcomplex.core.components.elements import NonnegativeElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import TagError
 
-tank = CompartmentElement('tank', n=10.0)
-decay = RateInteraction('decay', target='tank', state='n', rate=lambda s: -0.5 * s.target.n, noise=0.1)
+tank = NonnegativeElement('tank', x=10.0)
+decay = RateInteraction('decay', target='tank', state='x', rate=lambda s: -0.5 * s.target.x, noise=0.1)
 try:
     simulate(System(elements=[tank], interactions=[decay]), until=1, solver=RK4Solver())
 except TagError as error:
@@ -383,16 +383,16 @@ A backend turns the compiled laws of a system into numeric functions, with NumPy
 `NumbaBackend` supports every tag of a decay, so it runs the system.
 
 ```python
-from skcomplex.core.components.elements import CompartmentElement
+from skcomplex.core.components.elements import NonnegativeElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.backends import NumbaBackend
 from skcomplex.core.engine.runtime import simulate
 
-tank = CompartmentElement('tank', n=10.0)
-decay = RateInteraction('decay', target='tank', state='n', rate=lambda s: -0.5 * s.target.n)
+tank = NonnegativeElement('tank', x=10.0)
+decay = RateInteraction('decay', target='tank', state='x', rate=lambda s: -0.5 * s.target.x)
 trajectory = simulate(System(elements=[tank], interactions=[decay]), until=1, backend=NumbaBackend())
-round(trajectory.values('tank.n')[-1], 2)
+round(trajectory.values('tank.x')[-1], 2)
 ```
 
 ## An incompatible backend
@@ -400,15 +400,15 @@ round(trajectory.values('tank.n')[-1], 2)
 `JaxBackend` writes deterministic functions only, so it rejects a noise term and names the law kind.
 
 ```python
-from skcomplex.core.components.elements import CompartmentElement
+from skcomplex.core.components.elements import NonnegativeElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.backends import JaxBackend
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import TagError
 
-tank = CompartmentElement('tank', n=10.0)
-decay = RateInteraction('decay', target='tank', state='n', rate=lambda s: -0.5 * s.target.n, noise=0.1)
+tank = NonnegativeElement('tank', x=10.0)
+decay = RateInteraction('decay', target='tank', state='x', rate=lambda s: -0.5 * s.target.x, noise=0.1)
 sorted(JaxBackend.get_supported_tags().laws)
 try:
     simulate(System(elements=[tank], interactions=[decay]), until=1, backend=JaxBackend())
@@ -597,7 +597,7 @@ from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 times = np.arange(0, 21.0)
 values = 100 / (1 + 9 * np.exp(-0.5 * times))
 bounds = {'r': (0.1, 2.0), 'K': (50, 200)}
-fitted = calibrate(LogisticGrowthSystem(), {'population.n': (times, values)}, bounds).system
+fitted = calibrate(LogisticGrowthSystem(), {'population.x': (times, values)}, bounds).system
 round(fitted.r, 2), round(fitted.K)
 ```
 
@@ -616,11 +616,11 @@ from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 times = np.arange(0, 21.0)
 values = 100 / (1 + 9 * np.exp(-0.5 * times))
 try:
-    calibrate(LogisticGrowthSystem(), {'population.n': (times, values)}, {'population.n': (1, 20)})
+    calibrate(LogisticGrowthSystem(), {'population.x': (times, values)}, {'population.x': (1, 20)})
 except ValidationError as error:
     message = str(error)
 message
-assert 'population.n' in message
+assert 'population.x' in message
 ```
 """
     return _page('Experiments', intro, ['Experiment', 'What it does', 'What it needs'], rows, examples)
@@ -668,7 +668,7 @@ reactions = {'forth': ({'A': 1}, {'B': 1}, 0.3), 'back': ({'B': 1}, {'A': 1}, 0.
 isomerization = MassActionSystem(species={'A': 10.0, 'B': 0.0}, reactions=reactions, mode='jump')
 sorted(isomerization.get_tags().laws), isomerization.get_tags().randomness
 trajectory = simulate(isomerization, until=5, solver=GillespieSolver(), random_state=0)
-trajectory.values('A.n')[-1]
+trajectory.values('A.x')[-1]
 ```
 
 ## An incompatible system

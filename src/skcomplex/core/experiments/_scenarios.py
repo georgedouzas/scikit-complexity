@@ -98,7 +98,7 @@ def compare_scenarios(
         >>> from skcomplex.core.experiments import compare_scenarios
         >>> from skcomplex.systems.biology.epidemiology import SIRSystem
         >>> scenarios = [ScenarioSpec(), ScenarioSpec('distancing', overrides={'beta': 0.0001})]
-        >>> result = compare_scenarios(SIRSystem(), scenarios, until=50, outputs=['I.n'])
+        >>> result = compare_scenarios(SIRSystem(), scenarios, until=50, outputs=['I.x'])
         >>> [row['scenario'] for row in result.rows]
         ['baseline', 'distancing']
     """

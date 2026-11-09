@@ -16,7 +16,7 @@ from sage.all__sagemath_gap import SymmetricGroup
 from sage.all__sagemath_symbolics import RR, ZZ
 from sage.groups.perm_gps.permgroup import PermutationGroup_generic
 
-from ....core.components.elements import DeclaredElement, Element, LatticeElement
+from ....core.components.elements import DeclaredElement, Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import CayleySpace, LatticeNeighborhood, LatticeSpace, StateTranslationNeighborhood
 from ....core.components.systems import BaseSystem, System
@@ -211,7 +211,9 @@ class SelfIndexedShiftSystem(BaseSystem):
             values = np.asarray(self.initial, dtype=float)
         return System(
             self.label,
-            elements=[LatticeElement('cells', element=GroupCellElement, space=space, values={'value': values})],
+            elements=[
+                GroupElement('cells', element=GroupCellElement, space=space, values={'value': values}, on='sites'),
+            ],
             interactions=[
                 LocalRuleInteraction(
                     'translation',
@@ -301,11 +303,12 @@ class PowerSeriesAutomatonSystem(BaseSystem):
         return System(
             self.label,
             elements=[
-                LatticeElement(
+                GroupElement(
                     'cells',
                     element=PowerSeriesCellElement,
                     space=LatticeSpace(self.size),
                     values={'ring': ring, 'value': values},
+                    on='sites',
                 ),
             ],
             interactions=[
@@ -387,11 +390,12 @@ class SubtractionAutomatonSystem(BaseSystem):
         return System(
             self.label,
             elements=[
-                LatticeElement(
+                GroupElement(
                     'cells',
                     element=PascalCellElement,
                     space=LatticeSpace(self.size, boundary='fixed'),
                     values={'value': values},
+                    on='sites',
                 ),
             ],
             interactions=[
@@ -471,11 +475,12 @@ class RealQuadraticAutomatonSystem(BaseSystem):
         return System(
             self.label,
             elements=[
-                LatticeElement(
+                GroupElement(
                     'cells',
                     element=RealCellElement,
                     space=LatticeSpace(self.size),
                     values={'value': values},
+                    on='sites',
                 ),
             ],
             interactions=[
@@ -566,11 +571,12 @@ class GroupDifferenceAutomatonSystem(BaseSystem):
         return System(
             self.label,
             elements=[
-                LatticeElement(
+                GroupElement(
                     'cells',
                     element=GroupCellElement,
                     space=LatticeSpace(self.size),
                     values={'value': values},
+                    on='sites',
                 ),
             ],
             interactions=[

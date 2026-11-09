@@ -4,11 +4,9 @@ from typing import Annotated
 
 import numpy as np
 import pytest
-from sage.all__sagemath_symbolics import oo
-from sage.sets.real_set import RealSet
 
 from skcomplex.core.analysis import coarse_grain, spectrum
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element, GroupElement, NonnegativeElement
 from skcomplex.core.components.laws.utils import moment
 from skcomplex.core.components.spaces import ContinuousTime, LatticeSpace
 from skcomplex.core.components.systems import System
@@ -28,28 +26,14 @@ class TraderElement(Element):
         self.wealth = wealth
 
 
-class DensityElement(Element):
-    """Density of members at one value of a state."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        f: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.f = f
-
-
 def density(s):
     """Return the density of a distribution."""
-    return moment(s.f, 0, CLASSES)
+    return moment(s.x, 0, CLASSES)
 
 
 def mean_class(s):
     """Return the mean class of a distribution."""
-    return moment(s.f, 1, CLASSES, normalized=True)
+    return moment(s.x, 1, CLASSES, normalized=True)
 
 
 def _coarse_grain(positions: object, shape: list[int], **settings: object) -> np.ndarray:
@@ -99,7 +83,7 @@ def test_density_over_a_state_starts_a_distribution():
     """Test that the densities of 1,000 traders start a distribution of density 1 whose mean is the traders' mean."""
     wealth = np.random.default_rng(0).integers(0, 9, size=1000).astype(float)
     densities = coarse_grain(wealth, over=CLASSES).field
-    distribution = GroupElement('wealth', element=DensityElement, size=9, on='sites', values={'f': densities})
+    distribution = GroupElement('wealth', element=NonnegativeElement, size=9, on='sites', values={'x': densities})
     system = System(elements=[distribution], space=LatticeSpace(9, boundary='fixed'), time=ContinuousTime())
     observables = [
         ObservableSpec('density', density, group='wealth'),

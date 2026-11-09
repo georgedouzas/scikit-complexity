@@ -111,7 +111,7 @@ class CompetitionInteraction(Interaction):
             laws:
                 The laws of the component.
         """
-        first, second = s.first.n, s.second.n
+        first, second = s.first.x, s.second.x
         return [
             RateLaw(first, s.r1 * first * (1 - (first + s.alpha12 * second) / s.K1)),
             RateLaw(second, s.r2 * second * (1 - (second + s.alpha21 * first) / s.K2)),
@@ -183,7 +183,7 @@ class MutualismInteraction(Interaction):
             laws:
                 The laws of the component.
         """
-        first, second = s.first.n, s.second.n
+        first, second = s.first.x, s.second.x
         encounters = s.a * s.b * first * second
         return [
             RateLaw(first, encounters / (1 + s.a * s.handling * second)),
@@ -270,7 +270,7 @@ class CompetitionSystem(BaseSystem):
         """
         return System(
             self.label,
-            elements=[PopulationElement('first', n=self.first), PopulationElement('second', n=self.second)],
+            elements=[PopulationElement('first', x=self.first), PopulationElement('second', x=self.second)],
             interactions=[
                 CompetitionInteraction(
                     'competition',
@@ -367,7 +367,7 @@ class MutualismSystem(BaseSystem):
         """Return the parts of two species that grow logistically and feed each other."""
         return System(
             self.label,
-            elements=[PopulationElement('first', n=self.first), PopulationElement('second', n=self.second)],
+            elements=[PopulationElement('first', x=self.first), PopulationElement('second', x=self.second)],
             interactions=[
                 LogisticGrowthInteraction('growth_first', target='first', r=self.r1, K=self.K1),
                 LogisticGrowthInteraction('growth_second', target='second', r=self.r2, K=self.K2),
@@ -455,6 +455,6 @@ class FoodWebsSystem(BaseSystem):
         ]
         return System(
             self.label,
-            elements=[PopulationElement(name, n=n) for name, n in populations.items()],
+            elements=[PopulationElement(name, x=n) for name, n in populations.items()],
             interactions=interactions,
         )

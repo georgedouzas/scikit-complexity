@@ -13,7 +13,7 @@ from typing import Annotated
 
 from sage.all__sagemath_symbolics import NN, SR, Expression
 
-from ....core.components.elements import CompartmentElement, Element
+from ....core.components.elements import Element, NonnegativeElement
 from ....core.components.interactions import Interaction, ReactionInteraction
 from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.laws.utils import where
@@ -244,7 +244,7 @@ class PetriNetSystem(BaseSystem):
     producing those of its output arcs, and otherwise it is a continuous Petri net of rate equations. Every place
     invariant, a weighted sum of tokens that no transition changes, is conserved. The default net is the expression of a
     gene that switches on, is transcribed and translated, and is switched off by its own protein, with the invariant
-    `gene_on + gene_off = 1`. The system has the tokens `<place>.n` of every place.
+    `gene_on + gene_off = 1`. The system has the tokens `<place>.x` of every place.
 
     Args:
         places:
@@ -291,12 +291,12 @@ class PetriNetSystem(BaseSystem):
         mode = 'jump' if self.stochastic else 'rate'
         return System(
             self.label,
-            elements=[CompartmentElement(name, n=float(tokens)) for name, tokens in marking.items()],
+            elements=[NonnegativeElement(name, x=float(tokens)) for name, tokens in marking.items()],
             interactions=[
                 ReactionInteraction(
                     label,
-                    reactants={(place, 'n'): weight for place, weight in inputs.items()} or None,
-                    products={(place, 'n'): weight for place, weight in outputs.items()} or None,
+                    reactants={(place, 'x'): weight for place, weight in inputs.items()} or None,
+                    products={(place, 'x'): weight for place, weight in outputs.items()} or None,
                     k=rate,
                     mode=mode,
                 )

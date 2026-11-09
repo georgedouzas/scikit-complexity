@@ -49,14 +49,14 @@ class SpikeResetInteraction(CrossingInteraction):
             The direction is not -1, 0, or 1, or the guard or a new value is not a function.
 
     Examples:
-        >>> from skcomplex.core.components.elements import CompartmentElement
+        >>> from skcomplex.core.components.elements import NonnegativeElement
         >>> from skcomplex.core.components.interactions import RateInteraction
         >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.biology.neuroscience import SpikeResetInteraction
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> drive = RateInteraction('drive', target='neuron', state='n', rate=1.0)
-        >>> spike = SpikeResetInteraction('spike', target='neuron', state='n', threshold=1.0, after=0.0)
-        >>> system = System(elements=[CompartmentElement('neuron')], interactions=[drive, spike])
+        >>> drive = RateInteraction('drive', target='neuron', state='x', rate=1.0)
+        >>> spike = SpikeResetInteraction('spike', target='neuron', state='x', threshold=1.0, after=0.0)
+        >>> system = System(elements=[NonnegativeElement('neuron')], interactions=[drive, spike])
         >>> trajectory = simulate(system, until=2.1, dt=0.25)
         >>> [round(event.time, 6) for event in trajectory.events]
         [1.0, 2.0]

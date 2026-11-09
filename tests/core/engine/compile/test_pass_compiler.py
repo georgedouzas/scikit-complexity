@@ -10,7 +10,7 @@ from sage.all__sagemath_symbolics import RR, SR, Expression, cos, identity_matri
 from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import CompartmentElement, Element, FieldElement, GroupElement, LatticeElement
+from skcomplex.core.components.elements import Element, FieldElement, GroupElement, NonnegativeElement
 from skcomplex.core.components.interactions import (
     Interaction,
     PairCouplingInteraction,
@@ -90,14 +90,14 @@ from skcomplex.systems.physics.common.particles import (
 from skcomplex.systems.physics.common.quantum import QubitElement
 from skcomplex.systems.physics.statistical_mechanics import ParticleSiteElement, ZeroRangeHopInteraction
 
-from ....conftest import CallableGrowthInteraction, NodeElement, _correlated, _summed
+from ....conftest import CallableGrowthInteraction, HoldingElement, NodeElement, _correlated, _summed
 from .conftest import PairElement
 
 
 def _growth():
     """Return a system of one growing population."""
     return System(
-        elements=[PopulationElement('rabbits', n=10)],
+        elements=[PopulationElement('rabbits', x=10)],
         interactions=[ExponentialGrowthInteraction('growth', target='rabbits', r=0.5)],
     )
 
@@ -107,7 +107,7 @@ def test_compiler_prepares_its_report_and_runs_to_the_problem():
     compiler = PassCompiler().prepare(_growth())
     assert isinstance(compiler.report_, ValidationReportSpec)
     assert compiler.report_.ok
-    problem = compiler.run({'rabbits.n': 20}).problem_
+    problem = compiler.run({'rabbits.x': 20}).problem_
     assert isinstance(problem, ProblemSpec)
     assert problem.initial_state.tolist() == [20.0]
 
@@ -149,7 +149,7 @@ def test_general_compiler_names_the_compiler_of_a_operator_system():
 
 def test_compiler_reports_an_observable_of_a_missing_system():
     """Test that an observable labelled with a nested system that does not exist is an issue of the report."""
-    observable = ObservableSpec('village/size', lambda s: s.rabbits.n)
+    observable = ObservableSpec('village/size', lambda s: s.rabbits.x)
     report = PassCompiler(observables=[observable]).prepare(_growth()).report_
     assert [issue.code for issue in report.errors] == ['observable-path']
 
@@ -540,7 +540,7 @@ class UndeclaredInteraction(Interaction):
 
     def _get_laws(self, s):
         """Return a law with an undeclared symbol."""
-        return [RateLaw(s.target.n, symbol('k') * s.target.n)]
+        return [RateLaw(s.target.x, symbol('k') * s.target.x)]
 
 
 class DoubleUpdateInteraction(Interaction):
@@ -562,7 +562,7 @@ class DoubleUpdateInteraction(Interaction):
 
 def _ecology(growth):
     """Return a system of one population under a growth interaction."""
-    return System(elements=[PopulationElement('rabbits', n=10)], interactions=[growth])
+    return System(elements=[PopulationElement('rabbits', x=10)], interactions=[growth])
 
 
 class HubElement(Element):
@@ -630,11 +630,12 @@ def _hub_and_sites(interaction):
 
 def _compile_time(n_links):
     """Return the shortest of two compile times of a zero-range ring written with one interaction per link."""
-    sites = LatticeElement(
+    sites = GroupElement(
         'sites',
         element=ParticleSiteElement,
         space=LatticeSpace(n_links),
-        values={'n': np.ones(n_links)},
+        values={'x': np.ones(n_links)},
+        on='sites',
     )
     links = [
         ZeroRangeHopInteraction(f'hop_{index}', link=[f'sites[{index}]', f'sites[{(index + 1) % n_links}]'])
@@ -698,8 +699,8 @@ class DoublingInteraction(Interaction):
 
     def _get_laws(self, s):
         """Return a callable rate equal to twice the member counts."""
-        name = f'{self.target}.n'
-        return [RateLaw(s.target.n, lambda t, values: 2 * values[name])]
+        name = f'{self.target}.x'
+        return [RateLaw(s.target.x, lambda t, values: 2 * values[name])]
 
 
 class BirthInteraction(Interaction):
@@ -718,7 +719,7 @@ class BirthInteraction(Interaction):
 
     def _get_laws(self, s):
         """Return one jump per member."""
-        return [JumpLaw(s.rate * s.target.n, {s.target.n: 1})]
+        return [JumpLaw(s.rate * s.target.x, {s.target.x: 1})]
 
 
 class VolatilityInteraction(Interaction):
@@ -734,8 +735,8 @@ class VolatilityInteraction(Interaction):
         self.target = target
 
     def _get_laws(self, s):
-        """Return the noise amplitude `n`."""
-        return [NoiseLaw(s.target.n, s.target.n)]
+        """Return the noise amplitude `x`."""
+        return [NoiseLaw(s.target.x, s.target.x)]
 
 
 class HalvingInteraction(Interaction):
@@ -752,7 +753,7 @@ class HalvingInteraction(Interaction):
 
     def _get_laws(self, s):
         """Return the next value `n / 2`."""
-        return [UpdateLaw(s.target.n, s.target.n / 2)]
+        return [UpdateLaw(s.target.x, s.target.x / 2)]
 
 
 class SingleUpdateFromGroupInteraction(Interaction):
@@ -771,7 +772,7 @@ class SingleUpdateFromGroupInteraction(Interaction):
 
     def _get_laws(self, s):
         """Return an update of the single element."""
-        return [UpdateLaw(s.total.n, s.target.n)]
+        return [UpdateLaw(s.total.x, s.target.x)]
 
 
 def _lennard_jones_gas(n, seed=0):
@@ -827,7 +828,7 @@ class RecorderInteraction(Interaction):
         ),
         (
             System(
-                elements=[CompartmentElement('I', n=5), CompartmentElement('R')],
+                elements=[NonnegativeElement('I', x=5), NonnegativeElement('R')],
                 interactions=[RecoveryInteraction('rec', infected='I', recovered='R', stochastic=True)],
             ),
             FormKind.JUMP,
@@ -853,9 +854,9 @@ def test_compiler_mixed_kinds_raises_error():
 
 def test_compiler_names_nested_states_by_path():
     """Test that nested states are named by their path."""
-    system = System(systems=[System('meadow', elements=[PopulationElement('rabbits', n=3)])])
+    system = System(systems=[System('meadow', elements=[PopulationElement('rabbits', x=3)])])
     problem = PassCompiler().prepare(system).run().problem_
-    assert problem.states.names == ['meadow/rabbits.n']
+    assert problem.states.names == ['meadow/rabbits.x']
     assert problem.initial_state.tolist() == [3.0]
 
 
@@ -863,8 +864,8 @@ def test_compiler_couples_subsystems():
     """Test that an interaction couples elements of two subsystems."""
     system = System(
         systems=[
-            System('forest', elements=[PopulationElement('foxes', n=2)]),
-            System('meadow', elements=[PopulationElement('rabbits', n=5)]),
+            System('forest', elements=[PopulationElement('foxes', x=2)]),
+            System('meadow', elements=[PopulationElement('rabbits', x=5)]),
         ],
         interactions=[PredationInteraction('hunt', predator='forest/foxes', prey='meadow/rabbits', a=1.0, b=0.5)],
     )
@@ -884,7 +885,8 @@ def test_compiler_drift_takes_parameters():
 
 def test_compiler_callable_law_is_evaluated():
     """Test that a callable rate is added to the drift and left out of the equations."""
-    system = _ecology(CallableGrowthInteraction('growth', target='rabbits', r=3.0))
+    growth = CallableGrowthInteraction('growth', target='rabbits', r=3.0)
+    system = System(elements=[HoldingElement('rabbits', n=10.0)], interactions=[growth])
     problem = PassCompiler().prepare(system).run().problem_
     assert problem.drift(0.0, problem.initial_state, problem.initial_parameters).tolist() == [30.0]
     assert problem.has_callables
@@ -985,7 +987,7 @@ def test_compiler_double_update_raises_error():
 def test_compiler_jump_stoichiometry():
     """Test that jump changes become rows of the stoichiometry matrix."""
     system = System(
-        elements=[CompartmentElement('S', n=9), CompartmentElement('I', n=1)],
+        elements=[NonnegativeElement('S', x=9), NonnegativeElement('I', x=1)],
         interactions=[InfectionInteraction('inf', susceptible='S', infected='I', beta=0.5, stochastic=True)],
     )
     problem = PassCompiler().prepare(system).run().problem_
@@ -1199,7 +1201,7 @@ def test_compile_periodic_box_wraps_positions():
 def test_compile_group_callable_rate():
     """Test that a callable law over a group returns one value per member."""
     system = System(
-        elements=[GroupElement('herds', element=PopulationElement, size=3, values={'n': [1.0, 2.0, 3.0]})],
+        elements=[GroupElement('herds', element=PopulationElement, size=3, values={'x': [1.0, 2.0, 3.0]})],
         interactions=[DoublingInteraction('d', target='herds')],
     )
     problem = PassCompiler().prepare(system).run().problem_
@@ -1210,7 +1212,7 @@ def test_compile_group_callable_rate():
 def test_compile_group_jumps_have_one_channel_per_member():
     """Test that a jump law over a group has one channel per member."""
     system = System(
-        elements=[GroupElement('herds', element=PopulationElement, size=3, values={'n': [1.0, 2.0, 3.0]})],
+        elements=[GroupElement('herds', element=PopulationElement, size=3, values={'x': [1.0, 2.0, 3.0]})],
         interactions=[BirthInteraction('birth', target='herds')],
     )
     problem = PassCompiler().prepare(system).run().problem_
@@ -1221,7 +1223,7 @@ def test_compile_group_jumps_have_one_channel_per_member():
 def test_compile_group_noise_has_one_process_per_member():
     """Test that a noise law over a group drives every member with its own process."""
     system = System(
-        elements=[GroupElement('herds', element=PopulationElement, size=3, values={'n': [1.0, 2.0, 3.0]})],
+        elements=[GroupElement('herds', element=PopulationElement, size=3, values={'x': [1.0, 2.0, 3.0]})],
         interactions=[VolatilityInteraction('vol', target='herds')],
     )
     problem = PassCompiler().prepare(system).run().problem_
@@ -1232,12 +1234,12 @@ def test_compile_group_noise_has_one_process_per_member():
 def test_compile_group_updates_every_member():
     """Test that a discrete update over a group updates every member."""
     system = System(
-        elements=[GroupElement('herds', element=PopulationElement, size=2, values={'n': [4.0, 8.0]})],
+        elements=[GroupElement('herds', element=PopulationElement, size=2, values={'x': [4.0, 8.0]})],
         interactions=[HalvingInteraction('half', target='herds')],
     )
     problem = PassCompiler().prepare(system).run().problem_
     assert problem.update(0.0, problem.initial_state, problem.initial_parameters).tolist() == [2.0, 4.0]
-    assert problem.equations['herds.n[i]'] == problem.symbols['herds.n'] / 2
+    assert problem.equations['herds.x[i]'] == problem.symbols['herds.x'] / 2
 
 
 def test_compile_update_of_single_element_from_group_raises_error():
@@ -1406,7 +1408,7 @@ def test_components_receive_sage_symbols_and_vectors():
 def test_small_system_drift_is_fast():
     """Test that the NumPy drift of 20 logistic populations takes at most 250 microseconds and is correct."""
     system = System(
-        elements=[PopulationElement(f'p{index}', n=1.0 + index) for index in range(20)],
+        elements=[PopulationElement(f'p{index}', x=1.0 + index) for index in range(20)],
         interactions=[LogisticGrowthInteraction(f'g{index}', target=f'p{index}', r=1.0, K=100) for index in range(20)],
     )
     problem = PassCompiler(backend=NumpyBackend()).prepare(system).run().problem_

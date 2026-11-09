@@ -8,7 +8,7 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import DensityElement, FieldElement
+from skcomplex.core.components.elements import FieldElement, NonnegativeElement
 from skcomplex.core.components.interactions import AdvectionInteraction
 from skcomplex.core.components.laws.utils import coordinate, moment
 from skcomplex.core.components.spaces import LatticeSpace, SimplexSpace
@@ -36,7 +36,7 @@ def replicator_drift(_: SimpleNamespace) -> list[object]:
 
 def total(s: SimpleNamespace) -> object:
     """Return the integral of the density over the simplex."""
-    return moment(s.f, 0, axes=('x', 'y'))
+    return moment(s.x, 0, axes=('x', 'y'))
 
 
 def test_simplex_space_cuts_cells_along_the_slanted_face() -> None:
@@ -81,7 +81,7 @@ def test_moment_over_a_simplex_weights_every_cell_by_its_volume() -> None:
     """Integrate a uniform density of two over the 2-simplex to one."""
     space = _simplex()
     start = 2.0 * (space.volumes_ > 0)
-    groups = FieldElement('groups', element=DensityElement, space=space, values={'f': start})
+    groups = FieldElement('groups', element=NonnegativeElement, space=space, values={'x': start})
     observables = [ObservableSpec('total', total, group='groups')]
     trajectory = simulate(System(elements=[groups]), until=0.1, dt=0.1, observables=observables)
     values = np.asarray(trajectory.values('total'), dtype=float)
@@ -95,14 +95,14 @@ def test_replicator_flow_on_a_simplex_conserves_the_density(solver: object) -> N
     start = 2.0 * (space.volumes_ > 0)
     groups = FieldElement(
         'groups',
-        element=DensityElement,
+        element=NonnegativeElement,
         space=space,
-        values={'f': start},
+        values={'x': start},
         discretization='finite-volume',
     )
-    flow = AdvectionInteraction('flow', target='groups', state='f', drift=replicator_drift, limiter=None)
+    flow = AdvectionInteraction('flow', target='groups', state='x', drift=replicator_drift, limiter=None)
     trajectory = simulate(System(elements=[groups], interactions=[flow]), until=2.0, dt=0.5, solver=solver)
-    final = trajectory.values('groups.f')[-1].reshape(space.shape_)
+    final = trajectory.values('groups.x')[-1].reshape(space.shape_)
     weights = space.volumes_ / SIZE**2
     assert abs((final * weights).sum() - 1.0) < 1e-10
     assert np.all(final[space.volumes_ == 0] == 0.0)

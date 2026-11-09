@@ -43,9 +43,9 @@ def test_lotka_volterra_has_one_balancing_loop_through_predation():
     """
     analysis = _loops(LotkaVolterraSystem().prepare().system_, at=[1.0, 1.0])
     assert _found(analysis) == {
-        ('predators.n',): 'balancing',
-        ('prey.n',): 'reinforcing',
-        ('predators.n', 'prey.n'): 'balancing',
+        ('predators.x',): 'balancing',
+        ('prey.x',): 'reinforcing',
+        ('predators.x', 'prey.x'): 'balancing',
     }
     assert analysis.gains == pytest.approx([-0.3, 0.7, -0.04])
 
@@ -53,7 +53,7 @@ def test_lotka_volterra_has_one_balancing_loop_through_predation():
 def test_sir_infection_reinforces_and_depletion_balances():
     """Test that infection above its threshold is a reinforcing self-loop, balanced through the susceptibles."""
     found = _found(_loops(SIRSystem().prepare().system_))
-    assert found == {('I.n',): 'reinforcing', ('S.n',): 'balancing', ('I.n', 'S.n'): 'balancing'}
+    assert found == {('I.x',): 'reinforcing', ('S.x',): 'balancing', ('I.x', 'S.x'): 'balancing'}
 
 
 def test_repressilator_closes_one_balancing_loop_of_three_repressions():

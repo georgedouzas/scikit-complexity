@@ -48,8 +48,8 @@ trajectory = simulate(SIRSystem(stochastic=True), until=160, dt=1.0, observers=[
 # equation `S = S0 exp(-(beta / gamma) (N - S))`, with `N` the population. The simulated susceptibles should settle
 # close to its solution, up to the randomness of a single outbreak.
 
-susceptible, infected = trajectory.values('S.n'), trajectory.values('I.n')
-total = susceptible[0] + infected[0] + trajectory.values('R.n')[0]
+susceptible, infected = trajectory.values('S.x'), trajectory.values('I.x')
+total = susceptible[0] + infected[0] + trajectory.values('R.x')[0]
 ratio = 0.0003 / 0.1
 final = brentq(lambda s: s - susceptible[0] * np.exp(-ratio * (total - s)), 1e-9, susceptible[0] - 1e-9)
 fig, ax = plt.subplots(figsize=(7, 4))

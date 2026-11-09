@@ -15,7 +15,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import ZZ, Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import TransitionInteraction
 from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.laws.utils import total
@@ -305,11 +305,12 @@ class OriginFixationWalkSystem(BaseSystem):
         upper = np.triu(rng.normal(0.0, self.coupling / np.sqrt(self.loci), (self.loci, self.loci)), 1)
         matrix = upper + upper.T
         couplings = matrix if self.coupling else None
-        genome = LatticeElement(
+        genome = GroupElement(
             'genome',
             element=LocusElement,
             space=LatticeSpace(self.loci),
             values={'s': -np.ones(self.loci), 'h': fields},
+            on='sites',
         )
         return System(
             self.label,

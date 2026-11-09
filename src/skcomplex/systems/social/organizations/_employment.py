@@ -11,7 +11,7 @@ from typing import Annotated
 import numpy as np
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, System
@@ -132,11 +132,12 @@ class EmploymentTakeoverSystem(BaseSystem):
         for kind in (1.0, 0.0):
             cells = np.flatnonzero(employers.ravel() == kind)
             colours.ravel()[rng.choice(cells, len(cells) // 2, replace=False)] = 1.0
-        cells = LatticeElement(
+        cells = GroupElement(
             'cells',
             element=WorkplaceElement,
             space=LatticeSpace((self.size, self.size)),
             values={'colour': colours, 'employer': employers},
+            on='sites',
         )
         phases = [
             LocalRuleInteraction(

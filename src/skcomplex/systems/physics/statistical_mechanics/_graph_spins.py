@@ -7,7 +7,7 @@
 import networkx as nx
 import numpy as np
 
-from ....core.components.elements import LatticeElement
+from ....core.components.elements import GroupElement
 from ....core.components.spaces import AdjacencyNeighborhood, NetworkSpace
 from ....core.components.systems import BaseSystem, System
 from ..common.spins import IsingSamplingInteraction, IsingSpinElement
@@ -95,11 +95,12 @@ class GraphIsingSystem(BaseSystem):
         size = graph.number_of_nodes()
         spins = np.ones(size) if self.initial == 'up' else rng.choice([-1.0, 1.0], size=size)
         space = NetworkSpace(graph)
-        group = LatticeElement(
+        group = GroupElement(
             'spins',
             element=IsingSpinElement,
             space=space,
             values={'spin': spins, 'J': self.J, 'h': self.h, 'temperature': self.temperature},
+            on='sites',
         )
         sampling = IsingSamplingInteraction(
             'sampling',

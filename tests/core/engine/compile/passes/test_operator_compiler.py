@@ -8,7 +8,7 @@ import pytest
 import qutip
 from sage.all__sagemath_symbolics import CC
 
-from skcomplex.core.components.elements import GroupElement, LatticeElement
+from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.interactions import NeighborInteraction
 from skcomplex.core.components.laws import DissipatorLaw, GeneratorLaw, RateLaw
 from skcomplex.core.components.laws.utils import local_operator
@@ -116,7 +116,13 @@ def test_compiler_counts_one_exchange_term_per_bond():
     """Test that an exchange on a periodic lattice of 8 spins equals the sum of the 8 bond terms."""
     system = System(
         elements=[
-            LatticeElement('chain', element=SpinElement, space=LatticeSpace(8), values={'hilbert': _spin_space()}),
+            GroupElement(
+                'chain',
+                element=SpinElement,
+                space=LatticeSpace(8),
+                values={'hilbert': _spin_space()},
+                on='sites',
+            ),
         ],
         interactions=[HeisenbergInteraction('h', target='chain')],
     )
@@ -176,7 +182,7 @@ def test_compiler_stores_neel_states():
     labels = ['up', 'down'] * 3
     system = System(
         elements=[
-            LatticeElement('chain', element=SpinElement, space=LatticeSpace(6), values={'psi': labels}),
+            GroupElement('chain', element=SpinElement, space=LatticeSpace(6), values={'psi': labels}, on='sites'),
         ],
     )
     problem = OperatorCompiler().prepare(system).run().problem_
@@ -206,7 +212,13 @@ def test_compiler_starts_from_the_ground_state():
     """Test that the initial state 'ground' is the lowest eigenstate."""
     system = System(
         elements=[
-            LatticeElement('chain', element=SpinElement, space=LatticeSpace(4), values={'hilbert': _spin_space()}),
+            GroupElement(
+                'chain',
+                element=SpinElement,
+                space=LatticeSpace(4),
+                values={'hilbert': _spin_space()},
+                on='sites',
+            ),
         ],
         interactions=[HeisenbergInteraction('h', target='chain')],
     )
@@ -224,11 +236,12 @@ def test_observable_evaluator_reads_local_magnetization():
     labels = ['up', 'down'] * 4
     system = System(
         elements=[
-            LatticeElement(
+            GroupElement(
                 'chain',
                 element=SpinElement,
                 space=LatticeSpace(8),
                 values={'psi': labels, 'hilbert': _spin_space()},
+                on='sites',
             ),
         ],
     )
@@ -255,7 +268,7 @@ def test_operator_compiler_reports_a_classical_system():
     """Test that the operator compiler accepts an operator system and reports a classical one."""
     compiler = OperatorCompiler()
     assert compiler.prepare(System(elements=[GroupElement('chain', element=SpinElement, size=2)])).report_.ok
-    assert not compiler.prepare(System(elements=[PopulationElement('rabbits', n=10)])).report_.ok
+    assert not compiler.prepare(System(elements=[PopulationElement('rabbits', x=10)])).report_.ok
 
 
 def test_operator_compiler_is_a_system_compiler_and_not_a_pass():

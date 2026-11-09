@@ -28,7 +28,7 @@ trajectory = simulate(PowerLawGrowthSystem(n=10.0), observers=[observer])
 # The system `dn/dt = r n^p` gives a straight line of slope `p` between `log(dn/dt)` and `log(n)`, and the volume
 # follows `(n0^(1-p) + (1-p) r t)^(1/(1-p))`.
 
-times, volume = trajectory.times, trajectory.values('tumour.n')
+times, volume = trajectory.times, trajectory.values('tumour.x')
 r, p = 1.32, 0.58
 exact = (10.0 ** (1 - p) + (1 - p) * r * times) ** (1 / (1 - p))
 fig, (curve, scaling) = plt.subplots(1, 2, figsize=(10, 4))

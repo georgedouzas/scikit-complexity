@@ -13,9 +13,9 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, JumpLaw, LocalRuleLaw, RateLaw
-from ....core.components.spaces import BoxNeighborhood, LatticeSpace
+from ....core.components.spaces import BallNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -84,7 +84,14 @@ class MicrostateElement(Element):
             laws:
                 The laws of the component.
         """
-        return [LocalRuleLaw(s.P, BoxNeighborhood(), MicrostateElement._master_step, reads=(s.P, s.U))]
+        return [
+            LocalRuleLaw(
+                s.P,
+                BallNeighborhood(n_dim=1, center='inline'),
+                MicrostateElement._master_step,
+                reads=(s.P, s.U),
+            ),
+        ]
 
     @staticmethod
     def _glauber(source: Array, destination: Array, beta: float | Array, w: float | Array) -> Array:
@@ -327,11 +334,12 @@ class DiscreteMasterEquationSystem(BaseSystem):
         return System(
             self.label,
             elements=[
-                LatticeElement(
+                GroupElement(
                     'states',
                     element=MicrostateElement,
                     space=space,
                     values={'P': probability, 'U': potential, 'beta': self.beta, 'w': self.w},
+                    on='sites',
                 ),
             ],
         )

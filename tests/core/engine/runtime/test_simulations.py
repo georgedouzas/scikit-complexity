@@ -11,7 +11,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.analysis import loops
-from skcomplex.core.components.elements import CompartmentElement, Element, GroupElement
+from skcomplex.core.components.elements import Element, GroupElement, NonnegativeElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw, RuleLaw, TransitionLaw, UpdateLaw
 from skcomplex.core.components.spaces import ContinuousSpace
@@ -72,7 +72,7 @@ class FrameCounterObserver(BaseObserver):
 def _growth(r=1.0):
     """Return a system of exponential growth."""
     return System(
-        elements=[PopulationElement('a', n=1)],
+        elements=[PopulationElement('a', x=1)],
         interactions=[ExponentialGrowthInteraction('g', target='a', r=r)],
     )
 
@@ -80,7 +80,7 @@ def _growth(r=1.0):
 def _epidemic():
     """Return a stochastic SIR system."""
     return System(
-        elements=[CompartmentElement('S', n=95), CompartmentElement('I', n=5), CompartmentElement('R')],
+        elements=[NonnegativeElement('S', x=95), NonnegativeElement('I', x=5), NonnegativeElement('R')],
         interactions=[
             InfectionInteraction('infection', susceptible='S', infected='I', beta=0.01, stochastic=True),
             RecoveryInteraction('recovery', infected='I', recovered='R', gamma=0.3, stochastic=True),
@@ -91,7 +91,7 @@ def _epidemic():
 def _logistic():
     """Return a logistic population."""
     return System(
-        elements=[PopulationElement('rabbits', n=10)],
+        elements=[PopulationElement('rabbits', x=10)],
         interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
     )
 
@@ -307,8 +307,8 @@ def test_simulation_without_recording_has_no_trajectory():
 def test_trajectory_unknown_name_raises_error():
     """Test that a trajectory names the available variables."""
     trajectory = simulate(_growth(), until=0.1)
-    with pytest.raises(KeyError, match=r'a\.n, g\.r'):
-        trajectory.values('b.n')
+    with pytest.raises(KeyError, match=r'a\.x, g\.r'):
+        trajectory.values('b.x')
 
 
 def test_simulation_same_random_state_is_reproducible():
@@ -330,10 +330,10 @@ def test_simulation_extend_runs_in_two_parts():
     schedule = {'growth.r': lambda t: 1.0 if t < 5 else 0.0}
     simulation = Simulation(_logistic(), dt=1.0, schedule=schedule).prepare().run(until=5)
     trajectory = simulation.extend(until=10).trajectory_
-    reference = simulate(_logistic(), until=5, dt=1.0).values('rabbits.n')
+    reference = simulate(_logistic(), until=5, dt=1.0).values('rabbits.x')
     assert trajectory.times.tolist() == [float(time) for time in range(11)]
-    assert trajectory.values('rabbits.n')[:6] == pytest.approx(reference)
-    assert np.all(trajectory.values('rabbits.n')[5:] == trajectory.values('rabbits.n')[5])
+    assert trajectory.values('rabbits.x')[:6] == pytest.approx(reference)
+    assert np.all(trajectory.values('rabbits.x')[5:] == trajectory.values('rabbits.x')[5])
 
 
 def test_simulation_extend_backwards_raises_error():
@@ -379,13 +379,13 @@ def test_trajectory_gives_agent_locations_over_frames():
 def test_initial_state_replaces_the_values_of_components():
     """Test that a simulation starts from given initial values by state name and rejects unknown names."""
     system = System(
-        elements=[PopulationElement('rabbits', n=10)],
+        elements=[PopulationElement('rabbits', x=10)],
         interactions=[ExponentialGrowthInteraction('growth', target='rabbits', r=0.0)],
     )
-    trajectory = simulate(system, until=1.0, dt=1.0, initial_state={'rabbits.n': 20.0})
-    assert trajectory.values('rabbits.n')[0] == pytest.approx(20.0)
-    with pytest.raises(ValidationError, match=r'foxes\.n'):
-        Simulation(system, dt=1.0, initial_state={'foxes.n': 1.0}).prepare().run(until=1.0)
+    trajectory = simulate(system, until=1.0, dt=1.0, initial_state={'rabbits.x': 20.0})
+    assert trajectory.values('rabbits.x')[0] == pytest.approx(20.0)
+    with pytest.raises(ValidationError, match=r'foxes\.x'):
+        Simulation(system, dt=1.0, initial_state={'foxes.x': 1.0}).prepare().run(until=1.0)
 
 
 def test_simulation_schedules_a_bounded_control():
@@ -447,7 +447,7 @@ def test_simulation_releases_the_solver_at_the_last_frame():
 def test_simulation_prepare_compiles_and_chooses_the_solver_without_running():
     """Test that preparing a simulation takes no input, compiles the system, and runs nothing."""
     simulation = Simulation(_growth()).prepare()
-    assert simulation.problem_.states.names == ['a.n']
+    assert simulation.problem_.states.names == ['a.x']
     assert simulation.stepper_ is not None
     assert not hasattr(simulation, 'time_')
     with pytest.raises(SimulationError, match='not run'):
@@ -585,7 +585,7 @@ class ChainElement(Element):
 def test_simulation_without_a_solver_runs_the_default_solver():
     """Test that a simulation without a solver runs the default solver of the system's form."""
     system = System(
-        elements=[PopulationElement('a', n=1)],
+        elements=[PopulationElement('a', x=1)],
         interactions=[ExponentialGrowthInteraction('g', target='a', r=1.0)],
     )
     simulation = Simulation(system).prepare().run(until=0.1)
@@ -595,7 +595,7 @@ def test_simulation_without_a_solver_runs_the_default_solver():
 def test_simulation_runs_the_solver_instance_passed():
     """Test that a simulation runs the solver instance it is given."""
     system = System(
-        elements=[PopulationElement('a', n=1)],
+        elements=[PopulationElement('a', x=1)],
         interactions=[ExponentialGrowthInteraction('g', target='a', r=1.0)],
     )
     solver = ScipyODESolver(method='RK45')

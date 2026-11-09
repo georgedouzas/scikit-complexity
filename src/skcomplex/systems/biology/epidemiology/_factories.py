@@ -22,7 +22,7 @@ class InfectionInteraction(ReactionInteraction):
 
     The reaction moves individuals from susceptible to infected.
 
-    It is a `ReactionInteraction` between the states `n` of the two compartments its roles bind, a rate equation, or
+    It is a `ReactionInteraction` between the states `x` of the two compartments its roles bind, a rate equation, or
     in stochastic mode a random event that moves one individual.
 
     Args:
@@ -42,16 +42,16 @@ class InfectionInteraction(ReactionInteraction):
             Whether infections are random events.
 
     Examples:
-        >>> from skcomplex.core.components.elements import CompartmentElement
+        >>> from skcomplex.systems.biology.common.kinetics import CompartmentElement
         >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.biology.epidemiology import InfectionInteraction
         >>> from skcomplex.core.engine.runtime import simulate
         >>> system = System(
-        ...     elements=[CompartmentElement('S', n=99.0), CompartmentElement('I', n=1.0)],
+        ...     elements=[CompartmentElement('S', x=99.0), CompartmentElement('I', x=1.0)],
         ...     interactions=[InfectionInteraction('infection', susceptible='S', infected='I', beta=0.01)],
         ... )
         >>> trajectory = simulate(system, until=5.0, dt=0.1)
-        >>> round(float(trajectory.values('S.n')[-1] + trajectory.values('I.n')[-1]), 6)
+        >>> round(float(trajectory.values('S.x')[-1] + trajectory.values('I.x')[-1]), 6)
         100.0
     """
 
@@ -71,12 +71,12 @@ class InfectionInteraction(ReactionInteraction):
         self.stochastic = stochastic
 
     def _get_reactants(self) -> Stoichiometry:
-        """Return the states `n` of the compartments the reaction consumes."""
-        return {(self.susceptible, 'n'): 1, (self.infected, 'n'): 1}
+        """Return the states `x` of the compartments the reaction consumes."""
+        return {(self.susceptible, 'x'): 1, (self.infected, 'x'): 1}
 
     def _get_products(self) -> Stoichiometry:
-        """Return the states `n` of the compartments the reaction produces."""
-        return {(self.infected, 'n'): 2}
+        """Return the states `x` of the compartments the reaction produces."""
+        return {(self.infected, 'x'): 2}
 
     def _get_mode(self) -> str:
         """Return the mode of the reaction.
@@ -104,7 +104,7 @@ class ImmunityLossInteraction(ReactionInteraction):
 
     The reaction moves individuals from recovered back to susceptible.
 
-    It is a `ReactionInteraction` between the states `n` of the two compartments its roles bind, a rate equation, or
+    It is a `ReactionInteraction` between the states `x` of the two compartments its roles bind, a rate equation, or
     in stochastic mode a random event that moves one individual.
 
     Args:
@@ -145,12 +145,12 @@ class ImmunityLossInteraction(ReactionInteraction):
         self.stochastic = stochastic
 
     def _get_reactants(self) -> Stoichiometry:
-        """Return the states `n` of the compartments the reaction consumes."""
-        return {(self.recovered, 'n'): 1}
+        """Return the states `x` of the compartments the reaction consumes."""
+        return {(self.recovered, 'x'): 1}
 
     def _get_products(self) -> Stoichiometry:
-        """Return the states `n` of the compartments the reaction produces."""
-        return {(self.susceptible, 'n'): 1}
+        """Return the states `x` of the compartments the reaction produces."""
+        return {(self.susceptible, 'x'): 1}
 
     def _get_mode(self) -> str:
         """Return the mode of the reaction.
@@ -178,7 +178,7 @@ class RecoveryInteraction(ReactionInteraction):
 
     The reaction moves individuals from infected to recovered.
 
-    It is a `ReactionInteraction` between the states `n` of the two compartments its roles bind, a rate equation, or
+    It is a `ReactionInteraction` between the states `x` of the two compartments its roles bind, a rate equation, or
     in stochastic mode a random event that moves one individual.
 
     Args:
@@ -198,16 +198,16 @@ class RecoveryInteraction(ReactionInteraction):
             Whether recoveries are random events.
 
     Examples:
-        >>> from skcomplex.core.components.elements import CompartmentElement
+        >>> from skcomplex.systems.biology.common.kinetics import CompartmentElement
         >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.biology.epidemiology import RecoveryInteraction
         >>> from skcomplex.core.engine.runtime import simulate
         >>> system = System(
-        ...     elements=[CompartmentElement('I', n=10.0), CompartmentElement('R')],
+        ...     elements=[CompartmentElement('I', x=10.0), CompartmentElement('R')],
         ...     interactions=[RecoveryInteraction('recovery', infected='I', recovered='R', gamma=0.5)],
         ... )
         >>> trajectory = simulate(system, until=2.0, dt=0.01)
-        >>> round(float(trajectory.values('I.n')[-1]), 3)
+        >>> round(float(trajectory.values('I.x')[-1]), 3)
         3.679
     """
 
@@ -227,12 +227,12 @@ class RecoveryInteraction(ReactionInteraction):
         self.stochastic = stochastic
 
     def _get_reactants(self) -> Stoichiometry:
-        """Return the states `n` of the compartments the reaction consumes."""
-        return {(self.infected, 'n'): 1}
+        """Return the states `x` of the compartments the reaction consumes."""
+        return {(self.infected, 'x'): 1}
 
     def _get_products(self) -> Stoichiometry:
-        """Return the states `n` of the compartments the reaction produces."""
-        return {(self.recovered, 'n'): 1}
+        """Return the states `x` of the compartments the reaction produces."""
+        return {(self.recovered, 'x'): 1}
 
     def _get_mode(self) -> str:
         """Return the mode of the reaction.
@@ -612,25 +612,25 @@ class ZombieOutbreakSystem(MassActionSystem):
             ),
             ReactionInteraction(
                 'destruction',
-                reactants={('Z', 'n'): 1},
-                products={('R', 'n'): 1},
-                modifiers={('S', 'n'): 1},
+                reactants={('Z', 'x'): 1},
+                products={('R', 'x'): 1},
+                modifiers={('S', 'x'): 1},
                 k=self.alpha,
                 mode=mode,
             ),
             ReactionInteraction(
                 'death',
-                reactants={('S', 'n'): 1},
-                products={('R', 'n'): 1},
+                reactants={('S', 'x'): 1},
+                products={('R', 'x'): 1},
                 k=self.delta,
                 mode=mode,
             ),
             ReactionInteraction(
                 'resurrection',
-                reactants={('R', 'n'): 1},
-                products={('Z', 'n'): 1},
+                reactants={('R', 'x'): 1},
+                products={('Z', 'x'): 1},
                 k=self.zeta,
                 mode=mode,
             ),
-            ReactionInteraction('birth', products={('S', 'n'): 1}, k=self.birth, mode=mode),
+            ReactionInteraction('birth', products={('S', 'x'): 1}, k=self.birth, mode=mode),
         ]

@@ -55,7 +55,7 @@ from typing import Annotated
 import networkx as nx
 import numpy as np
 
-from skcomplex.core.components.elements import Element, GroupElement, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import NeighborInteraction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import NetworkSpace
@@ -97,7 +97,9 @@ class HebbianInteraction(NeighborInteraction):
 space = NetworkSpace(nx.cycle_graph(6))
 system = System(
     elements=[
-        LatticeElement('neurons', element=NeuronElement, space=space, values={'a': [1.0, 1.0, 1.0, 0.0, 0.0, 0.0]}),
+        GroupElement(
+            'neurons', element=NeuronElement, space=space, on='sites', values={'a': [1.0, 1.0, 1.0, 0.0, 0.0, 0.0]}
+        ),
         GroupElement('synapses', element=SynapseElement, space=space, on='edges'),
     ],
     interactions=[HebbianInteraction('hebb', neurons='neurons', synapses='synapses')],
@@ -127,7 +129,7 @@ import numpy as np
 import xgi
 from sage.all__sagemath_symbolics import sin
 
-from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import HyperedgeInteraction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import NetworkSpace
@@ -156,7 +158,9 @@ class TriadInteraction(HyperedgeInteraction):
 triangles = xgi.Hypergraph([list(nodes) for nodes in itertools.combinations(range(5), 3)])
 space = NetworkSpace(nx.complete_graph(5), hyperedges=triangles)
 system = System(
-    elements=[LatticeElement('phases', element=PhaseElement, space=space, values={'theta': np.linspace(0, 1, 5)})],
+    elements=[
+        GroupElement('phases', element=PhaseElement, space=space, on='sites', values={'theta': np.linspace(0, 1, 5)}),
+    ],
     interactions=[TriadInteraction('triads', phases='phases')],
 )
 problem = simulate(system, until=0.0).problem
@@ -206,7 +210,7 @@ from typing import Annotated
 
 import numpy as np
 
-from skcomplex.core.components.elements import Element, GroupElement, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import GroupingInteraction
 from skcomplex.core.components.laws.utils import mean, where
 from skcomplex.core.components.spaces import LatticeSpace
@@ -242,11 +246,11 @@ galam = GroupingInteraction(
 run = simulate(System(elements=[voters], interactions=[galam]), until=5, random_state=0)
 run.values('voters.s').mean(axis=1).round(2).tolist()
 
-players = LatticeElement(
+players = GroupElement(
     'players',
     element=PlayerElement,
     space=LatticeSpace((10, 10), metric='manhattan'),
-    values={'s': (np.random.default_rng(1).random(100) < 0.5).astype(float)},
+    values={'s': (np.random.default_rng(1).random(100) < 0.5).astype(float)}, on='sites',
 )
 goods = GroupingInteraction(
     'goods',
@@ -293,7 +297,7 @@ import networkx as nx
 import numpy as np
 from sage.all__sagemath_symbolics import sin
 
-from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import CouplingInteraction
 from skcomplex.core.components.laws.utils import count, total
 from skcomplex.core.components.spaces import NetworkSpace
@@ -328,13 +332,17 @@ triads = CouplingInteraction(
     write='theta',
     function=lambda s: sin(s.others[0].theta + s.others[1].theta - 2 * s.member.theta),
 )
-oscillators = LatticeElement('oscillators', element=PlayerElement, space=space, values={'theta': np.linspace(0, 1, 5)})
+oscillators = GroupElement(
+    'oscillators', element=PlayerElement, space=space, on='sites', values={'theta': np.linspace(0, 1, 5)}
+)
 problem = simulate(System(elements=[oscillators], interactions=[triads]), until=0.0).problem
 drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
 np.round(problem.states.read(drift, 'oscillators.theta'), 3).tolist()
 
 groups = NetworkSpace(nx.complete_graph(5), hyperedges=[[0, 1, 2], [1, 2, 3, 4], [0, 4]])
-players = LatticeElement('players', element=PlayerElement, space=groups, values={'s': [1.0, 0.0, 1.0, 1.0, 0.0]})
+players = GroupElement(
+    'players', element=PlayerElement, space=groups, on='sites', values={'s': [1.0, 0.0, 1.0, 1.0, 0.0]}
+)
 goods = CouplingInteraction(
     'goods',
     target='players',
@@ -451,7 +459,7 @@ from typing import Annotated
 
 import numpy as np
 
-from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import GroupingInteraction, ImitationInteraction
 from skcomplex.core.components.laws.utils import mean
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
@@ -473,11 +481,11 @@ class PlayerElement(Element):
         self.payoff = payoff
 
 
-players = LatticeElement(
+players = GroupElement(
     'players',
     element=PlayerElement,
     space=LatticeSpace((20, 20), metric='manhattan'),
-    values={'s': (np.random.default_rng(0).random(400) < 0.5).astype(float)},
+    values={'s': (np.random.default_rng(0).random(400) < 0.5).astype(float)}, on='sites',
 )
 play = GroupingInteraction(
     'play',
@@ -519,7 +527,7 @@ from typing import Annotated
 
 import networkx as nx
 
-from skcomplex.core.components.elements import Element, GroupElement, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import neighbors
@@ -554,7 +562,7 @@ class DiffusionInteraction(Interaction):
 space = NetworkSpace(nx.path_graph(3))
 system = System(
     elements=[
-        LatticeElement('nodes', element=NodeElement, space=space, values={'u': [0.0, 1.0, 4.0]}),
+        GroupElement('nodes', element=NodeElement, space=space, values={'u': [0.0, 1.0, 4.0]}, on='sites'),
         GroupElement('links', element=LinkElement, space=space, on='edges', values={'w': [1.0, 10.0]}),
     ],
     interactions=[DiffusionInteraction('diffusion', nodes='nodes', links='links')],
@@ -592,7 +600,7 @@ from typing import Annotated
 
 import networkx as nx
 
-from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import components, where
 from skcomplex.core.components.spaces import NetworkSpace
@@ -611,11 +619,11 @@ class SiteElement(Element):
         return [RateLaw(s.occupied, components(both, reduce='size'))]
 
 
-sites = LatticeElement(
+sites = GroupElement(
     'sites',
     element=SiteElement,
     space=NetworkSpace(nx.path_graph(6)),
-    values={'occupied': [1.0, 1.0, 1.0, 0.0, 1.0, 1.0]},
+    values={'occupied': [1.0, 1.0, 1.0, 0.0, 1.0, 1.0]}, on='sites',
 )
 problem = simulate(System(elements=[sites]), until=0.0).problem
 drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)

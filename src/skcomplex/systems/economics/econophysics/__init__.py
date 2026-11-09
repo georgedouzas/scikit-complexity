@@ -13,6 +13,7 @@ from ._kolkata import CrowdAvoidanceInteraction, DinerElement, KolkataRestaurant
 from ._minority import MinorityGameInteraction, MinorityGameSystem, MinorityPlayerElement, strategy_table
 from ._welfare import (
     KineticWealthWelfareSystem,
+    WealthDensityElement,
     WealthExchangeInteraction,
     WelfarePolicyInteraction,
     exchange_table,
@@ -45,6 +46,7 @@ __all__: list[str] = [
     'SavingExchangeInteraction',
     'SavingTraderElement',
     'TraderElement',
+    'WealthDensityElement',
     'WealthExchangeInteraction',
     'WelfarePolicyInteraction',
     'exchange_table',

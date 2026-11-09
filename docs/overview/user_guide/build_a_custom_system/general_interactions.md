@@ -4,14 +4,14 @@ Most processes you want to describe already exist as a general interaction. You 
 mathematical operation you need, bind it to your elements, and pass the functions that make it your process.
 
 ```python
-from skcomplex.core.components.elements import CompartmentElement
+from skcomplex.core.components.elements import NonnegativeElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 
-decay = RateInteraction('decay', target='stock', state='n', rate=lambda s: -0.5 * s.target.n)
-system = System(elements=[CompartmentElement('stock', n=8.0)], interactions=[decay])
-round(float(simulate(system, until=2.0, dt=0.01).values('stock.n')[-1]), 3)
+decay = RateInteraction('decay', target='stock', state='x', rate=lambda s: -0.5 * s.target.x)
+system = System(elements=[NonnegativeElement('stock', x=8.0)], interactions=[decay])
+round(float(simulate(system, until=2.0, dt=0.01).values('stock.x')[-1]), 3)
 ```
 
 `skcomplex.core.components.interactions` holds one general class per mathematical operation: a rate, a gradient, a
@@ -69,7 +69,7 @@ and the functions you pass.
 - `state`, `states`, `read`, and `write` name the states, so one class serves any meaning. A force is a rate on a
   state of order 2, and a mass is its `divisor`.
 - Functions are callables of the namespace `s` that return symbolic expressions, such as
-  `rate=lambda s: -s.k * s.target.n`. Where an argument allows it, a number stands for a constant function.
+  `rate=lambda s: -s.k * s.target.x`. Where an argument allows it, a number stands for a constant function.
 - `divisor` divides what a rate, a gradient, or a pair coupling adds to the highest derivative, such as a mass, a
   friction, or a capacitance. It is a named argument, not part of the function, so a backend such as LAMMPS can read
   it.
@@ -101,24 +101,24 @@ system = LotkaVolterraSystem().prepare().system_
 The general interactions act on a few general elements, so you rarely need an element class of your own.
 
 ```python
-from skcomplex.core.components.elements import CompartmentElement, PointElement
+from skcomplex.core.components.elements import NonnegativeElement, PointElement
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 
 system = System(
-    elements=[CompartmentElement('stock', n=5.0), PointElement('point', x_d1=[1.0, 0.0])],
+    elements=[NonnegativeElement('stock', x=5.0), PointElement('point', x_d1=[1.0, 0.0])],
     space=ContinuousSpace(n_dim=2),
 )
 trajectory = simulate(system, until=2.0, dt=1.0)
-trajectory.values('stock.n')[-1], trajectory.values('point.x')[-1].tolist()
+trajectory.values('stock.x')[-1], trajectory.values('point.x')[-1].tolist()
 ```
 
-- `Element` declares states and parameters. `GroupElement` holds many identical members as arrays. `FieldElement` and
-  `LatticeElement` place one member at every site of a space.
-- `CompartmentElement` is a stock with one state `n`, such as a species, a compartment, or a queue. Since states are
-  declared per class, a system renames `n` by a thin subclass.
-- `DensityElement` is the density `f` of one activity class of a kinetic system.
+- `Element` declares states and parameters. `GroupElement` holds many identical members as arrays, and on `'sites'` it
+  places one member at every site of a space, as `FieldElement` does.
+- `NonnegativeElement` holds one nonnegative state `x`, such as a stock, a species, a queue, or the density of one
+  activity class of a kinetic system. A field names its own quantity by a thin subclass, such as the biology
+  `CompartmentElement`.
 - `PointElement` is a member with a vector state `x` of order 2 in a continuous space. Its first derivative is `x_d1`,
   so a backend such as LAMMPS reads the velocity of a point from its declared states.
 
@@ -135,14 +135,14 @@ Use `RateInteraction` to add any rate to a state, as the decay at the top of thi
 `noise(s) dW`, to the highest derivative of a state of any order. A Hurst index `hurst` makes the noise fractional.
 
 ```python
-from skcomplex.core.components.elements import CompartmentElement
+from skcomplex.core.components.elements import NonnegativeElement
 from skcomplex.core.components.interactions import RelaxationInteraction
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 
-smoothing = RelaxationInteraction('smoothing', target='belief', state='n', goal=10.0, time=0.5)
-system = System(elements=[CompartmentElement('belief', n=0.0)], interactions=[smoothing])
-round(float(simulate(system, until=5.0, dt=0.01).values('belief.n')[-1]), 3)
+smoothing = RelaxationInteraction('smoothing', target='belief', state='x', goal=10.0, time=0.5)
+system = System(elements=[NonnegativeElement('belief', x=0.0)], interactions=[smoothing])
+round(float(simulate(system, until=5.0, dt=0.01).values('belief.x')[-1]), 3)
 ```
 
 `RelaxationInteraction(target, state, goal, time, noise=None)` relaxes a state towards a goal at the rate
@@ -153,15 +153,15 @@ round(float(simulate(system, until=5.0, dt=0.01).values('belief.n')[-1]), 3)
 Use `GradientInteraction` when a state moves down a potential. On a state of order 1 it is a gradient flow:
 
 ```python
-from skcomplex.core.components.elements import CompartmentElement, PointElement
+from skcomplex.core.components.elements import NonnegativeElement, PointElement
 from skcomplex.core.components.interactions import GradientInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 
-well = GradientInteraction('well', target='walker', states='n', potential=lambda s: s.target.n**2 / 2)
-flow = System(elements=[CompartmentElement('walker', n=1.0)], interactions=[well])
-round(float(simulate(flow, until=1.0, dt=0.01).values('walker.n')[-1]), 4)
+well = GradientInteraction('well', target='walker', states='x', potential=lambda s: s.target.x**2 / 2)
+flow = System(elements=[NonnegativeElement('walker', x=1.0)], interactions=[well])
+round(float(simulate(flow, until=1.0, dt=0.01).values('walker.x')[-1]), 4)
 ```
 
 On a state of order 2, such as the position of a point, the same class gives Newton's equations:
@@ -486,9 +486,9 @@ from typing import Annotated
 
 import numpy as np
 
-from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import CascadeInteraction, LocalRuleInteraction
-from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace, VonNeumannNeighborhood
+from skcomplex.core.components.spaces import BallNeighborhood, DiscreteTime, LatticeSpace
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec, TotalisticSpec
@@ -501,13 +501,17 @@ class CellElement(Element):
 
 
 def run(interaction, values, until):
-    cells = LatticeElement('cells', element=CellElement, space=LatticeSpace(5), values={'c': values})
+    cells = GroupElement('cells', element=CellElement, space=LatticeSpace(5), values={'c': values}, on='sites')
     system = System(elements=[cells], interactions=[interaction], time=DiscreteTime())
     return simulate(system, until=until, dt=until, random_state=0)
 
 
 parity = LocalRuleInteraction(
-    'parity', target='cells', state='c', rule=TotalisticSpec({1: 1}), neighborhood=VonNeumannNeighborhood(n_dim=1)
+    'parity',
+    target='cells',
+    state='c',
+    rule=TotalisticSpec({1: 1}),
+    neighborhood=BallNeighborhood(metric='manhattan', n_dim=1),
 )
 run(parity, np.eye(5)[2], 1).states[-1].tolist()
 ```
@@ -516,7 +520,7 @@ run(parity, np.eye(5)[2], 1).states[-1].tolist()
 rule, or a function of the ordered neighbourhood.
 
 ```python continuation
-around = VonNeumannNeighborhood(n_dim=1, center=True)
+around = BallNeighborhood(metric='manhattan', n_dim=1, center='first')
 toppling = CascadeInteraction('toppling', target='cells', state='c', threshold=2, share=1, neighborhood=around)
 trajectory = run(toppling, [0.0, 1.0, 3.0, 1.0, 0.0], 1)
 trajectory.states[-1].tolist(), [event.size for event in trajectory.events]
@@ -680,14 +684,14 @@ These classes change states by discrete, often random, events.
 Use `JumpInteraction` for random events that change states by fixed amounts, such as arrivals to a queue:
 
 ```python
-from skcomplex.core.components.elements import CompartmentElement
+from skcomplex.core.components.elements import NonnegativeElement
 from skcomplex.core.components.interactions import JumpInteraction, ReactionInteraction
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 
-arrivals = JumpInteraction('arrivals', target='queue', changes={'n': 1}, rate=lambda s: 2.0)
-queue = System(elements=[CompartmentElement('queue')], interactions=[arrivals])
-counts = simulate(queue, until=5, dt=1.0, random_state=0).values('queue.n')
+arrivals = JumpInteraction('arrivals', target='queue', changes={'x': 1}, rate=lambda s: 2.0)
+queue = System(elements=[NonnegativeElement('queue')], interactions=[arrivals])
+counts = simulate(queue, until=5, dt=1.0, random_state=0).values('queue.x')
 all(count == round(count) for count in counts)
 ```
 
@@ -698,10 +702,10 @@ Use `ReactionInteraction` for mass action between species, such as an epidemic w
 population stays the same:
 
 ```python continuation
-infection = ReactionInteraction('infection', reactants={('S', 'n'): 1, ('I', 'n'): 1}, products={('I', 'n'): 2}, k=5e-4)
-recovery = ReactionInteraction('recovery', reactants={('I', 'n'): 1}, products={('R', 'n'): 1}, k=0.1)
+infection = ReactionInteraction('infection', reactants={('S', 'x'): 1, ('I', 'x'): 1}, products={('I', 'x'): 2}, k=5e-4)
+recovery = ReactionInteraction('recovery', reactants={('I', 'x'): 1}, products={('R', 'x'): 1}, k=0.1)
 sir = System(
-    elements=[CompartmentElement('S', n=990), CompartmentElement('I', n=10), CompartmentElement('R')],
+    elements=[NonnegativeElement('S', x=990), NonnegativeElement('I', x=10), NonnegativeElement('R')],
     interactions=[infection, recovery],
 )
 round(float(simulate(sir, until=50, dt=1.0).states[-1].sum()), 6)
@@ -721,7 +725,7 @@ from typing import Annotated
 import numpy as np
 from sage.all__sagemath_symbolics import NN
 
-from skcomplex.core.components.elements import Element, GroupElement, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import TransitionInteraction
 from skcomplex.core.components.laws.utils import neighbors, where
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
@@ -762,7 +766,7 @@ contact = TransitionInteraction(
     rate=lambda s: 4.0 * neighbors(where(s.target.other.state == 1, 1, 0), reduce='mean'),
 )
 recovery = TransitionInteraction('recovery', target='sites', state='state', source=1, destination=0, rate=lambda s: 1.0)
-sites = LatticeElement('sites', element=HolderElement, space=LatticeSpace((20, 20)))
+sites = GroupElement('sites', element=HolderElement, space=LatticeSpace((20, 20)), on='sites')
 system = System(elements=[sites], interactions=[contact, recovery])
 values = simulate(system, until=10, dt=1.0, random_state=0).values('sites.state')
 values[-1].mean() > 0.3
@@ -778,7 +782,7 @@ classes:
 ```python
 import numpy as np
 
-from skcomplex.core.components.elements import DensityElement, GroupElement
+from skcomplex.core.components.elements import GroupElement, NonnegativeElement
 from skcomplex.core.components.interactions import EncounterInteraction
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.systems import System
@@ -791,13 +795,13 @@ gather = EncounterInteraction(
 )
 system = System(
     elements=[
-        GroupElement('candidates', element=DensityElement, size=3, on='sites', values={'f': [0.2, 0.3, 0.5]}),
-        GroupElement('field', element=DensityElement, size=1, values={'f': 1.0}),
+        GroupElement('candidates', element=NonnegativeElement, size=3, on='sites', values={'x': [0.2, 0.3, 0.5]}),
+        GroupElement('field', element=NonnegativeElement, size=1, values={'x': 1.0}),
     ],
     interactions=[gather],
     space=LatticeSpace(3, boundary='fixed'),
 )
-densities = simulate(system, until=4.0, dt=0.5).values('candidates.f')
+densities = simulate(system, until=4.0, dt=0.5).values('candidates.x')
 np.round(densities[-1], 2).tolist()
 ```
 
@@ -850,7 +854,7 @@ temperature, which align:
 ```python
 from typing import Annotated
 
-from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import SamplingInteraction
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
@@ -867,7 +871,7 @@ class SpinElement(Element):
 
 objective = lambda s: -s.target.s * neighbors(s.target.other.s)
 ising = SamplingInteraction('ising', target='spins', state='s', objective=objective, intensity=1.0)
-spins = LatticeElement('spins', element=SpinElement, space=LatticeSpace((8, 8)))
+spins = GroupElement('spins', element=SpinElement, space=LatticeSpace((8, 8)), on='sites')
 system = System(elements=[spins], interactions=[ising], time=DiscreteTime())
 abs(simulate(system, until=20, random_state=0).states[-1].mean()) > 0.9
 ```
@@ -888,7 +892,7 @@ from typing import Annotated
 import numpy as np
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
-from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import SamplingInteraction
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.components.systems import System
@@ -911,7 +915,7 @@ def flip_one(row, random):
 walk = SamplingInteraction(
     'walk', target='bits', state='s', objective=RowScoreSpec(np.sum), move=flip_one, intensity=float('inf')
 )
-bits = LatticeElement('bits', element=BitElement, space=LatticeSpace((3, 20)))
+bits = GroupElement('bits', element=BitElement, space=LatticeSpace((3, 20)), on='sites')
 system = System(elements=[bits], interactions=[walk], time=DiscreteTime())
 scores = simulate(system, until=50, random_state=0).values('walk.score')
 bool(np.all(np.diff(scores, axis=0) <= 0))
@@ -1050,7 +1054,7 @@ from typing import Annotated
 
 import numpy as np
 
-from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import ImitationInteraction
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.components.systems import System
@@ -1066,7 +1070,7 @@ class VoterElement(Element):
 
 initial = np.array([1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0], dtype=float)
 majority = ImitationInteraction('majority', target='voters', rule='majority', form='probability')
-voters = LatticeElement('voters', element=VoterElement, space=LatticeSpace(12), values={'state': initial})
+voters = GroupElement('voters', element=VoterElement, space=LatticeSpace(12), values={'state': initial}, on='sites')
 system = System(elements=[voters], interactions=[majority], time=DiscreteTime())
 simulate(system, until=1, random_state=0).values('voters.state')[-1].tolist()
 ```

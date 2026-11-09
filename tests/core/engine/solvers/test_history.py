@@ -156,7 +156,7 @@ def test_mackey_glass_is_periodic_at_six():
 
 def test_hutchinson_oscillates_above_threshold():
     """Test that the delayed logistic oscillates around K with a stable amplitude when r tau is above pi/2."""
-    values = simulate(HutchinsonSystem(r=1.0, tau=2.0).prepare().system_, until=200, dt=0.1).values('population.n')
+    values = simulate(HutchinsonSystem(r=1.0, tau=2.0).prepare().system_, until=200, dt=0.1).values('population.x')
     middle, late = values[1000:1500], values[1500:]
     assert np.ptp(late) > 50
     assert np.ptp(late) == pytest.approx(np.ptp(middle), rel=0.01)
@@ -165,7 +165,7 @@ def test_hutchinson_oscillates_above_threshold():
 
 def test_hutchinson_settles_below_threshold():
     """Test that the delayed logistic settles at K when r tau is below pi/2."""
-    values = simulate(HutchinsonSystem(r=1.0, tau=1.0).prepare().system_, until=200, dt=0.1).values('population.n')
+    values = simulate(HutchinsonSystem(r=1.0, tau=1.0).prepare().system_, until=200, dt=0.1).values('population.x')
     assert values[-1] == pytest.approx(100, abs=1e-3)
 
 

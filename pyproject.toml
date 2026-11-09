@@ -512,6 +512,7 @@ forbidden_modules = [
     "skcomplex.systems.engineering.common",
     "skcomplex.systems.mathematics.common",
     "skcomplex.systems.physics.common",
+    "skcomplex.systems.social.common",
 ]
 
 [[tool.importlinter.contracts]]
@@ -524,6 +525,7 @@ forbidden_modules = [
     "skcomplex.systems.engineering.common",
     "skcomplex.systems.mathematics.common",
     "skcomplex.systems.physics.common",
+    "skcomplex.systems.social.common",
 ]
 
 [[tool.importlinter.contracts]]
@@ -537,6 +539,7 @@ forbidden_modules = [
     "skcomplex.systems.engineering.common",
     "skcomplex.systems.mathematics.common",
     "skcomplex.systems.physics.common",
+    "skcomplex.systems.social.common",
 ]
 
 [[tool.importlinter.contracts]]
@@ -549,6 +552,7 @@ forbidden_modules = [
     "skcomplex.systems.engineering.common",
     "skcomplex.systems.mathematics.common",
     "skcomplex.systems.physics.common",
+    "skcomplex.systems.social.common",
 ]
 
 [[tool.importlinter.contracts]]
@@ -561,6 +565,7 @@ forbidden_modules = [
     "skcomplex.systems.economics.common",
     "skcomplex.systems.mathematics.common",
     "skcomplex.systems.physics.common",
+    "skcomplex.systems.social.common",
 ]
 
 [[tool.importlinter.contracts]]
@@ -573,6 +578,7 @@ forbidden_modules = [
     "skcomplex.systems.economics.common",
     "skcomplex.systems.engineering.common",
     "skcomplex.systems.physics.common",
+    "skcomplex.systems.social.common",
 ]
 
 [[tool.importlinter.contracts]]
@@ -585,6 +591,7 @@ forbidden_modules = [
     "skcomplex.systems.economics.common",
     "skcomplex.systems.engineering.common",
     "skcomplex.systems.mathematics.common",
+    "skcomplex.systems.social.common",
 ]
 
 [[tool.importlinter.contracts]]
@@ -610,6 +617,7 @@ source_modules = [
     "skcomplex.systems.engineering.common",
     "skcomplex.systems.mathematics.common",
     "skcomplex.systems.physics.common",
+    "skcomplex.systems.social.common",
 ]
 forbidden_modules = [
     "skcomplex.systems.biology.collective_behaviour",

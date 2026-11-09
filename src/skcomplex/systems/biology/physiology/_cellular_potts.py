@@ -18,16 +18,15 @@ from sage.all__sagemath_symbolics import NN, SR, oo
 from sage.sets.real_set import RealSet
 from scipy.spatial import Voronoi
 
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import SamplingInteraction
 from ....core.components.spaces import (
+    BallNeighborhood,
     BaseNeighborhood,
     BaseSpace,
     DiscreteTime,
     LatticeSpace,
-    MooreNeighborhood,
     NetworkSpace,
-    TriangularNeighborhood,
 )
 from ....core.components.systems import BaseSystem, RunSettings, System
 from ....core.errors import ValidationError
@@ -249,7 +248,7 @@ def _contact_pairs(space: LatticeSpace | NetworkSpace) -> tuple[Indices, Indices
         first, second = space.edges_[None]
         weights = np.asarray([weight for *_, weight in space.graph.edges(data='weight', default=1.0)], dtype=float)
         return np.concatenate([first, second]), np.concatenate([second, first]), np.concatenate([weights, weights])
-    neighborhood = TriangularNeighborhood() if space.geometry == 'triangular' else MooreNeighborhood()
+    neighborhood = BallNeighborhood(metric='hexagonal') if space.geometry == 'triangular' else BallNeighborhood()
     coordinates = np.indices(space.shape_).reshape(2, -1)
     sites = np.arange(space.size_)
     pairs = [
@@ -474,7 +473,13 @@ class CellularPottsSystem(BaseSystem):
             y, x = np.indices((rows, columns)).reshape(2, -1).astype(float)
             space = LatticeSpace((rows, columns), geometry=self.lattice)
         cells = (y // height).astype(int) * (columns // width) + (x // width).astype(int)
-        tissue = LatticeElement('tissue', element=TissueSiteElement, space=space, values={'cell': cells.astype(float)})
+        tissue = GroupElement(
+            'tissue',
+            element=TissueSiteElement,
+            space=space,
+            values={'cell': cells.astype(float)},
+            on='sites',
+        )
         sampling = CellAdhesionInteraction(
             'adhesion',
             target='tissue',
