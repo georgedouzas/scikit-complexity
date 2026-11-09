@@ -45,7 +45,7 @@ when other agents run tests at the same time.
 
 ## 3. Bilinear law with a conserved loss
 
-- [ ] 3.1 Add `conserved=False` to `BilinearLaw`, allow `second=None`, raise for a conserved law without outcomes,
+- [x] 3.1 Add `conserved=False` to `BilinearLaw`, allow `second=None`, raise for a conserved law without outcomes,
   and move the docstring of the gain and loss equation of `EncounterLaw` into it, and verify
   `tests/core/components/laws/test_bilinear.py` holds the law tests of `test_encounter.py` for conserved laws and
   passes
