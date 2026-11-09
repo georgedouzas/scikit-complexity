@@ -68,6 +68,23 @@ The next steps should be followed during development:
 - `pdm tests` to run the tests.
 - `pdm docs serve` if you updated the documentation or the project dependencies to check that everything looks as expected.
 
+### Where a part goes
+
+One ordered test, the placement rule, decides where any part goes, now and in the future. `tests/test_sources.py`
+checks it mechanically.
+
+1. A structural base, such as a `Base` class, the composite system, or a base where laws run per member, edge,
+   hyperedge, or pair, goes to the core.
+2. A part that the engine handles by type, through a compile pass, a kernel, a solver, a backend lowering, or an
+   analysis that checks the class or its spec, goes to the core, and so does an operator generated from one function.
+   It is named by its mathematics and must be cross-domain in principle.
+3. Every other part is a recipe, expressible with core parts. Its users place it. Several fields:
+   `skcomplex.systems.general.<concept>`. One field with several systems: `systems/<field>/common/<family>`. One system:
+   that system's module. A field with its own term names it, and `general` uses neutral names.
+4. A recipe that needs something the core cannot express reveals a missing core primitive, which enters by step 2.
+   Engine support never lives inside a recipe.
+5. The core never imports `skcomplex.systems`.
+
 ### Adding a system to the catalog
 
 A system of the library is a function that returns a system, registered with `register_system`. Declare the element and

@@ -37,7 +37,7 @@
   `BirthDeathInteraction`, `ImitationInteraction`, `EvolutionInteraction`, `FeedbackInteraction`,
   `OptimizationInteraction`, and `PointElement`. It guards every move below from the working tree, and it is committed
   with the move that makes it pass.
-- [ ] 3.4 Write the placement rule of design.md, word for word, into `openspec/constitution.md` and into the module
+- [x] 3.4 Write the placement rule of design.md, word for word, into `openspec/constitution.md` and into the module
   layout section of `CONTRIBUTING.md`. Verify that both texts match the requirement "Every part has one place by the
   placement rule" of `package-layout`.
 

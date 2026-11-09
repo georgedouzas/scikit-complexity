@@ -111,6 +111,22 @@ conventions are the taste it cannot check.
 - A surface package, one that exists to serve a runner rather than an importer, MUST re-export its entry point alone.
   The Project Profile names which packages these are.
 
+### Placement
+
+Every part MUST be placed by one ordered test, the placement rule, which `tests/test_sources.py` checks mechanically.
+
+1. A structural base, such as a `Base` class, the composite system, or a base where laws run per member, edge,
+   hyperedge, or pair, goes to the core.
+2. A part that the engine handles by type, through a compile pass, a kernel, a solver, a backend lowering, or an
+   analysis that checks the class or its spec, goes to the core, and so does an operator generated from one function.
+   It is named by its mathematics and must be cross-domain in principle.
+3. Every other part is a recipe, expressible with core parts. Its users place it. Several fields:
+   `skcomplex.systems.general.<concept>`. One field with several systems: `systems/<field>/common/<family>`. One system:
+   that system's module. A field with its own term names it, and `general` uses neutral names.
+4. A recipe that needs something the core cannot express reveals a missing core primitive, which enters by step 2.
+   Engine support never lives inside a recipe.
+5. The core never imports `skcomplex.systems`.
+
 ### Style & Naming
 
 - Every document, docstring, and example MUST follow one style, written for a reader who wants to understand, not to
