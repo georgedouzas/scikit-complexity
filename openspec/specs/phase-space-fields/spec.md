@@ -8,9 +8,10 @@ phase space, let them encounter and collide over their class axes, and read thei
 
 ### Requirement: Phase spaces are products of position and class axes
 `PhaseSpace` SHALL be the product of a position lattice and one or more class axes, each a uniform grid over an
-interval with zero-flux edges or a periodic grid. It SHALL be a lattice space, so a `FieldElement` of `DensityElement`
-on it holds one value per point of the product, and its laws are written for one point. The compile report SHALL hold
-a phase space larger than its size limit, with the size it would take.
+interval with zero-flux edges or a periodic grid. It SHALL be a lattice space, so a `FieldElement` of
+`NonnegativeElement`, or of a realization of it, on it holds one value `x` per point of the product, and its laws are
+written for one point. The compile report SHALL hold a phase space larger than its size limit, with the size it would
+take.
 
 #### Scenario: Size of a phase space
 - **WHEN** a user creates a field over a periodic position lattice of 64 sites and a class axis of 128 points on
