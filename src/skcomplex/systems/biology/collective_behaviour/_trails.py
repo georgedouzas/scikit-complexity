@@ -17,7 +17,7 @@ from ....core.components.interactions import (
     LifeCycleInteraction,
     MapInteraction,
     MovementInteraction,
-    RelaxationInteraction,
+    RateInteraction,
     TransferInteraction,
 )
 from ....core.components.laws import Source
@@ -386,14 +386,18 @@ class ActiveWalkersSystem(BaseSystem):
                     'land',
                     elements=[ground],
                     interactions=[
-                        RelaxationInteraction('fading', target='ground', state='G', time=self._get_durability),
+                        RateInteraction(
+                            'fading',
+                            target='ground',
+                            state='G',
+                            rate=lambda s: -s.target.G / self._get_durability(s),
+                        ),
                         DiffusionInteraction('spreading', target='ground', state='V', coefficient=self._get_diffusion),
-                        RelaxationInteraction(
+                        RateInteraction(
                             'smoothing',
                             target='ground',
                             state='V',
-                            goal=self._get_structure,
-                            time=self._get_relaxation,
+                            rate=lambda s: (self._get_structure(s) - s.target.V) / self._get_relaxation(s),
                         ),
                     ],
                 ),

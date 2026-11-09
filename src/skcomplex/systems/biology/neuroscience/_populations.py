@@ -14,13 +14,14 @@ from sage.sets.real_set import RealSet
 from scipy import stats
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import CouplingInteraction, Interaction, RateInteraction, RelaxationInteraction
+from ....core.components.interactions import CouplingInteraction, Interaction, RateInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import logistic, mean
 from ....core.components.systems import BaseSystem, System
 from ....core.components.types import Target
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.excitable import ThetaNeuronElement
+from ._leaky_integration import LeakyIntegrationInteraction
 
 
 class PolyhomeostaticNeuronElement(Element):
@@ -497,14 +498,14 @@ class WilsonCowanSystem(BaseSystem):
             c4=self.c4,
         )
         relaxations = [
-            RelaxationInteraction(
+            LeakyIntegrationInteraction(
                 'excitatory_relaxation',
                 target='cortex',
                 state='E',
                 goal=self._excitation,
                 time=lambda s: s.target.tau_e,
             ),
-            RelaxationInteraction(
+            LeakyIntegrationInteraction(
                 'inhibitory_relaxation',
                 target='cortex',
                 state='I',
@@ -757,7 +758,7 @@ class PolyhomeostaticNeuronSystem(BaseSystem):
             omega=self.omega,
         )
         interactions = [
-            RelaxationInteraction(
+            LeakyIntegrationInteraction(
                 'membrane',
                 target='neuron',
                 state='x',

@@ -14,7 +14,7 @@ from sage.sets.real_set import RealSet
 from scipy.ndimage import convolve
 
 from ....core.components.elements import Element, FieldElement
-from ....core.components.interactions import CouplingInteraction, RateInteraction, RelaxationInteraction
+from ....core.components.interactions import CouplingInteraction, RateInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import delayed, logistic
 from ....core.components.spaces import LatticeSpace
@@ -23,6 +23,7 @@ from ....core.components.types import Target
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ..common.excitable import SpikeResetInteraction
+from ._leaky_integration import LeakyIntegrationInteraction
 
 SILENT = -2.0
 
@@ -491,7 +492,7 @@ class DelayedLIFNetworkSystem(BaseSystem):
             for index in range(self.n_neurons)
         ]
         leaks = [
-            RelaxationInteraction(
+            LeakyIntegrationInteraction(
                 f'leak_{index}',
                 target=neuron.label,
                 state='v',

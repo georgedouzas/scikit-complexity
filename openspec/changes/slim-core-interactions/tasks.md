@@ -26,9 +26,9 @@
 - [x] 3.3 Add engineering `SpeedAdaptationInteraction` in `engineering/common/traffic/_speed_adaptation.py` with its tests,
   rebase `OptimalVelocityInteraction` and `LangevinDrivingInteraction`, and migrate the continuum traffic systems.
   Verify with `tests/systems/engineering`.
-- [ ] 3.4 Add chemistry `MassExchangeInteraction` in `chemistry/kinetics/_mass_exchange.py` with its tests, and migrate
+- [x] 3.4 Add chemistry `MassExchangeInteraction` in `chemistry/kinetics/_mass_exchange.py` with its tests, and migrate
   the reactors and the oscillators. Verify with `tests/systems/chemistry/kinetics`.
-- [ ] 3.5 Add biology `LeakyIntegrationInteraction` in `biology/neuroscience/_leaky_integration.py` with its tests, and
+- [x] 3.5 Add biology `LeakyIntegrationInteraction` in `biology/neuroscience/_leaky_integration.py` with its tests, and
   migrate the populations and networks. Write the trails and adaptivity relaxations as `RateInteraction`. Verify with
   `tests/systems/biology`.
 - [ ] 3.6 Add economics `PartialAdjustmentInteraction` in `economics/resources/_food.py`, rebase social

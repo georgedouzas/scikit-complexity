@@ -12,6 +12,7 @@ from ._conductances import (
     HodgkinHuxleySystem,
 )
 from ._excitable import ExcitableElement, KinouchiCopelliSystem
+from ._leaky_integration import LeakyIntegrationInteraction
 from ._networks import (
     DelayedLIFNetworkSystem,
     DelayedSynapseInteraction,
@@ -78,6 +79,7 @@ __all__: list[str] = [
     'IzhikevichSystem',
     'KinouchiCopelliSystem',
     'LeakyIntegrateAndFireElement',
+    'LeakyIntegrationInteraction',
     'LegionSystem',
     'MutualInhibitionInteraction',
     'NeuralFieldSiteElement',

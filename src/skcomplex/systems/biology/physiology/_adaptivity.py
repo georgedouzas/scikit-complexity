@@ -13,7 +13,7 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
-from ....core.components.interactions import RateInteraction, ReactionInteraction, RelaxationInteraction
+from ....core.components.interactions import RateInteraction, ReactionInteraction
 from ....core.components.laws.utils import pulse_train, where
 from ....core.components.systems import BaseSystem, System
 from ....core.errors import ValidationError
@@ -269,12 +269,11 @@ class AdaptiveResponseCostsSystem(BaseSystem):
                 state='c',
                 rate=lambda s: s.target.eta * s.target.e**2,
             ),
-            RelaxationInteraction(
+            RateInteraction(
                 'capacity_relaxation',
                 target='organism',
                 state='c',
-                goal=lambda s: s.target.c0,
-                time=lambda s: s.target.tau,
+                rate=lambda s: (s.target.c0 - s.target.c) / s.target.tau,
             ),
             RateInteraction(
                 'restoration',
