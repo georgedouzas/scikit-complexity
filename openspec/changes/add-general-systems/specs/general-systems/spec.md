@@ -2,10 +2,35 @@
 
 ## Purpose
 
-Defines the general systems of the core that systems of several fields share, what each takes as data, what parts it
-builds, and how a field system subclasses it with its own parameters.
+Defines the general systems of `skcomplex.systems.general` that systems of several fields share, what each takes as
+data, what parts it builds, and how a field system subclasses it with its own parameters.
 
 ## ADDED Requirements
+
+### Requirement: General systems are recipes that several fields share
+A general system SHALL serve systems of two fields, or be able to, and SHALL be named after its mathematics, never
+after a field quantity. As a recipe of several fields, by step 3 of the placement rule, it SHALL live in a concept
+subpackage of `skcomplex.systems.general`, here `skcomplex.systems.general.dynamics`, and no core module SHALL import
+it.
+
+#### Scenario: Import a general system
+- **WHEN** a user imports `DynamicalSystem`, `NetworkDynamicalSystem`, `ReactionDiffusionSystem`, or
+  `StockFlowSystem` from `skcomplex.systems.general.dynamics`
+- **THEN** the import succeeds, and the class is a subclass of `BaseSystem` from `skcomplex.core.components.systems`
+
+#### Scenario: The core holds none of them
+- **WHEN** a user imports `DynamicalSystem` from `skcomplex.core.components.systems`
+- **THEN** the import fails with `ImportError`, and no module under `src/skcomplex/core` imports
+  `skcomplex.systems.general.dynamics`
+
+#### Scenario: Shape of one field
+- **WHEN** a system shape appears in one field only, such as the Boolean networks of systems biology
+- **THEN** it stays in the `common` package of that field, and no general system holds it
+
+#### Scenario: Shape covered by one core part
+- **WHEN** a system shape is one core interaction on a group, such as a cellular automaton, a `CompositeSystem` with a
+  `LocalRuleInteraction`
+- **THEN** no general system duplicates it
 
 ### Requirement: Dynamical systems are given by states and equations
 `DynamicalSystem` SHALL take the initial value of every state, the equation of every state, and the parameters, all

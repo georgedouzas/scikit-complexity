@@ -1,14 +1,15 @@
 ## Context
 
-See proposal.md for the motivation. The core offers `BaseSystem`, the composite `CompositeSystem`, and one general
-system, `ReactionNetworkSystem`. Its pattern is the model for this change: it takes its data in `__init__`, stores it
-unmodified, and builds a `CompositeSystem` from hooks (`_get_species`, `_get_reactions`, `_get_mode`,
-`_get_interactions`) that a field system overrides with its own parameters.
+See proposal.md for the motivation. The core offers `BaseSystem` and the composite `CompositeSystem`. After
+`move-recipes-to-systems`, the one general system is `ReactionNetworkSystem` of `skcomplex.systems.general.reactions`.
+Its pattern is the model for this change: it takes its data in `__init__`, stores it unmodified, and builds a
+`CompositeSystem` from hooks (`_get_species`, `_get_reactions`, `_get_mode`, `_get_interactions`) that a field system
+overrides with its own parameters.
 
 The names in this document are those after `slim-core-elements-and-spaces`, `rename-core-systems`,
-`slim-core-interactions`, and `slim-core-laws`, which land first. Diffusion is then a `RateInteraction` with the rate
-`D laplacian(u)`, `FieldElement` is a `GroupElement` on sites, and `DeclaredElement` declares states and parameters
-from data, also as the member of a group through `values={'variables': ...}`.
+`slim-core-interactions`, `slim-core-laws`, and `move-recipes-to-systems`, which land first. Diffusion is then a
+`RateInteraction` with the rate `D laplacian(u)`, `FieldElement` is a `GroupElement` on sites, and `DeclaredElement`
+declares states and parameters from data, also as the member of a group through `values={'variables': ...}`.
 
 ### The audit
 
@@ -29,7 +30,7 @@ rejected shapes are approximate, as a class may match several shapes. The rebase
 | Node dynamics with coupling over a graph | of 36 continuous network systems (biology 8, social 12, mathematics 7, physics 6, economics 2, computer science 1), 6 have this shape: biology 3, physics 2, mathematics 1 | `NanotubeGapJunctionExchangeSystem`, `TippingCascadeNetworkSystem`, `NetworkDiffusionSystem` | Keep as `NetworkDynamicalSystem` |
 | Local kinetics with diffusion of fields on a lattice | of 46 field systems with a Laplacian (physics 28, biology 10, chemistry 3, engineering 2, five more), 10 have this shape: biology 5, chemistry 3, physics 2 | `GrayScottSystem`, `FisherKPPSystem`, `BarkleySystem`, `DirectedPercolationLangevinSystem` | Keep as `ReactionDiffusionSystem` |
 | Stocks and named flows | 23 build named transfers with no space: economics 9, engineering 7, social 6, physics 1. 16 change their stocks only through flows: economics 7, engineering 3, social 6 | `BathtubSystem`, `BassDiffusionSystem`, `EscalationSystem` | Keep as `StockFlowSystem` |
-| Replicator or imitation dynamics from a payoff | the replicator equation of a payoff matrix: biology 2, through `ReplicatorInteraction` of `biology/common/populations`. Physics 1 uses one scalar replicator term inside a climate model. The games of social 11 and economics 6 are agents that imitate on graphs or lattices, or PDEs over group compositions | `ReplicatorDynamicsSystem`, `HypercyclesSystem`, `SpatialPrisonersDilemmaSystem` | Reject. The replicator equation serves one field and already has its field interaction. Imitation is the core `ImitationInteraction` |
+| Replicator or imitation dynamics from a payoff | the replicator equation of a payoff matrix: biology 2, through `ReplicatorInteraction` of `biology/common/populations`. Physics 1 uses one scalar replicator term inside a climate model. The games of social 11 and economics 6 are agents that imitate on graphs or lattices, or PDEs over group compositions | `ReplicatorDynamicsSystem`, `HypercyclesSystem`, `SpatialPrisonersDilemmaSystem` | Reject. The replicator equation serves one field and already has its field interaction. Imitation is `ImitationInteraction` of `skcomplex.systems.general.agents` |
 | Markov chains | `TransitionInteraction` 9 (biology 5, economics 2, mathematics 2), `JumpInteraction` or jump laws 21 (physics 8, mathematics 6, biology 5, social 2) | `MarkovSourceSystem`, `BirthDeathQueueSystem`, `PolyaUrnSystem` | Reject. A chain is one core interaction with its matrix or its rates, and chains of counts are `ReactionNetworkSystem` in the mode `'jump'`. A class would add no feature |
 | Cellular automata | `LocalRuleInteraction` 42: computer science 29, physics 7, chemistry 2, social 2, biology 1, engineering 1 | `GameOfLifeSystem`, `HodgepodgeSystem`, `MajorityRuleSystem`, `NagelSchreckenbergSystem` | Reject. It is a group on sites and one core interaction, and `group-cellular-automata` forbids a class that duplicates it |
 | Hamiltonian or Lagrangian systems | `HamiltonianInteraction` or `EulerLagrangeInteraction` 9: physics 8, engineering 1 | `HenonHeilesSystem`, `TwoBodyOrbitSystem`, `DcMotorSystem` | Reject. One core interaction each, and nearly one field |
@@ -51,7 +52,7 @@ such systems among the declared-state shapes, such as `LorenzSystem`, `RosslerSy
 
 - Four general systems that each remove the element class and the threefold parameter list of their field systems.
 - Rebases that keep every public name, parameter, state name, tag, and trajectory of a system.
-- Examples of each general system from two fields, in its docstring and in the core components guide.
+- Examples of each general system from two fields, in its docstring and in the systems guide.
 
 **Non-Goals:**
 
@@ -62,6 +63,20 @@ such systems among the declared-state shapes, such as `LorenzSystem`, `RosslerSy
 - No further rebase onto `ReactionNetworkSystem`.
 
 ## Decisions
+
+### The four systems live in `skcomplex.systems.general.dynamics`
+
+General systems are recipes: each builds a `CompositeSystem` from core parts, and no engine code keys on it. By step 3
+of the placement rule of `move-recipes-to-systems`, a recipe that several fields use goes to a concept subpackage of
+`skcomplex.systems.general`. Every general system here serves at least two fields, and the four share one concept,
+states and their evolution, so they live in `skcomplex.systems.general.dynamics`: `_dynamical.py`,
+`_network_dynamical.py`, `_reaction_diffusion.py`, and `_stock_flow.py`, re-exported from its `__init__.py`. Their
+tests mirror them under `tests/systems/general/dynamics/`. The core never imports them, and the layers contract on
+`skcomplex.core.components.systems` gains nothing. The import contracts that `move-recipes-to-systems` adds for
+`skcomplex.systems.general` cover the subpackage.
+
+Alternative considered: the core, as the first draft had it. Rejected, since the user decided that general systems
+are recipes and the core keeps only `BaseSystem` and `CompositeSystem`.
 
 ### One `DynamicalSystem` for flows and maps
 
@@ -299,15 +314,15 @@ values.
 ## Risks / Trade-offs
 
 - [A rate moved from an element law into an interaction compiles to a different sum order] → The exact comparison
-  catches it, and the system keeps its base. The core test of each general system compares its trajectory with the
+  catches it, and the system keeps its base. The test of each general system compares its trajectory with the
   same equations written as an element law.
 - [Noise drawn by an interaction in place of an element law changes the order of the random stream] → Same exact
   check for the stochastic rebases, such as `HasselmannSystem`.
 - [101 public element classes leave] → They are reachable through the system that uses them, and their equations
   stay in its hooks. The changelog lists them. Users who composed one write it with `DeclaredElement`.
 - [The lists drift while the four earlier changes land] → Each rebase task checks its module again before it starts.
-- [`rewrite-docstrings-and-docs` writes the systems page of the guide at the same time] → This change adds sections
-  named after the classes to `core_components/systems.md` and creates the page only if it does not exist yet.
+- [`rewrite-docstrings-and-docs` writes the page of `skcomplex.systems.general` in the guide at the same time] → This
+  change adds sections named after the classes to that page and creates it only if it does not exist yet.
 
 ## Migration Plan
 
@@ -320,7 +335,9 @@ module, since no other module depends on a leaving element class.
 `SystemDynamicsTranslator` writes a subclass of `StockFlowSystem` for a file whose stocks are not subscripted and change
 only through flow variables. The subclass takes the constants as parameters, returns the initial stocks from
 `_get_stocks` and the flows from `_get_flows`, and keeps the observables of the auxiliaries and the run settings as
-module constants. The source no longer defines an element class or the `TransferInteraction` calls, as the general
+module constants. The source imports `StockFlowSystem` from `skcomplex.systems.general.dynamics`. That is text the
+translator writes, not an import of the core, so the forbidden contract on the core allows it. The source no longer
+defines an element class or the `TransferInteraction` calls, as the general
 system builds them. A file with a remaining rate or with subscripts keeps the current shape, with an element, a group,
 and `RateInteraction` parts, since a `StockFlowSystem` changes its stocks only through flows. The PySD tests of the
 translator keep their tolerance of 1e-6.
@@ -341,5 +358,5 @@ Alternatives considered: a remaining rate as a flow from a source. It would repo
 - `_random_cells` stays in the field modules. Its identical copies, a Bernoulli draw of every cell with a given
   probability, live in four modules of computer science and one of social. The biology method of the same name draws
   distinct sites without replacement, so it is another function. The draw is used by two fields, but it is one call
-  of NumPy, and the core test asks for a feature no other part offers. A core utility would only wrap that call, so
+  of NumPy, and a core primitive needs a feature no other part offers. A core utility would only wrap that call, so
   it fails the test.

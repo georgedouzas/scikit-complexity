@@ -1,10 +1,11 @@
 ## MODIFIED Requirements
 
 ### Requirement: Ready-made systems are classes
-Every ready-made system SHALL be a class on `BaseSystem`, or on a general core system such as `ReactionNetworkSystem`,
-`DynamicalSystem`, `NetworkDynamicalSystem`, `ReactionDiffusionSystem`, or `StockFlowSystem`, in the module of its
-subfield. It SHALL take its model parameters as arguments of its constructor and SHALL give its field path, topics,
-references, and tuned run settings as class attributes. `all_systems()` SHALL find every such class.
+Every ready-made system SHALL be a class on `BaseSystem`, or on a general system of `skcomplex.systems.general` such as
+`ReactionNetworkSystem`, `DynamicalSystem`, `NetworkDynamicalSystem`, `ReactionDiffusionSystem`, or `StockFlowSystem`,
+in the module of its subfield. It SHALL take its model parameters as arguments of its constructor and SHALL give its
+field path, topics, references, and tuned run settings as class attributes. `all_systems()` SHALL find every such
+class, and SHALL list no general system of `skcomplex.systems.general`, which has no field.
 
 #### Scenario: Browse the catalog
 - **WHEN** a user calls `all_systems(field='biology')` or `all_systems(field='biology/ecology')`
@@ -19,9 +20,10 @@ references, and tuned run settings as class attributes. `all_systems()` SHALL fi
 ## ADDED Requirements
 
 ### Requirement: Ready-made systems use the general system of their shape
-A ready-made system whose structure is that of a general core system SHALL subclass it, unless its element class is a
-part that other systems or users compose, such as an element of a field `common` package. Its own element class SHALL
-then leave the catalog, and its equations SHALL move into the hooks of the system.
+A ready-made system whose structure is that of a general system SHALL subclass it, imported from
+`skcomplex.systems.general`, unless its element class is a part that other systems or users compose, such as an element
+of a field `common` package. Its own element class SHALL then leave the catalog, and its equations SHALL move into the
+hooks of the system.
 
 #### Scenario: Map of one field
 - **WHEN** a contributor reads `HenonMapSystem` of `mathematics/dynamical_systems`
