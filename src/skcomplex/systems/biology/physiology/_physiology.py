@@ -204,7 +204,10 @@ class FitzhughNagumoSystem(BaseSystem):
             epsilon=self.epsilon,
         )
         diffusion = RateInteraction(
-            'diffusion', target='medium', state='u', rate=lambda s: self.D * laplacian(s.target.u),
+            'diffusion',
+            target='medium',
+            state='u',
+            rate=lambda s: self.D * laplacian(s.target.u),
         )
         return CompositeSystem(self.label, elements=[medium], interactions=[kinetics, diffusion])
 

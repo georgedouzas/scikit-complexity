@@ -265,7 +265,10 @@ class AlievPanfilovSystem(BaseSystem):
         space = LatticeSpace((rows, columns), boundary='reflecting')
         tissue = FieldElement('tissue', element=AlievPanfilovElement, space=space, values=values)
         diffusion = RateInteraction(
-            'diffusion', target='tissue', state='u', rate=lambda s: self.D * laplacian(s.target.u),
+            'diffusion',
+            target='tissue',
+            state='u',
+            rate=lambda s: self.D * laplacian(s.target.u),
         )
         return CompositeSystem(self.label, elements=[tissue], interactions=[diffusion])
 
@@ -350,6 +353,9 @@ class BarkleySystem(BaseSystem):
         space = LatticeSpace((rows, columns), boundary='reflecting', spacing=self.spacing)
         medium = FieldElement('medium', element=BarkleyElement, space=space, values=values)
         diffusion = RateInteraction(
-            'diffusion', target='medium', state='u', rate=lambda s: self.d * laplacian(s.target.u),
+            'diffusion',
+            target='medium',
+            state='u',
+            rate=lambda s: self.d * laplacian(s.target.u),
         )
         return CompositeSystem(self.label, elements=[medium], interactions=[diffusion])

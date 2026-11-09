@@ -7,11 +7,15 @@ Monte Carlo sampling of lattice gauge fields.
 from ._advection import AdvectionInteraction
 from ._diffusivity import DiffusivityInteraction
 from ._phase_space_density import PhaseSpaceDensityElement
-from ._wilson_sampling import WilsonSamplingInteraction
+from ._wilson_sampling import (
+    HolonomyScoreSpec,
+    WilsonSamplingInteraction,
+)
 
 __all__: list[str] = [
     'AdvectionInteraction',
     'DiffusivityInteraction',
+    'HolonomyScoreSpec',
     'PhaseSpaceDensityElement',
     'WilsonSamplingInteraction',
 ]

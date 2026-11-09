@@ -4,7 +4,8 @@ import numpy as np
 import pytest
 
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import HolonomyScoreSpec, MatrixGroupSpec
+from skcomplex.core.specs import MatrixGroupSpec
+from skcomplex.systems.physics.common.fields import HolonomyScoreSpec
 
 
 def test_holonomy_score_keeps_its_group_and_hits():

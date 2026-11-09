@@ -834,7 +834,8 @@ from skcomplex.core.components.interactions import SamplingInteraction
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import RowScoreSpec, StateSpec
+from skcomplex.core.specs import StateSpec
+from skcomplex.systems.biology.common.sequences import RowScoreSpec
 
 
 class BitElement(Element):

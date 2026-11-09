@@ -5,7 +5,13 @@ They cover delayed feedback, excitable tissue, the circulation, cell exchange, r
 
 from ._adaptivity import AdaptiveResponderElement, AdaptiveResponseCostsSystem
 from ._cardiac import AlievPanfilovElement, AlievPanfilovSystem, BarkleyElement, BarkleySystem
-from ._cellular_potts import CellAdhesionInteraction, CellularPottsSystem, TissueSiteElement
+from ._cellular_potts import (
+    CellAdhesionInteraction,
+    CellularPottsSystem,
+    RegionSamplingInteraction,
+    RegionScoreSpec,
+    TissueSiteElement,
+)
 from ._chemotaxis import ChemotacticTissueElement, HyperbolicChemotaxisSystem
 from ._circulation import CardiovascularSystem, ChamberElement, ResistiveFlowInteraction
 from ._disease import (
@@ -72,6 +78,8 @@ __all__: list[str] = [
     'MackeyGlassElement',
     'MackeyGlassSystem',
     'NanotubeGapJunctionExchangeSystem',
+    'RegionSamplingInteraction',
+    'RegionScoreSpec',
     'ResistiveFlowInteraction',
     'SteerableFeedbackLoopSystem',
     'TissueSiteElement',

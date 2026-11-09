@@ -31,7 +31,6 @@ from ._fractional_rows_spec import FractionalRowsSpec
 from ._fractional_state_spec import FractionalStateSpec
 from ._geometry_spec import TURTLE_SYMBOLS, GeometrySpec
 from ._hilbert_spec import HilbertSpec
-from ._holonomy_score_spec import HolonomyScoreSpec
 from ._hyperedge_reduction_spec import HyperedgeReductionSpec
 from ._interaction_requirement_spec import InteractionRequirementSpec
 from ._issue_spec import IssueSpec
@@ -68,11 +67,9 @@ from ._power_series_spec import PowerSeriesSpec
 from ._prototile_spec import PrototileSpec
 from ._read_spec import ReadSpec
 from ._reduction_spec import ReductionSpec
-from ._region_score_spec import RegionScoreSpec
 from ._renewal_record_spec import RenewalRecordSpec
 from ._requirement_spec import RequirementSpec
 from ._role_spec import RoleSpec, Spec
-from ._row_score_spec import RowScoreSpec
 from ._run_settings_spec import RunSettingsSpec
 from ._run_state_spec import RunStateSpec
 from ._sampled_draw_spec import SampledDrawSpec
@@ -148,7 +145,6 @@ __all__ = [
     'FractionalStateSpec',
     'GeometrySpec',
     'HilbertSpec',
-    'HolonomyScoreSpec',
     'HyperedgeReductionSpec',
     'InteractionRequirementSpec',
     'IssueSpec',
@@ -186,11 +182,9 @@ __all__ = [
     'PrototileSpec',
     'ReadSpec',
     'ReductionSpec',
-    'RegionScoreSpec',
     'RenewalRecordSpec',
     'RequirementSpec',
     'RoleSpec',
-    'RowScoreSpec',
     'RunSettingsSpec',
     'RunStateSpec',
     'SampledDrawSpec',

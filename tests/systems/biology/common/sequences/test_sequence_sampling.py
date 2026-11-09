@@ -1,4 +1,4 @@
-"""Test the row scores and the infinite intensity of `_sampling` in `skcomplex.core.components.interactions`."""
+"""Test the `_sequence_sampling` module of `skcomplex.systems.biology.common.sequences`."""
 
 from typing import Annotated
 
@@ -15,7 +15,8 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ParameterSpec, RowScoreSpec, StateSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.systems.biology.common.sequences import RowScoreSpec, SequenceSamplingInteraction
 from skcomplex.systems.physics.common.spins import ThermalSamplingInteraction
 
 INFINITE = float('inf')
@@ -70,7 +71,7 @@ def _bits(shape=(1, 20), objective=None, intensity=INFINITE, **settings):
     """Return a binary lattice sampled by the number of its ones."""
     objective = RowScoreSpec(np.sum) if objective is None else objective
     bits = GroupElement('bits', element=BitElement, space=LatticeSpace(shape), on='sites')
-    sampling = SamplingInteraction(
+    sampling = SequenceSamplingInteraction(
         'walk',
         target='bits',
         state='s',
@@ -150,7 +151,13 @@ def test_row_score_reads_the_parameters_it_names():
         values={'weight': np.ones((2, 4))},
         on='sites',
     )
-    sampling = SamplingInteraction('walk', target='bits', state='s', objective=RowScoreSpec(score), move=_flip_site)
+    sampling = SequenceSamplingInteraction(
+        'walk',
+        target='bits',
+        state='s',
+        objective=RowScoreSpec(score),
+        move=_flip_site,
+    )
     system = CompositeSystem(elements=[bits], interactions=[sampling], time=DiscreteTime())
     simulate(system, until=1, random_state=0)
     assert set(seen) == {(4,)}
@@ -163,7 +170,7 @@ def test_row_score_reads_the_parameters_it_names():
 def test_row_score_takes_named_moves_at_one_site(move, settings):
     """Test that a named move changes at most one site of a row per proposal."""
     spins = GroupElement('spins', element=SpinElement, space=LatticeSpace((1, 8)), on='sites')
-    sampling = SamplingInteraction(
+    sampling = SequenceSamplingInteraction(
         'walk',
         target='spins',
         state='s',
@@ -199,7 +206,7 @@ def test_point_mutation_changes_one_site_to_the_other_letters_equally():
 def test_row_score_samples_a_categorical_state_with_labels():
     """Test that a row of letters is sampled as indices and read as its labels."""
     letters = GroupElement('letters', element=LetterElement, space=LatticeSpace((2, 6)), on='sites')
-    sampling = SamplingInteraction(
+    sampling = SequenceSamplingInteraction(
         'walk',
         target='letters',
         state='letter',
@@ -253,7 +260,13 @@ def test_row_score_reports_a_target_off_a_lattice():
     """Test that the compiler reports a row score of a group on a network as a law-space issue."""
     space = NetworkSpace(nx.path_graph(4))
     spins = GroupElement('spins', element=SpinElement, space=space, on='sites')
-    sampling = SamplingInteraction('walk', target='spins', state='s', objective=RowScoreSpec(np.sum), move=_flip_site)
+    sampling = SequenceSamplingInteraction(
+        'walk',
+        target='spins',
+        state='s',
+        objective=RowScoreSpec(np.sum),
+        move=_flip_site,
+    )
     system = CompositeSystem(elements=[spins], interactions=[sampling], time=DiscreteTime())
     report = PassCompiler().prepare(system).report_
     assert 'law-space' in {issue.code for issue in report.issues}
@@ -307,22 +320,6 @@ def test_thermal_sampling_at_zero_temperature_never_raises_the_energy():
     energies = _total_energy(_spins_at(sampling))
     assert np.all(np.diff(energies) <= 0)
     assert energies[-1] < energies[0]
-
-
-def test_thermal_sampling_takes_a_row_score_at_zero_temperature():
-    """Test that the thin thermal subclass runs a row score at temperature 0."""
-    bits = GroupElement('bits', element=BitElement, space=LatticeSpace((1, 20)), on='sites')
-    sampling = ThermalSamplingInteraction(
-        'walk',
-        target='bits',
-        state='s',
-        energy=RowScoreSpec(np.sum),
-        move=_flip_site,
-        temperature=0.0,
-    )
-    system = CompositeSystem(elements=[bits], interactions=[sampling], time=DiscreteTime())
-    trajectory = simulate(system, until=100, random_state=0)
-    assert np.all(np.diff(trajectory.values('walk.score')[:, 0]) <= 0)
 
 
 def test_intensity_rejects_zero_and_negative_values():

@@ -124,7 +124,7 @@
 - [x] 8.5 Move the zone branch of `CouplingInteraction` (`radii`, `clamp`, their checks and methods) with `RadiusSpec`
   and `ClampSpec` into `ZoneCouplingInteraction` in `biology/collective_behaviour/_zones.py`, and migrate flocks and
   leadership. Verify with the coupling tests and `tests/systems/biology/collective_behaviour`.
-- [ ] 8.6 Move the score branches of `SamplingInteraction`: `RegionScoreSpec` with its methods into
+- [x] 8.6 Move the score branches of `SamplingInteraction`: `RegionScoreSpec` with its methods into
   `CellAdhesionInteraction`, `HolonomyScoreSpec` with its methods into `WilsonSamplingInteraction`, and `RowScoreSpec`
   into `SequenceSamplingInteraction` in `biology/common/sequences/_sequence_sampling.py`, each returning an
   `ArrayUpdateLaw`. Migrate RNA walks, early stage, and fuzzy oil drop. Verify with the sampling tests, the scenarios of

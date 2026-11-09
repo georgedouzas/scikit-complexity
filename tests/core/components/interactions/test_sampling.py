@@ -22,7 +22,8 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import HolonomyScoreSpec, MatrixGroupSpec, ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import MatrixGroupSpec, ParameterSpec, StateSpec, VisualSpec
+from skcomplex.systems.physics.common.fields import HolonomyScoreSpec, WilsonSamplingInteraction
 
 SIDE = 16
 ISOSPIN = MatrixGroupSpec('SU', 2)
@@ -403,6 +404,13 @@ class ColorLinkElement(Element):
         self.beta = beta
 
 
+class HolonomySamplingInteraction(WilsonSamplingInteraction):
+    """Sampling of matrix links by any holonomy score, the sampler of the Wilson action."""
+
+    def __init__(self, label, *, target, state, objective, **settings):
+        SamplingInteraction.__init__(self, label, target=target, state=state, objective=objective, **settings)
+
+
 def _trace_action(holonomies, beta):
     """Return the Wilson action of the holonomies, `-(beta / N) Re tr`."""
     return -beta / holonomies.shape[-1] * np.trace(holonomies, axis1=-2, axis2=-1).real
@@ -421,7 +429,7 @@ def _matrix_sampling(group, **arguments):
     settings = {'move': 'rotate', 'width': 0.6, 'schedule': 'colored', **arguments}
     hits = settings.pop('hits', 4)
     score = HolonomyScoreSpec(_trace_action, group, hits=hits)
-    return SamplingInteraction('wilson', target='links', state='U', objective=score, **settings)
+    return HolonomySamplingInteraction('wilson', target='links', state='U', objective=score, **settings)
 
 
 def _plaquettes(space, group, values):

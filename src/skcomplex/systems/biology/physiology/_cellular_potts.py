@@ -6,12 +6,16 @@ The tissue lies on a square, triangular, or disordered lattice.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Mapping, Sequence
+import functools
+import math
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass
 from functools import partial
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 import networkx as nx
+import numba
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN, SR, oo
@@ -20,7 +24,9 @@ from scipy.spatial import Voronoi
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import SamplingInteraction
+from ....core.components.laws import ArrayUpdateLaw, BaseLaw
 from ....core.components.spaces import (
+    AdjacencyNeighborhood,
     BallNeighborhood,
     BaseNeighborhood,
     BaseSpace,
@@ -30,7 +36,7 @@ from ....core.components.spaces import (
 )
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.errors import ValidationError
-from ....core.specs import ObservableSpec, ParameterSpec, RegionScoreSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import BaseSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array, Indices
 
 MATRIX_AXES = 2
@@ -40,6 +46,147 @@ LATTICES = ('square', 'triangular', 'disordered')
 DEFAULT_ADHESION = ((1.0, 2.0), (2.0, 1.5))
 
 TILES = 3
+
+
+@numba.njit(cache=True)
+def _elastic_change(strength: float, target: float, total: float, step: float) -> float:  # pragma: no cover
+    """Return the change of `strength * (total - target)^2` when the total grows.
+
+    The total grows by a step.
+    """
+    return strength * step * (2.0 * (total - target) + step)
+
+
+@numba.njit(cache=True)
+def _copy_labels(
+    labels: Indices,
+    contacts: tuple[Indices, Indices, Array, Array],
+    scores: tuple[Array, Array, Array],
+    proposals: tuple[Indices, Array, Array],
+    acceptance: tuple[float, bool],
+) -> None:  # pragma: no cover
+    """Propose label copies at the given sites and accept them in place.
+
+    It keeps the totals of every label. Every attempt copies the label of a neighbour of a site, the neighbour at the
+    fraction `picks` of its neighbours, into the site. The contacts are the neighbours of every site, their number, the
+    weights of the contacts, and the volumes of the sites. The change of the objective sums the contact energies
+    `contact` between labels weighted by the contacts of the site, and the change of the elastic constraints of the two
+    labels, of strengths `constraints[0]` and targets `constraints[1]` on the volumes `totals[0]`, and of strengths
+    `constraints[2]` and targets `constraints[3]` on the surfaces `totals[1]`. An accepted copy updates the totals of
+    the two labels only. The proposals are the sites, the picks, and the uniform numbers of the acceptance, and the
+    acceptance the intensity and whether the rule is the Metropolis rule.
+    """
+    neighbors, counts, weights, sizes = contacts
+    contact, constraints, totals = scores
+    sites, picks, draws = proposals
+    intensity, metropolis = acceptance
+    for attempt in range(sites.size):
+        site = sites[attempt]
+        count = counts[site]
+        if count == 0:
+            continue
+        old = labels[site]
+        new = labels[neighbors[site, min(int(picks[attempt] * count), count - 1)]]
+        if old == new:
+            continue
+        change = 0.0
+        old_surface = 0.0
+        new_surface = 0.0
+        for slot in range(count):
+            other = labels[neighbors[site, slot]]
+            weight = weights[site, slot]
+            if other == new:
+                new_surface -= weight
+            else:
+                change += weight * contact[new, other]
+                new_surface += weight
+            if other == old:
+                old_surface += weight
+            else:
+                change -= weight * contact[old, other]
+                old_surface -= weight
+        size = sizes[site]
+        change += _elastic_change(constraints[0, old], constraints[1, old], totals[0, old], -size)
+        change += _elastic_change(constraints[0, new], constraints[1, new], totals[0, new], size)
+        change += _elastic_change(constraints[2, old], constraints[3, old], totals[1, old], old_surface)
+        change += _elastic_change(constraints[2, new], constraints[3, new], totals[1, new], new_surface)
+        exponent = 0.0 if change == 0.0 else change * intensity
+        if metropolis:
+            accepted = exponent <= 0.0 or draws[attempt] < math.exp(-exponent)
+        else:
+            accepted = draws[attempt] < 1.0 / (1.0 + math.exp(min(exponent, 700.0)))
+        if accepted:
+            labels[site] = new
+            totals[0, old] -= size
+            totals[0, new] += size
+            totals[1, old] += old_surface
+            totals[1, new] += new_surface
+
+
+@dataclass(frozen=True)
+class RegionScoreSpec(BaseSpec):
+    """Spec of an objective of a state of integer labels.
+
+    The sites of one label form a region. The objective is `sum_<i,j> w_ij c(l_i, l_j) [l_i != l_j] + sum_l a_l (V_l -
+    A_l)^2 + b_l (S_l - B_l)^2`, a cost of the boundaries between labelled regions and a quadratic penalty on the
+    volume and the surface of every region. The first sum runs over the pairs of neighbouring sites `i` and `j` with
+    the weight `w_ij` of their contact, `l_i` is the label of site `i`, `V_l` the volume of region `l`, the sum of the
+    volumes of its sites, and `S_l` its surface, the sum of the weights of the contacts of its sites with sites of other
+    labels. A label copy changes the volumes and the surfaces of only the two regions it moves a site between, so a
+    sampler keeps them as totals per label that every accepted move updates.
+
+    Args:
+        contact:
+            The function `contact(first, second, **parameters)` of two arrays of labels, which broadcast, and the
+            parameters of the system that it names, which returns the cost per unit of boundary between regions of the
+            labels, symmetric in the labels.
+
+        volume:
+            The function `volume(labels, **parameters)` of an array of labels, which returns the strength `a_l` and the
+            target `A_l` of the volume constraint of every label, or `None` for no volume constraint.
+
+        surface:
+            The function `surface(labels, **parameters)` of an array of labels, which returns the strength `b_l` and
+            the target `B_l` of the surface constraint of every label, or `None` for no surface constraint.
+
+        hits:
+            The number of copies proposed per site and sweep.
+
+    Raises:
+        ValidationError:
+            The contact or a given constraint is not callable, or the number of hits is not positive.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.systems.biology.physiology import RegionScoreSpec
+        >>> contact = lambda first, second: np.ones(np.broadcast(first, second).shape)
+        >>> area = lambda labels: (np.ones(labels.shape), np.full(labels.shape, 16.0))
+        >>> RegionScoreSpec(contact, volume=area, hits=2).hits
+        2
+    """
+
+    contact: Callable[..., object]
+    volume: Callable[..., object] | None = None
+    surface: Callable[..., object] | None = None
+    hits: int = 1
+
+    def _check(self) -> None:
+        """Raise an error for a contact or a constraint not callable, or a bad hit count.
+
+        The number of hits must be at least 1.
+
+        Raises:
+            ValidationError:
+                The contact or a given constraint is not callable, or the number of hits is not positive.
+        """
+        for name in ('contact', 'volume', 'surface'):
+            function = getattr(self, name)
+            if not callable(function) and (name == 'contact' or function is not None):
+                error_msg = f'The {name} of a region score must be callable, but it is {function!r}.'
+                raise ValidationError(error_msg)
+        if not isinstance(self.hits, int) or self.hits < 1:
+            error_msg = f'A region score proposes at least one copy per site, but it has hits={self.hits!r}.'
+            raise ValidationError(error_msg)
 
 
 class TissueSiteElement(Element):
@@ -79,7 +226,218 @@ class TissueSiteElement(Element):
         self.cell = cell
 
 
-class CellAdhesionInteraction(SamplingInteraction):
+class RegionSamplingInteraction(SamplingInteraction):
+    """Monte Carlo sampling of regions of integer labels by copies of the labels of neighbours.
+
+    The objective is a `RegionScoreSpec`, and the state holds integer labels from 0 on the sites of a `LatticeSpace` or
+    the nodes of a `NetworkSpace`, whose sites of one label form a region. Every sweep proposes `hits` copies per site,
+    each at a random site, of the label of one of its neighbours drawn at random, and accepts it from the change of the
+    contact energy between regions and of the volume and surface constraints of the two regions it changes. The sampler
+    keeps the volume and the surface of every region and updates them on every accepted copy. The neighbourhood is that
+    of the copies and the contacts, by default the Moore neighbourhood of a square lattice, the six neighbours of a
+    triangular lattice, or the edges of a network, whose edge attribute `'weight'` weighs the contact and node
+    attribute `'volume'` the volume of a site. The schedule does not apply. The arguments are those of
+    `SamplingInteraction`, with the move `'copy'`.
+
+    Examples:
+        >>> from typing import Annotated
+        >>> import numpy as np
+        >>> from skcomplex.core.components.elements import Element, GroupElement
+        >>> from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
+        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.systems.biology.physiology import RegionSamplingInteraction, RegionScoreSpec
+        >>> class SiteElement(Element):
+        ...     def __init__(self, label, region: Annotated[float, StateSpec()] = 0.0):
+        ...         super().__init__(label)
+        ...         self.region = region
+        >>> contact = lambda first, second: np.ones(np.broadcast(first, second).shape)
+        >>> area = lambda labels: (1.0, 16.0)
+        >>> copies = RegionSamplingInteraction(
+        ...     'copies', target='sites', state='region', objective=RegionScoreSpec(contact, area), move='copy'
+        ... )
+        >>> regions = np.kron(np.arange(4).reshape(2, 2), np.ones((4, 4)))
+        >>> space = LatticeSpace((8, 8))
+        >>> sites = GroupElement('sites', element=SiteElement, space=space, on='sites', values={'region': regions})
+        >>> system = CompositeSystem(elements=[sites], interactions=[copies], time=DiscreteTime())
+        >>> final = simulate(system, until=20, random_state=0).states[-1]
+        >>> sorted(np.unique(final).tolist())
+        [0.0, 1.0, 2.0, 3.0]
+    """
+
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (ArrayUpdateLaw,)
+
+    def _check_move(self) -> None:
+        """Raise an error for a move other than `'copy'`, which copies the label of a neighbour."""
+        if self.move != 'copy':
+            error_msg = f"The region sampling {self.label!r} moves labels by the move 'copy', not {self.move!r}."
+            raise ValidationError(error_msg)
+
+    def _check_objective(self, objective: object) -> None:
+        """Raise an error for an objective that is not a region score, or a region score it cannot run."""
+        if not isinstance(objective, RegionScoreSpec):
+            error_msg = f'The objective of region sampling {self.label!r} must be a RegionScoreSpec.'
+            raise ValidationError(error_msg)
+        self._check_region_score(objective)
+
+    def _check_region_score(self, score: RegionScoreSpec) -> None:
+        """Raise an error for a region score with a bad move or the heat-bath rule.
+
+        A bad move is a move other than a label copy.
+        """
+        score._check()
+        if self.move != 'copy':
+            error_msg = f"The region score of sampling {self.label!r} moves labels by the move 'copy'."
+            raise ValidationError(error_msg)
+        if self.rule == 'heat-bath':
+            error_msg = f"The region score of sampling {self.label!r} takes the rule 'metropolis' or 'glauber'."
+            raise ValidationError(error_msg)
+
+    @staticmethod
+    @functools.cache
+    def _get_contacts(space: BaseSpace, neighborhood: BaseNeighborhood | None) -> tuple[Indices, Indices, Array, Array]:
+        """Return the tables of the neighbours of every site, their contacts, and volumes.
+
+        The tables hold the weights of the contacts and the site volumes.
+
+        A lattice site has the neighbours of the neighbourhood, or of the default neighbourhood of the lattice, with
+        contacts of weight 1 and a volume of 1. A node of a network has its neighbours along the edges of the layer of
+        the neighbourhood, with the edge attribute `'weight'` of the contact and the node attribute `'volume'`, both 1
+        by default.
+
+        Args:
+            space:
+                The prepared lattice or network.
+
+            neighborhood:
+                The neighbourhood of the contacts, or `None` for the default neighbourhood of the space.
+
+        Returns:
+            neighbors:
+                The index of every neighbour of every site, the other sites first, padded with the site itself.
+
+            counts:
+                The number of neighbours of every site.
+
+            weights:
+                The weight of the contact of every site with every neighbour, 0 for padding.
+
+            sizes:
+                The volume of every site.
+        """
+        over = space._default_neighborhood() if neighborhood is None else neighborhood
+        size = space.size_
+        sizes = np.ones(size)
+        if isinstance(space, NetworkSpace):
+            layer = over.layer if isinstance(over, AdjacencyNeighborhood) else None
+            graph = space.graphs_[layer]
+            indptr, others, edges = space.adjacency_[layer]
+            rows = np.repeat(np.arange(size), np.diff(indptr))
+            edge_weights = np.asarray([data.get('weight', 1.0) for *_, data in graph.edges(data=True)], dtype=float)
+            nodes = space.graph.nodes(data='volume', default=1.0)
+            sizes = np.asarray([volume for _, volume in nodes], dtype=float)
+            table = np.full((size, int(np.diff(indptr).max(initial=0))), size, dtype=np.intp)
+            slots = np.arange(others.size) - indptr[rows]
+            table[rows, slots] = others
+            values = np.zeros(table.shape)
+            values[rows, slots] = edge_weights[edges] if edges.size else 0.0
+        else:
+            table = space._index_table(over)
+            values = np.ones(table.shape)
+        sites = np.arange(size)[:, None]
+        valid = (table < size) & (table != sites)
+        order = np.argsort(~valid, axis=1, kind='stable')
+        valid = np.take_along_axis(valid, order, axis=1)
+        neighbors = np.where(valid, np.take_along_axis(table, order, axis=1), sites)
+        weights = np.where(valid, np.take_along_axis(values, order, axis=1), 0.0)
+        return neighbors, valid.sum(axis=1).astype(np.intp), weights, sizes
+
+    def _get_constraint(
+        self,
+        function: Callable[..., object] | None,
+        labels: Indices,
+        parameters: Mapping[str, object],
+    ) -> tuple[Array, Array]:
+        """Return the strength and the target of a constraint of every label.
+
+        They are zero for no constraint.
+        """
+        if function is None:
+            return np.zeros(labels.size), np.zeros(labels.size)
+        constraint = np.asarray(function(labels, **self._get_keywords(function, parameters)), dtype=object)
+        strengths = np.asarray(np.broadcast_to(np.asarray(constraint[0], dtype=np.float64), labels.shape), dtype=float)
+        targets = np.asarray(np.broadcast_to(np.asarray(constraint[1], dtype=np.float64), labels.shape), dtype=float)
+        return strengths, targets
+
+    def _sample_regions(
+        self,
+        values: Array,
+        *,
+        random: np.random.Generator,
+        time: float,
+        space: BaseSpace,
+        **parameters: object,
+    ) -> Array:
+        """Return a state of labels after one sweep of label copies.
+
+        The sweep makes as many copies as `hits` times the sites.
+        """
+        rng = random
+        score = getattr(self, self._get_parameter('objective'))
+        if not isinstance(space, (LatticeSpace, NetworkSpace)) or values.size != space.size_:
+            error_msg = f'The region score of sampling {self.label!r} reads a label per site of a lattice or a network.'
+            raise ValidationError(error_msg)
+        labels = np.rint(values).astype(np.intp).ravel()
+        if labels.size and labels.min() < 0:
+            error_msg = f'The region score of sampling {self.label!r} reads labels from 0, but got {labels.min()}.'
+            raise ValidationError(error_msg)
+        intensity = float(SR(self._get_intensity(SimpleNamespace(**parameters))))
+        if self.cooling is not None:
+            intensity /= float(SR(self.cooling(time)))
+        neighbors, counts, weights, sizes = self._get_contacts(space, self.neighborhood)
+        ids = np.arange(int(labels.max(initial=-1)) + 1)
+        contact = score.contact(ids[:, None], ids[None, :], **self._get_keywords(score.contact, parameters))
+        contact = np.ascontiguousarray(np.broadcast_to(np.asarray(contact, dtype=float), (ids.size, ids.size)))
+        constraints = np.stack(
+            [
+                *self._get_constraint(score.volume, ids, parameters),
+                *self._get_constraint(score.surface, ids, parameters),
+            ],
+        )
+        foreign = (weights * (labels[neighbors] != labels[:, None])).sum(axis=1)
+        totals = np.stack(
+            [
+                np.bincount(labels, weights=sizes, minlength=ids.size),
+                np.bincount(labels, weights=foreign, minlength=ids.size),
+            ],
+        )
+        attempts = score.hits * labels.size
+        _copy_labels(
+            labels,
+            (neighbors, counts, weights, sizes),
+            (contact, constraints, totals),
+            (rng.integers(labels.size, size=attempts), rng.random(attempts), rng.random(attempts)),
+            (intensity, self.rule == 'metropolis'),
+        )
+        return labels.reshape(values.shape).astype(values.dtype)
+
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the law that samples the state by the score.
+
+        Args:
+            namespace:
+                The namespace of the symbols the laws can use, with `namespace.target`.
+
+        Returns:
+            laws:
+                The law of the sampling.
+        """
+        target = getattr(self._get_member(namespace, 'target'), self.state)
+        return [ArrayUpdateLaw(target, self._sample_regions, label=self.label)]
+
+
+class CellAdhesionInteraction(RegionSamplingInteraction):
     """Cellular Potts sampling of a tissue, whose cells move their boundaries.
 
     The cells move under adhesion and area constraints.

@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import RegionScoreSpec
+from skcomplex.systems.biology.physiology import RegionScoreSpec
 
 
 def _area(labels):

@@ -14,12 +14,12 @@ import numpy.typing as npt
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import SamplingInteraction
 from ....core.components.spaces import DiscreteTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
-from ....core.specs import RowScoreSpec, StateSpec, VisualSpec
+from ....core.specs import StateSpec, VisualSpec
 from ..._extras import import_extra
+from ..common.sequences import RowScoreSpec, SequenceSamplingInteraction
 
 SYSTEM = 'rna_neutral_networks'
 
@@ -301,7 +301,7 @@ class RNANeutralNetworksSystem(BaseSystem):
                 ),
             ],
             interactions=[
-                SamplingInteraction(
+                SequenceSamplingInteraction(
                     'walk',
                     target='walkers',
                     state='base',

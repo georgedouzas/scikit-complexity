@@ -14,13 +14,13 @@ from scipy.optimize import minimize_scalar
 
 from ....core.base import BaseConfig
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import SamplingInteraction
 from ....core.components.spaces import DiscreteTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RowScoreSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ..._extras import import_extra
+from ..common.sequences import RowScoreSpec, SequenceSamplingInteraction
 from ._backbone_geometry import BackboneGeometry
 from ._structure_spec import StructureSpec
 from ._structures import BUNDLED, read_structure
@@ -374,7 +374,7 @@ class EarlyStageFoldingIntermediateSystem(BaseSystem):
                 ),
             ],
             interactions=[
-                SamplingInteraction(
+                SequenceSamplingInteraction(
                     'sampling',
                     target='residues',
                     state='cell',

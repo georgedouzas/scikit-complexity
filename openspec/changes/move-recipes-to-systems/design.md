@@ -372,3 +372,13 @@ Decisions taken while applying the change, by the placement rule.
   removes only its public re-export from `skcomplex.core.specs`, which nothing outside the package used, and deletes
   no test, since it had none. Making the printer's dialects private to the engine is a package move left to its own
   change.
+- `SamplingInteraction` checks its move and objective in the hooks `_check_move` and `_check_objective`, which a
+  subclass with a score spec overrides, and returns the Monte Carlo sweep alone. The region sampling is a class of its
+  own, `RegionSamplingInteraction` in `_cellular_potts.py`, which `CellAdhesionInteraction` subclasses, since the tests
+  of region scores sample any score and the cell adhesion builds its score from its parameters. The tests of holonomy
+  scores sample through a local subclass of `WilsonSamplingInteraction`. The case of a thermal sampling with a row score
+  is dropped, since physics cannot read the biology row score, and the zero temperature of rows is tested through
+  `SequenceSamplingInteraction` at infinite intensity.
+- The catalog test requires a module of `common` to serve two systems, and only the celestial geodesics use the
+  geodesic, so `GeodesicInteraction` lives in `_spacetime.py` of `physics/common/relativity`, beside the spacetime the
+  cosmologies also use, as the user placed both in that family.

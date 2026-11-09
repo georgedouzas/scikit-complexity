@@ -183,7 +183,8 @@ from skcomplex.core.components.interactions import SamplingInteraction
 from skcomplex.core.components.spaces import CellComplexSpace, DiscreteTime, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import HolonomyScoreSpec, MatrixGroupSpec, StateSpec
+from skcomplex.core.specs import MatrixGroupSpec, StateSpec
+from skcomplex.systems.physics.common.fields import HolonomyScoreSpec
 
 group = MatrixGroupSpec('SU', 2)
 

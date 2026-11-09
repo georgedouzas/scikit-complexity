@@ -1,4 +1,4 @@
-"""Test the region scores and the label copies of `_sampling` in `skcomplex.core.components.interactions`."""
+"""Test the region scores of the `_cellular_potts` module of `skcomplex.systems.biology.physiology`."""
 
 from typing import Annotated
 
@@ -7,12 +7,12 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import SamplingInteraction
 from skcomplex.core.components.spaces import BallNeighborhood, DiscreteTime, LatticeSpace, NetworkSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import RegionScoreSpec, RowScoreSpec, StateSpec
+from skcomplex.core.specs import StateSpec
+from skcomplex.systems.biology.physiology import RegionSamplingInteraction, RegionScoreSpec
 
 INFINITE = float('inf')
 SIDE = 12
@@ -39,7 +39,7 @@ def _region_volume(labels):
 
 def _run(space, regions, score, *, until=200, intensity=1.0, neighborhood=None, seed=0):
     """Return the recorded labels of a sampling of regions on a space."""
-    copies = SamplingInteraction(
+    copies = RegionSamplingInteraction(
         'copies',
         target='sites',
         state='region',
@@ -141,14 +141,13 @@ def test_label_copies_are_reproducible_with_a_seed():
     [
         ({'objective': RegionScoreSpec(_unit_contact), 'move': 'flip'}, "move 'copy'"),
         ({'objective': RegionScoreSpec(_unit_contact), 'move': 'copy', 'rule': 'heat-bath'}, 'metropolis'),
-        ({'objective': RowScoreSpec(np.sum), 'move': 'copy'}, 'copies labels'),
         ({'objective': RegionScoreSpec(_unit_contact, hits=0), 'move': 'copy'}, 'at least one copy'),
     ],
 )
 def test_region_score_rejects_moves_and_rules_it_cannot_take(arguments, match):
     """Test that a region score needs label copies and that a label copy needs a region score."""
     with pytest.raises(ValidationError, match=match):
-        SamplingInteraction('copies', target='sites', state='region', **arguments).prepare()
+        RegionSamplingInteraction('copies', target='sites', state='region', **arguments).prepare()
 
 
 def test_region_score_rejects_negative_labels():

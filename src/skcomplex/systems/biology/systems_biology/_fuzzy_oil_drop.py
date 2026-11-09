@@ -19,7 +19,7 @@ from scipy.optimize import minimize_scalar
 from scipy.special import rel_entr
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import Interaction, SamplingInteraction
+from ....core.components.interactions import Interaction
 from ....core.components.laws import ArrayUpdateLaw, BaseLaw
 from ....core.components.spaces import DiscreteTime, LatticeSpace
 from ....core.components.specs import CompiledElementSpec
@@ -28,9 +28,10 @@ from ....core.engine.problems import BaseProblemSpec, FrameSpec
 from ....core.engine.runtime import Trajectory
 from ....core.engine.viz import PointsVisual
 from ....core.errors import AnalysisError, ValidationError
-from ....core.specs import ObservableSpec, RoleSpec, RowScoreSpec, StateSpec, VisualSpec
+from ....core.specs import ObservableSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ..._extras import import_extra
+from ..common.sequences import RowScoreSpec, SequenceSamplingInteraction
 from ._backbone_geometry import BackboneGeometry
 from ._structure_spec import StructureSpec
 from ._structures import read_structure
@@ -658,7 +659,7 @@ class FuzzyOilDropSystem(BaseSystem):
                 ),
             ],
             interactions=[
-                SamplingInteraction(
+                SequenceSamplingInteraction(
                     'folding',
                     target='chain',
                     state='angle',
