@@ -37,14 +37,10 @@ from ...components.laws import (
     SampleLaw,
     UpdateLaw,
 )
-from ...components.laws.utils import (
-    COORDINATE_PREFIX,
-    cell_operations_in,
-    draws_in,
-    hyperedges_in,
-    neighborhoods_in,
-    reductions_in,
-)
+from ...components.laws.utils._cells import cell_operations_in
+from ...components.laws.utils._draws import draws_in
+from ...components.laws.utils._phase import COORDINATE_PREFIX
+from ...components.laws.utils._reductions import hyperedges_in, neighborhoods_in, reductions_in
 from ...components.spaces import (
     AdjacencyNeighborhood,
     BaseNeighborhood,

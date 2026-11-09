@@ -54,7 +54,8 @@ def shortest_paths(
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws.utils import neighborhoods_in, shortest_paths
+        >>> from skcomplex.core.components.laws.utils import shortest_paths
+        >>> from skcomplex.core.components.laws.utils._reductions import neighborhoods_in
         >>> shortest_paths(1)
         shortest_paths(1, reduce='betweenness')
         >>> [item.kind for item in neighborhoods_in(var('c') - shortest_paths(var('up'), reduce='closeness'))]

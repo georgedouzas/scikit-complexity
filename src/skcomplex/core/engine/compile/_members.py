@@ -12,7 +12,8 @@ from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ...components.laws import BaseLaw, BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from ...components.laws.utils import draws_in, shift_member
+from ...components.laws.utils import shift_member
+from ...components.laws.utils._draws import draws_in
 from ...components.spaces import LatticeNeighborhood, LatticeSpace
 from ...components.spaces._lattice import BOUNDARIES
 from ...errors import ValidationError

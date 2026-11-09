@@ -44,7 +44,8 @@ class DrawSpec(BaseSpec):
             Whether a relaxed draw gives the exact value and the gradient of the relaxation on JAX.
 
     Examples:
-        >>> from skcomplex.core.components.laws.utils import bernoulli, draws_in
+        >>> from skcomplex.core.components.laws.utils import bernoulli
+        >>> from skcomplex.core.components.laws.utils._draws import draws_in
         >>> draws_in(bernoulli('flip', 0.5))[0].kind
         'bernoulli'
     """

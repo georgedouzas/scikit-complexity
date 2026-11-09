@@ -21,7 +21,8 @@ from sage.sets.real_set import RealSet
 from ....components.elements import FieldElement, GroupElement
 from ....components.interactions import BaseInteraction
 from ....components.laws import LinearProgramLaw
-from ....components.laws.utils import COORDINATE_PREFIX, coordinate
+from ....components.laws.utils import coordinate
+from ....components.laws.utils._phase import COORDINATE_PREFIX
 from ....components.spaces import BaseSpace, LatticeSpace, NetworkSpace, PhaseSpace
 from ....components.specs import CensusRecordSpec, NodeSpec
 from ....errors import LabelError, SpaceError, ValidationError

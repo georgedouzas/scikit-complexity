@@ -15,7 +15,8 @@ from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....components.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from ....components.laws.utils import maximum, minimum, reductions_in, where
+from ....components.laws.utils import maximum, minimum, where
+from ....components.laws.utils._reductions import reductions_in
 from ....components.spaces import NetworkSpace
 from ....components.specs import NodeSpec
 from ....errors import RoleError, ValidationError

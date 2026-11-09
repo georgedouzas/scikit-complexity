@@ -11,7 +11,8 @@ from sage.all__sagemath_symbolics import var
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction, MapInteraction, TopologyInteraction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.laws.utils import neighborhoods_in, shortest_paths
+from skcomplex.core.components.laws.utils import shortest_paths
+from skcomplex.core.components.laws.utils._reductions import neighborhoods_in
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend

@@ -20,15 +20,10 @@ from sage.modules.free_module_element import FreeModuleElement
 from sage.symbolic.operators import add_vararg, mul_vararg
 
 from ....components.laws import BaseLaw, BoundaryLaw, CrossingLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from ....components.laws.utils import (
-    both,
-    cell_operations_in,
-    contractions_in,
-    hyperedges_in,
-    maximum,
-    neighborhoods_in,
-    reductions_in,
-)
+from ....components.laws.utils import both, maximum
+from ....components.laws.utils._cells import cell_operations_in
+from ....components.laws.utils._contractions import contractions_in
+from ....components.laws.utils._reductions import hyperedges_in, neighborhoods_in, reductions_in
 from ....components.spaces import (
     AdjacencyNeighborhood,
     CellComplexSpace,

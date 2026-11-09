@@ -13,13 +13,13 @@ from skcomplex.core.components.elements import FieldElement, NonnegativeElement
 from skcomplex.core.components.interactions import AdvectionInteraction, RateInteraction
 from skcomplex.core.components.laws.utils import (
     coordinate,
-    coordinates_of,
     gradient,
     inverse_helmholtz,
     maximum_entropy,
     moment,
     reduce_axes,
 )
+from skcomplex.core.components.laws.utils._phase import coordinates_of
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend

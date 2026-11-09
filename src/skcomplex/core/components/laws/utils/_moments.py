@@ -110,7 +110,8 @@ def moment(
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws.utils import moment, reductions_in
+        >>> from skcomplex.core.components.laws.utils import moment
+        >>> from skcomplex.core.components.laws.utils._reductions import reductions_in
         >>> f = var('f')
         >>> moment(f, 0, [0.0, 1.0, 2.0])
         total(f)

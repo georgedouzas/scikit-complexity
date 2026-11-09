@@ -38,7 +38,7 @@ def delay_parts(name: str) -> tuple[bool, int] | None:
             Whether the delay is material, and its order.
 
     Examples:
-        >>> from skcomplex.core.components.laws.utils import delay_parts
+        >>> from skcomplex.core.components.laws.utils._delays import delay_parts
         >>> delay_parts('material_delay3'), delay_parts('sin')
         ((True, 3), None)
     """

@@ -106,7 +106,8 @@ def distribute_operators(expression: object) -> Expression:
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws.utils import distribute_operators, laplacian
+        >>> from skcomplex.core.components.laws.utils import laplacian
+        >>> from skcomplex.core.components.laws.utils._tensors import distribute_operators
         >>> a = var('a')
         >>> distribute_operators(laplacian(-a) + laplacian(a))
         0

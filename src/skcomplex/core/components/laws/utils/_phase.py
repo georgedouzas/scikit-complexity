@@ -61,7 +61,7 @@ def coordinates_of(axes: Sequence[str]) -> list[Expression]:
             No axis is named, or an axis is named by a value that is no identifier.
 
     Examples:
-        >>> from skcomplex.core.components.laws.utils import coordinates_of
+        >>> from skcomplex.core.components.laws.utils._phase import coordinates_of
         >>> coordinates_of(('v', 'w'))
         [_coordinate_v, _coordinate_w]
     """

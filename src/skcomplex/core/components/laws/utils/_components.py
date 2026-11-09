@@ -55,7 +55,8 @@ def components(
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws.utils import components, neighborhoods_in
+        >>> from skcomplex.core.components.laws.utils import components
+        >>> from skcomplex.core.components.laws.utils._reductions import neighborhoods_in
         >>> components(var('open') > 0, reduce='size')
         components(open > 0, reduce='size')
         >>> [item.kind for item in neighborhoods_in(1 + components(var('open'), reduce='largest'))]

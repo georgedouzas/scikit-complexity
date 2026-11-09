@@ -26,7 +26,9 @@ from ...components.laws import (
     TransferLaw,
     UpdateLaw,
 )
-from ...components.laws.utils import delay_parts, draws_in, shift_member
+from ...components.laws.utils import shift_member
+from ...components.laws.utils._delays import delay_parts
+from ...components.laws.utils._draws import draws_in
 from ...components.spaces import DiscreteTime
 from ...errors import ConservationError, LabelError, ValidationError
 from ...specs import EntrySpec

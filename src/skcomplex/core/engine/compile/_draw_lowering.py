@@ -13,7 +13,9 @@ from sage.modules.free_module_element import FreeModuleElement
 from scipy import stats
 
 from ...components.laws import BaseLaw, UpdateLaw
-from ...components.laws.utils import clip, draws_in, logistic, reductions_in, stop_gradient, where
+from ...components.laws.utils import clip, logistic, stop_gradient, where
+from ...components.laws.utils._draws import draws_in
+from ...components.laws.utils._reductions import reductions_in
 from ...errors import ValidationError
 from ...specs import CallSpec, DrawSpec, EntrySpec, NamedDrawSpec, NeighborReadSpec, SampledDrawSpec
 from ...types import Array, Indices

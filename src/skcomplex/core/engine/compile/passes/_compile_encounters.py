@@ -14,7 +14,8 @@ from sage.all__sagemath_symbolics import SR, Expression
 
 from ....components.elements import FieldElement
 from ....components.laws import BaseLaw, BilinearLaw
-from ....components.laws.utils import COORDINATE_PREFIX, coordinate
+from ....components.laws.utils import coordinate
+from ....components.laws.utils._phase import COORDINATE_PREFIX
 from ....components.spaces import PhaseSpace
 from ....errors import ValidationError
 from ....specs import TableValuesSpec

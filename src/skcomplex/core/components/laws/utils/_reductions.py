@@ -290,7 +290,8 @@ def reduction(
     Examples:
         >>> import numpy as np
         >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws.utils import reduction, reductions_in
+        >>> from skcomplex.core.components.laws.utils import reduction
+        >>> from skcomplex.core.components.laws.utils._reductions import reductions_in
         >>> x = var('x')
         >>> [item.kind for item in reductions_in(reduction(np.median, x))]
         ['function']
@@ -931,7 +932,8 @@ def reductions_in(expression: object) -> list[ReductionSpec]:
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws.utils import mean, reductions_in, total
+        >>> from skcomplex.core.components.laws.utils import mean, total
+        >>> from skcomplex.core.components.laws.utils._reductions import reductions_in
         >>> x = var('x')
         >>> [item.kind for item in reductions_in(total(x * mean(x)))]
         ['sum']
@@ -1004,7 +1006,8 @@ def neighborhoods_in(expression: object) -> list[NeighborReductionSpec]:
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws.utils import neighbors, neighborhoods_in
+        >>> from skcomplex.core.components.laws.utils import neighbors
+        >>> from skcomplex.core.components.laws.utils._reductions import neighborhoods_in
         >>> [item.kind for item in neighborhoods_in(neighbors(var('x'), reduce='mean'))]
         ['mean']
     """
@@ -1042,7 +1045,8 @@ def hyperedges_in(expression: object) -> list[HyperedgeReductionSpec]:
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws.utils import hyperedges, hyperedges_in
+        >>> from skcomplex.core.components.laws.utils import hyperedges
+        >>> from skcomplex.core.components.laws.utils._reductions import hyperedges_in
         >>> [(item.kind, item.size) for item in hyperedges_in(hyperedges(var('x'), reduce='mean', size=3))]
         [('mean', 3)]
     """

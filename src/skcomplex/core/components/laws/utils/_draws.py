@@ -222,7 +222,8 @@ def draw(name: str, distribution: str, **parameters: object) -> Expression:
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws.utils import draw, draws_in
+        >>> from skcomplex.core.components.laws.utils import draw
+        >>> from skcomplex.core.components.laws.utils._draws import draws_in
         >>> wait = draw('wait', 'pareto', b=var('alpha'), scale=2)
         >>> wait
         pareto_wait_b_scale(alpha, 2)
@@ -250,7 +251,8 @@ def draws_in(expression: object) -> list[DrawSpec]:
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws.utils import bernoulli, draws_in, uniform
+        >>> from skcomplex.core.components.laws.utils import bernoulli, uniform
+        >>> from skcomplex.core.components.laws.utils._draws import draws_in
         >>> x = var('x')
         >>> [item.name for item in draws_in(x * uniform('u') + bernoulli('flip', uniform('u')))]
         ['u', 'flip']

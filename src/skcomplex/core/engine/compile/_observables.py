@@ -16,7 +16,8 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression, I
 
 from ...components.elements import Element
-from ...components.laws.utils import has_operator, local_operator
+from ...components.laws.utils import local_operator
+from ...components.laws.utils._local_operators import has_operator
 from ...components.specs import NodeSpec
 from ...components.systems import System
 from ...errors import ValidationError

@@ -3,14 +3,8 @@
 import pytest
 from sage.all__sagemath_symbolics import exp, pi, var
 
-from skcomplex.core.components.laws.utils import (
-    INVERSION_BOUNDARIES,
-    collision_integral,
-    convolve,
-    displacement,
-    inverse_helmholtz,
-    shifted,
-)
+from skcomplex.core.components.laws.utils import collision_integral, convolve, displacement, inverse_helmholtz, shifted
+from skcomplex.core.components.laws.utils._operators import INVERSION_BOUNDARIES
 from skcomplex.core.errors import ValidationError
 
 

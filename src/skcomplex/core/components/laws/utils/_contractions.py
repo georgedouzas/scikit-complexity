@@ -41,7 +41,8 @@ def contraction(tensor: object, *expressions: object) -> Expression:
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws.utils import contraction, contractions_in
+        >>> from skcomplex.core.components.laws.utils import contraction
+        >>> from skcomplex.core.components.laws.utils._contractions import contractions_in
         >>> T, x = var('T x')
         >>> contraction(T, x, x)
         contraction(T, x, x)
@@ -72,7 +73,8 @@ def contractions_in(expression: object) -> list[Expression]:
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws.utils import contraction, contractions_in
+        >>> from skcomplex.core.components.laws.utils import contraction
+        >>> from skcomplex.core.components.laws.utils._contractions import contractions_in
         >>> T, x = var('T x')
         >>> len(contractions_in(1 + contraction(T, x)))
         1

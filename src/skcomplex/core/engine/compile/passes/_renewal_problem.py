@@ -12,8 +12,8 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....components.laws.utils import draws_in, reductions_in
-from ....components.laws.utils._draws import DRAWS
+from ....components.laws.utils._draws import DRAWS, draws_in
+from ....components.laws.utils._reductions import reductions_in
 from ....errors import PipelineError, ValidationError
 from ....specs import DrawSpec
 from ....types import Indices

@@ -15,7 +15,7 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression, dirac_delta
 
-from ..components.laws.utils import delay_parts
+from ..components.laws.utils._delays import delay_parts
 from ..engine._utils import symbols_of
 from ..engine.problems import ProblemSpec
 from ..engine.problems._expression_printer import ExpressionPrinter

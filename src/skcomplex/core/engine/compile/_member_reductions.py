@@ -13,7 +13,7 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import RR, SR, Expression, I
 
 from ...base import BaseConfig
-from ...components.laws.utils import reductions_in
+from ...components.laws.utils._reductions import reductions_in
 from ...errors import RoleError, ValidationError
 from ...specs import EntrySpec, ReadSpec, ReductionSpec
 from .._utils import symbol, symbols_of

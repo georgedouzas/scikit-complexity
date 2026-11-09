@@ -25,15 +25,9 @@ from skfem.models.poisson import laplace, mass
 
 from ...components.elements import FieldElement
 from ...components.laws import BaseLaw, BoundaryLaw, FluxLaw, NoiseLaw, RateLaw, UpdateLaw
-from ...components.laws.utils import (
-    COORDINATE_PREFIX,
-    INVERSION_BOUNDARIES,
-    coordinate,
-    displacement,
-    integration_variable,
-    where,
-)
-from ...components.laws.utils._operators import COLLISION_COSINE, COLLISION_SPEED
+from ...components.laws.utils import coordinate, displacement, integration_variable, where
+from ...components.laws.utils._operators import COLLISION_COSINE, COLLISION_SPEED, INVERSION_BOUNDARIES
+from ...components.laws.utils._phase import COORDINATE_PREFIX
 from ...components.spaces import (
     AdjacencyNeighborhood,
     LatticeNeighborhood,

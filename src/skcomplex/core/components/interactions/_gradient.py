@@ -21,7 +21,8 @@ from ...specs import RoleSpec
 from ...types import ElementKind
 from ..base import BasePart
 from ..laws import BaseLaw, RateLaw
-from ..laws.utils import distribute_operators, laplacian, partial
+from ..laws.utils import laplacian, partial
+from ..laws.utils._tensors import distribute_operators
 from ..spaces import BaseSpace
 from ..types import Target
 from ._interaction import Interaction

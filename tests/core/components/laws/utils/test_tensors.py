@@ -10,7 +10,6 @@ from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import (
     antisymmetric_part,
-    distribute_operators,
     inverse_helmholtz,
     laplacian,
     leray_projection,
@@ -19,6 +18,7 @@ from skcomplex.core.components.laws.utils import (
     tensor_divergence,
     vector_gradient,
 )
+from skcomplex.core.components.laws.utils._tensors import distribute_operators
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.backends import NumpyBackend
