@@ -6,133 +6,39 @@ The skeleton system has MinD and MinE cycling between the membrane and the cytos
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from types import SimpleNamespace
-from typing import Annotated
+from collections.abc import Callable
+from types import MappingProxyType, SimpleNamespace
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 from scipy.optimize import brentq
 
-from ....core.components.elements import Element, FieldElement
-from ....core.components.interactions import RateInteraction
-from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from ....core.types import Array
+from ...general.dynamics import ReactionDiffusionSystem
 from ...general.reactions import ReactionInteraction
 
-
-class MinSkeletonElement(Element):
-    """Site of the Min skeleton system.
-
-    It holds membrane MinD and MinDE and cytosolic MinD-ATP, MinD-ADP, and MinE.
-
-    The reactions are the attachment and self-recruitment of MinD-ATP to the membrane, `(k_d + k_dd md) cdt`, the
-    recruitment of MinE by membrane MinD, `k_de md ce`, the dissociation of MinDE complexes, `k_off mde`, which releases
-    MinD-ADP and MinE to the cytosol, and the nucleotide exchange `lam cdd` from MinD-ADP to MinD-ATP. They conserve
-    the totals of MinD, `md + mde + cdt + cdd`, and of MinE, `mde + ce`.
-
-    The element holds the states and parameters and has no laws of its own: the interactions of
-    `MinProteinSkeletonSystem` read its parameters.
-
-    Args:
-        label:
-            The label of the site or the field.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        md:
-            The initial membrane MinD.
-
-        mde:
-            The initial membrane MinDE complexes.
-
-        cdt:
-            The initial cytosolic MinD-ATP.
-
-        cdd:
-            The initial cytosolic MinD-ADP.
-
-        ce:
-            The initial cytosolic MinE.
-
-        Dm:
-            The diffusivity on the membrane.
-
-        Dc:
-            The diffusivity in the cytosol.
-
-        k_d:
-            The attachment rate of MinD-ATP.
-
-        k_dd:
-            The recruitment rate of MinD-ATP by membrane MinD.
-
-        k_de:
-            The recruitment rate of MinE by membrane MinD.
-
-        k_off:
-            The dissociation rate of MinDE complexes.
-
-        lam:
-            The nucleotide exchange rate.
-
-    Examples:
-        >>> from skcomplex.systems.biology.systems_biology import MinSkeletonElement
-        >>> MinSkeletonElement('site').lam
-        6.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        md: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        mde: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        cdt: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        cdd: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        ce: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        Dm: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.013,
-        Dc: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 60.0,
-        k_d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        k_dd: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        k_de: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        k_off: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.4,
-        lam: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 6.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.md = md
-        self.mde = mde
-        self.cdt = cdt
-        self.cdd = cdd
-        self.ce = ce
-        self.Dm = Dm
-        self.Dc = Dc
-        self.k_d = k_d
-        self.k_dd = k_dd
-        self.k_de = k_de
-        self.k_off = k_off
-        self.lam = lam
+RATES = MappingProxyType({'Dm': 0.013, 'Dc': 60.0, 'k_d': 0.1, 'k_dd': 0.1, 'k_de': 0.5, 'k_off': 0.4, 'lam': 6.0})
 
 
-class MinProteinSkeletonSystem(BaseSystem):
+class MinProteinSkeletonSystem(ReactionDiffusionSystem):
     """The skeleton system of the Min proteins on a periodic line.
 
     It is a mass-conserving reaction-diffusion system.
 
     MinD and MinE cycle between the membrane, where they diffuse slowly, and the cytosol, where they diffuse fast, with
-    the reactions of `MinSkeletonElement`. The reactions conserve the totals of MinD and MinE, so only diffusion moves
-    mass, and the local reactive equilibria map the dynamics onto conserved fields with nonreciprocal cross-diffusion
-    (Brauns and Marchetti, App. F). With the default totals, the uniform state is unstable to an oscillatory band of
-    wavelengths near 17, and narrow bands of membrane MinD travel along the line and meet head-on. The fast cytosolic
-    diffusion and the fast recruitment make the system stiff, so the catalog registers the implicit `BDF` method with
-    the exact Jacobian. The system has the membrane fields `cell.md` and `cell.mde` and the cytosolic fields `cell.cdt`,
-    `cell.cdd`, and `cell.ce`.
+    the attachment and self-recruitment of MinD-ATP to the membrane, `(k_d + k_dd md) cdt`, the recruitment of MinE by
+    membrane MinD, `k_de md ce`, the dissociation of MinDE complexes, `k_off mde`, which releases MinD-ADP and MinE to
+    the cytosol, and the nucleotide exchange `lam cdd` from MinD-ADP to MinD-ATP. The reactions conserve the totals of
+    MinD and MinE, so only diffusion moves mass, and the local reactive equilibria map the dynamics onto conserved
+    fields with nonreciprocal cross-diffusion (Brauns and Marchetti, App. F). With the default totals, the uniform state
+    is unstable to an oscillatory band of wavelengths near 17, and narrow bands of membrane MinD travel along the line
+    and meet head-on. The fast cytosolic diffusion and the fast recruitment make the system stiff, so the catalog
+    registers the implicit `BDF` method with the exact Jacobian. The system has the membrane fields `cell.md` and
+    `cell.mde` and the cytosolic fields `cell.cdt`, `cell.cdd`, and `cell.ce`.
 
     Args:
         n_sites:
@@ -177,7 +83,7 @@ class MinProteinSkeletonSystem(BaseSystem):
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.n_sites = n_sites
         self.length = length
         self.total_D = total_D
@@ -185,18 +91,18 @@ class MinProteinSkeletonSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _uniform_state(element: MinSkeletonElement, total_D: float, total_E: float) -> dict[str, float]:
+    def _uniform_state(total_D: float, total_E: float) -> dict[str, float]:
         """Return the uniform steady state of the skeleton system.
 
         It has the totals of MinD and MinE.
         """
 
         def others(md: float) -> tuple[float, float, float, float]:
-            mde = total_E * element.k_de * md / (element.k_off + element.k_de * md)
+            mde = total_E * RATES['k_de'] * md / (RATES['k_off'] + RATES['k_de'] * md)
             return (
                 mde,
-                element.k_off * mde / (element.k_d + element.k_dd * md),
-                element.k_off * mde / element.lam,
+                RATES['k_off'] * mde / (RATES['k_d'] + RATES['k_dd'] * md),
+                RATES['k_off'] * mde / RATES['lam'],
                 total_E - mde,
             )
 
@@ -204,26 +110,37 @@ class MinProteinSkeletonSystem(BaseSystem):
         mde, cdt, cdd, ce = others(md)
         return {'md': md, 'mde': mde, 'cdt': cdt, 'cdd': cdd, 'ce': ce}
 
-    @staticmethod
-    def _get_diffusion(state: str, coefficient: str) -> RateInteraction:
-        """Return the diffusion `D laplacian(u)` of a state by the parameter of its coefficient."""
+    def _get_element_label(self) -> str:
+        """Return the label of the field of the sites."""
+        return 'cell'
 
-        def rate(s: SimpleNamespace) -> object:
-            return getattr(s.target, coefficient) * laplacian(getattr(s.target, state))
+    def _get_space(self) -> LatticeSpace:
+        """Return the periodic line of the sites."""
+        return LatticeSpace(self.n_sites, spacing=self.length / self.n_sites)
 
-        return RateInteraction(f'diffusion_{state}', target='cell', state=state, rate=rate)
-
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the skeleton system of the Min proteins on a periodic line."""
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the uniform state with 1% of MinD moved between the cytosol and the membrane, and the rates."""
         rng = np.random.default_rng(self.random_state)
-        uniform = self._uniform_state(MinSkeletonElement('site'), self.total_D, self.total_E)
+        uniform = self._uniform_state(self.total_D, self.total_E)
         values: dict[str, Array] = {name: np.full(self.n_sites, value) for name, value in uniform.items()}
         noise = 0.01 * uniform['md'] * rng.uniform(-1.0, 1.0, self.n_sites)
         values['md'] = values['md'] + noise
         values['cdt'] = values['cdt'] - noise
-        space = LatticeSpace(self.n_sites, spacing=self.length / self.n_sites)
-        cell = FieldElement('cell', element=MinSkeletonElement, space=space, values=values)
-        reactions = [
+        nonnegative = RealSet.closed_open(0, oo)
+        states = {name: DeclaredVariableSpec(value, StateSpec(domain=nonnegative)) for name, value in values.items()}
+        positive = ('Dm', 'Dc')
+        parameters = {
+            name: DeclaredVariableSpec(
+                value,
+                ParameterSpec(domain=RealSet.open(0, oo) if name in positive else nonnegative),
+            )
+            for name, value in RATES.items()
+        }
+        return {**states, **parameters}
+
+    def _get_equation_interactions(self) -> list[ReactionInteraction]:
+        """Return the attachment, the recruitment, the release, and the nucleotide exchange."""
+        return [
             ReactionInteraction(
                 'attachment',
                 target='cell',
@@ -253,6 +170,9 @@ class MinProteinSkeletonSystem(BaseSystem):
                 propensity=lambda s: s.target.lam * s.target.cdd,
             ),
         ]
-        membrane = [self._get_diffusion(state, 'Dm') for state in ('md', 'mde')]
-        cytosol = [self._get_diffusion(state, 'Dc') for state in ('cdt', 'cdd', 'ce')]
-        return CompositeSystem(self.label, elements=[cell], interactions=[*reactions, *membrane, *cytosol])
+
+    def _get_diffusivities(self) -> dict[str, Callable[[SimpleNamespace], object]]:
+        """Return the slow diffusion on the membrane and the fast diffusion in the cytosol."""
+        membrane = {state: lambda s: s.target.Dm for state in ('md', 'mde')}
+        cytosol = {state: lambda s: s.target.Dc for state in ('cdt', 'cdd', 'ce')}
+        return {**membrane, **cytosol}
