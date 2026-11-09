@@ -12,9 +12,9 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo, tanh
 from sage.sets.real_set import RealSet
 
-from ....core.components.laws.utils import mod, shift_member
-from ....core.specs import ParameterSpec, RoleSpec
-from .traffic import SpeedAdaptationInteraction
+from .....core.components.laws.utils import mod, shift_member
+from .....core.specs import ParameterSpec, RoleSpec
+from ._speed_adaptation import SpeedAdaptationInteraction
 
 
 class OptimalVelocityInteraction(SpeedAdaptationInteraction):

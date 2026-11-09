@@ -12,8 +12,8 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.interactions import RateInteraction
-from ....core.specs import ParameterSpec, RoleSpec, WienerProcessSpec
+from .....core.components.interactions import RateInteraction
+from .....core.specs import ParameterSpec, RoleSpec, WienerProcessSpec
 
 
 class GeometricBrownianMotionInteraction(RateInteraction):

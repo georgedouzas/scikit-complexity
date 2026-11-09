@@ -22,7 +22,8 @@ from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..common._vertex import DEGREE_VISUAL, VertexElement
+from ..common.networks import VertexElement
+from ..common.networks._vertex import DEGREE_VISUAL
 
 
 class CopyingVertexElement(VertexElement):

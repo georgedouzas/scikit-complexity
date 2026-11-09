@@ -27,7 +27,7 @@ from ....core.components.spaces import (
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..common import SandpileCellElement
+from ..common.avalanches import SandpileCellElement
 
 
 class ForestElement(Element):

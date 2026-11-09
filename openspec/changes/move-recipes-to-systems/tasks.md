@@ -23,7 +23,7 @@
 
 - [x] 3.1 Add to `tests/test_sources.py` the test that no module under `src/skcomplex/core` imports `skcomplex.systems`,
   read from the syntax tree. Verify that it passes now.
-- [ ] 3.2 Add to `tests/test_sources.py` the test that the roots of `systems/general` and of every
+- [x] 3.2 Add to `tests/test_sources.py` the test that the roots of `systems/general` and of every
   `systems/<field>/common` hold only `__init__.py` and subpackages. Make it pass by moving the loose modules into
   families: `economics/common/_asset.py` and `_geometric_brownian_motion.py` into `economics/common/assets`,
   `_balance_sheet.py` into `economics/common/banking`, `_exchange.py` and `_exchange_interaction.py` into

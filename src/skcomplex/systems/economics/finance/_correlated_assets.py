@@ -6,8 +6,7 @@
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import WienerProcessSpec
-from ..common._asset import AssetElement
-from ..common._geometric_brownian_motion import GeometricBrownianMotionInteraction
+from ..common.assets import AssetElement, GeometricBrownianMotionInteraction
 
 
 class CorrelatedGeometricBrownianMotionSystem(BaseSystem):

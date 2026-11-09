@@ -16,8 +16,7 @@ from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import delayed, shift_member
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..common._car import CarElement
-from ..common._optimal_velocity import OptimalVelocityInteraction
+from ..common.traffic import CarElement, OptimalVelocityInteraction
 
 
 class LeadCarElement(Element):

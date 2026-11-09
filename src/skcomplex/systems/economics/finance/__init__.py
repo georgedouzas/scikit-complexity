@@ -1,6 +1,7 @@
 """Finance: asset prices, growth processes, wealth, systemic risk, and arbitrage."""
 
-from ..common import AssetElement, BalanceSheetElement, GeometricBrownianMotionInteraction
+from ..common.assets import AssetElement, GeometricBrownianMotionInteraction
+from ..common.banking import BalanceSheetElement
 from ._arbitrage import ArbitrageDensityElement, ArbitrageTradersSystem
 from ._assets import GeometricBrownianMotionSystem
 from ._contagion import DebtRankCascadeInteraction, DebtrankSystem, InterbankElement

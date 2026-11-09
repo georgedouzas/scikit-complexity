@@ -3,7 +3,7 @@
 The barter is of Cobb-Douglas traders on trade networks.
 """
 
-from ..common import ExchangeInteraction, cobb_douglas, marginal_rate, trade_goods
+from ..common.exchange import ExchangeInteraction, cobb_douglas, marginal_rate, trade_goods
 from ._adaptive_auction import AdaptiveAuctionInteraction, AdaptiveTraderElement, GoodingDoubleAuctionSystem
 from ._barter import BartererElement, BarterSystem, contract_curve
 from ._barter_networks import BarterTraderElement, BilateralBarterInteraction, WilhiteTradeNetworksSystem

@@ -20,9 +20,7 @@ from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver, RK4Solver
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..common._car import CarElement
-from ..common._optimal_velocity import OptimalVelocityInteraction
-from ..common.traffic import SpeedAdaptationInteraction
+from ..common.traffic import CarElement, OptimalVelocityInteraction, SpeedAdaptationInteraction
 
 
 class TrafficMomentsElement(Element):

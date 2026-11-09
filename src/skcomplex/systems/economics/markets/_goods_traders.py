@@ -19,8 +19,8 @@ from ....core.components.spaces import DiscreteTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..common._exchange import cobb_douglas
-from ..common._exchange_interaction import GOODS, ExchangeInteraction
+from ..common.exchange import ExchangeInteraction, cobb_douglas
+from ..common.exchange._exchange_interaction import GOODS
 
 
 class GoodsTraderElement(Element):

@@ -22,7 +22,7 @@ from ....core.components.spaces import BallNeighborhood, DiscreteTime, LatticeSp
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..common import SandpileCellElement
+from ..common.avalanches import SandpileCellElement
 
 
 class BranchingTreeElement(Element):

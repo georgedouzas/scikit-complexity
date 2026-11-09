@@ -18,7 +18,8 @@ from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import SystemView
 from ....core.specs import ParameterSpec, RoleSpec
 from ....core.types import Array
-from ..common._balance_sheet import DEFAULTED, DEFAULTING, SOLVENT, BalanceSheetElement, BalanceSheetView
+from ..common.banking import BalanceSheetElement
+from ..common.banking._balance_sheet import DEFAULTED, DEFAULTING, SOLVENT, BalanceSheetView
 
 
 class DefaultCascadeInteraction(FeedbackInteraction[SystemView]):

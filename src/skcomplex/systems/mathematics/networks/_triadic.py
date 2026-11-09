@@ -21,7 +21,7 @@ from ....core.components.laws.utils import bernoulli, components, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
-from ..common._regulated_node import RegulatedNodeElement
+from ..common.networks import RegulatedNodeElement
 
 
 class RegulatedLinkElement(Element):

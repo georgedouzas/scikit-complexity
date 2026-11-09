@@ -10,8 +10,8 @@ from typing import Annotated
 
 from sage.all__sagemath_symbolics import NN
 
-from ....core.components.elements import Element
-from ....core.specs import StateSpec, VisualSpec
+from .....core.components.elements import Element
+from .....core.specs import StateSpec, VisualSpec
 
 
 class SandpileCellElement(Element):
@@ -36,7 +36,7 @@ class SandpileCellElement(Element):
             The visual of the site when it sets none.
 
     Examples:
-        >>> from skcomplex.systems.physics.common import SandpileCellElement
+        >>> from skcomplex.systems.physics.common.avalanches import SandpileCellElement
         >>> SandpileCellElement('site').height
         0
     """

@@ -18,7 +18,7 @@ from ....core.components.spaces import NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import AnalysisError
 from ....core.specs import ObservableSpec, ParameterSpec, VisualSpec
-from ..common._network_node import NetworkNodeElement
+from ..common.networks import NetworkNodeElement
 
 
 class NetworkMeasuresElement(Element):

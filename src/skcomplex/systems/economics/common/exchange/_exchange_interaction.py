@@ -12,9 +12,9 @@ from typing import ClassVar
 
 import numpy as np
 
-from ....core.components.interactions import TransferInteraction
-from ....core.components.laws import BaseLaw, MatchLaw, RuleLaw, TransferLaw
-from ....core.components.types import AgentViewProtocol, SystemViewProtocol
+from .....core.components.interactions import TransferInteraction
+from .....core.components.laws import BaseLaw, MatchLaw, RuleLaw, TransferLaw
+from .....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ._exchange import trade_goods
 
 GOODS = ('sugar', 'spice', 'salt')

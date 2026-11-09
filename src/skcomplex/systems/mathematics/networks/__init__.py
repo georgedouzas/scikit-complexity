@@ -4,9 +4,7 @@ The package covers growth, turnover, ensembles, robustness, cascades, walks, dif
 percolation.
 """
 
-from ..common._network_node import NetworkNodeElement
-from ..common._regulated_node import RegulatedNodeElement
-from ..common._vertex import VertexElement
+from ..common.networks import NetworkNodeElement, RegulatedNodeElement, VertexElement
 from ._davidsen_ebel_bornholdt import ClosingNodeElement, DavidsenEbelBornholdtSystem
 from ._duplication_deletion import DuplicatingNodeElement, DuplicationDeletionSystem
 from ._ensembles import (

@@ -7,7 +7,7 @@ import itertools
 import math
 from collections.abc import Sequence
 
-from ....core.components.laws.utils import transfer
+from .....core.components.laws.utils import transfer
 
 
 def cobb_douglas(agent: object, goods: Sequence[str], weights: Sequence[str]) -> float:

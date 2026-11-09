@@ -19,8 +19,7 @@ from ....core.components.laws import BaseLaw
 from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
-from ..common._exchange import cobb_douglas
-from ..common._exchange_interaction import ExchangeInteraction
+from ..common.exchange import ExchangeInteraction, cobb_douglas
 
 GOODS = ('chocolate', 'cigarettes')
 WEIGHTS = tuple(f'{good}_weight' for good in GOODS)

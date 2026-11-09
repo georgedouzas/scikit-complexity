@@ -159,3 +159,16 @@ def test_core_never_imports_the_systems(request):
     ]
     assert not found, 'core modules import the systems:\n' + '\n'.join(found)
 
+
+def test_shared_packages_hold_only_subpackages(request):
+    """Test that the roots of `systems/general` and of every field `common` hold only `__init__.py` and subpackages."""
+    systems = request.config.rootpath / 'src' / 'skcomplex' / 'systems'
+    roots = [systems / 'general', *sorted(path.parent for path in systems.glob('*/common/__init__.py'))]
+    found = [
+        str(path.relative_to(systems))
+        for root in roots
+        for path in sorted(root.glob('*.py'))
+        if path.name != '__init__.py'
+    ]
+    assert not found, 'loose modules at the root of a shared package:\n' + '\n'.join(found)
+

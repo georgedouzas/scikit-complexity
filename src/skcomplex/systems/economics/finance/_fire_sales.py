@@ -21,7 +21,8 @@ from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..common._balance_sheet import DEFAULTED, SOLVENT, BalanceSheetElement, BalanceSheetView
+from ..common.banking import BalanceSheetElement
+from ..common.banking._balance_sheet import DEFAULTED, SOLVENT, BalanceSheetView
 
 SELLING_RULES = ('threshold', 'leverage')
 

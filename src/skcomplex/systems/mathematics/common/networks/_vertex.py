@@ -8,8 +8,8 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element
-from ....core.specs import StateSpec, VisualSpec
+from .....core.components.elements import Element
+from .....core.specs import StateSpec, VisualSpec
 
 DEGREE_VISUAL = VisualSpec('sites', {'states': ['degree']})
 

@@ -24,9 +24,9 @@ from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import LayerSpec, ParameterSpec, StateSpec, VisualSpec
-from ..common._network_node import NetworkNodeElement
-from ..common._regulated_node import ACTIVITY_VISUAL
-from ..common._vertex import DEGREE_VISUAL
+from ..common.networks import NetworkNodeElement
+from ..common.networks._regulated_node import ACTIVITY_VISUAL
+from ..common.networks._vertex import DEGREE_VISUAL
 
 
 class DependentNodeElement(Element):

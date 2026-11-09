@@ -5,8 +5,7 @@
 
 
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ..common._asset import AssetElement
-from ..common._geometric_brownian_motion import GeometricBrownianMotionInteraction
+from ..common.assets import AssetElement, GeometricBrownianMotionInteraction
 
 
 class GeometricBrownianMotionSystem(BaseSystem):

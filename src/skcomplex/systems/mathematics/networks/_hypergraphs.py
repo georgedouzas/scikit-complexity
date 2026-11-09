@@ -22,7 +22,7 @@ from ....core.components.laws.utils import neighbors, total
 from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..common._vertex import VertexElement
+from ..common.networks import VertexElement
 
 
 class SimplexElement(Element):

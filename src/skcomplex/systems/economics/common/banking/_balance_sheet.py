@@ -12,10 +12,10 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element
-from ....core.components.laws import BaseLaw
-from ....core.engine.solvers import AgentView
-from ....core.specs import StateSpec, VisualSpec
+from .....core.components.elements import Element
+from .....core.components.laws import BaseLaw
+from .....core.engine.solvers import AgentView
+from .....core.specs import StateSpec, VisualSpec
 
 SOLVENT = 0
 
