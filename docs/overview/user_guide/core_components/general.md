@@ -133,6 +133,128 @@ The hooks of `ReactionNetworkSystem` are these:
 - `_get_interactions` returns the reactions as interactions, for a realization whose reactions have roles of their own
   names, such as the `susceptible` and `infected` roles of an infection.
 
+## Dynamical systems
+
+`skcomplex.systems.general.dynamics` holds the general systems of states and their evolution. Each takes its data by
+name, and a field system subclasses it, takes the parameters of its model under its own names, and returns its data
+from hooks. The [parts page of systems](../../../parts/systems.md) lists every general system with the catalog
+systems that subclass it.
+
+### DynamicalSystem
+
+`DynamicalSystem` is a set of states and the equations that evolve them, rates in continuous time or the next values
+in discrete time. The Wilson-Cowan populations of neuroscience are rates, and the multiplier-accelerator of economics
+is a map whose equations read the states at the start of the step:
+
+```python
+from sage.all__sagemath_symbolics import exp
+
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.general.dynamics import DynamicalSystem
+
+populations = DynamicalSystem(
+    states={'e': 0.1, 'i': 0.05},
+    equations={
+        'e': lambda s: -s.target.e + 1 / (1 + exp(-(2 * s.target.e - 3 * s.target.i))),
+        'i': lambda s: -s.target.i + 1 / (1 + exp(-(2 * s.target.e - s.target.i))),
+    },
+    element='populations',
+)
+economy = DynamicalSystem(
+    states={'y': 1.0, 'previous': 1.0},
+    equations={
+        'y': lambda s: s.target.g + s.target.c * (1 + s.target.v) * s.target.y - s.target.c * s.target.v * s.target.previous,
+        'previous': lambda s: s.target.y,
+    },
+    parameters={'g': 1.0, 'c': 0.5, 'v': 0.5},
+    time='discrete',
+    element='economy',
+)
+simulate(populations, until=20.0, dt=1.0).values('populations.e')[-1], simulate(economy, until=3).values('economy.y')
+```
+
+Its hooks are `_get_states`, `_get_equations`, `_get_parameters`, `_get_noises`, `_get_time`, `_get_element_label`, and
+`_get_variables`, which gives the specs of the states and the parameters, such as a domain or the order of a Caputo
+derivative. A noise amplitude, read in the Itô or Stratonovich convention, needs continuous time.
+
+### NetworkDynamicalSystem
+
+`NetworkDynamicalSystem` puts the states on every node of a graph, and adds to the rate of every coupled state the sum
+over the neighbours `sum_j A_ij g(x_i, x_j)`. Diffusion on a graph in mathematics and the exchange of gap junctions
+between cells in physiology are both of this shape:
+
+```python
+import networkx as nx
+
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.general.dynamics import NetworkDynamicalSystem
+
+cells = NetworkDynamicalSystem(
+    nx.cycle_graph(4),
+    states={'v': [1.0, 0.0, 0.0, 0.0]},
+    equations={'v': lambda s: -s.target.v / s.target.tau},
+    coupling={'v': lambda s: s.member.g * (s.other.v - s.member.v)},
+    parameters={'tau': 10.0, 'g': 0.5},
+    element='cells',
+)
+simulate(cells, until=5.0, dt=1.0).values('cells.v')[-1]
+```
+
+It adds the hooks `_get_graph` and `_get_coupling`. A local equation may also read the graph Laplacian, as network
+diffusion of mathematics does.
+
+### ReactionDiffusionSystem
+
+`ReactionDiffusionSystem` puts the states as fields on the sites of a lattice, with local kinetics and the diffusion
+`D laplacian(u)` of every field that has a diffusivity. The Fisher-Kolmogorov front of ecology invades an empty line:
+
+```python
+import numpy as np
+
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.general.dynamics import ReactionDiffusionSystem
+
+initial = np.zeros(50)
+initial[:5] = 1.0
+front = ReactionDiffusionSystem(
+    states={'u': initial},
+    equations={'u': lambda s: s.target.r * s.target.u * (1 - s.target.u)},
+    diffusivities={'u': 1.0},
+    shape=50,
+    boundary='reflecting',
+    parameters={'r': 1.0},
+)
+simulate(front, until=10.0, dt=5.0).values('medium.u')[-1][:25]
+```
+
+It adds the hooks `_get_diffusivities`, `_get_space`, and `_get_boundaries`. A chemistry system whose kinetics are
+reactions returns them from `_get_equation_interactions`, as the Gray-Scott system of pattern formation does.
+
+### StockFlowSystem
+
+`StockFlowSystem` is a set of stocks that change only through named flows, each from a stock or a source to a stock or
+a sink, and the trajectory reports every flow. The bathtub of engineering and the arms race of social organizations are
+stock-flow systems, as are the files of system dynamics that the translator reads:
+
+```python
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.general.dynamics import StockFlowSystem
+
+race = StockFlowSystem(
+    stocks={'a': 1.0, 'b': 1.0},
+    flows={
+        'arming_a': (None, 'a', lambda s: s.source.k * s.source.b),
+        'arming_b': (None, 'b', lambda s: s.source.k * s.source.a),
+    },
+    parameters={'k': 0.1},
+    element='nations',
+)
+trajectory = simulate(race, until=10.0, dt=5.0)
+trajectory.values('nations.a'), trajectory.values('nations.arming_a')
+```
+
+Its hooks are `_get_stocks`, `_get_flows`, `_get_parameters`, `_get_element_label`, and `_get_variables`.
+
 ## Encounters of a kinetic system
 
 Use `EncounterInteraction` for the bilinear encounters of a kinetic system, whose elements are densities on activity

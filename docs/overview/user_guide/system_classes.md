@@ -13,8 +13,12 @@ Every system derives from `BaseSystem`, and comes in one of four kinds, from the
   plays the role of `Pipeline` in scikit-learn: it holds parts and adds no model of its own.
 - **General realizations**, such as `ReactionNetworkSystem` of `skcomplex.systems.general.reactions`, name a structure
   that several fields share, such as a reaction network, whose reactions fire at a rate constant times the product of
-  the reactant amounts. They are recipes written with the core, in
-  [General realizations](core_components/general.md#reaction-networks).
+  the reactant amounts. The general systems of `skcomplex.systems.general.dynamics` name the structures of states and
+  their evolution: `DynamicalSystem` for rates or maps of declared states, `NetworkDynamicalSystem` for states on the
+  nodes of a graph, `ReactionDiffusionSystem` for fields on a lattice, and `StockFlowSystem` for stocks that change
+  through named flows. They are recipes written with the core, in
+  [General realizations](core_components/general.md#reaction-networks) and
+  [Dynamical systems](core_components/general.md#dynamical-systems).
 - **Field realizations**, such as `SIRSystem`, give a general system or `BaseSystem` the parameters and the words of one
   field. Every ready-made system of the catalog is one.
 
@@ -23,11 +27,14 @@ parameters of their own.
 
 ```python
 from skcomplex.core.components.systems import BaseSystem, CompositeSystem
+from skcomplex.systems.general.dynamics import DynamicalSystem
 from skcomplex.systems.general.reactions import ReactionNetworkSystem
 from skcomplex.systems.biology.epidemiology import SIRSystem
+from skcomplex.systems.mathematics.dynamical_systems import HenonMapSystem
 
 (
     issubclass(SIRSystem, ReactionNetworkSystem),
+    issubclass(HenonMapSystem, DynamicalSystem),
     issubclass(ReactionNetworkSystem, BaseSystem),
     issubclass(CompositeSystem, BaseSystem),
 )
@@ -90,7 +97,9 @@ out. A system whose settings depend on its parameters overrides `get_run_setting
 A field realization takes the parameters of its model under its own names, and gives a general system or `BaseSystem`
 its parts through hooks. `SIRSystem` subclasses `ReactionNetworkSystem`, returns its compartments from `_get_species`,
 and its infection and recovery from `_get_interactions`. Epidemics and enzyme kinetics are both reaction networks with
-a product propensity, so they share the general realization and differ in their own.
+a product propensity, so they share the general realization and differ in their own. `HenonMapSystem` subclasses
+`DynamicalSystem` in discrete time, and returns its two states from `_get_states`, its parameters from
+`_get_parameters`, and its map from `_get_equations`, so its module defines no element class.
 
 ## Changing a ready-made system by subclassing it
 
