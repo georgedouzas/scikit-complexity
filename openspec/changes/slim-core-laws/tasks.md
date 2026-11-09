@@ -126,7 +126,7 @@ when other agents run tests at the same time.
   `NEIGHBOR_REDUCTIONS` from `laws/utils/__init__.py`, import them from their private modules in the laws, the
   interactions, the analysis, and the engine, and point the tests at the private modules, and verify `pytest tests/core`
   passes
-- [ ] 7.3 Make `random_pairing` the private method `MatchLaw._get_random_pairs`, move its test from `test_agents.py` to
+- [x] 7.3 Make `random_pairing` the private method `MatchLaw._get_random_pairs`, move its test from `test_agents.py` to
   `test_match.py`, and verify both pass
 - [ ] 7.4 Delete the empty `laws/utils/_tables.py`, and verify `python -c "import skcomplex.core.components.laws.utils"`
   succeeds

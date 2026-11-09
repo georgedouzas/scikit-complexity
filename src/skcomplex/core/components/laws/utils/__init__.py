@@ -6,7 +6,7 @@ They are reductions, pointwise functions, draws, delays, and calls.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ._agents import matches, random_pairing, transfer
+from ._agents import matches, transfer
 from ._cells import codifferential, exterior_derivative, hodge_star
 from ._components import components
 from ._conditions import both, either, mod, where
@@ -109,7 +109,6 @@ __all__: list[str] = [
     'pulse',
     'pulse_train',
     'ramp',
-    'random_pairing',
     'reduce_axes',
     'reduction',
     'residence',

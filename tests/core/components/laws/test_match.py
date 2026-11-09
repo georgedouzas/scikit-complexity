@@ -101,3 +101,17 @@ def test_check_validates_a_partner_spec():
     """Test that the check of a match law checks its partner spec."""
     with pytest.raises(ValidationError, match='Unknown choice'):
         MatchLaw('traders', pairing=PartnerSpec(choice='best')).prepare()
+
+
+def test_random_pairing_within_one_group_avoids_self_pairs():
+    """Test that random pairing within one group never pairs a member with itself."""
+    members = list(range(9))
+    pairs = MatchLaw('group', capacity=2)._get_random_pairs(members, members, np.random.default_rng(0))
+    assert all(first != second for first, second in pairs)
+    assert len({frozenset(pair) for pair in pairs}) == len(pairs)
+
+
+def test_random_pairing_of_two_groups_gives_every_member_its_capacity():
+    """Test that random pairing of two groups pairs every member of the smaller group at most once per capacity."""
+    pairs = MatchLaw('group', 'other')._get_random_pairs(list(range(5)), list('abc'), np.random.default_rng(0))
+    assert len(pairs) == 3
