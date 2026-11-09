@@ -121,28 +121,41 @@ Same procedure as group 3.
 - [ ] 10.2 engineering: `processes/_grain_storage.py`, `processes/_processes.py` `BathtubSystem`,
   `processes/_systems.py` `FoodReliefSystem`
 - [ ] 10.3 social: `opinion_dynamics/_undecided.py`, `organizations/_traps.py` (five systems)
+- [ ] 10.4 For `CascadeClassifierSystem`, `RiceMillingSystem`, `SolidWasteSystem`, `IrrigationSystem`, `CocoaSystem`,
+  and `EnergyReturnSystem`, try the rates outside their flows as named flows and compare with the script of 1.2. Keep
+  each system on its base unless names and values are equal, and record the result in this task.
 
-## 11. Documents
+## 11. Translator
 
-- [ ] 11.1 Add a section per general system to `docs/overview/user_guide/core_components/systems.md`, named after the
+- [ ] 11.1 Make the module writer of `core/engine/translators` write a subclass of `StockFlowSystem` for a file whose
+  stocks are not subscripted and change only through flow variables, with the constants as parameters and the hooks
+  `_get_stocks` and `_get_flows`. Other files keep the element shape. Verify with
+  `tests/core/engine/translators/test_system_dynamics.py`, extended with the two scenarios of
+  `system-dynamics-import`, and the PySD comparisons within 1e-6.
+- [ ] 11.2 Update the docstrings of `_system_dynamics.py` and `_module_writer.py` and the stocks and flows page of the
+  user guide to show a translated `StockFlowSystem`. Verify with the doctests and `pytest-markdown-docs`.
+
+## 12. Documents
+
+- [ ] 12.1 Add a section per general system to `docs/overview/user_guide/core_components/systems.md`, named after the
   class, with one plain sentence, examples from two fields, and the link to the generated table of the parts page.
   Create the page in the layout of `rewrite-docstrings-and-docs` if it does not exist yet. Verify with
   `pytest-markdown-docs` that every block runs.
-- [ ] 11.2 Update `docs/overview/user_guide/system_classes.md` to name the general systems, and replace in the user
+- [ ] 12.2 Update `docs/overview/user_guide/system_classes.md` to name the general systems, and replace in the user
   guide and the gallery every use of a removed element class. Verify with `pytest-markdown-docs` and a search for the
   removed names that finds none.
-- [ ] 11.3 Add a changelog entry that names the four general systems and lists the removed element classes. Verify the
-  entry renders in `nox -s docs -- build`.
+- [ ] 12.3 Add a changelog entry that names the four general systems and the translated `StockFlowSystem` subclasses,
+  and lists the removed element classes. Verify the entry renders in `nox -s docs -- build`.
 
-## 12. Inventory
+## 13. Inventory
 
-- [ ] 12.1 Update the entries of `docs/overview/inventory.toml` whose components or bindings changed with a rebase.
+- [ ] 13.1 Update the entries of `docs/overview/inventory.toml` whose components or bindings changed with a rebase.
   Verify with the inventory check that the documentation build runs.
 
-## 13. Integration
+## 14. Integration
 
-- [ ] 13.1 Run `nox -s checks` and `nox -s tests`, with `NUMBA_NUM_THREADS`, `OMP_NUM_THREADS`, and the BLAS threads set
+- [ ] 14.1 Run `nox -s checks` and `nox -s tests`, with `NUMBA_NUM_THREADS`, `OMP_NUM_THREADS`, and the BLAS threads set
   to 1 when other agents run tests. Verify both pass.
-- [ ] 13.2 Run `nox -s docs -- build` and verify it passes with the generated parts page of systems listing the four
+- [ ] 14.2 Run `nox -s docs -- build` and verify it passes with the generated parts page of systems listing the four
   general systems and their catalog users.
-- [ ] 13.3 Run `openspec validate add-general-systems --strict` and verify it passes.
+- [ ] 14.3 Run `openspec validate add-general-systems --strict` and verify it passes.

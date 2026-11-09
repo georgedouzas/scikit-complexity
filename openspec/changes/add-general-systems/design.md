@@ -57,7 +57,8 @@ such systems among the declared-state shapes, such as `LorenzSystem`, `RosslerSy
 
 - No class for a rejected shape.
 - No rebase of a system whose element class is shared.
-- No change to the system-dynamics translator. Whether it writes a `StockFlowSystem` subclass is an open question.
+- No `StockFlowSystem` for translated files whose stocks change outside flow variables or are subscripted. Those keep
+  the current translated shape.
 - No further rebase onto `ReactionNetworkSystem`.
 
 ## Decisions
@@ -314,12 +315,31 @@ Each general system lands with its tests and docstring first, then its rebases f
 exact comparison. The guide page, the inventory, and the full checks follow. Rollback of a rebase is the revert of its
 module, since no other module depends on a leaving element class.
 
-## Open Questions
+### The translator writes `StockFlowSystem` subclasses
 
-- Should the system-dynamics translator write a subclass of `StockFlowSystem` for files whose stocks change only
-  through flows? It would shorten translated modules, and it can follow in its own change.
-- Should the six stock-flow systems with rate laws outside flows, such as `CascadeClassifierSystem` and
-  `IrrigationSystem`, write those rates as named flows? Their trajectories would gain flow names, so it is a change of
-  results that the user decides.
-- The helper `_random_cells` exists in six modules of computer science, social, and biology. It may become a draw
-  utility of the core. That is a separate decision on `laws.utils`.
+`SystemDynamicsTranslator` writes a subclass of `StockFlowSystem` for a file whose stocks are not subscripted and change
+only through flow variables. The subclass takes the constants as parameters, returns the initial stocks from
+`_get_stocks` and the flows from `_get_flows`, and keeps the observables of the auxiliaries and the run settings as
+module constants. The source no longer defines an element class or the `TransferInteraction` calls, as the general
+system builds them. A file with a remaining rate or with subscripts keeps the current shape, with an element, a group,
+and `RateInteraction` parts, since a `StockFlowSystem` changes its stocks only through flows. The PySD tests of the
+translator keep their tolerance of 1e-6.
+
+Alternatives considered: a remaining rate as a flow from a source. It would report a flow the file does not name.
+
+## Decisions by the user
+
+- One `DynamicalSystem` with a `time` parameter, not one class per form.
+- The element classes that only a rebased system uses leave the catalog, which is breaking. Their equations move into
+  the hooks of the system.
+- The name is `StockFlowSystem`.
+- The system-dynamics translator writes `StockFlowSystem` subclasses, as the section above describes.
+- The six stock-flow systems with rate laws outside their flows, `CascadeClassifierSystem`, `RiceMillingSystem`,
+  `SolidWasteSystem`, `IrrigationSystem`, `CocoaSystem`, and `EnergyReturnSystem`, keep their base unless rewriting the
+  rates as named flows keeps their results exactly equal. A named flow adds a name to the trajectory, so the expected
+  outcome is that they keep their base. A task checks each one and records the result.
+- `_random_cells` stays in the field modules. Its identical copies, a Bernoulli draw of every cell with a given
+  probability, live in four modules of computer science and one of social. The biology method of the same name draws
+  distinct sites without replacement, so it is another function. The draw is used by two fields, but it is one call
+  of NumPy, and the core test asks for a feature no other part offers. A core utility would only wrap that call, so
+  it fails the test.

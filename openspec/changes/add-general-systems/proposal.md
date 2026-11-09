@@ -24,6 +24,8 @@ a general system named after its mathematics, so a field system gives only its p
   names, and trajectories stay the same. The design lists them per field.
 - **BREAKING** The element classes that only a rebased system uses leave the catalog. Their equations move into the
   hooks of the system, so no model is lost. The design lists the rule, and the tasks list the classes per module.
+- The system-dynamics translator writes a subclass of `StockFlowSystem` for a file whose stocks are not subscripted
+  and change only through flow variables.
 - The core components guide gets one section per general system, with examples from two fields each.
 - Shapes the audit rejects stay as they are: replicator dynamics, Markov chains, cellular automata, Hamiltonian and
   Lagrangian systems, agent-based systems, particles in continuous space, flux balance models, and Boolean networks.
@@ -41,11 +43,12 @@ a general system named after its mathematics, so a field system gives only its p
 - `base-interfaces`: the rule for general systems states the admission test and names the general systems.
 - `model-library`: ready-made systems subclass the general system of their shape, and a rebase keeps the public
   interface and the trajectories of a system.
+- `system-dynamics-import`: translated modules of flows only are subclasses of `StockFlowSystem`.
 
 ## Impact
 
 - Core code: four new modules in `core/components/systems`, its `__init__.py`, and the import contract of the package
-  in `pyproject.toml`.
+  in `pyproject.toml`. The translator and its module writer in `core/engine/translators` change.
 - Systems: modules of biology, chemistry, computer science, economics, engineering, mathematics, physics, and social
   that hold a rebased system. The element classes that only those systems use leave them and their `__init__.py`.
 - Tests: new mirrored tests under `tests/core/components/systems`, and the tests of every rebased module.
