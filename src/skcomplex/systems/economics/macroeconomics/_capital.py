@@ -7,65 +7,16 @@ It reinvests its output.
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element
-from ....core.components.interactions import RateInteraction
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from ...general.dynamics import DynamicalSystem
+from ...general.dynamics.types import Equations
 
 
-class CapitalStockElement(Element):
-    """Capital stock that reinvests a fraction of its output and depreciates.
-
-    It depreciates over its lifetime.
-
-    Args:
-        label:
-            The label of the stock.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        K:
-            The capital stock.
-
-        investment_fraction:
-            The fraction of the output that is reinvested.
-
-        output_per_capital:
-            The output per unit of capital and unit time.
-
-        lifetime:
-            The average lifetime of the capital.
-
-    Examples:
-        >>> from skcomplex.systems.economics.macroeconomics import CapitalStockElement
-        >>> CapitalStockElement('economy', lifetime=20.0).lifetime
-        20.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        K: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 100.0,
-        investment_fraction: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        output_per_capital: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1 / 3,
-        lifetime: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 15.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.K = K
-        self.investment_fraction = investment_fraction
-        self.output_per_capital = output_per_capital
-        self.lifetime = lifetime
-
-
-class CapitalStockSystem(BaseSystem):
+class CapitalStockSystem(DynamicalSystem):
     """Meadows' capital stock, grown by reinvested output and drained by depreciation.
 
     The stock follows `dK/dt = investment_fraction * output_per_capital * K - K / lifetime`. It grows exponentially when
@@ -90,7 +41,7 @@ class CapitalStockSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.economics.macroeconomics import CapitalStockSystem
-        >>> CapitalStockSystem(lifetime=20.0).prepare().system_.elements[0].lifetime
+        >>> CapitalStockSystem(lifetime=20.0).prepare().system_.elements[0].get_value('lifetime')
         20.0
     """
 
@@ -109,7 +60,7 @@ class CapitalStockSystem(BaseSystem):
         lifetime: float = 15.0,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.capital = capital
         self.investment_fraction = investment_fraction
         self.output_per_capital = output_per_capital
@@ -122,17 +73,25 @@ class CapitalStockSystem(BaseSystem):
         rate: Expression = stock.investment_fraction * stock.output_per_capital * stock.K - stock.K / stock.lifetime
         return rate
 
-    def _build_system(self) -> CompositeSystem:
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'economy'
+
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the states and the parameters with their specs."""
+        return {
+            'K': DeclaredVariableSpec(self.capital, StateSpec(domain=RealSet.closed_open(0, oo))),
+            'investment_fraction': DeclaredVariableSpec(
+                self.investment_fraction, ParameterSpec(domain=RealSet.closed_open(0, oo)),
+            ),
+            'output_per_capital': DeclaredVariableSpec(
+                self.output_per_capital, ParameterSpec(domain=RealSet.open(0, oo)),
+            ),
+            'lifetime': DeclaredVariableSpec(self.lifetime, ParameterSpec(domain=RealSet.open(0, oo))),
+        }
+
+    def _get_equations(self) -> Equations:
         """Return the parts of the system built from its model parameters."""
-        economy = CapitalStockElement(
-            'economy',
-            K=self.capital,
-            investment_fraction=self.investment_fraction,
-            output_per_capital=self.output_per_capital,
-            lifetime=self.lifetime,
-        )
-        return CompositeSystem(
-            self.label,
-            elements=[economy],
-            interactions=[RateInteraction('investment', target='economy', state='K', rate=self._net_investment)],
-        )
+        return {
+            'K': self._net_investment,
+        }

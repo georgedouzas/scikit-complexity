@@ -19,7 +19,7 @@ from ._food_balance import RiceBalanceElement, RiceFoodBalanceSystem
 from ._harvesting import FarmerElement, HarvestingSystem, HarvestInteraction, StockElement
 from ._land_use import BidRentInteraction, LandCellElement, VonThunenSystem
 from ._measurement_errors import FisheryMeasurementErrorsSystem, MeasuredFisheryElement
-from ._optimal_harvesting import HarvestedResourceElement, OptimalHarvestingSystem
+from ._optimal_harvesting import OptimalHarvestingSystem
 from ._plantations import CocoaSystem, PlantationElement
 
 __all__: list[str] = [
@@ -35,7 +35,6 @@ __all__: list[str] = [
     'FoodSecuritySystem',
     'GrazingInteraction',
     'HarvestInteraction',
-    'HarvestedResourceElement',
     'HarvestingSystem',
     'HerderElement',
     'HilsaElement',

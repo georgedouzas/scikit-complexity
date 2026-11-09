@@ -34,7 +34,6 @@ from ._physiology import FitzHughNagumoElement, FitzhughNagumoSystem, MackeyGlas
 from ._regulation import (
     CoagulationElement,
     CoagulationPositiveFeedbackSystem,
-    FeedbackLoopElement,
     GlucoseControlElement,
     GlucoseDualHormoneControlSystem,
     SteerableFeedbackLoopSystem,
@@ -67,7 +66,6 @@ __all__: list[str] = [
     'DrugToxicityElement',
     'DrugToxicitySystem',
     'ExchangingCellElement',
-    'FeedbackLoopElement',
     'FitzHughNagumoElement',
     'FitzhughNagumoSystem',
     'FlowAdaptationInteraction',

@@ -14,13 +14,9 @@ from ._chaotic_ensembles import (
 )
 from ._driven_flows import DrivenRosslerElement, OUDrivenRosslerSystem
 from ._flows import (
-    BlowUpElement,
     FiniteTimeBlowUpSystem,
-    HyperchaoticRosslerElement,
     HyperchaoticRosslerSystem,
-    IkedaElement,
     IkedaSystem,
-    JerkElement,
     LangfordElement,
     LangfordSystem,
     LorenzSystem,
@@ -30,10 +26,9 @@ from ._flows import (
     RosslerSystem,
     SprottJerkSystem,
     SprottMixedFlowSystem,
-    ThomasElement,
     ThomasSystem,
 )
-from ._koopman import KoopmanSlowManifoldSystem, SlowManifoldElement
+from ._koopman import KoopmanSlowManifoldSystem
 from ._maps import (
     BakerMapElement,
     BakerMapSystem,
@@ -65,13 +60,9 @@ from ._maps import (
     TowelMapSystem,
 )
 from ._normal_forms import (
-    CuspElement,
     CuspFormSystem,
-    HopfElement,
     HopfFormSystem,
-    SaddleNodeElement,
     SaddleNodeFormSystem,
-    TakensBogdanovElement,
     TakensBogdanovFormSystem,
 )
 from ._subcritical_forms import SubcriticalHopfElement, SubcriticalHopfFormSystem
@@ -79,7 +70,6 @@ from ._subcritical_forms import SubcriticalHopfElement, SubcriticalHopfFormSyste
 __all__: list[str] = [
     'BakerMapElement',
     'BakerMapSystem',
-    'BlowUpElement',
     'CDNMapSystem',
     'CatMapElement',
     'CatMapSystem',
@@ -89,7 +79,6 @@ __all__: list[str] = [
     'ConservativeHenonMapSystem',
     'CubicChaoticMapSystem',
     'CubicWalkElement',
-    'CuspElement',
     'CuspFormSystem',
     'DoublingMapElement',
     'DoublingMapSystem',
@@ -100,15 +89,11 @@ __all__: list[str] = [
     'GaussianMapElement',
     'HenonMapElement',
     'HenonMapSystem',
-    'HopfElement',
     'HopfFormSystem',
-    'HyperchaoticRosslerElement',
     'HyperchaoticRosslerSystem',
-    'IkedaElement',
     'IkedaSystem',
     'IntermittencyMapElement',
     'IntermittencyMapSystem',
-    'JerkElement',
     'KoopmanSlowManifoldSystem',
     'LangfordElement',
     'LangfordSystem',
@@ -125,22 +110,18 @@ __all__: list[str] = [
     'OUDrivenRosslerSystem',
     'RosslerElement',
     'RosslerSystem',
-    'SaddleNodeElement',
     'SaddleNodeFormSystem',
     'SkewTentMapElement',
     'SkewTentMapSystem',
-    'SlowManifoldElement',
     'SprottJerkSystem',
     'SprottMixedFlowSystem',
     'StandardMapElement',
     'StandardMapSystem',
     'SubcriticalHopfElement',
     'SubcriticalHopfFormSystem',
-    'TakensBogdanovElement',
     'TakensBogdanovFormSystem',
     'TentMapElement',
     'TentMapSystem',
-    'ThomasElement',
     'ThomasSystem',
     'TowelMapElement',
     'TowelMapSystem',

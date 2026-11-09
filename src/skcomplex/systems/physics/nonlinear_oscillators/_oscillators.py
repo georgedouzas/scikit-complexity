@@ -20,7 +20,9 @@ from ....core.components.laws.utils import derivative, periodic_guard
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver, Yoshida4Solver
 from ....core.errors import ParameterError
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ...general.dynamics import DynamicalSystem
+from ...general.dynamics.types import Equations
 from ..common.oscillators import StuartLandauElement
 
 
@@ -69,141 +71,6 @@ class KickInteraction(CrossingInteraction):
     def _get_guard(self, namespace: SimpleNamespace) -> Expression:
         """Return the guard that crosses zero at every kick."""
         return periodic_guard(namespace.t, self.period, self.start)
-
-
-class AdlerPhaseElement(Element):
-    """Phase difference of a forced oscillator, the Adler equation.
-
-    The phase difference follows `phi' = detuning + epsilon sin(phi)`.
-
-    The phase locks at a fixed point when `|detuning| <= epsilon`, and slips with the period
-    `2 pi / sqrt(detuning^2 - epsilon^2)` otherwise.
-
-    Args:
-        label:
-            The label of the phase difference.
-
-        visual:
-            How the phase difference is drawn, or `None` for `default_visual_`.
-
-        phi:
-            The initial phase difference.
-
-        detuning:
-            The detuning of the natural frequency from the forcing.
-
-        epsilon:
-            The strength of the forcing.
-
-    Attributes:
-        default_visual_:
-            The visual of the phase difference when it sets none.
-
-    Examples:
-        >>> from skcomplex.systems.physics.nonlinear_oscillators import AdlerPhaseElement
-        >>> AdlerPhaseElement('difference').detuning
-        0.5
-    """
-
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        phi: Annotated[float, StateSpec()] = 0.0,
-        detuning: Annotated[float, ParameterSpec()] = 0.5,
-        epsilon: Annotated[float, ParameterSpec()] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.phi = phi
-        self.detuning = detuning
-        self.epsilon = epsilon
-
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rate of the phase difference.
-
-        Args:
-            namespace:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rate of `phi`.
-        """
-        return [RateLaw(namespace.phi, namespace.detuning + namespace.epsilon * sin(namespace.phi))]
-
-
-class DuffingElement(Element):
-    """Displacement and parameters of the forced Duffing oscillator.
-
-    A `RateInteraction` sets its acceleration.
-
-    The acceleration is `x'' = -delta x' - alpha x - beta x^3 + gamma cos(omega t)`.
-
-    For `alpha < 0 < beta` the potential has two wells, and a strong enough forcing drives the oscillator chaotically
-    between them.
-
-    Args:
-        label:
-            The label of the oscillator.
-
-        visual:
-            How the oscillator is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial displacement.
-
-        x_d1:
-            The initial velocity.
-
-        delta:
-            The damping.
-
-        alpha:
-            The linear stiffness.
-
-        beta:
-            The cubic stiffness.
-
-        gamma:
-            The amplitude of the forcing.
-
-        omega:
-            The frequency of the forcing.
-
-    Attributes:
-        default_visual_:
-            The visual of the oscillator when it sets none.
-
-    Examples:
-        >>> from skcomplex.systems.physics.nonlinear_oscillators import DuffingElement
-        >>> DuffingElement('duffing').alpha
-        -1.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[float, StateSpec(order=2)] = 1.0,
-        x_d1: float = 0.0,
-        delta: Annotated[float, ParameterSpec()] = 0.3,
-        alpha: Annotated[float, ParameterSpec()] = -1.0,
-        beta: Annotated[float, ParameterSpec()] = 1.0,
-        gamma: Annotated[float, ParameterSpec()] = 0.5,
-        omega: Annotated[float, ParameterSpec()] = 1.2,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.x_d1 = x_d1
-        self.delta = delta
-        self.alpha = alpha
-        self.beta = beta
-        self.gamma = gamma
-        self.omega = omega
 
 
 class HenonHeilesElement(Element):
@@ -548,7 +415,7 @@ def _get_quadrupole_energy(nucleus: SimpleNamespace) -> Expression:
     return kinetic + q2 / 2 + cubic + q2**2 / 8
 
 
-class DuffingSystem(BaseSystem):
+class DuffingSystem(DynamicalSystem):
     """The forced Duffing oscillator, chaotic here.
 
     The oscillator is `x'' = -delta x' - alpha x - beta x^3 + gamma cos(omega t)`.
@@ -582,7 +449,7 @@ class DuffingSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.physics.nonlinear_oscillators import DuffingSystem
-        >>> DuffingSystem(gamma=0.3).prepare().system_.elements[0].gamma
+        >>> DuffingSystem(gamma=0.3).prepare().system_.elements[0].get_value('gamma')
         0.3
     """
 
@@ -604,7 +471,7 @@ class DuffingSystem(BaseSystem):
         omega: float = 1.2,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.x = x
         self.v = v
         self.delta = delta
@@ -613,35 +480,31 @@ class DuffingSystem(BaseSystem):
         self.gamma = gamma
         self.omega = omega
 
-    def _build_system(self) -> CompositeSystem:
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'duffing'
+
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the states and the parameters with their specs."""
+        return {
+            'x': DeclaredVariableSpec(self.x, StateSpec(order=2, initial=(self.v,))),
+            'delta': DeclaredVariableSpec(self.delta, ParameterSpec()),
+            'alpha': DeclaredVariableSpec(self.alpha, ParameterSpec()),
+            'beta': DeclaredVariableSpec(self.beta, ParameterSpec()),
+            'gamma': DeclaredVariableSpec(self.gamma, ParameterSpec()),
+            'omega': DeclaredVariableSpec(self.omega, ParameterSpec()),
+        }
+
+    def _get_equations(self) -> Equations:
         """Return the parts of the system, built from its model parameters."""
-        acceleration = RateInteraction(
-            'acceleration',
-            target='duffing',
-            state='x',
-            rate=lambda s: (
+        return {
+            'x': lambda s: (
                 -s.target.delta * derivative(s.target.x, 1)
                 - s.target.alpha * s.target.x
                 - s.target.beta * s.target.x**3
                 + s.target.gamma * cos(s.target.omega * s.t)
             ),
-        )
-        return CompositeSystem(
-            self.label,
-            elements=[
-                DuffingElement(
-                    'duffing',
-                    x=self.x,
-                    x_d1=self.v,
-                    delta=self.delta,
-                    alpha=self.alpha,
-                    beta=self.beta,
-                    gamma=self.gamma,
-                    omega=self.omega,
-                ),
-            ],
-            interactions=[acceleration],
-        )
+        }
 
 
 class VanDerPolSystem(BaseSystem):
@@ -908,7 +771,7 @@ class ForcedVanDerPolSystem(BaseSystem):
         )
 
 
-class AdlerEquationSystem(BaseSystem):
+class AdlerEquationSystem(DynamicalSystem):
     """The Adler equation `Δφ' = Δω + ε sin Δφ`.
 
     The equation is that of the phase difference of an oscillator and its drive.
@@ -931,7 +794,7 @@ class AdlerEquationSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.physics.nonlinear_oscillators import AdlerEquationSystem
-        >>> AdlerEquationSystem(detuning=2.0).prepare().system_.elements[0].detuning
+        >>> AdlerEquationSystem(detuning=2.0).prepare().system_.elements[0].get_value('detuning')
         2.0
     """
 
@@ -949,20 +812,33 @@ class AdlerEquationSystem(BaseSystem):
         epsilon: float = 1.0,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.phi = phi
         self.detuning = detuning
         self.epsilon = epsilon
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the Adler equation `Δφ' = Δω + ε sin Δφ`.
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'difference'
 
-        The equation is that of the phase difference of an oscillator and its drive.
-        """
-        return CompositeSystem(
-            self.label,
-            elements=[AdlerPhaseElement('difference', phi=self.phi, detuning=self.detuning, epsilon=self.epsilon)],
-        )
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state."""
+        return {
+            'phi': self.phi,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the parameters of the equations."""
+        return {
+            'detuning': self.detuning,
+            'epsilon': self.epsilon,
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the rate of the phase difference."""
+        return {
+            'phi': lambda s: s.target.detuning + s.target.epsilon * sin(s.target.phi),
+        }
 
 
 class NuclearQuadrupoleSystem(BaseSystem):
@@ -1222,7 +1098,7 @@ class ImpulsiveOscillatorSystem(BaseSystem):
                 'spring',
                 target='oscillator',
                 state='x',
-                rate=lambda s: -s.target.omega0**2 * s.target.x,
+                rate=lambda s: -(s.target.omega0**2) * s.target.x,
             )
         jump = 2 / (1 - self.gamma**2)
         pull = {'x_d1': lambda s: s.target.x_d1 - jump * s.target.H}

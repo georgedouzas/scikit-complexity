@@ -13,11 +13,12 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
-from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import delayed
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ...general.dynamics import DynamicalSystem
+from ...general.dynamics.types import Equations
 from ..common.particles import RelaxationTimeInteraction
 
 
@@ -64,68 +65,6 @@ class ClimateAnomalyElement(Element):
         self.T = T
         self.lam = lam
         self.sigma = sigma
-
-
-class DelayedOscillatorElement(Element):
-    """Eastern Pacific of the delayed oscillator of El Niño.
-
-    The element holds its sea surface temperature anomaly.
-
-    The anomaly follows `dT/dt = T - T^3 - alpha T(t - delta)`. It grows by local feedback and is damped by the
-    delayed return of oceanic waves reflected at the western boundary.
-
-    Args:
-        label:
-            The label of the ocean.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        T:
-            The initial temperature anomaly, also its history.
-
-        alpha:
-            The strength of the delayed negative feedback.
-
-        delta:
-            The delay of the wave transit.
-
-    Examples:
-        >>> from skcomplex.systems.physics.climate import DelayedOscillatorElement
-        >>> DelayedOscillatorElement('pacific').delta
-        6.0
-    """
-
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        T: Annotated[float, StateSpec()] = 0.1,
-        alpha: Annotated[float, ParameterSpec()] = 0.75,
-        delta: Annotated[float, ParameterSpec()] = 6.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.T = T
-        self.alpha = alpha
-        self.delta = delta
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the local growth and saturation of the anomaly, and its delayed feedback.
-
-        The delayed feedback is negative.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rate law of the anomaly.
-        """
-        return [RateLaw(s.T, s.T - s.T**3 - s.alpha * delayed(s.T, s.delta))]
 
 
 class HasselmannSystem(BaseSystem):
@@ -202,7 +141,7 @@ class HasselmannSystem(BaseSystem):
         )
 
 
-class ENSOSystem(BaseSystem):
+class ENSOSystem(DynamicalSystem):
     """The delayed oscillator of El Niño of Suarez and Schopf.
 
     The oscillator is `dT/dt = T - T^3 - alpha T(t - delta)`.
@@ -227,7 +166,7 @@ class ENSOSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.physics.climate import ENSOSystem
-        >>> ENSOSystem(delta=4.0).prepare().system_.elements[0].delta
+        >>> ENSOSystem(delta=4.0).prepare().system_.elements[0].get_value('delta')
         4.0
     """
 
@@ -245,17 +184,30 @@ class ENSOSystem(BaseSystem):
         delta: float = 6.0,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.T = T
         self.alpha = alpha
         self.delta = delta
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the delayed oscillator of El Niño of Suarez and Schopf.
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'pacific'
 
-        The oscillator is `dT/dt = T - T^3 - alpha T(t - delta)`.
-        """
-        return CompositeSystem(
-            self.label,
-            elements=[DelayedOscillatorElement('pacific', T=self.T, alpha=self.alpha, delta=self.delta)],
-        )
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state."""
+        return {
+            'T': self.T,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the parameters of the equations."""
+        return {
+            'alpha': self.alpha,
+            'delta': self.delta,
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the local growth and saturation of the anomaly, and its delayed feedback."""
+        return {
+            'T': lambda s: s.target.T - s.target.T**3 - s.target.alpha * delayed(s.target.T, s.target.delta),
+        }

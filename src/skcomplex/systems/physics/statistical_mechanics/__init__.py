@@ -24,7 +24,6 @@ from ._master_equations import (
     DiscreteMasterEquationSystem,
     LandauRelaxationSystem,
     MicrostateElement,
-    OrderParameterElement,
     TwoPhaseZoneExchangeSystem,
     ZoneElement,
 )
@@ -103,7 +102,6 @@ __all__: list[str] = [
     'MattisSpinGlassSystem',
     'MaxwellBoltzmannResult',
     'MicrostateElement',
-    'OrderParameterElement',
     'ParticleSiteElement',
     'PercolationSiteElement',
     'PottsSpinElement',

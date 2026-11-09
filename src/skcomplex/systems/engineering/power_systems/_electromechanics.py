@@ -16,88 +16,10 @@ from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import derivative, pulse_train, sign
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ...general.dynamics import DynamicalSystem
+from ...general.dynamics.types import Equations
 from ..common.mechanics import SpringDamperInteraction
-
-
-class FaradayDiskElement(Element):
-    """Homopolar generator, a spinning conducting disk in a field that charges a load."""
-
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        I: Annotated[object, StateSpec()] = 0.0,
-        U: Annotated[object, StateSpec()] = 0.0,
-        omega: Annotated[object, StateSpec()] = 0.0,
-        B: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.5,
-        r1: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.025,
-        r2: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.55,
-        L: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.2,
-        C: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.75,
-        R1: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2.3,
-        R2: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 109.0,
-        alpha: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        beta: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        J: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-        mu: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.00012566370614359174,
-        N: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 250.0,
-        l: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.05,
-        M: Annotated[object, ParameterSpec()] = 4.8,
-        a0: Annotated[object, ParameterSpec()] = 8.0,
-        a1: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.75,
-        a3: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.I = I
-        self.U = U
-        self.omega = omega
-        self.B = B
-        self.r1 = r1
-        self.r2 = r2
-        self.L = L
-        self.C = C
-        self.R1 = R1
-        self.R2 = R2
-        self.alpha = alpha
-        self.beta = beta
-        self.J = J
-        self.mu = mu
-        self.N = N
-        self.l = l
-        self.M = M
-        self.a0 = a0
-        self.a1 = a1
-        self.a3 = a3
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rates of the spin, the current, and the charge of the disk."""
-        return [
-            RateLaw(
-                s.I,
-                (
-                    -s.R1 * s.I
-                    - s.U
-                    + (s.B + s.mu * s.N * s.I / s.l) * (s.r2**2 - s.r1**2) * s.omega / 2
-                    - (s.a0 + s.a1 * s.I + s.a3 * s.I**3)
-                )
-                / s.L,
-            ),
-            RateLaw(s.U, (s.I - s.U / s.R2) / s.C),
-            RateLaw(
-                s.omega,
-                (
-                    s.M
-                    - s.alpha * sign(s.omega)
-                    - s.beta * s.r2 * s.omega
-                    - s.I * (s.B + s.mu * s.N * s.I / s.l) * (s.r2**2 - s.r1**2) / 2
-                )
-                / s.J,
-            ),
-        ]
 
 
 class RailSegmentElement(Element):
@@ -174,49 +96,7 @@ class RailSegmentElement(Element):
         return pulse_train(s.t, s.T, s.width, s.F) + pulse_train(s.t, s.T, s.width, s.F, start=s.spacing)
 
 
-class RegenerativeCarElement(Element):
-    """Car whose motor recovers braking energy, slowed by dry and viscous friction."""
-
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        v: Annotated[object, StateSpec()] = 20.0,
-        I: Annotated[object, StateSpec()] = 0.0,
-        Vs: Annotated[object, StateSpec()] = 0.0,
-        m: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1000.0,
-        A: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.2,
-        L: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
-        R: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.05,
-        C: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 680.0,
-        alpha: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 50.0,
-        beta: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.v = v
-        self.I = I
-        self.Vs = Vs
-        self.m = m
-        self.A = A
-        self.L = L
-        self.R = R
-        self.C = C
-        self.alpha = alpha
-        self.beta = beta
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rates of the speed, the current, and the charge of the car."""
-        return [
-            RateLaw(s.v, -(s.A * s.I + s.alpha * sign(s.v) + s.beta * s.v) / s.m),
-            RateLaw(s.I, (s.A * s.v - s.R * s.I - s.Vs) / s.L),
-            RateLaw(s.Vs, s.I / s.C),
-        ]
-
-
-class RegenerativeBrakingSystem(BaseSystem):
+class RegenerativeBrakingSystem(DynamicalSystem):
     """A car braked by a Faraday disk generator on its wheel.
 
     The generator charges a supercapacitor.
@@ -257,7 +137,7 @@ class RegenerativeBrakingSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.engineering.power_systems import RegenerativeBrakingSystem
-        >>> RegenerativeBrakingSystem(C=100.0).prepare().system_.elements[0].C
+        >>> RegenerativeBrakingSystem(C=100.0).prepare().system_.elements[0].get_value('C')
         100.0
     """
 
@@ -280,7 +160,7 @@ class RegenerativeBrakingSystem(BaseSystem):
         beta: float = 5.0,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.v = v
         self.m = m
         self.A = A
@@ -290,25 +170,37 @@ class RegenerativeBrakingSystem(BaseSystem):
         self.alpha = alpha
         self.beta = beta
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
-        car = RegenerativeCarElement(
-            'car',
-            v=self.v,
-            I=0.0,
-            Vs=0.0,
-            m=self.m,
-            A=self.A,
-            L=self.L,
-            R=self.R,
-            C=self.C,
-            alpha=self.alpha,
-            beta=self.beta,
-        )
-        return CompositeSystem(self.label, elements=[car])
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'car'
+
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the states and the parameters with their specs."""
+        return {
+            'v': DeclaredVariableSpec(self.v, StateSpec()),
+            'I': DeclaredVariableSpec(0.0, StateSpec()),
+            'Vs': DeclaredVariableSpec(0.0, StateSpec()),
+            'm': DeclaredVariableSpec(self.m, ParameterSpec(domain=RealSet.open(0, oo))),
+            'A': DeclaredVariableSpec(self.A, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'L': DeclaredVariableSpec(self.L, ParameterSpec(domain=RealSet.open(0, oo))),
+            'R': DeclaredVariableSpec(self.R, ParameterSpec(domain=RealSet.open(0, oo))),
+            'C': DeclaredVariableSpec(self.C, ParameterSpec(domain=RealSet.open(0, oo))),
+            'alpha': DeclaredVariableSpec(self.alpha, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'beta': DeclaredVariableSpec(self.beta, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the rates of the speed, the current, and the charge of the car."""
+        return {
+            'v': lambda s: (
+                -(s.target.A * s.target.I + s.target.alpha * sign(s.target.v) + s.target.beta * s.target.v) / s.target.m
+            ),
+            'I': lambda s: (s.target.A * s.target.v - s.target.R * s.target.I - s.target.Vs) / s.target.L,
+            'Vs': lambda s: s.target.I / s.target.C,
+        }
 
 
-class FaradayDiskSystem(BaseSystem):
+class FaradayDiskSystem(DynamicalSystem):
     """A battery charger driven by a Faraday disk generator.
 
     The own current of the generator strengthens its field. A motor turns the conducting disk of radii `r1` and `r2`
@@ -365,7 +257,7 @@ class FaradayDiskSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.engineering.power_systems import FaradayDiskSystem
-        >>> FaradayDiskSystem(M=6.0).prepare().system_.elements[0].M
+        >>> FaradayDiskSystem(M=6.0).prepare().system_.elements[0].get_value('M')
         6.0
     """
 
@@ -390,7 +282,7 @@ class FaradayDiskSystem(BaseSystem):
         C: float = 0.75,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.I = I
         self.U = U
         self.omega = omega
@@ -402,22 +294,64 @@ class FaradayDiskSystem(BaseSystem):
         self.L = L
         self.C = C
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
-        charger = FaradayDiskElement(
-            'charger',
-            I=self.I,
-            U=self.U,
-            omega=self.omega,
-            B=self.B,
-            M=self.M,
-            N=self.N,
-            R1=self.R1,
-            R2=self.R2,
-            L=self.L,
-            C=self.C,
-        )
-        return CompositeSystem(self.label, elements=[charger])
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'charger'
+
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the states and the parameters with their specs."""
+        return {
+            'I': DeclaredVariableSpec(self.I, StateSpec()),
+            'U': DeclaredVariableSpec(self.U, StateSpec()),
+            'omega': DeclaredVariableSpec(self.omega, StateSpec()),
+            'B': DeclaredVariableSpec(self.B, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'r1': DeclaredVariableSpec(0.025, ParameterSpec(domain=RealSet.open(0, oo))),
+            'r2': DeclaredVariableSpec(0.55, ParameterSpec(domain=RealSet.open(0, oo))),
+            'L': DeclaredVariableSpec(self.L, ParameterSpec(domain=RealSet.open(0, oo))),
+            'C': DeclaredVariableSpec(self.C, ParameterSpec(domain=RealSet.open(0, oo))),
+            'R1': DeclaredVariableSpec(self.R1, ParameterSpec(domain=RealSet.open(0, oo))),
+            'R2': DeclaredVariableSpec(self.R2, ParameterSpec(domain=RealSet.open(0, oo))),
+            'alpha': DeclaredVariableSpec(0.5, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'beta': DeclaredVariableSpec(0.5, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'J': DeclaredVariableSpec(0.5, ParameterSpec(domain=RealSet.open(0, oo))),
+            'mu': DeclaredVariableSpec(0.00012566370614359174, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'N': DeclaredVariableSpec(self.N, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'l': DeclaredVariableSpec(0.05, ParameterSpec(domain=RealSet.open(0, oo))),
+            'M': DeclaredVariableSpec(self.M, ParameterSpec()),
+            'a0': DeclaredVariableSpec(8.0, ParameterSpec()),
+            'a1': DeclaredVariableSpec(0.75, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'a3': DeclaredVariableSpec(0.5, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the rates of the spin, the current, and the charge of the disk."""
+        return {
+            'I': lambda s: (
+                (
+                    -s.target.R1 * s.target.I
+                    - s.target.U
+                    + (s.target.B + s.target.mu * s.target.N * s.target.I / s.target.l)
+                    * (s.target.r2**2 - s.target.r1**2)
+                    * s.target.omega
+                    / 2
+                    - (s.target.a0 + s.target.a1 * s.target.I + s.target.a3 * s.target.I**3)
+                )
+                / s.target.L
+            ),
+            'U': lambda s: (s.target.I - s.target.U / s.target.R2) / s.target.C,
+            'omega': lambda s: (
+                (
+                    s.target.M
+                    - s.target.alpha * sign(s.target.omega)
+                    - s.target.beta * s.target.r2 * s.target.omega
+                    - s.target.I
+                    * (s.target.B + s.target.mu * s.target.N * s.target.I / s.target.l)
+                    * (s.target.r2**2 - s.target.r1**2)
+                    / 2
+                )
+                / s.target.J
+            ),
+        }
 
 
 class WheelRailContactSystem(BaseSystem):

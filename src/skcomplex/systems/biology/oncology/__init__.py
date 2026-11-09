@@ -8,7 +8,6 @@ from ._antiangiogenic import (
     AngiogenicTumourElement,
     HahnfeldtSystem,
     VascularCorePeripherySystem,
-    VascularizedSpheroidElement,
 )
 from ._cell_cycle_invasion import CellCycleInvasionInteraction, CellCycleInvasionSystem, CellSiteElement
 from ._cell_kinetics import (
@@ -237,7 +236,6 @@ __all__: list[str] = [
     'VaccinatedTumourElement',
     'VascularCorePeripherySystem',
     'VascularSupportInteraction',
-    'VascularizedSpheroidElement',
     'VasculatureElement',
     'VesselElement',
     'VonBertalanffySystem',

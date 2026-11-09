@@ -32,7 +32,7 @@ from ._oligopoly import (
     PricingGameSpec,
 )
 from ._perishables import CustomerElement, PerishableGoodsDuopolySystem, ProductElement
-from ._prices import QuadraticSupplyMarketElement, RiccatiPricesSystem
+from ._prices import RiccatiPricesSystem
 from ._produce import ProduceMarketSystem, ShopperElement, StallElement
 from ._queues import CarElement, CarWashOperationInteraction, CarWashSystem, TillElement, WasherElement
 from ._shops import PriceAdjustmentInteraction, ResidentElement, ShopsSystem, StoreElement
@@ -102,7 +102,6 @@ __all__: list[str] = [
     'ProduceMarketSystem',
     'ProductElement',
     'ProgramMemberElement',
-    'QuadraticSupplyMarketElement',
     'ResidentElement',
     'RetailDemandInteraction',
     'RetailerElement',

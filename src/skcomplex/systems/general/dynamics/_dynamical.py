@@ -199,7 +199,7 @@ class DynamicalSystem(BaseSystem[CompositeSystem]):
         if time not in TIMES:
             error_msg = f'Unknown time {time!r}. Use one of {", ".join(TIMES)}.'
             raise ValidationError(error_msg)
-        states = list(self._get_states())
+        states = [name for name, variable in self._get_variables().items() if isinstance(variable.spec, StateSpec)]
         noises = self._get_noises()
         for kind, names in (('equation', self._get_equations()), ('noise', noises)):
             unknown = [name for name in names if name not in states]

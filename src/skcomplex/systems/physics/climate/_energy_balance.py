@@ -18,7 +18,9 @@ from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import gradient, laplacian, where
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ...general.dynamics import DynamicalSystem
+from ...general.dynamics.types import Equations
 
 
 class DaisyworldElement(Element):
@@ -171,98 +173,6 @@ class DaisyworldElement(Element):
     def _daisyworld_emission(s: SimpleNamespace) -> Expression:
         """Return the fourth power of the effective temperature of the planet."""
         return s.S * s.L * (1 - DaisyworldElement._daisyworld_albedo(s)) / s.sigma
-
-
-class IceAlbedoClimateElement(Element):
-    """Global climate of a zero-dimensional energy balance.
-
-    The climate is bistable through the ice-albedo feedback.
-
-    In units of the mean insolation, the global temperature follows `dT/dt = s (1 - a(T)) - sigma epsilon T^4`, with
-    the albedo `a(T) = albedo - contrast tanh((T - T_ice) / width)`, high on an icy planet and low on a warm one.
-
-    Args:
-        label:
-            The label of the climate.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        T:
-            The initial global mean temperature in kelvin.
-
-        s:
-            The insolation relative to the present one.
-
-        epsilon:
-            The effective emissivity, lowered by the greenhouse effect.
-
-        sigma:
-            The Stefan-Boltzmann constant divided by the mean insolation.
-
-        albedo:
-            The albedo at the middle of the transition from ice to no ice.
-
-        contrast:
-            Half the difference between the albedos of a frozen and of a warm planet.
-
-        T_ice:
-            The temperature of the middle of the transition.
-
-        width:
-            The width of the transition in kelvin.
-
-    Examples:
-        >>> from skcomplex.systems.physics.climate import IceAlbedoClimateElement
-        >>> IceAlbedoClimateElement('earth').T_ice
-        263.0
-    """
-
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        T: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 290.0,
-        s: Annotated[float, ParameterSpec()] = 1.0,
-        epsilon: Annotated[float, ParameterSpec()] = 0.65,
-        sigma: Annotated[float, ParameterSpec()] = 1.6e-10,
-        albedo: Annotated[float, ParameterSpec()] = 0.5,
-        contrast: Annotated[float, ParameterSpec()] = 0.2,
-        T_ice: Annotated[float, ParameterSpec()] = 263.0,
-        width: Annotated[float, ParameterSpec()] = 4.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.T = T
-        self.s = s
-        self.epsilon = epsilon
-        self.sigma = sigma
-        self.albedo = albedo
-        self.contrast = contrast
-        self.T_ice = T_ice
-        self.width = width
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the absorbed insolation and the outgoing radiation.
-
-        The albedo of the ice lowers the absorbed insolation.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rate law of the temperature.
-        """
-        return [
-            RateLaw(
-                s.T,
-                s.s * (1 - (s.albedo - s.contrast * tanh((s.T - s.T_ice) / s.width))) - s.sigma * s.epsilon * s.T**4,
-            ),
-        ]
 
 
 class LatitudeBandElement(Element):
@@ -420,7 +330,7 @@ def _daisyworld_temperature(s: SimpleNamespace) -> Expression:
     return DaisyworldElement._daisyworld_emission(s.planet) ** (1 / 4)
 
 
-class EnergyBalanceSystem(BaseSystem):
+class EnergyBalanceSystem(DynamicalSystem):
     """The zero-dimensional energy balance of the Earth.
 
     The balance is bistable through the ice-albedo feedback.
@@ -460,7 +370,7 @@ class EnergyBalanceSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.physics.climate import EnergyBalanceSystem
-        >>> EnergyBalanceSystem(T=230.0).prepare().system_.elements[0].T
+        >>> EnergyBalanceSystem(T=230.0).prepare().system_.elements[0].get_value('T')
         230.0
     """
 
@@ -483,7 +393,7 @@ class EnergyBalanceSystem(BaseSystem):
         width: float = 4.0,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.T = T
         self.s = s
         self.epsilon = epsilon
@@ -493,23 +403,32 @@ class EnergyBalanceSystem(BaseSystem):
         self.T_ice = T_ice
         self.width = width
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the zero-dimensional energy balance of the Earth.
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'earth'
 
-        The balance is bistable through the ice-albedo feedback.
-        """
-        climate = IceAlbedoClimateElement(
-            'earth',
-            T=self.T,
-            s=self.s,
-            epsilon=self.epsilon,
-            sigma=self.sigma,
-            albedo=self.albedo,
-            contrast=self.contrast,
-            T_ice=self.T_ice,
-            width=self.width,
-        )
-        return CompositeSystem(self.label, elements=[climate])
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the states and the parameters with their specs."""
+        return {
+            'T': DeclaredVariableSpec(self.T, StateSpec(domain=RealSet.open(0, oo))),
+            's': DeclaredVariableSpec(self.s, ParameterSpec()),
+            'epsilon': DeclaredVariableSpec(self.epsilon, ParameterSpec()),
+            'sigma': DeclaredVariableSpec(self.sigma, ParameterSpec()),
+            'albedo': DeclaredVariableSpec(self.albedo, ParameterSpec()),
+            'contrast': DeclaredVariableSpec(self.contrast, ParameterSpec()),
+            'T_ice': DeclaredVariableSpec(self.T_ice, ParameterSpec()),
+            'width': DeclaredVariableSpec(self.width, ParameterSpec()),
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the absorbed insolation and the outgoing radiation."""
+        return {
+            'T': lambda s: (
+                s.target.s
+                * (1 - (s.target.albedo - s.target.contrast * tanh((s.target.T - s.target.T_ice) / s.target.width)))
+                - s.target.sigma * s.target.epsilon * s.target.T**4
+            ),
+        }
 
 
 class BudykoSellersSystem(BaseSystem):

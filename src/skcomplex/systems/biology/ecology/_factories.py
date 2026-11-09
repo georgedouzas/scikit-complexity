@@ -11,10 +11,12 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.interactions import BaseInteraction, Interaction, MapInteraction
-from ....core.components.laws import BaseLaw, RateLaw, UpdateLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import lag, series
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ...general.dynamics import DynamicalSystem
+from ...general.dynamics.types import Equations
 from ..common.populations import (
     ExponentialGrowthInteraction,
     LogisticGrowthInteraction,
@@ -38,134 +40,6 @@ THERMAL = (
     (25.0, 25.7, 26.4, 27.1, 27.8, 28.5, 29.2, 29.9, 30.6, 31.3, 32.0),
     (0.902, 0.92, 0.951, 0.99, 1.02, 1.06, 1.08, 1.08, 1.09, 1.1, 1.1),
 )
-
-
-class ShrimpElement(Element):
-    """Penaeid shrimp, an individual that grows on food at the water temperature.
-
-    Its gut, biomass, gonads, and length grow.
-
-    The shrimp ingests `I = R_max (1 - exp(-k F))` of the food `F`, with the maximum ration `R_max` the product of a
-    table of its biomass, a table of the water temperature, and the factor `ration`. Its gut content `G` follows
-    `dG/dt = I - A_e G`, and its total biomass `dB/dt = A_e G - M - S`, with the respiration `M = a exp(0.07 T) (phi
-    B)^0.185 B` and the spawning `S = 9.3 L^2.8 E_w` of eggs of weight `E_w`. Its gonads grow as `dB_g/dt = GSI B`, and
-    its carapace length follows von Bertalanffy, `dL/dt = K (L_inf - L)`. The food and the water temperature are the
-    yearly series of the source, interpolated linearly in days.
-
-    Args:
-        label:
-            The label of the shrimp.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        gut:
-            The initial gut content, in grams of dry weight.
-
-        biomass:
-            The initial total biomass, in grams of dry weight.
-
-        gonads:
-            The initial reproductive biomass, in grams of dry weight.
-
-        length:
-            The initial carapace length, in millimetres.
-
-        ration:
-            The factor of the maximum ration.
-
-        k:
-            The consumption efficiency, per milligram of dry weight per square metre.
-
-        assimilation:
-            The assimilation efficiency of the gut content, per day.
-
-        respiration:
-            The coefficient of the weight-specific respiration, per day.
-
-        phi:
-            The conversion factor from dry to fresh weight.
-
-        gsi:
-            The gonadosomatic index, the growth of the gonads per unit biomass per day.
-
-        egg_weight:
-            The dry weight of one egg, in grams.
-
-        L_inf:
-            The asymptotic carapace length, in millimetres.
-
-        K:
-            The growth coefficient of the length, per day.
-
-    Examples:
-        >>> from skcomplex.systems.biology.ecology import ShrimpElement
-        >>> ShrimpElement('shrimp').L_inf
-        29.9
-    """
-
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        gut: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        biomass: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        gonads: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0001,
-        length: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        ration: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.5,
-        k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.12,
-        assimilation: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.8,
-        respiration: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        phi: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
-        gsi: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        egg_weight: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0e-6,
-        L_inf: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 29.9,
-        K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.013,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.gut = gut
-        self.biomass = biomass
-        self.gonads = gonads
-        self.length = length
-        self.ration = ration
-        self.k = k
-        self.assimilation = assimilation
-        self.respiration = respiration
-        self.phi = phi
-        self.gsi = gsi
-        self.egg_weight = egg_weight
-        self.L_inf = L_inf
-        self.K = K
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the ingestion, assimilation, respiration, spawning, and growth laws.
-
-        The growth laws are those of the gonads and of the length.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        food = series(s.t, DAYS, FOOD)
-        temperature = series(s.t, DAYS, TEMPERATURE)
-        max_ration = series(s.biomass, *ALLOMETRY) * series(temperature, *THERMAL) * s.ration
-        ingestion = max_ration * (1 - exp(-s.k * food))
-        assimilated = s.gut * s.assimilation
-        respired = s.respiration * exp(0.07 * temperature) * (s.biomass * s.phi) ** 0.185 * s.biomass
-        spawning = 9.3 * s.length**2.8 * s.egg_weight
-        return [
-            RateLaw(s.gut, ingestion - assimilated),
-            RateLaw(s.biomass, assimilated - respired - spawning),
-            RateLaw(s.gonads, s.biomass * s.gsi),
-            RateLaw(s.length, s.K * (s.L_inf - s.length)),
-        ]
 
 
 class RabbitsElement(Element):
@@ -748,7 +622,7 @@ class RickerSystem(BaseSystem):
         )
 
 
-class PenaeidShrimpSystem(BaseSystem):
+class PenaeidShrimpSystem(DynamicalSystem):
     """The growth of one penaeid shrimp from the juvenile stage.
 
     The growth is forced by the food and the water temperature.
@@ -788,7 +662,7 @@ class PenaeidShrimpSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.biology.ecology import PenaeidShrimpSystem
-        >>> PenaeidShrimpSystem().prepare().system_.elements[0].K
+        >>> PenaeidShrimpSystem().prepare().system_.elements[0].get_value('K')
         0.013
     """
 
@@ -809,7 +683,7 @@ class PenaeidShrimpSystem(BaseSystem):
         K: float = 0.013,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.gut = gut
         self.biomass = biomass
         self.ration = ration
@@ -817,19 +691,66 @@ class PenaeidShrimpSystem(BaseSystem):
         self.L_inf = L_inf
         self.K = K
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the growth of one penaeid shrimp from the juvenile stage."""
-        return CompositeSystem(
-            self.label,
-            elements=[
-                ShrimpElement(
-                    'shrimp',
-                    gut=self.gut,
-                    biomass=self.biomass,
-                    ration=self.ration,
-                    respiration=self.respiration,
-                    L_inf=self.L_inf,
-                    K=self.K,
-                ),
-            ],
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'shrimp'
+
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the states and the parameters with their specs."""
+        return {
+            'gut': DeclaredVariableSpec(self.gut, StateSpec(domain=RealSet.closed_open(0, oo))),
+            'biomass': DeclaredVariableSpec(self.biomass, StateSpec(domain=RealSet.closed_open(0, oo))),
+            'gonads': DeclaredVariableSpec(0.0001, StateSpec(domain=RealSet.closed_open(0, oo))),
+            'length': DeclaredVariableSpec(0.0, StateSpec(domain=RealSet.closed_open(0, oo))),
+            'ration': DeclaredVariableSpec(self.ration, ParameterSpec(domain=RealSet.open(0, oo))),
+            'k': DeclaredVariableSpec(0.12, ParameterSpec(domain=RealSet.open(0, oo))),
+            'assimilation': DeclaredVariableSpec(0.8, ParameterSpec(domain=RealSet.open(0, oo))),
+            'respiration': DeclaredVariableSpec(self.respiration, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'phi': DeclaredVariableSpec(5.0, ParameterSpec(domain=RealSet.open(0, oo))),
+            'gsi': DeclaredVariableSpec(0.05, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'egg_weight': DeclaredVariableSpec(2.0e-6, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'L_inf': DeclaredVariableSpec(self.L_inf, ParameterSpec(domain=RealSet.open(0, oo))),
+            'K': DeclaredVariableSpec(self.K, ParameterSpec(domain=RealSet.open(0, oo))),
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the ingestion, assimilation, respiration, spawning, and growth laws."""
+        return {
+            'gut': lambda s: self._ingestion(s) - self._assimilated(s),
+            'biomass': lambda s: self._assimilated(s) - self._respired(s) - self._spawning(s),
+            'gonads': lambda s: s.target.biomass * s.target.gsi,
+            'length': lambda s: s.target.K * (s.target.L_inf - s.target.length),
+        }
+
+    def _food(self, s: SimpleNamespace) -> Expression:
+        """Return `food` from the namespace of an equation."""
+        return series(s.t, DAYS, FOOD)
+
+    def _temperature(self, s: SimpleNamespace) -> Expression:
+        """Return `temperature` from the namespace of an equation."""
+        return series(s.t, DAYS, TEMPERATURE)
+
+    def _max_ration(self, s: SimpleNamespace) -> Expression:
+        """Return `max_ration` from the namespace of an equation."""
+        return series(s.target.biomass, *ALLOMETRY) * series(self._temperature(s), *THERMAL) * s.target.ration
+
+    def _ingestion(self, s: SimpleNamespace) -> Expression:
+        """Return `ingestion` from the namespace of an equation."""
+        return self._max_ration(s) * (1 - exp(-s.target.k * self._food(s)))
+
+    def _assimilated(self, s: SimpleNamespace) -> Expression:
+        """Return `assimilated` from the namespace of an equation."""
+        return s.target.gut * s.target.assimilation
+
+    def _respired(self, s: SimpleNamespace) -> Expression:
+        """Return `respired` from the namespace of an equation."""
+        return (
+            s.target.respiration
+            * exp(0.07 * self._temperature(s))
+            * (s.target.biomass * s.target.phi) ** 0.185
+            * s.target.biomass
         )
+
+    def _spawning(self, s: SimpleNamespace) -> Expression:
+        """Return `spawning` from the namespace of an equation."""
+        return 9.3 * s.target.length**2.8 * s.target.egg_weight

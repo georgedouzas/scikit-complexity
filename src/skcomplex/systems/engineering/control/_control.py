@@ -12,11 +12,13 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.interactions import ConnectionInteraction, CrossingInteraction
-from ....core.components.laws import BaseLaw, EquationLaw, RateLaw
+from ....core.components.laws import BaseLaw, EquationLaw
 from ....core.components.laws.utils import clip, derivative, sign, step, where
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
-from ....core.specs import ConnectorSpec, ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ConnectorSpec, DeclaredVariableSpec, ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ...general.dynamics import DynamicalSystem
+from ...general.dynamics.types import Equations
 from ..common.electrical import ELECTRICAL, GroundElement, TwoPinElement, VoltageSourceElement
 
 DISTURBANCE_TIME = 10.0
@@ -25,211 +27,7 @@ DISTURBANCE_TIME = 10.0
 CHANGE_TIME = 20.0
 
 
-class ControlledProcessElement(Element):
-    """First-order process under a PID controller.
-
-    The derivative term of the controller is solved into the time constant.
-    """
-
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        y: Annotated[object, StateSpec()] = 0.0,
-        integral: Annotated[object, StateSpec()] = 0.0,
-        tau: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        gain: Annotated[object, ParameterSpec()] = 1.0,
-        Kp: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
-        Ki: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        Kd: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        setpoint: Annotated[object, ParameterSpec()] = 1.0,
-        change: Annotated[object, ParameterSpec()] = 0.0,
-        disturbance: Annotated[object, ParameterSpec()] = -0.5,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.y = y
-        self.integral = integral
-        self.tau = tau
-        self.gain = gain
-        self.Kp = Kp
-        self.Ki = Ki
-        self.Kd = Kd
-        self.setpoint = setpoint
-        self.change = change
-        self.disturbance = disturbance
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rates of the output `y` and of the integral of the error."""
-        return [
-            RateLaw(
-                s.y,
-                (
-                    -s.y
-                    + s.gain * (s.Kp * ControlledProcessElement._error(s) + s.Ki * s.integral)
-                    + s.disturbance * step(s.t, DISTURBANCE_TIME)
-                )
-                / (s.tau + s.gain * s.Kd),
-            ),
-            RateLaw(s.integral, ControlledProcessElement._error(s)),
-        ]
-
-    @staticmethod
-    def _error(s: SimpleNamespace) -> Expression:
-        """Return the error of the controlled process.
-
-        It is the set point after its change less the output.
-        """
-        return s.setpoint + s.change * step(s.t, CHANGE_TIME) - s.y
-
-
 HOURS_PER_DAY = 24.0
-
-
-class RoomElement(Element):
-    """Room heated by a furnace towards a setting.
-
-    It leaks heat to an outside temperature with a daily swing.
-    """
-
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        T: Annotated[object, StateSpec()] = 10.0,
-        setting: Annotated[object, ParameterSpec()] = 18.0,
-        furnace: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
-        leak: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        outside: Annotated[object, ParameterSpec()] = 10.0,
-        swing: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.T = T
-        self.setting = setting
-        self.furnace = furnace
-        self.leak = leak
-        self.outside = outside
-        self.swing = swing
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the saturated heating and the leak of the temperature `T`."""
-        return [
-            RateLaw(
-                s.T,
-                clip(s.setting - s.T, 0, s.furnace)
-                - s.leak * (s.T - s.outside - s.swing * cos(2 * pi * (s.t - HOURS_PER_DAY / 2) / HOURS_PER_DAY)),
-            ),
-        ]
-
-
-class SatelliteElement(Element):
-    """Satellite on a planar Kepler orbit moved by radial thrust.
-
-    The thrust moves it to an orbit of a final energy.
-    """
-
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        s: Annotated[object, StateSpec(domain=RealSet.open(0, oo), order=2)] = 0.314,
-        s_d1: float = 0.0,
-        theta: Annotated[object, StateSpec()] = 0.0,
-        Lz: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.7,
-        epsilon: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        H_final: Annotated[object, ParameterSpec()] = -0.2,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.s = s
-        self.s_d1 = s_d1
-        self.theta = theta
-        self.Lz = Lz
-        self.epsilon = epsilon
-        self.H_final = H_final
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the radial rate under thrust and the rate of the angle."""
-        return [
-            RateLaw(s.s, s.Lz**2 / s.s**3 - 1 / s.s**2 - s.epsilon * SatelliteElement._thrust_direction(s)),
-            RateLaw(s.theta, s.Lz / s.s**2),
-        ]
-
-    @staticmethod
-    def _satellite_energy(s: SimpleNamespace) -> Expression:
-        """Return the total effective energy of the satellite.
-
-        It is `s'^2 / 2 + L_z^2 / (2 s^2) - 1 / s`.
-        """
-        return derivative(s.s, 1) ** 2 / 2 + s.Lz**2 / (2 * s.s**2) - 1 / s.s
-
-    @staticmethod
-    def _thrust_direction(s: SimpleNamespace) -> Expression:
-        """Return the thrust `sigma`.
-
-        It points inwards while the satellite falls, outwards while it rises, to the end energy.
-        """
-        return where(SatelliteElement._satellite_energy(s) < s.H_final, where(derivative(s.s, 1) < 0, 1, -1), 0)
-
-
-class SwingingPendulumElement(Element):
-    """Pendulum swung up by a bang-bang control of its energy.
-
-    The state `f` integrates the control.
-    """
-
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        theta: Annotated[object, StateSpec(order=2)] = 0.0,
-        theta_d1: float = 0.0,
-        f: Annotated[object, StateSpec(order=2)] = 0.0,
-        f_d1: float = 0.0,
-        omega: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.5652475842498528,
-        mu: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.theta = theta
-        self.theta_d1 = theta_d1
-        self.f = f
-        self.f_d1 = f_d1
-        self.omega = omega
-        self.mu = mu
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the controlled rate of the angle and the rate of the control integral."""
-        return [
-            RateLaw(
-                s.theta,
-                -(s.omega**2) * sin(s.theta) - SwingingPendulumElement._swing_up_control(s) * cos(s.theta),
-            ),
-            RateLaw(s.f, SwingingPendulumElement._swing_up_control(s)),
-        ]
-
-    @staticmethod
-    def _pendulum_energy(s: SimpleNamespace) -> Expression:
-        """Return the energy per unit inertia of the pendulum, `θ'^2 / 2 - ω^2 cos θ`."""
-        return derivative(s.theta, 1) ** 2 / 2 - s.omega**2 * cos(s.theta)
-
-    @staticmethod
-    def _swing_up_control(s: SimpleNamespace) -> Expression:
-        """Return the bang-bang control of the energy of the pendulum.
-
-        It is `u = -μ sign(θ' cos θ) sign(E_s - E)`.
-        """
-        gap = s.omega**2 - SwingingPendulumElement._pendulum_energy(s)
-        return -s.mu * sign(derivative(s.theta, 1) * cos(s.theta)) * sign(gap)
 
 
 THERMAL = ConnectorSpec('thermal', potential='T', flow='Q')
@@ -496,7 +294,7 @@ def _heating_power(s: SimpleNamespace) -> Expression:
     return heat
 
 
-class ThermostatSystem(BaseSystem):
+class ThermostatSystem(DynamicalSystem):
     """A room heated by a furnace under a thermostat while heat leaks to the outside.
 
     The furnace adds the gap between the setting and the room temperature, at most `furnace` degrees per hour, and
@@ -529,7 +327,7 @@ class ThermostatSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.engineering.control import ThermostatSystem
-        >>> ThermostatSystem(leak=0.3).prepare().system_.elements[0].leak
+        >>> ThermostatSystem(leak=0.3).prepare().system_.elements[0].get_value('leak')
         0.3
     """
 
@@ -550,7 +348,7 @@ class ThermostatSystem(BaseSystem):
         swing: float = 0.0,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.T = T
         self.setting = setting
         self.furnace = furnace
@@ -558,21 +356,37 @@ class ThermostatSystem(BaseSystem):
         self.outside = outside
         self.swing = swing
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
-        room = RoomElement(
-            'room',
-            T=self.T,
-            setting=self.setting,
-            furnace=self.furnace,
-            leak=self.leak,
-            outside=self.outside,
-            swing=self.swing,
-        )
-        return CompositeSystem(self.label, elements=[room])
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'room'
+
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the states and the parameters with their specs."""
+        return {
+            'T': DeclaredVariableSpec(self.T, StateSpec()),
+            'setting': DeclaredVariableSpec(self.setting, ParameterSpec()),
+            'furnace': DeclaredVariableSpec(self.furnace, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'leak': DeclaredVariableSpec(self.leak, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'outside': DeclaredVariableSpec(self.outside, ParameterSpec()),
+            'swing': DeclaredVariableSpec(self.swing, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the saturated heating and the leak of the temperature `T`."""
+        return {
+            'T': lambda s: (
+                clip(s.target.setting - s.target.T, 0, s.target.furnace)
+                - s.target.leak
+                * (
+                    s.target.T
+                    - s.target.outside
+                    - s.target.swing * cos(2 * pi * (s.t - HOURS_PER_DAY / 2) / HOURS_PER_DAY)
+                )
+            ),
+        }
 
 
-class PidLoopSystem(BaseSystem):
+class PidLoopSystem(DynamicalSystem):
     """A work process whose output a PID controller keeps at a set point.
 
     The controller acts against a disturbance. The output follows the first-order process `τ y' = -y + gain u + d(t)`,
@@ -615,7 +429,7 @@ class PidLoopSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.engineering.control import PidLoopSystem
-        >>> PidLoopSystem(Ki=0.0).prepare().system_.elements[0].Ki
+        >>> PidLoopSystem(Ki=0.0).prepare().system_.elements[0].get_value('Ki')
         0.0
     """
 
@@ -639,7 +453,7 @@ class PidLoopSystem(BaseSystem):
         disturbance: float = -0.5,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.y = y
         self.tau = tau
         self.gain = gain
@@ -650,25 +464,49 @@ class PidLoopSystem(BaseSystem):
         self.change = change
         self.disturbance = disturbance
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
-        process = ControlledProcessElement(
-            'process',
-            y=self.y,
-            integral=0.0,
-            tau=self.tau,
-            gain=self.gain,
-            Kp=self.Kp,
-            Ki=self.Ki,
-            Kd=self.Kd,
-            setpoint=self.setpoint,
-            change=self.change,
-            disturbance=self.disturbance,
-        )
-        return CompositeSystem(self.label, elements=[process])
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'process'
+
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the states and the parameters with their specs."""
+        return {
+            'y': DeclaredVariableSpec(self.y, StateSpec()),
+            'integral': DeclaredVariableSpec(0.0, StateSpec()),
+            'tau': DeclaredVariableSpec(self.tau, ParameterSpec(domain=RealSet.open(0, oo))),
+            'gain': DeclaredVariableSpec(self.gain, ParameterSpec()),
+            'Kp': DeclaredVariableSpec(self.Kp, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'Ki': DeclaredVariableSpec(self.Ki, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'Kd': DeclaredVariableSpec(self.Kd, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'setpoint': DeclaredVariableSpec(self.setpoint, ParameterSpec()),
+            'change': DeclaredVariableSpec(self.change, ParameterSpec()),
+            'disturbance': DeclaredVariableSpec(self.disturbance, ParameterSpec()),
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the rates of the output `y` and of the integral of the error."""
+        return {
+            'y': lambda s: (
+                (
+                    -s.target.y
+                    + s.target.gain * (s.target.Kp * PidLoopSystem._error(s) + s.target.Ki * s.target.integral)
+                    + s.target.disturbance * step(s.t, DISTURBANCE_TIME)
+                )
+                / (s.target.tau + s.target.gain * s.target.Kd)
+            ),
+            'integral': PidLoopSystem._error,
+        }
+
+    @staticmethod
+    def _error(s: SimpleNamespace) -> Expression:
+        """Return the error of the controlled process.
+
+        It is the set point after its change less the output.
+        """
+        return s.target.setpoint + s.target.change * step(s.t, CHANGE_TIME) - s.target.y
 
 
-class PendulumSwingUpSystem(BaseSystem):
+class PendulumSwingUpSystem(DynamicalSystem):
     """A pendulum swung up to its inverted position.
 
     A bang-bang acceleration of its pivot swings it up. The pivot of an acrobat's pendulum moves horizontally with
@@ -695,7 +533,7 @@ class PendulumSwingUpSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.engineering.control import PendulumSwingUpSystem
-        >>> PendulumSwingUpSystem(mu=0.2).prepare().system_.elements[0].mu
+        >>> PendulumSwingUpSystem(mu=0.2).prepare().system_.elements[0].get_value('mu')
         0.2
     """
 
@@ -715,27 +553,51 @@ class PendulumSwingUpSystem(BaseSystem):
         mu: float = 0.1,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.theta = theta
         self.omega0 = omega0
         self.omega = omega
         self.mu = mu
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
-        pendulum = SwingingPendulumElement(
-            'pendulum',
-            theta=self.theta,
-            theta_d1=self.omega0,
-            f=0.0,
-            f_d1=0.0,
-            omega=self.omega,
-            mu=self.mu,
-        )
-        return CompositeSystem(self.label, elements=[pendulum])
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'pendulum'
+
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the states and the parameters with their specs."""
+        return {
+            'theta': DeclaredVariableSpec(self.theta, StateSpec(order=2, initial=(self.omega0,))),
+            'f': DeclaredVariableSpec(0.0, StateSpec(order=2, initial=(0.0,))),
+            'omega': DeclaredVariableSpec(self.omega, ParameterSpec(domain=RealSet.open(0, oo))),
+            'mu': DeclaredVariableSpec(self.mu, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the controlled rate of the angle and the rate of the control integral."""
+        return {
+            'theta': lambda s: (
+                -(s.target.omega**2) * sin(s.target.theta)
+                - PendulumSwingUpSystem._swing_up_control(s) * cos(s.target.theta)
+            ),
+            'f': PendulumSwingUpSystem._swing_up_control,
+        }
+
+    @staticmethod
+    def _pendulum_energy(s: SimpleNamespace) -> Expression:
+        """Return the energy per unit inertia of the pendulum, `θ'^2 / 2 - ω^2 cos θ`."""
+        return derivative(s.target.theta, 1) ** 2 / 2 - s.target.omega**2 * cos(s.target.theta)
+
+    @staticmethod
+    def _swing_up_control(s: SimpleNamespace) -> Expression:
+        """Return the bang-bang control of the energy of the pendulum.
+
+        It is `u = -μ sign(θ' cos θ) sign(E_s - E)`.
+        """
+        gap = s.target.omega**2 - PendulumSwingUpSystem._pendulum_energy(s)
+        return -s.target.mu * sign(derivative(s.target.theta, 1) * cos(s.target.theta)) * sign(gap)
 
 
-class SatelliteTransferSystem(BaseSystem):
+class SatelliteTransferSystem(DynamicalSystem):
     """A satellite moved between Kepler orbits by radial thrust.
 
     The orbits have equal angular momentum. In normalised polar coordinates the satellite follows
@@ -771,7 +633,7 @@ class SatelliteTransferSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.engineering.control import SatelliteTransferSystem
-        >>> SatelliteTransferSystem().prepare().system_.elements[0].Lz
+        >>> SatelliteTransferSystem().prepare().system_.elements[0].get_value('Lz')
         0.7
     """
 
@@ -794,7 +656,7 @@ class SatelliteTransferSystem(BaseSystem):
         H_final: float = -0.2,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.s = s
         self.velocity = velocity
         self.theta = theta
@@ -802,18 +664,50 @@ class SatelliteTransferSystem(BaseSystem):
         self.epsilon = epsilon
         self.H_final = H_final
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
-        satellite = SatelliteElement(
-            'satellite',
-            s=self.s,
-            s_d1=self.velocity,
-            theta=self.theta,
-            Lz=self.Lz,
-            epsilon=self.epsilon,
-            H_final=self.H_final,
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'satellite'
+
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the states and the parameters with their specs."""
+        return {
+            's': DeclaredVariableSpec(self.s, StateSpec(domain=RealSet.open(0, oo), order=2, initial=(self.velocity,))),
+            'theta': DeclaredVariableSpec(self.theta, StateSpec()),
+            'Lz': DeclaredVariableSpec(self.Lz, ParameterSpec(domain=RealSet.open(0, oo))),
+            'epsilon': DeclaredVariableSpec(self.epsilon, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'H_final': DeclaredVariableSpec(self.H_final, ParameterSpec()),
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the radial rate under thrust and the rate of the angle."""
+        return {
+            's': lambda s: (
+                s.target.Lz**2 / s.target.s**3
+                - 1 / s.target.s**2
+                - s.target.epsilon * SatelliteTransferSystem._thrust_direction(s)
+            ),
+            'theta': lambda s: s.target.Lz / s.target.s**2,
+        }
+
+    @staticmethod
+    def _satellite_energy(s: SimpleNamespace) -> Expression:
+        """Return the total effective energy of the satellite.
+
+        It is `s'^2 / 2 + L_z^2 / (2 s^2) - 1 / s`.
+        """
+        return derivative(s.target.s, 1) ** 2 / 2 + s.target.Lz**2 / (2 * s.target.s**2) - 1 / s.target.s
+
+    @staticmethod
+    def _thrust_direction(s: SimpleNamespace) -> Expression:
+        """Return the thrust `sigma`.
+
+        It points inwards while the satellite falls, outwards while it rises, to the end energy.
+        """
+        return where(
+            SatelliteTransferSystem._satellite_energy(s) < s.target.H_final,
+            where(derivative(s.target.s, 1) < 0, 1, -1),
+            0,
         )
-        return CompositeSystem(self.label, elements=[satellite])
 
 
 class HeatedRoomSystem(BaseSystem):

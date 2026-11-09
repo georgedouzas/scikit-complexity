@@ -15,7 +15,9 @@ from ....core.components.laws.utils import derivative, where
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
 from ....core.errors import ParameterError
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ...general.dynamics import DynamicalSystem
+from ...general.dynamics.types import Equations
 from ..common.signals import PulseInteraction
 
 
@@ -122,42 +124,6 @@ class KickedCircuitElement(Element):
         return [EquationLaw(s.L * s.C * derivative(s.x, 2) + s.R * s.C * derivative(s.x, 1) + s.x == 0)]
 
 
-class MemristorCircuitElement(Element):
-    """Oscillator built from a memristor, whose current depends on the flux through it."""
-
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        v: Annotated[object, StateSpec()] = 0.1,
-        i: Annotated[object, StateSpec()] = 0.0,
-        w: Annotated[object, StateSpec()] = 0.1,
-        C: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        L: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
-        alpha: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.6,
-        beta: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.5,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.v = v
-        self.i = i
-        self.w = w
-        self.C = C
-        self.L = L
-        self.alpha = alpha
-        self.beta = beta
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rates of the states of the circuit."""
-        return [
-            RateLaw(s.v, s.i / s.C),
-            RateLaw(s.i, -(s.v + s.beta * (s.w**2 - 1) * s.i) / s.L),
-            RateLaw(s.w, -s.i - s.alpha * s.w + s.w * s.i),
-        ]
-
-
 class MixedModeChuaCircuitElement(Element):
     """Slow-fast Chua circuit whose oscillations mix small and large amplitudes."""
 
@@ -244,39 +210,6 @@ class MultiscrollChuaCircuitElement(Element):
         edge = 2 * a * c
         slope = b * pi / (2 * a)
         return where(x >= edge, slope * (x - edge), where(x <= -edge, slope * (x + edge), -b * sin(pi * x / (2 * a))))
-
-
-class TunnelDiodeCircuitElement(Element):
-    """Oscillator of a tunnel diode with a cubic current, of the van der Pol type."""
-
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        V: Annotated[object, StateSpec()] = 0.1,
-        i: Annotated[object, StateSpec()] = 0.0,
-        L: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        C: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        alpha: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        gamma: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.V = V
-        self.i = i
-        self.L = L
-        self.C = C
-        self.alpha = alpha
-        self.gamma = gamma
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rates of the states of the circuit."""
-        return [
-            RateLaw(s.V, -(s.gamma * s.V**3 - s.alpha * s.V + s.i) / s.C),
-            RateLaw(s.i, s.V / s.L),
-        ]
 
 
 CHUA_NONLINEARITIES = ('piecewise-linear', 'sine')
@@ -547,7 +480,7 @@ class MixedModeChuaSystem(BaseSystem):
         return CompositeSystem(self.label, elements=[circuit])
 
 
-class MemristorOscillatorSystem(BaseSystem):
+class MemristorOscillatorSystem(DynamicalSystem):
     """The simplest memristor oscillator.
 
     It is a capacitor, an inductor, and a memristor in series. The capacitor voltage, the inductor current, and the
@@ -582,7 +515,7 @@ class MemristorOscillatorSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.engineering.circuits import MemristorOscillatorSystem
-        >>> MemristorOscillatorSystem(L=2.0).prepare().system_.elements[0].L
+        >>> MemristorOscillatorSystem(L=2.0).prepare().system_.elements[0].get_value('L')
         2.0
     """
 
@@ -604,7 +537,7 @@ class MemristorOscillatorSystem(BaseSystem):
         beta: float = 1.5,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.v = v
         self.i = i
         self.w = w
@@ -613,26 +546,32 @@ class MemristorOscillatorSystem(BaseSystem):
         self.alpha = alpha
         self.beta = beta
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
-        return CompositeSystem(
-            self.label,
-            elements=[
-                MemristorCircuitElement(
-                    'circuit',
-                    v=self.v,
-                    i=self.i,
-                    w=self.w,
-                    C=self.C,
-                    L=self.L,
-                    alpha=self.alpha,
-                    beta=self.beta,
-                ),
-            ],
-        )
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'circuit'
+
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the states and the parameters with their specs."""
+        return {
+            'v': DeclaredVariableSpec(self.v, StateSpec()),
+            'i': DeclaredVariableSpec(self.i, StateSpec()),
+            'w': DeclaredVariableSpec(self.w, StateSpec()),
+            'C': DeclaredVariableSpec(self.C, ParameterSpec(domain=RealSet.open(0, oo))),
+            'L': DeclaredVariableSpec(self.L, ParameterSpec(domain=RealSet.open(0, oo))),
+            'alpha': DeclaredVariableSpec(self.alpha, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'beta': DeclaredVariableSpec(self.beta, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the rates of the states of the circuit."""
+        return {
+            'v': lambda s: s.target.i / s.target.C,
+            'i': lambda s: -(s.target.v + s.target.beta * (s.target.w**2 - 1) * s.target.i) / s.target.L,
+            'w': lambda s: -s.target.i - s.target.alpha * s.target.w + s.target.w * s.target.i,
+        }
 
 
-class TunnelDiodeOscillatorSystem(BaseSystem):
+class TunnelDiodeOscillatorSystem(DynamicalSystem):
     """A tunnel-diode oscillator.
 
     It is an inductor and a capacitor in parallel with a negative-resistance diode. The diode current is
@@ -664,7 +603,7 @@ class TunnelDiodeOscillatorSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.engineering.circuits import TunnelDiodeOscillatorSystem
-        >>> TunnelDiodeOscillatorSystem(alpha=2.0).prepare().system_.elements[0].alpha
+        >>> TunnelDiodeOscillatorSystem(alpha=2.0).prepare().system_.elements[0].get_value('alpha')
         2.0
     """
 
@@ -685,7 +624,7 @@ class TunnelDiodeOscillatorSystem(BaseSystem):
         gamma: float = 1.0,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.V = V
         self.i = i
         self.L = L
@@ -693,22 +632,27 @@ class TunnelDiodeOscillatorSystem(BaseSystem):
         self.alpha = alpha
         self.gamma = gamma
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
-        return CompositeSystem(
-            self.label,
-            elements=[
-                TunnelDiodeCircuitElement(
-                    'circuit',
-                    V=self.V,
-                    i=self.i,
-                    L=self.L,
-                    C=self.C,
-                    alpha=self.alpha,
-                    gamma=self.gamma,
-                ),
-            ],
-        )
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'circuit'
+
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the states and the parameters with their specs."""
+        return {
+            'V': DeclaredVariableSpec(self.V, StateSpec()),
+            'i': DeclaredVariableSpec(self.i, StateSpec()),
+            'L': DeclaredVariableSpec(self.L, ParameterSpec(domain=RealSet.open(0, oo))),
+            'C': DeclaredVariableSpec(self.C, ParameterSpec(domain=RealSet.open(0, oo))),
+            'alpha': DeclaredVariableSpec(self.alpha, ParameterSpec(domain=RealSet.open(0, oo))),
+            'gamma': DeclaredVariableSpec(self.gamma, ParameterSpec(domain=RealSet.open(0, oo))),
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the rates of the states of the circuit."""
+        return {
+            'V': lambda s: -(s.target.gamma * s.target.V**3 - s.target.alpha * s.target.V + s.target.i) / s.target.C,
+            'i': lambda s: s.target.V / s.target.L,
+        }
 
 
 class ImpulsiveCircuitsSystem(BaseSystem):

@@ -6,19 +6,19 @@ It covers antagonistic hormone loops and an extracellular cascade with positive 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import oo
+from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction
-from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import delayed, hill, pulse
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ...general.dynamics import DynamicalSystem
+from ...general.dynamics.types import Equations
 from ...general.reactions import ReactionInteraction
 
 
@@ -140,112 +140,6 @@ class CoagulationElement(Element):
         self.injury = injury
         self.injury_time = injury_time
         self.duration = duration
-
-
-class FeedbackLoopElement(Element):
-    """Receptor-effector negative feedback loop that holds a product at a set point.
-
-    An outside signal steers the set point.
-
-    The product `x` is made by the effector at the rate `v e` and consumed at the rate `d x`. The receptor reads the
-    product after the transmission delay `tau` and inhibits the effector with the Hill function `1 / (1 + (x / K)^n)`,
-    where the sensitivity `K (1 + steering)` rises while a steering signal acts, from `start` for `duration`. The
-    effector follows the receptor with the response time `T`, `de/dt = (1 / (1 + (x(t - tau) / K)^n) - e) / T`.
-
-    Args:
-        label:
-            The label of the loop.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial product.
-
-        e:
-            The initial effector activity.
-
-        v:
-            The largest rate of synthesis.
-
-        d:
-            The consumption rate of the product.
-
-        K:
-            The sensitivity of the receptor, the product at which it inhibits the effector by half.
-
-        n:
-            The steepness of the receptor.
-
-        T:
-            The response time of the effector.
-
-        tau:
-            The transmission delay between the receptor and the effector.
-
-        steering:
-            The relative shift of the sensitivity by the steering signal.
-
-        start:
-            The time the steering signal starts.
-
-        duration:
-            The duration of the steering signal.
-
-    Examples:
-        >>> from skcomplex.systems.biology.physiology import FeedbackLoopElement
-        >>> FeedbackLoopElement('loop', tau=2.0).tau
-        2.0
-    """
-
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        e: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.0,
-        v: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        d: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        n: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 4.0,
-        T: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-        steering: Annotated[float, ParameterSpec()] = 0.0,
-        start: float = 0.0,
-        duration: float = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.e = e
-        self.v = v
-        self.d = d
-        self.K = K
-        self.n = n
-        self.T = T
-        self.tau = tau
-        self.steering = steering
-        self.start = start
-        self.duration = duration
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the synthesis and consumption of the product and the effector response.
-
-        The response of the effector is delayed.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        sensitivity = s.K * (1 + s.steering * pulse(s.t, self.start, self.duration))
-        receptor = 1 / (1 + (delayed(s.x, s.tau) / sensitivity) ** s.n)
-        return [RateLaw(s.x, s.v * s.e - s.d * s.x), RateLaw(s.e, (receptor - s.e) / s.T)]
 
 
 class GlucoseControlElement(Element):
@@ -647,7 +541,7 @@ class CoagulationPositiveFeedbackSystem(BaseSystem):
         return CompositeSystem(self.label, elements=[blood], interactions=interactions)
 
 
-class SteerableFeedbackLoopSystem(BaseSystem):
+class SteerableFeedbackLoopSystem(DynamicalSystem):
     """A receptor-effector loop that holds a product at its set point.
 
     It holds it until a steering signal shifts it.
@@ -692,7 +586,7 @@ class SteerableFeedbackLoopSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.biology.physiology import SteerableFeedbackLoopSystem
-        >>> SteerableFeedbackLoopSystem(tau=3.0).prepare().system_.elements[0].tau
+        >>> SteerableFeedbackLoopSystem(tau=3.0).prepare().system_.elements[0].get_value('tau')
         3.0
     """
 
@@ -716,7 +610,7 @@ class SteerableFeedbackLoopSystem(BaseSystem):
         duration: float = 20.0,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.v = v
         self.d = d
         self.K = K
@@ -727,18 +621,35 @@ class SteerableFeedbackLoopSystem(BaseSystem):
         self.start = start
         self.duration = duration
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of a receptor-effector loop."""
-        loop = FeedbackLoopElement(
-            'loop',
-            v=self.v,
-            d=self.d,
-            K=self.K,
-            n=self.n,
-            T=self.T,
-            tau=self.tau,
-            steering=self.steering,
-            start=self.start,
-            duration=self.duration,
-        )
-        return CompositeSystem(self.label, elements=[loop])
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'loop'
+
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the states and the parameters with their specs."""
+        return {
+            'x': DeclaredVariableSpec(0.0, StateSpec(domain=RealSet.closed_open(0, oo))),
+            'e': DeclaredVariableSpec(0.0, StateSpec(domain=RealSet.closed(0, 1))),
+            'v': DeclaredVariableSpec(self.v, ParameterSpec(domain=RealSet.open(0, oo))),
+            'd': DeclaredVariableSpec(self.d, ParameterSpec(domain=RealSet.open(0, oo))),
+            'K': DeclaredVariableSpec(self.K, ParameterSpec(domain=RealSet.open(0, oo))),
+            'n': DeclaredVariableSpec(self.n, ParameterSpec(domain=RealSet.open(0, oo))),
+            'T': DeclaredVariableSpec(self.T, ParameterSpec(domain=RealSet.open(0, oo))),
+            'tau': DeclaredVariableSpec(self.tau, ParameterSpec(domain=RealSet.open(0, oo))),
+            'steering': DeclaredVariableSpec(self.steering, ParameterSpec()),
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the synthesis and consumption of the product and the effector response."""
+        return {
+            'x': lambda s: s.target.v * s.target.e - s.target.d * s.target.x,
+            'e': lambda s: (self._receptor(s) - s.target.e) / s.target.T,
+        }
+
+    def _sensitivity(self, s: SimpleNamespace) -> Expression:
+        """Return `sensitivity` from the namespace of an equation."""
+        return s.target.K * (1 + s.target.steering * pulse(s.t, self.start, self.duration))
+
+    def _receptor(self, s: SimpleNamespace) -> Expression:
+        """Return `receptor` from the namespace of an equation."""
+        return 1 / (1 + (delayed(s.target.x, s.target.tau) / self._sensitivity(s)) ** s.target.n)

@@ -10,15 +10,17 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import NN, oo
+from sage.all__sagemath_symbolics import NN, Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.laws import BaseLaw, JumpLaw, LocalRuleLaw, RateLaw
+from ....core.components.laws import BaseLaw, JumpLaw, LocalRuleLaw
 from ....core.components.spaces import BallNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
+from ...general.dynamics import DynamicalSystem
+from ...general.dynamics.types import Equations
 
 
 class MicrostateElement(Element):
@@ -120,86 +122,6 @@ class MicrostateElement(Element):
             + MicrostateElement._glauber(energy, energy_right, beta, w)
         ) * center
         return center + gain - loss
-
-
-class OrderParameterElement(Element):
-    """Order parameter of Landau theory relaxing down its free energy.
-
-    The order parameter follows `dphi/dt = -Gamma dF/dphi`.
-
-    The free energy is `F = a (T - Tc) phi^2 / 2 + b phi^4 / 4 - h phi`.
-
-    Args:
-        label:
-            The label of the order parameter.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        phi:
-            The initial order parameter.
-
-        a:
-            The coefficient of the quadratic term per unit temperature.
-
-        b:
-            The coefficient of the quartic term.
-
-        T:
-            The temperature.
-
-        Tc:
-            The critical temperature.
-
-        h:
-            The external field.
-
-        Gamma:
-            The kinetic coefficient.
-
-    Examples:
-        >>> from skcomplex.systems.physics.statistical_mechanics import OrderParameterElement
-        >>> OrderParameterElement('magnet').Tc
-        1.0
-    """
-
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        phi: Annotated[float, StateSpec()] = 0.1,
-        a: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        b: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        T: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        Tc: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        h: Annotated[float, ParameterSpec()] = 0.0,
-        Gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.phi = phi
-        self.a = a
-        self.b = b
-        self.T = T
-        self.Tc = Tc
-        self.h = h
-        self.Gamma = Gamma
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the relaxation down the gradient of the free energy.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        force = s.a * (s.T - s.Tc) * s.phi + s.b * s.phi**3 - s.h
-        return [RateLaw(s.phi, -s.Gamma * force)]
 
 
 class ZoneElement(Element):
@@ -411,7 +333,7 @@ class TwoPhaseZoneExchangeSystem(BaseSystem):
         )
 
 
-class LandauRelaxationSystem(BaseSystem):
+class LandauRelaxationSystem(DynamicalSystem):
     """The relaxation of a Landau order parameter.
 
     The order parameter relaxes to `sqrt(a (Tc - T) / b)` below `Tc` and to 0 above it.
@@ -446,7 +368,7 @@ class LandauRelaxationSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import LandauRelaxationSystem
-        >>> LandauRelaxationSystem(T=2.0).prepare().system_.elements[0].T
+        >>> LandauRelaxationSystem(T=2.0).prepare().system_.elements[0].get_value('T')
         2.0
     """
 
@@ -468,7 +390,7 @@ class LandauRelaxationSystem(BaseSystem):
         Gamma: float = 1.0,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.phi = phi
         self.T = T
         self.Tc = Tc
@@ -477,23 +399,28 @@ class LandauRelaxationSystem(BaseSystem):
         self.h = h
         self.Gamma = Gamma
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the relaxation of a Landau order parameter.
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'magnet'
 
-        The order parameter relaxes to `sqrt(a (Tc - T) / b)` below `Tc` and to 0 above it.
-        """
-        return CompositeSystem(
-            self.label,
-            elements=[
-                OrderParameterElement(
-                    'magnet',
-                    phi=self.phi,
-                    a=self.a,
-                    b=self.b,
-                    T=self.T,
-                    Tc=self.Tc,
-                    h=self.h,
-                    Gamma=self.Gamma,
-                ),
-            ],
-        )
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the states and the parameters with their specs."""
+        return {
+            'phi': DeclaredVariableSpec(self.phi, StateSpec()),
+            'a': DeclaredVariableSpec(self.a, ParameterSpec(domain=RealSet.open(0, oo))),
+            'b': DeclaredVariableSpec(self.b, ParameterSpec(domain=RealSet.open(0, oo))),
+            'T': DeclaredVariableSpec(self.T, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'Tc': DeclaredVariableSpec(self.Tc, ParameterSpec(domain=RealSet.open(0, oo))),
+            'h': DeclaredVariableSpec(self.h, ParameterSpec()),
+            'Gamma': DeclaredVariableSpec(self.Gamma, ParameterSpec(domain=RealSet.open(0, oo))),
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the relaxation down the gradient of the free energy."""
+        return {
+            'phi': lambda s: -s.target.Gamma * self._force(s),
+        }
+
+    def _force(self, s: SimpleNamespace) -> Expression:
+        """Return `force` from the namespace of an equation."""
+        return s.target.a * (s.target.T - s.target.Tc) * s.target.phi + s.target.b * s.target.phi**3 - s.target.h

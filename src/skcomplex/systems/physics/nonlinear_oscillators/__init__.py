@@ -6,8 +6,6 @@ The package covers Duffing, Toda, Van der Pol, Stuart-Landau, Adler, impulses, b
 from ._billiards import BilliardsSystem, MushroomBilliardElement, SinaiBilliardElement, ThreeDiskBilliardElement
 from ._oscillators import (
     AdlerEquationSystem,
-    AdlerPhaseElement,
-    DuffingElement,
     DuffingSystem,
     ForcedTodaSystem,
     ForcedVanDerPolSystem,
@@ -26,9 +24,7 @@ from ._oscillators import (
 
 __all__: list[str] = [
     'AdlerEquationSystem',
-    'AdlerPhaseElement',
     'BilliardsSystem',
-    'DuffingElement',
     'DuffingSystem',
     'ForcedTodaSystem',
     'ForcedVanDerPolSystem',

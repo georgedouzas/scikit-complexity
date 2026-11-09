@@ -4,7 +4,7 @@ It also holds international trade and mortal monetary economies.
 """
 
 from ._banking import DepositorElement, FractionalReserveBankingSystem, PolicySwitchInteraction, ReserveBankElement
-from ._capital import CapitalStockElement, CapitalStockSystem
+from ._capital import CapitalStockSystem
 from ._credit import CreditMarketInteraction, CreditNetworksSystem, FirmElement, LenderElement
 from ._firms import InvestingFirmElement, ToyFirmInvestmentSystem
 from ._growth import EconomyElement, IncomeElement, MultiplierAcceleratorSystem, SolowGrowthInteraction, SolowSystem
@@ -28,7 +28,7 @@ from ._monetary import (
     MonetaryBankElement,
     StockFlowConsistentEconomySystem,
 )
-from ._optimal_growth import OptimalConsumptionSystem, RamseyEconomyElement
+from ._optimal_growth import OptimalConsumptionSystem
 from ._purchasing_power import CategorizedPurchasingPowerSystem, PurchasingPowerElement
 from ._stochastic_growth import BrockMirmanGrowthSystem, StochasticGrowthElement
 from ._trade import ExchangeRatesSystem, TradingEconomyElement
@@ -36,7 +36,6 @@ from ._trade import ExchangeRatesSystem, TradingEconomyElement
 __all__: list[str] = [
     'BrockMirmanGrowthSystem',
     'BusinessElement',
-    'CapitalStockElement',
     'CapitalStockSystem',
     'CategorizedPurchasingPowerSystem',
     'CentralBankElement',
@@ -69,7 +68,6 @@ __all__: list[str] = [
     'PlotElement',
     'PolicySwitchInteraction',
     'PurchasingPowerElement',
-    'RamseyEconomyElement',
     'ReserveBankElement',
     'SettlerElement',
     'SolowGrowthInteraction',
