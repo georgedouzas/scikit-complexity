@@ -16,7 +16,7 @@
 - [x] 2.2 Add to `pyproject.toml` a forbidden contract that `skcomplex.systems.general` imports no field package, and
   keep `skcomplex.systems.general` out of the field independence and field forbidden contracts so every field may import
   it. Verify with `nox -s checks -- quality`, which runs `lint-imports`.
-- [ ] 2.3 Extend `tests/systems/test_catalog.py` so every module of `systems/general` must have importers in at least
+- [x] 2.3 Extend `tests/systems/test_catalog.py` so every module of `systems/general` must have importers in at least
   two fields and `all_systems()` lists no class of it. Verify the new test passes on the empty subpackages.
 
 ## 3. The placement rule and its tests

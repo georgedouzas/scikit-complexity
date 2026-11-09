@@ -256,6 +256,11 @@ UNFOLDED: tuple[str, ...] = ()
 
 def _imported_modules(path: Path, field: Path) -> set[Path]:
     """Return the modules of a field that a module imports relatively, through a package's re-exports too."""
+    return {module for module in _relative_imports(path) if module.is_relative_to(field) and module != path}
+
+
+def _relative_imports(path: Path) -> set[Path]:
+    """Return the modules that a module imports relatively, through a package's re-exports too."""
     found = set()
     for node in ast.parse(path.read_text()).body:
         if not isinstance(node, ast.ImportFrom) or node.level == 0:
@@ -268,7 +273,7 @@ def _imported_modules(path: Path, field: Path) -> set[Path]:
             for item in ast.parse((target / '__init__.py').read_text()).body:
                 if isinstance(item, ast.ImportFrom) and item.level == 1 and names & {a.name for a in item.names}:
                     found.add(target.joinpath(*str(item.module).split('.')).with_suffix('.py'))
-    return {module for module in found if module.is_relative_to(field) and module != path}
+    return found
 
 
 def _defines_field(node: ast.ClassDef) -> bool:
@@ -350,3 +355,45 @@ def test_no_system_module_imports_another(field):
         if module.parent == path.parent and _defines_system(module)
     ]
     assert found == []
+
+
+def _general_users(root: Path) -> dict[Path, set[str]]:
+    """Return the fields that reach every module of `systems/general`, directly or through other general modules."""
+    general = root / 'general'
+    modules = [path for path in sorted(general.rglob('_*.py')) if path.name != '__init__.py']
+    importers: dict[Path, set[Path]] = {path: set() for path in modules}
+    for path in sorted(root.rglob('*.py')):
+        for module in _relative_imports(path):
+            if module in importers and module != path:
+                importers[module].add(path)
+    users: dict[Path, set[str]] = {}
+    for module in modules:
+        stack, seen, fields = [module], set(), set()
+        while stack:
+            current = stack.pop()
+            if current in seen:
+                continue
+            seen.add(current)
+            for importer in importers.get(current, set()):
+                if importer.is_relative_to(general):
+                    stack.append(importer)
+                else:
+                    fields.add(importer.relative_to(root).parts[0])
+        users[module] = fields
+    return users
+
+
+def test_every_general_module_serves_two_fields():
+    """Test that every module of `systems/general` has importers in at least two fields."""
+    root = Path(str(files('skcomplex.systems')))
+    found = [
+        f'{module.relative_to(root)}: {sorted(fields)}'
+        for module, fields in _general_users(root).items()
+        if len(fields & set(FIELDS)) < 2
+    ]
+    assert found == []
+
+
+def test_all_systems_lists_no_general_class():
+    """Test that the listing of the systems holds no class of `systems/general`, which holds realizations only."""
+    assert not [name for name, system in all_systems() if system.__module__.startswith('skcomplex.systems.general')]
