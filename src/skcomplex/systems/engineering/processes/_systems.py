@@ -15,7 +15,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw, Sink, Source, TransferLaw
-from ....core.components.laws.utils import clip, delay3, minimum, series, smooth, step
+from ....core.components.laws.utils import clip, distributed_delay, minimum, series, step
 from ....core.components.systems import BaseSystem, System
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
@@ -88,7 +88,7 @@ class ReliefPipelineElement(Element):
         shipments = ReliefPipelineElement._shipments(s)
         return [
             TransferLaw(Source('donors'), s.in_transit, shipments, label='shipping'),
-            TransferLaw(s.in_transit, s.warehouse, delay3(shipments, s.shipping_delay), label='arrivals'),
+            TransferLaw(s.in_transit, s.warehouse, distributed_delay(shipments, s.shipping_delay, 3), label='arrivals'),
             TransferLaw(
                 s.warehouse,
                 Sink('beneficiaries'),
@@ -173,7 +173,8 @@ class RiceMillElement(Element):
 
         It is the seasonal harvest after the procurement delay.
         """
-        return delay3(RiceMillElement._season(s.harvest, s.seasonality, s.t, MONTHS_PER_YEAR), s.procurement_delay)
+        season = RiceMillElement._season(s.harvest, s.seasonality, s.t, MONTHS_PER_YEAR)
+        return distributed_delay(season, s.procurement_delay, 3)
 
     @staticmethod
     def _indicated_milling(s: SimpleNamespace) -> Expression:
@@ -193,6 +194,7 @@ class RiceMillElement(Element):
         """
         milling = RiceMillElement._milling(s)
         losses = 1 - s.outturn - s.husk_share - s.bran_share
+        perceived = distributed_delay(RiceMillElement._indicated_milling(s), s.perception_time, conserved=False)
         return [
             TransferLaw(Source('farms'), s.paddy, RiceMillElement._procurement(s), label='paddy_purchases'),
             TransferLaw(s.paddy, s.rice, s.outturn * milling, label='milled_rice'),
@@ -204,7 +206,7 @@ class RiceMillElement(Element):
             TransferLaw(s.bran, Sink('feed'), s.bran / s.by_product_time, label='bran_sales'),
             RateLaw(
                 s.capacity,
-                (smooth(RiceMillElement._indicated_milling(s), s.perception_time) - s.capacity) / s.expansion_time,
+                (perceived - s.capacity) / s.expansion_time,
             ),
         ]
 

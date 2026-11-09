@@ -101,7 +101,7 @@ when other agents run tests at the same time.
   `_plantations`, `_extraction`, `economics/markets/_commodities`, `physics/climate/_pollution`,
   `engineering/processes/_systems`, and `biology/ecology/_factories`, with each table as a pair of tuples, and verify
   the tests of those systems pass with unchanged trajectories
-- [ ] 6.3 Replace `delay3` and `smooth` with `distributed_delay` in `engineering/processes/_systems`, and verify
+- [x] 6.3 Replace `delay3` and `smooth` with `distributed_delay` in `engineering/processes/_systems`, and verify
   `pytest tests/systems/engineering` passes with unchanged trajectories
 - [ ] 6.4 Make the translator write `series` for lookups and `distributed_delay` for delays and smoothings, and verify
   `pytest tests/core/engine/translators/test_system_dynamics.py` passes, including `DELAY3` within 1e-6 of PySD
