@@ -916,7 +916,7 @@ average and cumulative rules, a chosen option, and an agent form.
 
 These classes pass amounts between agents, gather them into groups, and change the network they live on. The movement,
 the birth and death, and the matching of agents are recipes of
-[General realizations](../core_components/general.md#agents).
+[General realizations](../core_components/general.md#agent-rules).
 
 ### Transfers
 

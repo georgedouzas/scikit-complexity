@@ -168,7 +168,7 @@ np.round(densities[-1], 2).tolist()
 `EncounterInteraction(candidate, field, rate, kernel, outcome)` gives encounters that are conservative, destructive,
 or proliferative.
 
-## Agents
+## Agent rules
 
 The recipes of `skcomplex.systems.general.agents` move agents, create and remove them, let them choose and imitate, and
 evolve their strategies. They return agent rules, or the symbolic laws of the core where an operation has a symbolic

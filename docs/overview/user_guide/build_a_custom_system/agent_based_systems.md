@@ -247,7 +247,7 @@ trajectory = simulate(market, until=3, random_state=0)
 - `GroupingInteraction` draws pairs, partitions, neighbourhoods, or groups by a state every step, and acts on each.
 - `TopologyInteraction` adds and removes nodes and edges of a network, and rewires edges towards a weight.
 - The movement of agents and their birth and death are the recipes `MovementInteraction` and `BirthDeathInteraction`
-  of [General realizations](../core_components/general.md#agents).
+  of [General realizations](../core_components/general.md#agent-rules).
 
 **Institutions.** An `Interaction` whose law is `RuleLaw(self.act, phase=...)` acts once per round of its phase, as
 the clerk above does. Economics names such an institution `PolicyRuleInteraction`.
