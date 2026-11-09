@@ -16,7 +16,7 @@ from ....core.components.interactions import (
     BaseInteraction,
     GradientInteraction,
     PairCouplingInteraction,
-    RelaxationInteraction,
+    RateInteraction,
 )
 from ....core.components.spaces import ContinuousSpace
 from ....core.components.systems import BaseSystem, System
@@ -24,7 +24,7 @@ from ....core.engine.solvers import RK4Solver
 from ....core.specs import ParameterSpec, RoleSpec
 
 
-class MotivationInteraction(RelaxationInteraction):
+class MotivationInteraction(RateInteraction):
     """Driving force of the social force system.
 
     It relaxes a walker's velocity to its desired velocity. The force per unit mass is
@@ -66,13 +66,19 @@ class MotivationInteraction(RelaxationInteraction):
         self.direction = direction
         self.tau = tau
 
-    def _get_goal(self, namespace: SimpleNamespace) -> object:
-        """Return the desired velocity."""
-        return namespace.speed * namespace.direction
+    def _get_rate(self, namespace: SimpleNamespace) -> object:
+        """Return the relaxation `(speed * direction - x_d1) / tau` of the velocity.
 
-    def _get_time(self, namespace: SimpleNamespace) -> object:
-        """Return the relaxation time."""
-        return namespace.tau
+        Args:
+            namespace:
+                The namespace of the symbols the rate can use.
+
+        Returns:
+            rate:
+                The force per unit mass towards the desired velocity.
+        """
+        velocity = getattr(self._get_member(namespace, 'target'), self.state)
+        return (namespace.speed * namespace.direction - velocity) / namespace.tau
 
 
 class SocialRepulsionInteraction(PairCouplingInteraction):

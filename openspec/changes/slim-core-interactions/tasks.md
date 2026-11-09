@@ -31,7 +31,7 @@
 - [x] 3.5 Add biology `LeakyIntegrationInteraction` in `biology/neuroscience/_leaky_integration.py` with its tests, and
   migrate the populations and networks. Write the trails and adaptivity relaxations as `RateInteraction`. Verify with
   `tests/systems/biology`.
-- [ ] 3.6 Add economics `PartialAdjustmentInteraction` in `economics/resources/_food.py`, rebase social
+- [x] 3.6 Add economics `PartialAdjustmentInteraction` in `economics/resources/_food.py`, rebase social
   `MotivationInteraction` on `RateInteraction` with its own rate, and write the mathematics driven-flow control as
   `RateInteraction`. Verify with the tests of those modules.
 - [ ] 3.7 Make the module writer of the system-dynamics translator emit a `RateInteraction` whose rate is
