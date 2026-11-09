@@ -14,29 +14,19 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.laws.utils import lookup
+from ....core.components.laws.utils import series
 from ....core.components.systems import BaseSystem, System
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
-ABSORPTION_TIME = ((0.0, 0.6), (10.0, 2.5), (20.0, 5.0), (30.0, 8.0), (40.0, 11.5), (50.0, 15.5), (60.0, 20.0))
-BIRTHS_FROM_FOOD = ((0.0, 0.0), (1.0, 1.0), (2.0, 1.6), (3.0, 1.9), (4.0, 2.0))
-BIRTHS_FROM_POLLUTION = ((0.0, 1.02), (10.0, 0.9), (20.0, 0.7), (30.0, 0.4), (40.0, 0.25), (50.0, 0.15), (60.0, 0.1))
-DEATHS_FROM_FOOD = (
-    (0.0, 30.0),
-    (0.25, 3.0),
-    (0.5, 2.0),
-    (0.75, 1.4),
-    (1.0, 1.0),
-    (1.25, 0.7),
-    (1.5, 0.6),
-    (1.75, 0.5),
-    (2.0, 0.5),
-)
-DEATHS_FROM_POLLUTION = ((0.0, 0.92), (10.0, 1.3), (20.0, 3.3), (30.0, 4.8), (40.0, 6.8), (50.0, 9.2), (60.0, 9.5))
-FOOD_FROM_POLLUTION = ((0.0, 1.02), (10.0, 0.9), (20.0, 0.65), (30.0, 0.35), (40.0, 0.2), (50.0, 0.1), (60.0, 0.05))
-CROPPING_INTENSITY = ((0.0, 1.75), (10.0, 1.8), (20.0, 1.9), (30.0, 2.0), (40.0, 2.3), (50.0, 2.5))
-LIFE_FROM_FOOD = ((0.0, 0.0), (1.0, 1.0), (2.0, 1.8), (3.0, 2.4), (4.0, 2.7))
-LIFE_FROM_POLLUTION = ((0.0, 1.05), (10.0, 0.85), (20.0, 0.6), (30.0, 0.3), (40.0, 0.15), (50.0, 0.05), (60.0, 0.02))
+ABSORPTION_TIME = ((0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0), (0.6, 2.5, 5.0, 8.0, 11.5, 15.5, 20.0))
+BIRTHS_FROM_FOOD = ((0.0, 1.0, 2.0, 3.0, 4.0), (0.0, 1.0, 1.6, 1.9, 2.0))
+BIRTHS_FROM_POLLUTION = ((0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0), (1.02, 0.9, 0.7, 0.4, 0.25, 0.15, 0.1))
+DEATHS_FROM_FOOD = ((0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0), (30.0, 3.0, 2.0, 1.4, 1.0, 0.7, 0.6, 0.5, 0.5))
+DEATHS_FROM_POLLUTION = ((0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0), (0.92, 1.3, 3.3, 4.8, 6.8, 9.2, 9.5))
+FOOD_FROM_POLLUTION = ((0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0), (1.02, 0.9, 0.65, 0.35, 0.2, 0.1, 0.05))
+CROPPING_INTENSITY = ((0.0, 10.0, 20.0, 30.0, 40.0, 50.0), (1.75, 1.8, 1.9, 2.0, 2.3, 2.5))
+LIFE_FROM_FOOD = ((0.0, 1.0, 2.0, 3.0, 4.0), (0.0, 1.0, 1.8, 2.4, 2.7))
+LIFE_FROM_POLLUTION = ((0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0), (1.05, 0.85, 0.6, 0.3, 0.15, 0.05, 0.02))
 
 
 class PollutedRegionElement(Element):
@@ -134,8 +124,8 @@ class PollutedRegionElement(Element):
         The food follows from the land, the yield, the cropping intensity, and the pollution.
         """
         ratio = PollutedRegionElement._pollution_ratio(s)
-        intensity = lookup(s.t, CROPPING_INTENSITY)
-        food = s.cultivated_land * s.crop_yield * intensity * lookup(ratio, FOOD_FROM_POLLUTION)
+        intensity = series(s.t, *CROPPING_INTENSITY)
+        food = s.cultivated_land * s.crop_yield * intensity * series(ratio, *FOOD_FROM_POLLUTION)
         return food / s.population
 
     @staticmethod
@@ -146,7 +136,7 @@ class PollutedRegionElement(Element):
         """
         food_ratio = PollutedRegionElement._food_per_capita(s) / s.subsistence_food
         ratio = PollutedRegionElement._pollution_ratio(s)
-        return lookup(food_ratio, LIFE_FROM_FOOD) * lookup(ratio, LIFE_FROM_POLLUTION)
+        return series(food_ratio, *LIFE_FROM_FOOD) * series(ratio, *LIFE_FROM_POLLUTION)
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the flows of the population and the pollution.
@@ -161,9 +151,9 @@ class PollutedRegionElement(Element):
         """
         ratio = self._pollution_ratio(s)
         food_ratio = self._food_per_capita(s) / s.subsistence_food
-        births = s.birth_normal * lookup(food_ratio, BIRTHS_FROM_FOOD) * lookup(ratio, BIRTHS_FROM_POLLUTION)
-        deaths = s.death_normal * lookup(food_ratio, DEATHS_FROM_FOOD) * lookup(ratio, DEATHS_FROM_POLLUTION)
-        absorption = s.pollution / lookup(ratio, ABSORPTION_TIME)
+        births = s.birth_normal * series(food_ratio, *BIRTHS_FROM_FOOD) * series(ratio, *BIRTHS_FROM_POLLUTION)
+        deaths = s.death_normal * series(food_ratio, *DEATHS_FROM_FOOD) * series(ratio, *DEATHS_FROM_POLLUTION)
+        absorption = s.pollution / series(ratio, *ABSORPTION_TIME)
         return [
             RateLaw(s.population, s.population * (births - deaths)),
             RateLaw(s.pollution, s.pollution_normal * s.population - absorption),

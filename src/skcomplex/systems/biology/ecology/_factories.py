@@ -12,7 +12,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import BaseInteraction, Interaction, MapInteraction
 from ....core.components.laws import BaseLaw, RateLaw, UpdateLaw
-from ....core.components.laws.utils import lag, lookup, series
+from ....core.components.laws.utils import lag, series
 from ....core.components.systems import BaseSystem, System
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.populations import (
@@ -30,31 +30,13 @@ FOOD = (695.0, 750.0, 750.0, 730.0, 720.0, 710.0, 710.0, 735.0, 685.0, 630.0, 66
 TEMPERATURE = (27.3, 29.5, 30.5, 26.5, 27.3, 28.8, 31.5, 29.5, 25.8, 27.5, 27.8, 29.5, 29.8)
 
 ALLOMETRY = (
-    (1.0, 0.15),
-    (1.9, 0.243),
-    (2.8, 0.327),
-    (3.7, 0.393),
-    (4.6, 0.474),
-    (5.5, 0.543),
-    (6.4, 0.615),
-    (7.3, 0.663),
-    (8.2, 0.708),
-    (9.1, 0.735),
-    (10.0, 0.75),
+    (1.0, 1.9, 2.8, 3.7, 4.6, 5.5, 6.4, 7.3, 8.2, 9.1, 10.0),
+    (0.15, 0.243, 0.327, 0.393, 0.474, 0.543, 0.615, 0.663, 0.708, 0.735, 0.75),
 )
 
 THERMAL = (
-    (25.0, 0.902),
-    (25.7, 0.92),
-    (26.4, 0.951),
-    (27.1, 0.99),
-    (27.8, 1.02),
-    (28.5, 1.06),
-    (29.2, 1.08),
-    (29.9, 1.08),
-    (30.6, 1.09),
-    (31.3, 1.10),
-    (32.0, 1.10),
+    (25.0, 25.7, 26.4, 27.1, 27.8, 28.5, 29.2, 29.9, 30.6, 31.3, 32.0),
+    (0.902, 0.92, 0.951, 0.99, 1.02, 1.06, 1.08, 1.08, 1.09, 1.1, 1.1),
 )
 
 
@@ -173,7 +155,7 @@ class ShrimpElement(Element):
         """
         food = series(s.t, DAYS, FOOD)
         temperature = series(s.t, DAYS, TEMPERATURE)
-        max_ration = lookup(s.biomass, ALLOMETRY) * lookup(temperature, THERMAL) * s.ration
+        max_ration = series(s.biomass, *ALLOMETRY) * series(temperature, *THERMAL) * s.ration
         ingestion = max_ration * (1 - exp(-s.k * food))
         assimilated = s.gut * s.assimilation
         respired = s.respiration * exp(0.07 * temperature) * (s.biomass * s.phi) ** 0.185 * s.biomass

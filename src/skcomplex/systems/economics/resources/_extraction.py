@@ -16,7 +16,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
-from ....core.components.laws.utils import clip, lookup
+from ....core.components.laws.utils import clip, series
 from ....core.components.systems import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
@@ -178,14 +178,9 @@ RESOURCE_LEVELS = (0.0, 100.0, 200.0, 300.0, 400.0, 500.0, 600.0, 700.0, 800.0, 
 YIELD_LEVELS = (0.0, 0.1, 0.2, 0.4, 0.6, 0.8, 1.0)
 
 
-def _table(levels: Sequence[float], values: Sequence[float]) -> list[tuple[float, float]]:
-    """Return the points of a table function from its inputs and outputs."""
-    return [(float(level), float(value)) for level, value in zip(levels, values, strict=True)]
-
-
 def _efficiency(holder: SimpleNamespace, yields: Sequence[float]) -> Expression:
     """Return the yield per unit of capital, a table of the resource stock."""
-    return lookup(holder.resource, _table(RESOURCE_LEVELS, yields))
+    return series(holder.resource, RESOURCE_LEVELS, yields)
 
 
 def _investment(holder: SimpleNamespace, revenue: Expression) -> Expression:
@@ -288,7 +283,7 @@ class OilEconomySystem(BaseSystem):
     @staticmethod
     def _oil_price(holder: SimpleNamespace, yields: Sequence[float], prices: Sequence[float] | None) -> Expression:
         """Return the price of the oil, constant or a table of the yield."""
-        return holder.price if prices is None else lookup(_efficiency(holder, yields), _table(YIELD_LEVELS, prices))
+        return holder.price if prices is None else series(_efficiency(holder, yields), YIELD_LEVELS, prices)
 
     def _build_system(self) -> System:
         """Return the parts of the system built from its model parameters."""
@@ -395,7 +390,7 @@ class FisheryCapitalSystem(BaseSystem):
     @staticmethod
     def _fish_revenue(holder: SimpleNamespace, yields: Sequence[float], prices: Sequence[float]) -> Expression:
         """Return the revenue of the harvest at the price, a table of the yield."""
-        return lookup(_efficiency(holder, yields), _table(YIELD_LEVELS, prices)) * _harvest(holder, yields)
+        return series(_efficiency(holder, yields), YIELD_LEVELS, prices) * _harvest(holder, yields)
 
     def _build_system(self) -> System:
         """Return the parts of the system built from its model parameters."""
@@ -415,7 +410,7 @@ class FisheryCapitalSystem(BaseSystem):
             target='fishery',
             state=Source('spawning'),
             into='resource',
-            amount=lambda s: s.source.resource * lookup(s.source.resource, _table(RESOURCE_LEVELS, regenerations)),
+            amount=lambda s: s.source.resource * series(s.source.resource, RESOURCE_LEVELS, regenerations),
             flow='regeneration',
             legs=[('resource', Sink('market'), lambda s: _harvest(s.source, yields), 'harvest')],
         )

@@ -15,7 +15,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw, Sink, Source, TransferLaw
-from ....core.components.laws.utils import clip, delay3, lookup, minimum, smooth, step
+from ....core.components.laws.utils import clip, delay3, minimum, series, smooth, step
 from ....core.components.systems import BaseSystem, System
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
@@ -212,7 +212,7 @@ class RiceMillElement(Element):
 DAYS_PER_YEAR = 365.0
 
 
-WATER_STRESS = ((0.0, 0.0), (0.3, 0.5), (0.6, 1.0), (1.0, 1.0))
+WATER_STRESS = ((0.0, 0.3, 0.6, 1.0), (0.0, 0.5, 1.0, 1.0))
 
 
 class IrrigationSchemeElement(Element):
@@ -303,7 +303,7 @@ class IrrigationSchemeElement(Element):
         The root zone is that of the irrigated crops, and the aquifer is below them.
         """
         release = IrrigationSchemeElement._reservoir_release(s)
-        crop_water = s.potential_et * lookup(s.soil / s.field_capacity, WATER_STRESS)
+        crop_water = s.potential_et * series(s.soil / s.field_capacity, *WATER_STRESS)
         spill = clip(s.reservoir - s.reservoir_capacity, 0) / s.spill_time
         return [
             TransferLaw(
@@ -323,7 +323,7 @@ class IrrigationSchemeElement(Element):
         ]
 
 
-LANDFILL_ACCEPTANCE = ((0.0, 1.0), (0.9, 1.0), (1.0, 0.0))
+LANDFILL_ACCEPTANCE = ((0.0, 0.9, 1.0), (1.0, 1.0, 0.0))
 
 
 class WasteSystemElement(Element):
@@ -394,7 +394,7 @@ class WasteSystemElement(Element):
     @staticmethod
     def _acceptance(s: SimpleNamespace) -> Expression:
         """Return the share of the residual waste that the landfill accepts as it fills."""
-        return lookup(s.landfill / s.landfill_capacity, LANDFILL_ACCEPTANCE)
+        return series(s.landfill / s.landfill_capacity, *LANDFILL_ACCEPTANCE)
 
     @staticmethod
     def _waste_laws(s: SimpleNamespace) -> list[BaseLaw]:

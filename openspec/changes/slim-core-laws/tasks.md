@@ -97,7 +97,7 @@ when other agents run tests at the same time.
 - [x] 6.1 Rename the first argument of `series` to `x` and its `times` to `points`, move the docstring example of
   `lookup` into it, and fold `test_lookups.py` into `test_signals.py`, and verify
   `pytest tests/core/components/laws/utils/test_signals.py` passes
-- [ ] 6.2 Replace `lookup` with `series` in `social/organizations/_traps`, `economics/resources/_food`,
+- [x] 6.2 Replace `lookup` with `series` in `social/organizations/_traps`, `economics/resources/_food`,
   `_plantations`, `_extraction`, `economics/markets/_commodities`, `physics/climate/_pollution`,
   `engineering/processes/_systems`, and `biology/ecology/_factories`, with each table as a pair of tuples, and verify
   the tests of those systems pass with unchanged trajectories
