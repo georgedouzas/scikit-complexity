@@ -188,8 +188,13 @@ Same procedure as group 3.
 
 ## 14. Integration
 
-- [ ] 14.1 Run `nox -s checks` and `nox -s tests`, with `NUMBA_NUM_THREADS`, `OMP_NUM_THREADS`, and the BLAS threads set
+- [x] 14.1 Run `nox -s checks` and `nox -s tests`, with `NUMBA_NUM_THREADS`, `OMP_NUM_THREADS`, and the BLAS threads set
   to 1 when other agents run tests. Verify both pass.
-- [ ] 14.2 Run `nox -s docs -- build` and verify it passes with the generated parts page of systems listing the four
+  Ran ruff, mypy on src, tests, and docs, lint-imports, interrogate, pydoclint, bandit, and the inventory check, and the
+  three test groups of `nox -s tests` with four workers and the threads set to 1: all pass. The PySD comparisons pass.
+- [x] 14.2 Run `nox -s docs -- build` and verify it passes with the generated parts page of systems listing the four
   general systems and their catalog users.
-- [ ] 14.3 Run `openspec validate add-general-systems --strict` and verify it passes.
+  The docs build and `nox -s gallery -- --sample` pass, the parts page of systems lists the four general systems and
+  their catalog users, and the gallery examples of the rebased systems run.
+- [x] 14.3 Run `openspec validate add-general-systems --strict` and verify it passes.
+  `openspec validate add-general-systems --strict` passes.
