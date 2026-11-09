@@ -329,7 +329,8 @@ These are final.
   `mathematics/common/networks`, which take the loose modules of their `common` packages, are approved.
 - The cross-domain package is `skcomplex.systems.general`, with one subpackage per concept.
 - General systems are recipes. The core keeps `BaseSystem` and `CompositeSystem` only.
-- `DialectSpec` is deleted in this change, and `GeometrySpec` is placed by the placement rule.
+- `DialectSpec` stays as engine support by step 2 of the placement rule, and only its re-export from
+  `skcomplex.core.specs` goes. `GeometrySpec` is placed by the placement rule.
 - The placement rule below is the single source of truth for where any new part goes.
 
 ## Implementation notes
