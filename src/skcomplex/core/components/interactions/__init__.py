@@ -24,7 +24,6 @@ from ._grouping import GroupingInteraction
 from ._hamiltonian import HamiltonianInteraction
 from ._hyperedge import HyperedgeInteraction
 from ._imitation import ImitationInteraction
-from ._impulse import ImpulseInteraction
 from ._interaction import Interaction
 from ._jump import JumpInteraction
 from ._life_cycle import LifeCycleInteraction
@@ -68,7 +67,6 @@ __all__: list[str] = [
     'HamiltonianInteraction',
     'HyperedgeInteraction',
     'ImitationInteraction',
-    'ImpulseInteraction',
     'Interaction',
     'JumpInteraction',
     'LifeCycleInteraction',

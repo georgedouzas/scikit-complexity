@@ -38,7 +38,7 @@ list, then follow the link to its subsection.
   [Transitions between values](#transitions-between-values).
 - Give the encounters of a kinetic system: `EncounterInteraction`, in
   [Encounters of a kinetic system](#encounters-of-a-kinetic-system).
-- Reset states when a condition crosses zero, or at chosen times: `CrossingInteraction` and `ImpulseInteraction`, in
+- Reset states when a condition crosses zero, or at chosen times: `CrossingInteraction`, in
   [Crossings and impulses](#crossings-and-impulses).
 - Sample configurations by Monte Carlo: `SamplingInteraction`, in [Monte Carlo sampling](#monte-carlo-sampling) and
   [Row scores and zero temperature](#row-scores-and-zero-temperature).
@@ -814,14 +814,14 @@ or proliferative.
 
 ### Crossings and impulses
 
-Use `CrossingInteraction` to act when a condition is met, and `ImpulseInteraction` to act at chosen times. The example
+Use `CrossingInteraction` to act when a condition is met, or at chosen times with a guard of the time. The example
 wraps a clock back to zero each time it reaches 1, and kicks it forward once at time 1.5:
 
 ```python
 from typing import Annotated
 
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import CrossingInteraction, ImpulseInteraction
+from skcomplex.core.components.interactions import CrossingInteraction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
@@ -840,7 +840,9 @@ class ClockElement(Element):
 wrap = CrossingInteraction(
     'wrap', target='clock', guard=lambda s: s.target.x - 1, reset={'x': lambda s: 0}, direction=1
 )
-kick = ImpulseInteraction('kick', target='clock', reset={'x': lambda s: s.target.x + 0.25}, times=(1.5,))
+kick = CrossingInteraction(
+    'kick', target='clock', guard=lambda s: s.t - 1.5, reset={'x': lambda s: s.target.x + 0.25}, direction=1
+)
 system = System(elements=[ClockElement('clock')], interactions=[wrap, kick])
 events = simulate(system, until=2.2, dt=0.5).events
 [(event.label, round(event.time, 3)) for event in events]
@@ -848,7 +850,9 @@ events = simulate(system, until=2.2, dt=0.5).events
 
 - `CrossingInteraction(target, guard, reset=None, direction=0, terminal=False)` fires an event when a guard crosses
   zero. The event resets states, or ends the run.
-- `ImpulseInteraction(target, reset, times=(), period=None, count=None)` resets states at given or periodic times.
+- A guard `s.t - t_k` resets states at the time `t_k`, and the guard `periodic_guard(s.t, period, start, count)` of
+  `skcomplex.core.components.laws.utils` at periodic times. Engineering names these resets `PulseInteraction`, and
+  physics names periodic ones `KickInteraction`.
 
 ### Monte Carlo sampling
 

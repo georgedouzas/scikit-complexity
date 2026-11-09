@@ -13,12 +13,12 @@ from sage.all__sagemath_symbolics import Expression, abs_symbolic, sqrt
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ....core.components.elements import Element
-from ....core.components.interactions import ImpulseInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import sign, where
 from ....core.components.systems import BaseSystem, System
 from ....core.errors import ParameterError
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ..common.signals import PulseInteraction
 
 PLANTS = {'free_particle': 0.0, 'harmonic_oscillator': -1.0, 'saddle': 1.0}
 
@@ -226,6 +226,6 @@ class MinimumTimeControlSystem(BaseSystem):
             self.label,
             elements=[BangBangPlantElement('plant', x=self.x, y=self.v, u=start, a=PLANTS[self.plant])],
             interactions=[
-                ImpulseInteraction('sample', target='plant', reset=sample, period=self.interval, start=self.interval),
+                PulseInteraction('sample', target='plant', reset=sample, period=self.interval, start=self.interval),
             ],
         )

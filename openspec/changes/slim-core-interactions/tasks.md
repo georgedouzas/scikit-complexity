@@ -67,13 +67,13 @@
 
 ## 6. Impulses into crossings
 
-- [ ] 6.1 Add engineering `PulseInteraction` in `engineering/common/signals/_pulse.py` on `CrossingInteraction`, with `reset`,
+- [x] 6.1 Add engineering `PulseInteraction` in `engineering/common/signals/_pulse.py` on `CrossingInteraction`, with `reset`,
   `times`, `period`, `start`, `count`, and the checks of `ImpulseInteraction`, and move `test_impulse.py` to
   `tests/systems/engineering/common/signals/test_pulse.py`. Verify it passes.
-- [ ] 6.2 Migrate circuits, magnetic levitation, and minimum-time control to it, add physics `KickInteraction` in
+- [x] 6.2 Migrate circuits, magnetic levitation, and minimum-time control to it, add physics `KickInteraction` in
   `physics/nonlinear_oscillators/_oscillators.py`, and rebase `IrradiationInteraction` on `CrossingInteraction` with
   `periodic_guard`. Verify that every event falls at the time it fell before, with the tests of those modules.
-- [ ] 6.3 Delete `interactions/_impulse.py`, its export, and its core test. Verify `grep -rw ImpulseInteraction src
+- [x] 6.3 Delete `interactions/_impulse.py`, its export, and its core test. Verify `grep -rw ImpulseInteraction src
   tests docs` finds nothing.
 
 ## 7. Maps of economics

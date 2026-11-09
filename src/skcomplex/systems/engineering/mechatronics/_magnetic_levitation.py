@@ -14,10 +14,10 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
-from ....core.components.interactions import ImpulseInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.systems import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ..common.signals import PulseInteraction
 
 
 class LevitatedBallElement(Element):
@@ -138,7 +138,7 @@ class MagneticLevitationSystem(BaseSystem):
             self.label,
             elements=[LevitatedBallElement('ball', v=start, b=self.b, m=self.m)],
             interactions=[
-                ImpulseInteraction('push', target='ball', reset=push, period=IMPULSE_PERIOD, start=3.0),
-                ImpulseInteraction('pull', target='ball', reset=pull, period=IMPULSE_PERIOD, start=1.0),
+                PulseInteraction('push', target='ball', reset=push, period=IMPULSE_PERIOD, start=3.0),
+                PulseInteraction('pull', target='ball', reset=pull, period=IMPULSE_PERIOD, start=1.0),
             ],
         )

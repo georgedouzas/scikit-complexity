@@ -20,7 +20,6 @@ from skcomplex.core.components.interactions import (
     GroupingInteraction,
     HyperedgeInteraction,
     ImitationInteraction,
-    ImpulseInteraction,
     Interaction,
     JumpInteraction,
     LifeCycleInteraction,
@@ -62,11 +61,6 @@ RENAMED = {
     'crossing': (
         CrossingInteraction,
         lambda role: {'guard': lambda n: n.t - 0.5, 'reset': {'x': lambda n: getattr(n, role).x + 2}},
-        False,
-    ),
-    'impulse': (
-        ImpulseInteraction,
-        lambda role: {'reset': {'x': lambda n: getattr(n, role).x + 1}, 'times': (0.5,)},
         False,
     ),
     'map': (MapInteraction, lambda role: {'state': 'x', 'function': lambda n: getattr(n, role).x / 2 + 1}, True),
