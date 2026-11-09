@@ -51,14 +51,14 @@ class RelaxationInteraction(RateInteraction):
             The state is not a name, or a function is neither callable nor a number.
 
     Examples:
-        >>> from skcomplex.core.components.elements import CompartmentElement
+        >>> from skcomplex.core.components.elements import NonnegativeElement
         >>> from skcomplex.core.components.interactions import RelaxationInteraction
         >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> smoothing = RelaxationInteraction('smoothing', target='belief', state='n', goal=10.0, time=0.5)
-        >>> system = System(elements=[CompartmentElement('belief', n=0.0)], interactions=[smoothing])
+        >>> smoothing = RelaxationInteraction('smoothing', target='belief', state='x', goal=10.0, time=0.5)
+        >>> system = System(elements=[NonnegativeElement('belief', x=0.0)], interactions=[smoothing])
         >>> trajectory = simulate(system, until=5.0, dt=0.01)
-        >>> round(float(trajectory.values('belief.n')[-1]), 3)
+        >>> round(float(trajectory.values('belief.x')[-1]), 3)
         10.0
     """
 

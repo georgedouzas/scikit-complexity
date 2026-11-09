@@ -114,33 +114,32 @@ class ReactionInteraction(JumpInteraction):
             has an entry that is a pair, or has the mode `'langevin'`.
 
     Examples:
-        >>> from skcomplex.core.components.elements import CompartmentElement
+        >>> from skcomplex.core.components.elements import NonnegativeElement
         >>> from skcomplex.core.components.interactions import ReactionInteraction
         >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> infection = ReactionInteraction(
-        ...     'infection', reactants={('S', 'n'): 1, ('I', 'n'): 1}, products={('I', 'n'): 2}, k=0.0005
+        ...     'infection', reactants={('S', 'x'): 1, ('I', 'x'): 1}, products={('I', 'x'): 2}, k=0.0005
         ... )
-        >>> recovery = ReactionInteraction('recovery', reactants={('I', 'n'): 1}, products={('R', 'n'): 1}, k=0.1)
+        >>> recovery = ReactionInteraction('recovery', reactants={('I', 'x'): 1}, products={('R', 'x'): 1}, k=0.1)
         >>> system = System(
-        ...     elements=[CompartmentElement('S', n=990), CompartmentElement('I', n=10), CompartmentElement('R')],
+        ...     elements=[NonnegativeElement('S', x=990), NonnegativeElement('I', x=10), NonnegativeElement('R')],
         ...     interactions=[infection, recovery],
         ... )
         >>> states = simulate(system, until=50, dt=1.0).states
         >>> round(float(states[-1].sum()), 6)
         1000.0
 
-        The decay `n -> 0` at every site of a field, at the rate `k n` of the site:
+        The decay `x -> 0` at every site of a field, at the rate `k x` of the site:
 
         >>> import numpy as np
         >>> from skcomplex.core.components.elements import FieldElement
         >>> from skcomplex.core.components.spaces import LatticeSpace
-        >>> decay = ReactionInteraction('decay', target='cells', reactants={'n': 1}, k=1.0)
-        >>> values = {'n': np.arange(3.0)}
-        >>> cells = FieldElement('cells', element=CompartmentElement, space=LatticeSpace((3,)), values=values)
+        >>> decay = ReactionInteraction('decay', target='cells', reactants={'x': 1}, k=1.0)
+        >>> values = {'x': np.arange(3.0)}
+        >>> cells = FieldElement('cells', element=NonnegativeElement, space=LatticeSpace((3,)), values=values)
         >>> trajectory = simulate(System(elements=[cells], interactions=[decay]), until=1, dt=1.0)
-        >>> np.round(trajectory.lattice('cells.n')[-1], 3).tolist()
+        >>> np.round(trajectory.lattice('cells.x')[-1], 3).tolist()
         [0.0, 0.368, 0.736]
 
         A coefficient that is a parameter, the decay at the rate `x` that removes `1 / epsilon` units per event:

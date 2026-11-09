@@ -55,7 +55,7 @@ class StrangSplittingSolver(Solver):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.components.elements import DensityElement, FieldElement
+        >>> from skcomplex.core.components.elements import NonnegativeElement, FieldElement
         >>> from skcomplex.core.components.interactions import AdvectionInteraction, RelaxationInteraction
         >>> from skcomplex.core.components.laws.utils import coordinate, maximum_entropy
         >>> from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
@@ -66,15 +66,15 @@ class StrangSplittingSolver(Solver):
         >>> space = PhaseSpace(LatticeSpace((8,)), [AxisSpec('v', 16, -6.0, 6.0)]).prepare()
         >>> start = np.outer(2 + np.sin(2 * np.pi * np.arange(8) / 8), np.exp(-space.coordinates_['v'] ** 2))
         >>> gas = FieldElement(
-        ...     'gas', element=DensityElement, space=space, values={'f': start}, discretization='finite-volume'
+        ...     'gas', element=NonnegativeElement, space=space, values={'x': start}, discretization='finite-volume'
         ... )
-        >>> stream = AdvectionInteraction('s', target='gas', state='f', drift=lambda s: [coordinate('v'), 0])
+        >>> stream = AdvectionInteraction('s', target='gas', state='x', drift=lambda s: [coordinate('v'), 0])
         >>> relax = RelaxationInteraction(
-        ...     'r', target='gas', state='f', goal=lambda s: maximum_entropy(s.target.f, axes=('v',)), time=0.5
+        ...     'r', target='gas', state='x', goal=lambda s: maximum_entropy(s.target.x, axes=('v',)), time=0.5
         ... )
         >>> system = System(elements=[gas], interactions=[stream, relax])
         >>> solver = StrangSplittingSolver(SemiLagrangianSolver(dt=0.1), RK4Solver(dt=0.1), dt=0.1)
-        >>> final = simulate(system, until=0.2, solver=solver).values('gas.f')[-1]
+        >>> final = simulate(system, until=0.2, solver=solver).values('gas.x')[-1]
         >>> abs(float(final.sum() / start.sum()) - 1.0) < 1e-12
         True
     """

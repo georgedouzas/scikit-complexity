@@ -1,7 +1,7 @@
 ## 1. Core atom
 
-- [ ] 1.1 Add `src/skcomplex/core/components/elements/_nonnegative.py` with `NonnegativeElement(label, visual=None, *, x=0.0)`, state `x` in `[0, oo)`, export it from `elements/__init__.py`, and add `tests/core/components/elements/test_nonnegative.py` that checks the state, its domain, and a constant run
-- [ ] 1.2 Replace `CompartmentElement` and `DensityElement` in the docstrings of `interactions/_reaction.py`, `_rate.py`, `_relaxation.py`, `_gradient.py`, `_jump.py`, `engine/solvers/_gillespie.py`, `_semi_lagrangian.py`, and `_strang_splitting.py` with `NonnegativeElement` and the state `x`, and verify `pytest --doctest-modules src/skcomplex/core` passes
+- [x] 1.1 Add `src/skcomplex/core/components/elements/_nonnegative.py` with `NonnegativeElement(label, visual=None, *, x=0.0)`, state `x` in `[0, oo)`, export it from `elements/__init__.py`, and add `tests/core/components/elements/test_nonnegative.py` that checks the state, its domain, and a constant run
+- [x] 1.2 Replace `CompartmentElement` and `DensityElement` in the docstrings of `interactions/_reaction.py`, `_rate.py`, `_relaxation.py`, `_gradient.py`, `_jump.py`, `engine/solvers/_gillespie.py`, `_semi_lagrangian.py`, and `_strang_splitting.py` with `NonnegativeElement` and the state `x`, and verify `pytest --doctest-modules src/skcomplex/core` passes
 
 ## 2. Core group on sites
 

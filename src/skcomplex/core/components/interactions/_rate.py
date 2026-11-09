@@ -87,14 +87,14 @@ class RateInteraction(Interaction):
             index is outside `(0, 1)`, or the noise options cannot combine.
 
     Examples:
-        >>> from skcomplex.core.components.elements import CompartmentElement
+        >>> from skcomplex.core.components.elements import NonnegativeElement
         >>> from skcomplex.core.components.interactions import RateInteraction
         >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> decay = RateInteraction('decay', target='stock', state='n', rate=lambda s: -0.5 * s.target.n)
-        >>> system = System(elements=[CompartmentElement('stock', n=8.0)], interactions=[decay])
+        >>> decay = RateInteraction('decay', target='stock', state='x', rate=lambda s: -0.5 * s.target.x)
+        >>> system = System(elements=[NonnegativeElement('stock', x=8.0)], interactions=[decay])
         >>> trajectory = simulate(system, until=2.0, dt=0.01)
-        >>> round(float(trajectory.values('stock.n')[-1]), 3)
+        >>> round(float(trajectory.values('stock.x')[-1]), 3)
         2.943
     """
 

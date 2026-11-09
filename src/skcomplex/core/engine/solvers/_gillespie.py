@@ -28,13 +28,15 @@ class GillespieSolver(Solver):
         >>> import numpy as np
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.components.systems import System
-        >>> from skcomplex.core.components.elements import CompartmentElement
-        >>> from skcomplex.systems.biology.epidemiology import RecoveryInteraction
+        >>> from skcomplex.core.components.elements import NonnegativeElement
+        >>> from skcomplex.core.components.interactions import ReactionInteraction
         >>> from skcomplex.core.engine.solvers import GillespieSolver
         >>> from skcomplex.core.specs import StepSpec
         >>> system = System(
-        ...     elements=[CompartmentElement('I', n=10), CompartmentElement('R', n=0)],
-        ...     interactions=[RecoveryInteraction('rec', infected='I', recovered='R', gamma=1.0, stochastic=True)],
+        ...     elements=[NonnegativeElement('I', x=10), NonnegativeElement('R', x=0)],
+        ...     interactions=[
+        ...         ReactionInteraction('rec', reactants={('I', 'x'): 1}, products={('R', 'x'): 1}, k=1.0, mode='jump')
+        ...     ],
         ... )
         >>> problem = simulate(system, until=0).problem
         >>> stepper = GillespieSolver(random_state=0).prepare(problem)

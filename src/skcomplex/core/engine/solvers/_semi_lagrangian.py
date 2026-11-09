@@ -47,7 +47,7 @@ class SemiLagrangianSolver(Solver):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.components.elements import DensityElement, FieldElement
+        >>> from skcomplex.core.components.elements import NonnegativeElement, FieldElement
         >>> from skcomplex.core.components.interactions import AdvectionInteraction
         >>> from skcomplex.core.components.laws.utils import coordinate
         >>> from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
@@ -58,12 +58,12 @@ class SemiLagrangianSolver(Solver):
         >>> space = PhaseSpace(LatticeSpace((16,)), [AxisSpec('v', 8, -1.0, 1.0)]).prepare()
         >>> start = np.outer(2 + np.sin(2 * np.pi * np.arange(16) / 16), np.ones(8))
         >>> gas = FieldElement(
-        ...     'gas', element=DensityElement, space=space, values={'f': start}, discretization='finite-volume'
+        ...     'gas', element=NonnegativeElement, space=space, values={'x': start}, discretization='finite-volume'
         ... )
-        >>> stream = AdvectionInteraction('s', target='gas', state='f', drift=lambda s: [coordinate('v'), 0])
+        >>> stream = AdvectionInteraction('s', target='gas', state='x', drift=lambda s: [coordinate('v'), 0])
         >>> system = System(elements=[gas], interactions=[stream])
         >>> solver = SemiLagrangianSolver(dt=1.0)
-        >>> final = simulate(system, until=2.0, solver=solver).values('gas.f')[-1]
+        >>> final = simulate(system, until=2.0, solver=solver).values('gas.x')[-1]
         >>> abs(float(final.sum() / start.sum()) - 1.0) < 1e-12
         True
     """
