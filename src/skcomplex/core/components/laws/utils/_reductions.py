@@ -25,7 +25,6 @@ from ....types import AnyArray
 from ...spaces import (
     AdjacencyNeighborhood,
     BaseNeighborhood,
-    ConeNeighborhood,
     LatticeNeighborhood,
     MemoryNeighborhood,
     NearestNeighborhood,
@@ -676,8 +675,8 @@ def neighbors(
     graph of a network space by default, `AdjacencyNeighborhood()`, a layer of the network,
     `AdjacencyNeighborhood(layer=label)` or the `LayerSpec` itself, a lattice neighbourhood, or in a continuous space
     the members within a distance, `RadiusNeighborhood(r)`, the nearest members, `NearestNeighborhood(k)`, or the
-    members within a distance inside a cone around a direction, `ConeNeighborhood(r, angle)`. A reduction over no
-    neighbours is 0.
+    members within a distance inside a cone around a direction, `RadiusNeighborhood(r, angle=angle)`. A reduction over
+    no neighbours is 0.
 
     The reductions with the weight `w_j` of every neighbour `j` of the value `f_j` are `'sum'`, `sum_j w_j f_j`,
     `'mean'`, the sum divided by the number of neighbours, `'count'`, `sum_j w_j [f_j != 0]`, `'max'` and `'min'`, the
@@ -767,7 +766,7 @@ def hyperedges(
     triangles around a member. A reduction over no hyperedges is 0.
 
     The hyperedges are those of the network space of the group by default. In a continuous space, `over` is a
-    neighbourhood, `RadiusNeighborhood(r)`, `NearestNeighborhood(k)`, or `ConeNeighborhood(r, angle)`, and the
+    neighbourhood, `RadiusNeighborhood(r)` with an optional `angle`, or `NearestNeighborhood(k)`, and the
     hyperedges around a member are the member with every set of `size - 1` of its current neighbours, the other members
     in increasing member order, for a size of at most 5. The sets follow the motion of the members, found again at
     every evaluation, and their number grows as `d^(size - 1)` for `d` neighbours.
@@ -821,10 +820,10 @@ def hyperedges(
     ):
         error_msg = f'A hyperedge reduction takes a size of 2 or more, or None for every size, not {size!r}.'
         raise ValidationError(error_msg)
-    if over is not None and not isinstance(over, RadiusNeighborhood | NearestNeighborhood | ConeNeighborhood):
+    if over is not None and not isinstance(over, RadiusNeighborhood | NearestNeighborhood):
         error_msg = (
-            f'A hyperedge reduction runs over the neighbours of a continuous space, not {over!r}. Reduce over Radius, '
-            'Nearest, or Cone.'
+            f'A hyperedge reduction runs over the neighbours of a continuous space, not {over!r}. Reduce over '
+            'Radius or Nearest.'
         )
         raise ValidationError(error_msg)
     if over is not None and size is None:

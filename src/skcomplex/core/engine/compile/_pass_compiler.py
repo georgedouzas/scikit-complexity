@@ -9,6 +9,7 @@ The system is first validated against what the passes need.
 import dataclasses
 import heapq
 import inspect
+import math
 from collections import defaultdict
 from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
 
@@ -48,7 +49,6 @@ from ...components.spaces import (
     CayleySpace,
     CellComplexSpace,
     CofaceNeighborhood,
-    ConeNeighborhood,
     ContinuousSpace,
     ContinuousTime,
     DiscreteTime,
@@ -56,6 +56,7 @@ from ...components.spaces import (
     MeshSpace,
     NetworkSpace,
     PhaseSpace,
+    RadiusNeighborhood,
     SimplexSpace,
     StaticTime,
 )
@@ -1614,7 +1615,7 @@ class PassCompiler(BaseCompiler):
             )
         return (
             'Give the group a network or lattice space, or reduce over a `RadiusNeighborhood`, a '
-            '`NearestNeighborhood`, a `ConeNeighborhood`, or a `DelaunayNeighborhood` in a continuous space, or over a '
+            '`NearestNeighborhood`, or a `DelaunayNeighborhood` in a continuous space, or over a '
             'layer of a network with `AdjacencyNeighborhood(layer)`.'
         )
 
@@ -1724,13 +1725,13 @@ class PassCompiler(BaseCompiler):
                     fix = "Declare the position with `StateSpec(vector=True, role='position')`."
                     issues.append(IssueSpec('law-domain', record.path, message, fix))
                     continue
-                if isinstance(over, ConeNeighborhood):
+                if isinstance(over, RadiusNeighborhood) and float(over.angle) < math.pi:
                     try:
                         NeighborhoodKernel._cone_direction(over, states, getattr(record.space, 'n_dim_', 0))
                     except ValidationError as error:
                         fix = (
                             "Declare the position of order 2, `StateSpec(vector=True, order=2, role='position')`, or "
-                            "name a direction state, such as `ConeNeighborhood(r, angle, direction='theta')`."
+                            "name a direction state, such as `RadiusNeighborhood(r, angle=angle, direction='theta')`."
                         )
                         issues.append(IssueSpec('law-domain', record.path, f'The {name}: {error}', fix))
         return issues

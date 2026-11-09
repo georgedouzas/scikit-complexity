@@ -7,12 +7,13 @@ They are found at every evaluation.
 # License: MIT
 
 
+import math
+
 import numpy as np
 import numpy.typing as npt
 from scipy.spatial import Delaunay, QhullError, cKDTree
 
 from ...components.spaces import (
-    ConeNeighborhood,
     DelaunayNeighborhood,
     NearestNeighborhood,
     RadiusNeighborhood,
@@ -50,7 +51,7 @@ class MetricSearch(BaseSearch):
 
     def __init__(
         self,
-        neighbourhood: RadiusNeighborhood | NearestNeighborhood | ConeNeighborhood | DelaunayNeighborhood,
+        neighbourhood: RadiusNeighborhood | NearestNeighborhood | DelaunayNeighborhood,
         positions: EntrySpec,
         periods: tuple[float, ...] | None = None,
         direction: DirectionSpec | None = None,
@@ -121,7 +122,7 @@ class MetricSearch(BaseSearch):
             pairs = tree.query_pairs(neighbourhood.radius, output_type='ndarray').astype(np.intp)
             readers = np.concatenate([pairs[:, 0], pairs[:, 1]])
             others = np.concatenate([pairs[:, 1], pairs[:, 0]])
-            if isinstance(neighbourhood, ConeNeighborhood):
+            if isinstance(neighbourhood, RadiusNeighborhood) and float(neighbourhood.angle) < math.pi:
                 keep = self._inside(x, readers, others, neighbourhood)
                 readers, others = readers[keep], others[keep]
         if neighbourhood.center:
@@ -171,7 +172,7 @@ class MetricSearch(BaseSearch):
         pairs = np.unique(np.stack([readers[keep], others[keep]], axis=1), axis=0)
         return pairs[:, 0].astype(np.intp), pairs[:, 1].astype(np.intp)
 
-    def _inside(self, x: Array, readers: Indices, others: Indices, cone: ConeNeighborhood) -> npt.NDArray[np.bool_]:
+    def _inside(self, x: Array, readers: Indices, others: Indices, cone: RadiusNeighborhood) -> npt.NDArray[np.bool_]:
         """Return whether every pair has its neighbour inside the reader's cone."""
         assert self.direction is not None
         separation = -self.differences(x, readers, others)

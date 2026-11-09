@@ -51,7 +51,7 @@
   replace the class in the engine tests (`test_base.py`, `test_numba_neighbours.py`, `test_jacobians.py`,
   `test_pass_compiler.py`, `test_velocity_verlet.py`). Verify with those tests and with `tests/systems` for
   `collective_behaviour`, `active_matter`, `synchronization`, `common/particles`, and `crowds`.
-- [ ] 4.3 Merge `ConeNeighborhood` into `RadiusNeighborhood(radius, *, angle=pi, direction=None, center=False)`. Key the
+- [x] 4.3 Merge `ConeNeighborhood` into `RadiusNeighborhood(radius, *, angle=pi, direction=None, center=False)`. Key the
   filter of `_metric_search.py`, `_neighborhood_kernel.py`, `_numba_printer.py`, `_pass_compiler.py`,
   `_reduction_lowering.py`, and `laws/utils/_reductions.py` on `angle < pi`. Move `test_cone.py` into
   `test_radius.py`. Migrate `physics/active_matter/_flocks.py` and the networks page of the user guide. Verify with

@@ -7,6 +7,7 @@ The functions are fused and come with their layout slots.
 # License: MIT
 
 import hashlib
+import math
 import re
 from collections.abc import Callable, Mapping, Sequence
 
@@ -14,7 +15,7 @@ import numpy as np
 import scipy.sparse
 from sage.all__sagemath_symbolics import Expression
 
-from ...components.spaces import ConeNeighborhood, DelaunayNeighborhood, NearestNeighborhood
+from ...components.spaces import DelaunayNeighborhood, NearestNeighborhood, RadiusNeighborhood
 from ...errors import BackendError, ValidationError
 from ...specs import EntrySpec, ReadSpec
 from .._utils import symbols_of
@@ -947,7 +948,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         if isinstance(neighbourhood, NearestNeighborhood):
             call = f'_nearest_neighbours(_pos{index}_, {neighbourhood.k}, _per{index}_, {periodic}, {center})'
             return [*lines, f'{INDENT}_ip{index}_, _ix{index}_ = {call}']
-        if not isinstance(neighbourhood, ConeNeighborhood):
+        if not (isinstance(neighbourhood, RadiusNeighborhood) and float(neighbourhood.angle) < math.pi):
             call = f'_radius_neighbours(_pos{index}_, {neighbourhood.radius!r}, _per{index}_, {periodic}, {center})'
             return [*lines, f'{INDENT}_ip{index}_, _ix{index}_ = {call}']
         direction = search.direction

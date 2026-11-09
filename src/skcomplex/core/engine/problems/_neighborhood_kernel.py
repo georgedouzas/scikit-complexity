@@ -8,6 +8,7 @@ It is compiled into a function of its symbols.
 
 import functools
 import itertools
+import math
 from collections.abc import Callable, Mapping
 
 import networkx as nx
@@ -23,7 +24,6 @@ from ...components.spaces import (
     CayleySpace,
     CellComplexSpace,
     CofaceNeighborhood,
-    ConeNeighborhood,
     ContinuousSpace,
     DelaunayNeighborhood,
     LatticeNeighborhood,
@@ -46,7 +46,7 @@ from ._static_search import StaticSearch
 _SPACES_OF: tuple[tuple[type | tuple[type, ...], tuple[type, ...]], ...] = (
     (AdjacencyNeighborhood, (NetworkSpace,)),
     ((LatticeNeighborhood, MemoryNeighborhood), (LatticeSpace, CayleySpace)),
-    ((RadiusNeighborhood, NearestNeighborhood, ConeNeighborhood, DelaunayNeighborhood), (ContinuousSpace,)),
+    ((RadiusNeighborhood, NearestNeighborhood, DelaunayNeighborhood), (ContinuousSpace,)),
     (CofaceNeighborhood, (CellComplexSpace,)),
 )
 """Spaces every kind of neighbourhood is read on."""
@@ -576,7 +576,7 @@ class NeighborhoodKernel(BaseKernel):
         return next((name for name, item in states.items() if item.is_place), None)
 
     @staticmethod
-    def _cone_direction(cone: ConeNeighborhood, states: Mapping[str, VariableSpec], n_dim: int) -> str:
+    def _cone_direction(cone: RadiusNeighborhood, states: Mapping[str, VariableSpec], n_dim: int) -> str:
         """Return the state that holds the direction of a cone.
 
         It is the named state, else the derivative of the position.
@@ -606,7 +606,7 @@ class NeighborhoodKernel(BaseKernel):
             >>> from skcomplex.core.engine.problems._neighborhood_kernel import NeighborhoodKernel
             >>> from skcomplex.core.types import VariableKind
             >>> from skcomplex.core.engine._utils import declarations_of
-            >>> from skcomplex.core.components.spaces import ConeNeighborhood
+            >>> from skcomplex.core.components.spaces import RadiusNeighborhood
             >>> class BoidElement(Element):
             ...     def __init__(
             ...         self,
@@ -618,7 +618,7 @@ class NeighborhoodKernel(BaseKernel):
             ...         self.x = x
             ...         self.theta = theta
             >>> states = declarations_of(BoidElement, VariableKind.STATE)
-            >>> NeighborhoodKernel._cone_direction(ConeNeighborhood(1.0, 1.0, direction='theta'), states, 2)
+            >>> NeighborhoodKernel._cone_direction(RadiusNeighborhood(1.0, angle=1.0, direction='theta'), states, 2)
             'theta'
         """
         if cone.direction is not None:
@@ -635,7 +635,7 @@ class NeighborhoodKernel(BaseKernel):
             error_msg = (
                 'The cone has no direction: the position of the members has no first derivative. Declare the position '
                 "of order 2, `state(vector=True, order=2, role='position')`, or name a direction state, such as "
-                "`ConeNeighborhood(r, angle, direction='theta')`."
+                "`RadiusNeighborhood(r, angle=angle, direction='theta')`."
             )
             raise ValidationError(error_msg)
         return f'{position}_d1'
@@ -671,7 +671,6 @@ class NeighborhoodKernel(BaseKernel):
             | MemoryNeighborhood
             | RadiusNeighborhood
             | NearestNeighborhood
-            | ConeNeighborhood
             | DelaunayNeighborhood
         ),
         space: object,
@@ -738,7 +737,7 @@ class NeighborhoodKernel(BaseKernel):
         continuous = space
         periods = continuous.extent_ if continuous.periodic_ else None
         direction = None
-        if isinstance(over, ConeNeighborhood):
+        if isinstance(over, RadiusNeighborhood) and float(over.angle) < math.pi:
             name = NeighborhoodKernel._cone_direction(over, states, continuous.n_dim_)
             direction = DirectionSpec(entries[name], not states[name].vector) if name in entries else None
             if direction is None:

@@ -28,7 +28,6 @@ from ....components.spaces import (
     AdjacencyNeighborhood,
     CellComplexSpace,
     CofaceNeighborhood,
-    ConeNeighborhood,
     ContinuousSpace,
     DelaunayNeighborhood,
     LatticeNeighborhood,
@@ -1194,7 +1193,6 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
                 | MemoryNeighborhood
                 | RadiusNeighborhood
                 | NearestNeighborhood
-                | ConeNeighborhood
                 | DelaunayNeighborhood,
             ):
                 error_msg = (
@@ -1432,7 +1430,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             indptr, tables = HyperedgeTables._incidences(cast(NetworkSpace, block.node.space), size)
             return StaticSearch(indptr, np.arange(indptr[-1], dtype=np.intp)).prepare(), tables
         states = declarations_of(block.node.component_type, VariableKind.STATE)
-        over = cast(RadiusNeighborhood | NearestNeighborhood | ConeNeighborhood, reduction.over).prepare()
+        over = cast(RadiusNeighborhood | NearestNeighborhood, reduction.over).prepare()
         search = NeighborhoodKernel._neighbor_search(over, block.node.space, block.rows, block.entries, states)
         return cast(MetricSearch, search), None
 

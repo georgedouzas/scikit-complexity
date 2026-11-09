@@ -12,7 +12,6 @@ from ._base import BaseNeighborhood, BaseSpace, BaseTime
 from ._cayley import CayleySpace
 from ._cell_complex import CellComplexSpace
 from ._coface import CofaceNeighborhood
-from ._cone import ConeNeighborhood
 from ._continuous import ContinuousSpace
 from ._continuous_time import ContinuousTime
 from ._delaunay import DelaunayNeighborhood
@@ -39,7 +38,6 @@ __all__: list[str] = [
     'CayleySpace',
     'CellComplexSpace',
     'CofaceNeighborhood',
-    'ConeNeighborhood',
     'ContinuousSpace',
     'ContinuousTime',
     'DelaunayNeighborhood',

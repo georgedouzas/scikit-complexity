@@ -21,7 +21,6 @@ from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import lag, neighbors, uniform, where
 from ....core.components.spaces import (
     BaseNeighborhood,
-    ConeNeighborhood,
     ContinuousSpace,
     DiscreteTime,
     NearestNeighborhood,
@@ -610,7 +609,7 @@ class VicsekSystem(BaseSystem):
         if self.neighbors is not None:
             neighborhood = NearestNeighborhood(self.neighbors, center=True)
         if self.vision is not None:
-            neighborhood = ConeNeighborhood(1.0, self.vision, direction='theta', center=True)
+            neighborhood = RadiusNeighborhood(1.0, angle=self.vision, direction='theta', center=True)
         alignment = HeadingAlignmentInteraction(
             'alignment',
             target='flock',

@@ -377,9 +377,9 @@ over the other members of the difference of `read`. In the map form it sets the 
 
 In a continuous space the hyperedges around a member need not be fixed. With `over`, a neighbourhood of the space,
 `hyperedges(expression, size=k, over=RadiusNeighborhood(r))` reduces over the hyperedges that every member forms with
-each set of `k - 1` of its current neighbours, the other members of a set in increasing member order. The sets are
-found again from the positions at every evaluation, so a member that enters or leaves the neighbourhood joins or leaves
-every set at once. `NearestNeighborhood(k)` and `ConeNeighborhood(r, angle)` work too. Such sets carry the many-body
+each set of `k - 1` of its current neighbours, the other members of a set in increasing member order. The sets are found
+again from the positions at every evaluation, so a member that enters or leaves the neighbourhood joins or leaves every
+set at once. `NearestNeighborhood(k)` and `RadiusNeighborhood(r, angle=angle)` work too. Such sets carry the many-body
 terms of flocks and schools, three-body potentials such as Axilrod-Teller and Stillinger-Weber, and group interactions
 in crowds and social models. `CouplingInteraction(mode='hyperedges', size=k, neighborhood=...)` couples every member
 through them. A three-body alignment that acts only on a member whose two neighbours flank it:
@@ -578,7 +578,7 @@ problem.states.read(drift, 'nodes.u').tolist()
 - the neighbours of a network, by default,
 - a layer, with `AdjacencyNeighborhood(layer=label)`,
 - the neighbourhood of a lattice,
-- in a continuous space, `RadiusNeighborhood(r)`, `NearestNeighborhood(k)`, `ConeNeighborhood(r, angle)`, and
+- in a continuous space, `RadiusNeighborhood(r)` with an optional `angle` for a cone, `NearestNeighborhood(k)`, and
   `DelaunayNeighborhood()`, the members joined by an edge of the Delaunay triangulation of the positions, such as
   cells joined by springs, computed again every step and across periodic boundaries, on the NumPy backend.
 
