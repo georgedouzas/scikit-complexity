@@ -146,10 +146,10 @@ Same procedure as group 3.
 
 ## 12. Documents
 
-- [ ] 12.1 Add a section per general system to the page of `skcomplex.systems.general` in the systems guide, not to
-  `core_components/systems.md`, named after the class, with one plain sentence, examples from two fields, and the link
-  to the generated table of the parts page. Create the page in the layout of `rewrite-docstrings-and-docs` if it does
-  not exist yet. Verify with
+- [ ] 12.1 Add a section per general system to `core_components/general.md`, the page of `skcomplex.systems.general`
+  in the layout of `rewrite-docstrings-and-docs`, not to `core_components/systems.md`, named after the class, with one
+  plain sentence, examples from two fields, and the link to the generated table of the parts page. If that layout does
+  not exist yet, add them to the page on shared realizations that `move-recipes-to-systems` writes. Verify with
   `pytest-markdown-docs` that every block runs.
 - [ ] 12.2 Update `docs/overview/user_guide/system_classes.md` to name the general systems, and replace in the user
   guide and the gallery every use of a removed element class. Verify with `pytest-markdown-docs` and a search for the

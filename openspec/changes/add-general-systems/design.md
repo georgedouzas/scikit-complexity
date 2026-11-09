@@ -52,7 +52,8 @@ such systems among the declared-state shapes, such as `LorenzSystem`, `RosslerSy
 
 - Four general systems that each remove the element class and the threefold parameter list of their field systems.
 - Rebases that keep every public name, parameter, state name, tag, and trajectory of a system.
-- Examples of each general system from two fields, in its docstring and in the systems guide.
+- Examples of each general system from two fields, in its docstring and on the page of
+  `skcomplex.systems.general` in the guide.
 
 **Non-Goals:**
 

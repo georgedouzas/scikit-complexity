@@ -30,7 +30,8 @@ concept subpackage of `skcomplex.systems.general` (step 3). The four systems sha
   hooks of the system, so no model is lost. The design lists the rule, and the tasks list the classes per module.
 - The system-dynamics translator writes a subclass of `StockFlowSystem` for a file whose stocks are not subscripted
   and change only through flow variables.
-- The systems guide gets one section per general system, with examples from two fields each.
+- The page of `skcomplex.systems.general` in the guide, `core_components/general.md`, gets one section per general
+  system, with examples from two fields each.
 - Shapes the audit rejects stay as they are: replicator dynamics, Markov chains, cellular automata, Hamiltonian and
   Lagrangian systems, agent-based systems, particles in continuous space, flux balance models, and Boolean networks.
   The design gives each reason.
@@ -56,8 +57,9 @@ concept subpackage of `skcomplex.systems.general` (step 3). The four systems sha
 - Systems: modules of biology, chemistry, computer science, economics, engineering, mathematics, physics, and social
   that hold a rebased system. The element classes that only those systems use leave them and their `__init__.py`.
 - Tests: new mirrored tests under `tests/systems/general/dynamics`, and the tests of every rebased module.
-- Documents: `docs/overview/user_guide/system_classes.md`, the page of `skcomplex.systems.general` in the systems guide,
-  the generated parts page of systems, the gallery examples that name a leaving element class, and the changelog.
+- Documents: `docs/overview/user_guide/system_classes.md`, the page of `skcomplex.systems.general`
+  (`core_components/general.md`), the generated parts page of systems, the gallery examples that name a leaving element
+  class, and the changelog.
 - Inventory: `docs/overview/inventory.toml` entries whose components change.
 - Ordering: lands after `slim-core-elements-and-spaces`, `rename-core-systems`, `slim-core-interactions`,
   `slim-core-laws`, and `move-recipes-to-systems`, which creates `skcomplex.systems.general`, and uses their names and
