@@ -20,7 +20,7 @@ from scipy.special import rel_entr
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction, SamplingInteraction
-from ....core.components.laws import BaseLaw, DriveLaw
+from ....core.components.laws import ArrayUpdateLaw, BaseLaw
 from ....core.components.spaces import DiscreteTime, LatticeSpace
 from ....core.components.specs import CompiledElementSpec
 from ....core.components.systems import BaseSystem, RunSettings, System
@@ -133,7 +133,7 @@ class EnsembleReplayInteraction(Interaction):
         'x'
     """
 
-    law_classes = (DriveLaw,)
+    law_classes = (ArrayUpdateLaw,)
 
     def __init__(
         self,
@@ -154,7 +154,7 @@ class EnsembleReplayInteraction(Interaction):
 
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseLaw]:
         """Return the drive of the state."""
-        return [DriveLaw(getattr(self._get_member(namespace, 'target'), self.state), self._read_member)]
+        return [ArrayUpdateLaw(getattr(self._get_member(namespace, 'target'), self.state), self._read_member)]
 
 
 class BackboneVisual(PointsVisual):

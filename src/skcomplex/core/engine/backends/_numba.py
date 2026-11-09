@@ -20,12 +20,12 @@ import numpy as np
 from numba.core.dispatcher import Dispatcher
 
 from ...components.laws import (
+    ArrayUpdateLaw,
     BilinearLaw,
     BoundaryLaw,
     CascadeLaw,
     CrossingLaw,
     DissipatorLaw,
-    DriveLaw,
     EquationLaw,
     ExtremalLaw,
     FluxLaw,
@@ -141,7 +141,7 @@ class NumbaBackend(BaseBackend):
                 BoundaryLaw,
                 CrossingLaw,
                 DissipatorLaw,
-                DriveLaw,
+                ArrayUpdateLaw,
                 EquationLaw,
                 ExtremalLaw,
                 FluxLaw,

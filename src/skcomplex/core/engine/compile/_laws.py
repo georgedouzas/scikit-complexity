@@ -8,11 +8,11 @@ The values the arguments of a law hold are read.
 
 
 from ...components.laws import (
+    ArrayUpdateLaw,
     BilinearLaw,
     BoundaryLaw,
     CascadeLaw,
     CrossingLaw,
-    DriveLaw,
     ExtremalLaw,
     FluxLaw,
     LinearProgramLaw,
@@ -29,7 +29,7 @@ _KERNEL_FREE_LAWS = (
     TransferLaw,
     BilinearLaw,
     LocalRuleLaw,
-    DriveLaw,
+    ArrayUpdateLaw,
     CascadeLaw,
     ExtremalLaw,
     SampleLaw,
@@ -38,7 +38,7 @@ _KERNEL_FREE_LAWS = (
 )
 """Laws that their own passes lower, which no numeric kernel is written for."""
 
-LATTICE_LAWS = (LocalRuleLaw, DriveLaw, CascadeLaw, ExtremalLaw, SampleLaw)
+LATTICE_LAWS = (LocalRuleLaw, ArrayUpdateLaw, CascadeLaw, ExtremalLaw, SampleLaw)
 """Laws that update the sites of lattices and networks."""
 
 _AGENT_LAWS = (RuleLaw,)

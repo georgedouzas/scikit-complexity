@@ -33,7 +33,7 @@ from ...specs import (
     Tags,
 )
 from ...types import Array, ComplexArray, ElementKind, Indices
-from ..laws import BaseLaw, DriveLaw, SampleLaw
+from ..laws import ArrayUpdateLaw, BaseLaw, SampleLaw
 from ..spaces import (
     AdjacencyNeighborhood,
     BallNeighborhood,
@@ -315,7 +315,7 @@ class SamplingInteraction(Interaction):
         [0.0, 1.0, 2.0, 3.0]
     """
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (DriveLaw, SampleLaw)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (ArrayUpdateLaw, SampleLaw)
 
     def _get_tags(self) -> Tags:
         """Return the tags of a Monte Carlo sweep of a function, or of score drives.
@@ -323,7 +323,7 @@ class SamplingInteraction(Interaction):
         The drives are of a declared score, which draw.
         """
         sweep = callable(self._get_argument('objective'))
-        return self._get_variant_tags((SampleLaw,) if sweep else (DriveLaw,), stochastic=True)
+        return self._get_variant_tags((SampleLaw,) if sweep else (ArrayUpdateLaw,), stochastic=True)
 
     def __init__(
         self,
@@ -835,11 +835,11 @@ class SamplingInteraction(Interaction):
         target = getattr(self._get_member(namespace, 'target'), self.state)
         declared = getattr(self, self._get_parameter('objective'))
         if isinstance(declared, RowScoreSpec):
-            return [DriveLaw(target, self._accept_rows, label=self.label, score=self._score_rows)]
+            return [ArrayUpdateLaw(target, self._accept_rows, label=self.label, score=self._score_rows)]
         if isinstance(declared, HolonomyScoreSpec):
-            return [DriveLaw(target, self._sample_holonomies, label=self.label)]
+            return [ArrayUpdateLaw(target, self._sample_holonomies, label=self.label)]
         if isinstance(declared, RegionScoreSpec):
-            return [DriveLaw(target, self._sample_regions, label=self.label)]
+            return [ArrayUpdateLaw(target, self._sample_regions, label=self.label)]
         over = BallNeighborhood(metric='manhattan') if self.neighborhood is None else self.neighborhood
         objective = ObjectiveSpec(declared(namespace), over)
         intensity = self._get_intensity(namespace)

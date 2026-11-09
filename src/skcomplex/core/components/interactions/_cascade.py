@@ -16,7 +16,7 @@ import numpy as np
 from ...errors import ValidationError
 from ...specs import BaseSpec, RoleSpec
 from ...types import Array, ElementKind
-from ..laws import BaseLaw, CascadeLaw, DriveLaw, LocalRuleLaw
+from ..laws import ArrayUpdateLaw, BaseLaw, CascadeLaw, LocalRuleLaw
 from ..spaces import BallNeighborhood, BaseNeighborhood, BaseSpace, LatticeNeighborhood
 from ._neighbor import NeighborInteraction
 
@@ -79,7 +79,7 @@ class CascadeInteraction(NeighborInteraction):
         'redistribute'
     """
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (CascadeLaw, DriveLaw, LocalRuleLaw)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (CascadeLaw, ArrayUpdateLaw, LocalRuleLaw)
 
     def _draws(self) -> bool:
         """Return whether the cascade draws.
@@ -206,12 +206,12 @@ class CascadeInteraction(NeighborInteraction):
         """
         value = getattr(self._get_member(namespace, 'target'), self.state)
         threshold, share = self.threshold, self.share
-        drive = [] if self.drive is None else [DriveLaw(value, self.drive)]
+        drive = [] if self.drive is None else [ArrayUpdateLaw(value, self.drive)]
         neighborhood = self.neighborhood
         if neighborhood is None:
             neighborhood = BallNeighborhood(metric='manhattan', center='first')
         if self.mode == 'random' and isinstance(neighborhood, LatticeNeighborhood):
-            relax: list[BaseLaw] = [DriveLaw(value, self._scatter(neighborhood, threshold, share))]
+            relax: list[BaseLaw] = [ArrayUpdateLaw(value, self._scatter(neighborhood, threshold, share))]
         else:
             relax = [LocalRuleLaw(value, neighborhood, self._relax(threshold, share))]
         return [

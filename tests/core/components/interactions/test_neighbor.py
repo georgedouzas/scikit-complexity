@@ -10,7 +10,7 @@ from sage.all__sagemath_symbolics import sin
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import NeighborInteraction
-from skcomplex.core.components.laws import CascadeLaw, DriveLaw, JumpLaw, LocalRuleLaw, RateLaw, UpdateLaw
+from skcomplex.core.components.laws import ArrayUpdateLaw, CascadeLaw, JumpLaw, LocalRuleLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import delayed, mean
 from skcomplex.core.components.spaces import (
     AdjacencyNeighborhood,
@@ -569,7 +569,7 @@ def _sandpile(height, over):
     """Return a relaxation that drops a grain on site 2 and topples sites of three grains over a neighbourhood."""
     return [
         CascadeLaw(
-            drive=[DriveLaw(height, lambda values, *, random: values + (np.arange(values.size) == 2))],
+            drive=[ArrayUpdateLaw(height, lambda values, *, random: values + (np.arange(values.size) == 2))],
             relax=[
                 LocalRuleLaw(
                     height,

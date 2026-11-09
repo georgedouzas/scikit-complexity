@@ -1,6 +1,6 @@
-"""Define drive laws.
+"""Define array update laws.
 
-A drive law changes a whole lattice state at once.
+An array update law sets a whole lattice state at once from a function of its array.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -18,8 +18,8 @@ from ..spaces import DiscreteTime, LatticeSpace, NetworkSpace
 from ._base import BaseLaw
 
 
-class DriveLaw(BaseLaw):
-    """Change of a whole lattice state at once by a function of its array.
+class ArrayUpdateLaw(BaseLaw):
+    """Update of a whole lattice state at once by a function of its array.
 
     An example is adding 1 at a random site. The function receives the state as an array of the lattice shape, or of one
     row per member of a group on the edges or hyperedges of a network, with the components of a state of several
@@ -43,8 +43,8 @@ class DriveLaw(BaseLaw):
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws import DriveLaw
-        >>> DriveLaw(var('height'), lambda values, *, random: values + 1).prepare().targets_
+        >>> from skcomplex.core.components.laws import ArrayUpdateLaw
+        >>> ArrayUpdateLaw(var('height'), lambda values, *, random: values + 1).prepare().targets_
         (height,)
     """
 
@@ -64,16 +64,16 @@ class DriveLaw(BaseLaw):
         self.score = score
 
     def _get_targets(self) -> tuple[object, ...]:
-        """Return the lattice state the drive changes, or the symbols of its components."""
+        """Return the lattice state the update changes, or the symbols of its components."""
         return tuple(self.target) if isinstance(self.target, FreeModuleElement) else (self.target,)
 
     @classmethod
     def _get_requirements(cls) -> RequirementSpec:
-        """Return what drives require of a system: discrete time on a lattice or a network."""
+        """Return what array updates require of a system: discrete time on a lattice or a network."""
         return RequirementSpec(time=(DiscreteTime,), space=(LatticeSpace, NetworkSpace))
 
     def _get_law_requirements(self) -> RequirementSpec:
-        """Return what this drive requires of a system: only a lattice with a score."""
+        """Return what this array update requires of a system: only a lattice with a score."""
         if self.score is None:
             return self._get_requirements()
         return RequirementSpec(time=(DiscreteTime,), space=(LatticeSpace,))
@@ -87,5 +87,5 @@ class DriveLaw(BaseLaw):
         """
         super()._prepare(context)
         if not callable(self.function):
-            error_msg = f'The function of a drive must be callable, but it is {self.function!r}.'
+            error_msg = f'The function of an array update must be callable, but it is {self.function!r}.'
             raise ValidationError(error_msg)

@@ -23,7 +23,7 @@ and its visuals are parts of the engine, beside those of every other kind.
 | Kind | Core | Engine |
 | --- | --- | --- |
 | agents | `RuleLaw`, `MatchLaw` | the agents passes, `MesaSolver` |
-| lattices | `LocalRuleLaw`, `LocalRuleInteraction`, `DriveLaw`, `CascadeLaw`, `ExtremalLaw`, `GroupElement`, `LatticeSpace`, `ObjectiveSpec`, `SamplerSpec` | `LatticeSolver`, `MonteCarloSolver` |
+| lattices | `LocalRuleLaw`, `LocalRuleInteraction`, `ArrayUpdateLaw`, `CascadeLaw`, `ExtremalLaw`, `GroupElement`, `LatticeSpace`, `ObjectiveSpec`, `SamplerSpec` | `LatticeSolver`, `MonteCarloSolver` |
 | finitely generated groups | `CayleySpace` | `CayleyVisual` |
 | rewriting | `ProductionLaw`, `SubstitutionLaw`, `WordElement`, `PatchElement` | the rewriting compiler, `RewritingSolver`, `GeometryVisual` |
 | operator | `GeneratorLaw`, `DissipatorLaw`, `HilbertSpec` | the operator compiler, `UnitarySolver`, `LindbladSolver`, `JumpTrajectoriesSolver` |

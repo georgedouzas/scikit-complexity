@@ -3,13 +3,13 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from ._array_update import ArrayUpdateLaw
 from ._base import BaseLaw
 from ._bilinear import BilinearLaw
 from ._boundary import BoundaryLaw
 from ._cascade import CascadeLaw
 from ._crossing import CrossingLaw
 from ._dissipator import DissipatorLaw
-from ._drive import DriveLaw
 from ._equation import EquationLaw
 from ._extremal import ExtremalLaw
 from ._flux import FluxLaw
@@ -30,13 +30,13 @@ from ._transition import TransitionLaw
 from ._update import UpdateLaw
 
 __all__: list[str] = [
+    'ArrayUpdateLaw',
     'BaseLaw',
     'BilinearLaw',
     'BoundaryLaw',
     'CascadeLaw',
     'CrossingLaw',
     'DissipatorLaw',
-    'DriveLaw',
     'EquationLaw',
     'ExtremalLaw',
     'FluxLaw',

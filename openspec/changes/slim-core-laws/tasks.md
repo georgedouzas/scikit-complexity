@@ -67,14 +67,14 @@ when other agents run tests at the same time.
 
 ## 4. Array update law
 
-- [ ] 4.1 Rename `DriveLaw` to `ArrayUpdateLaw` in `laws/_array_update.py`, with its docstring and doctest, and rename
+- [x] 4.1 Rename `DriveLaw` to `ArrayUpdateLaw` in `laws/_array_update.py`, with its docstring and doctest, and rename
   `tests/core/components/laws/test_drive.py` to `test_array_update.py`, and verify it passes
-- [ ] 4.2 Rename every use in `laws/_base.py`, `interactions/_sampling.py`, `_cascade.py`, `compile/_forms.py`,
+- [x] 4.2 Rename every use in `laws/_base.py`, `interactions/_sampling.py`, `_cascade.py`, `compile/_forms.py`,
   `compile/_laws.py`, `compile/passes/_lattices.py`, `solvers/_lattice.py`, and the numpy and numba backends, and
   verify `pytest tests/core` passes
-- [ ] 4.3 Rename the uses in `physics/common/spins/_spin_sampling.py` and `biology/systems_biology/_fuzzy_oil_drop.py`,
+- [x] 4.3 Rename the uses in `physics/common/spins/_spin_sampling.py` and `biology/systems_biology/_fuzzy_oil_drop.py`,
   and verify their system tests pass
-- [ ] 4.4 Update `general_interactions.md`, `kinds_of_dynamics.md`, and `lattice_systems.md`, and verify their markdown
+- [x] 4.4 Update `general_interactions.md`, `kinds_of_dynamics.md`, and `lattice_systems.md`, and verify their markdown
   doctests pass and `grep -rn DriveLaw src tests docs` finds nothing
 
 ## 5. Collision integral

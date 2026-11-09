@@ -9,8 +9,8 @@ A set of law classes compiles to a form, and the form of a set of components is 
 import itertools
 
 from ...components.laws import (
+    ArrayUpdateLaw,
     CascadeLaw,
-    DriveLaw,
     ExtremalLaw,
     JumpLaw,
     LocalRuleLaw,
@@ -23,7 +23,7 @@ from ...components.laws import (
 from ...types import FormKind
 from ._renewal_law import RenewalLaw
 
-LATTICE_LAWS: tuple[type, ...] = (LocalRuleLaw, DriveLaw, CascadeLaw, ExtremalLaw)
+LATTICE_LAWS: tuple[type, ...] = (LocalRuleLaw, ArrayUpdateLaw, CascadeLaw, ExtremalLaw)
 STEPWISE_FORMS: dict[frozenset[type], FormKind] = {
     frozenset({RenewalLaw}): FormKind.RENEWAL,
     frozenset({RuleLaw}): FormKind.AGENT,

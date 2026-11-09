@@ -10,12 +10,12 @@ from collections.abc import Mapping
 from dataclasses import replace
 
 from ...components.laws import (
+    ArrayUpdateLaw,
     BilinearLaw,
     BoundaryLaw,
     CascadeLaw,
     CrossingLaw,
     DissipatorLaw,
-    DriveLaw,
     EquationLaw,
     ExtremalLaw,
     FluxLaw,
@@ -75,7 +75,7 @@ class NumpyBackend(BaseBackend):
                 BoundaryLaw,
                 CrossingLaw,
                 DissipatorLaw,
-                DriveLaw,
+                ArrayUpdateLaw,
                 EquationLaw,
                 ExtremalLaw,
                 FluxLaw,
