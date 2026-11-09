@@ -40,7 +40,7 @@ class EulerSolver(Solver):
 
     Examples:
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> from skcomplex.core.engine.solvers import EulerSolver
         >>> from skcomplex.core.specs import StepSpec

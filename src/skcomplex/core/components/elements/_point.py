@@ -39,7 +39,7 @@ class PointElement(Element):
     Examples:
         >>> from skcomplex.core.components.elements import PointElement
         >>> from skcomplex.core.components.spaces import ContinuousSpace
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.engine.runtime import simulate
         >>> system = System(elements=[PointElement('ball', x_d1=[1.0, 0.0])], space=ContinuousSpace(n_dim=2))
         >>> simulate(system, until=2.0, dt=1.0).values('ball.x')[-1].tolist()

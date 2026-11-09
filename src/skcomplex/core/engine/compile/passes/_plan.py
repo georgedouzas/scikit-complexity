@@ -9,7 +9,7 @@ The plan also uses their classes once lowered.
 from collections.abc import Iterable, Mapping
 
 from ....components.specs import CensusSpec
-from ....components.system import System
+from ....components.systems import System
 from ....errors import IncompatibleLawsError
 from ....specs import IssueSpec
 from ....specs._owners_spec import _OwnersSpec

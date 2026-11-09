@@ -21,7 +21,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import clip, neighbors, where
 from ....core.components.spaces import ContinuousSpace, RadiusNeighborhood
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.engine.backends import NumbaBackend
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec

@@ -3,7 +3,7 @@
 import pytest
 
 from skcomplex.core.components.spaces import StaticTime
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.systems.biology.common.metabolism import (
     ReactionSpec,
     community_growth,

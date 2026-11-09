@@ -19,7 +19,7 @@ from ....core.components.elements import Element, LatticeElement
 from ....core.components.interactions import GroupingInteraction, ImitationInteraction, LocalRuleInteraction
 from ....core.components.laws.utils import count, total
 from ....core.components.spaces import BaseSpace, DiscreteTime, LatticeNeighborhood, LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array, Pair

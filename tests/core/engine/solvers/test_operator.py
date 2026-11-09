@@ -2,7 +2,7 @@
 
 import pytest
 
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.solvers import LindbladSolver
 from skcomplex.core.errors import SolverError

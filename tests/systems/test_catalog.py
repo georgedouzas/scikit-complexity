@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 from sklearn.base import clone
 
-from skcomplex.core.components.system import BaseSystem, System
+from skcomplex.core.components.systems import BaseSystem, System
 from skcomplex.core.engine.backends import NumpyBackend
 from skcomplex.core.engine.problems import ProblemSpec
 from skcomplex.core.engine.runtime import simulate
@@ -78,7 +78,7 @@ def test_all_systems_lists_system_classes_by_field_and_topics():
     code = """
 import sys
 from skcomplex.systems import all_systems
-from skcomplex.core.components.system import BaseSystem
+from skcomplex.core.components.systems import BaseSystem
 listed = all_systems(field='chemistry/pattern_formation')
 assert [name for name, _ in listed] == ['BrusselatorSystem', 'GrayScottSystem', 'SchnakenbergSystem'], listed
 assert all(issubclass(system, BaseSystem) and system.__name__ == name for name, system in listed)

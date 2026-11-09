@@ -21,7 +21,7 @@ from ....core.components.elements import Element, GroupElement, LatticeElement
 from ....core.components.interactions import MapInteraction, TopologyInteraction
 from ....core.components.laws.utils import components, maximum, mod, neighbors, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import LayerSpec, ParameterSpec, StateSpec, VisualSpec
 from ..common._network_node import NetworkNodeElement

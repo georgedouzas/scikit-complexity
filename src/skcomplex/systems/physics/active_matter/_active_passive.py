@@ -22,7 +22,7 @@ from ....core.components.elements import GroupElement, PointElement
 from ....core.components.interactions import PairCouplingInteraction, RateInteraction
 from ....core.components.laws.utils import neighbors
 from ....core.components.spaces import ContinuousSpace, RadiusNeighborhood
-from ....core.components.system import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, RunSettings, System
 from ....core.engine.backends import NumbaBackend
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.errors import ValidationError

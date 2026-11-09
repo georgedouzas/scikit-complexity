@@ -16,7 +16,7 @@ from sage.all__sagemath_symbolics import SR, Expression
 
 from ....components.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....components.spaces import DelaunayNeighborhood, DiscreteTime
-from ....components.system import System
+from ....components.systems import System
 from ....errors import BackendWarning, ValidationError
 from ....specs import (
     DEFAULT_PHASE,

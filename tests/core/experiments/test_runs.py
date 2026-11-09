@@ -12,7 +12,7 @@ from skcomplex.core.analysis import bind_analysis
 from skcomplex.core.base import BaseConfig
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import UpdateLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.errors import ExperimentError, ValidationError
 from skcomplex.core.experiments import calibrate, ensemble, orbit_diagram, sweep
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec

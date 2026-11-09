@@ -9,7 +9,7 @@ from skcomplex.core.components.elements import BaseElement, Element, GroupElemen
 from skcomplex.core.components.interactions import BaseInteraction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 
 

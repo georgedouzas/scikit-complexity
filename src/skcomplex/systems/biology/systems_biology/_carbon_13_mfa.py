@@ -20,7 +20,7 @@ from scipy.stats import chi2
 from ....core.analysis import bind_analysis
 from ....core.analysis.types import Source
 from ....core.components.spaces import StaticTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.engine.problems import ProblemSpec
 from ....core.engine.runtime import simulate
 from ....core.errors import AnalysisError, ValidationError
@@ -561,7 +561,7 @@ def labelling(
 
     Examples:
         >>> from skcomplex.core.components.spaces import StaticTime
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.biology.common.metabolism import ReactionSpec, metabolic_network_type
         >>> from skcomplex.systems.biology.systems_biology import (
         ...     AtomMapSpec,

@@ -43,7 +43,7 @@ class LorenzElement(Element):
             The geometric factor.
 
     Examples:
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.mathematics.common.flows import LorenzElement
         >>> from skcomplex.core.engine.runtime import simulate
         >>> system = System(elements=[LorenzElement('lorenz', x=0.0, y=0.0, z=2.0, beta=0.5)])

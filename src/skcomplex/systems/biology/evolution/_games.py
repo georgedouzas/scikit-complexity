@@ -17,7 +17,7 @@ from ....core.components.elements import Element, GroupElement, LatticeElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.laws.utils import total
 from ....core.components.spaces import LatticeSpace, VonNeumannNeighborhood
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.specs import StateSpec, VisualSpec
 from ....core.types import Array
 from ..common.populations import ReplicatorInteraction

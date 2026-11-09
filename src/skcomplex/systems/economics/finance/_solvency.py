@@ -14,7 +14,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import GroupElement
 from ....core.components.interactions import FeedbackInteraction
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import SystemView
 from ....core.specs import ParameterSpec, RoleSpec
 from ....core.types import Array

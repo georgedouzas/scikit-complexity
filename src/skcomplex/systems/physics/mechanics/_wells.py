@@ -13,7 +13,7 @@ from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.specs import ParameterSpec, RoleSpec
 from ..common.particles import MassPointElement, PotentialEnergyInteraction
 

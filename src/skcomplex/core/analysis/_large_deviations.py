@@ -14,7 +14,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy import linalg, special
 
-from ..components.system import System
+from ..components.systems import System
 from ..engine.problems import ProblemSpec
 from ..engine.runtime import Trajectory
 from ..engine.runtime._simulations import Simulation

@@ -9,7 +9,7 @@ COBRApy and StrainDesign run their analyses.
 from collections.abc import Sequence
 
 from ....core.components.spaces import StaticTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ..common.metabolism import load_network
 
 

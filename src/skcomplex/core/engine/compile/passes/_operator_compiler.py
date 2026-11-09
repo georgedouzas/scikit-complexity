@@ -19,7 +19,7 @@ from ....components.interactions import BaseInteraction, NeighborInteraction
 from ....components.laws import DissipatorLaw, GeneratorLaw
 from ....components.specs import CompiledElementSpec, CompiledInteractionSpec, NodeSpec, OperatorViewSpec
 from ....components.specs._subsystem_spec import _SubsystemSpec
-from ....components.system import System
+from ....components.systems import System
 from ....errors import IncompatibleLawsError, SkcomplexError, ValidationError
 from ....specs import EntrySpec, HilbertSpec, IssueSpec, LayoutSpec, ObservableSpec
 from ....types import Array, FormKind, VariableKind
@@ -70,7 +70,7 @@ class OperatorCompiler(BaseCompiler):
             The largest dimension of the Hilbert space, for a solver without a largest dimension of its own.
 
     Examples:
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
         >>> from skcomplex.systems.biology.common.populations import PopulationElement
         >>> OperatorCompiler().prepare(System(elements=[PopulationElement('rabbits')])).report_.ok

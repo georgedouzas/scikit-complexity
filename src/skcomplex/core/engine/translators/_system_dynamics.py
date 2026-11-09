@@ -25,7 +25,7 @@ from pysd.translators.xmile.xmile_file import XmileFile
 
 from ...base import BaseConfig
 from ...components.elements import Element
-from ...components.system import BaseSystem
+from ...components.systems import BaseSystem
 from ...errors import ValidationError
 from ...specs import RunSettingsSpec
 from ._expressions import INTERPOLATED, _ExpressionWriter

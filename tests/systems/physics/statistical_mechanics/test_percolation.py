@@ -3,7 +3,7 @@
 import numpy as np
 
 from skcomplex.core.analysis import bind_analysis, clusters
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.experiments import sweep
 from skcomplex.systems.physics.statistical_mechanics import ContinuumPercolationSystem
 

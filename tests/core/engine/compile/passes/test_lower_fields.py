@@ -10,7 +10,7 @@ from skcomplex.core.components.elements import Element, FieldElement, GroupEleme
 from skcomplex.core.components.interactions import DiffusionInteraction, Interaction
 from skcomplex.core.components.laws import BaseLaw, LinearProgramLaw, RateLaw
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.specs import LinearObjectiveSpec, RoleSpec, StateSpec
 

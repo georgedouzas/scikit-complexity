@@ -123,7 +123,7 @@ class MovementInteraction(Interaction):
         >>> from skcomplex.core.components.elements import Element, GroupElement
         >>> from skcomplex.core.components.interactions import MovementInteraction
         >>> from skcomplex.core.components.spaces import LatticeSpace
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.engine.runtime import simulate
         >>> walkers = GroupElement('walkers', element=Element, size=2, location=[(2, 2), (2, 2)])
         >>> walk = MovementInteraction('walk', target='walkers', step='neighbor')

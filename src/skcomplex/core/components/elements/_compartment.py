@@ -34,7 +34,7 @@ class CompartmentElement(Element):
 
     Examples:
         >>> from skcomplex.core.components.elements import CompartmentElement
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.engine.runtime import simulate
         >>> system = System(elements=[CompartmentElement('A', n=990), CompartmentElement('B', n=10)])
         >>> simulate(system, until=2, dt=1.0).values('A.n').tolist()

@@ -22,7 +22,7 @@ class BaseObserver(BaseConfig[BaseProblemSpec, FrameSpec]):
     and `_release`.
 
     Examples:
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.engine.runtime import BaseObserver, simulate
         >>> from skcomplex.systems.biology.common.populations import PopulationElement
         >>> class CountingObserver(BaseObserver):

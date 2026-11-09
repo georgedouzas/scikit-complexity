@@ -14,7 +14,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction, RateInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import minimum, pulse_train
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.populations import (
     ExponentialGrowthInteraction,
@@ -268,7 +268,7 @@ class GompertzGrowthInteraction(GrowthInteraction):
 
     Examples:
         >>> from skcomplex.core.components.elements import CompartmentElement
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.biology.oncology import GompertzGrowthInteraction
         >>> from skcomplex.core.engine.runtime import simulate
         >>> system = System(
@@ -327,7 +327,7 @@ class PowerLawGrowthInteraction(GrowthInteraction):
 
     Examples:
         >>> from skcomplex.core.components.elements import CompartmentElement
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.biology.oncology import PowerLawGrowthInteraction
         >>> from skcomplex.core.engine.runtime import simulate
         >>> system = System(

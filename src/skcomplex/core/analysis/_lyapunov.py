@@ -14,7 +14,7 @@ import numba
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, dirac_delta, sgn
 
-from ..components.system import System
+from ..components.systems import System
 from ..engine.problems import BaseProblemSpec, ProblemSpec
 from ..engine.problems._dynamics_spec import _DynamicsSpec
 from ..engine.problems._expression_printer import ExpressionPrinter

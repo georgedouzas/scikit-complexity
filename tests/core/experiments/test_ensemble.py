@@ -8,7 +8,7 @@ import pytest
 
 from skcomplex.core.components.elements import CompartmentElement, Element
 from skcomplex.core.components.laws import NoiseLaw, RateLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.solvers import KineticSolver, ScipyODESolver
 from skcomplex.core.errors import TagError
 from skcomplex.core.experiments import ensemble

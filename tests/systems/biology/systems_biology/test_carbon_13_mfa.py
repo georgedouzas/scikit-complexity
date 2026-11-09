@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.spaces import StaticTime
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.biology.common.metabolism import ReactionSpec, metabolic_network_type
 from skcomplex.systems.biology.systems_biology import (

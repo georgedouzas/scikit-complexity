@@ -12,7 +12,7 @@ from skcomplex.core.analysis import scaling
 from skcomplex.core.components.elements import PatchElement, WordElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import BaseLaw, ProductionLaw, SubstitutionLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine._utils import symbol
 from skcomplex.core.engine.compile._rewriting_compiler import RewritingCompiler
 from skcomplex.core.engine.runtime import RecorderObserver, simulate

@@ -7,7 +7,7 @@ The Escherichia coli core system needs the extra.
 # License: MIT
 
 from ....core.components.spaces import StaticTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.errors import ValidationError
 from ..common.metabolism import ToyNetworkElement, load_network
 

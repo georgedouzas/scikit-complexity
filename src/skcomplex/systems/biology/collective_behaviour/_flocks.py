@@ -21,7 +21,7 @@ from ....core.components.interactions import (
     RateInteraction,
 )
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ClampSpec, ParameterSpec, RadiusSpec, RoleSpec, StateSpec, VisualSpec

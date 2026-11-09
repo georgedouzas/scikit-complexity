@@ -14,7 +14,7 @@ from functools import partial
 import networkx as nx
 import numpy as np
 
-from ..components.system import System
+from ..components.systems import System
 from ..engine.runtime import Trajectory
 from ..specs import NetworkSnapshotSpec
 from ..types import DataKind

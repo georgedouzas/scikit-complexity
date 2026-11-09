@@ -19,7 +19,7 @@ from ....core.components.interactions import (
     RelaxationInteraction,
 )
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import RK4Solver
 from ....core.specs import ParameterSpec, RoleSpec
 

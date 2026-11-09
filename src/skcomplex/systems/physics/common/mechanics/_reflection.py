@@ -66,7 +66,7 @@ class ReflectionInteraction(CrossingInteraction):
     Examples:
         >>> from skcomplex.core.components.elements import PointElement
         >>> from skcomplex.core.components.spaces import ContinuousSpace
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.physics.common.mechanics import ReflectionInteraction
         >>> from skcomplex.core.engine.runtime import simulate
         >>> wall = ReflectionInteraction('wall', target='ball', guard=lambda s: s.target.x[0] - 1, direction=1)

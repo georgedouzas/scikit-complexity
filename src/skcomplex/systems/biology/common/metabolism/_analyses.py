@@ -15,7 +15,7 @@ from sklearn.base import clone
 
 from .....core.analysis.types import Source
 from .....core.components.spaces import StaticTime
-from .....core.components.system import BaseSystem, System
+from .....core.components.systems import BaseSystem, System
 from .....core.engine.problems import ProblemSpec
 from .....core.engine.runtime import simulate
 from .....core.errors import AnalysisError
@@ -85,7 +85,7 @@ def flux_variability(source: Source, *, fraction: float = 1.0, network: str | No
 
     Examples:
         >>> from skcomplex.core.components.spaces import StaticTime
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.biology.common.metabolism import (
         ...     ReactionSpec,
         ...     flux_variability,
@@ -184,7 +184,7 @@ def production_scan(
 
     Examples:
         >>> from skcomplex.core.components.spaces import StaticTime
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.biology.common.metabolism import (
         ...     ReactionSpec,
         ...     metabolic_network_type,
@@ -316,7 +316,7 @@ def cobra_measures(
 
     Examples:
         >>> from skcomplex.core.components.spaces import StaticTime
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.biology.common.metabolism import cobra_measures, load_network
         >>> system = System(elements=[load_network('textbook', 'cell')], time=StaticTime())
         >>> round(float(cobra_measures(system, kind='parsimonious').total), 3)

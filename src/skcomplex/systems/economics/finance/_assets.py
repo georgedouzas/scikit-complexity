@@ -4,7 +4,7 @@
 # License: MIT
 
 
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ..common._asset import AssetElement
 from ..common._geometric_brownian_motion import GeometricBrownianMotionInteraction
 

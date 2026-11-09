@@ -19,7 +19,7 @@ from ....core.components.elements import Element, GroupElement, LatticeElement
 from ....core.components.interactions import CouplingInteraction
 from ....core.components.laws.utils import where
 from ....core.components.spaces import AdjacencyNeighborhood, DiscreteTime, NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -148,7 +148,7 @@ class ConfidenceCouplingInteraction(CouplingInteraction):
         >>> import numpy as np
         >>> from skcomplex.core.components.elements import LatticeElement
         >>> from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.social.opinion_dynamics import ConfidenceCouplingInteraction, ConfidentElement
         >>> from skcomplex.core.engine.runtime import simulate
         >>> people = LatticeElement(

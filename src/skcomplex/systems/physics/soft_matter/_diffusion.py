@@ -21,7 +21,7 @@ from ....core.components.interactions import BaseInteraction, GradientInteractio
 from ....core.components.laws import BaseLaw, BoundaryLaw
 from ....core.components.laws.utils import pulse_train, where
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.particles import (

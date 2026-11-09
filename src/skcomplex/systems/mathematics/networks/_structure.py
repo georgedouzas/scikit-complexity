@@ -15,7 +15,7 @@ import numpy as np
 from ....core.analysis import motifs, network_measures
 from ....core.components.elements import Element, GroupElement
 from ....core.components.spaces import NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.errors import AnalysisError
 from ....core.specs import ObservableSpec, ParameterSpec, VisualSpec
 from ..common._network_node import NetworkNodeElement

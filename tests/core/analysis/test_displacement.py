@@ -13,7 +13,7 @@ from skcomplex.core.analysis import DisplacementResult, displacement
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import BaseLaw, RuleLaw
 from skcomplex.core.components.spaces import ContinuousSpace, LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import AgentView, SystemView
 from skcomplex.core.errors import AnalysisError

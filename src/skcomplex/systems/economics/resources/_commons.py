@@ -24,7 +24,7 @@ from ....core.components.interactions import (
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.laws.utils import transfer
 from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.components.types import AgentViewProtocol, MatchingRule, SystemViewProtocol
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import SimulationError

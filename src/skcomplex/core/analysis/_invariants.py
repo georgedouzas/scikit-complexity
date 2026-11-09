@@ -17,7 +17,7 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ..components.interactions import BaseInteraction, EulerLagrangeInteraction, HamiltonianInteraction
 from ..components.laws.utils import derivative
-from ..components.system import System
+from ..components.systems import System
 from ..engine._utils import declarations_of
 from ..engine.compile._observables import ObservableEvaluator
 from ..engine.problems import ProblemSpec
@@ -160,7 +160,7 @@ def invariants(
         >>> from skcomplex.core.analysis import invariants
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.interactions import HamiltonianInteraction
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.specs import ObservableSpec, StateSpec
         >>> class OscillatorElement(Element):
         ...     def __init__(self, label, q: Annotated[float, StateSpec()] = 1.0, p: Annotated[float, StateSpec()] = 0):

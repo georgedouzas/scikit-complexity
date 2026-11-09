@@ -51,7 +51,7 @@ class SpikeResetInteraction(CrossingInteraction):
     Examples:
         >>> from skcomplex.core.components.elements import CompartmentElement
         >>> from skcomplex.core.components.interactions import RateInteraction
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.biology.neuroscience import SpikeResetInteraction
         >>> from skcomplex.core.engine.runtime import simulate
         >>> drive = RateInteraction('drive', target='neuron', state='n', rate=1.0)

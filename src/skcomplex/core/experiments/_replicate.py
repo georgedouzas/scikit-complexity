@@ -25,7 +25,7 @@ from ..components.laws import (
     TransitionLaw,
     UpdateLaw,
 )
-from ..components.system import System
+from ..components.systems import System
 from ..engine._utils import declared_variables
 from ..engine.compile._probe import probe_laws
 from ..engine.runtime import Trajectory, simulate

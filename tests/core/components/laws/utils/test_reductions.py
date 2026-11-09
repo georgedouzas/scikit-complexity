@@ -44,7 +44,7 @@ from skcomplex.core.components.spaces import (
     StaticTime,
     VonNeumannNeighborhood,
 )
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.backends import JaxBackend, NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems._reduction_kernel import ReductionKernel

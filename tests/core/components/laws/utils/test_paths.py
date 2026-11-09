@@ -13,7 +13,7 @@ from skcomplex.core.components.interactions import Interaction, MapInteraction, 
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import neighborhoods_in, shortest_paths
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems._neighborhood_kernel import NeighborhoodKernel

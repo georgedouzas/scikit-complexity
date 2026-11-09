@@ -29,7 +29,7 @@ class InvariantObserver(BaseObserver):
     Examples:
         >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.core.specs import ObservableSpec
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.engine.runtime import InvariantObserver, simulate
         >>> from skcomplex.systems.biology.common.populations import PopulationElement
         >>> system = System(

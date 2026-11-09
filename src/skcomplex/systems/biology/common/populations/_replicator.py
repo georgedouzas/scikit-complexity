@@ -48,7 +48,7 @@ class ReplicatorInteraction(RateInteraction):
     Examples:
         >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.core.components.laws.utils import total
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.biology.evolution import ReplicatorInteraction, StrategyElement
         >>> from skcomplex.core.engine.runtime import simulate
         >>> population = GroupElement('population', element=StrategyElement, size=2, values={'x': [0.5, 0.5]})

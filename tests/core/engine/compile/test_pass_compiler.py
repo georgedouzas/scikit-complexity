@@ -46,7 +46,7 @@ from skcomplex.core.components.spaces import (
     PhaseSpace,
     SimplexSpace,
 )
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine._utils import domain_of, symbol
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler

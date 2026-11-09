@@ -53,7 +53,7 @@ class RelaxationInteraction(RateInteraction):
     Examples:
         >>> from skcomplex.core.components.elements import CompartmentElement
         >>> from skcomplex.core.components.interactions import RelaxationInteraction
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.engine.runtime import simulate
         >>> smoothing = RelaxationInteraction('smoothing', target='belief', state='n', goal=10.0, time=0.5)
         >>> system = System(elements=[CompartmentElement('belief', n=0.0)], interactions=[smoothing])

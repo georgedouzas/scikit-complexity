@@ -16,7 +16,7 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import EquationLaw
 from ....core.components.laws.utils import log_sum_exp
 from ....core.components.spaces import StaticTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
 
 

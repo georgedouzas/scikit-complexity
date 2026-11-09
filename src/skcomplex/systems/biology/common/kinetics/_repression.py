@@ -62,7 +62,7 @@ class RepressionInteraction(ReactionInteraction):
             and a state name with a positive coefficient.
 
     Examples:
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.biology.systems_biology import RepressionInteraction, SpeciesElement
         >>> repression = RepressionInteraction(

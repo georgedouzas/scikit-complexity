@@ -59,7 +59,7 @@ class StrangSplittingSolver(Solver):
         >>> from skcomplex.core.components.interactions import AdvectionInteraction, RelaxationInteraction
         >>> from skcomplex.core.components.laws.utils import coordinate, maximum_entropy
         >>> from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.engine.solvers import RK4Solver, SemiLagrangianSolver, StrangSplittingSolver
         >>> from skcomplex.core.specs import AxisSpec
         >>> from skcomplex.core.engine.runtime import simulate

@@ -266,7 +266,7 @@ class PointsVisual(BaseVisual):
         Examples:
             >>> from skcomplex.core.components.elements import GroupElement, PointElement
             >>> from skcomplex.core.components.spaces import ContinuousSpace
-            >>> from skcomplex.core.components.system import System
+            >>> from skcomplex.core.components.systems import System
             >>> from skcomplex.core.engine.runtime import simulate
             >>> from skcomplex.core.engine.viz import PointsVisual
             >>> gas = GroupElement('gas', element=PointElement, size=10, values={'x': [[0.0, 0.0, 0.0]] * 10})

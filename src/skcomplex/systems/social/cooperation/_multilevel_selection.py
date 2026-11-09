@@ -14,7 +14,7 @@ from ....core.components.elements import DensityElement, FieldElement
 from ....core.components.interactions import AdvectionInteraction, RateInteraction
 from ....core.components.laws.utils import coordinate, integral_transform, integration_variable
 from ....core.components.spaces import LatticeSpace, PhaseSpace, SimplexSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import RK4Solver
 from ....core.errors import ValidationError
 from ....core.specs import AxisSpec, VisualSpec

@@ -23,7 +23,7 @@ from ..components.elements import GroupElement
 from ..components.interactions import LocalRuleInteraction
 from ..components.laws import LocalRuleLaw
 from ..components.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace, MemoryNeighborhood
-from ..components.system import System
+from ..components.systems import System
 from ..components.types import Reach
 from ..errors import AnalysisError
 from ..specs import AnalysisTags, BaseSpec, LinearRuleSpec, OuterTotalisticSpec, SubshiftSpec, TableSpec, TotalisticSpec
@@ -338,7 +338,7 @@ def automaton(
         >>> from skcomplex.core.components.elements import Element, LatticeElement
         >>> from skcomplex.core.components.interactions import LocalRuleInteraction
         >>> from skcomplex.core.components.spaces import BoxNeighborhood, LatticeNeighborhood, LatticeSpace
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.specs import StateSpec, SubshiftSpec, TableSpec, TotalisticSpec
         >>> class CellElement(Element):
         ...     def __init__(self, label, alive: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0):

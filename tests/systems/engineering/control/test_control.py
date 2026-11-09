@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.interactions import ConnectionInteraction
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.specs import ConnectorSpec

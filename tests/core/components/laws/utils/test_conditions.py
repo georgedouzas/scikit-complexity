@@ -11,7 +11,7 @@ from sage.all__sagemath_symbolics import sin, var
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import both, either, mod, where
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems._expression_printer import ExpressionPrinter
 from skcomplex.core.specs import StateSpec, VisualSpec

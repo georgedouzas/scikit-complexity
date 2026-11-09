@@ -5,7 +5,7 @@ import pytest
 
 from skcomplex.core.analysis import operator_measures
 from skcomplex.core.components.elements import GroupElement
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError, ParameterError, ValidationError
 from skcomplex.core.specs import SectorSpec

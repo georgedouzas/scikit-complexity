@@ -21,7 +21,7 @@ from ....core.components.elements import LatticeElement
 from ....core.components.interactions import HyperedgeInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.specs import ParameterSpec, RoleSpec, VisualSpec
 from ..common.oscillators import PhaseOscillatorElement, order_parameter
 

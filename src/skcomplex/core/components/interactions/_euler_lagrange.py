@@ -68,7 +68,7 @@ class EulerLagrangeInteraction(Interaction):
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.interactions import EulerLagrangeInteraction
         >>> from skcomplex.core.components.laws.utils import derivative
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.core.engine.runtime import simulate
         >>> class AngleElement(Element):

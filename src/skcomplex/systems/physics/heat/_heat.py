@@ -17,7 +17,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import DiffusionInteraction
 from ....core.components.spaces import LatticeSpace, MeshSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import IMEXEulerSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array

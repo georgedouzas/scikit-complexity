@@ -32,7 +32,7 @@ from ....core.components.laws.utils import (
     vector_gradient,
 )
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, RunSettings, System
 from ....core.engine.backends import NumbaBackend
 from ....core.engine.solvers import RK4Solver
 from ....core.errors import TensorShapeError, ValidationError

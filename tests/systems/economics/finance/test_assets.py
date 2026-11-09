@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.economics.finance import AssetElement, GeometricBrownianMotionInteraction
 

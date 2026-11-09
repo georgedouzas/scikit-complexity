@@ -9,7 +9,7 @@ import numpy as np
 
 from ....core.components.elements import LatticeElement
 from ....core.components.spaces import AdjacencyNeighborhood, NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ..common.spins import IsingSamplingInteraction, IsingSpinElement
 
 NODES = 400

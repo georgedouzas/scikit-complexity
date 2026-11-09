@@ -1,6 +1,6 @@
 """Test the visual of operator elements and groups."""
 
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
 from skcomplex.core.engine.viz._expectation import ExpectationVisual
 from skcomplex.systems.physics.common.quantum import QubitElement

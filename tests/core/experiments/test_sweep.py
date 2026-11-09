@@ -6,7 +6,7 @@ import numpy as np
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import UpdateLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.experiments import sweep
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.systems.biology.ecology import LogisticGrowthSystem

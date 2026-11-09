@@ -1,6 +1,6 @@
 """Test the `_predation` module of `skcomplex.systems.biology.common.populations`."""
 
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.common.populations import (
     LogisticGrowthInteraction,

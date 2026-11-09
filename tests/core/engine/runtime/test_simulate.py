@@ -12,7 +12,7 @@ from skcomplex.core.components.interactions import JumpInteraction, RateInteract
 from skcomplex.core.components.laws import RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import normal
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace, StaticTime
-from skcomplex.core.components.system import BaseSystem, System
+from skcomplex.core.components.systems import BaseSystem, System
 from skcomplex.core.engine.backends import JaxBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import RecorderObserver, Trajectory, _simulate, simulate

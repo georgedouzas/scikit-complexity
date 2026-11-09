@@ -18,7 +18,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import EulerLagrangeInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import derivative
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import ScipyODESolver
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 

@@ -19,7 +19,7 @@ from ....core.components.elements import GroupElement
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import codifferential, exterior_derivative, mean
 from ....core.components.spaces import CellComplexSpace, NetworkSpace
-from ....core.components.system import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, RunSettings, System
 from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, VisualSpec
 from ..common.oscillators import LinkElement, PhaseOscillatorElement

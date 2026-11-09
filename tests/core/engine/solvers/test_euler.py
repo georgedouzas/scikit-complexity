@@ -6,7 +6,7 @@ import pytest
 from skcomplex.core.components.elements import CompartmentElement
 from skcomplex.core.components.interactions import RateInteraction, RelaxationInteraction
 from skcomplex.core.components.laws.utils import delayed, step
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerSolver

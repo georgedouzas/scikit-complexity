@@ -22,7 +22,7 @@ from ....core.components.spaces import (
     LatticeSpace,
     MemoryNeighborhood,
 )
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, SubshiftSpec, TotalisticSpec, VisualSpec
 from ....core.types import Array
 from ._binary_cell import BinaryCellElement

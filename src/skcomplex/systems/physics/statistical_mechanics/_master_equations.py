@@ -16,7 +16,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement, LatticeElement
 from ....core.components.laws import BaseLaw, JumpLaw, LocalRuleLaw, RateLaw
 from ....core.components.spaces import BoxNeighborhood, LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 

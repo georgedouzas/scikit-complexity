@@ -20,7 +20,7 @@ from ....core.components.interactions import MapInteraction
 from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import categorical, where
 from ....core.components.spaces import BaseSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
 from .types import Candidates

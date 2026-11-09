@@ -12,7 +12,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import ConnectionInteraction, CrossingInteraction
 from skcomplex.core.components.laws import EquationLaw, NoiseLaw, RateLaw, RuleLaw
 from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AlgebraicStateError, SolverError, ValidationError

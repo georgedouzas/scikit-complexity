@@ -11,7 +11,7 @@ from skcomplex.core.components.interactions import BaseInteraction, HyperedgeInt
 from skcomplex.core.components.laws import RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import neighbors, where
 from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime, NetworkSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.engine.solvers import MesaSolver

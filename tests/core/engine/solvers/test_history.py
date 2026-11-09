@@ -11,7 +11,7 @@ from sklearn.base import clone
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import CrossingLaw, NoiseLaw, RateLaw
 from skcomplex.core.components.laws.utils import delayed, pulse_train, series, step
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import BaseObserver, simulate
 from skcomplex.core.engine.solvers import (

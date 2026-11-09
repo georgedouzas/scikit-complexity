@@ -18,7 +18,7 @@ from sage.all__sagemath_symbolics import SR, Expression, I
 from ...components.elements import Element
 from ...components.laws.utils import has_operator, local_operator
 from ...components.specs import NodeSpec
-from ...components.system import System
+from ...components.systems import System
 from ...errors import ValidationError
 from ...specs import EntrySpec, NeighborReadSpec, ObservableSpec, ReadSpec, RunStateSpec, StateSpec
 from ...specs._held_reduction_spec import _HeldReductionSpec
@@ -236,7 +236,7 @@ class ObservableEvaluator:
         >>> from skcomplex.core.engine.compile._observables import ObservableEvaluator
         >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
         >>> from skcomplex.core.specs import ObservableSpec
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.biology.common.populations import PopulationElement
         >>> system = System(
         ...     elements=[GroupElement('herd', element=PopulationElement, size=2, values={'n': [2.0, 6.0]})]
@@ -952,7 +952,7 @@ class ObservableEvaluator:
         Examples:
             >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
             >>> from skcomplex.core.engine.compile._observables import ObservableEvaluator
-            >>> from skcomplex.core.components.system import System
+            >>> from skcomplex.core.components.systems import System
             >>> from skcomplex.systems.biology.common.populations import PopulationElement
             >>> problem = PassCompiler().prepare(System(elements=[PopulationElement('rabbits')])).run().problem_
             >>> ObservableEvaluator._namespace_of(problem).rabbits.n

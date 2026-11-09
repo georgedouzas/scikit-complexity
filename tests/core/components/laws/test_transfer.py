@@ -11,7 +11,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import BoundaryLaw, Sink, Source, TransferLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import shift_member, where
 from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import ConservationObserver, simulate
 from skcomplex.core.errors import ConservationError, LabelError, ValidationError

@@ -20,7 +20,7 @@ from ....core.components.interactions import PairCouplingInteraction
 from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.components.laws.utils import advection, divergence, gradient, laplacian
 from ....core.components.spaces import ContinuousSpace, LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import EulerMaruyamaSolver, RK4Solver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array

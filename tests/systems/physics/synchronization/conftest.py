@@ -5,7 +5,7 @@ import math
 import numpy as np
 import numpy.typing as npt
 
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems import ProblemSpec
 

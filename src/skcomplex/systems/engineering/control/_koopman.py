@@ -23,7 +23,7 @@ from ....core.analysis import ModeDecompositionResult, mode_decomposition
 from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction, RateInteraction
 from ....core.components.spaces import ContinuousTime, DiscreteTime
-from ....core.components.system import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, RunSettings, System
 from ....core.engine.runtime import Trajectory, simulate
 from ....core.errors import ValidationError
 from ....core.specs import CallSpec, ObservableSpec, ParameterSpec, StateSpec, VisualSpec

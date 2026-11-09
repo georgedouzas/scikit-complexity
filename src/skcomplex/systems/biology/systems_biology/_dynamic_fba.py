@@ -5,7 +5,7 @@
 
 
 from ....core.components.spaces import DiscreteTime
-from ....core.components.system import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, RunSettings, System
 from ....core.engine.solvers import CoSimulationSolver, RK4Solver
 from ....core.errors import ValidationError
 from ..common.metabolism import (

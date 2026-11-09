@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from ....components.spaces import ContinuousTime
 from ....components.specs import CensusRecordSpec, NodeSpec
-from ....components.system import System
+from ....components.systems import System
 from ....errors import BackendError, SolverError
 from ....specs import FractionalStateSpec, IssueSpec
 from ....types import FormKind, OrderKind, VariableKind

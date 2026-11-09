@@ -54,7 +54,7 @@ class Trajectory:
             The total log-probability of the draws and firings of a run that records or replays them, or `None`.
 
     Examples:
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> from skcomplex.core.engine.runtime import simulate
         >>> system = System(

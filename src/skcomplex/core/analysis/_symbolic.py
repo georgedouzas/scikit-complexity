@@ -184,7 +184,7 @@ def symbolic(source: Source, *, kind: str = 'equations', use_initial_state: bool
 
     Examples:
         >>> from skcomplex.core.analysis import symbolic
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> system = System(
         ...     elements=[PopulationElement('a', n=2)],

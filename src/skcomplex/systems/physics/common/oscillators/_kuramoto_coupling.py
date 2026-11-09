@@ -71,7 +71,7 @@ class KuramotoCouplingInteraction(CouplingInteraction):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.components.elements import GroupElement
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.physics.common.oscillators import (
         ...     KuramotoCouplingInteraction,
         ...     PhaseOscillatorElement,

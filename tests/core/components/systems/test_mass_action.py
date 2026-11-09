@@ -1,9 +1,9 @@
-"""Test the `mass_action` module of `skcomplex.core.components`."""
+"""Test the `_mass_action` module of `skcomplex.core.components.systems`."""
 
 import numpy as np
 import pytest
 
-from skcomplex.core.components.mass_action import MassActionSystem
+from skcomplex.core.components.systems import MassActionSystem
 from skcomplex.core.engine.runtime import simulate
 
 DIMERIZATION = {'binding': ({'A': 2}, {'D': 1}, 0.01), 'unbinding': ({'D': 1}, {'A': 2}, 0.1)}

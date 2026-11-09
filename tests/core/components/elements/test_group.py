@@ -12,7 +12,7 @@ from sklearn.base import clone
 from skcomplex.core.components.elements import Element, GroupElement, PointElement
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.errors import SpaceError, ValidationError
 from skcomplex.core.specs import LayerSpec, StateSpec, VisualSpec

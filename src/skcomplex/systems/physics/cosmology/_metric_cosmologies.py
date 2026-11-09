@@ -18,7 +18,7 @@ from sage.structure.element import Matrix
 from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import EinsteinInteraction
 from ....core.components.spaces import LatticeSpace, PseudoRiemannianSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import ScipyODESolver
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec

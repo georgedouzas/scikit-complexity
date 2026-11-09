@@ -25,7 +25,7 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
 
     Examples:
         >>> from skcomplex.core.components.spaces import DiscreteTime
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.components.laws import ProductionLaw
         >>> from skcomplex.core.engine.solvers import RewritingSolver

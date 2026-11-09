@@ -19,7 +19,7 @@ from ....core.components.elements import Element, LatticeElement
 from ....core.components.interactions import CascadeInteraction, LocalRuleInteraction, MapInteraction
 from ....core.components.laws.utils import draw, either, where
 from ....core.components.spaces import DiscreteTime, LatticeSpace, VonNeumannNeighborhood
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.specs import ObservableSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ..common import SandpileCellElement

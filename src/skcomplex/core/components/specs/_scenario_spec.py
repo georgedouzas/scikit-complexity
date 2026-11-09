@@ -9,7 +9,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 from ...specs._base_spec import BaseSpec
-from ..system import System
+from ..systems import System
 
 
 @dataclass(frozen=True)

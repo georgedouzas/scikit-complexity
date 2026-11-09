@@ -13,7 +13,7 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ...components.spaces import BaseSpace
 from ...components.specs import CompiledAgentsSpec, CompiledElementSpec, CompiledInteractionSpec
-from ...components.system import System
+from ...components.systems import System
 from ...specs._base_spec import BaseSpec
 from ...specs._layout_spec import LayoutSpec
 from ...specs._observable_spec import ObservableSpec

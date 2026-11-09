@@ -25,7 +25,7 @@ from ....core.components.spaces import (
     MooreNeighborhood,
     VonNeumannNeighborhood,
 )
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.errors import ParameterError
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array

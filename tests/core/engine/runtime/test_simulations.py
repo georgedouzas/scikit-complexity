@@ -15,7 +15,7 @@ from skcomplex.core.components.elements import CompartmentElement, Element, Grou
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw, RuleLaw, TransitionLaw, UpdateLaw
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.runtime import BaseObserver, ConservationObserver, RealTimeClock, simulate
 from skcomplex.core.engine.runtime._simulations import Simulation

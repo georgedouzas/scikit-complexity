@@ -16,7 +16,7 @@ from ....core.components.elements import DeclaredElement, Element
 from ....core.components.interactions import BaseInteraction, Interaction, ReactionInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import BaseSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.kinetics import MichaelisMentenInteraction, RepressionInteraction, SpeciesElement

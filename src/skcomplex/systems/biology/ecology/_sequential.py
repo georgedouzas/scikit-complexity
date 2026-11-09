@@ -20,7 +20,7 @@ from ....core.components.interactions import Interaction, MapInteraction, Topolo
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import neighbors, total, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.networks import EdgeDrawInteraction, WeightedEdgeElement
 

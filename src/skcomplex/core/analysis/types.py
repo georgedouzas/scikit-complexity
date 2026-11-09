@@ -14,7 +14,7 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
-from ..components.system import BaseSystem
+from ..components.systems import BaseSystem
 from ..engine.runtime import Trajectory
 from ..specs import NetworkSnapshotSpec
 from ..types import AnyArray, Array

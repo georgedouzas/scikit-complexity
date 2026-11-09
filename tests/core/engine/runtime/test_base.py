@@ -4,7 +4,7 @@ import inspect
 import time
 
 from skcomplex.core.base import BaseConfig
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import BaseClock, BaseObserver, simulate
 from skcomplex.systems.biology.common.populations import PopulationElement
 

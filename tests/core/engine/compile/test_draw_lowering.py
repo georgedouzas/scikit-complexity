@@ -16,7 +16,7 @@ from skcomplex.core.components.interactions import HyperedgeInteraction
 from skcomplex.core.components.laws import EmissionLaw, RateLaw, TransitionLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import bernoulli, categorical, normal, shift_member, total, uniform, where
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate

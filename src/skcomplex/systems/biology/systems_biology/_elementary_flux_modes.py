@@ -9,7 +9,7 @@ The network is Raman's toy network by default.
 from collections.abc import Sequence
 
 from ....core.components.spaces import StaticTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ..common.metabolism import ToyNetworkElement
 
 

@@ -17,7 +17,7 @@ import numpy.typing as npt
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.spaces import CellComplexSpace, DiscreteTime, LatticeSpace
-from ....core.components.system import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, RunSettings, System
 from ....core.engine.runtime import Trajectory
 from ....core.errors import AnalysisError, ValidationError
 from ....core.specs import MatrixGroupSpec, ObservableSpec, StateSpec, VisualSpec

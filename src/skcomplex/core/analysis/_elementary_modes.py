@@ -17,7 +17,7 @@ from cysignals.alarm import AlarmInterrupt, alarm, cancel_alarm
 from sage.all__sagemath_polyhedra import Polyhedron
 from sage.rings.rational_field import QQ
 
-from ..components.system import System
+from ..components.systems import System
 from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.problems import ProblemSpec
 from ..engine.problems._linear_program_kernel import LinearProgramKernel

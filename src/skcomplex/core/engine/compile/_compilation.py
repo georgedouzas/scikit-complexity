@@ -15,7 +15,7 @@ from sage.all__sagemath_symbolics import Expression
 
 from ...components.laws import BaseLaw, CrossingLaw, RuleLaw
 from ...components.specs import CensusSpec, NodeSpec
-from ...components.system import System
+from ...components.systems import System
 from ...errors import PipelineError
 from ...specs import MatrixLawSpec, TopologyRequestSpec
 from ...specs._plan_spec import _PlanSpec

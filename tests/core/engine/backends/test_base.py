@@ -13,7 +13,7 @@ from skcomplex.core.components.elements import CompartmentElement, Element, Grou
 from skcomplex.core.components.interactions import Interaction, PairCouplingInteraction
 from skcomplex.core.components.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine._utils import vector
 from skcomplex.core.engine.backends import BaseBackend, JaxBackend, NumbaBackend, NumpyBackend, _numba
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler

@@ -10,7 +10,7 @@ import numpy.typing as npt
 from sklearn.base import clone
 
 from ...base import BaseConfig
-from ...components.system import BaseSystem, System
+from ...components.systems import BaseSystem, System
 from ...errors import TagError, ValidationError
 from ...specs import ObservableSpec, Tags
 from ..backends import BaseBackend, NumpyBackend
@@ -211,7 +211,7 @@ def simulate(
             system, named in the message.
 
     Examples:
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.biology.common.populations import LogisticGrowthInteraction, PopulationElement
         >>> from skcomplex.core.engine.runtime import simulate
         >>> system = System(

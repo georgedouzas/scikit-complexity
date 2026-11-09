@@ -65,7 +65,7 @@ from ...components.spaces import (
     StaticTime,
 )
 from ...components.specs import CensusRecordSpec, CensusSpec, NodeSpec
-from ...components.system import System
+from ...components.systems import System
 from ...errors import (
     AlgebraicStateError,
     BackendError,
@@ -197,7 +197,7 @@ class PassCompiler(BaseCompiler):
             inner problem of a `LearningProblemSpec`, or `None` for other systems.
 
     Examples:
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> system = System(

@@ -29,7 +29,7 @@ from ....core.components.spaces import (
     NetworkSpace,
     TriangularNeighborhood,
 )
-from ....core.components.system import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, RunSettings, System
 from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, ParameterSpec, RegionScoreSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array, Indices

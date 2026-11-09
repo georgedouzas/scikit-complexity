@@ -17,7 +17,7 @@ from ....core.components.interactions import Interaction, OptimizationInteractio
 from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import where
 from ....core.components.spaces import DiscreteTime, LatticeSpace, VonNeumannNeighborhood
-from ....core.components.system import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, RunSettings, System
 from ....core.errors import ValidationError
 from ....core.specs import (
     CovarianceAdaptationSpec,

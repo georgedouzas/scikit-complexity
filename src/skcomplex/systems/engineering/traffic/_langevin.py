@@ -18,7 +18,7 @@ from ....core.components.interactions import RelaxationInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import divergence, laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import EulerMaruyamaSolver, RK4Solver
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common._car import CarElement

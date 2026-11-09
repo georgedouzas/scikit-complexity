@@ -6,7 +6,7 @@ from scipy.integrate import solve_ivp
 from sklearn.base import clone
 
 from skcomplex.core.analysis import reservoir
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.computer_science.neural_networks import NextGenerationReservoirSystem

@@ -9,7 +9,7 @@ The members are joined through a shared medium.
 from collections.abc import Mapping, Sequence
 
 from ....core.components.spaces import StaticTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ..common.metabolism import CommunityInteraction, community_medium_type, load_network
 
 GROWTH = 'Biomass_Ecoli_core'

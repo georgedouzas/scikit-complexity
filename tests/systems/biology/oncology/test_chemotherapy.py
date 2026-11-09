@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.systems.biology.oncology import (
     DelayedMetastasisSystem,
     DelayedRestingHuntingChemotherapySystem,

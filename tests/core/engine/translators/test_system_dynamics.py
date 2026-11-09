@@ -10,7 +10,7 @@ import pytest
 
 from skcomplex.core.analysis import loops
 from skcomplex.core.components.interactions import RelaxationInteraction, TransferInteraction
-from skcomplex.core.components.system import BaseSystem
+from skcomplex.core.components.systems import BaseSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerSolver
 from skcomplex.core.engine.translators import SystemDynamicsTranslator

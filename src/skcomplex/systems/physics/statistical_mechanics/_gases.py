@@ -11,7 +11,7 @@ import numpy as np
 from ....core.components.elements import GroupElement
 from ....core.components.interactions import BaseInteraction
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import VelocityVerletSolver
 from ....core.specs import VisualSpec
 from ..common.particles import LangevinThermostatInteraction, LennardJonesInteraction, MassPointElement

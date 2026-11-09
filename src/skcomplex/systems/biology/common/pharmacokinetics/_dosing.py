@@ -59,7 +59,7 @@ class DosingInteraction(RateInteraction):
 
     Examples:
         >>> from skcomplex.core.components.elements import CompartmentElement
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.biology.common.pharmacokinetics import DosingInteraction
         >>> from skcomplex.core.engine.runtime import simulate
         >>> dosing = DosingInteraction('dosing', target='patient', state='n', dose=2.0, period=10.0, count=3)

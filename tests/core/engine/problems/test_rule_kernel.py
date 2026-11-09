@@ -16,7 +16,7 @@ from skcomplex.core.components.spaces import (
     LatticeSpace,
     StateTranslationNeighborhood,
 )
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import PowerSeriesSpec, StateSpec, TotalisticSpec

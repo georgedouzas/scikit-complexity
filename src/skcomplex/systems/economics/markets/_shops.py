@@ -22,7 +22,7 @@ from ....core.components.interactions import (
     SignAdjustmentInteraction,
 )
 from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import (
     MatchSpec,

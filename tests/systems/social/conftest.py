@@ -3,7 +3,7 @@
 import numpy as np
 import numpy.typing as npt
 
-from skcomplex.core.components.system import BaseSystem
+from skcomplex.core.components.systems import BaseSystem
 from skcomplex.core.engine.runtime import Trajectory, simulate
 
 

@@ -12,7 +12,7 @@ from skcomplex.core.components.elements import CompartmentElement, Element, Fiel
 from skcomplex.core.components.interactions import JumpInteraction, ReactionInteraction
 from skcomplex.core.components.laws import JumpLaw, NoiseLaw, RateLaw
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec

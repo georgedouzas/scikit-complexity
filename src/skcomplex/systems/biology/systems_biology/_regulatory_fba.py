@@ -14,7 +14,7 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import where
 from ....core.components.spaces import ContinuousTime, DiscreteTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import CoSimulationSolver, RK4Solver
 from ....core.specs import RoleSpec
 from ..common.metabolism import (

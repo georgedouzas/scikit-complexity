@@ -17,7 +17,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import PatchElement, WordElement
 from ....core.components.laws import ProductionLaw, SubstitutionLaw
 from ....core.components.spaces import BaseSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import AffineSpec, GeometrySpec, ParameterSpec, PrototileSpec, VisualSpec
 

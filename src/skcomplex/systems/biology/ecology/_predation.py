@@ -14,7 +14,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.interactions import Interaction, JumpInteraction, RateInteraction
 from ....core.components.laws import BaseLaw, JumpLaw, RateLaw, UpdateLaw
 from ....core.components.laws.utils import clip
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import ScipyODESolver
 from ....core.specs import ParameterSpec, RoleSpec
 from ..common.populations import (

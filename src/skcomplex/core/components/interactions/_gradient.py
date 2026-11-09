@@ -83,7 +83,7 @@ class GradientInteraction(Interaction):
     Examples:
         >>> from skcomplex.core.components.elements import CompartmentElement
         >>> from skcomplex.core.components.interactions import GradientInteraction
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.engine.runtime import simulate
         >>> well = GradientInteraction('well', target='walker', states='n', potential=lambda s: s.target.n**2 / 2)
         >>> system = System(elements=[CompartmentElement('walker', n=1.0)], interactions=[well])

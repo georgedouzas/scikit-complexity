@@ -2,7 +2,7 @@
 
 import pytest
 
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.backends import NumpyBackend
 from skcomplex.core.engine.compile import BasePass
 from skcomplex.core.engine.compile._compilation import Compilation

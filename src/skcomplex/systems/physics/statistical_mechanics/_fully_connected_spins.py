@@ -19,7 +19,7 @@ from ....core.components.elements import Element, LatticeElement
 from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.laws.utils import count, mean, total, where
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 

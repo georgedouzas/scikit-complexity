@@ -19,7 +19,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import CrossingInteraction, EulerLagrangeInteraction
 from ....core.components.laws.utils import derivative
 from ....core.components.spaces import BaseSpace, ContinuousSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.mechanics import PendulumElement, PendulumInteraction

@@ -23,7 +23,7 @@ from shapely.geometry import shape
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, MovementInteraction
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.errors import ValidationError

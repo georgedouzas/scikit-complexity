@@ -16,7 +16,7 @@ from sage.all__sagemath_symbolics import Expression
 
 from ...base import BaseConfig
 from ...components.laws import BaseLaw
-from ...components.system import System
+from ...components.systems import System
 from ...errors import (
     LabelError,
     ParameterError,

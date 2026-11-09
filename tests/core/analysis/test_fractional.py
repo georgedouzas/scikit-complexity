@@ -10,7 +10,7 @@ from skcomplex.core.analysis import symbolic
 from skcomplex.core.analysis._symbolic import _mittag_leffler
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 

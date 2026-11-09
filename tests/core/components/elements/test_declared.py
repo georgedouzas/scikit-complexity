@@ -13,7 +13,7 @@ from skcomplex.core.components.elements import DeclaredElement, Element, FieldEl
 from skcomplex.core.components.interactions import MapInteraction, RateInteraction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime, LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine._utils import declared_variables
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError

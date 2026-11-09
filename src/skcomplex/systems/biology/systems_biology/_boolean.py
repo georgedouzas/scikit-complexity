@@ -12,7 +12,7 @@ from sage.all__sagemath_symbolics import SR, Expression
 
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import where
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec
 from ..common.networks import BooleanFunctionInteraction, BooleanNodeElement

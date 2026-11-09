@@ -12,7 +12,7 @@ from sage.all__sagemath_symbolics import Expression
 
 from ...errors import SkcomplexError
 from ...specs._base_spec import BaseSpec
-from ..system import System
+from ..systems import System
 from ._census_record_spec import CensusRecordSpec
 
 

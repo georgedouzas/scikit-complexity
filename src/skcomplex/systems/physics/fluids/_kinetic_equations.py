@@ -19,7 +19,7 @@ from ....core.components.elements import DensityElement, FieldElement
 from ....core.components.interactions import AdvectionInteraction, EncounterInteraction, RelaxationInteraction
 from ....core.components.laws.utils import coordinate, gradient, inverse_laplacian, maximum_entropy, moment
 from ....core.components.spaces import LatticeSpace, PhaseSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import RK4Solver, SemiLagrangianSolver, SSPRKSolver, StrangSplittingSolver
 from ....core.errors import ValidationError
 from ....core.specs import AxisSpec, RoleSpec, VisualSpec

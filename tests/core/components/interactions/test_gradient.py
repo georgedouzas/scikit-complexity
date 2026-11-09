@@ -13,7 +13,7 @@ from skcomplex.core.components.interactions import GradientInteraction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import gradient, laplacian
 from skcomplex.core.components.spaces import ContinuousSpace, LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.errors import ValidationError

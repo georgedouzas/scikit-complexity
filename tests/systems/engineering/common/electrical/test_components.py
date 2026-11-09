@@ -10,7 +10,7 @@ from scipy.optimize import brentq
 from scipy.signal import find_peaks
 
 from skcomplex.core.components.interactions import ConnectionInteraction
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.backends import NumbaBackend
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver, ScipyODESolver

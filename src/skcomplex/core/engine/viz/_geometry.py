@@ -115,7 +115,7 @@ class GeometryVisual(BaseVisual):
             >>> from skcomplex.core.components.laws import ProductionLaw
             >>> from skcomplex.core.components.spaces import DiscreteTime
             >>> from skcomplex.core.specs import GeometrySpec
-            >>> from skcomplex.core.components.system import System
+            >>> from skcomplex.core.components.systems import System
             >>> from skcomplex.core.engine.viz import GeometryVisual
             >>> class KochElement(WordElement):
             ...     def _get_laws(self, namespace):

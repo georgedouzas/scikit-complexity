@@ -9,7 +9,7 @@ from scipy.optimize import nnls
 
 from skcomplex.core.analysis import elementary_modes
 from skcomplex.core.components.spaces import StaticTime
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.errors import EnumerationLimitError
 from skcomplex.systems.biology.common.metabolism import load_network
 from skcomplex.systems.biology.systems_biology import ElementaryFluxModesSystem

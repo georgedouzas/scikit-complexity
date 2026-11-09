@@ -16,7 +16,7 @@ from ....core.base import BaseConfig
 from ....core.components.elements import Element, LatticeElement
 from ....core.components.interactions import SamplingInteraction
 from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RowScoreSpec, StateSpec, VisualSpec
 from ....core.types import Array

@@ -10,7 +10,7 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.interactions import ReactionInteraction
-from ....core.components.mass_action import MassActionSystem
+from ....core.components.systems import MassActionSystem
 from ....core.specs import ParameterSpec, RoleSpec
 from ....core.types import Stoichiometry
 
@@ -43,7 +43,7 @@ class InfectionInteraction(ReactionInteraction):
 
     Examples:
         >>> from skcomplex.core.components.elements import CompartmentElement
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.biology.epidemiology import InfectionInteraction
         >>> from skcomplex.core.engine.runtime import simulate
         >>> system = System(
@@ -199,7 +199,7 @@ class RecoveryInteraction(ReactionInteraction):
 
     Examples:
         >>> from skcomplex.core.components.elements import CompartmentElement
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.biology.epidemiology import RecoveryInteraction
         >>> from skcomplex.core.engine.runtime import simulate
         >>> system = System(

@@ -17,7 +17,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import HamiltonianInteraction, ImpulseInteraction, RateInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import derivative
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import ScipyODESolver, Yoshida4Solver
 from ....core.errors import ParameterError
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
@@ -433,7 +433,7 @@ class VanDerPolElement(Element):
             The visual of the oscillator when it sets none.
 
     Examples:
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.physics.nonlinear_oscillators import VanDerPolElement
         >>> from skcomplex.core.engine.runtime import simulate
         >>> system = System(elements=[VanDerPolElement('oscillator', x=0.1)])

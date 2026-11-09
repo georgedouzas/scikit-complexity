@@ -21,7 +21,7 @@ from skcomplex.core.components.interactions import (
 from skcomplex.core.components.laws import NoiseLaw, RateLaw, RuleLaw, SampleLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import mean, neighbors
 from skcomplex.core.components.spaces import CayleySpace, DiscreteTime, LatticeSpace, MemoryNeighborhood, NetworkSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.solvers import LammpsSolver, MilsteinSolver, PontryaginSolver, RK4Solver
 from skcomplex.core.engine.solvers._defaults import DEFAULT_SOLVERS

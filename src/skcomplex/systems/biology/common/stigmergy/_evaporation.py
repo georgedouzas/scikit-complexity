@@ -45,7 +45,7 @@ class EvaporationInteraction(RateInteraction):
     Examples:
         >>> from typing import Annotated
         >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.biology.common.stigmergy import EvaporationInteraction
         >>> from skcomplex.core.specs import ParameterSpec, StateSpec
         >>> from skcomplex.core.engine.runtime import simulate

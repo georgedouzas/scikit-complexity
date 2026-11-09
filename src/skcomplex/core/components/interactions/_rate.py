@@ -89,7 +89,7 @@ class RateInteraction(Interaction):
     Examples:
         >>> from skcomplex.core.components.elements import CompartmentElement
         >>> from skcomplex.core.components.interactions import RateInteraction
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.engine.runtime import simulate
         >>> decay = RateInteraction('decay', target='stock', state='n', rate=lambda s: -0.5 * s.target.n)
         >>> system = System(elements=[CompartmentElement('stock', n=8.0)], interactions=[decay])

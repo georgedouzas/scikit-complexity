@@ -14,7 +14,7 @@ from skcomplex.core.base import BaseConfig
 from skcomplex.core.components.base import BasePart
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import BaseSpec
 

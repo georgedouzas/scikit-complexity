@@ -8,7 +8,7 @@ import pytest
 
 import skcomplex.core.components
 from skcomplex.core.analysis import linearization
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.engineering.control import (
     CartPendulumElement,

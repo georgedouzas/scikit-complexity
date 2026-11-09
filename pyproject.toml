@@ -381,12 +381,21 @@ type = "layers"
 containers = ["skcomplex.core.components"]
 layers = [
     "specs",
-    "mass_action",
-    "system",
+    "systems",
     "elements | interactions",
     "laws",
     "spaces",
     "base",
+]
+
+[[tool.importlinter.contracts]]
+name = "System modules import only the modules listed after them"
+type = "layers"
+containers = ["skcomplex.core.components.systems"]
+layers = [
+    "_mass_action",
+    "_system",
+    "_base",
 ]
 
 [[tool.importlinter.contracts]]

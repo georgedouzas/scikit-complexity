@@ -91,7 +91,7 @@ class SignAdjustmentInteraction(Interaction):
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.interactions import SignAdjustmentInteraction
         >>> from skcomplex.core.components.spaces import DiscreteTime
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.core.engine.runtime import simulate
         >>> class QuoteElement(Element):

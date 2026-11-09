@@ -58,7 +58,7 @@ class StuartLandauElement(Element):
 
     Examples:
         >>> import math
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.physics.common.oscillators import StuartLandauElement
         >>> from skcomplex.core.engine.runtime import simulate
         >>> system = System(elements=[StuartLandauElement('oscillator', x=0.1, mu=4.0)])

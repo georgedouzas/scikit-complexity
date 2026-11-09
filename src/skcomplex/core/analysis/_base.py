@@ -19,7 +19,7 @@ import numpy.typing as npt
 
 from ..components.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
 from ..components.specs import CompiledElementSpec
-from ..components.system import BaseSystem, System
+from ..components.systems import BaseSystem, System
 from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.problems import BaseProblemSpec, ProblemSpec
 from ..engine.runtime import Trajectory

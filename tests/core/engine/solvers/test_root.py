@@ -18,7 +18,7 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import EquationLaw, RateLaw
 from skcomplex.core.components.laws.utils import log_sum_exp, total
 from skcomplex.core.components.spaces import StaticTime
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.errors import SolverError

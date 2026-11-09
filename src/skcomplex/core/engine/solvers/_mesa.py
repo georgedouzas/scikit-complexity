@@ -31,7 +31,7 @@ from ...components.spaces import (
     NetworkSpace,
 )
 from ...components.specs import CompiledAgentsSpec
-from ...components.system import System
+from ...components.systems import System
 from ...errors import ConservationError, SimulationError, SpaceError, ValidationError
 from ...specs import (
     DEFAULT_PHASE,
@@ -1040,7 +1040,7 @@ class MesaSolver(ExternalSolver):
         >>> from skcomplex.core.components.elements import Element, GroupElement
         >>> from skcomplex.core.components.laws import RuleLaw
         >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.engine.solvers import MesaSolver
         >>> from skcomplex.core.engine.runtime import simulate
         >>> class CounterElement(Element):

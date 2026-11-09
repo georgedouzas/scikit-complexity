@@ -12,7 +12,7 @@ from skcomplex.core.components.interactions import TransferInteraction
 from skcomplex.core.components.laws import BaseLaw, RateLaw, RuleLaw, Sink, Source
 from skcomplex.core.components.laws.utils import bernoulli
 from skcomplex.core.components.spaces import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.errors import SpaceError, ValidationError
 from skcomplex.core.specs import (

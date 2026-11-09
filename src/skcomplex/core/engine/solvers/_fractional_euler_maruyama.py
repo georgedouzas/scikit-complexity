@@ -77,7 +77,7 @@ class FractionalEulerMaruyamaSolver(Solver):
         >>> from skcomplex.core.components.elements import Element, GroupElement
         >>> from skcomplex.core.components.laws import FractionalNoiseLaw
         >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.solvers import FractionalEulerMaruyamaSolver
         >>> from skcomplex.core.specs import StepSpec

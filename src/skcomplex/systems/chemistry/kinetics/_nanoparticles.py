@@ -7,7 +7,7 @@ from collections.abc import Sequence
 
 from ....core.components.elements import CompartmentElement
 from ....core.components.interactions import ReactionInteraction
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import ScipyODESolver
 
 PROTEINS = ('albumin', 'lipoprotein', 'fibrinogen')

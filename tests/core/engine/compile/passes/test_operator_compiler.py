@@ -13,7 +13,7 @@ from skcomplex.core.components.interactions import NeighborInteraction
 from skcomplex.core.components.laws import DissipatorLaw, GeneratorLaw, RateLaw
 from skcomplex.core.components.laws.utils import local_operator
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine._utils import symbol
 from skcomplex.core.engine.compile import BaseCompiler, BasePass
 from skcomplex.core.engine.compile._observables import ObservableEvaluator

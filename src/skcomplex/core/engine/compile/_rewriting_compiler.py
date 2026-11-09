@@ -13,7 +13,7 @@ from sage.all__sagemath_symbolics import NN, Expression
 from ...components.elements import GroupElement, PatchElement, WordElement
 from ...components.laws import ProductionLaw, SubstitutionLaw
 from ...components.specs import CompiledElementSpec, NodeSpec
-from ...components.system import System
+from ...components.systems import System
 from ...errors import IncompatibleLawsError, RewritingError, SkcomplexError, ValidationError
 from ...specs import EntrySpec, IssueSpec, LayoutSpec, ParametersSpec
 from ...types import FormKind, VariableKind
@@ -45,7 +45,7 @@ class RewritingCompiler(BaseCompiler):
     The backend, the solver, and the initial state do not change a problem of the rewriting form.
 
     Examples:
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.engine.compile._rewriting_compiler import RewritingCompiler
         >>> from skcomplex.systems.biology.common.populations import PopulationElement
         >>> RewritingCompiler().prepare(System(elements=[PopulationElement('rabbits')])).report_.ok
@@ -232,7 +232,7 @@ class RewritingCompiler(BaseCompiler):
 
         Examples:
             >>> from skcomplex.core.components.spaces import DiscreteTime
-            >>> from skcomplex.core.components.system import System
+            >>> from skcomplex.core.components.systems import System
             >>> from skcomplex.core.engine.compile._rewriting_compiler import RewritingCompiler
             >>> from skcomplex.core.components.laws import ProductionLaw
             >>> from skcomplex.core.components.elements import WordElement

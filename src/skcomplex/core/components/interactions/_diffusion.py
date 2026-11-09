@@ -52,7 +52,7 @@ class DiffusionInteraction(ConservationInteraction):
         >>> from skcomplex.core.components.elements import Element, FieldElement
         >>> from skcomplex.core.components.interactions import DiffusionInteraction
         >>> from skcomplex.core.components.spaces import LatticeSpace
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.specs import StateSpec
         >>> class CellElement(Element):

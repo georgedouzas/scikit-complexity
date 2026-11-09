@@ -6,7 +6,7 @@ import pytest
 from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.interactions import TrainingInteraction
 from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.backends import JaxBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems._learning_problem_spec import LearningProblemSpec

@@ -233,7 +233,7 @@ class SamplingInteraction(Interaction):
         >>> from skcomplex.core.components.interactions import SamplingInteraction
         >>> from skcomplex.core.components.laws.utils import neighbors
         >>> from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.specs import StateSpec
         >>> from typing import Annotated
         >>> from skcomplex.core.engine.runtime import simulate

@@ -20,7 +20,7 @@ from skcomplex.core.components.laws.utils import (
     vector_gradient,
 )
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.backends import NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.errors import TensorShapeError

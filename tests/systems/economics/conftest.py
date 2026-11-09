@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping, Sequence
 
-from skcomplex.core.components.system import BaseSystem, System
+from skcomplex.core.components.systems import BaseSystem, System
 from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.specs import ObservableSpec
 from skcomplex.core.types import AnyArray

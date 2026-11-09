@@ -15,7 +15,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import BaseLaw, NoiseLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import mean, total
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.specs import HilbertSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec, WienerProcessSpec
 
 

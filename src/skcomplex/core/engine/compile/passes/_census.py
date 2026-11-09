@@ -43,7 +43,7 @@ from ....components.laws.utils import (
 )
 from ....components.spaces import CellComplexSpace, LatticeSpace
 from ....components.specs import CensusRecordSpec, CensusSpec, NodeSpec
-from ....components.system import System
+from ....components.systems import System
 from ....errors import RoleElementError, SkcomplexError, TensorShapeError, TensorSymmetryError, ValidationError
 from ....specs import CallSpec, EntrySpec, TensorSpec
 from ....types import ElementKind, ProcessKey, VariableKind

@@ -10,7 +10,7 @@ from scipy import special
 from skcomplex.core.analysis import LargeDeviationsResult, large_deviations
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import JumpLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import StateSpec, VisualSpec
 

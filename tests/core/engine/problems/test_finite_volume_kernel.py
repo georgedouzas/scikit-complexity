@@ -11,7 +11,7 @@ from skcomplex.core.components.elements import DensityElement, Element, FieldEle
 from skcomplex.core.components.interactions import AdvectionInteraction
 from skcomplex.core.components.laws import FluxLaw
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace, SimplexSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import SSPRKSolver

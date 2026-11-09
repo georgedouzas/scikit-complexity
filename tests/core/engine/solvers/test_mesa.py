@@ -16,7 +16,7 @@ from skcomplex.core.components.spaces import (
     LatticeSpace,
     NetworkSpace,
 )
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.compile.passes._agents import AgentsPass
 from skcomplex.core.engine.compile.passes._agents_problem import AGENT_RESERVED_NAMES

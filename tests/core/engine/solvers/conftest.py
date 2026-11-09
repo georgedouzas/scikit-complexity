@@ -12,7 +12,7 @@ from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import BaseLaw, RateLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 
 HORIZON = 1.0

@@ -19,7 +19,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import BaseInteraction, MapInteraction, TopologyInteraction
 from ....core.components.laws.utils import logistic, neighbors, total, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..common._vertex import DEGREE_VISUAL, VertexElement

@@ -10,7 +10,7 @@ from skcomplex.core.components.elements import FieldElement, GroupElement
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import hill, laplacian
 from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.systems.biology.physiology import (

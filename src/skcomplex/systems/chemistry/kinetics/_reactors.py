@@ -13,7 +13,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import ReactionInteraction, RelaxationInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import pulse_train
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 

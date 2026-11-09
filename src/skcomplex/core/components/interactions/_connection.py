@@ -47,7 +47,7 @@ class ConnectionInteraction(Interaction):
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.interactions import ConnectionInteraction
         >>> from skcomplex.core.components.laws import EquationLaw
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.specs import ConnectorSpec, ParameterSpec, StateSpec
         >>> from skcomplex.core.engine.runtime import simulate
         >>> PIN = ConnectorSpec('pin', potential='v', flow='i')

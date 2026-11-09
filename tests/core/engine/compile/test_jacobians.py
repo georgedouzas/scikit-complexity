@@ -25,7 +25,7 @@ from skcomplex.core.components.laws.utils import (
     where,
 )
 from skcomplex.core.components.spaces import ContinuousSpace, LatticeSpace, MeshSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.backends import NumpyBackend
 from skcomplex.core.engine.compile._field_lowering import FieldLowering
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler

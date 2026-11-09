@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import RecorderObserver, simulate
 from skcomplex.core.errors import SimulationError
 from skcomplex.systems.biology.common.populations import PopulationElement

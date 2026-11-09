@@ -1,7 +1,7 @@
 """Test the `_random_pairs` module of `skcomplex.systems.social.opinion_dynamics`."""
 
 from skcomplex.core.components.elements import GroupElement
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.social.opinion_dynamics import DiscussantElement, RandomPairsInteraction
 

@@ -22,7 +22,7 @@ from ....core.components.interactions import BaseInteraction, Interaction, Match
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.laws.utils import transfer
 from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.system import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, RunSettings, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import (
     BaseSpec,

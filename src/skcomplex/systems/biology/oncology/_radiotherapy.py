@@ -14,7 +14,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import ImpulseInteraction, RateInteraction, ReactionInteraction
 from ....core.components.laws.utils import pulse_train
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'

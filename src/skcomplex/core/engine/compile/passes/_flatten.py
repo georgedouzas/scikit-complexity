@@ -15,7 +15,7 @@ from ....components.elements import DeclaredElement, Element, GroupElement
 from ....components.interactions import BaseInteraction
 from ....components.spaces import BaseSpace, LatticeSpace, NetworkSpace
 from ....components.specs import NodeSpec
-from ....components.system import System
+from ....components.systems import System
 from ....errors import LabelError, RoleError, SkcomplexError, ValidationError
 from ....specs import WienerProcessSpec
 from ....types import VariableKind

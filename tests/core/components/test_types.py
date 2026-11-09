@@ -9,7 +9,7 @@ from sage.modules.free_module_element import FreeModuleElement
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import FeedbackInteraction
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.components.types import AgentViewProtocol, MatchingRule, Process, SystemViewProtocol, Target
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import PartnerSpec, RandomSearchSpec

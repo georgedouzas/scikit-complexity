@@ -4,7 +4,7 @@ from dataclasses import replace
 
 import pytest
 
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import ConservationObserver, simulate
 from skcomplex.core.errors import SimulationError, ValidationError
 from skcomplex.systems.biology.common.populations import PopulationElement

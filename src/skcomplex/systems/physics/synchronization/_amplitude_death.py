@@ -17,7 +17,7 @@ from scipy import stats
 
 from ....core.components.elements import GroupElement
 from ....core.components.interactions import CouplingInteraction
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec
 from ..common.oscillators import StuartLandauElement

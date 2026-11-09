@@ -8,7 +8,7 @@ The module holds masses on springs and dampers between walls.
 
 
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ..common.particles import (
     DampingInteraction,
     HarmonicForceInteraction,

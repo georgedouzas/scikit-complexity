@@ -7,7 +7,7 @@ The two strains compete for the medium.
 # License: MIT
 
 from ....core.components.spaces import DiscreteTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import CoSimulationSolver, RK4Solver
 from ..common.metabolism import (
     BiomassElement,

@@ -17,7 +17,7 @@ from ....core.components.elements import CompartmentElement, Element
 from ....core.components.interactions import Interaction, ReactionInteraction
 from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.laws.utils import where
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
 
 type Regulations = Mapping[str, tuple[Sequence[str], Sequence[int], Mapping[tuple[bool, ...], int]]]

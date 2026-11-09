@@ -18,7 +18,7 @@ from ....core.components.interactions import BaseInteraction, GradientInteractio
 from ....core.components.laws import BaseLaw, CrossingLaw, RateLaw
 from ....core.components.laws.utils import derivative
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.mechanics import PendulumElement, PendulumInteraction, ReflectionInteraction
 from ..common.particles import (

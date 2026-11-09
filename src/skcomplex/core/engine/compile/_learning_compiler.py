@@ -19,7 +19,7 @@ from sklearn.base import clone
 from ...components.interactions import TrainingInteraction
 from ...components.laws import EquationLaw, GradientStepLaw, RateLaw, UpdateLaw
 from ...components.spaces import DiscreteTime
-from ...components.system import System
+from ...components.systems import System
 from ...errors import SkcomplexError, SolverError, ValidationError
 from ...specs import EntrySpec, IssueSpec, LayoutSpec, ObservableSpec, ParameterSpec
 from ...types import FormKind

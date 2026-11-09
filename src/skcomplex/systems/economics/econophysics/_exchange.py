@@ -9,7 +9,7 @@ from sage.all__sagemath_symbolics import NN
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import TransferInteraction
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.specs import StateSpec, VisualSpec
 
 

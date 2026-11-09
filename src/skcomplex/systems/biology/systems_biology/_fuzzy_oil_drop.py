@@ -23,7 +23,7 @@ from ....core.components.interactions import Interaction, SamplingInteraction
 from ....core.components.laws import BaseLaw, DriveLaw
 from ....core.components.spaces import DiscreteTime, LatticeSpace
 from ....core.components.specs import CompiledElementSpec
-from ....core.components.system import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, RunSettings, System
 from ....core.engine.problems import BaseProblemSpec, FrameSpec
 from ....core.engine.runtime import Trajectory
 from ....core.engine.viz import PointsVisual

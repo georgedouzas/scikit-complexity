@@ -17,7 +17,7 @@ from ....core.components.spaces import (
     LatticeSpace,
     VonNeumannNeighborhood,
 )
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ._binary_cell import BinaryCellElement
 from ._codes import life
 

@@ -24,7 +24,7 @@ from numpyro.infer.autoguide import AutoMultivariateNormal
 from scipy import stats
 from scipy.optimize import least_squares, minimize
 
-from ..components.system import BaseSystem
+from ..components.systems import BaseSystem
 from ..engine.backends import JaxBackend
 from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.problems import ProblemSpec

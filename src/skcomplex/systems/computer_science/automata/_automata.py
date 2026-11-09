@@ -14,7 +14,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from ....core.components.elements import Element, LatticeElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import BoxNeighborhood, LatticeSpace, MooreNeighborhood, VonNeumannNeighborhood
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.specs import StateSpec, VisualSpec
 from ....core.types import Array
 from ._binary_cell import BinaryCellElement

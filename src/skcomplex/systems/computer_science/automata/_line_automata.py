@@ -12,7 +12,7 @@ import numpy.typing as npt
 from ....core.components.elements import LatticeElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.errors import ParameterError
 from ....core.specs import ObservableSpec
 from ....core.types import Array

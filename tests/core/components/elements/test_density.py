@@ -10,7 +10,7 @@ from skcomplex.core.components.elements import DensityElement, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import EncounterLaw
 from skcomplex.core.components.spaces import ContinuousTime, LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, RoleSpec
 

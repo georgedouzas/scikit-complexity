@@ -14,7 +14,7 @@ from ....core.components.base import BasePart
 from ....core.components.elements import Element
 from ....core.components.laws import EquationLaw
 from ....core.components.spaces import StaticTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec
 
 

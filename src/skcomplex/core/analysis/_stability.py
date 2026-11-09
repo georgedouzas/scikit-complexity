@@ -21,7 +21,7 @@ from ..components.elements import BaseElement, FieldElement
 from ..components.interactions import BaseInteraction
 from ..components.laws import RateLaw
 from ..components.spaces import LatticeSpace
-from ..components.system import System
+from ..components.systems import System
 from ..engine._utils import bound_labels, components_of, declarations_of, default_of, symbol
 from ..engine.problems import BaseProblemSpec, ProblemSpec
 from ..engine.problems._dynamics_spec import _DynamicsSpec

@@ -51,7 +51,7 @@ class SemiLagrangianSolver(Solver):
         >>> from skcomplex.core.components.interactions import AdvectionInteraction
         >>> from skcomplex.core.components.laws.utils import coordinate
         >>> from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.engine.solvers import SemiLagrangianSolver
         >>> from skcomplex.core.specs import AxisSpec
         >>> from skcomplex.core.engine.runtime import simulate

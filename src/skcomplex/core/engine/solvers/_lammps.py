@@ -27,7 +27,7 @@ from ...components.interactions import BaseInteraction, PairCouplingInteraction
 from ...components.laws import BoundaryLaw, EquationLaw, FluxLaw, NoiseLaw, RateLaw
 from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...components.specs import CompiledElementSpec, CompiledInteractionSpec
-from ...components.system import System
+from ...components.systems import System
 from ...errors import BackendError, SolverError
 from ...specs import SupportSpec
 from ...types import Array, FormKind, NoiseKind, OrderKind, VariableKind
@@ -113,7 +113,7 @@ class LammpsSolver(ExternalSolver):
         >>> from skcomplex.core.components.elements import GroupElement, PointElement
         >>> from skcomplex.core.components.interactions import PairCouplingInteraction
         >>> from skcomplex.core.components.spaces import ContinuousSpace
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.engine.solvers import LammpsSolver
         >>> from skcomplex.core.engine.runtime import simulate
         >>> potential = lambda namespace, r: 4 * (r**-12 - r**-6)

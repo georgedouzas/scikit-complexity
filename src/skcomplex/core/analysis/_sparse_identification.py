@@ -20,7 +20,7 @@ from sage.all__sagemath_symbolics import Expression
 from ..components.elements import DeclaredElement
 from ..components.laws import BaseLaw, RateLaw
 from ..components.spaces import BaseTime, ContinuousTime
-from ..components.system import System
+from ..components.systems import System
 from ..engine.runtime import simulate
 from ..errors import AnalysisError
 from ..specs import AnalysisTags, DeclaredVariableSpec, ParameterSpec, SamplesSpec, StateSpec, VisualSpec

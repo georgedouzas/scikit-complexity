@@ -61,7 +61,7 @@ class GeodesicInteraction(Interaction):
         >>> from skcomplex.core.components.elements import PointElement
         >>> from skcomplex.core.components.interactions import GeodesicInteraction
         >>> from skcomplex.core.components.spaces import PseudoRiemannianSpace
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.engine.runtime import simulate
         >>> r, phi = SR.var('r phi')
         >>> plane = PseudoRiemannianSpace(matrix(SR, [[1, 0], [0, r**2]]), (r, phi))

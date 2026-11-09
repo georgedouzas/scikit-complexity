@@ -15,7 +15,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import lookup
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 ABSORPTION_TIME = ((0.0, 0.6), (10.0, 2.5), (20.0, 5.0), (30.0, 8.0), (40.0, 11.5), (50.0, 15.5), (60.0, 20.0))

@@ -11,7 +11,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import CompartmentElement, GroupElement
 from ....core.components.interactions import JumpInteraction
 from ....core.components.laws.utils import where
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 

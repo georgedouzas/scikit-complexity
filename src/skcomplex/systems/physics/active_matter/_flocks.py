@@ -27,7 +27,7 @@ from ....core.components.spaces import (
     NearestNeighborhood,
     RadiusNeighborhood,
 )
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.components.types import Target
 from ....core.errors import ParameterError
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec

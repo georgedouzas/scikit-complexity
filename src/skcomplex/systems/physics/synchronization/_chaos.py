@@ -19,7 +19,7 @@ from ....core.components.interactions import MapInteraction, RateInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import lag, mod
 from ....core.components.spaces import BaseSpace, DiscreteTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
@@ -55,7 +55,7 @@ class LorenzElement(Element):
             The geometric factor.
 
     Examples:
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.physics.synchronization._chaos import LorenzElement
         >>> from skcomplex.core.engine.runtime import simulate
         >>> system = System(elements=[LorenzElement('lorenz', x=0.0, y=0.0, z=2.0, beta=0.5)])

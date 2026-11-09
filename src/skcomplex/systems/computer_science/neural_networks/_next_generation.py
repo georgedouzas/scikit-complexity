@@ -20,7 +20,7 @@ from ....core.components.elements import DeclaredElement, Element
 from ....core.components.interactions import MapInteraction, RateInteraction
 from ....core.components.laws.utils import lag
 from ....core.components.spaces import ContinuousTime, DiscreteTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.engine.runtime import simulate
 from ....core.engine.solvers import ScipyODESolver
 from ....core.errors import ValidationError

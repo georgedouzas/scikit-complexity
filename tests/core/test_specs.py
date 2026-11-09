@@ -20,7 +20,7 @@ from skcomplex.core.components.laws import RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import distributed_delay, mean, total
 from skcomplex.core.components.spaces import ContinuousTime, VonNeumannNeighborhood
 from skcomplex.core.components.specs import ScenarioSpec
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine._utils import symbol
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import RoleError, ValidationError

@@ -12,7 +12,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import CompartmentElement
 from ....core.components.interactions import ReactionInteraction
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Stoichiometry
 
@@ -112,7 +112,7 @@ class TrailChoiceInteraction(ReactionInteraction):
             Whether ants are random events.
 
     Examples:
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.biology.collective_behaviour import BranchElement, TrailChoiceInteraction
         >>> from skcomplex.core.engine.runtime import simulate
         >>> choice = TrailChoiceInteraction('choice', chosen='left', other='right', stochastic=False)
@@ -210,7 +210,7 @@ class AlarmInteraction(ReactionInteraction):
             Whether changes are random events.
 
     Examples:
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.biology.collective_behaviour import AlarmInteraction, RatsElement
         >>> from skcomplex.core.engine.runtime import simulate
         >>> alarm = AlarmInteraction('alarm', calm='calm', nervous='nervous', stochastic=False)

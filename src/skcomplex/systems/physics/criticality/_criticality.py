@@ -25,7 +25,7 @@ from ....core.components.spaces import (
     TriangularNeighborhood,
     VonNeumannNeighborhood,
 )
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ..common import SandpileCellElement

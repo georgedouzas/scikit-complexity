@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.solvers import IterationSolver
 from skcomplex.core.specs import StepSpec

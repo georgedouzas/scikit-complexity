@@ -23,7 +23,7 @@ class RecorderObserver(BaseObserver):
             The frames received so far.
 
     Examples:
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.biology.common.populations import PopulationElement
         >>> from skcomplex.core.engine.runtime import RecorderObserver, simulate
         >>> recorder = RecorderObserver()

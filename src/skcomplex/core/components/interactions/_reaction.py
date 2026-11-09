@@ -116,7 +116,7 @@ class ReactionInteraction(JumpInteraction):
     Examples:
         >>> from skcomplex.core.components.elements import CompartmentElement
         >>> from skcomplex.core.components.interactions import ReactionInteraction
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.runtime import simulate
         >>> infection = ReactionInteraction(

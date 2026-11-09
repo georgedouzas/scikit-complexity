@@ -6,7 +6,7 @@ from shapely import Point
 
 from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.social.organizations import (
     KauaiPopulationSystem,

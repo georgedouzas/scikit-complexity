@@ -18,7 +18,7 @@ from ....core.components.elements import GroupElement
 from ....core.components.interactions import BaseInteraction, RateInteraction
 from ....core.components.laws.utils import delayed
 from ....core.components.spaces import ContinuousSpace, RadiusNeighborhood
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.specs import ParameterSpec, RoleSpec, VisualSpec
 from ..common.oscillators import (
     KuramotoCouplingInteraction,

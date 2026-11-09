@@ -46,7 +46,7 @@ class VelocityVerletSolver(Solver):
         >>> import numpy as np
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.components.spaces import ContinuousSpace
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.components.elements import PointElement
         >>> from skcomplex.core.engine.solvers import VelocityVerletSolver
         >>> from skcomplex.core.specs import StepSpec

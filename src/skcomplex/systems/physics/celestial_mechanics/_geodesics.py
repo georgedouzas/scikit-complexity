@@ -17,7 +17,7 @@ from sage.structure.element import Matrix
 from ....core.components.elements import Element
 from ....core.components.interactions import GeodesicInteraction
 from ....core.components.spaces import PseudoRiemannianSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import ScipyODESolver
 from ....core.errors import ValidationError
 from ....core.specs import StateSpec, VisualSpec

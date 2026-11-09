@@ -15,7 +15,7 @@ from sklearn.base import TransformerMixin, clone
 
 from ..components.laws import BaseLaw, RateLaw
 from ..components.spaces import ContinuousTime
-from ..components.system import System
+from ..components.systems import System
 from ..engine._utils import vector
 from ..errors import AnalysisError
 from ..specs import AnalysisTags, SamplesSpec

@@ -14,8 +14,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.interactions import ReactionInteraction
-from ....core.components.mass_action import MassActionSystem
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, MassActionSystem, System
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import ReactionTable

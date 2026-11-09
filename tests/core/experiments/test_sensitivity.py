@@ -7,7 +7,7 @@ import pytest
 from sage.all__sagemath_symbolics import sin
 
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.experiments import sensitivity
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, VisualSpec

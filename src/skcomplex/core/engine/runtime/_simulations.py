@@ -14,7 +14,7 @@ from sage.sets.real_set import RealSet
 from sklearn.base import clone
 
 from ...base import BaseConfig
-from ...components.system import System
+from ...components.systems import System
 from ...errors import ParameterError, SimulationError, ValidationError
 from ...specs import AgentStateSpec, EntrySpec, ObservableSpec, RunStateSpec, StepSpec, StructureStateSpec
 from ...types import Array, FormKind
@@ -150,7 +150,7 @@ class Simulation(BaseConfig[None, float]):
             The recorder of the draws of a run that records or replays them, or `None`.
 
     Examples:
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.systems.biology.common.populations import LogisticGrowthInteraction, PopulationElement
         >>> from skcomplex.core.engine.runtime._simulations import Simulation
         >>> system = System(
@@ -622,7 +622,7 @@ class Simulation(BaseConfig[None, float]):
                 The simulation has not run, ended at a terminal event, or `until` is not later than its time.
 
         Examples:
-            >>> from skcomplex.core.components.system import System
+            >>> from skcomplex.core.components.systems import System
             >>> from skcomplex.systems.biology.common.populations import LogisticGrowthInteraction, PopulationElement
             >>> from skcomplex.core.engine.runtime._simulations import Simulation
             >>> system = System(

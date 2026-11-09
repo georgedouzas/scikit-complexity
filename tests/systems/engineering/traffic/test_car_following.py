@@ -10,7 +10,7 @@ from sage.all__sagemath_symbolics import sqrt, tanh
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec

@@ -29,7 +29,7 @@ class RenewalSolver(Solver):
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.laws import JumpLaw
         >>> from skcomplex.core.components.laws.utils import draw
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.engine.solvers import RenewalSolver
         >>> from skcomplex.core.specs import StepSpec
         >>> class CounterElement(Element):

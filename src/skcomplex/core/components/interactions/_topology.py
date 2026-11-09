@@ -150,7 +150,7 @@ class TopologyInteraction(NeighborInteraction):
         >>> from skcomplex.core.components.elements import Element, GroupElement
         >>> from skcomplex.core.components.interactions import TopologyInteraction
         >>> from skcomplex.core.components.spaces import NetworkSpace
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.engine.runtime import simulate
         >>> nodes = GroupElement('nodes', element=Element, on='sites', variable=True, capacity=20)
         >>> links = GroupElement('links', element=Element, on='edges', variable=True, capacity=20)

@@ -26,8 +26,8 @@ BASE_IMPORTS = frozenset(
     {
         (SAGE_MODULE, 'Expression'),
         (ELEMENTS_MODULE, 'Element'),
-        ('skcomplex.core.components.system', 'BaseSystem'),
-        ('skcomplex.core.components.system', 'System'),
+        ('skcomplex.core.components.systems', 'BaseSystem'),
+        ('skcomplex.core.components.systems', 'System'),
         (SPECS_MODULE, 'ObservableSpec'),
         (SPECS_MODULE, 'StateSpec'),
         (SPECS_MODULE, 'VisualSpec'),

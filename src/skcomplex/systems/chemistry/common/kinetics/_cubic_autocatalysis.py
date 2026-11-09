@@ -50,7 +50,7 @@ class CubicAutocatalysisInteraction(ReactionInteraction):
             The mode is unknown, or a state name is not an identifier.
 
     Examples:
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.chemistry.common.kinetics import CubicAutocatalysisInteraction
         >>> from skcomplex.systems.chemistry.kinetics import CubicAutocatalysisElement

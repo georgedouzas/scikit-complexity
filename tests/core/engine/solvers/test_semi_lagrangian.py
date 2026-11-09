@@ -12,7 +12,7 @@ from skcomplex.core.components.elements import DensityElement, FieldElement
 from skcomplex.core.components.interactions import AdvectionInteraction, ConservationInteraction
 from skcomplex.core.components.laws.utils import coordinate, gradient, inverse_laplacian, moment
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace, SimplexSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import SemiLagrangianSolver
 from skcomplex.core.errors import SolverError

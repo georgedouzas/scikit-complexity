@@ -12,7 +12,7 @@ from skcomplex.core.components.interactions import DiffusionInteraction, Interac
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import total
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import RoleSpec, StateSpec, VisualSpec
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
