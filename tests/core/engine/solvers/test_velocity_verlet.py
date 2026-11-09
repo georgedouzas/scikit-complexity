@@ -9,7 +9,7 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.elements import GroupElement, PointElement
-from skcomplex.core.components.interactions import PairCouplingInteraction
+from skcomplex.core.components.interactions import PairInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -19,7 +19,7 @@ from skcomplex.core.engine.solvers import (
 from skcomplex.core.specs import ParameterSpec, StepSpec
 
 
-class SoftSphereInteraction(PairCouplingInteraction):
+class SoftSphereInteraction(PairInteraction):
     """Soft repulsion `k * (cutoff - r) ** 2 / 2`."""
 
     def __init__(

@@ -15,7 +15,7 @@ from sage.all__sagemath_symbolics import Expression, I, exp, oo, sin
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import GroupElement
-from ....core.components.interactions import PairCouplingInteraction
+from ....core.components.interactions import PairInteraction
 from ....core.components.spaces import ContinuousSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver
@@ -41,7 +41,7 @@ def _polarization(s: SimpleNamespace) -> Expression:
     return abs(s.mean_heading)
 
 
-class PolarAlignmentInteraction(PairCouplingInteraction):
+class PolarAlignmentInteraction(PairInteraction):
     """Alignment torque between two particles closer than the cutoff.
 
     The torque is `theta_i' += gamma sin(theta_j - theta_i)`.

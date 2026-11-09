@@ -367,7 +367,7 @@ Use a pair interaction for forces between members that depend on their distance,
 import numpy as np
 
 from skcomplex.core.components.elements import GroupElement, PointElement
-from skcomplex.core.components.interactions import PairCouplingInteraction
+from skcomplex.core.components.interactions import PairInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -381,14 +381,14 @@ side = np.arange(10) * 1.2
 positions = np.stack(np.meshgrid(side, side), axis=-1).reshape(-1, 2)
 liquid = CompositeSystem(
     elements=[GroupElement('atoms', element=PointElement, size=100, values={'x': positions})],
-    interactions=[PairCouplingInteraction('lj', 'atoms', 'atoms', cutoff=2.5, potential=lennard_jones)],
+    interactions=[PairInteraction('lj', 'atoms', 'atoms', cutoff=2.5, potential=lennard_jones)],
     space=ContinuousSpace(n_dim=2),
 )
 simulate(liquid, until=1, dt=0.05).values('atoms.x').shape
 ```
 
 A pair interaction is written once for a pair of members and summed over every pair closer than its cutoff, inside one
-group or between two groups. `PairCouplingInteraction` adds to the rate of a state of both members a function of the
+group or between two groups. `PairInteraction` adds to the rate of a state of both members a function of the
 pair, or minus the gradient of a pair potential of their distance, divided by an optional `divisor`. On a state of
 order 2, such as the position of a `PointElement`, the rate is its second derivative.
 

@@ -209,7 +209,7 @@ from typing import Annotated
 import numpy as np
 
 from skcomplex.core.components.elements import GroupElement, PointElement
-from skcomplex.core.components.interactions import PairCouplingInteraction, RateInteraction
+from skcomplex.core.components.interactions import PairInteraction, RateInteraction
 from skcomplex.core.components.laws.utils import derivative
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.systems import CompositeSystem
@@ -218,7 +218,7 @@ from skcomplex.core.engine.solvers import LammpsSolver
 from skcomplex.core.specs import ParameterSpec
 
 
-class LennardJonesInteraction(PairCouplingInteraction):
+class LennardJonesInteraction(PairInteraction):
     def __init__(
         self,
         label,
@@ -293,7 +293,7 @@ law it cannot run. The library translates a system to LAMMPS as follows:
 - `ContinuousSpace(extent, boundary='reflecting')` becomes `fix wall/reflect` at `0` and the extent.
 - `ContinuousSpace(extent, boundary='periodic')` becomes periodic boundaries of the extent, shared by every group.
 - A class in `pairs`, such as `LennardJonesInteraction`, becomes its native pair style, such as `pair_style lj/cut`.
-- Any other `PairCouplingInteraction` with a potential becomes `pair_style lepton`, with the potential printed as a
+- Any other `PairInteraction` with a potential becomes `pair_style lepton`, with the potential printed as a
   Lepton expression.
 - A class in `fixes` becomes its native fix, such as `fix addforce`, `fix viscous`, or `fix langevin`.
 - Any other interaction that only changes the derivatives of the positions becomes `fix external`, which the library

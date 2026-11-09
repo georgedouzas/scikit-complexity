@@ -23,7 +23,7 @@ from lammps import lammps
 from sage.all__sagemath_symbolics import SR, Expression, oo
 from sage.sets.real_set import RealSet
 
-from ...components.interactions import BaseInteraction, PairCouplingInteraction
+from ...components.interactions import BaseInteraction, PairInteraction
 from ...components.laws import BoundaryLaw, EquationLaw, FluxLaw, NoiseLaw, RateLaw
 from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...components.specs import CompiledElementSpec, CompiledInteractionSpec
@@ -62,7 +62,7 @@ class LammpsSolver(ExternalSolver):
     It uses LAMMPS velocity Verlet integration. An element or group whose members declare a vector position state of
     order 2, such as `PointElement`, becomes an atom type, whose atoms move with the first derivative of the position as
     their velocity. The mass of an atom type is the parameter that the `divisor` of the interactions on its members
-    names, and 1 without a divisor. Boxes become LAMMPS boundaries and `fix wall/reflect`. A `PairCouplingInteraction`
+    names, and 1 without a divisor. Boxes become LAMMPS boundaries and `fix wall/reflect`. A `PairInteraction`
     with a potential becomes the native pair style `pairs` gives for its class, or a Lepton expression potential
     otherwise. An interaction whose class `fixes` gives a native fix becomes that fix. Any other interaction that only
     changes the derivatives of the positions runs through `fix external`, evaluated by the framework.
@@ -111,7 +111,7 @@ class LammpsSolver(ExternalSolver):
 
     Examples:
         >>> from skcomplex.core.components.elements import GroupElement, PointElement
-        >>> from skcomplex.core.components.interactions import PairCouplingInteraction
+        >>> from skcomplex.core.components.interactions import PairInteraction
         >>> from skcomplex.core.components.spaces import ContinuousSpace
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.solvers import LammpsSolver
@@ -121,7 +121,7 @@ class LammpsSolver(ExternalSolver):
         ...     elements=[
         ...         GroupElement('gas', element=PointElement, size=2, values={'x': [[0.0, 0.0], [1.5, 0.0]]}),
         ...     ],
-        ...     interactions=[PairCouplingInteraction('lj', 'gas', 'gas', cutoff=2.5, potential=potential)],
+        ...     interactions=[PairInteraction('lj', 'gas', 'gas', cutoff=2.5, potential=potential)],
         ...     space=ContinuousSpace(n_dim=2),
         ... )
         >>> solver = LammpsSolver(dt=0.005)
@@ -237,7 +237,7 @@ class LammpsSolver(ExternalSolver):
 
         Its parameters take their current values.
         """
-        interaction = cast(PairCouplingInteraction, item.interaction)
+        interaction = cast(PairInteraction, item.interaction)
         assert interaction.potential is not None
         values = {
             name: float(self._parameter(problem, p, item.path, name)[0])
@@ -620,7 +620,7 @@ class LammpsSolver(ExternalSolver):
     @staticmethod
     def _is_potential(item: CompiledInteractionSpec) -> bool:
         """Return whether an interaction is a pair coupling through a pair potential."""
-        return isinstance(item.interaction, PairCouplingInteraction) and item.interaction.potential is not None
+        return isinstance(item.interaction, PairInteraction) and item.interaction.potential is not None
 
     @staticmethod
     def _find_position(element: CompiledElementSpec) -> str | None:

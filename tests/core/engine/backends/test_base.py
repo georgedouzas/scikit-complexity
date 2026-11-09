@@ -10,7 +10,7 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.elements import Element, GroupElement, NonnegativeElement
-from skcomplex.core.components.interactions import Interaction, PairCouplingInteraction
+from skcomplex.core.components.interactions import Interaction, PairInteraction
 from skcomplex.core.components.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.systems import CompositeSystem
@@ -45,7 +45,7 @@ from skcomplex.systems.physics.statistical_mechanics import ContactProcessSystem
 CUTOFF = 2.5
 
 
-class LennardJonesInteraction(PairCouplingInteraction):
+class LennardJonesInteraction(PairInteraction):
     """Lennard-Jones pair potential."""
 
     def __init__(

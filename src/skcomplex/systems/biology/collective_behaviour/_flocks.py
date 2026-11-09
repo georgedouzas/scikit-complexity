@@ -17,7 +17,7 @@ from ....core.components.interactions import (
     CouplingInteraction,
     MapInteraction,
     MovementInteraction,
-    PairCouplingInteraction,
+    PairInteraction,
     RateInteraction,
 )
 from ....core.components.spaces import ContinuousSpace
@@ -402,7 +402,7 @@ class HeadingInteraction(MapInteraction):
         return velocity * np.clip(speed, boid.min_speed, boid.max_speed) / speed if speed else velocity
 
 
-class MorsePotentialInteraction(PairCouplingInteraction):
+class MorsePotentialInteraction(PairInteraction):
     """Attraction at long range and repulsion at short range.
 
     The potential is `C_r exp(-r / l_r) - C_a exp(-r / l_a)`.

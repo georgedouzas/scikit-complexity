@@ -16,7 +16,7 @@ from sage.all__sagemath_symbolics import Expression, oo, sqrt
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, FieldElement, GroupElement, PointElement
-from ....core.components.interactions import PairCouplingInteraction
+from ....core.components.interactions import PairInteraction
 from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.components.laws.utils import advection, divergence, gradient, laplacian
 from ....core.components.spaces import ContinuousSpace, LatticeSpace
@@ -138,7 +138,7 @@ class PolarFluidElement(Element):
         return laws
 
 
-class SoftSphereInteraction(PairCouplingInteraction):
+class SoftSphereInteraction(PairInteraction):
     """Soft repulsion between overlapping spheres.
 
     The energy is `k * (cutoff - r) ** 2 / 2` closer than the cutoff.
@@ -209,7 +209,7 @@ class SoftSphereInteraction(PairCouplingInteraction):
         return s.k * (s.cutoff - r) ** 2 / 2
 
 
-class CuckerSmaleAlignmentInteraction(PairCouplingInteraction):
+class CuckerSmaleAlignmentInteraction(PairInteraction):
     """Cucker-Smale alignment.
 
     The law is `x_i'' += K / N psi(r_ij) (x_j' - x_i')` with `psi(r) = (1 + r^2)^(-beta)`.
@@ -290,7 +290,7 @@ class CuckerSmaleAlignmentInteraction(PairCouplingInteraction):
         return weight * (getattr(second, velocity) - getattr(first, velocity))
 
 
-class PhoreticAttractionInteraction(PairCouplingInteraction):
+class PhoreticAttractionInteraction(PairInteraction):
     """Phoretic attraction between active colloids.
 
     The attraction is the pair potential `-v0 R^2 / r` of an overdamped position.

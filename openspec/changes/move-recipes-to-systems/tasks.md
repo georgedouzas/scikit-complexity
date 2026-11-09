@@ -43,11 +43,11 @@
 
 ## 4. Merges inside the core
 
-- [ ] 4.1 Merge `PairCouplingInteraction` into `PairInteraction`: `PairInteraction` takes the optional `function`,
+- [x] 4.1 Merge `PairCouplingInteraction` into `PairInteraction`: `PairInteraction` takes the optional `function`,
   `potential`, `write`, and `divisor` with the checks and laws of `_pair_coupling.py`, and returns no laws with neither.
   Key the LAMMPS lowering on `PairInteraction` with a potential. Move `test_pair_coupling.py` into `test_pair.py`.
   Verify with `tests/core/components/interactions/test_pair.py` and `tests/core/engine/solvers/test_lammps.py`.
-- [ ] 4.2 Rebase the subclasses of `PairCouplingInteraction` in biology, physics, and social on `PairInteraction`, and
+- [x] 4.2 Rebase the subclasses of `PairCouplingInteraction` in biology, physics, and social on `PairInteraction`, and
   replace the class in the engine tests (`test_base.py`, `test_numba_neighbours.py`, `test_jacobians.py`,
   `test_pass_compiler.py`, `test_velocity_verlet.py`). Verify with those tests and with `tests/systems` for
   `collective_behaviour`, `active_matter`, `synchronization`, `common/particles`, and `crowds`.

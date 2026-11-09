@@ -11,7 +11,7 @@ from sage.all__sagemath_symbolics import arcsinh, exp, oo
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.elements import GroupElement
-from skcomplex.core.components.interactions import PairCouplingInteraction
+from skcomplex.core.components.interactions import PairInteraction
 from skcomplex.core.components.laws.utils import where
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.systems import CompositeSystem
@@ -40,7 +40,7 @@ from skcomplex.systems.physics.statistical_mechanics import IdealGasSystem
 CUTOFF = 2.5
 
 
-class ExponentialInteraction(PairCouplingInteraction):
+class ExponentialInteraction(PairInteraction):
     """Exponential repulsion `eps * exp(-r / sigma)`."""
 
     def __init__(
@@ -72,7 +72,7 @@ class ExponentialInteraction(PairCouplingInteraction):
         return s.eps * exp(-r / s.sigma)
 
 
-class StepwiseInteraction(PairCouplingInteraction):
+class StepwiseInteraction(PairInteraction):
     """Pair energy with a branch, a harmonic repulsion within a contact distance."""
 
     def __init__(
@@ -168,7 +168,7 @@ def test_lammps_rejects_pair_energy_without_lepton_form():
     """Test that a pair energy with a function Lepton does not know is reported as unsupported."""
     system = CompositeSystem(
         elements=[GroupElement('gas', element=MassPointElement, size=4, values={'x': _lattice(4)})],
-        interactions=[PairCouplingInteraction('hyperbolic', 'gas', 'gas', cutoff=1.0, potential=_hyperbolic)],
+        interactions=[PairInteraction('hyperbolic', 'gas', 'gas', cutoff=1.0, potential=_hyperbolic)],
         space=ContinuousSpace(n_dim=2),
     )
     with pytest.raises(BackendError, match='arcsinh has no Lepton'):

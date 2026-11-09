@@ -33,7 +33,6 @@ from ._movement import MovementInteraction
 from ._neighbor import NeighborInteraction
 from ._optimization import OptimizationInteraction
 from ._pair import PairInteraction
-from ._pair_coupling import PairCouplingInteraction
 from ._rate import RateInteraction
 from ._reaction import ReactionInteraction
 from ._sampling import SamplingInteraction
@@ -71,7 +70,6 @@ __all__: list[str] = [
     'MovementInteraction',
     'NeighborInteraction',
     'OptimizationInteraction',
-    'PairCouplingInteraction',
     'PairInteraction',
     'RateInteraction',
     'ReactionInteraction',

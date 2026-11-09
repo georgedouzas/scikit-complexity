@@ -19,7 +19,7 @@ from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ....core.components.elements import GroupElement, PointElement
-from ....core.components.interactions import PairCouplingInteraction, RateInteraction
+from ....core.components.interactions import PairInteraction, RateInteraction
 from ....core.components.laws.utils import neighbors
 from ....core.components.spaces import ContinuousSpace, RadiusNeighborhood
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
@@ -334,7 +334,7 @@ class ActivePassiveFlockingSystem(BaseSystem):
             self.label,
             elements=[agents],
             interactions=[
-                PairCouplingInteraction(
+                PairInteraction(
                     'repulsion',
                     'agents',
                     'agents',

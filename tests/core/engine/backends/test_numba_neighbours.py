@@ -8,7 +8,7 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.elements import GroupElement, PointElement
-from skcomplex.core.components.interactions import PairCouplingInteraction
+from skcomplex.core.components.interactions import PairInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
@@ -18,7 +18,7 @@ from skcomplex.core.specs import ParameterSpec
 CUTOFF = 2.5
 
 
-class SoftSphereInteraction(PairCouplingInteraction):
+class SoftSphereInteraction(PairInteraction):
     """Repulsive pair potential `epsilon * (sigma / r) ** 12`."""
 
     def __init__(

@@ -9,11 +9,11 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from .....core.components.interactions import PairCouplingInteraction
+from .....core.components.interactions import PairInteraction
 from .....core.specs import ParameterSpec
 
 
-class LennardJonesInteraction(PairCouplingInteraction):
+class LennardJonesInteraction(PairInteraction):
     """Lennard-Jones pair potential without a shift.
 
     The potential is `4 * epsilon * ((sigma / r) ** 12 - (sigma / r) ** 6)`.

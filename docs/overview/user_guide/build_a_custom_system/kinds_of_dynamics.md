@@ -31,7 +31,7 @@ and its visuals are parts of the engine, beside those of every other kind.
 | kinetics | `BilinearLaw`, `moment` | the encounter passes, `KineticSolver` |
 | fractional | `StateSpec(order=...)` in `(0, 1)`, `NoiseLaw(..., hurst=)` | the fractional passes, `FractionalABMSolver`, `GrunwaldLetnikovSolver`, `FractionalEulerMaruyamaSolver` |
 | topology | `TopologyRequestSpec` | the topology passes |
-| particles | `PointElement`, `GradientInteraction`, `PairCouplingInteraction` | `VelocityVerletSolver`, `Yoshida4Solver`, `LammpsSolver` |
+| particles | `PointElement`, `GradientInteraction`, `PairInteraction` | `VelocityVerletSolver`, `Yoshida4Solver`, `LammpsSolver` |
 | control | `ParameterSpec(adaptive=True, bounds=...)` | `PontryaginSolver`, `CollocationSolver` |
 
 `simulate` compiles a system into the problem of its form and runs it. You never name the compiler of a form of the

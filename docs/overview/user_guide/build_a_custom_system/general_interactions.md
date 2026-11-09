@@ -30,7 +30,7 @@ list, then follow the link to its subsection.
 - Update a state in steps, search by trial and error, or run a cellular automaton or a cascade: `MapInteraction`,
   `LocalRuleInteraction`, and `CascadeInteraction`, in [Discrete time](#discrete-time).
 - Couple members over the edges of a lattice or a network, over a group, or over close pairs: `CouplingInteraction`
-  and `PairCouplingInteraction`, in [Coupling over a structure](#coupling-over-a-structure).
+  and `PairInteraction`, in [Coupling over a structure](#coupling-over-a-structure).
 - Move particles through a viscous fluid by the forces, torques, and active slip of all of them: the physics
   `StokesianMobilityInteraction`, in [Coupling over a structure](#coupling-over-a-structure).
 - Fire random events or chemical reactions: `JumpInteraction` and `ReactionInteraction`, in
@@ -553,19 +553,19 @@ reads the edge between them.
 - The weights are an edge state, a matrix, or a function.
 - It adds to a rate (`form='rate'`), or sets the next value with `combine(s, reduction)` (`form='map'`).
 
-Use `PairCouplingInteraction` for forces between pairs of points, such as a Morse potential between two atoms:
+Use `PairInteraction` for forces between pairs of points, such as a Morse potential between two atoms:
 
 ```python
 import numpy as np
 from sage.all__sagemath_symbolics import exp
 
 from skcomplex.core.components.elements import GroupElement, PointElement
-from skcomplex.core.components.interactions import PairCouplingInteraction
+from skcomplex.core.components.interactions import PairInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 
-morse = PairCouplingInteraction('morse', 'pair', 'pair', cutoff=3.0, potential=lambda s, r: 2 * (1 - exp(1 - r)) ** 2)
+morse = PairInteraction('morse', 'pair', 'pair', cutoff=3.0, potential=lambda s, r: 2 * (1 - exp(1 - r)) ** 2)
 pair = GroupElement('pair', element=PointElement, size=2, values={'x': [[0.0, 0.0], [1.5, 0.0]]})
 system = CompositeSystem(elements=[pair], interactions=[morse], space=ContinuousSpace(n_dim=2))
 positions = simulate(system, until=5, dt=0.1).values('pair.x')
@@ -573,7 +573,7 @@ distances = np.linalg.norm(positions[:, 1] - positions[:, 0], axis=1)
 round(float(distances.min()), 2), round(float(distances.max()), 2)
 ```
 
-`PairCouplingInteraction(first, second, cutoff, read, write, function=None, potential=None, divisor=None,
+`PairInteraction(first, second, cutoff, read, write, function=None, potential=None, divisor=None,
 period=None)` adds to both members of every pair within the cutoff either `function(s)`, or minus the gradient of
 `potential(s, r)` at their distance `r`. With several states in `write`, the function returns one value per state.
 

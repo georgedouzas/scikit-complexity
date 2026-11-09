@@ -13,7 +13,7 @@ from sage.sets.real_set import RealSet
 from skcomplex.core.components.elements import Element, FieldElement, GroupElement, NonnegativeElement
 from skcomplex.core.components.interactions import (
     Interaction,
-    PairCouplingInteraction,
+    PairInteraction,
     RateInteraction,
     SamplingInteraction,
 )
@@ -653,7 +653,7 @@ def _compile_time(n_links):
 CUTOFF = 2.5
 
 
-class LennardJonesInteraction(PairCouplingInteraction):
+class LennardJonesInteraction(PairInteraction):
     """Lennard-Jones pair potential."""
 
     def __init__(

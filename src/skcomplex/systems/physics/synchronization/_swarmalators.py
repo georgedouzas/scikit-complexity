@@ -15,7 +15,7 @@ from sage.all__sagemath_symbolics import cos, oo, sin, sqrt
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import GroupElement
-from ....core.components.interactions import PairCouplingInteraction
+from ....core.components.interactions import PairInteraction
 from ....core.components.spaces import ContinuousSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import Target
@@ -63,7 +63,7 @@ class SwarmalatorElement(SitedOscillatorElement):
         super().__init__(label, visual=visual, theta=theta, omega=omega, x=x)
 
 
-class SwarmalatorCouplingInteraction(PairCouplingInteraction):
+class SwarmalatorCouplingInteraction(PairInteraction):
     """Coupling of two swarmalators.
 
     The coupling acts through their separation `r` and their phase difference `dtheta`.

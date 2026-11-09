@@ -15,7 +15,7 @@ from ....core.components.elements import GroupElement, PointElement
 from ....core.components.interactions import (
     BaseInteraction,
     GradientInteraction,
-    PairCouplingInteraction,
+    PairInteraction,
     RateInteraction,
 )
 from ....core.components.spaces import ContinuousSpace
@@ -81,7 +81,7 @@ class MotivationInteraction(RateInteraction):
         return (namespace.speed * namespace.direction - velocity) / namespace.tau
 
 
-class SocialRepulsionInteraction(PairCouplingInteraction):
+class SocialRepulsionInteraction(PairInteraction):
     """Repulsion between two walkers of the social force system.
 
     Its force is `strength * exp((2 * radius - r) / falloff)`. It derives from the pair energy

@@ -8,7 +8,7 @@ import skfem
 from sage.all__sagemath_symbolics import sin, tanh
 
 from skcomplex.core.components.elements import Element, FieldElement, GroupElement
-from skcomplex.core.components.interactions import PairCouplingInteraction
+from skcomplex.core.components.interactions import PairInteraction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import (
     convolve,
@@ -116,7 +116,7 @@ def _pair_ring(size):
     """Return phase oscillators on a periodic ring, coupled by the sine of their phase differences within two sites."""
     values = {'theta': RNG.uniform(0, 2 * np.pi, size), 'x': np.arange(size, dtype=float).reshape(-1, 1)}
     ring = GroupElement('ring', element=SitedOscillatorElement, size=size, values=values)
-    coupling = PairCouplingInteraction(
+    coupling = PairInteraction(
         'coupling',
         'ring',
         'ring',
