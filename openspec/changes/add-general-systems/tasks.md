@@ -1,27 +1,27 @@
 ## 1. Preconditions
 
-- [ ] 1.1 Confirm `slim-core-elements-and-spaces`, `rename-core-systems`, `slim-core-interactions`,
+- [x] 1.1 Confirm `slim-core-elements-and-spaces`, `rename-core-systems`, `slim-core-interactions`,
   `slim-core-laws`, and `move-recipes-to-systems` are merged on `development`. Verify with `pdm run python -c`
   importing `CompositeSystem` from `skcomplex.core.components.systems`, `ReactionNetworkSystem` from
   `skcomplex.systems.general.reactions`, `NonnegativeElement` from `skcomplex.systems.general.elements`,
   `DeclaredElement` from `skcomplex.core.components.elements`, and `BallNeighborhood` from
   `skcomplex.core.components.spaces`.
-- [ ] 1.2 Create `src/skcomplex/systems/general/dynamics/__init__.py` with a module docstring and an empty `__all__`,
+- [x] 1.2 Create `src/skcomplex/systems/general/dynamics/__init__.py` with a module docstring and an empty `__all__`,
   and the mirrored test directory `tests/systems/general/dynamics/`. The placement rule puts the four systems
   here by step 3, since several fields use them. Verify with `pdm run python -c` importing the subpackage and with
   `lint-imports`, which must show that no core module imports it.
-- [ ] 1.3 Write a scratchpad script, outside the repository, that records the trajectory of a list of catalog systems
+- [x] 1.3 Write a scratchpad script, outside the repository, that records the trajectory of a list of catalog systems
   with their defaults, `random_state=0` where they take one, and their tuned run settings, and compares two records with
   `numpy.testing.assert_array_equal` on every name. Verify it reports equal on two records of `BathtubSystem` made
   without any code change.
 
 ## 2. DynamicalSystem
 
-- [ ] 2.1 Add `DynamicalSystem` in `src/skcomplex/systems/general/dynamics/_dynamical.py` with the signature and hooks
+- [x] 2.1 Add `DynamicalSystem` in `src/skcomplex/systems/general/dynamics/_dynamical.py` with the signature and hooks
   of design.md, and export it from `systems/general/dynamics/__init__.py`, without a layers contract. Its docstring
   carries runnable examples of two fields: the Wilson-Cowan populations in continuous time and the
   multiplier-accelerator of economics in discrete time. Verify with the doctests of the module.
-- [ ] 2.2 Add `tests/systems/general/dynamics/test_dynamical.py` with the scenarios of `general-systems` for
+- [x] 2.2 Add `tests/systems/general/dynamics/test_dynamical.py` with the scenarios of `general-systems` for
   `DynamicalSystem`: exponential decay, unknown state, the logistic map, the Ornstein-Uhlenbeck tags, noise in
   discrete time, the Hénon map in both orders of states, a subclass with its own parameters, and an equality test of a
   trajectory against the same equations written as element laws. Verify they pass. If the Hénon test fails, build one
