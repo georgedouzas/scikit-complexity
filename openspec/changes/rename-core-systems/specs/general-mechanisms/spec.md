@@ -40,7 +40,7 @@ SHALL provide no second element for a nonnegative scalar under another name or a
 - **WHEN** the kinetic systems of wealth, opinion, crowds, immune competition, and gases declare their densities
 - **THEN** every density is a `NonnegativeElement`, through the realization of its own field, and its state is `x`
 
-#### Scenario: Reaction network species
+#### Scenario: Mass action species
 - **WHEN** a user builds a `ReactionNetworkSystem` with the reaction `S + I -> 2 I` and simulates it
 - **THEN** the trajectory holds `S.x` and `I.x`, and the reaction reads the keys `('S', 'x')` and `('I', 'x')`
 

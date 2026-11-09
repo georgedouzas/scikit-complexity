@@ -13,7 +13,8 @@ user decided to name each class after what it is, and to describe the rate law o
 - **BREAKING** `MassActionSystem` in `_mass_action.py` becomes `ReactionNetworkSystem` in `_reaction_network.py`. It
   is a system given as species and reactions, with stoichiometric coefficients and rate constants, and it builds a
   `CompositeSystem` as rate equations, jumps, or Langevin equations. "Reaction network" is the mathematical name of
-  the formalism.
+  the formalism. `ReactionNetworkSystem` stays in the core only until `move-recipes-to-systems` moves it, with
+  `ReactionInteraction`, to `skcomplex.systems.general.reactions`.
 - The core describes the rate law of a reaction mathematically. The propensity is a rate constant times the product of
   the reactant amounts, each raised to its stoichiometric coefficient. `ReactionNetworkSystem` and
   `ReactionInteraction` say so, and name field terms only as examples: the law of mass action in chemistry,
@@ -37,8 +38,7 @@ None.
 
 ### Modified Capabilities
 
-- `base-interfaces`: the system hierarchy names `CompositeSystem`, and the general system shared by fields is
-  `ReactionNetworkSystem`.
+- `base-interfaces`: the system hierarchy names `CompositeSystem`.
 - `package-layout`: the systems package re-exports `CompositeSystem` and `ReactionNetworkSystem`, and the bases and
   concrete roots name `CompositeSystem`.
 - `system-modeling`: a system is built with `CompositeSystem`, and the core packages and nested systems name it.
@@ -68,6 +68,6 @@ None.
 - Configuration: the layers contract on `skcomplex.core.components.systems` in `pyproject.toml`, and the extension
   points in the profile of `openspec/constitution.md`.
 - Ordering: lands after `slim-core-elements-and-spaces`, `slim-core-interactions`, and `slim-core-laws`, alone, with
-  no other change running in parallel. The design gives the reason.
+  no other change running in parallel. The design gives the reason. `move-recipes-to-systems` lands right after it.
 - Users: code that imports `System` or `MassActionSystem` imports `CompositeSystem` or `ReactionNetworkSystem`. A
   subclass of `ReactionInteraction` that calls `_get_mass_action` calls `_get_product_propensity`.

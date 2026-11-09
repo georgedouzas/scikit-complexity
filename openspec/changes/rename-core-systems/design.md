@@ -6,6 +6,8 @@ See proposal.md for why. `skcomplex.core.components.systems` holds `_base.py` (`
 do many tests, the doctests of the core, the user guide pages, and the gallery. `ReactionInteraction` in
 `interactions/_reaction.py` computes its default propensity in `_get_mass_action`, which three epidemiology
 interactions and one test interaction call.
+The reaction network and the reaction are renamed in the core here, and `move-recipes-to-systems`, the next change,
+moves both to `skcomplex.systems.general.reactions`.
 
 The word `System` also appears inside other names, such as `BaseSystem`, `SIRSystem`, `MesaSystem`, and
 `ReactionNetworkSystem` itself, in generic prose ("System page", "System observables"), in table headers of the
