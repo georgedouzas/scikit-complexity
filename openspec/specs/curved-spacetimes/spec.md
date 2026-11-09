@@ -49,7 +49,7 @@ components differs from the number of coordinates.
 - **THEN** `g_μν x'^μ x'^ν` stays 0 within the tolerance of the solver
 
 ### Requirement: Einstein interactions reduce the field equations of an ansatz
-`EinsteinInteraction` SHALL take a `PseudoRiemannianSpace` with curvature whose metric holds functions of the
+`EinsteinFieldEquationsInteraction` of `skcomplex.systems.physics.cosmology` SHALL take a `PseudoRiemannianSpace` with curvature whose metric holds functions of the
 coordinates named after states or parameters of its target, one component `(μ, ν)` per state, a source function that
 returns the mixed energy-momentum tensor, the coupling `κ`, and the cosmological constant `Λ`. It SHALL solve the
 equations `G^μ_ν + Λ δ^μ_ν = κ T^μ_ν` of the kept components for the second time derivatives of the states and return
@@ -72,6 +72,11 @@ components that do not fix the second derivatives SHALL raise a `ValidationError
 - **WHEN** the same ansatz keeps only the component `(0, 0)`
 - **THEN** running the interaction raises a `ValidationError` that says the components do not fix the second
   derivatives
+
+#### Scenario: Field equations live in physics
+- **WHEN** a user lists `skcomplex.core.components.interactions`
+- **THEN** it holds `GeodesicInteraction` and no interaction of the field equations, and the cosmology systems build
+  `EinsteinFieldEquationsInteraction` from their own module
 
 ### Requirement: Relativity systems reproduce known results
 The catalog SHALL hold `SchwarzschildPrecessionSystem`, `LightBendingSystem`, and `KerrFrameDraggingSystem` in

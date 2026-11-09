@@ -17,10 +17,10 @@ functional subsystem, without any distribution-specific component in the core.
 - **THEN** the states hold the profile, and the order-0 moment equals its sum
 
 ### Requirement: Encounters derive gain and loss equations
-Encounter laws SHALL derive the gain and loss equations of the kinetic theory from encounter rates and transition
-probabilities. Conservative encounters SHALL keep the density constant. Proliferative and destructive encounters SHALL
-change it as declared. Encounter laws SHALL be of the law kind `encounter`, in the continuous class, and SHALL declare
-that they require continuous time, a lattice space, and real states.
+Bilinear laws SHALL derive the gain and loss equations of the kinetic theory from encounter rates and transition
+probabilities. A conserved bilinear law SHALL take the loss from its first density, so conservative encounters keep the
+density constant. Proliferative and destructive encounters SHALL change it as declared. Bilinear laws SHALL be of the
+law kind `rate`, in the continuous class, and SHALL declare that they require continuous time and a lattice space.
 
 #### Scenario: Conservative encounters
 - **WHEN** a wealth system with only conservative encounters runs for 100 time units
@@ -32,8 +32,12 @@ that they require continuous time, a lattice space, and real states.
   before compilation
 
 #### Scenario: Wrong substrate
-- **WHEN** an encounter law is placed in a system with discrete time
-- **THEN** validation reports that encounters need continuous time and suggests declaring `ContinuousTime()`
+- **WHEN** a bilinear law is placed in a system with discrete time
+- **THEN** validation reports that it needs continuous time and suggests declaring `ContinuousTime()`
+
+#### Scenario: Conserved law without outcomes
+- **WHEN** a conserved bilinear law is given no outcome table
+- **THEN** preparing it raises a `ValidationError` that asks for the outcome probabilities
 
 ### Requirement: External actions act on transitions or moments
 Systems SHALL express external actions at the micro scale through encounters whose field role binds a group with fixed

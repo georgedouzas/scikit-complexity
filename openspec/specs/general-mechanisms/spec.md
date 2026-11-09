@@ -31,14 +31,18 @@ the `common` package of its field when several of its packages use it. No field 
 
 ### Requirement: Rates, relaxation, gradients, and Lagrangians
 `RateInteraction` SHALL add a rate and an optional noise to the highest derivative of a state of any order, divided by
-an optional divisor. `RelaxationInteraction` SHALL relax a state towards a goal expression over a time, with optional
-noise. `GradientInteraction` SHALL move states down the gradient of a potential, as a gradient flow on states of order
-1, as Newtonian motion on states of order 2, and variationally and conserved on fields. `EulerLagrangeInteraction` SHALL
-give the equations of motion of a Lagrangian with dissipation and forcing.
+an optional divisor, and a relaxation SHALL be one with the rate `(goal - x) / time`. `GradientInteraction` SHALL move
+states down the gradient of a potential, as a gradient flow on states of order 1, as Newtonian motion on states of
+order 2, and variationally and conserved on fields.
+`EulerLagrangeInteraction` SHALL give the equations of motion of a Lagrangian with dissipation and forcing.
 
 #### Scenario: Ornstein-Uhlenbeck variance
-- **WHEN** a `RelaxationInteraction` with goal 0, time `1 / theta`, and noise `sigma` runs long
+- **WHEN** a `RateInteraction` with the rate `-theta x` and the noise `sigma` runs long
 - **THEN** the variance of its state is `sigma**2 / (2 theta)` within 5 percent
+
+#### Scenario: No relaxation class
+- **WHEN** a user lists `skcomplex.core.components.interactions`
+- **THEN** it holds no relaxation, diffusion, advection, impulse, sign-step, or reinforcement class
 
 #### Scenario: Gradient flow and Newtonian motion
 - **WHEN** one `GradientInteraction` with a harmonic potential acts on a state of order 1 and on a state of order 2
@@ -61,11 +65,11 @@ so that their Lagrangians sum.
 ### Requirement: Conservation and diffusion on fields
 `ConservationInteraction` SHALL change a conserved state of a field by the divergence of a flux and a source, by a
 finite-volume numerical flux, or by the field's own divergence operator on spectral and finite-difference fields.
-`AdvectionInteraction` SHALL use the flux of a drift field times the state. `DiffusionInteraction` SHALL use the flux
-minus a coefficient times the gradient.
+Advection SHALL be a `ConservationInteraction` with the flux of a drift field times the state. Diffusion SHALL be a
+`RateInteraction` with the rate `D laplacian(u)`. The core SHALL have no advection or diffusion class.
 
 #### Scenario: Conserved total
-- **WHEN** a state diffuses on a periodic field
+- **WHEN** a state diffuses on a periodic field by a `RateInteraction` with the rate `D laplacian(u)`
 - **THEN** its total stays constant and its profile matches the heat kernel
 
 ### Requirement: Coupled conservation laws
@@ -77,7 +81,7 @@ reads the wave speeds of all of them, and a flux SHALL read parameters and state
 - **THEN** the trajectory equals that of the two flux laws of one element, and the total depth stays constant
 
 #### Scenario: Advection by a drift field
-- **WHEN** an `AdvectionInteraction` carries a state on a periodic field
+- **WHEN** a `ConservationInteraction` with the flux `a u` carries a state on a periodic field
 - **THEN** it gives the trajectory of the conservation law of the flux `a u`, and the total stays constant
 
 ### Requirement: Maps, local rules, and cascades
@@ -153,9 +157,9 @@ target is a group or a field, and a subclass SHALL be able to bind its species u
 
 ### Requirement: Encounters, crossings, impulses, and sampling
 `EncounterInteraction` SHALL run conservative, destructive, or proliferative encounters over densities on activity
-classes. `CrossingInteraction` SHALL reset states or end the run when a guard crosses zero. `ImpulseInteraction` SHALL
-reset states at given or periodic times. `SamplingInteraction` SHALL run Monte Carlo sweeps by moves accepted from the
-change of an objective at an intensity.
+classes. `CrossingInteraction` SHALL reset states or end the run when a guard crosses zero, and periodic impulses
+SHALL be crossings of the law utility `periodic_guard(t, period, start, count)`. `SamplingInteraction` SHALL run Monte Carlo sweeps by moves accepted from the change of
+an objective at an intensity.
 
 #### Scenario: Integrate and fire
 - **WHEN** a state integrates a constant input and a crossing resets it at a threshold
@@ -165,13 +169,25 @@ change of an objective at an intensity.
 - **WHEN** a `SamplingInteraction` samples a square-lattice Ising energy well below the critical temperature
 - **THEN** the absolute magnetization exceeds 0.9
 
+#### Scenario: Periodic impulses by a guard
+- **WHEN** a `CrossingInteraction` with the guard `periodic_guard(t, 2.0, 1.0, 3)` adds 1 to a state over a run to 10
+- **THEN** it fires at 1, 3, and 5 only, an impulse at the initial time does not fire, and without a count it fires
+  at every period to the end
+
+#### Scenario: Impulses at given times
+- **WHEN** a `CrossingInteraction` has the guard `t - 2.5`
+- **THEN** it fires once at 2.5
+
+#### Scenario: Encounters as a collision operator
+- **WHEN** a user reads the documentation of `EncounterInteraction`
+- **THEN** it describes the binary kinetic collision operator over the class axes
+
 ### Requirement: Choice, imitation, reinforcement, and evolution
 `ChoiceInteraction` SHALL draw an option from utilities by the logit, Metropolis, Fermi, or best rule.
 `ImitationInteraction` SHALL copy a neighbour's state at random, by majority, from the best, from a random better
-neighbour, or by the Fermi rule, as rates, per-step probabilities, or agent rules. `ReinforcementInteraction` SHALL
-move option scores towards realized payoffs or add the payoffs to them, over named states or the components of one
-vector state, which a one-member group shares. `EvolutionInteraction` SHALL replace strategies by selection,
-replacement, crossover, and mutation, drawing from the system's random stream.
+neighbour, or by the Fermi rule, as rates, per-step probabilities, or agent rules. Reinforcement of option scores
+SHALL be a `MapInteraction` of the scores. `EvolutionInteraction` SHALL replace strategies by selection, replacement,
+crossover, and mutation.
 
 #### Scenario: Glauber dynamics
 - **WHEN** fully connected spins choose by the logit rule at intensity 2
@@ -198,10 +214,10 @@ strategies.
 
 ### Requirement: Agents, groups, and exchange
 `MovementInteraction` SHALL move agents by a step. `TransferInteraction` SHALL move amounts of states between members,
-cells, sources, and sinks. `LifeCycleInteraction` SHALL create and remove members. `GroupingInteraction` SHALL draw pairs
-or groups every step and act on each. `MatchingInteraction` SHALL pair requesters with providers by the algorithm its rule spec names.
-`FeedbackInteraction` SHALL set parameters from observables once per round. `TopologyInteraction` SHALL add, remove, and
-rewire nodes and edges.
+cells, sources, and sinks. `BirthDeathInteraction` SHALL create and remove members. `GroupingInteraction` SHALL draw
+pairs or groups every step. `MatchingInteraction` SHALL pair requesters with providers by its rule spec, reading the
+states that `reserve`, `quantity`, and `cap` name. `FeedbackInteraction` SHALL set parameters from observables.
+`TopologyInteraction` SHALL add, remove, and rewire nodes and edges.
 
 #### Scenario: Diffusion of walkers
 - **WHEN** 10,000 agents step by Gaussian steps of variance `2 D dt` from the origin of a plane
@@ -211,10 +227,15 @@ rewire nodes and edges.
 - **WHEN** a ride-sharing system matches riders with idle cars by `StableMatchingSpec`
 - **THEN** it uses `MatchingInteraction`, and no rider and car prefer each other to their matches
 
+#### Scenario: Neutral matching names
+- **WHEN** a matching binds `reserve=('bid', 'ask')` with `StableMatchingSpec(value='requester')`
+- **THEN** every pair settles at the reserve of its requester, and no argument of the matching or its specs is named
+  `limit`, `allowance`, or `clearing`
+
 #### Scenario: Life cycle variants
-- **WHEN** a life cycle gives births into another group with values of the parent, keeps a share of a split state,
-  replaces parents by their offspring, renews dying agents in place, removes kin of another group, or brings arrivals
-  without a parent at placed locations
+- **WHEN** a birth-death interaction gives births into another group with values of the parent, keeps a share of a
+  split state, replaces parents by their offspring, renews dying agents in place, removes kin of another group, or
+  brings arrivals without a parent at placed locations
 - **THEN** the new agents join the named group with the given values, the parent keeps that share, a parent that gave
   birth is gone, a renewed agent keeps its identity and the states the new values leave out, the first kin member is
   removed, and a Poisson number of arrivals of the given mean appear, with the counts reported as `births`, `deaths`,
@@ -258,15 +279,17 @@ role entry naming a whole group SHALL bind its agents.
 
 ### Requirement: Source sets and sign steps
 `TransitionInteraction` SHALL move a state from a set of source values or from the values a condition on the value
-accepts. `SignAdjustmentInteraction` SHALL step a state of discrete time by the sign of a signal, multiplicatively or
-additively, within bounds, in both forms.
+accepts. A step of a state of discrete time by the sign of a signal, within bounds, SHALL be a `MapInteraction` whose
+function is `clip(x (1 + step sign(signal)), lower, upper)` or `clip(x + step sign(signal), lower, upper)`, and the
+core SHALL have no sign-step class.
 
 #### Scenario: Separation from any employer
 - **WHEN** a transition moves the employer of a worker to `-1` from the source `lambda value: value >= 0`
 - **THEN** every employed worker loses its job at the probability, whichever firm employs it
 
 #### Scenario: Price search by trial and error
-- **WHEN** a shop's price steps by `SignAdjustmentInteraction(signal=direction, step=adjustment, lower=unit_cost)`
+- **WHEN** a shop's price steps by the economics `PriceAdjustmentInteraction(signal=direction, step=adjustment,
+  lower=unit_cost)`
 - **THEN** the price moves by the relative step in the direction, never below the unit cost
 
 ### Requirement: Agent and symbolic lowering
@@ -316,11 +339,25 @@ SHALL return the state of the neighbour at which an expression is largest.
 
 ### Requirement: Law utilities
 The law namespace SHALL offer `hill`, `logistic`, `pulse_train` with a count, `clip`, `minimum`, `maximum`, `sign`, the
-stock-and-flow delays `delay1`, `delay3`, and `smooth`, reductions keyed by a state, and a circular mean.
+distributed delay of any order with or without conservation, a series of any value through given points, reductions
+keyed by a state, and a circular mean. It SHALL offer one function for one operation, so it SHALL NOT offer a function
+that only fixes arguments of another.
 
 #### Scenario: Hill function
 - **WHEN** a rate reads `hill(x, K, n)` at `x = K`
 - **THEN** it evaluates to one half
+
+#### Scenario: Third-order material delay
+- **WHEN** a rate reads `distributed_delay(x, T, 3)` of a step input
+- **THEN** its output follows the third-order material delay of the step
+
+#### Scenario: Information smoothing
+- **WHEN** a rate reads `distributed_delay(x, T, 1, conserved=False)`
+- **THEN** its output is the first-order exponential smoothing of `x` with time `T`
+
+#### Scenario: Series of a state
+- **WHEN** a rate reads `series(x, [0, 1, 2], [0.0, 2.0, 3.0])` at `x = 0.5` and at `x = 5`
+- **THEN** it evaluates to 1.0 and to 3.0
 
 ### Requirement: Agent interactions run member by member
 An agent rule of an interaction SHALL be able to name the role whose members run it, so every member runs it in its own
@@ -435,11 +472,22 @@ matching algorithms over offers SHALL be named for the operation, such as batch,
 - **THEN** it pairs agents as `GreedyMatchingSpec` did, and `GreedyMatchingSpec` no longer exists
 
 ### Requirement: Bilinear laws are one law
-One bilinear law SHALL express gains and losses of a density at the rate of the product of two densities.
+One bilinear law SHALL express gains and losses of a density at the rate of the product of two densities. A conserved
+bilinear law SHALL also take the matching loss from its first density, so the total over its classes is unchanged, and
+a law without a second density SHALL redistribute the first linearly.
 
 #### Scenario: Encounter outcomes
 - **WHEN** an encounter is destructive or proliferative
 - **THEN** it lowers to the bilinear law with the sign of its outcome, with the trajectories it had before
+
+#### Scenario: Conservative encounter
+- **WHEN** an encounter is conservative
+- **THEN** it lowers to a conserved bilinear law, with the trajectories it had before
+
+#### Scenario: Linear redistribution
+- **WHEN** a conserved bilinear law with no second density moves a density of two classes from the first class to the
+  second at rate 1, starting from all in the first class
+- **THEN** the first class decays as `exp(-t)` within 1e-6, and the total stays constant within 1e-12
 
 ### Requirement: Encounters take a collision integral
 `EncounterInteraction` SHALL evaluate a binary integral over the class axes when given a `cross_section`.
@@ -459,3 +507,24 @@ in their class names, and physics SHALL keep its quantum vocabulary in `skcomple
 #### Scenario: Core names
 - **WHEN** the class names of `skcomplex.core.components`, `skcomplex.core.engine`, and `skcomplex.core.analysis` are searched for `Quantum`
 - **THEN** none is found
+
+### Requirement: The law namespace holds only what laws are written with
+The public law namespace SHALL re-export only the functions and symbols a law is written with. The helpers that only
+the compiler reads, such as the functions that list the reductions, draws, or operators of an expression, and the
+constants of the compiler, SHALL NOT be part of it.
+
+#### Scenario: Compiler helper
+- **WHEN** a user imports `reductions_in` from the public law namespace
+- **THEN** the import raises an `ImportError`
+
+#### Scenario: Operator constructors stay
+- **WHEN** a user writes `J * operator_product(a, b) + dagger(b)` from the public law namespace
+- **THEN** the expression is a valid operator of a generator law
+
+### Requirement: Draw functions have one import path
+The draw functions `uniform`, `normal`, `bernoulli`, `categorical`, and `draw` SHALL be importable from the public law
+namespace alone, and the module that defines them SHALL be a module of that namespace.
+
+#### Scenario: One path
+- **WHEN** a user imports `uniform` from the public law namespace
+- **THEN** the import succeeds, and no other public package of the core re-exports `uniform`

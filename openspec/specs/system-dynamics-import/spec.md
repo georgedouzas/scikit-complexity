@@ -45,22 +45,32 @@ trajectory reports every flow as `<element>.<flow>`.
 - **THEN** the result holds one reinforcing loop through births and one balancing loop through deaths
 
 ### Requirement: Remaining rates become relaxations or rates
-The part of a stock's net rate that no flow variable holds SHALL become a `RelaxationInteraction` when it has the
-goal-seeking form `(goal - stock) / time`, and a `RateInteraction` otherwise.
+The part of a stock's net rate that no flow variable holds SHALL become a `RateInteraction`. When it has the goal-seeking
+form `(goal - stock) / time`, the module SHALL write the goal and the time as their own functions and the rate as
+`(goal - stock) / time` of them, and otherwise it SHALL write the remaining rate as one function.
 
 #### Scenario: Goal seeking becomes relaxation
 - **WHEN** a system whose stock changes by `(target - stock) / adjustment_time` with no flow variable is translated
-- **THEN** the stock's rate is a `RelaxationInteraction` with that goal and time, and its run matches PySD within 1e-6
+- **THEN** the stock's rate is a `RateInteraction` whose rate is `(target - stock) / adjustment_time`, the module holds
+  the goal and the time as functions, and its run matches PySD within 1e-6
+
+#### Scenario: No relaxation class
+- **WHEN** the module of any translated system is read
+- **THEN** it imports no relaxation interaction, since the core has none
 
 ### Requirement: Built-in functions map to the law utilities
-Lookups SHALL become `lookup` tables, conditionals `where`, the input signals `step`, `ramp`, `pulse`, and
-`pulse_train`, delays and smoothing `delay1`, `delay3`, `smooth`, `distributed_delay`, or `delayed`, `MIN` and `MAX`
-`minimum` and `maximum`, and the random functions draws. A start time other than zero SHALL shift `Time` in every
-expression.
+Lookups SHALL become `series` of their input through their points, conditionals `where`, the input signals `step`,
+`ramp`, `pulse`, and `pulse_train`, delays and smoothing `distributed_delay` of their order, with `conserved=False` for
+smoothing, or `delayed`, `MIN` and `MAX` `minimum` and `maximum`, and the random functions draws. A start time other
+than zero SHALL shift `Time` in every expression.
 
 #### Scenario: Third-order delay
 - **WHEN** a system with `DELAY3` of a step input is translated and run
 - **THEN** its output is within 1e-6 of PySD's run of the same file
+
+#### Scenario: Smoothing
+- **WHEN** a system with `SMOOTH` of a step input is translated
+- **THEN** the written module calls `distributed_delay` with `conserved=False`, and its run is within 1e-6 of PySD's
 
 ### Requirement: Subscripts become groups
 A system whose stocks are all subscripted over one range SHALL become a group with one member per subscript, in the

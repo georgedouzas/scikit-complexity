@@ -74,7 +74,8 @@ The physics module SHALL provide Lennard-Jones and soft-sphere pair interactions
 
 ### Requirement: Langevin thermostat
 The physics module SHALL provide a Langevin thermostat that adds drag and random forces to a particle group, built on
-the core `RelaxationInteraction` acting on the first derivative of the position, which runs on the native SDE solvers and on the LAMMPS
+its `RelaxationTimeInteraction`, a `RateInteraction` with the rate `(goal - x) / time` acting on the first derivative
+of the position, which runs on the native SDE solvers and on the LAMMPS
 backend.
 
 #### Scenario: Equilibrium temperature
@@ -1101,7 +1102,7 @@ package. A system class whose mechanism the core provides SHALL use the core cla
 
 #### Scenario: No copy across fields
 - **WHEN** the ecology meadow and the economics commons systems are built
-- **THEN** both build foraging and regrowth from the core `TransferInteraction`, `LifeCycleInteraction`, and
+- **THEN** both build foraging and regrowth from the core `TransferInteraction`, `BirthDeathInteraction`, and
   `MapInteraction`
 
 ### Requirement: Library systems keep their behaviour across the redesign
@@ -1628,8 +1629,8 @@ The library SHALL provide, as system classes built on the general interactions a
 ### Requirement: Kinetic equations of gases and plasmas
 The library SHALL provide the spatially inhomogeneous Boltzmann equation, its BGK system, the Vlasov-Poisson equation
 with Landau damping and two-stream set-ups, and the local Enskog equation as system classes under
-`physics/fluids` (Bellomo et al. 2017 §2.2–2.3), built on `PhaseSpace`, `AdvectionInteraction`,
-`EncounterInteraction`, and `RelaxationInteraction`. The inventory SHALL record them as implemented.
+`physics/fluids` (Bellomo et al. 2017 §2.2–2.3), built on `PhaseSpace`, the physics `AdvectionInteraction` on
+`ConservationInteraction`, `EncounterInteraction`, and the physics `RelaxationTimeInteraction` on `RateInteraction`. The inventory SHALL record them as implemented.
 
 #### Scenario: Sod shock tube near the fluid limit
 - **WHEN** the BGK system runs the Sod shock tube in one position and one velocity dimension at a Knudsen number of 1e-4
@@ -1697,7 +1698,7 @@ their parameters through `sweep`.
 
 ### Requirement: Dynamic equilibrium, satisfiability, and search systems
 The library SHALL provide the fictitious play of `OligopolyEquilibriaSystem` with `dynamics='fictitious-play'`, built on
-`ChoiceInteraction` and `ReinforcementInteraction`, `perceptron_satisfiability` in `computer_science/neural_networks`,
+`ChoiceInteraction` and the economics `PayoffLearningInteraction` on `MapInteraction`, `perceptron_satisfiability` in `computer_science/neural_networks`,
 built on `SatisfiabilityInteraction`, and `EvolutionaryOptimisersSystem` in `computer_science/evolutionary_computation`,
 built on `OptimizationInteraction` and on `SamplingInteraction` with `cooling`, all under discrete time.
 
@@ -2235,9 +2236,9 @@ defines them.
 
 ### Requirement: Fuzzy oil drop system
 The library SHALL provide `fuzzy_oil_drop` in `biology/systems_biology` (Konieczny et al. 2023 §1.3.1, Eqs. 1.1–1.9).
-By default it replays the bundled NMR ensemble of the Trp-cage 1L2Y through a `DriveLaw`, one system per frame. With
-`dynamics='folding'` it samples the dihedral angles of a chain from an extended start with a row score of `RD` and a
-clash penalty. Its catalog entry SHALL declare `RD` and `K` as observables in the default install.
+By default it replays the bundled NMR ensemble of the Trp-cage 1L2Y through an `ArrayUpdateLaw`, one system per frame.
+With `dynamics='folding'` it samples the dihedral angles of a chain from an extended start with a row score of `RD` and
+a clash penalty. Its catalog entry SHALL declare `RD` and `K` as observables in the default install.
 
 #### Scenario: Ensemble of the Trp-cage
 - **WHEN** `fuzzy_oil_drop` runs with its defaults
@@ -3110,3 +3111,41 @@ implemented with their sources and primitives, and the gallery SHALL hold their 
 #### Scenario: Inventory and gallery
 - **WHEN** the inventory check and the strict gallery coverage run
 - **THEN** they report no problem for the three systems
+
+### Requirement: Field realizations of merged interactions
+A field that has its own term for a form of a core interaction SHALL hold it as a named subclass of that core class, in
+the system module of its one user or in the field's `common` package when several packages share it. Fields without
+such a term SHALL use the core class with its function. The realization SHALL keep the arguments, checks, and hooks
+the form had in the core, and its tests SHALL move with it.
+
+#### Scenario: Relaxations by field
+- **WHEN** the physics Langevin thermostat and BGK, the engineering optimal velocity, the chemistry reactors, the
+  neuroscience populations, and the food sector of economics relax a state towards a goal
+- **THEN** they use `RelaxationTimeInteraction`, `SpeedAdaptationInteraction`, `MassExchangeInteraction`,
+  `LeakyIntegrationInteraction`, and `PartialAdjustmentInteraction`, each a subclass of `RateInteraction`, and every
+  run keeps its trajectory
+
+#### Scenario: Transport by field
+- **WHEN** the heat, fluid, ocean, and gel systems diffuse or advect a field, and the multilevel selection and forest
+  size systems carry a density along a trait or a size
+- **THEN** physics uses `DiffusivityInteraction` on `RateInteraction` and `AdvectionInteraction` on
+  `ConservationInteraction`, social `SelectionDriftInteraction`, and biology `SizeGrowthInteraction`, both on
+  `ConservationInteraction`
+
+#### Scenario: Pulses, kicks, and fractions
+- **WHEN** the circuit, magnetic levitation, and minimum-time control systems pulse a state, the impulsive oscillator
+  kicks it, and radiotherapy gives dose fractions
+- **THEN** they use `PulseInteraction`, `KickInteraction`, and `IrradiationInteraction`, each a subclass of
+  `CrossingInteraction` whose guard is `periodic_guard`, and every event falls at the time it fell before
+
+#### Scenario: Learning and price search in economics
+- **WHEN** the oligopoly, Brock-Hommes, perishables, El Farol, and minority systems score options, and the shops search
+  their prices
+- **THEN** they use `PayoffLearningInteraction` of `skcomplex.systems.economics.common` and `PriceAdjustmentInteraction`
+  of `skcomplex.systems.economics.markets`, both subclasses of `MapInteraction`
+
+#### Scenario: Physics-only interactions
+- **WHEN** the squirmers and the coupled traps move spheres through a Stokes fluid, and the metric cosmologies solve the
+  field equations of an ansatz
+- **THEN** they use `StokesianMobilityInteraction` of `skcomplex.systems.physics.common.particles` and
+  `EinsteinFieldEquationsInteraction` of `skcomplex.systems.physics.cosmology`
