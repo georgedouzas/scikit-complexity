@@ -24,5 +24,5 @@ def test_order_book_chartists_raise_volatility_and_conserve_holdings():
 
 def test_order_book_imitation_drives_out_chartists():
     """Test that traders copy the more successful fundamentalists, so the share of chartists falls."""
-    trajectory = simulate(OrderBookSystem(chartists=0.5), until=150)
+    trajectory = simulate(OrderBookSystem(chartists=0.5), until=150, random_state=0)
     assert trajectory.values('chartists')[-1] < 0.6 * trajectory.values('chartists')[0]
