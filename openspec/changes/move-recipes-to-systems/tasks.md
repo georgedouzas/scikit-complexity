@@ -151,7 +151,7 @@
   `satisfiability`, `population-search`, and `label-copies`, rewrite `matrix-groups` without the holonomy sampling,
   and let the inventory check recompute the priority of the affected entries. Verify with the inventory test.
 
-- [ ] 9.3 Add the placement rule of design.md, word for word, to `docs/overview/user_guide/extend_the_library.md`, with
+- [x] 9.3 Add the placement rule of design.md, word for word, to `docs/overview/user_guide/extend_the_library.md`, with
   one example per step. Verify with `nox -s docs -- build` and the scenario "One text of the rule".
 
 ## 10. Integration

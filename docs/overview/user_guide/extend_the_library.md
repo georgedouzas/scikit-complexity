@@ -291,6 +291,40 @@ The parts of the core are layered, so that each imports only the parts below it.
 No part of the core imports `skcomplex.systems`, and the systems import only the public modules of the core. Tests of
 the import contracts enforce the layering.
 
+### Where a new part goes
+
+One ordered test, the placement rule, decides where any part goes, now and in the future. `tests/test_sources.py`
+checks it mechanically.
+
+1. A structural base, such as a `Base` class, the composite system, or a base where laws run per member, edge,
+   hyperedge, or pair, goes to the core.
+2. A part that the engine handles by type, through a compile pass, a kernel, a solver, a backend lowering, or an
+   analysis that checks the class or its spec, goes to the core, and so does an operator generated from one function.
+   It is named by its mathematics and must be cross-domain in principle.
+3. Every other part is a recipe, expressible with core parts. Its users place it. Several fields:
+   `skcomplex.systems.general.<concept>`. One field with several systems: `systems/<field>/common/<family>`. One system:
+   that system's module. A field with its own term names it, and `general` uses neutral names.
+4. A recipe that needs something the core cannot express reveals a missing core primitive, which enters by step 2.
+   Engine support never lives inside a recipe.
+5. The core never imports `skcomplex.systems`.
+
+One example for each step:
+
+1. `HyperedgeInteraction` runs its laws once per hyperedge, and `CompositeSystem` holds the parts of a system, so both
+   are structural bases of the core.
+2. `GroupingInteraction` stays in the core, since a compile pass lowers its symbolic form by type to kernels over
+   random groups redrawn every step. Its name is the mathematics it does, and economics and social both form groups.
+3. `MovementInteraction` returns agent rules, which the core already runs, and systems of biology, economics,
+   engineering, mathematics, and social use it, so it lives in `skcomplex.systems.general.agents`. The toppling of a
+   sandpile serves several systems of physics only, so it lives in a family of the physics `common` package under the
+   physics name `TopplingInteraction`. The satisfiability of logical constraints serves one system, so
+   `SatisfiabilityInteraction` lives in the module of `PerceptronSatisfiabilitySystem`.
+4. The satisfiability once had a check of its own in the compiler, which is engine support inside a recipe. The
+   check that a role accepts only Boolean states is a primitive of the core, `RoleSpec(domains=...)`, so the recipe
+   declares its role with it and the compiler keeps no code for the class.
+5. `sparse_identification` of the core returns a `CompositeSystem` of core parts, never a class of
+   `skcomplex.systems`, so the core runs without the catalog.
+
 ### The root modules
 
 Every package of the core shares the root modules:

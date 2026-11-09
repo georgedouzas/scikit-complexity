@@ -27,8 +27,8 @@ One example for each step:
 
 1. `HyperedgeInteraction` runs its laws once per hyperedge, and `CompositeSystem` holds the parts of a system, so both
    are structural bases of the core.
-2. `ConservationInteraction` stays in the core, since the compiler lowers its flux laws to a finite-volume scheme by
-   type. Its name is the mathematics it does, and fluids, traffic, and population densities all conserve quantities.
+2. `GroupingInteraction` stays in the core, since a compile pass lowers its symbolic form by type to kernels over
+   random groups redrawn every step. Its name is the mathematics it does, and economics and social both form groups.
 3. `MovementInteraction` returns agent rules, which the core already runs, and systems of biology, economics,
    engineering, mathematics, and social use it, so it lives in `skcomplex.systems.general.agents`. The toppling of a
    sandpile serves several systems of physics only, so it lives in a family of the physics `common` package under the
