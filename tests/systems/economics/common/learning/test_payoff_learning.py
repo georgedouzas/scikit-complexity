@@ -1,4 +1,4 @@
-"""Test the `_reinforcement` module of `skcomplex.core.components.interactions`."""
+"""Test the `_payoff_learning` module of `skcomplex.systems.economics.common.learning`."""
 
 from typing import Annotated
 
@@ -6,13 +6,14 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import ChoiceInteraction, ReinforcementInteraction
+from skcomplex.core.components.interactions import ChoiceInteraction
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.engine.solvers import AgentView, SystemView
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.systems.economics.common.learning import PayoffLearningInteraction
 
 
 class LearnerView(AgentView):
@@ -77,7 +78,7 @@ def _agent_payoff(agent: LearnerView, system: SystemView, index: int) -> float:
 
 def test_reinforcement_interaction_moves_scores_as_a_weighted_mean_of_payoffs():
     """Test that scores follow `s <- s + a (P - s)` towards constant payoffs."""
-    reinforcement = ReinforcementInteraction(
+    reinforcement = PayoffLearningInteraction(
         'reinforcement',
         target='learners',
         scores=('first', 'second'),
@@ -92,7 +93,7 @@ def test_reinforcement_interaction_moves_scores_as_a_weighted_mean_of_payoffs():
 
 def test_reinforcement_interaction_agent_scores_steer_a_best_choice():
     """Test that agents choosing the option of best score learn to take the option of larger payoff."""
-    reinforcement = ReinforcementInteraction(
+    reinforcement = PayoffLearningInteraction(
         'reinforcement',
         target='learners',
         scores=('first', 'second'),
@@ -117,7 +118,7 @@ def test_reinforcement_interaction_agent_scores_steer_a_best_choice():
 
 def test_reinforcement_interaction_cumulative_rule_adds_the_payoffs():
     """Test that the cumulative rule adds the payoff of every option to its score in every step."""
-    reinforcement = ReinforcementInteraction(
+    reinforcement = PayoffLearningInteraction(
         'reinforcement',
         target='learners',
         scores=('first', 'second'),
@@ -130,7 +131,7 @@ def test_reinforcement_interaction_cumulative_rule_adds_the_payoffs():
 
 def test_reinforcement_interaction_reinforces_the_components_of_a_vector_state():
     """Test that the agent form reinforces every component of a vector state of scores, one per option."""
-    reinforcement = ReinforcementInteraction(
+    reinforcement = PayoffLearningInteraction(
         'reinforcement',
         target='pool',
         scores='scores',
@@ -148,25 +149,26 @@ def test_reinforcement_interaction_reinforces_the_components_of_a_vector_state()
 @pytest.mark.parametrize(
     ('arguments', 'message'),
     [
-        ({'form': 'table'}, 'Unknown form'),
+        ({'form': 'table'}, 'The form of map'),
         ({'rule': 'median'}, 'Unknown rule'),
         ({'scores': 'first'}, 'sequence of state names'),
         ({'scores': ()}, 'sequence of state names'),
         ({'payoff': 1.0}, 'must be callable'),
-        ({'schedule': 'parallel'}, 'Unknown schedule'),
-        ({'schedule': 'member'}, 'runs agent rules'),
+        ({'schedule': 'parallel'}, 'The schedule of map'),
+        ({'schedule': 'member'}, 'only the agent form'),
+        ({'schedule': 'sequential'}, 'runs agent rules'),
     ],
 )
 def test_check_rejects_invalid_arguments(arguments, message):
     """Test that an unknown form, missing scores, or a payoff that is not callable is rejected."""
     values = {'target': 'learners', 'scores': ('first', 'second'), 'payoff': lambda s, k: k, **arguments}
     with pytest.raises(ValidationError, match=message):
-        ReinforcementInteraction('reinforcement', **values).prepare()
+        PayoffLearningInteraction('reinforcement', **values).prepare()
 
 
 def test_reinforcement_interaction_moves_only_the_score_of_the_chosen_option():
     """Test that with a chosen state only the score of the option a member chose moves towards its payoff."""
-    reinforcement = ReinforcementInteraction(
+    reinforcement = PayoffLearningInteraction(
         'reinforcement',
         target='learners',
         scores=('first', 'second'),
@@ -188,7 +190,7 @@ def _scarce_payoff(agent: LearnerView, system: SystemView, index: int) -> float:
 @pytest.mark.parametrize(('schedule', 'expected'), [('synchronous', [1.0, 1.0]), ('sequential', [1.0, 0.0])])
 def test_reinforcement_interaction_sequential_schedule_reads_the_scores_set_before(schedule, expected):
     """Test that sequential reinforcement reads the scores earlier agents set, while synchronous does not."""
-    reinforcement = ReinforcementInteraction(
+    reinforcement = PayoffLearningInteraction(
         'reinforcement',
         target='learners',
         scores=('first', 'second'),
@@ -212,7 +214,7 @@ def test_reinforcement_interaction_members_reinforce_their_chosen_option_in_thei
         schedule='member',
         form='agent',
     )
-    reinforcement = ReinforcementInteraction(
+    reinforcement = PayoffLearningInteraction(
         'reinforcement',
         target='learners',
         scores=('first', 'second'),

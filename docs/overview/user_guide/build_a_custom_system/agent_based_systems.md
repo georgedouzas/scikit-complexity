@@ -298,7 +298,7 @@ trajectory.values('auction.volume').tolist()
   acceptance, exclusion, and a cost.
 - `TransferInteraction` moves amounts of states between members, the agents of one cell, a `Source()`, and a `Sink()`.
   It runs as transfer laws with `form='symbolic'`, or between paired agents with `form='agent'`.
-- `LifeCycleInteraction` creates offspring by probability or rate, with inherited, split, and mutated states, and
+- `BirthDeathInteraction` creates offspring by probability or rate, with inherited, split, and mutated states, and
   removes agents, the first or a random member of a group with `cull` and `pick`.
 - `system.composition(group, state)` counts the agents of a group by the value of a state, kept up to date as agents
   change, so a birth probability can read the composition of the population.
@@ -326,8 +326,8 @@ phase with its method `act`.
 - In `skcomplex.core.components.interactions`, `ChoiceInteraction(form='agent')` draws an option by the logit,
   Metropolis, Fermi, or best rule, from a utility `utility(agent, system, option)` that can read `system.history` and
   `system.storage`.
-- `ReinforcementInteraction` moves the scores of options towards their realized payoffs, or with `chosen` only the
-  score of the option a member chose.
+- The economics `PayoffLearningInteraction` moves the scores of options towards their realized payoffs, or with
+  `chosen` only the score of the option a member chose.
 - Both run with `schedule='member'` in the activation of every member, such as one visit.
 - `EvolutionInteraction` replaces strategies by selection, crossover, and mutation, with the system's random stream.
 - `ImitationInteraction(rule='best')` copies the best neighbour.

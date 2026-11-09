@@ -18,10 +18,10 @@ from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MobilityInteraction
 from ....core.components.spaces import ContinuousSpace
 from ....core.components.systems import BaseSystem, System
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ..common.particles import StokesianMobilityInteraction
 
 POINTS = VisualSpec('points', {'position': 'x', 'radius': 1.0})
 
@@ -66,18 +66,18 @@ class SquirmerElement(Element):
         self.p = p
 
 
-class SquirmerSlipInteraction(MobilityInteraction):
+class SquirmerSlipInteraction(StokesianMobilityInteraction):
     """Slip of spherical squirmers.
 
     The B1 and B2 modes make them swim and stir each other through the mobility.
 
     A squirmer of radius `a` with the tangential surface slip `B1 sin(theta) + B2 sin(theta) cos(theta)` about its
-    orientation `p` (Lighthill 1952, Blake 1971) swims at `2 B1 / 3` along `p`. Far from it, the slip stirs the fluid
-    as the stresslet `4 pi eta a^2 B2 (p p - I / 3)` and the potential dipole `B1 a^3 p / 3` (Ishikawa, Simmonds, and
+    orientation `p` (Lighthill 1952, Blake 1971) swims at `2 B1 / 3` along `p`. Far from it, the slip stirs the fluid as
+    the stresslet `4 pi eta a^2 B2 (p p - I / 3)` and the potential dipole `B1 a^3 p / 3` (Ishikawa, Simmonds, and
     Pedley 2006). So `beta = B2 / B1 < 0` makes a pusher, which pushes fluid out along its axis, and `beta > 0` a
     puller, which draws it in. The flows of the other squirmers move every squirmer and turn it by half their vorticity,
-    through `MobilityInteraction`. A Weeks-Chandler-Andersen repulsion of strength `epsilon` keeps the spheres apart,
-    within `2^(1/6)` diameters of the current radius.
+    through `StokesianMobilityInteraction`. A Weeks-Chandler-Andersen repulsion of strength `epsilon` keeps the spheres
+    apart, within `2^(1/6)` diameters of the current radius.
 
     Args:
         label:

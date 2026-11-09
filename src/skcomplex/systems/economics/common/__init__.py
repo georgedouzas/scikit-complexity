@@ -1,6 +1,6 @@
 """Realizations shared by several economics systems.
 
-They are assets, balance sheets, exchange, forecasting, and resources.
+They are assets, balance sheets, exchange, forecasting, learning, and resources.
 """
 
 from ._asset import AssetElement

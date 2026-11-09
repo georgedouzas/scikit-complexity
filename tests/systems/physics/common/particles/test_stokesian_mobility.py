@@ -1,4 +1,4 @@
-"""Test the `_mobility` module of `skcomplex.core.components.interactions`."""
+"""Test the `_stokesian_mobility` module of `skcomplex.systems.physics.common.particles`."""
 
 import math
 from typing import Annotated
@@ -9,13 +9,17 @@ import pytest
 from sage.all__sagemath_symbolics import matrix, vector
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import MobilityInteraction
-from skcomplex.core.components.interactions._mobility import _mobility_matrix, _mobility_product, _source_flows
 from skcomplex.core.components.spaces import ContinuousSpace, DiscreteTime
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.systems.physics.common.particles import StokesianMobilityInteraction
+from skcomplex.systems.physics.common.particles._stokesian_mobility import (
+    _mobility_matrix,
+    _mobility_product,
+    _source_flows,
+)
 
 
 class SphereElement(Element):
@@ -66,7 +70,7 @@ def _external(s):
 
 def test_stokes_drag_of_one_sphere():
     """Test that a lone sphere moves at `F / (6 pi eta a)`."""
-    stokes = MobilityInteraction('stokes', target='spheres', force=_external, radius=0.5, viscosity=2.0)
+    stokes = StokesianMobilityInteraction('stokes', target='spheres', force=_external, radius=0.5, viscosity=2.0)
     velocity = _velocities(stokes, [[0.0, 0.0, 0.0]], forces=[[3.0, 0.0, -1.0]])
     assert velocity[0] == pytest.approx(np.array([3.0, 0.0, -1.0]) / (6 * math.pi * 2.0 * 0.5), rel=1e-6)
 
@@ -85,14 +89,14 @@ def test_stokes_drag_of_one_sphere():
 )
 def test_pair_coupling_of_the_tensors(tensor, along, across):
     """Test that a force on one sphere moves the other as the Oseen and Rotne-Prager-Yamakawa tensors give."""
-    stokes = MobilityInteraction('stokes', target='spheres', force=_external, tensor=tensor)
+    stokes = StokesianMobilityInteraction('stokes', target='spheres', force=_external, tensor=tensor)
     velocity = _velocities(stokes, [[0.0, 0.0, 0.0], [3.0, 0.0, 0.0]], forces=[[1.0, 1.0, 0.0], [0.0, 0.0, 0.0]])
     assert velocity[1] == pytest.approx([along, across, 0.0], rel=1e-5, abs=1e-12)
 
 
 def test_planar_positions_read_the_plane_of_space():
     """Test that positions in the plane move as the plane `z = 0` of the three-dimensional tensor."""
-    stokes = MobilityInteraction('stokes', target='spheres', force=_external)
+    stokes = StokesianMobilityInteraction('stokes', target='spheres', force=_external)
     planar = _velocities(stokes, [[0.0, 0.0], [3.0, 0.0]], forces=[[1.0, 1.0], [0.0, 0.0]])
     spatial = _velocities(stokes, [[0.0, 0.0, 0.0], [3.0, 0.0, 0.0]], forces=[[1.0, 1.0, 0.0], [0.0, 0.0, 0.0]])
     assert planar == pytest.approx(spatial[:, :2], rel=1e-9)
@@ -146,7 +150,12 @@ def test_stresslet_flow_of_a_puller_draws_in_along_its_axis():
 
 def test_orientation_turns_with_the_angular_velocity_and_stays_unit():
     """Test that a constant torque turns the orientation about it at `T / (8 pi eta a^3)`."""
-    spin = MobilityInteraction('spin', target='spheres', orientation='p', torque=lambda s: vector([0.0, 0.0, 1.0]))
+    spin = StokesianMobilityInteraction(
+        'spin',
+        target='spheres',
+        orientation='p',
+        torque=lambda s: vector([0.0, 0.0, 1.0]),
+    )
     system = _system(spin, [[0.0, 0.0, 0.0]], orientations=[[1.0, 0.0, 0.0]])
     turn = simulate(system, until=16 * math.pi**2, dt=0.1).values('spheres.p')
     assert turn[-1, 0] == pytest.approx([1.0, 0.0, 0.0], abs=1e-4)
@@ -155,7 +164,7 @@ def test_orientation_turns_with_the_angular_velocity_and_stays_unit():
 
 def test_intrinsic_velocity_and_planar_torque():
     """Test that an intrinsic velocity adds to the mobility and a planar torque is a number about `z`."""
-    swim = MobilityInteraction(
+    swim = StokesianMobilityInteraction(
         'swim',
         target='spheres',
         orientation='p',
@@ -170,7 +179,7 @@ def test_intrinsic_velocity_and_planar_torque():
 
 def test_pair_potential_forces_enter_the_mobility():
     """Test that a pair potential of the distance pushes overlapping spheres apart within its cutoff only."""
-    repulsion = MobilityInteraction(
+    repulsion = StokesianMobilityInteraction(
         'repulsion',
         target='spheres',
         potential=lambda s, r: s.radius * (3 - r) ** 2,
@@ -191,7 +200,7 @@ def _trap(s):
 @pytest.mark.parametrize('root', ['cholesky', 'lanczos'])
 def test_brownian_steps_have_the_mobility_covariance(root):
     """Test that free Brownian steps correlate as `M_12 / M_11` and trapped spheres reach the variance `kT / k`."""
-    stokes = MobilityInteraction(
+    stokes = StokesianMobilityInteraction(
         'stokes',
         target='spheres',
         force=_trap,
@@ -212,7 +221,14 @@ def test_brownian_steps_have_the_mobility_covariance(root):
 
 def test_brownian_rotation_turns_orientations():
     """Test that rotational Brownian steps decorrelate an orientation as `exp(-2 D_r t)` and keep it a unit vector."""
-    stokes = MobilityInteraction('stokes', target='spheres', orientation='p', form='map', temperature=1.0, dt=0.01)
+    stokes = StokesianMobilityInteraction(
+        'stokes',
+        target='spheres',
+        orientation='p',
+        form='map',
+        temperature=1.0,
+        dt=0.01,
+    )
     size = 50
     rng = np.random.default_rng(1)
     positions = rng.uniform(0, 1000, size=(size, 3))
@@ -226,7 +242,7 @@ def test_brownian_rotation_turns_orientations():
 
 def test_oseen_overlap_is_not_positive():
     """Test that noise from an Oseen mobility of overlapping spheres raises an error that suggests RPY."""
-    stokes = MobilityInteraction('stokes', target='spheres', tensor='oseen', form='map', temperature=1.0)
+    stokes = StokesianMobilityInteraction('stokes', target='spheres', tensor='oseen', form='map', temperature=1.0)
     system = _system(stokes, [[0.0, 0.0, 0.0], [0.2, 0.0, 0.0], [0.0, 0.2, 0.0]], time=DiscreteTime())
     with pytest.raises(ValidationError, match='rotne-prager-yamakawa'):
         simulate(system, until=2, random_state=0)
@@ -245,11 +261,15 @@ def test_oseen_overlap_is_not_positive():
 def test_variants_and_functions_are_checked(arguments, message):
     """Test that unknown variants, functions that are not callable, and noise in the rate form are reported."""
     with pytest.raises(ValidationError, match=message):
-        MobilityInteraction('stokes', target='spheres', **arguments).prepare()
+        StokesianMobilityInteraction('stokes', target='spheres', **arguments).prepare()
 
 
 def test_stresslet_of_wrong_shape_is_reported():
     """Test that a stresslet whose shape does not match the positions is reported when the laws are built."""
-    stokes = MobilityInteraction('stokes', target='spheres', stresslet=lambda s: matrix([[1.0, 0.0], [0.0, -1.0]]))
+    stokes = StokesianMobilityInteraction(
+        'stokes',
+        target='spheres',
+        stresslet=lambda s: matrix([[1.0, 0.0], [0.0, -1.0]]),
+    )
     with pytest.raises(ValidationError, match='3 by 3'):
         simulate(_system(stokes, [[0.0, 0.0, 0.0]]), until=0, dt=0.1)

@@ -16,8 +16,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import (
+    BirthDeathInteraction,
     FeedbackInteraction,
-    LifeCycleInteraction,
     MapInteraction,
     MatchingInteraction,
 )
@@ -605,13 +605,13 @@ class TragedyOfTheCommonsSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _get_investment() -> list[LifeCycleInteraction | MapInteraction]:
+    def _get_investment() -> list[BirthDeathInteraction | MapInteraction]:
         """Return the member interactions of a herder.
 
         They buy or sell a cow, then clear its income and herd.
         """
         return [
-            LifeCycleInteraction(
+            BirthDeathInteraction(
                 'investment',
                 target='herders',
                 group='cows',

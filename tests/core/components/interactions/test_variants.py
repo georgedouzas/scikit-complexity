@@ -2,7 +2,7 @@
 
 import pytest
 
-from skcomplex.core.components.interactions import LifeCycleInteraction, MovementInteraction, SamplingInteraction
+from skcomplex.core.components.interactions import BirthDeathInteraction, MovementInteraction, SamplingInteraction
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import PartnerSpec
 
@@ -11,16 +11,15 @@ from skcomplex.core.specs import PartnerSpec
     ('interaction', 'message'),
     [
         (MovementInteraction('a', target='b', step=PartnerSpec()), 'Unknown step .*a function'),
-        (LifeCycleInteraction('a', target='b', placement=PartnerSpec()), 'Unknown placement .*a function'),
+        (BirthDeathInteraction('a', target='b', placement=PartnerSpec()), 'Unknown placement .*a function'),
         (
             SamplingInteraction('a', target='b', state='x', objective=lambda s: 0.0, move=PartnerSpec()),
             'Unknown move .*a function',
         ),
-        (LifeCycleInteraction('a', target='b', pick=PartnerSpec()), "Unknown pick .*'first', 'random'"),
+        (BirthDeathInteraction('a', target='b', pick=PartnerSpec()), "Unknown pick .*'first', 'random'"),
     ],
 )
 def test_variant_refuses_a_spec_and_lists_what_it_takes(interaction, message):
     """Test that a step, a placement, a move, and a pick refuse a spec, and list their names and functions."""
     with pytest.raises(ValidationError, match=message):
         interaction.prepare()
-

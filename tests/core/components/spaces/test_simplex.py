@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.elements import FieldElement, NonnegativeElement
-from skcomplex.core.components.interactions import AdvectionInteraction
+from skcomplex.core.components.interactions import ConservationInteraction
 from skcomplex.core.components.laws.utils import coordinate, moment
 from skcomplex.core.components.spaces import LatticeSpace, SimplexSpace
 from skcomplex.core.components.systems import System
@@ -100,7 +100,13 @@ def test_replicator_flow_on_a_simplex_conserves_the_density(solver: object) -> N
         values={'x': start},
         discretization='finite-volume',
     )
-    flow = AdvectionInteraction('flow', target='groups', state='x', drift=replicator_drift, limiter=None)
+    flow = ConservationInteraction(
+        'flow',
+        target='groups',
+        state='x',
+        flux=lambda s: [component * s.target.x for component in replicator_drift(s)],
+        limiter=None,
+    )
     trajectory = simulate(System(elements=[groups], interactions=[flow]), until=2.0, dt=0.5, solver=solver)
     final = trajectory.values('groups.x')[-1].reshape(space.shape_)
     weights = space.volumes_ / SIZE**2

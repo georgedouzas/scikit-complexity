@@ -1,4 +1,4 @@
-"""Test the `_advection` module of `skcomplex.core.components.interactions`."""
+"""Test the `_advection` module of `skcomplex.systems.physics.common.fields`."""
 
 from typing import Annotated
 
@@ -6,12 +6,13 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.elements import Element, FieldElement
-from skcomplex.core.components.interactions import AdvectionInteraction, ConservationInteraction
+from skcomplex.core.components.interactions import ConservationInteraction
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import RoleSpec, StateSpec
+from skcomplex.systems.physics.common.fields import AdvectionInteraction
 
 CELLS = 64
 

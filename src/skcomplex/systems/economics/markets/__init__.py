@@ -35,7 +35,7 @@ from ._perishables import CustomerElement, PerishableGoodsDuopolySystem, Product
 from ._prices import QuadraticSupplyMarketElement, RiccatiPricesSystem
 from ._produce import ProduceMarketSystem, ShopperElement, StallElement
 from ._queues import CarElement, CarWashOperationInteraction, CarWashSystem, TillElement, WasherElement
-from ._shops import ResidentElement, ShopsSystem, StoreElement
+from ._shops import PriceAdjustmentInteraction, ResidentElement, ShopsSystem, StoreElement
 from ._sugarscape import ForagerElement, SugarPatchElement, SugarscapeSystem
 from ._supply_chains import (
     BeerGameSystem,
@@ -95,6 +95,7 @@ __all__: list[str] = [
     'MarketElement',
     'OligopolyEquilibriaSystem',
     'PerishableGoodsDuopolySystem',
+    'PriceAdjustmentInteraction',
     'PricePointElement',
     'PricingFirmElement',
     'PricingGameSpec',

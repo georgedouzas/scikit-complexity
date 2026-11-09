@@ -12,8 +12,8 @@ from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
-from ....core.components.interactions import ImpulseInteraction, RateInteraction, ReactionInteraction
-from ....core.components.laws.utils import pulse_train
+from ....core.components.interactions import CrossingInteraction, RateInteraction, ReactionInteraction
+from ....core.components.laws.utils import periodic_guard, pulse_train
 from ....core.components.systems import BaseSystem, System
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
@@ -209,7 +209,7 @@ class RadiationCompetitionElement(Element):
         self.width = width
 
 
-class IrradiationInteraction(ImpulseInteraction):
+class IrradiationInteraction(CrossingInteraction):
     """Radiation fractions of a dose `d`.
 
     They move the lethally irradiated part of the proliferating cells.
@@ -251,11 +251,11 @@ class IrradiationInteraction(ImpulseInteraction):
 
     Raises:
         ValidationError:
-            The times, the period, or the count of the fractions cannot be taken.
+            The period is not positive, or the number of fractions is not a positive integer.
 
     Examples:
         >>> from skcomplex.systems.biology.oncology import IrradiationInteraction
-        >>> IrradiationInteraction('fraction', target='tumour', fractions=5).count
+        >>> IrradiationInteraction('fraction', target='tumour', fractions=5).fractions
         5
     """
 
@@ -273,13 +273,19 @@ class IrradiationInteraction(ImpulseInteraction):
         start: float = 0.125,
         fractions: int = 10,
     ) -> None:
-        super().__init__(label, target=target, reset=self._get_resets(), period=period, start=start, count=fractions)
+        super().__init__(label, target=target, guard=self._get_guard, reset=self._get_resets())
         self.alpha = alpha
         self.beta = beta
         self.ap = ap
         self.au = au
         self.dose = dose
+        self.period = period
+        self.start = start
         self.fractions = fractions
+
+    def _get_guard(self, namespace: SimpleNamespace) -> Expression:
+        """Return the guard that crosses zero at every fraction."""
+        return periodic_guard(namespace.t, self.period, self.start, self.fractions)
 
     def _get_damage(self, s: SimpleNamespace) -> Expression:
         """Return the linear-quadratic damage of a fraction.

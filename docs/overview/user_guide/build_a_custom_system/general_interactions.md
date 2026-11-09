@@ -22,23 +22,24 @@ list, then follow the link to its subsection.
   [Rates and relaxation](#rates-and-relaxation).
 - Move states down a potential, or write the mechanics of a Lagrangian or a Hamiltonian: `GradientInteraction`,
   `EulerLagrangeInteraction`, and `HamiltonianInteraction`, in [Gradients and mechanics](#gradients-and-mechanics).
-- Move a particle along the geodesics of a curved metric, or evolve a metric ansatz by the Einstein equations:
-  `PseudoRiemannianSpace`, `GeodesicInteraction`, and `EinsteinInteraction`, in [Curved spacetimes](#curved-spacetimes).
+- Move a particle along the geodesics of a curved metric: `PseudoRiemannianSpace` and `GeodesicInteraction`, in
+  [Curved spacetimes](#curved-spacetimes). Physics evolves a metric ansatz by the Einstein equations with
+  `EinsteinFieldEquationsInteraction`.
 - Conserve, carry, or spread a quantity over a field: `ConservationInteraction` and `RateInteraction`, in
   [Conservation laws](#conservation-laws).
 - Update a state in steps, search by trial and error, or run a cellular automaton or a cascade: `MapInteraction`,
-  `SignAdjustmentInteraction`, `LocalRuleInteraction`, and `CascadeInteraction`, in [Discrete time](#discrete-time).
+  `LocalRuleInteraction`, and `CascadeInteraction`, in [Discrete time](#discrete-time).
 - Couple members over the edges of a lattice or a network, over a group, or over close pairs: `CouplingInteraction`
   and `PairCouplingInteraction`, in [Coupling over a structure](#coupling-over-a-structure).
-- Move particles through a viscous fluid by the forces, torques, and active slip of all of them: `MobilityInteraction`,
-  in [Coupling over a structure](#coupling-over-a-structure).
+- Move particles through a viscous fluid by the forces, torques, and active slip of all of them: the physics
+  `StokesianMobilityInteraction`, in [Coupling over a structure](#coupling-over-a-structure).
 - Fire random events or chemical reactions: `JumpInteraction` and `ReactionInteraction`, in
   [Jumps and reactions](#jumps-and-reactions).
 - Move a member between discrete values, such as susceptible and infected: `TransitionInteraction`, in
   [Transitions between values](#transitions-between-values).
 - Give the encounters of a kinetic system: `EncounterInteraction`, in
   [Encounters of a kinetic system](#encounters-of-a-kinetic-system).
-- Reset states when a condition crosses zero, or at chosen times: `CrossingInteraction` and `ImpulseInteraction`, in
+- Reset states when a condition crosses zero, or at chosen times: `CrossingInteraction`, in
   [Crossings and impulses](#crossings-and-impulses).
 - Sample configurations by Monte Carlo: `SamplingInteraction`, in [Monte Carlo sampling](#monte-carlo-sampling) and
   [Row scores and zero temperature](#row-scores-and-zero-temperature).
@@ -46,10 +47,10 @@ list, then follow the link to its subsection.
   [Array updates that read the step](#array-updates-that-read-the-step).
 - Run an operation as symbolic laws or as agent rules: the `form` and `schedule` arguments, in
   [Agent and symbolic forms](#agent-and-symbolic-forms).
-- Choose, imitate, learn, or evolve: `ChoiceInteraction`, `ImitationInteraction`, `ReinforcementInteraction`, and
+- Choose, imitate, learn, or evolve: `ChoiceInteraction`, `ImitationInteraction`, `MapInteraction`, and
   `EvolutionInteraction`, in [Choice and learning](#choice-and-learning).
 - Move agents, transfer amounts, create and remove agents, form groups, match partners, or rewire a network:
-  `MovementInteraction`, `TransferInteraction`, `LifeCycleInteraction`, `GroupingInteraction`,
+  `MovementInteraction`, `TransferInteraction`, `BirthDeathInteraction`, `GroupingInteraction`,
   `MatchingInteraction`, `FeedbackInteraction`, and `TopologyInteraction`, in
   [Agents, groups, and exchange](#agents-groups-and-exchange).
 - Place agents in three dimensions or in regions such as census tracts: `ContinuousSpace` and `MovementInteraction`,
@@ -309,7 +310,7 @@ the geodesic equation `x''^mu = -Γ^mu_(alpha beta) x'^alpha x'^beta`, with the 
 The initial four-velocity decides the kind of geodesic: a norm `g_(mu nu) x'^mu x'^nu` of -1 is a massive particle on
 its proper time, and 0 is a light ray. The circular orbit above, of radius `20 M`, keeps its radius.
 
-Use `EinsteinInteraction` when the metric itself is the unknown, reduced by a symmetry to functions of time, such as
+Use the physics `EinsteinFieldEquationsInteraction` when the metric itself is the unknown, reduced by a symmetry to functions of time, such as
 the scale factor `a(t)` of a flat universe of dust:
 
 ```python
@@ -319,11 +320,11 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import SR, diagonal_matrix, function, sin
 
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import EinsteinInteraction
 from skcomplex.core.components.spaces import PseudoRiemannianSpace
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.systems.physics.cosmology import EinsteinFieldEquationsInteraction
 
 
 class UniverseElement(Element):
@@ -351,7 +352,7 @@ def dust(s):
     return diagonal_matrix(SR, [-s.target.rho / s.target.a**3, 0, 0, 0])
 
 
-expansion = EinsteinInteraction(
+expansion = EinsteinFieldEquationsInteraction(
     'expansion', target='universe', states='a', space=ansatz, components=[(1, 1)], source=dust
 )
 system = System(elements=[UniverseElement('universe')], interactions=[expansion])
@@ -359,8 +360,8 @@ trajectory = simulate(system, until=2.0, dt=0.1)
 round(float(trajectory.values('universe.a')[-1]), 4)
 ```
 
-`EinsteinInteraction(target, states, space, components, source=None, coupling=8π, cosmological_constant=0.0, time=0,
-axes=None)` names every function of the metric after a state or parameter of the target. It takes one component
+`EinsteinFieldEquationsInteraction(target, states, space, components, source=None, coupling=8π,
+cosmological_constant=0.0, time=0, axes=None)` names every function of the metric after a state or parameter of the target. It takes one component
 `(mu, nu)` of the mixed equations `G^mu_nu + Λ δ^mu_nu = κ T^mu_nu` per state, and solves them for the second time
 derivatives. The source returns the mixed energy-momentum tensor, here dust of density `ρ / a³`, so the scale factor
 grows as `(3 t / 2 + 1)^(2/3)`. The other components, such as the Friedmann equation `G^t_t`, are constraints the
@@ -453,14 +454,15 @@ simulate(system, until=2).values('value.x').tolist()
 - `'random-sequential'` updates them in random order.
 - `'member'` updates them in the activation of every member, in the agent form.
 
-Use `SignAdjustmentInteraction` when a state searches for a target by trial and error, such as a price that rises
-while demand exceeds supply:
+A state that searches for a target by trial and error, such as a price that rises while demand exceeds supply, is a
+`MapInteraction` that steps it by the sign of a signal and keeps it within bounds:
 
 ```python
 from typing import Annotated
 
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import SignAdjustmentInteraction
+from skcomplex.core.components.interactions import MapInteraction
+from skcomplex.core.components.laws.utils import clip, sign
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
@@ -473,14 +475,14 @@ class QuoteElement(Element):
         self.x = x
 
 
-signal = lambda s: 2 - s.target.x
-search = SignAdjustmentInteraction('search', target='quote', state='x', signal=signal, step=0.5, upper=2.0)
+step = lambda s: clip(s.target.x * (1 + 0.5 * sign(2 - s.target.x)), None, 2.0)
+search = MapInteraction('search', target='quote', state='x', function=step)
 system = System(elements=[QuoteElement('quote')], interactions=[search], time=DiscreteTime())
 simulate(system, until=3).values('quote.x').tolist()
 ```
 
-`SignAdjustmentInteraction(target, state, signal, step=0.1, mode='multiplicative', lower=None, upper=None)` sets
-`x (1 + step sign(signal))`, or `x + step sign(signal)` with `mode='additive'`, kept within `[lower, upper]`.
+The next value is `x (1 + step sign(signal))` kept within `[lower, upper]`. Economics names this search
+`PriceAdjustmentInteraction`, with an additive stepping and an agent form.
 
 Use `LocalRuleInteraction` for a cellular automaton and `CascadeInteraction` for a cascade. The helper `run` below
 places a row of five cells and runs one interaction on it:
@@ -621,7 +623,7 @@ round(float(distances.min()), 2), round(float(distances.max()), 2)
 period=None)` adds to both members of every pair within the cutoff either `function(s)`, or minus the gradient of
 `potential(s, r)` at their distance `r`. With several states in `write`, the function returns one value per state.
 
-Use `MobilityInteraction` for spheres in a viscous fluid at low Reynolds number, where the force on one sphere moves all
+Use the physics `StokesianMobilityInteraction` for spheres in a viscous fluid at low Reynolds number, where the force on one sphere moves all
 the others through the flow it creates. Two spheres that sediment side by side fall faster than one alone:
 
 ```python
@@ -632,11 +634,11 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import vector
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import MobilityInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
+from skcomplex.systems.physics.common.particles import StokesianMobilityInteraction
 
 
 class SphereElement(Element):
@@ -646,7 +648,7 @@ class SphereElement(Element):
 
 
 def fall(positions):
-    gravity = MobilityInteraction('stokes', target='spheres', force=lambda s: vector([0.0, 0.0, -1.0]))
+    gravity = StokesianMobilityInteraction('stokes', target='spheres', force=lambda s: vector([0.0, 0.0, -1.0]))
     spheres = GroupElement('spheres', element=SphereElement, size=len(positions), values={'x': positions})
     system = System(elements=[spheres], interactions=[gravity], space=ContinuousSpace(n_dim=3))
     heights = simulate(system, until=10.0, dt=1.0).values('spheres.x')[..., 2]
@@ -656,9 +658,9 @@ def fall(positions):
 round(fall([[0.0, 0.0, 0.0]]), 3), round(fall([[0.0, 0.0, 0.0], [3.0, 0.0, 0.0]]), 3)
 ```
 
-`MobilityInteraction(target, position='x', orientation=None, tensor='rotne-prager-yamakawa', form='rate', force,
-torque, velocity, stresslet, dipole, potential, cutoff, root='cholesky', radius, viscosity, temperature, dt)` moves the
-spheres of a group by the grand mobility `M`, the linear map from the forces and torques on all spheres to their
+`StokesianMobilityInteraction(target, position='x', orientation=None, tensor='rotne-prager-yamakawa', form='rate',
+force, torque, velocity, stresslet, dipole, potential, cutoff, root='cholesky', radius, viscosity, temperature, dt)`
+moves the spheres of a group by the grand mobility `M`, the linear map from the forces and torques on all spheres to their
 velocities and angular velocities. A lone sphere moves at `F / (6 pi eta a)`, and the second sphere above adds the
 fraction `3 a / (4 r) + a^3 / (2 r^3)` to the speed of the first, about a quarter at the distance `r = 3`.
 
@@ -814,14 +816,14 @@ or proliferative.
 
 ### Crossings and impulses
 
-Use `CrossingInteraction` to act when a condition is met, and `ImpulseInteraction` to act at chosen times. The example
+Use `CrossingInteraction` to act when a condition is met, or at chosen times with a guard of the time. The example
 wraps a clock back to zero each time it reaches 1, and kicks it forward once at time 1.5:
 
 ```python
 from typing import Annotated
 
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import CrossingInteraction, ImpulseInteraction
+from skcomplex.core.components.interactions import CrossingInteraction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
@@ -840,7 +842,9 @@ class ClockElement(Element):
 wrap = CrossingInteraction(
     'wrap', target='clock', guard=lambda s: s.target.x - 1, reset={'x': lambda s: 0}, direction=1
 )
-kick = ImpulseInteraction('kick', target='clock', reset={'x': lambda s: s.target.x + 0.25}, times=(1.5,))
+kick = CrossingInteraction(
+    'kick', target='clock', guard=lambda s: s.t - 1.5, reset={'x': lambda s: s.target.x + 0.25}, direction=1
+)
 system = System(elements=[ClockElement('clock')], interactions=[wrap, kick])
 events = simulate(system, until=2.2, dt=0.5).events
 [(event.label, round(event.time, 3)) for event in events]
@@ -848,7 +852,9 @@ events = simulate(system, until=2.2, dt=0.5).events
 
 - `CrossingInteraction(target, guard, reset=None, direction=0, terminal=False)` fires an event when a guard crosses
   zero. The event resets states, or ends the run.
-- `ImpulseInteraction(target, reset, times=(), period=None, count=None)` resets states at given or periodic times.
+- A guard `s.t - t_k` resets states at the time `t_k`, and the guard `periodic_guard(s.t, period, start, count)` of
+  `skcomplex.core.components.laws.utils` at periodic times. Engineering names these resets `PulseInteraction`, and
+  physics names periodic ones `KickInteraction`.
 
 ### Monte Carlo sampling
 
@@ -1009,7 +1015,7 @@ simulate(system, until=4, random_state=0).agents('walkers', 4).values['steps'].t
 An agent rule may name the role whose members run it, `RuleLaw(function, members='target')`. The Mesa solver runs it
 in the activation of every member of that role, after the rules of the member's element and the member rules of the
 interactions listed before it. `MapInteraction`, `TransitionInteraction`, `MovementInteraction`,
-`TransferInteraction`, and `LifeCycleInteraction` take `schedule='member'` for it. The movement, transfers,
+`TransferInteraction`, and `BirthDeathInteraction` take `schedule='member'` for it. The movement, transfers,
 transitions, and life cycle of one agent then run together as one step of that agent, in the order of the system's
 interactions.
 
@@ -1083,13 +1089,14 @@ simulate(system, until=1, random_state=0).values('voters.state')[-1].tolist()
 neighbour at random, by majority, from the best, from a random better neighbour, or by the Fermi rule. It runs as
 jumps, as updates with a probability per step (`form='probability'`), or as an agent rule.
 
-Use `ReinforcementInteraction` when members keep a score per option and learn from payoffs:
+When members keep a score per option and learn from payoffs, a `MapInteraction` per score moves it towards the payoff
+its option realized:
 
 ```python
 from typing import Annotated
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import ReinforcementInteraction
+from skcomplex.core.components.interactions import MapInteraction
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
@@ -1109,18 +1116,21 @@ class LearnerElement(Element):
         self.second = second
 
 
-learning = ReinforcementInteraction(
-    'learning', target='learners', scores=('first', 'second'), payoff=lambda s, k: float(k + 1), rate=0.5
-)
+first = lambda s: 0.5 * (1.0 - s.target.first)
+second = lambda s: 0.5 * (2.0 - s.target.second)
+learning = [
+    MapInteraction('first', target='learners', state='first', function=first, mode='increment'),
+    MapInteraction('second', target='learners', state='second', function=second, mode='increment'),
+]
 learners = GroupElement('learners', element=LearnerElement, size=2)
-system = System(elements=[learners], interactions=[learning], time=DiscreteTime())
+system = System(elements=[learners], interactions=learning, time=DiscreteTime())
 trajectory = simulate(system, until=10, random_state=0)
 first, second = trajectory.values('learners.first')[-1][0], trajectory.values('learners.second')[-1][0]
 round(float(first), 2), round(float(second), 2)
 ```
 
-`ReinforcementInteraction(target, scores, payoff, rate=0.1, rule='average')` moves the score of every option towards
-its realized payoff, or adds the payoff with `rule='cumulative'`.
+Each score moves by `rate (payoff - score)`. Economics names this learning `PayoffLearningInteraction`, with the
+average and cumulative rules, a chosen option, and an agent form.
 
 Use `EvolutionInteraction` for a genetic algorithm or evolutionary dynamics over strategies. In the example, the
 fitness of a bit string is its number of ones, and the mean rises over the generations:
@@ -1279,14 +1289,14 @@ set(trajectory.values('lane.occupied').sum(axis=1))
 
 ### Birth and death
 
-Use `LifeCycleInteraction` to create and remove agents. Here a cell of size 8 divides twice, and each division splits
+Use `BirthDeathInteraction` to create and remove agents. Here a cell of size 8 divides twice, and each division splits
 the size between parent and offspring:
 
 ```python
 from typing import Annotated
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import LifeCycleInteraction
+from skcomplex.core.components.interactions import BirthDeathInteraction
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
@@ -1300,12 +1310,12 @@ class CellElement(Element):
 
 
 cells = GroupElement('cells', element=CellElement, size=1, values={'size': 8.0}, variable=True)
-division = LifeCycleInteraction('division', target='cells', birth=1.0, split=('size',))
+division = BirthDeathInteraction('division', target='cells', birth=1.0, split=('size',))
 system = System(elements=[cells], interactions=[division], space=LatticeSpace((3, 3)))
 simulate(system, until=2, random_state=0).agents('cells', 2).values['size'].tolist()
 ```
 
-`LifeCycleInteraction(target, birth, death, rate=None, offspring=1, placement='here', inherit=(), split=(), ...)`
+`BirthDeathInteraction(target, birth, death, rate=None, offspring=1, placement='here', inherit=(), split=(), ...)`
 creates offspring by a condition, a probability, or a rate. Offspring values are inherited, given, split, or mutated.
 It also removes or renews agents.
 

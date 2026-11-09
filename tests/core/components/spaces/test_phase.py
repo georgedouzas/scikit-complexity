@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.elements import FieldElement, NonnegativeElement
-from skcomplex.core.components.interactions import AdvectionInteraction
+from skcomplex.core.components.interactions import ConservationInteraction
 from skcomplex.core.components.laws.utils import coordinate
 from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace, PhaseSpace
 from skcomplex.core.components.systems import System
@@ -95,7 +95,7 @@ def test_periodic_class_axis_returns_after_one_turn(discretization: str, options
         values={'x': start},
         discretization=discretization,
     )
-    drift = AdvectionInteraction('turn', target='gas', state='x', drift=lambda _: [0, 1.0], **options)
+    drift = ConservationInteraction('turn', target='gas', state='x', flux=lambda s: [0, 1.0 * s.target.x], **options)
     trajectory = simulate(System(elements=[field], interactions=[drift]), until=2 * np.pi, solver=RK4Solver(dt=0.02))
     final = trajectory.values('gas.x')[-1]
     assert np.abs(final - start).max() < 0.05
@@ -123,7 +123,9 @@ def test_free_streaming_shifts_every_class_slice(discretization: str, options: d
         values={'x': start},
         discretization=discretization,
     )
-    drift = AdvectionInteraction('stream', target='gas', state='x', drift=lambda _: [coordinate('v'), 0], **options)
+    drift = ConservationInteraction(
+        'stream', target='gas', state='x', flux=lambda s: [coordinate('v') * s.target.x, 0], **options,
+    )
     trajectory = simulate(System(elements=[field], interactions=[drift]), until=1.0, solver=RK4Solver(dt=0.01))
     final = trajectory.values('gas.x')[-1].reshape(size, 16)
     exact = np.stack([(2.0 + np.sin(x - speed)) * np.exp(-(speed**2)) for speed in v], axis=1)
@@ -142,7 +144,7 @@ def test_zero_drift_leaves_classes_unchanged() -> None:
         values={'x': start},
         discretization='finite-volume',
     )
-    drift = AdvectionInteraction('still', target='gas', state='x', drift=lambda _: [0, 0])
+    drift = ConservationInteraction('still', target='gas', state='x', flux=lambda s: [0, 0])
     trajectory = simulate(System(elements=[field], interactions=[drift]), until=1.0, solver=RK4Solver(dt=0.1))
     final = trajectory.values('gas.x')[-1].reshape(4, 16)
     assert np.array_equal(final, start)
@@ -158,7 +160,7 @@ def test_transport_conserves_total_through_interval_edges() -> None:
         values={'x': 1.0},
         discretization='finite-volume',
     )
-    drift = AdvectionInteraction('push', target='gas', state='x', drift=lambda _: [0, 1.0])
+    drift = ConservationInteraction('push', target='gas', state='x', flux=lambda s: [0, 1.0 * s.target.x])
     trajectory = simulate(System(elements=[field], interactions=[drift]), until=0.5, solver=RK4Solver(dt=0.005))
     final = trajectory.values('gas.x')[-1]
     assert abs(final.sum() / 32 - 1.0) < 1e-12

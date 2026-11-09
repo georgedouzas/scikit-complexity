@@ -15,11 +15,11 @@ from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MobilityInteraction
 from ....core.components.laws.utils import pulse_train
 from ....core.components.spaces import ContinuousSpace, DiscreteTime
 from ....core.components.systems import BaseSystem, System
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ..common.particles import StokesianMobilityInteraction
 
 SPHERES = VisualSpec('points', {'position': 'x', 'radius': 1.0})
 
@@ -64,7 +64,7 @@ class TrappedSphereElement(Element):
         self.center = center
 
 
-class BlinkingTrapsInteraction(MobilityInteraction):
+class BlinkingTrapsInteraction(StokesianMobilityInteraction):
     """Blinking optical traps on spheres that move through a shared fluid.
 
     The spheres move in steps of Brownian dynamics.

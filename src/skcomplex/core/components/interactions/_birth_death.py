@@ -1,6 +1,6 @@
-"""Define life cycles.
+"""Define birth-death processes.
 
-A life cycle creates offspring of the agents of a group and removes agents.
+A birth-death process creates offspring of the agents of a group and removes agents.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -31,8 +31,8 @@ type Placement = str | Callable[..., object]
 type Kinship = Callable[..., object]
 
 
-class LifeCycleInteraction(Interaction):
-    """Life cycle of the agents of a group, which give birth to offspring and die.
+class BirthDeathInteraction(Interaction):
+    """Birth-death process of the agents of a group, which give birth to offspring and die.
 
     The cycle runs every step of discrete time. Every step the agents act once each, in their order under the schedule
     `'sequential'`, in a new random order under `'random-sequential'`, or each in its own activation under `'member'`,
@@ -59,7 +59,7 @@ class LifeCycleInteraction(Interaction):
     a random one under `'random'`. Every
     step a Poisson number of the mean `arrival`, a number or a function of the system view, of new agents arrive without
     a parent, at the location of the placement function or else at a random place, with the values
-    `values(None, system)`. The life cycle reports the `births`, `deaths`, and `arrivals` of every step. It is an agent
+    `values(None, system)`. The process reports the `births`, `deaths`, and `arrivals` of every step. It is an agent
     rule, so the system runs in discrete time.
 
     Args:
@@ -98,7 +98,7 @@ class LifeCycleInteraction(Interaction):
             The order of the agents, `'sequential'`, `'random-sequential'`, or `'member'`.
 
         phase:
-            The phase of the step the life cycle runs in, or `None` for the default phase.
+            The phase of the step the process runs in, or `None` for the default phase.
 
         group:
             The path of the variable group the new agents join, or `None` for the group of the target.
@@ -141,7 +141,7 @@ class LifeCycleInteraction(Interaction):
     Examples:
         >>> from typing import Annotated
         >>> from skcomplex.core.components.elements import Element, GroupElement
-        >>> from skcomplex.core.components.interactions import LifeCycleInteraction
+        >>> from skcomplex.core.components.interactions import BirthDeathInteraction
         >>> from skcomplex.core.components.spaces import LatticeSpace
         >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.specs import StateSpec
@@ -151,7 +151,7 @@ class LifeCycleInteraction(Interaction):
         ...         super().__init__(label, visual=visual)
         ...         self.size = size
         >>> cells = GroupElement('cells', element=CellElement, size=1, values={'size': 8.0}, variable=True)
-        >>> division = LifeCycleInteraction('division', target='cells', birth=1.0, split=('size',))
+        >>> division = BirthDeathInteraction('division', target='cells', birth=1.0, split=('size',))
         >>> system = System(elements=[cells], interactions=[division], space=LatticeSpace((3, 3)))
         >>> trajectory = simulate(system, until=2, random_state=0)
         >>> trajectory.agents('cells', 2).values['size'].tolist()
@@ -454,7 +454,7 @@ class LifeCycleInteraction(Interaction):
         return count
 
     def _live_member(self, agent: AgentViewProtocol, system: SystemViewProtocol) -> None:
-        """Run the life cycle of one agent in its own activation."""
+        """Run the process of one agent in its own activation."""
         if not agent.alive:
             return
         neighbor = self.placement == 'neighbor'
@@ -481,7 +481,7 @@ class LifeCycleInteraction(Interaction):
         system.report('arrivals', self._arrive(system))
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule of the life cycle.
+        """Return the rule of the process.
 
         Args:
             namespace:

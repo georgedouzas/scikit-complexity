@@ -16,7 +16,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, FieldElement, GroupElement
 from ....core.components.interactions import (
-    LifeCycleInteraction,
+    BirthDeathInteraction,
     MapInteraction,
     MovementInteraction,
     RateInteraction,
@@ -501,7 +501,7 @@ class TumourAngiogenesisSystem(BaseSystem):
             RateInteraction('vegf_decay', target='tissue', state='vegf', rate=self._get_vegf_decay),
         ]
 
-    def _get_cells(self) -> list[TransferInteraction | MapInteraction | LifeCycleInteraction | MovementInteraction]:
+    def _get_cells(self) -> list[TransferInteraction | MapInteraction | BirthDeathInteraction | MovementInteraction]:
         """Return the member interactions of the tumour cells, vessel segments, and tips."""
         return [
             TransferInteraction(
@@ -535,7 +535,7 @@ class TumourAngiogenesisSystem(BaseSystem):
                 form='agent',
                 schedule='member',
             ),
-            LifeCycleInteraction(
+            BirthDeathInteraction(
                 'tumour_life',
                 target=TUMOUR,
                 death=self._dies,
@@ -554,14 +554,14 @@ class TumourAngiogenesisSystem(BaseSystem):
                 form='agent',
                 schedule='member',
             ),
-            LifeCycleInteraction(
+            BirthDeathInteraction(
                 'laying',
                 target=SPROUTS,
                 group=VESSELS,
                 birth=self._lays,
                 schedule='member',
             ),
-            LifeCycleInteraction('branching', target=SPROUTS, birth=self._get_branching, schedule='member'),
+            BirthDeathInteraction('branching', target=SPROUTS, birth=self._get_branching, schedule='member'),
             MovementInteraction(
                 'chemotaxis',
                 target=SPROUTS,

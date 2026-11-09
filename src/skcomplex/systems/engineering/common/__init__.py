@@ -1,7 +1,7 @@
 """Realizations shared by several engineering systems, by family.
 
-The families are mechanics and electrical components, and traffic. The car and its optimal velocity of the traffic
-systems sit at the root.
+The families are mechanics and electrical components, signals, and traffic. The car and its optimal velocity of the
+traffic systems sit at the root.
 """
 
 from ._car import CarElement

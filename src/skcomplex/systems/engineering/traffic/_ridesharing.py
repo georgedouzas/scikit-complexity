@@ -14,7 +14,7 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import LifeCycleInteraction, MapInteraction, MatchingInteraction
+from ....core.components.interactions import BirthDeathInteraction, MapInteraction, MatchingInteraction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.laws.utils import transfer
 from ....core.components.spaces import DiscreteTime, LatticeSpace
@@ -280,7 +280,7 @@ class RiderElement(Element):
         return RiderView
 
 
-class ArrivalInteraction(LifeCycleInteraction):
+class ArrivalInteraction(BirthDeathInteraction):
     """Arrival of new riders at random cells with random destinations.
 
     It is a life cycle of arrivals only. Every step a Poisson number of riders, with mean `demand`, appear at random

@@ -39,7 +39,7 @@ from ._factories import (
     ShrimpElement,
     VaryingCapacityLogisticSystem,
 )
-from ._forest_size_structure import ForestSizeStructureSystem
+from ._forest_size_structure import ForestSizeStructureSystem, SizeGrowthInteraction
 from ._fronts import FisherKPPElement, FisherKPPSystem
 from ._higher_order import HigherOrderRandomLotkaVolterraSystem, TripletInteraction
 from ._instability import IntrinsicInstabilitySystem, UnstablePopulationsElement
@@ -137,6 +137,7 @@ __all__: list[str] = [
     'SequentiallyLinearEcosystemSystem',
     'SheepElement',
     'ShrimpElement',
+    'SizeGrowthInteraction',
     'StandElement',
     'StigmergicPredatorElement',
     'StigmergicPredatorPreySystem',

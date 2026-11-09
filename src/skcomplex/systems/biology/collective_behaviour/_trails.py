@@ -13,7 +13,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, FieldElement, GroupElement
 from ....core.components.interactions import (
-    LifeCycleInteraction,
+    BirthDeathInteraction,
     MapInteraction,
     MovementInteraction,
     RateInteraction,
@@ -427,7 +427,7 @@ class ActiveWalkersSystem(BaseSystem):
                     form='agent',
                     schedule='member',
                 ),
-                LifeCycleInteraction(
+                BirthDeathInteraction(
                     'renewal',
                     target='people/walkers',
                     death=self._waits,

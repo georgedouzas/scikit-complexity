@@ -1,6 +1,6 @@
 """Define advection.
 
-Advection is the conservation law whose flux is a drift field times the state.
+Advection carries a state of a field by a drift, the conservation law whose flux is the drift times the state.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -8,23 +8,19 @@ Advection is the conservation law whose flux is a drift field times the state.
 
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
 
 from sage.all__sagemath_symbolics import SR
 from sage.modules.free_module_element import FreeModuleElement
 
-from ...errors import ValidationError
-from ...specs import RoleSpec
-from ...types import ElementKind
-from ..laws import BaseLaw, FluxLaw, RateLaw
-from ..spaces import BaseSpace
-from ._base import RATE_DOMAINS
-from ._conservation import ConservationInteraction
+from .....core.components.interactions import ConservationInteraction
+from .....core.components.spaces import BaseSpace
+from .....core.errors import ValidationError
 
 
 class AdvectionInteraction(ConservationInteraction):
-    """Advection `du/dt + divergence(a u) = source(ns)` of a state `u` of a field.
+    """Advection `du/dt + divergence(a u) = source(ns)` of a state `u` of a field by a drift.
 
+    Physics names it advection, the transport of a state by a flow or by the streaming of a phase-space density.
     The drift field is `a(ns)`. The flux of the conservation law is the drift times the state, written in conservative
     form, so the total of the state on a periodic field stays constant and, on a spectral field, the dealiasing of
     products applies to it. The drift is one expression for a field of one dimension, or one per dimension, of the
@@ -66,11 +62,11 @@ class AdvectionInteraction(ConservationInteraction):
         >>> from typing import Annotated
         >>> import numpy as np
         >>> from skcomplex.core.components.elements import Element, FieldElement
-        >>> from skcomplex.core.components.interactions import AdvectionInteraction
         >>> from skcomplex.core.components.spaces import LatticeSpace
         >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.systems.physics.common.fields import AdvectionInteraction
         >>> class CellElement(Element):
         ...     def __init__(self, label, u: Annotated[float, StateSpec()] = 0.0):
         ...         super().__init__(label)
@@ -87,19 +83,17 @@ class AdvectionInteraction(ConservationInteraction):
         True
     """
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (FluxLaw, RateLaw)
-
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('state',), domains=RATE_DOMAINS)],
+        target: str,
         state: str = 'u',
         drift: Callable[[SimpleNamespace], object] | None = None,
         source: Callable[[SimpleNamespace], object] | None = None,
         limiter: str | None = 'minmod',
         riemann: str | None = 'rusanov',
-        sources: Annotated[Sequence[str], RoleSpec(variadic=True, elements=(ElementKind.ANY,))] = (),
+        sources: Sequence[str] = (),
     ) -> None:
         super().__init__(
             label,

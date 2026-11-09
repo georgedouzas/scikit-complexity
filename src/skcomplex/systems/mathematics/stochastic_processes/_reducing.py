@@ -13,7 +13,7 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import LifeCycleInteraction, MapInteraction
+from ....core.components.interactions import BirthDeathInteraction, MapInteraction
 from ....core.components.systems import BaseSystem, System
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.solvers import AgentView, SystemView
@@ -443,7 +443,7 @@ class FragmentationSystem(BaseSystem):
                 ),
             ],
             interactions=[
-                LifeCycleInteraction(
+                BirthDeathInteraction(
                     'breaking',
                     target='fragments',
                     birth=FragmentElement.breaks,
@@ -518,7 +518,7 @@ class CascadingSampleSpaceReducingSystem(BaseSystem):
                 ),
             ],
             interactions=[
-                LifeCycleInteraction(
+                BirthDeathInteraction(
                     'cascade',
                     target='balls',
                     death=CascadingBallElement.stops,

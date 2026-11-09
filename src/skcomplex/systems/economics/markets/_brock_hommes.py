@@ -15,13 +15,14 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import ChoiceInteraction, FeedbackInteraction, ReinforcementInteraction
+from ....core.components.interactions import ChoiceInteraction, FeedbackInteraction
 from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import BaseSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ..common.forecasting import heuristics
+from ..common.learning import PayoffLearningInteraction
 
 
 @dataclass(frozen=True)
@@ -336,7 +337,7 @@ class BrockHommesSystem(BaseSystem):
     def _build_system(self) -> System:
         """Return the parts of the system built from its model parameters."""
         traders = GroupElement('traders', element=HeuristicTraderElement, size=self.n_traders)
-        learning = ReinforcementInteraction(
+        learning = PayoffLearningInteraction(
             'learning',
             target='traders',
             scores=tuple(f'{name}_fitness' for name in PREDICTORS),

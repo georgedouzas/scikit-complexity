@@ -6,7 +6,7 @@ The module covers Duffing, Toda, Van der Pol, Stuart-Landau, Adler, impulses, an
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
@@ -14,14 +14,61 @@ from sage.all__sagemath_symbolics import Expression, cos, exp, oo, sin, sqrt, ta
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
-from ....core.components.interactions import HamiltonianInteraction, ImpulseInteraction, RateInteraction
+from ....core.components.interactions import CrossingInteraction, HamiltonianInteraction, RateInteraction
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.laws.utils import derivative
+from ....core.components.laws.utils import derivative, periodic_guard
 from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import ScipyODESolver, Yoshida4Solver
 from ....core.errors import ParameterError
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..common.oscillators import StuartLandauElement
+
+
+class KickInteraction(CrossingInteraction):
+    """Periodic kicks that set states of an oscillator to new values.
+
+    Physics names them kicks, instantaneous changes of momentum at `start + j * period` for `j` from 0. A kick at the
+    initial time of a run does not fire. The new values are functions of the namespace, which holds
+    `namespace.target`, the states and parameters of the target, and the time `namespace.t`.
+
+    Args:
+        label:
+            The label of the interaction, unique among the parts of its system.
+
+        target:
+            The path of the oscillator whose states the kicks set.
+
+        reset:
+            A mapping from the name of a state of the target to the function `f(namespace)` of its new value.
+
+        period:
+            The period of the kicks.
+
+        start:
+            The time of the first kick.
+
+    Examples:
+        >>> from skcomplex.systems.physics.nonlinear_oscillators import KickInteraction
+        >>> KickInteraction('kick', target='oscillator', reset={'x_d1': lambda s: -s.target.x_d1}, period=2.0).start
+        0.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: str,
+        reset: Mapping[str, Callable[[SimpleNamespace], object]],
+        period: float = 1.0,
+        start: float = 0.0,
+    ) -> None:
+        super().__init__(label, target=target, guard=self._get_guard, reset=reset)
+        self.period = period
+        self.start = start
+
+    def _get_guard(self, namespace: SimpleNamespace) -> Expression:
+        """Return the guard that crosses zero at every kick."""
+        return periodic_guard(namespace.t, self.period, self.start)
 
 
 class AdlerPhaseElement(Element):
@@ -1185,14 +1232,14 @@ class ImpulsiveOscillatorSystem(BaseSystem):
             elements=[ImpulsiveOscillatorElement('oscillator', x=self.x, x_d1=self.v, H=self.H, omega0=self.omega0)],
             interactions=[
                 restoring,
-                ImpulseInteraction(
+                KickInteraction(
                     'pull',
                     target='oscillator',
                     reset=pull,
                     period=4 * self.a,
                     start=(1 - self.gamma) * self.a,
                 ),
-                ImpulseInteraction(
+                KickInteraction(
                     'push',
                     target='oscillator',
                     reset=push,

@@ -10,7 +10,7 @@ import numpy.typing as npt
 import pytest
 
 from skcomplex.core.components.elements import FieldElement, NonnegativeElement
-from skcomplex.core.components.interactions import AdvectionInteraction, RateInteraction
+from skcomplex.core.components.interactions import ConservationInteraction, RateInteraction
 from skcomplex.core.components.laws.utils import coordinate, maximum_entropy
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
 from skcomplex.core.components.systems import System
@@ -41,7 +41,7 @@ def bgk_final(step: float) -> npt.NDArray[np.float64]:
         values={'x': start},
         discretization='finite-volume',
     )
-    stream = AdvectionInteraction('s', target='gas', state='x', drift=lambda _: [coordinate('v'), 0])
+    stream = ConservationInteraction('s', target='gas', state='x', flux=lambda s: [coordinate('v') * s.target.x, 0])
     relax = RateInteraction('r', target='gas', state='x', rate=lambda s: (equilibrium(s) - s.target.x) / 0.5)
     solver = StrangSplittingSolver(SemiLagrangianSolver(dt=step), RK4Solver(dt=step), dt=step)
     system = System(elements=[gas], interactions=[stream, relax])
@@ -76,7 +76,7 @@ def test_prepare_rejects_an_inner_solver_that_lacks_its_part() -> None:
         values={'x': 1.0},
         discretization='finite-volume',
     )
-    stream = AdvectionInteraction('s', target='gas', state='x', drift=lambda _: [coordinate('v'), 0])
+    stream = ConservationInteraction('s', target='gas', state='x', flux=lambda s: [coordinate('v') * s.target.x, 0])
     solver = StrangSplittingSolver(EulerMaruyamaSolver(dt=0.1), RK4Solver(dt=0.1), dt=0.1)
     with pytest.raises(SolverError):
         simulate(System(elements=[gas], interactions=[stream]), until=0.1, solver=solver)

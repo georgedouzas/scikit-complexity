@@ -15,13 +15,13 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, cos, sin
 
 from ....core.components.elements import FieldElement
-from ....core.components.interactions import AdvectionInteraction, EncounterInteraction
+from ....core.components.interactions import EncounterInteraction
 from ....core.components.laws.utils import coordinate
 from ....core.components.spaces import LatticeSpace, PhaseSpace
 from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import RK4Solver
 from ....core.specs import AxisSpec, RoleSpec
-from ..common.fields import PhaseSpaceDensityElement
+from ..common.fields import AdvectionInteraction, PhaseSpaceDensityElement
 
 ANTIPODAL = 1e-9
 

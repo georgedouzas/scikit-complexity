@@ -30,9 +30,9 @@ class PseudoRiemannianSpace(ContinuousSpace):
 
     The connection and the curvature follow from the metric. The metric is a symmetric, nondegenerate Sage matrix whose
     entries are expressions of the coordinates, numbers, and symbolic functions of the coordinates. A function stands
-    for an unknown of an ansatz, such as the scale factor `a(t)` of a homogeneous universe, which `EinsteinInteraction`
-    solves for. The space is an unbounded continuous space with one dimension per coordinate, so a point on it has one
-    component per coordinate, as a test particle of `GeodesicInteraction` does.
+    for an unknown of an ansatz, such as the scale factor `a(t)` of a homogeneous universe, which a field equation of
+    the metric solves for. The space is an unbounded continuous space with one dimension per coordinate, so a point on
+    it has one component per coordinate, as a test particle of `GeodesicInteraction` does.
 
     `prepare` derives, through EinsteinPy, the Christoffel symbols
     `Γ^mu_(alpha beta) = g^(mu lambda) (∂_alpha g_(lambda beta) + ∂_beta g_(lambda alpha) - ∂_lambda g_(alpha beta))/2`

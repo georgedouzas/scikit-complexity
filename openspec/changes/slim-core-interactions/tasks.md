@@ -54,56 +54,56 @@
 
 ## 5. Advection into conservation laws
 
-- [ ] 5.1 Add physics `AdvectionInteraction` in `physics/common/fields/_advection.py` on `ConservationInteraction`,
+- [x] 5.1 Add physics `AdvectionInteraction` in `physics/common/fields/_advection.py` on `ConservationInteraction`,
   with the drift check and the tests moved from `test_advection.py`. Verify they pass, with the test that its
   trajectory equals a `ConservationInteraction` of the flux `a u`.
-- [ ] 5.2 Migrate gyres, gels, kinetic flocks, kinetic equations, and fluid flows to it. Add social
+- [x] 5.2 Migrate gyres, gels, kinetic flocks, kinetic equations, and fluid flows to it. Add social
   `SelectionDriftInteraction` and biology `SizeGrowthInteraction` in their modules. Verify with the tests of those
   modules and the phase-space tests.
-- [ ] 5.3 Rewrite the docstring examples of `_semi_lagrangian.py` and `_strang_splitting.py` with
+- [x] 5.3 Rewrite the docstring examples of `_semi_lagrangian.py` and `_strang_splitting.py` with
   `ConservationInteraction` and `RateInteraction`, delete `interactions/_advection.py`, its export, and its core test,
   and move the phase-space advection tests in `tests/core/engine/solvers` to `ConservationInteraction`. Verify with the
   doctests and `tests/core/engine/solvers`.
 
 ## 6. Impulses into crossings
 
-- [ ] 6.1 Add engineering `PulseInteraction` in `engineering/common/signals/_pulse.py` on `CrossingInteraction`, with `reset`,
+- [x] 6.1 Add engineering `PulseInteraction` in `engineering/common/signals/_pulse.py` on `CrossingInteraction`, with `reset`,
   `times`, `period`, `start`, `count`, and the checks of `ImpulseInteraction`, and move `test_impulse.py` to
   `tests/systems/engineering/common/signals/test_pulse.py`. Verify it passes.
-- [ ] 6.2 Migrate circuits, magnetic levitation, and minimum-time control to it, add physics `KickInteraction` in
+- [x] 6.2 Migrate circuits, magnetic levitation, and minimum-time control to it, add physics `KickInteraction` in
   `physics/nonlinear_oscillators/_oscillators.py`, and rebase `IrradiationInteraction` on `CrossingInteraction` with
   `periodic_guard`. Verify that every event falls at the time it fell before, with the tests of those modules.
-- [ ] 6.3 Delete `interactions/_impulse.py`, its export, and its core test. Verify `grep -rw ImpulseInteraction src
+- [x] 6.3 Delete `interactions/_impulse.py`, its export, and its core test. Verify `grep -rw ImpulseInteraction src
   tests docs` finds nothing.
 
 ## 7. Maps of economics
 
-- [ ] 7.1 Add `PriceAdjustmentInteraction` in `economics/markets/_shops.py` on `MapInteraction`, with the modes, the
+- [x] 7.1 Add `PriceAdjustmentInteraction` in `economics/markets/_shops.py` on `MapInteraction`, with the modes, the
   bounds, the forms, and the schedules of `SignAdjustmentInteraction`, and move `test_sign_adjustment.py` to
   `tests/systems/economics/markets/test_price_adjustment.py`. Verify the shops tests and the moved tests pass.
-- [ ] 7.2 Add `PayoffLearningInteraction` in `economics/common/learning/_payoff_learning.py` on `MapInteraction`, with the
+- [x] 7.2 Add `PayoffLearningInteraction` in `economics/common/learning/_payoff_learning.py` on `MapInteraction`, with the
   scores, the rules, `chosen`, and both forms of `ReinforcementInteraction`, and move `test_reinforcement.py` to
   `tests/systems/economics/common/learning/test_payoff_learning.py`. Migrate oligopoly, Brock-Hommes, perishables, El Farol,
   and minority. Verify with `tests/systems/economics`.
-- [ ] 7.3 Delete `_sign_adjustment.py` and `_reinforcement.py`, their exports, and their core tests. Verify with grep
+- [x] 7.3 Delete `_sign_adjustment.py` and `_reinforcement.py`, their exports, and their core tests. Verify with grep
   and the core interaction tests.
 
 ## 8. Physics-only interactions
 
-- [ ] 8.1 Move `MobilityInteraction` with its private helpers to `physics/common/particles/_stokesian_mobility.py` as
+- [x] 8.1 Move `MobilityInteraction` with its private helpers to `physics/common/particles/_stokesian_mobility.py` as
   `StokesianMobilityInteraction`, rebase `SquirmerSlipInteraction` and `BlinkingTrapsInteraction`, and move
   `test_mobility.py` to `tests/systems/physics/common/particles/test_stokesian_mobility.py`. Verify they pass with
   the squirmers and coupled traps tests.
-- [ ] 8.2 Move `EinsteinInteraction` to `physics/cosmology/_metric_cosmologies.py` as
+- [x] 8.2 Move `EinsteinInteraction` to `physics/cosmology/_metric_cosmologies.py` as
   `EinsteinFieldEquationsInteraction`, move `test_einstein.py` to the cosmology tests, and reword the docstring of
   `PseudoRiemannianSpace` so it names no system class. Verify with `tests/systems/physics/cosmology` and the
   curved-spacetime tests.
-- [ ] 8.3 Update the squirmers gallery example and the user guide sections on Stokes mobility and curved spacetimes to
+- [x] 8.3 Update the squirmers gallery example and the user guide sections on Stokes mobility and curved spacetimes to
   import the physics classes. Verify with the docs doctests.
 
 ## 9. Renames
 
-- [ ] 9.1 Rename `LifeCycleInteraction` to `BirthDeathInteraction` in `interactions/_birth_death.py` and
+- [x] 9.1 Rename `LifeCycleInteraction` to `BirthDeathInteraction` in `interactions/_birth_death.py` and
   `test_birth_death.py`, and update every user. Verify `grep -rw LifeCycleInteraction` finds nothing and the agent
   tests pass.
 - [ ] 9.2 Rename the `MatchingInteraction` arguments `limit` to `reserve` and `allowance` to `cap`, the rule-spec field
