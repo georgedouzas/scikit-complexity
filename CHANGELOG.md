@@ -6,6 +6,81 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 <!-- insertion marker -->
+## [0.8.0](https://github.com/georgedouzas/scikit-complexity/releases/tag/0.8.0) - 2026-11-09
+
+<small>[Compare with 0.7.0](https://github.com/georgedouzas/scikit-complexity/compare/0.7.0...0.8.0)</small>
+
+### Features
+
+- Add DifferentiableCovidAbmSystem with relaxed infection and recovery draws ([3617d8c](https://github.com/georgedouzas/scikit-complexity/commit/3617d8c5a664b3fbe89be906cd940ce0bef36c20) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Add OffLatticeTumourGrowthSystem and Delaunay neighbours of agents ([07a22a1](https://github.com/georgedouzas/scikit-complexity/commit/07a22a1bb3f59e372260ebf106577ebaac603f36) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Run Delaunay neighbourhoods on NumPy when no backend is given ([35bca66](https://github.com/georgedouzas/scikit-complexity/commit/35bca6609a61893e9305a80db136dcda6b219446) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Report discrete draws without a temperature as not differentiable on JAX ([0342bc9](https://github.com/georgedouzas/scikit-complexity/commit/0342bc99fe6765972d84d5a5df652f6119fb7a20) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Lower relaxed draws on JAX and draw differentiable runs from a key ([10d0c1a](https://github.com/georgedouzas/scikit-complexity/commit/10d0c1a562e0744600bfb677de20c40c62edb873) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Add the symbolic stop_gradient, lowered to jax.lax.stop_gradient on JAX ([91d25c0](https://github.com/georgedouzas/scikit-complexity/commit/91d25c07fba1999e254d4524cb0cc2625f060d90) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Add temperature and hard to Bernoulli and categorical draws ([25ebb3b](https://github.com/georgedouzas/scikit-complexity/commit/25ebb3bc7f3d4cbf14fecce6c9ee24b1b8582d0d) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Add DelaunayNeighborhood to continuous spaces ([ac8970b](https://github.com/georgedouzas/scikit-complexity/commit/ac8970bc986897169674d2df18937cbb3090f735) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Add CellCycleInvasionSystem and the event likelihood example of Deffuant ([27edfb3](https://github.com/georgedouzas/scikit-complexity/commit/27edfb3ba05db0fcfd7d196dd16d1fb1dc4ce908) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Add posterior_coverage for the credible intervals of calibration ([4de18e2](https://github.com/georgedouzas/scikit-complexity/commit/4de18e286204d903b098d2984d12f59ae956d72a) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Add ABC-SMC, MCMC, and variational calibration with predictive checks ([fb56e19](https://github.com/georgedouzas/scikit-complexity/commit/fb56e19bd232fa1e1ec02cf7099ccb8d240c33fb) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Add calibration methods, priors from bounds, global fits, and the event likelihood ([28f3c71](https://github.com/georgedouzas/scikit-complexity/commit/28f3c712127fc914d3d02084e08af1ad4e289256) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Add the many-body alignment swarm ([e08efe5](https://github.com/georgedouzas/scikit-complexity/commit/e08efe5342a3d4ebbb4d8207a173aa09c31ecb9c) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Record and replay the named draws and jump firings of runs ([43f3cfe](https://github.com/georgedouzas/scikit-complexity/commit/43f3cfea5d367e79f545fee09a697c80a35da17f) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Couple members over the hyperedges of current neighbours ([5ced28c](https://github.com/georgedouzas/scikit-complexity/commit/5ced28c052c6a472a87ca0c8dbf7a5e2ec2cd7b1) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Loop over neighbour sets on Numba ([4222dee](https://github.com/georgedouzas/scikit-complexity/commit/4222dee1148fb025c4db9681cf217141f441ee8f) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Reduce over hyperedges of current neighbours on NumPy ([826a4eb](https://github.com/georgedouzas/scikit-complexity/commit/826a4ebe51d7521f31cc7fcbd756eefb565431f6) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Add a neighbourhood to hyperedge reductions ([0042bb7](https://github.com/georgedouzas/scikit-complexity/commit/0042bb7d01500645143c774847248594ad456736) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+
+### Bug Fixes
+
+- Compile draws whose arguments reduce over a group, which runs do not record ([1975130](https://github.com/georgedouzas/scikit-complexity/commit/197513002302d96e42bb0c5cfecba6fc9fbef1a5) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Keep the many-body swarm in a periodic box ([379da6a](https://github.com/georgedouzas/scikit-complexity/commit/379da6ae398b4fe65011b88235208e95e43c4fba) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Print hyperedge reductions from their operands ([eaaac82](https://github.com/georgedouzas/scikit-complexity/commit/eaaac8221d4f8d8fef18e80553863560ccc9676c) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+
+### Docs
+
+- Archive add-many-body-neighbour-roles and add-bayesian-calibration, and sync their specs ([1d23dc5](https://github.com/georgedouzas/scikit-complexity/commit/1d23dc5acf3f4aacfbe4ea4292c91e178b609b5d) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Tick the verification of add-bayesian-calibration ([f465f37](https://github.com/georgedouzas/scikit-complexity/commit/f465f37a8d54ca46f2b0ae72196e75656ea765b3) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Document the arguments and returns that pydoclint asks for ([bb0668f](https://github.com/georgedouzas/scikit-complexity/commit/bb0668f93a98f3960688d2f3832d7ed83fe97452) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Add the gallery examples of the off-lattice tumour and the differentiable COVID agents ([a51b682](https://github.com/georgedouzas/scikit-complexity/commit/a51b682a95b28e0c5bd9884d3657390ad3bb0234) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Tick the changelog task of add-bayesian-calibration ([b19e22e](https://github.com/georgedouzas/scikit-complexity/commit/b19e22e35d2afca40b75ddf0783e672ddfba388c) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Record the relaxations, the Delaunay neighbours of agents, and the probe designs ([0fad618](https://github.com/georgedouzas/scikit-complexity/commit/0fad61855ddbbf101e4b653ab08b9867d9fe38cf) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Record the off-lattice tumour and the differentiable COVID agents as implemented ([8ce1cdb](https://github.com/georgedouzas/scikit-complexity/commit/8ce1cdb3e4aa1e45ebffdeb448858bd8cd792dce) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Import calibrate at the top of the Deffuant example ([78a38c0](https://github.com/georgedouzas/scikit-complexity/commit/78a38c05b26585fade814f5d62f54a97d02e9f69) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Add the cell cycle invasion example with an ABC-SMC calibration ([f62b1a1](https://github.com/georgedouzas/scikit-complexity/commit/f62b1a140626ed86337d81fd28be259bcf266ad0) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Tick the verification of add-many-body-neighbour-roles ([68b24e7](https://github.com/georgedouzas/scikit-complexity/commit/68b24e754436f2e9eca9fe1b1fe67627aab0f4dd) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Add the gallery example of the many-body alignment swarm ([d8a8971](https://github.com/georgedouzas/scikit-complexity/commit/d8a897121e49ff9d480d9f47c0792eba1e743b6d) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Record the many-body alignment swarm in the inventory ([dcbb6ad](https://github.com/georgedouzas/scikit-complexity/commit/dcbb6ad066bfe7f44caedf3720cf1720c08938ba) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Add reparameterised draws and Delaunay neighbourhoods to add-bayesian-calibration ([8aeaece](https://github.com/georgedouzas/scikit-complexity/commit/8aeaececf48484dcf787aacc67788a394afbe267) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Propose add-torch-surrogates ([61fdd59](https://github.com/georgedouzas/scikit-complexity/commit/61fdd5961097ca4351b8720deef7c9aa613e7126) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Restore the planned systems of extend-law-discovery and add-hybrid-neural-laws ([7a628cc](https://github.com/georgedouzas/scikit-complexity/commit/7a628cce6680be209428308376510b831598f652) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Probe extend-law-discovery and add-hybrid-neural-laws on catalog systems ([fc5d88d](https://github.com/georgedouzas/scikit-complexity/commit/fc5d88da724064f27d1e34303d2adc1fc5fc93e5) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Propose add-neural-particle-simulators ([0ae6b36](https://github.com/georgedouzas/scikit-complexity/commit/0ae6b36db1ddd6dbb77a65de26fd8049f78a0581) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Propose add-hybrid-neural-laws ([a51877c](https://github.com/georgedouzas/scikit-complexity/commit/a51877c03d572aefe86113f9d1ad6b072e5cbb17) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Rewrap extend-law-discovery lines to 120 characters ([7e2204e](https://github.com/georgedouzas/scikit-complexity/commit/7e2204e38e8d5b5ec3e91532c55116eccff59b85) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Propose add-generative-samplers ([c8c3a1a](https://github.com/georgedouzas/scikit-complexity/commit/c8c3a1a445f545b210507dc711a9f263186134a1) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Propose add-identifiability-analysis ([13878bd](https://github.com/georgedouzas/scikit-complexity/commit/13878bdd7518d945882ae0ae52433ca8a3cc7a12) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Propose extend-network-and-emergence-measures ([d946224](https://github.com/georgedouzas/scikit-complexity/commit/d946224931d3834de8f333d5ef7679eaddeb97dc) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Propose add-learned-indicators ([598bfae](https://github.com/georgedouzas/scikit-complexity/commit/598bfae9c7a6229de89ab603b20529b2df850bd5) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Propose add-bayesian-calibration ([7ef4171](https://github.com/georgedouzas/scikit-complexity/commit/7ef4171eccbb58a13b9e0db92cc2e08ef8f083f5) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Propose extend-law-discovery ([e81fdea](https://github.com/georgedouzas/scikit-complexity/commit/e81fdea0ead6dc49ed3ced004c91fe31618b92f5) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Propose add-many-body-neighbour-roles ([92ce7ad](https://github.com/georgedouzas/scikit-complexity/commit/92ce7ad4c9a564a38eb7652bc91c61baa6bc60b5) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Propose add-equilibrium-census ([7d3f466](https://github.com/georgedouzas/scikit-complexity/commit/7d3f466ca7efd22248b1c55becfffd1b78478750) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Close the image table in the README ([9037220](https://github.com/georgedouzas/scikit-complexity/commit/9037220a37e5409d13f24c5fb4643874c526d141) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Remove the migration page ([566ff32](https://github.com/georgedouzas/scikit-complexity/commit/566ff32e71d0709c8ef169a1956cf993d2e5bb9b) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+
+### Code Refactoring
+
+- Move the differentiable step and unroll to JaxBackend ([e91f2d0](https://github.com/georgedouzas/scikit-complexity/commit/e91f2d0b684e763c831c1b95f49258e30d7cbd84) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+
+### Tests
+
+- Check the variational recovery of the three betas of the COVID agents ([6946964](https://github.com/georgedouzas/scikit-complexity/commit/6946964b73d9583996f6c2338f7905c8c87130b9) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Wrap a long line of the coverage tests ([cbb0d64](https://github.com/georgedouzas/scikit-complexity/commit/cbb0d642f0f63cfced71a9f28a5fe328f14f11f6) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Check the many-body alignment swarm against Eq. 2 ([119bbf2](https://github.com/georgedouzas/scikit-complexity/commit/119bbf24ba86dbe439e651f0ca971a6ee123aaee) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Check that neighbour hyperedges follow a neighbour that leaves ([d76e404](https://github.com/georgedouzas/scikit-complexity/commit/d76e404cad862dfbefdb569e2b1d1c55f4b82764) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Report neighbour hyperedges outside a continuous space or on JAX ([783e6e6](https://github.com/georgedouzas/scikit-complexity/commit/783e6e61dc75c910c7adee9daa9a9a6125761e20) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+
 ## [0.7.0](https://github.com/georgedouzas/scikit-complexity/releases/tag/0.7.0) - 2026-11-08
 
 <small>[Compare with 0.6.0](https://github.com/georgedouzas/scikit-complexity/compare/0.6.0...0.7.0)</small>
@@ -274,6 +349,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Seed the light-emitting robots runs, whose unseeded comparison failed now and then ([ecbeb56](https://github.com/georgedouzas/scikit-complexity/commit/ecbeb56b3136ef7d54684cbf47ff166c5bad43ee) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 - Accept the frozen results of analyses beside the frozen specs ([c6cab64](https://github.com/georgedouzas/scikit-complexity/commit/c6cab649a9a58517c623db4fe034efdc1f43d0f3) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 - Run the engineering component tests with ChuaSystem ([3ef038f](https://github.com/georgedouzas/scikit-complexity/commit/3ef038fb5c1d8e0181f616ec9cbd4e3596f80f42) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+
+### Chore
+
+- Release 0.7.0 ([b54ab50](https://github.com/georgedouzas/scikit-complexity/commit/b54ab50a625b031bddc38b40326ad1a95e3ed0b3) by georgedouzas).
 
 ## [0.6.0](https://github.com/georgedouzas/scikit-complexity/releases/tag/0.6.0) - 2026-11-07
 
